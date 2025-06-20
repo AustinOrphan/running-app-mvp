@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String @id @default(uuid())
+  email    String @unique
+  password String
+  name     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  runs  Run[]
+  goals Goal[]
+  races Race[]
+}
+
+model Run {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime
+  distance  Float
+  duration  Int
+  tag       String?
+  notes     String?
+  routeGeoJson String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([date])
+}
+
+model Goal {
+  id       String @id @default(uuid())
+  userId   String
+  title    String
+  targetKm Float
+  startDate DateTime
+  endDate   DateTime
+  isCompleted Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model Race {
+  id       String @id @default(uuid())
+  userId   String
+  name     String
+  raceDate DateTime
+  distance Float
+  targetTime Int?
+  actualTime Int?
+  notes    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([raceDate])
+}

@@ -1,0 +1,173 @@
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+h1 {
+  color: #333;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.status {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  background: #f0f9ff;
+  color: #0369a1;
+}
+
+.logout-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.logout-btn:hover {
+  background: #dc2626;
+}
+
+.auth-form {
+  max-width: 400px;
+  margin: 40px auto;
+  padding: 30px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+}
+
+.auth-form h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.auth-buttons button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.auth-buttons button[type="submit"] {
+  background: #3b82f6;
+  color: white;
+}
+
+.auth-buttons button[type="button"] {
+  background: #6b7280;
+  color: white;
+}
+
+.dashboard {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.actions {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.primary-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.primary-btn:hover {
+  background: #059669;
+}
+
+.runs-section h2 {
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.runs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.run-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.run-date {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 10px;
+}
+
+.run-details {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.run-details span {
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tag {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+}
+
+.run-notes {
+  font-size: 14px;
+  color: #6b7280;
+  font-style: italic;
+}

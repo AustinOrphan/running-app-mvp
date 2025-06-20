@@ -1,0 +1,1 @@
+/* Pie/bar chart component */
