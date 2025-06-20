@@ -13,13 +13,13 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
   try {
     const authHeader = req.headers.authorization;
     
-    if (\!authHeader || \!authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw createError('No token provided', 401);
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
-    if (\!process.env.JWT_SECRET) {
+    if (!process.env.JWT_SECRET) {
       throw createError('JWT secret not configured', 500);
     }
 
@@ -40,4 +40,3 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
 };
 
 export type { AuthRequest };
-EOF < /dev/null

@@ -30,9 +30,23 @@ app.use('/api/races', raceRoutes);
 app.use('/api/stats', statsRoutes);
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Debug endpoint to check users (development only)
+if (process.env.NODE_ENV === 'development') {
+  app.get('/api/debug/users', async (req, res) => {
+    try {
+      const users = await prisma.user.findMany({
+        select: { id: true, email: true, createdAt: true }
+      });
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  });
+}
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

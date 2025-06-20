@@ -37,4 +37,3 @@ export const createError = (message: string, statusCode: number = 500): AppError
   error.isOperational = true;
   return error;
 };
-EOF < /dev/null

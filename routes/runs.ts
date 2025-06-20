@@ -75,6 +75,17 @@ router.post(
   async (req: AuthRequest, res) => {
     try {
       const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
+      
+      console.log('Creating run for user:', req.user);
+      
+      // Verify user exists
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id }
+      });
+      
+      if (!user) {
+        throw createError('User not found', 404);
+      }
 
       const run = await prisma.run.create({
         data: {
@@ -90,6 +101,7 @@ router.post(
 
       res.status(201).json(run);
     } catch (error) {
+      console.error('Error creating run:', error);
       throw createError('Failed to create run', 500);
     }
   }

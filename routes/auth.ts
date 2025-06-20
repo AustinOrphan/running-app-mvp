@@ -1,10 +1,12 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
 import { validateBody } from '../middleware/validateBody.js';
 import { createError } from '../middleware/errorHandler.js';
 
 const router = express.Router();
+const prisma = new PrismaClient();
 
 // POST /api/auth/register - User registration
 router.post(
@@ -17,8 +19,25 @@ router.post(
     try {
       const { email, password } = req.body;
 
+      // Check if user already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (existingUser) {
+        throw createError('User already exists', 400);
+      }
+
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 12);
+
+      // Create user in database
+      const user = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+        },
+      });
 
       // Generate JWT
       if (!process.env.JWT_SECRET) {
@@ -26,7 +45,7 @@ router.post(
       }
 
       const token = jwt.sign(
-        { id: 'user-123', email },
+        { id: user.id, email: user.email },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
       );
@@ -35,8 +54,8 @@ router.post(
         message: 'User created successfully',
         token,
         user: {
-          id: 'user-123',
-          email,
+          id: user.id,
+          email: user.email,
         },
       });
     } catch (error) {
@@ -57,13 +76,28 @@ router.post(
     try {
       const { email, password } = req.body;
 
+      // Find user by email
+      const user = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        throw createError('Invalid credentials', 401);
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        throw createError('Invalid credentials', 401);
+      }
+
       // Generate JWT
       if (!process.env.JWT_SECRET) {
         throw createError('JWT secret not configured', 500);
       }
 
       const token = jwt.sign(
-        { id: 'user-123', email },
+        { id: user.id, email: user.email },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
       );
@@ -72,8 +106,8 @@ router.post(
         message: 'Login successful',
         token,
         user: {
-          id: 'user-123',
-          email,
+          id: user.id,
+          email: user.email,
         },
       });
     } catch (error) {
