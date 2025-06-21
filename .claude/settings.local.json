@@ -10,7 +10,14 @@
       "Bash(gh api:*)",
       "Bash(npm run build:*)",
       "Bash(npm run dev:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm run test:run:*)",
+      "Bash(npm run test:coverage:report:*)",
+      "Bash(mv:*)",
+      "Bash(npm run test:*)",
+      "Bash(find:*)",
+      "Bash(npx prisma:*)"
     ],
     "deny": []
   }
