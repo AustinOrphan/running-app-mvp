@@ -55,7 +55,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
     }
 
     res.json(run);
-  } catch (error) {
+  } catch (error: any) {
     if (error.statusCode === 404) throw error;
     throw createError('Failed to fetch run', 500);
   }
@@ -137,7 +137,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     res.json(run);
-  } catch (error) {
+  } catch (error: any) {
     if (error.statusCode === 404) throw error;
     throw createError('Failed to update run', 500);
   }
@@ -162,7 +162,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     res.status(204).send();
-  } catch (error) {
+  } catch (error: any) {
     if (error.statusCode === 404) throw error;
     throw createError('Failed to delete run', 500);
   }
