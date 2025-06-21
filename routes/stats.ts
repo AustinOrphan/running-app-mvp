@@ -84,4 +84,117 @@ router.get('/type-breakdown', requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/stats/trends - Get historical trends data
+router.get('/trends', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { period = '3m' } = req.query; // 1m, 3m, 6m, 1y
+    
+    let daysBack = 90; // default 3 months
+    switch (period) {
+      case '1m': daysBack = 30; break;
+      case '6m': daysBack = 180; break;
+      case '1y': daysBack = 365; break;
+    }
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - daysBack);
+
+    const runs = await prisma.run.findMany({
+      where: {
+        userId: req.user!.id,
+        date: { gte: startDate },
+      },
+      orderBy: { date: 'asc' },
+      select: {
+        date: true,
+        distance: true,
+        duration: true,
+      },
+    });
+
+    // Group by week for smoother trends
+    const weeklyData = runs.reduce((acc, run) => {
+      const weekStart = new Date(run.date);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const weekKey = weekStart.toISOString().split('T')[0];
+      
+      if (!acc[weekKey]) {
+        acc[weekKey] = {
+          date: weekKey,
+          distance: 0,
+          duration: 0,
+          runCount: 0,
+        };
+      }
+      
+      acc[weekKey].distance += run.distance;
+      acc[weekKey].duration += run.duration;
+      acc[weekKey].runCount++;
+      
+      return acc;
+    }, {} as Record<string, { date: string; distance: number; duration: number; runCount: number }>);
+
+    const trendsData = Object.values(weeklyData).map(week => ({
+      date: week.date,
+      distance: Number(week.distance.toFixed(2)),
+      duration: week.duration,
+      pace: week.distance > 0 ? Number((week.duration / week.distance).toFixed(2)) : 0,
+      weeklyDistance: Number(week.distance.toFixed(2)),
+    }));
+
+    res.json(trendsData);
+  } catch (error) {
+    throw createError('Failed to fetch trends data', 500);
+  }
+});
+
+// GET /api/stats/personal-records - Get personal best records
+router.get('/personal-records', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const runs = await prisma.run.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { date: 'desc' },
+    });
+
+    // Common distances to track PRs for (in km)
+    const distances = [1, 2, 5, 10, 15, 21.1, 42.2];
+    const records: Array<{
+      distance: number;
+      bestTime: number;
+      bestPace: number;
+      date: string;
+      runId: string;
+    }> = [];
+
+    distances.forEach(targetDistance => {
+      // Find runs within 10% of target distance
+      const relevantRuns = runs.filter(run => 
+        Math.abs(run.distance - targetDistance) <= targetDistance * 0.1
+      );
+
+      if (relevantRuns.length > 0) {
+        // Find best time (lowest duration) for this distance
+        const bestRun = relevantRuns.reduce((best, current) => 
+          current.duration < best.duration ? current : best
+        );
+
+        records.push({
+          distance: targetDistance,
+          bestTime: bestRun.duration,
+          bestPace: Number((bestRun.duration / bestRun.distance).toFixed(2)),
+          date: bestRun.date.toISOString(),
+          runId: bestRun.id,
+        });
+      }
+    });
+
+    // Sort by distance
+    records.sort((a, b) => a.distance - b.distance);
+
+    res.json(records);
+  } catch (error) {
+    throw createError('Failed to fetch personal records', 500);
+  }
+});
+
 export default router;

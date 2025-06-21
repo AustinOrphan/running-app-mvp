@@ -9,6 +9,7 @@ import { SwipeHint } from './components/Navigation/SwipeHint';
 import { ToastContainer } from './components/Toast/ToastContainer';
 import { RunsPage } from './components/Pages/RunsPage';
 import { ComingSoonPage } from './components/Pages/ComingSoonPage';
+import { StatsPage } from './pages/StatsPage';
 
 // Hooks
 import { useAuth } from './hooks/useAuth';
@@ -143,11 +144,7 @@ function App() {
           )}
 
           {activeTab === 'stats' && (
-            <ComingSoonPage
-              title="Statistics"
-              description="View detailed analytics, running trends, and insights about your progress."
-              icon="📈"
-            />
+            <StatsPage token={getToken()} />
           )}
         </div>
       </div>
