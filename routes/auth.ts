@@ -58,7 +58,7 @@ router.post(
           email: user.email,
         },
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error.statusCode) throw error;
       throw createError('Registration failed', 500);
     }
@@ -110,7 +110,7 @@ router.post(
           email: user.email,
         },
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error.statusCode) throw error;
       throw createError('Login failed', 500);
     }
