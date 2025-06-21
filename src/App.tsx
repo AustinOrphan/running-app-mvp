@@ -46,7 +46,18 @@ function App() {
   }
 
   const removeToast = (id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id))
+    // Add removing class to trigger animation
+    const toastElement = document.querySelector(`[data-toast-id="${id}"]`)
+    if (toastElement) {
+      toastElement.classList.add('removing')
+      // Wait for animation to complete before removing from state
+      setTimeout(() => {
+        setToasts(prev => prev.filter(toast => toast.id !== id))
+      }, 300) // Match the animation duration
+    } else {
+      // Fallback if element not found
+      setToasts(prev => prev.filter(toast => toast.id !== id))
+    }
   }
 
   // Utility functions
@@ -540,7 +551,7 @@ function App() {
 
             {runsLoading ? (
               <div className="runs-grid">
-                {[1, 2, 3].map((i) => (
+                {[1, 2, 3, 4, 5].map((i) => (
                   <div key={i} className="run-card skeleton">
                     <div className="skeleton-line" style={{width: '60%', height: '20px'}}></div>
                     <div className="skeleton-line" style={{width: '80%', height: '16px', marginTop: '10px'}}></div>
@@ -650,6 +661,7 @@ function App() {
         {toasts.map(toast => (
           <div 
             key={toast.id} 
+            data-toast-id={toast.id}
             className={`toast toast-${toast.type}`}
             onClick={() => removeToast(toast.id)}
           >
