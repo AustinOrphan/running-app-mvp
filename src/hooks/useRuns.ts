@@ -55,8 +55,6 @@ export const useRuns = (token: string | null) => {
       });
 
       if (response.ok) {
-        const pace = calculatePace(Number(formData.distance), Number(formData.duration) * 60);
-        const action = editingRun ? 'updated' : 'saved';
         await fetchRuns(); // Refresh the list
         return; // Success
       } else {

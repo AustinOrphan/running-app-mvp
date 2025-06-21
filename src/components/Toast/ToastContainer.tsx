@@ -22,7 +22,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove
             {toast.type === 'info' && 'ℹ️'}
           </span>
           <span className="toast-message">{toast.message}</span>
-          <button className="toast-close" onClick={() => onRemoveToast(toast.id)}>×</button>
+          <button className="toast-close" onClick={(event) => { event.stopPropagation(); onRemoveToast(toast.id); }}>×</button>
         </div>
       ))}
     </div>

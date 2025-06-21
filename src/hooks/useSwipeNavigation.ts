@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const tabs = ['runs', 'goals', 'races', 'stats'];
-const minSwipeDistance = 50;
+import { TAB_IDS, SWIPE_CONFIG } from '../constants/navigation';
 
 export const useSwipeNavigation = (
   activeTab: string,
@@ -30,17 +28,17 @@ export const useSwipeNavigation = (
   };
 
   const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
+    if (touchStart == null || touchEnd == null) return;
     
     const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
+    const isLeftSwipe = distance > SWIPE_CONFIG.minDistance;
+    const isRightSwipe = distance < -SWIPE_CONFIG.minDistance;
 
-    const currentTabIndex = tabs.indexOf(activeTab);
+    const currentTabIndex = TAB_IDS.indexOf(activeTab as any);
     
-    if (isLeftSwipe && currentTabIndex < tabs.length - 1) {
+    if (isLeftSwipe && currentTabIndex < TAB_IDS.length - 1) {
       // Swipe left - go to next tab
-      const nextTab = tabs[currentTabIndex + 1];
+      const nextTab = TAB_IDS[currentTabIndex + 1];
       onTabChange(nextTab);
       onSwipeHighlight();
       markAsSwipedOnce();
@@ -48,7 +46,7 @@ export const useSwipeNavigation = (
     
     if (isRightSwipe && currentTabIndex > 0) {
       // Swipe right - go to previous tab
-      const prevTab = tabs[currentTabIndex - 1];
+      const prevTab = TAB_IDS[currentTabIndex - 1];
       onTabChange(prevTab);
       onSwipeHighlight();
       markAsSwipedOnce();
