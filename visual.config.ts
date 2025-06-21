@@ -133,19 +133,16 @@ export default defineConfig({
 
   /* Visual testing specific configuration */
   expect: {
-    // Global threshold for visual comparisons
-    threshold: 0.2,
-    
     // Animation handling
     toHaveScreenshot: {
-      threshold: 0.2,
+      threshold: 0.02,
       maxDiffPixels: 1000,
       animations: 'disabled',
     },
     
     // Page screenshot defaults
     toMatchSnapshot: {
-      threshold: 0.3,
+      threshold: 0.02,
       maxDiffPixels: 2000,
     },
   },

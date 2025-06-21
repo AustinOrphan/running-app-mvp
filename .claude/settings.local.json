@@ -15,9 +15,10 @@
       "Bash(npm run test:run:*)",
       "Bash(npm run test:coverage:report:*)",
       "Bash(mv:*)",
-      "Bash(npm run test:*)",
+      "Bash(npm run test:(unit|integration|e2e|coverage|a11y|visual|all):*)",
       "Bash(find:*)",
-      "Bash(npx prisma:*)"
+      "Bash(npx prisma:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }
