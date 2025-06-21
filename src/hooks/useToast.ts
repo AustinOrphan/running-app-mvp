@@ -5,7 +5,8 @@ export const useToast = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const id = Date.now().toString();
+    // Generate unique ID using timestamp + random number to avoid duplicates
+    const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newToast: Toast = { id, message, type };
     setToasts(prev => [...prev, newToast]);
     
