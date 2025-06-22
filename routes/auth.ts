@@ -13,17 +13,17 @@ router.get('/test', (req, res) => {
 // POST /api/auth/register - User registration
 router.post('/register', async (req, res, next) => {
   try {
-    console.log('Registration attempt:', { email: req.body?.email, hasPassword: !!req.body?.password });
+    console.log('Registration attempt:', { hasEmail: !!req.body?.email, hasPassword: !!req.body?.password });
     
     const { email, password } = req.body;
 
     // Basic validation
     if (!email || !password) {
-      return res.status(400).json({ error: { message: 'Email and password are required', status: 400 } });
+      return res.status(400).json({ message: 'Email and password are required' });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ error: { message: 'Password must be at least 6 characters', status: 400 } });
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
     // Check if user already exists
@@ -32,7 +32,7 @@ router.post('/register', async (req, res, next) => {
     });
 
     if (existingUser) {
-      return res.status(400).json({ error: { message: 'User already exists', status: 400 } });
+      return res.status(409).json({ message: 'User already exists' });
     }
 
     // Hash password
@@ -48,7 +48,7 @@ router.post('/register', async (req, res, next) => {
 
     // Generate JWT
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ error: { message: 'JWT secret not configured', status: 500 } });
+      return res.status(500).json({ message: 'JWT secret not configured' });
     }
 
     const token = jwt.sign(
@@ -67,20 +67,20 @@ router.post('/register', async (req, res, next) => {
     });
   } catch (error: any) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: { message: 'Registration failed', status: 500 } });
+    res.status(500).json({ message: 'Registration failed' });
   }
 });
 
 // POST /api/auth/login - User login
 router.post('/login', async (req, res) => {
   try {
-    console.log('Login attempt:', { email: req.body?.email, hasPassword: !!req.body?.password });
+    console.log('Login attempt:', { hasEmail: !!req.body?.email, hasPassword: !!req.body?.password });
     
     const { email, password } = req.body;
 
     // Basic validation
     if (!email || !password) {
-      return res.status(400).json({ error: { message: 'Email and password are required', status: 400 } });
+      return res.status(400).json({ message: 'Email and password are required' });
     }
 
     // Find user by email
@@ -89,18 +89,18 @@ router.post('/login', async (req, res) => {
     });
 
     if (!user) {
-      return res.status(401).json({ error: { message: 'Invalid credentials', status: 401 } });
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return res.status(401).json({ error: { message: 'Invalid credentials', status: 401 } });
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Generate JWT
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ error: { message: 'JWT secret not configured', status: 500 } });
+      return res.status(500).json({ message: 'JWT secret not configured' });
     }
 
     const token = jwt.sign(
@@ -119,7 +119,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Login error:', error);
-    res.status(500).json({ error: { message: 'Login failed', status: 500 } });
+    res.status(500).json({ message: 'Login failed' });
   }
 });
 
