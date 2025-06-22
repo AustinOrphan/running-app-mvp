@@ -138,10 +138,13 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
                 position: 'insideLeft',
                 style: { textAnchor: 'middle', fill: 'rgba(255,255,255,0.6)' }
               }}
-              tickFormatter={selectedMetric === 'pace' ? 
-                (value: number) => value > 0 ? `${Math.floor(value / 60)}:${Math.round(value % 60).toString().padStart(2, '0')}` : '0' 
-                : undefined
-              }
+              tickFormatter={selectedMetric === 'pace' ? (value: number) => {
+                if (value <= 0) return '0';
+                const totalSeconds = Math.round(value);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+              } : undefined}
             />
             <Tooltip content={<CustomTooltip />} />
             <Line
