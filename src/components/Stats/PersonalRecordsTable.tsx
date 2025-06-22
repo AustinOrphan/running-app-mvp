@@ -83,8 +83,12 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
   });
 
   const formatDistance = (distance: number) => {
-    if (Math.abs(distance - 21.1) < 0.1) return 'Half Marathon';
-    if (Math.abs(distance - 42.2) < 0.1) return 'Marathon';
+    const HALF_MARATHON_KM = 21.1;
+    const MARATHON_KM = 42.2;
+    const DISTANCE_TOLERANCE_KM = 0.1;
+
+    if (Math.abs(distance - HALF_MARATHON_KM) < DISTANCE_TOLERANCE_KM) return 'Half Marathon';
+    if (Math.abs(distance - MARATHON_KM) < DISTANCE_TOLERANCE_KM) return 'Marathon';
     if (distance >= 1) return `${distance}K`;
     return `${(distance * 1000).toFixed(0)}m`;
   };

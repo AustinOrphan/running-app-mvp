@@ -6,7 +6,7 @@
   --border-color: #404040;
   --text-primary: rgba(255, 255, 255, 0.87);
   --text-secondary: rgba(255, 255, 255, 0.6);
-  --records-table-th-bg: #2a2a2a;
+  --records-table-th-bg: var(--secondary-bg);
   --hover-bg: rgba(255, 255, 255, 0.05);
 }
 
