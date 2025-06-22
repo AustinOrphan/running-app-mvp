@@ -81,12 +81,12 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
       return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
     }
   });
+  
+  const HALF_MARATHON_KM = 21.1;
+  const MARATHON_KM = 42.2;
+  const DISTANCE_TOLERANCE_KM = 0.1;
 
   const formatDistance = (distance: number) => {
-    const HALF_MARATHON_KM = 21.1;
-    const MARATHON_KM = 42.2;
-    const DISTANCE_TOLERANCE_KM = 0.1;
-
     if (Math.abs(distance - HALF_MARATHON_KM) < DISTANCE_TOLERANCE_KM) return 'Half Marathon';
     if (Math.abs(distance - MARATHON_KM) < DISTANCE_TOLERANCE_KM) return 'Marathon';
     if (distance >= 1) return `${distance}K`;
