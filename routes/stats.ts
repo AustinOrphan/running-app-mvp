@@ -144,7 +144,7 @@ router.get('/trends', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(trendsData);
   } catch (error) {
-    console.error('Failed to fetch trends data:', error);
+console.error({ message: 'Failed to fetch trends data', error });
     throw createError('Failed to fetch trends data', 500);
   }
 });
@@ -194,7 +194,7 @@ router.get('/personal-records', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(records);
   } catch (error) {
-    console.error('Failed to fetch personal records:', error);
+console.error({ message: 'Failed to fetch personal records', error });
     throw createError('Failed to fetch personal records', 500);
   }
 });
