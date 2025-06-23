@@ -1,56 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { Goal, GoalProgress, CreateGoalData } from '../types/goals';
+import { Goal, CreateGoalData } from '../types/goals';
 import { useToast } from '../hooks/useToast';
+import { useGoals } from '../hooks/useGoals';
 import { GoalCard } from '../components/GoalCard';
 import { CreateGoalModal } from '../components/CreateGoalModal';
+import { EditGoalModal } from '../components/EditGoalModal';
+import { ConfirmationModal } from '../components/ConfirmationModal';
+import { GoalAchievementNotification } from '../components/GoalAchievementNotification';
 
 interface GoalsPageProps {}
 
 export const GoalsPage: React.FC<GoalsPageProps> = () => {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [goalProgress, setGoalProgress] = useState<GoalProgress[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [deletingGoal, setDeletingGoal] = useState<Goal | null>(null);
+  const [currentAchievement, setCurrentAchievement] = useState<Goal | null>(null);
+  
   const { showToast } = useToast();
+  const token = localStorage.getItem('authToken');
+  
+  const {
+    goals,
+    loading,
+    error,
+    activeGoals,
+    completedGoals,
+    newlyAchievedGoals,
+    createGoal,
+    updateGoal,
+    deleteGoal,
+    completeGoal,
+    getGoalProgress,
+    markAchievementSeen,
+  } = useGoals(token);
 
-  const fetchGoals = async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/goals', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+  // Handle newly achieved goals
+  useEffect(() => {
+    if (newlyAchievedGoals.length > 0 && !currentAchievement) {
+      const nextAchievement = newlyAchievedGoals[0];
+      setCurrentAchievement(nextAchievement);
+    }
+  }, [newlyAchievedGoals, currentAchievement]);
+
+  const handleAchievementClose = () => {
+    if (currentAchievement) {
+      markAchievementSeen(currentAchievement.id);
+      setCurrentAchievement(null);
       
-      if (response.ok) {
-        const goalsData = await response.json();
-        setGoals(goalsData);
-        
-        // Fetch progress data
-        const progressResponse = await fetch('/api/goals/progress/all', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (progressResponse.ok) {
-          const progressData = await progressResponse.json();
-          setGoalProgress(progressData);
-        }
-      } else {
-        showToast('Failed to fetch goals', 'error');
+      // Show the next achievement if there are more
+      const remainingAchievements = newlyAchievedGoals.filter(
+        goal => goal.id !== currentAchievement.id
+      );
+      if (remainingAchievements.length > 0) {
+        setTimeout(() => {
+          setCurrentAchievement(remainingAchievements[0]);
+        }, 500);
       }
-    } catch (error) {
-      console.error('Error fetching goals:', error);
-      showToast('Failed to fetch goals', 'error');
-    } finally {
-      setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchGoals();
-  }, []);
 
   const handleCreateGoal = () => {
     setShowCreateModal(true);
@@ -58,83 +67,72 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
 
   const handleGoalCreated = async (goalData: CreateGoalData) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/goals', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(goalData)
-      });
-      
-      if (response.ok) {
-        setShowCreateModal(false);
-        fetchGoals(); // Refresh goals list
-        showToast('Goal created successfully!', 'success');
-      } else {
-        const errorData = await response.json();
-        showToast(errorData.message || 'Failed to create goal', 'error');
-      }
+      await createGoal(goalData);
+      setShowCreateModal(false);
+      showToast('Goal created successfully!', 'success');
     } catch (error) {
       console.error('Error creating goal:', error);
       showToast('Failed to create goal', 'error');
     }
   };
 
+  const handleEditGoal = (goalId: string) => {
+    const goal = goals.find(g => g.id === goalId);
+    if (goal) {
+      setEditingGoal(goal);
+      setShowEditModal(true);
+    }
+  };
+
+  const handleGoalUpdated = async (goalId: string, goalData: Partial<Goal>) => {
+    try {
+      await updateGoal(goalId, goalData);
+      setShowEditModal(false);
+      setEditingGoal(null);
+      showToast('Goal updated successfully!', 'success');
+    } catch (error) {
+      console.error('Error updating goal:', error);
+      showToast('Failed to update goal', 'error');
+    }
+  };
+
   const handleCompleteGoal = async (goalId: string) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/goals/${goalId}/complete`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        fetchGoals(); // Refresh goals list
-        showToast('Congratulations! Goal completed! 🎉', 'success');
-      } else {
-        const errorData = await response.json();
-        showToast(errorData.message || 'Failed to complete goal', 'error');
-      }
+      await completeGoal(goalId);
+      showToast('Congratulations! Goal completed! 🎉', 'success');
     } catch (error) {
       console.error('Error completing goal:', error);
       showToast('Failed to complete goal', 'error');
     }
   };
 
-  const handleDeleteGoal = async (goalId: string) => {
-    if (!confirm('Are you sure you want to delete this goal?')) {
-      return;
+  const handleDeleteGoal = (goalId: string) => {
+    const goal = goals.find(g => g.id === goalId);
+    if (goal) {
+      setDeletingGoal(goal);
+      setShowDeleteConfirmation(true);
     }
+  };
+
+  const confirmDeleteGoal = async () => {
+    if (!deletingGoal) return;
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/goals/${goalId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        fetchGoals(); // Refresh goals list
-        showToast('Goal deleted', 'info');
-      } else {
-        const errorData = await response.json();
-        showToast(errorData.message || 'Failed to delete goal', 'error');
-      }
+      await deleteGoal(deletingGoal.id);
+      setShowDeleteConfirmation(false);
+      setDeletingGoal(null);
+      showToast('Goal deleted successfully', 'info');
     } catch (error) {
       console.error('Error deleting goal:', error);
       showToast('Failed to delete goal', 'error');
     }
   };
 
-  const getGoalProgress = (goalId: string): GoalProgress | undefined => {
-    return goalProgress.find(p => p.goalId === goalId);
+  const cancelDeleteGoal = () => {
+    setShowDeleteConfirmation(false);
+    setDeletingGoal(null);
   };
+
 
 
   if (loading) {
@@ -148,8 +146,20 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
     );
   }
 
-  const activeGoals = goals.filter(goal => !goal.isCompleted);
-  const completedGoals = goals.filter(goal => goal.isCompleted);
+  if (error) {
+    return (
+      <div className="goals-page tab-panel">
+        <div className="error-container">
+          <div className="error-icon">❌</div>
+          <h3>Failed to Load Goals</h3>
+          <p>{error}</p>
+          <button className="btn-primary" onClick={() => window.location.reload()}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="goals-page tab-panel">
@@ -181,6 +191,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
                 progress={getGoalProgress(goal.id)}
                 onComplete={handleCompleteGoal}
                 onDelete={handleDeleteGoal}
+                onEdit={handleEditGoal}
               />
             ))}
           </div>
@@ -209,6 +220,35 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleGoalCreated}
+      />
+
+      {/* Edit Goal Modal */}
+      <EditGoalModal
+        isOpen={showEditModal}
+        goal={editingGoal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingGoal(null);
+        }}
+        onSubmit={handleGoalUpdated}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirmation}
+        title="Delete Goal"
+        message={`Are you sure you want to delete "${deletingGoal?.title}"? This action cannot be undone.`}
+        confirmText="Delete Goal"
+        cancelText="Cancel"
+        type="danger"
+        onConfirm={confirmDeleteGoal}
+        onCancel={cancelDeleteGoal}
+      />
+
+      {/* Goal Achievement Notification */}
+      <GoalAchievementNotification
+        achievedGoal={currentAchievement}
+        onClose={handleAchievementClose}
       />
     </div>
   );
