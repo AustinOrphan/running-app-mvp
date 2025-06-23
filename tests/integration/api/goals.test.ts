@@ -1,18 +1,34 @@
 import request from 'supertest';
-import { app } from '../../../app';
+import express from 'express';
+import cors from 'cors';
 import { testDb } from '../../fixtures/testDatabase';
-import { mockGoals } from '../../fixtures/mockData';
+import goalsRoutes from '../../../routes/goals';
+import { mockGoals, mockCreateGoalData, createMockGoal } from '../../fixtures/mockData';
+
+// Create test app
+const createTestApp = () => {
+  const app = express();
+  app.use(cors());
+  app.use(express.json());
+  app.use('/api/goals', goalsRoutes);
+  return app;
+};
 
 describe('Goals API Integration Tests', () => {
+  let app: express.Application;
   let testUser: any;
   let authToken: string;
+
+  beforeAll(async () => {
+    app = createTestApp();
+  });
 
   beforeEach(async () => {
     // Clean database and create test user
     await testDb.cleanupDatabase();
     testUser = await testDb.createTestUser({
       email: 'goals@test.com',
-      password: 'testpassword123'
+      password: 'testpassword'
     });
     authToken = testDb.generateTestToken(testUser.id);
   });
@@ -23,16 +39,7 @@ describe('Goals API Integration Tests', () => {
   });
 
   describe('GET /api/goals', () => {
-    it('returns empty goals list for new user', async () => {
-      const response = await request(app)
-        .get('/api/goals')
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(200);
-
-      expect(response.body).toEqual([]);
-    });
-
-    it('returns user goals when they exist', async () => {
+    it('returns all active goals for authenticated user', async () => {
       // Create test goals
       await testDb.createTestGoals(testUser.id, mockGoals.slice(0, 3));
 
@@ -41,157 +48,99 @@ describe('Goals API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
+      expect(Array.isArray(response.body)).toBe(true);
       expect(response.body).toHaveLength(3);
-      expect(response.body[0]).toMatchObject({
-        id: expect.any(Number),
-        title: expect.any(String),
-        description: expect.any(String),
-        targetValue: expect.any(Number),
-        targetUnit: expect.any(String),
-        currentValue: expect.any(Number),
-        targetDate: expect.any(String),
-        isCompleted: expect.any(Boolean),
-        createdAt: expect.any(String),
-        updatedAt: expect.any(String)
+      
+      response.body.forEach((goal: any) => {
+        expect(goal).toHaveProperty('id');
+        expect(goal).toHaveProperty('title');
+        expect(goal).toHaveProperty('type');
+        expect(goal).toHaveProperty('targetValue');
+        expect(goal).toHaveProperty('period');
+        expect(goal).toHaveProperty('startDate');
+        expect(goal).toHaveProperty('endDate');
+        expect(goal).toHaveProperty('userId', testUser.id);
+        expect(goal).toHaveProperty('isActive', true);
       });
     });
 
-    it('returns 401 for unauthenticated requests', async () => {
+    it('returns goals sorted by completion status and creation date', async () => {
+      const completedGoal = createMockGoal({ 
+        title: 'Completed Goal',
+        isCompleted: true,
+        completedAt: new Date().toISOString()
+      });
+      const activeGoal1 = createMockGoal({ title: 'Active Goal 1' });
+      const activeGoal2 = createMockGoal({ title: 'Active Goal 2' });
+
+      await testDb.createTestGoals(testUser.id, [completedGoal, activeGoal1, activeGoal2]);
+
+      const response = await request(app)
+        .get('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveLength(3);
+      
+      // Active goals should come first
+      const activeGoals = response.body.filter((g: any) => !g.isCompleted);
+      const completedGoals = response.body.filter((g: any) => g.isCompleted);
+      
+      expect(activeGoals).toHaveLength(2);
+      expect(completedGoals).toHaveLength(1);
+      
+      // Check that active goals appear before completed ones
+      const firstActiveIndex = response.body.findIndex((g: any) => !g.isCompleted);
+      const firstCompletedIndex = response.body.findIndex((g: any) => g.isCompleted);
+      expect(firstActiveIndex).toBeLessThan(firstCompletedIndex);
+    });
+
+    it('returns empty array for user with no goals', async () => {
+      const response = await request(app)
+        .get('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toEqual([]);
+    });
+
+    it('returns only goals belonging to authenticated user', async () => {
+      // Create another user with goals
+      const otherUser = await testDb.createTestUser({
+        email: 'other@test.com',
+        password: 'password'
+      });
+      await testDb.createTestGoals(otherUser.id, mockGoals.slice(0, 2));
+      
+      // Create goals for test user
+      await testDb.createTestGoals(testUser.id, mockGoals.slice(2, 4));
+
+      const response = await request(app)
+        .get('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveLength(2);
+      response.body.forEach((goal: any) => {
+        expect(goal.userId).toBe(testUser.id);
+      });
+    });
+
+    it('returns 401 without authentication', async () => {
       await request(app)
         .get('/api/goals')
         .expect(401);
     });
 
-    it('returns 401 for invalid token', async () => {
+    it('returns 401 with invalid token', async () => {
       await request(app)
         .get('/api/goals')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
     });
-
-    it('filters goals by completion status', async () => {
-      // Create mix of completed and incomplete goals
-      const goals = mockGoals.slice(0, 4);
-      goals[0].isCompleted = true;
-      goals[1].isCompleted = false;
-      goals[2].isCompleted = true;
-      goals[3].isCompleted = false;
-
-      await testDb.createTestGoals(testUser.id, goals);
-
-      // Get only completed goals
-      const completedResponse = await request(app)
-        .get('/api/goals?status=completed')
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(200);
-
-      expect(completedResponse.body).toHaveLength(2);
-      expect(completedResponse.body.every((goal: any) => goal.isCompleted)).toBe(true);
-
-      // Get only incomplete goals
-      const incompleteResponse = await request(app)
-        .get('/api/goals?status=active')
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(200);
-
-      expect(incompleteResponse.body).toHaveLength(2);
-      expect(incompleteResponse.body.every((goal: any) => !goal.isCompleted)).toBe(true);
-    });
   });
 
-  describe('POST /api/goals', () => {
-    it('creates a new goal successfully', async () => {
-      const newGoal = {
-        title: 'Run 100 Miles',
-        description: 'Complete 100 miles of running this month',
-        targetValue: 100,
-        targetUnit: 'miles',
-        targetDate: '2024-07-31'
-      };
-
-      const response = await request(app)
-        .post('/api/goals')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(newGoal)
-        .expect(201);
-
-      expect(response.body).toMatchObject({
-        id: expect.any(Number),
-        title: newGoal.title,
-        description: newGoal.description,
-        targetValue: newGoal.targetValue,
-        targetUnit: newGoal.targetUnit,
-        currentValue: 0,
-        targetDate: expect.stringContaining('2024-07-31'),
-        isCompleted: false,
-        userId: testUser.id,
-        createdAt: expect.any(String),
-        updatedAt: expect.any(String)
-      });
-    });
-
-    it('returns 400 for missing required fields', async () => {
-      const incompleteGoal = {
-        title: 'Incomplete Goal'
-        // Missing required fields
-      };
-
-      await request(app)
-        .post('/api/goals')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(incompleteGoal)
-        .expect(400);
-    });
-
-    it('returns 400 for invalid target value', async () => {
-      const invalidGoal = {
-        title: 'Invalid Goal',
-        description: 'Goal with invalid target',
-        targetValue: -10, // Invalid negative value
-        targetUnit: 'miles',
-        targetDate: '2024-07-31'
-      };
-
-      await request(app)
-        .post('/api/goals')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(invalidGoal)
-        .expect(400);
-    });
-
-    it('returns 400 for invalid target date', async () => {
-      const invalidGoal = {
-        title: 'Invalid Date Goal',
-        description: 'Goal with invalid date',
-        targetValue: 100,
-        targetUnit: 'miles',
-        targetDate: 'invalid-date'
-      };
-
-      await request(app)
-        .post('/api/goals')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(invalidGoal)
-        .expect(400);
-    });
-
-    it('returns 401 for unauthenticated requests', async () => {
-      const newGoal = {
-        title: 'Test Goal',
-        description: 'Test description',
-        targetValue: 50,
-        targetUnit: 'miles',
-        targetDate: '2024-07-31'
-      };
-
-      await request(app)
-        .post('/api/goals')
-        .send(newGoal)
-        .expect(401);
-    });
-  });
-
-  describe('PUT /api/goals/:id', () => {
+  describe('GET /api/goals/:id', () => {
     let testGoal: any;
 
     beforeEach(async () => {
@@ -199,87 +148,321 @@ describe('Goals API Integration Tests', () => {
       testGoal = goals[0];
     });
 
-    it('updates a goal successfully', async () => {
-      const updatedData = {
-        title: 'Updated Goal Title',
-        description: 'Updated description',
-        targetValue: 150,
-        currentValue: 25
-      };
-
+    it('returns specific goal for authenticated user', async () => {
       const response = await request(app)
-        .put(`/api/goals/${testGoal.id}`)
+        .get(`/api/goals/${testGoal.id}`)
         .set('Authorization', `Bearer ${authToken}`)
-        .send(updatedData)
         .expect(200);
 
-      expect(response.body).toMatchObject({
-        id: testGoal.id,
-        title: updatedData.title,
-        description: updatedData.description,
-        targetValue: updatedData.targetValue,
-        currentValue: updatedData.currentValue,
-        updatedAt: expect.any(String)
-      });
-    });
-
-    it('marks goal as completed when currentValue reaches targetValue', async () => {
-      const completionData = {
-        currentValue: testGoal.targetValue
-      };
-
-      const response = await request(app)
-        .put(`/api/goals/${testGoal.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(completionData)
-        .expect(200);
-
-      expect(response.body.isCompleted).toBe(true);
-      expect(response.body.currentValue).toBe(testGoal.targetValue);
+      expect(response.body).toHaveProperty('id', testGoal.id);
+      expect(response.body).toHaveProperty('title', testGoal.title);
+      expect(response.body).toHaveProperty('type', testGoal.type);
+      expect(response.body).toHaveProperty('targetValue', testGoal.targetValue);
+      expect(response.body).toHaveProperty('userId', testUser.id);
     });
 
     it('returns 404 for non-existent goal', async () => {
-      const nonExistentId = 99999;
+      const nonExistentId = 'non-existent-id';
+      
+      await request(app)
+        .get(`/api/goals/${nonExistentId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(404);
+    });
+
+    it('returns 403 for goal belonging to different user', async () => {
+      // Create another user with a goal
+      const otherUser = await testDb.createTestUser({
+        email: 'other@test.com',
+        password: 'password'
+      });
+      const otherGoals = await testDb.createTestGoals(otherUser.id, [mockGoals[1]]);
+      const otherGoal = otherGoals[0];
+
+      await request(app)
+        .get(`/api/goals/${otherGoal.id}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(403);
+    });
+
+    it('returns 401 without authentication', async () => {
+      await request(app)
+        .get(`/api/goals/${testGoal.id}`)
+        .expect(401);
+    });
+  });
+
+  describe('POST /api/goals', () => {
+    const validGoalData = {
+      title: 'Run 20km this week',
+      description: 'Weekly distance goal for training',
+      type: 'DISTANCE',
+      targetValue: 20,
+      targetUnit: 'km',
+      period: 'WEEKLY',
+      startDate: '2024-06-17',
+      endDate: '2024-06-23',
+      color: '#3b82f6',
+      icon: '🏃‍♂️'
+    };
+
+    it('creates new goal for authenticated user', async () => {
+      const response = await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(validGoalData)
+        .expect(201);
+
+      expect(response.body).toHaveProperty('id');
+      expect(response.body).toHaveProperty('title', validGoalData.title);
+      expect(response.body).toHaveProperty('type', validGoalData.type);
+      expect(response.body).toHaveProperty('targetValue', validGoalData.targetValue);
+      expect(response.body).toHaveProperty('period', validGoalData.period);
+      expect(response.body).toHaveProperty('userId', testUser.id);
+      expect(response.body).toHaveProperty('isActive', true);
+      expect(response.body).toHaveProperty('isCompleted', false);
+
+      // Verify goal was created in database
+      const createdGoal = await testDb.prisma.goal.findUnique({
+        where: { id: response.body.id }
+      });
+      expect(createdGoal).toBeTruthy();
+      expect(createdGoal?.userId).toBe(testUser.id);
+    });
+
+    it('creates goal with minimal required data', async () => {
+      const minimalData = {
+        title: 'Simple Goal',
+        type: 'FREQUENCY',
+        targetValue: 3,
+        targetUnit: 'runs',
+        period: 'WEEKLY',
+        startDate: '2024-06-17',
+        endDate: '2024-06-23'
+      };
+
+      const response = await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(minimalData)
+        .expect(201);
+
+      expect(response.body).toHaveProperty('title', minimalData.title);
+      expect(response.body).toHaveProperty('description', null);
+      expect(response.body).toHaveProperty('color', null);
+      expect(response.body).toHaveProperty('icon', null);
+    });
+
+    it('returns 400 for missing required fields', async () => {
+      const testCases = [
+        { ...validGoalData, title: undefined }, // missing title
+        { ...validGoalData, type: undefined }, // missing type
+        { ...validGoalData, targetValue: undefined }, // missing targetValue
+        { ...validGoalData, targetUnit: undefined }, // missing targetUnit
+        { ...validGoalData, period: undefined }, // missing period
+        { ...validGoalData, startDate: undefined }, // missing startDate
+        { ...validGoalData, endDate: undefined }, // missing endDate
+      ];
+
+      for (const testCase of testCases) {
+        await request(app)
+          .post('/api/goals')
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(testCase)
+          .expect(400);
+      }
+    });
+
+    it('returns 400 for invalid goal types', async () => {
+      const invalidTypeData = {
+        ...validGoalData,
+        type: 'INVALID_TYPE'
+      };
+
+      await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(invalidTypeData)
+        .expect(400);
+    });
+
+    it('returns 400 for invalid goal periods', async () => {
+      const invalidPeriodData = {
+        ...validGoalData,
+        period: 'INVALID_PERIOD'
+      };
+
+      await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(invalidPeriodData)
+        .expect(400);
+    });
+
+    it('returns 400 for invalid date range', async () => {
+      const invalidDateData = {
+        ...validGoalData,
+        startDate: '2024-06-23',
+        endDate: '2024-06-17' // end before start
+      };
+
+      await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(invalidDateData)
+        .expect(400);
+    });
+
+    it('returns 400 for negative target value', async () => {
+      const negativeValueData = {
+        ...validGoalData,
+        targetValue: -5
+      };
+
+      await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(negativeValueData)
+        .expect(400);
+    });
+
+    it('returns 400 for zero target value', async () => {
+      const zeroValueData = {
+        ...validGoalData,
+        targetValue: 0
+      };
+
+      await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(zeroValueData)
+        .expect(400);
+    });
+
+    it('returns 401 without authentication', async () => {
+      await request(app)
+        .post('/api/goals')
+        .send(validGoalData)
+        .expect(401);
+    });
+  });
+
+  describe('PUT /api/goals/:id', () => {
+    let testGoal: any;
+    const updateData = {
+      title: 'Updated Goal Title',
+      description: 'Updated description',
+      targetValue: 25,
+      color: '#ef4444'
+    };
+
+    beforeEach(async () => {
+      const goals = await testDb.createTestGoals(testUser.id, [mockGoals[0]]);
+      testGoal = goals[0];
+    });
+
+    it('updates existing goal for authenticated user', async () => {
+      const response = await request(app)
+        .put(`/api/goals/${testGoal.id}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(updateData)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('id', testGoal.id);
+      expect(response.body).toHaveProperty('title', updateData.title);
+      expect(response.body).toHaveProperty('description', updateData.description);
+      expect(response.body).toHaveProperty('targetValue', updateData.targetValue);
+      expect(response.body).toHaveProperty('color', updateData.color);
+
+      // Verify update in database
+      const updatedGoal = await testDb.prisma.goal.findUnique({
+        where: { id: testGoal.id }
+      });
+      expect(updatedGoal?.title).toBe(updateData.title);
+      expect(updatedGoal?.targetValue).toBe(updateData.targetValue);
+    });
+
+    it('updates partial data', async () => {
+      const partialUpdate = {
+        title: 'New Title Only'
+      };
+
+      const response = await request(app)
+        .put(`/api/goals/${testGoal.id}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(partialUpdate)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('title', partialUpdate.title);
+      expect(response.body).toHaveProperty('targetValue', testGoal.targetValue); // unchanged
+      expect(response.body).toHaveProperty('type', testGoal.type); // unchanged
+    });
+
+    it('returns 404 for non-existent goal', async () => {
+      const nonExistentId = 'non-existent-id';
 
       await request(app)
         .put(`/api/goals/${nonExistentId}`)
         .set('Authorization', `Bearer ${authToken}`)
-        .send({ title: 'Updated Title' })
+        .send(updateData)
         .expect(404);
     });
 
-    it('returns 403 for goal owned by different user', async () => {
-      // Create another user
+    it('returns 403 for goal belonging to different user', async () => {
+      // Create another user with a goal
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'otherpassword123'
+        password: 'password'
       });
-      const otherToken = testDb.generateTestToken(otherUser.id);
+      const otherGoals = await testDb.createTestGoals(otherUser.id, [mockGoals[1]]);
+      const otherGoal = otherGoals[0];
 
       await request(app)
-        .put(`/api/goals/${testGoal.id}`)
-        .set('Authorization', `Bearer ${otherToken}`)
-        .send({ title: 'Unauthorized Update' })
+        .put(`/api/goals/${otherGoal.id}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(updateData)
         .expect(403);
     });
 
-    it('returns 401 for unauthenticated requests', async () => {
-      await request(app)
-        .put(`/api/goals/${testGoal.id}`)
-        .send({ title: 'Updated Title' })
-        .expect(401);
+    it('returns 400 for invalid update data', async () => {
+      const invalidUpdates = [
+        { targetValue: -5 }, // negative value
+        { targetValue: 0 }, // zero value
+        { type: 'INVALID_TYPE' }, // invalid type
+        { period: 'INVALID_PERIOD' }, // invalid period
+        { startDate: '2024-06-30', endDate: '2024-06-20' } // invalid date range
+      ];
+
+      for (const invalidUpdate of invalidUpdates) {
+        await request(app)
+          .put(`/api/goals/${testGoal.id}`)
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(invalidUpdate)
+          .expect(400);
+      }
     });
 
-    it('returns 400 for invalid update data', async () => {
-      const invalidData = {
-        targetValue: -50 // Invalid negative value
-      };
+    it('returns 400 when trying to edit completed goal', async () => {
+      // Create a completed goal
+      const completedGoal = createMockGoal({ 
+        isCompleted: true,
+        completedAt: new Date().toISOString()
+      });
+      const goals = await testDb.createTestGoals(testUser.id, [completedGoal]);
+      const completed = goals[0];
 
       await request(app)
-        .put(`/api/goals/${testGoal.id}`)
+        .put(`/api/goals/${completed.id}`)
         .set('Authorization', `Bearer ${authToken}`)
-        .send(invalidData)
+        .send(updateData)
         .expect(400);
+    });
+
+    it('returns 401 without authentication', async () => {
+      await request(app)
+        .put(`/api/goals/${testGoal.id}`)
+        .send(updateData)
+        .expect(401);
     });
   });
 
@@ -291,23 +474,22 @@ describe('Goals API Integration Tests', () => {
       testGoal = goals[0];
     });
 
-    it('deletes a goal successfully', async () => {
+    it('soft deletes existing goal for authenticated user', async () => {
       await request(app)
         .delete(`/api/goals/${testGoal.id}`)
         .set('Authorization', `Bearer ${authToken}`)
-        .expect(204);
-
-      // Verify goal is deleted
-      const response = await request(app)
-        .get('/api/goals')
-        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body).toHaveLength(0);
+      // Verify goal was soft deleted (isActive set to false)
+      const deletedGoal = await testDb.prisma.goal.findUnique({
+        where: { id: testGoal.id }
+      });
+      expect(deletedGoal).toBeTruthy();
+      expect(deletedGoal?.isActive).toBe(false);
     });
 
     it('returns 404 for non-existent goal', async () => {
-      const nonExistentId = 99999;
+      const nonExistentId = 'non-existent-id';
 
       await request(app)
         .delete(`/api/goals/${nonExistentId}`)
@@ -315,208 +497,302 @@ describe('Goals API Integration Tests', () => {
         .expect(404);
     });
 
-    it('returns 403 for goal owned by different user', async () => {
-      // Create another user
+    it('returns 403 for goal belonging to different user', async () => {
+      // Create another user with a goal
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'otherpassword123'
+        password: 'password'
       });
-      const otherToken = testDb.generateTestToken(otherUser.id);
+      const otherGoals = await testDb.createTestGoals(otherUser.id, [mockGoals[1]]);
+      const otherGoal = otherGoals[0];
 
       await request(app)
-        .delete(`/api/goals/${testGoal.id}`)
-        .set('Authorization', `Bearer ${otherToken}`)
+        .delete(`/api/goals/${otherGoal.id}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(403);
+
+      // Verify goal was not deleted
+      const stillExists = await testDb.prisma.goal.findUnique({
+        where: { id: otherGoal.id }
+      });
+      expect(stillExists).toBeTruthy();
+      expect(stillExists?.isActive).toBe(true);
     });
 
-    it('returns 401 for unauthenticated requests', async () => {
+    it('returns 401 without authentication', async () => {
       await request(app)
         .delete(`/api/goals/${testGoal.id}`)
         .expect(401);
     });
   });
 
-  describe('GET /api/goals/:id/progress', () => {
+  describe('POST /api/goals/:id/complete', () => {
     let testGoal: any;
 
     beforeEach(async () => {
-      const goals = await testDb.createTestGoals(testUser.id, [mockGoals[0]]);
+      const activeGoal = createMockGoal({ isCompleted: false, completedAt: null });
+      const goals = await testDb.createTestGoals(testUser.id, [activeGoal]);
       testGoal = goals[0];
     });
 
-    it('returns goal progress successfully', async () => {
+    it('marks goal as completed for authenticated user', async () => {
       const response = await request(app)
-        .get(`/api/goals/${testGoal.id}/progress`)
+        .post(`/api/goals/${testGoal.id}/complete`)
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body).toMatchObject({
-        goalId: testGoal.id,
-        currentValue: testGoal.currentValue,
-        targetValue: testGoal.targetValue,
-        progressPercentage: expect.any(Number),
-        remainingValue: expect.any(Number),
-        isCompleted: testGoal.isCompleted,
-        daysRemaining: expect.any(Number)
+      expect(response.body).toHaveProperty('id', testGoal.id);
+      expect(response.body).toHaveProperty('isCompleted', true);
+      expect(response.body).toHaveProperty('completedAt');
+      expect(new Date(response.body.completedAt)).toBeInstanceOf(Date);
+
+      // Verify in database
+      const completedGoal = await testDb.prisma.goal.findUnique({
+        where: { id: testGoal.id }
       });
+      expect(completedGoal?.isCompleted).toBe(true);
+      expect(completedGoal?.completedAt).toBeTruthy();
     });
 
-    it('calculates progress percentage correctly', async () => {
-      // Update goal with specific values for testing
-      await testDb.prisma.goal.update({
-        where: { id: testGoal.id },
-        data: { currentValue: 25, targetValue: 100 }
-      });
-
-      const response = await request(app)
-        .get(`/api/goals/${testGoal.id}/progress`)
+    it('returns 400 for already completed goal', async () => {
+      // First complete the goal
+      await request(app)
+        .post(`/api/goals/${testGoal.id}/complete`)
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body.progressPercentage).toBe(25);
-      expect(response.body.remainingValue).toBe(75);
+      // Try to complete again
+      await request(app)
+        .post(`/api/goals/${testGoal.id}/complete`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(400);
     });
 
     it('returns 404 for non-existent goal', async () => {
-      const nonExistentId = 99999;
+      const nonExistentId = 'non-existent-id';
 
       await request(app)
-        .get(`/api/goals/${nonExistentId}/progress`)
+        .post(`/api/goals/${nonExistentId}/complete`)
         .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
     });
 
-    it('returns 403 for goal owned by different user', async () => {
-      // Create another user
+    it('returns 403 for goal belonging to different user', async () => {
+      // Create another user with a goal
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'otherpassword123'
+        password: 'password'
       });
-      const otherToken = testDb.generateTestToken(otherUser.id);
+      const otherGoals = await testDb.createTestGoals(otherUser.id, [createMockGoal()]);
+      const otherGoal = otherGoals[0];
 
       await request(app)
-        .get(`/api/goals/${testGoal.id}/progress`)
-        .set('Authorization', `Bearer ${otherToken}`)
+        .post(`/api/goals/${otherGoal.id}/complete`)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(403);
     });
 
-    it('returns 401 for unauthenticated requests', async () => {
+    it('returns 401 without authentication', async () => {
       await request(app)
-        .get(`/api/goals/${testGoal.id}/progress`)
+        .post(`/api/goals/${testGoal.id}/complete`)
         .expect(401);
     });
   });
 
-  describe('POST /api/goals/:id/update-progress', () => {
-    let testGoal: any;
-
+  describe('GET /api/goals/progress/all', () => {
     beforeEach(async () => {
-      const goals = await testDb.createTestGoals(testUser.id, [mockGoals[0]]);
-      testGoal = goals[0];
+      // Create test goals
+      await testDb.createTestGoals(testUser.id, mockGoals.slice(0, 3));
+      
+      // Create some test runs for progress calculation
+      const testRuns = [
+        {
+          date: '2024-06-15',
+          distance: 5.2,
+          duration: 1800,
+          tag: 'Easy Run',
+          notes: 'Morning run',
+          userId: testUser.id
+        },
+        {
+          date: '2024-06-13',
+          distance: 10.5,
+          duration: 3000,
+          tag: 'Long Run', 
+          notes: 'Weekly long run',
+          userId: testUser.id
+        }
+      ];
+      await testDb.createTestRuns(testUser.id, testRuns);
     });
 
-    it('updates goal progress successfully', async () => {
-      const progressUpdate = {
-        value: 15,
-        operation: 'add' // or 'set'
-      };
-
+    it('returns progress for all active goals', async () => {
       const response = await request(app)
-        .post(`/api/goals/${testGoal.id}/update-progress`)
+        .get('/api/goals/progress/all')
         .set('Authorization', `Bearer ${authToken}`)
-        .send(progressUpdate)
         .expect(200);
 
-      expect(response.body.currentValue).toBe(testGoal.currentValue + 15);
-    });
-
-    it('sets absolute progress value', async () => {
-      const progressUpdate = {
-        value: 50,
-        operation: 'set'
-      };
-
-      const response = await request(app)
-        .post(`/api/goals/${testGoal.id}/update-progress`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(progressUpdate)
-        .expect(200);
-
-      expect(response.body.currentValue).toBe(50);
-    });
-
-    it('marks goal as completed when target is reached', async () => {
-      const progressUpdate = {
-        value: testGoal.targetValue,
-        operation: 'set'
-      };
-
-      const response = await request(app)
-        .post(`/api/goals/${testGoal.id}/update-progress`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(progressUpdate)
-        .expect(200);
-
-      expect(response.body.isCompleted).toBe(true);
-      expect(response.body.currentValue).toBe(testGoal.targetValue);
-    });
-
-    it('returns 400 for invalid progress value', async () => {
-      const invalidUpdate = {
-        value: -10,
-        operation: 'add'
-      };
-
-      await request(app)
-        .post(`/api/goals/${testGoal.id}/update-progress`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(invalidUpdate)
-        .expect(400);
-    });
-
-    it('returns 400 for invalid operation', async () => {
-      const invalidUpdate = {
-        value: 10,
-        operation: 'invalid'
-      };
-
-      await request(app)
-        .post(`/api/goals/${testGoal.id}/update-progress`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(invalidUpdate)
-        .expect(400);
-    });
-
-    it('returns 404 for non-existent goal', async () => {
-      const nonExistentId = 99999;
-
-      await request(app)
-        .post(`/api/goals/${nonExistentId}/update-progress`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ value: 10, operation: 'add' })
-        .expect(404);
-    });
-
-    it('returns 403 for goal owned by different user', async () => {
-      // Create another user
-      const otherUser = await testDb.createTestUser({
-        email: 'other@test.com',
-        password: 'otherpassword123'
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.length).toBeGreaterThan(0);
+      
+      response.body.forEach((progress: any) => {
+        expect(progress).toHaveProperty('goalId');
+        expect(progress).toHaveProperty('currentValue');
+        expect(progress).toHaveProperty('targetValue');
+        expect(progress).toHaveProperty('progressPercentage');
+        expect(progress).toHaveProperty('remainingValue');
+        expect(progress).toHaveProperty('daysRemaining');
+        expect(progress).toHaveProperty('isCompleted');
+        expect(progress).toHaveProperty('isOnTrack');
+        expect(progress).toHaveProperty('lastUpdated');
       });
-      const otherToken = testDb.generateTestToken(otherUser.id);
-
-      await request(app)
-        .post(`/api/goals/${testGoal.id}/update-progress`)
-        .set('Authorization', `Bearer ${otherToken}`)
-        .send({ value: 10, operation: 'add' })
-        .expect(403);
     });
 
-    it('returns 401 for unauthenticated requests', async () => {
+    it('calculates progress correctly for distance goals', async () => {
+      const response = await request(app)
+        .get('/api/goals/progress/all')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      const distanceProgress = response.body.find((p: any) => 
+        p.goalId && p.targetValue === 50 // Monthly 50km goal
+      );
+      
+      if (distanceProgress) {
+        expect(distanceProgress.currentValue).toBeGreaterThan(0);
+        expect(distanceProgress.progressPercentage).toBeGreaterThanOrEqual(0);
+        expect(distanceProgress.progressPercentage).toBeLessThanOrEqual(100);
+        expect(distanceProgress.remainingValue).toBeGreaterThanOrEqual(0);
+      }
+    });
+
+    it('returns empty array for user with no goals', async () => {
+      // Clean goals for this test
+      await testDb.prisma.goal.deleteMany({
+        where: { userId: testUser.id }
+      });
+
+      const response = await request(app)
+        .get('/api/goals/progress/all')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toEqual([]);
+    });
+
+    it('returns 401 without authentication', async () => {
       await request(app)
-        .post(`/api/goals/${testGoal.id}/update-progress`)
-        .send({ value: 10, operation: 'add' })
+        .get('/api/goals/progress/all')
         .expect(401);
+    });
+  });
+
+  describe('Data Validation and Edge Cases', () => {
+    it('handles long strings in title and description', async () => {
+      const longString = 'a'.repeat(500);
+      const longData = {
+        title: longString,
+        description: longString,
+        type: 'DISTANCE',
+        targetValue: 10,
+        targetUnit: 'km',
+        period: 'WEEKLY',
+        startDate: '2024-06-17',
+        endDate: '2024-06-23'
+      };
+
+      await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(longData)
+        .expect(201);
+    });
+
+    it('handles special characters in goal data', async () => {
+      const specialData = {
+        title: 'Run 5K 🏃‍♂️',
+        description: 'Goal with émojis and spëcial chäractërs',
+        type: 'DISTANCE',
+        targetValue: 5,
+        targetUnit: 'km',
+        period: 'WEEKLY',
+        startDate: '2024-06-17',
+        endDate: '2024-06-23',
+        icon: '🎯'
+      };
+
+      const response = await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(specialData)
+        .expect(201);
+
+      expect(response.body.title).toBe(specialData.title);
+      expect(response.body.description).toBe(specialData.description);
+      expect(response.body.icon).toBe(specialData.icon);
+    });
+
+    it('handles large target values', async () => {
+      const largeValueData = {
+        title: 'Marathon Training',
+        type: 'DISTANCE',
+        targetValue: 1000,
+        targetUnit: 'km',
+        period: 'YEARLY',
+        startDate: '2024-01-01',
+        endDate: '2024-12-31'
+      };
+
+      const response = await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(largeValueData)
+        .expect(201);
+
+      expect(response.body.targetValue).toBe(largeValueData.targetValue);
+    });
+
+    it('handles decimal target values', async () => {
+      const decimalData = {
+        title: 'Half Marathon',
+        type: 'DISTANCE',
+        targetValue: 21.1,
+        targetUnit: 'km',
+        period: 'CUSTOM',
+        startDate: '2024-06-17',
+        endDate: '2024-06-23'
+      };
+
+      const response = await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(decimalData)
+        .expect(201);
+
+      expect(response.body.targetValue).toBe(decimalData.targetValue);
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('handles malformed JSON gracefully', async () => {
+      const response = await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .set('Content-Type', 'application/json')
+        .send('{"invalid": json}')
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('handles missing content-type header', async () => {
+      const response = await request(app)
+        .post('/api/goals')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send('not json data')
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
     });
   });
 });

@@ -1,7 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { mockRuns, mockTestUser } from './mockData';
+import { mockRuns, mockTestUser, mockGoals } from './mockData';
+import { Goal } from '../../src/types/goals';
 
 const prisma = new PrismaClient({
   datasources: {
@@ -51,6 +52,36 @@ export const createTestRuns = async (userId: string, runs = mockRuns) => {
   return createdRuns;
 };
 
+// Test goals creation utility
+export const createTestGoals = async (userId: string, goals = mockGoals) => {
+  const createdGoals = [];
+  
+  for (const goal of goals) {
+    const createdGoal = await prisma.goal.create({
+      data: {
+        title: goal.title,
+        description: goal.description,
+        type: goal.type,
+        targetValue: goal.targetValue,
+        targetUnit: goal.targetUnit,
+        currentValue: goal.currentValue || 0,
+        period: goal.period,
+        startDate: new Date(goal.startDate),
+        endDate: new Date(goal.endDate),
+        isCompleted: goal.isCompleted || false,
+        completedAt: goal.completedAt ? new Date(goal.completedAt) : null,
+        color: goal.color,
+        icon: goal.icon,
+        isActive: true,
+        userId: userId
+      }
+    });
+    createdGoals.push(createdGoal);
+  }
+  
+  return createdGoals;
+};
+
 // Generate test JWT token
 export const generateTestToken = (userId: string) => {
   return jwt.sign(
@@ -62,6 +93,7 @@ export const generateTestToken = (userId: string) => {
 
 // Clean up database utility
 export const cleanupDatabase = async () => {
+  await prisma.goal.deleteMany();
   await prisma.run.deleteMany();
   await prisma.user.deleteMany();
 };
@@ -85,6 +117,7 @@ export const testDb = {
   prisma,
   createTestUser,
   createTestRuns,
+  createTestGoals,
   generateTestToken,
   cleanupDatabase,
   seedTestDatabase
