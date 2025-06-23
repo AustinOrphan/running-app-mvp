@@ -143,11 +143,8 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
       newErrors.endDate = 'End date must be after start date';
     }
 
-    // Prevent editing goals to have start date in the past if it would change the goal significantly
-    const today = new Date().toISOString().split('T')[0];
-    if (goal && formData.startDate < today && new Date(goal.startDate).toISOString().split('T')[0] !== formData.startDate) {
-      newErrors.startDate = 'Cannot change start date to past date';
-    }
+    // Allow historical start dates for goal editing
+    // Users may need to adjust goal periods or correct initial dates
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

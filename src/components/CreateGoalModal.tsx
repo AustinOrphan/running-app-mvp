@@ -108,11 +108,8 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
       newErrors.endDate = 'End date must be after start date';
     }
 
-    // Check if start date is in the past
-    const today = new Date().toISOString().split('T')[0];
-    if (formData.startDate < today) {
-      newErrors.startDate = 'Start date cannot be in the past';
-    }
+    // Allow goals to start in the past for historical tracking
+    // Users may want to track goals that started earlier
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

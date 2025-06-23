@@ -1,6 +1,7 @@
 import express from 'express';
 import { prisma } from '../server.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
+import { createError } from '../middleware/errorHandler.js';
 import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../src/types/goals.js';
 
 const router = express.Router();
@@ -22,7 +23,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
     res.json(goals);
   } catch (error) {
     console.error('Failed to fetch goals:', error);
-    res.status(500).json({ message: 'Failed to fetch goals' });
+    throw createError('Failed to fetch goals', 500);
   }
 });
 
@@ -37,13 +38,13 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!goal) {
-      return res.status(404).json({ message: 'Goal not found' });
+      throw createError('Goal not found', 404);
     }
 
     res.json(goal);
   } catch (error) {
     console.error('Failed to fetch goal:', error);
-    res.status(500).json({ message: 'Failed to fetch goal' });
+    throw createError('Failed to fetch goal', 500);
   }
 });
 
@@ -65,31 +66,29 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
     // Validation
     if (!title || !type || !period || !targetValue || !targetUnit || !startDate || !endDate) {
-      return res.status(400).json({ 
-        message: 'Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate' 
-      });
+      throw createError('Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate', 400);
     }
 
     // Validate goal type
     if (!Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      return res.status(400).json({ message: 'Invalid goal type' });
+      throw createError('Invalid goal type', 400);
     }
 
     // Validate goal period
     if (!Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      return res.status(400).json({ message: 'Invalid goal period' });
+      throw createError('Invalid goal period', 400);
     }
 
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (start >= end) {
-      return res.status(400).json({ message: 'End date must be after start date' });
+      throw createError('End date must be after start date', 400);
     }
 
     // Validate target value
     if (targetValue <= 0) {
-      return res.status(400).json({ message: 'Target value must be positive' });
+      throw createError('Target value must be positive', 400);
     }
 
     const goal = await prisma.goal.create({
@@ -114,7 +113,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     res.status(201).json(goal);
   } catch (error) {
     console.error('Failed to create goal:', error);
-    res.status(500).json({ message: 'Failed to create goal' });
+    throw createError('Failed to create goal', 500);
   }
 });
 
@@ -145,33 +144,33 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!existingGoal) {
-      return res.status(404).json({ message: 'Goal not found' });
+      throw createError('Goal not found', 404);
     }
 
     // Prevent editing completed goals
     if (existingGoal.isCompleted) {
-      return res.status(400).json({ message: 'Cannot edit completed goals' });
+      throw createError('Cannot edit completed goals', 400);
     }
 
     // Validation (only validate provided fields)
     if (type && !Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      return res.status(400).json({ message: 'Invalid goal type' });
+      throw createError('Invalid goal type', 400);
     }
 
     if (period && !Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      return res.status(400).json({ message: 'Invalid goal period' });
+      throw createError('Invalid goal period', 400);
     }
 
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
       if (start >= end) {
-        return res.status(400).json({ message: 'End date must be after start date' });
+        throw createError('End date must be after start date', 400);
       }
     }
 
     if (targetValue !== undefined && targetValue <= 0) {
-      return res.status(400).json({ message: 'Target value must be positive' });
+      throw createError('Target value must be positive', 400);
     }
 
     // Update goal
@@ -195,7 +194,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     res.json(updatedGoal);
   } catch (error) {
     console.error('Failed to update goal:', error);
-    res.status(500).json({ message: 'Failed to update goal' });
+    throw createError('Failed to update goal', 500);
   }
 });
 
@@ -213,7 +212,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!goal) {
-      return res.status(404).json({ message: 'Goal not found' });
+      throw createError('Goal not found', 404);
     }
 
     // Soft delete by setting isActive to false
@@ -225,7 +224,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
     res.json({ message: 'Goal deleted successfully' });
   } catch (error) {
     console.error('Failed to delete goal:', error);
-    res.status(500).json({ message: 'Failed to delete goal' });
+    throw createError('Failed to delete goal', 500);
   }
 });
 
@@ -244,11 +243,11 @@ router.post('/:id/complete', requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!goal) {
-      return res.status(404).json({ message: 'Goal not found' });
+      throw createError('Goal not found', 404);
     }
 
     if (goal.isCompleted) {
-      return res.status(400).json({ message: 'Goal is already completed' });
+      throw createError('Goal is already completed', 400);
     }
 
     // Mark as completed
@@ -264,7 +263,7 @@ router.post('/:id/complete', requireAuth, async (req: AuthRequest, res) => {
     res.json(completedGoal);
   } catch (error) {
     console.error('Failed to complete goal:', error);
-    res.status(500).json({ message: 'Failed to complete goal' });
+    throw createError('Failed to complete goal', 500);
   }
 });
 
@@ -305,7 +304,7 @@ router.get('/progress/all', requireAuth, async (req: AuthRequest, res) => {
     res.json(progressData);
   } catch (error) {
     console.error('Failed to fetch goal progress:', error);
-    res.status(500).json({ message: 'Failed to fetch goal progress' });
+    throw createError('Failed to fetch goal progress', 500);
   }
 });
 

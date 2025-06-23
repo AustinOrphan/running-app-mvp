@@ -17,7 +17,8 @@
       "Bash(mv:*)",
       "Bash(npm run test:*)",
       "Bash(find:*)",
-      "Bash(npx prisma:*)"
+      "Bash(npx prisma:*)",
+      "Bash(gh pr edit:*)"
     ],
     "deny": []
   }
