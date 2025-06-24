@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Goal, GoalProgress, CreateGoalData } from '../types/goals';
+import { MilestoneDetector, DeadlineDetector, StreakDetector } from '../utils/milestoneDetector';
+import { useNotifications } from './useNotifications';
 
 interface UseGoalsReturn {
   goals: Goal[];
@@ -25,6 +27,17 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seenAchievements, setSeenAchievements] = useState<Set<string>>(new Set());
+  
+  // Notification system integration
+  const {
+    showMilestoneNotification,
+    showDeadlineNotification,
+    showStreakNotification,
+    preferences: notificationPreferences
+  } = useNotifications();
+  
+  // Track previous progress to detect changes
+  const previousProgressRef = useRef<Map<string, GoalProgress>>(new Map());
 
   // Computed values
   const activeGoals = goals.filter(goal => !goal.isCompleted);
@@ -95,6 +108,56 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       // Don't set error state for progress fetch failures
     }
   }, [token]);
+
+  // Check for milestone and deadline notifications
+  const checkNotifications = useCallback(() => {
+    if (!notificationPreferences.enableMilestoneNotifications && 
+        !notificationPreferences.enableDeadlineReminders) {
+      return;
+    }
+
+    goalProgress.forEach(progress => {
+      const goal = goals.find(g => g.id === progress.goalId);
+      if (!goal || goal.isCompleted) return;
+
+      const previousProgress = previousProgressRef.current.get(progress.goalId);
+
+      // Check for milestone notifications
+      if (notificationPreferences.enableMilestoneNotifications) {
+        const milestoneResult = MilestoneDetector.checkMilestones(goal, progress);
+        
+        if (milestoneResult.hasNewMilestones) {
+          milestoneResult.newMilestones.forEach(milestone => {
+            showMilestoneNotification(goal, progress, milestone);
+          });
+        }
+      }
+
+      // Check for deadline notifications
+      if (notificationPreferences.enableDeadlineReminders) {
+        const deadlineResult = DeadlineDetector.checkDeadlineReminder(
+          goal,
+          progress,
+          notificationPreferences.deadlineReminderDays
+        );
+        
+        if (deadlineResult.shouldNotify) {
+          showDeadlineNotification(goal, progress);
+        }
+      }
+
+      // Update previous progress tracking
+      previousProgressRef.current.set(progress.goalId, progress);
+    });
+  }, [
+    goals, 
+    goalProgress, 
+    notificationPreferences.enableMilestoneNotifications,
+    notificationPreferences.enableDeadlineReminders,
+    notificationPreferences.deadlineReminderDays,
+    showMilestoneNotification,
+    showDeadlineNotification
+  ]);
 
   // Create goal
   const createGoal = useCallback(async (goalData: CreateGoalData): Promise<Goal> => {
@@ -172,7 +235,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
   useEffect(() => {
     const autoCompleteGoals = async () => {
       for (const progress of goalProgress) {
-        if (progress.isCompleted && !progress.goal?.isCompleted) {
+        if (progress.isCompleted) {
           const goal = goals.find(g => g.id === progress.goalId);
           if (goal && !goal.isCompleted) {
             try {
@@ -201,6 +264,13 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       refreshProgress();
     }
   }, [goals.length, refreshProgress]);
+
+  // Check for notifications when progress updates
+  useEffect(() => {
+    if (goalProgress.length > 0 && goals.length > 0) {
+      checkNotifications();
+    }
+  }, [goalProgress, goals, checkNotifications]);
 
   return {
     goals,

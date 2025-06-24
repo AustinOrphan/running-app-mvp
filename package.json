@@ -47,6 +47,7 @@
     "test:all:complete": "npm run test:coverage && npm run test:integration && npm run test:e2e && npm run test:a11y:all && npm run test:visual"
   },
   "dependencies": {
+    "@mdi/svg": "^7.4.47",
     "@prisma/client": "^5.7.1",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
@@ -93,7 +94,7 @@
     "ts-jest": "^29.4.0",
     "tsx": "^4.6.2",
     "typescript": "^5.3.3",
-    "vite": "^5.0.8",
+    "vite": "^6.3.5",
     "vitest": "^3.2.4"
   }
 }

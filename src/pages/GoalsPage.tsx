@@ -7,6 +7,11 @@ import { CreateGoalModal } from '../components/CreateGoalModal';
 import { EditGoalModal } from '../components/EditGoalModal';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { GoalAchievementNotification } from '../components/GoalAchievementNotification';
+import { GoalTemplateBrowser } from '../components/Goals/GoalTemplateBrowser';
+import { TemplateCustomizationModal } from '../components/Goals/TemplateCustomizationModal';
+import { GoalAnalyticsDashboard } from '../components/Goals/GoalAnalyticsDashboard';
+import { GoalTemplate } from '../types/goalTemplates';
+import { useGoalAnalytics } from '../hooks/useGoalAnalytics';
 
 interface GoalsPageProps {}
 
@@ -17,6 +22,10 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [deletingGoal, setDeletingGoal] = useState<Goal | null>(null);
   const [currentAchievement, setCurrentAchievement] = useState<Goal | null>(null);
+  const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
+  const [showTemplateCustomization, setShowTemplateCustomization] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<GoalTemplate | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   
   const { showToast } = useToast();
   const token = localStorage.getItem('authToken');
@@ -34,7 +43,10 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
     completeGoal,
     getGoalProgress,
     markAchievementSeen,
+    goalProgress,
   } = useGoals(token);
+
+  const { analytics, insights } = useGoalAnalytics(goals, goalProgress, loading);
 
   // Handle newly achieved goals
   useEffect(() => {
@@ -63,6 +75,33 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
 
   const handleCreateGoal = () => {
     setShowCreateModal(true);
+  };
+
+  const handleBrowseTemplates = () => {
+    setShowTemplateBrowser(true);
+  };
+
+  const handleSelectTemplate = (template: GoalTemplate) => {
+    setSelectedTemplate(template);
+    setShowTemplateBrowser(false);
+    setShowTemplateCustomization(true);
+  };
+
+  const handleTemplateCustomizationConfirm = async (goalData: CreateGoalData) => {
+    try {
+      await createGoal(goalData);
+      setShowTemplateCustomization(false);
+      setSelectedTemplate(null);
+      showToast('Goal created from template successfully!', 'success');
+    } catch (error) {
+      console.error('Error creating goal from template:', error);
+      showToast('Failed to create goal from template', 'error');
+    }
+  };
+
+  const handleTemplateCustomizationClose = () => {
+    setShowTemplateCustomization(false);
+    setSelectedTemplate(null);
   };
 
   const handleGoalCreated = async (goalData: CreateGoalData) => {
@@ -165,9 +204,17 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
     <div className="goals-page tab-panel">
       <div className="goals-header">
         <h2>Running Goals</h2>
-        <button className="btn-primary" onClick={handleCreateGoal}>
-          + New Goal
-        </button>
+        <div className="goals-header-actions">
+          <button className="btn-secondary" onClick={() => setShowAnalytics(true)}>
+            📊 Analytics
+          </button>
+          <button className="btn-secondary" onClick={handleBrowseTemplates}>
+            📝 Browse Templates
+          </button>
+          <button className="btn-primary" onClick={handleCreateGoal}>
+            + New Goal
+          </button>
+        </div>
       </div>
 
       {/* Active Goals */}
@@ -178,9 +225,14 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
             <div className="empty-icon">🎯</div>
             <h4>No active goals</h4>
             <p>Set your first running goal to start tracking your progress!</p>
-            <button className="btn-primary" onClick={handleCreateGoal}>
-              Create Your First Goal
-            </button>
+            <div className="empty-state-actions">
+              <button className="btn-secondary" onClick={handleBrowseTemplates}>
+                📝 Browse Templates
+              </button>
+              <button className="btn-primary" onClick={handleCreateGoal}>
+                Create Custom Goal
+              </button>
+            </div>
           </div>
         ) : (
           <div className="goals-grid">
@@ -249,6 +301,29 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       <GoalAchievementNotification
         achievedGoal={currentAchievement}
         onClose={handleAchievementClose}
+      />
+
+      {/* Template Browser */}
+      <GoalTemplateBrowser
+        isOpen={showTemplateBrowser}
+        onClose={() => setShowTemplateBrowser(false)}
+        onSelectTemplate={handleSelectTemplate}
+      />
+
+      {/* Template Customization Modal */}
+      <TemplateCustomizationModal
+        template={selectedTemplate}
+        isOpen={showTemplateCustomization}
+        onClose={handleTemplateCustomizationClose}
+        onConfirm={handleTemplateCustomizationConfirm}
+      />
+
+      {/* Analytics Dashboard */}
+      <GoalAnalyticsDashboard
+        analytics={analytics}
+        insights={insights}
+        isOpen={showAnalytics}
+        onClose={() => setShowAnalytics(false)}
       />
     </div>
   );
