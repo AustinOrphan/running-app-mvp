@@ -20,14 +20,14 @@ const distanceTemplates: GoalTemplate[] = [
     tips: [
       'Increase weekly distance by no more than 10% each week',
       'Include one rest day between running days',
-      'Focus on easy pace for most runs'
+      'Focus on easy pace for most runs',
     ],
     milestones: [
       { percentage: 25, description: 'First 5K completed' },
       { percentage: 50, description: 'Halfway point - 10K done' },
       { percentage: 75, description: '15K completed - almost there!' },
-      { percentage: 100, description: 'Full 20K weekly target achieved!' }
-    ]
+      { percentage: 100, description: 'Full 20K weekly target achieved!' },
+    ],
   },
   {
     id: 'monthly-100k',
@@ -48,14 +48,14 @@ const distanceTemplates: GoalTemplate[] = [
       'Aim for 3-4 runs per week',
       'Mix different run lengths',
       'Include one longer run each week',
-      'Listen to your body and take rest days'
+      'Listen to your body and take rest days',
     ],
     milestones: [
       { percentage: 25, description: 'Quarter way - 25K completed' },
       { percentage: 50, description: 'Halfway point - 50K done' },
       { percentage: 75, description: 'Three quarters - 75K achieved' },
-      { percentage: 100, description: 'Century achieved - 100K completed!' }
-    ]
+      { percentage: 100, description: 'Century achieved - 100K completed!' },
+    ],
   },
   {
     id: 'half-marathon-distance',
@@ -76,8 +76,8 @@ const distanceTemplates: GoalTemplate[] = [
       'Build up long run distance gradually',
       'Practice race pace during training',
       'Focus on fueling and hydration strategy',
-      'Include recovery weeks in training'
-    ]
+      'Include recovery weeks in training',
+    ],
   },
   {
     id: 'marathon-distance',
@@ -93,15 +93,19 @@ const distanceTemplates: GoalTemplate[] = [
     color: '#ef4444',
     tags: ['race prep', 'marathon', 'ultimate challenge'],
     estimatedTimeframe: '16-20 weeks preparation',
-    prerequisites: ['Half marathon completed', 'Strong aerobic base', '6+ months consistent running'],
+    prerequisites: [
+      'Half marathon completed',
+      'Strong aerobic base',
+      '6+ months consistent running',
+    ],
     tips: [
       'Follow a structured training plan',
       'Practice nutrition during long runs',
       'Include strength training',
       'Prioritize recovery and sleep',
-      'Mental preparation is crucial'
-    ]
-  }
+      'Mental preparation is crucial',
+    ],
+  },
 ];
 
 // Speed-based goal templates
@@ -125,8 +129,8 @@ const speedTemplates: GoalTemplate[] = [
       'Include interval training once per week',
       'Practice tempo runs at target pace',
       'Focus on consistent pacing',
-      'Track your progress regularly'
-    ]
+      'Track your progress regularly',
+    ],
   },
   {
     id: 'sub-25-5k',
@@ -147,8 +151,8 @@ const speedTemplates: GoalTemplate[] = [
       'Include VO2 max intervals',
       'Practice race pace efforts',
       'Strengthen your core and legs',
-      'Work on running form efficiency'
-    ]
+      'Work on running form efficiency',
+    ],
   },
   {
     id: 'sub-90-half-marathon',
@@ -164,14 +168,18 @@ const speedTemplates: GoalTemplate[] = [
     color: '#6366f1',
     tags: ['half marathon', 'speed', 'elite amateur'],
     estimatedTimeframe: '16+ weeks specialized training',
-    prerequisites: ['Sub-2 hour half marathon', 'High weekly mileage', 'Advanced training background'],
+    prerequisites: [
+      'Sub-2 hour half marathon',
+      'High weekly mileage',
+      'Advanced training background',
+    ],
     tips: [
       'High volume training required',
       'Advanced speed work protocols',
       'Professional coaching recommended',
-      'Focus on lactate threshold development'
-    ]
-  }
+      'Focus on lactate threshold development',
+    ],
+  },
 ];
 
 // Consistency-based goal templates
@@ -195,8 +203,8 @@ const consistencyTemplates: GoalTemplate[] = [
       'Schedule runs on specific days',
       'Start with shorter runs',
       'Allow rest days between runs',
-      'Track your consistency'
-    ]
+      'Track your consistency',
+    ],
   },
   {
     id: 'daily-running-streak',
@@ -217,8 +225,8 @@ const consistencyTemplates: GoalTemplate[] = [
       'Some days can be very short runs',
       'Listen to your body',
       'Include easy recovery runs',
-      'Have a backup indoor plan'
-    ]
+      'Have a backup indoor plan',
+    ],
   },
   {
     id: 'run-5-times-weekly',
@@ -239,9 +247,9 @@ const consistencyTemplates: GoalTemplate[] = [
       'Include variety in training',
       'Monitor for overtraining signs',
       'Prioritize recovery',
-      'Include easy days'
-    ]
-  }
+      'Include easy days',
+    ],
+  },
 ];
 
 // Endurance-based goal templates
@@ -265,8 +273,8 @@ const enduranceTemplates: GoalTemplate[] = [
       'Build distance gradually',
       'Focus on time on feet, not speed',
       'Stay hydrated',
-      'Listen to your body'
-    ]
+      'Listen to your body',
+    ],
   },
   {
     id: 'longest-run-15k',
@@ -287,8 +295,8 @@ const enduranceTemplates: GoalTemplate[] = [
       'Increase long run distance by 1-2K per week',
       'Practice fueling during longer runs',
       'Focus on conversational pace',
-      'Plan rest day after long runs'
-    ]
+      'Plan rest day after long runs',
+    ],
   },
   {
     id: 'longest-run-20k',
@@ -309,9 +317,9 @@ const enduranceTemplates: GoalTemplate[] = [
       'Focus on time rather than pace',
       'Practice race nutrition',
       'Include walk breaks if needed',
-      'Mental preparation important'
-    ]
-  }
+      'Mental preparation important',
+    ],
+  },
 ];
 
 // Race preparation templates
@@ -335,8 +343,8 @@ const raceTemplates: GoalTemplate[] = [
       'Practice race pace during training',
       'Learn the course layout',
       'Include speed work weekly',
-      'Taper properly before attempts'
-    ]
+      'Taper properly before attempts',
+    ],
   },
   {
     id: 'couch-to-5k',
@@ -358,9 +366,9 @@ const raceTemplates: GoalTemplate[] = [
       'Start with walk-run intervals',
       'Progress gradually',
       'Celebrate small victories',
-      'Focus on completion, not speed'
-    ]
-  }
+      'Focus on completion, not speed',
+    ],
+  },
 ];
 
 // Recovery and technique templates
@@ -384,9 +392,9 @@ const recoveryTemplates: GoalTemplate[] = [
       'Should be able to hold conversation',
       'Focus on form over speed',
       'Use heart rate monitor if available',
-      'Majority of training should be easy'
-    ]
-  }
+      'Majority of training should be easy',
+    ],
+  },
 ];
 
 // Combine all templates into collections
@@ -395,38 +403,38 @@ export const GOAL_TEMPLATE_COLLECTIONS: GoalTemplateCollection[] = [
     category: 'distance',
     title: 'Distance Goals',
     description: 'Build your weekly and monthly running volume',
-    templates: distanceTemplates
+    templates: distanceTemplates,
   },
   {
     category: 'speed',
     title: 'Speed Goals',
     description: 'Improve your pace and race times',
-    templates: speedTemplates
+    templates: speedTemplates,
   },
   {
     category: 'consistency',
     title: 'Consistency Goals',
     description: 'Build sustainable running habits',
-    templates: consistencyTemplates
+    templates: consistencyTemplates,
   },
   {
     category: 'endurance',
     title: 'Endurance Goals',
     description: 'Increase your longest run distances',
-    templates: enduranceTemplates
+    templates: enduranceTemplates,
   },
   {
     category: 'race_preparation',
     title: 'Race Preparation',
     description: 'Train for specific race distances and events',
-    templates: raceTemplates
+    templates: raceTemplates,
   },
   {
     category: 'technique',
     title: 'Technique & Recovery',
     description: 'Focus on running form and recovery',
-    templates: recoveryTemplates
-  }
+    templates: recoveryTemplates,
+  },
 ];
 
 // Helper functions
@@ -444,18 +452,17 @@ export const getTemplatesByCategory = (category: string): GoalTemplate[] => {
 };
 
 export const getTemplatesByDifficulty = (difficulty: string): GoalTemplate[] => {
-  return GOAL_TEMPLATE_COLLECTIONS
-    .flatMap(collection => collection.templates)
-    .filter(template => template.difficulty === difficulty);
+  return GOAL_TEMPLATE_COLLECTIONS.flatMap(collection => collection.templates).filter(
+    template => template.difficulty === difficulty
+  );
 };
 
 export const searchTemplates = (query: string): GoalTemplate[] => {
   const lowercaseQuery = query.toLowerCase();
-  return GOAL_TEMPLATE_COLLECTIONS
-    .flatMap(collection => collection.templates)
-    .filter(template => 
+  return GOAL_TEMPLATE_COLLECTIONS.flatMap(collection => collection.templates).filter(
+    template =>
       template.name.toLowerCase().includes(lowercaseQuery) ||
       template.description.toLowerCase().includes(lowercaseQuery) ||
       template.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery))
-    );
+  );
 };

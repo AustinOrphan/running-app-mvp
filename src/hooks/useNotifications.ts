@@ -1,23 +1,25 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { 
-  GoalNotification, 
-  NotificationPreferences, 
+
+import { Goal, GoalProgress } from '../types/goals';
+import {
+  GoalNotification,
+  NotificationPreferences,
   NotificationQueue,
   MilestoneNotification,
   DeadlineNotification,
   StreakNotification,
   SummaryNotification,
-  ReminderNotification
+  ReminderNotification,
 } from '../types/notifications';
 import {
   NotificationPermissionManager,
   BrowserNotificationManager,
   NotificationTimingManager,
   NotificationContentGenerator,
-  NotificationPreferencesStorage
+  NotificationPreferencesStorage,
 } from '../utils/notifications';
+
 import { useToast } from './useToast';
-import { Goal, GoalProgress } from '../types/goals';
 
 interface UseNotificationsReturn {
   notifications: GoalNotification[];
@@ -28,14 +30,23 @@ interface UseNotificationsReturn {
   updatePreferences: (newPreferences: Partial<NotificationPreferences>) => void;
   showMilestoneNotification: (goal: Goal, progress: GoalProgress, milestone: number) => void;
   showDeadlineNotification: (goal: Goal, progress: GoalProgress) => void;
-  showStreakNotification: (streakCount: number, streakType: 'daily' | 'weekly' | 'monthly', goalTitle?: string) => void;
-  showSummaryNotification: (period: 'weekly' | 'monthly', stats: {
-    goalsCompleted: number;
-    totalGoals: number;
-    averageProgress: number;
-    topPerformingGoal?: string;
-  }) => void;
-  showReminderNotification: (reminderType: 'goal_check_in' | 'missed_run' | 'weekly_planning') => void;
+  showStreakNotification: (
+    streakCount: number,
+    streakType: 'daily' | 'weekly' | 'monthly',
+    goalTitle?: string
+  ) => void;
+  showSummaryNotification: (
+    period: 'weekly' | 'monthly',
+    stats: {
+      goalsCompleted: number;
+      totalGoals: number;
+      averageProgress: number;
+      topPerformingGoal?: string;
+    }
+  ) => void;
+  showReminderNotification: (
+    reminderType: 'goal_check_in' | 'missed_run' | 'weekly_planning'
+  ) => void;
   dismissNotification: (notificationId: string) => void;
   markAsRead: (notificationId: string) => void;
   clearAllNotifications: () => void;
@@ -47,9 +58,7 @@ export const useNotifications = (): UseNotificationsReturn => {
   const [preferences, setPreferences] = useState<NotificationPreferences>(
     NotificationPreferencesStorage.load()
   );
-  const [hasPermission, setHasPermission] = useState(
-    NotificationPermissionManager.hasPermission()
-  );
+  const [hasPermission, setHasPermission] = useState(NotificationPermissionManager.hasPermission());
   const [canRequestPermission, setCanRequestPermission] = useState(
     NotificationPermissionManager.canRequestPermission()
   );
@@ -58,7 +67,7 @@ export const useNotifications = (): UseNotificationsReturn => {
   const notificationQueue = useRef<NotificationQueue>({
     notifications: [],
     maxSize: 10,
-    processing: false
+    processing: false,
   });
 
   // Load notifications from localStorage on mount
@@ -84,11 +93,14 @@ export const useNotifications = (): UseNotificationsReturn => {
   }, [notifications]);
 
   // Update preferences and save to storage
-  const updatePreferences = useCallback((newPreferences: Partial<NotificationPreferences>) => {
-    const updatedPreferences = { ...preferences, ...newPreferences };
-    setPreferences(updatedPreferences);
-    NotificationPreferencesStorage.save(updatedPreferences);
-  }, [preferences]);
+  const updatePreferences = useCallback(
+    (newPreferences: Partial<NotificationPreferences>) => {
+      const updatedPreferences = { ...preferences, ...newPreferences };
+      setPreferences(updatedPreferences);
+      NotificationPreferencesStorage.save(updatedPreferences);
+    },
+    [preferences]
+  );
 
   // Request notification permission
   const requestPermission = useCallback(async (): Promise<boolean> => {
@@ -96,47 +108,60 @@ export const useNotifications = (): UseNotificationsReturn => {
     const granted = permission === 'granted';
     setHasPermission(granted);
     setCanRequestPermission(permission === 'default');
-    
+
     if (granted) {
       updatePreferences({ enableBrowserNotifications: true });
       showToast('Notifications enabled successfully!', 'success');
     } else {
-      showToast('Notification permission denied. You can still receive in-app notifications.', 'info');
+      showToast(
+        'Notification permission denied. You can still receive in-app notifications.',
+        'info'
+      );
     }
-    
+
     return granted;
   }, [updatePreferences, showToast]);
 
   // Add notification to queue and process
-  const addNotification = useCallback((notification: GoalNotification) => {
-    // Check if notification should be shown based on preferences
-    if (!NotificationTimingManager.shouldShowNotification(notification, preferences)) {
-      return;
-    }
+  const addNotification = useCallback(
+    (notification: GoalNotification) => {
+      // Check if notification should be shown based on preferences
+      if (!NotificationTimingManager.shouldShowNotification(notification, preferences)) {
+        return;
+      }
 
-    // Add to internal notification list
-    setNotifications(prev => {
-      const updated = [notification, ...prev];
-      // Keep only the most recent 50 notifications
-      return updated.slice(0, 50);
-    });
+      // Add to internal notification list
+      setNotifications(prev => {
+        const updated = [notification, ...prev];
+        // Keep only the most recent 50 notifications
+        return updated.slice(0, 50);
+      });
 
-    // Show toast notification
-    const toastType = notification.priority === 'urgent' ? 'error' : 
-                     notification.priority === 'high' ? 'info' : 'success';
-    showToast(`${notification.icon || ''} ${notification.title}`, toastType);
+      // Show toast notification
+      const toastType =
+        notification.priority === 'urgent'
+          ? 'error'
+          : notification.priority === 'high'
+            ? 'info'
+            : 'success';
+      showToast(`${notification.icon || ''} ${notification.title}`, toastType);
 
-    // Show browser notification if enabled and permission granted
-    if (preferences.enableBrowserNotifications && hasPermission) {
-      BrowserNotificationManager.show({
-        title: notification.title,
-        body: notification.message,
-        icon: '/favicon.ico',
-        requireInteraction: notification.priority === 'urgent',
-        silent: !preferences.enableSounds
-      }, `goal-${notification.type}-${notification.goalId || 'general'}`);
-    }
-  }, [preferences, hasPermission, showToast]);
+      // Show browser notification if enabled and permission granted
+      if (preferences.enableBrowserNotifications && hasPermission) {
+        BrowserNotificationManager.show(
+          {
+            title: notification.title,
+            body: notification.message,
+            icon: '/favicon.ico',
+            requireInteraction: notification.priority === 'urgent',
+            silent: !preferences.enableSounds,
+          },
+          `goal-${notification.type}-${notification.goalId || 'general'}`
+        );
+      }
+    },
+    [preferences, hasPermission, showToast]
+  );
 
   // Generate notification ID
   const generateNotificationId = useCallback(() => {
@@ -144,184 +169,186 @@ export const useNotifications = (): UseNotificationsReturn => {
   }, []);
 
   // Milestone notification
-  const showMilestoneNotification = useCallback((
-    goal: Goal, 
-    progress: GoalProgress, 
-    milestone: number
-  ) => {
-    const content = NotificationContentGenerator.generateMilestoneContent(
-      goal.title,
-      milestone,
-      progress.currentValue,
-      goal.targetValue,
-      goal.targetUnit
-    );
+  const showMilestoneNotification = useCallback(
+    (goal: Goal, progress: GoalProgress, milestone: number) => {
+      const content = NotificationContentGenerator.generateMilestoneContent(
+        goal.title,
+        milestone,
+        progress.currentValue,
+        goal.targetValue,
+        goal.targetUnit
+      );
 
-    const notification: MilestoneNotification = {
-      id: generateNotificationId(),
-      type: 'milestone',
-      priority: milestone >= 75 ? 'high' : 'medium',
-      title: content.title,
-      message: content.message,
-      timestamp: new Date(),
-      read: false,
-      dismissed: false,
-      goalId: goal.id,
-      icon: content.icon,
-      color: goal.color || '#3b82f6',
-      milestonePercentage: milestone,
-      currentProgress: progress.currentValue,
-      targetValue: goal.targetValue,
-      goalTitle: goal.title
-    };
+      const notification: MilestoneNotification = {
+        id: generateNotificationId(),
+        type: 'milestone',
+        priority: milestone >= 75 ? 'high' : 'medium',
+        title: content.title,
+        message: content.message,
+        timestamp: new Date(),
+        read: false,
+        dismissed: false,
+        goalId: goal.id,
+        icon: content.icon,
+        color: goal.color || '#3b82f6',
+        milestonePercentage: milestone,
+        currentProgress: progress.currentValue,
+        targetValue: goal.targetValue,
+        goalTitle: goal.title,
+      };
 
-    addNotification(notification);
-  }, [generateNotificationId, addNotification]);
+      addNotification(notification);
+    },
+    [generateNotificationId, addNotification]
+  );
 
   // Deadline notification
-  const showDeadlineNotification = useCallback((goal: Goal, progress: GoalProgress) => {
-    const content = NotificationContentGenerator.generateDeadlineContent(
-      goal.title,
-      progress.daysRemaining,
-      progress.currentValue,
-      goal.targetValue,
-      goal.targetUnit
-    );
+  const showDeadlineNotification = useCallback(
+    (goal: Goal, progress: GoalProgress) => {
+      const content = NotificationContentGenerator.generateDeadlineContent(
+        goal.title,
+        progress.daysRemaining,
+        progress.currentValue,
+        goal.targetValue,
+        goal.targetUnit
+      );
 
-    const notification: DeadlineNotification = {
-      id: generateNotificationId(),
-      type: 'deadline',
-      priority: progress.daysRemaining <= 1 ? 'urgent' : progress.daysRemaining <= 3 ? 'high' : 'medium',
-      title: content.title,
-      message: content.message,
-      timestamp: new Date(),
-      read: false,
-      dismissed: false,
-      goalId: goal.id,
-      icon: content.icon,
-      color: progress.daysRemaining <= 1 ? '#ef4444' : '#f59e0b',
-      daysRemaining: progress.daysRemaining,
-      goalTitle: goal.title,
-      goalEndDate: new Date(goal.endDate),
-      currentProgress: progress.currentValue,
-      targetValue: goal.targetValue
-    };
+      const notification: DeadlineNotification = {
+        id: generateNotificationId(),
+        type: 'deadline',
+        priority:
+          progress.daysRemaining <= 1 ? 'urgent' : progress.daysRemaining <= 3 ? 'high' : 'medium',
+        title: content.title,
+        message: content.message,
+        timestamp: new Date(),
+        read: false,
+        dismissed: false,
+        goalId: goal.id,
+        icon: content.icon,
+        color: progress.daysRemaining <= 1 ? '#ef4444' : '#f59e0b',
+        daysRemaining: progress.daysRemaining,
+        goalTitle: goal.title,
+        goalEndDate: new Date(goal.endDate),
+        currentProgress: progress.currentValue,
+        targetValue: goal.targetValue,
+      };
 
-    addNotification(notification);
-  }, [generateNotificationId, addNotification]);
+      addNotification(notification);
+    },
+    [generateNotificationId, addNotification]
+  );
 
   // Streak notification
-  const showStreakNotification = useCallback((
-    streakCount: number, 
-    streakType: 'daily' | 'weekly' | 'monthly', 
-    goalTitle?: string
-  ) => {
-    const content = NotificationContentGenerator.generateStreakContent(
-      streakCount,
-      streakType,
-      goalTitle
-    );
+  const showStreakNotification = useCallback(
+    (streakCount: number, streakType: 'daily' | 'weekly' | 'monthly', goalTitle?: string) => {
+      const content = NotificationContentGenerator.generateStreakContent(
+        streakCount,
+        streakType,
+        goalTitle
+      );
 
-    const notification: StreakNotification = {
-      id: generateNotificationId(),
-      type: 'streak',
-      priority: streakCount >= 30 ? 'high' : 'medium',
-      title: content.title,
-      message: content.message,
-      timestamp: new Date(),
-      read: false,
-      dismissed: false,
-      icon: content.icon,
-      color: '#10b981',
-      streakCount,
-      streakType,
-      goalTitle
-    };
+      const notification: StreakNotification = {
+        id: generateNotificationId(),
+        type: 'streak',
+        priority: streakCount >= 30 ? 'high' : 'medium',
+        title: content.title,
+        message: content.message,
+        timestamp: new Date(),
+        read: false,
+        dismissed: false,
+        icon: content.icon,
+        color: '#10b981',
+        streakCount,
+        streakType,
+        goalTitle,
+      };
 
-    addNotification(notification);
-  }, [generateNotificationId, addNotification]);
+      addNotification(notification);
+    },
+    [generateNotificationId, addNotification]
+  );
 
   // Summary notification
-  const showSummaryNotification = useCallback((
-    period: 'weekly' | 'monthly',
-    stats: {
-      goalsCompleted: number;
-      totalGoals: number;
-      averageProgress: number;
-      topPerformingGoal?: string;
-    }
-  ) => {
-    const content = NotificationContentGenerator.generateSummaryContent(
-      period,
-      stats.goalsCompleted,
-      stats.totalGoals,
-      stats.averageProgress,
-      stats.topPerformingGoal
-    );
+  const showSummaryNotification = useCallback(
+    (
+      period: 'weekly' | 'monthly',
+      stats: {
+        goalsCompleted: number;
+        totalGoals: number;
+        averageProgress: number;
+        topPerformingGoal?: string;
+      }
+    ) => {
+      const content = NotificationContentGenerator.generateSummaryContent(
+        period,
+        stats.goalsCompleted,
+        stats.totalGoals,
+        stats.averageProgress,
+        stats.topPerformingGoal
+      );
 
-    const notification: SummaryNotification = {
-      id: generateNotificationId(),
-      type: 'summary',
-      priority: 'low',
-      title: content.title,
-      message: content.message,
-      timestamp: new Date(),
-      read: false,
-      dismissed: false,
-      icon: content.icon,
-      color: '#6366f1',
-      summaryPeriod: period,
-      goalsCompleted: stats.goalsCompleted,
-      totalGoals: stats.totalGoals,
-      averageProgress: stats.averageProgress,
-      topPerformingGoal: stats.topPerformingGoal
-    };
+      const notification: SummaryNotification = {
+        id: generateNotificationId(),
+        type: 'summary',
+        priority: 'low',
+        title: content.title,
+        message: content.message,
+        timestamp: new Date(),
+        read: false,
+        dismissed: false,
+        icon: content.icon,
+        color: '#6366f1',
+        summaryPeriod: period,
+        goalsCompleted: stats.goalsCompleted,
+        totalGoals: stats.totalGoals,
+        averageProgress: stats.averageProgress,
+        topPerformingGoal: stats.topPerformingGoal,
+      };
 
-    addNotification(notification);
-  }, [generateNotificationId, addNotification]);
+      addNotification(notification);
+    },
+    [generateNotificationId, addNotification]
+  );
 
   // Reminder notification
-  const showReminderNotification = useCallback((
-    reminderType: 'goal_check_in' | 'missed_run' | 'weekly_planning'
-  ) => {
-    const content = NotificationContentGenerator.generateReminderContent(reminderType);
+  const showReminderNotification = useCallback(
+    (reminderType: 'goal_check_in' | 'missed_run' | 'weekly_planning') => {
+      const content = NotificationContentGenerator.generateReminderContent(reminderType);
 
-    const notification: ReminderNotification = {
-      id: generateNotificationId(),
-      type: 'reminder',
-      priority: 'low',
-      title: content.title,
-      message: content.message,
-      timestamp: new Date(),
-      read: false,
-      dismissed: false,
-      icon: content.icon,
-      color: '#8b5cf6',
-      reminderType,
-      scheduledFor: new Date()
-    };
+      const notification: ReminderNotification = {
+        id: generateNotificationId(),
+        type: 'reminder',
+        priority: 'low',
+        title: content.title,
+        message: content.message,
+        timestamp: new Date(),
+        read: false,
+        dismissed: false,
+        icon: content.icon,
+        color: '#8b5cf6',
+        reminderType,
+        scheduledFor: new Date(),
+      };
 
-    addNotification(notification);
-  }, [generateNotificationId, addNotification]);
+      addNotification(notification);
+    },
+    [generateNotificationId, addNotification]
+  );
 
   // Dismiss notification
   const dismissNotification = useCallback((notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === notificationId 
-          ? { ...notification, dismissed: true }
-          : notification
+    setNotifications(prev =>
+      prev.map(notification =>
+        notification.id === notificationId ? { ...notification, dismissed: true } : notification
       )
     );
   }, []);
 
   // Mark notification as read
   const markAsRead = useCallback((notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === notificationId 
-          ? { ...notification, read: true }
-          : notification
+    setNotifications(prev =>
+      prev.map(notification =>
+        notification.id === notificationId ? { ...notification, read: true } : notification
       )
     );
   }, []);
@@ -352,6 +379,6 @@ export const useNotifications = (): UseNotificationsReturn => {
     dismissNotification,
     markAsRead,
     clearAllNotifications,
-    getUnreadCount
+    getUnreadCount,
   };
 };

@@ -1,7 +1,8 @@
-import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
+import express from 'express';
+
 import { createError } from '../middleware/errorHandler.js';
+import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -52,30 +53,34 @@ router.get('/type-breakdown', requireAuth, async (req: AuthRequest, res) => {
       },
     });
 
-    const breakdown = runs.reduce((acc, run) => {
-      const tag = run.tag || 'Untagged';
-      
-      if (!acc[tag]) {
-        acc[tag] = {
-          count: 0,
-          totalDistance: 0,
-          totalDuration: 0,
-        };
-      }
-      
-      acc[tag].count++;
-      acc[tag].totalDistance += run.distance;
-      acc[tag].totalDuration += run.duration;
-      
-      return acc;
-    }, {} as Record<string, { count: number; totalDistance: number; totalDuration: number }>);
+    const breakdown = runs.reduce(
+      (acc, run) => {
+        const tag = run.tag || 'Untagged';
+
+        if (!acc[tag]) {
+          acc[tag] = {
+            count: 0,
+            totalDistance: 0,
+            totalDuration: 0,
+          };
+        }
+
+        acc[tag].count++;
+        acc[tag].totalDistance += run.distance;
+        acc[tag].totalDuration += run.duration;
+
+        return acc;
+      },
+      {} as Record<string, { count: number; totalDistance: number; totalDuration: number }>
+    );
 
     const breakdownArray = Object.entries(breakdown).map(([tag, data]) => ({
       tag,
       count: data.count,
       totalDistance: Number(data.totalDistance.toFixed(2)),
       totalDuration: data.totalDuration,
-      avgPace: data.totalDistance > 0 ? Number((data.totalDuration / data.totalDistance).toFixed(2)) : 0,
+      avgPace:
+        data.totalDistance > 0 ? Number((data.totalDuration / data.totalDistance).toFixed(2)) : 0,
     }));
 
     res.json(breakdownArray);
@@ -88,12 +93,18 @@ router.get('/type-breakdown', requireAuth, async (req: AuthRequest, res) => {
 router.get('/trends', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { period = '3m' } = req.query; // 1m, 3m, 6m, 1y
-    
+
     let daysBack = 90; // default 3 months
     switch (period) {
-      case '1m': daysBack = 30; break;
-      case '6m': daysBack = 180; break;
-      case '1y': daysBack = 365; break;
+      case '1m':
+        daysBack = 30;
+        break;
+      case '6m':
+        daysBack = 180;
+        break;
+      case '1y':
+        daysBack = 365;
+        break;
     }
 
     const startDate = new Date();
@@ -113,26 +124,29 @@ router.get('/trends', requireAuth, async (req: AuthRequest, res) => {
     });
 
     // Group by week for smoother trends
-    const weeklyData = runs.reduce((acc, run) => {
-      const weekStart = new Date(run.date);
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      const weekKey = weekStart.toISOString().split('T')[0];
-      
-      if (!acc[weekKey]) {
-        acc[weekKey] = {
-          date: weekKey,
-          distance: 0,
-          duration: 0,
-          runCount: 0,
-        };
-      }
-      
-      acc[weekKey].distance += run.distance;
-      acc[weekKey].duration += run.duration;
-      acc[weekKey].runCount++;
-      
-      return acc;
-    }, {} as Record<string, { date: string; distance: number; duration: number; runCount: number }>);
+    const weeklyData = runs.reduce(
+      (acc, run) => {
+        const weekStart = new Date(run.date);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        const weekKey = weekStart.toISOString().split('T')[0];
+
+        if (!acc[weekKey]) {
+          acc[weekKey] = {
+            date: weekKey,
+            distance: 0,
+            duration: 0,
+            runCount: 0,
+          };
+        }
+
+        acc[weekKey].distance += run.distance;
+        acc[weekKey].duration += run.duration;
+        acc[weekKey].runCount++;
+
+        return acc;
+      },
+      {} as Record<string, { date: string; distance: number; duration: number; runCount: number }>
+    );
 
     const trendsData = Object.values(weeklyData).map(week => ({
       date: week.date,
@@ -168,13 +182,13 @@ router.get('/personal-records', requireAuth, async (req: AuthRequest, res) => {
 
     distances.forEach(targetDistance => {
       // Find runs within 10% of target distance
-      const relevantRuns = runs.filter(run => 
-        Math.abs(run.distance - targetDistance) <= targetDistance * 0.1
+      const relevantRuns = runs.filter(
+        run => Math.abs(run.distance - targetDistance) <= targetDistance * 0.1
       );
 
       if (relevantRuns.length > 0) {
         // Find best time (lowest duration) for this distance
-        const bestRun = relevantRuns.reduce((best, current) => 
+        const bestRun = relevantRuns.reduce((best, current) =>
           current.duration < best.duration ? current : best
         );
 

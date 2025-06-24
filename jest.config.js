@@ -8,7 +8,7 @@ module.exports = {
     'middleware/**/*.ts',
     'utils/**/*.ts',
     '!**/*.d.ts',
-    '!**/node_modules/**'
+    '!**/node_modules/**',
   ],
   coverageReporters: ['text', 'json', 'html'],
   coverageThreshold: {
@@ -16,13 +16,13 @@ module.exports = {
       branches: 70,
       functions: 70,
       lines: 70,
-      statements: 70
-    }
+      statements: 70,
+    },
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest'
+    '^.+\\.(ts|tsx)$': 'ts-jest',
   },
   testTimeout: 10000,
-  verbose: true
+  verbose: true,
 };

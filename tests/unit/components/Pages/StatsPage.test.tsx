@@ -1,49 +1,54 @@
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+
 import { StatsPage } from '../../../../src/pages/StatsPage';
-import { 
-  mockWeeklyInsights, 
-  mockRunTypeBreakdown, 
-  mockTrendsData, 
-  mockPersonalRecords 
+import {
+  mockWeeklyInsights,
+  mockRunTypeBreakdown,
+  mockTrendsData,
+  mockPersonalRecords,
 } from '../../../fixtures/mockData';
 
 // Mock the useStats hook
 vi.mock('../../../../src/hooks/useStats', () => ({
-  useStats: vi.fn()
+  useStats: vi.fn(),
 }));
 
 // Mock all the stats components
 vi.mock('../../../../src/components/Stats/InsightsCard', () => ({
   InsightsCard: ({ insights, loading }: any) => (
-    <div data-testid="insights-card">
+    <div data-testid='insights-card'>
       {loading ? 'Loading insights...' : insights ? 'Insights loaded' : 'No insights'}
     </div>
-  )
+  ),
 }));
 
 vi.mock('../../../../src/components/Stats/RunTypeBreakdownChart', () => ({
   RunTypeBreakdownChart: ({ data, loading }: any) => (
-    <div data-testid="breakdown-chart">
-      {loading ? 'Loading breakdown...' : data.length > 0 ? 'Breakdown loaded' : 'No breakdown data'}
+    <div data-testid='breakdown-chart'>
+      {loading
+        ? 'Loading breakdown...'
+        : data.length > 0
+          ? 'Breakdown loaded'
+          : 'No breakdown data'}
     </div>
-  )
+  ),
 }));
 
 vi.mock('../../../../src/components/Stats/TrendsChart', () => ({
   TrendsChart: ({ data, loading }: any) => (
-    <div data-testid="trends-chart">
+    <div data-testid='trends-chart'>
       {loading ? 'Loading trends...' : data.length > 0 ? 'Trends loaded' : 'No trends data'}
     </div>
-  )
+  ),
 }));
 
 vi.mock('../../../../src/components/Stats/PersonalRecordsTable', () => ({
   PersonalRecordsTable: ({ records, loading }: any) => (
-    <div data-testid="records-table">
+    <div data-testid='records-table'>
       {loading ? 'Loading records...' : records.length > 0 ? 'Records loaded' : 'No records'}
     </div>
-  )
+  ),
 }));
 
 import { useStats } from '../../../../src/hooks/useStats';
@@ -58,7 +63,7 @@ describe('StatsPage', () => {
     personalRecords: [],
     loading: false,
     error: null,
-    refetch: vi.fn()
+    refetch: vi.fn(),
   };
 
   beforeEach(() => {
@@ -71,7 +76,7 @@ describe('StatsPage', () => {
 
   describe('Rendering', () => {
     it('renders the stats page with header and components', () => {
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByText('Statistics')).toBeInTheDocument();
       expect(screen.getByText('Track your running progress and insights')).toBeInTheDocument();
@@ -82,7 +87,7 @@ describe('StatsPage', () => {
     });
 
     it('has correct page structure and CSS classes', () => {
-      const { container } = render(<StatsPage token="valid-token" />);
+      const { container } = render(<StatsPage token='valid-token' />);
 
       expect(container.querySelector('.stats-page')).toBeInTheDocument();
       expect(container.querySelector('.stats-header')).toBeInTheDocument();
@@ -92,7 +97,7 @@ describe('StatsPage', () => {
 
   describe('Hook Integration', () => {
     it('calls useStats hook with correct token', () => {
-      render(<StatsPage token="test-token-123" />);
+      render(<StatsPage token='test-token-123' />);
 
       expect(mockUseStats).toHaveBeenCalledWith('test-token-123');
     });
@@ -108,10 +113,10 @@ describe('StatsPage', () => {
     it('renders components with loading state', () => {
       mockUseStats.mockReturnValue({
         ...defaultStatsReturn,
-        loading: true
+        loading: true,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByText('Loading insights...')).toBeInTheDocument();
       expect(screen.getByText('Loading breakdown...')).toBeInTheDocument();
@@ -126,10 +131,10 @@ describe('StatsPage', () => {
         typeBreakdown: mockRunTypeBreakdown,
         trendsData: mockTrendsData,
         personalRecords: mockPersonalRecords,
-        loading: false
+        loading: false,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByText('Insights loaded')).toBeInTheDocument();
       expect(screen.getByText('Breakdown loaded')).toBeInTheDocument();
@@ -144,10 +149,10 @@ describe('StatsPage', () => {
         typeBreakdown: [],
         trendsData: [],
         personalRecords: [],
-        loading: false
+        loading: false,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByText('No insights')).toBeInTheDocument();
       expect(screen.getByText('No breakdown data')).toBeInTheDocument();
@@ -161,10 +166,10 @@ describe('StatsPage', () => {
       mockUseStats.mockReturnValue({
         ...defaultStatsReturn,
         error: 'Failed to load statistics',
-        loading: false
+        loading: false,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByText('Failed to load statistics')).toBeInTheDocument();
       expect(screen.getByText('⚠️')).toBeInTheDocument();
@@ -175,10 +180,10 @@ describe('StatsPage', () => {
       mockUseStats.mockReturnValue({
         ...defaultStatsReturn,
         error: 'API Error',
-        loading: false
+        loading: false,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.queryByTestId('insights-card')).not.toBeInTheDocument();
       expect(screen.queryByTestId('breakdown-chart')).not.toBeInTheDocument();
@@ -191,10 +196,10 @@ describe('StatsPage', () => {
       mockUseStats.mockReturnValue({
         ...defaultStatsReturn,
         error: customError,
-        loading: false
+        loading: false,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByText(customError)).toBeInTheDocument();
     });
@@ -208,10 +213,10 @@ describe('StatsPage', () => {
       mockUseStats.mockReturnValue({
         ...defaultStatsReturn,
         weeklyInsights: insights,
-        loading
+        loading,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByText('Loading insights...')).toBeInTheDocument();
     });
@@ -223,10 +228,10 @@ describe('StatsPage', () => {
       mockUseStats.mockReturnValue({
         ...defaultStatsReturn,
         typeBreakdown: breakdown,
-        loading
+        loading,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByText('Breakdown loaded')).toBeInTheDocument();
     });
@@ -238,10 +243,10 @@ describe('StatsPage', () => {
       mockUseStats.mockReturnValue({
         ...defaultStatsReturn,
         trendsData: trends,
-        loading
+        loading,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByText('Trends loaded')).toBeInTheDocument();
     });
@@ -253,10 +258,10 @@ describe('StatsPage', () => {
       mockUseStats.mockReturnValue({
         ...defaultStatsReturn,
         personalRecords: records,
-        loading
+        loading,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByText('Records loaded')).toBeInTheDocument();
     });
@@ -267,10 +272,10 @@ describe('StatsPage', () => {
       mockUseStats.mockReturnValue({
         ...defaultStatsReturn,
         error: 'Test error',
-        loading: false
+        loading: false,
       });
 
-      const { container } = render(<StatsPage token="valid-token" />);
+      const { container } = render(<StatsPage token='valid-token' />);
 
       expect(container.querySelector('.error-container')).toBeInTheDocument();
       expect(container.querySelector('.error-icon')).toBeInTheDocument();
@@ -279,7 +284,7 @@ describe('StatsPage', () => {
 
   describe('Accessibility', () => {
     it('has proper heading structure', () => {
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Statistics');
     });
@@ -288,12 +293,14 @@ describe('StatsPage', () => {
       mockUseStats.mockReturnValue({
         ...defaultStatsReturn,
         error: 'Test error',
-        loading: false
+        loading: false,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
-      expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Failed to load statistics');
+      expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(
+        'Failed to load statistics'
+      );
     });
   });
 
@@ -305,10 +312,10 @@ describe('StatsPage', () => {
         typeBreakdown: [], // empty
         trendsData: mockTrendsData, // has data
         personalRecords: [], // empty
-        loading: false
+        loading: false,
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       expect(screen.getByText('Insights loaded')).toBeInTheDocument();
       expect(screen.getByText('No breakdown data')).toBeInTheDocument();
@@ -323,10 +330,10 @@ describe('StatsPage', () => {
         typeBreakdown: mockRunTypeBreakdown,
         trendsData: [],
         personalRecords: [],
-        loading: true // Still loading some data
+        loading: true, // Still loading some data
       });
 
-      render(<StatsPage token="valid-token" />);
+      render(<StatsPage token='valid-token' />);
 
       // All components should show loading state when loading is true
       expect(screen.getByText('Loading insights...')).toBeInTheDocument();

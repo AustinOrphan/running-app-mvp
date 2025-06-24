@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+
 import { Toast } from '../types';
 
 export const useToast = () => {
@@ -9,7 +10,7 @@ export const useToast = () => {
     const id = `toast-${Date.now()}-${++counterRef.current}`;
     const newToast: Toast = { id, message, type };
     setToasts(prev => [...prev, newToast]);
-    
+
     // Auto remove after 4 seconds
     setTimeout(() => {
       removeToast(id);
@@ -34,6 +35,6 @@ export const useToast = () => {
   return {
     toasts,
     showToast,
-    removeToast
+    removeToast,
   };
 };

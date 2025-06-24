@@ -95,14 +95,15 @@ test('should match page visual baseline', async ({ page }) => {
 
 ```typescript
 await visualTest.expectVisualMatch(page, 'test-name', {
-  fullPage: true,                    // Capture full page
-  maxDiffPercent: 3,                // Allow 3% pixel difference
+  fullPage: true, // Capture full page
+  maxDiffPercent: 3, // Allow 3% pixel difference
   clip: { x: 0, y: 0, width: 800, height: 600 }, // Specific area
-  mask: [                           // Hide dynamic elements
+  mask: [
+    // Hide dynamic elements
     '[data-testid="timestamp"]',
-    '.loading-spinner'
+    '.loading-spinner',
   ],
-  animations: 'disabled'            // Disable animations
+  animations: 'disabled', // Disable animations
 });
 ```
 
@@ -112,32 +113,31 @@ Dynamic content should be masked or replaced:
 
 ```typescript
 // Hide timestamps and loading indicators
-mask: [
-  '[data-testid="current-date"]',
-  '.relative-time',
-  '.loading-spinner',
-  '.chart-tooltip'
-]
+mask: ['[data-testid="current-date"]', '.relative-time', '.loading-spinner', '.chart-tooltip'];
 ```
 
 ## 🎨 Test Categories
 
 ### 1. Page-Level Tests
+
 - Full page screenshots of main application pages
 - Different user states (logged in/out, empty/populated)
 - Error states and loading states
 
 ### 2. Component-Level Tests
+
 - Individual UI components
 - Different component states and props
 - Interactive states (hover, focus, active)
 
 ### 3. Responsive Tests
+
 - Mobile, tablet, and desktop viewports
 - Different screen orientations
 - Browser-specific rendering differences
 
 ### 4. Theme Tests
+
 - Light and dark modes
 - High contrast modes
 - Accessibility themes
@@ -164,6 +164,7 @@ When tests fail:
 ### Report Structure
 
 The HTML report shows:
+
 - Side-by-side comparison of baseline vs actual
 - Highlighted differences in red
 - Pixel difference statistics
@@ -174,6 +175,7 @@ The HTML report shows:
 ### Common Issues
 
 #### 1. Flaky Tests Due to Animations
+
 ```typescript
 // Disable animations globally
 await page.addStyleTag({
@@ -182,11 +184,12 @@ await page.addStyleTag({
       animation-duration: 0s !important;
       transition-duration: 0s !important;
     }
-  `
+  `,
 });
 ```
 
 #### 2. Font Rendering Differences
+
 ```typescript
 // Ensure fonts are loaded
 await page.evaluate(() => document.fonts.ready);
@@ -198,11 +201,12 @@ await page.addStyleTag({
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
-  `
+  `,
 });
 ```
 
 #### 3. Dynamic Timestamps
+
 ```typescript
 // Mock or hide timestamps
 await page.evaluate(() => {
@@ -213,12 +217,13 @@ await page.evaluate(() => {
 ```
 
 #### 4. Chart Rendering Variations
+
 ```typescript
 // Wait for charts to fully render
 await page.waitForTimeout(2000);
 
 // Use higher tolerance for charts
-maxDiffPercent: 5
+maxDiffPercent: 5;
 ```
 
 ### Best Practices
@@ -303,12 +308,12 @@ When visual tests fail in CI:
 export const expectChartToMatch = async (page: Page, chartSelector: string, name: string) => {
   const chart = page.locator(chartSelector);
   const chartBox = await chart.boundingBox();
-  
+
   if (chartBox) {
     await visualTest.expectVisualMatch(page, name, {
       clip: chartBox,
       maxDiffPercent: 5,
-      mask: ['.chart-tooltip', '.chart-animation']
+      mask: ['.chart-tooltip', '.chart-animation'],
     });
   }
 };
@@ -321,7 +326,7 @@ export const expectChartToMatch = async (page: Page, chartSelector: string, name
 ['chromium', 'firefox', 'webkit'].forEach(browserName => {
   test(`should match in ${browserName}`, async ({ page }) => {
     await visualTest.expectVisualMatch(page, `test-${browserName}`, {
-      maxDiffPercent: 5 // More lenient for cross-browser
+      maxDiffPercent: 5, // More lenient for cross-browser
     });
   });
 });
@@ -343,4 +348,4 @@ await visualTest.expectVisualMatch(page, baselineName, options);
 
 ---
 
-*Happy visual testing! 📸✨*
+_Happy visual testing! 📸✨_

@@ -2,7 +2,7 @@
 export const accessibilityConfig = {
   // WCAG compliance levels to test
   wcagLevels: ['wcag2a', 'wcag2aa', 'wcag21aa'],
-  
+
   // Rules to disable for MVP (can be enabled later)
   disabledRules: [
     'color-contrast', // Disabled until design system is finalized
@@ -11,7 +11,7 @@ export const accessibilityConfig = {
     'bypass', // Skip links not required for MVP
     'scrollable-region-focusable', // Might be too strict for data visualizations
   ],
-  
+
   // Critical rules that must always pass
   criticalRules: [
     'button-name',
@@ -41,7 +41,7 @@ export const accessibilityConfig = {
     'duplicate-id-active',
     'duplicate-id-aria',
   ],
-  
+
   // Environment-specific settings
   testEnvironments: {
     unit: {
@@ -58,10 +58,7 @@ export const accessibilityConfig = {
     integration: {
       // Standard rules for integration tests
       tags: ['wcag2a', 'wcag2aa'],
-      disableRules: [
-        'color-contrast',
-        'bypass',
-      ],
+      disableRules: ['color-contrast', 'bypass'],
     },
     e2e: {
       // Full compliance for E2E tests
@@ -71,15 +68,15 @@ export const accessibilityConfig = {
       ],
     },
   },
-  
+
   // Accessibility patterns and best practices
   patterns: {
     // Minimum touch target size (pixels)
     minTouchTargetSize: 44,
-    
+
     // Minimum font size for readability (pixels)
     minFontSize: 14,
-    
+
     // Required ARIA patterns
     requiredAria: {
       buttons: ['aria-label', 'textContent', 'title'],
@@ -88,7 +85,7 @@ export const accessibilityConfig = {
       inputs: ['aria-label', 'aria-labelledby', 'associated-label'],
       headings: ['textContent'],
     },
-    
+
     // Keyboard navigation requirements
     keyboardNavigation: {
       focusableElements: [
@@ -103,7 +100,7 @@ export const accessibilityConfig = {
       ],
       skipKeySequences: ['Tab', 'Shift+Tab', 'Enter', 'Space', 'ArrowUp', 'ArrowDown'],
     },
-    
+
     // Screen reader requirements
     screenReader: {
       landmarks: ['main', 'nav', 'header', 'footer', 'aside', 'section'],
@@ -118,7 +115,7 @@ export const accessibilityConfig = {
       },
     },
   },
-  
+
   // Test reporting configuration
   reporting: {
     formats: ['json', 'html', 'junit'],
@@ -132,14 +129,14 @@ export const accessibilityConfig = {
       minor: ['minor'],
     },
   },
-  
+
   // Performance thresholds for accessibility tests
   performance: {
     maxTestDuration: 30000, // 30 seconds per test
     maxPageLoadTime: 5000, // 5 seconds for page load
     maxAxeRunTime: 3000, // 3 seconds for axe analysis
   },
-  
+
   // CI/CD integration settings
   ci: {
     failOnViolations: {
@@ -160,20 +157,24 @@ export const accessibilityUtils = {
     const envConfig = accessibilityConfig.testEnvironments[environment];
     return {
       rules: Object.fromEntries(
-        accessibilityConfig.disabledRules.concat(envConfig.disableRules).map(rule => [rule, { enabled: false }])
+        accessibilityConfig.disabledRules
+          .concat(envConfig.disableRules)
+          .map(rule => [rule, { enabled: false }])
       ),
       tags: envConfig.tags,
       locale: 'en',
     };
   },
-  
+
   // Check if violation is critical
   isCriticalViolation: (violation: any) => {
-    return accessibilityConfig.patterns.requiredAria || 
-           accessibilityConfig.criticalRules.includes(violation.id) ||
-           violation.impact === 'critical';
+    return (
+      accessibilityConfig.patterns.requiredAria ||
+      accessibilityConfig.criticalRules.includes(violation.id) ||
+      violation.impact === 'critical'
+    );
   },
-  
+
   // Format violation for better reporting
   formatViolation: (violation: any) => {
     const nodes = violation.nodes.map((node: any) => ({
@@ -182,7 +183,7 @@ export const accessibilityUtils = {
       failureSummary: node.failureSummary,
       impact: node.impact,
     }));
-    
+
     return {
       id: violation.id,
       description: violation.description,
@@ -193,7 +194,7 @@ export const accessibilityUtils = {
       nodeCount: nodes.length,
     };
   },
-  
+
   // Generate accessibility report summary
   generateSummary: (results: any[]) => {
     const summary = {
@@ -203,18 +204,18 @@ export const accessibilityUtils = {
       passedRules: 0,
       testedRules: 0,
     };
-    
+
     results.forEach(result => {
       summary.totalViolations += result.violations.length;
       summary.passedRules += result.passes.length;
       summary.testedRules += result.passes.length + result.violations.length;
-      
+
       result.violations.forEach((violation: any) => {
         summary.byImpact[violation.impact as keyof typeof summary.byImpact]++;
         summary.byRule[violation.id] = (summary.byRule[violation.id] || 0) + 1;
       });
     });
-    
+
     return summary;
   },
 };

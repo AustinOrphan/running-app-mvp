@@ -66,15 +66,17 @@ If you need to modify the database schema:
    - Verify database migrations work correctly
 
 2. **Create a descriptive commit message**
+
    ```bash
    git commit -m "feat: add goal progress tracking functionality
-   
+
    - Add progress calculation to goals API
    - Create progress visualization component
    - Update goal card to show completion percentage"
    ```
 
 3. **Push to your fork and create a pull request**
+
    ```bash
    git push origin feature/your-feature-name
    ```
@@ -98,6 +100,7 @@ type(scope): description
 ```
 
 **Types:**
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -107,6 +110,7 @@ type(scope): description
 - `chore`: Maintenance tasks
 
 **Examples:**
+
 ```bash
 feat(auth): add password reset functionality
 fix(runs): correct pace calculation for long runs

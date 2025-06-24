@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Goal, CreateGoalData } from '../types/goals';
-import { useToast } from '../hooks/useToast';
-import { useGoals } from '../hooks/useGoals';
-import { GoalCard } from '../components/GoalCard';
+
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { CreateGoalModal } from '../components/CreateGoalModal';
 import { EditGoalModal } from '../components/EditGoalModal';
-import { ConfirmationModal } from '../components/ConfirmationModal';
 import { GoalAchievementNotification } from '../components/GoalAchievementNotification';
+import { GoalCard } from '../components/GoalCard';
+import { GoalAnalyticsDashboard } from '../components/Goals/GoalAnalyticsDashboard';
 import { GoalTemplateBrowser } from '../components/Goals/GoalTemplateBrowser';
 import { TemplateCustomizationModal } from '../components/Goals/TemplateCustomizationModal';
-import { GoalAnalyticsDashboard } from '../components/Goals/GoalAnalyticsDashboard';
-import { GoalTemplate } from '../types/goalTemplates';
 import { useGoalAnalytics } from '../hooks/useGoalAnalytics';
+import { useGoals } from '../hooks/useGoals';
+import { useToast } from '../hooks/useToast';
+import { Goal, CreateGoalData } from '../types/goals';
+import { GoalTemplate } from '../types/goalTemplates';
 
 interface GoalsPageProps {}
 
@@ -26,10 +27,10 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
   const [showTemplateCustomization, setShowTemplateCustomization] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<GoalTemplate | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
-  
+
   const { showToast } = useToast();
   const token = localStorage.getItem('authToken');
-  
+
   const {
     goals,
     loading,
@@ -60,7 +61,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
     if (currentAchievement) {
       markAchievementSeen(currentAchievement.id);
       setCurrentAchievement(null);
-      
+
       // Show the next achievement if there are more
       const remainingAchievements = newlyAchievedGoals.filter(
         goal => goal.id !== currentAchievement.id
@@ -172,13 +173,11 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
     setDeletingGoal(null);
   };
 
-
-
   if (loading) {
     return (
-      <div className="goals-page tab-panel">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
+      <div className='goals-page tab-panel'>
+        <div className='loading-container'>
+          <div className='loading-spinner'></div>
           <p>Loading goals...</p>
         </div>
       </div>
@@ -187,12 +186,12 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
 
   if (error) {
     return (
-      <div className="goals-page tab-panel">
-        <div className="error-container">
-          <div className="error-icon">❌</div>
+      <div className='goals-page tab-panel'>
+        <div className='error-container'>
+          <div className='error-icon'>❌</div>
           <h3>Failed to Load Goals</h3>
           <p>{error}</p>
-          <button className="btn-primary" onClick={() => window.location.reload()}>
+          <button className='btn-primary' onClick={() => window.location.reload()}>
             Retry
           </button>
         </div>
@@ -201,41 +200,41 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
   }
 
   return (
-    <div className="goals-page tab-panel">
-      <div className="goals-header">
+    <div className='goals-page tab-panel'>
+      <div className='goals-header'>
         <h2>Running Goals</h2>
-        <div className="goals-header-actions">
-          <button className="btn-secondary" onClick={() => setShowAnalytics(true)}>
+        <div className='goals-header-actions'>
+          <button className='btn-secondary' onClick={() => setShowAnalytics(true)}>
             📊 Analytics
           </button>
-          <button className="btn-secondary" onClick={handleBrowseTemplates}>
+          <button className='btn-secondary' onClick={handleBrowseTemplates}>
             📝 Browse Templates
           </button>
-          <button className="btn-primary" onClick={handleCreateGoal}>
+          <button className='btn-primary' onClick={handleCreateGoal}>
             + New Goal
           </button>
         </div>
       </div>
 
       {/* Active Goals */}
-      <div className="goals-section">
+      <div className='goals-section'>
         <h3>Active Goals ({activeGoals.length})</h3>
         {activeGoals.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">🎯</div>
+          <div className='empty-state'>
+            <div className='empty-icon'>🎯</div>
             <h4>No active goals</h4>
             <p>Set your first running goal to start tracking your progress!</p>
-            <div className="empty-state-actions">
-              <button className="btn-secondary" onClick={handleBrowseTemplates}>
+            <div className='empty-state-actions'>
+              <button className='btn-secondary' onClick={handleBrowseTemplates}>
                 📝 Browse Templates
               </button>
-              <button className="btn-primary" onClick={handleCreateGoal}>
+              <button className='btn-primary' onClick={handleCreateGoal}>
                 Create Custom Goal
               </button>
             </div>
           </div>
         ) : (
-          <div className="goals-grid">
+          <div className='goals-grid'>
             {activeGoals.map(goal => (
               <GoalCard
                 key={goal.id}
@@ -252,9 +251,9 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
 
       {/* Completed Goals */}
       {completedGoals.length > 0 && (
-        <div className="goals-section">
+        <div className='goals-section'>
           <h3>Completed Goals ({completedGoals.length})</h3>
-          <div className="goals-grid">
+          <div className='goals-grid'>
             {completedGoals.map(goal => (
               <GoalCard
                 key={goal.id}
@@ -288,11 +287,11 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         isOpen={showDeleteConfirmation}
-        title="Delete Goal"
+        title='Delete Goal'
         message={`Are you sure you want to delete "${deletingGoal?.title}"? This action cannot be undone.`}
-        confirmText="Delete Goal"
-        cancelText="Cancel"
-        type="danger"
+        confirmText='Delete Goal'
+        cancelText='Cancel'
+        type='danger'
         onConfirm={confirmDeleteGoal}
         onCancel={cancelDeleteGoal}
       />

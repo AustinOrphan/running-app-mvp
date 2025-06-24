@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+
 import { Goal, GoalProgress, GOAL_TYPE_CONFIGS } from '../types/goals';
+
 import { CircularProgress } from './Goals/CircularProgress';
 import { GoalProgressChart } from './Goals/GoalProgressChart';
 
@@ -20,7 +22,7 @@ export const GoalCard: React.FC<GoalCardProps> = ({
   onDelete,
   onEdit,
   showDetailedView = false,
-  enableExpandedView = true
+  enableExpandedView = true,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const config = GOAL_TYPE_CONFIGS[goal.type];
@@ -43,117 +45,111 @@ export const GoalCard: React.FC<GoalCardProps> = ({
   };
 
   const isCompleted = goal.isCompleted;
-  const currentValue = isCompleted ? goal.currentValue : (progress?.currentValue || 0);
-  const progressPercentage = isCompleted ? 100 : (progress?.progressPercentage || 0);
+  const currentValue = isCompleted ? goal.currentValue : progress?.currentValue || 0;
+  const progressPercentage = isCompleted ? 100 : progress?.progressPercentage || 0;
 
   return (
     <div className={`goal-card ${isCompleted ? 'completed' : ''}`}>
-      <div className="goal-header">
-        <div className="goal-icon" style={{ color: goal.color || config.color }}>
+      <div className='goal-header'>
+        <div className='goal-icon' style={{ color: goal.color || config.color }}>
           {goal.icon || config.icon}
         </div>
-        <div className="goal-title">
+        <div className='goal-title'>
           <h4>{goal.title}</h4>
-          <span className="goal-type">{config.label}</span>
+          <span className='goal-type'>{config.label}</span>
         </div>
         {!isCompleted && (
-          <div className="goal-actions">
+          <div className='goal-actions'>
             {onEdit && (
-              <button 
-                className="btn-icon"
-                onClick={() => onEdit(goal.id)}
-                title="Edit goal"
-              >
+              <button className='btn-icon' onClick={() => onEdit(goal.id)} title='Edit goal'>
                 ✏️
               </button>
             )}
-            <button 
-              className="btn-icon"
+            <button
+              className='btn-icon'
               onClick={() => onComplete(goal.id)}
-              title="Mark as completed"
+              title='Mark as completed'
             >
               ✓
             </button>
-            <button 
-              className="btn-icon"
-              onClick={() => onDelete(goal.id)}
-              title="Delete goal"
-            >
+            <button className='btn-icon' onClick={() => onDelete(goal.id)} title='Delete goal'>
               🗑️
             </button>
           </div>
         )}
         {isCompleted && (
-          <div className="completion-badge">
+          <div className='completion-badge'>
             <span>✅ Completed</span>
           </div>
         )}
       </div>
 
-      {goal.description && (
-        <p className="goal-description">{goal.description}</p>
-      )}
+      {goal.description && <p className='goal-description'>{goal.description}</p>}
 
-      <div className="goal-progress">
+      <div className='goal-progress'>
         {showDetailedView ? (
-          <div className="detailed-progress">
-            <div className="progress-circular">
+          <div className='detailed-progress'>
+            <div className='progress-circular'>
               <CircularProgress
                 percentage={progressPercentage}
                 size={80}
                 strokeWidth={6}
                 color={goal.color || config.color}
               >
-                <div className="circular-content">
-                  <div className="circular-percentage">{Math.round(progressPercentage)}%</div>
-                  <div className="circular-label">complete</div>
+                <div className='circular-content'>
+                  <div className='circular-percentage'>{Math.round(progressPercentage)}%</div>
+                  <div className='circular-label'>complete</div>
                 </div>
               </CircularProgress>
             </div>
-            <div className="progress-details">
-              <div className="progress-stat">
-                <span className="stat-label">Current</span>
-                <span className="stat-value">{formatProgressValue(currentValue, goal.targetUnit)}</span>
+            <div className='progress-details'>
+              <div className='progress-stat'>
+                <span className='stat-label'>Current</span>
+                <span className='stat-value'>
+                  {formatProgressValue(currentValue, goal.targetUnit)}
+                </span>
               </div>
-              <div className="progress-stat">
-                <span className="stat-label">Target</span>
-                <span className="stat-value">{formatProgressValue(goal.targetValue, goal.targetUnit)}</span>
+              <div className='progress-stat'>
+                <span className='stat-label'>Target</span>
+                <span className='stat-value'>
+                  {formatProgressValue(goal.targetValue, goal.targetUnit)}
+                </span>
               </div>
-              <div className="progress-stat">
-                <span className="stat-label">Remaining</span>
-                <span className="stat-value">{formatProgressValue(goal.targetValue - currentValue, goal.targetUnit)}</span>
+              <div className='progress-stat'>
+                <span className='stat-label'>Remaining</span>
+                <span className='stat-value'>
+                  {formatProgressValue(goal.targetValue - currentValue, goal.targetUnit)}
+                </span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="simple-progress">
-            <div className="progress-header">
-              <span className="progress-text">
-                {formatProgressValue(currentValue, goal.targetUnit)} 
+          <div className='simple-progress'>
+            <div className='progress-header'>
+              <span className='progress-text'>
+                {formatProgressValue(currentValue, goal.targetUnit)}
                 {' / '}
                 {formatProgressValue(goal.targetValue, goal.targetUnit)}
               </span>
-              <span className="progress-percentage">
-                {Math.round(progressPercentage)}%
-              </span>
+              <span className='progress-percentage'>{Math.round(progressPercentage)}%</span>
             </div>
-            <div className="progress-bar">
-              <div 
+            <div className='progress-bar'>
+              <div
                 className={`progress-fill ${isCompleted ? 'completed' : ''}`}
-                style={{ 
+                style={{
                   width: `${Math.min(progressPercentage, 100)}%`,
-                  backgroundColor: goal.color || config.color
+                  backgroundColor: goal.color || config.color,
                 }}
               ></div>
             </div>
           </div>
         )}
-        
+
         {/* Expand/Collapse button */}
         {enableExpandedView && !isCompleted && (
-          <div className="expand-controls">
-            <button 
-              className="expand-btn"
+          <div className='expand-controls'>
+            <button
+              className='expand-btn'
               onClick={() => setIsExpanded(!isExpanded)}
               title={isExpanded ? 'Show less' : 'Show detailed progress'}
             >
@@ -166,27 +162,24 @@ export const GoalCard: React.FC<GoalCardProps> = ({
 
       {/* Expanded detailed view */}
       {isExpanded && progress && (
-        <div className="expanded-content">
-          <GoalProgressChart 
-            goal={goal} 
-            progress={progress} 
-          />
+        <div className='expanded-content'>
+          <GoalProgressChart goal={goal} progress={progress} />
         </div>
       )}
 
-      <div className="goal-meta">
-        <div className="goal-period">
+      <div className='goal-meta'>
+        <div className='goal-period'>
           <span>📅 {goal.period.toLowerCase()}</span>
         </div>
-        <div className="goal-deadline">
+        <div className='goal-deadline'>
           {isCompleted && goal.completedAt ? (
-            <span className="completion-date">
+            <span className='completion-date'>
               🎉 Completed on {new Date(goal.completedAt).toLocaleDateString()}
             </span>
           ) : progress && progress.daysRemaining > 0 ? (
             <span>⏰ {progress.daysRemaining} days left</span>
           ) : (
-            <span className="overdue">⚠️ Overdue</span>
+            <span className='overdue'>⚠️ Overdue</span>
           )}
         </div>
       </div>

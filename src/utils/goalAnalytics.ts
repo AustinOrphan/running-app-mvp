@@ -1,19 +1,19 @@
-import { Goal, GoalProgress } from '../types/goals';
-import { 
-  GoalAnalytics, 
-  MonthlyGoalProgress, 
-  StreakData, 
-  PersonalBest, 
+import {
+  GoalAnalytics,
+  MonthlyGoalProgress,
+  StreakData,
+  PersonalBest,
   GoalInsight,
   GoalTrend,
-  GoalPerformanceMetrics
+  GoalPerformanceMetrics,
 } from '../types/goalAnalytics';
+import { Goal, GoalProgress } from '../types/goals';
 
 export class GoalAnalyticsCalculator {
   static calculateAnalytics(goals: Goal[], goalProgress: GoalProgress[]): GoalAnalytics {
     const completedGoals = goals.filter(goal => goal.isCompleted);
     const activeGoals = goals.filter(goal => !goal.isCompleted);
-    
+
     return {
       totalGoals: goals.length,
       activeGoals: activeGoals.length,
@@ -25,7 +25,7 @@ export class GoalAnalyticsCalculator {
       goalsByDifficulty: this.getGoalsByDifficulty(goals),
       monthlyProgress: this.calculateMonthlyProgress(goals),
       streakData: this.calculateStreakData(goals, goalProgress),
-      personalBests: this.calculatePersonalBests(completedGoals)
+      personalBests: this.calculatePersonalBests(completedGoals),
     };
   }
 
@@ -34,11 +34,13 @@ export class GoalAnalyticsCalculator {
 
     const totalDays = completedGoals.reduce((sum, goal) => {
       if (!goal.completedAt) return sum;
-      
+
       const startDate = new Date(goal.startDate);
       const completedDate = new Date(goal.completedAt);
-      const daysDiff = Math.ceil((completedDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+      const daysDiff = Math.ceil(
+        (completedDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
       return sum + daysDiff;
     }, 0);
 
@@ -48,28 +50,32 @@ export class GoalAnalyticsCalculator {
   private static getMostCommonGoalType(goals: Goal[]): string {
     const typeCounts = this.getGoalsByType(goals);
     const entries = Object.entries(typeCounts);
-    
+
     if (entries.length === 0) return 'No goals yet';
-    
-    return entries.reduce((most, current) => 
-      current[1] > most[1] ? current : most
-    )[0];
+
+    return entries.reduce((most, current) => (current[1] > most[1] ? current : most))[0];
   }
 
   private static getGoalsByType(goals: Goal[]): Record<string, number> {
-    return goals.reduce((acc, goal) => {
-      acc[goal.type] = (acc[goal.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    return goals.reduce(
+      (acc, goal) => {
+        acc[goal.type] = (acc[goal.type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
   }
 
   private static getGoalsByDifficulty(goals: Goal[]): Record<string, number> {
     // Estimate difficulty based on target values and periods
-    return goals.reduce((acc, goal) => {
-      const difficulty = this.estimateGoalDifficulty(goal);
-      acc[difficulty] = (acc[difficulty] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    return goals.reduce(
+      (acc, goal) => {
+        const difficulty = this.estimateGoalDifficulty(goal);
+        acc[difficulty] = (acc[difficulty] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
   }
 
   private static estimateGoalDifficulty(goal: Goal): string {
@@ -94,14 +100,14 @@ export class GoalAnalyticsCalculator {
 
   private static calculateMonthlyProgress(goals: Goal[]): MonthlyGoalProgress[] {
     const monthlyData: Record<string, { total: number; completed: number }> = {};
-    
+
     goals.forEach(goal => {
       const startMonth = new Date(goal.startDate).toISOString().slice(0, 7);
-      
+
       if (!monthlyData[startMonth]) {
         monthlyData[startMonth] = { total: 0, completed: 0 };
       }
-      
+
       monthlyData[startMonth].total++;
       if (goal.isCompleted) {
         monthlyData[startMonth].completed++;
@@ -113,7 +119,7 @@ export class GoalAnalyticsCalculator {
         month,
         totalGoals: data.total,
         completedGoals: data.completed,
-        completionRate: data.total > 0 ? (data.completed / data.total) * 100 : 0
+        completionRate: data.total > 0 ? (data.completed / data.total) * 100 : 0,
       }))
       .sort((a, b) => a.month.localeCompare(b.month))
       .slice(-12); // Last 12 months
@@ -122,18 +128,18 @@ export class GoalAnalyticsCalculator {
   private static calculateStreakData(goals: Goal[], goalProgress: GoalProgress[]): StreakData {
     const completedGoals = goals.filter(goal => goal.isCompleted);
     const weeks = this.groupGoalsByWeek(completedGoals);
-    
+
     let currentStreak = 0;
     let longestStreak = 0;
     let tempStreak = 0;
-    
+
     const sortedWeeks = Object.keys(weeks).sort();
     const currentWeek = this.getWeekKey(new Date());
-    
+
     // Calculate streaks
     for (let i = sortedWeeks.length - 1; i >= 0; i--) {
       const week = sortedWeeks[i];
-      
+
       if (weeks[week] > 0) {
         tempStreak++;
         if (week === currentWeek || i === sortedWeeks.length - 1) {
@@ -150,23 +156,26 @@ export class GoalAnalyticsCalculator {
 
     const totalActiveWeeks = Object.values(weeks).filter(count => count > 0).length;
     const totalCompletedGoals = completedGoals.length;
-    
+
     return {
       currentStreak,
       longestStreak,
       totalActiveWeeks,
-      averageGoalsPerWeek: totalActiveWeeks > 0 ? totalCompletedGoals / totalActiveWeeks : 0
+      averageGoalsPerWeek: totalActiveWeeks > 0 ? totalCompletedGoals / totalActiveWeeks : 0,
     };
   }
 
   private static groupGoalsByWeek(goals: Goal[]): Record<string, number> {
-    return goals.reduce((acc, goal) => {
-      if (goal.completedAt) {
-        const weekKey = this.getWeekKey(new Date(goal.completedAt));
-        acc[weekKey] = (acc[weekKey] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<string, number>);
+    return goals.reduce(
+      (acc, goal) => {
+        if (goal.completedAt) {
+          const weekKey = this.getWeekKey(new Date(goal.completedAt));
+          acc[weekKey] = (acc[weekKey] || 0) + 1;
+        }
+        return acc;
+      },
+      {} as Record<string, number>
+    );
   }
 
   private static getWeekKey(date: Date): string {
@@ -186,21 +195,24 @@ export class GoalAnalyticsCalculator {
 
     completedGoals.forEach(goal => {
       const key = `${goal.type}-${goal.period}`;
-      
+
       if (!bestsByType[key] || this.isNewPersonalBest(goal, bestsByType[key])) {
         bestsByType[key] = {
           type: goal.type,
           value: goal.targetValue,
           unit: goal.targetUnit,
           goalTitle: goal.title,
-          achievedDate: goal.completedAt ? goal.completedAt.toISOString() : goal.endDate.toISOString(),
-          period: goal.period
+          achievedDate: goal.completedAt
+            ? goal.completedAt.toISOString()
+            : goal.endDate.toISOString(),
+          period: goal.period,
         };
       }
     });
 
-    return Object.values(bestsByType)
-      .sort((a, b) => new Date(b.achievedDate).getTime() - new Date(a.achievedDate).getTime());
+    return Object.values(bestsByType).sort(
+      (a, b) => new Date(b.achievedDate).getTime() - new Date(a.achievedDate).getTime()
+    );
   }
 
   private static isNewPersonalBest(goal: Goal, currentBest: PersonalBest): boolean {
@@ -221,21 +233,22 @@ export class GoalAnalyticsCalculator {
         type: 'success',
         title: 'Excellent Goal Achievement!',
         message: `You've completed ${analytics.completionRate.toFixed(0)}% of your goals. Keep up the great work!`,
-        icon: '🏆'
+        icon: '🏆',
       });
     } else if (analytics.completionRate >= 50) {
       insights.push({
         type: 'info',
         title: 'Good Progress',
         message: `You've completed ${analytics.completionRate.toFixed(0)}% of your goals. Consider breaking down larger goals into smaller milestones.`,
-        icon: '📈'
+        icon: '📈',
       });
     } else if (analytics.totalGoals > 0) {
       insights.push({
         type: 'warning',
         title: 'Room for Improvement',
-        message: 'Your completion rate could be higher. Consider setting more achievable goals or adjusting your targets.',
-        icon: '💡'
+        message:
+          'Your completion rate could be higher. Consider setting more achievable goals or adjusting your targets.',
+        icon: '💡',
       });
     }
 
@@ -244,15 +257,16 @@ export class GoalAnalyticsCalculator {
       insights.push({
         type: 'success',
         title: `${analytics.streakData.currentStreak}-Week Streak!`,
-        message: 'You\'re on fire! Maintain this momentum by setting your next goal.',
-        icon: '🔥'
+        message: "You're on fire! Maintain this momentum by setting your next goal.",
+        icon: '🔥',
       });
     } else if (analytics.streakData.currentStreak === 0 && analytics.completedGoals > 0) {
       insights.push({
         type: 'tip',
         title: 'Time for a New Goal',
-        message: 'You haven\'t completed a goal recently. Set a new challenge to keep your momentum going!',
-        icon: '🎯'
+        message:
+          "You haven't completed a goal recently. Set a new challenge to keep your momentum going!",
+        icon: '🎯',
       });
     }
 
@@ -262,8 +276,9 @@ export class GoalAnalyticsCalculator {
       insights.push({
         type: 'tip',
         title: 'Try Different Goal Types',
-        message: 'Consider mixing different types of goals (distance, speed, consistency) for well-rounded training.',
-        icon: '🌟'
+        message:
+          'Consider mixing different types of goals (distance, speed, consistency) for well-rounded training.',
+        icon: '🌟',
       });
     }
 
@@ -272,13 +287,13 @@ export class GoalAnalyticsCalculator {
       const recentPB = analytics.personalBests[0];
       const pbDate = new Date(recentPB.achievedDate);
       const daysSincePB = Math.floor((Date.now() - pbDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       if (daysSincePB <= 7) {
         insights.push({
           type: 'success',
           title: 'New Personal Best!',
           message: `Congratulations on your recent ${recentPB.type.toLowerCase()} achievement: ${recentPB.value} ${recentPB.unit}!`,
-          icon: '🥇'
+          icon: '🥇',
         });
       }
     }
@@ -288,11 +303,11 @@ export class GoalAnalyticsCalculator {
 
   static calculateGoalTrends(goals: Goal[]): GoalTrend[] {
     const monthlyData = this.calculateMonthlyProgress(goals);
-    
+
     if (monthlyData.length < 2) return [];
 
     const trends: GoalTrend[] = [];
-    
+
     // Completion rate trend
     const recent = monthlyData.slice(-2);
     if (recent.length === 2) {
@@ -301,7 +316,7 @@ export class GoalAnalyticsCalculator {
         period: 'Monthly',
         value: recent[1].completionRate,
         change: Math.abs(change),
-        changeType: change > 5 ? 'increase' : change < -5 ? 'decrease' : 'stable'
+        changeType: change > 5 ? 'increase' : change < -5 ? 'decrease' : 'stable',
       });
     }
 
@@ -309,16 +324,22 @@ export class GoalAnalyticsCalculator {
   }
 
   static calculatePerformanceMetrics(goal: Goal, progress: GoalProgress): GoalPerformanceMetrics {
-    const daysElapsed = Math.floor((Date.now() - new Date(goal.startDate).getTime()) / (1000 * 60 * 60 * 24));
-    const totalDays = Math.floor((new Date(goal.endDate).getTime() - new Date(goal.startDate).getTime()) / (1000 * 60 * 60 * 24));
+    const daysElapsed = Math.floor(
+      (Date.now() - new Date(goal.startDate).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const totalDays = Math.floor(
+      (new Date(goal.endDate).getTime() - new Date(goal.startDate).getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
     const expectedProgress = totalDays > 0 ? (daysElapsed / totalDays) * 100 : 0;
-    
-    const consistency = Math.min(100, Math.max(0, 
-      100 - Math.abs(progress.progressPercentage - expectedProgress)
-    ));
-    
+
+    const consistency = Math.min(
+      100,
+      Math.max(0, 100 - Math.abs(progress.progressPercentage - expectedProgress))
+    );
+
     let challengeLevel: 'easy' | 'moderate' | 'challenging' | 'too_hard' = 'moderate';
-    
+
     if (progress.progressPercentage > expectedProgress + 20) {
       challengeLevel = 'easy';
     } else if (progress.progressPercentage < expectedProgress - 30) {
@@ -331,7 +352,7 @@ export class GoalAnalyticsCalculator {
       consistency: Math.round(consistency),
       improvement: 0, // Would need historical data to calculate
       challengeLevel,
-      recommendedAdjustment: this.getRecommendedAdjustment(challengeLevel, progress)
+      recommendedAdjustment: this.getRecommendedAdjustment(challengeLevel, progress),
     };
   }
 

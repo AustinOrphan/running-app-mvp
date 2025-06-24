@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+
 import { Run, RunFormData } from '../types';
 import { calculatePace } from '../utils/formatters';
 
@@ -9,13 +10,13 @@ export const useRuns = (token: string | null) => {
 
   const fetchRuns = async () => {
     if (!token) return;
-    
+
     setLoading(true);
     try {
       const response = await fetch('/api/runs', {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       if (response.ok) {
         const runsData = await response.json();
@@ -38,20 +39,20 @@ export const useRuns = (token: string | null) => {
       distance: Number(formData.distance),
       duration: Number(formData.duration) * 60, // Convert minutes to seconds
       tag: formData.tag || null,
-      notes: formData.notes || null
+      notes: formData.notes || null,
     };
 
     try {
       const url = editingRun ? `/api/runs/${editingRun.id}` : '/api/runs';
       const method = editingRun ? 'PUT' : 'POST';
-      
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(runData)
+        body: JSON.stringify(runData),
       });
 
       if (response.ok) {
@@ -76,8 +77,8 @@ export const useRuns = (token: string | null) => {
       const response = await fetch(`/api/runs/${runId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (response.ok) {
@@ -103,6 +104,6 @@ export const useRuns = (token: string | null) => {
     saving,
     fetchRuns,
     saveRun,
-    deleteRun
+    deleteRun,
   };
 };

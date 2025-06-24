@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { GoalTemplate } from '../../types/goalTemplates';
+
 import { CreateGoalData, GoalPeriod } from '../../types/goals';
+import { GoalTemplate } from '../../types/goalTemplates';
 
 interface TemplateCustomizationModalProps {
   template: GoalTemplate | null;
@@ -13,7 +14,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
   template,
   isOpen,
   onClose,
-  onConfirm
+  onConfirm,
 }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -23,7 +24,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
     startDate: '',
     endDate: '',
     color: '#3b82f6',
-    icon: '🎯'
+    icon: '🎯',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -33,7 +34,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
     if (template) {
       const today = new Date();
       const startDate = today.toISOString().split('T')[0];
-      
+
       let endDate = '';
       switch (template.period) {
         case 'WEEKLY':
@@ -59,7 +60,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
           const customEnd = new Date(today);
           if (template.estimatedTimeframe.includes('week')) {
             const weeks = parseInt(template.estimatedTimeframe.match(/(\d+)/)?.[1] || '12');
-            customEnd.setDate(today.getDate() + (weeks * 7));
+            customEnd.setDate(today.getDate() + weeks * 7);
           } else if (template.estimatedTimeframe.includes('month')) {
             const months = parseInt(template.estimatedTimeframe.match(/(\d+)/)?.[1] || '3');
             customEnd.setMonth(today.getMonth() + months);
@@ -78,14 +79,14 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
         startDate,
         endDate,
         color: template.color,
-        icon: template.icon
+        icon: template.icon,
       });
     }
   }, [template]);
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -121,7 +122,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!template || !validateForm()) {
       return;
     }
@@ -136,7 +137,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
       startDate: new Date(formData.startDate),
       endDate: new Date(formData.endDate),
       color: formData.color,
-      icon: formData.icon
+      icon: formData.icon,
     };
 
     onConfirm(goalData);
@@ -144,7 +145,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
 
   const formatTargetLabel = () => {
     if (!template) return 'Target';
-    
+
     switch (template.type) {
       case 'TIME':
         return 'Target Time (seconds)';
@@ -173,153 +174,149 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
   if (!isOpen || !template) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal template-customization-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="template-modal-title">
-            <div className="template-modal-icon" style={{ color: template.color }}>
+    <div className='modal-overlay' onClick={onClose}>
+      <div className='modal template-customization-modal' onClick={e => e.stopPropagation()}>
+        <div className='modal-header'>
+          <div className='template-modal-title'>
+            <div className='template-modal-icon' style={{ color: template.color }}>
               {template.icon}
             </div>
             <div>
               <h3>Customize Goal Template</h3>
-              <p className="template-modal-subtitle">{template.name}</p>
+              <p className='template-modal-subtitle'>{template.name}</p>
             </div>
           </div>
-          <button
-            className="btn-icon"
-            onClick={onClose}
-            type="button"
-          >
+          <button className='btn-icon' onClick={onClose} type='button'>
             ×
           </button>
         </div>
 
-        <div className="modal-body">
+        <div className='modal-body'>
           <form onSubmit={handleSubmit}>
-            <div className="template-info">
-              <div className="template-info-section">
+            <div className='template-info'>
+              <div className='template-info-section'>
                 <h4>About This Template</h4>
                 <p>{template.description}</p>
-                <div className="template-meta">
-                  <span className="template-difficulty">
+                <div className='template-meta'>
+                  <span className='template-difficulty'>
                     Difficulty: <strong>{template.difficulty}</strong>
                   </span>
-                  <span className="template-timeframe">
+                  <span className='template-timeframe'>
                     Timeframe: <strong>{template.estimatedTimeframe}</strong>
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="title">Goal Title</label>
+            <div className='form-group'>
+              <label htmlFor='title'>Goal Title</label>
               <input
-                type="text"
-                id="title"
+                type='text'
+                id='title'
                 value={formData.title}
-                onChange={(e) => handleInputChange('title', e.target.value)}
+                onChange={e => handleInputChange('title', e.target.value)}
                 className={errors.title ? 'error' : ''}
-                placeholder="Enter a custom name for your goal"
+                placeholder='Enter a custom name for your goal'
               />
-              {errors.title && <span className="error-message">{errors.title}</span>}
+              {errors.title && <span className='error-message'>{errors.title}</span>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="description">Description (Optional)</label>
+            <div className='form-group'>
+              <label htmlFor='description'>Description (Optional)</label>
               <textarea
-                id="description"
+                id='description'
                 value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Add your own notes or motivation"
+                onChange={e => handleInputChange('description', e.target.value)}
+                placeholder='Add your own notes or motivation'
                 rows={3}
               />
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="targetValue">{formatTargetLabel()}</label>
+            <div className='form-row'>
+              <div className='form-group'>
+                <label htmlFor='targetValue'>{formatTargetLabel()}</label>
                 <input
-                  type="number"
-                  id="targetValue"
+                  type='number'
+                  id='targetValue'
                   value={formData.targetValue}
-                  onChange={(e) => handleInputChange('targetValue', Number(e.target.value))}
+                  onChange={e => handleInputChange('targetValue', Number(e.target.value))}
                   className={errors.targetValue ? 'error' : ''}
-                  min="0"
+                  min='0'
                   step={template.type === 'DISTANCE' ? '0.1' : '1'}
                 />
                 {template.type === 'TIME' && formData.targetValue > 0 && (
-                  <span className="field-description">Time: {getTimeInputHelp()}</span>
+                  <span className='field-description'>Time: {getTimeInputHelp()}</span>
                 )}
-                {errors.targetValue && <span className="error-message">{errors.targetValue}</span>}
+                {errors.targetValue && <span className='error-message'>{errors.targetValue}</span>}
               </div>
 
-              <div className="form-group">
-                <label htmlFor="period">Goal Period</label>
+              <div className='form-group'>
+                <label htmlFor='period'>Goal Period</label>
                 <select
-                  id="period"
+                  id='period'
                   value={formData.period}
-                  onChange={(e) => handleInputChange('period', e.target.value)}
+                  onChange={e => handleInputChange('period', e.target.value)}
                 >
-                  <option value="WEEKLY">Weekly</option>
-                  <option value="MONTHLY">Monthly</option>
-                  <option value="YEARLY">Yearly</option>
-                  <option value="CUSTOM">Custom Period</option>
+                  <option value='WEEKLY'>Weekly</option>
+                  <option value='MONTHLY'>Monthly</option>
+                  <option value='YEARLY'>Yearly</option>
+                  <option value='CUSTOM'>Custom Period</option>
                 </select>
               </div>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="startDate">Start Date</label>
+            <div className='form-row'>
+              <div className='form-group'>
+                <label htmlFor='startDate'>Start Date</label>
                 <input
-                  type="date"
-                  id="startDate"
+                  type='date'
+                  id='startDate'
                   value={formData.startDate}
-                  onChange={(e) => handleInputChange('startDate', e.target.value)}
+                  onChange={e => handleInputChange('startDate', e.target.value)}
                   className={errors.startDate ? 'error' : ''}
                 />
-                {errors.startDate && <span className="error-message">{errors.startDate}</span>}
+                {errors.startDate && <span className='error-message'>{errors.startDate}</span>}
               </div>
 
-              <div className="form-group">
-                <label htmlFor="endDate">End Date</label>
+              <div className='form-group'>
+                <label htmlFor='endDate'>End Date</label>
                 <input
-                  type="date"
-                  id="endDate"
+                  type='date'
+                  id='endDate'
                   value={formData.endDate}
-                  onChange={(e) => handleInputChange('endDate', e.target.value)}
+                  onChange={e => handleInputChange('endDate', e.target.value)}
                   className={errors.endDate ? 'error' : ''}
                 />
-                {errors.endDate && <span className="error-message">{errors.endDate}</span>}
+                {errors.endDate && <span className='error-message'>{errors.endDate}</span>}
               </div>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="icon">Icon</label>
+            <div className='form-row'>
+              <div className='form-group'>
+                <label htmlFor='icon'>Icon</label>
                 <input
-                  type="text"
-                  id="icon"
+                  type='text'
+                  id='icon'
                   value={formData.icon}
-                  onChange={(e) => handleInputChange('icon', e.target.value)}
-                  placeholder="🎯"
+                  onChange={e => handleInputChange('icon', e.target.value)}
+                  placeholder='🎯'
                   maxLength={2}
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="color">Color</label>
+              <div className='form-group'>
+                <label htmlFor='color'>Color</label>
                 <input
-                  type="color"
-                  id="color"
+                  type='color'
+                  id='color'
                   value={formData.color}
-                  onChange={(e) => handleInputChange('color', e.target.value)}
+                  onChange={e => handleInputChange('color', e.target.value)}
                 />
               </div>
             </div>
 
             {template.tips && template.tips.length > 0 && (
-              <div className="template-tips">
+              <div className='template-tips'>
                 <h4>Training Tips</h4>
                 <ul>
                   {template.tips.slice(0, 3).map((tip, index) => (
@@ -331,19 +328,11 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
           </form>
         </div>
 
-        <div className="modal-footer">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={onClose}
-          >
+        <div className='modal-footer'>
+          <button type='button' className='btn-secondary' onClick={onClose}>
             Cancel
           </button>
-          <button
-            type="submit"
-            className="btn-primary"
-            onClick={handleSubmit}
-          >
+          <button type='submit' className='btn-primary' onClick={handleSubmit}>
             Create Goal
           </button>
         </div>

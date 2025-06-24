@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+
 import { createError } from './errorHandler.js';
 
 interface AuthRequest extends Request {
@@ -12,13 +13,13 @@ interface AuthRequest extends Request {
 export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw createError('No token provided', 401);
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    
+
     if (!process.env.JWT_SECRET) {
       throw createError('JWT secret not configured', 500);
     }

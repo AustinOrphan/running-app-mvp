@@ -1,9 +1,10 @@
-import request from 'supertest';
-import express from 'express';
 import cors from 'cors';
-import { testDb } from '../../fixtures/testDatabase';
+import express from 'express';
+import request from 'supertest';
+
 import goalsRoutes from '../../../routes/goals';
 import { mockGoals, mockCreateGoalData, createMockGoal } from '../../fixtures/mockData';
+import { testDb } from '../../fixtures/testDatabase';
 
 // Create test app
 const createTestApp = () => {
@@ -28,7 +29,7 @@ describe('Goals API Integration Tests', () => {
     await testDb.cleanupDatabase();
     testUser = await testDb.createTestUser({
       email: 'goals@test.com',
-      password: 'testpassword'
+      password: 'testpassword',
     });
     authToken = testDb.generateTestToken(testUser.id);
   });
@@ -50,7 +51,7 @@ describe('Goals API Integration Tests', () => {
 
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body).toHaveLength(3);
-      
+
       response.body.forEach((goal: any) => {
         expect(goal).toHaveProperty('id');
         expect(goal).toHaveProperty('title');
@@ -65,10 +66,10 @@ describe('Goals API Integration Tests', () => {
     });
 
     it('returns goals sorted by completion status and creation date', async () => {
-      const completedGoal = createMockGoal({ 
+      const completedGoal = createMockGoal({
         title: 'Completed Goal',
         isCompleted: true,
-        completedAt: new Date().toISOString()
+        completedAt: new Date().toISOString(),
       });
       const activeGoal1 = createMockGoal({ title: 'Active Goal 1' });
       const activeGoal2 = createMockGoal({ title: 'Active Goal 2' });
@@ -81,14 +82,14 @@ describe('Goals API Integration Tests', () => {
         .expect(200);
 
       expect(response.body).toHaveLength(3);
-      
+
       // Active goals should come first
       const activeGoals = response.body.filter((g: any) => !g.isCompleted);
       const completedGoals = response.body.filter((g: any) => g.isCompleted);
-      
+
       expect(activeGoals).toHaveLength(2);
       expect(completedGoals).toHaveLength(1);
-      
+
       // Check that active goals appear before completed ones
       const firstActiveIndex = response.body.findIndex((g: any) => !g.isCompleted);
       const firstCompletedIndex = response.body.findIndex((g: any) => g.isCompleted);
@@ -108,10 +109,10 @@ describe('Goals API Integration Tests', () => {
       // Create another user with goals
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'password'
+        password: 'password',
       });
       await testDb.createTestGoals(otherUser.id, mockGoals.slice(0, 2));
-      
+
       // Create goals for test user
       await testDb.createTestGoals(testUser.id, mockGoals.slice(2, 4));
 
@@ -127,16 +128,11 @@ describe('Goals API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .get('/api/goals')
-        .expect(401);
+      await request(app).get('/api/goals').expect(401);
     });
 
     it('returns 401 with invalid token', async () => {
-      await request(app)
-        .get('/api/goals')
-        .set('Authorization', 'Bearer invalid-token')
-        .expect(401);
+      await request(app).get('/api/goals').set('Authorization', 'Bearer invalid-token').expect(401);
     });
   });
 
@@ -163,7 +159,7 @@ describe('Goals API Integration Tests', () => {
 
     it('returns 404 for non-existent goal', async () => {
       const nonExistentId = 'non-existent-id';
-      
+
       await request(app)
         .get(`/api/goals/${nonExistentId}`)
         .set('Authorization', `Bearer ${authToken}`)
@@ -174,7 +170,7 @@ describe('Goals API Integration Tests', () => {
       // Create another user with a goal
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'password'
+        password: 'password',
       });
       const otherGoals = await testDb.createTestGoals(otherUser.id, [mockGoals[1]]);
       const otherGoal = otherGoals[0];
@@ -186,9 +182,7 @@ describe('Goals API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .get(`/api/goals/${testGoal.id}`)
-        .expect(401);
+      await request(app).get(`/api/goals/${testGoal.id}`).expect(401);
     });
   });
 
@@ -203,7 +197,7 @@ describe('Goals API Integration Tests', () => {
       startDate: '2024-06-17',
       endDate: '2024-06-23',
       color: '#3b82f6',
-      icon: '🏃‍♂️'
+      icon: '🏃‍♂️',
     };
 
     it('creates new goal for authenticated user', async () => {
@@ -224,7 +218,7 @@ describe('Goals API Integration Tests', () => {
 
       // Verify goal was created in database
       const createdGoal = await testDb.prisma.goal.findUnique({
-        where: { id: response.body.id }
+        where: { id: response.body.id },
       });
       expect(createdGoal).toBeTruthy();
       expect(createdGoal?.userId).toBe(testUser.id);
@@ -238,7 +232,7 @@ describe('Goals API Integration Tests', () => {
         targetUnit: 'runs',
         period: 'WEEKLY',
         startDate: '2024-06-17',
-        endDate: '2024-06-23'
+        endDate: '2024-06-23',
       };
 
       const response = await request(app)
@@ -276,7 +270,7 @@ describe('Goals API Integration Tests', () => {
     it('returns 400 for invalid goal types', async () => {
       const invalidTypeData = {
         ...validGoalData,
-        type: 'INVALID_TYPE'
+        type: 'INVALID_TYPE',
       };
 
       await request(app)
@@ -289,7 +283,7 @@ describe('Goals API Integration Tests', () => {
     it('returns 400 for invalid goal periods', async () => {
       const invalidPeriodData = {
         ...validGoalData,
-        period: 'INVALID_PERIOD'
+        period: 'INVALID_PERIOD',
       };
 
       await request(app)
@@ -303,7 +297,7 @@ describe('Goals API Integration Tests', () => {
       const invalidDateData = {
         ...validGoalData,
         startDate: '2024-06-23',
-        endDate: '2024-06-17' // end before start
+        endDate: '2024-06-17', // end before start
       };
 
       await request(app)
@@ -316,7 +310,7 @@ describe('Goals API Integration Tests', () => {
     it('returns 400 for negative target value', async () => {
       const negativeValueData = {
         ...validGoalData,
-        targetValue: -5
+        targetValue: -5,
       };
 
       await request(app)
@@ -329,7 +323,7 @@ describe('Goals API Integration Tests', () => {
     it('returns 400 for zero target value', async () => {
       const zeroValueData = {
         ...validGoalData,
-        targetValue: 0
+        targetValue: 0,
       };
 
       await request(app)
@@ -340,10 +334,7 @@ describe('Goals API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .post('/api/goals')
-        .send(validGoalData)
-        .expect(401);
+      await request(app).post('/api/goals').send(validGoalData).expect(401);
     });
   });
 
@@ -353,7 +344,7 @@ describe('Goals API Integration Tests', () => {
       title: 'Updated Goal Title',
       description: 'Updated description',
       targetValue: 25,
-      color: '#ef4444'
+      color: '#ef4444',
     };
 
     beforeEach(async () => {
@@ -376,7 +367,7 @@ describe('Goals API Integration Tests', () => {
 
       // Verify update in database
       const updatedGoal = await testDb.prisma.goal.findUnique({
-        where: { id: testGoal.id }
+        where: { id: testGoal.id },
       });
       expect(updatedGoal?.title).toBe(updateData.title);
       expect(updatedGoal?.targetValue).toBe(updateData.targetValue);
@@ -384,7 +375,7 @@ describe('Goals API Integration Tests', () => {
 
     it('updates partial data', async () => {
       const partialUpdate = {
-        title: 'New Title Only'
+        title: 'New Title Only',
       };
 
       const response = await request(app)
@@ -412,7 +403,7 @@ describe('Goals API Integration Tests', () => {
       // Create another user with a goal
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'password'
+        password: 'password',
       });
       const otherGoals = await testDb.createTestGoals(otherUser.id, [mockGoals[1]]);
       const otherGoal = otherGoals[0];
@@ -430,7 +421,7 @@ describe('Goals API Integration Tests', () => {
         { targetValue: 0 }, // zero value
         { type: 'INVALID_TYPE' }, // invalid type
         { period: 'INVALID_PERIOD' }, // invalid period
-        { startDate: '2024-06-30', endDate: '2024-06-20' } // invalid date range
+        { startDate: '2024-06-30', endDate: '2024-06-20' }, // invalid date range
       ];
 
       for (const invalidUpdate of invalidUpdates) {
@@ -444,9 +435,9 @@ describe('Goals API Integration Tests', () => {
 
     it('returns 400 when trying to edit completed goal', async () => {
       // Create a completed goal
-      const completedGoal = createMockGoal({ 
+      const completedGoal = createMockGoal({
         isCompleted: true,
-        completedAt: new Date().toISOString()
+        completedAt: new Date().toISOString(),
       });
       const goals = await testDb.createTestGoals(testUser.id, [completedGoal]);
       const completed = goals[0];
@@ -459,10 +450,7 @@ describe('Goals API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .put(`/api/goals/${testGoal.id}`)
-        .send(updateData)
-        .expect(401);
+      await request(app).put(`/api/goals/${testGoal.id}`).send(updateData).expect(401);
     });
   });
 
@@ -482,7 +470,7 @@ describe('Goals API Integration Tests', () => {
 
       // Verify goal was soft deleted (isActive set to false)
       const deletedGoal = await testDb.prisma.goal.findUnique({
-        where: { id: testGoal.id }
+        where: { id: testGoal.id },
       });
       expect(deletedGoal).toBeTruthy();
       expect(deletedGoal?.isActive).toBe(false);
@@ -501,7 +489,7 @@ describe('Goals API Integration Tests', () => {
       // Create another user with a goal
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'password'
+        password: 'password',
       });
       const otherGoals = await testDb.createTestGoals(otherUser.id, [mockGoals[1]]);
       const otherGoal = otherGoals[0];
@@ -513,16 +501,14 @@ describe('Goals API Integration Tests', () => {
 
       // Verify goal was not deleted
       const stillExists = await testDb.prisma.goal.findUnique({
-        where: { id: otherGoal.id }
+        where: { id: otherGoal.id },
       });
       expect(stillExists).toBeTruthy();
       expect(stillExists?.isActive).toBe(true);
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .delete(`/api/goals/${testGoal.id}`)
-        .expect(401);
+      await request(app).delete(`/api/goals/${testGoal.id}`).expect(401);
     });
   });
 
@@ -548,7 +534,7 @@ describe('Goals API Integration Tests', () => {
 
       // Verify in database
       const completedGoal = await testDb.prisma.goal.findUnique({
-        where: { id: testGoal.id }
+        where: { id: testGoal.id },
       });
       expect(completedGoal?.isCompleted).toBe(true);
       expect(completedGoal?.completedAt).toBeTruthy();
@@ -581,7 +567,7 @@ describe('Goals API Integration Tests', () => {
       // Create another user with a goal
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'password'
+        password: 'password',
       });
       const otherGoals = await testDb.createTestGoals(otherUser.id, [createMockGoal()]);
       const otherGoal = otherGoals[0];
@@ -593,9 +579,7 @@ describe('Goals API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .post(`/api/goals/${testGoal.id}/complete`)
-        .expect(401);
+      await request(app).post(`/api/goals/${testGoal.id}/complete`).expect(401);
     });
   });
 
@@ -603,7 +587,7 @@ describe('Goals API Integration Tests', () => {
     beforeEach(async () => {
       // Create test goals
       await testDb.createTestGoals(testUser.id, mockGoals.slice(0, 3));
-      
+
       // Create some test runs for progress calculation
       const testRuns = [
         {
@@ -612,16 +596,16 @@ describe('Goals API Integration Tests', () => {
           duration: 1800,
           tag: 'Easy Run',
           notes: 'Morning run',
-          userId: testUser.id
+          userId: testUser.id,
         },
         {
           date: '2024-06-13',
           distance: 10.5,
           duration: 3000,
-          tag: 'Long Run', 
+          tag: 'Long Run',
           notes: 'Weekly long run',
-          userId: testUser.id
-        }
+          userId: testUser.id,
+        },
       ];
       await testDb.createTestRuns(testUser.id, testRuns);
     });
@@ -634,7 +618,7 @@ describe('Goals API Integration Tests', () => {
 
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body.length).toBeGreaterThan(0);
-      
+
       response.body.forEach((progress: any) => {
         expect(progress).toHaveProperty('goalId');
         expect(progress).toHaveProperty('currentValue');
@@ -654,10 +638,10 @@ describe('Goals API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      const distanceProgress = response.body.find((p: any) => 
-        p.goalId && p.targetValue === 50 // Monthly 50km goal
+      const distanceProgress = response.body.find(
+        (p: any) => p.goalId && p.targetValue === 50 // Monthly 50km goal
       );
-      
+
       if (distanceProgress) {
         expect(distanceProgress.currentValue).toBeGreaterThan(0);
         expect(distanceProgress.progressPercentage).toBeGreaterThanOrEqual(0);
@@ -669,7 +653,7 @@ describe('Goals API Integration Tests', () => {
     it('returns empty array for user with no goals', async () => {
       // Clean goals for this test
       await testDb.prisma.goal.deleteMany({
-        where: { userId: testUser.id }
+        where: { userId: testUser.id },
       });
 
       const response = await request(app)
@@ -681,9 +665,7 @@ describe('Goals API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .get('/api/goals/progress/all')
-        .expect(401);
+      await request(app).get('/api/goals/progress/all').expect(401);
     });
   });
 
@@ -698,7 +680,7 @@ describe('Goals API Integration Tests', () => {
         targetUnit: 'km',
         period: 'WEEKLY',
         startDate: '2024-06-17',
-        endDate: '2024-06-23'
+        endDate: '2024-06-23',
       };
 
       await request(app)
@@ -718,7 +700,7 @@ describe('Goals API Integration Tests', () => {
         period: 'WEEKLY',
         startDate: '2024-06-17',
         endDate: '2024-06-23',
-        icon: '🎯'
+        icon: '🎯',
       };
 
       const response = await request(app)
@@ -740,7 +722,7 @@ describe('Goals API Integration Tests', () => {
         targetUnit: 'km',
         period: 'YEARLY',
         startDate: '2024-01-01',
-        endDate: '2024-12-31'
+        endDate: '2024-12-31',
       };
 
       const response = await request(app)
@@ -760,7 +742,7 @@ describe('Goals API Integration Tests', () => {
         targetUnit: 'km',
         period: 'CUSTOM',
         startDate: '2024-06-17',
-        endDate: '2024-06-23'
+        endDate: '2024-06-23',
       };
 
       const response = await request(app)

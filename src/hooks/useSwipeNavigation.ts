@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+
 import { TAB_IDS, SWIPE_CONFIG } from '../constants/navigation';
 
 export const useSwipeNavigation = (
@@ -29,13 +30,13 @@ export const useSwipeNavigation = (
 
   const onTouchEnd = () => {
     if (touchStart == null || touchEnd == null) return;
-    
+
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > SWIPE_CONFIG.minDistance;
     const isRightSwipe = distance < -SWIPE_CONFIG.minDistance;
 
     const currentTabIndex = TAB_IDS.indexOf(activeTab as any);
-    
+
     if (isLeftSwipe && currentTabIndex < TAB_IDS.length - 1) {
       // Swipe left - go to next tab
       const nextTab = TAB_IDS[currentTabIndex + 1];
@@ -43,7 +44,7 @@ export const useSwipeNavigation = (
       onSwipeHighlight();
       markAsSwipedOnce();
     }
-    
+
     if (isRightSwipe && currentTabIndex > 0) {
       // Swipe right - go to previous tab
       const prevTab = TAB_IDS[currentTabIndex - 1];
@@ -64,6 +65,6 @@ export const useSwipeNavigation = (
     hasSwipedOnce,
     onTouchStart,
     onTouchMove,
-    onTouchEnd
+    onTouchEnd,
   };
 };

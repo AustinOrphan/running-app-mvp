@@ -1,6 +1,12 @@
 import { useMemo } from 'react';
+
+import {
+  GoalAnalytics,
+  GoalInsight,
+  GoalTrend,
+  GoalPerformanceMetrics,
+} from '../types/goalAnalytics';
 import { Goal, GoalProgress } from '../types/goals';
-import { GoalAnalytics, GoalInsight, GoalTrend, GoalPerformanceMetrics } from '../types/goalAnalytics';
 import { GoalAnalyticsCalculator } from '../utils/goalAnalytics';
 
 interface UseGoalAnalyticsReturn {
@@ -12,8 +18,8 @@ interface UseGoalAnalyticsReturn {
 }
 
 export const useGoalAnalytics = (
-  goals: Goal[], 
-  goalProgress: GoalProgress[], 
+  goals: Goal[],
+  goalProgress: GoalProgress[],
   loading: boolean = false
 ): UseGoalAnalyticsReturn => {
   const analytics = useMemo(() => {
@@ -32,12 +38,12 @@ export const useGoalAnalytics = (
           currentStreak: 0,
           longestStreak: 0,
           totalActiveWeeks: 0,
-          averageGoalsPerWeek: 0
+          averageGoalsPerWeek: 0,
         },
-        personalBests: []
+        personalBests: [],
       };
     }
-    
+
     return GoalAnalyticsCalculator.calculateAnalytics(goals, goalProgress);
   }, [goals, goalProgress]);
 
@@ -53,9 +59,9 @@ export const useGoalAnalytics = (
     return (goalId: string): GoalPerformanceMetrics | null => {
       const goal = goals.find(g => g.id === goalId);
       const progress = goalProgress.find(p => p.goalId === goalId);
-      
+
       if (!goal || !progress) return null;
-      
+
       return GoalAnalyticsCalculator.calculatePerformanceMetrics(goal, progress);
     };
   }, [goals, goalProgress]);
@@ -65,6 +71,6 @@ export const useGoalAnalytics = (
     insights,
     trends,
     getGoalPerformanceMetrics,
-    isLoading: loading
+    isLoading: loading,
   };
 };
