@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Generated files
+*.d.ts
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
+
+# Prisma generated files
+prisma/generated/
+
+# Package files
+package.json
+package-lock.json
+yarn.lock
+
+# Configuration files that should maintain their format
+.gitignore
+.eslintignore
+
+# Documentation that should maintain its format
+CHANGELOG.md
+LICENSE
+
+# Environment files
+.env*
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
