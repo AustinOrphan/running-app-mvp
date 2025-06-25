@@ -18,7 +18,9 @@
       "Bash(npm run test:(unit|integration|e2e|coverage|a11y|visual|all):*)",
       "Bash(find:*)",
       "Bash(npx prisma:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git pull)",
+      "Bash(git stash:*)"
     ],
     "deny": []
   }
