@@ -18,6 +18,10 @@
       "Bash(npm run test:(unit|integration|e2e|coverage|a11y|visual|all):*)",
       "Bash(find:*)",
       "Bash(npx prisma:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(npm test)",
+      "Bash(npm test:*)",
+      "Bash(git push:*)"
       "Bash(npx tsc:*)"
     ],
     "deny": []

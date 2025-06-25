@@ -3,7 +3,9 @@ import { InsightsCard } from '../components/Stats/InsightsCard';
 import { RunTypeBreakdownChart } from '../components/Stats/RunTypeBreakdownChart';
 import { TrendsChart } from '../components/Stats/TrendsChart';
 import { PersonalRecordsTable } from '../components/Stats/PersonalRecordsTable';
+import { GoalsOverviewCard } from '../components/Stats/GoalsOverviewCard';
 import { useStats } from '../hooks/useStats';
+import { useGoals } from '../hooks/useGoals';
 
 interface StatsPageProps {
   token: string | null;
@@ -11,6 +13,7 @@ interface StatsPageProps {
 
 export const StatsPage: React.FC<StatsPageProps> = ({ token }) => {
   const { weeklyInsights, typeBreakdown, trendsData, personalRecords, loading, error } = useStats(token);
+  const { goals, goalProgress, loading: goalsLoading } = useGoals(token);
 
   if (error) {
     return (
@@ -31,6 +34,7 @@ export const StatsPage: React.FC<StatsPageProps> = ({ token }) => {
       
       <div className="stats-grid">
         <InsightsCard insights={weeklyInsights} loading={loading} />
+        <GoalsOverviewCard goals={goals} goalProgress={goalProgress} loading={goalsLoading} />
         <RunTypeBreakdownChart data={typeBreakdown} loading={loading} />
         <TrendsChart data={trendsData} loading={loading} />
         <PersonalRecordsTable records={personalRecords} loading={loading} />

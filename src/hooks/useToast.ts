@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Toast } from '../types';
 
 export const useToast = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const counterRef = useRef(0);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     // Generate unique ID using crypto.randomUUID for better uniqueness

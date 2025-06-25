@@ -10,6 +10,7 @@ import { ToastContainer } from './components/Toast/ToastContainer';
 import { RunsPage } from './components/Pages/RunsPage';
 import { ComingSoonPage } from './components/Pages/ComingSoonPage';
 import { StatsPage } from './pages/StatsPage';
+import { GoalsPage } from './pages/GoalsPage';
 
 // Hooks
 import { useAuth } from './hooks/useAuth';
@@ -128,11 +129,7 @@ function App() {
           )}
 
           {activeTab === 'goals' && (
-            <ComingSoonPage
-              title="Goals"
-              description="Set distance targets and track your progress towards achieving them."
-              icon="🎯"
-            />
+            <GoalsPage />
           )}
 
           {activeTab === 'races' && (
