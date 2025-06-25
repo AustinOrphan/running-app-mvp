@@ -8,6 +8,11 @@ import { createError } from '../middleware/errorHandler.js';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Test endpoint to verify auth route is working
+router.get('/test', (req, res) => {
+  res.json({ message: 'Auth routes are working', timestamp: new Date().toISOString() });
+});
+
 // POST /api/auth/register - User registration
 router.post(
   '/register',

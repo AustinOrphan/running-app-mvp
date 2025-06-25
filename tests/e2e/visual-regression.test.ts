@@ -1,6 +1,7 @@
 import { test, expect, devices } from '@playwright/test';
-import { testDb } from '../fixtures/testDatabase';
+
 import { mockRuns, mockGoals, mockRaces } from '../fixtures/mockData';
+import { testDb } from '../fixtures/testDatabase';
 import { VisualTestHelper, visualConfigs } from '../setup/visualTestingSetup';
 
 // Configure visual testing based on environment
@@ -21,7 +22,7 @@ test.describe('Visual Regression Tests', () => {
     await testDb.cleanupDatabase();
     testUser = await testDb.createTestUser({
       email: 'visual@test.com',
-      password: 'testpassword123'
+      password: 'testpassword123',
     });
     authToken = testDb.generateTestToken(testUser.id);
 
@@ -37,7 +38,7 @@ test.describe('Visual Regression Tests', () => {
   test.afterAll(async () => {
     await testDb.cleanupDatabase();
     await testDb.prisma.$disconnect();
-    
+
     // Generate visual regression report
     await visualTest.generateReport();
   });
@@ -55,12 +56,12 @@ test.describe('Visual Regression Tests', () => {
 
     test('should match login page with validation errors', async ({ page }) => {
       await page.goto('/login');
-      
+
       // Trigger validation errors
       await page.fill('input[type="email"]', 'invalid-email');
       await page.fill('input[type="password"]', '123');
       await page.click('button[type="submit"]');
-      
+
       // Wait for errors to appear
       await page.waitForTimeout(1000);
 
@@ -96,18 +97,14 @@ test.describe('Visual Regression Tests', () => {
       await visualTest.expectVisualMatch(page, 'dashboard-page', {
         fullPage: true,
         maxDiffPercent: 3,
-        mask: [
-          '[data-testid="current-date"]',
-          '.relative-time',
-          '.chart-tooltip'
-        ]
+        mask: ['[data-testid="current-date"]', '.relative-time', '.chart-tooltip'],
       });
     });
 
     test('should match dashboard loading state', async ({ page }) => {
       // Intercept API calls to show loading state
       await page.route('**/api/stats/**', route => route.abort());
-      
+
       await page.reload();
       await page.waitForTimeout(500); // Let loading spinners appear
 
@@ -122,7 +119,7 @@ test.describe('Visual Regression Tests', () => {
       await testDb.cleanupDatabase();
       testUser = await testDb.createTestUser({
         email: 'empty@test.com',
-        password: 'testpassword123'
+        password: 'testpassword123',
       });
 
       // Login with empty user
@@ -155,18 +152,15 @@ test.describe('Visual Regression Tests', () => {
       await visualTest.expectVisualMatch(page, 'runs-list-page', {
         fullPage: true,
         maxDiffPercent: 3,
-        mask: [
-          '.relative-date',
-          '[data-testid="run-date"]'
-        ]
+        mask: ['.relative-date', '[data-testid="run-date"]'],
       });
     });
 
     test('should match runs list with different filters', async ({ page }) => {
       // Apply filter if available
       const filterButton = page.locator('button:has-text("Filter"), .filter-button');
-      const filterExists = await filterButton.count() > 0;
-      
+      const filterExists = (await filterButton.count()) > 0;
+
       if (filterExists) {
         await filterButton.first().click();
         await page.waitForTimeout(500);
@@ -180,9 +174,11 @@ test.describe('Visual Regression Tests', () => {
 
     test('should match add run modal', async ({ page }) => {
       // Look for add run button
-      const addButton = page.locator('button:has-text("Add"), [data-testid="add-run"], .add-run-button');
-      const addButtonExists = await addButton.count() > 0;
-      
+      const addButton = page.locator(
+        'button:has-text("Add"), [data-testid="add-run"], .add-run-button'
+      );
+      const addButtonExists = (await addButton.count()) > 0;
+
       if (addButtonExists) {
         await addButton.first().click();
         await page.waitForTimeout(500);
@@ -204,7 +200,7 @@ test.describe('Visual Regression Tests', () => {
       await page.click('button[type="submit"]');
       await page.goto('/stats');
       await page.waitForLoadState('networkidle');
-      
+
       // Wait for charts to render
       await page.waitForTimeout(2000);
     });
@@ -213,20 +209,16 @@ test.describe('Visual Regression Tests', () => {
       await visualTest.expectVisualMatch(page, 'statistics-page', {
         fullPage: true,
         maxDiffPercent: 5, // Charts may have slight rendering differences
-        mask: [
-          '.recharts-tooltip',
-          '[data-testid="chart-tooltip"]',
-          '.chart-animation'
-        ]
+        mask: ['.recharts-tooltip', '[data-testid="chart-tooltip"]', '.chart-animation'],
       });
     });
 
     test('should match insights card component', async ({ page }) => {
       const insightsCard = page.locator('.insights-card, [data-testid="insights-card"]').first();
-      
-      if (await insightsCard.count() > 0) {
+
+      if ((await insightsCard.count()) > 0) {
         const cardBox = await insightsCard.boundingBox();
-        
+
         if (cardBox) {
           await visualTest.expectVisualMatch(page, 'insights-card', {
             clip: cardBox,
@@ -237,27 +229,31 @@ test.describe('Visual Regression Tests', () => {
     });
 
     test('should match trends chart component', async ({ page }) => {
-      const trendsChart = page.locator('.trends-chart, [data-testid="trends-chart"], .recharts-wrapper').first();
-      
-      if (await trendsChart.count() > 0) {
+      const trendsChart = page
+        .locator('.trends-chart, [data-testid="trends-chart"], .recharts-wrapper')
+        .first();
+
+      if ((await trendsChart.count()) > 0) {
         const chartBox = await trendsChart.boundingBox();
-        
+
         if (chartBox) {
           await visualTest.expectVisualMatch(page, 'trends-chart', {
             clip: chartBox,
             maxDiffPercent: 4, // Charts have more variance
-            mask: ['.recharts-tooltip']
+            mask: ['.recharts-tooltip'],
           });
         }
       }
     });
 
     test('should match personal records table', async ({ page }) => {
-      const recordsTable = page.locator('.personal-records, [data-testid="personal-records"], table').first();
-      
-      if (await recordsTable.count() > 0) {
+      const recordsTable = page
+        .locator('.personal-records, [data-testid="personal-records"], table')
+        .first();
+
+      if ((await recordsTable.count()) > 0) {
         const tableBox = await recordsTable.boundingBox();
-        
+
         if (tableBox) {
           await visualTest.expectVisualMatch(page, 'personal-records-table', {
             clip: tableBox,
@@ -286,10 +282,7 @@ test.describe('Visual Regression Tests', () => {
         await visualTest.expectVisualMatch(page, 'goals-page', {
           fullPage: true,
           maxDiffPercent: 3,
-          mask: [
-            '.progress-bar-animation',
-            '[data-testid="progress-animation"]'
-          ]
+          mask: ['.progress-bar-animation', '[data-testid="progress-animation"]'],
         });
       } catch (error) {
         console.log('Goals page not available, skipping visual test');
@@ -305,10 +298,7 @@ test.describe('Visual Regression Tests', () => {
         await visualTest.expectVisualMatch(page, 'races-page', {
           fullPage: true,
           maxDiffPercent: 3,
-          mask: [
-            '[data-testid="race-date"]',
-            '.relative-date'
-          ]
+          mask: ['[data-testid="race-date"]', '.relative-date'],
         });
       } catch (error) {
         console.log('Races page not available, skipping visual test');
@@ -320,7 +310,7 @@ test.describe('Visual Regression Tests', () => {
     test('should match mobile dashboard view', async ({ page }) => {
       // Set mobile viewport
       await page.setViewportSize({ width: 375, height: 667 });
-      
+
       // Login user
       await page.goto('/login');
       await page.fill('input[type="email"]', testUser.email);
@@ -331,21 +321,18 @@ test.describe('Visual Regression Tests', () => {
 
       // Use mobile-specific configuration
       const mobileVisualTest = new VisualTestHelper(visualConfigs.mobile);
-      
+
       await mobileVisualTest.expectVisualMatch(page, 'dashboard-mobile', {
         fullPage: true,
         maxDiffPercent: 4,
-        mask: [
-          '[data-testid="current-date"]',
-          '.relative-time'
-        ]
+        mask: ['[data-testid="current-date"]', '.relative-time'],
       });
     });
 
     test('should match tablet runs view', async ({ page }) => {
       // Set tablet viewport
       await page.setViewportSize({ width: 768, height: 1024 });
-      
+
       // Login user
       await page.goto('/login');
       await page.fill('input[type="email"]', testUser.email);
@@ -357,10 +344,7 @@ test.describe('Visual Regression Tests', () => {
       await visualTest.expectVisualMatch(page, 'runs-tablet', {
         fullPage: true,
         maxDiffPercent: 3,
-        mask: [
-          '.relative-date',
-          '[data-testid="run-date"]'
-        ]
+        mask: ['.relative-date', '[data-testid="run-date"]'],
       });
     });
   });
@@ -375,9 +359,11 @@ test.describe('Visual Regression Tests', () => {
       await expect(page).toHaveURL('/dashboard');
 
       // Look for dark mode toggle
-      const darkModeToggle = page.locator('[data-testid="dark-mode-toggle"], .dark-mode-toggle, button:has-text("Dark")');
-      const darkModeExists = await darkModeToggle.count() > 0;
-      
+      const darkModeToggle = page.locator(
+        '[data-testid="dark-mode-toggle"], .dark-mode-toggle, button:has-text("Dark")'
+      );
+      const darkModeExists = (await darkModeToggle.count()) > 0;
+
       if (darkModeExists) {
         await darkModeToggle.first().click();
         await page.waitForTimeout(500);
@@ -386,10 +372,7 @@ test.describe('Visual Regression Tests', () => {
         await visualTest.expectVisualMatch(page, 'dashboard-dark-mode', {
           fullPage: true,
           maxDiffPercent: 3,
-          mask: [
-            '[data-testid="current-date"]',
-            '.relative-time'
-          ]
+          mask: ['[data-testid="current-date"]', '.relative-time'],
         });
       } else {
         console.log('Dark mode not available, skipping visual test');
@@ -418,7 +401,7 @@ test.describe('Visual Regression Tests', () => {
 
       // Block network requests to simulate error
       await page.route('**/api/**', route => route.abort());
-      
+
       await page.reload();
       await page.waitForTimeout(2000); // Wait for error states to appear
 
@@ -437,7 +420,7 @@ test.describe('Visual Regression Tests - Browser Variations', () => {
       test(`should match login page in ${browserName}`, async ({ page }) => {
         await page.goto('/login');
         await page.waitForLoadState('networkidle');
-        
+
         // Setup consistent rendering
         await visualTest.setupPageForVisualTesting(page);
 

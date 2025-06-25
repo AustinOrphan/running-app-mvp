@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+
 import { WeeklyInsights, RunTypeBreakdown, TrendsDataPoint, PersonalRecord } from '../types';
 
 export const useStats = (token: string | null, period: string = '3m') => {
@@ -11,14 +12,14 @@ export const useStats = (token: string | null, period: string = '3m') => {
 
   const fetchWeeklyInsights = async () => {
     if (!token) return;
-    
+
     try {
       const response = await fetch('/api/stats/insights-summary', {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setWeeklyInsights(data);
@@ -33,14 +34,14 @@ export const useStats = (token: string | null, period: string = '3m') => {
 
   const fetchTypeBreakdown = async () => {
     if (!token) return;
-    
+
     try {
       const response = await fetch('/api/stats/type-breakdown', {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setTypeBreakdown(data);
@@ -55,14 +56,14 @@ export const useStats = (token: string | null, period: string = '3m') => {
 
   const fetchTrendsData = async () => {
     if (!token) return;
-    
+
     try {
       const response = await fetch(`/api/stats/trends?period=${period}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setTrendsData(data);
@@ -77,14 +78,14 @@ export const useStats = (token: string | null, period: string = '3m') => {
 
   const fetchPersonalRecords = async () => {
     if (!token) return;
-    
+
     try {
       const response = await fetch('/api/stats/personal-records', {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setPersonalRecords(data);
@@ -99,16 +100,16 @@ export const useStats = (token: string | null, period: string = '3m') => {
 
   const fetchAllStats = async () => {
     if (!token) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       await Promise.all([
         fetchWeeklyInsights(),
         fetchTypeBreakdown(),
         fetchTrendsData(),
-        fetchPersonalRecords()
+        fetchPersonalRecords(),
       ]);
     } catch (error) {
       setError('Failed to load statistics');
@@ -130,6 +131,6 @@ export const useStats = (token: string | null, period: string = '3m') => {
     personalRecords,
     loading,
     error,
-    refetch: fetchAllStats
+    refetch: fetchAllStats,
   };
 };

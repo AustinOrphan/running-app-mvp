@@ -12,15 +12,18 @@ export const useAuth = () => {
     }
   }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; token?: string; message?: string }> => {
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; token?: string; message?: string }> => {
     setLoading(true);
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         localStorage.setItem('authToken', data.token);
@@ -37,15 +40,18 @@ export const useAuth = () => {
     }
   };
 
-  const register = async (email: string, password: string): Promise<{ success: boolean; token?: string; message?: string }> => {
+  const register = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; token?: string; message?: string }> => {
     setLoading(true);
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         localStorage.setItem('authToken', data.token);
@@ -75,6 +81,6 @@ export const useAuth = () => {
     login,
     register,
     logout,
-    getToken
+    getToken,
   };
 };

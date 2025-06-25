@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { Run } from '../../types';
 import { calculatePace, formatDuration, formatDate } from '../../utils/formatters';
 
@@ -16,48 +17,38 @@ export const RunCard: React.FC<RunCardProps> = ({ run, onEdit, onDelete }) => {
   };
 
   return (
-    <div className="run-card">
-      <div className="run-header">
-        <div className="run-date">
-          {formatDate(run.date)}
-        </div>
-        <div className="run-actions">
-          <button 
-            onClick={() => onEdit(run)}
-            className="icon-btn edit-btn"
-            title="Edit run"
-          >
+    <div className='run-card'>
+      <div className='run-header'>
+        <div className='run-date'>{formatDate(run.date)}</div>
+        <div className='run-actions'>
+          <button onClick={() => onEdit(run)} className='icon-btn edit-btn' title='Edit run'>
             ✏️
           </button>
-          <button 
-            onClick={handleDelete}
-            className="icon-btn delete-btn"
-            title="Delete run"
-          >
+          <button onClick={handleDelete} className='icon-btn delete-btn' title='Delete run'>
             🗑️
           </button>
         </div>
       </div>
-      <div className="run-stats">
-        <div className="stat">
-          <span className="stat-value">{run.distance}km</span>
-          <span className="stat-label">Distance</span>
+      <div className='run-stats'>
+        <div className='stat'>
+          <span className='stat-value'>{run.distance}km</span>
+          <span className='stat-label'>Distance</span>
         </div>
-        <div className="stat">
-          <span className="stat-value">{formatDuration(run.duration)}</span>
-          <span className="stat-label">Duration</span>
+        <div className='stat'>
+          <span className='stat-value'>{formatDuration(run.duration)}</span>
+          <span className='stat-label'>Duration</span>
         </div>
-        <div className="stat">
-          <span className="stat-value">{calculatePace(run.distance, run.duration)}</span>
-          <span className="stat-label">Pace/km</span>
+        <div className='stat'>
+          <span className='stat-value'>{calculatePace(run.distance, run.duration)}</span>
+          <span className='stat-label'>Pace/km</span>
         </div>
       </div>
       {run.tag && (
-        <div className="run-tag">
-          <span className="tag">{run.tag}</span>
+        <div className='run-tag'>
+          <span className='tag'>{run.tag}</span>
         </div>
       )}
-      {run.notes && <div className="run-notes">{run.notes}</div>}
+      {run.notes && <div className='run-notes'>{run.notes}</div>}
     </div>
   );
 };

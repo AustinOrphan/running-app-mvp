@@ -1,8 +1,9 @@
+import fs from 'fs/promises';
+import path from 'path';
+
 import { Page } from '@playwright/test';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
-import fs from 'fs/promises';
-import path from 'path';
 
 export interface VisualTestConfig {
   threshold: number; // Pixel difference threshold (0-1)
@@ -51,7 +52,7 @@ export class VisualTestHelper {
             transition-duration: 0s !important;
             transition-delay: 0s !important;
           }
-        `
+        `,
       });
     }
 
@@ -61,15 +62,18 @@ export class VisualTestHelper {
       '.timestamp',
       '.current-time',
       '.last-updated',
-      '[data-dynamic="true"]'
+      '[data-dynamic="true"]',
     ];
 
     const allMasks = [...defaultMasks, ...(options.mask || [])];
-    
+
     for (const mask of allMasks) {
-      await page.locator(mask).evaluateAll(elements => {
-        elements.forEach(el => (el as HTMLElement).style.visibility = 'hidden');
-      }).catch(() => {}); // Ignore if selector doesn't exist
+      await page
+        .locator(mask)
+        .evaluateAll(elements => {
+          elements.forEach(el => ((el as HTMLElement).style.visibility = 'hidden'));
+        })
+        .catch(() => {}); // Ignore if selector doesn't exist
     }
 
     const screenshot = await page.screenshot({
@@ -120,7 +124,9 @@ export class VisualTestHelper {
           diffPercentage: 0,
         };
       } else {
-        throw new Error(`Baseline image not found: ${baselinePath}. Run with updateBaselines=true to create it.`);
+        throw new Error(
+          `Baseline image not found: ${baselinePath}. Run with updateBaselines=true to create it.`
+        );
       }
     }
 
@@ -131,7 +137,9 @@ export class VisualTestHelper {
 
     // Ensure images are the same size
     if (baseline.width !== actual.width || baseline.height !== actual.height) {
-      throw new Error(`Image dimensions don't match. Baseline: ${baseline.width}x${baseline.height}, Actual: ${actual.width}x${actual.height}`);
+      throw new Error(
+        `Image dimensions don't match. Baseline: ${baseline.width}x${baseline.height}, Actual: ${actual.width}x${actual.height}`
+      );
     }
 
     // Create diff image
@@ -179,7 +187,7 @@ export class VisualTestHelper {
     } = {}
   ): Promise<void> {
     const maxDiffPercent = options.maxDiffPercent ?? 1; // 1% default tolerance
-    
+
     const screenshot = await this.takeScreenshot(page, name, options);
     const comparison = await this.compareScreenshots(name, screenshot);
 
@@ -192,7 +200,7 @@ export class VisualTestHelper {
         ${comparison.diffImagePath ? `- Diff image: ${comparison.diffImagePath}` : ''}
         
         To update the baseline, run tests with updateBaselines=true`;
-      
+
       throw new Error(message);
     }
   }
@@ -225,7 +233,7 @@ export class VisualTestHelper {
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
         }
-      `
+      `,
     });
 
     // Set consistent viewport
@@ -238,7 +246,7 @@ export class VisualTestHelper {
   // Generate visual test report
   async generateReport(): Promise<void> {
     const reportPath = path.join(this.config.diffDir, 'visual-regression-report.html');
-    
+
     const diffFiles = await fs.readdir(this.config.diffDir);
     const diffImages = diffFiles.filter(file => file.endsWith('-diff.png'));
 
@@ -263,14 +271,16 @@ export class VisualTestHelper {
     <h1>Visual Regression Test Report</h1>
     <p>Generated: ${new Date().toISOString()}</p>
     
-    ${diffImages.length === 0 ? 
-      '<div class="test-result pass"><h2>✅ All Visual Tests Passed</h2><p>No visual regressions detected.</p></div>' :
-      diffImages.map(diffFile => {
-        const testName = diffFile.replace('-diff.png', '');
-        const actualFile = `../visual-actual/${testName}.png`;
-        const baselineFile = `../visual-baselines/${testName}.png`;
-        
-        return `
+    ${
+      diffImages.length === 0
+        ? '<div class="test-result pass"><h2>✅ All Visual Tests Passed</h2><p>No visual regressions detected.</p></div>'
+        : diffImages
+            .map(diffFile => {
+              const testName = diffFile.replace('-diff.png', '');
+              const actualFile = `../visual-actual/${testName}.png`;
+              const baselineFile = `../visual-baselines/${testName}.png`;
+
+              return `
           <div class="test-result fail">
             <h2>❌ Visual Regression: ${testName}</h2>
             <div class="diff-images">
@@ -289,7 +299,8 @@ export class VisualTestHelper {
             </div>
           </div>
         `;
-      }).join('')
+            })
+            .join('')
     }
 </body>
 </html>
@@ -318,23 +329,23 @@ export const visualConfigs = {
     threshold: 0.1, // Stricter in CI
     updateBaselines: false,
   },
-  
+
   local: {
     ...defaultVisualConfig,
     threshold: 0.3, // More lenient locally
     updateBaselines: process.env.UPDATE_VISUAL_BASELINES === 'true',
   },
-  
+
   mobile: {
     ...defaultVisualConfig,
     threshold: 0.25, // Slightly more lenient for mobile due to rendering differences
   },
-  
+
   strict: {
     ...defaultVisualConfig,
     threshold: 0.05, // Very strict for critical UI elements
     includeAA: false,
-  }
+  },
 };
 
 export default VisualTestHelper;

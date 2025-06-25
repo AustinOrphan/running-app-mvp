@@ -1,8 +1,11 @@
-import { FullConfig } from '@playwright/test';
-import { testDb } from '../fixtures/testDatabase';
-import { VisualTestHelper } from './visualTestingSetup';
 import fs from 'fs/promises';
 import path from 'path';
+
+import { FullConfig } from '@playwright/test';
+
+import { testDb } from '../fixtures/testDatabase';
+
+import { VisualTestHelper } from './visualTestingSetup';
 
 async function globalTeardown(config: FullConfig) {
   console.log('🧹 Cleaning up visual regression testing environment...');
@@ -25,7 +28,6 @@ async function globalTeardown(config: FullConfig) {
     await cleanupOldArtifacts();
 
     console.log('✅ Visual testing cleanup complete');
-
   } catch (error) {
     console.error('❌ Visual testing cleanup failed:', error);
     // Don't throw error in teardown to avoid masking test failures
@@ -67,9 +69,12 @@ async function generateVisualTestSummary() {
         totalDiffs: diffFiles.length,
         passedTests: baselineFiles.length - diffFiles.length,
         failedTests: diffFiles.length,
-        successRate: baselineFiles.length > 0 
-          ? ((baselineFiles.length - diffFiles.length) / baselineFiles.length * 100).toFixed(2) + '%'
-          : '100%',
+        successRate:
+          baselineFiles.length > 0
+            ? (((baselineFiles.length - diffFiles.length) / baselineFiles.length) * 100).toFixed(
+                2
+              ) + '%'
+            : '100%',
       },
       files: {
         baselines: baselineFiles,
@@ -78,13 +83,12 @@ async function generateVisualTestSummary() {
     };
 
     await fs.writeFile(summaryPath, JSON.stringify(summary, null, 2));
-    
+
     console.log('📋 Visual Test Summary:');
     console.log(`   • Total baselines: ${summary.results.totalBaselines}`);
     console.log(`   • Passed tests: ${summary.results.passedTests}`);
     console.log(`   • Failed tests: ${summary.results.failedTests}`);
     console.log(`   • Success rate: ${summary.results.successRate}`);
-
   } catch (error) {
     console.error('Failed to generate visual test summary:', error);
   }
@@ -97,12 +101,12 @@ async function cleanupOldArtifacts() {
     const now = Date.now();
 
     const entries = await fs.readdir(resultsDir, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const dirPath = path.join(resultsDir, entry.name);
         const stats = await fs.stat(dirPath);
-        
+
         // Remove directories older than maxAge
         if (now - stats.mtime.getTime() > maxAge) {
           try {
@@ -122,7 +126,7 @@ async function cleanupOldArtifacts() {
       for (const file of diffFiles) {
         const filePath = path.join(diffDir, file);
         const stats = await fs.stat(filePath);
-        
+
         if (now - stats.mtime.getTime() > maxAge) {
           await fs.unlink(filePath);
           console.log(`🗑️ Removed old diff: ${file}`);
@@ -131,7 +135,6 @@ async function cleanupOldArtifacts() {
     } catch {
       // Diff directory might not exist
     }
-
   } catch (error) {
     console.warn('Warning: Could not cleanup old artifacts:', error);
   }

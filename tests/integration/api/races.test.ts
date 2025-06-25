@@ -1,33 +1,19 @@
 import request from 'supertest';
-import express from 'express';
-import cors from 'cors';
-import { testDb } from '../../fixtures/testDatabase';
-import { mockRaces } from '../../fixtures/mockData';
-import raceRoutes from '../../../routes/races';
 
-// Create test app
-const createTestApp = () => {
-  const app = express();
-  app.use(cors());
-  app.use(express.json());
-  app.use('/api/races', raceRoutes);
-  return app;
-};
+import { app } from '../../../app';
+import { mockRaces } from '../../fixtures/mockData';
+import { testDb } from '../../fixtures/testDatabase';
 
 describe('Races API Integration Tests', () => {
   let testUser: any;
   let authToken: string;
-  let app: express.Application;
 
   beforeEach(async () => {
-    // Create test app
-    app = createTestApp();
-    
     // Clean database and create test user
     await testDb.cleanupDatabase();
     testUser = await testDb.createTestUser({
       email: 'races@test.com',
-      password: 'testpassword123'
+      password: 'testpassword123',
     });
     authToken = testDb.generateTestToken(testUser.id);
   });
@@ -68,21 +54,16 @@ describe('Races API Integration Tests', () => {
         goalTime: expect.any(Number),
         actualTime: expect.any(Number),
         createdAt: expect.any(String),
-        updatedAt: expect.any(String)
+        updatedAt: expect.any(String),
       });
     });
 
     it('returns 401 for unauthenticated requests', async () => {
-      await request(app)
-        .get('/api/races')
-        .expect(401);
+      await request(app).get('/api/races').expect(401);
     });
 
     it('returns 401 for invalid token', async () => {
-      await request(app)
-        .get('/api/races')
-        .set('Authorization', 'Bearer invalid-token')
-        .expect(401);
+      await request(app).get('/api/races').set('Authorization', 'Bearer invalid-token').expect(401);
     });
 
     it('filters races by registration status', async () => {
@@ -170,13 +151,13 @@ describe('Races API Integration Tests', () => {
         actualTime: null,
         userId: testUser.id,
         createdAt: expect.any(String),
-        updatedAt: expect.any(String)
+        updatedAt: expect.any(String),
       });
     });
 
     it('returns 400 for missing required fields', async () => {
       const incompleteRace = {
-        name: 'Incomplete Race'
+        name: 'Incomplete Race',
         // Missing required fields
       };
 
@@ -193,7 +174,7 @@ describe('Races API Integration Tests', () => {
         date: '2024-08-15',
         distance: -5, // Invalid negative distance
         location: 'Test Location',
-        registrationUrl: 'https://example.com/register'
+        registrationUrl: 'https://example.com/register',
       };
 
       await request(app)
@@ -209,7 +190,7 @@ describe('Races API Integration Tests', () => {
         date: 'invalid-date',
         distance: 10,
         location: 'Test Location',
-        registrationUrl: 'https://example.com/register'
+        registrationUrl: 'https://example.com/register',
       };
 
       await request(app)
@@ -225,7 +206,7 @@ describe('Races API Integration Tests', () => {
         date: '2024-08-15',
         distance: 10,
         location: 'Test Location',
-        registrationUrl: 'not-a-valid-url'
+        registrationUrl: 'not-a-valid-url',
       };
 
       await request(app)
@@ -241,13 +222,10 @@ describe('Races API Integration Tests', () => {
         date: '2024-08-15',
         distance: 10,
         location: 'Test Location',
-        registrationUrl: 'https://example.com/register'
+        registrationUrl: 'https://example.com/register',
       };
 
-      await request(app)
-        .post('/api/races')
-        .send(newRace)
-        .expect(401);
+      await request(app).post('/api/races').send(newRace).expect(401);
     });
   });
 
@@ -264,7 +242,7 @@ describe('Races API Integration Tests', () => {
         name: 'Updated Race Name',
         location: 'Updated Location',
         goalTime: 3000,
-        isRegistered: true
+        isRegistered: true,
       };
 
       const response = await request(app)
@@ -279,14 +257,14 @@ describe('Races API Integration Tests', () => {
         location: updatedData.location,
         goalTime: updatedData.goalTime,
         isRegistered: updatedData.isRegistered,
-        updatedAt: expect.any(String)
+        updatedAt: expect.any(String),
       });
     });
 
     it('updates race with actual time after completion', async () => {
       const actualTimeData = {
         actualTime: 2850, // 47.5 minutes
-        isRegistered: true
+        isRegistered: true,
       };
 
       const response = await request(app)
@@ -313,7 +291,7 @@ describe('Races API Integration Tests', () => {
       // Create another user
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'otherpassword123'
+        password: 'otherpassword123',
       });
       const otherToken = testDb.generateTestToken(otherUser.id);
 
@@ -333,7 +311,7 @@ describe('Races API Integration Tests', () => {
 
     it('returns 400 for invalid update data', async () => {
       const invalidData = {
-        distance: -10 // Invalid negative distance
+        distance: -10, // Invalid negative distance
       };
 
       await request(app)
@@ -380,7 +358,7 @@ describe('Races API Integration Tests', () => {
       // Create another user
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'otherpassword123'
+        password: 'otherpassword123',
       });
       const otherToken = testDb.generateTestToken(otherUser.id);
 
@@ -391,9 +369,7 @@ describe('Races API Integration Tests', () => {
     });
 
     it('returns 401 for unauthenticated requests', async () => {
-      await request(app)
-        .delete(`/api/races/${testRace.id}`)
-        .expect(401);
+      await request(app).delete(`/api/races/${testRace.id}`).expect(401);
     });
   });
 
@@ -421,8 +397,8 @@ describe('Races API Integration Tests', () => {
         paceAnalysis: expect.objectContaining({
           averagePace: expect.any(Number),
           goalPace: expect.any(Number),
-          paceComparison: expect.any(String)
-        })
+          paceComparison: expect.any(String),
+        }),
       });
     });
 
@@ -461,7 +437,7 @@ describe('Races API Integration Tests', () => {
       // Create another user
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'otherpassword123'
+        password: 'otherpassword123',
       });
       const otherToken = testDb.generateTestToken(otherUser.id);
 
@@ -472,9 +448,7 @@ describe('Races API Integration Tests', () => {
     });
 
     it('returns 401 for unauthenticated requests', async () => {
-      await request(app)
-        .get(`/api/races/${testRace.id}/analytics`)
-        .expect(401);
+      await request(app).get(`/api/races/${testRace.id}/analytics`).expect(401);
     });
   });
 
@@ -524,7 +498,7 @@ describe('Races API Integration Tests', () => {
       // Create another user
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'otherpassword123'
+        password: 'otherpassword123',
       });
       const otherToken = testDb.generateTestToken(otherUser.id);
 
@@ -535,9 +509,7 @@ describe('Races API Integration Tests', () => {
     });
 
     it('returns 401 for unauthenticated requests', async () => {
-      await request(app)
-        .post(`/api/races/${testRace.id}/register`)
-        .expect(401);
+      await request(app).post(`/api/races/${testRace.id}/register`).expect(401);
     });
   });
 
@@ -587,7 +559,7 @@ describe('Races API Integration Tests', () => {
       // Create another user
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'otherpassword123'
+        password: 'otherpassword123',
       });
       const otherToken = testDb.generateTestToken(otherUser.id);
 
@@ -598,9 +570,7 @@ describe('Races API Integration Tests', () => {
     });
 
     it('returns 401 for unauthenticated requests', async () => {
-      await request(app)
-        .post(`/api/races/${testRace.id}/unregister`)
-        .expect(401);
+      await request(app).post(`/api/races/${testRace.id}/unregister`).expect(401);
     });
   });
 });

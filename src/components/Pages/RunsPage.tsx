@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Run, RunFormData } from '../../types';
-import { RunForm } from '../Runs/RunForm';
-import { RunCard } from '../Runs/RunCard';
-import { LoadingSpinner, EmptyState } from '../Common/LoadingSpinner';
+
 import { useRunForm } from '../../hooks/useRunForm';
+import { Run, RunFormData } from '../../types';
+import { LoadingSpinner, EmptyState } from '../Common/LoadingSpinner';
+import { RunCard } from '../Runs/RunCard';
+import { RunForm } from '../Runs/RunForm';
 
 interface RunsPageProps {
   runs: Run[];
@@ -20,23 +21,16 @@ export const RunsPage: React.FC<RunsPageProps> = ({
   saving,
   onSaveRun,
   onDeleteRun,
-  onShowToast
+  onShowToast,
 }) => {
   const [showRunForm, setShowRunForm] = useState(false);
   const [editingRun, setEditingRun] = useState<Run | null>(null);
-  
-  const {
-    formData,
-    errors,
-    updateField,
-    validate,
-    reset,
-    setFormData
-  } = useRunForm();
+
+  const { formData, errors, updateField, validate, reset, setFormData } = useRunForm();
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validate()) {
       onShowToast('Please fix the errors below', 'error');
       return;
@@ -44,10 +38,15 @@ export const RunsPage: React.FC<RunsPageProps> = ({
 
     try {
       await onSaveRun(formData, editingRun);
-      const pace = formData.distance && formData.duration ? 
-        ` (${Math.round(Number(formData.duration) / Number(formData.distance) * 100) / 100}min/km)` : '';
+      const pace =
+        formData.distance && formData.duration
+          ? ` (${Math.round((Number(formData.duration) / Number(formData.distance)) * 100) / 100}min/km)`
+          : '';
       const action = editingRun ? 'updated' : 'saved';
-      onShowToast(`🏃‍♂️ Run ${action}! ${formData.distance}km in ${formData.duration}min${pace}`, 'success');
+      onShowToast(
+        `🏃‍♂️ Run ${action}! ${formData.distance}km in ${formData.duration}min${pace}`,
+        'success'
+      );
       handleFormCancel();
     } catch (error) {
       onShowToast(error instanceof Error ? error.message : 'Failed to save run', 'error');
@@ -67,7 +66,7 @@ export const RunsPage: React.FC<RunsPageProps> = ({
       distance: run.distance.toString(),
       duration: Math.round(run.duration / 60).toString(),
       tag: run.tag || '',
-      notes: run.notes || ''
+      notes: run.notes || '',
     });
     setShowRunForm(true);
   };
@@ -90,14 +89,10 @@ export const RunsPage: React.FC<RunsPageProps> = ({
   };
 
   return (
-    <div className="runs-section tab-panel">
-      <div className="section-header">
+    <div className='runs-section tab-panel'>
+      <div className='section-header'>
         <h2>Your Runs ({runs.length})</h2>
-        <button 
-          onClick={toggleForm}
-          className="primary-btn"
-          disabled={saving}
-        >
+        <button onClick={toggleForm} className='primary-btn' disabled={saving}>
           {showRunForm ? 'Cancel' : '+ Add Run'}
         </button>
       </div>
@@ -117,19 +112,14 @@ export const RunsPage: React.FC<RunsPageProps> = ({
       {loading ? (
         <LoadingSpinner count={5} />
       ) : runs.length === 0 ? (
-        <EmptyState 
-          message="Start your running journey by adding your first run above."
-          icon="🏃‍♂️"
+        <EmptyState
+          message='Start your running journey by adding your first run above.'
+          icon='🏃‍♂️'
         />
       ) : (
-        <div className="runs-grid">
-          {runs.map((run) => (
-            <RunCard
-              key={run.id}
-              run={run}
-              onEdit={handleEditRun}
-              onDelete={handleDeleteRun}
-            />
+        <div className='runs-grid'>
+          {runs.map(run => (
+            <RunCard key={run.id} run={run} onEdit={handleEditRun} onDelete={handleDeleteRun} />
           ))}
         </div>
       )}

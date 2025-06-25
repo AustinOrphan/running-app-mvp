@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { Toast } from '../../types';
 
 interface ToastContainerProps {
@@ -8,21 +9,29 @@ interface ToastContainerProps {
 
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemoveToast }) => {
   return (
-    <div className="toast-container">
+    <div className='toast-container'>
       {toasts.map(toast => (
-        <div 
-          key={toast.id} 
+        <div
+          key={toast.id}
           data-toast-id={toast.id}
           className={`toast toast-${toast.type}`}
           onClick={() => onRemoveToast(toast.id)}
         >
-          <span className="toast-icon">
+          <span className='toast-icon'>
             {toast.type === 'success' && '✅'}
             {toast.type === 'error' && '❌'}
             {toast.type === 'info' && 'ℹ️'}
           </span>
-          <span className="toast-message">{toast.message}</span>
-          <button className="toast-close" onClick={(event) => { event.stopPropagation(); onRemoveToast(toast.id); }}>×</button>
+          <span className='toast-message'>{toast.message}</span>
+          <button
+            className='toast-close'
+            onClick={event => {
+              event.stopPropagation();
+              onRemoveToast(toast.id);
+            }}
+          >
+            ×
+          </button>
         </div>
       ))}
     </div>

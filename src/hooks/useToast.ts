@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+
 import { Toast } from '../types';
 
 export const useToast = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const counterRef = useRef(0);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     // Generate unique ID using crypto.randomUUID for better uniqueness
     const id = crypto.randomUUID();
     const newToast: Toast = { id, message, type };
     setToasts(prev => [...prev, newToast]);
-    
+
     // Auto remove after 4 seconds
     setTimeout(() => {
       removeToast(id);
@@ -34,6 +36,6 @@ export const useToast = () => {
   return {
     toasts,
     showToast,
-    removeToast
+    removeToast,
   };
 };

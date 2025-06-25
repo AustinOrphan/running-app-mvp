@@ -1,9 +1,10 @@
-import request from 'supertest';
-import express from 'express';
 import cors from 'cors';
-import { testDb } from '../../fixtures/testDatabase';
+import express from 'express';
+import request from 'supertest';
+
 import statsRoutes from '../../../routes/stats';
 import { mockRuns } from '../../fixtures/mockData';
+import { testDb } from '../../fixtures/testDatabase';
 
 // Create test app
 const createTestApp = () => {
@@ -28,10 +29,10 @@ describe('Stats API Integration Tests', () => {
     await testDb.cleanupDatabase();
     testUser = await testDb.createTestUser({
       email: 'stats@test.com',
-      password: 'testpassword'
+      password: 'testpassword',
     });
     authToken = testDb.generateTestToken(testUser.id);
-    
+
     // Create test runs for statistics
     await testDb.createTestRuns(testUser.id, mockRuns);
   });
@@ -65,10 +66,8 @@ describe('Stats API Integration Tests', () => {
       // Get runs from the last week
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      
-      const recentRuns = mockRuns.filter(run => 
-        new Date(run.date) >= oneWeekAgo
-      );
+
+      const recentRuns = mockRuns.filter(run => new Date(run.date) >= oneWeekAgo);
 
       const response = await request(app)
         .get('/api/stats/insights-summary')
@@ -92,9 +91,7 @@ describe('Stats API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .get('/api/stats/insights-summary')
-        .expect(401);
+      await request(app).get('/api/stats/insights-summary').expect(401);
     });
 
     it('returns 401 with invalid token', async () => {
@@ -108,7 +105,7 @@ describe('Stats API Integration Tests', () => {
       // Create new user with no runs
       const emptyUser = await testDb.createTestUser({
         email: 'empty@test.com',
-        password: 'testpassword'
+        password: 'testpassword',
       });
       const emptyToken = testDb.generateTestToken(emptyUser.id);
 
@@ -132,7 +129,7 @@ describe('Stats API Integration Tests', () => {
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
-      
+
       if (response.body.length > 0) {
         response.body.forEach((item: any) => {
           expect(item).toHaveProperty('tag');
@@ -140,7 +137,7 @@ describe('Stats API Integration Tests', () => {
           expect(item).toHaveProperty('totalDistance');
           expect(item).toHaveProperty('totalDuration');
           expect(item).toHaveProperty('avgPace');
-          
+
           expect(typeof item.count).toBe('number');
           expect(typeof item.totalDistance).toBe('number');
           expect(typeof item.totalDuration).toBe('number');
@@ -180,7 +177,7 @@ describe('Stats API Integration Tests', () => {
           tagAggregations[tag] = {
             count: 0,
             totalDistance: 0,
-            totalDuration: 0
+            totalDuration: 0,
           };
         }
         tagAggregations[tag].count++;
@@ -193,24 +190,23 @@ describe('Stats API Integration Tests', () => {
         expect(item.count).toBe(expected.count);
         expect(item.totalDistance).toBe(Number(expected.totalDistance.toFixed(2)));
         expect(item.totalDuration).toBe(expected.totalDuration);
-        
-        const expectedPace = expected.totalDistance > 0 
-          ? Number((expected.totalDuration / expected.totalDistance).toFixed(2))
-          : 0;
+
+        const expectedPace =
+          expected.totalDistance > 0
+            ? Number((expected.totalDuration / expected.totalDistance).toFixed(2))
+            : 0;
         expect(item.avgPace).toBe(expectedPace);
       });
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .get('/api/stats/type-breakdown')
-        .expect(401);
+      await request(app).get('/api/stats/type-breakdown').expect(401);
     });
 
     it('returns empty array for user with no runs', async () => {
       const emptyUser = await testDb.createTestUser({
         email: 'empty2@test.com',
-        password: 'testpassword'
+        password: 'testpassword',
       });
       const emptyToken = testDb.generateTestToken(emptyUser.id);
 
@@ -231,14 +227,14 @@ describe('Stats API Integration Tests', () => {
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
-      
+
       response.body.forEach((item: any) => {
         expect(item).toHaveProperty('date');
         expect(item).toHaveProperty('distance');
         expect(item).toHaveProperty('duration');
         expect(item).toHaveProperty('pace');
         expect(item).toHaveProperty('weeklyDistance');
-        
+
         expect(typeof item.distance).toBe('number');
         expect(typeof item.duration).toBe('number');
         expect(typeof item.pace).toBe('number');
@@ -248,7 +244,7 @@ describe('Stats API Integration Tests', () => {
 
     it('accepts period parameter', async () => {
       const periods = ['1m', '3m', '6m', '1y'];
-      
+
       for (const period of periods) {
         const response = await request(app)
           .get(`/api/stats/trends?period=${period}`)
@@ -276,9 +272,7 @@ describe('Stats API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .get('/api/stats/trends')
-        .expect(401);
+      await request(app).get('/api/stats/trends').expect(401);
     });
   });
 
@@ -290,14 +284,14 @@ describe('Stats API Integration Tests', () => {
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
-      
+
       response.body.forEach((record: any) => {
         expect(record).toHaveProperty('distance');
         expect(record).toHaveProperty('bestTime');
         expect(record).toHaveProperty('bestPace');
         expect(record).toHaveProperty('date');
         expect(record).toHaveProperty('runId');
-        
+
         expect(typeof record.distance).toBe('number');
         expect(typeof record.bestTime).toBe('number');
         expect(typeof record.bestPace).toBe('number');
@@ -315,7 +309,7 @@ describe('Stats API Integration Tests', () => {
       // Should have records for distances that match our mock data
       const recordDistances = response.body.map((record: any) => record.distance);
       const standardDistances = [1, 2, 5, 10, 15, 21.1, 42.2];
-      
+
       recordDistances.forEach((distance: number) => {
         expect(standardDistances).toContain(distance);
       });
@@ -335,15 +329,13 @@ describe('Stats API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .get('/api/stats/personal-records')
-        .expect(401);
+      await request(app).get('/api/stats/personal-records').expect(401);
     });
 
     it('returns empty array for user with no matching runs', async () => {
       const emptyUser = await testDb.createTestUser({
         email: 'empty3@test.com',
-        password: 'testpassword'
+        password: 'testpassword',
       });
       const emptyToken = testDb.generateTestToken(emptyUser.id);
 

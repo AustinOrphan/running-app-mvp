@@ -1,8 +1,9 @@
-import request from 'supertest';
-import express from 'express';
 import cors from 'cors';
-import { testDb } from '../../fixtures/testDatabase';
+import express from 'express';
+import request from 'supertest';
+
 import authRoutes from '../../../routes/auth';
+import { testDb } from '../../fixtures/testDatabase';
 
 // Create test app
 const createTestApp = () => {
@@ -34,13 +35,10 @@ describe('Auth API Integration Tests', () => {
     it('successfully registers a new user', async () => {
       const newUser = {
         email: 'newuser@test.com',
-        password: 'securepassword123'
+        password: 'securepassword123',
       };
 
-      const response = await request(app)
-        .post('/api/auth/register')
-        .send(newUser)
-        .expect(201);
+      const response = await request(app).post('/api/auth/register').send(newUser).expect(201);
 
       expect(response.body).toHaveProperty('token');
       expect(response.body).toHaveProperty('user');
@@ -50,7 +48,7 @@ describe('Auth API Integration Tests', () => {
 
       // Verify user was created in database
       const createdUser = await testDb.prisma.user.findUnique({
-        where: { email: newUser.email }
+        where: { email: newUser.email },
       });
       expect(createdUser).toBeTruthy();
       expect(createdUser?.email).toBe(newUser.email);
@@ -60,24 +58,24 @@ describe('Auth API Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/register')
         .send({
-          password: 'securepassword123'
+          password: 'securepassword123',
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('email');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('email');
     });
 
     it('returns 400 for missing password', async () => {
       const response = await request(app)
         .post('/api/auth/register')
         .send({
-          email: 'test@example.com'
+          email: 'test@example.com',
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('password');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('password');
     });
 
     it('returns 400 for invalid email format', async () => {
@@ -85,11 +83,11 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/register')
         .send({
           email: 'invalid-email',
-          password: 'securepassword123'
+          password: 'securepassword123',
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('message');
     });
 
     it('returns 400 for weak password', async () => {
@@ -97,21 +95,21 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/register')
         .send({
           email: 'test@example.com',
-          password: '123'
+          password: '123',
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('password');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('password');
     });
 
     it('returns 409 for duplicate email', async () => {
       const userEmail = 'duplicate@test.com';
-      
+
       // Create first user
       await testDb.createTestUser({
         email: userEmail,
-        password: 'password123'
+        password: 'password123',
       });
 
       // Try to create second user with same email
@@ -119,28 +117,25 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/register')
         .send({
           email: userEmail,
-          password: 'differentpassword123'
+          password: 'differentpassword123',
         })
         .expect(409);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('already exists');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('already exists');
     });
 
     it('hashes password before storing in database', async () => {
       const plainPassword = 'mysecretpassword';
       const newUser = {
         email: 'hashtest@test.com',
-        password: plainPassword
+        password: plainPassword,
       };
 
-      await request(app)
-        .post('/api/auth/register')
-        .send(newUser)
-        .expect(201);
+      await request(app).post('/api/auth/register').send(newUser).expect(201);
 
       const createdUser = await testDb.prisma.user.findUnique({
-        where: { email: newUser.email }
+        where: { email: newUser.email },
       });
 
       expect(createdUser?.password).not.toBe(plainPassword);
@@ -155,7 +150,7 @@ describe('Auth API Integration Tests', () => {
       // Create test user for login tests
       testUser = await testDb.createTestUser({
         email: 'logintest@test.com',
-        password: 'testpassword123'
+        password: 'testpassword123',
       });
     });
 
@@ -164,7 +159,7 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/login')
         .send({
           email: testUser.email,
-          password: 'testpassword123'
+          password: 'testpassword123',
         })
         .expect(200);
 
@@ -179,22 +174,22 @@ describe('Auth API Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          password: 'testpassword123'
+          password: 'testpassword123',
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('message');
     });
 
     it('returns 400 for missing password', async () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: testUser.email
+          email: testUser.email,
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('message');
     });
 
     it('returns 401 for invalid email', async () => {
@@ -202,12 +197,12 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/login')
         .send({
           email: 'nonexistent@test.com',
-          password: 'testpassword123'
+          password: 'testpassword123',
         })
         .expect(401);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('Invalid credentials');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('Invalid credentials');
     });
 
     it('returns 401 for invalid password', async () => {
@@ -215,12 +210,12 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/login')
         .send({
           email: testUser.email,
-          password: 'wrongpassword'
+          password: 'wrongpassword',
         })
         .expect(401);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('Invalid credentials');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('Invalid credentials');
     });
 
     it('returns valid JWT token', async () => {
@@ -228,7 +223,7 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/login')
         .send({
           email: testUser.email,
-          password: 'testpassword123'
+          password: 'testpassword123',
         })
         .expect(200);
 
@@ -243,7 +238,7 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/login')
         .send({
           email: testUser.email.toUpperCase(),
-          password: 'testpassword123'
+          password: 'testpassword123',
         })
         .expect(200);
 
@@ -258,7 +253,7 @@ describe('Auth API Integration Tests', () => {
     beforeEach(async () => {
       testUser = await testDb.createTestUser({
         email: 'verify@test.com',
-        password: 'testpassword123'
+        password: 'testpassword123',
       });
       validToken = testDb.generateTestToken(testUser.id);
     });
@@ -276,16 +271,11 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('returns 401 without authorization header', async () => {
-      await request(app)
-        .get('/api/auth/verify')
-        .expect(401);
+      await request(app).get('/api/auth/verify').expect(401);
     });
 
     it('returns 401 with malformed authorization header', async () => {
-      await request(app)
-        .get('/api/auth/verify')
-        .set('Authorization', 'InvalidFormat')
-        .expect(401);
+      await request(app).get('/api/auth/verify').set('Authorization', 'InvalidFormat').expect(401);
     });
 
     it('returns 401 with invalid token', async () => {
@@ -297,8 +287,9 @@ describe('Auth API Integration Tests', () => {
 
     it('returns 401 with expired token', async () => {
       // Create expired token (would need to mock jwt.sign with past expiry)
-      const expiredToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.invalid';
-      
+      const expiredToken =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.invalid';
+
       await request(app)
         .get('/api/auth/verify')
         .set('Authorization', `Bearer ${expiredToken}`)
@@ -308,7 +299,7 @@ describe('Auth API Integration Tests', () => {
     it('returns 401 if user no longer exists', async () => {
       // Delete the user after creating token
       await testDb.prisma.user.delete({
-        where: { id: testUser.id }
+        where: { id: testUser.id },
       });
 
       await request(app)
@@ -322,14 +313,11 @@ describe('Auth API Integration Tests', () => {
     it('handles multiple registration attempts', async () => {
       const userData = {
         email: 'ratelimit@test.com',
-        password: 'testpassword123'
+        password: 'testpassword123',
       };
 
       // First request should succeed
-      await request(app)
-        .post('/api/auth/register')
-        .send(userData)
-        .expect(201);
+      await request(app).post('/api/auth/register').send(userData).expect(201);
 
       // Subsequent requests with same email should fail
       for (let i = 0; i < 3; i++) {
@@ -337,7 +325,7 @@ describe('Auth API Integration Tests', () => {
           .post('/api/auth/register')
           .send({
             email: `ratelimit${i}@test.com`,
-            password: 'testpassword123'
+            password: 'testpassword123',
           })
           .expect(201);
       }
@@ -346,7 +334,7 @@ describe('Auth API Integration Tests', () => {
     it('handles multiple login attempts with invalid credentials', async () => {
       const testUser = await testDb.createTestUser({
         email: 'bruteforce@test.com',
-        password: 'correctpassword'
+        password: 'correctpassword',
       });
 
       // Multiple failed login attempts
@@ -355,7 +343,7 @@ describe('Auth API Integration Tests', () => {
           .post('/api/auth/login')
           .send({
             email: testUser.email,
-            password: 'wrongpassword'
+            password: 'wrongpassword',
           })
           .expect(401);
       }
@@ -371,11 +359,11 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/register')
         .send({
           email: 'error@test.com',
-          password: 'testpassword123'
+          password: 'testpassword123',
         })
         .expect(500);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('message');
     });
 
     it('handles malformed JSON in request body', async () => {
@@ -385,7 +373,7 @@ describe('Auth API Integration Tests', () => {
         .send('{"invalid": json}')
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('message');
     });
 
     it('handles missing content-type header', async () => {
@@ -394,7 +382,7 @@ describe('Auth API Integration Tests', () => {
         .send('email=test@example.com&password=test123')
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('message');
     });
   });
 
@@ -402,7 +390,7 @@ describe('Auth API Integration Tests', () => {
     it('does not return password in any response', async () => {
       const userData = {
         email: 'security@test.com',
-        password: 'securepassword123'
+        password: 'securepassword123',
       };
 
       // Register
@@ -415,10 +403,7 @@ describe('Auth API Integration Tests', () => {
       expect(JSON.stringify(registerResponse.body)).not.toContain('securepassword123');
 
       // Login
-      const loginResponse = await request(app)
-        .post('/api/auth/login')
-        .send(userData)
-        .expect(200);
+      const loginResponse = await request(app).post('/api/auth/login').send(userData).expect(200);
 
       expect(JSON.stringify(loginResponse.body)).not.toContain('password');
       expect(JSON.stringify(loginResponse.body)).not.toContain('securepassword123');
@@ -437,7 +422,7 @@ describe('Auth API Integration Tests', () => {
     it('sanitizes user input to prevent injection attacks', async () => {
       const maliciousData = {
         email: '<script>alert("xss")</script>@test.com',
-        password: 'DROP TABLE users; --'
+        password: 'DROP TABLE users; --',
       };
 
       const response = await request(app)
@@ -445,7 +430,7 @@ describe('Auth API Integration Tests', () => {
         .send(maliciousData)
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('message');
     });
 
     it('validates email format strictly', async () => {
@@ -455,7 +440,7 @@ describe('Auth API Integration Tests', () => {
         'missing@.com',
         'missing@domain',
         'spaces @domain.com',
-        'multiple@@domain.com'
+        'multiple@@domain.com',
       ];
 
       for (const email of invalidEmails) {
@@ -463,7 +448,7 @@ describe('Auth API Integration Tests', () => {
           .post('/api/auth/register')
           .send({
             email,
-            password: 'validpassword123'
+            password: 'validpassword123',
           })
           .expect(400);
       }

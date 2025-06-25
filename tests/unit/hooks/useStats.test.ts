@@ -1,14 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import { useStats } from '../../../src/hooks/useStats';
-import { createMockServer } from '../../setup/mockServer';
-import { 
-  mockWeeklyInsights, 
-  mockRunTypeBreakdown, 
-  mockTrendsData, 
+import {
+  mockWeeklyInsights,
+  mockRunTypeBreakdown,
+  mockTrendsData,
   mockPersonalRecords,
-  mockApiError 
+  mockApiError,
 } from '../../fixtures/mockData';
+import { createMockServer } from '../../setup/mockServer';
 
 describe('useStats', () => {
   let mockAPI: ReturnType<typeof createMockServer>;
@@ -35,7 +36,7 @@ describe('useStats', () => {
 
     it('does not fetch data when token is null', () => {
       const fetchSpy = vi.spyOn(global, 'fetch');
-      
+
       renderHook(() => useStats(null));
 
       expect(fetchSpy).not.toHaveBeenCalled();
@@ -66,7 +67,7 @@ describe('useStats', () => {
 
     it('makes correct API calls with authorization header', async () => {
       const fetchSpy = vi.spyOn(global, 'fetch');
-      
+
       mockAPI.mockInsightsSummary(mockWeeklyInsights);
       mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
       mockAPI.mockTrends(mockTrendsData);
@@ -80,22 +81,22 @@ describe('useStats', () => {
 
       // Check all endpoints were called with correct headers
       expect(fetchSpy).toHaveBeenCalledWith('/api/stats/insights-summary', {
-        headers: { 'Authorization': 'Bearer test-token' }
+        headers: { Authorization: 'Bearer test-token' },
       });
       expect(fetchSpy).toHaveBeenCalledWith('/api/stats/type-breakdown', {
-        headers: { 'Authorization': 'Bearer test-token' }
+        headers: { Authorization: 'Bearer test-token' },
       });
       expect(fetchSpy).toHaveBeenCalledWith('/api/stats/trends?period=3m', {
-        headers: { 'Authorization': 'Bearer test-token' }
+        headers: { Authorization: 'Bearer test-token' },
       });
       expect(fetchSpy).toHaveBeenCalledWith('/api/stats/personal-records', {
-        headers: { 'Authorization': 'Bearer test-token' }
+        headers: { Authorization: 'Bearer test-token' },
       });
     });
 
     it('uses custom period for trends data', async () => {
       const fetchSpy = vi.spyOn(global, 'fetch');
-      
+
       mockAPI.mockInsightsSummary(mockWeeklyInsights);
       mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
       mockAPI.mockTrends(mockTrendsData);
@@ -105,7 +106,7 @@ describe('useStats', () => {
 
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith('/api/stats/trends?period=6m', {
-          headers: { 'Authorization': 'Bearer test-token' }
+          headers: { Authorization: 'Bearer test-token' },
         });
       });
     });
@@ -228,16 +229,15 @@ describe('useStats', () => {
   describe('Token Changes', () => {
     it('refetches data when token changes', async () => {
       const fetchSpy = vi.spyOn(global, 'fetch');
-      
+
       mockAPI.mockInsightsSummary(mockWeeklyInsights);
       mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
       mockAPI.mockTrends(mockTrendsData);
       mockAPI.mockPersonalRecords(mockPersonalRecords);
 
-      const { result, rerender } = renderHook(
-        ({ token }) => useStats(token),
-        { initialProps: { token: 'token1' } }
-      );
+      const { result, rerender } = renderHook(({ token }) => useStats(token), {
+        initialProps: { token: 'token1' },
+      });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -261,11 +261,10 @@ describe('useStats', () => {
 
     it('does not fetch when token changes to null', () => {
       const fetchSpy = vi.spyOn(global, 'fetch');
-      
-      const { rerender } = renderHook(
-        ({ token }) => useStats(token),
-        { initialProps: { token: 'valid-token' } }
-      );
+
+      const { rerender } = renderHook(({ token }) => useStats(token), {
+        initialProps: { token: 'valid-token' },
+      });
 
       const initialCallCount = fetchSpy.mock.calls.length;
 
@@ -279,16 +278,15 @@ describe('useStats', () => {
   describe('Period Changes', () => {
     it('refetches data when period changes', async () => {
       const fetchSpy = vi.spyOn(global, 'fetch');
-      
+
       mockAPI.mockInsightsSummary(mockWeeklyInsights);
       mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
       mockAPI.mockTrends(mockTrendsData);
       mockAPI.mockPersonalRecords(mockPersonalRecords);
 
-      const { result, rerender } = renderHook(
-        ({ period }) => useStats('valid-token', period),
-        { initialProps: { period: '3m' } }
-      );
+      const { result, rerender } = renderHook(({ period }) => useStats('valid-token', period), {
+        initialProps: { period: '3m' },
+      });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -310,7 +308,7 @@ describe('useStats', () => {
       });
 
       expect(fetchSpy).toHaveBeenCalledWith('/api/stats/trends?period=1y', {
-        headers: { 'Authorization': 'Bearer valid-token' }
+        headers: { Authorization: 'Bearer valid-token' },
       });
     });
   });
