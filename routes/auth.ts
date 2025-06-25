@@ -3,6 +3,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 
 import { createError } from '../middleware/errorHandler.js';
+import { validateBody } from '../middleware/validateBody.js';
 import { prisma } from '../server.js';
 
 const router = express.Router();
@@ -13,23 +14,20 @@ router.get('/test', (req, res) => {
 });
 
 // POST /api/auth/register - User registration
-router.post('/register', async (req, res, next) => {
-  try {
-    console.log('Registration attempt:', {
-      hasEmail: !!req.body?.email,
-      hasPassword: !!req.body?.password,
-    });
+router.post(
+  '/register',
+  validateBody([
+    { field: 'email', required: true, type: 'string' },
+    { field: 'password', required: true, type: 'string', min: 6 },
+  ]),
+  async (req, res, next) => {
+    try {
+      console.log('Registration attempt:', {
+        hasEmail: !!req.body?.email,
+        hasPassword: !!req.body?.password,
+      });
 
-    const { email, password } = req.body;
-
-    // Basic validation
-    if (!email || !password) {
-      throw createError('Email and password are required', 400);
-    }
-
-    if (password.length < 6) {
-      throw createError('Password must be at least 6 characters', 400);
-    }
+      const { email, password } = req.body;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -75,19 +73,20 @@ router.post('/register', async (req, res, next) => {
 });
 
 // POST /api/auth/login - User login
-router.post('/login', async (req, res, next) => {
-  try {
-    console.log('Login attempt:', {
-      hasEmail: !!req.body?.email,
-      hasPassword: !!req.body?.password,
-    });
+router.post(
+  '/login',
+  validateBody([
+    { field: 'email', required: true, type: 'string' },
+    { field: 'password', required: true, type: 'string' },
+  ]),
+  async (req, res, next) => {
+    try {
+      console.log('Login attempt:', {
+        hasEmail: !!req.body?.email,
+        hasPassword: !!req.body?.password,
+      });
 
-    const { email, password } = req.body;
-
-    // Basic validation
-    if (!email || !password) {
-      throw createError('Email and password are required', 400);
-    }
+      const { email, password } = req.body;
 
     // Find user by email
     const user = await prisma.user.findUnique({

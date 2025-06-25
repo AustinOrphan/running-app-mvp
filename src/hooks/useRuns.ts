@@ -60,7 +60,7 @@ export const useRuns = (token: string | null) => {
         return; // Success
       } else {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to ${editingRun ? 'update' : 'save'} run`);
+        throw new Error(errorData.message || `Failed to ${editingRun ? 'update' : 'save'} run`);
       }
     } catch (error) {
       console.error('Failed to save run:', error);
