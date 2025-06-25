@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 
+import { createError } from '../middleware/errorHandler.js';
 import { prisma } from '../server.js';
 
 const router = express.Router();
@@ -23,11 +24,11 @@ router.post('/register', async (req, res, next) => {
 
     // Basic validation
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+      throw createError('Email and password are required', 400);
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+      throw createError('Password must be at least 6 characters', 400);
     }
 
     // Check if user already exists
@@ -36,7 +37,7 @@ router.post('/register', async (req, res, next) => {
     });
 
     if (existingUser) {
-      return res.status(409).json({ message: 'User already exists' });
+      throw createError('User already exists', 409);
     }
 
     // Hash password
@@ -52,7 +53,7 @@ router.post('/register', async (req, res, next) => {
 
     // Generate JWT
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ message: 'JWT secret not configured' });
+      throw createError('JWT secret not configured', 500);
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
@@ -69,12 +70,12 @@ router.post('/register', async (req, res, next) => {
     });
   } catch (error: any) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Registration failed' });
+    next(error);
   }
 });
 
 // POST /api/auth/login - User login
-router.post('/login', async (req, res) => {
+router.post('/login', async (req, res, next) => {
   try {
     console.log('Login attempt:', {
       hasEmail: !!req.body?.email,
@@ -85,7 +86,7 @@ router.post('/login', async (req, res) => {
 
     // Basic validation
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+      throw createError('Email and password are required', 400);
     }
 
     // Find user by email
@@ -94,18 +95,18 @@ router.post('/login', async (req, res) => {
     });
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      throw createError('Invalid credentials', 401);
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      throw createError('Invalid credentials', 401);
     }
 
     // Generate JWT
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ message: 'JWT secret not configured' });
+      throw createError('JWT secret not configured', 500);
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
@@ -122,7 +123,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Login failed' });
+    next(error);
   }
 });
 
