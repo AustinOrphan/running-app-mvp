@@ -57,10 +57,17 @@ router.post(
           id: user.id,
           email: user.email,
         },
-      });
-    } catch (error: any) {
-      if (error.statusCode) throw error;
-      throw createError('Registration failed', 500);
+      });    } catch (error: any) {
+      console.error('Registration error:', error);
+      if (error.statusCode) {
+        res.status(error.statusCode).json({
+          error: { message: error.message, status: error.statusCode }
+        });
+      } else {
+        res.status(500).json({
+          error: { message: 'Registration failed', status: 500 }
+        });
+      }
     }
   }
 );
@@ -109,10 +116,17 @@ router.post(
           id: user.id,
           email: user.email,
         },
-      });
-    } catch (error: any) {
-      if (error.statusCode) throw error;
-      throw createError('Login failed', 500);
+      });    } catch (error: any) {
+      console.error('Login error:', error);
+      if (error.statusCode) {
+        res.status(error.statusCode).json({
+          error: { message: error.message, status: error.statusCode }
+        });
+      } else {
+        res.status(500).json({
+          error: { message: 'Login failed', status: 500 }
+        });
+      }
     }
   }
 );

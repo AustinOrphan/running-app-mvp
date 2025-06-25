@@ -113,3 +113,12 @@ prisma/migrations/*/migration.sql
 
 # Testing
 coverage/
+
+# Temporary development files
+COMMIT_MESSAGE.md
+seed-db.js
+test-db.js
+setup-scripts.json
+
+# Keep the .env template but ignore actual .env
+!.env.example

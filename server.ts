@@ -69,19 +69,70 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 
+// Function to find an available port
+async function getAvailablePort(preferredPort: number): Promise<number> {
+  return new Promise((resolve) => {
+    const server = app.listen(preferredPort, () => {
+      const actualPort = (server.address() as any)?.port || preferredPort;
+      server.close(() => resolve(actualPort));
+    }).on('error', () => {
+      // If preferred port is busy, try next available port
+      const server2 = app.listen(0, () => {
+        const actualPort = (server2.address() as any)?.port;
+        server2.close(() => resolve(actualPort));
+      });
+    });
+  });
+}
+
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
+const gracefulShutdown = async (signal: string) => {
+  console.log(`\n📡 Received ${signal}. Shutting down gracefully...`);
+  try {
+    await prisma.$disconnect();
+    console.log('✅ Database disconnected');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+};
 
-process.on('SIGTERM', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+// Start server with port availability check
+async function startServer() {
+  try {
+    const availablePort = await getAvailablePort(Number(PORT));
+    
+    if (availablePort !== Number(PORT)) {
+      console.log(`⚠️  Port ${PORT} is busy, using port ${availablePort} instead`);
+      console.log(`📝 Update your frontend proxy to target: http://localhost:${availablePort}`);
+    }
+    
+    const server = app.listen(availablePort, () => {
+      console.log(`🚀 Server running on port ${availablePort}`);
+      console.log(`🔗 Health check: http://localhost:${availablePort}/api/health`);
+      console.log(`📊 Debug users: http://localhost:${availablePort}/api/debug/users`);
+    });
+
+    server.on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${availablePort} is already in use!`);
+        console.log('💡 Try killing the process or use a different port');
+        process.exit(1);
+      } else {
+        console.error('❌ Server error:', error);
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 export { prisma };
