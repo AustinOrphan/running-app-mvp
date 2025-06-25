@@ -25,7 +25,7 @@ router.post(
       });
 
       if (existingUser) {
-        throw createError('User already exists', 400);
+        throw createError('User already exists', 409);
       }
 
       // Hash password
