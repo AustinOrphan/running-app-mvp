@@ -20,7 +20,11 @@
       "Bash(npx prisma:*)",
       "Bash(npx tsc:*)",
       "Bash(git pull)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(npm run:*)",
+      "Bash(rg:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)"
     ],
     "deny": []
   }

@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { mockRuns, mockTestUser } from './mockData';
+import { mockRuns, mockTestUser, mockGoals, mockRaces } from './mockData';
 
 const prisma = new PrismaClient({
   datasources: {
@@ -51,6 +51,49 @@ export const createTestRuns = async (userId: string, runs = mockRuns) => {
   return createdRuns;
 };
 
+// Test goals creation utility
+export const createTestGoals = async (userId: string, goals = mockGoals) => {
+  const createdGoals = [];
+  
+  for (const goal of goals) {
+    const createdGoal = await prisma.goal.create({
+      data: {
+        title: goal.title,
+        targetKm: goal.targetKm,
+        startDate: new Date(goal.startDate),
+        endDate: new Date(goal.endDate),
+        isCompleted: goal.isCompleted,
+        userId: userId
+      }
+    });
+    createdGoals.push(createdGoal);
+  }
+  
+  return createdGoals;
+};
+
+// Test races creation utility
+export const createTestRaces = async (userId: string, races = mockRaces) => {
+  const createdRaces = [];
+  
+  for (const race of races) {
+    const createdRace = await prisma.race.create({
+      data: {
+        name: race.name,
+        raceDate: new Date(race.raceDate),
+        distance: race.distance,
+        targetTime: race.targetTime,
+        actualTime: race.actualTime,
+        notes: race.notes,
+        userId: userId
+      }
+    });
+    createdRaces.push(createdRace);
+  }
+  
+  return createdRaces;
+};
+
 // Generate test JWT token
 export const generateTestToken = (userId: string) => {
   return jwt.sign(
@@ -63,6 +106,8 @@ export const generateTestToken = (userId: string) => {
 // Clean up database utility
 export const cleanupDatabase = async () => {
   await prisma.run.deleteMany();
+  await prisma.goal.deleteMany();
+  await prisma.race.deleteMany();
   await prisma.user.deleteMany();
 };
 
@@ -77,7 +122,18 @@ export const seedTestDatabase = async () => {
   // Create test runs
   const runs = await createTestRuns(user.id);
   
-  return { user, runs };
+  // Create test goals
+  const goals = await createTestGoals(user.id);
+  
+  // Create test races
+  const races = await createTestRaces(user.id);
+  
+  return { user, runs, goals, races };
+};
+
+// Initialize database for tests
+export const initializeDatabase = async () => {
+  return await seedTestDatabase();
 };
 
 // Test database utilities
@@ -85,9 +141,12 @@ export const testDb = {
   prisma,
   createTestUser,
   createTestRuns,
+  createTestGoals,
+  createTestRaces,
   generateTestToken,
   cleanupDatabase,
-  seedTestDatabase
+  seedTestDatabase,
+  initializeDatabase
 };
 
 export default testDb;

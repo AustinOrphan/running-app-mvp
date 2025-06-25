@@ -1,4 +1,4 @@
-import { WeeklyInsights, RunTypeBreakdown, TrendsDataPoint, PersonalRecord, Run, User } from '../../src/types';
+import { WeeklyInsights, RunTypeBreakdown, TrendsDataPoint, PersonalRecord, Run, User, Goal, Race } from '../../src/types';
 
 // Mock User Data
 export const mockUser: User = {
@@ -110,6 +110,9 @@ export const mockRunTypeBreakdown: RunTypeBreakdown[] = [
     avgPace: 285
   }
 ];
+
+// Alias for backwards compatibility
+export const mockTypeBreakdown = mockRunTypeBreakdown;
 
 // Mock Trends Data
 export const mockTrendsData: TrendsDataPoint[] = [
@@ -316,3 +319,112 @@ export const createMockTrendsData = (weeks: number = 12): TrendsDataPoint[] => {
     };
   });
 };
+
+// Mock Goals Data
+export const mockGoals: Goal[] = [
+  {
+    id: 'goal-1',
+    userId: 'user-123',
+    title: 'Run 100km this month',
+    targetKm: 100,
+    startDate: '2024-06-01T00:00:00Z',
+    endDate: '2024-06-30T23:59:59Z',
+    isCompleted: false,
+    createdAt: '2024-06-01T00:00:00Z',
+    updatedAt: '2024-06-15T12:00:00Z'
+  },
+  {
+    id: 'goal-2',
+    userId: 'user-123',
+    title: 'Complete 50km in 2 weeks',
+    targetKm: 50,
+    startDate: '2024-06-10T00:00:00Z',
+    endDate: '2024-06-24T23:59:59Z',
+    isCompleted: true,
+    createdAt: '2024-06-10T00:00:00Z',
+    updatedAt: '2024-06-20T15:30:00Z'
+  },
+  {
+    id: 'goal-3',
+    userId: 'user-123',
+    title: 'Train for half marathon',
+    targetKm: 200,
+    startDate: '2024-05-01T00:00:00Z',
+    endDate: '2024-08-31T23:59:59Z',
+    isCompleted: false,
+    createdAt: '2024-05-01T00:00:00Z',
+    updatedAt: '2024-06-15T08:00:00Z'
+  }
+];
+
+// Mock Races Data
+export const mockRaces: Race[] = [
+  {
+    id: 'race-1',
+    userId: 'user-123',
+    name: 'City Half Marathon',
+    raceDate: '2024-08-15T09:00:00Z',
+    distance: 21.1,
+    targetTime: 6300, // 1:45:00
+    actualTime: undefined,
+    notes: 'Training for sub 1:45',
+    isRegistered: true,
+    createdAt: '2024-06-01T00:00:00Z',
+    updatedAt: '2024-06-15T10:00:00Z'
+  },
+  {
+    id: 'race-2',
+    userId: 'user-123',
+    name: 'Spring 10K',
+    raceDate: '2024-04-20T08:30:00Z',
+    distance: 10,
+    targetTime: 2700, // 45:00
+    actualTime: 2640, // 44:00
+    notes: 'Personal best!',
+    isRegistered: true,
+    createdAt: '2024-03-15T00:00:00Z',
+    updatedAt: '2024-04-20T12:00:00Z'
+  },
+  {
+    id: 'race-3',
+    userId: 'user-123',
+    name: 'Marathon Challenge',
+    raceDate: '2024-10-06T07:00:00Z',
+    distance: 42.2,
+    targetTime: 14400, // 4:00:00
+    actualTime: undefined,
+    notes: 'First marathon attempt',
+    isRegistered: false,
+    createdAt: '2024-06-10T00:00:00Z',
+    updatedAt: '2024-06-10T00:00:00Z'
+  }
+];
+
+// Mock utility functions for goals and races
+export const createMockGoal = (overrides: Partial<Goal> = {}): Goal => ({
+  id: `goal-${Date.now()}`,
+  userId: 'user-123',
+  title: 'Test Goal',
+  targetKm: 50,
+  startDate: new Date().toISOString(),
+  endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+  isCompleted: false,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  ...overrides
+});
+
+export const createMockRace = (overrides: Partial<Race> = {}): Race => ({
+  id: `race-${Date.now()}`,
+  userId: 'user-123',
+  name: 'Test Race',
+  raceDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+  distance: 10,
+  targetTime: 3000, // 50 minutes
+  actualTime: undefined,
+  notes: 'Test race notes',
+  isRegistered: false,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  ...overrides
+});

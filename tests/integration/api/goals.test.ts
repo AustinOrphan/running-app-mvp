@@ -1,13 +1,28 @@
 import request from 'supertest';
-import { app } from '../../../app';
+import express from 'express';
+import cors from 'cors';
 import { testDb } from '../../fixtures/testDatabase';
 import { mockGoals } from '../../fixtures/mockData';
+import goalRoutes from '../../../routes/goals';
+
+// Create test app
+const createTestApp = () => {
+  const app = express();
+  app.use(cors());
+  app.use(express.json());
+  app.use('/api/goals', goalRoutes);
+  return app;
+};
 
 describe('Goals API Integration Tests', () => {
   let testUser: any;
   let authToken: string;
+  let app: express.Application;
 
   beforeEach(async () => {
+    // Create test app
+    app = createTestApp();
+    
     // Clean database and create test user
     await testDb.cleanupDatabase();
     testUser = await testDb.createTestUser({

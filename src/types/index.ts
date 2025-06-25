@@ -61,3 +61,29 @@ export interface PersonalRecord {
   date: string;
   runId: string;
 }
+
+export interface Goal {
+  id: string;
+  userId: string;
+  title: string;
+  targetKm: number;
+  startDate: string;
+  endDate: string;
+  isCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Race {
+  id: string;
+  userId: string;
+  name: string;
+  raceDate: string;
+  distance: number;
+  targetTime?: number;
+  actualTime?: number;
+  notes?: string;
+  isRegistered?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
