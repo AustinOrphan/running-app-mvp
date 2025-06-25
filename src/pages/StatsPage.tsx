@@ -23,7 +23,7 @@ export const StatsPage: React.FC<StatsPageProps> = ({ token }) => {
   }
 
   return (
-    <div className="stats-page">
+    <div className="stats-page tab-panel">
       <div className="stats-header">
         <h2>Statistics</h2>
         <p>Track your running progress and insights</p>
