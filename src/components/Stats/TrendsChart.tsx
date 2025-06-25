@@ -115,10 +115,10 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
     return selectedMetric === 'distance' ? '#3b82f6' : '#10b981';
   };
 
-  // Convert pace to minutes for better visualization
+  // Keep pace in seconds for correct display (tooltip expects seconds)
   const processedData = chartData.map(point => ({
     ...point,
-    pace: point.pace > 0 ? point.pace / 60 : 0, // Convert to minutes
+    pace: point.pace > 0 ? point.pace : 0, // Keep in seconds for correct display
   }));
 
   return (
@@ -151,6 +151,13 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
                 position: 'insideLeft',
                 style: { textAnchor: 'middle', fill: 'rgba(255,255,255,0.6)' },
               }}
+              tickFormatter={selectedMetric === 'pace' ? (value: number) => {
+                if (value <= 0) return '0';
+                const totalSeconds = Math.round(value);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+              } : undefined}
             />
             <Tooltip content={<CustomTooltip />} />
             <Line

@@ -1,3 +1,15 @@
+/* CSS Variables for consistent theming */
+:root {
+  --primary-bg: #242424;
+  --card-bg: #1a1a1a;
+  --secondary-bg: #2a2a2a;
+  --border-color: #404040;
+  --text-primary: rgba(255, 255, 255, 0.87);
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --records-table-th-bg: var(--secondary-bg);
+  --hover-bg: rgba(255, 255, 255, 0.05);
+}
+
 .app {
   max-width: 1200px;
   width: 100%;
@@ -6,7 +18,7 @@
   padding: 20px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   box-sizing: border-box;
-  background: #242424;
+  background: var(--primary-bg);
 }
 
 /* Add a general mobile-first approach */
@@ -3329,8 +3341,8 @@ button:disabled:hover {
 
 /* Statistics Components */
 .insights-card {
-  background: #1a1a1a;
-  border: 1px solid #404040;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 24px;
@@ -3349,13 +3361,13 @@ button:disabled:hover {
 
 .insights-header h3 {
   margin: 0;
-  color: rgba(255, 255, 255, 0.87);
+  color: var(--text-primary);
   font-size: 20px;
   font-weight: 600;
 }
 
 .insights-period {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
 }
@@ -3854,13 +3866,13 @@ button:disabled:hover {
 .records-table th {
   text-align: left;
   padding: 12px 16px;
-  background: #2a2a2a;
-  color: rgba(255, 255, 255, 0.87);
+  background: var(--records-table-th-bg);
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 2px solid #404040;
+  border-bottom: 2px solid var(--border-color);
   white-space: nowrap;
 }
 
