@@ -62,8 +62,8 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('message');
-      expect(response.body.message).toContain('email');
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('email');
     });
 
     it('returns 400 for missing password', async () => {
@@ -74,8 +74,8 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('message');
-      expect(response.body.message).toContain('password');
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('password');
     });
 
     it('returns 400 for invalid email format', async () => {
@@ -87,7 +87,7 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('returns 400 for weak password', async () => {
@@ -99,8 +99,8 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('message');
-      expect(response.body.message).toContain('password');
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('password');
     });
 
     it('returns 409 for duplicate email', async () => {
@@ -121,8 +121,8 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(409);
 
-      expect(response.body).toHaveProperty('message');
-      expect(response.body.message).toContain('already exists');
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('already exists');
     });
 
     it('hashes password before storing in database', async () => {
@@ -178,7 +178,7 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('returns 400 for missing password', async () => {
@@ -189,7 +189,7 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('returns 401 for invalid email', async () => {
@@ -201,8 +201,8 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(401);
 
-      expect(response.body).toHaveProperty('message');
-      expect(response.body.message).toContain('Invalid credentials');
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('Invalid credentials');
     });
 
     it('returns 401 for invalid password', async () => {
@@ -214,8 +214,8 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(401);
 
-      expect(response.body).toHaveProperty('message');
-      expect(response.body.message).toContain('Invalid credentials');
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('Invalid credentials');
     });
 
     it('returns valid JWT token', async () => {
@@ -363,7 +363,7 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(500);
 
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('handles malformed JSON in request body', async () => {
@@ -373,7 +373,7 @@ describe('Auth API Integration Tests', () => {
         .send('{"invalid": json}')
         .expect(400);
 
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('handles missing content-type header', async () => {
@@ -382,7 +382,7 @@ describe('Auth API Integration Tests', () => {
         .send('email=test@example.com&password=test123')
         .expect(400);
 
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('error');
     });
   });
 
@@ -430,7 +430,7 @@ describe('Auth API Integration Tests', () => {
         .send(maliciousData)
         .expect(400);
 
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('validates email format strictly', async () => {

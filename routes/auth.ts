@@ -20,7 +20,7 @@ router.post(
     { field: 'email', required: true, type: 'string' },
     { field: 'password', required: true, type: 'string', min: 6 },
   ]),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const { email, password } = req.body;
 
@@ -64,8 +64,10 @@ router.post(
         },
       });
     } catch (error: any) {
-      if (error.statusCode) throw error;
-      throw createError('Registration failed', 500);
+      if (error.statusCode) {
+        return next(error);
+      }
+      next(createError('Registration failed', 500));
     }
   }
 );
@@ -77,7 +79,7 @@ router.post(
     { field: 'email', required: true, type: 'string' },
     { field: 'password', required: true, type: 'string' },
   ]),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const { email, password } = req.body;
 
@@ -116,8 +118,10 @@ router.post(
         },
       });
     } catch (error: any) {
-      if (error.statusCode) throw error;
-      throw createError('Login failed', 500);
+      if (error.statusCode) {
+        return next(error);
+      }
+      next(createError('Login failed', 500));
     }
   }
 );
