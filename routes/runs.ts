@@ -16,7 +16,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
       orderBy: { date: 'desc' },
     });
     res.json(runs);
-  } catch (error) {
+  } catch {
     throw createError('Failed to fetch runs', 500);
   }
 });
@@ -36,7 +36,7 @@ router.get('/simple-list', requireAuth, async (req: AuthRequest, res) => {
       orderBy: { date: 'desc' },
     });
     res.json(runs);
-  } catch (error) {
+  } catch {
     throw createError('Failed to fetch run list', 500);
   }
 });
@@ -76,7 +76,7 @@ router.post(
   async (req: AuthRequest, res) => {
     try {
       const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
-      
+
       console.log('Creating run for user:', req.user?.id);
       // Verify user exists
       const user = await prisma.user.findUnique({

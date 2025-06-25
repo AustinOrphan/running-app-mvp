@@ -12,6 +12,9 @@
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
+    "lint:server": "eslint server.ts routes/**/* middleware/**/* --ext .ts,.tsx,.js,.jsx",
+    "lint:frontend": "eslint src/**/* --ext .ts,.tsx,.js,.jsx",
+    "lint:check": "npm run lint && npm run format:check && npm run typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
@@ -111,6 +114,7 @@
     "ts-jest": "^29.4.0",
     "tsx": "^4.6.2",
     "typescript": "^5.3.3",
+    "typescript-eslint": "^8.35.0",
     "vite": "^6.3.5",
     "vitest": "^3.2.4"
   }

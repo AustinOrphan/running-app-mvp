@@ -49,11 +49,9 @@ router.post(
         throw createError('JWT secret not configured', 500);
       }
 
-      const token = jwt.sign(
-        { id: user.id, email: user.email },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
+      const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+        expiresIn: '7d',
+      });
 
       res.status(201).json({
         message: 'User created successfully',
@@ -103,11 +101,9 @@ router.post(
         throw createError('JWT secret not configured', 500);
       }
 
-      const token = jwt.sign(
-        { id: user.id, email: user.email },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
+      const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+        expiresIn: '7d',
+      });
 
       res.json({
         message: 'Login successful',

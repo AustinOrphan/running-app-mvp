@@ -90,7 +90,7 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
       return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
     }
   });
-  
+
   const HALF_MARATHON_KM = 21.1;
   const MARATHON_KM = 42.2;
   const DISTANCE_TOLERANCE_KM = 0.1;

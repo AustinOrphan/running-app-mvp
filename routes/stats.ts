@@ -36,7 +36,7 @@ router.get('/insights-summary', requireAuth, async (req: AuthRequest, res) => {
       weekStart: oneWeekAgo.toISOString(),
       weekEnd: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch {
     throw createError('Failed to fetch insights summary', 500);
   }
 });
@@ -84,7 +84,7 @@ router.get('/type-breakdown', requireAuth, async (req: AuthRequest, res) => {
     }));
 
     res.json(breakdownArray);
-  } catch (error) {
+  } catch {
     throw createError('Failed to fetch type breakdown', 500);
   }
 });

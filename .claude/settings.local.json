@@ -62,7 +62,8 @@
       "Bash(pkill:*)",
       "Bash(npx tsx:*)",
       "Bash(git pull:*)",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": []
   }

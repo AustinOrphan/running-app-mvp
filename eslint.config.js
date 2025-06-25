@@ -1,6 +1,5 @@
 import js from '@eslint/js';
-import typescript from '@typescript-eslint/eslint-plugin';
-import typescriptParser from '@typescript-eslint/parser';
+import tseslint from 'typescript-eslint';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
@@ -8,7 +7,7 @@ import prettier from 'eslint-plugin-prettier';
 import prettierConfig from 'eslint-config-prettier';
 
 export default [
-  // Ignore patterns (replacing .eslintignore)
+  // Ignore patterns
   {
     ignores: [
       'node_modules/**',
@@ -28,12 +27,22 @@ export default [
     ],
   },
 
-  // Base configuration for JavaScript files
+  // Base JavaScript configuration
+  js.configs.recommended,
+
+  // TypeScript configuration
+  ...tseslint.configs.recommended,
+
+  // React and other plugin configurations
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['**/*.{js,jsx,ts,tsx}'],
+    plugins: {
+      react,
+      'react-hooks': reactHooks,
+      'jsx-a11y': jsxA11y,
+      prettier,
+    },
     languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
       parserOptions: {
         ecmaFeatures: {
           jsx: true,
@@ -56,21 +65,12 @@ export default [
         setInterval: 'readonly',
       },
     },
-    plugins: {
-      react: react,
-      'react-hooks': reactHooks,
-      'jsx-a11y': jsxA11y,
-      prettier: prettier,
-    },
     settings: {
       react: {
         version: 'detect',
       },
     },
     rules: {
-      // Base ESLint rules
-      ...js.configs.recommended.rules,
-
       // React rules
       ...react.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
@@ -85,80 +85,12 @@ export default [
       ...prettierConfig.rules,
       'prettier/prettier': 'error',
 
-      // General rules
-      'no-console': 'warn',
-      'no-debugger': 'error',
-      'prefer-const': 'error',
-    },
-  },
-
-  // TypeScript configuration
-  {
-    files: ['**/*.{ts,tsx}'],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      parser: typescriptParser,
-      parserOptions: {
-        ecmaFeatures: {
-          jsx: true,
-        },
-        project: './tsconfig.json',
-      },
-      globals: {
-        console: 'readonly',
-        process: 'readonly',
-        Buffer: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        module: 'readonly',
-        require: 'readonly',
-        exports: 'readonly',
-        global: 'readonly',
-        fetch: 'readonly',
-        window: 'readonly',
-        document: 'readonly',
-        setTimeout: 'readonly',
-        setInterval: 'readonly',
-      },
-    },
-    plugins: {
-      '@typescript-eslint': typescript,
-      react: react,
-      'react-hooks': reactHooks,
-      'jsx-a11y': jsxA11y,
-      prettier: prettier,
-    },
-    settings: {
-      react: {
-        version: 'detect',
-      },
-    },
-    rules: {
-      // Base ESLint rules
-      ...js.configs.recommended.rules,
-
       // TypeScript rules
-      ...typescript.configs.recommended.rules,
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-require-imports': 'off', // Allow require() in config files
-
-      // React rules
-      ...react.configs.recommended.rules,
-      ...reactHooks.configs.recommended.rules,
-      'react/react-in-jsx-scope': 'off',
-      'react/prop-types': 'off',
-      'react/display-name': 'off',
-
-      // Accessibility rules
-      ...jsxA11y.configs.recommended.rules,
-
-      // Prettier integration
-      ...prettierConfig.rules,
-      'prettier/prettier': 'error',
+      '@typescript-eslint/no-require-imports': 'off',
 
       // General rules
       'no-console': 'warn',
@@ -196,18 +128,6 @@ export default [
   // Server files configuration
   {
     files: ['server.ts', 'routes/**/*', 'middleware/**/*'],
-    languageOptions: {
-      globals: {
-        process: 'readonly',
-        Buffer: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        module: 'readonly',
-        require: 'readonly',
-        exports: 'readonly',
-        global: 'readonly',
-      },
-    },
     rules: {
       'react/react-in-jsx-scope': 'off',
       'react-hooks/rules-of-hooks': 'off',
