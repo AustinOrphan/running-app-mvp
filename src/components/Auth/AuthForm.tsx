@@ -28,6 +28,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister, loading
           placeholder='Email'
           value={email}
           onChange={e => setEmail(e.target.value)}
+          autoComplete="email"
           required
         />
         <input
@@ -35,6 +36,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister, loading
           placeholder='Password (min 6 chars)'
           value={password}
           onChange={e => setPassword(e.target.value)}
+          autoComplete="current-password"
           required
           minLength={6}
         />

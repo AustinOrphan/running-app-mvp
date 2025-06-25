@@ -5,6 +5,7 @@ import {
   PersonalRecord,
   Run,
   User,
+  Race,
 } from '../../src/types';
 import { Goal, GoalProgress, CreateGoalData, GoalType, GoalPeriod } from '../../src/types/goals';
 
@@ -551,3 +552,33 @@ export const createMockCreateGoalData = (
   icon: '🎯',
   ...overrides,
 });
+
+// Mock Races Data
+export const mockRaces: Race[] = [
+  {
+    id: 'race-1',
+    userId: 'user-123',
+    name: 'City Half Marathon',
+    raceDate: '2024-07-15',
+    distance: 21.1,
+    targetTime: 6300, // 1:45:00
+    actualTime: null,
+    notes: 'Training for first half marathon',
+    isRegistered: true,
+    createdAt: '2024-06-01T00:00:00Z',
+    updatedAt: '2024-06-15T10:00:00Z',
+  },
+  {
+    id: 'race-2',
+    userId: 'user-123',
+    name: 'Local 10K',
+    raceDate: '2024-06-30',
+    distance: 10,
+    targetTime: 2700, // 45:00
+    actualTime: 2640, // 44:00
+    notes: 'Great pace improvement!',
+    isRegistered: true,
+    createdAt: '2024-05-15T00:00:00Z',
+    updatedAt: '2024-07-01T09:00:00Z',
+  },
+];
