@@ -339,7 +339,9 @@ async function calculateGoalProgress(goal: any, userId: string): Promise<number>
       return runs.length;
 
     case GOAL_TYPES.PACE: {
-      if (runs.length === 0) return 0;
+      if (runs.length === 0) {
+        return 0;
+      }
       const avgPace =
         runs.reduce((total, run) => {
           const pace = run.distance > 0 ? run.duration / run.distance : 0;

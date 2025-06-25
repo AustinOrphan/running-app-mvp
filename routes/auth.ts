@@ -1,9 +1,10 @@
-import express from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
-import { validateBody } from '../middleware/validateBody.js';
+import bcrypt from 'bcrypt';
+import express from 'express';
+import jwt from 'jsonwebtoken';
+
 import { createError } from '../middleware/errorHandler.js';
+import { validateBody } from '../middleware/validateBody.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
