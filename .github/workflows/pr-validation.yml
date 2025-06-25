@@ -3,7 +3,7 @@ name: 🔍 PR Validation
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 env:
   NODE_VERSION: '18.x'
@@ -23,7 +23,7 @@ jobs:
       changed-files: ${{ steps.changed-files.outputs.all_changed_files }}
       has-tests: ${{ steps.check-tests.outputs.has-tests }}
       has-docs: ${{ steps.check-docs.outputs.has-docs }}
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -130,7 +130,7 @@ jobs:
     name: 🧪 Test Validation
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
-    
+
     services:
       postgres:
         image: postgres:15
@@ -193,7 +193,7 @@ jobs:
     name: 🎭 E2E Validation
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
-    
+
     services:
       postgres:
         image: postgres:15
@@ -273,32 +273,32 @@ jobs:
       - name: 📊 Analyze bundle size
         run: |
           echo "📊 Analyzing PR bundle impact..."
-          
+
           # Get current bundle sizes
           if [ -f "dist/assets/index-*.js" ]; then
             CURRENT_MAIN_SIZE=$(stat -f%z dist/assets/index-*.js 2>/dev/null || echo "0")
           else
             CURRENT_MAIN_SIZE=0
           fi
-          
+
           if [ -f "dist/assets/index-*.css" ]; then
             CURRENT_CSS_SIZE=$(stat -f%z dist/assets/index-*.css 2>/dev/null || echo "0")
           else
             CURRENT_CSS_SIZE=0
           fi
-          
+
           # Convert to KB
           CURRENT_MAIN_KB=$((CURRENT_MAIN_SIZE / 1024))
           CURRENT_CSS_KB=$((CURRENT_CSS_SIZE / 1024))
-          
+
           echo "PR Bundle Sizes:"
           echo "Main bundle: ${CURRENT_MAIN_KB}KB"
           echo "CSS bundle: ${CURRENT_CSS_KB}KB"
-          
+
           # Save for comment
           echo "BUNDLE_MAIN_KB=$CURRENT_MAIN_KB" >> $GITHUB_ENV
           echo "BUNDLE_CSS_KB=$CURRENT_CSS_KB" >> $GITHUB_ENV
-          
+
           # Check if bundle size is concerning (> 500KB for main)
           if [ "$CURRENT_MAIN_KB" -gt 500 ]; then
             echo "⚠️ Large bundle size detected"
@@ -330,21 +330,21 @@ jobs:
       - name: 📊 Run code quality analysis
         run: |
           echo "📊 Analyzing code quality..."
-          
+
           # Count lines of code changes
           ADDED_LINES=$(git diff --numstat ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | awk '{sum+=$1} END {print sum+0}')
           REMOVED_LINES=$(git diff --numstat ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | awk '{sum+=$2} END {print sum+0}')
           CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | wc -l)
-          
+
           echo "Code changes:"
           echo "Added lines: $ADDED_LINES"
           echo "Removed lines: $REMOVED_LINES"
           echo "Changed files: $CHANGED_FILES"
-          
+
           echo "ADDED_LINES=$ADDED_LINES" >> $GITHUB_ENV
           echo "REMOVED_LINES=$REMOVED_LINES" >> $GITHUB_ENV
           echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
-          
+
           # Check for large PR
           if [ "$CHANGED_FILES" -gt 20 ] || [ "$ADDED_LINES" -gt 500 ]; then
             echo "⚠️ Large PR detected"
@@ -412,10 +412,10 @@ jobs:
             ${LARGE_PR === 'true' ? '- ⚠️ **Large PR:** Consider breaking into smaller, focused changes\n' : ''}
             ${!hasTests ? '- 🧪 **Tests:** Consider adding tests for new functionality\n' : ''}
             ${LARGE_BUNDLE === 'true' ? '- 📦 **Bundle Size:** Consider code splitting or dependency optimization\n' : ''}
-            
+
             ### 📈 Coverage Report
             Detailed coverage reports are available in the workflow artifacts.
-            
+
             ---
             *Automated feedback from [PR Validation Workflow](${context.payload.repository.html_url}/actions/runs/${context.runId})*
             `;
@@ -461,25 +461,25 @@ jobs:
         with:
           script: |
             const changedFiles = '${{ needs.pr-info.outputs.changed-files }}';
-            
+
             let reviewers = [];
-            
+
             // Assign based on changed files
             if (changedFiles.includes('src/hooks/') || changedFiles.includes('src/components/')) {
               reviewers.push('frontend-team'); // Replace with actual usernames
             }
-            
+
             if (changedFiles.includes('routes/') || changedFiles.includes('middleware/')) {
               reviewers.push('backend-team'); // Replace with actual usernames
             }
-            
+
             if (changedFiles.includes('tests/') || changedFiles.includes('.test.')) {
               reviewers.push('qa-team'); // Replace with actual usernames
             }
-            
+
             // Remove duplicates and filter out empty values
             reviewers = [...new Set(reviewers)].filter(Boolean);
-            
+
             if (reviewers.length > 0) {
               await github.rest.pulls.requestReviewers({
                 owner: context.repo.owner,

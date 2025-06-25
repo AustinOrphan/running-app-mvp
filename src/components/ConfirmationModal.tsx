@@ -19,7 +19,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   cancelText = 'Cancel',
   type = 'danger',
   onConfirm,
-  onCancel
+  onCancel,
 }) => {
   if (!isOpen) return null;
 
@@ -50,32 +50,24 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal confirmation-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="confirmation-header">
-            <span className="confirmation-icon">{getIconForType()}</span>
+    <div className='modal-overlay' onClick={onCancel}>
+      <div className='modal confirmation-modal' onClick={e => e.stopPropagation()}>
+        <div className='modal-header'>
+          <div className='confirmation-header'>
+            <span className='confirmation-icon'>{getIconForType()}</span>
             <h3>{title}</h3>
           </div>
         </div>
-        
-        <div className="modal-body">
-          <p className="confirmation-message">{message}</p>
+
+        <div className='modal-body'>
+          <p className='confirmation-message'>{message}</p>
         </div>
 
-        <div className="modal-footer">
-          <button 
-            type="button"
-            className="btn-secondary"
-            onClick={onCancel}
-          >
+        <div className='modal-footer'>
+          <button type='button' className='btn-secondary' onClick={onCancel}>
             {cancelText}
           </button>
-          <button 
-            type="button"
-            className={getButtonStyleForType()}
-            onClick={onConfirm}
-          >
+          <button type='button' className={getButtonStyleForType()} onClick={onConfirm}>
             {confirmText}
           </button>
         </div>

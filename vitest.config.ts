@@ -1,6 +1,7 @@
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
 import path from 'path';
+
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
@@ -20,17 +21,17 @@ export default defineConfig({
         'vitest.config.ts',
         'playwright.config.ts',
         'jest.config.js',
-        '**/*.d.ts'
+        '**/*.d.ts',
       ],
       thresholds: {
         global: {
           branches: 70,
           functions: 70,
           lines: 70,
-          statements: 70
-        }
-      }
-    }
+          statements: 70,
+        },
+      },
+    },
   },
   resolve: {
     alias: {

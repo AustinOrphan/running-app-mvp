@@ -1,16 +1,16 @@
-import express from 'express';
+import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import express from 'express';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
-import runRoutes from './routes/runs.js';
 import goalRoutes from './routes/goals.js';
 import raceRoutes from './routes/races.js';
+import runRoutes from './routes/runs.js';
 import statsRoutes from './routes/stats.js';
 
 dotenv.config();
@@ -55,7 +55,7 @@ if (process.env.NODE_ENV === 'development') {
   app.get('/api/debug/users', async (req, res) => {
     try {
       const users = await prisma.user.findMany({
-        select: { id: true, email: true, createdAt: true }
+        select: { id: true, email: true, createdAt: true },
       });
       res.json(users);
     } catch (error) {

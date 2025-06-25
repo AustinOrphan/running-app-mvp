@@ -1,9 +1,10 @@
-import request from 'supertest';
-import express from 'express';
 import cors from 'cors';
-import { testDb } from '../../fixtures/testDatabase';
+import express from 'express';
+import request from 'supertest';
+
 import runsRoutes from '../../../routes/runs';
 import { mockRuns } from '../../fixtures/mockData';
+import { testDb } from '../../fixtures/testDatabase';
 
 // Create test app
 const createTestApp = () => {
@@ -28,7 +29,7 @@ describe('Runs API Integration Tests', () => {
     await testDb.cleanupDatabase();
     testUser = await testDb.createTestUser({
       email: 'runs@test.com',
-      password: 'testpassword'
+      password: 'testpassword',
     });
     authToken = testDb.generateTestToken(testUser.id);
   });
@@ -50,7 +51,7 @@ describe('Runs API Integration Tests', () => {
 
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body).toHaveLength(3);
-      
+
       response.body.forEach((run: any) => {
         expect(run).toHaveProperty('id');
         expect(run).toHaveProperty('date');
@@ -66,7 +67,7 @@ describe('Runs API Integration Tests', () => {
       const sortedRuns = [
         { ...mockRuns[0], date: '2024-06-10T06:00:00Z' },
         { ...mockRuns[1], date: '2024-06-08T06:00:00Z' },
-        { ...mockRuns[2], date: '2024-06-05T06:00:00Z' }
+        { ...mockRuns[2], date: '2024-06-05T06:00:00Z' },
       ];
 
       await testDb.createTestRuns(testUser.id, sortedRuns);
@@ -77,7 +78,7 @@ describe('Runs API Integration Tests', () => {
         .expect(200);
 
       expect(response.body).toHaveLength(3);
-      
+
       // Check dates are in descending order
       const dates = response.body.map((run: any) => new Date(run.date).getTime());
       for (let i = 1; i < dates.length; i++) {
@@ -98,10 +99,10 @@ describe('Runs API Integration Tests', () => {
       // Create another user with runs
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'password'
+        password: 'password',
       });
       await testDb.createTestRuns(otherUser.id, mockRuns.slice(0, 2));
-      
+
       // Create runs for test user
       await testDb.createTestRuns(testUser.id, mockRuns.slice(2, 4));
 
@@ -117,16 +118,11 @@ describe('Runs API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .get('/api/runs')
-        .expect(401);
+      await request(app).get('/api/runs').expect(401);
     });
 
     it('returns 401 with invalid token', async () => {
-      await request(app)
-        .get('/api/runs')
-        .set('Authorization', 'Bearer invalid-token')
-        .expect(401);
+      await request(app).get('/api/runs').set('Authorization', 'Bearer invalid-token').expect(401);
     });
   });
 
@@ -154,7 +150,7 @@ describe('Runs API Integration Tests', () => {
 
     it('returns 404 for non-existent run', async () => {
       const nonExistentId = 'non-existent-id';
-      
+
       await request(app)
         .get(`/api/runs/${nonExistentId}`)
         .set('Authorization', `Bearer ${authToken}`)
@@ -165,7 +161,7 @@ describe('Runs API Integration Tests', () => {
       // Create another user with a run
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'password'
+        password: 'password',
       });
       const otherRuns = await testDb.createTestRuns(otherUser.id, [mockRuns[1]]);
       const otherRun = otherRuns[0];
@@ -177,9 +173,7 @@ describe('Runs API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .get(`/api/runs/${testRun.id}`)
-        .expect(401);
+      await request(app).get(`/api/runs/${testRun.id}`).expect(401);
     });
   });
 
@@ -189,7 +183,7 @@ describe('Runs API Integration Tests', () => {
       distance: 5.2,
       duration: 1860, // 31 minutes
       tag: 'Easy Run',
-      notes: 'Morning run in the park'
+      notes: 'Morning run in the park',
     };
 
     it('creates new run for authenticated user', async () => {
@@ -209,7 +203,7 @@ describe('Runs API Integration Tests', () => {
 
       // Verify run was created in database
       const createdRun = await testDb.prisma.run.findUnique({
-        where: { id: response.body.id }
+        where: { id: response.body.id },
       });
       expect(createdRun).toBeTruthy();
       expect(createdRun?.userId).toBe(testUser.id);
@@ -219,7 +213,7 @@ describe('Runs API Integration Tests', () => {
       const minimalData = {
         date: '2024-06-15T06:00:00Z',
         distance: 3.0,
-        duration: 1200
+        duration: 1200,
       };
 
       const response = await request(app)
@@ -274,7 +268,7 @@ describe('Runs API Integration Tests', () => {
         distance: 42.195, // marathon distance
         duration: 12600, // 3.5 hours
         tag: 'Marathon',
-        notes: 'Boston Marathon'
+        notes: 'Boston Marathon',
       };
 
       const response = await request(app)
@@ -288,10 +282,7 @@ describe('Runs API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .post('/api/runs')
-        .send(validRunData)
-        .expect(401);
+      await request(app).post('/api/runs').send(validRunData).expect(401);
     });
   });
 
@@ -301,7 +292,7 @@ describe('Runs API Integration Tests', () => {
       distance: 8.5,
       duration: 2700,
       tag: 'Long Run',
-      notes: 'Updated notes'
+      notes: 'Updated notes',
     };
 
     beforeEach(async () => {
@@ -324,7 +315,7 @@ describe('Runs API Integration Tests', () => {
 
       // Verify update in database
       const updatedRun = await testDb.prisma.run.findUnique({
-        where: { id: testRun.id }
+        where: { id: testRun.id },
       });
       expect(updatedRun?.distance).toBe(updateData.distance);
       expect(updatedRun?.duration).toBe(updateData.duration);
@@ -332,7 +323,7 @@ describe('Runs API Integration Tests', () => {
 
     it('updates partial data', async () => {
       const partialUpdate = {
-        tag: 'Speed Work'
+        tag: 'Speed Work',
       };
 
       const response = await request(app)
@@ -360,7 +351,7 @@ describe('Runs API Integration Tests', () => {
       // Create another user with a run
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'password'
+        password: 'password',
       });
       const otherRuns = await testDb.createTestRuns(otherUser.id, [mockRuns[1]]);
       const otherRun = otherRuns[0];
@@ -377,7 +368,7 @@ describe('Runs API Integration Tests', () => {
         { distance: -5 },
         { duration: -100 },
         { distance: 'not-a-number' },
-        { duration: 'not-a-number' }
+        { duration: 'not-a-number' },
       ];
 
       for (const invalidUpdate of invalidUpdates) {
@@ -390,10 +381,7 @@ describe('Runs API Integration Tests', () => {
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .put(`/api/runs/${testRun.id}`)
-        .send(updateData)
-        .expect(401);
+      await request(app).put(`/api/runs/${testRun.id}`).send(updateData).expect(401);
     });
   });
 
@@ -413,7 +401,7 @@ describe('Runs API Integration Tests', () => {
 
       // Verify run was deleted from database
       const deletedRun = await testDb.prisma.run.findUnique({
-        where: { id: testRun.id }
+        where: { id: testRun.id },
       });
       expect(deletedRun).toBeNull();
     });
@@ -431,7 +419,7 @@ describe('Runs API Integration Tests', () => {
       // Create another user with a run
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
-        password: 'password'
+        password: 'password',
       });
       const otherRuns = await testDb.createTestRuns(otherUser.id, [mockRuns[1]]);
       const otherRun = otherRuns[0];
@@ -443,15 +431,13 @@ describe('Runs API Integration Tests', () => {
 
       // Verify run was not deleted
       const stillExists = await testDb.prisma.run.findUnique({
-        where: { id: otherRun.id }
+        where: { id: otherRun.id },
       });
       expect(stillExists).toBeTruthy();
     });
 
     it('returns 401 without authentication', async () => {
-      await request(app)
-        .delete(`/api/runs/${testRun.id}`)
-        .expect(401);
+      await request(app).delete(`/api/runs/${testRun.id}`).expect(401);
     });
   });
 
@@ -460,7 +446,7 @@ describe('Runs API Integration Tests', () => {
       const preciseData = {
         date: '2024-06-15T06:00:00Z',
         distance: 5.123456789,
-        duration: 1234
+        duration: 1234,
       };
 
       const response = await request(app)
@@ -476,7 +462,7 @@ describe('Runs API Integration Tests', () => {
       const zeroData = {
         date: '2024-06-15T06:00:00Z',
         distance: 0,
-        duration: 0
+        duration: 0,
       };
 
       const response = await request(app)
@@ -496,7 +482,7 @@ describe('Runs API Integration Tests', () => {
         distance: 5.0,
         duration: 1800,
         tag: longString,
-        notes: longString
+        notes: longString,
       };
 
       await request(app)
@@ -512,7 +498,7 @@ describe('Runs API Integration Tests', () => {
         distance: 5.0,
         duration: 1800,
         tag: 'Easy Run 🏃‍♂️',
-        notes: 'Great weather! 😊 Temperature: 20°C'
+        notes: 'Great weather! 😊 Temperature: 20°C',
       };
 
       const response = await request(app)
@@ -537,7 +523,7 @@ describe('Runs API Integration Tests', () => {
         .send({
           date: '2024-06-15T06:00:00Z',
           distance: 5.0,
-          duration: 1800
+          duration: 1800,
         })
         .expect(500);
 

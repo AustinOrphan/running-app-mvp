@@ -1,4 +1,5 @@
 import { useState } from 'react';
+
 import { RunFormData } from '../types';
 
 export const useRunForm = (initialData?: Partial<RunFormData>) => {
@@ -8,10 +9,10 @@ export const useRunForm = (initialData?: Partial<RunFormData>) => {
     duration: '',
     tag: '',
     notes: '',
-    ...initialData
+    ...initialData,
   });
-  
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const updateField = (field: keyof RunFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -22,8 +23,8 @@ export const useRunForm = (initialData?: Partial<RunFormData>) => {
   };
 
   const validate = (): boolean => {
-    const newErrors: {[key: string]: string} = {};
-    
+    const newErrors: { [key: string]: string } = {};
+
     if (!formData.distance || Number(formData.distance) <= 0) {
       newErrors.distance = 'Distance must be greater than 0';
     }
@@ -33,7 +34,7 @@ export const useRunForm = (initialData?: Partial<RunFormData>) => {
     if (!formData.date) {
       newErrors.date = 'Date is required';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -44,7 +45,7 @@ export const useRunForm = (initialData?: Partial<RunFormData>) => {
       distance: '',
       duration: '',
       tag: '',
-      notes: ''
+      notes: '',
     });
     setErrors({});
   };
@@ -55,6 +56,6 @@ export const useRunForm = (initialData?: Partial<RunFormData>) => {
     updateField,
     validate,
     reset,
-    setFormData
+    setFormData,
   };
 };

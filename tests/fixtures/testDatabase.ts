@@ -1,22 +1,21 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { mockRuns, mockTestUser, mockGoals } from './mockData';
+
 import { Goal } from '../../src/types/goals';
+
+import { mockRuns, mockTestUser, mockGoals } from './mockData';
 
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: process.env.TEST_DATABASE_URL || 'file:./test.db'
-    }
-  }
+      url: process.env.TEST_DATABASE_URL || 'file:./test.db',
+    },
+  },
 });
 
 // Test user creation utility
-export const createTestUser = async (userData?: {
-  email?: string;
-  password?: string;
-}) => {
+export const createTestUser = async (userData?: { email?: string; password?: string }) => {
   const email = userData?.email || mockTestUser.email;
   const password = userData?.password || 'testpassword123';
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -24,8 +23,8 @@ export const createTestUser = async (userData?: {
   const user = await prisma.user.create({
     data: {
       email,
-      password: hashedPassword
-    }
+      password: hashedPassword,
+    },
   });
 
   return { ...user, plainPassword: password };
@@ -34,7 +33,7 @@ export const createTestUser = async (userData?: {
 // Test runs creation utility
 export const createTestRuns = async (userId: string, runs = mockRuns) => {
   const createdRuns = [];
-  
+
   for (const run of runs) {
     const createdRun = await prisma.run.create({
       data: {
@@ -43,19 +42,19 @@ export const createTestRuns = async (userId: string, runs = mockRuns) => {
         duration: run.duration,
         tag: run.tag,
         notes: run.notes,
-        userId: userId
-      }
+        userId: userId,
+      },
     });
     createdRuns.push(createdRun);
   }
-  
+
   return createdRuns;
 };
 
 // Test goals creation utility
 export const createTestGoals = async (userId: string, goals = mockGoals) => {
   const createdGoals = [];
-  
+
   for (const goal of goals) {
     const createdGoal = await prisma.goal.create({
       data: {
@@ -73,22 +72,18 @@ export const createTestGoals = async (userId: string, goals = mockGoals) => {
         color: goal.color,
         icon: goal.icon,
         isActive: true,
-        userId: userId
-      }
+        userId: userId,
+      },
     });
     createdGoals.push(createdGoal);
   }
-  
+
   return createdGoals;
 };
 
 // Generate test JWT token
 export const generateTestToken = (userId: string) => {
-  return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET || 'test-secret',
-    { expiresIn: '1h' }
-  );
+  return jwt.sign({ userId }, process.env.JWT_SECRET || 'test-secret', { expiresIn: '1h' });
 };
 
 // Clean up database utility
@@ -102,13 +97,13 @@ export const cleanupDatabase = async () => {
 export const seedTestDatabase = async () => {
   // Clean existing data
   await cleanupDatabase();
-  
+
   // Create test user
   const user = await createTestUser();
-  
+
   // Create test runs
   const runs = await createTestRuns(user.id);
-  
+
   return { user, runs };
 };
 
@@ -120,7 +115,7 @@ export const testDb = {
   createTestGoals,
   generateTestToken,
   cleanupDatabase,
-  seedTestDatabase
+  seedTestDatabase,
 };
 
 export default testDb;

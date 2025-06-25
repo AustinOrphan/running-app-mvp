@@ -1,6 +1,7 @@
 import { test, expect, devices } from '@playwright/test';
-import { testDb } from '../fixtures/testDatabase';
+
 import { mockRuns } from '../fixtures/mockData';
+import { testDb } from '../fixtures/testDatabase';
 
 // Define mobile device configurations
 const mobileDevices = [
@@ -10,7 +11,7 @@ const mobileDevices = [
   devices['Pixel 5'],
   devices['Galaxy S9+'],
   devices['iPad'],
-  devices['iPad Pro']
+  devices['iPad Pro'],
 ];
 
 test.describe('Mobile Responsiveness E2E Tests', () => {
@@ -22,7 +23,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     await testDb.cleanupDatabase();
     testUser = await testDb.createTestUser({
       email: 'mobile@test.com',
-      password: 'testpassword123'
+      password: 'testpassword123',
     });
     authToken = testDb.generateTestToken(testUser.id);
 
@@ -42,7 +43,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
 
       test(`should display mobile-optimized layout on ${deviceConfig.name}`, async ({ page }) => {
         await page.goto('/');
-        
+
         // Check viewport is mobile-sized
         const viewport = page.viewportSize();
         expect(viewport).toBeTruthy();
@@ -70,11 +71,11 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
         // Test touch interactions on navigation
         const navItems = page.locator('nav a, .nav-item');
         const navCount = await navItems.count();
-        
+
         if (navCount > 0) {
           // Tap first navigation item
           await navItems.first().tap();
-          
+
           // Ensure navigation worked
           await page.waitForLoadState('networkidle');
         }
@@ -82,10 +83,10 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
         // Test touch interactions on buttons
         const buttons = page.locator('button:visible');
         const buttonCount = await buttons.count();
-        
+
         if (buttonCount > 0) {
           const firstButton = buttons.first();
-          
+
           // Check button is tappable (minimum 44px height for accessibility)
           const buttonBox = await firstButton.boundingBox();
           expect(buttonBox?.height).toBeGreaterThanOrEqual(44);
@@ -98,18 +99,18 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
         // Check font sizes are appropriate for mobile
         const textElements = page.locator('p, span, div, h1, h2, h3, h4, h5, h6');
         const elementCount = await textElements.count();
-        
+
         for (let i = 0; i < Math.min(elementCount, 10); i++) {
           const element = textElements.nth(i);
           const isVisible = await element.isVisible();
-          
+
           if (isVisible) {
-            const fontSize = await element.evaluate((el) => {
+            const fontSize = await element.evaluate(el => {
               return window.getComputedStyle(el).fontSize;
             });
-            
+
             const fontSizeValue = parseInt(fontSize.replace('px', ''));
-            
+
             // Minimum font size should be 14px for readability on mobile
             expect(fontSizeValue).toBeGreaterThanOrEqual(14);
           }
@@ -163,7 +164,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
         '.mobile-menu',
         '.hamburger',
         '[aria-label="Menu"]',
-        'button[aria-expanded]'
+        'button[aria-expanded]',
       ];
 
       let hasMobileNav = false;
@@ -191,16 +192,16 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
       const navigationTests = [
         { path: '/runs', expectedText: 'Runs' },
         { path: '/stats', expectedText: 'Statistics' },
-        { path: '/dashboard', expectedText: 'Dashboard' }
+        { path: '/dashboard', expectedText: 'Dashboard' },
       ];
 
       for (const nav of navigationTests) {
         await page.goto(nav.path);
         await page.waitForLoadState('networkidle');
-        
+
         // Check page loaded successfully
         await expect(page.locator('h1, h2')).toContainText(nav.expectedText);
-        
+
         // Check page is responsive
         const viewport = page.viewportSize();
         const bodyScrollWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -222,19 +223,19 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
 
       // Check dashboard elements are visible and properly sized
       await expect(page.locator('h1, h2')).toBeVisible();
-      
+
       // Check for mobile-optimized layout
       const contentElements = page.locator('[class*="grid"], [class*="flex"], .card, .widget');
       const elementCount = await contentElements.count();
-      
+
       for (let i = 0; i < Math.min(elementCount, 5); i++) {
         const element = contentElements.nth(i);
         const isVisible = await element.isVisible();
-        
+
         if (isVisible) {
           const elementBox = await element.boundingBox();
           const viewport = page.viewportSize();
-          
+
           // Elements should not exceed viewport width
           expect(elementBox?.width).toBeLessThanOrEqual(viewport!.width);
         }
@@ -247,26 +248,26 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
       await page.fill('input[type="email"]', testUser.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
-      
+
       await page.goto('/runs');
       await expect(page.locator('h1')).toContainText('Runs');
 
       // Check runs are displayed in mobile-friendly format
       const runItems = page.locator('.run-item, [data-testid="run-item"]');
       const runCount = await runItems.count();
-      
+
       if (runCount > 0) {
         // Check first run item is properly sized
         const firstRun = runItems.first();
         const runBox = await firstRun.boundingBox();
         const viewport = page.viewportSize();
-        
+
         expect(runBox?.width).toBeLessThanOrEqual(viewport!.width);
         expect(runBox?.height).toBeGreaterThan(0);
-        
+
         // Test interaction with run item
         await firstRun.tap();
-        
+
         // Should open run details or navigate
         await page.waitForTimeout(500); // Wait for interaction
       }
@@ -278,22 +279,22 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
       await page.fill('input[type="email"]', testUser.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
-      
+
       await page.goto('/stats');
       await expect(page.locator('h1')).toContainText('Statistics');
 
       // Check charts and stats are mobile-optimized
       const chartElements = page.locator('[class*="chart"], [data-testid*="chart"], canvas, svg');
       const chartCount = await chartElements.count();
-      
+
       for (let i = 0; i < Math.min(chartCount, 3); i++) {
         const chart = chartElements.nth(i);
         const isVisible = await chart.isVisible();
-        
+
         if (isVisible) {
           const chartBox = await chart.boundingBox();
           const viewport = page.viewportSize();
-          
+
           // Charts should be responsive and not overflow
           expect(chartBox?.width).toBeLessThanOrEqual(viewport!.width);
         }
@@ -307,12 +308,12 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     test('should load pages quickly on mobile', async ({ page }) => {
       // Test page load performance
       const startTime = Date.now();
-      
+
       await page.goto('/');
       await page.waitForLoadState('networkidle');
-      
+
       const loadTime = Date.now() - startTime;
-      
+
       // Page should load within reasonable time (adjust threshold as needed)
       expect(loadTime).toBeLessThan(5000); // 5 seconds
     });
@@ -327,12 +328,12 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
 
       // Rapidly navigate between pages
       const pages = ['/runs', '/stats', '/dashboard'];
-      
+
       for (let i = 0; i < 3; i++) {
         for (const pagePath of pages) {
           await page.goto(pagePath);
           await page.waitForLoadState('domcontentloaded');
-          
+
           // Check page loaded without errors
           await expect(page.locator('h1, h2')).toBeVisible();
         }
@@ -349,14 +350,14 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
       // Check all interactive elements have proper touch target size
       const interactiveElements = page.locator('button, a, input, [role="button"], [tabindex]');
       const elementCount = await interactiveElements.count();
-      
+
       for (let i = 0; i < Math.min(elementCount, 10); i++) {
         const element = interactiveElements.nth(i);
         const isVisible = await element.isVisible();
-        
+
         if (isVisible) {
           const elementBox = await element.boundingBox();
-          
+
           // Touch targets should be at least 44x44 pixels
           if (elementBox) {
             expect(Math.min(elementBox.width, elementBox.height)).toBeGreaterThanOrEqual(44);
@@ -390,21 +391,21 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
       // Test that text is visible against backgrounds
       const textElements = page.locator('p, span, h1, h2, h3, h4, h5, h6');
       const elementCount = await textElements.count();
-      
+
       for (let i = 0; i < Math.min(elementCount, 5); i++) {
         const element = textElements.nth(i);
         const isVisible = await element.isVisible();
-        
+
         if (isVisible) {
-          const styles = await element.evaluate((el) => {
+          const styles = await element.evaluate(el => {
             const computed = window.getComputedStyle(el);
             return {
               color: computed.color,
               backgroundColor: computed.backgroundColor,
-              fontSize: computed.fontSize
+              fontSize: computed.fontSize,
             };
           });
-          
+
           // Text should have color (not transparent)
           expect(styles.color).not.toBe('rgba(0, 0, 0, 0)');
           expect(styles.color).not.toBe('transparent');
@@ -440,13 +441,13 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
       // Fill form quickly and tap submit multiple times
       await page.fill('input[type="email"]', testUser.email);
       await page.fill('input[type="password"]', 'testpassword123');
-      
+
       const submitButton = page.locator('button[type="submit"]');
-      
+
       // Tap multiple times quickly
       await submitButton.tap();
       await submitButton.tap();
-      
+
       // Should handle multiple taps gracefully (button should be disabled during loading)
       const isDisabled = await submitButton.isDisabled();
       if (!isDisabled) {
@@ -465,7 +466,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
       // Test email input with virtual keyboard
       const emailInput = page.locator('input[type="email"]');
       await emailInput.tap();
-      
+
       // Virtual keyboard should trigger appropriate input type
       const inputType = await emailInput.getAttribute('inputmode');
       expect(inputType === 'email' || inputType === null).toBe(true);
@@ -491,17 +492,19 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
 
       // Navigate to runs and try to add a run
       await page.goto('/runs');
-      
+
       // Look for add run button
-      const addButtons = page.locator('button:has-text("Add"), [aria-label*="Add"], .add-button, .fab');
+      const addButtons = page.locator(
+        'button:has-text("Add"), [aria-label*="Add"], .add-button, .fab'
+      );
       const addButtonCount = await addButtons.count();
-      
+
       if (addButtonCount > 0) {
         await addButtons.first().tap();
-        
+
         // Should open add run form
         await expect(page.locator('input[name="distance"], input[name="duration"]')).toBeVisible();
-        
+
         // Test form inputs work on mobile
         const distanceInput = page.locator('input[name="distance"]');
         if (await distanceInput.isVisible()) {

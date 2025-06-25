@@ -57,11 +57,10 @@ export class MilestoneDetector {
   static checkMilestones(goal: Goal, progress: GoalProgress): MilestoneCheckResult {
     const currentProgressPercentage = Math.floor(progress.progressPercentage);
     const achievedMilestones = this.getStoredMilestones(goal.id);
-    
+
     // Find new milestones that haven't been notified yet
-    const newMilestones = this.MILESTONES.filter(milestone => 
-      currentProgressPercentage >= milestone && 
-      !achievedMilestones.includes(milestone)
+    const newMilestones = this.MILESTONES.filter(
+      milestone => currentProgressPercentage >= milestone && !achievedMilestones.includes(milestone)
     );
 
     // Store new milestones
@@ -71,9 +70,8 @@ export class MilestoneDetector {
     }
 
     // Find next milestone
-    const nextMilestone = this.MILESTONES.find(milestone => 
-      currentProgressPercentage < milestone
-    ) || null;
+    const nextMilestone =
+      this.MILESTONES.find(milestone => currentProgressPercentage < milestone) || null;
 
     // Calculate progress to next milestone
     let progressToNextMilestone = 0;
@@ -88,7 +86,7 @@ export class MilestoneDetector {
       newMilestones,
       hasNewMilestones: newMilestones.length > 0,
       nextMilestone,
-      progressToNextMilestone: Math.max(0, Math.min(100, progressToNextMilestone))
+      progressToNextMilestone: Math.max(0, Math.min(100, progressToNextMilestone)),
     };
   }
 
@@ -145,21 +143,21 @@ export class DeadlineDetector {
 
   // Check if deadline reminder should be sent
   static checkDeadlineReminder(
-    goal: Goal, 
-    progress: GoalProgress, 
+    goal: Goal,
+    progress: GoalProgress,
     reminderDays: number[]
   ): DeadlineCheckResult {
     const daysRemaining = progress.daysRemaining;
     const lastNotifications = this.getLastNotificationDates(goal.id);
-    
+
     // Check if we should send a reminder for this day count
     const shouldNotifyForDays = reminderDays.some(reminderDay => {
       if (daysRemaining !== reminderDay) return false;
-      
+
       // Check if we already notified for this day count today
       const lastNotified = lastNotifications[reminderDay];
       if (!lastNotified) return true;
-      
+
       const lastNotifiedDate = new Date(lastNotified);
       const today = new Date();
       return lastNotifiedDate.toDateString() !== today.toDateString();
@@ -169,7 +167,7 @@ export class DeadlineDetector {
     const shouldNotifyToday = daysRemaining === 0 && !lastNotifications[0];
 
     const shouldNotify = shouldNotifyForDays || shouldNotifyToday;
-    
+
     if (shouldNotify) {
       this.storeNotificationDate(goal.id, daysRemaining);
     }
@@ -190,7 +188,7 @@ export class DeadlineDetector {
       shouldNotify,
       daysRemaining,
       isUrgent: notificationLevel === 'urgent',
-      notificationLevel
+      notificationLevel,
     };
   }
 
@@ -219,7 +217,7 @@ export class StreakDetector {
         longestStreak: 0,
         streakType: 'daily',
         isNewRecord: false,
-        shouldCelebrate: false
+        shouldCelebrate: false,
       };
     }
 
@@ -231,19 +229,19 @@ export class StreakDetector {
     // Calculate daily streak
     let currentStreak = 0;
     let longestStreak = 0;
-    let tempStreak = 0;
-    
+    const tempStreak = 0;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     // Check for current streak (consecutive days with runs)
     for (let i = 0; i < sortedDates.length; i++) {
       const runDate = new Date(sortedDates[i]);
       runDate.setHours(0, 0, 0, 0);
-      
+
       const expectedDate = new Date(today);
       expectedDate.setDate(today.getDate() - i);
-      
+
       if (runDate.getTime() === expectedDate.getTime()) {
         currentStreak++;
       } else {
@@ -258,11 +256,11 @@ export class StreakDetector {
       const previousDate = new Date(sortedDates[i - 1]);
       currentDate.setHours(0, 0, 0, 0);
       previousDate.setHours(0, 0, 0, 0);
-      
+
       const dayDiff = Math.abs(
         (previousDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)
       );
-      
+
       if (dayDiff === 1) {
         currentTempStreak++;
       } else {
@@ -274,7 +272,7 @@ export class StreakDetector {
 
     // Check if current streak is a new record
     const isNewRecord = currentStreak > longestStreak;
-    
+
     // Determine if we should celebrate (milestone streaks)
     const celebrationMilestones = [3, 7, 14, 21, 30, 60, 90, 180, 365];
     const shouldCelebrate = celebrationMilestones.includes(currentStreak);
@@ -284,7 +282,7 @@ export class StreakDetector {
       longestStreak: Math.max(longestStreak, currentStreak),
       streakType: 'daily',
       isNewRecord,
-      shouldCelebrate
+      shouldCelebrate,
     };
   }
 
@@ -322,16 +320,20 @@ export class StreakDetector {
     // 1. New record achieved
     // 2. Reached a celebration milestone
     // 3. Streak increased and it's a notable milestone
-    return newStreak.isNewRecord || 
-           newStreak.shouldCelebrate || 
-           (newStreak.currentStreak > oldStreak.currentStreak && 
-            newStreak.currentStreak % 7 === 0); // Weekly milestones
+    return (
+      newStreak.isNewRecord ||
+      newStreak.shouldCelebrate ||
+      (newStreak.currentStreak > oldStreak.currentStreak && newStreak.currentStreak % 7 === 0)
+    ); // Weekly milestones
   }
 }
 
 // Goal analytics for summary notifications
 export class GoalAnalytics {
-  static calculateGoalStats(goals: Goal[], progressData: GoalProgress[]): {
+  static calculateGoalStats(
+    goals: Goal[],
+    progressData: GoalProgress[]
+  ): {
     goalsCompleted: number;
     totalGoals: number;
     averageProgress: number;
@@ -341,23 +343,24 @@ export class GoalAnalytics {
   } {
     const activeGoals = goals.filter(goal => !goal.isCompleted && goal.isActive);
     const completedGoals = goals.filter(goal => goal.isCompleted);
-    
-    const progressMap = new Map(
-      progressData.map(p => [p.goalId, p])
-    );
+
+    const progressMap = new Map(progressData.map(p => [p.goalId, p]));
 
     // Calculate average progress for active goals
-    const activeProgressValues = activeGoals
-      .map(goal => progressMap.get(goal.id)?.progressPercentage || 0);
-    
-    const averageProgress = activeProgressValues.length > 0 
-      ? activeProgressValues.reduce((sum, progress) => sum + progress, 0) / activeProgressValues.length
-      : 0;
+    const activeProgressValues = activeGoals.map(
+      goal => progressMap.get(goal.id)?.progressPercentage || 0
+    );
+
+    const averageProgress =
+      activeProgressValues.length > 0
+        ? activeProgressValues.reduce((sum, progress) => sum + progress, 0) /
+          activeProgressValues.length
+        : 0;
 
     // Find top performing goal
     let topPerformingGoal: string | undefined;
     let highestProgress = 0;
-    
+
     activeGoals.forEach(goal => {
       const progress = progressMap.get(goal.id);
       if (progress && progress.progressPercentage > highestProgress) {
@@ -371,7 +374,7 @@ export class GoalAnalytics {
       .filter(goal => {
         const progress = progressMap.get(goal.id);
         if (!progress) return false;
-        
+
         const timeProgress = this.calculateTimeProgress(goal);
         return progress.progressPercentage < 25 && timeProgress > 50;
       })
@@ -390,7 +393,7 @@ export class GoalAnalytics {
       averageProgress,
       topPerformingGoal,
       strugglingGoals,
-      improvementSuggestions
+      improvementSuggestions,
     };
   }
 
@@ -398,10 +401,10 @@ export class GoalAnalytics {
     const now = new Date();
     const start = new Date(goal.startDate);
     const end = new Date(goal.endDate);
-    
+
     const totalTime = end.getTime() - start.getTime();
     const elapsedTime = now.getTime() - start.getTime();
-    
+
     return Math.min(100, Math.max(0, (elapsedTime / totalTime) * 100));
   }
 
@@ -420,7 +423,9 @@ export class GoalAnalytics {
     }).length;
 
     if (behindScheduleCount > 0) {
-      suggestions.push(`${behindScheduleCount} goal(s) are behind schedule. Consider adjusting targets or increasing frequency.`);
+      suggestions.push(
+        `${behindScheduleCount} goal(s) are behind schedule. Consider adjusting targets or increasing frequency.`
+      );
     }
 
     // Check average progress
@@ -433,7 +438,9 @@ export class GoalAnalytics {
     // Check for goal variety
     const goalTypes = new Set(goals.map(goal => goal.type));
     if (goalTypes.size === 1) {
-      suggestions.push('Consider diversifying your goals with different types (distance, time, frequency, pace).');
+      suggestions.push(
+        'Consider diversifying your goals with different types (distance, time, frequency, pace).'
+      );
     }
 
     return suggestions;

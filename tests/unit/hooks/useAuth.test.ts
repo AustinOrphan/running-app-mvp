@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import { useAuth } from '../../../src/hooks/useAuth';
 
 // Mock localStorage
@@ -14,7 +15,7 @@ const mockLocalStorage = {
   }),
   clear: vi.fn(() => {
     mockLocalStorage.store = {};
-  })
+  }),
 };
 
 // Mock fetch
@@ -25,13 +26,13 @@ describe('useAuth', () => {
     // Reset localStorage mock
     mockLocalStorage.store = {};
     vi.clearAllMocks();
-    
+
     // Set up global mocks
     Object.defineProperty(window, 'localStorage', {
       value: mockLocalStorage,
-      writable: true
+      writable: true,
     });
-    
+
     global.fetch = mockFetch;
   });
 
@@ -80,8 +81,8 @@ describe('useAuth', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({
           token: 'auth-token-123',
-          user: { id: '1', email: 'test@example.com' }
-        })
+          user: { id: '1', email: 'test@example.com' },
+        }),
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -94,7 +95,7 @@ describe('useAuth', () => {
 
       expect(loginResult).toEqual({
         success: true,
-        token: 'auth-token-123'
+        token: 'auth-token-123',
       });
 
       expect(result.current.isLoggedIn).toBe(true);
@@ -104,7 +105,7 @@ describe('useAuth', () => {
       expect(mockFetch).toHaveBeenCalledWith('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'test@example.com', password: 'password123' })
+        body: JSON.stringify({ email: 'test@example.com', password: 'password123' }),
       });
     });
 
@@ -112,8 +113,8 @@ describe('useAuth', () => {
       const mockResponse = {
         ok: false,
         json: vi.fn().mockResolvedValue({
-          message: 'Invalid credentials'
-        })
+          message: 'Invalid credentials',
+        }),
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -126,7 +127,7 @@ describe('useAuth', () => {
 
       expect(loginResult).toEqual({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid credentials',
       });
 
       expect(result.current.isLoggedIn).toBe(false);
@@ -137,7 +138,7 @@ describe('useAuth', () => {
     it('handles login failure without error message', async () => {
       const mockResponse = {
         ok: false,
-        json: vi.fn().mockResolvedValue({})
+        json: vi.fn().mockResolvedValue({}),
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -150,14 +151,14 @@ describe('useAuth', () => {
 
       expect(loginResult).toEqual({
         success: false,
-        message: 'Login failed'
+        message: 'Login failed',
       });
     });
 
     it('handles malformed JSON response gracefully', async () => {
       const mockResponse = {
         ok: false,
-        json: vi.fn().mockRejectedValue(new Error('Invalid JSON'))
+        json: vi.fn().mockRejectedValue(new Error('Invalid JSON')),
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -170,7 +171,7 @@ describe('useAuth', () => {
 
       expect(loginResult).toEqual({
         success: false,
-        message: 'Login failed'
+        message: 'Login failed',
       });
     });
 
@@ -186,7 +187,7 @@ describe('useAuth', () => {
 
       expect(loginResult).toEqual({
         success: false,
-        message: 'Network error. Please try again.'
+        message: 'Network error. Please try again.',
       });
 
       expect(result.current.isLoggedIn).toBe(false);
@@ -196,10 +197,10 @@ describe('useAuth', () => {
     it('sets and clears loading state correctly', async () => {
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({ token: 'token' })
+        json: vi.fn().mockResolvedValue({ token: 'token' }),
       };
-      mockFetch.mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve(mockResponse), 100))
+      mockFetch.mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve(mockResponse), 100))
       );
 
       const { result } = renderHook(() => useAuth());
@@ -224,8 +225,8 @@ describe('useAuth', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({
           token: 'new-user-token',
-          user: { id: '2', email: 'newuser@example.com' }
-        })
+          user: { id: '2', email: 'newuser@example.com' },
+        }),
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -238,7 +239,7 @@ describe('useAuth', () => {
 
       expect(registerResult).toEqual({
         success: true,
-        token: 'new-user-token'
+        token: 'new-user-token',
       });
 
       expect(result.current.isLoggedIn).toBe(true);
@@ -248,7 +249,7 @@ describe('useAuth', () => {
       expect(mockFetch).toHaveBeenCalledWith('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'newuser@example.com', password: 'password123' })
+        body: JSON.stringify({ email: 'newuser@example.com', password: 'password123' }),
       });
     });
 
@@ -256,8 +257,8 @@ describe('useAuth', () => {
       const mockResponse = {
         ok: false,
         json: vi.fn().mockResolvedValue({
-          message: 'Email already exists'
-        })
+          message: 'Email already exists',
+        }),
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -270,7 +271,7 @@ describe('useAuth', () => {
 
       expect(registerResult).toEqual({
         success: false,
-        message: 'Email already exists'
+        message: 'Email already exists',
       });
 
       expect(result.current.isLoggedIn).toBe(false);
@@ -280,7 +281,7 @@ describe('useAuth', () => {
     it('handles registration failure without error message', async () => {
       const mockResponse = {
         ok: false,
-        json: vi.fn().mockResolvedValue({})
+        json: vi.fn().mockResolvedValue({}),
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -293,7 +294,7 @@ describe('useAuth', () => {
 
       expect(registerResult).toEqual({
         success: false,
-        message: 'Registration failed'
+        message: 'Registration failed',
       });
     });
 
@@ -309,17 +310,17 @@ describe('useAuth', () => {
 
       expect(registerResult).toEqual({
         success: false,
-        message: 'Network error. Please try again.'
+        message: 'Network error. Please try again.',
       });
     });
 
     it('sets and clears loading state during registration', async () => {
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({ token: 'token' })
+        json: vi.fn().mockResolvedValue({ token: 'token' }),
       };
-      mockFetch.mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve(mockResponse), 100))
+      mockFetch.mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve(mockResponse), 100))
       );
 
       const { result } = renderHook(() => useAuth());
@@ -343,7 +344,7 @@ describe('useAuth', () => {
       // Set up logged in state
       mockLocalStorage.store.authToken = 'existing-token';
       const { result } = renderHook(() => useAuth());
-      
+
       expect(result.current.isLoggedIn).toBe(true);
 
       act(() => {
@@ -356,7 +357,7 @@ describe('useAuth', () => {
 
     it('handles logout when user is not logged in', () => {
       const { result } = renderHook(() => useAuth());
-      
+
       expect(result.current.isLoggedIn).toBe(false);
 
       act(() => {
@@ -398,7 +399,7 @@ describe('useAuth', () => {
       // Mock successful login
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({ token: 'auth-token' })
+        json: vi.fn().mockResolvedValue({ token: 'auth-token' }),
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -423,14 +424,14 @@ describe('useAuth', () => {
     it('prevents concurrent login/register operations', async () => {
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({ token: 'token' })
+        json: vi.fn().mockResolvedValue({ token: 'token' }),
       };
-      
+
       let resolveLogin: (value: any) => void;
       const loginPromise = new Promise(resolve => {
         resolveLogin = resolve;
       });
-      
+
       mockFetch.mockImplementation(() => {
         return loginPromise.then(() => mockResponse);
       });
@@ -467,7 +468,7 @@ describe('useAuth', () => {
     it('handles fetch response that is not ok with invalid JSON', async () => {
       const mockResponse = {
         ok: false,
-        json: vi.fn().mockRejectedValue(new Error('Invalid JSON'))
+        json: vi.fn().mockRejectedValue(new Error('Invalid JSON')),
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -485,7 +486,7 @@ describe('useAuth', () => {
     it('handles empty email and password gracefully', async () => {
       const mockResponse = {
         ok: false,
-        json: vi.fn().mockResolvedValue({ message: 'Invalid input' })
+        json: vi.fn().mockResolvedValue({ message: 'Invalid input' }),
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -500,7 +501,7 @@ describe('useAuth', () => {
       expect(mockFetch).toHaveBeenCalledWith('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: '', password: '' })
+        body: JSON.stringify({ email: '', password: '' }),
       });
     });
 
@@ -521,7 +522,7 @@ describe('useAuth', () => {
     it('does not update state after component unmount', async () => {
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({ token: 'token' })
+        json: vi.fn().mockResolvedValue({ token: 'token' }),
       };
 
       let resolveLogin: (value: any) => void;

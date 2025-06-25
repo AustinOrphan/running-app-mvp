@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+
 import { Goal, GoalProgress, CreateGoalData } from '../types/goals';
 import { MilestoneDetector, DeadlineDetector, StreakDetector } from '../utils/milestoneDetector';
+
 import { useNotifications } from './useNotifications';
 
 interface UseGoalsReturn {
@@ -27,28 +29,29 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seenAchievements, setSeenAchievements] = useState<Set<string>>(new Set());
-  
+
   // Notification system integration
   const {
     showMilestoneNotification,
     showDeadlineNotification,
     showStreakNotification,
-    preferences: notificationPreferences
+    preferences: notificationPreferences,
   } = useNotifications();
-  
+
   // Track previous progress to detect changes
   const previousProgressRef = useRef<Map<string, GoalProgress>>(new Map());
 
   // Computed values
   const activeGoals = goals.filter(goal => !goal.isCompleted);
   const completedGoals = goals.filter(goal => goal.isCompleted);
-  
+
   // Detect newly achieved goals based on progress
   const newlyAchievedGoals = goalProgress
-    .filter(progress => 
-      progress.isCompleted && 
-      !seenAchievements.has(progress.goalId) &&
-      activeGoals.some(goal => goal.id === progress.goalId)
+    .filter(
+      progress =>
+        progress.isCompleted &&
+        !seenAchievements.has(progress.goalId) &&
+        activeGoals.some(goal => goal.id === progress.goalId)
     )
     .map(progress => goals.find(goal => goal.id === progress.goalId))
     .filter((goal): goal is Goal => goal !== undefined);
@@ -63,7 +66,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         ...options.headers,
       },
     });
@@ -111,8 +114,10 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
   // Check for milestone and deadline notifications
   const checkNotifications = useCallback(() => {
-    if (!notificationPreferences.enableMilestoneNotifications && 
-        !notificationPreferences.enableDeadlineReminders) {
+    if (
+      !notificationPreferences.enableMilestoneNotifications &&
+      !notificationPreferences.enableDeadlineReminders
+    ) {
       return;
     }
 
@@ -125,7 +130,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       // Check for milestone notifications
       if (notificationPreferences.enableMilestoneNotifications) {
         const milestoneResult = MilestoneDetector.checkMilestones(goal, progress);
-        
+
         if (milestoneResult.hasNewMilestones) {
           milestoneResult.newMilestones.forEach(milestone => {
             showMilestoneNotification(goal, progress, milestone);
@@ -140,7 +145,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
           progress,
           notificationPreferences.deadlineReminderDays
         );
-        
+
         if (deadlineResult.shouldNotify) {
           showDeadlineNotification(goal, progress);
         }
@@ -150,81 +155,92 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       previousProgressRef.current.set(progress.goalId, progress);
     });
   }, [
-    goals, 
-    goalProgress, 
+    goals,
+    goalProgress,
     notificationPreferences.enableMilestoneNotifications,
     notificationPreferences.enableDeadlineReminders,
     notificationPreferences.deadlineReminderDays,
     showMilestoneNotification,
-    showDeadlineNotification
+    showDeadlineNotification,
   ]);
 
   // Create goal
-  const createGoal = useCallback(async (goalData: CreateGoalData): Promise<Goal> => {
-    const newGoal = await makeApiCall('/api/goals', {
-      method: 'POST',
-      body: JSON.stringify(goalData),
-    });
+  const createGoal = useCallback(
+    async (goalData: CreateGoalData): Promise<Goal> => {
+      const newGoal = await makeApiCall('/api/goals', {
+        method: 'POST',
+        body: JSON.stringify(goalData),
+      });
 
-    // Update local state
-    setGoals(prev => [...prev, newGoal]);
-    
-    // Refresh progress data
-    refreshProgress();
-    
-    return newGoal;
-  }, [token, refreshProgress]);
+      // Update local state
+      setGoals(prev => [...prev, newGoal]);
+
+      // Refresh progress data
+      refreshProgress();
+
+      return newGoal;
+    },
+    [token, refreshProgress]
+  );
 
   // Update goal
-  const updateGoal = useCallback(async (goalId: string, goalData: Partial<Goal>): Promise<Goal> => {
-    const updatedGoal = await makeApiCall(`/api/goals/${goalId}`, {
-      method: 'PUT',
-      body: JSON.stringify(goalData),
-    });
+  const updateGoal = useCallback(
+    async (goalId: string, goalData: Partial<Goal>): Promise<Goal> => {
+      const updatedGoal = await makeApiCall(`/api/goals/${goalId}`, {
+        method: 'PUT',
+        body: JSON.stringify(goalData),
+      });
 
-    // Update local state
-    setGoals(prev => prev.map(goal => 
-      goal.id === goalId ? updatedGoal : goal
-    ));
-    
-    // Refresh progress data
-    refreshProgress();
-    
-    return updatedGoal;
-  }, [token, refreshProgress]);
+      // Update local state
+      setGoals(prev => prev.map(goal => (goal.id === goalId ? updatedGoal : goal)));
+
+      // Refresh progress data
+      refreshProgress();
+
+      return updatedGoal;
+    },
+    [token, refreshProgress]
+  );
 
   // Delete goal
-  const deleteGoal = useCallback(async (goalId: string): Promise<void> => {
-    await makeApiCall(`/api/goals/${goalId}`, {
-      method: 'DELETE',
-    });
+  const deleteGoal = useCallback(
+    async (goalId: string): Promise<void> => {
+      await makeApiCall(`/api/goals/${goalId}`, {
+        method: 'DELETE',
+      });
 
-    // Update local state
-    setGoals(prev => prev.filter(goal => goal.id !== goalId));
-    setGoalProgress(prev => prev.filter(progress => progress.goalId !== goalId));
-  }, [token]);
+      // Update local state
+      setGoals(prev => prev.filter(goal => goal.id !== goalId));
+      setGoalProgress(prev => prev.filter(progress => progress.goalId !== goalId));
+    },
+    [token]
+  );
 
   // Complete goal
-  const completeGoal = useCallback(async (goalId: string): Promise<Goal> => {
-    const completedGoal = await makeApiCall(`/api/goals/${goalId}/complete`, {
-      method: 'POST',
-    });
+  const completeGoal = useCallback(
+    async (goalId: string): Promise<Goal> => {
+      const completedGoal = await makeApiCall(`/api/goals/${goalId}/complete`, {
+        method: 'POST',
+      });
 
-    // Update local state
-    setGoals(prev => prev.map(goal => 
-      goal.id === goalId ? completedGoal : goal
-    ));
-    
-    // Refresh progress data
-    refreshProgress();
-    
-    return completedGoal;
-  }, [token, refreshProgress]);
+      // Update local state
+      setGoals(prev => prev.map(goal => (goal.id === goalId ? completedGoal : goal)));
+
+      // Refresh progress data
+      refreshProgress();
+
+      return completedGoal;
+    },
+    [token, refreshProgress]
+  );
 
   // Get progress for specific goal
-  const getGoalProgress = useCallback((goalId: string): GoalProgress | undefined => {
-    return goalProgress.find(p => p.goalId === goalId);
-  }, [goalProgress]);
+  const getGoalProgress = useCallback(
+    (goalId: string): GoalProgress | undefined => {
+      return goalProgress.find(p => p.goalId === goalId);
+    },
+    [goalProgress]
+  );
 
   // Mark achievement as seen
   const markAchievementSeen = useCallback((goalId: string) => {

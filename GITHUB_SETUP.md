@@ -5,6 +5,7 @@ Your Running Tracker MVP is now ready to be published as a GitHub repository! He
 ## 🚀 Quick Setup (Recommended)
 
 ### 1. Create Repository on GitHub
+
 1. Go to [github.com](https://github.com)
 2. Click the "+" icon → "New repository"
 3. Repository name: `running-tracker-mvp` (or your preferred name)
@@ -14,6 +15,7 @@ Your Running Tracker MVP is now ready to be published as a GitHub repository! He
 7. Click "Create repository"
 
 ### 2. Connect Local Repository to GitHub
+
 ```bash
 cd "/Users/austinorphan/Library/Mobile Documents/com~apple~CloudDocs/src/running-app-mvp"
 
@@ -59,17 +61,20 @@ Your repository will include:
 After creating your repository on GitHub:
 
 ### 1. Enable GitHub Pages (Optional)
+
 - Go to Settings → Pages
 - Source: "Deploy from a branch"
 - Branch: main / (root)
 - This will host your README as a website
 
 ### 2. Add Topics/Tags
+
 - Go to main repository page
 - Click the gear icon next to "About"
 - Add topics: `react`, `typescript`, `express`, `prisma`, `running`, `fitness`, `webapp`, `mvp`
 
 ### 3. Enable Issues and Discussions
+
 - Settings → Features
 - Check "Issues" and "Discussions"
 - Great for community engagement!
@@ -77,11 +82,13 @@ After creating your repository on GitHub:
 ## 🔗 Share Your Repository
 
 Once published, your repository URL will be:
+
 ```
 https://github.com/YOUR_USERNAME/running-tracker-mvp
 ```
 
 Share it with:
+
 - ✅ Your portfolio
 - ✅ Social media
 - ✅ Developer communities
@@ -98,6 +105,7 @@ Share it with:
 ## 🛡️ Security Note
 
 Your `.env` file is automatically excluded from git, so your:
+
 - Database file
 - JWT secrets
 - Any other sensitive information
@@ -106,9 +114,10 @@ Will NOT be uploaded to GitHub. ✅
 
 ## 🎉 You're Ready!
 
-Your professional-grade running tracker is ready for the world to see! 
+Your professional-grade running tracker is ready for the world to see!
 
 This is a complete, documented, and deployable web application that showcases:
+
 - Full-stack development skills
 - Modern React patterns
 - REST API design

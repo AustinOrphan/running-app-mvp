@@ -1,6 +1,7 @@
 import { test, expect, devices } from '@playwright/test';
-import { testDb } from '../fixtures/testDatabase';
+
 import { mockRuns } from '../fixtures/mockData';
+import { testDb } from '../fixtures/testDatabase';
 
 test.describe('Navigation and Swipe Functionality E2E Tests', () => {
   let testUser: any;
@@ -11,7 +12,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     await testDb.cleanupDatabase();
     testUser = await testDb.createTestUser({
       email: 'navigation@test.com',
-      password: 'testpassword123'
+      password: 'testpassword123',
     });
     authToken = testDb.generateTestToken(testUser.id);
 
@@ -35,9 +36,21 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
 
       // Test navigation to different pages
       const navigationTests = [
-        { selector: 'a[href="/runs"], nav a:has-text("Runs")', expectedUrl: '/runs', expectedHeading: /runs/i },
-        { selector: 'a[href="/stats"], nav a:has-text("Stats")', expectedUrl: '/stats', expectedHeading: /statistics|stats/i },
-        { selector: 'a[href="/dashboard"], nav a:has-text("Dashboard")', expectedUrl: '/dashboard', expectedHeading: /dashboard/i }
+        {
+          selector: 'a[href="/runs"], nav a:has-text("Runs")',
+          expectedUrl: '/runs',
+          expectedHeading: /runs/i,
+        },
+        {
+          selector: 'a[href="/stats"], nav a:has-text("Stats")',
+          expectedUrl: '/stats',
+          expectedHeading: /statistics|stats/i,
+        },
+        {
+          selector: 'a[href="/dashboard"], nav a:has-text("Dashboard")',
+          expectedUrl: '/dashboard',
+          expectedHeading: /dashboard/i,
+        },
       ];
 
       for (const nav of navigationTests) {
@@ -46,10 +59,10 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
         if (await navElement.isVisible()) {
           await navElement.click();
           await page.waitForLoadState('networkidle');
-          
+
           // Verify URL changed
           expect(page.url()).toContain(nav.expectedUrl);
-          
+
           // Verify page content loaded
           await expect(page.locator('h1, h2')).toContainText(nav.expectedHeading);
         }
@@ -131,7 +144,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
         '.hamburger',
         'button[aria-label="Menu"]',
         'button[aria-expanded]',
-        '[role="button"]:has-text("Menu")'
+        '[role="button"]:has-text("Menu")',
       ];
 
       let menuButton = null;
@@ -156,7 +169,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
           // Test tapping a navigation item
           await mobileNavItems.first().tap();
           await page.waitForLoadState('networkidle');
-          
+
           // Verify navigation worked
           await expect(page.locator('h1, h2')).toBeVisible();
         }
@@ -183,16 +196,20 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
 
         // Test swipe right (might go back or open sidebar)
         await page.touchscreen.swipe(
-          centerX, centerY, // Start position
-          centerX + 200, centerY, // End position (swipe right)
+          centerX,
+          centerY, // Start position
+          centerX + 200,
+          centerY, // End position (swipe right)
           { steps: 10 }
         );
         await page.waitForTimeout(1000);
 
         // Test swipe left
         await page.touchscreen.swipe(
-          centerX, centerY, // Start position
-          centerX - 200, centerY, // End position (swipe left)
+          centerX,
+          centerY, // Start position
+          centerX - 200,
+          centerY, // End position (swipe left)
           { steps: 10 }
         );
         await page.waitForTimeout(1000);
@@ -218,8 +235,10 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
       if (viewport) {
         // Simulate pull-to-refresh gesture (swipe down from top)
         await page.touchscreen.swipe(
-          viewport.width / 2, 50, // Start near top
-          viewport.width / 2, 300, // End lower down
+          viewport.width / 2,
+          50, // Start near top
+          viewport.width / 2,
+          300, // End lower down
           { steps: 20 }
         );
 
@@ -271,7 +290,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
             '.popup-menu',
             '.action-menu',
             '[role="menu"]',
-            '.dropdown-menu'
+            '.dropdown-menu',
           ];
 
           let contextMenuVisible = false;
@@ -316,7 +335,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
           // This is a basic approximation - real pinch gestures are more complex
           await page.touchscreen.tap(centerX - 50, centerY);
           await page.touchscreen.tap(centerX + 50, centerY);
-          
+
           await page.waitForTimeout(500);
 
           // Verify the page is still functional after gesture
@@ -341,14 +360,16 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
       expect(headingCount).toBeGreaterThan(0);
 
       // Check for proper landmark roles
-      const landmarks = page.locator('[role="main"], [role="navigation"], [role="banner"], [role="contentinfo"], main, nav, header, footer');
+      const landmarks = page.locator(
+        '[role="main"], [role="navigation"], [role="banner"], [role="contentinfo"], main, nav, header, footer'
+      );
       const landmarkCount = await landmarks.count();
       expect(landmarkCount).toBeGreaterThan(0);
 
       // Check for skip links
       const skipLinks = page.locator('a[href="#main"], a[href="#content"], .skip-link');
       const skipLinkCount = await skipLinks.count();
-      
+
       // Skip links are recommended but not required for this test
       if (skipLinkCount > 0) {
         await skipLinks.first().focus();
@@ -396,13 +417,13 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
       const urlTests = [
         { url: '/dashboard', expectedHeading: /dashboard/i },
         { url: '/runs', expectedHeading: /runs/i },
-        { url: '/stats', expectedHeading: /statistics|stats/i }
+        { url: '/stats', expectedHeading: /statistics|stats/i },
       ];
 
       for (const urlTest of urlTests) {
         // Navigate directly to URL
         await page.goto(urlTest.url);
-        
+
         // Should redirect to login if not authenticated
         if (page.url().includes('/login')) {
           // Login user
@@ -433,8 +454,14 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
       const pageContent = await page.textContent('body');
 
       // Check if it's a 404 page or redirected to safe page
-      const is404 = pageContent?.includes('404') || pageContent?.includes('not found') || pageContent?.includes('Page not found');
-      const isSafePage = currentUrl.includes('/dashboard') || currentUrl.includes('/runs') || currentUrl.includes('/stats');
+      const is404 =
+        pageContent?.includes('404') ||
+        pageContent?.includes('not found') ||
+        pageContent?.includes('Page not found');
+      const isSafePage =
+        currentUrl.includes('/dashboard') ||
+        currentUrl.includes('/runs') ||
+        currentUrl.includes('/stats');
 
       expect(is404 || isSafePage).toBe(true);
     });
@@ -449,15 +476,15 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
 
       // Navigate between multiple pages
       const pages = ['/runs', '/stats', '/dashboard'];
-      
+
       for (const pagePath of pages) {
         await page.goto(pagePath);
         await page.waitForLoadState('networkidle');
-        
+
         // Should not redirect to login (authentication preserved)
         expect(page.url()).not.toContain('/login');
         expect(page.url()).toContain(pagePath);
-        
+
         // Should show authenticated content
         await expect(page.locator('h1, h2')).toBeVisible();
       }
@@ -478,15 +505,15 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
 
       for (const path of navigationTests) {
         const startTime = Date.now();
-        
+
         await page.goto(path);
         await page.waitForLoadState('networkidle');
-        
+
         const loadTime = Date.now() - startTime;
-        
+
         // Page should load within reasonable time (adjust threshold as needed)
         expect(loadTime).toBeLessThan(3000); // 3 seconds
-        
+
         // Verify page loaded correctly
         await expect(page.locator('h1, h2')).toBeVisible();
       }
@@ -502,15 +529,15 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
 
       // Rapidly navigate between pages
       const pages = ['/runs', '/stats', '/dashboard'];
-      
+
       for (let i = 0; i < 3; i++) {
         for (const pagePath of pages) {
           await page.goto(pagePath);
           await page.waitForLoadState('domcontentloaded');
-          
+
           // Brief pause to simulate real user behavior
           await page.waitForTimeout(100);
-          
+
           // Verify page loaded without errors
           await expect(page.locator('h1, h2')).toBeVisible();
         }

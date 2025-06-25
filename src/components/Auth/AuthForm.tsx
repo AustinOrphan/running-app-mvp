@@ -20,31 +20,31 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister, loading
   };
 
   return (
-    <div className="auth-form">
+    <div className='auth-form'>
       <h2>Login or Register</h2>
       <form onSubmit={handleLogin}>
         <input
-          type="email"
-          placeholder="Email"
+          type='email'
+          placeholder='Email'
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={e => setEmail(e.target.value)}
           autoComplete="email"
           required
         />
         <input
-          type="password"
-          placeholder="Password (min 6 chars)"
+          type='password'
+          placeholder='Password (min 6 chars)'
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={e => setPassword(e.target.value)}
           autoComplete="current-password"
           required
           minLength={6}
         />
-        <div className="auth-buttons">
-          <button type="submit" disabled={loading}>
+        <div className='auth-buttons'>
+          <button type='submit' disabled={loading}>
             {loading ? '⏳ Logging in...' : 'Login'}
           </button>
-          <button type="button" onClick={handleRegister} disabled={loading}>
+          <button type='button' onClick={handleRegister} disabled={loading}>
             {loading ? '⏳ Creating account...' : 'Register'}
           </button>
         </div>

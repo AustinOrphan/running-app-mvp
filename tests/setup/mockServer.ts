@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 // Create a mock server setup for API mocking
 export const createMockServer = () => {
   const mockFetch = vi.fn();
-  
+
   global.fetch = mockFetch;
 
   const mockAPI = {
@@ -11,14 +11,14 @@ export const createMockServer = () => {
     mockLogin: (response: any) => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(response)
+        json: () => Promise.resolve(response),
       });
     },
-    
+
     mockRegister: (response: any) => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(response)
+        json: () => Promise.resolve(response),
       });
     },
 
@@ -26,28 +26,28 @@ export const createMockServer = () => {
     mockInsightsSummary: (response: any) => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(response)
+        json: () => Promise.resolve(response),
       });
     },
-    
+
     mockTypeBreakdown: (response: any) => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(response)
+        json: () => Promise.resolve(response),
       });
     },
-    
+
     mockTrends: (response: any) => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(response)
+        json: () => Promise.resolve(response),
       });
     },
-    
+
     mockPersonalRecords: (response: any) => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(response)
+        json: () => Promise.resolve(response),
       });
     },
 
@@ -55,7 +55,7 @@ export const createMockServer = () => {
     mockRuns: (response: any) => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(response)
+        json: () => Promise.resolve(response),
       });
     },
 
@@ -64,7 +64,7 @@ export const createMockServer = () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status,
-        json: () => Promise.resolve({ error: message })
+        json: () => Promise.resolve({ error: message }),
       });
     },
 
@@ -76,7 +76,7 @@ export const createMockServer = () => {
     // Reset mocks
     reset: () => {
       mockFetch.mockClear();
-    }
+    },
   };
 
   return mockAPI;

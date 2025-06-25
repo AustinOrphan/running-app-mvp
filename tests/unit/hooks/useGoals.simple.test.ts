@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import { useGoals } from '../../../src/hooks/useGoals';
 import { mockGoals, createMockGoal } from '../../fixtures/mockData';
 
@@ -9,7 +10,7 @@ global.fetch = mockFetch;
 
 describe('useGoals - Basic Functionality', () => {
   const mockToken = 'mock-jwt-token-123';
-  
+
   beforeEach(() => {
     mockFetch.mockClear();
   });
@@ -21,7 +22,7 @@ describe('useGoals - Basic Functionality', () => {
   describe('Initial State', () => {
     it('starts with expected default values', () => {
       const { result } = renderHook(() => useGoals(mockToken));
-      
+
       expect(result.current.goals).toEqual([]);
       expect(result.current.goalProgress).toEqual([]);
       expect(result.current.loading).toBe(true);
@@ -33,7 +34,7 @@ describe('useGoals - Basic Functionality', () => {
 
     it('does not fetch goals when token is null', () => {
       const { result } = renderHook(() => useGoals(null));
-      
+
       expect(result.current.loading).toBe(false);
       expect(mockFetch).not.toHaveBeenCalled();
     });
@@ -43,7 +44,7 @@ describe('useGoals - Basic Functionality', () => {
     it('makes correct API call for fetching goals', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => []
+        json: async () => [],
       });
 
       renderHook(() => useGoals(mockToken));
@@ -51,22 +52,25 @@ describe('useGoals - Basic Functionality', () => {
       expect(mockFetch).toHaveBeenCalledWith('/api/goals', {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${mockToken}`
-        }
+          Authorization: `Bearer ${mockToken}`,
+        },
       });
     });
 
     it('handles fetch success', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockGoals
+        json: async () => mockGoals,
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
 
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.current.loading).toBe(false);
+        },
+        { timeout: 2000 }
+      );
 
       expect(result.current.goals).toEqual(mockGoals);
       expect(result.current.error).toBe(null);
@@ -77,9 +81,12 @@ describe('useGoals - Basic Functionality', () => {
 
       const { result } = renderHook(() => useGoals(mockToken));
 
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.current.loading).toBe(false);
+        },
+        { timeout: 2000 }
+      );
 
       expect(result.current.error).toBe('Network error');
       expect(result.current.goals).toEqual([]);
@@ -94,14 +101,17 @@ describe('useGoals - Basic Functionality', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => goals
+        json: async () => goals,
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
 
-      await waitFor(() => {
-        expect(result.current.goals.length).toBe(2);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.current.goals.length).toBe(2);
+        },
+        { timeout: 2000 }
+      );
 
       expect(result.current.activeGoals).toEqual([activeGoal]);
       expect(result.current.completedGoals).toEqual([completedGoal]);
@@ -112,14 +122,17 @@ describe('useGoals - Basic Functionality', () => {
     it('getGoalProgress returns undefined for non-existing goal', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => []
+        json: async () => [],
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
 
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.current.loading).toBe(false);
+        },
+        { timeout: 2000 }
+      );
 
       const progress = result.current.getGoalProgress('non-existing-goal');
       expect(progress).toBeUndefined();
@@ -138,7 +151,7 @@ describe('useGoals - Basic Functionality', () => {
           targetUnit: 'km',
           period: 'WEEKLY',
           startDate: '2024-01-01',
-          endDate: '2024-01-07'
+          endDate: '2024-01-07',
         });
       }).rejects.toThrow('No authentication token available');
     });

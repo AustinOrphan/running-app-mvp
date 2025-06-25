@@ -1,6 +1,7 @@
-import express from 'express';
 import bcrypt from 'bcrypt';
+import express from 'express';
 import jwt from 'jsonwebtoken';
+
 import { prisma } from '../server.js';
 
 const router = express.Router();
@@ -13,8 +14,11 @@ router.get('/test', (req, res) => {
 // POST /api/auth/register - User registration
 router.post('/register', async (req, res, next) => {
   try {
-    console.log('Registration attempt:', { hasEmail: !!req.body?.email, hasPassword: !!req.body?.password });
-    
+    console.log('Registration attempt:', {
+      hasEmail: !!req.body?.email,
+      hasPassword: !!req.body?.password,
+    });
+
     const { email, password } = req.body;
 
     // Basic validation
@@ -51,11 +55,9 @@ router.post('/register', async (req, res, next) => {
       return res.status(500).json({ message: 'JWT secret not configured' });
     }
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+      expiresIn: '7d',
+    });
 
     res.status(201).json({
       message: 'User created successfully',
@@ -74,8 +76,11 @@ router.post('/register', async (req, res, next) => {
 // POST /api/auth/login - User login
 router.post('/login', async (req, res) => {
   try {
-    console.log('Login attempt:', { hasEmail: !!req.body?.email, hasPassword: !!req.body?.password });
-    
+    console.log('Login attempt:', {
+      hasEmail: !!req.body?.email,
+      hasPassword: !!req.body?.password,
+    });
+
     const { email, password } = req.body;
 
     // Basic validation
@@ -103,11 +108,9 @@ router.post('/login', async (req, res) => {
       return res.status(500).json({ message: 'JWT secret not configured' });
     }
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+      expiresIn: '7d',
+    });
 
     res.json({
       message: 'Login successful',

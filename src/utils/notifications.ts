@@ -1,4 +1,8 @@
-import { BrowserNotificationOptions, NotificationPreferences, GoalNotification } from '../types/notifications';
+import {
+  BrowserNotificationOptions,
+  NotificationPreferences,
+  GoalNotification,
+} from '../types/notifications';
 
 // Browser Notification Permission Management
 export class NotificationPermissionManager {
@@ -38,7 +42,10 @@ export class NotificationPermissionManager {
 export class BrowserNotificationManager {
   private static activeNotifications = new Map<string, Notification>();
 
-  static async show(options: BrowserNotificationOptions, tag?: string): Promise<Notification | null> {
+  static async show(
+    options: BrowserNotificationOptions,
+    tag?: string
+  ): Promise<Notification | null> {
     if (!NotificationPermissionManager.hasPermission()) {
       console.warn('No notification permission');
       return null;
@@ -112,20 +119,20 @@ export class NotificationTimingManager {
 
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    
+
     const { start, end } = preferences.quietHours;
-    
+
     // Handle overnight quiet hours (e.g., 22:00 to 08:00)
     if (start > end) {
       return currentTime >= start || currentTime <= end;
     }
-    
+
     // Handle same-day quiet hours (e.g., 12:00 to 14:00)
     return currentTime >= start && currentTime <= end;
   }
 
   static shouldShowNotification(
-    notification: GoalNotification, 
+    notification: GoalNotification,
     preferences: NotificationPreferences
   ): boolean {
     // Check if notification type is enabled
@@ -155,19 +162,22 @@ export class NotificationTimingManager {
     return true;
   }
 
-  static getOptimalNotificationTime(preferences: NotificationPreferences, type: 'morning' | 'evening'): Date {
+  static getOptimalNotificationTime(
+    preferences: NotificationPreferences,
+    type: 'morning' | 'evening'
+  ): Date {
     const now = new Date();
     const targetTime = preferences.reminderTimes[type];
     const [hours, minutes] = targetTime.split(':').map(Number);
-    
+
     const notificationTime = new Date(now);
     notificationTime.setHours(hours, minutes, 0, 0);
-    
+
     // If the time has passed today, schedule for tomorrow
     if (notificationTime <= now) {
       notificationTime.setDate(notificationTime.getDate() + 1);
     }
-    
+
     return notificationTime;
   }
 }
@@ -175,8 +185,8 @@ export class NotificationTimingManager {
 // Notification Content Generation
 export class NotificationContentGenerator {
   static generateMilestoneContent(
-    goalTitle: string, 
-    percentage: number, 
+    goalTitle: string,
+    percentage: number,
     currentProgress: number,
     targetValue: number,
     unit: string
@@ -185,15 +195,15 @@ export class NotificationContentGenerator {
       25: '🌟',
       50: '⭐',
       75: '🔥',
-      100: '🏆'
+      100: '🏆',
     };
 
     const emoji = milestoneEmojis[percentage as keyof typeof milestoneEmojis] || '📈';
-    
+
     return {
       title: `${percentage}% Complete! ${emoji}`,
       message: `You've reached ${percentage}% of your "${goalTitle}" goal! ${currentProgress}/${targetValue} ${unit} completed.`,
-      icon: emoji
+      icon: emoji,
     };
   }
 
@@ -206,7 +216,7 @@ export class NotificationContentGenerator {
   ): { title: string; message: string; icon: string } {
     let title: string;
     let icon: string;
-    
+
     if (daysRemaining === 0) {
       title = '⏰ Goal Deadline Today!';
       icon = '⏰';
@@ -237,11 +247,13 @@ export class NotificationContentGenerator {
       7: '⚡',
       14: '💪',
       21: '🏃‍♂️',
-      30: '🏆'
+      30: '🏆',
     };
 
     const getClosestEmoji = (count: number) => {
-      const levels = Object.keys(streakEmojis).map(Number).sort((a, b) => a - b);
+      const levels = Object.keys(streakEmojis)
+        .map(Number)
+        .sort((a, b) => a - b);
       for (let i = levels.length - 1; i >= 0; i--) {
         if (count >= levels[i]) {
           return streakEmojis[levels[i] as keyof typeof streakEmojis];
@@ -254,7 +266,7 @@ export class NotificationContentGenerator {
     const typeLabel = streakType === 'daily' ? 'day' : streakType === 'weekly' ? 'week' : 'month';
     const plural = streakCount > 1 ? `${typeLabel}s` : typeLabel;
 
-    let title = `${emoji} ${streakCount} ${plural.charAt(0).toUpperCase() + plural.slice(1)} Streak!`;
+    const title = `${emoji} ${streakCount} ${plural.charAt(0).toUpperCase() + plural.slice(1)} Streak!`;
     let message = `Amazing consistency! You've maintained your running streak for ${streakCount} ${plural}.`;
 
     if (goalTitle) {
@@ -273,10 +285,10 @@ export class NotificationContentGenerator {
   ): { title: string; message: string; icon: string } {
     const periodLabel = period === 'weekly' ? 'Week' : 'Month';
     const completionRate = totalGoals > 0 ? Math.round((goalsCompleted / totalGoals) * 100) : 0;
-    
-    let title = `📊 ${periodLabel} Summary`;
+
+    const title = `📊 ${periodLabel} Summary`;
     let message = `${goalsCompleted}/${totalGoals} goals completed (${completionRate}%). Average progress: ${Math.round(averageProgress)}%.`;
-    
+
     if (topPerformingGoal) {
       message += ` Top performer: "${topPerformingGoal}".`;
     }
@@ -284,34 +296,40 @@ export class NotificationContentGenerator {
     return {
       title,
       message,
-      icon: '📊'
+      icon: '📊',
     };
   }
 
-  static generateReminderContent(reminderType: string): { title: string; message: string; icon: string } {
+  static generateReminderContent(reminderType: string): {
+    title: string;
+    message: string;
+    icon: string;
+  } {
     const reminders = {
       goal_check_in: {
         title: '🎯 Goal Check-in Time',
         message: 'How are your running goals progressing? Log a run or review your targets.',
-        icon: '🎯'
+        icon: '🎯',
       },
       missed_run: {
-        title: '🏃‍♂️ Haven\'t seen you lately',
-        message: 'It\'s been a while since your last run. Every step counts toward your goals!',
-        icon: '🏃‍♂️'
+        title: "🏃‍♂️ Haven't seen you lately",
+        message: "It's been a while since your last run. Every step counts toward your goals!",
+        icon: '🏃‍♂️',
       },
       weekly_planning: {
         title: '📅 Weekly Goal Planning',
         message: 'Time to plan your running week! Set or adjust your goals for maximum success.',
-        icon: '📅'
-      }
+        icon: '📅',
+      },
     };
 
-    return reminders[reminderType as keyof typeof reminders] || {
-      title: '💭 Reminder',
-      message: 'Don\'t forget about your running goals!',
-      icon: '💭'
-    };
+    return (
+      reminders[reminderType as keyof typeof reminders] || {
+        title: '💭 Reminder',
+        message: "Don't forget about your running goals!",
+        icon: '💭',
+      }
+    );
   }
 }
 
@@ -326,15 +344,15 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   deadlineReminderDays: [7, 3, 1],
   reminderTimes: {
     morning: '08:00',
-    evening: '18:00'
+    evening: '18:00',
   },
   summaryFrequency: 'weekly',
   enableSounds: true,
   quietHours: {
     enabled: true,
     start: '22:00',
-    end: '08:00'
-  }
+    end: '08:00',
+  },
 };
 
 // Storage utilities for notification preferences
