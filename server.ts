@@ -44,7 +44,7 @@ app.get('/api/health', async (req, res) => {
     console.error('Health check error:', error);
     res.status(500).json({ 
       status: 'error', 
-      error: 'Health check failed: Database disconnected',
+      message: 'Health check failed: Database disconnected',
       database: 'disconnected'
     });
   }
@@ -59,7 +59,7 @@ if (process.env.NODE_ENV === 'development') {
       });
       res.json(users);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch users' });
+      res.status(500).json({ message: 'Failed to fetch users' });
     }
   });
 }
