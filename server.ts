@@ -29,9 +29,25 @@ app.use('/api/goals', goalRoutes);
 app.use('/api/races', raceRoutes);
 app.use('/api/stats', statsRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Health check with database ping
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1 as test`;
+    
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      database: 'connected'
+    });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Health check failed: Database disconnected',
+      database: 'disconnected'
+    });
+  }
 });
 
 // Debug endpoint to check users (development only)
