@@ -60,7 +60,9 @@
       "mcp__memory__create_relations",
       "Bash(curl:*)",
       "Bash(pkill:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(git pull:*)",
+      "Bash(git rebase:*)"
     ],
     "deny": []
   }
