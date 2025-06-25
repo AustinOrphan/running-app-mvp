@@ -43,7 +43,7 @@ if (process.env.NODE_ENV === 'development') {
       });
       res.json(users);
     } catch (error) {
-      res.status(500).json({ message: 'Failed to fetch users' });
+      res.status(500).json({ error: 'Failed to fetch users' });
     }
   });
 }
