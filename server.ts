@@ -1,16 +1,16 @@
-import express from 'express';
+import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import express from 'express';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
-import runRoutes from './routes/runs.js';
 import goalRoutes from './routes/goals.js';
 import raceRoutes from './routes/races.js';
+import runRoutes from './routes/runs.js';
 import statsRoutes from './routes/stats.js';
 
 dotenv.config();
@@ -29,9 +29,25 @@ app.use('/api/goals', goalRoutes);
 app.use('/api/races', raceRoutes);
 app.use('/api/stats', statsRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Health check with database ping
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1 as test`;
+    
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      database: 'connected'
+    });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Health check failed: Database disconnected',
+      database: 'disconnected'
+    });
+  }
 });
 
 // Debug endpoint to check users (development only)
@@ -39,7 +55,7 @@ if (process.env.NODE_ENV === 'development') {
   app.get('/api/debug/users', async (req, res) => {
     try {
       const users = await prisma.user.findMany({
-        select: { id: true, email: true, createdAt: true }
+        select: { id: true, email: true, createdAt: true },
       });
       res.json(users);
     } catch (error) {

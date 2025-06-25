@@ -5,6 +5,7 @@ A full-stack web application for tracking running activities, built with React, 
 ## 🚀 Quick Start
 
 ### Automated Setup (Recommended)
+
 ```bash
 # Make setup script executable and run it
 chmod +x setup.sh
@@ -12,6 +13,7 @@ chmod +x setup.sh
 ```
 
 ### Manual Setup
+
 ```bash
 # 1. Install dependencies
 npm install
@@ -52,11 +54,13 @@ running-app-mvp/
 ## 🛠️ Technology Stack
 
 **Frontend:**
+
 - React 18 with TypeScript
 - Vite for development
 - CSS for styling
 
 **Backend:**
+
 - Express.js with TypeScript
 - Prisma ORM
 - SQLite database
@@ -66,10 +70,12 @@ running-app-mvp/
 ## 📡 API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
 
 ### Runs
+
 - `GET /api/runs` - Get all runs
 - `POST /api/runs` - Create new run
 - `GET /api/runs/:id` - Get specific run
@@ -78,10 +84,12 @@ running-app-mvp/
 - `GET /api/runs/simple-list` - Get simplified run list
 
 ### Statistics
+
 - `GET /api/stats/insights-summary` - Weekly insights
 - `GET /api/stats/type-breakdown` - Run type breakdown
 
 ### Goals & Races
+
 - `GET /api/goals` - Get user goals
 - `POST /api/goals` - Create new goal
 - `DELETE /api/goals/:id` - Delete goal
@@ -96,7 +104,7 @@ npm run dev                 # Start backend with hot reload
 npm run build              # Build backend
 npm run start              # Start production backend
 
-# Frontend development  
+# Frontend development
 npm run dev:frontend       # Start frontend with hot reload
 npm run build              # Build both backend and frontend
 npm run preview            # Preview production build
@@ -130,18 +138,22 @@ NODE_ENV=development
 ### Common Issues
 
 **"Backend Offline" message:**
+
 - Ensure backend server is running on port 3001
 - Check that no other process is using port 3001
 
 **Database errors:**
+
 - Run `npx prisma migrate dev --name init` to set up database
 - Run `npx prisma generate` to generate client
 
 **Frontend can't reach backend:**
+
 - Vite proxy is configured to forward `/api` requests to port 3001
 - Ensure both servers are running
 
 ### Logs
+
 - Backend logs appear in the terminal running `npm run dev`
 - Frontend logs appear in browser console
 

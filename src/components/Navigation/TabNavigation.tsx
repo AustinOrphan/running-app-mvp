@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { TAB_CONFIG } from '../../constants/navigation';
 
 interface TabNavigationProps {
@@ -16,12 +17,12 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   swipeHighlight,
   onTouchStart,
   onTouchMove,
-  onTouchEnd
+  onTouchEnd,
 }) => {
   return (
-    <nav className="main-nav">
+    <nav className='main-nav'>
       {TAB_CONFIG.map(tab => (
-        <button 
+        <button
           key={tab.id}
           className={`nav-btn ${activeTab === tab.id ? 'active' : ''} ${activeTab === tab.id && swipeHighlight ? 'swipe-highlight' : ''}`}
           onClick={() => onTabChange(tab.id)}

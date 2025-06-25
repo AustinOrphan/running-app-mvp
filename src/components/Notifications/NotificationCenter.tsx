@@ -1,7 +1,8 @@
+import { formatDistanceToNow } from 'date-fns';
 import React, { useState } from 'react';
+
 import { useNotifications } from '../../hooks/useNotifications';
 import { GoalNotification } from '../../types/notifications';
-import { formatDistanceToNow } from 'date-fns';
 
 interface NotificationCenterProps {
   isOpen: boolean;
@@ -21,14 +22,14 @@ const NotificationItem: React.FC<{
       deadline: 'notification-deadline',
       streak: 'notification-streak',
       summary: 'notification-summary',
-      reminder: 'notification-reminder'
+      reminder: 'notification-reminder',
     };
-    
+
     const priorityClasses = {
       urgent: 'notification-urgent',
       high: 'notification-high',
       medium: 'notification-medium',
-      low: 'notification-low'
+      low: 'notification-low',
     };
 
     return `${baseClasses} ${typeClasses[type as keyof typeof typeClasses] || ''} ${priorityClasses[priority as keyof typeof priorityClasses] || ''}`;
@@ -41,49 +42,49 @@ const NotificationItem: React.FC<{
   };
 
   return (
-    <div 
+    <div
       className={`${getNotificationStyles(notification.type, notification.priority)} ${!notification.read ? 'unread' : ''}`}
       onClick={handleClick}
     >
-      <div className="notification-header">
-        <div className="notification-icon" style={{ color: notification.color }}>
+      <div className='notification-header'>
+        <div className='notification-icon' style={{ color: notification.color }}>
           {notification.icon}
         </div>
-        <div className="notification-meta">
-          <span className="notification-type">{notification.type.toUpperCase()}</span>
-          <span className="notification-time">
+        <div className='notification-meta'>
+          <span className='notification-type'>{notification.type.toUpperCase()}</span>
+          <span className='notification-time'>
             {formatDistanceToNow(notification.timestamp, { addSuffix: true })}
           </span>
         </div>
         <button
-          className="notification-dismiss"
-          onClick={(e) => {
+          className='notification-dismiss'
+          onClick={e => {
             e.stopPropagation();
             onDismiss(notification.id);
           }}
-          aria-label="Dismiss notification"
+          aria-label='Dismiss notification'
         >
           ×
         </button>
       </div>
-      
-      <div className="notification-content">
-        <h4 className="notification-title">{notification.title}</h4>
-        <p className="notification-message">{notification.message}</p>
-        
+
+      <div className='notification-content'>
+        <h4 className='notification-title'>{notification.title}</h4>
+        <p className='notification-message'>{notification.message}</p>
+
         {notification.type === 'milestone' && 'milestonePercentage' in notification && (
-          <div className="notification-details">
-            <div className="milestone-progress">
-              <div className="milestone-bar">
-                <div 
-                  className="milestone-fill" 
-                  style={{ 
+          <div className='notification-details'>
+            <div className='milestone-progress'>
+              <div className='milestone-bar'>
+                <div
+                  className='milestone-fill'
+                  style={{
                     width: `${notification.milestonePercentage}%`,
-                    backgroundColor: notification.color 
+                    backgroundColor: notification.color,
                   }}
                 />
               </div>
-              <span className="milestone-text">
+              <span className='milestone-text'>
                 {notification.currentProgress}/{notification.targetValue} completed
               </span>
             </div>
@@ -91,16 +92,19 @@ const NotificationItem: React.FC<{
         )}
 
         {notification.type === 'deadline' && 'daysRemaining' in notification && (
-          <div className="notification-details">
-            <div className="deadline-info">
-              <span className="days-remaining">
-                {notification.daysRemaining === 0 ? 'Due today!' : 
-                 notification.daysRemaining === 1 ? '1 day left' : 
-                 `${notification.daysRemaining} days left`}
+          <div className='notification-details'>
+            <div className='deadline-info'>
+              <span className='days-remaining'>
+                {notification.daysRemaining === 0
+                  ? 'Due today!'
+                  : notification.daysRemaining === 1
+                    ? '1 day left'
+                    : `${notification.daysRemaining} days left`}
               </span>
-              <div className="deadline-progress">
-                <span className="progress-text">
-                  {Math.round((notification.currentProgress / notification.targetValue) * 100)}% complete
+              <div className='deadline-progress'>
+                <span className='progress-text'>
+                  {Math.round((notification.currentProgress / notification.targetValue) * 100)}%
+                  complete
                 </span>
               </div>
             </div>
@@ -108,10 +112,10 @@ const NotificationItem: React.FC<{
         )}
 
         {notification.type === 'streak' && 'streakCount' in notification && (
-          <div className="notification-details">
-            <div className="streak-info">
-              <span className="streak-count">{notification.streakCount}</span>
-              <span className="streak-type">{notification.streakType} streak</span>
+          <div className='notification-details'>
+            <div className='streak-info'>
+              <span className='streak-count'>{notification.streakCount}</span>
+              <span className='streak-type'>{notification.streakType} streak</span>
             </div>
           </div>
         )}
@@ -131,7 +135,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
     dismissNotification,
     markAsRead,
     clearAllNotifications,
-    getUnreadCount
+    getUnreadCount,
   } = useNotifications();
 
   const [showSettings, setShowSettings] = useState(false);
@@ -154,125 +158,114 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
   if (!isOpen) return null;
 
   return (
-    <div className="notification-center-overlay" onClick={onClose}>
-      <div className="notification-center" onClick={(e) => e.stopPropagation()}>
-        <div className="notification-header">
-          <div className="notification-title">
+    <div className='notification-center-overlay' onClick={onClose}>
+      <div className='notification-center' onClick={e => e.stopPropagation()}>
+        <div className='notification-header'>
+          <div className='notification-title'>
             <h3>Notifications</h3>
-            {unreadCount > 0 && (
-              <span className="unread-badge">{unreadCount}</span>
-            )}
+            {unreadCount > 0 && <span className='unread-badge'>{unreadCount}</span>}
           </div>
-          <div className="notification-actions">
-            <button
-              className="btn-icon"
-              onClick={toggleSettings}
-              title="Notification Settings"
-            >
+          <div className='notification-actions'>
+            <button className='btn-icon' onClick={toggleSettings} title='Notification Settings'>
               ⚙️
             </button>
             {notifications.length > 0 && (
-              <button
-                className="btn-icon"
-                onClick={handleClearAll}
-                title="Clear All"
-              >
+              <button className='btn-icon' onClick={handleClearAll} title='Clear All'>
                 🗑️
               </button>
             )}
-            <button
-              className="btn-icon notification-close"
-              onClick={onClose}
-              title="Close"
-            >
+            <button className='btn-icon notification-close' onClick={onClose} title='Close'>
               ×
             </button>
           </div>
         </div>
 
         {showSettings && (
-          <div className="notification-settings">
+          <div className='notification-settings'>
             <h4>Notification Preferences</h4>
-            
+
             {canRequestPermission && (
-              <div className="setting-item">
-                <button 
-                  className="btn-primary"
-                  onClick={handleRequestPermission}
-                >
+              <div className='setting-item'>
+                <button className='btn-primary' onClick={handleRequestPermission}>
                   Enable Browser Notifications
                 </button>
-                <p className="setting-description">
-                  Get notified even when the app is not open
-                </p>
+                <p className='setting-description'>Get notified even when the app is not open</p>
               </div>
             )}
 
             {hasPermission && (
-              <div className="setting-item">
-                <label className="setting-toggle">
+              <div className='setting-item'>
+                <label className='setting-toggle'>
                   <input
-                    type="checkbox"
+                    type='checkbox'
                     checked={preferences.enableBrowserNotifications}
-                    onChange={(e) => updatePreferences({ enableBrowserNotifications: e.target.checked })}
+                    onChange={e =>
+                      updatePreferences({ enableBrowserNotifications: e.target.checked })
+                    }
                   />
                   <span>Browser Notifications</span>
                 </label>
               </div>
             )}
 
-            <div className="setting-item">
-              <label className="setting-toggle">
+            <div className='setting-item'>
+              <label className='setting-toggle'>
                 <input
-                  type="checkbox"
+                  type='checkbox'
                   checked={preferences.enableMilestoneNotifications}
-                  onChange={(e) => updatePreferences({ enableMilestoneNotifications: e.target.checked })}
+                  onChange={e =>
+                    updatePreferences({ enableMilestoneNotifications: e.target.checked })
+                  }
                 />
                 <span>Milestone Notifications</span>
               </label>
             </div>
 
-            <div className="setting-item">
-              <label className="setting-toggle">
+            <div className='setting-item'>
+              <label className='setting-toggle'>
                 <input
-                  type="checkbox"
+                  type='checkbox'
                   checked={preferences.enableDeadlineReminders}
-                  onChange={(e) => updatePreferences({ enableDeadlineReminders: e.target.checked })}
+                  onChange={e => updatePreferences({ enableDeadlineReminders: e.target.checked })}
                 />
                 <span>Deadline Reminders</span>
               </label>
             </div>
 
-            <div className="setting-item">
-              <label className="setting-toggle">
+            <div className='setting-item'>
+              <label className='setting-toggle'>
                 <input
-                  type="checkbox"
+                  type='checkbox'
                   checked={preferences.enableStreakNotifications}
-                  onChange={(e) => updatePreferences({ enableStreakNotifications: e.target.checked })}
+                  onChange={e => updatePreferences({ enableStreakNotifications: e.target.checked })}
                 />
                 <span>Streak Notifications</span>
               </label>
             </div>
 
-            <div className="setting-item">
-              <label className="setting-toggle">
+            <div className='setting-item'>
+              <label className='setting-toggle'>
                 <input
-                  type="checkbox"
+                  type='checkbox'
                   checked={preferences.enableSummaryNotifications}
-                  onChange={(e) => updatePreferences({ enableSummaryNotifications: e.target.checked })}
+                  onChange={e =>
+                    updatePreferences({ enableSummaryNotifications: e.target.checked })
+                  }
                 />
                 <span>Weekly/Monthly Summaries</span>
               </label>
             </div>
 
-            <div className="setting-item">
-              <label className="setting-toggle">
+            <div className='setting-item'>
+              <label className='setting-toggle'>
                 <input
-                  type="checkbox"
+                  type='checkbox'
                   checked={preferences.quietHours.enabled}
-                  onChange={(e) => updatePreferences({ 
-                    quietHours: { ...preferences.quietHours, enabled: e.target.checked }
-                  })}
+                  onChange={e =>
+                    updatePreferences({
+                      quietHours: { ...preferences.quietHours, enabled: e.target.checked },
+                    })
+                  }
                 />
                 <span>Quiet Hours (22:00 - 08:00)</span>
               </label>
@@ -280,12 +273,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
           </div>
         )}
 
-        <div className="notification-list">
+        <div className='notification-list'>
           {recentNotifications.length === 0 ? (
-            <div className="notification-empty">
-              <div className="empty-icon">🔔</div>
+            <div className='notification-empty'>
+              <div className='empty-icon'>🔔</div>
               <h4>No notifications yet</h4>
-              <p>You'll see milestone updates, deadline reminders, and achievement celebrations here.</p>
+              <p>
+                You'll see milestone updates, deadline reminders, and achievement celebrations here.
+              </p>
             </div>
           ) : (
             recentNotifications.map(notification => (

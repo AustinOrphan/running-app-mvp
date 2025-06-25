@@ -1,7 +1,8 @@
 import express from 'express';
-import { prisma } from '../server.js';
-import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
+
 import { createError } from '../middleware/errorHandler.js';
+import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
+import { prisma } from '../server.js';
 import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../src/types/goals.js';
 
 const router = express.Router();
@@ -10,14 +11,14 @@ const router = express.Router();
 router.get('/', requireAuth, async (req: AuthRequest, res) => {
   try {
     const goals = await prisma.goal.findMany({
-      where: { 
+      where: {
         userId: req.user!.id,
-        isActive: true 
+        isActive: true,
       },
       orderBy: [
         { isCompleted: 'asc' }, // Active goals first
-        { createdAt: 'desc' }
-      ]
+        { createdAt: 'desc' },
+      ],
     });
 
     res.json(goals);
@@ -31,10 +32,10 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
   try {
     const goal = await prisma.goal.findFirst({
-      where: { 
+      where: {
         id: req.params.id,
-        userId: req.user!.id 
-      }
+        userId: req.user!.id,
+      },
     });
 
     if (!goal) {
@@ -61,12 +62,15 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
       startDate,
       endDate,
       color,
-      icon
+      icon,
     } = req.body;
 
     // Validation
     if (!title || !type || !period || !targetValue || !targetUnit || !startDate || !endDate) {
-      throw createError('Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate', 400);
+      throw createError(
+        'Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate',
+        400
+      );
     }
 
     // Validate goal type
@@ -106,8 +110,8 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
         color,
         icon,
         isActive: true,
-        isCompleted: false
-      }
+        isCompleted: false,
+      },
     });
 
     res.status(201).json(goal);
@@ -132,15 +136,15 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
       endDate,
       color,
       icon,
-      isActive
+      isActive,
     } = req.body;
 
     // Check if goal exists and belongs to user
     const existingGoal = await prisma.goal.findFirst({
-      where: { 
+      where: {
         id: goalId,
-        userId: req.user!.id 
-      }
+        userId: req.user!.id,
+      },
     });
 
     if (!existingGoal) {
@@ -187,8 +191,8 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
         ...(endDate && { endDate: new Date(endDate) }),
         ...(color !== undefined && { color }),
         ...(icon !== undefined && { icon }),
-        ...(isActive !== undefined && { isActive })
-      }
+        ...(isActive !== undefined && { isActive }),
+      },
     });
 
     res.json(updatedGoal);
@@ -205,10 +209,10 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
 
     // Check if goal exists and belongs to user
     const goal = await prisma.goal.findFirst({
-      where: { 
+      where: {
         id: goalId,
-        userId: req.user!.id 
-      }
+        userId: req.user!.id,
+      },
     });
 
     if (!goal) {
@@ -218,7 +222,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
     // Soft delete by setting isActive to false
     await prisma.goal.update({
       where: { id: goalId },
-      data: { isActive: false }
+      data: { isActive: false },
     });
 
     res.json({ message: 'Goal deleted successfully' });
@@ -235,11 +239,11 @@ router.post('/:id/complete', requireAuth, async (req: AuthRequest, res) => {
 
     // Check if goal exists and belongs to user
     const goal = await prisma.goal.findFirst({
-      where: { 
+      where: {
         id: goalId,
         userId: req.user!.id,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     if (!goal) {
@@ -253,11 +257,11 @@ router.post('/:id/complete', requireAuth, async (req: AuthRequest, res) => {
     // Mark as completed
     const completedGoal = await prisma.goal.update({
       where: { id: goalId },
-      data: { 
+      data: {
         isCompleted: true,
         completedAt: new Date(),
-        currentValue: goal.targetValue // Set current to target when manually completed
-      }
+        currentValue: goal.targetValue, // Set current to target when manually completed
+      },
     });
 
     res.json(completedGoal);
@@ -271,35 +275,37 @@ router.post('/:id/complete', requireAuth, async (req: AuthRequest, res) => {
 router.get('/progress/all', requireAuth, async (req: AuthRequest, res) => {
   try {
     const goals = await prisma.goal.findMany({
-      where: { 
+      where: {
         userId: req.user!.id,
         isActive: true,
-        isCompleted: false
-      }
+        isCompleted: false,
+      },
     });
 
     // Calculate progress for each goal
-    const progressData = await Promise.all(goals.map(async (goal) => {
-      const currentValue = await calculateGoalProgress(goal, req.user!.id);
-      const progressPercentage = Math.min((currentValue / goal.targetValue) * 100, 100);
-      const remainingValue = Math.max(goal.targetValue - currentValue, 0);
-      
-      const now = new Date();
-      const daysRemaining = Math.max(
-        Math.ceil((goal.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
-        0
-      );
+    const progressData = await Promise.all(
+      goals.map(async goal => {
+        const currentValue = await calculateGoalProgress(goal, req.user!.id);
+        const progressPercentage = Math.min((currentValue / goal.targetValue) * 100, 100);
+        const remainingValue = Math.max(goal.targetValue - currentValue, 0);
 
-      return {
-        goalId: goal.id,
-        currentValue,
-        progressPercentage,
-        isCompleted: currentValue >= goal.targetValue,
-        remainingValue,
-        daysRemaining,
-        goal
-      };
-    }));
+        const now = new Date();
+        const daysRemaining = Math.max(
+          Math.ceil((goal.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+          0
+        );
+
+        return {
+          goalId: goal.id,
+          currentValue,
+          progressPercentage,
+          isCompleted: currentValue >= goal.targetValue,
+          remainingValue,
+          daysRemaining,
+          goal,
+        };
+      })
+    );
 
     res.json(progressData);
   } catch (error) {
@@ -315,33 +321,34 @@ async function calculateGoalProgress(goal: any, userId: string): Promise<number>
       userId,
       date: {
         gte: goal.startDate,
-        lte: goal.endDate
-      }
-    }
+        lte: goal.endDate,
+      },
+    },
   });
 
   switch (goal.type) {
     case GOAL_TYPES.DISTANCE:
       return runs.reduce((total, run) => total + run.distance, 0);
-    
+
     case GOAL_TYPES.TIME:
       const totalMinutes = runs.reduce((total, run) => total + run.duration, 0);
       return goal.targetUnit === 'hours' ? totalMinutes / 60 : totalMinutes;
-    
+
     case GOAL_TYPES.FREQUENCY:
       return runs.length;
-    
+
     case GOAL_TYPES.PACE:
       if (runs.length === 0) return 0;
-      const avgPace = runs.reduce((total, run) => {
-        const pace = run.distance > 0 ? run.duration / run.distance : 0;
-        return total + pace;
-      }, 0) / runs.length;
+      const avgPace =
+        runs.reduce((total, run) => {
+          const pace = run.distance > 0 ? run.duration / run.distance : 0;
+          return total + pace;
+        }, 0) / runs.length;
       return avgPace;
-    
+
     case GOAL_TYPES.LONGEST_RUN:
       return runs.length > 0 ? Math.max(...runs.map(run => run.distance)) : 0;
-    
+
     default:
       return 0;
   }

@@ -1,9 +1,9 @@
-export type NotificationType = 
-  | 'achievement' 
-  | 'milestone' 
-  | 'deadline' 
-  | 'streak' 
-  | 'summary' 
+export type NotificationType =
+  | 'achievement'
+  | 'milestone'
+  | 'deadline'
+  | 'streak'
+  | 'summary'
   | 'reminder';
 
 export type NotificationPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -62,11 +62,11 @@ export interface ReminderNotification extends BaseNotification {
   scheduledFor: Date;
 }
 
-export type GoalNotification = 
-  | MilestoneNotification 
-  | DeadlineNotification 
-  | StreakNotification 
-  | SummaryNotification 
+export type GoalNotification =
+  | MilestoneNotification
+  | DeadlineNotification
+  | StreakNotification
+  | SummaryNotification
   | ReminderNotification;
 
 export interface NotificationPreferences {

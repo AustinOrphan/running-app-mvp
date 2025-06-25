@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { 
-  GOAL_TYPES, 
-  GOAL_PERIODS, 
-  GOAL_TYPE_CONFIGS, 
+
+import {
+  GOAL_TYPES,
+  GOAL_PERIODS,
+  GOAL_TYPE_CONFIGS,
   GOAL_PERIOD_CONFIGS,
   CreateGoalData,
   GoalType,
-  GoalPeriod 
+  GoalPeriod,
 } from '../types/goals';
 
 interface CreateGoalModalProps {
@@ -15,11 +16,7 @@ interface CreateGoalModalProps {
   onSubmit: (goalData: CreateGoalData) => Promise<void>;
 }
 
-export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
-  isOpen,
-  onClose,
-  onSubmit
-}) => {
+export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -30,7 +27,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
     color: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].color,
-    icon: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].icon
+    icon: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].icon,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -40,13 +37,13 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
   const calculateEndDate = (startDate: string, period: GoalPeriod): string => {
     const start = new Date(startDate);
     const periodConfig = GOAL_PERIOD_CONFIGS[period];
-    
+
     if (periodConfig.duration) {
       const end = new Date(start);
       end.setDate(start.getDate() + periodConfig.duration);
       return end.toISOString().split('T')[0];
     }
-    
+
     // For custom period, default to 30 days
     const end = new Date(start);
     end.setDate(start.getDate() + 30);
@@ -61,7 +58,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
       type,
       targetUnit: config.defaultUnit,
       color: config.color,
-      icon: config.icon
+      icon: config.icon,
     }));
   };
 
@@ -71,7 +68,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
     setFormData(prev => ({
       ...prev,
       period,
-      endDate
+      endDate,
     }));
   };
 
@@ -81,7 +78,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
     setFormData(prev => ({
       ...prev,
       startDate,
-      endDate
+      endDate,
     }));
   };
 
@@ -117,13 +114,13 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
       const goalData: CreateGoalData = {
         title: formData.title.trim(),
@@ -135,11 +132,11 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
         startDate: new Date(formData.startDate),
         endDate: new Date(formData.endDate),
         color: formData.color,
-        icon: formData.icon
+        icon: formData.icon,
       };
 
       await onSubmit(goalData);
-      
+
       // Reset form
       setFormData({
         title: '',
@@ -151,7 +148,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
         startDate: new Date().toISOString().split('T')[0],
         endDate: '',
         color: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].color,
-        icon: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].icon
+        icon: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].icon,
       });
       setErrors({});
     } catch (error) {
@@ -166,54 +163,50 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
+    <div className='modal-overlay' onClick={onClose}>
+      <div className='modal' onClick={e => e.stopPropagation()}>
+        <div className='modal-header'>
           <h3>Create New Goal</h3>
-          <button 
-            className="btn-icon"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
+          <button className='btn-icon' onClick={onClose} disabled={isSubmitting}>
             ✕
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
+          <div className='modal-body'>
             {/* Goal Title */}
-            <div className="form-group">
-              <label htmlFor="title">Goal Title *</label>
+            <div className='form-group'>
+              <label htmlFor='title'>Goal Title *</label>
               <input
-                id="title"
-                type="text"
+                id='title'
+                type='text'
                 value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="e.g., Run 50km this month"
+                onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder='e.g., Run 50km this month'
                 className={errors.title ? 'error' : ''}
               />
-              {errors.title && <span className="error-message">{errors.title}</span>}
+              {errors.title && <span className='error-message'>{errors.title}</span>}
             </div>
 
             {/* Goal Description */}
-            <div className="form-group">
-              <label htmlFor="description">Description</label>
+            <div className='form-group'>
+              <label htmlFor='description'>Description</label>
               <textarea
-                id="description"
+                id='description'
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Optional description of your goal..."
+                onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder='Optional description of your goal...'
                 rows={3}
               />
             </div>
 
             {/* Goal Type */}
-            <div className="form-group">
-              <label htmlFor="type">Goal Type *</label>
+            <div className='form-group'>
+              <label htmlFor='type'>Goal Type *</label>
               <select
-                id="type"
+                id='type'
                 value={formData.type}
-                onChange={(e) => handleTypeChange(e.target.value as GoalType)}
+                onChange={e => handleTypeChange(e.target.value as GoalType)}
               >
                 {Object.values(GOAL_TYPES).map(type => {
                   const config = GOAL_TYPE_CONFIGS[type];
@@ -224,47 +217,49 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
                   );
                 })}
               </select>
-              <p className="field-description">{selectedConfig.description}</p>
+              <p className='field-description'>{selectedConfig.description}</p>
             </div>
 
             {/* Target Value and Unit */}
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="targetValue">Target Value *</label>
+            <div className='form-row'>
+              <div className='form-group'>
+                <label htmlFor='targetValue'>Target Value *</label>
                 <input
-                  id="targetValue"
-                  type="number"
-                  step="0.1"
-                  min="0"
+                  id='targetValue'
+                  type='number'
+                  step='0.1'
+                  min='0'
                   value={formData.targetValue}
-                  onChange={(e) => setFormData(prev => ({ ...prev, targetValue: e.target.value }))}
-                  placeholder="0"
+                  onChange={e => setFormData(prev => ({ ...prev, targetValue: e.target.value }))}
+                  placeholder='0'
                   className={errors.targetValue ? 'error' : ''}
                 />
-                {errors.targetValue && <span className="error-message">{errors.targetValue}</span>}
+                {errors.targetValue && <span className='error-message'>{errors.targetValue}</span>}
               </div>
-              
-              <div className="form-group">
-                <label htmlFor="targetUnit">Unit</label>
+
+              <div className='form-group'>
+                <label htmlFor='targetUnit'>Unit</label>
                 <select
-                  id="targetUnit"
+                  id='targetUnit'
                   value={formData.targetUnit}
-                  onChange={(e) => setFormData(prev => ({ ...prev, targetUnit: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, targetUnit: e.target.value }))}
                 >
                   {selectedConfig.units.map(unit => (
-                    <option key={unit} value={unit}>{unit}</option>
+                    <option key={unit} value={unit}>
+                      {unit}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
 
             {/* Goal Period */}
-            <div className="form-group">
-              <label htmlFor="period">Time Period *</label>
+            <div className='form-group'>
+              <label htmlFor='period'>Time Period *</label>
               <select
-                id="period"
+                id='period'
                 value={formData.period}
-                onChange={(e) => handlePeriodChange(e.target.value as GoalPeriod)}
+                onChange={e => handlePeriodChange(e.target.value as GoalPeriod)}
               >
                 {Object.values(GOAL_PERIODS).map(period => {
                   const config = GOAL_PERIOD_CONFIGS[period];
@@ -278,71 +273,67 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
             </div>
 
             {/* Date Range */}
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="startDate">Start Date *</label>
+            <div className='form-row'>
+              <div className='form-group'>
+                <label htmlFor='startDate'>Start Date *</label>
                 <input
-                  id="startDate"
-                  type="date"
+                  id='startDate'
+                  type='date'
                   value={formData.startDate}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
+                  onChange={e => handleStartDateChange(e.target.value)}
                   className={errors.startDate ? 'error' : ''}
                 />
-                {errors.startDate && <span className="error-message">{errors.startDate}</span>}
+                {errors.startDate && <span className='error-message'>{errors.startDate}</span>}
               </div>
-              
-              <div className="form-group">
-                <label htmlFor="endDate">End Date *</label>
+
+              <div className='form-group'>
+                <label htmlFor='endDate'>End Date *</label>
                 <input
-                  id="endDate"
-                  type="date"
+                  id='endDate'
+                  type='date'
                   value={formData.endDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
                   className={errors.endDate ? 'error' : ''}
                 />
-                {errors.endDate && <span className="error-message">{errors.endDate}</span>}
+                {errors.endDate && <span className='error-message'>{errors.endDate}</span>}
               </div>
             </div>
 
             {/* Color and Icon */}
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="color">Color</label>
+            <div className='form-row'>
+              <div className='form-group'>
+                <label htmlFor='color'>Color</label>
                 <input
-                  id="color"
-                  type="color"
+                  id='color'
+                  type='color'
                   value={formData.color}
-                  onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, color: e.target.value }))}
                 />
               </div>
-              
-              <div className="form-group">
-                <label htmlFor="icon">Icon</label>
+
+              <div className='form-group'>
+                <label htmlFor='icon'>Icon</label>
                 <input
-                  id="icon"
-                  type="text"
+                  id='icon'
+                  type='text'
                   value={formData.icon}
-                  onChange={(e) => setFormData(prev => ({ ...prev, icon: e.target.value }))}
-                  placeholder="🎯"
+                  onChange={e => setFormData(prev => ({ ...prev, icon: e.target.value }))}
+                  placeholder='🎯'
                 />
               </div>
             </div>
           </div>
 
-          <div className="modal-footer">
-            <button 
-              type="button"
-              className="btn-secondary"
+          <div className='modal-footer'>
+            <button
+              type='button'
+              className='btn-secondary'
               onClick={onClose}
               disabled={isSubmitting}
             >
               Cancel
             </button>
-            <button 
-              type="submit"
-              className="btn-primary"
-              disabled={isSubmitting}
-            >
+            <button type='submit' className='btn-primary' disabled={isSubmitting}>
               {isSubmitting ? 'Creating...' : 'Create Goal'}
             </button>
           </div>

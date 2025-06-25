@@ -1,8 +1,9 @@
-import express from 'express';
 import { PrismaClient } from '@prisma/client';
+import express from 'express';
+
+import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { validateBody } from '../middleware/validateBody.js';
-import { createError } from '../middleware/errorHandler.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -76,13 +77,12 @@ router.post(
     try {
       const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
       
-      console.log('Creating run for user:', req.user);
-      
+      console.log('Creating run for user:', req.user?.id);
       // Verify user exists
       const user = await prisma.user.findUnique({
-        where: { id: req.user!.id }
+        where: { id: req.user!.id },
       });
-      
+
       if (!user) {
         throw createError('User not found', 404);
       }

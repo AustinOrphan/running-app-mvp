@@ -1,16 +1,24 @@
-import { WeeklyInsights, RunTypeBreakdown, TrendsDataPoint, PersonalRecord, Run, User } from '../../src/types';
+import {
+  WeeklyInsights,
+  RunTypeBreakdown,
+  TrendsDataPoint,
+  PersonalRecord,
+  Run,
+  User,
+  Race,
+} from '../../src/types';
 import { Goal, GoalProgress, CreateGoalData, GoalType, GoalPeriod } from '../../src/types/goals';
 
 // Mock User Data
 export const mockUser: User = {
   id: 'user-123',
-  email: 'test@example.com'
+  email: 'test@example.com',
 };
 
 export const mockTestUser = {
   id: 'user-123',
   email: 'test@example.com',
-  password: 'hashedpassword123'
+  password: 'hashedpassword123',
 };
 
 // Mock Runs Data
@@ -24,7 +32,7 @@ export const mockRuns: Run[] = [
     notes: 'Morning jog',
     userId: 'user-123',
     createdAt: '2024-06-15T06:00:00Z',
-    updatedAt: '2024-06-15T06:00:00Z'
+    updatedAt: '2024-06-15T06:00:00Z',
   },
   {
     id: 'run-2',
@@ -35,7 +43,7 @@ export const mockRuns: Run[] = [
     notes: 'Weekly long run',
     userId: 'user-123',
     createdAt: '2024-06-13T07:00:00Z',
-    updatedAt: '2024-06-13T07:00:00Z'
+    updatedAt: '2024-06-13T07:00:00Z',
   },
   {
     id: 'run-3',
@@ -46,7 +54,7 @@ export const mockRuns: Run[] = [
     notes: 'Interval training',
     userId: 'user-123',
     createdAt: '2024-06-11T18:00:00Z',
-    updatedAt: '2024-06-11T18:00:00Z'
+    updatedAt: '2024-06-11T18:00:00Z',
   },
   {
     id: 'run-4',
@@ -57,8 +65,8 @@ export const mockRuns: Run[] = [
     notes: 'Half marathon PR!',
     userId: 'user-123',
     createdAt: '2024-06-09T08:00:00Z',
-    updatedAt: '2024-06-09T08:00:00Z'
-  }
+    updatedAt: '2024-06-09T08:00:00Z',
+  },
 ];
 
 // Mock Weekly Insights
@@ -68,7 +76,7 @@ export const mockWeeklyInsights: WeeklyInsights = {
   totalRuns: 4,
   avgPace: 302, // ~5:02/km
   weekStart: '2024-06-09T00:00:00Z',
-  weekEnd: '2024-06-15T23:59:59Z'
+  weekEnd: '2024-06-15T23:59:59Z',
 };
 
 export const mockEmptyWeeklyInsights: WeeklyInsights = {
@@ -77,7 +85,7 @@ export const mockEmptyWeeklyInsights: WeeklyInsights = {
   totalRuns: 0,
   avgPace: 0,
   weekStart: '2024-06-16T00:00:00Z',
-  weekEnd: '2024-06-22T23:59:59Z'
+  weekEnd: '2024-06-22T23:59:59Z',
 };
 
 // Mock Run Type Breakdown
@@ -87,29 +95,29 @@ export const mockRunTypeBreakdown: RunTypeBreakdown[] = [
     count: 8,
     totalDistance: 42.5,
     totalDuration: 15300,
-    avgPace: 360
+    avgPace: 360,
   },
   {
     tag: 'Long Run',
     count: 3,
     totalDistance: 45.2,
     totalDuration: 13680,
-    avgPace: 302
+    avgPace: 302,
   },
   {
     tag: 'Speed Work',
     count: 4,
     totalDistance: 16.8,
     totalDuration: 4200,
-    avgPace: 250
+    avgPace: 250,
   },
   {
     tag: 'Race',
     count: 2,
     totalDistance: 26.3,
     totalDuration: 7500,
-    avgPace: 285
-  }
+    avgPace: 285,
+  },
 ];
 
 // Mock Trends Data
@@ -119,85 +127,85 @@ export const mockTrendsData: TrendsDataPoint[] = [
     distance: 25.5,
     duration: 9000,
     pace: 353,
-    weeklyDistance: 25.5
+    weeklyDistance: 25.5,
   },
   {
     date: '2024-04-08',
     distance: 32.1,
     duration: 10800,
     pace: 336,
-    weeklyDistance: 32.1
+    weeklyDistance: 32.1,
   },
   {
     date: '2024-04-15',
     distance: 28.7,
     duration: 9660,
     pace: 336,
-    weeklyDistance: 28.7
+    weeklyDistance: 28.7,
   },
   {
     date: '2024-04-22',
     distance: 35.2,
     duration: 11760,
     pace: 334,
-    weeklyDistance: 35.2
+    weeklyDistance: 35.2,
   },
   {
     date: '2024-04-29',
     distance: 41.8,
     duration: 13680,
     pace: 327,
-    weeklyDistance: 41.8
+    weeklyDistance: 41.8,
   },
   {
     date: '2024-05-06',
     distance: 38.9,
     duration: 12600,
     pace: 323,
-    weeklyDistance: 38.9
+    weeklyDistance: 38.9,
   },
   {
     date: '2024-05-13',
     distance: 44.3,
     duration: 14100,
     pace: 318,
-    weeklyDistance: 44.3
+    weeklyDistance: 44.3,
   },
   {
     date: '2024-05-20',
     distance: 42.1,
     duration: 13320,
     pace: 316,
-    weeklyDistance: 42.1
+    weeklyDistance: 42.1,
   },
   {
     date: '2024-05-27',
     distance: 46.8,
     duration: 14760,
     pace: 315,
-    weeklyDistance: 46.8
+    weeklyDistance: 46.8,
   },
   {
     date: '2024-06-03',
     distance: 39.7,
     duration: 12420,
     pace: 312,
-    weeklyDistance: 39.7
+    weeklyDistance: 39.7,
   },
   {
     date: '2024-06-10',
     distance: 41.2,
     duration: 12660,
     pace: 307,
-    weeklyDistance: 41.2
+    weeklyDistance: 41.2,
   },
   {
     date: '2024-06-17',
     distance: 38.5,
     duration: 11700,
     pace: 303,
-    weeklyDistance: 38.5
-  }
+    weeklyDistance: 38.5,
+  },
 ];
 
 // Mock Personal Records
@@ -207,54 +215,54 @@ export const mockPersonalRecords: PersonalRecord[] = [
     bestTime: 240, // 4:00
     bestPace: 240,
     date: '2024-05-15T00:00:00Z',
-    runId: 'run-pr-1k'
+    runId: 'run-pr-1k',
   },
   {
     distance: 2,
     bestTime: 510, // 8:30
     bestPace: 255,
     date: '2024-04-22T00:00:00Z',
-    runId: 'run-pr-2k'
+    runId: 'run-pr-2k',
   },
   {
     distance: 5,
     bestTime: 1320, // 22:00
     bestPace: 264,
     date: '2024-05-01T00:00:00Z',
-    runId: 'run-pr-5k'
+    runId: 'run-pr-5k',
   },
   {
     distance: 10,
     bestTime: 2760, // 46:00
     bestPace: 276,
     date: '2024-04-10T00:00:00Z',
-    runId: 'run-pr-10k'
+    runId: 'run-pr-10k',
   },
   {
     distance: 21.1,
     bestTime: 6300, // 1:45:00
     bestPace: 298,
     date: '2024-06-09T00:00:00Z',
-    runId: 'run-pr-half'
-  }
+    runId: 'run-pr-half',
+  },
 ];
 
 // Mock Authentication Responses
 export const mockAuthResponse = {
   success: true,
   token: 'mock-jwt-token-123',
-  user: mockUser
+  user: mockUser,
 };
 
 export const mockAuthError = {
   success: false,
-  message: 'Invalid credentials'
+  message: 'Invalid credentials',
 };
 
 // Mock API Error Response
 export const mockApiError = {
   error: 'Unauthorized',
-  message: 'Invalid or expired token'
+  message: 'Invalid or expired token',
 };
 
 // Mock Form Data
@@ -263,14 +271,14 @@ export const mockRunFormData = {
   distance: '5.5',
   duration: '1980', // 33 minutes
   tag: 'Easy Run',
-  notes: 'Nice weather today'
+  notes: 'Nice weather today',
 };
 
 // Mock Loading States
 export const mockLoadingStates = {
   loading: true,
   error: null,
-  data: null
+  data: null,
 };
 
 // Mock Empty States
@@ -278,7 +286,7 @@ export const mockEmptyStates = {
   emptyRuns: [],
   emptyBreakdown: [],
   emptyTrends: [],
-  emptyRecords: []
+  emptyRecords: [],
 };
 
 // Test Utilities
@@ -292,13 +300,13 @@ export const createMockRun = (overrides: Partial<Run> = {}): Run => ({
   userId: 'user-123',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-  ...overrides
+  ...overrides,
 });
 
 export const createMockUser = (overrides: Partial<User> = {}): User => ({
   id: `user-${Date.now()}`,
   email: 'test@example.com',
-  ...overrides
+  ...overrides,
 });
 
 export const createMockTrendsData = (weeks: number = 12): TrendsDataPoint[] => {
@@ -307,13 +315,13 @@ export const createMockTrendsData = (weeks: number = 12): TrendsDataPoint[] => {
     date.setDate(date.getDate() - (weeks - i) * 7);
     const distance = 20 + Math.random() * 30;
     const duration = distance * (300 + Math.random() * 60);
-    
+
     return {
       date: date.toISOString().split('T')[0],
       distance: Number(distance.toFixed(1)),
       duration: Math.round(duration),
       pace: Math.round(duration / distance),
-      weeklyDistance: Number(distance.toFixed(1))
+      weeklyDistance: Number(distance.toFixed(1)),
     };
   });
 };
@@ -337,7 +345,7 @@ export const mockGoals: Goal[] = [
     icon: '🏃‍♂️',
     userId: 'user-123',
     createdAt: '2024-06-01T00:00:00Z',
-    updatedAt: '2024-06-15T12:00:00Z'
+    updatedAt: '2024-06-15T12:00:00Z',
   },
   {
     id: 'goal-2',
@@ -356,7 +364,7 @@ export const mockGoals: Goal[] = [
     icon: '⚡',
     userId: 'user-123',
     createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-06-15T12:00:00Z'
+    updatedAt: '2024-06-15T12:00:00Z',
   },
   {
     id: 'goal-3',
@@ -375,7 +383,7 @@ export const mockGoals: Goal[] = [
     icon: '🗓️',
     userId: 'user-123',
     createdAt: '2024-06-10T00:00:00Z',
-    updatedAt: '2024-06-15T12:00:00Z'
+    updatedAt: '2024-06-15T12:00:00Z',
   },
   {
     id: 'goal-4',
@@ -394,8 +402,8 @@ export const mockGoals: Goal[] = [
     icon: '🏅',
     userId: 'user-123',
     createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-06-09T10:30:00Z'
-  }
+    updatedAt: '2024-06-09T10:30:00Z',
+  },
 ];
 
 export const mockGoalProgress: GoalProgress[] = [
@@ -409,7 +417,7 @@ export const mockGoalProgress: GoalProgress[] = [
     isCompleted: false,
     isOnTrack: true,
     averagePace: 320,
-    lastUpdated: '2024-06-15T12:00:00Z'
+    lastUpdated: '2024-06-15T12:00:00Z',
   },
   {
     goalId: 'goal-2',
@@ -421,7 +429,7 @@ export const mockGoalProgress: GoalProgress[] = [
     isCompleted: false,
     isOnTrack: false,
     averagePace: 1620,
-    lastUpdated: '2024-06-15T12:00:00Z'
+    lastUpdated: '2024-06-15T12:00:00Z',
   },
   {
     goalId: 'goal-3',
@@ -433,7 +441,7 @@ export const mockGoalProgress: GoalProgress[] = [
     isCompleted: false,
     isOnTrack: true,
     averagePace: 0,
-    lastUpdated: '2024-06-15T12:00:00Z'
+    lastUpdated: '2024-06-15T12:00:00Z',
   },
   {
     goalId: 'goal-4',
@@ -445,8 +453,8 @@ export const mockGoalProgress: GoalProgress[] = [
     isCompleted: true,
     isOnTrack: true,
     averagePace: 298,
-    lastUpdated: '2024-06-09T10:30:00Z'
-  }
+    lastUpdated: '2024-06-09T10:30:00Z',
+  },
 ];
 
 export const mockCreateGoalData: CreateGoalData = {
@@ -459,7 +467,7 @@ export const mockCreateGoalData: CreateGoalData = {
   startDate: '2024-06-17',
   endDate: '2024-06-23',
   color: '#3b82f6',
-  icon: '🎯'
+  icon: '🎯',
 };
 
 // Mock Streak Data for Goal Visualization
@@ -512,7 +520,7 @@ export const createMockGoal = (overrides: Partial<Goal> = {}): Goal => ({
   userId: 'user-123',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-  ...overrides
+  ...overrides,
 });
 
 export const createMockGoalProgress = (overrides: Partial<GoalProgress> = {}): GoalProgress => ({
@@ -526,10 +534,12 @@ export const createMockGoalProgress = (overrides: Partial<GoalProgress> = {}): G
   isOnTrack: true,
   averagePace: 300,
   lastUpdated: new Date().toISOString(),
-  ...overrides
+  ...overrides,
 });
 
-export const createMockCreateGoalData = (overrides: Partial<CreateGoalData> = {}): CreateGoalData => ({
+export const createMockCreateGoalData = (
+  overrides: Partial<CreateGoalData> = {}
+): CreateGoalData => ({
   title: 'Test Goal',
   description: 'Test goal description',
   type: 'distance' as GoalType,
@@ -540,5 +550,35 @@ export const createMockCreateGoalData = (overrides: Partial<CreateGoalData> = {}
   endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   color: '#3b82f6',
   icon: '🎯',
-  ...overrides
+  ...overrides,
 });
+
+// Mock Races Data
+export const mockRaces: Race[] = [
+  {
+    id: 'race-1',
+    userId: 'user-123',
+    name: 'City Half Marathon',
+    raceDate: '2024-07-15',
+    distance: 21.1,
+    targetTime: 6300, // 1:45:00
+    actualTime: null,
+    notes: 'Training for first half marathon',
+    isRegistered: true,
+    createdAt: '2024-06-01T00:00:00Z',
+    updatedAt: '2024-06-15T10:00:00Z',
+  },
+  {
+    id: 'race-2',
+    userId: 'user-123',
+    name: 'Local 10K',
+    raceDate: '2024-06-30',
+    distance: 10,
+    targetTime: 2700, // 45:00
+    actualTime: 2640, // 44:00
+    notes: 'Great pace improvement!',
+    isRegistered: true,
+    createdAt: '2024-05-15T00:00:00Z',
+    updatedAt: '2024-07-01T09:00:00Z',
+  },
+];

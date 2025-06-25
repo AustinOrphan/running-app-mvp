@@ -4,19 +4,19 @@ import './App.css';
 // Components
 import { AuthForm } from './components/Auth/AuthForm';
 import { Header } from './components/Navigation/Header';
-import { TabNavigation } from './components/Navigation/TabNavigation';
 import { SwipeHint } from './components/Navigation/SwipeHint';
-import { ToastContainer } from './components/Toast/ToastContainer';
-import { RunsPage } from './components/Pages/RunsPage';
+import { TabNavigation } from './components/Navigation/TabNavigation';
 import { ComingSoonPage } from './components/Pages/ComingSoonPage';
-import { StatsPage } from './pages/StatsPage';
-import { GoalsPage } from './pages/GoalsPage';
+import { RunsPage } from './components/Pages/RunsPage';
+import { ToastContainer } from './components/Toast/ToastContainer';
 
 // Hooks
 import { useAuth } from './hooks/useAuth';
-import { useToast } from './hooks/useToast';
 import { useRuns } from './hooks/useRuns';
 import { useSwipeNavigation } from './hooks/useSwipeNavigation';
+import { useToast } from './hooks/useToast';
+import { GoalsPage } from './pages/GoalsPage';
+import { StatsPage } from './pages/StatsPage';
 
 function App() {
   const [healthStatus, setHealthStatus] = useState<string>('Checking...');
@@ -80,23 +80,19 @@ function App() {
 
   if (!isLoggedIn) {
     return (
-      <div className="app">
+      <div className='app'>
         <h1>🏃‍♂️ Running Tracker</h1>
-        <div className="status">{healthStatus}</div>
-        
-        <AuthForm
-          onLogin={handleLogin}
-          onRegister={handleRegister}
-          loading={authLoading}
-        />
-        
+        <div className='status'>{healthStatus}</div>
+
+        <AuthForm onLogin={handleLogin} onRegister={handleRegister} loading={authLoading} />
+
         <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
       </div>
     );
   }
 
   return (
-    <div className="app">
+    <div className='app'>
       <Header healthStatus={healthStatus} onLogout={handleLogout} />
 
       <TabNavigation
@@ -110,9 +106,9 @@ function App() {
 
       <SwipeHint show={!hasSwipedOnce} />
 
-      <div className="dashboard">
-        <div 
-          className="tab-content"
+      <div className='dashboard'>
+        <div
+          className='tab-content'
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
@@ -128,21 +124,17 @@ function App() {
             />
           )}
 
-          {activeTab === 'goals' && (
-            <GoalsPage />
-          )}
+          {activeTab === 'goals' && <GoalsPage />}
 
           {activeTab === 'races' && (
             <ComingSoonPage
-              title="Races"
-              description="Track upcoming races, set target times, and record your results."
-              icon="🏆"
+              title='Races'
+              description='Track upcoming races, set target times, and record your results.'
+              icon='🏆'
             />
           )}
 
-          {activeTab === 'stats' && (
-            <StatsPage token={getToken()} />
-          )}
+          {activeTab === 'stats' && <StatsPage token={getToken()} />}
         </div>
       </div>
 

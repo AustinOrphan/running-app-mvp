@@ -22,12 +22,12 @@ export interface GoalTemplate {
   }>;
 }
 
-export type GoalTemplateCategory = 
-  | 'distance' 
-  | 'speed' 
-  | 'endurance' 
-  | 'consistency' 
-  | 'race_preparation' 
+export type GoalTemplateCategory =
+  | 'distance'
+  | 'speed'
+  | 'endurance'
+  | 'consistency'
+  | 'race_preparation'
   | 'recovery'
   | 'technique';
 

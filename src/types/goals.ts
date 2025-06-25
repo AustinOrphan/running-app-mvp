@@ -14,8 +14,8 @@ export const GOAL_PERIODS = {
   CUSTOM: 'CUSTOM',
 } as const;
 
-export type GoalType = typeof GOAL_TYPES[keyof typeof GOAL_TYPES];
-export type GoalPeriod = typeof GOAL_PERIODS[keyof typeof GOAL_PERIODS];
+export type GoalType = (typeof GOAL_TYPES)[keyof typeof GOAL_TYPES];
+export type GoalPeriod = (typeof GOAL_PERIODS)[keyof typeof GOAL_PERIODS];
 
 // Goal configuration interface
 export interface Goal {

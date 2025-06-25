@@ -1,11 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import { useRuns } from '../../../src/hooks/useRuns';
 import { Run, RunFormData } from '../../../src/types';
 
 // Mock the formatters
 vi.mock('../../../src/utils/formatters', () => ({
-  calculatePace: vi.fn((distance: number, duration: number) => duration / distance)
+  calculatePace: vi.fn((distance: number, duration: number) => duration / distance),
 }));
 
 // Mock fetch
@@ -21,7 +22,7 @@ const mockRuns: Run[] = [
     notes: 'Morning run in the park',
     userId: 'user-1',
     createdAt: '2024-06-15T06:00:00Z',
-    updatedAt: '2024-06-15T06:00:00Z'
+    updatedAt: '2024-06-15T06:00:00Z',
   },
   {
     id: '2',
@@ -32,15 +33,15 @@ const mockRuns: Run[] = [
     notes: 'Weekend long run',
     userId: 'user-1',
     createdAt: '2024-06-14T06:00:00Z',
-    updatedAt: '2024-06-14T06:00:00Z'
-  }
+    updatedAt: '2024-06-14T06:00:00Z',
+  },
 ];
 
 describe('useRuns', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     global.fetch = mockFetch;
-    
+
     // Mock console.error to avoid noise in tests
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -64,7 +65,7 @@ describe('useRuns', () => {
     it('automatically fetches runs when token is provided', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns)
+        json: vi.fn().mockResolvedValue(mockRuns),
       });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -78,8 +79,8 @@ describe('useRuns', () => {
       expect(result.current.runs).toEqual(mockRuns);
       expect(mockFetch).toHaveBeenCalledWith('/api/runs', {
         headers: {
-          'Authorization': 'Bearer valid-token'
-        }
+          Authorization: 'Bearer valid-token',
+        },
       });
     });
 
@@ -94,7 +95,7 @@ describe('useRuns', () => {
     it('successfully fetches and sets runs data', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns)
+        json: vi.fn().mockResolvedValue(mockRuns),
       });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -110,7 +111,7 @@ describe('useRuns', () => {
     it('handles empty runs response', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue([])
+        json: vi.fn().mockResolvedValue([]),
       });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -125,7 +126,7 @@ describe('useRuns', () => {
     it('handles API error responses', async () => {
       mockFetch.mockResolvedValue({
         ok: false,
-        status: 401
+        status: 401,
       });
 
       const { result } = renderHook(() => useRuns('invalid-token'));
@@ -154,7 +155,7 @@ describe('useRuns', () => {
     it('can be called manually to refresh data', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns)
+        json: vi.fn().mockResolvedValue(mockRuns),
       });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -167,17 +168,20 @@ describe('useRuns', () => {
       mockFetch.mockClear();
       mockFetch.mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue([...mockRuns, {
-          id: '3',
-          date: '2024-06-13T06:00:00Z',
-          distance: 3.0,
-          duration: 1200,
-          tag: 'Recovery',
-          notes: 'Easy recovery run',
-          userId: 'user-1',
-          createdAt: '2024-06-13T06:00:00Z',
-          updatedAt: '2024-06-13T06:00:00Z'
-        }])
+        json: vi.fn().mockResolvedValue([
+          ...mockRuns,
+          {
+            id: '3',
+            date: '2024-06-13T06:00:00Z',
+            distance: 3.0,
+            duration: 1200,
+            tag: 'Recovery',
+            notes: 'Easy recovery run',
+            userId: 'user-1',
+            createdAt: '2024-06-13T06:00:00Z',
+            updatedAt: '2024-06-13T06:00:00Z',
+          },
+        ]),
       });
 
       await act(async () => {
@@ -203,7 +207,7 @@ describe('useRuns', () => {
       act(() => {
         resolvePromise({
           ok: true,
-          json: vi.fn().mockResolvedValue(mockRuns)
+          json: vi.fn().mockResolvedValue(mockRuns),
         });
       });
 
@@ -219,35 +223,40 @@ describe('useRuns', () => {
       distance: '6.5',
       duration: '35', // 35 minutes
       tag: 'Tempo Run',
-      notes: 'Good tempo effort'
+      notes: 'Good tempo effort',
     };
 
     it('successfully creates new run', async () => {
       // Mock POST request for creating run
       mockFetch
-        .mockResolvedValueOnce({ // saveRun POST request
+        .mockResolvedValueOnce({
+          // saveRun POST request
           ok: true,
           json: vi.fn().mockResolvedValue({
             id: '3',
             ...validFormData,
             distance: 6.5,
             duration: 2100, // 35 minutes in seconds
-            userId: 'user-1'
-          })
-        })
-        .mockResolvedValueOnce({ // fetchRuns GET request after save
-          ok: true,
-          json: vi.fn().mockResolvedValue([...mockRuns, {
-            id: '3',
-            date: '2024-06-16T00:00:00.000Z',
-            distance: 6.5,
-            duration: 2100,
-            tag: 'Tempo Run',
-            notes: 'Good tempo effort',
             userId: 'user-1',
-            createdAt: '2024-06-16T06:00:00Z',
-            updatedAt: '2024-06-16T06:00:00Z'
-          }])
+          }),
+        })
+        .mockResolvedValueOnce({
+          // fetchRuns GET request after save
+          ok: true,
+          json: vi.fn().mockResolvedValue([
+            ...mockRuns,
+            {
+              id: '3',
+              date: '2024-06-16T00:00:00.000Z',
+              distance: 6.5,
+              duration: 2100,
+              tag: 'Tempo Run',
+              notes: 'Good tempo effort',
+              userId: 'user-1',
+              createdAt: '2024-06-16T06:00:00Z',
+              updatedAt: '2024-06-16T06:00:00Z',
+            },
+          ]),
         });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -269,15 +278,15 @@ describe('useRuns', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer valid-token'
+          Authorization: 'Bearer valid-token',
         },
         body: JSON.stringify({
           date: new Date('2024-06-16').toISOString(),
           distance: 6.5,
           duration: 2100, // 35 minutes * 60 seconds
           tag: 'Tempo Run',
-          notes: 'Good tempo effort'
-        })
+          notes: 'Good tempo effort',
+        }),
       });
     });
 
@@ -286,28 +295,30 @@ describe('useRuns', () => {
       const updateData: RunFormData = {
         ...validFormData,
         distance: '7.0',
-        notes: 'Updated notes'
+        notes: 'Updated notes',
       };
 
       mockFetch
-        .mockResolvedValueOnce({ // saveRun PUT request
+        .mockResolvedValueOnce({
+          // saveRun PUT request
           ok: true,
           json: vi.fn().mockResolvedValue({
             ...editingRun,
             distance: 7.0,
-            notes: 'Updated notes'
-          })
+            notes: 'Updated notes',
+          }),
         })
-        .mockResolvedValueOnce({ // fetchRuns GET request after update
+        .mockResolvedValueOnce({
+          // fetchRuns GET request after update
           ok: true,
           json: vi.fn().mockResolvedValue([
             {
               ...editingRun,
               distance: 7.0,
-              notes: 'Updated notes'
+              notes: 'Updated notes',
             },
-            mockRuns[1]
-          ])
+            mockRuns[1],
+          ]),
         });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -329,15 +340,15 @@ describe('useRuns', () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer valid-token'
+          Authorization: 'Bearer valid-token',
         },
         body: JSON.stringify({
           date: new Date('2024-06-16').toISOString(),
           distance: 7.0,
           duration: 2100,
           tag: 'Tempo Run',
-          notes: 'Updated notes'
-        })
+          notes: 'Updated notes',
+        }),
       });
     });
 
@@ -347,17 +358,17 @@ describe('useRuns', () => {
         distance: '5.0',
         duration: '30',
         tag: '',
-        notes: ''
+        notes: '',
       };
 
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: vi.fn().mockResolvedValue({})
+          json: vi.fn().mockResolvedValue({}),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: vi.fn().mockResolvedValue(mockRuns)
+          json: vi.fn().mockResolvedValue(mockRuns),
         });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -370,15 +381,18 @@ describe('useRuns', () => {
         await result.current.saveRun(minimalFormData);
       });
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/runs', expect.objectContaining({
-        body: JSON.stringify({
-          date: new Date('2024-06-16').toISOString(),
-          distance: 5.0,
-          duration: 1800,
-          tag: null,
-          notes: null
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/runs',
+        expect.objectContaining({
+          body: JSON.stringify({
+            date: new Date('2024-06-16').toISOString(),
+            distance: 5.0,
+            duration: 1800,
+            tag: null,
+            notes: null,
+          }),
         })
-      }));
+      );
     });
 
     it('throws error when no token provided', async () => {
@@ -395,8 +409,8 @@ describe('useRuns', () => {
       mockFetch.mockResolvedValue({
         ok: false,
         json: vi.fn().mockResolvedValue({
-          message: 'Validation error'
-        })
+          message: 'Validation error',
+        }),
       });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -417,7 +431,7 @@ describe('useRuns', () => {
     it('handles API error responses without message', async () => {
       mockFetch.mockResolvedValue({
         ok: false,
-        json: vi.fn().mockResolvedValue({})
+        json: vi.fn().mockResolvedValue({}),
       });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -443,7 +457,7 @@ describe('useRuns', () => {
     it('handles malformed JSON response', async () => {
       mockFetch.mockResolvedValue({
         ok: false,
-        json: vi.fn().mockRejectedValue(new Error('Invalid JSON'))
+        json: vi.fn().mockRejectedValue(new Error('Invalid JSON')),
       });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -502,7 +516,7 @@ describe('useRuns', () => {
       act(() => {
         resolvePromise({
           ok: true,
-          json: vi.fn().mockResolvedValue({})
+          json: vi.fn().mockResolvedValue({}),
         });
       });
 
@@ -515,12 +529,14 @@ describe('useRuns', () => {
   describe('deleteRun', () => {
     it('successfully deletes run', async () => {
       mockFetch
-        .mockResolvedValueOnce({ // deleteRun DELETE request
-          ok: true
-        })
-        .mockResolvedValueOnce({ // fetchRuns GET request after delete
+        .mockResolvedValueOnce({
+          // deleteRun DELETE request
           ok: true,
-          json: vi.fn().mockResolvedValue([mockRuns[1]]) // Only second run remains
+        })
+        .mockResolvedValueOnce({
+          // fetchRuns GET request after delete
+          ok: true,
+          json: vi.fn().mockResolvedValue([mockRuns[1]]), // Only second run remains
         });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -539,8 +555,8 @@ describe('useRuns', () => {
       expect(mockFetch).toHaveBeenCalledWith(`/api/runs/${mockRuns[0].id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': 'Bearer valid-token'
-        }
+          Authorization: 'Bearer valid-token',
+        },
       });
     });
 
@@ -557,7 +573,7 @@ describe('useRuns', () => {
     it('handles API error responses', async () => {
       mockFetch.mockResolvedValue({
         ok: false,
-        status: 404
+        status: 404,
       });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -594,13 +610,12 @@ describe('useRuns', () => {
     it('refetches runs when token changes from null to valid', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns)
+        json: vi.fn().mockResolvedValue(mockRuns),
       });
 
-      const { result, rerender } = renderHook(
-        ({ token }) => useRuns(token),
-        { initialProps: { token: null } }
-      );
+      const { result, rerender } = renderHook(({ token }) => useRuns(token), {
+        initialProps: { token: null },
+      });
 
       expect(result.current.runs).toEqual([]);
       expect(mockFetch).not.toHaveBeenCalled();
@@ -614,21 +629,20 @@ describe('useRuns', () => {
       expect(result.current.runs).toEqual(mockRuns);
       expect(mockFetch).toHaveBeenCalledWith('/api/runs', {
         headers: {
-          'Authorization': 'Bearer valid-token'
-        }
+          Authorization: 'Bearer valid-token',
+        },
       });
     });
 
     it('refetches runs when token changes to different token', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns)
+        json: vi.fn().mockResolvedValue(mockRuns),
       });
 
-      const { result, rerender } = renderHook(
-        ({ token }) => useRuns(token),
-        { initialProps: { token: 'token1' } }
-      );
+      const { result, rerender } = renderHook(({ token }) => useRuns(token), {
+        initialProps: { token: 'token1' },
+      });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -644,21 +658,20 @@ describe('useRuns', () => {
 
       expect(mockFetch).toHaveBeenLastCalledWith('/api/runs', {
         headers: {
-          'Authorization': 'Bearer token2'
-        }
+          Authorization: 'Bearer token2',
+        },
       });
     });
 
     it('does not fetch when token changes to null', () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns)
+        json: vi.fn().mockResolvedValue(mockRuns),
       });
 
-      const { rerender } = renderHook(
-        ({ token }) => useRuns(token),
-        { initialProps: { token: 'valid-token' } }
-      );
+      const { rerender } = renderHook(({ token }) => useRuns(token), {
+        initialProps: { token: 'valid-token' },
+      });
 
       const initialCallCount = mockFetch.mock.calls.length;
 
@@ -676,17 +689,17 @@ describe('useRuns', () => {
         distance: '10.5',
         duration: '65', // 1 hour 5 minutes
         tag: 'Long Run',
-        notes: 'Great weather'
+        notes: 'Great weather',
       };
 
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: vi.fn().mockResolvedValue({})
+          json: vi.fn().mockResolvedValue({}),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: vi.fn().mockResolvedValue([])
+          json: vi.fn().mockResolvedValue([]),
         });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -699,15 +712,18 @@ describe('useRuns', () => {
         await result.current.saveRun(formData);
       });
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/runs', expect.objectContaining({
-        body: JSON.stringify({
-          date: new Date('2024-06-16').toISOString(),
-          distance: 10.5,
-          duration: 3900, // 65 minutes * 60 seconds
-          tag: 'Long Run',
-          notes: 'Great weather'
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/runs',
+        expect.objectContaining({
+          body: JSON.stringify({
+            date: new Date('2024-06-16').toISOString(),
+            distance: 10.5,
+            duration: 3900, // 65 minutes * 60 seconds
+            tag: 'Long Run',
+            notes: 'Great weather',
+          }),
         })
-      }));
+      );
     });
 
     it('handles decimal distance values correctly', async () => {
@@ -716,17 +732,17 @@ describe('useRuns', () => {
         distance: '5.123',
         duration: '30.5',
         tag: '',
-        notes: ''
+        notes: '',
       };
 
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: vi.fn().mockResolvedValue({})
+          json: vi.fn().mockResolvedValue({}),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: vi.fn().mockResolvedValue([])
+          json: vi.fn().mockResolvedValue([]),
         });
 
       const { result } = renderHook(() => useRuns('valid-token'));
@@ -739,15 +755,18 @@ describe('useRuns', () => {
         await result.current.saveRun(formData);
       });
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/runs', expect.objectContaining({
-        body: JSON.stringify({
-          date: new Date('2024-06-16').toISOString(),
-          distance: 5.123,
-          duration: 1830, // 30.5 minutes * 60 seconds
-          tag: null,
-          notes: null
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/runs',
+        expect.objectContaining({
+          body: JSON.stringify({
+            date: new Date('2024-06-16').toISOString(),
+            distance: 5.123,
+            duration: 1830, // 30.5 minutes * 60 seconds
+            tag: null,
+            notes: null,
+          }),
         })
-      }));
+      );
     });
   });
 
@@ -780,7 +799,7 @@ describe('useRuns', () => {
             distance: '5.0',
             duration: '30',
             tag: '',
-            notes: ''
+            notes: '',
           });
         });
       } catch (e) {

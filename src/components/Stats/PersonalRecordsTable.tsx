@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import { PersonalRecord } from '../../types';
 import { formatDuration } from '../../utils/formatters';
 
@@ -30,19 +31,27 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
 
   if (loading) {
     return (
-      <div className="records-table-card">
+      <div className='records-table-card'>
         <h3>Personal Records</h3>
-        <div className="records-loading">
-          <div className="table-skeleton">
-            <div className="skeleton-row header-skeleton">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="skeleton-line" style={{width: '80px', height: '16px'}}></div>
+        <div className='records-loading'>
+          <div className='table-skeleton'>
+            <div className='skeleton-row header-skeleton'>
+              {[1, 2, 3, 4].map(i => (
+                <div
+                  key={i}
+                  className='skeleton-line'
+                  style={{ width: '80px', height: '16px' }}
+                ></div>
               ))}
             </div>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="skeleton-row">
-                {[1, 2, 3, 4].map((j) => (
-                  <div key={j} className="skeleton-line" style={{width: '60px', height: '14px'}}></div>
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className='skeleton-row'>
+                {[1, 2, 3, 4].map(j => (
+                  <div
+                    key={j}
+                    className='skeleton-line'
+                    style={{ width: '60px', height: '14px' }}
+                  ></div>
                 ))}
               </div>
             ))}
@@ -54,10 +63,10 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
 
   if (!records || records.length === 0) {
     return (
-      <div className="records-table-card">
+      <div className='records-table-card'>
         <h3>Personal Records</h3>
-        <div className="empty-records">
-          <div className="empty-icon">🏆</div>
+        <div className='empty-records'>
+          <div className='empty-icon'>🏆</div>
           <p>No personal records yet</p>
           <span>Run different distances to set your first PRs</span>
         </div>
@@ -81,10 +90,14 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
       return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
     }
   });
+  
+  const HALF_MARATHON_KM = 21.1;
+  const MARATHON_KM = 42.2;
+  const DISTANCE_TOLERANCE_KM = 0.1;
 
   const formatDistance = (distance: number) => {
-    if (distance === 21.1) return 'Half Marathon';
-    if (distance === 42.2) return 'Marathon';
+    if (Math.abs(distance - HALF_MARATHON_KM) < DISTANCE_TOLERANCE_KM) return 'Half Marathon';
+    if (Math.abs(distance - MARATHON_KM) < DISTANCE_TOLERANCE_KM) return 'Marathon';
     if (distance >= 1) return `${distance}K`;
     return `${(distance * 1000).toFixed(0)}m`;
   };
@@ -100,37 +113,37 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
   return (
-    <div className="records-table-card">
+    <div className='records-table-card'>
       <h3>Personal Records</h3>
-      
-      <div className="records-table-container">
-        <table className="records-table">
+
+      <div className='records-table-container'>
+        <table className='records-table'>
           <thead>
             <tr>
-              <th 
+              <th
                 className={`sortable ${sortKey === 'distance' ? 'active' : ''}`}
                 onClick={() => handleSort('distance')}
               >
                 Distance {getSortIcon('distance')}
               </th>
-              <th 
+              <th
                 className={`sortable ${sortKey === 'bestTime' ? 'active' : ''}`}
                 onClick={() => handleSort('bestTime')}
               >
                 Time {getSortIcon('bestTime')}
               </th>
-              <th 
+              <th
                 className={`sortable ${sortKey === 'bestPace' ? 'active' : ''}`}
                 onClick={() => handleSort('bestPace')}
               >
                 Pace {getSortIcon('bestPace')}
               </th>
-              <th 
+              <th
                 className={`sortable ${sortKey === 'date' ? 'active' : ''}`}
                 onClick={() => handleSort('date')}
               >
@@ -139,19 +152,19 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
             </tr>
           </thead>
           <tbody>
-            {sortedRecords.map((record) => (
-              <tr key={`${record.distance}-${record.runId}`} className="record-row">
-                <td className="distance-cell">
-                  <span className="distance-value">{formatDistance(record.distance)}</span>
+            {sortedRecords.map(record => (
+              <tr key={`${record.distance}-${record.runId}`} className='record-row'>
+                <td className='distance-cell'>
+                  <span className='distance-value'>{formatDistance(record.distance)}</span>
                 </td>
-                <td className="time-cell">
-                  <span className="time-value">{formatDuration(record.bestTime)}</span>
+                <td className='time-cell'>
+                  <span className='time-value'>{formatDuration(record.bestTime)}</span>
                 </td>
-                <td className="pace-cell">
-                  <span className="pace-value">{formatPace(record.bestPace)}</span>
+                <td className='pace-cell'>
+                  <span className='pace-value'>{formatPace(record.bestPace)}</span>
                 </td>
-                <td className="date-cell">
-                  <span className="date-value">{formatRecordDate(record.date)}</span>
+                <td className='date-cell'>
+                  <span className='date-value'>{formatRecordDate(record.date)}</span>
                 </td>
               </tr>
             ))}
@@ -159,16 +172,16 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
         </table>
       </div>
 
-      <div className="records-summary">
-        <div className="record-stat">
-          <span className="stat-label">Total PRs: </span>
-          <span className="stat-value">{records.length}</span>
+      <div className='records-summary'>
+        <div className='record-stat'>
+          <span className='stat-label'>Total PRs: </span>
+          <span className='stat-value'>{records.length}</span>
         </div>
-        <div className="record-stat">
-          <span className="stat-label">Latest: </span>
-          <span className="stat-value">
+        <div className='record-stat'>
+          <span className='stat-label'>Latest: </span>
+          <span className='stat-value'>
             {formatRecordDate(
-              records.reduce((latest, record) => 
+              records.reduce((latest, record) =>
                 new Date(record.date) > new Date(latest.date) ? record : latest
               ).date
             )}

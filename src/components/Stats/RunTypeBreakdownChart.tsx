@@ -1,5 +1,6 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+
 import { RunTypeBreakdown } from '../../types';
 
 interface RunTypeBreakdownChartProps {
@@ -9,7 +10,7 @@ interface RunTypeBreakdownChartProps {
 
 const COLORS = [
   '#3b82f6', // Blue
-  '#10b981', // Green  
+  '#10b981', // Green
   '#f59e0b', // Yellow
   '#ef4444', // Red
   '#8b5cf6', // Purple
@@ -22,17 +23,20 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="chart-tooltip">
-        <p className="tooltip-label">{data.tag}</p>
-        <p className="tooltip-item">
-          <span className="tooltip-value">{data.count}</span> runs
+      <div className='chart-tooltip'>
+        <p className='tooltip-label'>{data.tag}</p>
+        <p className='tooltip-item'>
+          <span className='tooltip-value'>{data.count}</span> runs
         </p>
-        <p className="tooltip-item">
-          <span className="tooltip-value">{data.totalDistance}km</span> total
+        <p className='tooltip-item'>
+          <span className='tooltip-value'>{data.totalDistance}km</span> total
         </p>
-        <p className="tooltip-item">
-          Avg pace: <span className="tooltip-value">
-            {data.avgPace > 0 ? `${Math.floor(data.avgPace / 60)}:${(data.avgPace % 60).toString().padStart(2, '0')}/km` : '-'}
+        <p className='tooltip-item'>
+          Avg pace:{' '}
+          <span className='tooltip-value'>
+            {data.avgPace > 0
+              ? `${Math.floor(data.avgPace / 60)}:${(data.avgPace % 60).toString().padStart(2, '0')}/km`
+              : '-'}
           </span>
         </p>
       </div>
@@ -44,16 +48,16 @@ const CustomTooltip = ({ active, payload }: any) => {
 export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ data, loading }) => {
   if (loading) {
     return (
-      <div className="chart-card">
+      <div className='chart-card'>
         <h3>Run Type Breakdown</h3>
-        <div className="chart-loading">
-          <div className="skeleton-chart">
-            <div className="skeleton-circle"></div>
-            <div className="skeleton-legend">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="skeleton-legend-item">
-                  <div className="skeleton-line" style={{width: '12px', height: '12px'}}></div>
-                  <div className="skeleton-line" style={{width: '60px', height: '14px'}}></div>
+        <div className='chart-loading'>
+          <div className='skeleton-chart'>
+            <div className='skeleton-circle'></div>
+            <div className='skeleton-legend'>
+              {[1, 2, 3].map(i => (
+                <div key={i} className='skeleton-legend-item'>
+                  <div className='skeleton-line' style={{ width: '12px', height: '12px' }}></div>
+                  <div className='skeleton-line' style={{ width: '60px', height: '14px' }}></div>
                 </div>
               ))}
             </div>
@@ -65,10 +69,10 @@ export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ da
 
   if (!data || data.length === 0) {
     return (
-      <div className="chart-card">
+      <div className='chart-card'>
         <h3>Run Type Breakdown</h3>
-        <div className="empty-chart">
-          <div className="empty-icon">📊</div>
+        <div className='empty-chart'>
+          <div className='empty-icon'>📊</div>
           <p>No run data available</p>
           <span>Add some runs with tags to see breakdown</span>
         </div>
@@ -80,24 +84,24 @@ export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ da
   const chartData = data.map((item, index) => ({
     ...item,
     percentage: ((item.count / data.reduce((sum, d) => sum + d.count, 0)) * 100).toFixed(1),
-    color: COLORS[index % COLORS.length]
+    color: COLORS[index % COLORS.length],
   }));
 
   return (
-    <div className="chart-card">
+    <div className='chart-card'>
       <h3>Run Type Breakdown</h3>
-      
-      <div className="chart-container">
-        <ResponsiveContainer width="100%" height={250}>
+
+      <div className='chart-container'>
+        <ResponsiveContainer width='100%' height={250}>
           <PieChart>
             <Pie
               data={chartData}
-              cx="50%"
-              cy="50%"
+              cx='50%'
+              cy='50%'
               innerRadius={40}
               outerRadius={80}
               paddingAngle={2}
-              dataKey="count"
+              dataKey='count'
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
@@ -108,16 +112,13 @@ export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ da
         </ResponsiveContainer>
       </div>
 
-      <div className="chart-legend">
+      <div className='chart-legend'>
         {chartData.map((item, index) => (
-          <div key={item.tag} className="legend-item">
-            <div 
-              className="legend-color" 
-              style={{ backgroundColor: item.color }}
-            ></div>
-            <div className="legend-content">
-              <div className="legend-label">{item.tag}</div>
-              <div className="legend-stats">
+          <div key={item.tag} className='legend-item'>
+            <div className='legend-color' style={{ backgroundColor: item.color }}></div>
+            <div className='legend-content'>
+              <div className='legend-label'>{item.tag}</div>
+              <div className='legend-stats'>
                 {item.count} runs ({item.percentage}%) • {item.totalDistance}km
               </div>
             </div>

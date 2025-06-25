@@ -3,43 +3,43 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
   testMatch: '**/visual-regression.test.ts',
-  
+
   /* Run tests in files in parallel */
   fullyParallel: true,
-  
+
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  
+
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  
+
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
-  
+
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html', { outputFolder: 'test-results/visual-regression-report' }],
     ['json', { outputFile: 'test-results/visual-regression-results.json' }],
-    ['list']
+    ['list'],
   ],
-  
+
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: 'http://localhost:3001',
-    
+
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
-    
+
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
-    
+
     /* Record video on failure */
     video: 'retain-on-failure',
-    
+
     /* Visual testing specific settings */
     ignoreHTTPSErrors: true,
-    
+
     /* Consistent viewport for visual testing */
     viewport: { width: 1280, height: 720 },
   },
@@ -48,7 +48,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { 
+      use: {
         ...require('@playwright/test').devices['Desktop Chrome'],
         // Ensure consistent rendering for visual tests
         launchOptions: {
@@ -67,7 +67,7 @@ export default defineConfig({
 
     {
       name: 'firefox',
-      use: { 
+      use: {
         ...require('@playwright/test').devices['Desktop Firefox'],
         // Firefox-specific settings for visual consistency
         launchOptions: {
@@ -81,7 +81,7 @@ export default defineConfig({
 
     {
       name: 'webkit',
-      use: { 
+      use: {
         ...require('@playwright/test').devices['Desktop Safari'],
       },
     },
@@ -89,14 +89,14 @@ export default defineConfig({
     /* Test against mobile viewports. */
     {
       name: 'Mobile Chrome',
-      use: { 
+      use: {
         ...require('@playwright/test').devices['Pixel 5'],
       },
     },
-    
+
     {
       name: 'Mobile Safari',
-      use: { 
+      use: {
         ...require('@playwright/test').devices['iPhone 12'],
       },
     },
@@ -104,16 +104,16 @@ export default defineConfig({
     /* Test against branded browsers. */
     // {
     //   name: 'Microsoft Edge',
-    //   use: { 
-    //     ...devices['Desktop Edge'], 
-    //     channel: 'msedge' 
+    //   use: {
+    //     ...devices['Desktop Edge'],
+    //     channel: 'msedge'
     //   },
     // },
     // {
     //   name: 'Google Chrome',
-    //   use: { 
-    //     ...devices['Desktop Chrome'], 
-    //     channel: 'chrome' 
+    //   use: {
+    //     ...devices['Desktop Chrome'],
+    //     channel: 'chrome'
     //   },
     // },
   ],
@@ -135,17 +135,16 @@ export default defineConfig({
   expect: {
     // Global threshold for visual comparisons
     threshold: 0.2,
-    
     // Animation handling
     toHaveScreenshot: {
-      threshold: 0.2,
+      threshold: 0.02,
       maxDiffPixels: 1000,
       animations: 'disabled',
     },
-    
+
     // Page screenshot defaults
     toMatchSnapshot: {
-      threshold: 0.3,
+      threshold: 0.02,
       maxDiffPixels: 2000,
     },
   },
