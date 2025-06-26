@@ -25,6 +25,7 @@ export default [
       '*.tmp',
       '*.temp',
       '*.log',
+      'debug-eslint.*',
     ],
   },
 
@@ -92,12 +93,12 @@ export default [
     },
   },
 
-  // TypeScript configuration
-  {
+  // TypeScript configuration - use flat configs
+  ...typescript.configs['flat/recommended'].map(config => ({
+    ...config,
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
+      ...config.languageOptions,
       parser: typescriptParser,
       parserOptions: {
         ecmaFeatures: {
@@ -105,23 +106,12 @@ export default [
         },
         project: './tsconfig.json',
       },
-      globals: {
-        console: 'readonly',
-        process: 'readonly',
-        Buffer: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        module: 'readonly',
-        require: 'readonly',
-        exports: 'readonly',
-        global: 'readonly',
-        fetch: 'readonly',
-        window: 'readonly',
-        document: 'readonly',
-        setTimeout: 'readonly',
-        setInterval: 'readonly',
-      },
     },
+  })),
+
+  // Additional TypeScript and React rules
+  {
+    files: ['**/*.{ts,tsx}'],
     plugins: {
       '@typescript-eslint': typescript,
       react: react,
@@ -135,11 +125,7 @@ export default [
       },
     },
     rules: {
-      // Base ESLint rules
-      ...js.configs.recommended.rules,
-
-      // TypeScript rules
-      ...typescript.configs.recommended.rules,
+      // TypeScript rule overrides
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
@@ -165,13 +151,15 @@ export default [
       'no-debugger': 'error',
       'prefer-const': 'error',
       'no-case-declarations': 'error',
-      'no-undef': 'off', // TypeScript handles this
     },
   },
 
   // Test files configuration
   {
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', 'tests/**/*'],
+    plugins: {
+      '@typescript-eslint': typescript,
+    },
     languageOptions: {
       globals: {
         describe: 'readonly',
@@ -209,6 +197,9 @@ export default [
   // Configuration files
   {
     files: ['*.config.{js,ts}', 'jest.config.js'],
+    plugins: {
+      '@typescript-eslint': typescript,
+    },
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
       'no-console': 'off',
