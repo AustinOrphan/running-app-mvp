@@ -1,6 +1,6 @@
 import request from 'supertest';
 
-import { app } from '../../../app';
+import { app } from '../../../server';
 import { mockRaces } from '../../fixtures/mockData';
 import { testDb } from '../../fixtures/testDatabase';
 
@@ -414,7 +414,7 @@ describe('Races API Integration Tests', () => {
     });
 
     it('returns 404 for race without actual time', async () => {
-      const raceWithoutTime = { ...mockRaces[1], actualTime: null };
+      const raceWithoutTime = { ...mockRaces[1], actualTime: undefined };
       const races = await testDb.createTestRaces(testUser.id, [raceWithoutTime]);
       const incompleteRace = races[0];
 

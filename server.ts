@@ -84,4 +84,4 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
 
-export { prisma };
+export { app, prisma };
