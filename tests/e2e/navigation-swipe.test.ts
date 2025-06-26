@@ -195,23 +195,19 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
         const centerY = viewport.height / 2;
 
         // Test swipe right (might go back or open sidebar)
-        await page.touchscreen.swipe(
-          centerX,
-          centerY, // Start position
-          centerX + 200,
-          centerY, // End position (swipe right)
-          { steps: 10 }
-        );
+        await page.touchscreen.tap(centerX, centerY);
+        await page.mouse.move(centerX, centerY);
+        await page.mouse.down();
+        await page.mouse.move(centerX + 200, centerY);
+        await page.mouse.up();
         await page.waitForTimeout(1000);
 
         // Test swipe left
-        await page.touchscreen.swipe(
-          centerX,
-          centerY, // Start position
-          centerX - 200,
-          centerY, // End position (swipe left)
-          { steps: 10 }
-        );
+        await page.touchscreen.tap(centerX, centerY);
+        await page.mouse.move(centerX, centerY);
+        await page.mouse.down();
+        await page.mouse.move(centerX - 200, centerY);
+        await page.mouse.up();
         await page.waitForTimeout(1000);
 
         // Verify page is still functional after swipes
@@ -234,13 +230,11 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
       const viewport = page.viewportSize();
       if (viewport) {
         // Simulate pull-to-refresh gesture (swipe down from top)
-        await page.touchscreen.swipe(
-          viewport.width / 2,
-          50, // Start near top
-          viewport.width / 2,
-          300, // End lower down
-          { steps: 20 }
-        );
+        await page.touchscreen.tap(viewport.width / 2, 50);
+        await page.mouse.move(viewport.width / 2, 50);
+        await page.mouse.down();
+        await page.mouse.move(viewport.width / 2, 300);
+        await page.mouse.up();
 
         // Wait for potential refresh animation
         await page.waitForTimeout(1500);
@@ -278,9 +272,9 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
           // Perform long press (hold for 800ms)
           await page.touchscreen.tap(
             itemBox.x + itemBox.width / 2,
-            itemBox.y + itemBox.height / 2,
-            { longPress: true }
+            itemBox.y + itemBox.height / 2
           );
+          await page.waitForTimeout(800);
 
           await page.waitForTimeout(1000);
 

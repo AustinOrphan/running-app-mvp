@@ -146,12 +146,12 @@ describe('useGoals - Basic Functionality', () => {
       await expect(async () => {
         await result.current.createGoal({
           title: 'Test',
-          type: 'distance',
+          type: 'DISTANCE',
           targetValue: 10,
           targetUnit: 'km',
           period: 'WEEKLY',
-          startDate: '2024-01-01',
-          endDate: '2024-01-07',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-07'),
         });
       }).rejects.toThrow('No authentication token available');
     });

@@ -53,7 +53,7 @@ vi.mock('../../../../src/components/Stats/PersonalRecordsTable', () => ({
 
 import { useStats } from '../../../../src/hooks/useStats';
 
-const mockUseStats = useStats as vi.MockedFunction<typeof useStats>;
+const mockUseStats = vi.mocked(useStats);
 
 describe('StatsPage', () => {
   const defaultStatsReturn = {
