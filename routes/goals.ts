@@ -330,21 +330,25 @@ async function calculateGoalProgress(goal: any, userId: string): Promise<number>
     case GOAL_TYPES.DISTANCE:
       return runs.reduce((total, run) => total + run.distance, 0);
 
-    case GOAL_TYPES.TIME:
+    case GOAL_TYPES.TIME: {
       const totalMinutes = runs.reduce((total, run) => total + run.duration, 0);
       return goal.targetUnit === 'hours' ? totalMinutes / 60 : totalMinutes;
+    }
 
     case GOAL_TYPES.FREQUENCY:
       return runs.length;
 
-    case GOAL_TYPES.PACE:
-      if (runs.length === 0) return 0;
+    case GOAL_TYPES.PACE: {
+      if (runs.length === 0) {
+        return 0;
+      }
       const avgPace =
         runs.reduce((total, run) => {
           const pace = run.distance > 0 ? run.duration / run.distance : 0;
           return total + pace;
         }, 0) / runs.length;
       return avgPace;
+    }
 
     case GOAL_TYPES.LONGEST_RUN:
       return runs.length > 0 ? Math.max(...runs.map(run => run.distance)) : 0;

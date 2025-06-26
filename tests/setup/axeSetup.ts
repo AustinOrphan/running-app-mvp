@@ -8,8 +8,7 @@ export const axe = configureAxe({
     region: { enabled: false }, // Some components might not need ARIA landmarks
     'landmark-one-main': { enabled: false }, // Multiple main elements might be acceptable in SPA
   },
-  tags: ['wcag2a', 'wcag2aa', 'wcag21aa'], // Focus on WCAG 2.1 AA compliance
-  locale: 'en',
+  // Note: tags and locale may not be supported in configureAxe options
 });
 
 // Custom axe configuration for unit tests
@@ -148,7 +147,9 @@ export const accessibilityTestPatterns = {
     for (const element of interactiveElements) {
       if (await element.isVisible()) {
         await element.focus();
-        await expect(element).toBeFocused();
+        // Check if element is focused by evaluating document.activeElement
+        const isFocused = await element.evaluate((el: HTMLElement) => document.activeElement === el);
+        expect(isFocused).toBe(true);
       }
     }
   },
@@ -202,7 +203,7 @@ export const accessibilityTestPatterns = {
     // Check heading order (simplified check)
     let previousLevel = 0;
     for (const heading of headings) {
-      const tagName = await heading.evaluate(el => el.tagName);
+      const tagName = await heading.evaluate((el: HTMLElement) => el.tagName);
       const level = parseInt(tagName.charAt(1));
 
       if (previousLevel > 0) {
@@ -223,7 +224,7 @@ export const accessibilityTestPatterns = {
     for (const element of textElements.slice(0, 10)) {
       // Check first 10 elements
       if (await element.isVisible()) {
-        const styles = await element.evaluate(el => {
+        const styles = await element.evaluate((el: HTMLElement) => {
           const computed = window.getComputedStyle(el);
           return {
             color: computed.color,

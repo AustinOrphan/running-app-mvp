@@ -118,10 +118,10 @@ describe('GoalCard', () => {
       });
       const progress = createMockGoalProgress({
         currentValue: 32.5,
-        targetValue: 50,
+        
       });
 
-      render(<GoalCard goal={goal} progress={progress} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={goal} progress={progress} />);
 
       expect(screen.getByText('32.5km / 50.0km')).toBeInTheDocument();
     });
@@ -159,10 +159,10 @@ describe('GoalCard', () => {
         });
         const progress = createMockGoalProgress({
           currentValue: current,
-          targetValue: target,
+          
         });
 
-        const { unmount } = render(<GoalCard goal={goal} progress={progress} {...defaultProps} />);
+        const { unmount } = render(<GoalCard {...defaultProps} goal={goal} progress={progress} />);
 
         expect(screen.getByText(`${expectedCurrent} / ${expectedTarget}`)).toBeInTheDocument();
 
@@ -177,7 +177,7 @@ describe('GoalCard', () => {
         currentValue: 330, // 5:30 min/km in seconds
       });
 
-      render(<GoalCard goal={goal} progress={undefined} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={goal} progress={undefined} />);
 
       expect(screen.getByText('5:30 min/km / 5:00 min/km')).toBeInTheDocument();
     });
@@ -187,10 +187,10 @@ describe('GoalCard', () => {
     it('displays completed goal correctly', () => {
       const completedGoal = createMockGoal({
         isCompleted: true,
-        completedAt: '2024-06-15T10:30:00Z',
+        completedAt: new Date('2024-06-15T10:30:00Z'),
       });
 
-      render(<GoalCard goal={completedGoal} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={completedGoal} />);
 
       expect(screen.getByText('✅ Completed')).toBeInTheDocument();
       expect(screen.getByText('🎉 Completed on 6/15/2024')).toBeInTheDocument();
@@ -222,7 +222,7 @@ describe('GoalCard', () => {
         period: 'WEEKLY',
       });
 
-      render(<GoalCard goal={weeklyGoal} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={weeklyGoal} />);
 
       expect(screen.getByText('📅 weekly')).toBeInTheDocument();
     });
@@ -232,7 +232,7 @@ describe('GoalCard', () => {
     it('renders action buttons for active goals', () => {
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      render(<GoalCard goal={activeGoal} onEdit={mockOnEdit} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={activeGoal} onEdit={mockOnEdit} />);
 
       expect(screen.getByTitle('Edit goal')).toBeInTheDocument();
       expect(screen.getByTitle('Mark as completed')).toBeInTheDocument();
@@ -242,7 +242,7 @@ describe('GoalCard', () => {
     it('does not render edit button when onEdit is not provided', () => {
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      render(<GoalCard goal={activeGoal} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={activeGoal} />);
 
       expect(screen.queryByTitle('Edit goal')).not.toBeInTheDocument();
       expect(screen.getByTitle('Mark as completed')).toBeInTheDocument();
@@ -252,7 +252,7 @@ describe('GoalCard', () => {
     it('does not render action buttons for completed goals', () => {
       const completedGoal = createMockGoal({ isCompleted: true });
 
-      render(<GoalCard goal={completedGoal} onEdit={mockOnEdit} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={completedGoal} onEdit={mockOnEdit} />);
 
       expect(screen.queryByTitle('Edit goal')).not.toBeInTheDocument();
       expect(screen.queryByTitle('Mark as completed')).not.toBeInTheDocument();
@@ -263,7 +263,7 @@ describe('GoalCard', () => {
       const user = userEvent.setup();
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      render(<GoalCard goal={activeGoal} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={activeGoal} />);
 
       const completeButton = screen.getByTitle('Mark as completed');
       await user.click(completeButton);
@@ -275,7 +275,7 @@ describe('GoalCard', () => {
       const user = userEvent.setup();
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      render(<GoalCard goal={activeGoal} onEdit={mockOnEdit} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={activeGoal} onEdit={mockOnEdit} />);
 
       const editButton = screen.getByTitle('Edit goal');
       await user.click(editButton);
@@ -287,7 +287,7 @@ describe('GoalCard', () => {
       const user = userEvent.setup();
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      render(<GoalCard goal={activeGoal} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={activeGoal} />);
 
       const deleteButton = screen.getByTitle('Delete goal');
       await user.click(deleteButton);
@@ -300,7 +300,7 @@ describe('GoalCard', () => {
     it('shows expand button when enableExpandedView is true and goal is not completed', () => {
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      render(<GoalCard goal={activeGoal} enableExpandedView={true} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={true} />);
 
       expect(screen.getByText('View details')).toBeInTheDocument();
     });
@@ -308,7 +308,7 @@ describe('GoalCard', () => {
     it('does not show expand button when enableExpandedView is false', () => {
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      render(<GoalCard goal={activeGoal} enableExpandedView={false} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={false} />);
 
       expect(screen.queryByText('View details')).not.toBeInTheDocument();
     });
@@ -316,7 +316,7 @@ describe('GoalCard', () => {
     it('does not show expand button for completed goals', () => {
       const completedGoal = createMockGoal({ isCompleted: true });
 
-      render(<GoalCard goal={completedGoal} enableExpandedView={true} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={completedGoal} enableExpandedView={true} />);
 
       expect(screen.queryByText('View details')).not.toBeInTheDocument();
     });
@@ -328,10 +328,10 @@ describe('GoalCard', () => {
 
       render(
         <GoalCard
+          {...defaultProps}
           goal={activeGoal}
           progress={progress}
           enableExpandedView={true}
-          {...defaultProps}
         />
       );
 
@@ -360,10 +360,10 @@ describe('GoalCard', () => {
 
       render(
         <GoalCard
+          {...defaultProps}
           goal={activeGoal}
           progress={progress}
           enableExpandedView={true}
-          {...defaultProps}
         />
       );
 
@@ -381,10 +381,10 @@ describe('GoalCard', () => {
 
       render(
         <GoalCard
+          {...defaultProps}
           goal={activeGoal}
           progress={undefined}
           enableExpandedView={true}
-          {...defaultProps}
         />
       );
 
@@ -398,7 +398,7 @@ describe('GoalCard', () => {
       const user = userEvent.setup();
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      render(<GoalCard goal={activeGoal} enableExpandedView={true} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={true} />);
 
       const expandIcon = document.querySelector('.expand-icon');
       expect(expandIcon).not.toHaveClass('expanded');
@@ -419,11 +419,11 @@ describe('GoalCard', () => {
       });
       const progress = createMockGoalProgress({
         currentValue: 32.5,
-        targetValue: 50,
+        
       });
 
       render(
-        <GoalCard goal={goal} progress={progress} showDetailedView={true} {...defaultProps} />
+        <GoalCard {...defaultProps} goal={goal} progress={progress} showDetailedView={true} />
       );
 
       expect(screen.getByText('Current')).toBeInTheDocument();
@@ -439,7 +439,7 @@ describe('GoalCard', () => {
       const progress = createMockGoalProgress();
 
       render(
-        <GoalCard goal={goal} progress={progress} showDetailedView={true} {...defaultProps} />
+        <GoalCard {...defaultProps} goal={goal} progress={progress} showDetailedView={true} />
       );
 
       const circularProgress = screen.getByTestId('circular-progress');
@@ -451,7 +451,7 @@ describe('GoalCard', () => {
     it('applies completed class for completed goals', () => {
       const completedGoal = createMockGoal({ isCompleted: true });
 
-      const { container } = render(<GoalCard goal={completedGoal} {...defaultProps} />);
+      const { container } = render(<GoalCard {...defaultProps} goal={completedGoal} />);
 
       const goalCard = container.querySelector('.goal-card');
       expect(goalCard).toHaveClass('completed');
@@ -460,7 +460,7 @@ describe('GoalCard', () => {
     it('does not apply completed class for active goals', () => {
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      const { container } = render(<GoalCard goal={activeGoal} {...defaultProps} />);
+      const { container } = render(<GoalCard {...defaultProps} goal={activeGoal} />);
 
       const goalCard = container.querySelector('.goal-card');
       expect(goalCard).not.toHaveClass('completed');
@@ -472,7 +472,7 @@ describe('GoalCard', () => {
       const goal = createMockGoal({ color: '#10b981' });
       const progress = createMockGoalProgress({ progressPercentage: 60 });
 
-      render(<GoalCard goal={goal} progress={progress} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={goal} progress={progress} />);
 
       const progressFill = document.querySelector('.progress-fill');
       expect(progressFill).toHaveStyle({ backgroundColor: '#10b981' });
@@ -500,7 +500,7 @@ describe('GoalCard', () => {
       const completedGoal = createMockGoal({ isCompleted: true });
       const progress = createMockGoalProgress({ progressPercentage: 100 });
 
-      render(<GoalCard goal={completedGoal} progress={progress} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={completedGoal} progress={progress} />);
 
       const progressFill = document.querySelector('.progress-fill');
       expect(progressFill).toHaveClass('completed');
@@ -511,7 +511,7 @@ describe('GoalCard', () => {
     it('has accessible button labels', () => {
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      render(<GoalCard goal={activeGoal} onEdit={mockOnEdit} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={activeGoal} onEdit={mockOnEdit} />);
 
       expect(screen.getByTitle('Edit goal')).toBeInTheDocument();
       expect(screen.getByTitle('Mark as completed')).toBeInTheDocument();
@@ -521,7 +521,7 @@ describe('GoalCard', () => {
     it('has accessible expand button label', () => {
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      render(<GoalCard goal={activeGoal} enableExpandedView={true} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={true} />);
 
       expect(screen.getByTitle('Show detailed progress')).toBeInTheDocument();
     });
@@ -530,7 +530,7 @@ describe('GoalCard', () => {
       const user = userEvent.setup();
       const activeGoal = createMockGoal({ isCompleted: false });
 
-      render(<GoalCard goal={activeGoal} enableExpandedView={true} {...defaultProps} />);
+      render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={true} />);
 
       const expandButton = screen.getByTitle('Show detailed progress');
       await user.click(expandButton);

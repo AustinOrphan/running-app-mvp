@@ -3,7 +3,7 @@ import express from 'express';
 import request from 'supertest';
 
 import goalsRoutes from '../../../routes/goals';
-import { mockGoals, mockCreateGoalData, createMockGoal } from '../../fixtures/mockData';
+import { mockGoals, mockCreateGoalData, createMockGoal, mockRuns } from '../../fixtures/mockData';
 import { testDb } from '../../fixtures/testDatabase';
 
 // Create test app
@@ -69,7 +69,7 @@ describe('Goals API Integration Tests', () => {
       const completedGoal = createMockGoal({
         title: 'Completed Goal',
         isCompleted: true,
-        completedAt: new Date().toISOString(),
+        completedAt: new Date(),
       });
       const activeGoal1 = createMockGoal({ title: 'Active Goal 1' });
       const activeGoal2 = createMockGoal({ title: 'Active Goal 2' });
@@ -437,7 +437,7 @@ describe('Goals API Integration Tests', () => {
       // Create a completed goal
       const completedGoal = createMockGoal({
         isCompleted: true,
-        completedAt: new Date().toISOString(),
+        completedAt: new Date(),
       });
       const goals = await testDb.createTestGoals(testUser.id, [completedGoal]);
       const completed = goals[0];
@@ -516,7 +516,7 @@ describe('Goals API Integration Tests', () => {
     let testGoal: any;
 
     beforeEach(async () => {
-      const activeGoal = createMockGoal({ isCompleted: false, completedAt: null });
+      const activeGoal = createMockGoal({ isCompleted: false, completedAt: undefined });
       const goals = await testDb.createTestGoals(testUser.id, [activeGoal]);
       testGoal = goals[0];
     });
@@ -589,25 +589,7 @@ describe('Goals API Integration Tests', () => {
       await testDb.createTestGoals(testUser.id, mockGoals.slice(0, 3));
 
       // Create some test runs for progress calculation
-      const testRuns = [
-        {
-          date: '2024-06-15',
-          distance: 5.2,
-          duration: 1800,
-          tag: 'Easy Run',
-          notes: 'Morning run',
-          userId: testUser.id,
-        },
-        {
-          date: '2024-06-13',
-          distance: 10.5,
-          duration: 3000,
-          tag: 'Long Run',
-          notes: 'Weekly long run',
-          userId: testUser.id,
-        },
-      ];
-      await testDb.createTestRuns(testUser.id, testRuns);
+      await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 2));
     });
 
     it('returns progress for all active goals', async () => {

@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 
 import { Goal } from '../../src/types/goals';
 
-import { mockRuns, mockTestUser, mockGoals } from './mockData';
+import { mockRuns, mockTestUser, mockGoals, mockRaces } from './mockData';
 
 const prisma = new PrismaClient({
   datasources: {
@@ -81,6 +81,28 @@ export const createTestGoals = async (userId: string, goals = mockGoals) => {
   return createdGoals;
 };
 
+// Test races creation utility
+export const createTestRaces = async (userId: string, races = mockRaces) => {
+  const createdRaces = [];
+
+  for (const race of races) {
+    const createdRace = await prisma.race.create({
+      data: {
+        name: race.name,
+        raceDate: new Date(race.raceDate),
+        distance: race.distance,
+        targetTime: race.targetTime,
+        actualTime: race.actualTime,
+        notes: race.notes,
+        userId: userId,
+      },
+    });
+    createdRaces.push(createdRace);
+  }
+
+  return createdRaces;
+};
+
 // Generate test JWT token
 export const generateTestToken = (userId: string) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET || 'test-secret', { expiresIn: '1h' });
@@ -88,6 +110,7 @@ export const generateTestToken = (userId: string) => {
 
 // Clean up database utility
 export const cleanupDatabase = async () => {
+  await prisma.race.deleteMany();
   await prisma.goal.deleteMany();
   await prisma.run.deleteMany();
   await prisma.user.deleteMany();
@@ -113,6 +136,7 @@ export const testDb = {
   createTestUser,
   createTestRuns,
   createTestGoals,
+  createTestRaces,
   generateTestToken,
   cleanupDatabase,
   seedTestDatabase,

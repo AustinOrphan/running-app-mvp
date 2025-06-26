@@ -57,7 +57,14 @@
       "mcp__todos__Get-Most-Recently-Modified-Todo",
       "mcp__memory__read_graph",
       "mcp__memory__create_entities",
-      "mcp__memory__create_relations"
+      "mcp__memory__create_relations",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(npx tsx:*)",
+      "Bash(git pull:*)",
+      "Bash(git rebase:*)",
+      "Bash(npx eslint:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

@@ -9,7 +9,7 @@ import {
   mockWeeklyInsights,
   mockTrendsData,
   mockPersonalRecords,
-  mockTypeBreakdown,
+  mockRunTypeBreakdown,
 } from '../../fixtures/mockData';
 import { axe, expectNoAccessibilityViolations } from '../../setup/axeSetup';
 
@@ -87,7 +87,7 @@ describe('Accessibility Tests - Statistics Components', () => {
     });
 
     it('should handle loading state accessibly', async () => {
-      const { container } = render(<TrendsChart data={null} loading={true} />);
+      const { container } = render(<TrendsChart data={[]} loading={true} />);
 
       const results = await axe(container);
       expectNoAccessibilityViolations(results.violations);
@@ -153,7 +153,7 @@ describe('Accessibility Tests - Statistics Components', () => {
   describe('RunTypeBreakdownChart Accessibility', () => {
     it('should have no accessibility violations', async () => {
       const { container } = render(
-        <RunTypeBreakdownChart data={mockTypeBreakdown} loading={false} />
+        <RunTypeBreakdownChart data={mockRunTypeBreakdown} loading={false} />
       );
 
       const results = await axe(container);
@@ -162,7 +162,7 @@ describe('Accessibility Tests - Statistics Components', () => {
 
     it('should provide data in accessible format', () => {
       const { container } = render(
-        <RunTypeBreakdownChart data={mockTypeBreakdown} loading={false} />
+        <RunTypeBreakdownChart data={mockRunTypeBreakdown} loading={false} />
       );
 
       // Should have chart data available to screen readers
@@ -173,13 +173,13 @@ describe('Accessibility Tests - Statistics Components', () => {
 
       // Should show data values in text form
       const dataText = container.textContent;
-      mockTypeBreakdown.forEach(item => {
+      mockRunTypeBreakdown.forEach((item: any) => {
         expect(dataText).toContain(item.tag);
       });
     });
 
     it('should handle loading state accessibly', async () => {
-      const { container } = render(<RunTypeBreakdownChart data={null} loading={true} />);
+      const { container } = render(<RunTypeBreakdownChart data={[]} loading={true} />);
 
       const results = await axe(container);
       expectNoAccessibilityViolations(results.violations);
@@ -187,14 +187,14 @@ describe('Accessibility Tests - Statistics Components', () => {
 
     it('should provide color-independent data representation', () => {
       const { container } = render(
-        <RunTypeBreakdownChart data={mockTypeBreakdown} loading={false} />
+        <RunTypeBreakdownChart data={mockRunTypeBreakdown} loading={false} />
       );
 
       // Data should be accessible without relying on color alone
       const textContent = container.textContent;
 
       // Each data point should have textual representation
-      mockTypeBreakdown.forEach(item => {
+      mockRunTypeBreakdown.forEach((item: any) => {
         expect(textContent).toContain(item.tag);
         expect(textContent).toContain(item.count.toString());
       });

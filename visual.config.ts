@@ -133,8 +133,6 @@ export default defineConfig({
 
   /* Visual testing specific configuration */
   expect: {
-    // Global threshold for visual comparisons
-    threshold: 0.2,
     // Animation handling
     toHaveScreenshot: {
       threshold: 0.02,

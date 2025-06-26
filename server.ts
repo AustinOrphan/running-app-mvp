@@ -34,18 +34,18 @@ app.get('/api/health', async (req, res) => {
   try {
     // Test database connection
     await prisma.$queryRaw`SELECT 1 as test`;
-    
-    res.json({ 
-      status: 'ok', 
+
+    res.json({
+      status: 'ok',
       timestamp: new Date().toISOString(),
-      database: 'connected'
+      database: 'connected',
     });
   } catch (error) {
     console.error('Health check error:', error);
-    res.status(500).json({ 
-      status: 'error', 
+    res.status(500).json({
+      status: 'error',
       message: 'Health check failed: Database disconnected',
-      database: 'disconnected'
+      database: 'disconnected',
     });
   }
 });
@@ -58,7 +58,7 @@ if (process.env.NODE_ENV === 'development') {
         select: { id: true, email: true, createdAt: true },
       });
       res.json(users);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: 'Failed to fetch users' });
     }
   });
@@ -84,4 +84,4 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
 
-export { prisma };
+export { app, prisma };

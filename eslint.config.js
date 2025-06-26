@@ -8,7 +8,7 @@ import prettier from 'eslint-plugin-prettier';
 import prettierConfig from 'eslint-config-prettier';
 
 export default [
-  // Ignore patterns (replacing .eslintignore)
+  // Ignore patterns
   {
     ignores: [
       'node_modules/**',
@@ -25,6 +25,7 @@ export default [
       '*.tmp',
       '*.temp',
       '*.log',
+      'debug-eslint.*',
     ],
   },
 
@@ -92,12 +93,12 @@ export default [
     },
   },
 
-  // TypeScript configuration
-  {
+  // TypeScript configuration - use flat configs
+  ...typescript.configs['flat/recommended'].map(config => ({
+    ...config,
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
+      ...config.languageOptions,
       parser: typescriptParser,
       parserOptions: {
         ecmaFeatures: {
@@ -105,23 +106,12 @@ export default [
         },
         project: './tsconfig.json',
       },
-      globals: {
-        console: 'readonly',
-        process: 'readonly',
-        Buffer: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        module: 'readonly',
-        require: 'readonly',
-        exports: 'readonly',
-        global: 'readonly',
-        fetch: 'readonly',
-        window: 'readonly',
-        document: 'readonly',
-        setTimeout: 'readonly',
-        setInterval: 'readonly',
-      },
     },
+  })),
+
+  // Additional TypeScript and React rules
+  {
+    files: ['**/*.{ts,tsx}'],
     plugins: {
       '@typescript-eslint': typescript,
       react: react,
@@ -135,16 +125,12 @@ export default [
       },
     },
     rules: {
-      // Base ESLint rules
-      ...js.configs.recommended.rules,
-
-      // TypeScript rules
-      ...typescript.configs.recommended.rules,
+      // TypeScript rule overrides
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-require-imports': 'off', // Allow require() in config files
+      '@typescript-eslint/no-require-imports': 'off',
 
       // React rules
       ...react.configs.recommended.rules,
@@ -165,13 +151,15 @@ export default [
       'no-debugger': 'error',
       'prefer-const': 'error',
       'no-case-declarations': 'error',
-      'no-undef': 'off', // TypeScript handles this
     },
   },
 
   // Test files configuration
   {
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', 'tests/**/*'],
+    plugins: {
+      '@typescript-eslint': typescript,
+    },
     languageOptions: {
       globals: {
         describe: 'readonly',
@@ -196,29 +184,22 @@ export default [
   // Server files configuration
   {
     files: ['server.ts', 'routes/**/*', 'middleware/**/*'],
-    languageOptions: {
-      globals: {
-        process: 'readonly',
-        Buffer: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        module: 'readonly',
-        require: 'readonly',
-        exports: 'readonly',
-        global: 'readonly',
-      },
-    },
     rules: {
       'react/react-in-jsx-scope': 'off',
       'react-hooks/rules-of-hooks': 'off',
       'react-hooks/exhaustive-deps': 'off',
       'no-console': 'off', // Allow console in server files
+      'jsx-a11y/alt-text': 'off',
+      'jsx-a11y/anchor-has-content': 'off',
     },
   },
 
   // Configuration files
   {
     files: ['*.config.{js,ts}', 'jest.config.js'],
+    plugins: {
+      '@typescript-eslint': typescript,
+    },
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
       'no-console': 'off',

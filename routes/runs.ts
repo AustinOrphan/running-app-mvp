@@ -16,7 +16,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
       orderBy: { date: 'desc' },
     });
     res.json(runs);
-  } catch (error) {
+  } catch {
     throw createError('Failed to fetch runs', 500);
   }
 });
@@ -36,7 +36,7 @@ router.get('/simple-list', requireAuth, async (req: AuthRequest, res) => {
       orderBy: { date: 'desc' },
     });
     res.json(runs);
-  } catch (error) {
+  } catch {
     throw createError('Failed to fetch run list', 500);
   }
 });
@@ -57,7 +57,9 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(run);
   } catch (error: any) {
-    if (error.statusCode === 404) throw error;
+    if (error.statusCode === 404) {
+      throw error;
+    }
     throw createError('Failed to fetch run', 500);
   }
 });
@@ -76,7 +78,7 @@ router.post(
   async (req: AuthRequest, res) => {
     try {
       const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
-      
+
       console.log('Creating run for user:', req.user?.id);
       // Verify user exists
       const user = await prisma.user.findUnique({
@@ -124,12 +126,24 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     }
 
     const updateData: any = {};
-    if (date !== undefined) updateData.date = new Date(date);
-    if (distance !== undefined) updateData.distance = Number(distance);
-    if (duration !== undefined) updateData.duration = Number(duration);
-    if (tag !== undefined) updateData.tag = tag || null;
-    if (notes !== undefined) updateData.notes = notes || null;
-    if (routeGeoJson !== undefined) updateData.routeGeoJson = routeGeoJson || null;
+    if (date !== undefined) {
+      updateData.date = new Date(date);
+    }
+    if (distance !== undefined) {
+      updateData.distance = Number(distance);
+    }
+    if (duration !== undefined) {
+      updateData.duration = Number(duration);
+    }
+    if (tag !== undefined) {
+      updateData.tag = tag || null;
+    }
+    if (notes !== undefined) {
+      updateData.notes = notes || null;
+    }
+    if (routeGeoJson !== undefined) {
+      updateData.routeGeoJson = routeGeoJson || null;
+    }
 
     const run = await prisma.run.update({
       where: { id: req.params.id },
@@ -138,7 +152,9 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(run);
   } catch (error: any) {
-    if (error.statusCode === 404) throw error;
+    if (error.statusCode === 404) {
+      throw error;
+    }
     throw createError('Failed to update run', 500);
   }
 });
@@ -163,7 +179,9 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
 
     res.status(204).send();
   } catch (error: any) {
-    if (error.statusCode === 404) throw error;
+    if (error.statusCode === 404) {
+      throw error;
+    }
     throw createError('Failed to delete run', 500);
   }
 });
