@@ -63,7 +63,8 @@
       "Bash(npx tsx:*)",
       "Bash(git pull:*)",
       "Bash(git rebase:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

@@ -358,7 +358,7 @@ describe('CreateGoalModal', () => {
 
     it('shows loading state during submission', async () => {
       const user = userEvent.setup();
-      let resolveSubmit: () => void;
+      let resolveSubmit: (value: unknown) => void;
       mockOnSubmit.mockReturnValue(
         new Promise(resolve => {
           resolveSubmit = resolve;
@@ -377,7 +377,7 @@ describe('CreateGoalModal', () => {
       expect(submitButton).toBeDisabled();
       expect(screen.getByText('Cancel')).toBeDisabled();
 
-      resolveSubmit!();
+      resolveSubmit!(undefined);
 
       await waitFor(() => {
         expect(screen.getByText('Create Goal')).toBeInTheDocument();

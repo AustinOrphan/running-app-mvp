@@ -613,14 +613,14 @@ describe('useRuns', () => {
         json: vi.fn().mockResolvedValue(mockRuns),
       });
 
-      const { result, rerender } = renderHook(({ token }) => useRuns(token), {
-        initialProps: { token: null },
+      const { result, rerender } = renderHook((props: { token: string | null }) => useRuns(props.token), {
+        initialProps: { token: null as string | null },
       });
 
       expect(result.current.runs).toEqual([]);
       expect(mockFetch).not.toHaveBeenCalled();
 
-      rerender({ token: 'valid-token' });
+      rerender({ token: 'valid-token' as string | null });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -669,13 +669,13 @@ describe('useRuns', () => {
         json: vi.fn().mockResolvedValue(mockRuns),
       });
 
-      const { rerender } = renderHook(({ token }) => useRuns(token), {
-        initialProps: { token: 'valid-token' },
+      const { rerender } = renderHook((props: { token: string | null }) => useRuns(props.token), {
+        initialProps: { token: 'valid-token' as string | null },
       });
 
       const initialCallCount = mockFetch.mock.calls.length;
 
-      rerender({ token: null });
+      rerender({ token: null as string | null });
 
       // Should not make additional calls
       expect(mockFetch.mock.calls.length).toBe(initialCallCount);

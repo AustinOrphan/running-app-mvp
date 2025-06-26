@@ -21,7 +21,7 @@ async function globalSetup(config: FullConfig) {
 
     // Initialize test database for visual tests
     console.log('📊 Initializing visual test database...');
-    await testDb.initializeDatabase();
+    await testDb.cleanupDatabase();
 
     // Create baseline directories for different browsers/devices
     const browsers = ['chromium', 'firefox', 'webkit', 'mobile-chrome', 'mobile-safari'];

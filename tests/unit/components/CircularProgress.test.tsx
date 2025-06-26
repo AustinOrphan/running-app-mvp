@@ -180,7 +180,7 @@ describe('CircularProgress', () => {
       const svg = document.querySelector('svg');
       expect(svg).toHaveClass('circular-progress-svg');
 
-      const circles = svg.querySelectorAll('circle');
+      const circles = svg!.querySelectorAll('circle');
       expect(circles).toHaveLength(2);
 
       const [background, foreground] = circles;
