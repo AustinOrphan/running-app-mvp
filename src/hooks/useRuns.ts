@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 
 import { Run, RunFormData } from '../types';
 import { calculatePace } from '../utils/formatters';
+import { apiGet, apiPost, apiPut, apiDelete, ApiError } from '../../utils/apiFetch';
 
 export const useRuns = (token: string | null) => {
   const [runs, setRuns] = useState<Run[]>([]);
@@ -13,15 +14,8 @@ export const useRuns = (token: string | null) => {
 
     setLoading(true);
     try {
-      const response = await fetch('/api/runs', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const runsData = await response.json();
-        setRuns(runsData);
-      }
+      const response = await apiGet<Run[]>('/api/runs');
+      setRuns(response.data);
     } catch (error) {
       console.error('Failed to fetch runs:', error);
       throw new Error('Failed to load runs');
@@ -43,28 +37,17 @@ export const useRuns = (token: string | null) => {
     };
 
     try {
-      const url = editingRun ? `/api/runs/${editingRun.id}` : '/api/runs';
-      const method = editingRun ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(runData),
-      });
-
-      if (response.ok) {
-        await fetchRuns(); // Refresh the list
-        return; // Success
+      if (editingRun) {
+        await apiPut<Run>(`/api/runs/${editingRun.id}`, runData);
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to ${editingRun ? 'update' : 'save'} run`);
+        await apiPost<Run>('/api/runs', runData);
       }
+      
+      await fetchRuns(); // Refresh the list
     } catch (error) {
       console.error('Failed to save run:', error);
-      throw error;
+      const apiError = error as ApiError;
+      throw new Error(apiError.data?.message || apiError.message || `Failed to ${editingRun ? 'update' : 'save'} run`);
     } finally {
       setSaving(false);
     }
@@ -74,21 +57,12 @@ export const useRuns = (token: string | null) => {
     if (!token) throw new Error('No authentication token');
 
     try {
-      const response = await fetch(`/api/runs/${runId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        await fetchRuns(); // Refresh the list
-      } else {
-        throw new Error('Failed to delete run');
-      }
+      await apiDelete(`/api/runs/${runId}`);
+      await fetchRuns(); // Refresh the list
     } catch (error) {
       console.error('Failed to delete run:', error);
-      throw error;
+      const apiError = error as ApiError;
+      throw new Error(apiError.data?.message || apiError.message || 'Failed to delete run');
     }
   };
 

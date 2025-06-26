@@ -63,7 +63,9 @@
       "Bash(npx tsx:*)",
       "Bash(git pull:*)",
       "Bash(git rebase:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "mcp__serena__list_memories",
+      "mcp__serena__think_about_collected_information"
     ],
     "deny": []
   }

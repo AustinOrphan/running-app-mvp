@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiPost, ApiError } from '../../utils/apiFetch';
 
 export const useAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -18,23 +19,21 @@ export const useAuth = () => {
   ): Promise<{ success: boolean; token?: string; message?: string }> => {
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await apiPost<{ token: string; user: { id: string; email: string } }>(
+        '/api/auth/login',
+        { email, password },
+        { skipAuth: true } // Login doesn't require existing auth
+      );
 
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('authToken', data.token);
-        setIsLoggedIn(true);
-        return { success: true, token: data.token };
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        return { success: false, message: errorData.message || 'Login failed' };
-      }
+      localStorage.setItem('authToken', response.data.token);
+      setIsLoggedIn(true);
+      return { success: true, token: response.data.token };
     } catch (error) {
-      return { success: false, message: 'Network error. Please try again.' };
+      const apiError = error as ApiError;
+      return { 
+        success: false, 
+        message: apiError.data?.message || apiError.message || 'Login failed' 
+      };
     } finally {
       setLoading(false);
     }
@@ -46,23 +45,21 @@ export const useAuth = () => {
   ): Promise<{ success: boolean; token?: string; message?: string }> => {
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await apiPost<{ token: string; user: { id: string; email: string } }>(
+        '/api/auth/register',
+        { email, password },
+        { skipAuth: true } // Registration doesn't require existing auth
+      );
 
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('authToken', data.token);
-        setIsLoggedIn(true);
-        return { success: true, token: data.token };
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        return { success: false, message: errorData.message || 'Registration failed' };
-      }
+      localStorage.setItem('authToken', response.data.token);
+      setIsLoggedIn(true);
+      return { success: true, token: response.data.token };
     } catch (error) {
-      return { success: false, message: 'Network error. Please try again.' };
+      const apiError = error as ApiError;
+      return { 
+        success: false, 
+        message: apiError.data?.message || apiError.message || 'Registration failed' 
+      };
     } finally {
       setLoading(false);
     }
