@@ -3,15 +3,15 @@ import { test, expect, devices } from '@playwright/test';
 import { mockRuns } from '../fixtures/mockData';
 import { testDb } from '../fixtures/testDatabase';
 
-// Define mobile device configurations
+// Define mobile device configurations with names
 const mobileDevices = [
-  devices['iPhone 12'],
-  devices['iPhone 12 Pro'],
-  devices['iPhone SE'],
-  devices['Pixel 5'],
-  devices['Galaxy S9+'],
-  devices['iPad'],
-  devices['iPad Pro'],
+  { name: 'iPhone 12', config: devices['iPhone 12'] },
+  { name: 'iPhone 12 Pro', config: devices['iPhone 12 Pro'] },
+  { name: 'iPhone SE', config: devices['iPhone SE'] },
+  { name: 'Pixel 5', config: devices['Pixel 5'] },
+  { name: 'Galaxy S9+', config: devices['Galaxy S9+'] },
+  { name: 'iPad', config: devices['iPad'] },
+  { name: 'iPad Pro', config: devices['iPad Pro'] },
 ];
 
 test.describe('Mobile Responsiveness E2E Tests', () => {
@@ -37,11 +37,11 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   });
 
   // Test each mobile device configuration
-  for (const deviceConfig of mobileDevices) {
-    test.describe(`${deviceConfig.name} Tests`, () => {
-      test.use({ ...deviceConfig });
+  for (const device of mobileDevices) {
+    test.describe(`${device.name} Tests`, () => {
+      test.use({ ...device.config });
 
-      test(`should display mobile-optimized layout on ${deviceConfig.name}`, async ({ page }) => {
+      test(`should display mobile-optimized layout on ${device.name}`, async ({ page }) => {
         await page.goto('/');
 
         // Check viewport is mobile-sized
@@ -60,7 +60,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
         expect(bodyScrollWidth).toBeLessThanOrEqual(viewportWidth + 10); // Allow small tolerance
       });
 
-      test(`should handle touch interactions on ${deviceConfig.name}`, async ({ page }) => {
+      test(`should handle touch interactions on ${device.name}`, async ({ page }) => {
         // Login user first
         await page.goto('/login');
         await page.fill('input[type="email"]', testUser.email);
@@ -93,7 +93,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
         }
       });
 
-      test(`should display readable text on ${deviceConfig.name}`, async ({ page }) => {
+      test(`should display readable text on ${device.name}`, async ({ page }) => {
         await page.goto('/');
 
         // Check font sizes are appropriate for mobile
@@ -117,7 +117,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
         }
       });
 
-      test(`should handle form inputs properly on ${deviceConfig.name}`, async ({ page }) => {
+      test(`should handle form inputs properly on ${device.name}`, async ({ page }) => {
         await page.goto('/login');
 
         // Test form input accessibility
