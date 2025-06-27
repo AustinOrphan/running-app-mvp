@@ -4,6 +4,7 @@ import express from 'express';
 import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { validateBody } from '../middleware/validateBody.js';
+import { logUserAction, logError } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -79,7 +80,11 @@ router.post(
     try {
       const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
-      console.log('Creating run for user:', req.user?.id);
+      logUserAction('Creating run', req, { 
+        distance: Number(distance), 
+        duration: Number(duration),
+        hasRoute: !!routeGeoJson 
+      });
       // Verify user exists
       const user = await prisma.user.findUnique({
         where: { id: req.user!.id },
@@ -103,7 +108,7 @@ router.post(
 
       res.status(201).json(run);
     } catch (error) {
-      console.error('Error creating run:', error);
+      logError('Failed to create run', req, error instanceof Error ? error : new Error(String(error)));
       throw createError('Failed to create run', 500);
     }
   }

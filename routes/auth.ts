@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 
 import { createError } from '../middleware/errorHandler.js';
 import { validateBody } from '../middleware/validateBody.js';
+import { logUserAction, logError } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -44,6 +45,8 @@ router.post(
           password: hashedPassword,
         },
       });
+
+      logUserAction('User registration', req, { email });
 
       // Generate JWT
       if (!process.env.JWT_SECRET) {
@@ -96,6 +99,8 @@ router.post(
       if (!isValidPassword) {
         throw createError('Invalid credentials', 401);
       }
+
+      logUserAction('User login', req, { email });
 
       // Generate JWT
       if (!process.env.JWT_SECRET) {

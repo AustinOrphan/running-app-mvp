@@ -2,6 +2,7 @@ import express from 'express';
 
 import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
+import { logUserAction, logError } from '../utils/secureLogger.js';
 import { prisma } from '../server.js';
 import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../src/types/goals.js';
 
@@ -23,7 +24,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(goals);
   } catch (error) {
-    console.error('Failed to fetch goals:', error);
+    logError('Failed to fetch goals', req, error instanceof Error ? error : new Error(String(error)));
     throw createError('Failed to fetch goals', 500);
   }
 });
@@ -44,7 +45,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(goal);
   } catch (error) {
-    console.error('Failed to fetch goal:', error);
+    logError('Failed to fetch goal', req, error instanceof Error ? error : new Error(String(error)));
     throw createError('Failed to fetch goal', 500);
   }
 });
@@ -114,9 +115,16 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
       },
     });
 
+    logUserAction('Goal created', req, { 
+      goalType: type, 
+      period, 
+      targetValue: parseFloat(targetValue),
+      targetUnit 
+    });
+
     res.status(201).json(goal);
   } catch (error) {
-    console.error('Failed to create goal:', error);
+    logError('Failed to create goal', req, error instanceof Error ? error : new Error(String(error)));
     throw createError('Failed to create goal', 500);
   }
 });
@@ -197,7 +205,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(updatedGoal);
   } catch (error) {
-    console.error('Failed to update goal:', error);
+    logError('Failed to update goal', req, error instanceof Error ? error : new Error(String(error)));
     throw createError('Failed to update goal', 500);
   }
 });
@@ -227,7 +235,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
 
     res.json({ message: 'Goal deleted successfully' });
   } catch (error) {
-    console.error('Failed to delete goal:', error);
+    logError('Failed to delete goal', req, error instanceof Error ? error : new Error(String(error)));
     throw createError('Failed to delete goal', 500);
   }
 });
@@ -266,7 +274,7 @@ router.post('/:id/complete', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(completedGoal);
   } catch (error) {
-    console.error('Failed to complete goal:', error);
+    logError('Failed to complete goal', req, error instanceof Error ? error : new Error(String(error)));
     throw createError('Failed to complete goal', 500);
   }
 });
@@ -309,7 +317,7 @@ router.get('/progress/all', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(progressData);
   } catch (error) {
-    console.error('Failed to fetch goal progress:', error);
+    logError('Failed to fetch goal progress', req, error instanceof Error ? error : new Error(String(error)));
     throw createError('Failed to fetch goal progress', 500);
   }
 });

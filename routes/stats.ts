@@ -3,6 +3,7 @@ import express from 'express';
 
 import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
+import { logError } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -158,7 +159,7 @@ router.get('/trends', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(trendsData);
   } catch (error) {
-    console.error('Failed to fetch trends data:', error);
+    logError('Failed to fetch trends data', req, error instanceof Error ? error : new Error(String(error)));
     throw createError('Failed to fetch trends data', 500);
   }
 });
@@ -208,7 +209,7 @@ router.get('/personal-records', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(records);
   } catch (error) {
-    console.error('Failed to fetch personal records:', error);
+    logError('Failed to fetch personal records', req, error instanceof Error ? error : new Error(String(error)));
     throw createError('Failed to fetch personal records', 500);
   }
 });
