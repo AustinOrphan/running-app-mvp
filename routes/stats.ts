@@ -3,10 +3,21 @@ import express from 'express';
 
 import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
+import { validateStatsQuery, sanitizeInput, securityHeaders } from '../middleware/validation.js';
+import { readRateLimit } from '../middleware/rateLimiting.js';
 import { logError } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Apply security headers to all stats routes
+router.use(securityHeaders);
+
+// Apply input sanitization to all stats routes
+router.use(sanitizeInput);
+
+// Apply read rate limiting to all stats routes (they're all read-only)
+router.use(readRateLimit);
 
 // GET /api/stats/insights-summary - Get weekly insights summary
 router.get('/insights-summary', requireAuth, async (req: AuthRequest, res) => {
@@ -91,7 +102,7 @@ router.get('/type-breakdown', requireAuth, async (req: AuthRequest, res) => {
 });
 
 // GET /api/stats/trends - Get historical trends data
-router.get('/trends', requireAuth, async (req: AuthRequest, res) => {
+router.get('/trends', validateStatsQuery, requireAuth, async (req: AuthRequest, res) => {
   try {
     const { period = '3m' } = req.query; // 1m, 3m, 6m, 1y
 

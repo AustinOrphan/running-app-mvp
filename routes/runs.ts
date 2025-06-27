@@ -3,14 +3,21 @@ import express from 'express';
 
 import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
-import { validateBody } from '../middleware/validateBody.js';
+import { validateCreateRun, validateUpdateRun, validateIdParam, sanitizeInput, securityHeaders } from '../middleware/validation.js';
+import { createRateLimit, readRateLimit, apiRateLimit } from '../middleware/rateLimiting.js';
 import { logUserAction, logError } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Apply security headers to all runs routes
+router.use(securityHeaders);
+
+// Apply input sanitization to all runs routes
+router.use(sanitizeInput);
+
 // GET /api/runs - Get all runs for user
-router.get('/', requireAuth, async (req: AuthRequest, res) => {
+router.get('/', readRateLimit, requireAuth, async (req: AuthRequest, res) => {
   try {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
@@ -23,7 +30,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 });
 
 // GET /api/runs/simple-list - Get simplified run list
-router.get('/simple-list', requireAuth, async (req: AuthRequest, res) => {
+router.get('/simple-list', readRateLimit, requireAuth, async (req: AuthRequest, res) => {
   try {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
@@ -43,7 +50,7 @@ router.get('/simple-list', requireAuth, async (req: AuthRequest, res) => {
 });
 
 // GET /api/runs/:id - Get specific run
-router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.get('/:id', readRateLimit, validateIdParam, requireAuth, async (req: AuthRequest, res) => {
   try {
     const run = await prisma.run.findFirst({
       where: {
@@ -68,14 +75,9 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
 // POST /api/runs - Create new run
 router.post(
   '/',
+  createRateLimit,
+  validateCreateRun,
   requireAuth,
-  validateBody([
-    { field: 'date', required: true, type: 'date' },
-    { field: 'distance', required: true, type: 'number', min: 0 },
-    { field: 'duration', required: true, type: 'number', min: 0 },
-    { field: 'tag', required: false, type: 'string' },
-    { field: 'notes', required: false, type: 'string' },
-  ]),
   async (req: AuthRequest, res) => {
     try {
       const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
@@ -115,7 +117,7 @@ router.post(
 );
 
 // PUT /api/runs/:id - Update run
-router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.put('/:id', apiRateLimit, validateIdParam, validateUpdateRun, requireAuth, async (req: AuthRequest, res) => {
   try {
     const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
@@ -165,7 +167,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
 });
 
 // DELETE /api/runs/:id - Delete run
-router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.delete('/:id', apiRateLimit, validateIdParam, requireAuth, async (req: AuthRequest, res) => {
   try {
     const existingRun = await prisma.run.findFirst({
       where: {

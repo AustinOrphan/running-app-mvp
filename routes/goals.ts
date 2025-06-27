@@ -2,14 +2,22 @@ import express from 'express';
 
 import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
+import { validateCreateGoal, validateUpdateGoal, validateIdParam, sanitizeInput, securityHeaders } from '../middleware/validation.js';
+import { createRateLimit, readRateLimit, apiRateLimit } from '../middleware/rateLimiting.js';
 import { logUserAction, logError } from '../utils/secureLogger.js';
 import { prisma } from '../server.js';
 import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../src/types/goals.js';
 
 const router = express.Router();
 
+// Apply security headers to all goals routes
+router.use(securityHeaders);
+
+// Apply input sanitization to all goals routes
+router.use(sanitizeInput);
+
 // GET /api/goals - Get all goals for user
-router.get('/', requireAuth, async (req: AuthRequest, res) => {
+router.get('/', readRateLimit, requireAuth, async (req: AuthRequest, res) => {
   try {
     const goals = await prisma.goal.findMany({
       where: {
@@ -30,7 +38,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 });
 
 // GET /api/goals/:id - Get specific goal
-router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.get('/:id', readRateLimit, validateIdParam, requireAuth, async (req: AuthRequest, res) => {
   try {
     const goal = await prisma.goal.findFirst({
       where: {
@@ -51,7 +59,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
 });
 
 // POST /api/goals - Create new goal
-router.post('/', requireAuth, async (req: AuthRequest, res) => {
+router.post('/', createRateLimit, validateCreateGoal, requireAuth, async (req: AuthRequest, res) => {
   try {
     const {
       title,
@@ -66,35 +74,9 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
       icon,
     } = req.body;
 
-    // Validation
-    if (!title || !type || !period || !targetValue || !targetUnit || !startDate || !endDate) {
-      throw createError(
-        'Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate',
-        400
-      );
-    }
-
-    // Validate goal type
-    if (!Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      throw createError('Invalid goal type', 400);
-    }
-
-    // Validate goal period
-    if (!Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      throw createError('Invalid goal period', 400);
-    }
-
-    // Validate dates
+    // Dates are already validated by Zod, just parse them
     const start = new Date(startDate);
     const end = new Date(endDate);
-    if (start >= end) {
-      throw createError('End date must be after start date', 400);
-    }
-
-    // Validate target value
-    if (targetValue <= 0) {
-      throw createError('Target value must be positive', 400);
-    }
 
     const goal = await prisma.goal.create({
       data: {
@@ -130,7 +112,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 });
 
 // PUT /api/goals/:id - Update goal
-router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.put('/:id', apiRateLimit, validateIdParam, validateUpdateGoal, requireAuth, async (req: AuthRequest, res) => {
   try {
     const goalId = req.params.id;
     const {
@@ -164,26 +146,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
       throw createError('Cannot edit completed goals', 400);
     }
 
-    // Validation (only validate provided fields)
-    if (type && !Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      throw createError('Invalid goal type', 400);
-    }
-
-    if (period && !Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      throw createError('Invalid goal period', 400);
-    }
-
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      if (start >= end) {
-        throw createError('End date must be after start date', 400);
-      }
-    }
-
-    if (targetValue !== undefined && targetValue <= 0) {
-      throw createError('Target value must be positive', 400);
-    }
+    // All validation is now handled by Zod middleware
 
     // Update goal
     const updatedGoal = await prisma.goal.update({
@@ -211,7 +174,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
 });
 
 // DELETE /api/goals/:id - Delete goal (soft delete)
-router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.delete('/:id', apiRateLimit, validateIdParam, requireAuth, async (req: AuthRequest, res) => {
   try {
     const goalId = req.params.id;
 
@@ -241,7 +204,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
 });
 
 // POST /api/goals/:id/complete - Mark goal as completed
-router.post('/:id/complete', requireAuth, async (req: AuthRequest, res) => {
+router.post('/:id/complete', apiRateLimit, validateIdParam, requireAuth, async (req: AuthRequest, res) => {
   try {
     const goalId = req.params.id;
 
@@ -280,7 +243,7 @@ router.post('/:id/complete', requireAuth, async (req: AuthRequest, res) => {
 });
 
 // GET /api/goals/progress - Get progress for all active goals
-router.get('/progress/all', requireAuth, async (req: AuthRequest, res) => {
+router.get('/progress/all', readRateLimit, requireAuth, async (req: AuthRequest, res) => {
   try {
     const goals = await prisma.goal.findMany({
       where: {
