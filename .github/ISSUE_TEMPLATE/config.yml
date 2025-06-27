@@ -7,5 +7,5 @@ contact_links:
     url: https://github.com/AustinOrphan/running-app-mvp#readme
     about: Read the project documentation and setup instructions
   - name: 🔒 Critical Security Vulnerabilities
-    url: mailto:security@example.com
-    about: Report critical security vulnerabilities privately (replace with actual security contact)
+    url: mailto:security@runningapp.dev
+    about: Report critical security vulnerabilities privately - will be forwarded to maintainers
