@@ -244,7 +244,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
   // Mark achievement as seen
   const markAchievementSeen = useCallback((goalId: string) => {
-    setSeenAchievements(prev => new Set([...prev, goalId]));
+    setSeenAchievements(prev => new Set([...Array.from(prev), goalId]));
   }, []);
 
   // Auto-complete goals when they reach 100% progress

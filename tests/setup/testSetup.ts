@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { vi } from 'vitest';
+import { vi, afterEach } from 'vitest';
 import 'jest-axe/extend-expect';
 
 // Mock window.matchMedia for responsive tests
