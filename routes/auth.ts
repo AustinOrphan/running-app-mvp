@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import express from 'express';
+import express, { NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { createError } from '../middleware/errorHandler.js';
@@ -31,7 +31,7 @@ router.post(
       });
 
       if (existingUser) {
-        throw createError('User already exists', 409);
+        return next(createError('User already exists', 409));
       }
 
       // Hash password
@@ -47,7 +47,7 @@ router.post(
 
       // Generate JWT
       if (!process.env.JWT_SECRET) {
-        throw createError('JWT secret not configured', 500);
+        return next(createError('JWT secret not configured', 500));
       }
 
       const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
@@ -88,18 +88,18 @@ router.post(
       });
 
       if (!user) {
-        throw createError('Invalid credentials', 401);
+        return next(createError('Invalid credentials', 401));
       }
 
       // Verify password
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
-        throw createError('Invalid credentials', 401);
+        return next(createError('Invalid credentials', 401));
       }
 
       // Generate JWT
       if (!process.env.JWT_SECRET) {
-        throw createError('JWT secret not configured', 500);
+        return next(createError('JWT secret not configured', 500));
       }
 
       const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {

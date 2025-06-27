@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import express from 'express';
+import express, { NextFunction } from 'express';
 
 import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
@@ -8,7 +8,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 // GET /api/stats/insights-summary - Get weekly insights summary
-router.get('/insights-summary', requireAuth, async (req: AuthRequest, res) => {
+router.get('/insights-summary', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -36,13 +36,14 @@ router.get('/insights-summary', requireAuth, async (req: AuthRequest, res) => {
       weekStart: oneWeekAgo.toISOString(),
       weekEnd: new Date().toISOString(),
     });
-  } catch {
-    throw createError('Failed to fetch insights summary', 500);
+  } catch (error) {
+    console.error('Failed to fetch insights summary:', error);
+    next(createError('Failed to fetch insights summary', 500));
   }
 });
 
 // GET /api/stats/type-breakdown - Get run type breakdown
-router.get('/type-breakdown', requireAuth, async (req: AuthRequest, res) => {
+router.get('/type-breakdown', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
@@ -84,13 +85,14 @@ router.get('/type-breakdown', requireAuth, async (req: AuthRequest, res) => {
     }));
 
     res.json(breakdownArray);
-  } catch {
-    throw createError('Failed to fetch type breakdown', 500);
+  } catch (error) {
+    console.error('Failed to fetch type breakdown:', error);
+    next(createError('Failed to fetch type breakdown', 500));
   }
 });
 
 // GET /api/stats/trends - Get historical trends data
-router.get('/trends', requireAuth, async (req: AuthRequest, res) => {
+router.get('/trends', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const { period = '3m' } = req.query; // 1m, 3m, 6m, 1y
 
@@ -159,12 +161,12 @@ router.get('/trends', requireAuth, async (req: AuthRequest, res) => {
     res.json(trendsData);
   } catch (error) {
     console.error('Failed to fetch trends data:', error);
-    throw createError('Failed to fetch trends data', 500);
+    next(createError('Failed to fetch trends data', 500));
   }
 });
 
 // GET /api/stats/personal-records - Get personal best records
-router.get('/personal-records', requireAuth, async (req: AuthRequest, res) => {
+router.get('/personal-records', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
@@ -209,7 +211,7 @@ router.get('/personal-records', requireAuth, async (req: AuthRequest, res) => {
     res.json(records);
   } catch (error) {
     console.error('Failed to fetch personal records:', error);
-    throw createError('Failed to fetch personal records', 500);
+    next(createError('Failed to fetch personal records', 500));
   }
 });
 

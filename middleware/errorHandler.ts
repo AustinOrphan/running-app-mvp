@@ -14,13 +14,24 @@ export const errorHandler = (
   const statusCode = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
 
-  console.error('Error:', {
-    message: err.message,
-    stack: err.stack,
-    url: req.url,
-    method: req.method,
+  // Enhanced structured error logging
+  const errorLog = {
     timestamp: new Date().toISOString(),
-  });
+    level: 'ERROR',
+    message: err.message,
+    statusCode: statusCode,
+    isOperational: err.isOperational || false,
+    request: {
+      method: req.method,
+      url: req.url,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip || req.connection.remoteAddress,
+      userId: (req as any).user?.id,
+    },
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+  };
+
+  console.error('Express Error:', errorLog);
 
   res.status(statusCode).json({
     message,
