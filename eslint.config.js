@@ -191,6 +191,27 @@ export default [
       'no-console': 'off', // Allow console in server files
       'jsx-a11y/alt-text': 'off',
       'jsx-a11y/anchor-has-content': 'off',
+      
+      // CRITICAL: Async error handling pattern enforcement
+      'no-unreachable': 'error', // Catch code after return statements
+      'consistent-return': 'error', // Ensure consistent return patterns
+    },
+  },
+  
+  // Route files specific configuration for error handling
+  {
+    files: ['routes/**/*.ts'],
+    rules: {
+      // Custom rules to prevent error handling regressions
+      'no-console': 'off',
+      
+      // Pattern enforcement rules
+      'no-unreachable': 'error',
+      'consistent-return': 'error',
+      
+      // Prevent potential double header issues
+      'no-lone-blocks': 'error',
+      'no-fallthrough': 'error',
     },
   },
 

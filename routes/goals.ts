@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { NextFunction } from 'express';
 
 import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
@@ -8,7 +8,7 @@ import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../src
 const router = express.Router();
 
 // GET /api/goals - Get all goals for user
-router.get('/', requireAuth, async (req: AuthRequest, res) => {
+router.get('/', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const goals = await prisma.goal.findMany({
       where: {
@@ -24,12 +24,12 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
     res.json(goals);
   } catch (error) {
     console.error('Failed to fetch goals:', error);
-    throw createError('Failed to fetch goals', 500);
+    return next(createError('Failed to fetch goals', 500));
   }
 });
 
 // GET /api/goals/:id - Get specific goal
-router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.get('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const goal = await prisma.goal.findFirst({
       where: {
@@ -39,18 +39,18 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!goal) {
-      throw createError('Goal not found', 404);
+      return next(createError('Goal not found', 404));
     }
 
     res.json(goal);
   } catch (error) {
     console.error('Failed to fetch goal:', error);
-    throw createError('Failed to fetch goal', 500);
+    return next(createError('Failed to fetch goal', 500));
   }
 });
 
 // POST /api/goals - Create new goal
-router.post('/', requireAuth, async (req: AuthRequest, res) => {
+router.post('/', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const {
       title,
@@ -67,32 +67,32 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
     // Validation
     if (!title || !type || !period || !targetValue || !targetUnit || !startDate || !endDate) {
-      throw createError(
+      return next(createError(
         'Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate',
         400
-      );
+      ));
     }
 
     // Validate goal type
     if (!Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      throw createError('Invalid goal type', 400);
+      return next(createError('Invalid goal type', 400));
     }
 
     // Validate goal period
     if (!Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      throw createError('Invalid goal period', 400);
+      return next(createError('Invalid goal period', 400));
     }
 
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (start >= end) {
-      throw createError('End date must be after start date', 400);
+      return next(createError('End date must be after start date', 400));
     }
 
     // Validate target value
     if (targetValue <= 0) {
-      throw createError('Target value must be positive', 400);
+      return next(createError('Target value must be positive', 400));
     }
 
     const goal = await prisma.goal.create({
@@ -117,12 +117,12 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     res.status(201).json(goal);
   } catch (error) {
     console.error('Failed to create goal:', error);
-    throw createError('Failed to create goal', 500);
+    return next(createError('Failed to create goal', 500));
   }
 });
 
 // PUT /api/goals/:id - Update goal
-router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.put('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const goalId = req.params.id;
     const {
@@ -148,33 +148,33 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!existingGoal) {
-      throw createError('Goal not found', 404);
+      return next(createError('Goal not found', 404));
     }
 
     // Prevent editing completed goals
     if (existingGoal.isCompleted) {
-      throw createError('Cannot edit completed goals', 400);
+      return next(createError('Cannot edit completed goals', 400));
     }
 
     // Validation (only validate provided fields)
     if (type && !Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      throw createError('Invalid goal type', 400);
+      return next(createError('Invalid goal type', 400));
     }
 
     if (period && !Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      throw createError('Invalid goal period', 400);
+      return next(createError('Invalid goal period', 400));
     }
 
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
       if (start >= end) {
-        throw createError('End date must be after start date', 400);
+        return next(createError('End date must be after start date', 400));
       }
     }
 
     if (targetValue !== undefined && targetValue <= 0) {
-      throw createError('Target value must be positive', 400);
+      return next(createError('Target value must be positive', 400));
     }
 
     // Update goal
@@ -198,12 +198,12 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     res.json(updatedGoal);
   } catch (error) {
     console.error('Failed to update goal:', error);
-    throw createError('Failed to update goal', 500);
+    return next(createError('Failed to update goal', 500));
   }
 });
 
 // DELETE /api/goals/:id - Delete goal (soft delete)
-router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.delete('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const goalId = req.params.id;
 
@@ -216,7 +216,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!goal) {
-      throw createError('Goal not found', 404);
+      return next(createError('Goal not found', 404));
     }
 
     // Soft delete by setting isActive to false
@@ -228,12 +228,12 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
     res.json({ message: 'Goal deleted successfully' });
   } catch (error) {
     console.error('Failed to delete goal:', error);
-    throw createError('Failed to delete goal', 500);
+    return next(createError('Failed to delete goal', 500));
   }
 });
 
 // POST /api/goals/:id/complete - Mark goal as completed
-router.post('/:id/complete', requireAuth, async (req: AuthRequest, res) => {
+router.post('/:id/complete', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const goalId = req.params.id;
 
@@ -247,11 +247,11 @@ router.post('/:id/complete', requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!goal) {
-      throw createError('Goal not found', 404);
+      return next(createError('Goal not found', 404));
     }
 
     if (goal.isCompleted) {
-      throw createError('Goal is already completed', 400);
+      return next(createError('Goal is already completed', 400));
     }
 
     // Mark as completed
@@ -267,12 +267,12 @@ router.post('/:id/complete', requireAuth, async (req: AuthRequest, res) => {
     res.json(completedGoal);
   } catch (error) {
     console.error('Failed to complete goal:', error);
-    throw createError('Failed to complete goal', 500);
+    return next(createError('Failed to complete goal', 500));
   }
 });
 
 // GET /api/goals/progress - Get progress for all active goals
-router.get('/progress/all', requireAuth, async (req: AuthRequest, res) => {
+router.get('/progress/all', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const goals = await prisma.goal.findMany({
       where: {
@@ -310,7 +310,7 @@ router.get('/progress/all', requireAuth, async (req: AuthRequest, res) => {
     res.json(progressData);
   } catch (error) {
     console.error('Failed to fetch goal progress:', error);
-    throw createError('Failed to fetch goal progress', 500);
+    return next(createError('Failed to fetch goal progress', 500));
   }
 });
 

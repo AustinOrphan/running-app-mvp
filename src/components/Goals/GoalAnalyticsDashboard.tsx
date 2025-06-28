@@ -7,6 +7,12 @@ import {
   MonthlyGoalProgress,
 } from '../../types/goalAnalytics';
 
+const DIFFICULTY_COLORS = {
+  beginner: '#10b981',
+  intermediate: '#f59e0b',
+  advanced: '#ef4444',
+} as const;
+
 interface GoalAnalyticsDashboardProps {
   analytics: GoalAnalytics;
   insights: GoalInsight[];
@@ -301,11 +307,6 @@ export const GoalAnalyticsDashboard: React.FC<GoalAnalyticsDashboardProps> = ({
                   <div className='distribution-chart'>
                     <h4>By Difficulty</h4>
                     {Object.entries(analytics.goalsByDifficulty).map(([difficulty, count]) => {
-                      const colors = {
-                        beginner: '#10b981',
-                        intermediate: '#f59e0b',
-                        advanced: '#ef4444',
-                      };
                       return (
                         <div key={difficulty} className='distribution-item'>
                           <span className='distribution-label'>{difficulty}</span>
@@ -315,7 +316,7 @@ export const GoalAnalyticsDashboard: React.FC<GoalAnalyticsDashboardProps> = ({
                               style={{
                                 width: `${(count / analytics.totalGoals) * 100}%`,
                                 backgroundColor:
-                                  colors[difficulty as keyof typeof colors] || '#6b7280',
+                                  DIFFICULTY_COLORS[difficulty as keyof typeof DIFFICULTY_COLORS] || '#6b7280',
                               }}
                             />
                           </div>

@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import express from 'express';
+import express, { NextFunction } from 'express';
 
 import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
@@ -9,20 +9,21 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 // GET /api/runs - Get all runs for user
-router.get('/', requireAuth, async (req: AuthRequest, res) => {
+router.get('/', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
       orderBy: { date: 'desc' },
     });
     res.json(runs);
-  } catch {
-    throw createError('Failed to fetch runs', 500);
+  } catch (error) {
+    console.error('Failed to fetch runs:', error);
+    return next(createError('Failed to fetch runs', 500));
   }
 });
 
 // GET /api/runs/simple-list - Get simplified run list
-router.get('/simple-list', requireAuth, async (req: AuthRequest, res) => {
+router.get('/simple-list', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
@@ -36,13 +37,14 @@ router.get('/simple-list', requireAuth, async (req: AuthRequest, res) => {
       orderBy: { date: 'desc' },
     });
     res.json(runs);
-  } catch {
-    throw createError('Failed to fetch run list', 500);
+  } catch (error) {
+    console.error('Failed to fetch run list:', error);
+    return next(createError('Failed to fetch run list', 500));
   }
 });
 
 // GET /api/runs/:id - Get specific run
-router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.get('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const run = await prisma.run.findFirst({
       where: {
@@ -52,15 +54,16 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!run) {
-      throw createError('Run not found', 404);
+      return next(createError('Run not found', 404));
     }
 
     res.json(run);
   } catch (error: any) {
+    console.error('Failed to fetch run:', error);
     if (error.statusCode === 404) {
-      throw error;
+      return next(error);
     }
-    throw createError('Failed to fetch run', 500);
+    return next(createError('Failed to fetch run', 500));
   }
 });
 
@@ -75,7 +78,7 @@ router.post(
     { field: 'tag', required: false, type: 'string' },
     { field: 'notes', required: false, type: 'string' },
   ]),
-  async (req: AuthRequest, res) => {
+  async (req: AuthRequest, res, next: NextFunction) => {
     try {
       const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
@@ -86,7 +89,7 @@ router.post(
       });
 
       if (!user) {
-        throw createError('User not found', 404);
+        return next(createError('User not found', 404));
       }
 
       const run = await prisma.run.create({
@@ -104,13 +107,13 @@ router.post(
       res.status(201).json(run);
     } catch (error) {
       console.error('Error creating run:', error);
-      throw createError('Failed to create run', 500);
+      return next(createError('Failed to create run', 500));
     }
   }
 );
 
 // PUT /api/runs/:id - Update run
-router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.put('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
@@ -122,7 +125,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!existingRun) {
-      throw createError('Run not found', 404);
+      return next(createError('Run not found', 404));
     }
 
     const updateData: any = {};
@@ -152,15 +155,16 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
 
     res.json(run);
   } catch (error: any) {
+    console.error('Failed to update run:', error);
     if (error.statusCode === 404) {
-      throw error;
+      return next(error);
     }
-    throw createError('Failed to update run', 500);
+    return next(createError('Failed to update run', 500));
   }
 });
 
 // DELETE /api/runs/:id - Delete run
-router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
+router.delete('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunction) => {
   try {
     const existingRun = await prisma.run.findFirst({
       where: {
@@ -170,7 +174,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!existingRun) {
-      throw createError('Run not found', 404);
+      return next(createError('Run not found', 404));
     }
 
     await prisma.run.delete({
@@ -179,10 +183,11 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
 
     res.status(204).send();
   } catch (error: any) {
+    console.error('Failed to delete run:', error);
     if (error.statusCode === 404) {
-      throw error;
+      return next(error);
     }
-    throw createError('Failed to delete run', 500);
+    return next(createError('Failed to delete run', 500));
   }
 });
 
