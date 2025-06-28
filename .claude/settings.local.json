@@ -1,11 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Bash(gh pr create:*)",
-      "Bash(grep:*)",
-      "Bash(npm install:*)",
-      "Bash(npm test)",
-      "Bash(node:*)"
+      "mcp__serena__initial_instructions",
+      "mcp__serena__activate_project",
+      "mcp__serena__check_onboarding_performed",
+      "WebFetch(domain:github.com)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "mcp__serena__list_dir",
+      "mcp__serena__read_memory",
+      "Bash(npm run test:run:*)",
+      "Bash(npx tsc:*)",
+      "mcp__serena__read_file",
+      "Bash(find:*)",
+      "Bash(git checkout:*)",
+      "Bash(sed:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
