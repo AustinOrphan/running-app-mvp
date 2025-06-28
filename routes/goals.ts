@@ -24,7 +24,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res, next: NextFunction) =
     res.json(goals);
   } catch (error) {
     console.error('Failed to fetch goals:', error);
-    next(createError('Failed to fetch goals', 500));
+    return next(createError('Failed to fetch goals', 500));
   }
 });
 
@@ -45,7 +45,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunction
     res.json(goal);
   } catch (error) {
     console.error('Failed to fetch goal:', error);
-    next(createError('Failed to fetch goal', 500));
+    return next(createError('Failed to fetch goal', 500));
   }
 });
 
@@ -117,7 +117,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res, next: NextFunction) 
     res.status(201).json(goal);
   } catch (error) {
     console.error('Failed to create goal:', error);
-    next(createError('Failed to create goal', 500));
+    return next(createError('Failed to create goal', 500));
   }
 });
 
@@ -198,7 +198,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunction
     res.json(updatedGoal);
   } catch (error) {
     console.error('Failed to update goal:', error);
-    next(createError('Failed to update goal', 500));
+    return next(createError('Failed to update goal', 500));
   }
 });
 
@@ -228,7 +228,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunct
     res.json({ message: 'Goal deleted successfully' });
   } catch (error) {
     console.error('Failed to delete goal:', error);
-    next(createError('Failed to delete goal', 500));
+    return next(createError('Failed to delete goal', 500));
   }
 });
 
@@ -267,7 +267,7 @@ router.post('/:id/complete', requireAuth, async (req: AuthRequest, res, next: Ne
     res.json(completedGoal);
   } catch (error) {
     console.error('Failed to complete goal:', error);
-    next(createError('Failed to complete goal', 500));
+    return next(createError('Failed to complete goal', 500));
   }
 });
 
@@ -310,7 +310,7 @@ router.get('/progress/all', requireAuth, async (req: AuthRequest, res, next: Nex
     res.json(progressData);
   } catch (error) {
     console.error('Failed to fetch goal progress:', error);
-    next(createError('Failed to fetch goal progress', 500));
+    return next(createError('Failed to fetch goal progress', 500));
   }
 });
 

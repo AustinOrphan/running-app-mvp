@@ -18,7 +18,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res, next: NextFunction) =
     res.json(runs);
   } catch (error) {
     console.error('Failed to fetch runs:', error);
-    next(createError('Failed to fetch runs', 500));
+    return next(createError('Failed to fetch runs', 500));
   }
 });
 
@@ -39,7 +39,7 @@ router.get('/simple-list', requireAuth, async (req: AuthRequest, res, next: Next
     res.json(runs);
   } catch (error) {
     console.error('Failed to fetch run list:', error);
-    next(createError('Failed to fetch run list', 500));
+    return next(createError('Failed to fetch run list', 500));
   }
 });
 
@@ -63,7 +63,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunction
     if (error.statusCode === 404) {
       return next(error);
     }
-    next(createError('Failed to fetch run', 500));
+    return next(createError('Failed to fetch run', 500));
   }
 });
 
@@ -107,7 +107,7 @@ router.post(
       res.status(201).json(run);
     } catch (error) {
       console.error('Error creating run:', error);
-      next(createError('Failed to create run', 500));
+      return next(createError('Failed to create run', 500));
     }
   }
 );
@@ -159,7 +159,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunction
     if (error.statusCode === 404) {
       return next(error);
     }
-    next(createError('Failed to update run', 500));
+    return next(createError('Failed to update run', 500));
   }
 });
 
@@ -187,7 +187,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res, next: NextFunct
     if (error.statusCode === 404) {
       return next(error);
     }
-    next(createError('Failed to delete run', 500));
+    return next(createError('Failed to delete run', 500));
   }
 });
 

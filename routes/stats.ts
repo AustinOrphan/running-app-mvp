@@ -38,7 +38,7 @@ router.get('/insights-summary', requireAuth, async (req: AuthRequest, res, next:
     });
   } catch (error) {
     console.error('Failed to fetch insights summary:', error);
-    next(createError('Failed to fetch insights summary', 500));
+    return next(createError('Failed to fetch insights summary', 500));
   }
 });
 
@@ -87,7 +87,7 @@ router.get('/type-breakdown', requireAuth, async (req: AuthRequest, res, next: N
     res.json(breakdownArray);
   } catch (error) {
     console.error('Failed to fetch type breakdown:', error);
-    next(createError('Failed to fetch type breakdown', 500));
+    return next(createError('Failed to fetch type breakdown', 500));
   }
 });
 
@@ -161,7 +161,7 @@ router.get('/trends', requireAuth, async (req: AuthRequest, res, next: NextFunct
     res.json(trendsData);
   } catch (error) {
     console.error('Failed to fetch trends data:', error);
-    next(createError('Failed to fetch trends data', 500));
+    return next(createError('Failed to fetch trends data', 500));
   }
 });
 
@@ -211,7 +211,7 @@ router.get('/personal-records', requireAuth, async (req: AuthRequest, res, next:
     res.json(records);
   } catch (error) {
     console.error('Failed to fetch personal records:', error);
-    next(createError('Failed to fetch personal records', 500));
+    return next(createError('Failed to fetch personal records', 500));
   }
 });
 

@@ -66,7 +66,7 @@ router.post(
       if (error.statusCode) {
         return next(error);
       }
-      next(createError('Registration failed', 500));
+      return next(createError('Registration failed', 500));
     }
   }
 );
@@ -118,7 +118,7 @@ router.post(
       if (error.statusCode) {
         return next(error);
       }
-      next(createError('Login failed', 500));
+      return next(createError('Login failed', 500));
     }
   }
 );
