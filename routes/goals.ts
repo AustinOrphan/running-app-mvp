@@ -1,5 +1,6 @@
 import express, { NextFunction } from 'express';
 
+import { asyncAuthHandler } from '../middleware/asyncHandler.js';
 import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { prisma } from '../server.js';
