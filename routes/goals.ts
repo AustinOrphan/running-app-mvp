@@ -2,7 +2,7 @@ import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
 import { createError } from '../middleware/errorHandler.js';
-import { AuthRequest } from '../middleware/requireAuth.js';
+import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { prisma } from '../server.js';
 import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../src/types/goals.js';
 
@@ -11,6 +11,7 @@ const router = express.Router();
 // GET /api/goals - Get all goals for user
 router.get(
   '/',
+  requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
     const goals = await prisma.goal.findMany({
       where: {
@@ -30,6 +31,7 @@ router.get(
 // GET /api/goals/:id - Get specific goal
 router.get(
   '/:id',
+  requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
     const goal = await prisma.goal.findFirst({
       where: {
@@ -49,6 +51,7 @@ router.get(
 // POST /api/goals - Create new goal
 router.post(
   '/',
+  requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
     const {
       title,
@@ -119,6 +122,7 @@ router.post(
 // PUT /api/goals/:id - Update goal
 router.put(
   '/:id',
+  requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
     const goalId = req.params.id;
     const {
@@ -198,6 +202,7 @@ router.put(
 // DELETE /api/goals/:id - Delete goal (soft delete)
 router.delete(
   '/:id',
+  requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
     const goalId = req.params.id;
 
@@ -226,6 +231,7 @@ router.delete(
 // POST /api/goals/:id/complete - Mark goal as completed
 router.post(
   '/:id/complete',
+  requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
     const goalId = req.params.id;
 
@@ -263,6 +269,7 @@ router.post(
 // GET /api/goals/progress - Get progress for all active goals
 router.get(
   '/progress/all',
+  requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
     const goals = await prisma.goal.findMany({
       where: {

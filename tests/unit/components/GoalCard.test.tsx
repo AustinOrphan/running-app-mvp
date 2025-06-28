@@ -118,7 +118,6 @@ describe('GoalCard', () => {
       });
       const progress = createMockGoalProgress({
         currentValue: 32.5,
-        
       });
 
       render(<GoalCard {...defaultProps} goal={goal} progress={progress} />);
@@ -159,7 +158,6 @@ describe('GoalCard', () => {
         });
         const progress = createMockGoalProgress({
           currentValue: current,
-          
         });
 
         const { unmount } = render(<GoalCard {...defaultProps} goal={goal} progress={progress} />);
@@ -419,7 +417,6 @@ describe('GoalCard', () => {
       });
       const progress = createMockGoalProgress({
         currentValue: 32.5,
-        
       });
 
       render(

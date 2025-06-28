@@ -148,7 +148,9 @@ export const accessibilityTestPatterns = {
       if (await element.isVisible()) {
         await element.focus();
         // Check if element is focused by evaluating document.activeElement
-        const isFocused = await element.evaluate((el: HTMLElement) => document.activeElement === el);
+        const isFocused = await element.evaluate(
+          (el: HTMLElement) => document.activeElement === el
+        );
         expect(isFocused).toBe(true);
       }
     }

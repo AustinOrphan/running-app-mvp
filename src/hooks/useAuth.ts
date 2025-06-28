@@ -30,9 +30,9 @@ export const useAuth = () => {
       return { success: true, token: response.data.token };
     } catch (error) {
       const apiError = error as ApiError;
-      return { 
-        success: false, 
-        message: apiError.data?.message || apiError.message || 'Login failed' 
+      return {
+        success: false,
+        message: apiError.data?.message || apiError.message || 'Login failed',
       };
     } finally {
       setLoading(false);
@@ -56,9 +56,9 @@ export const useAuth = () => {
       return { success: true, token: response.data.token };
     } catch (error) {
       const apiError = error as ApiError;
-      return { 
-        success: false, 
-        message: apiError.data?.message || apiError.message || 'Registration failed' 
+      return {
+        success: false,
+        message: apiError.data?.message || apiError.message || 'Registration failed',
       };
     } finally {
       setLoading(false);

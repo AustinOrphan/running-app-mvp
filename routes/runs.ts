@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import express, { NextFunction } from 'express';
+import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
 import { createError } from '../middleware/errorHandler.js';
@@ -10,45 +10,57 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 // GET /api/runs - Get all runs for user
-router.get('/', requireAuth, asyncAuthHandler(async (req: AuthRequest, res) => {
-  const runs = await prisma.run.findMany({
-    where: { userId: req.user!.id },
-    orderBy: { date: 'desc' },
-  });
-  res.json(runs);
-}));
+router.get(
+  '/',
+  requireAuth,
+  asyncAuthHandler(async (req: AuthRequest, res) => {
+    const runs = await prisma.run.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { date: 'desc' },
+    });
+    res.json(runs);
+  })
+);
 
 // GET /api/runs/simple-list - Get simplified run list
-router.get('/simple-list', requireAuth, asyncAuthHandler(async (req: AuthRequest, res) => {
-  const runs = await prisma.run.findMany({
-    where: { userId: req.user!.id },
-    select: {
-      id: true,
-      date: true,
-      distance: true,
-      duration: true,
-      tag: true,
-    },
-    orderBy: { date: 'desc' },
-  });
-  res.json(runs);
-}));
+router.get(
+  '/simple-list',
+  requireAuth,
+  asyncAuthHandler(async (req: AuthRequest, res) => {
+    const runs = await prisma.run.findMany({
+      where: { userId: req.user!.id },
+      select: {
+        id: true,
+        date: true,
+        distance: true,
+        duration: true,
+        tag: true,
+      },
+      orderBy: { date: 'desc' },
+    });
+    res.json(runs);
+  })
+);
 
 // GET /api/runs/:id - Get specific run
-router.get('/:id', requireAuth, asyncAuthHandler(async (req: AuthRequest, res, next) => {
-  const run = await prisma.run.findFirst({
-    where: {
-      id: req.params.id,
-      userId: req.user!.id,
-    },
-  });
+router.get(
+  '/:id',
+  requireAuth,
+  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+    const run = await prisma.run.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user!.id,
+      },
+    });
 
-  if (!run) {
-    return next(createError('Run not found', 404));
-  }
+    if (!run) {
+      return next(createError('Run not found', 404));
+    }
 
-  res.json(run);
-}));
+    res.json(run);
+  })
+);
 
 // POST /api/runs - Create new run
 router.post(
@@ -91,66 +103,74 @@ router.post(
 );
 
 // PUT /api/runs/:id - Update run
-router.put('/:id', requireAuth, asyncAuthHandler(async (req: AuthRequest, res, next) => {
-  const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
+router.put(
+  '/:id',
+  requireAuth,
+  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+    const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
-  const existingRun = await prisma.run.findFirst({
-    where: {
-      id: req.params.id,
-      userId: req.user!.id,
-    },
-  });
+    const existingRun = await prisma.run.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user!.id,
+      },
+    });
 
-  if (!existingRun) {
-    return next(createError('Run not found', 404));
-  }
+    if (!existingRun) {
+      return next(createError('Run not found', 404));
+    }
 
-  const updateData: any = {};
-  if (date !== undefined) {
-    updateData.date = new Date(date);
-  }
-  if (distance !== undefined) {
-    updateData.distance = Number(distance);
-  }
-  if (duration !== undefined) {
-    updateData.duration = Number(duration);
-  }
-  if (tag !== undefined) {
-    updateData.tag = tag || null;
-  }
-  if (notes !== undefined) {
-    updateData.notes = notes || null;
-  }
-  if (routeGeoJson !== undefined) {
-    updateData.routeGeoJson = routeGeoJson || null;
-  }
+    const updateData: any = {};
+    if (date !== undefined) {
+      updateData.date = new Date(date);
+    }
+    if (distance !== undefined) {
+      updateData.distance = Number(distance);
+    }
+    if (duration !== undefined) {
+      updateData.duration = Number(duration);
+    }
+    if (tag !== undefined) {
+      updateData.tag = tag || null;
+    }
+    if (notes !== undefined) {
+      updateData.notes = notes || null;
+    }
+    if (routeGeoJson !== undefined) {
+      updateData.routeGeoJson = routeGeoJson || null;
+    }
 
-  const run = await prisma.run.update({
-    where: { id: req.params.id },
-    data: updateData,
-  });
+    const run = await prisma.run.update({
+      where: { id: req.params.id },
+      data: updateData,
+    });
 
-  res.json(run);
-}));
+    res.json(run);
+  })
+);
 
 // DELETE /api/runs/:id - Delete run
-router.delete('/:id', requireAuth, asyncAuthHandler(async (req: AuthRequest, res, next) => {
-  const existingRun = await prisma.run.findFirst({
-    where: {
-      id: req.params.id,
-      userId: req.user!.id,
-    },
-  });
+router.delete(
+  '/:id',
+  requireAuth,
+  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+    const existingRun = await prisma.run.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user!.id,
+      },
+    });
 
-  if (!existingRun) {
-    return next(createError('Run not found', 404));
-  }
+    if (!existingRun) {
+      return next(createError('Run not found', 404));
+    }
 
-  await prisma.run.delete({
-    where: { id: req.params.id },
-  });
+    await prisma.run.delete({
+      where: { id: req.params.id },
+    });
 
-  res.status(204).send();
-}));
+    res.status(204).send();
+  })
+);
 
 export default router;

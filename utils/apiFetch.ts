@@ -120,10 +120,7 @@ export const apiFetch = async <T = any>(
     try {
       // Create fetch promise with timeout
       const fetchPromise = fetch(url, requestConfig);
-      const response = await Promise.race([
-        fetchPromise,
-        createTimeoutPromise(timeout),
-      ]);
+      const response = await Promise.race([fetchPromise, createTimeoutPromise(timeout)]);
 
       // Handle HTTP error status codes
       if (!response.ok) {
@@ -146,7 +143,9 @@ export const apiFetch = async <T = any>(
 
         // Check if this is a retryable error
         if (attempt < retries && isRetryableStatus(response.status)) {
-          console.warn(`API request failed (attempt ${attempt + 1}/${retries + 1}): ${errorMessage}. Retrying...`);
+          console.warn(
+            `API request failed (attempt ${attempt + 1}/${retries + 1}): ${errorMessage}. Retrying...`
+          );
           await delay(retryDelay * Math.pow(2, attempt)); // Exponential backoff
           continue;
         }
@@ -157,7 +156,7 @@ export const apiFetch = async <T = any>(
       // Parse successful response
       let data: T;
       const contentType = response.headers.get('content-type');
-      
+
       if (contentType?.includes('application/json')) {
         data = await response.json();
       } else if (response.status === 204) {
@@ -172,15 +171,18 @@ export const apiFetch = async <T = any>(
         status: response.status,
         headers: response.headers,
       };
-
     } catch (error) {
       // If it's the last attempt or not a retryable error, throw
-      if (attempt === retries || !(error instanceof ApiFetchError) || !isRetryableStatus(error.status || 0)) {
+      if (
+        attempt === retries ||
+        !(error instanceof ApiFetchError) ||
+        !isRetryableStatus(error.status || 0)
+      ) {
         // Enhance error with additional context if needed
         if (error instanceof ApiFetchError) {
           throw error;
         }
-        
+
         // Handle network errors, timeouts, etc.
         throw new ApiFetchError(
           error instanceof Error ? error.message : 'Network error',
@@ -191,7 +193,9 @@ export const apiFetch = async <T = any>(
       }
 
       // Retry for retryable errors
-      console.warn(`API request failed (attempt ${attempt + 1}/${retries + 1}): ${error.message}. Retrying...`);
+      console.warn(
+        `API request failed (attempt ${attempt + 1}/${retries + 1}): ${error.message}. Retrying...`
+      );
       await delay(retryDelay * Math.pow(2, attempt)); // Exponential backoff
     }
   }
@@ -201,23 +205,41 @@ export const apiFetch = async <T = any>(
 };
 
 // Convenience methods for common HTTP verbs
-export const apiGet = <T = any>(url: string, options?: Omit<ApiFetchOptions, 'method'>): Promise<ApiResponse<T>> => {
+export const apiGet = <T = any>(
+  url: string,
+  options?: Omit<ApiFetchOptions, 'method'>
+): Promise<ApiResponse<T>> => {
   return apiFetch<T>(url, { ...options, method: 'GET' });
 };
 
-export const apiPost = <T = any>(url: string, body?: any, options?: Omit<ApiFetchOptions, 'method' | 'body'>): Promise<ApiResponse<T>> => {
+export const apiPost = <T = any>(
+  url: string,
+  body?: any,
+  options?: Omit<ApiFetchOptions, 'method' | 'body'>
+): Promise<ApiResponse<T>> => {
   return apiFetch<T>(url, { ...options, method: 'POST', body });
 };
 
-export const apiPut = <T = any>(url: string, body?: any, options?: Omit<ApiFetchOptions, 'method' | 'body'>): Promise<ApiResponse<T>> => {
+export const apiPut = <T = any>(
+  url: string,
+  body?: any,
+  options?: Omit<ApiFetchOptions, 'method' | 'body'>
+): Promise<ApiResponse<T>> => {
   return apiFetch<T>(url, { ...options, method: 'PUT', body });
 };
 
-export const apiDelete = <T = any>(url: string, options?: Omit<ApiFetchOptions, 'method'>): Promise<ApiResponse<T>> => {
+export const apiDelete = <T = any>(
+  url: string,
+  options?: Omit<ApiFetchOptions, 'method'>
+): Promise<ApiResponse<T>> => {
   return apiFetch<T>(url, { ...options, method: 'DELETE' });
 };
 
-export const apiPatch = <T = any>(url: string, body?: any, options?: Omit<ApiFetchOptions, 'method' | 'body'>): Promise<ApiResponse<T>> => {
+export const apiPatch = <T = any>(
+  url: string,
+  body?: any,
+  options?: Omit<ApiFetchOptions, 'method' | 'body'>
+): Promise<ApiResponse<T>> => {
   return apiFetch<T>(url, { ...options, method: 'PATCH', body });
 };
 

@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import express, { NextFunction } from 'express';
+import express from 'express';
 import jwt from 'jsonwebtoken';
 
 import { asyncHandler } from '../middleware/asyncHandler.js';
