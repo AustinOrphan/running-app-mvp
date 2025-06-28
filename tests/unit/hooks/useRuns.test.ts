@@ -613,9 +613,12 @@ describe('useRuns', () => {
         json: vi.fn().mockResolvedValue(mockRuns),
       });
 
-      const { result, rerender } = renderHook((props: { token: string | null }) => useRuns(props.token), {
-        initialProps: { token: null as string | null },
-      });
+      const { result, rerender } = renderHook(
+        (props: { token: string | null }) => useRuns(props.token),
+        {
+          initialProps: { token: null as string | null },
+        }
+      );
 
       expect(result.current.runs).toEqual([]);
       expect(mockFetch).not.toHaveBeenCalled();

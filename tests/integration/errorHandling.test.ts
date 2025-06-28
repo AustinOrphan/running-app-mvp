@@ -19,27 +19,30 @@ describe('Error Handling Integration Tests', () => {
     app = express();
     app.use(cors());
     app.use(express.json());
-    
+
     // Mock console.error to prevent test output pollution
     mockConsoleError = jest.spyOn(console, 'error').mockImplementation();
-    
+
     // Detect "Cannot set headers after they are sent" errors
     headersSentDetector = jest.spyOn(console, 'error').mockImplementation((message: any) => {
-      if (typeof message === 'string' && message.includes('Cannot set headers after they are sent')) {
+      if (
+        typeof message === 'string' &&
+        message.includes('Cannot set headers after they are sent')
+      ) {
         throw new Error('CRITICAL: Double header error detected - ' + message);
       }
     });
-    
+
     // Mount routes
     app.use('/api/auth', authRoutes);
     app.use('/api/runs', runsRoutes);
     app.use('/api/goals', goalsRoutes);
     app.use('/api/stats', statsRoutes);
-    
+
     // Error handler must be last
     app.use(errorHandler);
   });
-  
+
   afterEach(() => {
     mockConsoleError.mockRestore();
     headersSentDetector.mockRestore();
@@ -47,17 +50,15 @@ describe('Error Handling Integration Tests', () => {
 
   describe('Auth Route Error Handling', () => {
     it('should handle registration with existing user gracefully', async () => {
-      const response = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'test@example.com',
-          password: 'password123'
-        });
+      const response = await request(app).post('/api/auth/register').send({
+        email: 'test@example.com',
+        password: 'password123',
+      });
 
       // Should not crash the server and return proper error response
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
-      
+
       // CRITICAL: Verify no double header errors
       expect(headersSentDetector).not.toHaveBeenCalledWith(
         expect.stringContaining('Cannot set headers after they are sent')
@@ -65,12 +66,10 @@ describe('Error Handling Integration Tests', () => {
     });
 
     it('should handle invalid login credentials gracefully', async () => {
-      const response = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'nonexistent@example.com',
-          password: 'wrongpassword'
-        });
+      const response = await request(app).post('/api/auth/login').send({
+        email: 'nonexistent@example.com',
+        password: 'wrongpassword',
+      });
 
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
@@ -79,16 +78,14 @@ describe('Error Handling Integration Tests', () => {
 
   describe('Runs Route Error Handling', () => {
     it('should handle unauthorized access gracefully', async () => {
-      const response = await request(app)
-        .get('/api/runs');
+      const response = await request(app).get('/api/runs');
 
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
     });
 
     it('should handle fetching non-existent run gracefully', async () => {
-      const response = await request(app)
-        .get('/api/runs/non-existent-id');
+      const response = await request(app).get('/api/runs/non-existent-id');
 
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
@@ -97,21 +94,18 @@ describe('Error Handling Integration Tests', () => {
 
   describe('Goals Route Error Handling', () => {
     it('should handle unauthorized goal access gracefully', async () => {
-      const response = await request(app)
-        .get('/api/goals');
+      const response = await request(app).get('/api/goals');
 
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
     });
 
     it('should handle creating goal without authentication gracefully', async () => {
-      const response = await request(app)
-        .post('/api/goals')
-        .send({
-          title: 'Test Goal',
-          type: 'DISTANCE',
-          targetValue: 10
-        });
+      const response = await request(app).post('/api/goals').send({
+        title: 'Test Goal',
+        type: 'DISTANCE',
+        targetValue: 10,
+      });
 
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
@@ -120,16 +114,14 @@ describe('Error Handling Integration Tests', () => {
 
   describe('Stats Route Error Handling', () => {
     it('should handle unauthorized stats access gracefully', async () => {
-      const response = await request(app)
-        .get('/api/stats/insights-summary');
+      const response = await request(app).get('/api/stats/insights-summary');
 
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
     });
 
     it('should handle fetching trends without auth gracefully', async () => {
-      const response = await request(app)
-        .get('/api/stats/trends');
+      const response = await request(app).get('/api/stats/trends');
 
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
@@ -141,17 +133,16 @@ describe('Error Handling Integration Tests', () => {
       const promises = Array.from({ length: 10 }, () =>
         request(app)
           .get('/api/runs')
-          .expect((res) => {
+          .expect(res => {
             expect(res.status).toBeDefined();
           })
       );
 
       await Promise.all(promises);
-      
+
       // Server should still be responsive after error batch
-      const healthCheck = await request(app)
-        .get('/api/auth/test');
-        
+      const healthCheck = await request(app).get('/api/auth/test');
+
       expect(healthCheck.status).toBe(200);
       expect(healthCheck.body).toHaveProperty('message', 'Auth routes are working');
     });
@@ -159,17 +150,15 @@ describe('Error Handling Integration Tests', () => {
 
   describe('CRITICAL: Return Pattern Validation', () => {
     it('should prevent double header errors in auth routes', async () => {
-      const response = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'test@example.com',
-          password: 'short' // Will trigger validation error
-        });
+      const response = await request(app).post('/api/auth/register').send({
+        email: 'test@example.com',
+        password: 'short', // Will trigger validation error
+      });
 
       // Should complete without throwing double header error
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
-      
+
       // Verify no double header detection was triggered
       expect(headersSentDetector).not.toHaveBeenCalledWith(
         expect.stringContaining('Cannot set headers after they are sent')
@@ -178,12 +167,11 @@ describe('Error Handling Integration Tests', () => {
 
     it('should prevent double header errors in runs routes on database failures', async () => {
       // This will fail due to lack of authentication
-      const response = await request(app)
-        .get('/api/runs/invalid-id');
+      const response = await request(app).get('/api/runs/invalid-id');
 
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
-      
+
       // Verify no double header detection was triggered
       expect(headersSentDetector).not.toHaveBeenCalledWith(
         expect.stringContaining('Cannot set headers after they are sent')
@@ -191,16 +179,14 @@ describe('Error Handling Integration Tests', () => {
     });
 
     it('should prevent double header errors in goals routes', async () => {
-      const response = await request(app)
-        .post('/api/goals')
-        .send({
-          title: '', // Invalid - will trigger validation error
-          type: 'INVALID_TYPE'
-        });
+      const response = await request(app).post('/api/goals').send({
+        title: '', // Invalid - will trigger validation error
+        type: 'INVALID_TYPE',
+      });
 
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
-      
+
       // Verify no double header detection was triggered
       expect(headersSentDetector).not.toHaveBeenCalledWith(
         expect.stringContaining('Cannot set headers after they are sent')
@@ -208,12 +194,11 @@ describe('Error Handling Integration Tests', () => {
     });
 
     it('should prevent double header errors in stats routes', async () => {
-      const response = await request(app)
-        .get('/api/stats/insights-summary');
+      const response = await request(app).get('/api/stats/insights-summary');
 
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
-      
+
       // Verify no double header detection was triggered
       expect(headersSentDetector).not.toHaveBeenCalledWith(
         expect.stringContaining('Cannot set headers after they are sent')
@@ -225,35 +210,39 @@ describe('Error Handling Integration Tests', () => {
     it('should properly catch and forward async errors', async () => {
       const testApp = express();
       testApp.use(express.json());
-      
+
       // Test route that throws async error
-      testApp.get('/test-async-error', asyncHandler(async (req, res, next) => {
-        throw new Error('Test async error');
-      }));
-      
+      testApp.get(
+        '/test-async-error',
+        asyncHandler(async (req, res, next) => {
+          throw new Error('Test async error');
+        })
+      );
+
       testApp.use(errorHandler);
-      
-      const response = await request(testApp)
-        .get('/test-async-error');
-        
+
+      const response = await request(testApp).get('/test-async-error');
+
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('message', 'Test async error');
     });
-    
+
     it('should properly catch and forward async auth errors', async () => {
       const testApp = express();
       testApp.use(express.json());
-      
+
       // Test route that throws async error with auth context
-      testApp.get('/test-async-auth-error', asyncAuthHandler(async (req, res, next) => {
-        throw new Error('Test async auth error');
-      }));
-      
+      testApp.get(
+        '/test-async-auth-error',
+        asyncAuthHandler(async (req, res, next) => {
+          throw new Error('Test async auth error');
+        })
+      );
+
       testApp.use(errorHandler);
-      
-      const response = await request(testApp)
-        .get('/test-async-auth-error');
-        
+
+      const response = await request(testApp).get('/test-async-auth-error');
+
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('message', 'Test async auth error');
     });
@@ -261,36 +250,34 @@ describe('Error Handling Integration Tests', () => {
 
   describe('Route Error Propagation Tests', () => {
     it('should properly propagate database connection errors', async () => {
-      const response = await request(app)
-        .get('/api/runs');
-      
+      const response = await request(app).get('/api/runs');
+
       // Should get auth error, not database error crash
       expect(response.status).toBeDefined();
       expect(response.body).toHaveProperty('message');
     });
-    
+
     it('should handle malformed request bodies gracefully', async () => {
-      const response = await request(app)
-        .post('/api/auth/register')
-        .send('invalid-json');
-      
+      const response = await request(app).post('/api/auth/register').send('invalid-json');
+
       expect(response.status).toBeDefined();
       // Should not crash server
     });
-    
+
     it('should handle extremely large concurrent error load', async () => {
-      const promises = Array.from({ length: 50 }, () =>
-        request(app)
-          .get('/api/runs/invalid-id')
-          .catch(() => {}) // Ignore individual failures
+      const promises = Array.from(
+        { length: 50 },
+        () =>
+          request(app)
+            .get('/api/runs/invalid-id')
+            .catch(() => {}) // Ignore individual failures
       );
-      
+
       await Promise.all(promises);
-      
+
       // Server should remain responsive
-      const healthCheck = await request(app)
-        .get('/api/auth/test');
-        
+      const healthCheck = await request(app).get('/api/auth/test');
+
       expect(healthCheck.status).toBe(200);
     });
   });

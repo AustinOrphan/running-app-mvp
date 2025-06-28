@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { asyncHandler, asyncAuthHandler } from '../../../middleware/asyncHandler';
+import { AuthRequest } from '../../../middleware/requireAuth';
 
 describe('AsyncHandler Middleware Tests', () => {
   let mockRequest: Partial<Request>;
@@ -47,7 +48,7 @@ describe('AsyncHandler Middleware Tests', () => {
         throw authError;
       });
 
-      const mockAuthRequest = { ...mockRequest, user: { id: 'test-user' } };
+      const mockAuthRequest = { ...mockRequest, user: { id: 'test-user', email: 'test@example.com' } } as AuthRequest;
 
       await testHandler(mockAuthRequest, mockResponse as Response, mockNext);
 

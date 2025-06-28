@@ -42,12 +42,16 @@ export const useRuns = (token: string | null) => {
       } else {
         await apiPost<Run>('/api/runs', runData);
       }
-      
+
       await fetchRuns(); // Refresh the list
     } catch (error) {
       console.error('Failed to save run:', error);
       const apiError = error as ApiError;
-      throw new Error(apiError.data?.message || apiError.message || `Failed to ${editingRun ? 'update' : 'save'} run`);
+      throw new Error(
+        apiError.data?.message ||
+          apiError.message ||
+          `Failed to ${editingRun ? 'update' : 'save'} run`
+      );
     } finally {
       setSaving(false);
     }

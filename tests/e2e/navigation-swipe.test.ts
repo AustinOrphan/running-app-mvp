@@ -270,10 +270,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
 
         if (itemBox) {
           // Perform long press (hold for 800ms)
-          await page.touchscreen.tap(
-            itemBox.x + itemBox.width / 2,
-            itemBox.y + itemBox.height / 2
-          );
+          await page.touchscreen.tap(itemBox.x + itemBox.width / 2, itemBox.y + itemBox.height / 2);
           await page.waitForTimeout(800);
 
           await page.waitForTimeout(1000);
