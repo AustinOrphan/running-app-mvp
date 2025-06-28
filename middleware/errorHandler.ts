@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 
 export interface AppError extends Error {
   statusCode?: number;
@@ -25,7 +26,7 @@ export const errorHandler = (
       method: req.method,
       url: req.url,
       userAgent: req.get('User-Agent'),
-      ip: req.ip || req.connection.remoteAddress,
+      ip: req.ip ? crypto.createHash('sha256').update(req.ip).digest('hex') : req.connection.remoteAddress,
       userId: (req as any).user?.id,
     },
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,

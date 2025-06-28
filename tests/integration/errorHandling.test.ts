@@ -2,11 +2,11 @@ import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
 
-import authRoutes from '../../routes/auth';
-import runsRoutes from '../../routes/runs';
-import goalsRoutes from '../../routes/goals';
-import statsRoutes from '../../routes/stats';
-import { errorHandler } from '../../middleware/errorHandler';
+import authRoutes from '../../routes/auth.js';
+import runsRoutes from '../../routes/runs.js';
+import goalsRoutes from '../../routes/goals.js';
+import statsRoutes from '../../routes/stats.js';
+import { errorHandler } from '../../middleware/errorHandler.js';
 
 describe('Error Handling Integration Tests', () => {
   let app: express.Application;
@@ -128,7 +128,8 @@ describe('Error Handling Integration Tests', () => {
       const healthCheck = await request(app)
         .get('/api/auth/test');
         
-      expect(healthCheck.status).toBeDefined();
+      expect(healthCheck.status).toBe(200);
+      expect(healthCheck.body).toHaveProperty('message', 'Auth routes are working');
     });
   });
 });
