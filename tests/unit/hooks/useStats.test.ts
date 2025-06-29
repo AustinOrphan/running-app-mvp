@@ -364,7 +364,7 @@ describe('useStats', () => {
   });
 
   describe('Loading States', () => {
-    it('sets loading to true while fetching data', () => {
+    it('sets loading to true while fetching data', async () => {
       mockFetch.mockClear();
       mockFetch
         .mockResolvedValueOnce({
