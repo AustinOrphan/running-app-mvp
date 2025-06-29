@@ -152,7 +152,7 @@ router.put(
     });
 
     if (!existingGoal) {
-      return next(createError('Goal not found', 404));
+      return next(createNotFoundError('Goal'));
     }
 
     // Prevent editing completed goals
