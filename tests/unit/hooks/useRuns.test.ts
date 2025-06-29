@@ -15,10 +15,10 @@ vi.mock('../../../utils/apiFetch', () => ({
   apiPost: vi.fn(),
   apiPut: vi.fn(),
   apiDelete: vi.fn(),
-  ApiFetchError: class ApiFetchError extends Error {
+  ApiError: class ApiError extends Error {
     constructor(message: string, status?: number, response?: Response, data?: any) {
       super(message);
-      this.name = 'ApiFetchError';
+      this.name = 'ApiError';
       this.status = status;
       this.response = response;
       this.data = data;
@@ -27,7 +27,7 @@ vi.mock('../../../utils/apiFetch', () => ({
 }));
 
 // Import the mocked functions
-import { apiGet, apiPost, apiPut, apiDelete, ApiFetchError } from '../../../utils/apiFetch';
+import { apiGet, apiPost, apiPut, apiDelete, ApiError } from '../../../utils/apiFetch';
 
 const mockRuns: Run[] = [
   {
@@ -164,7 +164,7 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses', async () => {
-      const error = new ApiFetchError('Failed to fetch runs', 401);
+      const error = new ApiError('Failed to fetch runs', 401);
       mockApiGet.mockRejectedValue(error);
 
       let hookResult: any;
@@ -438,7 +438,7 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses', async () => {
-      const error = new ApiFetchError('Validation error', 400, undefined, { message: 'Validation error' });
+      const error = new ApiError('Validation error', 400, undefined, { message: 'Validation error' });
       mockApiPost.mockRejectedValue(error);
 
       let hookResult: any;
@@ -463,7 +463,7 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses without message', async () => {
-      const error = new ApiFetchError('Bad request', 400);
+      const error = new ApiError('Bad request', 400);
       mockApiPost.mockRejectedValue(error);
 
       let hookResult: any;
@@ -485,7 +485,7 @@ describe('useRuns', () => {
       }).rejects.toThrow('Bad request');
 
       // Test for edit case - set up PUT mock to fail
-      const putError = new ApiFetchError('Bad request', 400);
+      const putError = new ApiError('Bad request', 400);
       mockApiPut.mockRejectedValue(putError);
 
       await expect(async () => {
@@ -603,7 +603,7 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses', async () => {
-      const error = new ApiFetchError('Not found', 404);
+      const error = new ApiError('Not found', 404);
       mockApiDelete.mockRejectedValue(error);
 
       let hookResult: any;
