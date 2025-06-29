@@ -218,9 +218,6 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
   // Prevent clickjacking
   res.setHeader('X-Frame-Options', 'DENY');
   
-  // XSS protection
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  
   // Referrer policy
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   

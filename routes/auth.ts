@@ -5,15 +5,12 @@ import jwt from 'jsonwebtoken';
 
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createError } from '../middleware/errorHandler.js';
-import { validateRegister, validateLogin, sanitizeInput, securityHeaders } from '../middleware/validation.js';
+import { validateRegister, validateLogin, sanitizeInput } from '../middleware/validation.js';
 import { authRateLimit } from '../middleware/rateLimiting.js';
 import { logUserAction, logError } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
-
-// Apply security headers to all auth routes
-router.use(securityHeaders);
 
 // Apply rate limiting to all auth routes
 router.use(authRateLimit);
