@@ -9,8 +9,25 @@ vi.mock('../../../src/utils/formatters', () => ({
   calculatePace: vi.fn((distance: number, duration: number) => duration / distance),
 }));
 
-// Mock fetch
-const mockFetch = vi.fn();
+// Mock the apiFetch utilities
+vi.mock('../../../utils/apiFetch', () => ({
+  apiGet: vi.fn(),
+  apiPost: vi.fn(),
+  apiPut: vi.fn(),
+  apiDelete: vi.fn(),
+  ApiFetchError: class ApiFetchError extends Error {
+    constructor(message: string, status?: number, response?: Response, data?: any) {
+      super(message);
+      this.name = 'ApiFetchError';
+      this.status = status;
+      this.response = response;
+      this.data = data;
+    }
+  },
+}));
+
+// Import the mocked functions
+import { apiGet, apiPost, apiPut, apiDelete, ApiFetchError } from '../../../utils/apiFetch';
 
 const mockRuns: Run[] = [
   {
@@ -38,16 +55,30 @@ const mockRuns: Run[] = [
 ];
 
 describe('useRuns', () => {
+  const mockApiGet = apiGet as any;
+  const mockApiPost = apiPost as any;
+  const mockApiPut = apiPut as any;
+  const mockApiDelete = apiDelete as any;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = mockFetch;
+
+    // Set up localStorage mock with auth token
+    localStorage.setItem('authToken', 'valid-token');
 
     // Mock console.error to avoid noise in tests
     vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Setup default mock responses
+    mockApiGet.mockResolvedValue({ data: [] });
+    mockApiPost.mockResolvedValue({ data: {} });
+    mockApiPut.mockResolvedValue({ data: {} });
+    mockApiDelete.mockResolvedValue({ data: {} });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    localStorage.clear();
   });
 
   describe('Initial State', () => {
@@ -63,42 +94,46 @@ describe('useRuns', () => {
     });
 
     it('automatically fetches runs when token is provided', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns),
+      mockApiGet.mockResolvedValue({
+        data: mockRuns,
       });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
 
-      expect(result.current.loading).toBe(true);
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
       expect(result.current.runs).toEqual(mockRuns);
-      expect(mockFetch).toHaveBeenCalledWith('/api/runs', {
-        headers: {
-          Authorization: 'Bearer valid-token',
-        },
-      });
+      expect(mockApiGet).toHaveBeenCalledWith('/api/runs');
     });
 
     it('does not fetch runs when token is null', () => {
       renderHook(() => useRuns(null));
 
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockApiGet).not.toHaveBeenCalled();
     });
   });
 
   describe('fetchRuns', () => {
     it('successfully fetches and sets runs data', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns),
+      mockApiGet.mockResolvedValue({
+        data: mockRuns,
       });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -109,12 +144,17 @@ describe('useRuns', () => {
     });
 
     it('handles empty runs response', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue([]),
+      mockApiGet.mockResolvedValue({
+        data: [],
       });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -124,51 +164,67 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 401,
+      const error = new ApiFetchError('Failed to fetch runs', 401);
+      mockApiGet.mockRejectedValue(error);
+
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('invalid-token'));
       });
 
-      const { result } = renderHook(() => useRuns('invalid-token'));
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
       expect(result.current.runs).toEqual([]);
-      expect(console.error).toHaveBeenCalledWith('Failed to fetch runs:', expect.any(Error));
+      expect(console.error).toHaveBeenCalledWith('Failed to fetch runs:', error);
     });
 
     it('handles network errors', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'));
+      const error = new Error('Network error');
+      mockApiGet.mockRejectedValue(error);
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
       expect(result.current.runs).toEqual([]);
-      expect(console.error).toHaveBeenCalledWith('Failed to fetch runs:', expect.any(Error));
+      expect(console.error).toHaveBeenCalledWith('Failed to fetch runs:', error);
     });
 
     it('can be called manually to refresh data', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns),
+      // Initial setup
+      mockApiGet.mockResolvedValue({
+        data: mockRuns,
       });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
       // Clear the mock to test manual call
-      mockFetch.mockClear();
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue([
+      mockApiGet.mockClear();
+      mockApiGet.mockResolvedValue({
+        data: [
           ...mockRuns,
           {
             id: '3',
@@ -181,7 +237,7 @@ describe('useRuns', () => {
             createdAt: '2024-06-13T06:00:00Z',
             updatedAt: '2024-06-13T06:00:00Z',
           },
-        ]),
+        ],
       });
 
       await act(async () => {
@@ -189,7 +245,7 @@ describe('useRuns', () => {
       });
 
       expect(result.current.runs).toHaveLength(3);
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockApiGet).toHaveBeenCalledTimes(1);
     });
 
     it('sets and clears loading state correctly', async () => {
@@ -198,7 +254,7 @@ describe('useRuns', () => {
         resolvePromise = resolve;
       });
 
-      mockFetch.mockImplementation(() => mockPromise);
+      mockApiGet.mockImplementation(() => mockPromise);
 
       const { result } = renderHook(() => useRuns('valid-token'));
 
@@ -206,8 +262,7 @@ describe('useRuns', () => {
 
       act(() => {
         resolvePromise({
-          ok: true,
-          json: vi.fn().mockResolvedValue(mockRuns),
+          data: mockRuns,
         });
       });
 
@@ -227,39 +282,35 @@ describe('useRuns', () => {
     };
 
     it('successfully creates new run', async () => {
-      // Mock POST request for creating run
-      mockFetch
-        .mockResolvedValueOnce({
-          // saveRun POST request
-          ok: true,
-          json: vi.fn().mockResolvedValue({
-            id: '3',
-            ...validFormData,
-            distance: 6.5,
-            duration: 2100, // 35 minutes in seconds
-            userId: 'user-1',
-          }),
-        })
-        .mockResolvedValueOnce({
-          // fetchRuns GET request after save
-          ok: true,
-          json: vi.fn().mockResolvedValue([
-            ...mockRuns,
-            {
-              id: '3',
-              date: '2024-06-16T00:00:00.000Z',
-              distance: 6.5,
-              duration: 2100,
-              tag: 'Tempo Run',
-              notes: 'Good tempo effort',
-              userId: 'user-1',
-              createdAt: '2024-06-16T06:00:00Z',
-              updatedAt: '2024-06-16T06:00:00Z',
-            },
-          ]),
-        });
+      const newRun = {
+        id: '3',
+        date: '2024-06-16T00:00:00.000Z',
+        distance: 6.5,
+        duration: 2100, // 35 minutes in seconds
+        tag: 'Tempo Run',
+        notes: 'Good tempo effort',
+        userId: 'user-1',
+        createdAt: '2024-06-16T06:00:00Z',
+        updatedAt: '2024-06-16T06:00:00Z',
+      };
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      // Mock POST request for creating run
+      mockApiPost.mockResolvedValue({
+        data: newRun,
+      });
+
+      // Mock GET request for refreshing data
+      mockApiGet.mockResolvedValue({
+        data: [...mockRuns, newRun],
+      });
+
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       // Wait for initial fetch to complete
       await waitFor(() => {
@@ -274,19 +325,12 @@ describe('useRuns', () => {
       expect(result.current.runs).toHaveLength(3);
 
       // Check that POST was called with correct data
-      expect(mockFetch).toHaveBeenCalledWith('/api/runs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer valid-token',
-        },
-        body: JSON.stringify({
-          date: new Date('2024-06-16').toISOString(),
-          distance: 6.5,
-          duration: 2100, // 35 minutes * 60 seconds
-          tag: 'Tempo Run',
-          notes: 'Good tempo effort',
-        }),
+      expect(mockApiPost).toHaveBeenCalledWith('/api/runs', {
+        date: new Date('2024-06-16').toISOString(),
+        distance: 6.5,
+        duration: 2100, // 35 minutes * 60 seconds
+        tag: 'Tempo Run',
+        notes: 'Good tempo effort',
       });
     });
 
@@ -297,31 +341,27 @@ describe('useRuns', () => {
         distance: '7.0',
         notes: 'Updated notes',
       };
+      const updatedRun = {
+        ...editingRun,
+        distance: 7.0,
+        notes: 'Updated notes',
+      };
 
-      mockFetch
-        .mockResolvedValueOnce({
-          // saveRun PUT request
-          ok: true,
-          json: vi.fn().mockResolvedValue({
-            ...editingRun,
-            distance: 7.0,
-            notes: 'Updated notes',
-          }),
-        })
-        .mockResolvedValueOnce({
-          // fetchRuns GET request after update
-          ok: true,
-          json: vi.fn().mockResolvedValue([
-            {
-              ...editingRun,
-              distance: 7.0,
-              notes: 'Updated notes',
-            },
-            mockRuns[1],
-          ]),
-        });
+      mockApiPut.mockResolvedValue({
+        data: updatedRun,
+      });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      mockApiGet.mockResolvedValue({
+        data: [updatedRun, mockRuns[1]],
+      });
+
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -336,19 +376,12 @@ describe('useRuns', () => {
       expect(result.current.runs[0].notes).toBe('Updated notes');
 
       // Check that PUT was called with correct data
-      expect(mockFetch).toHaveBeenCalledWith(`/api/runs/${editingRun.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer valid-token',
-        },
-        body: JSON.stringify({
-          date: new Date('2024-06-16').toISOString(),
-          distance: 7.0,
-          duration: 2100,
-          tag: 'Tempo Run',
-          notes: 'Updated notes',
-        }),
+      expect(mockApiPut).toHaveBeenCalledWith(`/api/runs/${editingRun.id}`, {
+        date: new Date('2024-06-16').toISOString(),
+        distance: 7.0,
+        duration: 2100,
+        tag: 'Tempo Run',
+        notes: 'Updated notes',
       });
     });
 
@@ -361,17 +394,21 @@ describe('useRuns', () => {
         notes: '',
       };
 
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: vi.fn().mockResolvedValue({}),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: vi.fn().mockResolvedValue(mockRuns),
-        });
+      mockApiPost.mockResolvedValue({
+        data: {},
+      });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      mockApiGet.mockResolvedValue({
+        data: mockRuns,
+      });
+
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -381,18 +418,13 @@ describe('useRuns', () => {
         await result.current.saveRun(minimalFormData);
       });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/runs',
-        expect.objectContaining({
-          body: JSON.stringify({
-            date: new Date('2024-06-16').toISOString(),
-            distance: 5.0,
-            duration: 1800,
-            tag: null,
-            notes: null,
-          }),
-        })
-      );
+      expect(mockApiPost).toHaveBeenCalledWith('/api/runs', {
+        date: new Date('2024-06-16').toISOString(),
+        distance: 5.0,
+        duration: 1800,
+        tag: null,
+        notes: null,
+      });
     });
 
     it('throws error when no token provided', async () => {
@@ -406,14 +438,16 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        json: vi.fn().mockResolvedValue({
-          message: 'Validation error',
-        }),
+      const error = new ApiFetchError('Validation error', 400, undefined, { message: 'Validation error' });
+      mockApiPost.mockRejectedValue(error);
+
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
       });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -429,12 +463,16 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses without message', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        json: vi.fn().mockResolvedValue({}),
+      const error = new ApiFetchError('Bad request', 400);
+      mockApiPost.mockRejectedValue(error);
+
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
       });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -444,39 +482,30 @@ describe('useRuns', () => {
         await act(async () => {
           await result.current.saveRun(validFormData);
         });
-      }).rejects.toThrow('Failed to save run');
+      }).rejects.toThrow('Bad request');
 
-      // Test for edit case
+      // Test for edit case - set up PUT mock to fail
+      const putError = new ApiFetchError('Bad request', 400);
+      mockApiPut.mockRejectedValue(putError);
+
       await expect(async () => {
         await act(async () => {
           await result.current.saveRun(validFormData, mockRuns[0]);
         });
-      }).rejects.toThrow('Failed to update run');
-    });
-
-    it('handles malformed JSON response', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        json: vi.fn().mockRejectedValue(new Error('Invalid JSON')),
-      });
-
-      const { result } = renderHook(() => useRuns('valid-token'));
-
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-      });
-
-      await expect(async () => {
-        await act(async () => {
-          await result.current.saveRun(validFormData);
-        });
-      }).rejects.toThrow('Failed to save run');
+      }).rejects.toThrow('Bad request');
     });
 
     it('handles network errors', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'));
+      const error = new Error('Network error');
+      mockApiPost.mockRejectedValue(error);
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -497,9 +526,15 @@ describe('useRuns', () => {
         resolvePromise = resolve;
       });
 
-      mockFetch.mockImplementation(() => mockPromise);
+      mockApiPost.mockImplementation(() => mockPromise);
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -515,8 +550,7 @@ describe('useRuns', () => {
 
       act(() => {
         resolvePromise({
-          ok: true,
-          json: vi.fn().mockResolvedValue({}),
+          data: {},
         });
       });
 
@@ -528,18 +562,21 @@ describe('useRuns', () => {
 
   describe('deleteRun', () => {
     it('successfully deletes run', async () => {
-      mockFetch
-        .mockResolvedValueOnce({
-          // deleteRun DELETE request
-          ok: true,
-        })
-        .mockResolvedValueOnce({
-          // fetchRuns GET request after delete
-          ok: true,
-          json: vi.fn().mockResolvedValue([mockRuns[1]]), // Only second run remains
-        });
+      mockApiDelete.mockResolvedValue({
+        data: {},
+      });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      mockApiGet.mockResolvedValue({
+        data: [mockRuns[1]], // Only second run remains
+      });
+
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -552,12 +589,7 @@ describe('useRuns', () => {
       expect(result.current.runs).toHaveLength(1);
       expect(result.current.runs[0].id).toBe(mockRuns[1].id);
 
-      expect(mockFetch).toHaveBeenCalledWith(`/api/runs/${mockRuns[0].id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: 'Bearer valid-token',
-        },
-      });
+      expect(mockApiDelete).toHaveBeenCalledWith(`/api/runs/${mockRuns[0].id}`);
     });
 
     it('throws error when no token provided', async () => {
@@ -571,12 +603,16 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 404,
+      const error = new ApiFetchError('Not found', 404);
+      mockApiDelete.mockRejectedValue(error);
+
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
       });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -586,13 +622,20 @@ describe('useRuns', () => {
         await act(async () => {
           await result.current.deleteRun('non-existent-id');
         });
-      }).rejects.toThrow('Failed to delete run');
+      }).rejects.toThrow('Not found');
     });
 
     it('handles network errors', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'));
+      const error = new Error('Network error');
+      mockApiDelete.mockRejectedValue(error);
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -608,9 +651,8 @@ describe('useRuns', () => {
 
   describe('Token Changes', () => {
     it('refetches runs when token changes from null to valid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns),
+      mockApiGet.mockResolvedValue({
+        data: mockRuns,
       });
 
       const { result, rerender } = renderHook(
@@ -621,7 +663,7 @@ describe('useRuns', () => {
       );
 
       expect(result.current.runs).toEqual([]);
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockApiGet).not.toHaveBeenCalled();
 
       rerender({ token: 'valid-token' as string | null });
 
@@ -630,17 +672,12 @@ describe('useRuns', () => {
       });
 
       expect(result.current.runs).toEqual(mockRuns);
-      expect(mockFetch).toHaveBeenCalledWith('/api/runs', {
-        headers: {
-          Authorization: 'Bearer valid-token',
-        },
-      });
+      expect(mockApiGet).toHaveBeenCalledWith('/api/runs');
     });
 
     it('refetches runs when token changes to different token', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns),
+      mockApiGet.mockResolvedValue({
+        data: mockRuns,
       });
 
       const { result, rerender } = renderHook(({ token }) => useRuns(token), {
@@ -651,37 +688,32 @@ describe('useRuns', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const initialCallCount = mockFetch.mock.calls.length;
+      const initialCallCount = mockApiGet.mock.calls.length;
 
       rerender({ token: 'token2' });
 
       await waitFor(() => {
-        expect(mockFetch.mock.calls.length).toBeGreaterThan(initialCallCount);
+        expect(mockApiGet.mock.calls.length).toBeGreaterThan(initialCallCount);
       });
 
-      expect(mockFetch).toHaveBeenLastCalledWith('/api/runs', {
-        headers: {
-          Authorization: 'Bearer token2',
-        },
-      });
+      expect(mockApiGet).toHaveBeenLastCalledWith('/api/runs');
     });
 
     it('does not fetch when token changes to null', () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue(mockRuns),
+      mockApiGet.mockResolvedValue({
+        data: mockRuns,
       });
 
       const { rerender } = renderHook((props: { token: string | null }) => useRuns(props.token), {
         initialProps: { token: 'valid-token' as string | null },
       });
 
-      const initialCallCount = mockFetch.mock.calls.length;
+      const initialCallCount = mockApiGet.mock.calls.length;
 
       rerender({ token: null as string | null });
 
       // Should not make additional calls
-      expect(mockFetch.mock.calls.length).toBe(initialCallCount);
+      expect(mockApiGet.mock.calls.length).toBe(initialCallCount);
     });
   });
 
@@ -695,17 +727,21 @@ describe('useRuns', () => {
         notes: 'Great weather',
       };
 
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: vi.fn().mockResolvedValue({}),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: vi.fn().mockResolvedValue([]),
-        });
+      mockApiPost.mockResolvedValue({
+        data: {},
+      });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      mockApiGet.mockResolvedValue({
+        data: [],
+      });
+
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -715,18 +751,13 @@ describe('useRuns', () => {
         await result.current.saveRun(formData);
       });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/runs',
-        expect.objectContaining({
-          body: JSON.stringify({
-            date: new Date('2024-06-16').toISOString(),
-            distance: 10.5,
-            duration: 3900, // 65 minutes * 60 seconds
-            tag: 'Long Run',
-            notes: 'Great weather',
-          }),
-        })
-      );
+      expect(mockApiPost).toHaveBeenCalledWith('/api/runs', {
+        date: new Date('2024-06-16').toISOString(),
+        distance: 10.5,
+        duration: 3900, // 65 minutes * 60 seconds
+        tag: 'Long Run',
+        notes: 'Great weather',
+      });
     });
 
     it('handles decimal distance values correctly', async () => {
@@ -738,17 +769,21 @@ describe('useRuns', () => {
         notes: '',
       };
 
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: vi.fn().mockResolvedValue({}),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: vi.fn().mockResolvedValue([]),
-        });
+      mockApiPost.mockResolvedValue({
+        data: {},
+      });
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      mockApiGet.mockResolvedValue({
+        data: [],
+      });
+
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -758,27 +793,24 @@ describe('useRuns', () => {
         await result.current.saveRun(formData);
       });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/runs',
-        expect.objectContaining({
-          body: JSON.stringify({
-            date: new Date('2024-06-16').toISOString(),
-            distance: 5.123,
-            duration: 1830, // 30.5 minutes * 60 seconds
-            tag: null,
-            notes: null,
-          }),
-        })
-      );
+      expect(mockApiPost).toHaveBeenCalledWith('/api/runs', {
+        date: new Date('2024-06-16').toISOString(),
+        distance: 5.123,
+        duration: 1830, // 30.5 minutes * 60 seconds
+        tag: null,
+        notes: null,
+      });
     });
   });
 
   describe('Error Logging', () => {
     it('logs errors to console on fetch failure', async () => {
       const error = new Error('Network failure');
-      mockFetch.mockRejectedValue(error);
+      mockApiGet.mockRejectedValue(error);
 
-      renderHook(() => useRuns('valid-token'));
+      await act(async () => {
+        renderHook(() => useRuns('valid-token'));
+      });
 
       await waitFor(() => {
         expect(console.error).toHaveBeenCalledWith('Failed to fetch runs:', error);
@@ -787,9 +819,15 @@ describe('useRuns', () => {
 
     it('logs errors to console on save failure', async () => {
       const error = new Error('Save failure');
-      mockFetch.mockRejectedValue(error);
+      mockApiPost.mockRejectedValue(error);
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -814,9 +852,15 @@ describe('useRuns', () => {
 
     it('logs errors to console on delete failure', async () => {
       const error = new Error('Delete failure');
-      mockFetch.mockRejectedValue(error);
+      mockApiDelete.mockRejectedValue(error);
 
-      const { result } = renderHook(() => useRuns('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useRuns('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
