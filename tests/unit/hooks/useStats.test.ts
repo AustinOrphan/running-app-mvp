@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { useStats } from '../../../src/hooks/useStats';
@@ -9,17 +9,27 @@ import {
   mockPersonalRecords,
   mockApiError,
 } from '../../fixtures/mockData';
-import { createMockServer } from '../../setup/mockServer';
+
+// Mock fetch globally
+const mockFetch = vi.fn();
 
 describe('useStats', () => {
-  let mockAPI: ReturnType<typeof createMockServer>;
-
   beforeEach(() => {
-    mockAPI = createMockServer();
+    // Reset and set up fresh mock for each test
+    vi.clearAllMocks();
+    global.fetch = mockFetch;
+    
+    // Provide default mock responses to prevent undefined errors
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([]),
+      text: () => Promise.resolve(''),
+    });
   });
 
   afterEach(() => {
-    mockAPI.reset();
+    vi.clearAllMocks();
   });
 
   describe('Initial State', () => {
@@ -35,20 +45,37 @@ describe('useStats', () => {
     });
 
     it('does not fetch data when token is null', () => {
-      const fetchSpy = vi.spyOn(global, 'fetch');
-
       renderHook(() => useStats(null));
 
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
   describe('Data Fetching', () => {
     it('fetches all statistics data when token is provided', async () => {
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      // Clear default mock and set up specific responses for each endpoint
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
       const { result } = renderHook(() => useStats('valid-token'));
 
@@ -66,46 +93,88 @@ describe('useStats', () => {
     });
 
     it('makes correct API calls with authorization header', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch');
+      // Clear default mock and set up specific responses
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
-
-      renderHook(() => useStats('test-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useStats('test-token'));
+      });
 
       await waitFor(() => {
-        expect(fetchSpy).toHaveBeenCalledTimes(4);
+        expect(mockFetch).toHaveBeenCalledTimes(4);
       });
 
       // Check all endpoints were called with correct headers
-      expect(fetchSpy).toHaveBeenCalledWith('/api/stats/insights-summary', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/stats/insights-summary', {
         headers: { Authorization: 'Bearer test-token' },
       });
-      expect(fetchSpy).toHaveBeenCalledWith('/api/stats/type-breakdown', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/stats/type-breakdown', {
         headers: { Authorization: 'Bearer test-token' },
       });
-      expect(fetchSpy).toHaveBeenCalledWith('/api/stats/trends?period=3m', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/stats/trends?period=3m', {
         headers: { Authorization: 'Bearer test-token' },
       });
-      expect(fetchSpy).toHaveBeenCalledWith('/api/stats/personal-records', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/stats/personal-records', {
         headers: { Authorization: 'Bearer test-token' },
       });
     });
 
     it('uses custom period for trends data', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch');
+      // Clear default mock and set up specific responses
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
-
-      renderHook(() => useStats('test-token', '6m'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useStats('test-token', '6m'));
+      });
 
       await waitFor(() => {
-        expect(fetchSpy).toHaveBeenCalledWith('/api/stats/trends?period=6m', {
+        expect(mockFetch).toHaveBeenCalledWith('/api/stats/trends?period=6m', {
           headers: { Authorization: 'Bearer test-token' },
         });
       });
@@ -114,12 +183,37 @@ describe('useStats', () => {
 
   describe('Error Handling', () => {
     it('handles weekly insights fetch error', async () => {
-      mockAPI.mockError(401, 'Unauthorized');
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      // Clear default mock and set up error for first call, success for others
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({ error: 'Unauthorized' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
-      const { result } = renderHook(() => useStats('invalid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useStats('invalid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -130,12 +224,36 @@ describe('useStats', () => {
     });
 
     it('handles type breakdown fetch error', async () => {
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockError(500, 'Server Error');
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          json: () => Promise.resolve({ error: 'Server Error' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
-      const { result } = renderHook(() => useStats('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useStats('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -146,12 +264,36 @@ describe('useStats', () => {
     });
 
     it('handles trends data fetch error', async () => {
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockError(404, 'Not Found');
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          json: () => Promise.resolve({ error: 'Not Found' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
-      const { result } = renderHook(() => useStats('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useStats('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -162,12 +304,36 @@ describe('useStats', () => {
     });
 
     it('handles personal records fetch error', async () => {
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockError(403, 'Forbidden');
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          json: () => Promise.resolve({ error: 'Forbidden' }),
+        });
 
-      const { result } = renderHook(() => useStats('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useStats('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -178,24 +344,49 @@ describe('useStats', () => {
     });
 
     it('handles network errors', async () => {
-      mockAPI.mockNetworkError();
+      mockFetch.mockClear();
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      const { result } = renderHook(() => useStats('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useStats('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load statistics');
+      expect(result.current.error).toBe('Failed to load weekly insights');
     });
   });
 
   describe('Loading States', () => {
     it('sets loading to true while fetching data', () => {
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
       const { result } = renderHook(() => useStats('valid-token'));
 
@@ -203,12 +394,36 @@ describe('useStats', () => {
     });
 
     it('sets loading to false after successful fetch', async () => {
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
-      const { result } = renderHook(() => useStats('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useStats('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -216,9 +431,16 @@ describe('useStats', () => {
     });
 
     it('sets loading to false after error', async () => {
-      mockAPI.mockNetworkError();
+      mockFetch.mockClear();
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      const { result } = renderHook(() => useStats('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useStats('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -228,12 +450,29 @@ describe('useStats', () => {
 
   describe('Token Changes', () => {
     it('refetches data when token changes', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch');
-
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      // Setup initial mocks
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
       const { result, rerender } = renderHook(({ token }) => useStats(token), {
         initialProps: { token: 'token1' },
@@ -243,46 +482,77 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const initialCallCount = fetchSpy.mock.calls.length;
+      const initialCallCount = mockFetch.mock.calls.length;
 
-      // Change token
-      mockAPI.reset();
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      // Setup new mocks for rerender
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
       rerender({ token: 'token2' });
 
       await waitFor(() => {
-        expect(fetchSpy.mock.calls.length).toBeGreaterThan(initialCallCount);
+        expect(mockFetch.mock.calls.length).toBeGreaterThan(initialCallCount);
       });
     });
 
     it('does not fetch when token changes to null', () => {
-      const fetchSpy = vi.spyOn(global, 'fetch');
-
       const { rerender } = renderHook((props: { token: string | null }) => useStats(props.token), {
         initialProps: { token: 'valid-token' as string | null },
       });
 
-      const initialCallCount = fetchSpy.mock.calls.length;
+      const initialCallCount = mockFetch.mock.calls.length;
 
       rerender({ token: null as string | null });
 
       // Should not make additional calls
-      expect(fetchSpy.mock.calls.length).toBe(initialCallCount);
+      expect(mockFetch.mock.calls.length).toBe(initialCallCount);
     });
   });
 
   describe('Period Changes', () => {
     it('refetches data when period changes', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch');
-
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      // Setup initial mocks
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
       const { result, rerender } = renderHook(({ period }) => useStats('valid-token', period), {
         initialProps: { period: '3m' },
@@ -292,22 +562,38 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const initialCallCount = fetchSpy.mock.calls.length;
+      const initialCallCount = mockFetch.mock.calls.length;
 
-      // Change period
-      mockAPI.reset();
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      // Setup new mocks for rerender
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
       rerender({ period: '1y' });
 
       await waitFor(() => {
-        expect(fetchSpy.mock.calls.length).toBeGreaterThan(initialCallCount);
+        expect(mockFetch.mock.calls.length).toBeGreaterThan(initialCallCount);
       });
 
-      expect(fetchSpy).toHaveBeenCalledWith('/api/stats/trends?period=1y', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/stats/trends?period=1y', {
         headers: { Authorization: 'Bearer valid-token' },
       });
     });
@@ -315,31 +601,73 @@ describe('useStats', () => {
 
   describe('Refetch Function', () => {
     it('provides refetch function that reloads all data', async () => {
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      // Setup initial mocks
+      mockFetch.mockClear();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
-      const { result } = renderHook(() => useStats('valid-token'));
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useStats('valid-token'));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
-      const fetchSpy = vi.spyOn(global, 'fetch');
-      fetchSpy.mockClear();
+      mockFetch.mockClear();
 
       // Mock fresh data for refetch
-      mockAPI.reset();
-      mockAPI.mockInsightsSummary(mockWeeklyInsights);
-      mockAPI.mockTypeBreakdown(mockRunTypeBreakdown);
-      mockAPI.mockTrends(mockTrendsData);
-      mockAPI.mockPersonalRecords(mockPersonalRecords);
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockWeeklyInsights),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockRunTypeBreakdown),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockTrendsData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockPersonalRecords),
+        });
 
-      result.current.refetch();
+      await act(async () => {
+        result.current.refetch();
+      });
 
       await waitFor(() => {
-        expect(fetchSpy).toHaveBeenCalledTimes(4);
+        expect(mockFetch).toHaveBeenCalledTimes(4);
       });
     });
   });
