@@ -5,10 +5,21 @@ import jwt from 'jsonwebtoken';
 
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createError } from '../middleware/errorHandler.js';
-import { validateBody } from '../middleware/validateBody.js';
+import { validateRegister, validateLogin, sanitizeInput, securityHeaders } from '../middleware/validation.js';
+import { authRateLimit } from '../middleware/rateLimiting.js';
+import { logUserAction, logError } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Apply security headers to all auth routes
+router.use(securityHeaders);
+
+// Apply rate limiting to all auth routes
+router.use(authRateLimit);
+
+// Apply input sanitization to all auth routes
+router.use(sanitizeInput);
 
 // Test endpoint to verify auth route is working
 router.get('/test', (req, res) => {
@@ -18,10 +29,7 @@ router.get('/test', (req, res) => {
 // POST /api/auth/register - User registration
 router.post(
   '/register',
-  validateBody([
-    { field: 'email', required: true, type: 'string' },
-    { field: 'password', required: true, type: 'string', min: 6 },
-  ]),
+  validateRegister,
   asyncHandler(async (req, res, next) => {
     const { email, password } = req.body;
 
@@ -44,6 +52,8 @@ router.post(
         password: hashedPassword,
       },
     });
+
+    logUserAction('User registration', req, { email });
 
     // Generate JWT
     if (!process.env.JWT_SECRET) {
@@ -68,10 +78,7 @@ router.post(
 // POST /api/auth/login - User login
 router.post(
   '/login',
-  validateBody([
-    { field: 'email', required: true, type: 'string' },
-    { field: 'password', required: true, type: 'string' },
-  ]),
+  validateLogin,
   asyncHandler(async (req, res, next) => {
     const { email, password } = req.body;
 
@@ -89,6 +96,8 @@ router.post(
     if (!isValidPassword) {
       return next(createError('Invalid credentials', 401));
     }
+
+    logUserAction('User login', req, { email });
 
     // Generate JWT
     if (!process.env.JWT_SECRET) {
