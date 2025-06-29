@@ -42,7 +42,11 @@ const generateKey = (req: Request): string => {
 /**
  * Factory function to create rate limit configurations with common options
  */
-function createRateLimitConfig(options: { windowMs: number; max: number; message: string }) {
+function createRateLimitConfig(options: {
+  windowMs: number;
+  max: number;
+  message: string;
+}) {
   return rateLimit({
     windowMs: options.windowMs,
     max: options.max,
