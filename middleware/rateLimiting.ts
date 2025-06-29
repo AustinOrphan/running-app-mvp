@@ -8,7 +8,7 @@ import { logError, logInfo } from '../utils/secureLogger.js';
  */
 
 // Custom error handler for rate limit violations
-const rateLimitErrorHandler = (req: Request, res: Response) => {
+const rateLimitErrorHandler = (req: Request, res: Response, next: any, options: any) => {
   logInfo('Rate limit exceeded', req, {
     ip: req.ip,
     userAgent: req.get('User-Agent'),
@@ -16,9 +16,12 @@ const rateLimitErrorHandler = (req: Request, res: Response) => {
     method: req.method,
   });
 
-  res.status(429).json({
-    message: 'Too many requests from this IP, please try again later',
-    status: 429,
+  const statusCode = options.statusCode || 429;
+  const message = options.message || 'Too many requests from this IP, please try again later';
+
+  res.status(statusCode).json({
+    message: typeof message === 'string' ? message : message.message,
+    status: statusCode,
     retryAfter: res.get('Retry-After'),
   });
 };
@@ -37,124 +40,89 @@ const generateKey = (req: Request): string => {
 };
 
 /**
+ * Factory function to create rate limit configurations with common options
+ */
+function createRateLimitConfig(options: {
+  windowMs: number;
+  max: number;
+  message: string;
+}) {
+  return rateLimit({
+    windowMs: options.windowMs,
+    max: options.max,
+    message: {
+      message: options.message,
+      status: 429,
+    },
+    statusCode: 429,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: generateKey,
+    handler: rateLimitErrorHandler,
+    skip: (req: Request) => {
+      return process.env.NODE_ENV === 'test';
+    },
+  });
+}
+
+/**
  * Strict rate limiting for authentication endpoints
  * 5 requests per 15 minutes to prevent brute force attacks
  */
-export const authRateLimit = rateLimit({
+export const authRateLimit = createRateLimitConfig({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
-  message: {
-    message: 'Too many authentication attempts from this IP, please try again after 15 minutes',
-    status: 429,
-  },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  keyGenerator: generateKey,
-  handler: rateLimitErrorHandler,
-  skip: (req: Request) => {
-    // Skip rate limiting in test environment
-    return process.env.NODE_ENV === 'test';
-  },
+  max: 5,
+  message: 'Too many authentication attempts from this IP, please try again after 15 minutes'
 });
 
 /**
  * Standard rate limiting for general API endpoints
  * 100 requests per 15 minutes for normal operations
  */
-export const apiRateLimit = rateLimit({
+export const apiRateLimit = createRateLimitConfig({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: {
-    message: 'Too many requests from this IP, please try again later',
-    status: 429,
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: generateKey,
-  handler: rateLimitErrorHandler,
-  skip: (req: Request) => {
-    return process.env.NODE_ENV === 'test';
-  },
+  max: 100,
+  message: 'Too many requests from this IP, please try again later'
 });
 
 /**
  * Moderate rate limiting for data creation endpoints
  * 50 requests per 15 minutes for create operations
  */
-export const createRateLimit = rateLimit({
+export const createRateLimit = createRateLimitConfig({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50, // limit each IP to 50 requests per windowMs
-  message: {
-    message: 'Too many creation requests from this IP, please try again later',
-    status: 429,
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: generateKey,
-  handler: rateLimitErrorHandler,
-  skip: (req: Request) => {
-    return process.env.NODE_ENV === 'test';
-  },
+  max: 50,
+  message: 'Too many creation requests from this IP, please try again later'
 });
 
 /**
  * Relaxed rate limiting for read-only endpoints
  * 200 requests per 15 minutes for data retrieval
  */
-export const readRateLimit = rateLimit({
+export const readRateLimit = createRateLimitConfig({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // limit each IP to 200 requests per windowMs
-  message: {
-    message: 'Too many requests from this IP, please try again later',
-    status: 429,
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: generateKey,
-  handler: rateLimitErrorHandler,
-  skip: (req: Request) => {
-    return process.env.NODE_ENV === 'test';
-  },
+  max: 200,
+  message: 'Too many requests from this IP, please try again later'
 });
 
 /**
  * Strict rate limiting for password reset and sensitive operations
  * 3 requests per hour to prevent abuse
  */
-export const sensitiveRateLimit = rateLimit({
+export const sensitiveRateLimit = createRateLimitConfig({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // limit each IP to 3 requests per hour
-  message: {
-    message: 'Too many sensitive operation attempts from this IP, please try again after 1 hour',
-    status: 429,
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: generateKey,
-  handler: rateLimitErrorHandler,
-  skip: (req: Request) => {
-    return process.env.NODE_ENV === 'test';
-  },
+  max: 3,
+  message: 'Too many sensitive operation attempts from this IP, please try again after 1 hour'
 });
 
 /**
  * Global rate limiting for all endpoints
  * 1000 requests per hour as a safety net
  */
-export const globalRateLimit = rateLimit({
+export const globalRateLimit = createRateLimitConfig({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 1000, // limit each IP to 1000 requests per hour
-  message: {
-    message: 'Global rate limit exceeded, please try again later',
-    status: 429,
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: generateKey,
-  handler: rateLimitErrorHandler,
-  skip: (req: Request) => {
-    return process.env.NODE_ENV === 'test';
-  },
+  max: 1000,
+  message: 'Global rate limit exceeded, please try again later'
 });
 
 /**

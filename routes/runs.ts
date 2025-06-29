@@ -4,15 +4,12 @@ import express from 'express';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
 import { createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
-import { validateCreateRun, validateUpdateRun, validateIdParam, sanitizeInput, securityHeaders } from '../middleware/validation.js';
+import { validateCreateRun, validateUpdateRun, validateIdParam, sanitizeInput } from '../middleware/validation.js';
 import { createRateLimit, readRateLimit, apiRateLimit } from '../middleware/rateLimiting.js';
 import { logUserAction, logError } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
-
-// Apply security headers to all runs routes
-router.use(securityHeaders);
 
 // Apply input sanitization to all runs routes
 router.use(sanitizeInput);

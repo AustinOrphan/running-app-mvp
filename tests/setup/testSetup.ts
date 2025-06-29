@@ -31,8 +31,13 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   disconnect: vi.fn(),
 }));
 
-// Mock fetch globally
-global.fetch = vi.fn();
+// Mock fetch globally with default safe response
+global.fetch = vi.fn().mockResolvedValue({
+  ok: true,
+  status: 200,
+  json: () => Promise.resolve([]),
+  text: () => Promise.resolve(''),
+}) as any;
 
 // Mock scrollTo
 global.scrollTo = vi.fn();
