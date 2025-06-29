@@ -1,5 +1,5 @@
 import rateLimit from 'express-rate-limit';
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { logInfo } from '../utils/secureLogger.js';
 
 /**
@@ -8,7 +8,7 @@ import { logInfo } from '../utils/secureLogger.js';
  */
 
 // Custom error handler for rate limit violations
-const rateLimitErrorHandler = (req: Request, res: Response, _next: unknown, options: { statusCode?: number; message?: string | { message: string } }) => {
+const rateLimitErrorHandler = (req: Request, res: Response, _next: NextFunction, options: { statusCode?: number; message?: string | { message: string } }) => {
   logInfo('Rate limit exceeded', req, {
     ip: req.ip,
     userAgent: req.get('User-Agent'),

@@ -229,7 +229,13 @@ describe('useGoals', () => {
       // Mock progress fetch failure
       mockFetch.mockRejectedValueOnce(new Error('Progress fetch failed'));
 
-      const { result } = renderHook(() => useGoals(mockToken));
+      let hookResult: any;
+
+      await act(async () => {
+        hookResult = renderHook(() => useGoals(mockToken));
+      });
+
+      const { result } = hookResult!;
 
       await waitFor(() => {
         expect(result.current.goals.length).toBe(mockGoals.length);
@@ -516,104 +522,50 @@ describe('useGoals', () => {
     });
 
     it('correctly identifies newlyAchievedGoals', async () => {
-      // Setup mock with goals and progress indicating achievement
+      // This test checks the detection of goals that have progress marked as complete
+      // but the goal itself is not yet marked as complete
       const achievedProgress = createMockGoalProgress({
         goalId: 'goal-1',
         isCompleted: true,
         progressPercentage: 100,
       });
 
-      // Clear the default mock first
+      // Use a simple approach: disable auto-completion by mocking the complete endpoint to fail
       mockFetch.mockClear();
+      mockFetch.mockReset();
 
-      // Set up implementation to handle multiple calls
-      const testGoals = [
-        {
-          id: 'goal-1',
-          title: 'Run 50km this month',
-          description: 'Build up weekly mileage for half marathon training',
-          type: 'DISTANCE',
-          targetValue: 50,
-          targetUnit: 'km',
-          currentValue: 32.5,
-          period: 'MONTHLY',
-          startDate: '2024-06-01T00:00:00.000Z',
-          endDate: '2024-06-30T23:59:59.999Z',
-          isCompleted: false,
-          isActive: true,
-          completedAt: null,
-          color: '#3b82f6',
-          icon: '🏃‍♂️',
-          userId: 'user-123',
-          createdAt: '2024-06-01T00:00:00Z',
-          updatedAt: '2024-06-15T12:00:00Z',
-        },
-      ];
-
-      mockFetch.mockImplementation(url => {
-        if (url === '/api/goals') {
-          return Promise.resolve({
-            ok: true,
-            status: 200,
-            json: async () => testGoals,
-          });
-        }
-        if (url === '/api/goals/progress/all') {
-          return Promise.resolve({
-            ok: true,
-            status: 200,
-            json: async () => [achievedProgress],
-          });
-        }
-        // Default response for any other calls
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => [],
-        });
+      // Mock goals fetch
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [mockGoals[0]], // Use existing mock goal which is not completed
       });
 
-      let hookResult: any;
-
-      await act(async () => {
-        hookResult = renderHook(() => useGoals(mockToken));
+      // Mock progress fetch
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [achievedProgress],
       });
 
-      const { result } = hookResult!;
+      // Mock complete endpoint to throw error (simulating auto-completion failure)
+      mockFetch.mockRejectedValue(new Error('Auto-completion failed'));
 
-      // First wait for goals to be loaded
+      const { result } = renderHook(() => useGoals(mockToken));
+
+      // Wait for goals to load
       await waitFor(() => {
         expect(result.current.goals.length).toBe(1);
       });
 
-      // Then wait for progress to be loaded (triggered by goals being loaded)
-      await waitFor(
-        () => {
-          expect(result.current.goalProgress.length).toBe(1);
-        },
-        { timeout: 3000 }
-      );
+      // Wait for progress to load
+      await waitFor(() => {
+        expect(result.current.goalProgress.length).toBe(1);
+      });
 
-      // Debug the current state
-      console.log(
-        'Goals:',
-        result.current.goals.map((g: { id: string; isCompleted: boolean }) => ({ id: g.id, isCompleted: g.isCompleted }))
-      );
-      console.log(
-        'Goal Progress:',
-        result.current.goalProgress.map((p: { goalId: string; isCompleted: boolean }) => ({ goalId: p.goalId, isCompleted: p.isCompleted }))
-      );
-      console.log(
-        'Active Goals:',
-        result.current.activeGoals.map((g: { id: string }) => g.id)
-      );
-      console.log(
-        'Newly Achieved Goals:',
-        result.current.newlyAchievedGoals.map((g: { id: string }) => g.id)
-      );
+      // Wait a bit for auto-completion attempt to fail and state to settle
+      await waitFor(() => {
+        expect(result.current.newlyAchievedGoals).toHaveLength(1);
+      }, { timeout: 3000 });
 
-      // Should detect the achieved goal
-      expect(result.current.newlyAchievedGoals).toHaveLength(1);
       expect(result.current.newlyAchievedGoals[0]?.id).toBe('goal-1');
     });
   });
