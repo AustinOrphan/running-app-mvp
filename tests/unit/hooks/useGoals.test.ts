@@ -526,29 +526,76 @@ describe('useGoals', () => {
       // Clear the default mock first
       mockFetch.mockClear();
 
-      // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGoals,
+      // Set up implementation to handle multiple calls
+      const testGoals = [
+        {
+          id: 'goal-1',
+          title: 'Run 50km this month',
+          description: 'Build up weekly mileage for half marathon training',
+          type: 'DISTANCE',
+          targetValue: 50,
+          targetUnit: 'km',
+          currentValue: 32.5,
+          period: 'MONTHLY',
+          startDate: '2024-06-01T00:00:00.000Z',
+          endDate: '2024-06-30T23:59:59.999Z',
+          isCompleted: false,
+          isActive: true,
+          completedAt: null,
+          color: '#3b82f6',
+          icon: '🏃‍♂️',
+          userId: 'user-123',
+          createdAt: '2024-06-01T00:00:00Z',
+          updatedAt: '2024-06-15T12:00:00Z',
+        }
+      ];
+
+      mockFetch.mockImplementation((url) => {
+        if (url === '/api/goals') {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => testGoals,
+          });
+        }
+        if (url === '/api/goals/progress/all') {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => [achievedProgress],
+          });
+        }
+        // Default response for any other calls
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => [],
+        });
       });
 
-      // Mock progress fetch with achieved progress (this will be called after goals are loaded)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [achievedProgress],
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook(() => useGoals(mockToken));
       });
 
-      const { result } = renderHook(() => useGoals(mockToken));
+      const { result } = hookResult!;
 
       // First wait for goals to be loaded
       await waitFor(() => {
-        expect(result.current.goals.length).toBe(mockGoals.length);
+        expect(result.current.goals.length).toBe(1);
       });
 
       // Then wait for progress to be loaded (triggered by goals being loaded)
       await waitFor(() => {
         expect(result.current.goalProgress.length).toBe(1);
       }, { timeout: 3000 });
+
+      // Debug the current state
+      console.log('Goals:', result.current.goals.map(g => ({ id: g.id, isCompleted: g.isCompleted })));
+      console.log('Goal Progress:', result.current.goalProgress.map(p => ({ goalId: p.goalId, isCompleted: p.isCompleted })));
+      console.log('Active Goals:', result.current.activeGoals.map(g => g.id));
+      console.log('Newly Achieved Goals:', result.current.newlyAchievedGoals.map(g => g.id));
 
       // Should detect the achieved goal
       expect(result.current.newlyAchievedGoals).toHaveLength(1);

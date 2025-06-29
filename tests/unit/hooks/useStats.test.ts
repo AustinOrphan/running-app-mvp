@@ -514,14 +514,22 @@ describe('useStats', () => {
       });
     });
 
-    it('does not fetch when token changes to null', () => {
-      const { rerender } = renderHook((props: { token: string | null }) => useStats(props.token), {
-        initialProps: { token: 'valid-token' as string | null },
+    it('does not fetch when token changes to null', async () => {
+      let hookResult: any;
+      
+      await act(async () => {
+        hookResult = renderHook((props: { token: string | null }) => useStats(props.token), {
+          initialProps: { token: 'valid-token' as string | null },
+        });
       });
+
+      const { rerender } = hookResult!;
 
       const initialCallCount = mockFetch.mock.calls.length;
 
-      rerender({ token: null as string | null });
+      await act(async () => {
+        rerender({ token: null as string | null });
+      });
 
       // Should not make additional calls
       expect(mockFetch.mock.calls.length).toBe(initialCallCount);
