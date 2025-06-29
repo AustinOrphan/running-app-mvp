@@ -18,7 +18,7 @@ describe('useStats', () => {
     // Reset and set up fresh mock for each test
     vi.clearAllMocks();
     global.fetch = mockFetch;
-    
+
     // Provide default mock responses to prevent undefined errors
     mockFetch.mockResolvedValue({
       ok: true,
@@ -118,7 +118,7 @@ describe('useStats', () => {
         });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useStats('test-token'));
       });
@@ -168,7 +168,7 @@ describe('useStats', () => {
         });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useStats('test-token', '6m'));
       });
@@ -208,7 +208,7 @@ describe('useStats', () => {
         });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useStats('invalid-token'));
       });
@@ -248,7 +248,7 @@ describe('useStats', () => {
         });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useStats('valid-token'));
       });
@@ -288,7 +288,7 @@ describe('useStats', () => {
         });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useStats('valid-token'));
       });
@@ -328,7 +328,7 @@ describe('useStats', () => {
         });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useStats('valid-token'));
       });
@@ -348,7 +348,7 @@ describe('useStats', () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useStats('valid-token'));
       });
@@ -418,7 +418,7 @@ describe('useStats', () => {
         });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useStats('valid-token'));
       });
@@ -435,7 +435,7 @@ describe('useStats', () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useStats('valid-token'));
       });
@@ -516,7 +516,7 @@ describe('useStats', () => {
 
     it('does not fetch when token changes to null', async () => {
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook((props: { token: string | null }) => useStats(props.token), {
           initialProps: { token: 'valid-token' as string | null },
@@ -634,7 +634,7 @@ describe('useStats', () => {
         });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useStats('valid-token'));
       });

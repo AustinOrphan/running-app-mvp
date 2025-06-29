@@ -309,7 +309,20 @@ router.get(
 );
 
 // Helper function to calculate current progress for a goal
-async function calculateGoalProgress(goal: any, userId: string): Promise<number> {
+async function calculateGoalProgress(goal: {
+  id: string;
+  type: string;
+  title: string;
+  description?: string | null;
+  targetValue: number;
+  targetUnit: string;
+  startDate: Date;
+  endDate: Date;
+  isCompleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  userId: string;
+}, userId: string): Promise<number> {
   const runs = await prisma.run.findMany({
     where: {
       userId,

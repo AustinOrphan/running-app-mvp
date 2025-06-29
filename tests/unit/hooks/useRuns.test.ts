@@ -9,25 +9,32 @@ vi.mock('../../../src/utils/formatters', () => ({
   calculatePace: vi.fn((distance: number, duration: number) => duration / distance),
 }));
 
+// Mock ApiError class
+class MockApiError extends Error {
+  status?: number;
+  response?: Response;
+  data?: unknown;
+  
+  constructor(message: string, status?: number, response?: Response, data?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.response = response;
+    this.data = data;
+  }
+}
+
 // Mock the apiFetch utilities
 vi.mock('../../../utils/apiFetch', () => ({
   apiGet: vi.fn(),
   apiPost: vi.fn(),
   apiPut: vi.fn(),
   apiDelete: vi.fn(),
-  ApiError: class ApiError extends Error {
-    constructor(message: string, status?: number, response?: Response, data?: any) {
-      super(message);
-      this.name = 'ApiError';
-      this.status = status;
-      this.response = response;
-      this.data = data;
-    }
-  },
+  ApiError: MockApiError,
 }));
 
 // Import the mocked functions
-import { apiGet, apiPost, apiPut, apiDelete, ApiError } from '../../../utils/apiFetch';
+import { apiGet, apiPost, apiPut, apiDelete } from '../../../utils/apiFetch';
 
 const mockRuns: Run[] = [
   {
@@ -99,7 +106,7 @@ describe('useRuns', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -128,7 +135,7 @@ describe('useRuns', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -149,7 +156,7 @@ describe('useRuns', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -164,11 +171,11 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses', async () => {
-      const error = new ApiError('Failed to fetch runs', 401);
+      const error = new MockApiError('Failed to fetch runs', 401);
       mockApiGet.mockRejectedValue(error);
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('invalid-token'));
       });
@@ -188,7 +195,7 @@ describe('useRuns', () => {
       mockApiGet.mockRejectedValue(error);
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -210,7 +217,7 @@ describe('useRuns', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -305,7 +312,7 @@ describe('useRuns', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -356,7 +363,7 @@ describe('useRuns', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -403,7 +410,7 @@ describe('useRuns', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -438,11 +445,13 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses', async () => {
-      const error = new ApiError('Validation error', 400, undefined, { message: 'Validation error' });
+      const error = new MockApiError('Validation error', 400, undefined, {
+        message: 'Validation error',
+      });
       mockApiPost.mockRejectedValue(error);
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -463,11 +472,11 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses without message', async () => {
-      const error = new ApiError('Bad request', 400);
+      const error = new MockApiError('Bad request', 400);
       mockApiPost.mockRejectedValue(error);
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -485,7 +494,7 @@ describe('useRuns', () => {
       }).rejects.toThrow('Bad request');
 
       // Test for edit case - set up PUT mock to fail
-      const putError = new ApiError('Bad request', 400);
+      const putError = new MockApiError('Bad request', 400);
       mockApiPut.mockRejectedValue(putError);
 
       await expect(async () => {
@@ -500,7 +509,7 @@ describe('useRuns', () => {
       mockApiPost.mockRejectedValue(error);
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -529,7 +538,7 @@ describe('useRuns', () => {
       mockApiPost.mockImplementation(() => mockPromise);
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -571,7 +580,7 @@ describe('useRuns', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -603,11 +612,11 @@ describe('useRuns', () => {
     });
 
     it('handles API error responses', async () => {
-      const error = new ApiError('Not found', 404);
+      const error = new MockApiError('Not found', 404);
       mockApiDelete.mockRejectedValue(error);
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -630,7 +639,7 @@ describe('useRuns', () => {
       mockApiDelete.mockRejectedValue(error);
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -736,7 +745,7 @@ describe('useRuns', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -778,7 +787,7 @@ describe('useRuns', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -822,7 +831,7 @@ describe('useRuns', () => {
       mockApiPost.mockRejectedValue(error);
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });
@@ -855,7 +864,7 @@ describe('useRuns', () => {
       mockApiDelete.mockRejectedValue(error);
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useRuns('valid-token'));
       });

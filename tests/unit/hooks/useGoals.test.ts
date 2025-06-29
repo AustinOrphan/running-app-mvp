@@ -34,7 +34,7 @@ describe('useGoals', () => {
     // Reset and set up fresh mock for each test
     vi.clearAllMocks();
     global.fetch = mockFetch;
-    
+
     // Provide default mock responses to prevent undefined errors
     mockFetch.mockResolvedValue({
       ok: true,
@@ -42,9 +42,9 @@ describe('useGoals', () => {
       json: () => Promise.resolve([]),
       text: () => Promise.resolve(''),
     });
-    
+
     // Also ensure progress endpoint returns empty array by default
-    mockFetch.mockImplementation((url) => {
+    mockFetch.mockImplementation(url => {
       return Promise.resolve({
         ok: true,
         status: 200,
@@ -61,12 +61,12 @@ describe('useGoals', () => {
   describe('Initial State', () => {
     it('starts with expected default values', async () => {
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useGoals(mockToken));
       });
 
-      const { result } = hookResult!
+      const { result } = hookResult!;
 
       // Initial state before any async operations complete
       expect(result.current.goals).toEqual([]);
@@ -84,7 +84,7 @@ describe('useGoals', () => {
 
     it('does not fetch goals when token is null', async () => {
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useGoals(null));
       });
@@ -107,7 +107,7 @@ describe('useGoals', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useGoals(mockToken));
       });
@@ -137,7 +137,7 @@ describe('useGoals', () => {
       mockFetch.mockRejectedValueOnce(new Error(errorMessage));
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useGoals(mockToken));
       });
@@ -162,7 +162,7 @@ describe('useGoals', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useGoals(mockToken));
       });
@@ -180,7 +180,7 @@ describe('useGoals', () => {
   describe('refreshProgress', () => {
     it('successfully fetches goal progress', async () => {
       mockFetch.mockClear();
-      
+
       // Mock goals fetch
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -196,7 +196,7 @@ describe('useGoals', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useGoals(mockToken));
       });
@@ -547,10 +547,10 @@ describe('useGoals', () => {
           userId: 'user-123',
           createdAt: '2024-06-01T00:00:00Z',
           updatedAt: '2024-06-15T12:00:00Z',
-        }
+        },
       ];
 
-      mockFetch.mockImplementation((url) => {
+      mockFetch.mockImplementation(url => {
         if (url === '/api/goals') {
           return Promise.resolve({
             ok: true,
@@ -574,7 +574,7 @@ describe('useGoals', () => {
       });
 
       let hookResult: any;
-      
+
       await act(async () => {
         hookResult = renderHook(() => useGoals(mockToken));
       });
@@ -587,15 +587,30 @@ describe('useGoals', () => {
       });
 
       // Then wait for progress to be loaded (triggered by goals being loaded)
-      await waitFor(() => {
-        expect(result.current.goalProgress.length).toBe(1);
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(result.current.goalProgress.length).toBe(1);
+        },
+        { timeout: 3000 }
+      );
 
       // Debug the current state
-      console.log('Goals:', result.current.goals.map(g => ({ id: g.id, isCompleted: g.isCompleted })));
-      console.log('Goal Progress:', result.current.goalProgress.map(p => ({ goalId: p.goalId, isCompleted: p.isCompleted })));
-      console.log('Active Goals:', result.current.activeGoals.map(g => g.id));
-      console.log('Newly Achieved Goals:', result.current.newlyAchievedGoals.map(g => g.id));
+      console.log(
+        'Goals:',
+        result.current.goals.map((g: { id: string; isCompleted: boolean }) => ({ id: g.id, isCompleted: g.isCompleted }))
+      );
+      console.log(
+        'Goal Progress:',
+        result.current.goalProgress.map((p: { goalId: string; isCompleted: boolean }) => ({ goalId: p.goalId, isCompleted: p.isCompleted }))
+      );
+      console.log(
+        'Active Goals:',
+        result.current.activeGoals.map((g: { id: string }) => g.id)
+      );
+      console.log(
+        'Newly Achieved Goals:',
+        result.current.newlyAchievedGoals.map((g: { id: string }) => g.id)
+      );
 
       // Should detect the achieved goal
       expect(result.current.newlyAchievedGoals).toHaveLength(1);

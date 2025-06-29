@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import crypto from 'crypto';
 import { secureLogger } from '../utils/secureLogger.js';
 
 export interface AppError extends Error {
@@ -17,16 +16,11 @@ export const errorHandler = (
   const message = err.message || 'Internal Server Error';
 
   // Use secure logging with automatic data redaction and context
-  secureLogger.error(
-    'Express route error',
-    req,
-    err,
-    {
-      statusCode,
-      isOperational: err.isOperational || false,
-      errorType: err.constructor.name
-    }
-  );
+  secureLogger.error('Express route error', req, err, {
+    statusCode,
+    isOperational: err.isOperational || false,
+    errorType: err.constructor.name,
+  });
 
   res.status(statusCode).json({
     message,

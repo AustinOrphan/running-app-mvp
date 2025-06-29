@@ -4,7 +4,7 @@ import * as crypto from 'crypto';
 
 /**
  * Secure Logging Utility for Production Compliance
- * 
+ *
  * Implements secure logging patterns that comply with:
  * - GDPR Article 25 (Data Protection by Design)
  * - CCPA privacy requirements
@@ -16,7 +16,7 @@ export enum LogLevel {
   ERROR = 'ERROR',
   WARN = 'WARN',
   INFO = 'INFO',
-  DEBUG = 'DEBUG'
+  DEBUG = 'DEBUG',
 }
 
 export interface LogContext {
@@ -42,8 +42,17 @@ export interface SecureLogEntry {
  * Data redaction configuration for sensitive information
  */
 const SENSITIVE_FIELDS = [
-  'password', 'email', 'token', 'secret', 'key', 'authorization',
-  'ssn', 'creditcard', 'phone', 'address', 'name'
+  'password',
+  'email',
+  'token',
+  'secret',
+  'key',
+  'authorization',
+  'ssn',
+  'creditcard',
+  'phone',
+  'address',
+  'name',
 ];
 
 const PII_PATTERNS = [
@@ -54,13 +63,13 @@ const PII_PATTERNS = [
   // Phone number patterns
   /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g,
   // Social security patterns
-  /\b\d{3}-\d{2}-\d{4}\b/g
+  /\b\d{3}-\d{2}-\d{4}\b/g,
 ];
 
 class SecureLogger {
   private isDevelopment: boolean;
   private isProduction: boolean;
-  
+
   constructor() {
     this.isDevelopment = process.env.NODE_ENV === 'development';
     this.isProduction = process.env.NODE_ENV === 'production';
@@ -73,11 +82,11 @@ class SecureLogger {
     if (typeof data === 'string') {
       return this.redactString(data);
     }
-    
+
     if (Array.isArray(data)) {
       return data.map(item => this.redactSensitiveData(item));
     }
-    
+
     if (data && typeof data === 'object') {
       const redacted: any = {};
       for (const [key, value] of Object.entries(data)) {
@@ -89,7 +98,7 @@ class SecureLogger {
       }
       return redacted;
     }
-    
+
     return data;
   }
 
@@ -109,9 +118,7 @@ class SecureLogger {
    */
   private isSensitiveField(fieldName: string): boolean {
     const lowerField = fieldName.toLowerCase();
-    return SENSITIVE_FIELDS.some(sensitive => 
-      lowerField.includes(sensitive)
-    );
+    return SENSITIVE_FIELDS.some(sensitive => lowerField.includes(sensitive));
   }
 
   /**
@@ -121,12 +128,12 @@ class SecureLogger {
     if (value === null || value === undefined) {
       return String(value);
     }
-    
+
     const str = String(value);
     if (str.length <= 4) {
       return '[REDACTED]';
     }
-    
+
     // Show first 2 and last 2 characters for debugging context
     return `${str.substring(0, 2)}***${str.substring(str.length - 2)}`;
   }
@@ -138,12 +145,12 @@ class SecureLogger {
     if (req && (req as any).correlationId) {
       return (req as any).correlationId;
     }
-    
+
     const correlationId = uuidv4();
     if (req) {
       (req as any).correlationId = correlationId;
     }
-    
+
     return correlationId;
   }
 
@@ -154,7 +161,7 @@ class SecureLogger {
     if (!req) {
       return {
         timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'unknown'
+        environment: process.env.NODE_ENV || 'unknown',
       };
     }
 
@@ -165,7 +172,7 @@ class SecureLogger {
       method: req.method,
       url: this.redactSensitiveUrlParams(req.url),
       userAgent: req.get('User-Agent'),
-      ip: this.isProduction ? this.maskIpAddress(req.ip) : req.ip
+      ip: this.isProduction ? this.maskIpAddress(req.ip) : req.ip,
     };
 
     // Only include user context in development or with explicit consent
@@ -194,7 +201,7 @@ class SecureLogger {
    */
   private maskIpAddress(ip?: string): string {
     if (!ip) return '[UNKNOWN]';
-    
+
     // For IPv4, mask last octet
     if (ip.includes('.')) {
       const parts = ip.split('.');
@@ -202,7 +209,7 @@ class SecureLogger {
         return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
       }
     }
-    
+
     // For IPv6 or other formats, show only prefix
     return `${ip.substring(0, Math.min(ip.length, 8))}...`;
   }
@@ -212,14 +219,23 @@ class SecureLogger {
    */
   private hashUserId(userId: string): string {
     const salt = process.env.LOG_SALT || 'default-salt-for-dev-only';
-    const hash = crypto.createHash('sha256').update(userId + salt).digest('hex');
+    const hash = crypto
+      .createHash('sha256')
+      .update(userId + salt)
+      .digest('hex');
     return `user_${hash.substring(0, 16)}`;
   }
 
   /**
    * Main logging method with secure defaults
    */
-  private log(level: LogLevel, message: string, req?: Request, metadata?: Record<string, any>, error?: Error): void {
+  private log(
+    level: LogLevel,
+    message: string,
+    req?: Request,
+    metadata?: Record<string, any>,
+    error?: Error
+  ): void {
     // Skip debug logs in production
     if (this.isProduction && level === LogLevel.DEBUG) {
       return;
@@ -233,7 +249,7 @@ class SecureLogger {
       message,
       context,
       metadata: redactedMetadata,
-      ...(error && this.isDevelopment && { stack: error.stack })
+      ...(error && this.isDevelopment && { stack: error.stack }),
     };
 
     // Use appropriate console method based on level
@@ -289,10 +305,10 @@ class SecureLogger {
       this.info(`User action: ${action}`, req, metadata);
     } else {
       // In production, log actions without sensitive context
-      this.info(`Action: ${action}`, req, { 
-        ...metadata, 
+      this.info(`Action: ${action}`, req, {
+        ...metadata,
         timestamp: new Date().toISOString(),
-        environment: 'production'
+        environment: 'production',
       });
     }
   }
@@ -315,8 +331,12 @@ export const secureLogger = new SecureLogger();
 export const logUserAction = (action: string, req?: Request, metadata?: Record<string, any>) =>
   secureLogger.userAction(action, req, metadata);
 
-export const logError = (message: string, req?: Request, error?: Error, metadata?: Record<string, any>) =>
-  secureLogger.error(message, req, error, metadata);
+export const logError = (
+  message: string,
+  req?: Request,
+  error?: Error,
+  metadata?: Record<string, any>
+) => secureLogger.error(message, req, error, metadata);
 
 export const logInfo = (message: string, req?: Request, metadata?: Record<string, any>) =>
   secureLogger.info(message, req, metadata);
