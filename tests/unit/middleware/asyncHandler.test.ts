@@ -48,7 +48,10 @@ describe('AsyncHandler Middleware Tests', () => {
         throw authError;
       });
 
-      const mockAuthRequest = { ...mockRequest, user: { id: 'test-user', email: 'test@example.com' } } as AuthRequest;
+      const mockAuthRequest = {
+        ...mockRequest,
+        user: { id: 'test-user', email: 'test@example.com' },
+      } as AuthRequest;
 
       await testHandler(mockAuthRequest, mockResponse as Response, mockNext);
 

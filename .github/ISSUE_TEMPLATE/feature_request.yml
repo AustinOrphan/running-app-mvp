@@ -1,14 +1,14 @@
 name: ✨ Feature Request
 description: Suggest a new feature or enhancement for the Running Tracker MVP
-title: "[Feature]: "
-labels: ["enhancement", "feature-request"]
+title: '[Feature]: '
+labels: ['enhancement', 'feature-request']
 assignees: []
 body:
   - type: markdown
     attributes:
       value: |
         Thanks for suggesting a new feature! 🚀
-        
+
         Please provide detailed information to help us understand and evaluate your request.
 
   - type: textarea
@@ -18,7 +18,7 @@ body:
       description: What problem does this feature solve? What need does it address?
       placeholder: |
         As a [user type], I want [goal] so that [benefit].
-        
+
         Currently, [describe the current limitation or problem]...
     validations:
       required: true
@@ -30,7 +30,7 @@ body:
       description: Describe the feature you'd like to see implemented.
       placeholder: |
         I would like to see [describe your proposed solution]...
-        
+
         This would work by [explain how it would function]...
     validations:
       required: true
@@ -44,7 +44,7 @@ body:
         I've also considered:
         - Alternative A: [description]
         - Alternative B: [description]
-        
+
         Current workaround: [if any]...
 
   - type: dropdown
@@ -112,7 +112,7 @@ body:
         - [ ] [Specific requirement 1]
         - [ ] [Specific requirement 2]
         - [ ] [Specific requirement 3]
-        
+
         Testing scenarios:
         - [ ] [Test case 1]
         - [ ] [Test case 2]
@@ -124,7 +124,7 @@ body:
       description: Any visual mockups, sketches, or examples from other apps?
       placeholder: |
         Attach mockups, screenshots, or links to similar features in other applications...
-        
+
         Example apps that do this well: [app names]
 
   - type: textarea

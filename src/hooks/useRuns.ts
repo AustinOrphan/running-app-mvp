@@ -72,7 +72,9 @@ export const useRuns = (token: string | null) => {
 
   useEffect(() => {
     if (token) {
-      fetchRuns();
+      fetchRuns().catch(() => {
+        // Error is already logged in fetchRuns, just prevent unhandled rejection
+      });
     }
   }, [token]);
 

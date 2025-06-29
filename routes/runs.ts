@@ -2,11 +2,16 @@ import { PrismaClient } from '@prisma/client';
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createError } from '../middleware/errorHandler.js';
+import { createError, createNotFoundError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
-import { validateCreateRun, validateUpdateRun, validateIdParam, sanitizeInput } from '../middleware/validation.js';
+import {
+  validateCreateRun,
+  validateUpdateRun,
+  validateIdParam,
+  sanitizeInput,
+} from '../middleware/validation.js';
 import { createRateLimit, readRateLimit, apiRateLimit } from '../middleware/rateLimiting.js';
-import { logUserAction, logError } from '../utils/secureLogger.js';
+import { logUserAction } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -64,10 +69,10 @@ router.get(
     });
 
     if (!run) {
-      return next(createError('Run not found', 404));
+      return next(createNotFoundError('Run'));
     }
 
-    res.json(run);
+    return res.json(run);
   })
 );
 
@@ -80,10 +85,10 @@ router.post(
   asyncAuthHandler(async (req: AuthRequest, res, next) => {
     const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
-    logUserAction('Creating run', req, { 
-      distance: Number(distance), 
+    logUserAction('Creating run', req, {
+      distance: Number(distance),
       duration: Number(duration),
-      hasRoute: !!routeGeoJson 
+      hasRoute: !!routeGeoJson,
     });
     // Verify user exists
     const user = await prisma.user.findUnique({
@@ -91,7 +96,7 @@ router.post(
     });
 
     if (!user) {
-      return next(createError('User not found', 404));
+      return next(createNotFoundError('User'));
     }
 
     const run = await prisma.run.create({
@@ -106,7 +111,7 @@ router.post(
       },
     });
 
-    res.status(201).json(run);
+    return res.status(201).json(run);
   })
 );
 
@@ -128,10 +133,17 @@ router.put(
     });
 
     if (!existingRun) {
-      return next(createError('Run not found', 404));
+      return next(createNotFoundError('Run'));
     }
 
-    const updateData: any = {};
+    const updateData: Partial<{
+      date: Date;
+      distance: number;
+      duration: number;
+      tag: string | null;
+      notes: string | null;
+      routeGeoJson: string | null;
+    }> = {};
     if (date !== undefined) {
       updateData.date = new Date(date);
     }
@@ -148,7 +160,7 @@ router.put(
       updateData.notes = notes || null;
     }
     if (routeGeoJson !== undefined) {
-      updateData.routeGeoJson = routeGeoJson || null;
+      updateData.routeGeoJson = (routeGeoJson as string) || null;
     }
 
     const run = await prisma.run.update({
@@ -156,7 +168,7 @@ router.put(
       data: updateData,
     });
 
-    res.json(run);
+    return res.json(run);
   })
 );
 
@@ -175,14 +187,14 @@ router.delete(
     });
 
     if (!existingRun) {
-      return next(createError('Run not found', 404));
+      return next(createNotFoundError('Run'));
     }
 
     await prisma.run.delete({
       where: { id: req.params.id },
     });
 
-    res.status(204).send();
+    return res.status(204).send();
   })
 );
 

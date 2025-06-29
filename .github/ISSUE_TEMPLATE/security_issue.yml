@@ -1,19 +1,19 @@
 name: 🔒 Security Issue
 description: Report a security vulnerability (handled privately)
-title: "[Security]: "
-labels: ["security", "P0-critical"]
+title: '[Security]: '
+labels: ['security', 'P0-critical']
 assignees: []
 body:
   - type: markdown
     attributes:
       value: |
         ⚠️ **IMPORTANT: Security Disclosure Policy** ⚠️
-        
+
         If this is a **critical security vulnerability** that could be exploited, please:
         1. **DO NOT** create a public issue
         2. **DO NOT** include exploit details in this form
         3. **Contact the maintainers directly** via private channels first
-        
+
         For **general security improvements** and **non-critical security issues**, you may proceed with this public issue.
 
   - type: dropdown
@@ -37,7 +37,7 @@ body:
       description: Describe the security concern (avoid exploit details for critical issues)
       placeholder: |
         General description of the security issue...
-        
+
         ⚠️ For critical vulnerabilities, provide only high-level description here.
     validations:
       required: true
@@ -70,7 +70,7 @@ body:
         Potential impact includes:
         - [Impact 1]
         - [Impact 2]
-        
+
         Affected users: [who would be impacted]
 
   - type: textarea
@@ -80,9 +80,9 @@ body:
       description: For non-critical issues, provide general reproduction steps
       placeholder: |
         ⚠️ Only provide detailed steps for non-critical security improvements.
-        
+
         For critical vulnerabilities, contact maintainers privately first.
-        
+
         General steps:
         1. [Step 1]
         2. [Step 2]
@@ -97,7 +97,7 @@ body:
         Suggested solutions:
         - [Solution 1]
         - [Solution 2]
-        
+
         Security best practices to implement:
         - [Practice 1]
         - [Practice 2]
