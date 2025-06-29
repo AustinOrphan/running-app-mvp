@@ -218,10 +218,14 @@ class SecureLogger {
    * Creates a non-reversible hash of user ID for production correlation
    */
   private hashUserId(userId: string): string {
-    const salt = process.env.LOG_SALT || 'default-salt-for-dev-only';
+    const salt = process.env.LOG_SALT;
+    if (!salt && process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL: LOG_SALT environment variable must be set in production.');
+    }
+    const finalSalt = salt || 'default-salt-for-dev-only';
     const hash = crypto
       .createHash('sha256')
-      .update(userId + salt)
+      .update(userId + finalSalt)
       .digest('hex');
     return `user_${hash.substring(0, 16)}`;
   }
