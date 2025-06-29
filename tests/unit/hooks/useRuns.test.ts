@@ -9,32 +9,37 @@ vi.mock('../../../src/utils/formatters', () => ({
   calculatePace: vi.fn((distance: number, duration: number) => duration / distance),
 }));
 
-// Mock ApiError class
-class MockApiError extends Error {
-  status?: number;
-  response?: Response;
-  data?: unknown;
-  
-  constructor(message: string, status?: number, response?: Response, data?: unknown) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.response = response;
-    this.data = data;
-  }
-}
-
 // Mock the apiFetch utilities
-vi.mock('../../../utils/apiFetch', () => ({
-  apiGet: vi.fn(),
-  apiPost: vi.fn(),
-  apiPut: vi.fn(),
-  apiDelete: vi.fn(),
-  ApiError: MockApiError,
-}));
+vi.mock('../../../utils/apiFetch', () => {
+  // Define MockApiError inside the factory to avoid hoisting issues
+  class MockApiError extends Error {
+    status?: number;
+    response?: Response;
+    data?: unknown;
+    
+    constructor(message: string, status?: number, response?: Response, data?: unknown) {
+      super(message);
+      this.name = 'ApiError';
+      this.status = status;
+      this.response = response;
+      this.data = data;
+    }
+  }
+
+  return {
+    apiGet: vi.fn(),
+    apiPost: vi.fn(),
+    apiPut: vi.fn(),
+    apiDelete: vi.fn(),
+    ApiError: MockApiError,
+  };
+});
 
 // Import the mocked functions
-import { apiGet, apiPost, apiPut, apiDelete } from '../../../utils/apiFetch';
+import { apiGet, apiPost, apiPut, apiDelete, ApiError } from '../../../utils/apiFetch';
+
+// Create a local reference to the mocked ApiError for use in tests
+const MockApiError = ApiError;
 
 const mockRuns: Run[] = [
   {
@@ -62,10 +67,10 @@ const mockRuns: Run[] = [
 ];
 
 describe('useRuns', () => {
-  const mockApiGet = apiGet as any;
-  const mockApiPost = apiPost as any;
-  const mockApiPut = apiPut as any;
-  const mockApiDelete = apiDelete as any;
+  const mockApiGet = vi.mocked(apiGet);
+  const mockApiPost = vi.mocked(apiPost);
+  const mockApiPut = vi.mocked(apiPut);
+  const mockApiDelete = vi.mocked(apiDelete);
 
   beforeEach(() => {
     vi.clearAllMocks();

@@ -13,6 +13,31 @@ import {
 // Mock fetch globally
 const mockFetch = vi.fn();
 
+// Helper function to set up mock responses for all endpoints
+const setupMockResponses = () => {
+  mockFetch
+    .mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockWeeklyInsights),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockRunTypeBreakdown),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockTrendsData),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockPersonalRecords),
+    });
+};
+
 describe('useStats', () => {
   beforeEach(() => {
     // Reset and set up fresh mock for each test
@@ -55,27 +80,7 @@ describe('useStats', () => {
     it('fetches all statistics data when token is provided', async () => {
       // Clear default mock and set up specific responses for each endpoint
       mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      setupMockResponses();
 
       const { result } = renderHook(() => useStats('valid-token'));
 
@@ -95,27 +100,7 @@ describe('useStats', () => {
     it('makes correct API calls with authorization header', async () => {
       // Clear default mock and set up specific responses
       mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      setupMockResponses();
 
       let hookResult: any;
 
@@ -145,27 +130,7 @@ describe('useStats', () => {
     it('uses custom period for trends data', async () => {
       // Clear default mock and set up specific responses
       mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      setupMockResponses();
 
       let hookResult: any;
 
@@ -366,27 +331,7 @@ describe('useStats', () => {
   describe('Loading States', () => {
     it('sets loading to true while fetching data', async () => {
       mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      setupMockResponses();
 
       const { result } = renderHook(() => useStats('valid-token'));
 
@@ -395,27 +340,7 @@ describe('useStats', () => {
 
     it('sets loading to false after successful fetch', async () => {
       mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      setupMockResponses();
 
       let hookResult: any;
 
@@ -452,27 +377,7 @@ describe('useStats', () => {
     it('refetches data when token changes', async () => {
       // Setup initial mocks
       mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      setupMockResponses();
 
       const { result, rerender } = renderHook(({ token }) => useStats(token), {
         initialProps: { token: 'token1' },
@@ -485,27 +390,7 @@ describe('useStats', () => {
       const initialCallCount = mockFetch.mock.calls.length;
 
       // Setup new mocks for rerender
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      setupMockResponses();
 
       rerender({ token: 'token2' });
 
@@ -540,27 +425,7 @@ describe('useStats', () => {
     it('refetches data when period changes', async () => {
       // Setup initial mocks
       mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      setupMockResponses();
 
       const { result, rerender } = renderHook(({ period }) => useStats('valid-token', period), {
         initialProps: { period: '3m' },
@@ -573,27 +438,7 @@ describe('useStats', () => {
       const initialCallCount = mockFetch.mock.calls.length;
 
       // Setup new mocks for rerender
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      setupMockResponses();
 
       rerender({ period: '1y' });
 
@@ -611,27 +456,7 @@ describe('useStats', () => {
     it('provides refetch function that reloads all data', async () => {
       // Setup initial mocks
       mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      setupMockResponses();
 
       let hookResult: any;
 
