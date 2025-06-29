@@ -1,5 +1,6 @@
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import * as crypto from 'crypto';
 
 /**
  * Secure Logging Utility for Production Compliance
@@ -210,14 +211,9 @@ class SecureLogger {
    * Creates a non-reversible hash of user ID for production correlation
    */
   private hashUserId(userId: string): string {
-    // Simple hash for correlation without exposing actual ID
-    let hash = 0;
-    for (let i = 0; i < userId.length; i++) {
-      const char = userId.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return `user_${Math.abs(hash).toString(16)}`;
+    const salt = process.env.LOG_SALT || 'default-salt-for-dev-only';
+    const hash = crypto.createHash('sha256').update(userId + salt).digest('hex');
+    return `user_${hash.substring(0, 16)}`;
   }
 
   /**

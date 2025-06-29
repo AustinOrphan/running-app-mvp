@@ -8,7 +8,7 @@ import { logError, logInfo } from '../utils/secureLogger.js';
  */
 
 // Custom error handler for rate limit violations
-const rateLimitErrorHandler = (req: Request, res: Response) => {
+const rateLimitErrorHandler = (req: Request, res: Response, next: any, options: any) => {
   logInfo('Rate limit exceeded', req, {
     ip: req.ip,
     userAgent: req.get('User-Agent'),
@@ -16,9 +16,12 @@ const rateLimitErrorHandler = (req: Request, res: Response) => {
     method: req.method,
   });
 
-  res.status(429).json({
-    message: 'Too many requests from this IP, please try again later',
-    status: 429,
+  const statusCode = options.statusCode || 429;
+  const message = options.message || 'Too many requests from this IP, please try again later';
+
+  res.status(statusCode).json({
+    message: typeof message === 'string' ? message : message.message,
+    status: statusCode,
     retryAfter: res.get('Retry-After'),
   });
 };
@@ -47,6 +50,7 @@ export const authRateLimit = rateLimit({
     message: 'Too many authentication attempts from this IP, please try again after 15 minutes',
     status: 429,
   },
+  statusCode: 429,
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   keyGenerator: generateKey,
@@ -68,6 +72,7 @@ export const apiRateLimit = rateLimit({
     message: 'Too many requests from this IP, please try again later',
     status: 429,
   },
+  statusCode: 429,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: generateKey,
@@ -88,6 +93,7 @@ export const createRateLimit = rateLimit({
     message: 'Too many creation requests from this IP, please try again later',
     status: 429,
   },
+  statusCode: 429,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: generateKey,
@@ -108,6 +114,7 @@ export const readRateLimit = rateLimit({
     message: 'Too many requests from this IP, please try again later',
     status: 429,
   },
+  statusCode: 429,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: generateKey,
@@ -128,6 +135,7 @@ export const sensitiveRateLimit = rateLimit({
     message: 'Too many sensitive operation attempts from this IP, please try again after 1 hour',
     status: 429,
   },
+  statusCode: 429,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: generateKey,
@@ -148,6 +156,7 @@ export const globalRateLimit = rateLimit({
     message: 'Global rate limit exceeded, please try again later',
     status: 429,
   },
+  statusCode: 429,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: generateKey,
