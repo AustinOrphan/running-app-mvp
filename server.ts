@@ -5,6 +5,8 @@ import express from 'express';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
+import { globalRateLimit } from './middleware/rateLimiting.js';
+import { securityHeaders } from './middleware/validation.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -21,6 +23,10 @@ const prisma = new PrismaClient();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Security middleware
+app.use(securityHeaders);
+app.use(globalRateLimit);
 
 // Routes
 app.use('/api/auth', authRoutes);
