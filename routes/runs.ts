@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createError } from '../middleware/errorHandler.js';
+import { createError, createNotFoundError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import {
   validateCreateRun,
@@ -69,7 +69,7 @@ router.get(
     });
 
     if (!run) {
-      return next(createError('Run not found', 404));
+      return next(createNotFoundError('Run'));
     }
 
     return res.json(run);
@@ -96,7 +96,7 @@ router.post(
     });
 
     if (!user) {
-      return next(createError('User not found', 404));
+      return next(createNotFoundError('User'));
     }
 
     const run = await prisma.run.create({
@@ -133,7 +133,7 @@ router.put(
     });
 
     if (!existingRun) {
-      return next(createError('Run not found', 404));
+      return next(createNotFoundError('Run'));
     }
 
     const updateData: Partial<{
@@ -187,7 +187,7 @@ router.delete(
     });
 
     if (!existingRun) {
-      return next(createError('Run not found', 404));
+      return next(createNotFoundError('Run'));
     }
 
     await prisma.run.delete({

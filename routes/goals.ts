@@ -1,7 +1,7 @@
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createError } from '../middleware/errorHandler.js';
+import { createError, createNotFoundError, createValidationError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
 import { prisma } from '../server.js';
@@ -45,7 +45,7 @@ router.get(
     });
 
     if (!goal) {
-      return next(createError('Goal not found', 404));
+      return next(createNotFoundError('Goal'));
     }
 
     res.json(goal);
@@ -80,24 +80,24 @@ router.post(
 
     // Validate goal type
     if (!Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      return next(createError('Invalid goal type', 400));
+      return next(createValidationError('Invalid goal type', 'type'));
     }
 
     // Validate goal period
     if (!Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      return next(createError('Invalid goal period', 400));
+      return next(createValidationError('Invalid goal period', 'period'));
     }
 
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (start >= end) {
-      return next(createError('End date must be after start date', 400));
+      return next(createValidationError('End date must be after start date', 'endDate'));
     }
 
     // Validate target value
     if (targetValue <= 0) {
-      return next(createError('Target value must be positive', 400));
+      return next(createValidationError('Target value must be positive', 'targetValue'));
     }
 
     const goal = await prisma.goal.create({
@@ -157,28 +157,28 @@ router.put(
 
     // Prevent editing completed goals
     if (existingGoal.isCompleted) {
-      return next(createError('Cannot edit completed goals', 400));
+      return next(createValidationError('Cannot edit completed goals', 'isCompleted'));
     }
 
     // Validation (only validate provided fields)
     if (type && !Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      return next(createError('Invalid goal type', 400));
+      return next(createValidationError('Invalid goal type', 'type'));
     }
 
     if (period && !Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      return next(createError('Invalid goal period', 400));
+      return next(createValidationError('Invalid goal period', 'period'));
     }
 
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
       if (start >= end) {
-        return next(createError('End date must be after start date', 400));
+        return next(createValidationError('End date must be after start date', 'endDate'));
       }
     }
 
     if (targetValue !== undefined && targetValue <= 0) {
-      return next(createError('Target value must be positive', 400));
+      return next(createValidationError('Target value must be positive', 'targetValue'));
     }
 
     // Update goal
@@ -219,7 +219,7 @@ router.delete(
     });
 
     if (!goal) {
-      return next(createError('Goal not found', 404));
+      return next(createNotFoundError('Goal'));
     }
 
     // Soft delete by setting isActive to false
@@ -249,11 +249,11 @@ router.post(
     });
 
     if (!goal) {
-      return next(createError('Goal not found', 404));
+      return next(createNotFoundError('Goal'));
     }
 
     if (goal.isCompleted) {
-      return next(createError('Goal is already completed', 400));
+      return next(createValidationError('Goal is already completed', 'isCompleted'));
     }
 
     // Mark as completed
