@@ -110,7 +110,7 @@ class SecureLogger {
   private isSensitiveField(fieldName: string): boolean {
     const lowerField = fieldName.toLowerCase();
     return SENSITIVE_FIELDS.some(sensitive => 
-      lowerField.includes(sensitive) || lowerField.endsWith('id')
+      lowerField.includes(sensitive)
     );
   }
 
