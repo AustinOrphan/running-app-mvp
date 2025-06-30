@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 
-import { calculatePace, formatDuration, formatDate } from '../../../src/utils/formatters';
+import {
+  calculatePace,
+  formatDuration,
+  formatDate,
+  formatPace,
+  formatDistance,
+} from '../../../src/utils/formatters';
 
 describe('Formatter Utilities', () => {
   describe('calculatePace', () => {
@@ -82,8 +88,8 @@ describe('Formatter Utilities', () => {
 
       const pace = calculatePace(distance, duration);
 
-      // Should be approximately 4:58 per kilometer
-      expect(pace).toBe('4:58');
+      // Should be approximately 4:59 per kilometer (6300/21.0975 = 298.69s = 4:59)
+      expect(pace).toBe('4:59');
     });
 
     it('handles marathon distance correctly', () => {
@@ -111,7 +117,7 @@ describe('Formatter Utilities', () => {
 
       const pace = calculatePace(distance, duration);
 
-      expect(pace).toBe('Infinity:00'); // Division by zero results in Infinity
+      expect(pace).toBe('0:00');
     });
 
     it('handles zero duration', () => {
@@ -414,9 +420,8 @@ describe('Formatter Utilities', () => {
 
         const formatted = formatDuration(duration);
 
-        // This would be implementation dependent
-        // The function might return negative values or handle it differently
-        expect(formatted).toMatch(/-?\d+[hm]\s?-?\d+[ms]\s?-?\d+s/);
+        // Should use a single leading negative sign
+        expect(formatted).toBe('-0h 30m 0s');
       });
     });
 
@@ -502,6 +507,62 @@ describe('Formatter Utilities', () => {
       expect(pace).toBe('3:00'); // 3 minutes per kilometer
       expect(duration).toBe('3m 0s'); // 3 minutes
       expect(date).toContain('Aug 15'); // August 15th
+    });
+  });
+
+  describe('formatDate additional formats', () => {
+    const sample = '2024-06-15T06:00:00Z';
+
+    it('formats month and day', () => {
+      const res = formatDate(sample, 'month-day');
+      expect(res).toBe('Jun 15');
+    });
+
+    it('formats month, day and year', () => {
+      const res = formatDate(sample, 'month-day-year');
+      expect(res).toBe('Jun 15, 2024');
+    });
+
+    it('formats month only', () => {
+      const res = formatDate(sample, 'month');
+      expect(res).toBe('Jun');
+    });
+
+    it('formats weekday only', () => {
+      const res = formatDate(sample, 'weekday');
+      expect(res).toContain('Sat');
+    });
+  });
+
+  describe('formatPace', () => {
+    it('formats seconds to mm:ss', () => {
+      const res = formatPace(300);
+      expect(res).toBe('5:00');
+    });
+
+    it('includes unit when requested', () => {
+      const res = formatPace(305, { includeUnit: true });
+      expect(res).toBe('5:05/km');
+    });
+
+    it('handles invalid values', () => {
+      expect(formatPace(0)).toBe('-');
+      expect(formatPace(-5)).toBe('-');
+      expect(formatPace(Infinity)).toBe('-');
+    });
+  });
+
+  describe('formatDistance', () => {
+    it('formats distance with unit', () => {
+      expect(formatDistance(10.123)).toBe('10.1km');
+    });
+
+    it('omits unit when specified', () => {
+      expect(formatDistance(10, { includeUnit: false })).toBe('10.0');
+    });
+
+    it('respects precision', () => {
+      expect(formatDistance(5, { precision: 2 })).toBe('5.00km');
     });
   });
 });
