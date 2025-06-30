@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 import { RunTypeBreakdown } from '../../types';
 
@@ -114,7 +114,7 @@ export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ da
       </div>
 
       <div className='chart-legend'>
-        {chartData.map((item, index) => (
+        {chartData.map((item, _index) => (
           <div key={item.tag} className='legend-item'>
             <div className='legend-color' style={{ backgroundColor: item.color }}></div>
             <div className='legend-content'>

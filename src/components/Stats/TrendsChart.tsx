@@ -7,7 +7,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
 
 import { TrendsDataPoint } from '../../types';
@@ -55,7 +54,11 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
         <div className='trends-header'>
           <h3>Running Trends</h3>
           <div className='trends-controls'>
-            <div data-testid='skeleton-line' className='skeleton-line' style={{ width: '80px', height: '32px' }}></div>
+            <div
+              data-testid='skeleton-line'
+              className='skeleton-line'
+              style={{ width: '80px', height: '32px' }}
+            ></div>
           </div>
         </div>
         <div className='chart-loading'>

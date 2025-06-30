@@ -76,9 +76,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
 
   // Update end date when start date changes
   const handleStartDateChange = (startDate: string) => {
-    const endDate = startDate
-      ? calculateEndDate(startDate, formData.period)
-      : '';
+    const endDate = startDate ? calculateEndDate(startDate, formData.period) : '';
     setFormData(prev => ({
       ...prev,
       startDate,
@@ -167,8 +165,16 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
-    <div className='modal-overlay' onClick={onClose}>
-      <div className='modal' onClick={e => e.stopPropagation()}>
+    <div
+      className='modal-overlay'
+      onClick={onClose}
+      role='button'
+      aria-label='Close modal'
+      tabIndex={0}
+      onKeyDown={e => e.key === 'Escape' && onClose()}
+    >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events */}
+      <div className='modal' onClick={e => e.stopPropagation()} role='dialog' tabIndex={-1}>
         <div className='modal-header'>
           <h3>Create New Goal</h3>
           <button className='btn-icon' onClick={onClose} disabled={isSubmitting}>

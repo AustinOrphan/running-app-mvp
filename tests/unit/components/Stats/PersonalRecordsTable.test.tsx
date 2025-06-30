@@ -94,7 +94,9 @@ describe('PersonalRecordsTable', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
       expect(
-        screen.getByText((_, node) => node?.textContent === `Total PRs: ${mockPersonalRecords.length}`)
+        screen.getByText(
+          (_, node) => node?.textContent === `Total PRs: ${mockPersonalRecords.length}`
+        )
       ).toBeInTheDocument();
       expect(screen.getByText(/Latest:/)).toBeInTheDocument();
     });
