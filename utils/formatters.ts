@@ -1,4 +1,4 @@
-// Date + pace formatting helpers - TODO: implement
+// Date and pace formatting helpers
 export const formatDate = (date: Date): string => {
   return date.toLocaleDateString();
 };
