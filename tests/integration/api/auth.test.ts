@@ -310,6 +310,17 @@ describe('Auth API Integration Tests', () => {
   });
 
   describe('Rate Limiting', () => {
+    let originalEnv: string | undefined;
+
+    beforeAll(() => {
+      originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+    });
+
+    afterAll(() => {
+      process.env.NODE_ENV = originalEnv;
+    });
+
     it('handles multiple registration attempts', async () => {
       const userData = {
         email: 'ratelimit@test.com',
@@ -319,16 +330,21 @@ describe('Auth API Integration Tests', () => {
       // First request should succeed
       await request(app).post('/api/auth/register').send(userData).expect(201);
 
-      // Subsequent requests with same email should fail
-      for (let i = 0; i < 3; i++) {
-        await request(app)
+      let lastResponse: request.Response | undefined;
+
+      // Additional requests should eventually hit the rate limit
+      for (let i = 0; i < 5; i++) {
+        lastResponse = await request(app)
           .post('/api/auth/register')
           .send({
             email: `ratelimit${i}@test.com`,
             password: 'testpassword123',
-          })
-          .expect(201);
+          });
       }
+
+      expect(lastResponse?.status).toBe(429);
+      expect(lastResponse?.body).toHaveProperty('message');
+      expect(lastResponse?.body.message).toMatch(/too many/i);
     });
 
     it('handles multiple login attempts with invalid credentials', async () => {
