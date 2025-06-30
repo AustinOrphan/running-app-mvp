@@ -67,12 +67,16 @@ const PII_PATTERNS = [
 ];
 
 class SecureLogger {
-  private isDevelopment: boolean;
-  private isProduction: boolean;
-
   constructor() {
-    this.isDevelopment = process.env.NODE_ENV === 'development';
-    this.isProduction = process.env.NODE_ENV === 'production';
+    // Environment checks are now done dynamically via getters
+  }
+
+  private get isDevelopment(): boolean {
+    return process.env.NODE_ENV === 'development';
+  }
+
+  private get isProduction(): boolean {
+    return process.env.NODE_ENV === 'production';
   }
 
   /**
@@ -173,8 +177,8 @@ class SecureLogger {
       url: this.redactSensitiveUrlParams(req.url),
       userAgent: req.get('User-Agent'),
       ip: this.isProduction 
-        ? this.hashIpAddress(req.ip || (req.socket as any)?.remoteAddress) 
-        : req.ip || (req.socket as any)?.remoteAddress,
+        ? this.hashIpAddress(req.ip || req.socket?.remoteAddress) 
+        : req.ip || req.socket?.remoteAddress,
     };
 
     // Only include user context in development or with explicit consent
@@ -207,7 +211,6 @@ class SecureLogger {
    * 
    * Environment Variables:
    * - IP_SALT: Salt for IP hashing (required in production for security)
-   * - IP_PRIVACY_LEVEL: 'hash' (default) | 'mask' | 'none' (dev only)
    */
   private hashIpAddress(ip?: string): string {
     if (!ip) return '[UNKNOWN]';
