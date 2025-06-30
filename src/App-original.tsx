@@ -9,7 +9,17 @@ interface Toast {
 
 function App() {
   const [healthStatus, setHealthStatus] = useState<string>('Checking...');
-  const [runs, setRuns] = useState<any[]>([]);
+  const [runs, setRuns] = useState<
+    Array<{
+      id: string;
+      date: string;
+      distance: number;
+      duration: number;
+      tag?: string;
+      notes?: string;
+      routeGeoJson?: unknown;
+    }>
+  >([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,7 +29,15 @@ function App() {
   const [runsLoading, setRunsLoading] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
-  const [editingRun, setEditingRun] = useState<any>(null);
+  const [editingRun, setEditingRun] = useState<{
+    id: string;
+    date: string;
+    distance: number;
+    duration: number;
+    tag?: string;
+    notes?: string;
+    routeGeoJson?: unknown;
+  } | null>(null);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeHighlight, setSwipeHighlight] = useState(false);
@@ -166,7 +184,7 @@ function App() {
     // Check server health
     fetch('/api/health')
       .then(res => res.json())
-      .then(data => {
+      .then(_data => {
         setHealthStatus('✅ Backend Connected');
         showToast('Connected to server', 'success');
       })

@@ -1,6 +1,6 @@
 import rateLimit from 'express-rate-limit';
-import { Request, Response } from 'express';
-import { logError, logInfo } from '../utils/secureLogger.js';
+import { Request, Response, NextFunction } from 'express';
+import { logInfo } from '../utils/secureLogger.js';
 
 /**
  * Rate limiting middleware configurations
@@ -8,7 +8,12 @@ import { logError, logInfo } from '../utils/secureLogger.js';
  */
 
 // Custom error handler for rate limit violations
-const rateLimitErrorHandler = (req: Request, res: Response, next: any, options: any) => {
+const rateLimitErrorHandler = (
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+  options: { statusCode?: number; message?: string | { message: string } }
+) => {
   logInfo('Rate limit exceeded', req, {
     ip: req.ip,
     userAgent: req.get('User-Agent'),
@@ -29,24 +34,20 @@ const rateLimitErrorHandler = (req: Request, res: Response, next: any, options: 
 // Custom key generator that includes user ID for authenticated requests
 const generateKey = (req: Request): string => {
   const baseKey = req.ip || 'unknown';
-  const userId = (req as any).user?.id;
-  
+  const userId = (req as Request & { user?: { id: string } }).user?.id;
+
   // For authenticated requests, include user ID to prevent IP sharing issues
   if (userId) {
     return `${baseKey}:${userId}`;
   }
-  
+
   return baseKey;
 };
 
 /**
  * Factory function to create rate limit configurations with common options
  */
-function createRateLimitConfig(options: {
-  windowMs: number;
-  max: number;
-  message: string;
-}) {
+function createRateLimitConfig(options: { windowMs: number; max: number; message: string }) {
   return rateLimit({
     windowMs: options.windowMs,
     max: options.max,
@@ -59,7 +60,7 @@ function createRateLimitConfig(options: {
     legacyHeaders: false,
     keyGenerator: generateKey,
     handler: rateLimitErrorHandler,
-    skip: (req: Request) => {
+    skip: (_req: Request) => {
       return process.env.NODE_ENV === 'test';
     },
   });
@@ -72,7 +73,7 @@ function createRateLimitConfig(options: {
 export const authRateLimit = createRateLimitConfig({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5,
-  message: 'Too many authentication attempts from this IP, please try again after 15 minutes'
+  message: 'Too many authentication attempts from this IP, please try again after 15 minutes',
 });
 
 /**
@@ -82,7 +83,7 @@ export const authRateLimit = createRateLimitConfig({
 export const apiRateLimit = createRateLimitConfig({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
-  message: 'Too many requests from this IP, please try again later'
+  message: 'Too many requests from this IP, please try again later',
 });
 
 /**
@@ -92,7 +93,7 @@ export const apiRateLimit = createRateLimitConfig({
 export const createRateLimit = createRateLimitConfig({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 50,
-  message: 'Too many creation requests from this IP, please try again later'
+  message: 'Too many creation requests from this IP, please try again later',
 });
 
 /**
@@ -102,7 +103,7 @@ export const createRateLimit = createRateLimitConfig({
 export const readRateLimit = createRateLimitConfig({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200,
-  message: 'Too many requests from this IP, please try again later'
+  message: 'Too many requests from this IP, please try again later',
 });
 
 /**
@@ -112,7 +113,7 @@ export const readRateLimit = createRateLimitConfig({
 export const sensitiveRateLimit = createRateLimitConfig({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 3,
-  message: 'Too many sensitive operation attempts from this IP, please try again after 1 hour'
+  message: 'Too many sensitive operation attempts from this IP, please try again after 1 hour',
 });
 
 /**
@@ -122,7 +123,7 @@ export const sensitiveRateLimit = createRateLimitConfig({
 export const globalRateLimit = createRateLimitConfig({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 1000,
-  message: 'Global rate limit exceeded, please try again later'
+  message: 'Global rate limit exceeded, please try again later',
 });
 
 /**
@@ -131,19 +132,19 @@ export const globalRateLimit = createRateLimitConfig({
 export const rateLimitConfig = {
   // Authentication endpoints
   auth: authRateLimit,
-  
+
   // Data creation endpoints (POST)
   create: createRateLimit,
-  
+
   // Data read endpoints (GET)
   read: readRateLimit,
-  
+
   // General API endpoints
   api: apiRateLimit,
-  
+
   // Sensitive operations
   sensitive: sensitiveRateLimit,
-  
+
   // Global rate limit
   global: globalRateLimit,
 };

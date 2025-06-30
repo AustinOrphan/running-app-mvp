@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 
 import { StatsPage } from '../../../../src/pages/StatsPage';
@@ -12,6 +12,11 @@ import {
 // Mock the useStats hook
 vi.mock('../../../../src/hooks/useStats', () => ({
   useStats: vi.fn(),
+}));
+
+// Mock the useGoals hook
+vi.mock('../../../../src/hooks/useGoals', () => ({
+  useGoals: vi.fn(),
 }));
 
 // Mock all the stats components
@@ -52,8 +57,10 @@ vi.mock('../../../../src/components/Stats/PersonalRecordsTable', () => ({
 }));
 
 import { useStats } from '../../../../src/hooks/useStats';
+import { useGoals } from '../../../../src/hooks/useGoals';
 
 const mockUseStats = vi.mocked(useStats);
+const mockUseGoals = vi.mocked(useGoals);
 
 describe('StatsPage', () => {
   const defaultStatsReturn = {
@@ -68,6 +75,13 @@ describe('StatsPage', () => {
 
   beforeEach(() => {
     mockUseStats.mockReturnValue(defaultStatsReturn);
+    mockUseGoals.mockReturnValue({
+      goals: [],
+      goalProgress: [],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
   });
 
   afterEach(() => {
@@ -76,7 +90,9 @@ describe('StatsPage', () => {
 
   describe('Rendering', () => {
     it('renders the stats page with header and components', () => {
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByText('Statistics')).toBeInTheDocument();
       expect(screen.getByText('Track your running progress and insights')).toBeInTheDocument();
@@ -87,7 +103,11 @@ describe('StatsPage', () => {
     });
 
     it('has correct page structure and CSS classes', () => {
-      const { container } = render(<StatsPage token='valid-token' />);
+      let container: any;
+      act(() => {
+        const renderResult = render(<StatsPage token='valid-token' />);
+        container = renderResult.container;
+      });
 
       expect(container.querySelector('.stats-page')).toBeInTheDocument();
       expect(container.querySelector('.stats-header')).toBeInTheDocument();
@@ -97,13 +117,17 @@ describe('StatsPage', () => {
 
   describe('Hook Integration', () => {
     it('calls useStats hook with correct token', () => {
-      render(<StatsPage token='test-token-123' />);
+      act(() => {
+        render(<StatsPage token='test-token-123' />);
+      });
 
       expect(mockUseStats).toHaveBeenCalledWith('test-token-123');
     });
 
     it('calls useStats hook with null token', () => {
-      render(<StatsPage token={null} />);
+      act(() => {
+        render(<StatsPage token={null} />);
+      });
 
       expect(mockUseStats).toHaveBeenCalledWith(null);
     });
@@ -116,7 +140,9 @@ describe('StatsPage', () => {
         loading: true,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByText('Loading insights...')).toBeInTheDocument();
       expect(screen.getByText('Loading breakdown...')).toBeInTheDocument();
@@ -134,7 +160,9 @@ describe('StatsPage', () => {
         loading: false,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByText('Insights loaded')).toBeInTheDocument();
       expect(screen.getByText('Breakdown loaded')).toBeInTheDocument();
@@ -152,7 +180,9 @@ describe('StatsPage', () => {
         loading: false,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByText('No insights')).toBeInTheDocument();
       expect(screen.getByText('No breakdown data')).toBeInTheDocument();
@@ -169,11 +199,13 @@ describe('StatsPage', () => {
         loading: false,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
-      expect(screen.getByText('Failed to load statistics')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Failed to load statistics');
       expect(screen.getByText('⚠️')).toBeInTheDocument();
-      expect(screen.getByText('Failed to load statistics')).toBeInTheDocument();
+      expect(screen.getAllByText('Failed to load statistics')).toHaveLength(2);
     });
 
     it('does not render stats components when there is an error', () => {
@@ -183,7 +215,9 @@ describe('StatsPage', () => {
         loading: false,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.queryByTestId('insights-card')).not.toBeInTheDocument();
       expect(screen.queryByTestId('breakdown-chart')).not.toBeInTheDocument();
@@ -199,7 +233,9 @@ describe('StatsPage', () => {
         loading: false,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByText(customError)).toBeInTheDocument();
     });
@@ -216,7 +252,9 @@ describe('StatsPage', () => {
         loading,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByText('Loading insights...')).toBeInTheDocument();
     });
@@ -231,7 +269,9 @@ describe('StatsPage', () => {
         loading,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByText('Breakdown loaded')).toBeInTheDocument();
     });
@@ -246,7 +286,9 @@ describe('StatsPage', () => {
         loading,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByText('Trends loaded')).toBeInTheDocument();
     });
@@ -261,7 +303,9 @@ describe('StatsPage', () => {
         loading,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByText('Records loaded')).toBeInTheDocument();
     });
@@ -275,7 +319,11 @@ describe('StatsPage', () => {
         loading: false,
       });
 
-      const { container } = render(<StatsPage token='valid-token' />);
+      let container: any;
+      act(() => {
+        const renderResult = render(<StatsPage token='valid-token' />);
+        container = renderResult.container;
+      });
 
       expect(container.querySelector('.error-container')).toBeInTheDocument();
       expect(container.querySelector('.error-icon')).toBeInTheDocument();
@@ -284,7 +332,9 @@ describe('StatsPage', () => {
 
   describe('Accessibility', () => {
     it('has proper heading structure', () => {
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Statistics');
     });
@@ -296,7 +346,9 @@ describe('StatsPage', () => {
         loading: false,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(
         'Failed to load statistics'
@@ -315,7 +367,9 @@ describe('StatsPage', () => {
         loading: false,
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       expect(screen.getByText('Insights loaded')).toBeInTheDocument();
       expect(screen.getByText('No breakdown data')).toBeInTheDocument();
@@ -333,7 +387,9 @@ describe('StatsPage', () => {
         loading: true, // Still loading some data
       });
 
-      render(<StatsPage token='valid-token' />);
+      act(() => {
+        render(<StatsPage token='valid-token' />);
+      });
 
       // All components should show loading state when loading is true
       expect(screen.getByText('Loading insights...')).toBeInTheDocument();

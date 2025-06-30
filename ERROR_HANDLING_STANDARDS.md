@@ -7,6 +7,7 @@ This document outlines the mandatory error handling patterns for all Express.js 
 ## ✅ REQUIRED Pattern: Always Use `return next(error)`
 
 ### ❌ DANGEROUS - Never do this:
+
 ```typescript
 catch (error) {
   next(createError('Operation failed', 500));
@@ -15,6 +16,7 @@ catch (error) {
 ```
 
 ### ✅ SAFE - Always do this:
+
 ```typescript
 catch (error) {
   return next(createError('Operation failed', 500));
@@ -31,6 +33,7 @@ catch (error) {
 ## 📋 Implementation Checklist
 
 ### For All Route Handlers:
+
 - [ ] Use `return next(error)` in ALL catch blocks
 - [ ] Use `return next(createError(...))` for custom errors
 - [ ] Ensure no code executes after error handling
@@ -39,6 +42,7 @@ catch (error) {
 ### Pattern Examples:
 
 #### Basic Error Handling:
+
 ```typescript
 router.get('/example', async (req, res, next) => {
   try {
@@ -52,13 +56,14 @@ router.get('/example', async (req, res, next) => {
 ```
 
 #### Validation Errors:
+
 ```typescript
 router.post('/example', async (req, res, next) => {
   try {
     if (!req.body.requiredField) {
       return next(createError('Required field missing', 400));
     }
-    
+
     const result = await processData(req.body);
     res.json(result);
   } catch (error) {
@@ -69,15 +74,16 @@ router.post('/example', async (req, res, next) => {
 ```
 
 #### Conditional Error Handling:
+
 ```typescript
 router.get('/example/:id', async (req, res, next) => {
   try {
     const item = await findItem(req.params.id);
-    
+
     if (!item) {
       return next(createError('Item not found', 404));
     }
-    
+
     res.json(item);
   } catch (error) {
     console.error('Failed to fetch item:', error);
@@ -97,17 +103,24 @@ For cleaner code, you can use the `asyncHandler` wrapper:
 import { asyncHandler, asyncAuthHandler } from '../middleware/asyncHandler.js';
 
 // For regular routes
-router.get('/example', asyncHandler(async (req, res, next) => {
-  const data = await someAsyncOperation();
-  res.json(data);
-  // Errors automatically caught and passed to next()
-}));
+router.get(
+  '/example',
+  asyncHandler(async (req, res, next) => {
+    const data = await someAsyncOperation();
+    res.json(data);
+    // Errors automatically caught and passed to next()
+  })
+);
 
 // For authenticated routes
-router.get('/example', requireAuth, asyncAuthHandler(async (req: AuthRequest, res, next) => {
-  const data = await someAsyncOperation();
-  res.json(data);
-}));
+router.get(
+  '/example',
+  requireAuth,
+  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+    const data = await someAsyncOperation();
+    res.json(data);
+  })
+);
 ```
 
 ## 🧪 Testing Requirements
@@ -120,15 +133,16 @@ All route handlers MUST have tests that verify:
 4. **Return Pattern**: Code execution stops after error handling
 
 ### Example Test:
+
 ```typescript
 it('should handle database errors without double headers', async () => {
   // Mock database failure
   jest.spyOn(prisma.user, 'findMany').mockRejectedValue(new Error('DB Error'));
-  
+
   const response = await request(app)
     .get('/api/users')
     .set('Authorization', `Bearer ${validToken}`);
-  
+
   expect(response.status).toBe(500);
   expect(response.body).toHaveProperty('message');
   // Verify no double header errors occurred
@@ -138,6 +152,7 @@ it('should handle database errors without double headers', async () => {
 ## 🚫 Common Anti-Patterns to Avoid
 
 ### 1. Missing Return Statement:
+
 ```typescript
 // ❌ WRONG
 catch (error) {
@@ -147,6 +162,7 @@ catch (error) {
 ```
 
 ### 2. Inconsistent Error Handling:
+
 ```typescript
 // ❌ WRONG - Mixed patterns
 catch (error) {
@@ -158,6 +174,7 @@ catch (error) {
 ```
 
 ### 3. Unhandled Promise Rejections:
+
 ```typescript
 // ❌ WRONG - No error handling
 router.get('/example', async (req, res) => {
@@ -177,6 +194,7 @@ This project includes:
 ## 📊 Monitoring
 
 Key metrics to track:
+
 - Server crash frequency
 - "Cannot set headers" error occurrences
 - Error response times

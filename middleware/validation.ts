@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { z, ZodSchema, ZodError } from 'zod';
+import { z, ZodSchema } from 'zod';
 import { createError } from './errorHandler.js';
 
 /**
@@ -11,7 +11,7 @@ import { createError } from './errorHandler.js';
 const emailSchema = z.string().email('Invalid email format').toLowerCase().trim();
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 const positiveNumberSchema = z.number().positive('Must be a positive number');
-const dateSchema = z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid date format');
+const dateSchema = z.string().refine(date => !isNaN(Date.parse(date)), 'Invalid date format');
 const uuidSchema = z.string().uuid('Invalid ID format');
 
 // Auth validation schemas
@@ -45,51 +45,98 @@ export const updateRunSchema = z.object({
 });
 
 // Goal validation schemas
-export const createGoalSchema = z.object({
-  title: z.string().trim().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
-  description: z.string().trim().max(500, 'Description must be 500 characters or less').optional().nullable(),
-  type: z.enum(['DISTANCE', 'TIME', 'FREQUENCY', 'PACE', 'LONGEST_RUN'], {
-    errorMap: () => ({ message: 'Invalid goal type' }),
-  }),
-  period: z.enum(['WEEKLY', 'MONTHLY', 'YEARLY', 'CUSTOM'], {
-    errorMap: () => ({ message: 'Invalid goal period' }),
-  }),
-  targetValue: positiveNumberSchema,
-  targetUnit: z.string().trim().min(1, 'Target unit is required').max(20, 'Target unit must be 20 characters or less'),
-  startDate: dateSchema,
-  endDate: dateSchema,
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').optional().nullable(),
-  icon: z.string().trim().max(10, 'Icon must be 10 characters or less').optional().nullable(),
-}).refine((data) => new Date(data.startDate) < new Date(data.endDate), {
-  message: 'End date must be after start date',
-  path: ['endDate'],
-});
+export const createGoalSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, 'Title is required')
+      .max(100, 'Title must be 100 characters or less'),
+    description: z
+      .string()
+      .trim()
+      .max(500, 'Description must be 500 characters or less')
+      .optional()
+      .nullable(),
+    type: z.enum(['DISTANCE', 'TIME', 'FREQUENCY', 'PACE', 'LONGEST_RUN'], {
+      errorMap: () => ({ message: 'Invalid goal type' }),
+    }),
+    period: z.enum(['WEEKLY', 'MONTHLY', 'YEARLY', 'CUSTOM'], {
+      errorMap: () => ({ message: 'Invalid goal period' }),
+    }),
+    targetValue: positiveNumberSchema,
+    targetUnit: z
+      .string()
+      .trim()
+      .min(1, 'Target unit is required')
+      .max(20, 'Target unit must be 20 characters or less'),
+    startDate: dateSchema,
+    endDate: dateSchema,
+    color: z
+      .string()
+      .regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format')
+      .optional()
+      .nullable(),
+    icon: z.string().trim().max(10, 'Icon must be 10 characters or less').optional().nullable(),
+  })
+  .refine(data => new Date(data.startDate) < new Date(data.endDate), {
+    message: 'End date must be after start date',
+    path: ['endDate'],
+  });
 
-export const updateGoalSchema = z.object({
-  title: z.string().trim().min(1, 'Title is required').max(100, 'Title must be 100 characters or less').optional(),
-  description: z.string().trim().max(500, 'Description must be 500 characters or less').optional().nullable(),
-  type: z.enum(['DISTANCE', 'TIME', 'FREQUENCY', 'PACE', 'LONGEST_RUN'], {
-    errorMap: () => ({ message: 'Invalid goal type' }),
-  }).optional(),
-  period: z.enum(['WEEKLY', 'MONTHLY', 'YEARLY', 'CUSTOM'], {
-    errorMap: () => ({ message: 'Invalid goal period' }),
-  }).optional(),
-  targetValue: positiveNumberSchema.optional(),
-  targetUnit: z.string().trim().min(1, 'Target unit is required').max(20, 'Target unit must be 20 characters or less').optional(),
-  startDate: dateSchema.optional(),
-  endDate: dateSchema.optional(),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').optional().nullable(),
-  icon: z.string().trim().max(10, 'Icon must be 10 characters or less').optional().nullable(),
-  isActive: z.boolean().optional(),
-}).refine((data) => {
-  if (data.startDate && data.endDate) {
-    return new Date(data.startDate) < new Date(data.endDate);
-  }
-  return true;
-}, {
-  message: 'End date must be after start date',
-  path: ['endDate'],
-});
+export const updateGoalSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, 'Title is required')
+      .max(100, 'Title must be 100 characters or less')
+      .optional(),
+    description: z
+      .string()
+      .trim()
+      .max(500, 'Description must be 500 characters or less')
+      .optional()
+      .nullable(),
+    type: z
+      .enum(['DISTANCE', 'TIME', 'FREQUENCY', 'PACE', 'LONGEST_RUN'], {
+        errorMap: () => ({ message: 'Invalid goal type' }),
+      })
+      .optional(),
+    period: z
+      .enum(['WEEKLY', 'MONTHLY', 'YEARLY', 'CUSTOM'], {
+        errorMap: () => ({ message: 'Invalid goal period' }),
+      })
+      .optional(),
+    targetValue: positiveNumberSchema.optional(),
+    targetUnit: z
+      .string()
+      .trim()
+      .min(1, 'Target unit is required')
+      .max(20, 'Target unit must be 20 characters or less')
+      .optional(),
+    startDate: dateSchema.optional(),
+    endDate: dateSchema.optional(),
+    color: z
+      .string()
+      .regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format')
+      .optional()
+      .nullable(),
+    icon: z.string().trim().max(10, 'Icon must be 10 characters or less').optional().nullable(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    data => {
+      if (data.startDate && data.endDate) {
+        return new Date(data.startDate) < new Date(data.endDate);
+      }
+      return true;
+    },
+    {
+      message: 'End date must be after start date',
+      path: ['endDate'],
+    }
+  );
 
 // Parameter validation schemas
 export const idParamSchema = z.object({
@@ -104,14 +151,17 @@ export const statsQuerySchema = z.object({
 /**
  * Generic validation middleware factory
  */
-export function validateRequest<T>(schema: ZodSchema<T>, target: 'body' | 'params' | 'query' = 'body') {
+export function validateRequest<T>(
+  schema: ZodSchema<T>,
+  target: 'body' | 'params' | 'query' = 'body'
+) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       const dataToValidate = req[target];
       const result = schema.safeParse(dataToValidate);
 
       if (!result.success) {
-        const errorMessages = result.error.issues.map((issue) => {
+        const errorMessages = result.error.issues.map(issue => {
           const path = issue.path.length > 0 ? issue.path.join('.') : 'field';
           return `${path}: ${issue.message}`;
         });
@@ -120,7 +170,7 @@ export function validateRequest<T>(schema: ZodSchema<T>, target: 'body' | 'param
       }
 
       // Replace the original data with parsed/sanitized data
-      (req as any)[target] = result.data;
+      (req as Request & Record<string, unknown>)[target] = result.data;
       next();
     } catch (error) {
       next(error);
@@ -160,11 +210,11 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
 
     // Sanitize query parameters
     if (req.query && typeof req.query === 'object') {
-      req.query = sanitizeObject(req.query);
+      req.query = sanitizeObject(req.query) as typeof req.query;
     }
 
     next();
-  } catch (error) {
+  } catch {
     next(createError('Input sanitization failed', 400));
   }
 };
@@ -172,23 +222,23 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
 /**
  * Recursively sanitize an object
  */
-function sanitizeObject(obj: any): any {
+function sanitizeObject(obj: unknown): unknown {
   if (typeof obj === 'string') {
     return sanitizeString(obj);
   }
-  
+
   if (Array.isArray(obj)) {
     return obj.map(sanitizeObject);
   }
-  
+
   if (obj && typeof obj === 'object') {
-    const sanitized: any = {};
-    for (const [key, value] of Object.entries(obj)) {
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       sanitized[key] = sanitizeObject(value);
     }
     return sanitized;
   }
-  
+
   return obj;
 }
 
@@ -197,15 +247,17 @@ function sanitizeObject(obj: any): any {
  */
 function sanitizeString(str: string): string {
   if (typeof str !== 'string') return str;
-  
-  return str
-    .trim()
-    // Remove null bytes
-    .replace(/\0/g, '')
-    // Remove control characters except tabs, newlines, and carriage returns
-    .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-    // Normalize unicode
-    .normalize('NFKC');
+
+  return (
+    str
+      .trim()
+      // Remove null bytes
+      .replace(/\0/g, '')
+      // Remove control characters except tabs, newlines, and carriage returns
+      .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      // Normalize unicode
+      .normalize('NFKC')
+  );
 }
 
 /**
@@ -214,12 +266,12 @@ function sanitizeString(str: string): string {
 export const securityHeaders = (req: Request, res: Response, next: NextFunction): void => {
   // Prevent MIME type sniffing
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  
+
   // Prevent clickjacking
   res.setHeader('X-Frame-Options', 'DENY');
-  
+
   // Referrer policy
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
+
   next();
 };

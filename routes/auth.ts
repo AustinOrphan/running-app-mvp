@@ -7,7 +7,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createError } from '../middleware/errorHandler.js';
 import { validateRegister, validateLogin, sanitizeInput } from '../middleware/validation.js';
 import { authRateLimit } from '../middleware/rateLimiting.js';
-import { logUserAction, logError } from '../utils/secureLogger.js';
+import { logUserAction } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -61,7 +61,7 @@ router.post(
       expiresIn: '7d',
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: 'User created successfully',
       token,
       user: {
@@ -105,7 +105,7 @@ router.post(
       expiresIn: '7d',
     });
 
-    res.json({
+    return res.json({
       message: 'Login successful',
       token,
       user: {
