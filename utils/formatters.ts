@@ -58,12 +58,12 @@ export const formatDuration = (seconds: number): string => {
   // Format the duration components based on the regex pattern: /-?\d+[hm]\s?-?\d+[ms]\s?-?\d+s/
   if (hours > 0) {
     if (isNegative) {
-      return `-${hours}h -${minutes}m -${remainingSeconds}s`;
+      return `-${hours}h ${minutes}m ${remainingSeconds}s`;
     }
     return `${hours}h ${minutes}m ${remainingSeconds}s`;
   } else {
     if (isNegative) {
-      return `-${minutes}m -${remainingSeconds}s`;
+      return `-${minutes}m ${remainingSeconds}s`;
     }
     return `${minutes}m ${remainingSeconds}s`;
   }
@@ -74,16 +74,14 @@ export type DateFormat =
   | 'month-day'
   | 'month-day-year'
   | 'month'
-  | 'weekday'
-  | 'default';
+  | 'weekday';
 
-const DATE_OPTIONS: Record<DateFormat, Intl.DateTimeFormatOptions | undefined> = {
+const DATE_OPTIONS: Record<DateFormat, Intl.DateTimeFormatOptions> = {
   'weekday-short': { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' },
   'month-day': { month: 'short', day: 'numeric', timeZone: 'UTC' },
   'month-day-year': { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' },
   month: { month: 'short', timeZone: 'UTC' },
   weekday: { weekday: 'short', timeZone: 'UTC' },
-  default: undefined,
 };
 
 export const formatDate = (date: Date | string, format: DateFormat = 'weekday-short'): string => {
@@ -92,15 +90,20 @@ export const formatDate = (date: Date | string, format: DateFormat = 'weekday-sh
     throw new Error('Invalid date');
   }
   const options = DATE_OPTIONS[format];
-  return options ? d.toLocaleDateString('en-US', options) : d.toLocaleDateString('en-US', { timeZone: 'UTC' });
+  return d.toLocaleDateString('en-US', options);
 };
 
 export const formatPace = (pace: number, { includeUnit = false, unit = '/km' } = {}): string => {
   if (!isFinite(pace) || pace <= 0) {
     return '-';
   }
-  const minutes = Math.floor(pace / 60);
-  const seconds = Math.round(pace % 60);
+  let minutes = Math.floor(pace / 60);
+  let seconds = Math.round(pace % 60);
+  
+  if (seconds >= 60) {
+    minutes += 1;
+    seconds = 0;
+  }
   const base = `${minutes}:${seconds.toString().padStart(2, '0')}`;
   return includeUnit ? `${base}${unit}` : base;
 };

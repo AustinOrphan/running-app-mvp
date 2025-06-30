@@ -420,9 +420,8 @@ describe('Formatter Utilities', () => {
 
         const formatted = formatDuration(duration);
 
-        // This would be implementation dependent
-        // The function might return negative values or handle it differently
-        expect(formatted).toMatch(/-?\d+[hm]\s?-?\d+[ms]\s?-?\d+s/);
+        // Should use a single leading negative sign
+        expect(formatted).toBe('-0h 30m 0s');
       });
     });
 

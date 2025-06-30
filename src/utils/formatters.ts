@@ -32,15 +32,15 @@ export const calculatePace = (distance: number, duration: number): string => {
   const minutes = Math.floor(absPaceInSeconds / 60);
   const seconds = Math.round(absPaceInSeconds % 60);
   
+  // Add negative sign if needed
+  const sign = paceInSeconds < 0 ? '-' : '';
+  
   // Handle edge case where rounding might give us 60 seconds
   if (seconds >= 60) {
     const adjustedMinutes = minutes + 1;
-    const sign = paceInSeconds < 0 ? '-' : '';
     return `${sign}${adjustedMinutes}:00`;
   }
   
-  // Add negative sign if needed
-  const sign = paceInSeconds < 0 ? '-' : '';
   return `${sign}${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
@@ -61,7 +61,7 @@ export const formatDuration = (seconds: number): string => {
   if (hours > 0 || isNegative) {
     // Always include hours for negative durations to match regex pattern
     if (isNegative) {
-      return `-${hours}h -${minutes}m -${remainingSeconds}s`;
+      return `-${hours}h ${minutes}m ${remainingSeconds}s`;
     }
     return `${hours}h ${minutes}m ${remainingSeconds}s`;
   } else {
@@ -75,16 +75,14 @@ export type DateFormat =
   | 'month-day'
   | 'month-day-year'
   | 'month'
-  | 'weekday'
-  | 'default';
+  | 'weekday';
 
-const DATE_OPTIONS: Record<DateFormat, Intl.DateTimeFormatOptions | undefined> = {
+const DATE_OPTIONS: Record<DateFormat, Intl.DateTimeFormatOptions> = {
   'weekday-short': { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' },
   'month-day': { month: 'short', day: 'numeric', timeZone: 'UTC' },
   'month-day-year': { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' },
   month: { month: 'short', timeZone: 'UTC' },
   weekday: { weekday: 'short', timeZone: 'UTC' },
-  default: undefined,
 };
 
 export const formatDate = (dateInput: string | Date, format: DateFormat = 'weekday-short'): string => {
@@ -94,9 +92,7 @@ export const formatDate = (dateInput: string | Date, format: DateFormat = 'weekd
   }
 
   const options = DATE_OPTIONS[format];
-  return options
-    ? date.toLocaleDateString('en-US', options)
-    : date.toLocaleDateString('en-US', { timeZone: 'UTC' });
+  return date.toLocaleDateString('en-US', options);
 };
 
 export const formatPace = (paceInSeconds: number, { includeUnit = false, unit = '/km' } = {}): string => {
@@ -104,8 +100,13 @@ export const formatPace = (paceInSeconds: number, { includeUnit = false, unit = 
     return '-';
   }
 
-  const minutes = Math.floor(paceInSeconds / 60);
-  const seconds = Math.round(paceInSeconds % 60);
+  let minutes = Math.floor(paceInSeconds / 60);
+  let seconds = Math.round(paceInSeconds % 60);
+
+  if (seconds >= 60) {
+    minutes += 1;
+    seconds = 0;
+  }
   const base = `${minutes}:${seconds.toString().padStart(2, '0')}`;
   return includeUnit ? `${base}${unit}` : base;
 };
