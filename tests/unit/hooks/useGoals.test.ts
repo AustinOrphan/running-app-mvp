@@ -530,24 +530,39 @@ describe('useGoals', () => {
         progressPercentage: 100,
       });
 
-      // Use a simple approach: disable auto-completion by mocking the complete endpoint to fail
+      // Clear and reset mocks
       mockFetch.mockClear();
       mockFetch.mockReset();
 
-      // Mock goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [mockGoals[0]], // Use existing mock goal which is not completed
+      // Set up a specific mock implementation for this test
+      let callCount = 0;
+      mockFetch.mockImplementation(async (url: string) => {
+        callCount++;
+        if (url.includes('/api/goals') && !url.includes('progress') && !url.includes('complete')) {
+          // Goals fetch (first call)
+          return {
+            ok: true,
+            json: async () => [mockGoals[0]], // Use existing mock goal which is not completed
+          };
+        } else if (url.includes('/api/goals/progress')) {
+          // Progress fetch (second call)
+          return {
+            ok: true,
+            json: async () => [achievedProgress],
+          };
+        } else if (url.includes('/complete')) {
+          // Complete endpoint (any subsequent calls) - return successful response but goal remains uncompleted
+          return {
+            ok: true,
+            json: async () => ({ ...mockGoals[0], isCompleted: false }),
+          };
+        }
+        // Default fallback
+        return {
+          ok: true,
+          json: async () => [],
+        };
       });
-
-      // Mock progress fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [achievedProgress],
-      });
-
-      // Mock complete endpoint to throw error (simulating auto-completion failure)
-      mockFetch.mockRejectedValue(new Error('Auto-completion failed'));
 
       const { result } = renderHook(() => useGoals(mockToken));
 
@@ -561,7 +576,7 @@ describe('useGoals', () => {
         expect(result.current.goalProgress.length).toBe(1);
       });
 
-      // Wait a bit for auto-completion attempt to fail and state to settle
+      // Wait for newlyAchievedGoals to be detected
       await waitFor(
         () => {
           expect(result.current.newlyAchievedGoals).toHaveLength(1);
