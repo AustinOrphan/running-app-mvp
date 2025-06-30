@@ -4,8 +4,8 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 
 import { asyncHandler } from '../middleware/asyncHandler.js';
-import { createError } from '../middleware/errorHandler.js';
-import { validateRegister, validateLogin, sanitizeInput } from '../middleware/validation.js';
+import { createError, createConflictError, createUnauthorizedError } from '../middleware/errorHandler.js';
+import { validateRegister, validateLogin, sanitizeInput, securityHeaders } from '../middleware/validation.js';
 import { authRateLimit } from '../middleware/rateLimiting.js';
 import { logUserAction } from '../utils/secureLogger.js';
 
@@ -14,6 +14,9 @@ const prisma = new PrismaClient();
 
 // Apply rate limiting to all auth routes
 router.use(authRateLimit);
+
+// Apply security headers to all auth routes
+router.use(securityHeaders);
 
 // Apply input sanitization to all auth routes
 router.use(sanitizeInput);
@@ -36,7 +39,7 @@ router.post(
     });
 
     if (existingUser) {
-      return next(createError('User already exists', 409));
+      return next(createConflictError('User already exists', { email }));
     }
 
     // Hash password
@@ -85,13 +88,13 @@ router.post(
     });
 
     if (!user) {
-      return next(createError('Invalid credentials', 401));
+      return next(createUnauthorizedError('Invalid credentials'));
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return next(createError('Invalid credentials', 401));
+      return next(createUnauthorizedError('Invalid credentials'));
     }
 
     logUserAction('User login', req, { email });

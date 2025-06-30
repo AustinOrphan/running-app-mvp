@@ -2,19 +2,23 @@ import { PrismaClient } from '@prisma/client';
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createError } from '../middleware/errorHandler.js';
+import { createError, createNotFoundError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import {
   validateCreateRun,
   validateUpdateRun,
   validateIdParam,
   sanitizeInput,
+  securityHeaders,
 } from '../middleware/validation.js';
 import { createRateLimit, readRateLimit, apiRateLimit } from '../middleware/rateLimiting.js';
 import { logUserAction } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Apply security headers to all runs routes
+router.use(securityHeaders);
 
 // Apply input sanitization to all runs routes
 router.use(sanitizeInput);
@@ -69,7 +73,7 @@ router.get(
     });
 
     if (!run) {
-      return next(createError('Run not found', 404));
+      return next(createNotFoundError('Run'));
     }
 
     return res.json(run);
@@ -96,7 +100,7 @@ router.post(
     });
 
     if (!user) {
-      return next(createError('User not found', 404));
+      return next(createNotFoundError('User'));
     }
 
     const run = await prisma.run.create({
@@ -133,7 +137,7 @@ router.put(
     });
 
     if (!existingRun) {
-      return next(createError('Run not found', 404));
+      return next(createNotFoundError('Run'));
     }
 
     const updateData: Partial<{
@@ -187,7 +191,7 @@ router.delete(
     });
 
     if (!existingRun) {
-      return next(createError('Run not found', 404));
+      return next(createNotFoundError('Run'));
     }
 
     await prisma.run.delete({

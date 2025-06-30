@@ -8,12 +8,7 @@ import { logInfo } from '../utils/secureLogger.js';
  */
 
 // Custom error handler for rate limit violations
-const rateLimitErrorHandler = (
-  req: Request,
-  res: Response,
-  _next: NextFunction,
-  options: { statusCode?: number; message?: string | { message: string } }
-) => {
+const rateLimitErrorHandler = (req: Request, res: Response, _next: NextFunction, options: { statusCode?: number; message?: string | { message: string } }) => {
   logInfo('Rate limit exceeded', req, {
     ip: req.ip,
     userAgent: req.get('User-Agent'),
@@ -47,7 +42,11 @@ const generateKey = (req: Request): string => {
 /**
  * Factory function to create rate limit configurations with common options
  */
-function createRateLimitConfig(options: { windowMs: number; max: number; message: string }) {
+function createRateLimitConfig(options: {
+  windowMs: number;
+  max: number;
+  message: string;
+}) {
   return rateLimit({
     windowMs: options.windowMs,
     max: options.max,
