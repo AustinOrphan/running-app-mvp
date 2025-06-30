@@ -10,6 +10,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./tests/setup/testSetup.ts'],
     css: true,
+    // Exclude Playwright and integration tests to keep unit test runs fast
     exclude: ['node_modules/**', 'dist/**', 'tests/e2e/**', 'tests/integration/**'],
     coverage: {
       provider: 'v8',

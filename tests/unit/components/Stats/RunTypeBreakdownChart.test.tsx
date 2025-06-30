@@ -165,7 +165,7 @@ describe('RunTypeBreakdownChart', () => {
       render(<RunTypeBreakdownChart data={zeroCountData} loading={false} />);
 
       expect(screen.getByText('No Runs')).toBeInTheDocument();
-      expect(screen.getByText('0 runs (100.0%) • 0km')).toBeInTheDocument();
+      expect(screen.getByText('0 runs (0.0%) • 0km')).toBeInTheDocument();
     });
   });
 

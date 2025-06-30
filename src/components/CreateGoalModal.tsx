@@ -17,24 +17,26 @@ interface CreateGoalModalProps {
 }
 
 export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClose, onSubmit }) => {
-  const [formData, setFormData] = useState({
+  const initialStart = new Date().toISOString().split('T')[0];
+
+  const [formData, setFormData] = useState(() => ({
     title: '',
     description: '',
     type: GOAL_TYPES.DISTANCE as GoalType,
     period: GOAL_PERIODS.WEEKLY as GoalPeriod,
     targetValue: '',
     targetUnit: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].defaultUnit,
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: '',
+    startDate: initialStart,
+    endDate: calculateEndDate(initialStart, GOAL_PERIODS.WEEKLY),
     color: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].color,
     icon: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].icon,
-  });
+  }));
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate default end date based on period
-  const calculateEndDate = (startDate: string, period: GoalPeriod): string => {
+  function calculateEndDate(startDate: string, period: GoalPeriod): string {
     if (!startDate) return '';
     const start = new Date(startDate);
     if (Number.isNaN(start.getTime())) return '';
@@ -50,7 +52,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
     const end = new Date(start);
     end.setDate(start.getDate() + 30);
     return end.toISOString().split('T')[0];
-  };
+  }
 
   // Update form data when goal type changes
   const handleTypeChange = (type: GoalType) => {
@@ -238,7 +240,6 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
                   id='targetValue'
                   type='number'
                   step='0.1'
-                  min='0'
                   value={formData.targetValue}
                   onChange={e => setFormData(prev => ({ ...prev, targetValue: e.target.value }))}
                   placeholder='0'

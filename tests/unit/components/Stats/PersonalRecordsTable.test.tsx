@@ -134,9 +134,9 @@ describe('PersonalRecordsTable', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
       // Initially, non-active columns should show neutral icon
-      expect(screen.getByRole('columnheader', { name: /Time/i })).toHaveTextContent(/Time/);
-      expect(screen.getByRole('columnheader', { name: /Pace/i })).toHaveTextContent(/Pace/);
-      expect(screen.getByRole('columnheader', { name: /Date/i })).toHaveTextContent(/Date/);
+      expect(screen.getByRole('columnheader', { name: /Time/i })).toHaveTextContent(/Time ↕️/);
+      expect(screen.getByRole('columnheader', { name: /Pace/i })).toHaveTextContent(/Pace ↕️/);
+      expect(screen.getByRole('columnheader', { name: /Date/i })).toHaveTextContent(/Date ↕️/);
     });
 
     it('sorts by time when time header is clicked', () => {

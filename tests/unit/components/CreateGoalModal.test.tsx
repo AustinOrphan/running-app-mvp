@@ -257,7 +257,7 @@ describe('CreateGoalModal', () => {
       expect(screen.getByText('Target value must be a positive number')).toBeInTheDocument();
     });
 
-    it.skip('shows error when target value is negative', async () => {
+    it('shows error when target value is negative', async () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
@@ -311,7 +311,7 @@ describe('CreateGoalModal', () => {
   });
 
   describe('Form Submission', () => {
-    it.skip('submits valid form data', async () => {
+    it('submits valid form data', async () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
@@ -336,7 +336,7 @@ describe('CreateGoalModal', () => {
       });
     });
 
-    it.skip('handles submission with minimal data', async () => {
+    it('handles submission with minimal data', async () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
@@ -357,7 +357,7 @@ describe('CreateGoalModal', () => {
       });
     });
 
-    it.skip('shows loading state during submission', async () => {
+    it('shows loading state during submission', async () => {
       const user = userEvent.setup();
       let resolveSubmit: (value: unknown) => void;
       mockOnSubmit.mockReturnValue(
@@ -385,7 +385,7 @@ describe('CreateGoalModal', () => {
       });
     });
 
-    it.skip('resets form after successful submission', async () => {
+    it('resets form after successful submission', async () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
@@ -407,7 +407,7 @@ describe('CreateGoalModal', () => {
       });
     });
 
-    it.skip('handles submission error gracefully', async () => {
+    it('handles submission error gracefully', async () => {
       const user = userEvent.setup();
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockOnSubmit.mockRejectedValue(new Error('Submission failed'));
@@ -440,7 +440,7 @@ describe('CreateGoalModal', () => {
       expect(mockOnClose).toHaveBeenCalled();
     });
 
-    it.skip('disables cancel button during submission', async () => {
+    it('disables cancel button during submission', async () => {
       const user = userEvent.setup();
       mockOnSubmit.mockReturnValue(new Promise(() => {})); // Never resolves
 

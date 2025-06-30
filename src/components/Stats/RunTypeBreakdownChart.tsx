@@ -84,7 +84,7 @@ export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ da
   const totalCount = data.reduce((sum, d) => sum + d.count, 0);
   const chartData = data.map((item, index) => ({
     ...item,
-    percentage: totalCount === 0 ? '100.0' : ((item.count / totalCount) * 100).toFixed(1),
+    percentage: totalCount === 0 ? '0.0' : ((item.count / totalCount) * 100).toFixed(1),
     color: COLORS[index % COLORS.length],
   }));
 
