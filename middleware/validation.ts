@@ -214,7 +214,7 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
     }
 
     next();
-  } catch (_error) {
+  } catch {
     next(createError('Input sanitization failed', 400));
   }
 };

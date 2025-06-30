@@ -9,15 +9,17 @@ interface Toast {
 
 function App() {
   const [healthStatus, setHealthStatus] = useState<string>('Checking...');
-  const [runs, setRuns] = useState<Array<{
-    id: string;
-    date: string;
-    distance: number;
-    duration: number;
-    tag?: string;
-    notes?: string;
-    routeGeoJson?: unknown;
-  }>>([]);
+  const [runs, setRuns] = useState<
+    Array<{
+      id: string;
+      date: string;
+      distance: number;
+      duration: number;
+      tag?: string;
+      notes?: string;
+      routeGeoJson?: unknown;
+    }>
+  >([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

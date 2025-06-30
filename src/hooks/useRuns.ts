@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import { Run, RunFormData } from '../types';
 import { calculatePace } from '../utils/formatters';
@@ -9,7 +9,7 @@ export const useRuns = (token: string | null) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const fetchRuns = async () => {
+  const fetchRuns = useCallback(async () => {
     if (!token) return;
 
     setLoading(true);
@@ -22,7 +22,7 @@ export const useRuns = (token: string | null) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   const saveRun = async (formData: RunFormData, editingRun?: Run | null): Promise<void> => {
     if (!token) throw new Error('No authentication token');
@@ -76,7 +76,7 @@ export const useRuns = (token: string | null) => {
         // Error is already logged in fetchRuns, just prevent unhandled rejection
       });
     }
-  }, [token]);
+  }, [token, fetchRuns]);
 
   return {
     runs,

@@ -9,7 +9,36 @@ vi.mock('../../../src/utils/formatters', () => ({
   calculatePace: vi.fn((distance: number, duration: number) => duration / distance),
 }));
 
-// Mock ApiError class
+// Mock the apiFetch utilities
+vi.mock('../../../utils/apiFetch', () => {
+  // Define MockApiError inside the factory to avoid hoisting issues
+  class MockApiError extends Error {
+    status?: number;
+    response?: Response;
+    data?: unknown;
+
+    constructor(message: string, status?: number, response?: Response, data?: unknown) {
+      super(message);
+      this.name = 'ApiError';
+      this.status = status;
+      this.response = response;
+      this.data = data;
+    }
+  }
+
+  return {
+    apiGet: vi.fn(),
+    apiPost: vi.fn(),
+    apiPut: vi.fn(),
+    apiDelete: vi.fn(),
+    ApiError: MockApiError,
+  };
+});
+
+// Import the mocked functions
+import { apiGet, apiPost, apiPut, apiDelete, ApiResponse } from '../../../utils/apiFetch';
+
+// Use a simple error class for tests since we defined it in the mock
 class MockApiError extends Error {
   status?: number;
   response?: Response;
@@ -24,17 +53,12 @@ class MockApiError extends Error {
   }
 }
 
-// Mock the apiFetch utilities
-vi.mock('../../../utils/apiFetch', () => ({
-  apiGet: vi.fn(),
-  apiPost: vi.fn(),
-  apiPut: vi.fn(),
-  apiDelete: vi.fn(),
-  ApiError: MockApiError,
-}));
-
-// Import the mocked functions
-import { apiGet, apiPost, apiPut, apiDelete } from '../../../utils/apiFetch';
+// Helper function to create properly structured API responses
+const createApiResponse = <T>(data: T, status = 200): ApiResponse<T> => ({
+  data,
+  status,
+  headers: new Headers(),
+});
 
 const mockRuns: Run[] = [
   {
@@ -62,10 +86,10 @@ const mockRuns: Run[] = [
 ];
 
 describe('useRuns', () => {
-  const mockApiGet = apiGet as any;
-  const mockApiPost = apiPost as any;
-  const mockApiPut = apiPut as any;
-  const mockApiDelete = apiDelete as any;
+  const mockApiGet = vi.mocked(apiGet);
+  const mockApiPost = vi.mocked(apiPost);
+  const mockApiPut = vi.mocked(apiPut);
+  const mockApiDelete = vi.mocked(apiDelete);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -77,10 +101,10 @@ describe('useRuns', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     // Setup default mock responses
-    mockApiGet.mockResolvedValue({ data: [] });
-    mockApiPost.mockResolvedValue({ data: {} });
-    mockApiPut.mockResolvedValue({ data: {} });
-    mockApiDelete.mockResolvedValue({ data: {} });
+    mockApiGet.mockResolvedValue(createApiResponse([]));
+    mockApiPost.mockResolvedValue(createApiResponse({}));
+    mockApiPut.mockResolvedValue(createApiResponse({}));
+    mockApiDelete.mockResolvedValue(createApiResponse({}));
   });
 
   afterEach(() => {
@@ -101,9 +125,7 @@ describe('useRuns', () => {
     });
 
     it('automatically fetches runs when token is provided', async () => {
-      mockApiGet.mockResolvedValue({
-        data: mockRuns,
-      });
+      mockApiGet.mockResolvedValue(createApiResponse(mockRuns));
 
       let hookResult: any;
 
@@ -130,9 +152,7 @@ describe('useRuns', () => {
 
   describe('fetchRuns', () => {
     it('successfully fetches and sets runs data', async () => {
-      mockApiGet.mockResolvedValue({
-        data: mockRuns,
-      });
+      mockApiGet.mockResolvedValue(createApiResponse(mockRuns));
 
       let hookResult: any;
 
@@ -151,9 +171,7 @@ describe('useRuns', () => {
     });
 
     it('handles empty runs response', async () => {
-      mockApiGet.mockResolvedValue({
-        data: [],
-      });
+      mockApiGet.mockResolvedValue(createApiResponse([]));
 
       let hookResult: any;
 
@@ -212,9 +230,7 @@ describe('useRuns', () => {
 
     it('can be called manually to refresh data', async () => {
       // Initial setup
-      mockApiGet.mockResolvedValue({
-        data: mockRuns,
-      });
+      mockApiGet.mockResolvedValue(createApiResponse(mockRuns));
 
       let hookResult: any;
 
@@ -230,8 +246,7 @@ describe('useRuns', () => {
 
       // Clear the mock to test manual call
       mockApiGet.mockClear();
-      mockApiGet.mockResolvedValue({
-        data: [
+      mockApiGet.mockResolvedValue(createApiResponse([
           ...mockRuns,
           {
             id: '3',
@@ -244,8 +259,7 @@ describe('useRuns', () => {
             createdAt: '2024-06-13T06:00:00Z',
             updatedAt: '2024-06-13T06:00:00Z',
           },
-        ],
-      });
+        ]));
 
       await act(async () => {
         await result.current.fetchRuns();
@@ -256,8 +270,8 @@ describe('useRuns', () => {
     });
 
     it('sets and clears loading state correctly', async () => {
-      let resolvePromise: (value: any) => void;
-      const mockPromise = new Promise(resolve => {
+      let resolvePromise: (value: ApiResponse<Run[]>) => void;
+      const mockPromise = new Promise<ApiResponse<Run[]>>(resolve => {
         resolvePromise = resolve;
       });
 
@@ -268,9 +282,7 @@ describe('useRuns', () => {
       expect(result.current.loading).toBe(true);
 
       act(() => {
-        resolvePromise({
-          data: mockRuns,
-        });
+        resolvePromise(createApiResponse(mockRuns));
       });
 
       await waitFor(() => {
@@ -302,14 +314,10 @@ describe('useRuns', () => {
       };
 
       // Mock POST request for creating run
-      mockApiPost.mockResolvedValue({
-        data: newRun,
-      });
+      mockApiPost.mockResolvedValue(createApiResponse(newRun));
 
       // Mock GET request for refreshing data
-      mockApiGet.mockResolvedValue({
-        data: [...mockRuns, newRun],
-      });
+      mockApiGet.mockResolvedValue(createApiResponse([...mockRuns, newRun]));
 
       let hookResult: any;
 
@@ -354,13 +362,9 @@ describe('useRuns', () => {
         notes: 'Updated notes',
       };
 
-      mockApiPut.mockResolvedValue({
-        data: updatedRun,
-      });
+      mockApiPut.mockResolvedValue(createApiResponse(updatedRun));
 
-      mockApiGet.mockResolvedValue({
-        data: [updatedRun, mockRuns[1]],
-      });
+      mockApiGet.mockResolvedValue(createApiResponse([updatedRun, mockRuns[1]]));
 
       let hookResult: any;
 
@@ -401,13 +405,9 @@ describe('useRuns', () => {
         notes: '',
       };
 
-      mockApiPost.mockResolvedValue({
-        data: {},
-      });
+      mockApiPost.mockResolvedValue(createApiResponse({}));
 
-      mockApiGet.mockResolvedValue({
-        data: mockRuns,
-      });
+      mockApiGet.mockResolvedValue(createApiResponse(mockRuns));
 
       let hookResult: any;
 
@@ -530,8 +530,8 @@ describe('useRuns', () => {
     });
 
     it('sets and clears saving state correctly', async () => {
-      let resolvePromise: (value: any) => void;
-      const mockPromise = new Promise(resolve => {
+      let resolvePromise: (value: ApiResponse<unknown>) => void;
+      const mockPromise = new Promise<ApiResponse<unknown>>(resolve => {
         resolvePromise = resolve;
       });
 
@@ -558,9 +558,7 @@ describe('useRuns', () => {
       expect(result.current.saving).toBe(true);
 
       act(() => {
-        resolvePromise({
-          data: {},
-        });
+        resolvePromise(createApiResponse({}));
       });
 
       await waitFor(() => {
@@ -571,13 +569,9 @@ describe('useRuns', () => {
 
   describe('deleteRun', () => {
     it('successfully deletes run', async () => {
-      mockApiDelete.mockResolvedValue({
-        data: {},
-      });
+      mockApiDelete.mockResolvedValue(createApiResponse({}));
 
-      mockApiGet.mockResolvedValue({
-        data: [mockRuns[1]], // Only second run remains
-      });
+      mockApiGet.mockResolvedValue(createApiResponse([mockRuns[1]])); // Only second run remains
 
       let hookResult: any;
 
@@ -660,9 +654,7 @@ describe('useRuns', () => {
 
   describe('Token Changes', () => {
     it('refetches runs when token changes from null to valid', async () => {
-      mockApiGet.mockResolvedValue({
-        data: mockRuns,
-      });
+      mockApiGet.mockResolvedValue(createApiResponse(mockRuns));
 
       const { result, rerender } = renderHook(
         (props: { token: string | null }) => useRuns(props.token),
@@ -685,9 +677,7 @@ describe('useRuns', () => {
     });
 
     it('refetches runs when token changes to different token', async () => {
-      mockApiGet.mockResolvedValue({
-        data: mockRuns,
-      });
+      mockApiGet.mockResolvedValue(createApiResponse(mockRuns));
 
       const { result, rerender } = renderHook(({ token }) => useRuns(token), {
         initialProps: { token: 'token1' },
@@ -709,9 +699,7 @@ describe('useRuns', () => {
     });
 
     it('does not fetch when token changes to null', () => {
-      mockApiGet.mockResolvedValue({
-        data: mockRuns,
-      });
+      mockApiGet.mockResolvedValue(createApiResponse(mockRuns));
 
       const { rerender } = renderHook((props: { token: string | null }) => useRuns(props.token), {
         initialProps: { token: 'valid-token' as string | null },
@@ -736,13 +724,9 @@ describe('useRuns', () => {
         notes: 'Great weather',
       };
 
-      mockApiPost.mockResolvedValue({
-        data: {},
-      });
+      mockApiPost.mockResolvedValue(createApiResponse({}));
 
-      mockApiGet.mockResolvedValue({
-        data: [],
-      });
+      mockApiGet.mockResolvedValue(createApiResponse([]));
 
       let hookResult: any;
 
@@ -778,13 +762,9 @@ describe('useRuns', () => {
         notes: '',
       };
 
-      mockApiPost.mockResolvedValue({
-        data: {},
-      });
+      mockApiPost.mockResolvedValue(createApiResponse({}));
 
-      mockApiGet.mockResolvedValue({
-        data: [],
-      });
+      mockApiGet.mockResolvedValue(createApiResponse([]));
 
       let hookResult: any;
 
