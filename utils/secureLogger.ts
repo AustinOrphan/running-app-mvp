@@ -142,13 +142,13 @@ class SecureLogger {
    * Generates or retrieves correlation ID for request tracking
    */
   private getCorrelationId(req?: Request): string {
-    if (req && (req as any).correlationId) {
-      return (req as any).correlationId;
+    if (req && req.correlationId) {
+      return req.correlationId;
     }
 
     const correlationId = uuidv4();
     if (req) {
-      (req as any).correlationId = correlationId;
+      req.correlationId = correlationId;
     }
 
     return correlationId;
@@ -176,12 +176,12 @@ class SecureLogger {
     };
 
     // Only include user context in development or with explicit consent
-    if ((req as any).user?.id) {
+    if (req.user?.id) {
       if (this.isDevelopment) {
-        context.userId = (req as any).user.id;
+        context.userId = req.user.id;
       } else {
         // In production, use a hash of the user ID for correlation without exposure
-        context.userId = this.hashUserId((req as any).user.id);
+        context.userId = this.hashUserId(req.user.id);
       }
     }
 

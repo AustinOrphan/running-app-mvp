@@ -88,8 +88,8 @@ describe('Formatter Utilities', () => {
 
       const pace = calculatePace(distance, duration);
 
-      // Should be approximately 4:58 per kilometer
-      expect(pace).toBe('4:58');
+      // Should be approximately 4:59 per kilometer (6300/21.0975 = 298.69s = 4:59)
+      expect(pace).toBe('4:59');
     });
 
     it('handles marathon distance correctly', () => {
