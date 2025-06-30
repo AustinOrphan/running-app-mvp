@@ -72,9 +72,9 @@ router.post(
 
     // Validation
     if (!title || !type || !period || !targetValue || !targetUnit || !startDate || !endDate) {
-      return next(createError(
+      return next(createValidationError(
         'Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate',
-        400
+        'all'
       ));
     }
 
