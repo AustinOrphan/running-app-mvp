@@ -160,7 +160,7 @@ router.put(
       updateData.notes = notes || null;
     }
     if (routeGeoJson !== undefined) {
-      updateData.routeGeoJson = (routeGeoJson as string) || null;
+      updateData.routeGeoJson = routeGeoJson ? JSON.stringify(routeGeoJson) : null;
     }
 
     const run = await prisma.run.update({

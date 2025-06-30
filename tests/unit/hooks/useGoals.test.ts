@@ -562,9 +562,12 @@ describe('useGoals', () => {
       });
 
       // Wait a bit for auto-completion attempt to fail and state to settle
-      await waitFor(() => {
-        expect(result.current.newlyAchievedGoals).toHaveLength(1);
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(result.current.newlyAchievedGoals).toHaveLength(1);
+        },
+        { timeout: 3000 }
+      );
 
       expect(result.current.newlyAchievedGoals[0]?.id).toBe('goal-1');
     });
