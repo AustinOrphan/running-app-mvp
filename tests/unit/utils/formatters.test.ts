@@ -117,7 +117,7 @@ describe('Formatter Utilities', () => {
 
       const pace = calculatePace(distance, duration);
 
-      expect(pace).toBe('Infinity:00'); // Division by zero results in Infinity
+      expect(pace).toBe('0:00');
     });
 
     it('handles zero duration', () => {

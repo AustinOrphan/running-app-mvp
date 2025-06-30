@@ -1,7 +1,7 @@
-export const calculatePace = (
-  distance: number,
-  durationInSeconds: number
-): string => {
+export const calculatePace = (distance: number, durationInSeconds: number): string => {
+  if (distance === 0) {
+    return '0:00';
+  }
   const paceMinutes = durationInSeconds / 60 / distance;
   const minutes = Math.floor(paceMinutes);
   const seconds = Math.round((paceMinutes - minutes) * 60);
@@ -28,18 +28,15 @@ export type DateFormat =
   | 'default';
 
 const DATE_OPTIONS: Record<DateFormat, Intl.DateTimeFormatOptions | undefined> = {
-  'weekday-short': { weekday: 'short', month: 'short', day: 'numeric' },
-  'month-day': { month: 'short', day: 'numeric' },
-  'month-day-year': { month: 'short', day: 'numeric', year: 'numeric' },
-  month: { month: 'short' },
-  weekday: { weekday: 'short' },
+  'weekday-short': { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' },
+  'month-day': { month: 'short', day: 'numeric', timeZone: 'UTC' },
+  'month-day-year': { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' },
+  month: { month: 'short', timeZone: 'UTC' },
+  weekday: { weekday: 'short', timeZone: 'UTC' },
   default: undefined,
 };
 
-export const formatDate = (
-  dateInput: string | Date,
-  format: DateFormat = 'weekday-short'
-): string => {
+export const formatDate = (dateInput: string | Date, format: DateFormat = 'weekday-short'): string => {
   const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
   if (Number.isNaN(date.getTime())) {
     throw new Error('Invalid date');
@@ -48,13 +45,10 @@ export const formatDate = (
   const options = DATE_OPTIONS[format];
   return options
     ? date.toLocaleDateString('en-US', options)
-    : date.toLocaleDateString('en-US');
+    : date.toLocaleDateString('en-US', { timeZone: 'UTC' });
 };
 
-export const formatPace = (
-  paceInSeconds: number,
-  { includeUnit = false, unit = '/km' } = {}
-): string => {
+export const formatPace = (paceInSeconds: number, { includeUnit = false, unit = '/km' } = {}): string => {
   if (!isFinite(paceInSeconds) || paceInSeconds <= 0) {
     return '-';
   }
@@ -65,10 +59,7 @@ export const formatPace = (
   return includeUnit ? `${base}${unit}` : base;
 };
 
-export const formatDistance = (
-  distanceKm: number,
-  { includeUnit = true, unit = 'km', precision = 1 } = {}
-): string => {
+export const formatDistance = (distanceKm: number, { includeUnit = true, unit = 'km', precision = 1 } = {}): string => {
   const rounded = distanceKm.toFixed(precision);
   return includeUnit ? `${rounded}${unit}` : rounded;
 };
