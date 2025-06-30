@@ -129,10 +129,8 @@ describe('RunTypeBreakdownChart', () => {
       const colorElements = container.querySelectorAll('.legend-color');
       expect(colorElements.length).toBeGreaterThan(0);
 
-      // Check that each color element has a background color style
-      colorElements.forEach(element => {
-        expect(element).toHaveStyle('background-color: rgb(59, 130, 246)'); // First color should be blue
-      });
+      // First legend item should use the first color (blue)
+      expect(colorElements[0]).toHaveStyle('background-color: rgb(59, 130, 246)');
     });
   });
 

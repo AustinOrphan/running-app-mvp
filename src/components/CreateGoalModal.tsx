@@ -35,7 +35,9 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
 
   // Calculate default end date based on period
   const calculateEndDate = (startDate: string, period: GoalPeriod): string => {
+    if (!startDate) return '';
     const start = new Date(startDate);
+    if (Number.isNaN(start.getTime())) return '';
     const periodConfig = GOAL_PERIOD_CONFIGS[period];
 
     if (periodConfig.duration) {
@@ -74,7 +76,9 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
 
   // Update end date when start date changes
   const handleStartDateChange = (startDate: string) => {
-    const endDate = calculateEndDate(startDate, formData.period);
+    const endDate = startDate
+      ? calculateEndDate(startDate, formData.period)
+      : '';
     setFormData(prev => ({
       ...prev,
       startDate,
@@ -172,7 +176,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form data-testid='create-goal-form' onSubmit={handleSubmit}>
           <div className='modal-body'>
             {/* Goal Title */}
             <div className='form-group'>

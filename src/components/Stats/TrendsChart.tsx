@@ -55,7 +55,7 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
         <div className='trends-header'>
           <h3>Running Trends</h3>
           <div className='trends-controls'>
-            <div className='skeleton-line' style={{ width: '80px', height: '32px' }}></div>
+            <div data-testid='skeleton-line' className='skeleton-line' style={{ width: '80px', height: '32px' }}></div>
           </div>
         </div>
         <div className='chart-loading'>
@@ -130,6 +130,7 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
             value={selectedMetric}
             onChange={e => setSelectedMetric(e.target.value as 'distance' | 'pace')}
             className='metric-selector'
+            aria-label='Metric selector'
           >
             <option value='distance'>Distance</option>
             <option value='pace'>Pace</option>
