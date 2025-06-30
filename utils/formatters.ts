@@ -69,59 +69,43 @@ export const formatDuration = (seconds: number): string => {
   }
 };
 
-/**
- * Formats date string to user-friendly format
- * @param dateInput - Date string or Date object
- * @returns Formatted date string in "Day, Mon DD" format
- */
-export const formatDate = (dateInput: string | Date): string => {
-  let date: Date;
-  
-  if (typeof dateInput === 'string') {
-    // Throw error for empty strings
-    if (dateInput.trim() === '') {
-      throw new Error('Empty date string provided');
-    }
-    
-    // Check for obviously invalid date strings before trying to parse
-    if (dateInput === 'not-a-date' || !/\d/.test(dateInput)) {
-      throw new Error('Invalid date string provided');
-    }
-    
-    date = new Date(dateInput);
-    if (isNaN(date.getTime())) {
-      throw new Error('Invalid date string provided');
-    }
-  } else {
-    date = dateInput;
-    if (isNaN(date.getTime())) {
-      throw new Error('Invalid Date object provided');
-    }
-  }
-  
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: 'short',
-    month: 'short', 
-    day: 'numeric',
-    timeZone: 'UTC' // Use UTC to avoid timezone issues in tests
-  };
-  
-  return date.toLocaleDateString('en-US', options);
+export type DateFormat =
+  | 'weekday-short'
+  | 'month-day'
+  | 'month-day-year'
+  | 'month'
+  | 'weekday'
+  | 'default';
+
+const DATE_OPTIONS: Record<DateFormat, Intl.DateTimeFormatOptions | undefined> = {
+  'weekday-short': { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' },
+  'month-day': { month: 'short', day: 'numeric', timeZone: 'UTC' },
+  'month-day-year': { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' },
+  month: { month: 'short', timeZone: 'UTC' },
+  weekday: { weekday: 'short', timeZone: 'UTC' },
+  default: undefined,
 };
 
-/**
- * Legacy formatPace function for backwards compatibility
- * @param pace - Pace in minutes (decimal)
- * @returns Formatted pace string in "MM:SS" format
- */
-export const formatPace = (pace: number): string => {
-  const minutes = Math.floor(pace);
-  const seconds = Math.round((pace - minutes) * 60);
-  
-  // Handle edge case where rounding might give us 60 seconds
-  if (seconds >= 60) {
-    return `${minutes + 1}:00`;
+export const formatDate = (date: Date | string, format: DateFormat = 'weekday-short'): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) {
+    throw new Error('Invalid date');
   }
-  
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  const options = DATE_OPTIONS[format];
+  return options ? d.toLocaleDateString('en-US', options) : d.toLocaleDateString('en-US', { timeZone: 'UTC' });
+};
+
+export const formatPace = (pace: number, { includeUnit = false, unit = '/km' } = {}): string => {
+  if (!isFinite(pace) || pace <= 0) {
+    return '-';
+  }
+  const minutes = Math.floor(pace / 60);
+  const seconds = Math.round(pace % 60);
+  const base = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  return includeUnit ? `${base}${unit}` : base;
+};
+
+export const formatDistance = (distanceKm: number, { includeUnit = true, unit = 'km', precision = 1 } = {}): string => {
+  const rounded = distanceKm.toFixed(precision);
+  return includeUnit ? `${rounded}${unit}` : rounded;
 };
