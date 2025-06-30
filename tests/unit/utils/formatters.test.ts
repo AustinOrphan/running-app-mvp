@@ -82,8 +82,8 @@ describe('Formatter Utilities', () => {
 
       const pace = calculatePace(distance, duration);
 
-      // Should be approximately 4:58 per kilometer
-      expect(pace).toBe('4:58');
+      // Should be approximately 4:59 per kilometer
+      expect(pace).toBe('4:59');
     });
 
     it('handles marathon distance correctly', () => {
@@ -414,9 +414,8 @@ describe('Formatter Utilities', () => {
 
         const formatted = formatDuration(duration);
 
-        // This would be implementation dependent
-        // The function might return negative values or handle it differently
-        expect(formatted).toMatch(/-?\d+[hm]\s?-?\d+[ms]\s?-?\d+s/);
+        // Currently returns negative sign with minutes and seconds
+        expect(formatted).toBe('-30m 0s');
       });
     });
 

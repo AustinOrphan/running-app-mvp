@@ -124,7 +124,7 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
       <h3>Personal Records</h3>
 
       <div className='records-table-container'>
-        <table className='records-table'>
+        <table className='records-table' aria-label='Personal records table'>
           <thead>
             <tr>
               <th

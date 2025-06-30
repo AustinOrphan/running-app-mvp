@@ -23,7 +23,8 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
 }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
+  const clamped = Math.max(0, Math.min(percentage, 100));
+  const offset = circumference - (clamped / 100) * circumference;
 
   return (
     <div className={`circular-progress ${className}`} style={{ width: size, height: size }}>
@@ -60,7 +61,14 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
       </svg>
 
       {/* Content overlay */}
-      {children && <div className='circular-progress-content'>{children}</div>}
+      {children && (
+        <div
+          className='circular-progress-content'
+          style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 };

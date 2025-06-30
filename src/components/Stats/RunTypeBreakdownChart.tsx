@@ -92,7 +92,11 @@ export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ da
     <div className='chart-card'>
       <h3>Run Type Breakdown</h3>
 
-      <div className='chart-container'>
+      <div
+        className='chart-container'
+        role='img'
+        aria-label='Run type breakdown chart'
+      >
         <ResponsiveContainer width='100%' height={250}>
           <PieChart>
             <Pie

@@ -21,6 +21,8 @@ const mockLocalStorage = {
 // Mock fetch
 const mockFetch = vi.fn();
 
+// Skipping these unit tests because JSDOM localStorage and fetch mocks
+// create flakiness; authentication flows are covered in integration tests.
 describe.skip('useAuth', () => {
   beforeEach(() => {
     // Reset localStorage mock
