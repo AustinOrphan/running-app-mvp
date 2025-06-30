@@ -11,11 +11,8 @@
  */
 export const calculatePace = (distance: number, duration: number): string => {
   if (distance === 0) {
-    // Special handling for zero distance
-    if (duration <= 0) {
-      return '0:00';
-    }
-    return 'Infinity:00';
+    // Special handling for zero distance - always return 0:00 for consistency
+    return '0:00';
   }
   
   if (duration <= 0) {
