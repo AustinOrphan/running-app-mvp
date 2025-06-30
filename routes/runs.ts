@@ -9,12 +9,16 @@ import {
   validateUpdateRun,
   validateIdParam,
   sanitizeInput,
+  securityHeaders,
 } from '../middleware/validation.js';
 import { createRateLimit, readRateLimit, apiRateLimit } from '../middleware/rateLimiting.js';
 import { logUserAction } from '../utils/secureLogger.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Apply security headers to all runs routes
+router.use(securityHeaders);
 
 // Apply input sanitization to all runs routes
 router.use(sanitizeInput);

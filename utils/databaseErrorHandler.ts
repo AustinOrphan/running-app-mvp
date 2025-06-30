@@ -1,4 +1,4 @@
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 import { createDatabaseError, createValidationError, createNotFoundError, createConflictError } from '../middleware/errorHandler.js';
 
 /**
@@ -9,7 +9,7 @@ import { createDatabaseError, createValidationError, createNotFoundError, create
  */
 export const handleDatabaseError = (error: any, operation: string = 'Database operation') => {
   // Handle Prisma-specific errors
-  if (error instanceof PrismaClientKnownRequestError) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
       case 'P2002':
         // Unique constraint violation

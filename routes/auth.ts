@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createError, createConflictError, createUnauthorizedError } from '../middleware/errorHandler.js';
-import { validateRegister, validateLogin, sanitizeInput } from '../middleware/validation.js';
+import { validateRegister, validateLogin, sanitizeInput, securityHeaders } from '../middleware/validation.js';
 import { authRateLimit } from '../middleware/rateLimiting.js';
 import { logUserAction } from '../utils/secureLogger.js';
 
@@ -14,6 +14,9 @@ const prisma = new PrismaClient();
 
 // Apply rate limiting to all auth routes
 router.use(authRateLimit);
+
+// Apply security headers to all auth routes
+router.use(securityHeaders);
 
 // Apply input sanitization to all auth routes
 router.use(sanitizeInput);

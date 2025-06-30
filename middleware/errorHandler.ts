@@ -9,6 +9,20 @@ export interface AppError extends Error {
   field?: string;
 }
 
+export interface ErrorResponse {
+  error: boolean;
+  message: string;
+  statusCode: number;
+  category: string;
+  timestamp: string;
+  path: string;
+  method: string;
+  errorCode?: string;
+  field?: string;
+  details?: any;
+  stack?: string;
+}
+
 export const errorHandler = (
   err: AppError,
   req: Request,
@@ -32,7 +46,7 @@ export const errorHandler = (
   });
 
   // Build comprehensive error response
-  const errorResponse: any = {
+  const errorResponse: ErrorResponse = {
     error: true,
     message,
     statusCode,
