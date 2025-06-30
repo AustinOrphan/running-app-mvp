@@ -95,6 +95,8 @@ running-app-mvp/
 - `DELETE /api/goals/:id` - Delete goal
 - `GET /api/races` - Get user races
 - `POST /api/races` - Create new race
+- `PUT /api/races/:id` - Update race
+- `DELETE /api/races/:id` - Delete race
 
 ## 🔧 Development Commands
 

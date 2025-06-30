@@ -44,6 +44,25 @@ export const updateRunSchema = z.object({
   routeGeoJson: z.any().optional().nullable(),
 });
 
+// Race validation schemas
+export const createRaceSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be 100 characters or less'),
+  raceDate: dateSchema,
+  distance: positiveNumberSchema,
+  targetTime: positiveNumberSchema.optional(),
+  actualTime: positiveNumberSchema.optional(),
+  notes: z.string().trim().max(1000, 'Notes must be 1000 characters or less').optional().nullable(),
+});
+
+export const updateRaceSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be 100 characters or less').optional(),
+  raceDate: dateSchema.optional(),
+  distance: positiveNumberSchema.optional(),
+  targetTime: positiveNumberSchema.optional(),
+  actualTime: positiveNumberSchema.optional(),
+  notes: z.string().trim().max(1000, 'Notes must be 1000 characters or less').optional().nullable(),
+});
+
 // Goal validation schemas
 export const createGoalSchema = z
   .object({
@@ -194,6 +213,8 @@ export const validateCreateRun = validateBody(createRunSchema);
 export const validateUpdateRun = validateBody(updateRunSchema);
 export const validateCreateGoal = validateBody(createGoalSchema);
 export const validateUpdateGoal = validateBody(updateGoalSchema);
+export const validateCreateRace = validateBody(createRaceSchema);
+export const validateUpdateRace = validateBody(updateRaceSchema);
 export const validateIdParam = validateParams(idParamSchema);
 export const validateStatsQuery = validateQuery(statsQuerySchema);
 
