@@ -3,11 +3,16 @@ import bcrypt from 'bcrypt';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 
-import { asyncHandler } from '../middleware/asyncHandler.js';
-import { createError, createConflictError, createUnauthorizedError } from '../middleware/errorHandler.js';
+import { asyncHandler, asyncAuthHandler } from '../middleware/asyncHandler.js';
+import {
+  createError,
+  createConflictError,
+  createUnauthorizedError,
+} from '../middleware/errorHandler.js';
 import { validateRegister, validateLogin, sanitizeInput, securityHeaders } from '../middleware/validation.js';
 import { authRateLimit } from '../middleware/rateLimiting.js';
 import { logUserAction } from '../utils/secureLogger.js';
+import { requireAuth, type AuthRequest } from '../middleware/requireAuth.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -116,6 +121,24 @@ router.post(
         email: user.email,
       },
     });
+  })
+);
+
+// GET /api/auth/verify - Verify JWT token and return user info
+router.get(
+  '/verify',
+  requireAuth,
+  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { id: true, email: true },
+    });
+
+    if (!user) {
+      return next(createUnauthorizedError('Invalid token'));
+    }
+
+    return res.json({ user });
   })
 );
 
