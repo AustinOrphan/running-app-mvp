@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 import { RunTypeBreakdown } from '../../types';
 
@@ -81,9 +81,10 @@ export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ da
   }
 
   // Prepare data for the chart - add percentage and color
+  const totalCount = data.reduce((sum, d) => sum + d.count, 0);
   const chartData = data.map((item, index) => ({
     ...item,
-    percentage: ((item.count / data.reduce((sum, d) => sum + d.count, 0)) * 100).toFixed(1),
+    percentage: totalCount === 0 ? '0.0' : ((item.count / totalCount) * 100).toFixed(1),
     color: COLORS[index % COLORS.length],
   }));
 
@@ -91,7 +92,11 @@ export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ da
     <div className='chart-card'>
       <h3>Run Type Breakdown</h3>
 
-      <div className='chart-container'>
+      <div
+        className='chart-container'
+        role='img'
+        aria-label='Run type breakdown chart'
+      >
         <ResponsiveContainer width='100%' height={250}>
           <PieChart>
             <Pie
@@ -113,7 +118,7 @@ export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ da
       </div>
 
       <div className='chart-legend'>
-        {chartData.map((item, index) => (
+        {chartData.map((item, _index) => (
           <div key={item.tag} className='legend-item'>
             <div className='legend-color' style={{ backgroundColor: item.color }}></div>
             <div className='legend-content'>

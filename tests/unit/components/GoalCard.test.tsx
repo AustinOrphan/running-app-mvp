@@ -84,7 +84,7 @@ describe('GoalCard', () => {
 
       const iconElement = screen.getByText('🏃‍♂️');
       expect(iconElement).toBeInTheDocument();
-      expect(iconElement.parentElement).toHaveStyle({ color: '#ff5733' });
+      expect(iconElement).toHaveStyle({ color: '#ff5733' });
     });
   });
 
@@ -175,7 +175,9 @@ describe('GoalCard', () => {
         currentValue: 330, // 5:30 min/km in seconds
       });
 
-      render(<GoalCard {...defaultProps} goal={goal} progress={undefined} />);
+      const progress = createMockGoalProgress({ currentValue: 330 });
+
+      render(<GoalCard {...defaultProps} goal={goal} progress={progress} />);
 
       expect(screen.getByText('5:30 min/km / 5:00 min/km')).toBeInTheDocument();
     });
