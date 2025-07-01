@@ -118,14 +118,15 @@ describe('PersonalRecordsTable', () => {
 
       const distanceHeader = screen.getByRole('columnheader', { name: /Distance/i });
 
-      // Initial state should be ascending
+      // First click - should set to ascending
+      fireEvent.click(distanceHeader);
       expect(screen.getByText('Distance ↑')).toBeInTheDocument();
 
-      // First click - descending
+      // Second click - should toggle to descending
       fireEvent.click(distanceHeader);
       expect(screen.getByText('Distance ↓')).toBeInTheDocument();
 
-      // Second click - back to ascending
+      // Third click - should toggle back to ascending
       fireEvent.click(distanceHeader);
       expect(screen.getByText('Distance ↑')).toBeInTheDocument();
     });
