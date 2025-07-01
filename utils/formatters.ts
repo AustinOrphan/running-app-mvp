@@ -17,28 +17,28 @@ export const calculatePace = (distance: number, duration: number): string => {
     }
     return 'Infinity:00';
   }
-  
+
   if (duration <= 0) {
     return '0:00';
   }
 
   // Calculate pace in seconds per kilometer
   const paceInSeconds = duration / distance;
-  
+
   // Handle infinity case specially
   if (!isFinite(paceInSeconds)) {
     return 'Infinity:00';
   }
-  
+
   // Convert to minutes and seconds
   const minutes = Math.floor(paceInSeconds / 60);
   const seconds = Math.round(paceInSeconds % 60);
-  
+
   // Handle edge case where rounding might give us 60 seconds
   if (seconds >= 60) {
     return `${minutes + 1}:00`;
   }
-  
+
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
@@ -50,11 +50,11 @@ export const calculatePace = (distance: number, duration: number): string => {
 export const formatDuration = (seconds: number): string => {
   const absSeconds = Math.abs(seconds);
   const isNegative = seconds < 0;
-  
+
   const hours = Math.floor(absSeconds / 3600);
   const minutes = Math.floor((absSeconds % 3600) / 60);
   const remainingSeconds = absSeconds % 60;
-  
+
   // Format the duration components based on the regex pattern: /-?\d+[hm]\s?-?\d+[ms]\s?-?\d+s/
   if (hours > 0) {
     if (isNegative) {
@@ -69,12 +69,7 @@ export const formatDuration = (seconds: number): string => {
   }
 };
 
-export type DateFormat =
-  | 'weekday-short'
-  | 'month-day'
-  | 'month-day-year'
-  | 'month'
-  | 'weekday';
+export type DateFormat = 'weekday-short' | 'month-day' | 'month-day-year' | 'month' | 'weekday';
 
 const DATE_OPTIONS: Record<DateFormat, Intl.DateTimeFormatOptions> = {
   'weekday-short': { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' },
@@ -99,7 +94,7 @@ export const formatPace = (pace: number, { includeUnit = false, unit = '/km' } =
   }
   let minutes = Math.floor(pace / 60);
   let seconds = Math.round(pace % 60);
-  
+
   if (seconds >= 60) {
     minutes += 1;
     seconds = 0;
@@ -108,7 +103,10 @@ export const formatPace = (pace: number, { includeUnit = false, unit = '/km' } =
   return includeUnit ? `${base}${unit}` : base;
 };
 
-export const formatDistance = (distanceKm: number, { includeUnit = true, unit = 'km', precision = 1 } = {}): string => {
+export const formatDistance = (
+  distanceKm: number,
+  { includeUnit = true, unit = 'km', precision = 1 } = {}
+): string => {
   const rounded = distanceKm.toFixed(precision);
   return includeUnit ? `${rounded}${unit}` : rounded;
 };

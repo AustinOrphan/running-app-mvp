@@ -42,7 +42,7 @@ function App() {
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeHighlight, setSwipeHighlight] = useState(false);
   const [hasSwipedOnce, setHasSwipedOnce] = useState(false);
-  const [showSwipeHint, setShowSwipeHint] = useState(true);
+
   const [runForm, setRunForm] = useState({
     date: new Date().toISOString().split('T')[0],
     distance: '',
@@ -204,7 +204,6 @@ function App() {
     const hasSwipedBefore = localStorage.getItem('hasSwipedOnce');
     if (hasSwipedBefore === 'true') {
       setHasSwipedOnce(true);
-      setShowSwipeHint(false);
     }
   }, []);
 
@@ -220,8 +219,9 @@ function App() {
         const runsData = await response.json();
         setRuns(runsData);
       }
-    } catch (error) {
-      console.error('Failed to fetch runs:', error);
+    } catch (_error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to fetch runs:', _error);
       showToast('Failed to load runs', 'error');
     } finally {
       setRunsLoading(false);
@@ -248,7 +248,7 @@ function App() {
         const errorData = await response.json().catch(() => ({}));
         showToast(errorData.message || 'Login failed', 'error');
       }
-    } catch (error) {
+    } catch {
       showToast('Network error. Please try again.', 'error');
     } finally {
       setLoading(false);
@@ -274,7 +274,7 @@ function App() {
         const errorData = await response.json().catch(() => ({}));
         showToast(errorData.message || 'Registration failed', 'error');
       }
-    } catch (error) {
+    } catch {
       showToast('Network error. Please try again.', 'error');
     } finally {
       setLoading(false);
@@ -334,15 +334,16 @@ function App() {
         const errorData = await response.json().catch(() => ({}));
         showToast(errorData.message || `Failed to ${editingRun ? 'update' : 'save'} run`, 'error');
       }
-    } catch (error) {
-      console.error('Failed to save run:', error);
+    } catch (_error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to save run:', _error);
       showToast('Network error. Failed to save run.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditRun = (run: any) => {
+  const handleEditRun = (run: (typeof runs)[0]) => {
     setEditingRun(run);
     setRunForm({
       date: new Date(run.date).toISOString().split('T')[0],
@@ -375,7 +376,7 @@ function App() {
       } else {
         showToast('Failed to delete run', 'error');
       }
-    } catch (error) {
+    } catch {
       showToast('Network error. Failed to delete run.', 'error');
     }
   };

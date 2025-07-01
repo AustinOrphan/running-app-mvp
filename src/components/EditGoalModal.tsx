@@ -178,6 +178,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
 
       setErrors({});
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Failed to update goal:', error);
     } finally {
       setIsSubmitting(false);

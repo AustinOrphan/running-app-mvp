@@ -147,7 +147,7 @@ const ProgressChart: React.FC<{ data: MonthlyGoalProgress[] }> = ({ data }) => {
   return (
     <div className='progress-chart'>
       <div className='chart-bars'>
-        {data.map((month, index) => (
+        {data.map((month, _index) => (
           <div key={month.month} className='chart-bar-container'>
             <div className='chart-bar-group'>
               <div

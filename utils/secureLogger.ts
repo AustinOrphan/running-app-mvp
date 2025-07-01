@@ -34,7 +34,7 @@ export interface SecureLogEntry {
   level: LogLevel;
   message: string;
   context: LogContext;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   stack?: string;
 }
 
@@ -82,7 +82,7 @@ class SecureLogger {
   /**
    * Redacts sensitive data from any object or string
    */
-  private redactSensitiveData(data: any): any {
+  private redactSensitiveData(data: unknown): unknown {
     if (typeof data === 'string') {
       return this.redactString(data);
     }
@@ -92,7 +92,7 @@ class SecureLogger {
     }
 
     if (data && typeof data === 'object') {
-      const redacted: any = {};
+      const redacted: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(data)) {
         if (this.isSensitiveField(key)) {
           redacted[key] = this.maskValue(value);
@@ -128,7 +128,7 @@ class SecureLogger {
   /**
    * Masks sensitive values while preserving type information
    */
-  private maskValue(value: any): string {
+  private maskValue(value: unknown): string {
     if (value === null || value === undefined) {
       return String(value);
     }
@@ -176,8 +176,8 @@ class SecureLogger {
       method: req.method,
       url: this.redactSensitiveUrlParams(req.url),
       userAgent: req.get('User-Agent'),
-      ip: this.isProduction 
-        ? this.hashIpAddress(req.ip || req.socket?.remoteAddress) 
+      ip: this.isProduction
+        ? this.hashIpAddress(req.ip || req.socket?.remoteAddress)
         : req.ip || req.socket?.remoteAddress,
     };
 
@@ -205,10 +205,10 @@ class SecureLogger {
   /**
    * Hashes IP address for enhanced privacy compliance (Issue #38)
    * Uses SHA-256 hashing to completely anonymize IPs while maintaining correlation
-   * 
+   *
    * @param ip - IP address to hash (IPv4 or IPv6)
    * @returns SHA-256 hash (truncated to 16 chars) or '[UNKNOWN]' if no IP provided
-   * 
+   *
    * Environment Variables:
    * - IP_SALT: Salt for IP hashing (required in production for security)
    */
@@ -216,8 +216,9 @@ class SecureLogger {
     if (!ip) return '[UNKNOWN]';
 
     const salt = process.env.IP_SALT || 'default-ip-salt-dev-only';
-    
+
     if (this.isProduction && !process.env.IP_SALT) {
+      // eslint-disable-next-line no-console
       console.warn('WARNING: IP_SALT not set in production. Using default salt.');
     }
 
@@ -225,7 +226,7 @@ class SecureLogger {
       .createHash('sha256')
       .update(ip + salt)
       .digest('hex');
-    
+
     // Truncate for storage efficiency while maintaining uniqueness
     // 16 characters provides 2^64 possible values, sufficient for correlation
     return `ip_${hash.substring(0, 16)}`;
@@ -273,7 +274,7 @@ class SecureLogger {
     level: LogLevel,
     message: string,
     req?: Request,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
     error?: Error
   ): void {
     // Skip debug logs in production
@@ -295,15 +296,19 @@ class SecureLogger {
     // Use appropriate console method based on level
     switch (level) {
       case LogLevel.ERROR:
+        // eslint-disable-next-line no-console
         console.error('SecureLog:', JSON.stringify(logEntry, null, this.isDevelopment ? 2 : 0));
         break;
       case LogLevel.WARN:
+        // eslint-disable-next-line no-console
         console.warn('SecureLog:', JSON.stringify(logEntry, null, this.isDevelopment ? 2 : 0));
         break;
       case LogLevel.INFO:
+        // eslint-disable-next-line no-console
         console.info('SecureLog:', JSON.stringify(logEntry, null, this.isDevelopment ? 2 : 0));
         break;
       case LogLevel.DEBUG:
+        // eslint-disable-next-line no-console
         console.debug('SecureLog:', JSON.stringify(logEntry, null, this.isDevelopment ? 2 : 0));
         break;
     }
@@ -312,35 +317,35 @@ class SecureLogger {
   /**
    * Log error with secure context
    */
-  error(message: string, req?: Request, error?: Error, metadata?: Record<string, any>): void {
+  error(message: string, req?: Request, error?: Error, metadata?: Record<string, unknown>): void {
     this.log(LogLevel.ERROR, message, req, metadata, error);
   }
 
   /**
    * Log warning with secure context
    */
-  warn(message: string, req?: Request, metadata?: Record<string, any>): void {
+  warn(message: string, req?: Request, metadata?: Record<string, unknown>): void {
     this.log(LogLevel.WARN, message, req, metadata);
   }
 
   /**
    * Log info with secure context
    */
-  info(message: string, req?: Request, metadata?: Record<string, any>): void {
+  info(message: string, req?: Request, metadata?: Record<string, unknown>): void {
     this.log(LogLevel.INFO, message, req, metadata);
   }
 
   /**
    * Log debug (development only) with secure context
    */
-  debug(message: string, req?: Request, metadata?: Record<string, any>): void {
+  debug(message: string, req?: Request, metadata?: Record<string, unknown>): void {
     this.log(LogLevel.DEBUG, message, req, metadata);
   }
 
   /**
    * Log user action with privacy-compliant tracking
    */
-  userAction(action: string, req?: Request, metadata?: Record<string, any>): void {
+  userAction(action: string, req?: Request, metadata?: Record<string, unknown>): void {
     if (this.isDevelopment) {
       this.info(`User action: ${action}`, req, metadata);
     } else {
@@ -357,7 +362,7 @@ class SecureLogger {
    * Create correlation middleware for request tracking
    */
   correlationMiddleware() {
-    return (req: Request, res: any, next: any) => {
+    return (req: Request, res: unknown, next: unknown) => {
       this.getCorrelationId(req);
       next();
     };
@@ -368,20 +373,20 @@ class SecureLogger {
 export const secureLogger = new SecureLogger();
 
 // Export convenience methods for common patterns
-export const logUserAction = (action: string, req?: Request, metadata?: Record<string, any>) =>
+export const logUserAction = (action: string, req?: Request, metadata?: Record<string, unknown>) =>
   secureLogger.userAction(action, req, metadata);
 
 export const logError = (
   message: string,
   req?: Request,
   error?: Error,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ) => secureLogger.error(message, req, error, metadata);
 
-export const logInfo = (message: string, req?: Request, metadata?: Record<string, any>) =>
+export const logInfo = (message: string, req?: Request, metadata?: Record<string, unknown>) =>
   secureLogger.info(message, req, metadata);
 
-export const logDebug = (message: string, req?: Request, metadata?: Record<string, any>) =>
+export const logDebug = (message: string, req?: Request, metadata?: Record<string, unknown>) =>
   secureLogger.debug(message, req, metadata);
 
 export const correlationMiddleware = () => secureLogger.correlationMiddleware();

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { Goal, GoalProgress, CreateGoalData } from '../types/goals';
-import { MilestoneDetector, DeadlineDetector, StreakDetector } from '../utils/milestoneDetector';
+import { MilestoneDetector, DeadlineDetector } from '../utils/milestoneDetector';
 
 import { useNotifications } from './useNotifications';
 
@@ -34,7 +34,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
   const {
     showMilestoneNotification,
     showDeadlineNotification,
-    showStreakNotification,
+    // showStreakNotification,
     preferences: notificationPreferences,
   } = useNotifications();
 

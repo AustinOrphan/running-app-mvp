@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 
 import { GOAL_TEMPLATE_COLLECTIONS, searchTemplates } from '../../data/goalTemplates';
-import { CreateGoalData } from '../../types/goals';
 import { GoalTemplate, GoalTemplateCollection } from '../../types/goalTemplates';
 
 interface GoalTemplateBrowserProps {

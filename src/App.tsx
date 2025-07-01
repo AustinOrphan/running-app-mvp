@@ -45,7 +45,7 @@ function App() {
     // Check server health
     fetch('/api/health')
       .then(res => res.json())
-      .then(data => {
+      .then(_data => {
         setHealthStatus('✅ Backend Connected');
         showToast('Connected to server', 'success');
       })

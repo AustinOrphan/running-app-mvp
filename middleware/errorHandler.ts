@@ -5,7 +5,7 @@ export interface AppError extends Error {
   statusCode?: number;
   isOperational?: boolean;
   errorCode?: string;
-  details?: any;
+  details?: Record<string, unknown>;
   field?: string;
 }
 
@@ -19,7 +19,7 @@ export interface ErrorResponse {
   method: string;
   errorCode?: string;
   field?: string;
-  details?: any;
+  details?: Record<string, unknown>;
   stack?: string;
 }
 
@@ -101,7 +101,11 @@ export const createError = (message: string, statusCode: number = 500): AppError
 /**
  * Creates a validation error with field information
  */
-export const createValidationError = (message: string, field?: string, details?: any): AppError => {
+export const createValidationError = (
+  message: string,
+  field?: string,
+  details?: Record<string, unknown>
+): AppError => {
   const error = new Error(message) as AppError;
   error.statusCode = 400;
   error.isOperational = true;
@@ -147,7 +151,10 @@ export const createForbiddenError = (message: string = 'Forbidden'): AppError =>
 /**
  * Creates a conflict error
  */
-export const createConflictError = (message: string, details?: any): AppError => {
+export const createConflictError = (
+  message: string,
+  details?: Record<string, unknown>
+): AppError => {
   const error = new Error(message) as AppError;
   error.statusCode = 409;
   error.isOperational = true;
@@ -159,7 +166,10 @@ export const createConflictError = (message: string, details?: any): AppError =>
 /**
  * Creates a database error
  */
-export const createDatabaseError = (message: string = 'Database operation failed', details?: any): AppError => {
+export const createDatabaseError = (
+  message: string = 'Database operation failed',
+  details?: Record<string, unknown>
+): AppError => {
   const error = new Error(message) as AppError;
   error.statusCode = 500;
   error.isOperational = true;

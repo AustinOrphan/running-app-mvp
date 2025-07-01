@@ -2,7 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createError } from '../middleware/errorHandler.js';
+import { createValidationError } from '../middleware/errorHandler.js';
+
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
 
@@ -16,7 +17,7 @@ router.use(sanitizeInput);
 router.get(
   '/insights-summary',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
@@ -44,6 +45,7 @@ router.get(
       weekEnd: new Date().toISOString(),
       hasData: totalRuns > 0,
     });
+    return;
   })
 );
 
@@ -51,7 +53,7 @@ router.get(
 router.get(
   '/type-breakdown',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
       select: {
@@ -96,7 +98,7 @@ router.get(
       return res.json([]);
     }
 
-    res.json(breakdownArray);
+    return res.json(breakdownArray);
   })
 );
 
@@ -104,13 +106,15 @@ router.get(
 router.get(
   '/trends',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const { period = '3m' } = req.query; // 1m, 3m, 6m, 1y
 
     // Validate period parameter
     const validPeriods = ['1m', '3m', '6m', '1y'];
     if (typeof period !== 'string' || !validPeriods.includes(period)) {
-      return next(createError('Invalid period parameter. Must be one of: 1m, 3m, 6m, 1y', 400));
+      return _next(
+        createValidationError('Invalid period parameter. Must be one of: 1m, 3m, 6m, 1y', 'period')
+      );
     }
 
     let daysBack = 90; // default 3 months
@@ -180,7 +184,7 @@ router.get(
       return res.json([]);
     }
 
-    res.json(trendsData);
+    return res.json(trendsData);
   })
 );
 
@@ -188,7 +192,7 @@ router.get(
 router.get(
   '/personal-records',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
       orderBy: { date: 'desc' },
@@ -234,7 +238,7 @@ router.get(
       return res.json([]);
     }
 
-    res.json(records);
+    return res.json(records);
   })
 );
 
