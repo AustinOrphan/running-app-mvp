@@ -11,12 +11,16 @@ const prisma = new PrismaClient({
 
 // Clean up database before each test
 beforeEach(async () => {
+  await prisma.race.deleteMany();
+  await prisma.goal.deleteMany();
   await prisma.run.deleteMany();
   await prisma.user.deleteMany();
 });
 
 // Clean up and disconnect after all tests
 afterAll(async () => {
+  await prisma.race.deleteMany();
+  await prisma.goal.deleteMany();
   await prisma.run.deleteMany();
   await prisma.user.deleteMany();
   await prisma.$disconnect();
