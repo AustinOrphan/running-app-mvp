@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 
 import {
   asyncHandler,
-  asyncAuthHandler
+  asyncAuthHandler,
 } from '../middleware/asyncHandler';
 import {
   createError,
@@ -22,7 +22,7 @@ import { authRateLimit } from '../middleware/rateLimiting';
 import { logUserAction } from '../utils/secureLogger';
 import {
   requireAuth,
-  type AuthRequest
+  type AuthRequest,
 } from '../middleware/requireAuth';
 
 const router = express.Router();
