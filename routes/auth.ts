@@ -3,16 +3,16 @@ import bcrypt from 'bcrypt';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 
-import { asyncHandler, asyncAuthHandler } from '../middleware/asyncHandler.js';
+import { asyncHandler, asyncAuthHandler } from '../middleware/asyncHandler';
 import {
   createError,
   createConflictError,
   createUnauthorizedError,
-} from '../middleware/errorHandler.js';
-import { validateRegister, validateLogin, sanitizeInput, securityHeaders } from '../middleware/validation.js';
-import { authRateLimit } from '../middleware/rateLimiting.js';
-import { logUserAction } from '../utils/secureLogger.js';
-import { requireAuth, type AuthRequest } from '../middleware/requireAuth.js';
+} from '../middleware/errorHandler';
+import { validateRegister, validateLogin, sanitizeInput, securityHeaders } from '../middleware/validation';
+import { authRateLimit } from '../middleware/rateLimiting';
+import { logUserAction } from '../utils/secureLogger';
+import { requireAuth, type AuthRequest } from '../middleware/requireAuth';
 
 const router = express.Router();
 const prisma = new PrismaClient();
