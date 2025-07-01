@@ -18,7 +18,8 @@ fi
 npm ci
 
 # Prisma setup
-npx prisma migrate dev --name init --skip-seed
+# Apply existing migrations to new database
+npx prisma migrate deploy
 npx prisma generate
 
 # Install Playwright browsers
