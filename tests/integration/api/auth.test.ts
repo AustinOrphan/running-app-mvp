@@ -331,9 +331,10 @@ describe('Auth API Integration Tests', () => {
       await request(app).post('/api/auth/register').send(userData).expect(201);
 
       let lastResponse: request.Response | undefined;
+      const RATE_LIMIT_TEST_ATTEMPTS = 5;
 
       // Additional requests should eventually hit the rate limit
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < RATE_LIMIT_TEST_ATTEMPTS; i++) {
         lastResponse = await request(app)
           .post('/api/auth/register')
           .send({
@@ -342,9 +343,10 @@ describe('Auth API Integration Tests', () => {
           });
       }
 
-      expect(lastResponse?.status).toBe(429);
-      expect(lastResponse?.body).toHaveProperty('message');
-      expect(lastResponse?.body.message).toMatch(/too many/i);
+      expect(lastResponse).toBeDefined();
+      expect(lastResponse!.status).toBe(429);
+      expect(lastResponse!.body).toHaveProperty('message');
+      expect(lastResponse!.body.message).toMatch(/too many/i);
     });
 
     it('handles multiple login attempts with invalid credentials', async () => {
