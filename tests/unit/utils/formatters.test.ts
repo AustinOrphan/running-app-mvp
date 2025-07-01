@@ -420,7 +420,7 @@ describe('Formatter Utilities', () => {
 
         const formatted = formatDuration(duration);
 
-        // Should returns negative sign with minutes and seconds
+        // Should return negative sign with minutes and seconds
         expect(formatted).toBe('-30m 0s');
       });
     });
