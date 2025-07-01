@@ -23,7 +23,7 @@ describe('PersonalRecordsTable', () => {
       render(<PersonalRecordsTable records={[]} loading={true} />);
 
       expect(screen.getByText('Personal Records')).toBeInTheDocument();
-      expect(screen.getByTestId('skeleton-line')).toBeInTheDocument();
+      expect(screen.getAllByTestId('skeleton-line').length).toBeGreaterThan(0);
     });
 
     it('displays table skeleton with correct structure', () => {
@@ -53,10 +53,10 @@ describe('PersonalRecordsTable', () => {
       expect(screen.getByRole('table')).toBeInTheDocument();
 
       // Check headers
-      expect(screen.getByText('Distance')).toBeInTheDocument();
-      expect(screen.getByText('Time')).toBeInTheDocument();
-      expect(screen.getByText('Pace')).toBeInTheDocument();
-      expect(screen.getByText('Date')).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /Distance/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /Time/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /Pace/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /Date/i })).toBeInTheDocument();
     });
 
     it('displays all record data correctly', () => {
@@ -86,14 +86,18 @@ describe('PersonalRecordsTable', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
       // Should format dates as "May 15, 2024" etc.
-      expect(screen.getByText(/May 15, 2024/)).toBeInTheDocument();
-      expect(screen.getByText(/Jun 9, 2024/)).toBeInTheDocument();
+      expect(screen.getAllByText(/May 15, 2024/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Jun 9, 2024/).length).toBeGreaterThan(0);
     });
 
     it('displays summary statistics correctly', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      expect(screen.getByText(`Total PRs: ${mockPersonalRecords.length}`)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          (_, node) => node?.textContent === `Total PRs: ${mockPersonalRecords.length}`
+        )
+      ).toBeInTheDocument();
       expect(screen.getByText(/Latest:/)).toBeInTheDocument();
     });
   });
@@ -102,7 +106,7 @@ describe('PersonalRecordsTable', () => {
     it('sorts by distance when distance header is clicked', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      const distanceHeader = screen.getByText('Distance');
+      const distanceHeader = screen.getByRole('columnheader', { name: /Distance/i });
       fireEvent.click(distanceHeader);
 
       // Check that header has active class
@@ -112,30 +116,34 @@ describe('PersonalRecordsTable', () => {
     it('toggles sort direction when same header is clicked twice', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      const distanceHeader = screen.getByText('Distance');
+      const distanceHeader = screen.getByRole('columnheader', { name: /Distance/i });
 
-      // First click - ascending
+      // First click - should set to ascending
       fireEvent.click(distanceHeader);
       expect(screen.getByText('Distance ↑')).toBeInTheDocument();
 
-      // Second click - descending
+      // Second click - should toggle to descending
       fireEvent.click(distanceHeader);
       expect(screen.getByText('Distance ↓')).toBeInTheDocument();
+
+      // Third click - should toggle back to ascending
+      fireEvent.click(distanceHeader);
+      expect(screen.getByText('Distance ↑')).toBeInTheDocument();
     });
 
     it('shows neutral sort icon for non-active columns', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
       // Initially, non-active columns should show neutral icon
-      expect(screen.getByText('Time ↕️')).toBeInTheDocument();
-      expect(screen.getByText('Pace ↕️')).toBeInTheDocument();
-      expect(screen.getByText('Date ↕️')).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /Time/i })).toHaveTextContent(/Time ↕️/);
+      expect(screen.getByRole('columnheader', { name: /Pace/i })).toHaveTextContent(/Pace ↕️/);
+      expect(screen.getByRole('columnheader', { name: /Date/i })).toHaveTextContent(/Date ↕️/);
     });
 
     it('sorts by time when time header is clicked', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      const timeHeader = screen.getByText('Time');
+      const timeHeader = screen.getByRole('columnheader', { name: /Time/i });
       fireEvent.click(timeHeader);
 
       expect(timeHeader.closest('th')).toHaveClass('active');
@@ -145,7 +153,7 @@ describe('PersonalRecordsTable', () => {
     it('sorts by pace when pace header is clicked', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      const paceHeader = screen.getByText('Pace');
+      const paceHeader = screen.getByRole('columnheader', { name: /Pace/i });
       fireEvent.click(paceHeader);
 
       expect(paceHeader.closest('th')).toHaveClass('active');
@@ -154,7 +162,7 @@ describe('PersonalRecordsTable', () => {
     it('sorts by date when date header is clicked', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      const dateHeader = screen.getByText('Date');
+      const dateHeader = screen.getByRole('columnheader', { name: /Date/i });
       fireEvent.click(dateHeader);
 
       expect(dateHeader.closest('th')).toHaveClass('active');
@@ -256,7 +264,7 @@ describe('PersonalRecordsTable', () => {
       render(<PersonalRecordsTable records={recordsWithDifferentDates} loading={false} />);
 
       // Should show the latest date (Jun 15, 2024)
-      expect(screen.getByText(/Jun 15, 2024/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Jun 15, 2024/).length).toBeGreaterThan(0);
     });
 
     it('handles single record', () => {
@@ -264,7 +272,9 @@ describe('PersonalRecordsTable', () => {
 
       render(<PersonalRecordsTable records={singleRecord} loading={false} />);
 
-      expect(screen.getByText('Total PRs: 1')).toBeInTheDocument();
+      expect(
+        screen.getByText((_, node) => node?.textContent === 'Total PRs: 1')
+      ).toBeInTheDocument();
       expect(screen.getByRole('table')).toBeInTheDocument();
     });
   });

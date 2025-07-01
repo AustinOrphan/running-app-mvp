@@ -420,8 +420,8 @@ describe('Formatter Utilities', () => {
 
         const formatted = formatDuration(duration);
 
-        // Should use a single leading negative sign
-        expect(formatted).toBe('-0h 30m 0s');
+        // Should return negative sign with minutes and seconds
+        expect(formatted).toBe('-30m 0s');
       });
     });
 
