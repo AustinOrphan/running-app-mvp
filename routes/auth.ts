@@ -9,7 +9,11 @@ import {
   createConflictError,
   createUnauthorizedError,
 } from '../middleware/errorHandler';
-import { validateRegister, validateLogin, sanitizeInput, securityHeaders } from '../middleware/validation';
+import { validateRegister,
+        validateLogin,
+        sanitizeInput,
+        securityHeaders,
+       } from '../middleware/validation';
 import { authRateLimit } from '../middleware/rateLimiting';
 import { logUserAction } from '../utils/secureLogger';
 import { requireAuth, type AuthRequest } from '../middleware/requireAuth';
