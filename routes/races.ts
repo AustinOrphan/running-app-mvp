@@ -1,15 +1,15 @@
 import express from 'express';
 
-import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createNotFoundError } from '../middleware/errorHandler.js';
-import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
+import { asyncAuthHandler } from '../middleware/asyncHandler';
+import { createNotFoundError } from '../middleware/errorHandler';
+import { requireAuth, AuthRequest } from '../middleware/requireAuth';
 import {
   sanitizeInput,
   validateCreateRace,
   validateUpdateRace,
   validateIdParam,
-} from '../middleware/validation.js';
-import { prisma } from '../server.js';
+} from '../middleware/validation';
+import { prisma } from '../server';
 
 const router = express.Router();
 
