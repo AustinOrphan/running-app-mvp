@@ -2,8 +2,8 @@ import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
 
-import authRoutes from '../../../routes/auth';
-import { testDb } from '../../fixtures/testDatabase';
+import authRoutes from '../../../routes/auth.js';
+import { testDb } from '../../fixtures/testDatabase.js';
 
 // Create test app
 const createTestApp = () => {
