@@ -91,13 +91,10 @@ router.get(
         data.totalDistance > 0 ? Number((data.totalDuration / data.totalDistance).toFixed(2)) : 0,
     }));
 
-    // Handle empty data scenario
-    if (breakdownArray.length === 0) {
-      return res.json({
-        message: 'No running data found for type breakdown',
-        data: [],
-      });
-    }
+  // Handle empty data scenario
+  if (breakdownArray.length === 0) {
+    return res.json([]);
+  }
 
     res.json(breakdownArray);
   })
@@ -180,12 +177,7 @@ router.get(
 
     // Handle empty data scenario
     if (trendsData.length === 0) {
-      return res.json({
-        message: 'No running data found for the selected period',
-        data: [],
-        period,
-        daysBack,
-      });
+      return res.json([]);
     }
 
     res.json(trendsData);
@@ -239,10 +231,7 @@ router.get(
 
     // Handle empty data scenario
     if (records.length === 0) {
-      return res.json({
-        message: 'No personal records found - complete some runs to see your best times',
-        data: [],
-      });
+      return res.json([]);
     }
 
     res.json(records);
