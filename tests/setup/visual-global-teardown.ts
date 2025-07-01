@@ -7,7 +7,7 @@ import { testDb } from '../fixtures/testDatabase';
 
 import { VisualTestHelper } from './visualTestingSetup';
 
-async function globalTeardown(config: FullConfig) {
+async function globalTeardown(_config: FullConfig) {
   console.log('🧹 Cleaning up visual regression testing environment...');
 
   try {

@@ -5,7 +5,7 @@ import { FullConfig } from '@playwright/test';
 
 import { testDb } from '../fixtures/testDatabase';
 
-async function globalSetup(config: FullConfig) {
+async function globalSetup(_config: FullConfig) {
   console.log('🎨 Setting up visual regression testing environment...');
 
   try {

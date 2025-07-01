@@ -43,7 +43,7 @@ class MockApiError extends Error {
   status?: number;
   response?: Response;
   data?: unknown;
-  
+
   constructor(message: string, status?: number, response?: Response, data?: unknown) {
     super(message);
     this.name = 'ApiError';
@@ -246,7 +246,8 @@ describe('useRuns', () => {
 
       // Clear the mock to test manual call
       mockApiGet.mockClear();
-      mockApiGet.mockResolvedValue(createApiResponse([
+      mockApiGet.mockResolvedValue(
+        createApiResponse([
           ...mockRuns,
           {
             id: '3',
@@ -259,7 +260,8 @@ describe('useRuns', () => {
             createdAt: '2024-06-13T06:00:00Z',
             updatedAt: '2024-06-13T06:00:00Z',
           },
-        ]));
+        ])
+      );
 
       await act(async () => {
         await result.current.fetchRuns();

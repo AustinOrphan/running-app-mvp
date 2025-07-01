@@ -214,7 +214,7 @@ describe('Error Handling Integration Tests', () => {
       // Test route that throws async error
       testApp.get(
         '/test-async-error',
-        asyncHandler(async (req, res, next) => {
+        asyncHandler(async (_req, _res, _next) => {
           throw new Error('Test async error');
         })
       );
@@ -234,7 +234,7 @@ describe('Error Handling Integration Tests', () => {
       // Test route that throws async error with auth context
       testApp.get(
         '/test-async-auth-error',
-        asyncAuthHandler(async (req, res, next) => {
+        asyncAuthHandler(async (_req, _res, _next) => {
           throw new Error('Test async auth error');
         })
       );

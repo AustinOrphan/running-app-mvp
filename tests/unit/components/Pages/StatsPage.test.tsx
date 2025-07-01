@@ -203,7 +203,9 @@ describe('StatsPage', () => {
         render(<StatsPage token='valid-token' />);
       });
 
-      expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Failed to load statistics');
+      expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(
+        'Failed to load statistics'
+      );
       expect(screen.getByText('⚠️')).toBeInTheDocument();
       expect(screen.getAllByText('Failed to load statistics')).toHaveLength(2);
     });
