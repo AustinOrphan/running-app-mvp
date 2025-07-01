@@ -129,8 +129,14 @@ router.get(
   '/verify',
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res, next) => {
+    // Safely validate user ID from token
+    const userId = req.user?.id;
+    if (typeof userId !== 'string') {
+      return next(createUnauthorizedError('Invalid token'));
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
+      where: { id: userId },
       select: { id: true, email: true },
     });
 
