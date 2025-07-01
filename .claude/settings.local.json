@@ -27,7 +27,8 @@
       "mcp__github__create_issue",
       "mcp__github__get_pull_request_reviews",
       "mcp__github__get_pull_request_diff",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(npm test:*)"
     ],
     "deny": []
   }
