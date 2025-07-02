@@ -362,7 +362,7 @@ class SecureLogger {
    * Create correlation middleware for request tracking
    */
   correlationMiddleware() {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (req: Request, _res: Response, next: NextFunction) => {
       this.getCorrelationId(req);
       next();
     };
