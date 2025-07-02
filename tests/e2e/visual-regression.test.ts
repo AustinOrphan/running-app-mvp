@@ -1,8 +1,8 @@
 import { test, expect, devices } from '@playwright/test';
 
-import { mockRuns, mockGoals, mockRaces } from '../fixtures/mockData';
-import { testDb } from '../fixtures/testDatabase';
-import { VisualTestHelper, visualConfigs } from '../setup/visualTestingSetup';
+import { mockRuns, mockGoals, mockRaces } from '../fixtures/mockData.js';
+import { testDb } from '../fixtures/testDatabase.js';
+import { VisualTestHelper, visualConfigs } from '../setup/visualTestingSetup.js';
 
 // Configure visual testing based on environment
 const isCI = process.env.CI === 'true';
