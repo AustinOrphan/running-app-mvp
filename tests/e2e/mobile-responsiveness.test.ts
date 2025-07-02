@@ -1,7 +1,7 @@
 import { test, expect, devices } from '@playwright/test';
 
-import { mockRuns } from '../fixtures/mockData';
-import { testDb } from '../fixtures/testDatabase';
+import { mockRuns } from '../fixtures/mockData.js';
+import { testDb } from '../fixtures/testDatabase.js';
 
 // Define mobile device configurations with names
 const mobileDevices = [
