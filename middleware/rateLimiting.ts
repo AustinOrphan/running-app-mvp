@@ -61,7 +61,9 @@ function createRateLimitConfig(options: { windowMs: number; max: number; message
     keyGenerator: generateKey,
     handler: rateLimitErrorHandler,
     skip: (_req: Request) => {
-      return process.env.NODE_ENV === 'test';
+      // Use dedicated environment variable for rate limiting control
+      // This avoids modifying NODE_ENV in tests which can cause flakiness
+      return process.env.RATE_LIMITING_ENABLED === 'false';
     },
   });
 }
