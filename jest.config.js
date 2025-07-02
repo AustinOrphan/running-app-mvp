@@ -1,5 +1,5 @@
 export default {
-  preset: 'ts-jest/presets/default-esm',
+  preset: 'ts-jest/presets/default-esm', // Enables experimental support for ES modules in Jest
   testEnvironment: 'node',
   setupFilesAfterEnv: ['<rootDir>/tests/setup/jestSetup.ts'],
   testMatch: ['**/tests/integration/**/*.test.ts'],
