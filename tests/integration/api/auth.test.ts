@@ -313,8 +313,8 @@ describe('Auth API Integration Tests', () => {
     let originalRateLimitingEnabled: string | undefined;
 
     beforeAll(() => {
-      // Use dedicated environment variable to avoid NODE_ENV modification
-      // which can cause test flakiness in parallel execution
+      // Enable rate limiting for these specific tests while keeping NODE_ENV=test
+      // This avoids test flakiness from NODE_ENV modification in parallel execution
       originalRateLimitingEnabled = process.env.RATE_LIMITING_ENABLED;
       process.env.RATE_LIMITING_ENABLED = 'true';
     });
