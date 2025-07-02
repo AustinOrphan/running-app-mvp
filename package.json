@@ -28,7 +28,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest --watch",
-    "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.js",
     "test:integration:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
