@@ -1,9 +1,9 @@
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, devices } from '@playwright/test';
 
-import { mockRuns } from '../fixtures/mockData';
-import { testDb } from '../fixtures/testDatabase';
-import { accessibilityTestPatterns } from '../setup/axeSetup';
+import { mockRuns } from '../fixtures/mockData.js';
+import { testDb } from '../fixtures/testDatabase.js';
+import { accessibilityTestPatterns } from '../setup/axeSetup.js';
 
 test.describe('Accessibility E2E Tests', () => {
   let testUser: any;

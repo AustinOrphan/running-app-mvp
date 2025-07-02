@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 
 import { PersonalRecordsTable } from '../../../../src/components/Stats/PersonalRecordsTable';
-import { mockPersonalRecords } from '../../../fixtures/mockData';
+import { mockPersonalRecords } from '../../../fixtures/mockData.js';
 
 // Mock the formatters utility
 vi.mock('../../../../src/utils/formatters', () => ({

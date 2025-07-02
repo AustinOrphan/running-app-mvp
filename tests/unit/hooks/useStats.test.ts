@@ -8,7 +8,7 @@ import {
   mockTrendsData,
   mockPersonalRecords,
   mockApiError,
-} from '../../fixtures/mockData';
+} from '../../fixtures/mockData.js';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
