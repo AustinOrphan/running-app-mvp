@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-import { mockRuns } from '../fixtures/mockData';
-import { testDb } from '../fixtures/testDatabase';
+import { mockRuns } from '../fixtures/mockData.js';
+import { testDb } from '../fixtures/testDatabase.js';
 
 test.describe('Runs Management Flow E2E Tests', () => {
   let testUser: any;

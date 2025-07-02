@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 
 import { TrendsChart } from '../../../../src/components/Stats/TrendsChart';
-import { mockTrendsData, createMockTrendsData } from '../../../fixtures/mockData';
+import { mockTrendsData, createMockTrendsData } from '../../../fixtures/mockData.js';
 
 // Mock recharts components
 vi.mock('recharts', () => ({
