@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { testDb } from '../fixtures/testDatabase';
+import { testDb } from '../fixtures/testDatabase.js';
 
 test.describe('Authentication Flow E2E Tests', () => {
   test.beforeEach(async ({ page }) => {

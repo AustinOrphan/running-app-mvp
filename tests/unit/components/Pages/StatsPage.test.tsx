@@ -7,7 +7,7 @@ import {
   mockRunTypeBreakdown,
   mockTrendsData,
   mockPersonalRecords,
-} from '../../../fixtures/mockData';
+} from '../../../fixtures/mockData.js';
 
 // Mock the useStats hook
 vi.mock('../../../../src/hooks/useStats', () => ({

@@ -1,8 +1,8 @@
 import request from 'supertest';
 
-import { app } from '../../../server';
-import { mockRaces } from '../../fixtures/mockData';
-import { testDb } from '../../fixtures/testDatabase';
+import { app } from '../../../server.js';
+import { mockRaces } from '../../fixtures/mockData.js';
+import { testDb } from '../../fixtures/testDatabase.js';
 
 describe('Races API Integration Tests', () => {
   let testUser: any;
