@@ -15,7 +15,8 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove
           key={toast.id}
           data-toast-id={toast.id}
           className={`toast toast-${toast.type}`}
-          onClick={() => onRemoveToast(toast.id)}
+          role='alert'
+          aria-live='polite'
         >
           <span className='toast-icon'>
             {toast.type === 'success' && '✅'}
@@ -25,10 +26,8 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove
           <span className='toast-message'>{toast.message}</span>
           <button
             className='toast-close'
-            onClick={event => {
-              event.stopPropagation();
-              onRemoveToast(toast.id);
-            }}
+            onClick={() => onRemoveToast(toast.id)}
+            aria-label={`Dismiss ${toast.type} notification`}
           >
             ×
           </button>

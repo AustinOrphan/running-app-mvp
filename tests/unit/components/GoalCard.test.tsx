@@ -3,11 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
 import { GoalCard } from '../../../src/components/GoalCard';
-import {
-  mockGoals,
-  createMockGoal,
-  createMockGoalProgress,
-} from '../../fixtures/mockData';
+import { mockGoals, createMockGoal, createMockGoalProgress } from '../../fixtures/mockData';
 
 // Mock the visualization components
 vi.mock('../../../src/components/Goals/CircularProgress', () => ({

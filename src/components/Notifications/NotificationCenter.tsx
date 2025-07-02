@@ -41,10 +41,21 @@ const NotificationItem: React.FC<{
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
   return (
     <div
       className={`${getNotificationStyles(notification.type, notification.priority)} ${!notification.read ? 'unread' : ''}`}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role='button'
+      tabIndex={0}
+      aria-label={`Mark notification as read: ${notification.title}`}
     >
       <div className='notification-header'>
         <div className='notification-icon' style={{ color: notification.color }}>
@@ -157,12 +168,38 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
 
   if (!isOpen) return null;
 
+  const handleOverlayKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose();
+    }
+  };
+
+  const handleModalKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose();
+    }
+  };
+
   return (
-    <div className='notification-center-overlay' onClick={onClose}>
-      <div className='notification-center' onClick={e => e.stopPropagation()}>
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    <div
+      className='notification-center-overlay'
+      onClick={onClose}
+      onKeyDown={handleOverlayKeyDown}
+      role='dialog'
+      aria-modal='true'
+      aria-labelledby='notification-center-title'
+    >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+      <div
+        className='notification-center'
+        onClick={e => e.stopPropagation()}
+        onKeyDown={handleModalKeyDown}
+        role='document'
+      >
         <div className='notification-header'>
           <div className='notification-title'>
-            <h3>Notifications</h3>
+            <h3 id='notification-center-title'>Notifications</h3>
             {unreadCount > 0 && <span className='unread-badge'>{unreadCount}</span>}
           </div>
           <div className='notification-actions'>
@@ -279,7 +316,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
               <div className='empty-icon'>🔔</div>
               <h4>No notifications yet</h4>
               <p>
-                You'll see milestone updates, deadline reminders, and achievement celebrations here.
+                You&apos;ll see milestone updates, deadline reminders, and achievement celebrations
+                here.
               </p>
             </div>
           ) : (

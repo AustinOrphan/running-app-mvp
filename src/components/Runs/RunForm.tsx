@@ -26,8 +26,9 @@ export const RunForm: React.FC<RunFormProps> = ({
       <h3>{editingRun ? 'Edit Run' : 'Add New Run'}</h3>
       <div className='form-row'>
         <div className='form-group'>
-          <label>Date</label>
+          <label htmlFor='run-date'>Date</label>
           <input
+            id='run-date'
             type='date'
             value={formData.date}
             onChange={e => onUpdateField('date', e.target.value)}
@@ -36,8 +37,9 @@ export const RunForm: React.FC<RunFormProps> = ({
           {errors.date && <span className='error-text'>{errors.date}</span>}
         </div>
         <div className='form-group'>
-          <label>Distance (km)</label>
+          <label htmlFor='run-distance'>Distance (km)</label>
           <input
+            id='run-distance'
             type='number'
             step='0.1'
             value={formData.distance}
@@ -48,8 +50,9 @@ export const RunForm: React.FC<RunFormProps> = ({
           {errors.distance && <span className='error-text'>{errors.distance}</span>}
         </div>
         <div className='form-group'>
-          <label>Duration (minutes)</label>
+          <label htmlFor='run-duration'>Duration (minutes)</label>
           <input
+            id='run-duration'
             type='number'
             value={formData.duration}
             onChange={e => onUpdateField('duration', e.target.value)}
@@ -61,8 +64,12 @@ export const RunForm: React.FC<RunFormProps> = ({
       </div>
       <div className='form-row'>
         <div className='form-group'>
-          <label>Tag (optional)</label>
-          <select value={formData.tag} onChange={e => onUpdateField('tag', e.target.value)}>
+          <label htmlFor='run-tag'>Tag (optional)</label>
+          <select
+            id='run-tag'
+            value={formData.tag}
+            onChange={e => onUpdateField('tag', e.target.value)}
+          >
             <option value=''>Select a tag</option>
             <option value='Training'>Training</option>
             <option value='Race'>Race</option>
@@ -73,8 +80,9 @@ export const RunForm: React.FC<RunFormProps> = ({
         </div>
       </div>
       <div className='form-group'>
-        <label>Notes (optional)</label>
+        <label htmlFor='run-notes'>Notes (optional)</label>
         <textarea
+          id='run-notes'
           value={formData.notes}
           onChange={e => onUpdateField('notes', e.target.value)}
           placeholder='How did it feel? Route details, weather, etc.'
