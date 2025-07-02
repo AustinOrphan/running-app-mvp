@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 
@@ -362,7 +362,7 @@ class SecureLogger {
    * Create correlation middleware for request tracking
    */
   correlationMiddleware() {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (req: Request, res: unknown, next: unknown) => {
       this.getCorrelationId(req);
       next();
     };
