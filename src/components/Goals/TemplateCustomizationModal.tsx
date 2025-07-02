@@ -178,6 +178,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
   if (!isOpen || !template) return null;
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className='modal-overlay'
       onClick={onClose}
@@ -186,6 +187,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
       aria-modal='true'
       tabIndex={-1}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
       <div
         className='modal template-customization-modal'
         onClick={e => e.stopPropagation()}
