@@ -7,7 +7,7 @@ import {
   mockGoals,
   createMockGoal,
   createMockGoalProgress,
-} from '../../fixtures/mockData';
+} from '../../fixtures/mockData.js';
 
 // Mock the visualization components
 vi.mock('../../../src/components/Goals/CircularProgress', () => ({

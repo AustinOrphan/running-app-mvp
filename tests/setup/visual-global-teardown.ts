@@ -3,9 +3,9 @@ import path from 'path';
 
 import { FullConfig } from '@playwright/test';
 
-import { testDb } from '../fixtures/testDatabase';
+import { testDb } from '../fixtures/testDatabase.js';
 
-import { VisualTestHelper } from './visualTestingSetup';
+import { VisualTestHelper } from './visualTestingSetup.js';
 
 async function globalTeardown(_config: FullConfig) {
   console.log('🧹 Cleaning up visual regression testing environment...');
