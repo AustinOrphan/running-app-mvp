@@ -116,7 +116,14 @@ export const useStats = (token: string | null, period: string = '3m') => {
     } finally {
       setLoading(false);
     }
-  }, [token, period, fetchWeeklyInsights, fetchTypeBreakdown, fetchTrendsData, fetchPersonalRecords]);
+  }, [
+    token,
+    period,
+    fetchWeeklyInsights,
+    fetchTypeBreakdown,
+    fetchTrendsData,
+    fetchPersonalRecords,
+  ]);
 
   useEffect(() => {
     if (token) {

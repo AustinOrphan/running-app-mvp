@@ -57,27 +57,30 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
     .filter((goal): goal is Goal => goal !== undefined);
 
   // Helper function for API calls
-  const makeApiCall = useCallback(async (url: string, options: RequestInit = {}) => {
-    if (!token) {
-      throw new Error('No authentication token available');
-    }
+  const makeApiCall = useCallback(
+    async (url: string, options: RequestInit = {}) => {
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...options.headers,
-      },
-    });
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...options.headers,
+        },
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(errorData.message || `Request failed with status ${response.status}`);
-    }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(errorData.message || `Request failed with status ${response.status}`);
+      }
 
-    return response.json();
-  }, [token]);
+      return response.json();
+    },
+    [token]
+  );
 
   // Fetch goals
   const fetchGoals = useCallback(async () => {

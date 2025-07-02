@@ -195,8 +195,21 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
-    <div className='modal-overlay' onClick={handleClose}>
-      <div className='modal' onClick={e => e.stopPropagation()}>
+    <div
+      className='modal-overlay'
+      onClick={handleClose}
+      onKeyDown={e => e.key === 'Escape' && handleClose()}
+      role='dialog'
+      aria-modal='true'
+      tabIndex={-1}
+    >
+      <div
+        className='modal'
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        role='document'
+        tabIndex={0}
+      >
         <div className='modal-header'>
           <h3>Edit Goal</h3>
           <button className='btn-icon' onClick={handleClose} disabled={isSubmitting}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { GOAL_TEMPLATE_COLLECTIONS, searchTemplates } from '../../data/goalTemplates';
 import { GoalTemplate, GoalTemplateCollection } from '../../types/goalTemplates';
@@ -156,14 +156,30 @@ const CategorySection: React.FC<{
 
   return (
     <div className='template-category'>
-      <div className='category-header' onClick={() => setExpanded(!expanded)}>
+      <div
+        className='category-header'
+        onClick={() => setExpanded(!expanded)}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
+        role='button'
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-controls={`category-templates-${collection.title.replace(/\s+/g, '-').toLowerCase()}`}
+      >
         <h3>{collection.title}</h3>
         <p className='category-description'>{collection.description}</p>
         <span className='category-toggle'>{expanded ? '−' : '+'}</span>
       </div>
 
       {expanded && (
-        <div className='category-templates'>
+        <div
+          className='category-templates'
+          id={`category-templates-${collection.title.replace(/\s+/g, '-').toLowerCase()}`}
+        >
           {collection.templates.map(template => (
             <TemplateCard
               key={template.id}
@@ -185,6 +201,22 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -218,8 +250,21 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
   };
 
   return (
-    <div className='template-browser-overlay' onClick={onClose}>
-      <div className='template-browser' onClick={e => e.stopPropagation()}>
+    <div
+      className='template-browser-overlay'
+      onClick={onClose}
+      onKeyDown={e => e.key === 'Escape' && onClose()}
+      role='dialog'
+      aria-modal='true'
+      tabIndex={-1}
+    >
+      <div
+        className='template-browser'
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        role='document'
+        tabIndex={0}
+      >
         <div className='template-browser-header'>
           <div className='browser-title'>
             <h2>Goal Templates</h2>

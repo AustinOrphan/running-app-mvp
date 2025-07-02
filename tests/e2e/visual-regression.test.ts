@@ -1,4 +1,4 @@
-import { test, expect, devices } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 import { mockRuns, mockGoals, mockRaces } from '../fixtures/mockData';
 import { testDb } from '../fixtures/testDatabase';

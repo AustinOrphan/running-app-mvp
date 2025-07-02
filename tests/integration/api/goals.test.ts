@@ -3,7 +3,7 @@ import express from 'express';
 import request from 'supertest';
 
 import goalsRoutes from '../../../routes/goals';
-import { mockGoals, mockCreateGoalData, createMockGoal, mockRuns } from '../../fixtures/mockData';
+import { mockGoals, createMockGoal, mockRuns } from '../../fixtures/mockData';
 import { testDb } from '../../fixtures/testDatabase';
 
 // Create test app

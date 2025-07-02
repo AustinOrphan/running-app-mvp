@@ -5,7 +5,7 @@ import { testDb } from '../fixtures/testDatabase';
 
 test.describe('Runs Management Flow E2E Tests', () => {
   let testUser: any;
-  let authToken: string;
+  let _authToken: string;
 
   test.beforeEach(async ({ page }) => {
     // Clean database and create test user
@@ -14,7 +14,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
       email: 'runs@test.com',
       password: 'testpassword123',
     });
-    authToken = testDb.generateTestToken(testUser.id);
+    _authToken = testDb.generateTestToken(testUser.id);
 
     // Login user
     await page.goto('/login');
@@ -193,11 +193,11 @@ test.describe('Runs Management Flow E2E Tests', () => {
   });
 
   test.describe('Edit Existing Run', () => {
-    let testRun: any;
+    let _testRun: any;
 
     test.beforeEach(async ({ page }) => {
       const runs = await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
-      testRun = runs[0];
+      _testRun = runs[0];
       await page.goto('/runs');
     });
 

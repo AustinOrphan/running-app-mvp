@@ -496,9 +496,9 @@ function App() {
                   <h3>{editingRun ? 'Edit Run' : 'Add New Run'}</h3>
                   <div className='form-row'>
                     <div className='form-group'>
-                      <label htmlFor="run-date">Date</label>
+                      <label htmlFor='run-date'>Date</label>
                       <input
-                        id="run-date"
+                        id='run-date'
                         type='date'
                         value={runForm.date}
                         onChange={e => {
@@ -510,9 +510,9 @@ function App() {
                       {formErrors.date && <span className='error-text'>{formErrors.date}</span>}
                     </div>
                     <div className='form-group'>
-                      <label htmlFor="run-distance">Distance (km)</label>
+                      <label htmlFor='run-distance'>Distance (km)</label>
                       <input
-                        id="run-distance"
+                        id='run-distance'
                         type='number'
                         step='0.1'
                         value={runForm.distance}
@@ -528,9 +528,9 @@ function App() {
                       )}
                     </div>
                     <div className='form-group'>
-                      <label htmlFor="run-duration">Duration (minutes)</label>
+                      <label htmlFor='run-duration'>Duration (minutes)</label>
                       <input
-                        id="run-duration"
+                        id='run-duration'
                         type='number'
                         value={runForm.duration}
                         onChange={e => {
@@ -547,9 +547,9 @@ function App() {
                   </div>
                   <div className='form-row'>
                     <div className='form-group'>
-                      <label htmlFor="run-tag">Tag (optional)</label>
+                      <label htmlFor='run-tag'>Tag (optional)</label>
                       <select
-                        id="run-tag"
+                        id='run-tag'
                         value={runForm.tag}
                         onChange={e => setRunForm({ ...runForm, tag: e.target.value })}
                       >
@@ -563,9 +563,9 @@ function App() {
                     </div>
                   </div>
                   <div className='form-group'>
-                    <label htmlFor="run-notes">Notes (optional)</label>
+                    <label htmlFor='run-notes'>Notes (optional)</label>
                     <textarea
-                      id="run-notes"
+                      id='run-notes'
                       value={runForm.notes}
                       onChange={e => setRunForm({ ...runForm, notes: e.target.value })}
                       placeholder='How did it feel? Route details, weather, etc.'
@@ -711,8 +711,8 @@ function App() {
             data-toast-id={toast.id}
             className={`toast toast-${toast.type}`}
             onClick={() => removeToast(toast.id)}
-            onKeyDown={(e) => e.key === 'Enter' && removeToast(toast.id)}
-            role="button"
+            onKeyDown={e => e.key === 'Enter' && removeToast(toast.id)}
+            role='button'
             tabIndex={0}
           >
             <span className='toast-icon'>
