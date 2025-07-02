@@ -320,7 +320,12 @@ describe('Auth API Integration Tests', () => {
     });
 
     afterAll(() => {
-      process.env.RATE_LIMITING_ENABLED = originalRateLimitingEnabled;
+      // Properly restore environment variable to prevent test contamination
+      if (originalRateLimitingEnabled === undefined) {
+        delete process.env.RATE_LIMITING_ENABLED;
+      } else {
+        process.env.RATE_LIMITING_ENABLED = originalRateLimitingEnabled;
+      }
     });
 
     it('handles multiple registration attempts', async () => {
