@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 
 import { Goal, GOAL_TYPE_CONFIGS } from '../types/goals';
 
@@ -26,15 +26,15 @@ export const GoalAchievementNotification: React.FC<GoalAchievementNotificationPr
 
       return () => clearTimeout(timer);
     }
-  }, [achievedGoal]);
+  }, [achievedGoal, handleClose]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsAnimating(false);
     setTimeout(() => {
       setIsVisible(false);
       onClose();
     }, 300);
-  };
+  }, [onClose]);
 
   if (!achievedGoal || !isVisible) return null;
 
@@ -94,7 +94,7 @@ export const GoalAchievementNotification: React.FC<GoalAchievementNotificationPr
           </div>
 
           <div className='achievement-message'>
-            <p>🎯 You've successfully reached your goal!</p>
+            <p>🎯 You&apos;ve successfully reached your goal!</p>
             <p>Keep up the great work and set your next challenge!</p>
           </div>
 

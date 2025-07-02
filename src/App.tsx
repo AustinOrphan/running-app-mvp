@@ -53,6 +53,7 @@ function App() {
         setHealthStatus('❌ Backend Offline');
         showToast('Failed to connect to server', 'error');
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogin = async (email: string, password: string) => {

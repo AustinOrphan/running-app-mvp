@@ -57,7 +57,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
     .filter((goal): goal is Goal => goal !== undefined);
 
   // Helper function for API calls
-  const makeApiCall = async (url: string, options: RequestInit = {}) => {
+  const makeApiCall = useCallback(async (url: string, options: RequestInit = {}) => {
     if (!token) {
       throw new Error('No authentication token available');
     }
@@ -77,7 +77,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
     }
 
     return response.json();
-  };
+  }, [token]);
 
   // Fetch goals
   const fetchGoals = useCallback(async () => {
@@ -97,7 +97,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, makeApiCall]);
 
   // Fetch goal progress
   const refreshProgress = useCallback(async () => {
@@ -110,7 +110,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       console.error('Error fetching goal progress:', err);
       // Don't set error state for progress fetch failures
     }
-  }, [token]);
+  }, [token, makeApiCall]);
 
   // Check for milestone and deadline notifications
   const checkNotifications = useCallback(() => {
@@ -180,7 +180,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
       return newGoal;
     },
-    [token, refreshProgress]
+    [token, refreshProgress, makeApiCall]
   );
 
   // Update goal
@@ -199,7 +199,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
       return updatedGoal;
     },
-    [token, refreshProgress]
+    [token, refreshProgress, makeApiCall]
   );
 
   // Delete goal
@@ -213,7 +213,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       setGoals(prev => prev.filter(goal => goal.id !== goalId));
       setGoalProgress(prev => prev.filter(progress => progress.goalId !== goalId));
     },
-    [token]
+    [token, makeApiCall]
   );
 
   // Complete goal
@@ -231,7 +231,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
       return completedGoal;
     },
-    [token, refreshProgress]
+    [token, refreshProgress, makeApiCall]
   );
 
   // Get progress for specific goal
