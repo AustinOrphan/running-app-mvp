@@ -95,6 +95,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       setSelectedTemplate(null);
       showToast('Goal created from template successfully!', 'success');
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error creating goal from template:', error);
       showToast('Failed to create goal from template', 'error');
     }
@@ -111,6 +112,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       setShowCreateModal(false);
       showToast('Goal created successfully!', 'success');
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error creating goal:', error);
       showToast('Failed to create goal', 'error');
     }
@@ -131,6 +133,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       setEditingGoal(null);
       showToast('Goal updated successfully!', 'success');
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error updating goal:', error);
       showToast('Failed to update goal', 'error');
     }
@@ -141,6 +144,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       await completeGoal(goalId);
       showToast('Congratulations! Goal completed! 🎉', 'success');
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error completing goal:', error);
       showToast('Failed to complete goal', 'error');
     }
@@ -163,6 +167,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       setDeletingGoal(null);
       showToast('Goal deleted successfully', 'info');
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error deleting goal:', error);
       showToast('Failed to delete goal', 'error');
     }

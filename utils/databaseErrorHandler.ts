@@ -1,5 +1,10 @@
 import { Prisma } from '@prisma/client';
-import { createDatabaseError, createValidationError, createNotFoundError, createConflictError } from '../middleware/errorHandler.js';
+import {
+  createDatabaseError,
+  createValidationError,
+  createNotFoundError,
+  createConflictError,
+} from '../middleware/errorHandler.js';
 
 /**
  * Handles Prisma database errors and converts them to appropriate AppErrors
@@ -7,18 +12,19 @@ import { createDatabaseError, createValidationError, createNotFoundError, create
  * @param operation - Description of the database operation that failed
  * @returns AppError with appropriate status code and message
  */
-export const handleDatabaseError = (error: any, operation: string = 'Database operation') => {
+export const handleDatabaseError = (error: unknown, operation: string = 'Database operation') => {
   // Handle Prisma-specific errors
+  let fieldName, target;
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
       case 'P2002':
         // Unique constraint violation
-        const target = error.meta?.target as string[] | undefined;
-        const field = target?.[0] || 'field';
-        return createConflictError(`${field} already exists`, { 
-          field, 
+        target = error.meta?.target as string[] | undefined;
+        fieldName = target?.[0] || 'field';
+        return createConflictError(`${fieldName} already exists`, {
+          fieldName,
           code: error.code,
-          operation 
+          operation,
         });
 
       case 'P2025':
@@ -29,23 +35,23 @@ export const handleDatabaseError = (error: any, operation: string = 'Database op
         // Foreign key constraint violation
         return createValidationError('Invalid reference to related data', 'foreign_key', {
           code: error.code,
-          operation
+          operation,
         });
 
       case 'P2011':
         // Null constraint violation
-        const nullField = error.meta?.field_name as string | undefined;
-        return createValidationError(`Required field '${nullField}' cannot be null`, nullField, {
+        fieldName = error.meta?.field_name as string | undefined;
+        return createValidationError(`Required field '${fieldName}' cannot be null`, fieldName, {
           code: error.code,
-          operation
+          operation,
         });
 
       case 'P2012':
         // Missing required value
-        const missingField = error.meta?.field_name as string | undefined;
-        return createValidationError(`Missing required field '${missingField}'`, missingField, {
+        fieldName = error.meta?.field_name as string | undefined;
+        return createValidationError(`Missing required field '${fieldName}'`, fieldName, {
           code: error.code,
-          operation
+          operation,
         });
 
       case 'P1008':
@@ -53,7 +59,7 @@ export const handleDatabaseError = (error: any, operation: string = 'Database op
         return createDatabaseError('Database connection timeout', {
           code: error.code,
           operation,
-          retryable: true
+          retryable: true,
         });
 
       case 'P1001':
@@ -61,7 +67,7 @@ export const handleDatabaseError = (error: any, operation: string = 'Database op
         return createDatabaseError('Cannot connect to database', {
           code: error.code,
           operation,
-          retryable: true
+          retryable: true,
         });
 
       default:
@@ -69,7 +75,7 @@ export const handleDatabaseError = (error: any, operation: string = 'Database op
         return createDatabaseError(`${operation} failed`, {
           code: error.code,
           message: error.message,
-          operation
+          operation,
         });
     }
   }
@@ -79,7 +85,7 @@ export const handleDatabaseError = (error: any, operation: string = 'Database op
     return createDatabaseError('Database connection failed', {
       code: error.code,
       operation,
-      retryable: true
+      retryable: true,
     });
   }
 
@@ -88,14 +94,14 @@ export const handleDatabaseError = (error: any, operation: string = 'Database op
     return createDatabaseError('Database operation timed out', {
       code: error.code,
       operation,
-      retryable: true
+      retryable: true,
     });
   }
 
   // Generic database error
   return createDatabaseError(`${operation} failed: ${error.message}`, {
     originalError: error.name,
-    operation
+    operation,
   });
 };
 

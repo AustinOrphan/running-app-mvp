@@ -45,7 +45,7 @@ function App() {
     // Check server health
     fetch('/api/health')
       .then(res => res.json())
-      .then(data => {
+      .then(_data => {
         setHealthStatus('✅ Backend Connected');
         showToast('Connected to server', 'success');
       })
@@ -53,6 +53,7 @@ function App() {
         setHealthStatus('❌ Backend Offline');
         showToast('Failed to connect to server', 'error');
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogin = async (email: string, password: string) => {

@@ -40,7 +40,7 @@ describe('SecureLogger IP Privacy Enhancements', () => {
         method: 'GET',
         url: '/api/test',
         get: vi.fn().mockReturnValue('test-user-agent'),
-        user: { id: 'user123' }
+        user: { id: 'user123' },
       } as unknown as Request;
 
       secureLogger.error('Test error message', mockRequest);

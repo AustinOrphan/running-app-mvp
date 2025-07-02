@@ -125,7 +125,7 @@ export class GoalAnalyticsCalculator {
       .slice(-12); // Last 12 months
   }
 
-  private static calculateStreakData(goals: Goal[], goalProgress: GoalProgress[]): StreakData {
+  private static calculateStreakData(goals: Goal[], _goalProgress: GoalProgress[]): StreakData {
     const completedGoals = goals.filter(goal => goal.isCompleted);
     const weeks = this.groupGoalsByWeek(completedGoals);
 
@@ -224,7 +224,7 @@ export class GoalAnalyticsCalculator {
     return goal.targetValue > currentBest.value;
   }
 
-  static generateInsights(analytics: GoalAnalytics, goals: Goal[]): GoalInsight[] {
+  static generateInsights(analytics: GoalAnalytics, _goals: Goal[]): GoalInsight[] {
     const insights: GoalInsight[] = [];
 
     // Completion rate insights
@@ -358,7 +358,7 @@ export class GoalAnalyticsCalculator {
 
   private static getRecommendedAdjustment(
     challengeLevel: 'easy' | 'moderate' | 'challenging' | 'too_hard',
-    progress: GoalProgress
+    _progress: GoalProgress
   ): string | undefined {
     switch (challengeLevel) {
       case 'easy':

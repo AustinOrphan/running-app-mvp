@@ -1,7 +1,7 @@
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createError, createNotFoundError, createValidationError } from '../middleware/errorHandler.js';
+import { createNotFoundError, createValidationError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
 import { prisma } from '../server.js';
@@ -16,7 +16,7 @@ router.use(sanitizeInput);
 router.get(
   '/',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const goals = await prisma.goal.findMany({
       where: {
         userId: req.user!.id,
@@ -29,6 +29,7 @@ router.get(
     });
 
     res.json(goals);
+    return;
   })
 );
 
@@ -36,7 +37,7 @@ router.get(
 router.get(
   '/:id',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const goal = await prisma.goal.findFirst({
       where: {
         id: req.params.id,
@@ -45,10 +46,10 @@ router.get(
     });
 
     if (!goal) {
-      return next(createNotFoundError('Goal'));
+      return _next(createNotFoundError('Goal'));
     }
 
-    res.json(goal);
+    return res.json(goal);
   })
 );
 
@@ -56,7 +57,7 @@ router.get(
 router.post(
   '/',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const {
       title,
       description,
@@ -72,32 +73,34 @@ router.post(
 
     // Validation
     if (!title || !type || !period || !targetValue || !targetUnit || !startDate || !endDate) {
-      return next(createValidationError(
-        'Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate',
-        'all'
-      ));
+      return _next(
+        createValidationError(
+          'Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate',
+          'all'
+        )
+      );
     }
 
     // Validate goal type
     if (!Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      return next(createValidationError('Invalid goal type', 'type'));
+      return _next(createValidationError('Invalid goal type', 'type'));
     }
 
     // Validate goal period
     if (!Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      return next(createValidationError('Invalid goal period', 'period'));
+      return _next(createValidationError('Invalid goal period', 'period'));
     }
 
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (start >= end) {
-      return next(createValidationError('End date must be after start date', 'endDate'));
+      return _next(createValidationError('End date must be after start date', 'endDate'));
     }
 
     // Validate target value
     if (targetValue <= 0) {
-      return next(createValidationError('Target value must be positive', 'targetValue'));
+      return _next(createValidationError('Target value must be positive', 'targetValue'));
     }
 
     const goal = await prisma.goal.create({
@@ -119,7 +122,7 @@ router.post(
       },
     });
 
-    res.status(201).json(goal);
+    return res.status(201).json(goal);
   })
 );
 
@@ -127,7 +130,7 @@ router.post(
 router.put(
   '/:id',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const goalId = req.params.id;
     const {
       title,
@@ -152,33 +155,33 @@ router.put(
     });
 
     if (!existingGoal) {
-      return next(createNotFoundError('Goal'));
+      return _next(createNotFoundError('Goal'));
     }
 
     // Prevent editing completed goals
     if (existingGoal.isCompleted) {
-      return next(createValidationError('Cannot edit completed goals', 'isCompleted'));
+      return _next(createValidationError('Cannot edit completed goals', 'isCompleted'));
     }
 
     // Validation (only validate provided fields)
     if (type && !Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      return next(createValidationError('Invalid goal type', 'type'));
+      return _next(createValidationError('Invalid goal type', 'type'));
     }
 
     if (period && !Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      return next(createValidationError('Invalid goal period', 'period'));
+      return _next(createValidationError('Invalid goal period', 'period'));
     }
 
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
       if (start >= end) {
-        return next(createValidationError('End date must be after start date', 'endDate'));
+        return _next(createValidationError('End date must be after start date', 'endDate'));
       }
     }
 
     if (targetValue !== undefined && targetValue <= 0) {
-      return next(createValidationError('Target value must be positive', 'targetValue'));
+      return _next(createValidationError('Target value must be positive', 'targetValue'));
     }
 
     // Update goal
@@ -199,7 +202,7 @@ router.put(
       },
     });
 
-    res.json(updatedGoal);
+    return res.json(updatedGoal);
   })
 );
 
@@ -207,7 +210,7 @@ router.put(
 router.delete(
   '/:id',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const goalId = req.params.id;
 
     // Check if goal exists and belongs to user
@@ -219,7 +222,7 @@ router.delete(
     });
 
     if (!goal) {
-      return next(createNotFoundError('Goal'));
+      return _next(createNotFoundError('Goal'));
     }
 
     // Soft delete by setting isActive to false
@@ -228,7 +231,7 @@ router.delete(
       data: { isActive: false },
     });
 
-    res.json({ message: 'Goal deleted successfully' });
+    return res.json({ message: 'Goal deleted successfully' });
   })
 );
 
@@ -236,7 +239,7 @@ router.delete(
 router.post(
   '/:id/complete',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const goalId = req.params.id;
 
     // Check if goal exists and belongs to user
@@ -249,11 +252,11 @@ router.post(
     });
 
     if (!goal) {
-      return next(createNotFoundError('Goal'));
+      return _next(createNotFoundError('Goal'));
     }
 
     if (goal.isCompleted) {
-      return next(createValidationError('Goal is already completed', 'isCompleted'));
+      return _next(createValidationError('Goal is already completed', 'isCompleted'));
     }
 
     // Mark as completed
@@ -266,7 +269,7 @@ router.post(
       },
     });
 
-    res.json(completedGoal);
+    return res.json(completedGoal);
   })
 );
 
@@ -274,7 +277,7 @@ router.post(
 router.get(
   '/progress/all',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const goals = await prisma.goal.findMany({
       where: {
         userId: req.user!.id,
@@ -309,24 +312,28 @@ router.get(
     );
 
     res.json(progressData);
+    return;
   })
 );
 
 // Helper function to calculate current progress for a goal
-async function calculateGoalProgress(goal: {
-  id: string;
-  type: string;
-  title: string;
-  description?: string | null;
-  targetValue: number;
-  targetUnit: string;
-  startDate: Date;
-  endDate: Date;
-  isCompleted: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  userId: string;
-}, userId: string): Promise<number> {
+async function calculateGoalProgress(
+  goal: {
+    id: string;
+    type: string;
+    title: string;
+    description?: string | null;
+    targetValue: number;
+    targetUnit: string;
+    startDate: Date;
+    endDate: Date;
+    isCompleted: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    userId: string;
+  },
+  userId: string
+): Promise<number> {
   const runs = await prisma.run.findMany({
     where: {
       userId,

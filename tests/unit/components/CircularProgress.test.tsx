@@ -75,7 +75,7 @@ describe('CircularProgress', () => {
       const progressCircle = document.querySelector('.progress-foreground');
       const radius = (120 - 8) / 2;
       const circumference = radius * 2 * Math.PI;
-      const expectedOffset = circumference - circumference; // 0
+      const _expectedOffset = circumference - circumference; // 0
 
       expect(progressCircle).toHaveAttribute('stroke-dashoffset', '0');
     });
@@ -85,7 +85,7 @@ describe('CircularProgress', () => {
 
       const progressCircle = document.querySelector('.progress-foreground');
       const radius = (120 - 8) / 2;
-      const circumference = radius * 2 * Math.PI;
+      const _circumference = radius * 2 * Math.PI;
 
       // Should behave as if percentage was 100%
       expect(progressCircle).toHaveAttribute('stroke-dashoffset', '0');

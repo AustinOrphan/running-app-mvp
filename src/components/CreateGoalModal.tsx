@@ -156,6 +156,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
       });
       setErrors({});
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Failed to create goal:', error);
     } finally {
       setIsSubmitting(false);

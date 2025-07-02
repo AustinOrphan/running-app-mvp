@@ -1,7 +1,7 @@
 // Comprehensive fetch wrapper with error handling, auth, and retry logic
 
 export interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
-  body?: any;
+  body?: unknown;
   timeout?: number;
   retries?: number;
   retryDelay?: number;
@@ -9,7 +9,7 @@ export interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
   skipAuth?: boolean;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data: T;
   status: number;
   headers: Headers;
@@ -18,15 +18,15 @@ export interface ApiResponse<T = any> {
 export interface ApiError extends Error {
   status?: number;
   response?: Response;
-  data?: any;
+  data?: unknown;
 }
 
 class ApiFetchError extends Error implements ApiError {
   status?: number;
   response?: Response;
-  data?: any;
+  data?: unknown;
 
-  constructor(message: string, status?: number, response?: Response, data?: any) {
+  constructor(message: string, status?: number, response?: Response, data?: unknown) {
     super(message);
     this.name = 'ApiFetchError';
     this.status = status;
@@ -65,7 +65,7 @@ const delay = (ms: number): Promise<void> => {
 };
 
 // Main apiFetch function
-export const apiFetch = async <T = any>(
+export const apiFetch = async <T = unknown>(
   url: string,
   options: ApiFetchOptions = {}
 ): Promise<ApiResponse<T>> => {
@@ -124,7 +124,7 @@ export const apiFetch = async <T = any>(
 
       // Handle HTTP error status codes
       if (!response.ok) {
-        let errorData: any;
+        let errorData: unknown;
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 
         try {
@@ -143,6 +143,7 @@ export const apiFetch = async <T = any>(
 
         // Check if this is a retryable error
         if (attempt < retries && isRetryableStatus(response.status)) {
+          // eslint-disable-next-line no-console
           console.warn(
             `API request failed (attempt ${attempt + 1}/${retries + 1}): ${errorMessage}. Retrying...`
           );
@@ -193,6 +194,7 @@ export const apiFetch = async <T = any>(
       }
 
       // Retry for retryable errors
+      // eslint-disable-next-line no-console
       console.warn(
         `API request failed (attempt ${attempt + 1}/${retries + 1}): ${error.message}. Retrying...`
       );
@@ -205,39 +207,39 @@ export const apiFetch = async <T = any>(
 };
 
 // Convenience methods for common HTTP verbs
-export const apiGet = <T = any>(
+export const apiGet = <T = unknown>(
   url: string,
   options?: Omit<ApiFetchOptions, 'method'>
 ): Promise<ApiResponse<T>> => {
   return apiFetch<T>(url, { ...options, method: 'GET' });
 };
 
-export const apiPost = <T = any>(
+export const apiPost = <T = unknown>(
   url: string,
-  body?: any,
+  body?: unknown,
   options?: Omit<ApiFetchOptions, 'method' | 'body'>
 ): Promise<ApiResponse<T>> => {
   return apiFetch<T>(url, { ...options, method: 'POST', body });
 };
 
-export const apiPut = <T = any>(
+export const apiPut = <T = unknown>(
   url: string,
-  body?: any,
+  body?: unknown,
   options?: Omit<ApiFetchOptions, 'method' | 'body'>
 ): Promise<ApiResponse<T>> => {
   return apiFetch<T>(url, { ...options, method: 'PUT', body });
 };
 
-export const apiDelete = <T = any>(
+export const apiDelete = <T = unknown>(
   url: string,
   options?: Omit<ApiFetchOptions, 'method'>
 ): Promise<ApiResponse<T>> => {
   return apiFetch<T>(url, { ...options, method: 'DELETE' });
 };
 
-export const apiPatch = <T = any>(
+export const apiPatch = <T = unknown>(
   url: string,
-  body?: any,
+  body?: unknown,
   options?: Omit<ApiFetchOptions, 'method' | 'body'>
 ): Promise<ApiResponse<T>> => {
   return apiFetch<T>(url, { ...options, method: 'PATCH', body });

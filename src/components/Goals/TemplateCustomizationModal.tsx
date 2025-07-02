@@ -37,25 +37,28 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
 
       let endDate = '';
       switch (template.period) {
-        case 'WEEKLY':
+        case 'WEEKLY': {
           const weekEnd = new Date(today);
           weekEnd.setDate(today.getDate() + 6);
           endDate = weekEnd.toISOString().split('T')[0];
           break;
-        case 'MONTHLY':
+        }
+        case 'MONTHLY': {
           const monthEnd = new Date(today);
           monthEnd.setMonth(today.getMonth() + 1);
           monthEnd.setDate(0); // Last day of current month
           endDate = monthEnd.toISOString().split('T')[0];
           break;
-        case 'YEARLY':
+        }
+        case 'YEARLY': {
           const yearEnd = new Date(today);
           yearEnd.setFullYear(today.getFullYear() + 1);
           yearEnd.setDate(yearEnd.getDate() - 1);
           endDate = yearEnd.toISOString().split('T')[0];
           break;
+        }
         case 'CUSTOM':
-        default:
+        default: {
           // For custom periods, set a reasonable default based on template type
           const customEnd = new Date(today);
           if (template.estimatedTimeframe.includes('week')) {
@@ -69,6 +72,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
           }
           endDate = customEnd.toISOString().split('T')[0];
           break;
+        }
       }
 
       setFormData({
@@ -174,8 +178,21 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
   if (!isOpen || !template) return null;
 
   return (
-    <div className='modal-overlay' onClick={onClose}>
-      <div className='modal template-customization-modal' onClick={e => e.stopPropagation()}>
+    <div
+      className='modal-overlay'
+      onClick={onClose}
+      onKeyDown={e => e.key === 'Escape' && onClose()}
+      role='dialog'
+      aria-modal='true'
+      tabIndex={-1}
+    >
+      <div
+        className='modal template-customization-modal'
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        role='document'
+        tabIndex={0}
+      >
         <div className='modal-header'>
           <div className='template-modal-title'>
             <div className='template-modal-icon' style={{ color: template.color }}>

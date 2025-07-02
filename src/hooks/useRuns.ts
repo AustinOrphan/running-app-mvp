@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
 import { Run, RunFormData } from '../types';
-import { calculatePace } from '../utils/formatters';
 import { apiGet, apiPost, apiPut, apiDelete, ApiError } from '../../utils/apiFetch';
 
 export const useRuns = (token: string | null) => {

@@ -5,7 +5,7 @@ import { testDb } from '../fixtures/testDatabase.js';
 
 test.describe('Statistics Dashboard E2E Tests', () => {
   let testUser: any;
-  let authToken: string;
+  let _authToken: string;
 
   test.beforeEach(async ({ page }) => {
     // Clean database and create test user
@@ -14,7 +14,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
       email: 'stats@test.com',
       password: 'testpassword123',
     });
-    authToken = testDb.generateTestToken(testUser.id);
+    _authToken = testDb.generateTestToken(testUser.id);
 
     // Login user
     await page.goto('/login');
@@ -337,7 +337,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
       await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
       await page.goto('/stats');
 
-      const initialRunCount = await page.locator('text=1 run').textContent();
+      const _initialRunCount = await page.locator('text=1 run').textContent();
 
       // Navigate away and add another run
       await page.goto('/runs');

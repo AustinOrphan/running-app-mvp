@@ -147,7 +147,7 @@ const ProgressChart: React.FC<{ data: MonthlyGoalProgress[] }> = ({ data }) => {
   return (
     <div className='progress-chart'>
       <div className='chart-bars'>
-        {data.map((month, index) => (
+        {data.map((month, _index) => (
           <div key={month.month} className='chart-bar-container'>
             <div className='chart-bar-group'>
               <div
@@ -208,8 +208,21 @@ export const GoalAnalyticsDashboard: React.FC<GoalAnalyticsDashboardProps> = ({
   };
 
   return (
-    <div className='analytics-overlay' onClick={onClose}>
-      <div className='analytics-dashboard' onClick={e => e.stopPropagation()}>
+    <div
+      className='analytics-overlay'
+      onClick={onClose}
+      onKeyDown={e => e.key === 'Escape' && onClose()}
+      role='dialog'
+      aria-modal='true'
+      tabIndex={-1}
+    >
+      <div
+        className='analytics-dashboard'
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        role='document'
+        tabIndex={0}
+      >
         <div className='analytics-header'>
           <h2>Goal Analytics & Insights</h2>
           <button className='btn-icon' onClick={onClose}>

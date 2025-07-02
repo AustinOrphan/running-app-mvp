@@ -64,7 +64,12 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
       {children && (
         <div
           className='circular-progress-content'
-          style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+          }}
         >
           {children}
         </div>

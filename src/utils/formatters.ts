@@ -18,7 +18,6 @@ export const calculatePace = (distance: number, duration: number): string => {
   return formatPace(paceInSeconds);
 };
 
-
 /**
  * Formats duration from seconds to human-readable format
  * @param seconds - Duration in seconds
@@ -32,18 +31,10 @@ export const formatDuration = (seconds: number): string => {
   const mins = Math.floor((abs % 3600) / 60);
   const secs = abs % 60;
 
-  return hours > 0
-    ? `${sign}${hours}h ${mins}m ${secs}s`
-    : `${sign}${mins}m ${secs}s`;
+  return hours > 0 ? `${sign}${hours}h ${mins}m ${secs}s` : `${sign}${mins}m ${secs}s`;
 };
 
-
-export type DateFormat =
-  | 'weekday-short'
-  | 'month-day'
-  | 'month-day-year'
-  | 'month'
-  | 'weekday';
+export type DateFormat = 'weekday-short' | 'month-day' | 'month-day-year' | 'month' | 'weekday';
 
 const DATE_OPTIONS: Record<DateFormat, Intl.DateTimeFormatOptions> = {
   'weekday-short': { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' },
@@ -64,7 +55,6 @@ export const formatDate = (
   if (Number.isNaN(date.getTime())) throw new Error('Invalid date');
   return date.toLocaleDateString('en-US', DATE_OPTIONS[format]);
 };
-
 
 /**
  * Formats pace (in seconds per unit) to readable string
@@ -96,17 +86,13 @@ export const formatPace = (
   return includeUnit ? `${formatted}/${unit}` : formatted;
 };
 
-
 /**
  * Converts pace (seconds per km or mi) to speed in km/h or mph
  * @param paceInSeconds - Pace in seconds per unit (e.g., per km)
  * @param unit - 'km' or 'mi'
  * @returns Speed as string with 1 decimal place (e.g. "12.3 km/h")
  */
-export const formatSpeed = (
-  paceInSeconds: number,
-  unit: 'km' | 'mi' = 'km'
-): string => {
+export const formatSpeed = (paceInSeconds: number, unit: 'km' | 'mi' = 'km'): string => {
   if (!isFinite(paceInSeconds) || paceInSeconds <= 0) return '-';
 
   const speed = 3600 / paceInSeconds; // seconds per hour ÷ pace = units per hour
@@ -129,7 +115,7 @@ export const formatDistance = (
   const rounded = distanceKm.toFixed(precision);
   return includeUnit ? `${rounded}${unit}` : rounded;
 };
-      
+
 /**
  * Formats a timestamp or Date into a readable time of day (e.g., "6:32 AM")
  * @param input - Date string or Date object
@@ -146,7 +132,7 @@ export const formatTimeOfDay = (input: string | Date): string => {
     timeZone: 'UTC', // change to 'America/Chicago' or local TZ if needed
   });
 };
-      
+
 /**
  * Parses a duration string like "1h 45m 30s" into total seconds
  * Accepts formats like "90s", "3m 15s", "2h", etc.
@@ -159,6 +145,6 @@ export const parseDuration = (durationStr: string): number => {
 
   if (!match) throw new Error(`Invalid duration string: "${durationStr}"`);
 
-  const [, h, m, s] = match.map((val) => parseInt(val ?? '0', 10));
+  const [, h, m, s] = match.map(val => parseInt(val ?? '0', 10));
   return (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
 };
