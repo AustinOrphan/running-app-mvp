@@ -310,15 +310,22 @@ describe('Auth API Integration Tests', () => {
   });
 
   describe('Rate Limiting', () => {
-    let originalEnv: string | undefined;
+    let originalRateLimitingEnabled: string | undefined;
 
     beforeAll(() => {
-      originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'production';
+      // Enable rate limiting for these specific tests while keeping NODE_ENV=test
+      // This avoids test flakiness from NODE_ENV modification in parallel execution
+      originalRateLimitingEnabled = process.env.RATE_LIMITING_ENABLED;
+      process.env.RATE_LIMITING_ENABLED = 'true';
     });
 
     afterAll(() => {
-      process.env.NODE_ENV = originalEnv;
+      // Properly restore environment variable to prevent test contamination
+      if (originalRateLimitingEnabled === undefined) {
+        delete process.env.RATE_LIMITING_ENABLED;
+      } else {
+        process.env.RATE_LIMITING_ENABLED = originalRateLimitingEnabled;
+      }
     });
 
     it('handles multiple registration attempts', async () => {
