@@ -7,7 +7,6 @@ import { accessibilityTestPatterns } from '../setup/axeSetup';
 
 test.describe('Accessibility E2E Tests', () => {
   let testUser: any;
-  let _authToken: string;
 
   test.beforeEach(async ({ page: _page }) => {
     // Clean database and create test user
@@ -16,7 +15,6 @@ test.describe('Accessibility E2E Tests', () => {
       email: 'accessibility@test.com',
       password: 'testpassword123',
     });
-    _authToken = testDb.generateTestToken(testUser.id);
 
     // Create test data
     await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 5));

@@ -5,7 +5,6 @@ import { testDb } from '../fixtures/testDatabase';
 
 test.describe('Navigation and Swipe Functionality E2E Tests', () => {
   let testUser: any;
-  let _authToken: string;
 
   test.beforeEach(async ({ page: _page }) => {
     // Clean database and create test user
@@ -14,7 +13,6 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
       email: 'navigation@test.com',
       password: 'testpassword123',
     });
-    _authToken = testDb.generateTestToken(testUser.id);
 
     // Create test data
     await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 8));
@@ -284,10 +282,8 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
             '.dropdown-menu',
           ];
 
-          let _contextMenuVisible = false;
           for (const selector of contextMenuSelectors) {
             if (await page.locator(selector).isVisible()) {
-              _contextMenuVisible = true;
               break;
             }
           }

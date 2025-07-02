@@ -15,7 +15,6 @@ const visualTest = new VisualTestHelper({
 
 test.describe('Visual Regression Tests', () => {
   let testUser: any;
-  let authToken: string;
 
   test.beforeEach(async ({ page }) => {
     // Clean database and create test user
@@ -24,7 +23,6 @@ test.describe('Visual Regression Tests', () => {
       email: 'visual@test.com',
       password: 'testpassword123',
     });
-    authToken = testDb.generateTestToken(testUser.id);
 
     // Create comprehensive test data
     await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 8));
@@ -284,7 +282,7 @@ test.describe('Visual Regression Tests', () => {
           maxDiffPercent: 3,
           mask: ['.progress-bar-animation', '[data-testid="progress-animation"]'],
         });
-      } catch (error) {
+      } catch {
         console.log('Goals page not available, skipping visual test');
       }
     });
@@ -300,7 +298,7 @@ test.describe('Visual Regression Tests', () => {
           maxDiffPercent: 3,
           mask: ['[data-testid="race-date"]', '.relative-date'],
         });
-      } catch (error) {
+      } catch {
         console.log('Races page not available, skipping visual test');
       }
     });

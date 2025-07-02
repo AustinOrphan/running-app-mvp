@@ -111,7 +111,7 @@ export const useStats = (token: string | null, period: string = '3m') => {
         fetchTrendsData(),
         fetchPersonalRecords(),
       ]);
-    } catch (error) {
+    } catch {
       setError('Failed to load statistics');
     } finally {
       setLoading(false);
