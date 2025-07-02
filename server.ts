@@ -15,6 +15,9 @@ import raceRoutes from './routes/races.js';
 import runRoutes from './routes/runs.js';
 import statsRoutes from './routes/stats.js';
 
+// Import secure logging
+import { logError, logInfo } from './utils/secureLogger.js';
+
 dotenv.config();
 
 const app = express();
@@ -47,7 +50,11 @@ app.get('/api/health', async (req, res) => {
       database: 'connected',
     });
   } catch (error) {
-    console.error('Health check error:', error);
+    logError(
+      'Health check error',
+      undefined,
+      error instanceof Error ? error : new Error(String(error))
+    );
     res.status(500).json({
       status: 'error',
       message: 'Health check failed: Database disconnected',
@@ -87,7 +94,7 @@ process.on('SIGTERM', async () => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  logInfo(`🚀 Server running on port ${PORT}`);
 });
 
 export { app, prisma };

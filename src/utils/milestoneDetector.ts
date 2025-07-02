@@ -1,4 +1,5 @@
 import { Goal, GoalProgress } from '../types/goals';
+import { logError } from './clientLogger';
 
 export interface MilestoneCheckResult {
   newMilestones: number[];
@@ -36,7 +37,10 @@ export class MilestoneDetector {
         return milestones[goalId] || [];
       }
     } catch (error) {
-      console.error('Error loading stored milestones:', error);
+      logError(
+        'Error loading stored milestones',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
     return [];
   }
@@ -49,7 +53,10 @@ export class MilestoneDetector {
       milestones[goalId] = achievedMilestones;
       localStorage.setItem(this.MILESTONE_STORAGE_KEY, JSON.stringify(milestones));
     } catch (error) {
-      console.error('Error storing milestones:', error);
+      logError(
+        'Error storing milestones',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }
 
@@ -98,7 +105,10 @@ export class MilestoneDetector {
       delete milestones[goalId];
       localStorage.setItem(this.MILESTONE_STORAGE_KEY, JSON.stringify(milestones));
     } catch (error) {
-      console.error('Error clearing milestones:', error);
+      logError(
+        'Error clearing milestones',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }
 
@@ -121,7 +131,10 @@ export class DeadlineDetector {
         return notifications[goalId] || {};
       }
     } catch (error) {
-      console.error('Error loading deadline notifications:', error);
+      logError(
+        'Error loading deadline notifications',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
     return {};
   }
@@ -137,7 +150,10 @@ export class DeadlineDetector {
       notifications[goalId][daysRemaining] = new Date().toISOString();
       localStorage.setItem(this.DEADLINE_STORAGE_KEY, JSON.stringify(notifications));
     } catch (error) {
-      console.error('Error storing deadline notification:', error);
+      logError(
+        'Error storing deadline notification',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }
 
@@ -200,7 +216,10 @@ export class DeadlineDetector {
       delete notifications[goalId];
       localStorage.setItem(this.DEADLINE_STORAGE_KEY, JSON.stringify(notifications));
     } catch (error) {
-      console.error('Error clearing deadline notifications:', error);
+      logError(
+        'Error clearing deadline notifications',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }
 }
@@ -294,7 +313,10 @@ export class StreakDetector {
         return JSON.parse(stored);
       }
     } catch (error) {
-      console.error('Error loading stored streak:', error);
+      logError(
+        'Error loading stored streak',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
     return null;
   }
@@ -305,7 +327,7 @@ export class StreakDetector {
       const key = goalId ? `${this.STREAK_STORAGE_KEY}_${goalId}` : this.STREAK_STORAGE_KEY;
       localStorage.setItem(key, JSON.stringify(streakInfo));
     } catch (error) {
-      console.error('Error storing streak:', error);
+      logError('Error storing streak', error instanceof Error ? error : new Error(String(error)));
     }
   }
 

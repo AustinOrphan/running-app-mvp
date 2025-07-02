@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 import { Run, RunFormData } from '../types';
 import { apiGet, apiPost, apiPut, apiDelete, ApiError } from '../../utils/apiFetch';
+import { logError } from '../utils/clientLogger';
 
 export const useRuns = (token: string | null) => {
   const [runs, setRuns] = useState<Run[]>([]);
@@ -16,7 +17,7 @@ export const useRuns = (token: string | null) => {
       const response = await apiGet<Run[]>('/api/runs');
       setRuns(response.data);
     } catch (error) {
-      console.error('Failed to fetch runs:', error);
+      logError('Failed to fetch runs', error instanceof Error ? error : new Error(String(error)));
       throw new Error('Failed to load runs');
     } finally {
       setLoading(false);
@@ -44,7 +45,7 @@ export const useRuns = (token: string | null) => {
 
       await fetchRuns(); // Refresh the list
     } catch (error) {
-      console.error('Failed to save run:', error);
+      logError('Failed to save run', error instanceof Error ? error : new Error(String(error)));
       const apiError = error as ApiError;
       throw new Error(
         apiError.data?.message ||
@@ -63,7 +64,7 @@ export const useRuns = (token: string | null) => {
       await apiDelete(`/api/runs/${runId}`);
       await fetchRuns(); // Refresh the list
     } catch (error) {
-      console.error('Failed to delete run:', error);
+      logError('Failed to delete run', error instanceof Error ? error : new Error(String(error)));
       const apiError = error as ApiError;
       throw new Error(apiError.data?.message || apiError.message || 'Failed to delete run');
     }

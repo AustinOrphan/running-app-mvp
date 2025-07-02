@@ -17,6 +17,7 @@ import {
   NotificationContentGenerator,
   NotificationPreferencesStorage,
 } from '../utils/notifications';
+import { logError } from '../utils/clientLogger';
 
 import { useToast } from './useToast';
 
@@ -72,7 +73,10 @@ export const useNotifications = (): UseNotificationsReturn => {
         const parsed = JSON.parse(stored);
         setNotifications(parsed);
       } catch (error) {
-        console.error('Failed to load notifications:', error);
+        logError(
+          'Failed to load notifications',
+          error instanceof Error ? error : new Error(String(error))
+        );
       }
     }
   }, []);
@@ -82,7 +86,10 @@ export const useNotifications = (): UseNotificationsReturn => {
     try {
       localStorage.setItem('goalNotifications', JSON.stringify(notifications));
     } catch (error) {
-      console.error('Failed to save notifications:', error);
+      logError(
+        'Failed to save notifications',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }, [notifications]);
 

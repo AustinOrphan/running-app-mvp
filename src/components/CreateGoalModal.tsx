@@ -9,6 +9,7 @@ import {
   GoalType,
   GoalPeriod,
 } from '../types/goals';
+import { logError } from '../utils/clientLogger';
 
 interface CreateGoalModalProps {
   isOpen: boolean;
@@ -156,8 +157,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
       });
       setErrors({});
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to create goal:', error);
+      logError('Failed to create goal', error instanceof Error ? error : new Error(String(error)));
     } finally {
       setIsSubmitting(false);
     }
