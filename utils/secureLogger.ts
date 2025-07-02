@@ -67,12 +67,16 @@ const PII_PATTERNS = [
 ];
 
 class SecureLogger {
-  private isDevelopment: boolean;
-  private isProduction: boolean;
-
   constructor() {
-    this.isDevelopment = process.env.NODE_ENV === 'development';
-    this.isProduction = process.env.NODE_ENV === 'production';
+    // Environment checks are now done dynamically via getters
+  }
+
+  private get isDevelopment(): boolean {
+    return process.env.NODE_ENV === 'development';
+  }
+
+  private get isProduction(): boolean {
+    return process.env.NODE_ENV === 'production';
   }
 
   /**
@@ -142,13 +146,13 @@ class SecureLogger {
    * Generates or retrieves correlation ID for request tracking
    */
   private getCorrelationId(req?: Request): string {
-    if (req && (req as any).correlationId) {
-      return (req as any).correlationId;
+    if (req && req.correlationId) {
+      return req.correlationId;
     }
 
     const correlationId = uuidv4();
     if (req) {
-      (req as any).correlationId = correlationId;
+      req.correlationId = correlationId;
     }
 
     return correlationId;
@@ -172,16 +176,18 @@ class SecureLogger {
       method: req.method,
       url: this.redactSensitiveUrlParams(req.url),
       userAgent: req.get('User-Agent'),
-      ip: this.isProduction ? this.maskIpAddress(req.ip) : req.ip,
+      ip: this.isProduction 
+        ? this.hashIpAddress(req.ip || req.socket?.remoteAddress) 
+        : req.ip || req.socket?.remoteAddress,
     };
 
     // Only include user context in development or with explicit consent
-    if ((req as any).user?.id) {
+    if (req.user?.id) {
       if (this.isDevelopment) {
-        context.userId = (req as any).user.id;
+        context.userId = req.user.id;
       } else {
         // In production, use a hash of the user ID for correlation without exposure
-        context.userId = this.hashUserId((req as any).user.id);
+        context.userId = this.hashUserId(req.user.id);
       }
     }
 
@@ -197,7 +203,37 @@ class SecureLogger {
   }
 
   /**
-   * Masks IP address for privacy compliance
+   * Hashes IP address for enhanced privacy compliance (Issue #38)
+   * Uses SHA-256 hashing to completely anonymize IPs while maintaining correlation
+   * 
+   * @param ip - IP address to hash (IPv4 or IPv6)
+   * @returns SHA-256 hash (truncated to 16 chars) or '[UNKNOWN]' if no IP provided
+   * 
+   * Environment Variables:
+   * - IP_SALT: Salt for IP hashing (required in production for security)
+   */
+  private hashIpAddress(ip?: string): string {
+    if (!ip) return '[UNKNOWN]';
+
+    const salt = process.env.IP_SALT || 'default-ip-salt-dev-only';
+    
+    if (this.isProduction && !process.env.IP_SALT) {
+      console.warn('WARNING: IP_SALT not set in production. Using default salt.');
+    }
+
+    const hash = crypto
+      .createHash('sha256')
+      .update(ip + salt)
+      .digest('hex');
+    
+    // Truncate for storage efficiency while maintaining uniqueness
+    // 16 characters provides 2^64 possible values, sufficient for correlation
+    return `ip_${hash.substring(0, 16)}`;
+  }
+
+  /**
+   * Legacy method - masks IP address for privacy compliance
+   * @deprecated Use hashIpAddress() for enhanced privacy compliance
    */
   private maskIpAddress(ip?: string): string {
     if (!ip) return '[UNKNOWN]';

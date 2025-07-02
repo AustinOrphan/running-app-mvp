@@ -39,6 +39,7 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
               {[1, 2, 3, 4].map(i => (
                 <div
                   key={i}
+                  data-testid='skeleton-line'
                   className='skeleton-line'
                   style={{ width: '80px', height: '16px' }}
                 ></div>
@@ -49,6 +50,7 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
                 {[1, 2, 3, 4].map(j => (
                   <div
                     key={j}
+                    data-testid='skeleton-line'
                     className='skeleton-line'
                     style={{ width: '60px', height: '14px' }}
                   ></div>
@@ -122,7 +124,7 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
       <h3>Personal Records</h3>
 
       <div className='records-table-container'>
-        <table className='records-table'>
+        <table className='records-table' aria-label='Personal records table'>
           <thead>
             <tr>
               <th

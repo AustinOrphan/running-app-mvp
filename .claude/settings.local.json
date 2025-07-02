@@ -27,7 +27,13 @@
       "mcp__github__create_issue",
       "mcp__github__get_pull_request_reviews",
       "mcp__github__get_pull_request_diff",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(npm test:*)",
+      "mcp__github__list_issues",
+      "mcp__github__update_pull_request",
+      "mcp__github__update_issue",
+      "Bash(ls:*)",
+      "mcp__serena__think_about_whether_you_are_done"
     ],
     "deny": []
   }

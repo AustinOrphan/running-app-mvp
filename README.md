@@ -122,13 +122,20 @@ Create a `.env` file in the project root:
 ```env
 DATABASE_URL="file:./dev.db"
 JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
+LOG_SALT="set-a-strong-random-string-for-production"
 PORT=3001
 NODE_ENV=development
 ```
 
+`LOG_SALT` is used to anonymize user identifiers in log files. For
+production deployments, generate a cryptographically strong random string
+and set it here.
+
 ## 🔐 Security Notes
 
 - JWT secret is set in `.env` - change this for production
+- `LOG_SALT` must be defined in production so logs can be correlated without
+  exposing raw user IDs
 - Passwords are hashed with bcrypt
 - All API routes except auth are protected with JWT middleware
 - User data is isolated by user ID
