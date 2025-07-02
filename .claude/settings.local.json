@@ -1,39 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "mcp__serena__initial_instructions",
-      "mcp__serena__activate_project",
-      "mcp__serena__check_onboarding_performed",
-      "WebFetch(domain:github.com)",
-      "mcp__sequential-thinking__sequentialthinking",
-      "mcp__serena__list_dir",
-      "mcp__serena__read_memory",
-      "Bash(npm run test:run:*)",
-      "Bash(npx tsc:*)",
-      "mcp__serena__read_file",
-      "Bash(find:*)",
-      "Bash(git checkout:*)",
-      "Bash(sed:*)",
-      "Bash(git add:*)",
-      "Bash(gh pr view:*)",
-      "Bash(git branch:*)",
-      "mcp__github__list_pull_requests",
-      "mcp__github__get_pull_request_status",
-      "mcp__github__get_pull_request_files",
-      "mcp__github__add_issue_comment",
-      "mcp__github__get_pull_request",
-      "mcp__github__get_pull_request_comments",
-      "mcp__github__get_issue_comments",
-      "mcp__github__create_issue",
-      "mcp__github__get_pull_request_reviews",
-      "mcp__github__get_pull_request_diff",
-      "Bash(gh api:*)",
-      "Bash(npm test:*)",
-      "mcp__github__list_issues",
-      "mcp__github__update_pull_request",
-      "mcp__github__update_issue",
-      "Bash(ls:*)",
-      "mcp__serena__think_about_whether_you_are_done"
+      "Bash(gh pr list:*)"
     ],
     "deny": []
   }
