@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { Goal, GoalProgress } from '../types/goals';
 import {
   GoalNotification,
   NotificationPreferences,
+  NotificationQueue,
   MilestoneNotification,
   DeadlineNotification,
   StreakNotification,
@@ -63,6 +64,11 @@ export const useNotifications = (): UseNotificationsReturn => {
   );
 
   const { showToast } = useToast();
+  const _notificationQueue = useRef<NotificationQueue>({
+    notifications: [],
+    maxSize: 10,
+    processing: false,
+  });
 
   // Load notifications from localStorage on mount
   useEffect(() => {

@@ -128,6 +128,8 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       const goal = goals.find(g => g.id === progress.goalId);
       if (!goal || goal.isCompleted) return;
 
+      const previousProgress = previousProgressRef.current.get(progress.goalId);
+
       // Check for milestone notifications
       if (notificationPreferences.enableMilestoneNotifications) {
         const milestoneResult = MilestoneDetector.checkMilestones(goal, progress);
