@@ -168,6 +168,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className='modal-overlay'
       onClick={onClose}
