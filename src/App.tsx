@@ -105,7 +105,6 @@ function App() {
 
       <TabNavigation
         activeTab={activeTab}
-        onTabChange={handleTabChange}
         swipeHighlight={swipeHighlight}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}

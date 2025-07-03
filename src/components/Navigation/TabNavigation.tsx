@@ -1,10 +1,10 @@
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 
 import { TAB_CONFIG } from '../../constants/navigation';
 
 interface TabNavigationProps {
   activeTab: string;
-  onTabChange: (tab: string) => void;
   swipeHighlight: boolean;
   onTouchStart: (e: React.TouchEvent) => void;
   onTouchMove: (e: React.TouchEvent) => void;
@@ -13,7 +13,6 @@ interface TabNavigationProps {
 
 export const TabNavigation: React.FC<TabNavigationProps> = ({
   activeTab,
-  onTabChange,
   swipeHighlight,
   onTouchStart,
   onTouchMove,
@@ -22,16 +21,18 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   return (
     <nav className='main-nav'>
       {TAB_CONFIG.map(tab => (
-        <button
+        <NavLink
           key={tab.id}
-          className={`nav-btn ${activeTab === tab.id ? 'active' : ''} ${activeTab === tab.id && swipeHighlight ? 'swipe-highlight' : ''}`}
-          onClick={() => onTabChange(tab.id)}
+          to={`/${tab.id}`}
+          className={({ isActive }) =>
+            `nav-btn ${isActive ? 'active' : ''} ${isActive && swipeHighlight ? 'swipe-highlight' : ''}`
+          }
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
           {tab.label}
-        </button>
+        </NavLink>
       ))}
     </nav>
   );
