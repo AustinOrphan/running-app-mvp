@@ -258,6 +258,7 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
       role='dialog'
       aria-modal='true'
       aria-labelledby='template-browser-title'
+      tabIndex={-1}
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
@@ -265,6 +266,7 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
         role='document'
+        tabIndex={0}
       >
         <div className='template-browser-header'>
           <div className='browser-title'>

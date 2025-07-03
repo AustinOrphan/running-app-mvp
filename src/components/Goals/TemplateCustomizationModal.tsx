@@ -186,6 +186,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
       role='dialog'
       aria-modal='true'
       aria-labelledby='template-customization-title'
+      tabIndex={-1}
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
@@ -193,6 +194,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
         role='document'
+        tabIndex={0}
       >
         <div className='modal-header'>
           <div className='template-modal-title'>

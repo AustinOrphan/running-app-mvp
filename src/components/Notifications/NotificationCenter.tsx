@@ -174,11 +174,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
     }
   };
 
-  const handleModalKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  };
+
 
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
@@ -189,13 +185,15 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
       role='dialog'
       aria-modal='true'
       aria-labelledby='notification-center-title'
+      tabIndex={-1}
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='notification-center'
         onClick={e => e.stopPropagation()}
-        onKeyDown={handleModalKeyDown}
+        onKeyDown={e => e.stopPropagation()}
         role='document'
+        tabIndex={0}
       >
         <div className='notification-header'>
           <div className='notification-title'>

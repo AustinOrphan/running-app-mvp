@@ -58,6 +58,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       role='dialog'
       aria-modal='true'
       aria-labelledby='confirmation-modal-title'
+      tabIndex={-1}
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
@@ -65,6 +66,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
         role='document'
+        tabIndex={0}
       >
         <div className='modal-header'>
           <div className='confirmation-header'>
