@@ -204,13 +204,13 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
       aria-modal='true'
       tabIndex={-1}
     >
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
       <div
         className='modal'
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
         role='document'
         tabIndex={0}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
       >
         <div className='modal-header'>
           <h3>Edit Goal</h3>
