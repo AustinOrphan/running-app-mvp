@@ -205,6 +205,7 @@ function App() {
     if (hasSwipedBefore === 'true') {
       setHasSwipedOnce(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchRuns = async (token: string) => {
@@ -710,6 +711,9 @@ function App() {
             data-toast-id={toast.id}
             className={`toast toast-${toast.type}`}
             onClick={() => removeToast(toast.id)}
+            onKeyDown={e => e.key === 'Enter' && removeToast(toast.id)}
+            role='button'
+            tabIndex={0}
           >
             <span className='toast-icon'>
               {toast.type === 'success' && '✅'}

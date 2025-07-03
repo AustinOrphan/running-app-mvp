@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import { WeeklyInsights, RunTypeBreakdown, TrendsDataPoint, PersonalRecord } from '../types';
 
@@ -98,7 +98,7 @@ export const useStats = (token: string | null, period: string = '3m') => {
     }
   };
 
-  const fetchAllStats = async () => {
+  const fetchAllStats = useCallback(async () => {
     if (!token) return;
 
     setLoading(true);
@@ -116,13 +116,20 @@ export const useStats = (token: string | null, period: string = '3m') => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    token,
+    period,
+    fetchWeeklyInsights,
+    fetchTypeBreakdown,
+    fetchTrendsData,
+    fetchPersonalRecords,
+  ]);
 
   useEffect(() => {
     if (token) {
       fetchAllStats();
     }
-  }, [token, period]);
+  }, [token, period, fetchAllStats]);
 
   return {
     weeklyInsights,

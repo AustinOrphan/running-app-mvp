@@ -64,7 +64,7 @@ export const useNotifications = (): UseNotificationsReturn => {
   );
 
   const { showToast } = useToast();
-  const notificationQueue = useRef<NotificationQueue>({
+  const _notificationQueue = useRef<NotificationQueue>({
     notifications: [],
     maxSize: 10,
     processing: false,

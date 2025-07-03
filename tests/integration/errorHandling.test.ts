@@ -1,7 +1,6 @@
 import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
-import { EventEmitter } from 'events';
 
 import authRoutes from '../../routes/auth.js';
 import runsRoutes from '../../routes/runs.js';

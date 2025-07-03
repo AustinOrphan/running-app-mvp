@@ -20,7 +20,7 @@ describe('AsyncHandler Middleware Tests', () => {
   describe('asyncHandler', () => {
     it('should call next with error when async function throws', async () => {
       const errorMessage = 'Test async error';
-      const testHandler = asyncHandler(async (_req, _res, next) => {
+      const testHandler = asyncHandler(async (_req, _res, _next) => {
         throw new Error(errorMessage);
       });
 
@@ -30,7 +30,7 @@ describe('AsyncHandler Middleware Tests', () => {
     });
 
     it('should not call next when async function succeeds', async () => {
-      const testHandler = asyncHandler(async (_req, _res, next) => {
+      const testHandler = asyncHandler(async (_req, _res, _next) => {
         (res as any).json({ success: true });
       });
 
@@ -44,7 +44,7 @@ describe('AsyncHandler Middleware Tests', () => {
   describe('asyncAuthHandler', () => {
     it('should handle authenticated route errors properly', async () => {
       const authError = new Error('Authentication failed');
-      const testHandler = asyncAuthHandler(async (_req, _res, next) => {
+      const testHandler = asyncAuthHandler(async (_req, _res, _next) => {
         throw authError;
       });
 

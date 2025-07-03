@@ -310,61 +310,127 @@ describe('Auth API Integration Tests', () => {
   });
 
   describe('Rate Limiting', () => {
-    let originalEnv: string | undefined;
+    let originalRateLimitingEnabled: string | undefined;
 
     beforeAll(() => {
-      originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'production';
+      // Enable rate limiting for these specific tests while keeping NODE_ENV=test
+      // This avoids test flakiness from NODE_ENV modification in parallel execution
+      originalRateLimitingEnabled = process.env.RATE_LIMITING_ENABLED;
+      process.env.RATE_LIMITING_ENABLED = 'true';
     });
 
     afterAll(() => {
-      process.env.NODE_ENV = originalEnv;
+      // Properly restore environment variable to prevent test contamination
+      if (originalRateLimitingEnabled === undefined) {
+        delete process.env.RATE_LIMITING_ENABLED;
+      } else {
+        process.env.RATE_LIMITING_ENABLED = originalRateLimitingEnabled;
+      }
     });
 
-    it('handles multiple registration attempts', async () => {
-      const userData = {
-        email: 'ratelimit@test.com',
-        password: 'testpassword123',
-      };
+    it('handles multiple registration attempts and triggers rate limit', async () => {
+      // Verify rate limiting is enabled for this test
+      expect(process.env.RATE_LIMITING_ENABLED).toBe('true');
 
-      // First request should succeed
-      await request(app).post('/api/auth/register').send(userData).expect(201);
+      const responses: request.Response[] = [];
 
-      let lastResponse: request.Response | undefined;
-      const RATE_LIMIT_TEST_ATTEMPTS = 5;
-
-      // Additional requests should eventually hit the rate limit
-      for (let i = 0; i < RATE_LIMIT_TEST_ATTEMPTS; i++) {
-        lastResponse = await request(app)
+      // Make exactly 5 registration requests (the limit)
+      for (let i = 0; i < 5; i++) {
+        const response = await request(app)
           .post('/api/auth/register')
           .send({
             email: `ratelimit${i}@test.com`,
             password: 'testpassword123',
           });
+        responses.push(response);
       }
 
-      expect(lastResponse).toBeDefined();
-      expect(lastResponse!.status).toBe(429);
-      expect(lastResponse!.body).toHaveProperty('message');
-      expect(lastResponse!.body.message).toMatch(/too many/i);
+      // First 5 requests should succeed (or fail due to business logic, but not rate limiting)
+      for (let i = 0; i < 5; i++) {
+        expect(responses[i].status).not.toBe(429);
+      }
+
+      // 6th request should trigger rate limit
+      const rateLimitedResponse = await request(app).post('/api/auth/register').send({
+        email: 'ratelimited@test.com',
+        password: 'testpassword123',
+      });
+
+      // Verify rate limit was triggered
+      expect(rateLimitedResponse.status).toBe(429);
+      expect(rateLimitedResponse.body).toHaveProperty('message');
+      expect(rateLimitedResponse.body.message).toMatch(/too many.*attempts/i);
+      expect(rateLimitedResponse.headers).toHaveProperty('retry-after');
+
+      // Verify the rate limit response includes proper headers
+      expect(rateLimitedResponse.body).toHaveProperty('status', 429);
+      expect(rateLimitedResponse.body).toHaveProperty('retryAfter');
     });
 
-    it('handles multiple login attempts with invalid credentials', async () => {
+    it('handles multiple login attempts with invalid credentials and triggers rate limit', async () => {
       const testUser = await testDb.createTestUser({
         email: 'bruteforce@test.com',
         password: 'correctpassword',
       });
 
-      // Multiple failed login attempts
+      const responses: request.Response[] = [];
+
+      // Make exactly 5 failed login attempts (the limit)
       for (let i = 0; i < 5; i++) {
-        await request(app)
-          .post('/api/auth/login')
-          .send({
-            email: testUser.email,
-            password: 'wrongpassword',
-          })
-          .expect(401);
+        const response = await request(app).post('/api/auth/login').send({
+          email: testUser.email,
+          password: 'wrongpassword',
+        });
+        responses.push(response);
       }
+
+      // First 5 attempts should fail with 401 (unauthorized), not 429 (rate limited)
+      for (const response of responses) {
+        expect(response.status).toBe(401);
+        expect(response.body.message).toContain('Invalid credentials');
+      }
+
+      // 6th attempt should trigger rate limit
+      const rateLimitedResponse = await request(app).post('/api/auth/login').send({
+        email: testUser.email,
+        password: 'wrongpassword',
+      });
+
+      // Verify rate limit was triggered
+      expect(rateLimitedResponse.status).toBe(429);
+      expect(rateLimitedResponse.body).toHaveProperty('message');
+      expect(rateLimitedResponse.body.message).toMatch(/too many.*attempts/i);
+      expect(rateLimitedResponse.headers).toHaveProperty('retry-after');
+      expect(rateLimitedResponse.body).toHaveProperty('status', 429);
+      expect(rateLimitedResponse.body).toHaveProperty('retryAfter');
+
+      // Verify that even a correct password is now rate limited
+      const correctPasswordResponse = await request(app).post('/api/auth/login').send({
+        email: testUser.email,
+        password: 'correctpassword',
+      });
+
+      expect(correctPasswordResponse.status).toBe(429);
+      expect(correctPasswordResponse.body).toHaveProperty('message');
+      expect(correctPasswordResponse.body.message).toMatch(/too many.*attempts/i);
+      expect(correctPasswordResponse.headers).toHaveProperty('retry-after');
+      expect(correctPasswordResponse.body).toHaveProperty('status', 429);
+      expect(correctPasswordResponse.body).toHaveProperty('retryAfter');
+    });
+
+    it('verifies rate limiting environment is properly configured', async () => {
+      // This test ensures that our rate limiting setup correctly simulates production
+      expect(process.env.NODE_ENV).toBe('test');
+      expect(process.env.RATE_LIMITING_ENABLED).toBe('true');
+
+      // Verify that a single request works before hitting the limit
+      const singleResponse = await request(app).post('/api/auth/register').send({
+        email: 'single@test.com',
+        password: 'testpassword123',
+      });
+
+      // Should succeed (201) or fail for business reasons (400), but not be rate limited (429)
+      expect(singleResponse.status).not.toBe(429);
     });
   });
 
