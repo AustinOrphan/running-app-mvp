@@ -49,7 +49,8 @@ router.get(
       return _next(createNotFoundError('Goal'));
     }
 
-    return res.json(goal);
+    res.json(goal);
+    return;
   })
 );
 
@@ -122,7 +123,8 @@ router.post(
       },
     });
 
-    return res.status(201).json(goal);
+    res.status(201).json(goal);
+    return;
   })
 );
 
@@ -202,7 +204,8 @@ router.put(
       },
     });
 
-    return res.json(updatedGoal);
+    res.json(updatedGoal);
+    return;
   })
 );
 
@@ -231,7 +234,8 @@ router.delete(
       data: { isActive: false },
     });
 
-    return res.json({ message: 'Goal deleted successfully' });
+    res.json({ message: 'Goal deleted successfully' });
+    return;
   })
 );
 
@@ -269,7 +273,8 @@ router.post(
       },
     });
 
-    return res.json(completedGoal);
+    res.json(completedGoal);
+    return;
   })
 );
 

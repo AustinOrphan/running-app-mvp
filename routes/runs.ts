@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createError, createNotFoundError } from '../middleware/errorHandler.js';
+import { createNotFoundError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import {
   validateCreateRun,
@@ -34,6 +34,7 @@ router.get(
       orderBy: { date: 'desc' },
     });
     res.json(runs);
+    return;
   })
 );
 
@@ -55,6 +56,7 @@ router.get(
       orderBy: { date: 'desc' },
     });
     res.json(runs);
+    return;
   })
 );
 
@@ -76,7 +78,8 @@ router.get(
       return next(createNotFoundError('Run'));
     }
 
-    return res.json(run);
+    res.json(run);
+    return;
   })
 );
 
@@ -115,7 +118,8 @@ router.post(
       },
     });
 
-    return res.status(201).json(run);
+    res.status(201).json(run);
+    return;
   })
 );
 
@@ -172,7 +176,8 @@ router.put(
       data: updateData,
     });
 
-    return res.json(run);
+    res.json(run);
+    return;
   })
 );
 
@@ -198,7 +203,8 @@ router.delete(
       where: { id: req.params.id },
     });
 
-    return res.status(204).send();
+    res.status(204).send();
+    return;
   })
 );
 

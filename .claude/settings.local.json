@@ -34,6 +34,7 @@
       "mcp__github__update_issue",
       "Bash(ls:*)",
       "mcp__serena__think_about_whether_you_are_done",
+      "Bash(git ls-tree:*)",
       "Bash(npx prettier:*)",
       "Bash(git restore:*)",
       "mcp__github__list_branches"
