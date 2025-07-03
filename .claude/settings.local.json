@@ -39,10 +39,7 @@
       "Bash(git ls-tree:*)",
       "Bash(npx prettier:*)",
       "Bash(git restore:*)",
-      "mcp__github__list_branches",
-      "Bash(for file in src/components/EditGoalModal.tsx src/components/Goals/GoalAnalyticsDashboard.tsx src/components/Goals/GoalTemplateBrowser.tsx src/components/Goals/TemplateCustomizationModal.tsx)",
-      "Bash(do echo \"=== $file ===\")",
-      "Bash(done)"
+      "mcp__github__list_branches"
     ],
     "deny": []
   }
