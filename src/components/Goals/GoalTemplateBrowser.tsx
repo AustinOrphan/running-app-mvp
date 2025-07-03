@@ -269,7 +269,7 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
         tabIndex={0}
         // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
       >
-        <div className='template-browser-header' tabIndex={0}>
+        <div className='template-browser-header'>
           <div className='browser-title'>
             <h2 id='template-browser-title'>Goal Templates</h2>
             <p>Choose from proven running goals to jumpstart your training</p>
