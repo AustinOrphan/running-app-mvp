@@ -401,6 +401,8 @@ describe('Auth API Integration Tests', () => {
       expect(rateLimitedResponse.body).toHaveProperty('message');
       expect(rateLimitedResponse.body.message).toMatch(/too many.*attempts/i);
       expect(rateLimitedResponse.headers).toHaveProperty('retry-after');
+      expect(rateLimitedResponse.body).toHaveProperty('status', 429);
+      expect(rateLimitedResponse.body).toHaveProperty('retryAfter');
 
       // Verify that even a correct password is now rate limited
       const correctPasswordResponse = await request(app).post('/api/auth/login').send({
@@ -409,7 +411,11 @@ describe('Auth API Integration Tests', () => {
       });
 
       expect(correctPasswordResponse.status).toBe(429);
+      expect(correctPasswordResponse.body).toHaveProperty('message');
       expect(correctPasswordResponse.body.message).toMatch(/too many.*attempts/i);
+      expect(correctPasswordResponse.headers).toHaveProperty('retry-after');
+      expect(correctPasswordResponse.body).toHaveProperty('status', 429);
+      expect(correctPasswordResponse.body).toHaveProperty('retryAfter');
     });
 
     it('verifies rate limiting environment is properly configured', async () => {
