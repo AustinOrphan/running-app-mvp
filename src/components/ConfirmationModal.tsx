@@ -55,19 +55,16 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       className='modal-overlay'
       onClick={onCancel}
       onKeyDown={e => e.key === 'Escape' && onCancel()}
-      role='dialog'
-      aria-modal='true'
-      aria-labelledby='confirmation-modal-title'
-      tabIndex={-1}
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='modal confirmation-modal'
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
-        role='document'
-        tabIndex={0}
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='confirmation-modal-title'
+        tabIndex={-1}
         // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
       >
         <div className='modal-header'>

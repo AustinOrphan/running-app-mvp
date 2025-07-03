@@ -200,18 +200,16 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
       className='modal-overlay'
       onClick={handleClose}
       onKeyDown={e => e.key === 'Escape' && handleClose()}
-      role='dialog'
-      aria-modal='true'
-      aria-labelledby='edit-goal-modal-title'
-      tabIndex={-1}
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='modal'
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
-        role='document'
-        tabIndex={0}
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='edit-goal-modal-title'
+        tabIndex={-1}
         // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
       >
         <div className='modal-header'>

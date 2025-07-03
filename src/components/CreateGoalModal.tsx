@@ -172,14 +172,18 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
     <div
       className='modal-overlay'
       onClick={onClose}
-      role='dialog'
-      aria-modal='true'
-      aria-labelledby='create-goal-modal-title'
-      tabIndex={-1}
       onKeyDown={e => e.key === 'Escape' && onClose()}
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events */}
-      <div className='modal' onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} role='document' tabIndex={0}>
+      <div 
+        className='modal' 
+        onClick={e => e.stopPropagation()} 
+        onKeyDown={e => e.stopPropagation()} 
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='create-goal-modal-title'
+        tabIndex={-1}
+      >
         <div className='modal-header'>
           <h3 id='create-goal-modal-title'>Create New Goal</h3>
           <button className='btn-icon' onClick={onClose} disabled={isSubmitting}>
