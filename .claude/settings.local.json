@@ -8,7 +8,7 @@
       "mcp__sequential-thinking__sequentialthinking",
       "mcp__serena__list_dir",
       "mcp__serena__read_memory",
-      "Bash(npm run test:run:*)",
+      "Bash(npm run test:*)",
       "Bash(npx tsc:*)",
       "mcp__serena__read_file",
       "Bash(find:*)",
@@ -35,7 +35,14 @@
       "Bash(ls:*)",
       "mcp__serena__think_about_whether_you_are_done",
       "Bash(npm run test:accessibility:*)",
-      "Bash(npm run test:a11y:*)"
+      "Bash(npm run test:a11y:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(npx prettier:*)",
+      "Bash(git restore:*)",
+      "mcp__github__list_branches",
+      "Bash(for file in src/components/EditGoalModal.tsx src/components/Goals/GoalAnalyticsDashboard.tsx src/components/Goals/GoalTemplateBrowser.tsx src/components/Goals/TemplateCustomizationModal.tsx)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(done)"
     ],
     "deny": []
   }

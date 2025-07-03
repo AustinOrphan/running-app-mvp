@@ -203,6 +203,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
       role='dialog'
       aria-modal='true'
       aria-labelledby='edit-goal-modal-title'
+      tabIndex={-1}
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
@@ -210,6 +211,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
         role='document'
+        tabIndex={0}
       >
         <div className='modal-header'>
           <h3 id='edit-goal-modal-title'>Edit Goal</h3>
