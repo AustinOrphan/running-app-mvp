@@ -8,7 +8,7 @@
       "mcp__sequential-thinking__sequentialthinking",
       "mcp__serena__list_dir",
       "mcp__serena__read_memory",
-      "Bash(npm run test:run:*)",
+      "Bash(npm run test:*)",
       "Bash(npx tsc:*)",
       "mcp__serena__read_file",
       "Bash(find:*)",

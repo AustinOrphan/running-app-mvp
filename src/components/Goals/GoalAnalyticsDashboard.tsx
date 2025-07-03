@@ -215,8 +215,10 @@ export const GoalAnalyticsDashboard: React.FC<GoalAnalyticsDashboardProps> = ({
       onKeyDown={e => e.key === 'Escape' && onClose()}
       role='dialog'
       aria-modal='true'
+      aria-labelledby='analytics-dashboard-title'
       tabIndex={-1}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='analytics-dashboard'
         onClick={e => e.stopPropagation()}
@@ -226,7 +228,7 @@ export const GoalAnalyticsDashboard: React.FC<GoalAnalyticsDashboardProps> = ({
         // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
       >
         <div className='analytics-header'>
-          <h2>Goal Analytics & Insights</h2>
+          <h2 id='analytics-dashboard-title'>Goal Analytics & Insights</h2>
           <button className='btn-icon' onClick={onClose}>
             ×
           </button>

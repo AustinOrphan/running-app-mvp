@@ -185,8 +185,10 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
       onKeyDown={e => e.key === 'Escape' && onClose()}
       role='dialog'
       aria-modal='true'
+      aria-labelledby='template-customization-title'
       tabIndex={-1}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='modal template-customization-modal'
         onClick={e => e.stopPropagation()}
@@ -201,7 +203,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
               {template.icon}
             </div>
             <div>
-              <h3>Customize Goal Template</h3>
+              <h3 id='template-customization-title'>Customize Goal Template</h3>
               <p className='template-modal-subtitle'>{template.name}</p>
             </div>
           </div>

@@ -202,8 +202,10 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
       onKeyDown={e => e.key === 'Escape' && handleClose()}
       role='dialog'
       aria-modal='true'
+      aria-labelledby='edit-goal-modal-title'
       tabIndex={-1}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='modal'
         onClick={e => e.stopPropagation()}
@@ -213,7 +215,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
         // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
       >
         <div className='modal-header'>
-          <h3>Edit Goal</h3>
+          <h3 id='edit-goal-modal-title'>Edit Goal</h3>
           <button className='btn-icon' onClick={handleClose} disabled={isSubmitting}>
             ✕
           </button>

@@ -257,8 +257,10 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
       onKeyDown={e => e.key === 'Escape' && onClose()}
       role='dialog'
       aria-modal='true'
+      aria-labelledby='template-browser-title'
       tabIndex={-1}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='template-browser'
         onClick={e => e.stopPropagation()}
@@ -269,7 +271,7 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
       >
         <div className='template-browser-header'>
           <div className='browser-title'>
-            <h2>Goal Templates</h2>
+            <h2 id='template-browser-title'>Goal Templates</h2>
             <p>Choose from proven running goals to jumpstart your training</p>
           </div>
           <button className='btn-icon browser-close' onClick={onClose} title='Close'>
