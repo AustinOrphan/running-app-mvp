@@ -95,10 +95,12 @@ router.get(
 
     // Handle empty data scenario
     if (breakdownArray.length === 0) {
-      return res.json([]);
+      res.json([]);
+      return;
     }
 
-    return res.json(breakdownArray);
+    res.json(breakdownArray);
+    return;
   })
 );
 
@@ -181,10 +183,12 @@ router.get(
 
     // Handle empty data scenario
     if (trendsData.length === 0) {
-      return res.json([]);
+      res.json([]);
+      return;
     }
 
-    return res.json(trendsData);
+    res.json(trendsData);
+    return;
   })
 );
 
@@ -235,10 +239,12 @@ router.get(
 
     // Handle empty data scenario
     if (records.length === 0) {
-      return res.json([]);
+      res.json([]);
+      return;
     }
 
-    return res.json(records);
+    res.json(records);
+    return;
   })
 );
 
