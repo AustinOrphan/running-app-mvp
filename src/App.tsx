@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
 
 // Components
@@ -20,8 +21,16 @@ import { StatsPage } from './pages/StatsPage';
 
 function App() {
   const [healthStatus, setHealthStatus] = useState<string>('Checking...');
-  const [activeTab, setActiveTab] = useState('runs');
   const [swipeHighlight, setSwipeHighlight] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeTab = location.pathname.replace('/', '') || 'runs';
+
+  useEffect(() => {
+    if (location.pathname === '/') {
+      navigate('/runs', { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   // Custom hooks
   const { isLoggedIn, loading: authLoading, login, register, logout, getToken } = useAuth();
@@ -35,9 +44,13 @@ function App() {
     }, 600);
   };
 
+  const handleTabChange = (tab: string) => {
+    navigate(`/${tab}`);
+  };
+
   const { hasSwipedOnce, onTouchStart, onTouchMove, onTouchEnd } = useSwipeNavigation(
     activeTab,
-    setActiveTab,
+    handleTabChange,
     triggerSwipeHighlight
   );
 
@@ -98,7 +111,7 @@ function App() {
 
       <TabNavigation
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         swipeHighlight={swipeHighlight}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -114,28 +127,34 @@ function App() {
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          {activeTab === 'runs' && (
-            <RunsPage
-              runs={runs}
-              loading={runsLoading}
-              saving={saving}
-              onSaveRun={saveRun}
-              onDeleteRun={deleteRun}
-              onShowToast={showToast}
+          <Routes>
+            <Route
+              path='/runs'
+              element={
+                <RunsPage
+                  runs={runs}
+                  loading={runsLoading}
+                  saving={saving}
+                  onSaveRun={saveRun}
+                  onDeleteRun={deleteRun}
+                  onShowToast={showToast}
+                />
+              }
             />
-          )}
-
-          {activeTab === 'goals' && <GoalsPage />}
-
-          {activeTab === 'races' && (
-            <ComingSoonPage
-              title='Races'
-              description='Track upcoming races, set target times, and record your results.'
-              icon='🏆'
+            <Route path='/goals' element={<GoalsPage />} />
+            <Route
+              path='/races'
+              element={
+                <ComingSoonPage
+                  title='Races'
+                  description='Track upcoming races, set target times, and record your results.'
+                  icon='🏆'
+                />
+              }
             />
-          )}
-
-          {activeTab === 'stats' && <StatsPage token={getToken()} />}
+            <Route path='/stats' element={<StatsPage token={getToken()} />} />
+            <Route path='*' element={<Navigate to='/runs' replace />} />
+          </Routes>
         </div>
       </div>
 
