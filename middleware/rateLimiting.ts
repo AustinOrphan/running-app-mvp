@@ -62,15 +62,15 @@ function createRateLimitConfig(options: { windowMs: number; max: number; message
     handler: rateLimitErrorHandler,
     skip: (_req: Request) => {
       const isTestEnvironment = process.env.NODE_ENV === 'test';
-      const rateLimitingEnabled = process.env.RATE_LIMITING_ENABLED;
+      const rateLimitingEnabled = process.env.RATE_LIMITING_ENABLED?.toLowerCase();
 
       // In the test environment, rate limiting is opt-in (disabled by default).
-      if (process.env.NODE_ENV === 'test') {
-        return process.env.RATE_LIMITING_ENABLED !== 'true';
+      if (isTestEnvironment) {
+        return rateLimitingEnabled !== 'true';
       }
-
+      
       // In other environments, rate limiting is opt-out (enabled by default).
-      return process.env.RATE_LIMITING_ENABLED === 'false';
+      return rateLimitingEnabled === 'false';
     },
   });
 }
