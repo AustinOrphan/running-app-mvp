@@ -149,7 +149,6 @@ router.put(
     if (existingRun.userId !== req.user!.id) {
       return next(createForbiddenError('Access denied to this run'));
     }
-
     const updateData: Partial<{
       date: Date;
       distance: number;
@@ -207,7 +206,6 @@ router.delete(
     if (existingRun.userId !== req.user!.id) {
       return next(createForbiddenError('Access denied to this run'));
     }
-
     await prisma.run.delete({
       where: { id: req.params.id },
     });

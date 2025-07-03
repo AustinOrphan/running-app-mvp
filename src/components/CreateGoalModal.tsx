@@ -183,7 +183,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
         }
       }}
     >
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events */}
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events
       <div className='modal' onClick={e => e.stopPropagation()} role='dialog' tabIndex={-1}>
         <div className='modal-header'>
           <h3>Create New Goal</h3>

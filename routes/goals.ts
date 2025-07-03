@@ -51,7 +51,6 @@ router.get(
     if (goal.userId !== req.user!.id) {
       return _next(createForbiddenError('Access denied to this goal'));
     }
-
     res.json(goal);
     return;
   })
