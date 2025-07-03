@@ -24,13 +24,7 @@ function App() {
   const [swipeHighlight, setSwipeHighlight] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const activeTab = location.pathname.replace('/', '') || 'runs';
-
-  useEffect(() => {
-    if (location.pathname === '/') {
-      navigate('/runs', { replace: true });
-    }
-  }, [location.pathname, navigate]);
+  const activeTab = location.pathname.split('/')[1] || 'runs';
 
   // Custom hooks
   const { isLoggedIn, loading: authLoading, login, register, logout, getToken } = useAuth();
@@ -128,6 +122,7 @@ function App() {
           onTouchEnd={onTouchEnd}
         >
           <Routes>
+            <Route path='/' element={<Navigate to='/runs' replace />} />
             <Route
               path='/runs'
               element={
