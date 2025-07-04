@@ -229,7 +229,6 @@ export class StreakDetector {
     // Calculate daily streak
     let currentStreak = 0;
     let longestStreak = 0;
-    const tempStreak = 0;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);

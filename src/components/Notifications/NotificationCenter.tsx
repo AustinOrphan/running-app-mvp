@@ -168,32 +168,28 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
 
   if (!isOpen) return null;
 
-  const handleOverlayKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
+      e.stopPropagation();
       onClose();
     }
   };
-
-
-
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className='notification-center-overlay'
       onClick={onClose}
-      onKeyDown={handleOverlayKeyDown}
-      role='dialog'
-      aria-modal='true'
-      aria-labelledby='notification-center-title'
-      tabIndex={-1}
+      onKeyDown={handleKeyDown}
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='notification-center'
         onClick={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
-        role='document'
-        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='notification-center-title'
+        tabIndex={-1}
       >
         <div className='notification-header'>
           <div className='notification-title'>

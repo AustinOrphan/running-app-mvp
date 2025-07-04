@@ -14,9 +14,7 @@ import { useToast } from '../hooks/useToast';
 import { Goal, CreateGoalData } from '../types/goals';
 import { GoalTemplate } from '../types/goalTemplates';
 
-interface GoalsPageProps {}
-
-export const GoalsPage: React.FC<GoalsPageProps> = () => {
+export const GoalsPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
