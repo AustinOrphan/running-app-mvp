@@ -2217,11 +2217,13 @@ h3 {
   transition: all 0.3s ease;
   position: relative;
   z-index: 2;
+  text-decoration: none;
 }
 
 .nav-btn:hover {
   color: #e0e0e0;
   transform: translateY(-1px);
+  text-decoration: none;
 }
 
 .nav-btn.active {
@@ -2229,6 +2231,7 @@ h3 {
   color: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transform: translateY(-1px);
+  text-decoration: none;
 }
 
 .nav-btn.active::before {
