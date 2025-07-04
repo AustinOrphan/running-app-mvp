@@ -55,8 +55,7 @@ router.get(
     if (goal.userId !== req.user!.id) {
       return _next(createForbiddenError('Access denied to this goal'));
     }
-    res.json(goal);
-    return;
+    return res.json(goal);
   })
 );
 
@@ -129,8 +128,7 @@ router.post(
       },
     });
 
-    res.status(201).json(goal);
-    return;
+    return res.status(201).json(goal);
   })
 );
 
@@ -212,8 +210,7 @@ router.put(
       },
     });
 
-    res.json(updatedGoal);
-    return;
+    return res.json(updatedGoal);
   })
 );
 
@@ -245,8 +242,7 @@ router.delete(
       data: { isActive: false },
     });
 
-    res.json({ message: 'Goal deleted successfully' });
-    return;
+    return res.json({ message: 'Goal deleted successfully' });
   })
 );
 
@@ -290,8 +286,7 @@ router.post(
       },
     });
 
-    res.json(completedGoal);
-    return;
+    return res.json(completedGoal);
   })
 );
 
@@ -333,8 +328,7 @@ router.get(
       })
     );
 
-    res.json(progressData);
-    return;
+    return res.json(progressData);
   })
 );
 

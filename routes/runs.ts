@@ -33,8 +33,7 @@ router.get(
       where: { userId: req.user!.id },
       orderBy: { date: 'desc' },
     });
-    res.json(runs);
-    return;
+    return res.json(runs);
   })
 );
 
@@ -55,8 +54,7 @@ router.get(
       },
       orderBy: { date: 'desc' },
     });
-    res.json(runs);
-    return;
+    return res.json(runs);
   })
 );
 
@@ -81,8 +79,7 @@ router.get(
       return next(createForbiddenError('Access denied to this run'));
     }
 
-    res.json(run);
-    return;
+    return res.json(run);
   })
 );
 
@@ -121,8 +118,7 @@ router.post(
       },
     });
 
-    res.status(201).json(run);
-    return;
+    return res.status(201).json(run);
   })
 );
 
@@ -181,8 +177,7 @@ router.put(
       data: updateData,
     });
 
-    res.json(run);
-    return;
+    return res.json(run);
   })
 );
 
@@ -210,8 +205,7 @@ router.delete(
       where: { id: req.params.id },
     });
 
-    res.status(204).send();
-    return;
+    return res.status(204).send();
   })
 );
 
