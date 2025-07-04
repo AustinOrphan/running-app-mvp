@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
 
 // Components
@@ -7,24 +6,21 @@ import { AuthForm } from './components/Auth/AuthForm';
 import { Header } from './components/Navigation/Header';
 import { SwipeHint } from './components/Navigation/SwipeHint';
 import { TabNavigation } from './components/Navigation/TabNavigation';
-import { ComingSoonPage } from './components/Pages/ComingSoonPage';
-import { RunsPage } from './components/Pages/RunsPage';
 import { ToastContainer } from './components/Toast/ToastContainer';
+import { AppRouter } from './components/Router/AppRouter';
 
 // Hooks
 import { useAuth } from './hooks/useAuth';
 import { useRuns } from './hooks/useRuns';
 import { useSwipeNavigation } from './hooks/useSwipeNavigation';
 import { useToast } from './hooks/useToast';
-import { GoalsPage } from './pages/GoalsPage';
-import { StatsPage } from './pages/StatsPage';
+import { useRouter } from './hooks/useRouter';
+import { RouteKey } from './constants/navigation';
 
 function App() {
   const [healthStatus, setHealthStatus] = useState<string>('Checking...');
   const [swipeHighlight, setSwipeHighlight] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
-  const activeTab = location.pathname.split('/')[1] || 'runs';
+  const { currentRoute: activeTab, navigate: navigateToRoute } = useRouter();
 
   // Custom hooks
   const { isLoggedIn, loading: authLoading, login, register, logout, getToken } = useAuth();
@@ -38,8 +34,8 @@ function App() {
     }, 600);
   };
 
-  const handleTabChange = (tab: string) => {
-    navigate(`/${tab}`);
+  const handleTabChange = (tab: RouteKey) => {
+    navigateToRoute(tab); // Type-safe navigation via useRouter hook
   };
 
   const { hasSwipedOnce, onTouchStart, onTouchMove, onTouchEnd } = useSwipeNavigation(
@@ -104,7 +100,6 @@ function App() {
       <Header healthStatus={healthStatus} onLogout={handleLogout} />
 
       <TabNavigation
-        activeTab={activeTab}
         swipeHighlight={swipeHighlight}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -120,35 +115,16 @@ function App() {
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          <Routes>
-            <Route path='/' element={<Navigate to='/runs' replace />} />
-            <Route
-              path='/runs'
-              element={
-                <RunsPage
-                  runs={runs}
-                  loading={runsLoading}
-                  saving={saving}
-                  onSaveRun={saveRun}
-                  onDeleteRun={deleteRun}
-                  onShowToast={showToast}
-                />
-              }
-            />
-            <Route path='/goals' element={<GoalsPage />} />
-            <Route
-              path='/races'
-              element={
-                <ComingSoonPage
-                  title='Races'
-                  description='Track upcoming races, set target times, and record your results.'
-                  icon='🏆'
-                />
-              }
-            />
-            <Route path='/stats' element={<StatsPage token={getToken()} />} />
-            <Route path='*' element={<Navigate to='/runs' replace />} />
-          </Routes>
+          <AppRouter
+            isLoggedIn={isLoggedIn}
+            runs={runs}
+            runsLoading={runsLoading}
+            saving={saving}
+            onSaveRun={saveRun}
+            onDeleteRun={deleteRun}
+            onShowToast={(message, type) => showToast(message, type as any)}
+            token={getToken()}
+          />
         </div>
       </div>
 
