@@ -39,7 +39,8 @@
       "Bash(git ls-tree:*)",
       "Bash(npx prettier:*)",
       "Bash(git restore:*)",
-      "mcp__github__list_branches"
+      "mcp__github__list_branches",
+      "Bash(gh pr list:*)"
     ],
     "deny": []
   }
