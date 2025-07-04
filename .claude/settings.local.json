@@ -36,8 +36,8 @@
       "mcp__serena__think_about_whether_you_are_done",
       "Bash(npm run test:accessibility:*)",
       "Bash(npm run test:a11y:*)",
-      "Bash(rg -n \":\\s*any\\b|<any>|any\\[\\]|any\\s*=\" --type ts --type tsx /Users/austinorphan/Library/Mobile\\ Documents/com~apple~CloudDocs/src/running-app-mvp/src/)",
-      "Bash(rg -n \":\\s*any\\b|<any>|any\\[\\]|any\\s*=\" -g \"*.ts\" -g \"*.tsx\" /Users/austinorphan/Library/Mobile\\ Documents/com~apple~CloudDocs/src/running-app-mvp/src/)",
+      "Bash(rg -n \":\\s*any\\b|<any>|any\\[\\]|any\\s*=\" --type ts --type tsx .)",
+      "Bash(rg -n \":\\s*any\\b|<any>|any\\[\\]|any\\s*=\" -g \"*.ts\" -g \"*.tsx\" .)",
       "Bash(rg:*)",
       "Bash(npx eslint:*)"
     ],

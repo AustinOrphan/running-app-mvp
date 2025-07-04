@@ -168,14 +168,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
 
   if (!isOpen) return null;
 
-  const handleOverlayKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      onClose();
-    }
-  };
-
-  const handleModalKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
+      e.stopPropagation();
       onClose();
     }
   };
@@ -185,7 +180,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
     <div
       className='notification-center-overlay'
       onClick={onClose}
-      onKeyDown={handleOverlayKeyDown}
+      onKeyDown={handleKeyDown}
       role='dialog'
       aria-modal='true'
       aria-labelledby='notification-center-title'
@@ -194,7 +189,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
       <div
         className='notification-center'
         onClick={e => e.stopPropagation()}
-        onKeyDown={handleModalKeyDown}
+        onKeyDown={handleKeyDown}
         role='document'
       >
         <div className='notification-header'>

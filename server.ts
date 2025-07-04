@@ -52,7 +52,6 @@ app.get('/api/health', async (req, res) => {
   } catch (error) {
     logError(
       'Health check error',
-      undefined,
       error instanceof Error ? error : new Error(String(error))
     );
     res.status(500).json({
