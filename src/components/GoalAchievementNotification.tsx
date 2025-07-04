@@ -14,6 +14,14 @@ export const GoalAchievementNotification: React.FC<GoalAchievementNotificationPr
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
+  const handleClose = useCallback(() => {
+    setIsAnimating(false);
+    setTimeout(() => {
+      setIsVisible(false);
+      onClose();
+    }, 300);
+  }, [onClose]);
+
   useEffect(() => {
     if (achievedGoal) {
       setIsVisible(true);
@@ -27,14 +35,6 @@ export const GoalAchievementNotification: React.FC<GoalAchievementNotificationPr
       return () => clearTimeout(timer);
     }
   }, [achievedGoal, handleClose]);
-
-  const handleClose = useCallback(() => {
-    setIsAnimating(false);
-    setTimeout(() => {
-      setIsVisible(false);
-      onClose();
-    }, 300);
-  }, [onClose]);
 
   if (!achievedGoal || !isVisible) return null;
 
