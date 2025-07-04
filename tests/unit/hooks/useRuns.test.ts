@@ -834,7 +834,7 @@ describe('useRuns', () => {
             notes: '',
           });
         });
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
 
@@ -861,7 +861,7 @@ describe('useRuns', () => {
         await act(async () => {
           await result.current.deleteRun('run-id');
         });
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
 

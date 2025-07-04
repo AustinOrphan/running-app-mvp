@@ -250,26 +250,32 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
   };
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className='template-browser-overlay'
+      role='button'
+      tabIndex={0}
+      aria-label='Close modal'
       onClick={onClose}
-      onKeyDown={e => e.key === 'Escape' && onClose()}
-      role='dialog'
-      aria-modal='true'
-      tabIndex={-1}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+        }
+      }}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='template-browser'
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
-        role='document'
-        tabIndex={0}
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='template-browser-title'
+        tabIndex={-1}
       >
         <div className='template-browser-header'>
           <div className='browser-title'>
-            <h2>Goal Templates</h2>
+            <h2 id='template-browser-title'>Goal Templates</h2>
             <p>Choose from proven running goals to jumpstart your training</p>
           </div>
           <button className='btn-icon browser-close' onClick={onClose} title='Close'>

@@ -36,7 +36,7 @@ router.get(
 
     const avgPace = totalDistance > 0 ? totalDuration / totalDistance : 0;
 
-    res.json({
+    return res.json({
       totalDistance: Number(totalDistance.toFixed(2)),
       totalDuration,
       totalRuns,
@@ -45,7 +45,6 @@ router.get(
       weekEnd: new Date().toISOString(),
       hasData: totalRuns > 0,
     });
-    return;
   })
 );
 
@@ -95,12 +94,10 @@ router.get(
 
     // Handle empty data scenario
     if (breakdownArray.length === 0) {
-      res.json([]);
-      return;
+      return res.json([]);
     }
 
-    res.json(breakdownArray);
-    return;
+    return res.json(breakdownArray);
   })
 );
 
@@ -183,12 +180,10 @@ router.get(
 
     // Handle empty data scenario
     if (trendsData.length === 0) {
-      res.json([]);
-      return;
+      return res.json([]);
     }
 
-    res.json(trendsData);
-    return;
+    return res.json(trendsData);
   })
 );
 
@@ -239,12 +234,10 @@ router.get(
 
     // Handle empty data scenario
     if (records.length === 0) {
-      res.json([]);
-      return;
+      return res.json([]);
     }
 
-    res.json(records);
-    return;
+    return res.json(records);
   })
 );
 

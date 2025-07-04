@@ -20,6 +20,17 @@ export default {
     },
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+  transform: {
+    '^.+\\.(ts|tsx)$': [
+      'ts-jest',
+      {
+        useESM: true,
+      },
+    ],
+  },
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
   testTimeout: 10000,
   verbose: true,
 };

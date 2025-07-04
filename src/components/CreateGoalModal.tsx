@@ -9,6 +9,7 @@ import {
   GoalType,
   GoalPeriod,
 } from '../types/goals';
+import { logError } from '../utils/clientLogger';
 
 interface CreateGoalModalProps {
   isOpen: boolean;
@@ -156,8 +157,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
       });
       setErrors({});
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to create goal:', error);
+      logError('Failed to create goal', error instanceof Error ? error : new Error(String(error)));
     } finally {
       setIsSubmitting(false);
     }
@@ -170,23 +170,29 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
   return (
     <div
       className='modal-overlay'
-      onClick={onClose}
       role='button'
-      aria-label='Close modal'
       tabIndex={0}
+      aria-label='Close modal'
+      onClick={onClose}
       onKeyDown={e => {
-        if (e.key === 'Escape') {
-          onClose();
-        } else if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
           e.preventDefault();
           onClose();
         }
       }}
     >
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events
-      <div className='modal' onClick={e => e.stopPropagation()} role='dialog' tabIndex={-1}>
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+      <div
+        className='modal'
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='create-goal-modal-title'
+        tabIndex={-1}
+      >
         <div className='modal-header'>
-          <h3>Create New Goal</h3>
+          <h3 id='create-goal-modal-title'>Create New Goal</h3>
           <button className='btn-icon' onClick={onClose} disabled={isSubmitting}>
             ✕
           </button>

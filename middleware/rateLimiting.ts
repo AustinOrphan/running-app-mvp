@@ -68,7 +68,7 @@ function createRateLimitConfig(options: { windowMs: number; max: number; message
       if (isTestEnvironment) {
         return rateLimitingEnabled !== 'true';
       }
-      
+
       // In other environments, rate limiting is opt-out (enabled by default).
       return rateLimitingEnabled === 'false';
     },

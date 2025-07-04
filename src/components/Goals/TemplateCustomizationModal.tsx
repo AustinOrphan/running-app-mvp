@@ -178,22 +178,28 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
   if (!isOpen || !template) return null;
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className='modal-overlay'
+      role='button'
+      tabIndex={0}
+      aria-label='Close modal'
       onClick={onClose}
-      onKeyDown={e => e.key === 'Escape' && onClose()}
-      role='dialog'
-      aria-modal='true'
-      tabIndex={-1}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+        }
+      }}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='modal template-customization-modal'
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
-        role='document'
-        tabIndex={0}
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='template-customization-title'
+        tabIndex={-1}
       >
         <div className='modal-header'>
           <div className='template-modal-title'>
@@ -201,7 +207,7 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
               {template.icon}
             </div>
             <div>
-              <h3>Customize Goal Template</h3>
+              <h3 id='template-customization-title'>Customize Goal Template</h3>
               <p className='template-modal-subtitle'>{template.name}</p>
             </div>
           </div>

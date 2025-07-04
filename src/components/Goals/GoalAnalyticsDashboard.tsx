@@ -208,25 +208,31 @@ export const GoalAnalyticsDashboard: React.FC<GoalAnalyticsDashboardProps> = ({
   };
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className='analytics-overlay'
+      role='button'
+      tabIndex={0}
+      aria-label='Close modal'
       onClick={onClose}
-      onKeyDown={e => e.key === 'Escape' && onClose()}
-      role='dialog'
-      aria-modal='true'
-      tabIndex={-1}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+        }
+      }}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='analytics-dashboard'
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
-        role='document'
-        tabIndex={0}
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='analytics-dashboard-title'
+        tabIndex={-1}
       >
         <div className='analytics-header'>
-          <h2>Goal Analytics & Insights</h2>
+          <h2 id='analytics-dashboard-title'>Goal Analytics & Insights</h2>
           <button className='btn-icon' onClick={onClose}>
             ×
           </button>

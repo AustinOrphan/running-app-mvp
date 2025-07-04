@@ -143,7 +143,7 @@ export const apiFetch = async <T = unknown>(
 
         // Check if this is a retryable error
         if (attempt < retries && isRetryableStatus(response.status)) {
-          // eslint-disable-next-line no-console
+          // eslint-disable-next-line no-console -- Intentional retry warning for debugging
           console.warn(
             `API request failed (attempt ${attempt + 1}/${retries + 1}): ${errorMessage}. Retrying...`
           );
@@ -194,7 +194,7 @@ export const apiFetch = async <T = unknown>(
       }
 
       // Retry for retryable errors
-      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console -- Intentional retry warning for debugging
       console.warn(
         `API request failed (attempt ${attempt + 1}/${retries + 1}): ${error.message}. Retrying...`
       );

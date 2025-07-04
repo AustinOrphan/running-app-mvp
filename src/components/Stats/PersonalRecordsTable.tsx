@@ -78,8 +78,8 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
 
   // Sort records
   const sortedRecords = [...records].sort((a, b) => {
-    let aValue: any = a[sortKey];
-    let bValue: any = b[sortKey];
+    let aValue: string | number = a[sortKey];
+    let bValue: string | number = b[sortKey];
 
     if (sortKey === 'date') {
       aValue = new Date(aValue).getTime();

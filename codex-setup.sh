@@ -28,8 +28,10 @@ if [ ! -f .env ]; then
     cat > .env << 'EOF'
 DATABASE_URL="file:./dev.db"
 JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
+LOG_SALT="set-a-strong-random-string-for-production"
 PORT=3001
 NODE_ENV=development
+RATE_LIMITING_ENABLED=true
 EOF
   fi
 fi
