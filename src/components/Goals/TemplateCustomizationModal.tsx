@@ -180,8 +180,16 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
   return (
     <div
       className='modal-overlay'
+      role='button'
+      tabIndex={0}
+      aria-label='Close modal'
       onClick={onClose}
-      onKeyDown={e => e.key === 'Escape' && onClose()}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+        }
+      }}
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div

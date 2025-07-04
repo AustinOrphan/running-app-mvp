@@ -175,7 +175,19 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
     }
   };
   return (
-    <div className='notification-center-overlay' onClick={onClose} onKeyDown={handleKeyDown}>
+    <div
+      className='notification-center-overlay'
+      role='button'
+      tabIndex={0}
+      aria-label='Close modal'
+      onClick={onClose}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+        }
+      }}
+    >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='notification-center'

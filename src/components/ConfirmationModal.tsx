@@ -52,8 +52,16 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   return (
     <div
       className='modal-overlay'
+      role='button'
+      tabIndex={0}
+      aria-label='Close modal'
       onClick={onCancel}
-      onKeyDown={e => e.key === 'Escape' && onCancel()}
+      onKeyDown={e => {
+        if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onCancel();
+        }
+      }}
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div

@@ -197,8 +197,16 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
   return (
     <div
       className='modal-overlay'
+      role='button'
+      tabIndex={0}
+      aria-label='Close modal'
       onClick={handleClose}
-      onKeyDown={e => e.key === 'Escape' && handleClose()}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+          e.preventDefault();
+          handleClose();
+        }
+      }}
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
