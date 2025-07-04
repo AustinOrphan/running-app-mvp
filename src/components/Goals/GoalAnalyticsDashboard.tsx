@@ -213,16 +213,17 @@ export const GoalAnalyticsDashboard: React.FC<GoalAnalyticsDashboardProps> = ({
       className='analytics-overlay'
       onClick={onClose}
       onKeyDown={e => e.key === 'Escape' && onClose()}
-      role='dialog'
-      aria-modal='true'
-      aria-labelledby='analytics-dashboard-title'
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='analytics-dashboard'
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
-        role='document'
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='analytics-dashboard-title'
+        tabIndex={-1}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
       >
         <div className='analytics-header'>
           <h2 id='analytics-dashboard-title'>Goal Analytics & Insights</h2>

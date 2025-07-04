@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 
 import { RunTypeBreakdownChart } from '../../../../src/components/Stats/RunTypeBreakdownChart';
-import { mockRunTypeBreakdown } from '../../../fixtures/mockData';
+import { mockRunTypeBreakdown } from '../../../fixtures/mockData.js';
 
 // Mock recharts components
 vi.mock('recharts', () => ({

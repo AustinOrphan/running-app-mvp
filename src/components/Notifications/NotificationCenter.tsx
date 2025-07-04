@@ -174,23 +174,22 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
       onClose();
     }
   };
-
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className='notification-center-overlay'
       onClick={onClose}
       onKeyDown={handleKeyDown}
-      role='dialog'
-      aria-modal='true'
-      aria-labelledby='notification-center-title'
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='notification-center'
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
-        role='document'
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='notification-center-title'
+        tabIndex={-1}
       >
         <div className='notification-header'>
           <div className='notification-title'>

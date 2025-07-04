@@ -15,7 +15,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove
           key={toast.id}
           data-toast-id={toast.id}
           className={`toast toast-${toast.type}`}
-          role='alert'
+          role='status'
           aria-live='polite'
         >
           <span className='toast-icon'>

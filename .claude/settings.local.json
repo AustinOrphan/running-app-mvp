@@ -8,7 +8,7 @@
       "mcp__sequential-thinking__sequentialthinking",
       "mcp__serena__list_dir",
       "mcp__serena__read_memory",
-      "Bash(npm run test:run:*)",
+      "Bash(npm run test:*)",
       "Bash(npx tsc:*)",
       "mcp__serena__read_file",
       "Bash(find:*)",
@@ -40,7 +40,12 @@
       "Bash(rg -n \":\\s*any\\b|<any>|any\\[\\]|any\\s*=\" -g \"*.ts\" -g \"*.tsx\" .)",
       "Bash(rg:*)",
       "Bash(npx eslint:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(npx prettier:*)",
+      "Bash(git restore:*)",
+      "mcp__github__list_branches",
+      "Bash(gh pr list:*)"
     ],
     "deny": []
   }

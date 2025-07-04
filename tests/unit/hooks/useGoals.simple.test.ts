@@ -2,7 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { useGoals } from '../../../src/hooks/useGoals';
-import { mockGoals, createMockGoal } from '../../fixtures/mockData';
+import { mockGoals, createMockGoal } from '../../fixtures/mockData.js';
 
 // Mock fetch globally
 const mockFetch = vi.fn();

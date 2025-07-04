@@ -8,7 +8,7 @@ import {
   mockCreateGoalData,
   createMockGoal,
   createMockGoalProgress,
-} from '../../fixtures/mockData';
+} from '../../fixtures/mockData.js';
 
 // Mock useNotifications hook
 vi.mock('../../../src/hooks/useNotifications', () => ({

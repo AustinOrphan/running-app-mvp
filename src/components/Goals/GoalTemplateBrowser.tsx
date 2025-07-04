@@ -255,16 +255,17 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
       className='template-browser-overlay'
       onClick={onClose}
       onKeyDown={e => e.key === 'Escape' && onClose()}
-      role='dialog'
-      aria-modal='true'
-      aria-labelledby='template-browser-title'
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='template-browser'
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
-        role='document'
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='template-browser-title'
+        tabIndex={-1}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
       >
         <div className='template-browser-header'>
           <div className='browser-title'>
