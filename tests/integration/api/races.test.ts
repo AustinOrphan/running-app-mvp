@@ -2,7 +2,6 @@ import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
 
-import { app } from '../../../server.js';
 import { mockRaces } from '../../fixtures/mockData.js';
 import { testDb } from '../../fixtures/testDatabase.js';
 import racesRoutes from '../../../routes/races.js';

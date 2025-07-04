@@ -7,7 +7,6 @@ import {
   mockRunTypeBreakdown,
   mockTrendsData,
   mockPersonalRecords,
-  mockApiError,
 } from '../../fixtures/mockData.js';
 
 // Mock fetch globally
