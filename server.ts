@@ -50,11 +50,7 @@ app.get('/api/health', async (req, res) => {
       database: 'connected',
     });
   } catch (error) {
-    logError(
-      'Health check error',
-      req,
-      error instanceof Error ? error : new Error(String(error))
-    );
+    logError('Health check error', req, error instanceof Error ? error : new Error(String(error)));
     res.status(500).json({
       status: 'error',
       message: 'Health check failed: Database disconnected',

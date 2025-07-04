@@ -175,12 +175,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
     }
   };
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-    <div
-      className='notification-center-overlay'
-      onClick={onClose}
-      onKeyDown={handleKeyDown}
-    >
+    <div className='notification-center-overlay' onClick={onClose} onKeyDown={handleKeyDown}>
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='notification-center'

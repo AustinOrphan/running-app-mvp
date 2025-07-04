@@ -1,7 +1,11 @@
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createNotFoundError, createValidationError, createForbiddenError } from '../middleware/errorHandler.js';
+import {
+  createNotFoundError,
+  createValidationError,
+  createForbiddenError,
+} from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
 import { prisma } from '../server.js';

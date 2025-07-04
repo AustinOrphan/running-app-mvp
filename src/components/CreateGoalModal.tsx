@@ -168,17 +168,16 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className='modal-overlay'
       onClick={onClose}
       onKeyDown={e => e.key === 'Escape' && onClose()}
     >
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events */}
-      <div 
-        className='modal' 
-        onClick={e => e.stopPropagation()} 
-        onKeyDown={e => e.stopPropagation()} 
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+      <div
+        className='modal'
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
         role='dialog'
         aria-modal='true'
         aria-labelledby='create-goal-modal-title'

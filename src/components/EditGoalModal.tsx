@@ -195,7 +195,6 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className='modal-overlay'
       onClick={handleClose}
@@ -210,7 +209,6 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
         aria-modal='true'
         aria-labelledby='edit-goal-modal-title'
         tabIndex={-1}
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
       >
         <div className='modal-header'>
           <h3 id='edit-goal-modal-title'>Edit Goal</h3>

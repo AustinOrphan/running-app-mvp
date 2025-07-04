@@ -46,7 +46,11 @@ export const updateRunSchema = z.object({
 
 // Race validation schemas
 export const createRaceSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be 100 characters or less'),
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(100, 'Name must be 100 characters or less'),
   raceDate: dateSchema,
   distance: positiveNumberSchema,
   targetTime: positiveNumberSchema.optional(),
@@ -55,7 +59,12 @@ export const createRaceSchema = z.object({
 });
 
 export const updateRaceSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be 100 characters or less').optional(),
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(100, 'Name must be 100 characters or less')
+    .optional(),
   raceDate: dateSchema.optional(),
   distance: positiveNumberSchema.optional(),
   targetTime: positiveNumberSchema.optional(),
