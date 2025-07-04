@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './App.css';
+import { logError } from './utils/clientLogger';
 
 interface Toast {
   id: string;
@@ -221,8 +222,10 @@ function App() {
         setRuns(runsData);
       }
     } catch (_error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to fetch runs:', _error);
+      logError(
+        'Failed to fetch runs',
+        _error instanceof Error ? _error : new Error(String(_error))
+      );
       showToast('Failed to load runs', 'error');
     } finally {
       setRunsLoading(false);
@@ -336,8 +339,7 @@ function App() {
         showToast(errorData.message || `Failed to ${editingRun ? 'update' : 'save'} run`, 'error');
       }
     } catch (_error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to save run:', _error);
+      logError('Failed to save run', _error instanceof Error ? _error : new Error(String(_error)));
       showToast('Network error. Failed to save run.', 'error');
     } finally {
       setLoading(false);

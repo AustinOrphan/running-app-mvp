@@ -9,6 +9,7 @@ import {
   GoalType,
   GoalPeriod,
 } from '../types/goals';
+import { logError } from '../utils/clientLogger';
 
 interface EditGoalModalProps {
   isOpen: boolean;
@@ -178,8 +179,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
 
       setErrors({});
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to update goal:', error);
+      logError('Failed to update goal', error instanceof Error ? error : new Error(String(error)));
     } finally {
       setIsSubmitting(false);
     }

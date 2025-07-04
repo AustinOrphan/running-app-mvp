@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { Goal, GoalProgress, CreateGoalData } from '../types/goals';
 import { MilestoneDetector, DeadlineDetector } from '../utils/milestoneDetector';
+import { logError } from '../utils/clientLogger';
 
 import { useNotifications } from './useNotifications';
 
@@ -96,7 +97,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch goals';
       setError(errorMessage);
-      console.error('Error fetching goals:', err);
+      logError('Error fetching goals', err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
     }
@@ -110,7 +111,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       const progressData = await makeApiCall('/api/goals/progress/all');
       setGoalProgress(progressData);
     } catch (err) {
-      console.error('Error fetching goal progress:', err);
+      logError('Error fetching goal progress', err instanceof Error ? err : new Error(String(err)));
       // Don't set error state for progress fetch failures
     }
   }, [token, makeApiCall]);
@@ -127,8 +128,6 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
     goalProgress.forEach(progress => {
       const goal = goals.find(g => g.id === progress.goalId);
       if (!goal || goal.isCompleted) return;
-
-      const previousProgress = previousProgressRef.current.get(progress.goalId);
 
       // Check for milestone notifications
       if (notificationPreferences.enableMilestoneNotifications) {
@@ -183,7 +182,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
       return newGoal;
     },
-    [token, refreshProgress, makeApiCall]
+    [refreshProgress, makeApiCall]
   );
 
   // Update goal
@@ -202,7 +201,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
       return updatedGoal;
     },
-    [token, refreshProgress, makeApiCall]
+    [refreshProgress, makeApiCall]
   );
 
   // Delete goal
@@ -216,7 +215,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       setGoals(prev => prev.filter(goal => goal.id !== goalId));
       setGoalProgress(prev => prev.filter(progress => progress.goalId !== goalId));
     },
-    [token, makeApiCall]
+    [makeApiCall]
   );
 
   // Complete goal
@@ -234,7 +233,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
       return completedGoal;
     },
-    [token, refreshProgress, makeApiCall]
+    [refreshProgress, makeApiCall]
   );
 
   // Get progress for specific goal
@@ -260,7 +259,10 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
             try {
               await completeGoal(goal.id);
             } catch (error) {
-              console.error('Failed to auto-complete goal:', error);
+              logError(
+                'Failed to auto-complete goal',
+                error instanceof Error ? error : new Error(String(error))
+              );
             }
           }
         }
