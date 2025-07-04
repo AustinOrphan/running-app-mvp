@@ -62,24 +62,35 @@ class ClientLogger {
   /**
    * Redacts sensitive data from any object or string
    */
-  private redactSensitiveData(data: unknown): unknown {
+  private redactSensitiveData(data: unknown, visited: WeakSet<object> = new WeakSet()): unknown {
     if (typeof data === 'string') {
       return this.redactString(data);
     }
 
     if (Array.isArray(data)) {
-      return data.map(item => this.redactSensitiveData(item));
+      if (visited.has(data)) {
+        return '[Circular Reference]';
+      }
+      visited.add(data);
+      const result = data.map(item => this.redactSensitiveData(item, visited));
+      visited.delete(data);
+      return result;
     }
 
     if (data && typeof data === 'object') {
+      if (visited.has(data)) {
+        return '[Circular Reference]';
+      }
+      visited.add(data);
       const redacted: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(data)) {
         if (this.isSensitiveField(key)) {
           redacted[key] = this.maskValue(value);
         } else {
-          redacted[key] = this.redactSensitiveData(value);
+          redacted[key] = this.redactSensitiveData(value, visited);
         }
       }
+      visited.delete(data);
       return redacted;
     }
 
