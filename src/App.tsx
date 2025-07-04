@@ -3,6 +3,7 @@ import './App.css';
 
 // Components
 import { AuthForm } from './components/Auth/AuthForm';
+import { ConnectivityFooter } from './components/Connectivity/ConnectivityFooter';
 import { Header } from './components/Navigation/Header';
 import { SwipeHint } from './components/Navigation/SwipeHint';
 import { TabNavigation } from './components/Navigation/TabNavigation';
@@ -88,6 +89,7 @@ function App() {
         <AuthForm onLogin={handleLogin} onRegister={handleRegister} loading={authLoading} />
 
         <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
+        <ConnectivityFooter />
       </div>
     );
   }
@@ -140,6 +142,7 @@ function App() {
       </div>
 
       <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
+      <ConnectivityFooter />
     </div>
   );
 }
