@@ -39,7 +39,8 @@
       "Bash(rg -n \":\\s*any\\b|<any>|any\\[\\]|any\\s*=\" --type ts --type tsx .)",
       "Bash(rg -n \":\\s*any\\b|<any>|any\\[\\]|any\\s*=\" -g \"*.ts\" -g \"*.tsx\" .)",
       "Bash(rg:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(git merge:*)"
     ],
     "deny": []
   }
