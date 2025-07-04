@@ -2,9 +2,9 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
-import { Goal } from '../../src/types/goals';
+import { Goal } from '../../src/types/goals.js';
 
-import { mockRuns, mockTestUser, mockGoals, mockRaces } from './mockData';
+import { mockRuns, mockTestUser, mockGoals, mockRaces } from './mockData.js';
 
 const prisma = new PrismaClient({
   datasources: {

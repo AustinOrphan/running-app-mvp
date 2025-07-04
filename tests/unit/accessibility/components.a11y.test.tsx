@@ -10,8 +10,8 @@ import {
   mockTrendsData,
   mockPersonalRecords,
   mockRunTypeBreakdown,
-} from '../../fixtures/mockData';
-import { axe, expectNoAccessibilityViolations } from '../../setup/axeSetup';
+} from '../../fixtures/mockData.js';
+import { axe, expectNoAccessibilityViolations } from '../../setup/axeSetup.js';
 
 describe('Accessibility Tests - Statistics Components', () => {
   describe('InsightsCard Accessibility', () => {

@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createError, createNotFoundError } from '../middleware/errorHandler.js';
+import { createNotFoundError, createForbiddenError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import {
   validateCreateRun,
@@ -34,6 +34,7 @@ router.get(
       orderBy: { date: 'desc' },
     });
     res.json(runs);
+    return;
   })
 );
 
@@ -55,6 +56,7 @@ router.get(
       orderBy: { date: 'desc' },
     });
     res.json(runs);
+    return;
   })
 );
 
@@ -65,18 +67,22 @@ router.get(
   validateIdParam,
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res, next) => {
-    const run = await prisma.run.findFirst({
-      where: {
-        id: req.params.id,
-        userId: req.user!.id,
-      },
+    // First check if run exists
+    const run = await prisma.run.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!run) {
       return next(createNotFoundError('Run'));
     }
 
-    return res.json(run);
+    // Then check ownership
+    if (run.userId !== req.user!.id) {
+      return next(createForbiddenError('Access denied to this run'));
+    }
+
+    res.json(run);
+    return;
   })
 );
 
@@ -115,7 +121,8 @@ router.post(
       },
     });
 
-    return res.status(201).json(run);
+    res.status(201).json(run);
+    return;
   })
 );
 
@@ -129,17 +136,19 @@ router.put(
   asyncAuthHandler(async (req: AuthRequest, res, next) => {
     const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
-    const existingRun = await prisma.run.findFirst({
-      where: {
-        id: req.params.id,
-        userId: req.user!.id,
-      },
+    // First check if run exists
+    const existingRun = await prisma.run.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!existingRun) {
       return next(createNotFoundError('Run'));
     }
 
+    // Then check ownership
+    if (existingRun.userId !== req.user!.id) {
+      return next(createForbiddenError('Access denied to this run'));
+    }
     const updateData: Partial<{
       date: Date;
       distance: number;
@@ -172,7 +181,8 @@ router.put(
       data: updateData,
     });
 
-    return res.json(run);
+    res.json(run);
+    return;
   })
 );
 
@@ -183,22 +193,25 @@ router.delete(
   validateIdParam,
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res, next) => {
-    const existingRun = await prisma.run.findFirst({
-      where: {
-        id: req.params.id,
-        userId: req.user!.id,
-      },
+    // First check if run exists
+    const existingRun = await prisma.run.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!existingRun) {
       return next(createNotFoundError('Run'));
     }
 
+    // Then check ownership
+    if (existingRun.userId !== req.user!.id) {
+      return next(createForbiddenError('Access denied to this run'));
+    }
     await prisma.run.delete({
       where: { id: req.params.id },
     });
 
-    return res.status(204).send();
+    res.status(204).send();
+    return;
   })
 );
 

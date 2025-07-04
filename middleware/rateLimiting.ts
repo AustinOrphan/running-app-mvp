@@ -8,7 +8,12 @@ import { logInfo } from '../utils/secureLogger.js';
  */
 
 // Custom error handler for rate limit violations
-const rateLimitErrorHandler = (req: Request, res: Response, _next: NextFunction, options: { statusCode?: number; message?: string | { message: string } }) => {
+const rateLimitErrorHandler = (
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+  options: { statusCode?: number; message?: string | { message: string } }
+) => {
   logInfo('Rate limit exceeded', req, {
     ip: req.ip,
     userAgent: req.get('User-Agent'),
@@ -42,11 +47,7 @@ const generateKey = (req: Request): string => {
 /**
  * Factory function to create rate limit configurations with common options
  */
-function createRateLimitConfig(options: {
-  windowMs: number;
-  max: number;
-  message: string;
-}) {
+function createRateLimitConfig(options: { windowMs: number; max: number; message: string }) {
   return rateLimit({
     windowMs: options.windowMs,
     max: options.max,
@@ -60,7 +61,16 @@ function createRateLimitConfig(options: {
     keyGenerator: generateKey,
     handler: rateLimitErrorHandler,
     skip: (_req: Request) => {
-      return process.env.NODE_ENV === 'test';
+      const isTestEnvironment = process.env.NODE_ENV === 'test';
+      const rateLimitingEnabled = process.env.RATE_LIMITING_ENABLED?.toLowerCase();
+
+      // In the test environment, rate limiting is opt-in (disabled by default).
+      if (isTestEnvironment) {
+        return rateLimitingEnabled !== 'true';
+      }
+      
+      // In other environments, rate limiting is opt-out (enabled by default).
+      return rateLimitingEnabled === 'false';
     },
   });
 }

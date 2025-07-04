@@ -147,7 +147,7 @@ const ProgressChart: React.FC<{ data: MonthlyGoalProgress[] }> = ({ data }) => {
   return (
     <div className='progress-chart'>
       <div className='chart-bars'>
-        {data.map((month, index) => (
+        {data.map((month, _index) => (
           <div key={month.month} className='chart-bar-container'>
             <div className='chart-bar-group'>
               <div
@@ -208,10 +208,25 @@ export const GoalAnalyticsDashboard: React.FC<GoalAnalyticsDashboardProps> = ({
   };
 
   return (
-    <div className='analytics-overlay' onClick={onClose}>
-      <div className='analytics-dashboard' onClick={e => e.stopPropagation()}>
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    <div
+      className='analytics-overlay'
+      onClick={onClose}
+      onKeyDown={e => e.key === 'Escape' && onClose()}
+    >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+      <div
+        className='analytics-dashboard'
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='analytics-dashboard-title'
+        tabIndex={-1}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
+      >
         <div className='analytics-header'>
-          <h2>Goal Analytics & Insights</h2>
+          <h2 id='analytics-dashboard-title'>Goal Analytics & Insights</h2>
           <button className='btn-icon' onClick={onClose}>
             ×
           </button>

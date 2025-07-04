@@ -75,7 +75,7 @@ export const RunsPage: React.FC<RunsPageProps> = ({
     try {
       await onDeleteRun(runId);
       onShowToast('Run deleted successfully', 'success');
-    } catch (error) {
+    } catch {
       onShowToast('Failed to delete run', 'error');
     }
   };

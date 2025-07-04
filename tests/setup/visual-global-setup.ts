@@ -3,9 +3,9 @@ import path from 'path';
 
 import { FullConfig } from '@playwright/test';
 
-import { testDb } from '../fixtures/testDatabase';
+import { testDb } from '../fixtures/testDatabase.js';
 
-async function globalSetup(config: FullConfig) {
+async function globalSetup(_config: FullConfig) {
   console.log('🎨 Setting up visual regression testing environment...');
 
   try {

@@ -2,7 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createError } from '../middleware/errorHandler.js';
+import { createValidationError } from '../middleware/errorHandler.js';
+
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
 
@@ -16,7 +17,7 @@ router.use(sanitizeInput);
 router.get(
   '/insights-summary',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
@@ -44,6 +45,7 @@ router.get(
       weekEnd: new Date().toISOString(),
       hasData: totalRuns > 0,
     });
+    return;
   })
 );
 
@@ -51,7 +53,7 @@ router.get(
 router.get(
   '/type-breakdown',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
       select: {
@@ -93,13 +95,12 @@ router.get(
 
     // Handle empty data scenario
     if (breakdownArray.length === 0) {
-      return res.json({
-        message: 'No running data found for type breakdown',
-        data: [],
-      });
+      res.json([]);
+      return;
     }
 
     res.json(breakdownArray);
+    return;
   })
 );
 
@@ -107,13 +108,15 @@ router.get(
 router.get(
   '/trends',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const { period = '3m' } = req.query; // 1m, 3m, 6m, 1y
 
     // Validate period parameter
     const validPeriods = ['1m', '3m', '6m', '1y'];
     if (typeof period !== 'string' || !validPeriods.includes(period)) {
-      return next(createError('Invalid period parameter. Must be one of: 1m, 3m, 6m, 1y', 400));
+      return _next(
+        createValidationError('Invalid period parameter. Must be one of: 1m, 3m, 6m, 1y', 'period')
+      );
     }
 
     let daysBack = 90; // default 3 months
@@ -180,15 +183,12 @@ router.get(
 
     // Handle empty data scenario
     if (trendsData.length === 0) {
-      return res.json({
-        message: 'No running data found for the selected period',
-        data: [],
-        period,
-        daysBack,
-      });
+      res.json([]);
+      return;
     }
 
     res.json(trendsData);
+    return;
   })
 );
 
@@ -196,7 +196,7 @@ router.get(
 router.get(
   '/personal-records',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
       orderBy: { date: 'desc' },
@@ -239,13 +239,12 @@ router.get(
 
     // Handle empty data scenario
     if (records.length === 0) {
-      return res.json({
-        message: 'No personal records found - complete some runs to see your best times',
-        data: [],
-      });
+      res.json([]);
+      return;
     }
 
     res.json(records);
+    return;
   })
 );
 

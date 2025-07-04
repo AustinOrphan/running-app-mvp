@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { GOAL_TEMPLATE_COLLECTIONS, searchTemplates } from '../../data/goalTemplates';
-import { CreateGoalData } from '../../types/goals';
 import { GoalTemplate, GoalTemplateCollection } from '../../types/goalTemplates';
 
 interface GoalTemplateBrowserProps {
@@ -157,14 +156,30 @@ const CategorySection: React.FC<{
 
   return (
     <div className='template-category'>
-      <div className='category-header' onClick={() => setExpanded(!expanded)}>
+      <div
+        className='category-header'
+        onClick={() => setExpanded(!expanded)}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
+        role='button'
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-controls={`category-templates-${collection.title.replace(/\s+/g, '-').toLowerCase()}`}
+      >
         <h3>{collection.title}</h3>
         <p className='category-description'>{collection.description}</p>
         <span className='category-toggle'>{expanded ? '−' : '+'}</span>
       </div>
 
       {expanded && (
-        <div className='category-templates'>
+        <div
+          className='category-templates'
+          id={`category-templates-${collection.title.replace(/\s+/g, '-').toLowerCase()}`}
+        >
           {collection.templates.map(template => (
             <TemplateCard
               key={template.id}
@@ -186,6 +201,22 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -219,11 +250,26 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
   };
 
   return (
-    <div className='template-browser-overlay' onClick={onClose}>
-      <div className='template-browser' onClick={e => e.stopPropagation()}>
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    <div
+      className='template-browser-overlay'
+      onClick={onClose}
+      onKeyDown={e => e.key === 'Escape' && onClose()}
+    >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+      <div
+        className='template-browser'
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='template-browser-title'
+        tabIndex={-1}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
+      >
         <div className='template-browser-header'>
           <div className='browser-title'>
-            <h2>Goal Templates</h2>
+            <h2 id='template-browser-title'>Goal Templates</h2>
             <p>Choose from proven running goals to jumpstart your training</p>
           </div>
           <button className='btn-icon browser-close' onClick={onClose} title='Close'>

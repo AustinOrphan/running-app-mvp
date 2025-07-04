@@ -7,8 +7,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
+import type { TooltipProps } from 'recharts';
 
 import { TrendsDataPoint } from '../../types';
 
@@ -17,9 +17,15 @@ interface TrendsChartProps {
   loading: boolean;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TrendsTooltipPayload {
+  distance: number;
+  pace: number;
+  date: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
-    const data = payload[0].payload;
+    const data = payload[0].payload as TrendsTooltipPayload;
     const date = new Date(label).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -55,7 +61,11 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
         <div className='trends-header'>
           <h3>Running Trends</h3>
           <div className='trends-controls'>
-            <div className='skeleton-line' style={{ width: '80px', height: '32px' }}></div>
+            <div
+              data-testid='skeleton-line'
+              className='skeleton-line'
+              style={{ width: '80px', height: '32px' }}
+            ></div>
           </div>
         </div>
         <div className='chart-loading'>
@@ -130,6 +140,7 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
             value={selectedMetric}
             onChange={e => setSelectedMetric(e.target.value as 'distance' | 'pace')}
             className='metric-selector'
+            aria-label='Metric selector'
           >
             <option value='distance'>Distance</option>
             <option value='pace'>Pace</option>

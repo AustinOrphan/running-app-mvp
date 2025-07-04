@@ -9,6 +9,7 @@ import {
   GoalType,
   GoalPeriod,
 } from '../types/goals';
+import { logError } from '../utils/clientLogger';
 
 interface EditGoalModalProps {
   isOpen: boolean;
@@ -178,7 +179,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
 
       setErrors({});
     } catch (error) {
-      console.error('Failed to update goal:', error);
+      logError('Failed to update goal', error instanceof Error ? error : new Error(String(error)));
     } finally {
       setIsSubmitting(false);
     }
@@ -194,10 +195,25 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
-    <div className='modal-overlay' onClick={handleClose}>
-      <div className='modal' onClick={e => e.stopPropagation()}>
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    <div
+      className='modal-overlay'
+      onClick={handleClose}
+      onKeyDown={e => e.key === 'Escape' && handleClose()}
+    >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+      <div
+        className='modal'
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='edit-goal-modal-title'
+        tabIndex={-1}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex
+      >
         <div className='modal-header'>
-          <h3>Edit Goal</h3>
+          <h3 id='edit-goal-modal-title'>Edit Goal</h3>
           <button className='btn-icon' onClick={handleClose} disabled={isSubmitting}>
             ✕
           </button>

@@ -1,14 +1,13 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
 import { GoalCard } from '../../../src/components/GoalCard';
 import {
   mockGoals,
-  mockGoalProgress,
   createMockGoal,
   createMockGoalProgress,
-} from '../../fixtures/mockData';
+} from '../../fixtures/mockData.js';
 
 // Mock the visualization components
 vi.mock('../../../src/components/Goals/CircularProgress', () => ({
@@ -84,7 +83,7 @@ describe('GoalCard', () => {
 
       const iconElement = screen.getByText('🏃‍♂️');
       expect(iconElement).toBeInTheDocument();
-      expect(iconElement.parentElement).toHaveStyle({ color: '#ff5733' });
+      expect(iconElement).toHaveStyle({ color: '#ff5733' });
     });
   });
 
@@ -175,7 +174,9 @@ describe('GoalCard', () => {
         currentValue: 330, // 5:30 min/km in seconds
       });
 
-      render(<GoalCard {...defaultProps} goal={goal} progress={undefined} />);
+      const progress = createMockGoalProgress({ currentValue: 330 });
+
+      render(<GoalCard {...defaultProps} goal={goal} progress={progress} />);
 
       expect(screen.getByText('5:30 min/km / 5:00 min/km')).toBeInTheDocument();
     });

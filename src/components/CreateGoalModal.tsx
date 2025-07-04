@@ -9,6 +9,7 @@ import {
   GoalType,
   GoalPeriod,
 } from '../types/goals';
+import { logError } from '../utils/clientLogger';
 
 interface CreateGoalModalProps {
   isOpen: boolean;
@@ -17,25 +18,29 @@ interface CreateGoalModalProps {
 }
 
 export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClose, onSubmit }) => {
-  const [formData, setFormData] = useState({
+  const initialStart = new Date().toISOString().split('T')[0];
+
+  const [formData, setFormData] = useState(() => ({
     title: '',
     description: '',
     type: GOAL_TYPES.DISTANCE as GoalType,
     period: GOAL_PERIODS.WEEKLY as GoalPeriod,
     targetValue: '',
     targetUnit: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].defaultUnit,
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: '',
+    startDate: initialStart,
+    endDate: calculateEndDate(initialStart, GOAL_PERIODS.WEEKLY),
     color: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].color,
     icon: GOAL_TYPE_CONFIGS[GOAL_TYPES.DISTANCE].icon,
-  });
+  }));
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate default end date based on period
-  const calculateEndDate = (startDate: string, period: GoalPeriod): string => {
+  function calculateEndDate(startDate: string, period: GoalPeriod): string {
+    if (!startDate) return '';
     const start = new Date(startDate);
+    if (Number.isNaN(start.getTime())) return '';
     const periodConfig = GOAL_PERIOD_CONFIGS[period];
 
     if (periodConfig.duration) {
@@ -48,7 +53,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
     const end = new Date(start);
     end.setDate(start.getDate() + 30);
     return end.toISOString().split('T')[0];
-  };
+  }
 
   // Update form data when goal type changes
   const handleTypeChange = (type: GoalType) => {
@@ -74,7 +79,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
 
   // Update end date when start date changes
   const handleStartDateChange = (startDate: string) => {
-    const endDate = calculateEndDate(startDate, formData.period);
+    const endDate = startDate ? calculateEndDate(startDate, formData.period) : '';
     setFormData(prev => ({
       ...prev,
       startDate,
@@ -152,7 +157,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
       });
       setErrors({});
     } catch (error) {
-      console.error('Failed to create goal:', error);
+      logError('Failed to create goal', error instanceof Error ? error : new Error(String(error)));
     } finally {
       setIsSubmitting(false);
     }
@@ -163,16 +168,30 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
-    <div className='modal-overlay' onClick={onClose}>
-      <div className='modal' onClick={e => e.stopPropagation()}>
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    <div
+      className='modal-overlay'
+      onClick={onClose}
+      onKeyDown={e => e.key === 'Escape' && onClose()}
+    >
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events */}
+      <div 
+        className='modal' 
+        onClick={e => e.stopPropagation()} 
+        onKeyDown={e => e.stopPropagation()} 
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='create-goal-modal-title'
+        tabIndex={-1}
+      >
         <div className='modal-header'>
-          <h3>Create New Goal</h3>
+          <h3 id='create-goal-modal-title'>Create New Goal</h3>
           <button className='btn-icon' onClick={onClose} disabled={isSubmitting}>
             ✕
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form data-testid='create-goal-form' onSubmit={handleSubmit}>
           <div className='modal-body'>
             {/* Goal Title */}
             <div className='form-group'>
@@ -228,7 +247,6 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
                   id='targetValue'
                   type='number'
                   step='0.1'
-                  min='0'
                   value={formData.targetValue}
                   onChange={e => setFormData(prev => ({ ...prev, targetValue: e.target.value }))}
                   placeholder='0'

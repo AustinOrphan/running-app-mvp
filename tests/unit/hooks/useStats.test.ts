@@ -8,7 +8,7 @@ import {
   mockTrendsData,
   mockPersonalRecords,
   mockApiError,
-} from '../../fixtures/mockData';
+} from '../../fixtures/mockData.js';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -102,10 +102,8 @@ describe('useStats', () => {
       mockFetch.mockClear();
       setupMockResponses();
 
-      let hookResult: any;
-
       await act(async () => {
-        hookResult = renderHook(() => useStats('test-token'));
+        renderHook(() => useStats('test-token'));
       });
 
       await waitFor(() => {
@@ -132,10 +130,8 @@ describe('useStats', () => {
       mockFetch.mockClear();
       setupMockResponses();
 
-      let hookResult: any;
-
       await act(async () => {
-        hookResult = renderHook(() => useStats('test-token', '6m'));
+        renderHook(() => useStats('test-token', '6m'));
       });
 
       await waitFor(() => {

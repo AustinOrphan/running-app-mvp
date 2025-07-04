@@ -2,9 +2,9 @@ import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
 
-import runsRoutes from '../../../routes/runs';
-import { mockRuns } from '../../fixtures/mockData';
-import { testDb } from '../../fixtures/testDatabase';
+import runsRoutes from '../../../routes/runs.js';
+import { mockRuns } from '../../fixtures/mockData.js';
+import { testDb } from '../../fixtures/testDatabase.js';
 
 // Create test app
 const createTestApp = () => {

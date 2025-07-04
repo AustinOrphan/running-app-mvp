@@ -78,7 +78,7 @@ Different thresholds are used based on the type of content:
 
 ```typescript
 import { test } from '@playwright/test';
-import { visualTest } from '../setup/visualTestingSetup';
+import { visualTest } from '../setup/visualTestingSetup.js';
 
 test('should match page visual baseline', async ({ page }) => {
   await page.goto('/your-page');

@@ -13,10 +13,9 @@ import { useGoals } from '../hooks/useGoals';
 import { useToast } from '../hooks/useToast';
 import { Goal, CreateGoalData } from '../types/goals';
 import { GoalTemplate } from '../types/goalTemplates';
+import { logError } from '../utils/clientLogger';
 
-interface GoalsPageProps {}
-
-export const GoalsPage: React.FC<GoalsPageProps> = () => {
+export const GoalsPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
@@ -95,7 +94,10 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       setSelectedTemplate(null);
       showToast('Goal created from template successfully!', 'success');
     } catch (error) {
-      console.error('Error creating goal from template:', error);
+      logError(
+        'Error creating goal from template',
+        error instanceof Error ? error : new Error(String(error))
+      );
       showToast('Failed to create goal from template', 'error');
     }
   };
@@ -111,7 +113,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       setShowCreateModal(false);
       showToast('Goal created successfully!', 'success');
     } catch (error) {
-      console.error('Error creating goal:', error);
+      logError('Error creating goal', error instanceof Error ? error : new Error(String(error)));
       showToast('Failed to create goal', 'error');
     }
   };
@@ -131,7 +133,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       setEditingGoal(null);
       showToast('Goal updated successfully!', 'success');
     } catch (error) {
-      console.error('Error updating goal:', error);
+      logError('Error updating goal', error instanceof Error ? error : new Error(String(error)));
       showToast('Failed to update goal', 'error');
     }
   };
@@ -141,7 +143,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       await completeGoal(goalId);
       showToast('Congratulations! Goal completed! 🎉', 'success');
     } catch (error) {
-      console.error('Error completing goal:', error);
+      logError('Error completing goal', error instanceof Error ? error : new Error(String(error)));
       showToast('Failed to complete goal', 'error');
     }
   };
@@ -163,7 +165,7 @@ export const GoalsPage: React.FC<GoalsPageProps> = () => {
       setDeletingGoal(null);
       showToast('Goal deleted successfully', 'info');
     } catch (error) {
-      console.error('Error deleting goal:', error);
+      logError('Error deleting goal', error instanceof Error ? error : new Error(String(error)));
       showToast('Failed to delete goal', 'error');
     }
   };

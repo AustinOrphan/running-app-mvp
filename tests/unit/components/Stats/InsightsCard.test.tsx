@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 
 import { InsightsCard } from '../../../../src/components/Stats/InsightsCard';
-import { mockWeeklyInsights, mockEmptyWeeklyInsights } from '../../../fixtures/mockData';
+import { mockWeeklyInsights, mockEmptyWeeklyInsights } from '../../../fixtures/mockData.js';
 
 // Mock the formatters utility
 vi.mock('../../../../src/utils/formatters', () => ({

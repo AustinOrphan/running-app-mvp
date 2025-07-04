@@ -1,7 +1,7 @@
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createError, createNotFoundError, createValidationError } from '../middleware/errorHandler.js';
+import { createNotFoundError, createValidationError, createForbiddenError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
 import { prisma } from '../server.js';
@@ -16,7 +16,7 @@ router.use(sanitizeInput);
 router.get(
   '/',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const goals = await prisma.goal.findMany({
       where: {
         userId: req.user!.id,
@@ -29,6 +29,7 @@ router.get(
     });
 
     res.json(goals);
+    return;
   })
 );
 
@@ -36,19 +37,22 @@ router.get(
 router.get(
   '/:id',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
-    const goal = await prisma.goal.findFirst({
-      where: {
-        id: req.params.id,
-        userId: req.user!.id,
-      },
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
+    // First check if goal exists
+    const goal = await prisma.goal.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!goal) {
-      return next(createNotFoundError('Goal'));
+      return _next(createNotFoundError('Goal'));
     }
 
+    // Then check ownership
+    if (goal.userId !== req.user!.id) {
+      return _next(createForbiddenError('Access denied to this goal'));
+    }
     res.json(goal);
+    return;
   })
 );
 
@@ -56,7 +60,7 @@ router.get(
 router.post(
   '/',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const {
       title,
       description,
@@ -72,32 +76,34 @@ router.post(
 
     // Validation
     if (!title || !type || !period || !targetValue || !targetUnit || !startDate || !endDate) {
-      return next(createValidationError(
-        'Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate',
-        'all'
-      ));
+      return _next(
+        createValidationError(
+          'Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate',
+          'all'
+        )
+      );
     }
 
     // Validate goal type
     if (!Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      return next(createValidationError('Invalid goal type', 'type'));
+      return _next(createValidationError('Invalid goal type', 'type'));
     }
 
     // Validate goal period
     if (!Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      return next(createValidationError('Invalid goal period', 'period'));
+      return _next(createValidationError('Invalid goal period', 'period'));
     }
 
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (start >= end) {
-      return next(createValidationError('End date must be after start date', 'endDate'));
+      return _next(createValidationError('End date must be after start date', 'endDate'));
     }
 
     // Validate target value
     if (targetValue <= 0) {
-      return next(createValidationError('Target value must be positive', 'targetValue'));
+      return _next(createValidationError('Target value must be positive', 'targetValue'));
     }
 
     const goal = await prisma.goal.create({
@@ -120,6 +126,7 @@ router.post(
     });
 
     res.status(201).json(goal);
+    return;
   })
 );
 
@@ -127,7 +134,7 @@ router.post(
 router.put(
   '/:id',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const goalId = req.params.id;
     const {
       title,
@@ -143,42 +150,44 @@ router.put(
       isActive,
     } = req.body;
 
-    // Check if goal exists and belongs to user
-    const existingGoal = await prisma.goal.findFirst({
-      where: {
-        id: goalId,
-        userId: req.user!.id,
-      },
+    // First check if goal exists
+    const existingGoal = await prisma.goal.findUnique({
+      where: { id: goalId },
     });
 
     if (!existingGoal) {
-      return next(createNotFoundError('Goal'));
+      return _next(createNotFoundError('Goal'));
+    }
+
+    // Then check ownership
+    if (existingGoal.userId !== req.user!.id) {
+      return _next(createForbiddenError('Access denied to this goal'));
     }
 
     // Prevent editing completed goals
     if (existingGoal.isCompleted) {
-      return next(createValidationError('Cannot edit completed goals', 'isCompleted'));
+      return _next(createValidationError('Cannot edit completed goals', 'isCompleted'));
     }
 
     // Validation (only validate provided fields)
     if (type && !Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      return next(createValidationError('Invalid goal type', 'type'));
+      return _next(createValidationError('Invalid goal type', 'type'));
     }
 
     if (period && !Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      return next(createValidationError('Invalid goal period', 'period'));
+      return _next(createValidationError('Invalid goal period', 'period'));
     }
 
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
       if (start >= end) {
-        return next(createValidationError('End date must be after start date', 'endDate'));
+        return _next(createValidationError('End date must be after start date', 'endDate'));
       }
     }
 
     if (targetValue !== undefined && targetValue <= 0) {
-      return next(createValidationError('Target value must be positive', 'targetValue'));
+      return _next(createValidationError('Target value must be positive', 'targetValue'));
     }
 
     // Update goal
@@ -200,6 +209,7 @@ router.put(
     });
 
     res.json(updatedGoal);
+    return;
   })
 );
 
@@ -207,19 +217,22 @@ router.put(
 router.delete(
   '/:id',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const goalId = req.params.id;
 
     // Check if goal exists and belongs to user
-    const goal = await prisma.goal.findFirst({
-      where: {
-        id: goalId,
-        userId: req.user!.id,
-      },
+    // First check if goal exists
+    const goal = await prisma.goal.findUnique({
+      where: { id: goalId },
     });
 
     if (!goal) {
-      return next(createNotFoundError('Goal'));
+      return _next(createNotFoundError('Goal'));
+    }
+
+    // Then check ownership
+    if (goal.userId !== req.user!.id) {
+      return _next(createForbiddenError('Access denied to this goal'));
     }
 
     // Soft delete by setting isActive to false
@@ -229,6 +242,7 @@ router.delete(
     });
 
     res.json({ message: 'Goal deleted successfully' });
+    return;
   })
 );
 
@@ -236,24 +250,30 @@ router.delete(
 router.post(
   '/:id/complete',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const goalId = req.params.id;
 
-    // Check if goal exists and belongs to user
-    const goal = await prisma.goal.findFirst({
-      where: {
-        id: goalId,
-        userId: req.user!.id,
-        isActive: true,
-      },
+    // First check if goal exists
+    const goal = await prisma.goal.findUnique({
+      where: { id: goalId },
     });
 
     if (!goal) {
-      return next(createNotFoundError('Goal'));
+      return _next(createNotFoundError('Goal'));
+    }
+
+    // Then check ownership
+    if (goal.userId !== req.user!.id) {
+      return _next(createForbiddenError('Access denied to this goal'));
+    }
+
+    // Check if goal is active
+    if (!goal.isActive) {
+      return _next(createNotFoundError('Goal'));
     }
 
     if (goal.isCompleted) {
-      return next(createValidationError('Goal is already completed', 'isCompleted'));
+      return _next(createValidationError('Goal is already completed', 'isCompleted'));
     }
 
     // Mark as completed
@@ -267,6 +287,7 @@ router.post(
     });
 
     res.json(completedGoal);
+    return;
   })
 );
 
@@ -274,7 +295,7 @@ router.post(
 router.get(
   '/progress/all',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
     const goals = await prisma.goal.findMany({
       where: {
         userId: req.user!.id,
@@ -309,24 +330,28 @@ router.get(
     );
 
     res.json(progressData);
+    return;
   })
 );
 
 // Helper function to calculate current progress for a goal
-async function calculateGoalProgress(goal: {
-  id: string;
-  type: string;
-  title: string;
-  description?: string | null;
-  targetValue: number;
-  targetUnit: string;
-  startDate: Date;
-  endDate: Date;
-  isCompleted: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  userId: string;
-}, userId: string): Promise<number> {
+async function calculateGoalProgress(
+  goal: {
+    id: string;
+    type: string;
+    title: string;
+    description?: string | null;
+    targetValue: number;
+    targetUnit: string;
+    startDate: Date;
+    endDate: Date;
+    isCompleted: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    userId: string;
+  },
+  userId: string
+): Promise<number> {
   const runs = await prisma.run.findMany({
     where: {
       userId,

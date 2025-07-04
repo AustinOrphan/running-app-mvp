@@ -3,12 +3,13 @@ import {
   NotificationPreferences,
   GoalNotification,
 } from '../types/notifications';
+import { logError, logWarn } from './clientLogger';
 
 // Browser Notification Permission Management
 export class NotificationPermissionManager {
   static async requestPermission(): Promise<NotificationPermission> {
     if (!('Notification' in window)) {
-      console.warn('Browser does not support notifications');
+      logWarn('Browser does not support notifications');
       return 'denied';
     }
 
@@ -24,7 +25,10 @@ export class NotificationPermissionManager {
       const permission = await Notification.requestPermission();
       return permission;
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      logError(
+        'Error requesting notification permission',
+        error instanceof Error ? error : new Error(String(error))
+      );
       return 'denied';
     }
   }
@@ -47,7 +51,7 @@ export class BrowserNotificationManager {
     tag?: string
   ): Promise<Notification | null> {
     if (!NotificationPermissionManager.hasPermission()) {
-      console.warn('No notification permission');
+      logWarn('No notification permission');
       return null;
     }
 
@@ -91,7 +95,10 @@ export class BrowserNotificationManager {
 
       return notification;
     } catch (error) {
-      console.error('Error showing notification:', error);
+      logError(
+        'Error showing notification',
+        error instanceof Error ? error : new Error(String(error))
+      );
       return null;
     }
   }
@@ -363,7 +370,10 @@ export class NotificationPreferencesStorage {
     try {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(preferences));
     } catch (error) {
-      console.error('Failed to save notification preferences:', error);
+      logError(
+        'Failed to save notification preferences',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }
 
@@ -376,7 +386,10 @@ export class NotificationPreferencesStorage {
         return { ...DEFAULT_NOTIFICATION_PREFERENCES, ...parsed };
       }
     } catch (error) {
-      console.error('Failed to load notification preferences:', error);
+      logError(
+        'Failed to load notification preferences',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
     return DEFAULT_NOTIFICATION_PREFERENCES;
   }
@@ -385,7 +398,10 @@ export class NotificationPreferencesStorage {
     try {
       localStorage.removeItem(this.STORAGE_KEY);
     } catch (error) {
-      console.error('Failed to clear notification preferences:', error);
+      logError(
+        'Failed to clear notification preferences',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }
 }

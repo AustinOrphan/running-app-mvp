@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './App.css';
+import { logError } from './utils/clientLogger';
 
 interface Toast {
   id: string;
@@ -42,7 +43,7 @@ function App() {
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeHighlight, setSwipeHighlight] = useState(false);
   const [hasSwipedOnce, setHasSwipedOnce] = useState(false);
-  const [showSwipeHint, setShowSwipeHint] = useState(true);
+
   const [runForm, setRunForm] = useState({
     date: new Date().toISOString().split('T')[0],
     distance: '',
@@ -204,8 +205,8 @@ function App() {
     const hasSwipedBefore = localStorage.getItem('hasSwipedOnce');
     if (hasSwipedBefore === 'true') {
       setHasSwipedOnce(true);
-      setShowSwipeHint(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchRuns = async (token: string) => {
@@ -220,8 +221,11 @@ function App() {
         const runsData = await response.json();
         setRuns(runsData);
       }
-    } catch (error) {
-      console.error('Failed to fetch runs:', error);
+    } catch (_error) {
+      logError(
+        'Failed to fetch runs',
+        _error instanceof Error ? _error : new Error(String(_error))
+      );
       showToast('Failed to load runs', 'error');
     } finally {
       setRunsLoading(false);
@@ -248,7 +252,7 @@ function App() {
         const errorData = await response.json().catch(() => ({}));
         showToast(errorData.message || 'Login failed', 'error');
       }
-    } catch (error) {
+    } catch {
       showToast('Network error. Please try again.', 'error');
     } finally {
       setLoading(false);
@@ -274,7 +278,7 @@ function App() {
         const errorData = await response.json().catch(() => ({}));
         showToast(errorData.message || 'Registration failed', 'error');
       }
-    } catch (error) {
+    } catch {
       showToast('Network error. Please try again.', 'error');
     } finally {
       setLoading(false);
@@ -334,15 +338,15 @@ function App() {
         const errorData = await response.json().catch(() => ({}));
         showToast(errorData.message || `Failed to ${editingRun ? 'update' : 'save'} run`, 'error');
       }
-    } catch (error) {
-      console.error('Failed to save run:', error);
+    } catch (_error) {
+      logError('Failed to save run', _error instanceof Error ? _error : new Error(String(_error)));
       showToast('Network error. Failed to save run.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditRun = (run: any) => {
+  const handleEditRun = (run: (typeof runs)[0]) => {
     setEditingRun(run);
     setRunForm({
       date: new Date(run.date).toISOString().split('T')[0],
@@ -375,7 +379,7 @@ function App() {
       } else {
         showToast('Failed to delete run', 'error');
       }
-    } catch (error) {
+    } catch {
       showToast('Network error. Failed to delete run.', 'error');
     }
   };
@@ -494,8 +498,9 @@ function App() {
                   <h3>{editingRun ? 'Edit Run' : 'Add New Run'}</h3>
                   <div className='form-row'>
                     <div className='form-group'>
-                      <label>Date</label>
+                      <label htmlFor='run-date'>Date</label>
                       <input
+                        id='run-date'
                         type='date'
                         value={runForm.date}
                         onChange={e => {
@@ -507,8 +512,9 @@ function App() {
                       {formErrors.date && <span className='error-text'>{formErrors.date}</span>}
                     </div>
                     <div className='form-group'>
-                      <label>Distance (km)</label>
+                      <label htmlFor='run-distance'>Distance (km)</label>
                       <input
+                        id='run-distance'
                         type='number'
                         step='0.1'
                         value={runForm.distance}
@@ -524,8 +530,9 @@ function App() {
                       )}
                     </div>
                     <div className='form-group'>
-                      <label>Duration (minutes)</label>
+                      <label htmlFor='run-duration'>Duration (minutes)</label>
                       <input
+                        id='run-duration'
                         type='number'
                         value={runForm.duration}
                         onChange={e => {
@@ -542,8 +549,9 @@ function App() {
                   </div>
                   <div className='form-row'>
                     <div className='form-group'>
-                      <label>Tag (optional)</label>
+                      <label htmlFor='run-tag'>Tag (optional)</label>
                       <select
+                        id='run-tag'
                         value={runForm.tag}
                         onChange={e => setRunForm({ ...runForm, tag: e.target.value })}
                       >
@@ -557,8 +565,9 @@ function App() {
                     </div>
                   </div>
                   <div className='form-group'>
-                    <label>Notes (optional)</label>
+                    <label htmlFor='run-notes'>Notes (optional)</label>
                     <textarea
+                      id='run-notes'
                       value={runForm.notes}
                       onChange={e => setRunForm({ ...runForm, notes: e.target.value })}
                       placeholder='How did it feel? Route details, weather, etc.'
@@ -704,6 +713,9 @@ function App() {
             data-toast-id={toast.id}
             className={`toast toast-${toast.type}`}
             onClick={() => removeToast(toast.id)}
+            onKeyDown={e => e.key === 'Enter' && removeToast(toast.id)}
+            role='button'
+            tabIndex={0}
           >
             <span className='toast-icon'>
               {toast.type === 'success' && '✅'}

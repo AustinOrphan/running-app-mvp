@@ -49,10 +49,10 @@ export const GoalStreakVisualization: React.FC<GoalStreakVisualizationProps> = (
     });
   };
 
-  const getWeekdayLabel = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { weekday: 'short' });
-  };
+  // const getWeekdayLabel = (dateString: string) => {
+  //   const date = new Date(dateString);
+  //   return date.toLocaleDateString('en-US', { weekday: 'short' });
+  // };
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -77,7 +77,7 @@ export const GoalStreakVisualization: React.FC<GoalStreakVisualizationProps> = (
         <div className='calendar-grid'>
           {recentData.map((day, index) => {
             const isToday = day.date === today;
-            const dayOfWeek = new Date(day.date).getDay();
+            // const dayOfWeek = new Date(day.date).getDay();
 
             return (
               <div

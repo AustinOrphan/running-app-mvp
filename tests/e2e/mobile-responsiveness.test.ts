@@ -1,7 +1,7 @@
 import { test, expect, devices } from '@playwright/test';
 
-import { mockRuns } from '../fixtures/mockData';
-import { testDb } from '../fixtures/testDatabase';
+import { mockRuns } from '../fixtures/mockData.js';
+import { testDb } from '../fixtures/testDatabase.js';
 
 // Define mobile device configurations with names
 const mobileDevices = [
@@ -16,16 +16,14 @@ const mobileDevices = [
 
 test.describe('Mobile Responsiveness E2E Tests', () => {
   let testUser: any;
-  let authToken: string;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page: _page }) => {
     // Clean database and create test user
     await testDb.cleanupDatabase();
     testUser = await testDb.createTestUser({
       email: 'mobile@test.com',
       password: 'testpassword123',
     });
-    authToken = testDb.generateTestToken(testUser.id);
 
     // Create test data
     await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 5));

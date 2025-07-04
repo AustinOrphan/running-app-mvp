@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 
 import { TrendsChart } from '../../../../src/components/Stats/TrendsChart';
-import { mockTrendsData, createMockTrendsData } from '../../../fixtures/mockData';
+import { mockTrendsData, createMockTrendsData } from '../../../fixtures/mockData.js';
 
 // Mock recharts components
 vi.mock('recharts', () => ({
@@ -84,7 +84,10 @@ describe('TrendsChart', () => {
     it('displays summary statistics correctly', () => {
       render(<TrendsChart data={mockTrendsData} loading={false} />);
 
-      expect(screen.getByText(`Total weeks: ${mockTrendsData.length}`)).toBeInTheDocument();
+      const totalWeeksLabel = screen.getByText('Total weeks:');
+      expect(totalWeeksLabel).toBeInTheDocument();
+      expect(totalWeeksLabel.nextSibling?.textContent).toBe(String(mockTrendsData.length));
+
       expect(screen.getByText(/Best week:/)).toBeInTheDocument();
       expect(screen.getByText(/Avg weekly:/)).toBeInTheDocument();
     });
@@ -95,7 +98,8 @@ describe('TrendsChart', () => {
 
       render(<TrendsChart data={testData} loading={false} />);
 
-      expect(screen.getByText('Best week: 50.5km')).toBeInTheDocument();
+      const bestLabel = screen.getByText('Best week:');
+      expect(bestLabel.nextSibling?.textContent).toBe('50.5km');
     });
 
     it('calculates average weekly distance correctly', () => {
@@ -108,7 +112,8 @@ describe('TrendsChart', () => {
       render(<TrendsChart data={testData} loading={false} />);
 
       // Average should be (20 + 30 + 40) / 3 = 30.0
-      expect(screen.getByText('Avg weekly: 30.0km')).toBeInTheDocument();
+      const avgLabel = screen.getByText('Avg weekly:');
+      expect(avgLabel.nextSibling?.textContent).toBe('30.0km');
     });
   });
 
@@ -163,7 +168,8 @@ describe('TrendsChart', () => {
 
       render(<TrendsChart data={singleDataPoint} loading={false} />);
 
-      expect(screen.getByText('Total weeks: 1')).toBeInTheDocument();
+      const weeksLabel1 = screen.getByText('Total weeks:');
+      expect(weeksLabel1.nextSibling?.textContent).toBe('1');
       expect(screen.getByTestId('line-chart')).toBeInTheDocument();
     });
 
@@ -175,8 +181,10 @@ describe('TrendsChart', () => {
 
       render(<TrendsChart data={dataWithZeros} loading={false} />);
 
-      expect(screen.getByText('Total weeks: 2')).toBeInTheDocument();
-      expect(screen.getByText('Best week: 10.0km')).toBeInTheDocument();
+      const weeksLabel2 = screen.getByText('Total weeks:');
+      expect(weeksLabel2.nextSibling?.textContent).toBe('2');
+      const bestLabel2 = screen.getByText('Best week:');
+      expect(bestLabel2.nextSibling?.textContent).toBe('10.0km');
     });
 
     it('handles very large numbers', () => {
@@ -186,8 +194,10 @@ describe('TrendsChart', () => {
 
       render(<TrendsChart data={largeData} loading={false} />);
 
-      expect(screen.getByText('Best week: 999.9km')).toBeInTheDocument();
-      expect(screen.getByText('Avg weekly: 999.9km')).toBeInTheDocument();
+      const bestLabel3 = screen.getByText('Best week:');
+      expect(bestLabel3.nextSibling?.textContent).toBe('999.9km');
+      const avgLabel3 = screen.getByText('Avg weekly:');
+      expect(avgLabel3.nextSibling?.textContent).toBe('999.9km');
     });
   });
 

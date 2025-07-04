@@ -8,7 +8,7 @@ import {
   mockCreateGoalData,
   createMockGoal,
   createMockGoalProgress,
-} from '../../fixtures/mockData';
+} from '../../fixtures/mockData.js';
 
 // Mock useNotifications hook
 vi.mock('../../../src/hooks/useNotifications', () => ({
@@ -44,7 +44,7 @@ describe('useGoals', () => {
     });
 
     // Also ensure progress endpoint returns empty array by default
-    mockFetch.mockImplementation(url => {
+    mockFetch.mockImplementation(_url => {
       return Promise.resolve({
         ok: true,
         status: 200,
@@ -535,9 +535,7 @@ describe('useGoals', () => {
       mockFetch.mockReset();
 
       // Set up a specific mock implementation for this test
-      let callCount = 0;
       mockFetch.mockImplementation(async (url: string) => {
-        callCount++;
         if (url.includes('/api/goals') && !url.includes('progress') && !url.includes('complete')) {
           // Goals fetch (first call)
           return {
