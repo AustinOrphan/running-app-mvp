@@ -181,7 +181,6 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
         }
       }}
     >
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='modal'
         onClick={e => e.stopPropagation()}

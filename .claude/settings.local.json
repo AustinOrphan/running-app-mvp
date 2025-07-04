@@ -45,7 +45,16 @@
       "Bash(npx prettier:*)",
       "Bash(git restore:*)",
       "mcp__github__list_branches",
-      "Bash(gh pr list:*)"
+      "Bash(gh pr list:*)",
+      "mcp__serena__think_about_collected_information",
+      "mcp__serena__insert_before_symbol",
+      "mcp__serena__insert_after_symbol",
+      "Bash(npm run test:integration:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run test:e2e:*)",
+      "Bash(npm run:*)",
+      "mcp__serena__summarize_changes",
+      "Bash(gh label:*)"
     ],
     "deny": []
   }
