@@ -88,7 +88,14 @@ router.put(
     }
 
     const { name, raceDate, distance, targetTime, actualTime, notes } = req.body;
-    const data: prisma.race = {};
+    const data: Partial<{
+      name: string;
+      raceDate: Date;
+      distance: number;
+      targetTime: number | null;
+      actualTime: number | null;
+      notes: string | null;
+    }> = {};
     if (name !== undefined) data.name = name.trim();
     if (raceDate !== undefined) data.raceDate = new Date(raceDate);
     if (distance !== undefined) data.distance = Number(distance);
