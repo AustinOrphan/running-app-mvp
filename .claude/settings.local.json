@@ -57,7 +57,7 @@
       "Bash(gh label:*)",
       "Bash(gh project:*)",
       "Bash(gh milestone create:*)",
-      "Bash(GITHUB_REPO=\"AustinOrphan/running-app-mvp\")"
+      "Bash(gh:*)"
     ],
     "deny": []
   }
