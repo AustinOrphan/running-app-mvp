@@ -5732,8 +5732,7 @@ button:disabled:hover {
 }
 
 .connectivity-details.countdown {
-  background: rgba(0, 0, 0, 0.98);
-  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.5);
+  /* Countdown visual effects handled via inline styles */
 }
 
 @keyframes slide-up {

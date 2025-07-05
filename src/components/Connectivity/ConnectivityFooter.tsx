@@ -237,16 +237,16 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
         className={`connectivity-details ${isExpanded ? 'expanded' : ''} ${
           countdownProgress > 0 ? 'countdown' : ''
         }`}
-        style={{
-          background:
-            isExpanded && countdownProgress > 0
-              ? `rgba(0, 0, 0, ${0.95 + countdownProgress * 0.05})`
-              : undefined,
-        }}
         role='region'
         aria-label='App footer details'
       >
-        <div className='connectivity-content'>
+        <div
+          className='connectivity-content'
+          style={{
+            filter: countdownProgress > 0 ? `brightness(${1 - countdownProgress * 0.6})` : 'none',
+            transition: 'filter 0.1s ease',
+          }}
+        >
           <div className='footer-sections'>
             {/* Connectivity Section */}
             <div className='footer-section'>
