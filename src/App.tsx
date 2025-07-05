@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 // Components
@@ -25,6 +25,7 @@ import { HealthCheckProvider, useHealthCheck } from './contexts/HealthCheckConte
 function AppContent() {
   const [activeTab, setActiveTab] = useState('runs');
   const [swipeHighlight, setSwipeHighlight] = useState(false);
+  const previousStatusRef = useRef<string | null>(null);
 
   // Custom hooks
   const { isLoggedIn, loading: authLoading, login, register, logout, getToken } = useAuth();
@@ -46,16 +47,17 @@ function AppContent() {
   );
 
   useEffect(() => {
-    // Show toast when connection status changes, but only after initial load
-    if (status === 'healthy') {
-      showToast('Connected to server', 'success');
-    } else if (status === 'disconnected') {
-      // Only show error toast if it's not the initial state
-      const timer = setTimeout(() => {
+    // Only show toast on actual status changes, not initial load
+    if (previousStatusRef.current !== null && previousStatusRef.current !== status) {
+      if (status === 'healthy') {
+        showToast('Connected to server', 'success');
+      } else if (status === 'disconnected') {
         showToast('Backend server not running - some features may be limited', 'info');
-      }, 2000);
-      return () => clearTimeout(timer);
+      }
     }
+
+    // Update the previous status
+    previousStatusRef.current = status;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
