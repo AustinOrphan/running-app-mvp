@@ -81,26 +81,38 @@ export const handleDatabaseError = (error: unknown, operation: string = 'Databas
   }
 
   // Handle connection errors
-  if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
-    return createDatabaseError('Database connection failed', {
-      code: error.code,
+  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
+    const errorWithCode = error as { code: string; message?: string; name?: string };
+
+    if (errorWithCode.code === 'ECONNREFUSED' || errorWithCode.code === 'ENOTFOUND') {
+      return createDatabaseError('Database connection failed', {
+        code: errorWithCode.code,
+        operation,
+        retryable: true,
+      });
+    }
+
+    // Handle timeout errors
+    if (errorWithCode.code === 'ETIMEDOUT') {
+      return createDatabaseError('Database operation timed out', {
+        code: errorWithCode.code,
+        operation,
+        retryable: true,
+      });
+    }
+  }
+
+  // Handle standard Error objects
+  if (error instanceof Error) {
+    return createDatabaseError(`${operation} failed: ${error.message}`, {
+      originalError: error.name,
       operation,
-      retryable: true,
     });
   }
 
-  // Handle timeout errors
-  if (error.code === 'ETIMEDOUT') {
-    return createDatabaseError('Database operation timed out', {
-      code: error.code,
-      operation,
-      retryable: true,
-    });
-  }
-
-  // Generic database error
-  return createDatabaseError(`${operation} failed: ${error.message}`, {
-    originalError: error.name,
+  // Fallback for non-Error objects and other primitives
+  return createDatabaseError(`${operation} failed: Unknown error`, {
+    originalError: 'Unknown',
     operation,
   });
 };

@@ -147,7 +147,9 @@ class ClientLogger {
       return;
     }
 
-    const redactedMetadata = metadata ? this.redactSensitiveData(metadata) : undefined;
+    const redactedMetadata = metadata
+      ? (this.redactSensitiveData(metadata) as Record<string, unknown>)
+      : undefined;
 
     const logEntry: LogEntry = {
       level,
