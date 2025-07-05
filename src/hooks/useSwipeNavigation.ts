@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 
-import { TAB_IDS, SWIPE_CONFIG } from '../constants/navigation';
-
-type TabId = (typeof TAB_IDS)[number];
+import { TAB_IDS, SWIPE_CONFIG, RouteKey } from '../constants/navigation';
 
 export const useSwipeNavigation = (
-  activeTab: string,
-  onTabChange: (tab: string) => void,
+  activeTab: RouteKey,
+  onTabChange: (tab: RouteKey) => void,
   onSwipeHighlight: () => void
 ) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -37,7 +35,7 @@ export const useSwipeNavigation = (
     const isLeftSwipe = distance > SWIPE_CONFIG.minDistance;
     const isRightSwipe = distance < -SWIPE_CONFIG.minDistance;
 
-    const currentTabIndex = TAB_IDS.indexOf(activeTab as TabId);
+    const currentTabIndex = TAB_IDS.indexOf(activeTab);
 
     if (isLeftSwipe && currentTabIndex < TAB_IDS.length - 1) {
       // Swipe left - go to next tab

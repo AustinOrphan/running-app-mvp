@@ -33,17 +33,30 @@ export const useConnectivityStatus = (): ConnectivityState & ConnectivityActions
   });
 
   const checkHealth = useCallback(async (): Promise<void> => {
-    setState(prev => ({ ...prev, status: 'connecting' }));
+    // Only show connecting state if we're not in an error state
+    setState(prev => ({
+      ...prev,
+      status:
+        prev.status === 'disconnected'
+          ? 'connecting'
+          : prev.status === 'loading'
+            ? 'connecting'
+            : prev.status,
+    }));
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const response = await fetch('/api/health', {
         method: 'GET',
         headers: {
           'Cache-Control': 'no-cache',
         },
-        // Add timeout to prevent hanging requests
-        signal: AbortSignal.timeout(5000),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const now = new Date();
@@ -59,7 +72,17 @@ export const useConnectivityStatus = (): ConnectivityState & ConnectivityActions
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      let errorMessage = 'Connection failed';
+
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = 'Request timeout (5s)';
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'Backend server not running';
+        } else {
+          errorMessage = error.message;
+        }
+      }
 
       setState(prev => ({
         ...prev,
@@ -80,16 +103,20 @@ export const useConnectivityStatus = (): ConnectivityState & ConnectivityActions
     await checkHealth();
   }, [checkHealth]);
 
-  // Initial health check
+  // Initial health check with delay to prevent immediate failure blocking UI
   useEffect(() => {
-    checkHealth();
+    const timer = setTimeout(() => {
+      checkHealth();
+    }, 1000); // 1 second delay to let the app render first
+
+    return () => clearTimeout(timer);
   }, [checkHealth]);
 
   // Periodic health checks
   useEffect(() => {
     const interval = setInterval(() => {
-      // Only check if we're not currently connecting
-      if (state.status !== 'connecting') {
+      // Only check if we're not currently connecting and app is visible
+      if (state.status !== 'connecting' && !document.hidden) {
         checkHealth();
       }
     }, HEALTH_CHECK_INTERVAL);

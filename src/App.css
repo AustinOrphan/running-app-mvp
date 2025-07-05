@@ -2302,6 +2302,18 @@ h3 {
   }
 }
 
+@keyframes footerGradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 @keyframes buttonPress {
   0% {
     transform: translateY(-1px) scale(1);
@@ -5550,42 +5562,104 @@ button:disabled:hover {
   right: 0;
   z-index: 1000;
   pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.connectivity-footer:hover {
+  filter: brightness(1.1);
+}
+
+.connectivity-footer.expanded:hover .connectivity-details {
+  background: rgba(0, 0, 0, 0.98);
 }
 
 .connectivity-line {
-  height: 3px;
+  height: 12px;
   width: 100%;
   cursor: pointer;
   transition: all 0.3s ease;
   pointer-events: auto;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to right, #3b82f6, #10b981, #f59e0b);
+  background-size: 200% 100%;
+  animation: footerGradientShift 5s ease-in-out infinite;
+  opacity: 0.9;
 }
 
 .connectivity-line:hover {
+  height: 16px;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+  animation: footerGradientShift 2.5s ease-in-out infinite;
+  transform: scaleY(1.1);
+  opacity: 1;
+}
+
+.connectivity-line::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
+}
+
+.connectivity-line:hover::before {
+  width: 60px;
   height: 4px;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
 }
 
 .connectivity-line:focus {
-  outline: 2px solid rgba(255, 255, 255, 0.5);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
-/* Status-specific colors are applied inline via style prop */
+/* Option to completely disable focus indicators */
+.connectivity-line.no-focus-indicator:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Status-specific colors and animations override the base gradient */
 .connectivity-line.healthy {
-  animation: subtle-pulse 3s ease-in-out infinite;
+  animation:
+    footerGradientShift 6s ease-in-out infinite,
+    subtle-pulse 4s ease-in-out infinite;
+  background: linear-gradient(to right, #10b981, #059669, #34d399);
+  background-size: 200% 100%;
 }
 
 .connectivity-line.connecting {
-  animation: connecting-pulse 1.5s ease-in-out infinite;
+  animation:
+    footerGradientShift 2s ease-in-out infinite,
+    connecting-pulse 1s ease-in-out infinite;
+  background: linear-gradient(to right, #f59e0b, #d97706, #fbbf24);
+  background-size: 200% 100%;
 }
 
 .connectivity-line.disconnected {
-  animation: error-pulse 2s ease-in-out infinite;
+  animation:
+    footerGradientShift 8s ease-in-out infinite,
+    error-pulse 2s ease-in-out infinite;
+  background: linear-gradient(to right, #ef4444, #dc2626, #f87171);
+  background-size: 200% 100%;
 }
 
 .connectivity-line.loading {
-  animation: loading-shimmer 2s linear infinite;
+  animation:
+    footerGradientShift 3s ease-in-out infinite,
+    loading-shimmer 2s linear infinite;
+  background: linear-gradient(to right, #6b7280, #9ca3af, #d1d5db);
+  background-size: 200% 100%;
 }
 
 /* Animations */
@@ -5643,13 +5717,19 @@ button:disabled:hover {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.1s ease;
   pointer-events: auto;
 }
 
 .connectivity-details.expanded {
-  max-height: 200px;
+  max-height: 400px;
   animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.connectivity-details.countdown {
+  /* Countdown visual effects handled via inline styles */
 }
 
 @keyframes slide-up {
@@ -5664,8 +5744,93 @@ button:disabled:hover {
 }
 
 .connectivity-content {
-  padding: 16px 20px;
+  padding: 20px 24px;
   color: rgba(255, 255, 255, 0.87);
+}
+
+.footer-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.footer-section {
+  min-height: 0;
+}
+
+.footer-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.footer-section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.footer-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 2px 0;
+}
+
+.footer-info-item.error {
+  color: #ef4444;
+}
+
+.footer-info-item.success {
+  color: #10b981;
+}
+
+.footer-info-item.warning {
+  color: #f59e0b;
+}
+
+.footer-info-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.footer-info-value {
+  color: rgba(255, 255, 255, 0.87);
+  font-weight: 500;
+}
+
+.footer-links {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.footer-link {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.2s ease;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.footer-link:hover {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: underline;
+}
+
+.footer-link:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .connectivity-status {
@@ -5678,8 +5843,9 @@ button:disabled:hover {
 }
 
 .status-indicator {
-  font-size: 14px;
+  font-size: 16px;
   animation: indicator-pulse 2s ease-in-out infinite;
+  margin-right: 4px;
 }
 
 @keyframes indicator-pulse {
@@ -5752,7 +5918,12 @@ button:disabled:hover {
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .connectivity-content {
-    padding: 12px 16px;
+    padding: 16px 20px;
+  }
+
+  .footer-sections {
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
 
   .connectivity-status {
@@ -5767,18 +5938,77 @@ button:disabled:hover {
     padding: 10px 16px;
     font-size: 13px;
   }
+
+  .footer-links {
+    gap: 12px;
+  }
 }
 
 @media (max-width: 480px) {
   .connectivity-content {
-    padding: 10px 12px;
+    padding: 14px 16px;
   }
 
   .connectivity-details.expanded {
-    max-height: 180px;
+    max-height: 350px;
   }
 
   .info-value {
     max-width: 60%;
   }
+
+  .footer-sections {
+    gap: 16px;
+  }
+
+  .footer-section h3 {
+    font-size: 13px;
+  }
+
+  .footer-info-item {
+    font-size: 12px;
+  }
+
+  .footer-link {
+    font-size: 12px;
+  }
+
+  .status-indicator {
+    font-size: 14px;
+  }
+
+  .connectivity-line {
+    height: 10px;
+  }
+
+  .connectivity-line:hover {
+    height: 14px;
+  }
+
+  .connectivity-line::before {
+    width: 30px;
+    height: 3px;
+  }
+
+  .connectivity-line:hover::before {
+    width: 45px;
+    height: 4px;
+  }
+}
+
+/* Countdown progress bar */
+.countdown-progress-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.countdown-progress-bar {
+  height: 100%;
+  border-radius: 0 2px 0 0;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
 }
