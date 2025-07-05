@@ -87,7 +87,52 @@ function AppContent() {
         <AuthForm onLogin={handleLogin} onRegister={handleRegister} loading={authLoading} />
 
         <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
-        <ConnectivityFooter />
+        <ConnectivityFooter
+          additionalSections={[
+            {
+              id: 'welcome-info',
+              title: 'Welcome',
+              content: (
+                <div className='footer-section-content'>
+                  <div className='footer-info-item'>
+                    <span className='footer-info-label'>Status:</span>
+                    <span className='footer-info-value'>Not logged in</span>
+                  </div>
+                  <div className='footer-info-item'>
+                    <span className='footer-info-label'>Features:</span>
+                    <span className='footer-info-value'>Login to access</span>
+                  </div>
+                </div>
+              ),
+            },
+          ]}
+          customLinks={[
+            {
+              label: 'Create Account',
+              href: '/register',
+              onClick: e => {
+                e.preventDefault();
+                showToast('Use the registration form above to create an account!', 'info');
+              },
+            },
+            {
+              label: 'Privacy Policy',
+              href: '/privacy',
+              onClick: e => {
+                e.preventDefault();
+                showToast('Privacy policy feature coming soon!', 'info');
+              },
+            },
+            {
+              label: 'About Running Tracker',
+              href: '/about',
+              onClick: e => {
+                e.preventDefault();
+                showToast('Track your runs, set goals, and improve your performance!', 'info');
+              },
+            },
+          ]}
+        />
       </div>
     );
   }
@@ -140,7 +185,46 @@ function AppContent() {
       </div>
 
       <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
-      <ConnectivityFooter />
+      <ConnectivityFooter
+        additionalSections={[
+          {
+            id: 'user-info',
+            title: 'Session',
+            content: (
+              <div className='footer-info-item'>
+                <span className='footer-info-label'>Logged in since:</span>
+                <span className='footer-info-value'>{new Date().toLocaleDateString()}</span>
+              </div>
+            ),
+          },
+        ]}
+        customLinks={[
+          {
+            label: 'Privacy Policy',
+            href: '/privacy',
+            onClick: e => {
+              e.preventDefault();
+              showToast('Privacy policy feature coming soon!', 'info');
+            },
+          },
+          {
+            label: 'Help & Support',
+            href: '/help',
+            onClick: e => {
+              e.preventDefault();
+              showToast('Help system feature coming soon!', 'info');
+            },
+          },
+          {
+            label: 'About',
+            href: '/about',
+            onClick: e => {
+              e.preventDefault();
+              showToast('About page feature coming soon!', 'info');
+            },
+          },
+        ]}
+      />
     </div>
   );
 }

@@ -2,8 +2,22 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useHealthCheck } from '../../contexts/HealthCheckContext';
 import { ConnectivityStatus } from '../../hooks/useConnectivityStatus';
 
+interface FooterSection {
+  id: string;
+  title: string;
+  content: React.ReactNode;
+}
+
+interface FooterLink {
+  label: string;
+  href: string;
+  onClick?: (e: React.MouseEvent) => void;
+}
+
 interface ConnectivityFooterProps {
   className?: string;
+  additionalSections?: FooterSection[];
+  customLinks?: FooterLink[];
 }
 
 const getStatusColor = (status: ConnectivityStatus): string => {
@@ -43,10 +57,18 @@ const formatTime = (date: Date | null): string => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({ className = '' }) => {
+export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
+  className = '',
+  additionalSections = [],
+  customLinks = [],
+}) => {
   const { status, lastChecked, lastSuccessful, retryCount, error, retry } = useHealthCheck();
   const [isExpanded, setIsExpanded] = useState(false);
   const autoCollapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // App version info
+  const appVersion = process.env.REACT_APP_VERSION || '1.0.0';
+  const buildDate = process.env.REACT_APP_BUILD_DATE || new Date().toISOString().split('T')[0];
 
   // Auto-collapse after 3 seconds of inactivity
   const scheduleAutoCollapse = useCallback(() => {
@@ -109,61 +131,135 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({ classNam
         }}
         role='button'
         tabIndex={0}
-        aria-label={`Connection status: ${statusText}. Click to expand details.`}
+        aria-label={`Footer: ${statusText}. Click to expand app details.`}
       />
 
       {/* Expanded details panel */}
       <div
         className={`connectivity-details ${isExpanded ? 'expanded' : ''}`}
         role='region'
-        aria-label='Connection details'
+        aria-label='App footer details'
       >
         <div className='connectivity-content'>
-          <div className='connectivity-status'>
-            <span className='status-indicator' style={{ color: statusColor }} aria-hidden='true'>
-              {statusIcon}
-            </span>
-            <span className='status-text'>{statusText}</span>
-          </div>
+          <div className='footer-sections'>
+            {/* Connectivity Section */}
+            <div className='footer-section'>
+              <h3>Connection</h3>
+              <div className='footer-section-content'>
+                <div className='connectivity-status'>
+                  <span
+                    className='status-indicator'
+                    style={{ color: statusColor }}
+                    aria-hidden='true'
+                  >
+                    {statusIcon}
+                  </span>
+                  <span className='status-text'>{statusText}</span>
+                </div>
 
-          <div className='connectivity-info'>
-            <div className='info-row'>
-              <span className='info-label'>Last checked:</span>
-              <span className='info-value'>{formatTime(lastChecked)}</span>
+                <div className='connectivity-info'>
+                  <div className='footer-info-item'>
+                    <span className='footer-info-label'>Last checked:</span>
+                    <span className='footer-info-value'>{formatTime(lastChecked)}</span>
+                  </div>
+
+                  {lastSuccessful && (
+                    <div className='footer-info-item'>
+                      <span className='footer-info-label'>Last successful:</span>
+                      <span className='footer-info-value'>{formatTime(lastSuccessful)}</span>
+                    </div>
+                  )}
+
+                  {error && (
+                    <div className='footer-info-item error'>
+                      <span className='footer-info-label'>Error:</span>
+                      <span className='footer-info-value'>{error}</span>
+                    </div>
+                  )}
+
+                  {retryCount > 0 && (
+                    <div className='footer-info-item'>
+                      <span className='footer-info-label'>Retry attempts:</span>
+                      <span className='footer-info-value'>{retryCount}</span>
+                    </div>
+                  )}
+                </div>
+
+                {(status === 'disconnected' || status === 'connecting') && (
+                  <button
+                    className='retry-button'
+                    onClick={handleRetry}
+                    disabled={status === 'connecting'}
+                    aria-label='Retry connection'
+                  >
+                    {status === 'connecting' ? 'Retrying...' : 'Retry Connection'}
+                  </button>
+                )}
+              </div>
             </div>
 
-            {lastSuccessful && (
-              <div className='info-row'>
-                <span className='info-label'>Last successful:</span>
-                <span className='info-value'>{formatTime(lastSuccessful)}</span>
+            {/* App Information Section */}
+            <div className='footer-section'>
+              <h3>App Info</h3>
+              <div className='footer-section-content'>
+                <div className='footer-info-item'>
+                  <span className='footer-info-label'>Version:</span>
+                  <span className='footer-info-value'>{appVersion}</span>
+                </div>
+                <div className='footer-info-item'>
+                  <span className='footer-info-label'>Build:</span>
+                  <span className='footer-info-value'>{buildDate}</span>
+                </div>
+                <div className='footer-info-item'>
+                  <span className='footer-info-label'>Environment:</span>
+                  <span className='footer-info-value'>{process.env.NODE_ENV || 'development'}</span>
+                </div>
               </div>
-            )}
-
-            {error && (
-              <div className='info-row error'>
-                <span className='info-label'>Error:</span>
-                <span className='info-value'>{error}</span>
-              </div>
-            )}
-
-            {retryCount > 0 && (
-              <div className='info-row'>
-                <span className='info-label'>Retry attempts:</span>
-                <span className='info-value'>{retryCount}</span>
-              </div>
-            )}
+            </div>
           </div>
 
-          {(status === 'disconnected' || status === 'connecting') && (
-            <button
-              className='retry-button'
-              onClick={handleRetry}
-              disabled={status === 'connecting'}
-              aria-label='Retry connection'
-            >
-              {status === 'connecting' ? 'Retrying...' : 'Retry Connection'}
-            </button>
+          {/* Additional Custom Sections */}
+          {additionalSections.length > 0 && (
+            <div className='footer-sections'>
+              {additionalSections.map(section => (
+                <div key={section.id} className='footer-section'>
+                  <h3>{section.title}</h3>
+                  <div className='footer-section-content'>{section.content}</div>
+                </div>
+              ))}
+            </div>
           )}
+
+          {/* Footer Links */}
+          <div className='footer-links'>
+            {customLinks.length > 0 ? (
+              customLinks.map((link, index) => (
+                <a
+                  key={index}
+                  href={link.href}
+                  className='footer-link'
+                  onClick={link.onClick || (e => e.preventDefault())}
+                >
+                  {link.label}
+                </a>
+              ))
+            ) : (
+              <>
+                <button type='button' className='footer-link' onClick={() => {}}>
+                  Privacy Policy
+                </button>
+                <button type='button' className='footer-link' onClick={() => {}}>
+                  Terms of Service
+                </button>
+                <button type='button' className='footer-link' onClick={() => {}}>
+                  Help & Support
+                </button>
+                <button type='button' className='footer-link' onClick={() => {}}>
+                  About
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
