@@ -65,7 +65,7 @@ export const getActiveTabFromPath = (pathname: string): RouteKey => {
   // Handle base path and fallback
   if (pathname === '/') return 'runs';
 
-  // Try to extract from path segments
+  // Try to extract from path segments - more robust for nested routes
   const segments = pathname.split('/').filter(Boolean);
   const firstSegment = segments[0] as RouteKey;
 

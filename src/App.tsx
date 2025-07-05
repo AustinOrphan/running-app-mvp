@@ -122,7 +122,9 @@ function App() {
             saving={saving}
             onSaveRun={saveRun}
             onDeleteRun={deleteRun}
-            onShowToast={(message, type) => showToast(message, type as any)}
+            onShowToast={(message, type) =>
+              showToast(message, type as 'success' | 'error' | 'info')
+            }
             token={getToken()}
           />
         </div>

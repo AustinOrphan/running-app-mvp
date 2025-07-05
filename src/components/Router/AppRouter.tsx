@@ -13,10 +13,24 @@ import { ROUTES } from '../../constants/navigation';
 interface AppRouterProps {
   isLoggedIn: boolean;
   // Props for RunsPage
-  runs: any[];
+  runs: Array<{
+    id: string;
+    date: string;
+    distance: number;
+    duration: number;
+    notes?: string;
+    tag?: string;
+  }>;
   runsLoading: boolean;
   saving: boolean;
-  onSaveRun: (run: any) => Promise<void>;
+  onSaveRun: (run: {
+    id?: string;
+    date: string;
+    distance: number;
+    duration: number;
+    notes?: string;
+    tag?: string;
+  }) => Promise<void>;
   onDeleteRun: (id: string) => Promise<void>;
   onShowToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   // Props for StatsPage
