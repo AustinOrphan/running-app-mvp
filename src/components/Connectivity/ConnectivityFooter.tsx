@@ -75,45 +75,53 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   const appVersion = getAppVersion();
   const buildDate = getBuildDate();
 
-  // Auto-collapse after 3 seconds of inactivity (only when mouse is not hovering)
-  const scheduleAutoCollapse = useCallback(() => {
+  // Clear any existing auto-collapse timeout
+  const clearAutoCollapseTimeout = useCallback(() => {
     if (autoCollapseTimeoutRef.current) {
       clearTimeout(autoCollapseTimeoutRef.current);
+      autoCollapseTimeoutRef.current = null;
     }
+  }, []);
 
-    // Only schedule auto-collapse if mouse is not hovering
-    if (!isMouseOver) {
-      const timeout = setTimeout(() => {
-        setIsExpanded(false);
-      }, 3000);
-
-      autoCollapseTimeoutRef.current = timeout;
-    }
-  }, [isMouseOver]);
+  // Schedule auto-collapse after 3 seconds
+  const scheduleAutoCollapse = useCallback(() => {
+    clearAutoCollapseTimeout();
+    console.log('Setting timeout to close footer in 3 seconds');
+    const timeout = setTimeout(() => {
+      console.log('Auto-collapse timeout triggered, closing footer');
+      setIsExpanded(false);
+    }, 3000);
+    autoCollapseTimeoutRef.current = timeout;
+  }, [clearAutoCollapseTimeout]);
 
   const handleToggleExpanded = () => {
     setIsExpanded(prev => !prev);
     if (!isExpanded) {
-      scheduleAutoCollapse();
+      // Will be handled by the effect below
     }
   };
 
   const handleMouseEnter = () => {
     setIsMouseOver(true);
-    // Clear any existing timeout when mouse enters
-    if (autoCollapseTimeoutRef.current) {
-      clearTimeout(autoCollapseTimeoutRef.current);
-      autoCollapseTimeoutRef.current = null;
-    }
+    clearAutoCollapseTimeout();
   };
 
   const handleMouseLeave = () => {
+    console.log('Mouse left footer, isExpanded:', isExpanded);
     setIsMouseOver(false);
-    // Start auto-collapse timer when mouse leaves (if expanded)
-    if (isExpanded) {
-      scheduleAutoCollapse();
-    }
   };
+
+  // Effect to handle auto-collapse scheduling
+  useEffect(() => {
+    console.log('Auto-collapse effect:', { isExpanded, isMouseOver });
+    if (isExpanded && !isMouseOver) {
+      console.log('Scheduling auto-collapse in 3 seconds');
+      scheduleAutoCollapse();
+    } else {
+      console.log('Clearing auto-collapse timeout');
+      clearAutoCollapseTimeout();
+    }
+  }, [isExpanded, isMouseOver, scheduleAutoCollapse, clearAutoCollapseTimeout]);
 
   const handleRetry = async () => {
     await retry();
@@ -124,12 +132,8 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   useEffect(() => {
     if (status === 'disconnected') {
       setIsExpanded(true);
-      // Only schedule auto-collapse if mouse is not hovering
-      if (!isMouseOver) {
-        scheduleAutoCollapse();
-      }
     }
-  }, [status, scheduleAutoCollapse, isMouseOver]);
+  }, [status]);
 
   // Click outside to close footer
   useEffect(() => {
