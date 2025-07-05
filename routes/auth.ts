@@ -49,7 +49,8 @@ router.post(
     });
 
     if (existingUser) {
-      return next(createConflictError('User already exists', { email }));
+      next(createConflictError('User already exists', { email }));
+      return;
     }
 
     // Hash password
@@ -67,14 +68,15 @@ router.post(
 
     // Generate JWT
     if (!process.env.JWT_SECRET) {
-      return next(createError('JWT secret not configured', 500));
+      next(createError('JWT secret not configured', 500));
+      return;
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
       expiresIn: '7d',
     });
 
-    return res.status(201).json({
+    res.status(201).json({
       message: 'User created successfully',
       token,
       user: {
@@ -98,27 +100,30 @@ router.post(
     });
 
     if (!user) {
-      return next(createUnauthorizedError('Invalid credentials'));
+      next(createUnauthorizedError('Invalid credentials'));
+      return;
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return next(createUnauthorizedError('Invalid credentials'));
+      next(createUnauthorizedError('Invalid credentials'));
+      return;
     }
 
     logUserAction('User login', req, { email });
 
     // Generate JWT
     if (!process.env.JWT_SECRET) {
-      return next(createError('JWT secret not configured', 500));
+      next(createError('JWT secret not configured', 500));
+      return;
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
       expiresIn: '7d',
     });
 
-    return res.json({
+    res.json({
       message: 'Login successful',
       token,
       user: {
@@ -137,7 +142,8 @@ router.get(
     // Safely validate user ID from token
     const userId = req.user?.id;
     if (typeof userId !== 'string') {
-      return next(createUnauthorizedError('Invalid token'));
+      next(createUnauthorizedError('Invalid token'));
+      return;
     }
 
     const user = await prisma.user.findUnique({
@@ -146,10 +152,11 @@ router.get(
     });
 
     if (!user) {
-      return next(createUnauthorizedError('Invalid token'));
+      next(createUnauthorizedError('Invalid token'));
+      return;
     }
 
-    return res.json({ user });
+    res.json({ user });
   })
 );
 

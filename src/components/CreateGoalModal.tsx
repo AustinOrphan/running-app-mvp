@@ -185,7 +185,12 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
       <div
         className='modal'
         onClick={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
+        onKeyDown={e => {
+          if (e.key === 'Escape') {
+            onClose();
+          }
+          e.stopPropagation();
+        }}
         role='dialog'
         aria-modal='true'
         aria-labelledby='create-goal-modal-title'

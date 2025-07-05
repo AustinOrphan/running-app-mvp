@@ -36,7 +36,7 @@ router.get(
 
     const avgPace = totalDistance > 0 ? totalDuration / totalDistance : 0;
 
-    return res.json({
+    res.json({
       totalDistance: Number(totalDistance.toFixed(2)),
       totalDuration,
       totalRuns,
@@ -94,10 +94,11 @@ router.get(
 
     // Handle empty data scenario
     if (breakdownArray.length === 0) {
-      return res.json([]);
+      res.json([]);
+      return;
     }
 
-    return res.json(breakdownArray);
+    res.json(breakdownArray);
   })
 );
 
@@ -111,9 +112,10 @@ router.get(
     // Validate period parameter
     const validPeriods = ['1m', '3m', '6m', '1y'];
     if (typeof period !== 'string' || !validPeriods.includes(period)) {
-      return _next(
+      _next(
         createValidationError('Invalid period parameter. Must be one of: 1m, 3m, 6m, 1y', 'period')
       );
+      return;
     }
 
     let daysBack = 90; // default 3 months
@@ -180,10 +182,11 @@ router.get(
 
     // Handle empty data scenario
     if (trendsData.length === 0) {
-      return res.json([]);
+      res.json([]);
+      return;
     }
 
-    return res.json(trendsData);
+    res.json(trendsData);
   })
 );
 
@@ -234,10 +237,11 @@ router.get(
 
     // Handle empty data scenario
     if (records.length === 0) {
-      return res.json([]);
+      res.json([]);
+      return;
     }
 
-    return res.json(records);
+    res.json(records);
   })
 );
 

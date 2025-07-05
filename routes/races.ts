@@ -26,7 +26,7 @@ router.get(
       orderBy: { raceDate: 'asc' },
     });
 
-    return res.json(races);
+    res.json(races);
   })
 );
 
@@ -41,10 +41,11 @@ router.get(
     });
 
     if (!race) {
-      return next(createNotFoundError('Race'));
+      next(createNotFoundError('Race'));
+      return;
     }
 
-    return res.json(race);
+    res.json(race);
   })
 );
 
@@ -68,7 +69,7 @@ router.post(
       },
     });
 
-    return res.status(201).json(race);
+    res.status(201).json(race);
   })
 );
 
@@ -84,11 +85,19 @@ router.put(
     });
 
     if (!existingRace) {
-      return next(createNotFoundError('Race'));
+      next(createNotFoundError('Race'));
+      return;
     }
 
     const { name, raceDate, distance, targetTime, actualTime, notes } = req.body;
-    const data: prisma.race = {};
+    const data: Partial<{
+      name: string;
+      raceDate: Date;
+      distance: number;
+      targetTime: number | null;
+      actualTime: number | null;
+      notes: string | null;
+    }> = {};
     if (name !== undefined) data.name = name.trim();
     if (raceDate !== undefined) data.raceDate = new Date(raceDate);
     if (distance !== undefined) data.distance = Number(distance);
@@ -101,7 +110,7 @@ router.put(
       data,
     });
 
-    return res.json(updated);
+    res.json(updated);
   })
 );
 
@@ -116,11 +125,12 @@ router.delete(
     });
 
     if (!existingRace) {
-      return next(createNotFoundError('Race'));
+      next(createNotFoundError('Race'));
+      return;
     }
 
     await prisma.race.delete({ where: { id: req.params.id } });
-    return res.status(204).send();
+    res.status(204).send();
   })
 );
 

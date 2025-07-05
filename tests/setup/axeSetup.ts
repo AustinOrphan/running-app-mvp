@@ -89,7 +89,6 @@ export const axeConfig = {
 export const checkAccessibility = async (page: any, options = {}) => {
   const { violations } = await page.locator('body').evaluate(
     async (body: HTMLElement, config: any) => {
-      // @ts-expect-error - axe is loaded globally in Playwright tests
       const axe = (window as any).axe;
       if (!axe) {
         throw new Error('axe-core not loaded. Make sure to inject axe-core script.');

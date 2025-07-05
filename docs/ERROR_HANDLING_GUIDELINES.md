@@ -18,21 +18,25 @@ This document provides comprehensive guidelines for implementing consistent, sec
 ## General Principles
 
 ### 1. **Consistency**
+
 - Use standardized error response formats across all endpoints
 - Apply consistent HTTP status codes for similar error scenarios
 - Use the same error handling patterns throughout the codebase
 
 ### 2. **Security**
+
 - Never expose sensitive information in error messages
 - Log detailed error information securely for debugging
 - Provide user-friendly messages without revealing system internals
 
 ### 3. **User Experience**
+
 - Provide clear, actionable error messages
 - Include relevant context when possible (e.g., field names for validation errors)
 - Use appropriate HTTP status codes for client handling
 
 ### 4. **Maintainability**
+
 - Use centralized error handling utilities
 - Follow established patterns for easy debugging
 - Document error scenarios and their handling
@@ -41,24 +45,24 @@ This document provides comprehensive guidelines for implementing consistent, sec
 
 ### **4xx Client Errors**
 
-| Status Code | Error Type | When to Use | Example |
-|-------------|------------|-------------|---------|
-| 400 | Bad Request | Invalid request format, validation failures | Invalid date format, missing required fields |
-| 401 | Unauthorized | Authentication failures | Invalid credentials, expired tokens |
-| 403 | Forbidden | Authorization failures | Insufficient permissions |
-| 404 | Not Found | Resource doesn't exist | User not found, run not found |
-| 409 | Conflict | Resource conflicts | Email already exists, duplicate data |
-| 422 | Unprocessable Entity | Valid request format but logical errors | End date before start date |
-| 429 | Too Many Requests | Rate limiting triggered | API rate limit exceeded |
+| Status Code | Error Type           | When to Use                                 | Example                                      |
+| ----------- | -------------------- | ------------------------------------------- | -------------------------------------------- |
+| 400         | Bad Request          | Invalid request format, validation failures | Invalid date format, missing required fields |
+| 401         | Unauthorized         | Authentication failures                     | Invalid credentials, expired tokens          |
+| 403         | Forbidden            | Authorization failures                      | Insufficient permissions                     |
+| 404         | Not Found            | Resource doesn't exist                      | User not found, run not found                |
+| 409         | Conflict             | Resource conflicts                          | Email already exists, duplicate data         |
+| 422         | Unprocessable Entity | Valid request format but logical errors     | End date before start date                   |
+| 429         | Too Many Requests    | Rate limiting triggered                     | API rate limit exceeded                      |
 
 ### **5xx Server Errors**
 
-| Status Code | Error Type | When to Use | Example |
-|-------------|------------|-------------|---------|
-| 500 | Internal Server Error | Unexpected server errors | Database connection failures, unhandled exceptions |
-| 502 | Bad Gateway | External service failures | Payment gateway errors |
-| 503 | Service Unavailable | Temporary service issues | Database maintenance, overload |
-| 504 | Gateway Timeout | External service timeouts | Slow external API responses |
+| Status Code | Error Type            | When to Use               | Example                                            |
+| ----------- | --------------------- | ------------------------- | -------------------------------------------------- |
+| 500         | Internal Server Error | Unexpected server errors  | Database connection failures, unhandled exceptions |
+| 502         | Bad Gateway           | External service failures | Payment gateway errors                             |
+| 503         | Service Unavailable   | Temporary service issues  | Database maintenance, overload                     |
+| 504         | Gateway Timeout       | External service timeouts | Slow external API responses                        |
 
 ## Error Response Format
 
@@ -102,32 +106,39 @@ This document provides comprehensive guidelines for implementing consistent, sec
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
 import { createNotFoundError, createValidationError } from '../middleware/errorHandler.js';
 
-router.get('/:id', requireAuth, asyncAuthHandler(async (req: AuthRequest, res, next) => {
-  // Validate input
-  if (!req.params.id) {
-    return next(createValidationError('ID parameter is required', 'id'));
-  }
+router.get(
+  '/:id',
+  requireAuth,
+  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+    // Validate input
+    if (!req.params.id) {
+      return next(createValidationError('ID parameter is required', 'id'));
+    }
 
-  // Database operation with error handling
-  const resource = await prisma.resource.findFirst({
-    where: { id: req.params.id, userId: req.user!.id }
-  });
+    // Database operation with error handling
+    const resource = await prisma.resource.findFirst({
+      where: { id: req.params.id, userId: req.user!.id },
+    });
 
-  if (!resource) {
-    return next(createNotFoundError('Resource'));
-  }
+    if (!resource) {
+      return next(createNotFoundError('Resource'));
+    }
 
-  res.json(resource);
-}));
+    res.json(resource);
+  })
+);
 ```
 
 ### **2. Always Use Async Handlers**
 
 ```typescript
 // ✅ Correct - Catches async errors automatically
-router.post('/', asyncAuthHandler(async (req, res, next) => {
-  // Async operation
-}));
+router.post(
+  '/',
+  asyncAuthHandler(async (req, res, next) => {
+    // Async operation
+  })
+);
 
 // ❌ Incorrect - Async errors not caught
 router.post('/', async (req, res, next) => {
@@ -157,9 +168,13 @@ if (validationFails) {
 router.use(sanitizeInput);
 
 // Individual route validation
-router.post('/', validateCreateData, asyncAuthHandler(async (req, res, next) => {
-  // Data is already validated and sanitized
-}));
+router.post(
+  '/',
+  validateCreateData,
+  asyncAuthHandler(async (req, res, next) => {
+    // Data is already validated and sanitized
+  })
+);
 ```
 
 ## Database Error Handling
@@ -186,13 +201,13 @@ try {
 
 ### **Common Database Error Scenarios**
 
-| Prisma Error Code | Meaning | Our Error Type |
-|-------------------|---------|----------------|
-| P2002 | Unique constraint violation | ConflictError (409) |
-| P2025 | Record not found | NotFoundError (404) |
-| P2003 | Foreign key constraint | ValidationError (400) |
-| P1008 | Connection timeout | DatabaseError (500) |
-| P1001 | Connection failed | DatabaseError (500) |
+| Prisma Error Code | Meaning                     | Our Error Type        |
+| ----------------- | --------------------------- | --------------------- |
+| P2002             | Unique constraint violation | ConflictError (409)   |
+| P2025             | Record not found            | NotFoundError (404)   |
+| P2003             | Foreign key constraint      | ValidationError (400) |
+| P1008             | Connection timeout          | DatabaseError (500)   |
+| P1001             | Connection failed           | DatabaseError (500)   |
 
 ## Security Considerations
 
@@ -213,7 +228,7 @@ return next(createError('User john@example.com not found', 404));
 secureLogger.error('Authentication failed', req, error, {
   email: req.body.email,
   ipAddress: req.ip,
-  userAgent: req.get('User-Agent')
+  userAgent: req.get('User-Agent'),
 });
 
 // Return generic error to client
@@ -228,10 +243,10 @@ const errorResponse = {
   error: true,
   message: err.message,
   statusCode,
-  ...(process.env.NODE_ENV === 'development' && { 
+  ...(process.env.NODE_ENV === 'development' && {
     stack: err.stack,
-    details: err.details 
-  })
+    details: err.details,
+  }),
 };
 ```
 
@@ -253,9 +268,7 @@ describe('GET /api/runs/:id', () => {
   });
 
   it('should return 401 for unauthenticated request', async () => {
-    const response = await request(app)
-      .get('/api/runs/123')
-      .expect(401);
+    const response = await request(app).get('/api/runs/123').expect(401);
 
     expect(response.body.errorCode).toBe('UNAUTHORIZED');
   });
@@ -269,7 +282,7 @@ describe('Error handling integration', () => {
   it('should handle database connection errors gracefully', async () => {
     // Simulate database failure
     await prisma.$disconnect();
-    
+
     const response = await request(app)
       .get('/api/runs')
       .set('Authorization', `Bearer ${token}`)
@@ -351,24 +364,31 @@ describe('Error handling integration', () => {
 ## Available Error Creation Functions
 
 ### **createError(message, statusCode)**
+
 Generic error creation for any status code.
 
 ### **createValidationError(message, field?, details?)**
+
 Validation errors (400) with optional field information.
 
 ### **createNotFoundError(resource?)**
+
 Resource not found errors (404).
 
 ### **createUnauthorizedError(message?)**
+
 Authentication failures (401).
 
 ### **createForbiddenError(message?)**
+
 Authorization failures (403).
 
 ### **createConflictError(message, details?)**
+
 Resource conflicts (409).
 
 ### **createDatabaseError(message?, details?)**
+
 Database operation failures (500).
 
 ## Best Practices Checklist
@@ -387,13 +407,15 @@ Database operation failures (500).
 ## Migration from Old Patterns
 
 ### **Before (Issues #25, #34)**
+
 ```typescript
 // ❌ Problematic patterns
-throw createError('Error', 500);        // Could crash server
-next(createError('Error', 500));        // Continued execution
+throw createError('Error', 500); // Could crash server
+next(createError('Error', 500)); // Continued execution
 ```
 
 ### **After (Current Standard)**
+
 ```typescript
 // ✅ Correct patterns
 return next(createValidationError('Invalid data', 'field'));

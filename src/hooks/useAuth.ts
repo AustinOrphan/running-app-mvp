@@ -32,7 +32,13 @@ export const useAuth = () => {
       const apiError = error as ApiError;
       return {
         success: false,
-        message: apiError.data?.message || apiError.message || 'Login failed',
+        message:
+          apiError.data &&
+          typeof apiError.data === 'object' &&
+          'message' in apiError.data &&
+          typeof apiError.data.message === 'string'
+            ? apiError.data.message
+            : apiError.message || 'Login failed',
       };
     } finally {
       setLoading(false);
@@ -58,7 +64,13 @@ export const useAuth = () => {
       const apiError = error as ApiError;
       return {
         success: false,
-        message: apiError.data?.message || apiError.message || 'Registration failed',
+        message:
+          apiError.data &&
+          typeof apiError.data === 'object' &&
+          'message' in apiError.data &&
+          typeof apiError.data.message === 'string'
+            ? apiError.data.message
+            : apiError.message || 'Registration failed',
       };
     } finally {
       setLoading(false);

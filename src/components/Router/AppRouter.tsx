@@ -10,14 +10,7 @@ import { StatsPage } from '../../pages/StatsPage';
 // Types and constants
 import { ROUTES } from '../../constants/navigation';
 
-interface Run {
-  id: string;
-  date: string;
-  distance: number;
-  duration: number;
-  notes?: string;
-  tag?: string;
-}
+import { Run, RunFormData } from '../../types';
 
 interface AppRouterProps {
   isLoggedIn: boolean;
@@ -25,14 +18,7 @@ interface AppRouterProps {
   runs: Run[];
   runsLoading: boolean;
   saving: boolean;
-  onSaveRun: (run: {
-    id?: string;
-    date: string;
-    distance: number;
-    duration: number;
-    notes?: string;
-    tag?: string;
-  }) => Promise<void>;
+  onSaveRun: (formData: RunFormData, editingRun?: Run | null) => Promise<void>;
   onDeleteRun: (id: string) => Promise<void>;
   onShowToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   // Props for StatsPage

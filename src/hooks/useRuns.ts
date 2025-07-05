@@ -48,9 +48,12 @@ export const useRuns = (token: string | null) => {
       logError('Failed to save run', error instanceof Error ? error : new Error(String(error)));
       const apiError = error as ApiError;
       throw new Error(
-        apiError.data?.message ||
-          apiError.message ||
-          `Failed to ${editingRun ? 'update' : 'save'} run`
+        apiError.data &&
+        typeof apiError.data === 'object' &&
+        'message' in apiError.data &&
+        typeof apiError.data.message === 'string'
+          ? apiError.data.message
+          : apiError.message || `Failed to ${editingRun ? 'update' : 'save'} run`
       );
     } finally {
       setSaving(false);
@@ -66,7 +69,14 @@ export const useRuns = (token: string | null) => {
     } catch (error) {
       logError('Failed to delete run', error instanceof Error ? error : new Error(String(error)));
       const apiError = error as ApiError;
-      throw new Error(apiError.data?.message || apiError.message || 'Failed to delete run');
+      throw new Error(
+        apiError.data &&
+        typeof apiError.data === 'object' &&
+        'message' in apiError.data &&
+        typeof apiError.data.message === 'string'
+          ? apiError.data.message
+          : apiError.message || 'Failed to delete run'
+      );
     }
   };
 

@@ -317,8 +317,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
               <div className='empty-icon'>🔔</div>
               <h4>No notifications yet</h4>
               <p>
-                You&apos;ll see milestone updates, deadline reminders, and achievement celebrations
-                here.
+                {`You'll see milestone updates, deadline reminders, and achievement celebrations here.`}
               </p>
             </div>
           ) : (

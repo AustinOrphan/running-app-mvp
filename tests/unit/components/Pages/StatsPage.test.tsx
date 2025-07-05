@@ -80,7 +80,17 @@ describe('StatsPage', () => {
       goalProgress: [],
       loading: false,
       error: null,
-      refetch: vi.fn(),
+      activeGoals: [],
+      completedGoals: [],
+      newlyAchievedGoals: [],
+      fetchGoals: vi.fn(),
+      createGoal: vi.fn(),
+      updateGoal: vi.fn(),
+      deleteGoal: vi.fn(),
+      completeGoal: vi.fn(),
+      getGoalProgress: vi.fn(),
+      refreshProgress: vi.fn(),
+      markAchievementSeen: vi.fn(),
     });
   });
 
