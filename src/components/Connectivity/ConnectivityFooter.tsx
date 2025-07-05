@@ -382,7 +382,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
         </div>
 
         {/* Countdown progress bar */}
-        {isExpanded && countdownProgress > 0 && (
+        {isExpanded && (countdownProgress > 0 || isResetting) && (
           <div className='countdown-progress-container'>
             <div
               className='countdown-progress-bar'
