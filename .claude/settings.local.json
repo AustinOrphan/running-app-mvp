@@ -54,7 +54,12 @@
       "Bash(npm run test:e2e:*)",
       "Bash(npm run:*)",
       "mcp__serena__summarize_changes",
-      "Bash(gh label:*)"
+      "Bash(gh label:*)",
+      "Bash(gh project:*)",
+      "Bash(gh milestone create:*)",
+      "Bash(GITHUB_REPO=\"AustinOrphan/running-app-mvp\")",
+      "Bash(export SHELL_SESSION_ID=\"milestone_creation_$(date +%s)\")",
+      "Bash(gh:*)"
     ],
     "deny": []
   }
