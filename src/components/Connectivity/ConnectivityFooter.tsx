@@ -169,7 +169,6 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
       {/* Thin status line */}
       <div
         className={`connectivity-line ${status} ${disableFocusIndicator ? 'no-focus-indicator' : ''}`}
-        style={{ backgroundColor: statusColor }}
         onClick={handleToggleExpanded}
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') {
