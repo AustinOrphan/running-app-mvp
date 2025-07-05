@@ -107,7 +107,7 @@ export const apiFetch = async <T = unknown>(
     if (typeof body === 'object' && body !== null && !(body instanceof FormData)) {
       requestConfig.body = JSON.stringify(body);
     } else {
-      requestConfig.body = body;
+      requestConfig.body = body as BodyInit;
       // Remove Content-Type for FormData to let browser set boundary
       if (body instanceof FormData) {
         delete headers['Content-Type'];
@@ -132,7 +132,7 @@ export const apiFetch = async <T = unknown>(
           if (contentType?.includes('application/json')) {
             errorData = await response.json();
             // Use server error message if available
-            errorMessage = errorData.message || errorData.error || errorMessage;
+            errorMessage = (errorData as any)?.message || (errorData as any)?.error || errorMessage;
           } else {
             errorData = { message: await response.text() };
           }
