@@ -81,7 +81,7 @@ export const handleDatabaseError = (error: unknown, operation: string = 'Databas
   }
 
   // Handle connection errors
-  if (error && typeof error === 'object' && 'code' in error) {
+  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
     const errorWithCode = error as { code: string; message?: string; name?: string };
 
     if (errorWithCode.code === 'ECONNREFUSED' || errorWithCode.code === 'ENOTFOUND') {
@@ -102,18 +102,17 @@ export const handleDatabaseError = (error: unknown, operation: string = 'Databas
     }
   }
 
-  // Generic database error
-  const errorMessage =
-    error && typeof error === 'object' && 'message' in error
-      ? (error as { message: string }).message
-      : 'Unknown error';
-  const errorName =
-    error && typeof error === 'object' && 'name' in error
-      ? (error as { name: string }).name
-      : 'Unknown';
+  // Handle standard Error objects
+  if (error instanceof Error) {
+    return createDatabaseError(`${operation} failed: ${error.message}`, {
+      originalError: error.name,
+      operation,
+    });
+  }
 
-  return createDatabaseError(`${operation} failed: ${errorMessage}`, {
-    originalError: errorName,
+  // Fallback for non-Error objects and other primitives
+  return createDatabaseError(`${operation} failed: Unknown error`, {
+    originalError: 'Unknown',
     operation,
   });
 };
