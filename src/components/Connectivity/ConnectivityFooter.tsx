@@ -138,9 +138,19 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   }, [clearAutoCollapseTimeout]);
 
   const handleToggleExpanded = () => {
-    setIsExpanded(prev => !prev);
-    setCountdownProgress(0);
-    setIsAutoClosing(false);
+    if (isExpanded) {
+      // Closing - use same flow as auto-close
+      setIsAutoClosing(true);
+      setIsExpanded(false);
+      clearAutoCollapseTimeout();
+      setTimeout(() => {
+        setCountdownProgress(0);
+        setIsAutoClosing(false);
+      }, 300);
+    } else {
+      // Opening
+      setIsExpanded(true);
+    }
   };
 
   const handleMouseEnter = () => {
@@ -177,11 +187,14 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (isExpanded && footerRef.current && !footerRef.current.contains(event.target as Node)) {
+        setIsAutoClosing(true);
         setIsExpanded(false);
-        if (autoCollapseTimeoutRef.current) {
-          clearTimeout(autoCollapseTimeoutRef.current);
-          autoCollapseTimeoutRef.current = null;
-        }
+        clearAutoCollapseTimeout();
+        // Reset states after footer closes
+        setTimeout(() => {
+          setCountdownProgress(0);
+          setIsAutoClosing(false);
+        }, 300);
       }
     };
 
@@ -194,17 +207,20 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [isExpanded]);
+  }, [isExpanded, clearAutoCollapseTimeout]);
 
   // Escape key to close footer
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (isExpanded && event.key === 'Escape') {
+        setIsAutoClosing(true);
         setIsExpanded(false);
-        if (autoCollapseTimeoutRef.current) {
-          clearTimeout(autoCollapseTimeoutRef.current);
-          autoCollapseTimeoutRef.current = null;
-        }
+        clearAutoCollapseTimeout();
+        // Reset states after footer closes
+        setTimeout(() => {
+          setCountdownProgress(0);
+          setIsAutoClosing(false);
+        }, 300);
       }
     };
 
@@ -215,7 +231,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
     return () => {
       document.removeEventListener('keydown', handleEscapeKey);
     };
-  }, [isExpanded]);
+  }, [isExpanded, clearAutoCollapseTimeout]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
