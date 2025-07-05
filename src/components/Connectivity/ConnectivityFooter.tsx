@@ -68,29 +68,53 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   const { status, lastChecked, lastSuccessful, retryCount, error, retry } = useHealthCheck();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMouseOver, setIsMouseOver] = useState(false);
+  const [countdownProgress, setCountdownProgress] = useState(0);
   const autoCollapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const footerRef = useRef<HTMLDivElement>(null);
 
   // App version info - safely access environment variables
   const appVersion = getAppVersion();
   const buildDate = getBuildDate();
 
-  // Clear any existing auto-collapse timeout
+  // Clear any existing auto-collapse timeout and countdown
   const clearAutoCollapseTimeout = useCallback(() => {
     if (autoCollapseTimeoutRef.current) {
       clearTimeout(autoCollapseTimeoutRef.current);
       autoCollapseTimeoutRef.current = null;
     }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setCountdownProgress(0);
   }, []);
 
-  // Schedule auto-collapse after 3 seconds
+  // Schedule auto-collapse after 3 seconds with visual countdown
   const scheduleAutoCollapse = useCallback(() => {
     clearAutoCollapseTimeout();
-    console.log('Setting timeout to close footer in 3 seconds');
+
+    const countdownDuration = 3000; // 3 seconds
+    const updateInterval = 50; // Update every 50ms for smooth animation
+    const startTime = Date.now();
+
+    // Start countdown animation
+    const countdownInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / countdownDuration, 1);
+      setCountdownProgress(progress);
+
+      if (progress >= 1) {
+        clearInterval(countdownInterval);
+      }
+    }, updateInterval);
+    countdownIntervalRef.current = countdownInterval;
+
+    // Set main timeout to close footer
     const timeout = setTimeout(() => {
-      console.log('Auto-collapse timeout triggered, closing footer');
       setIsExpanded(false);
-    }, 3000);
+      setCountdownProgress(0);
+    }, countdownDuration);
     autoCollapseTimeoutRef.current = timeout;
   }, [clearAutoCollapseTimeout]);
 
@@ -107,18 +131,14 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   };
 
   const handleMouseLeave = () => {
-    console.log('Mouse left footer, isExpanded:', isExpanded);
     setIsMouseOver(false);
   };
 
   // Effect to handle auto-collapse scheduling
   useEffect(() => {
-    console.log('Auto-collapse effect:', { isExpanded, isMouseOver });
     if (isExpanded && !isMouseOver) {
-      console.log('Scheduling auto-collapse in 3 seconds');
       scheduleAutoCollapse();
     } else {
-      console.log('Clearing auto-collapse timeout');
       clearAutoCollapseTimeout();
     }
   }, [isExpanded, isMouseOver, scheduleAutoCollapse, clearAutoCollapseTimeout]);
@@ -179,14 +199,12 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
     };
   }, [isExpanded]);
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
-      if (autoCollapseTimeoutRef.current) {
-        clearTimeout(autoCollapseTimeoutRef.current);
-      }
+      clearAutoCollapseTimeout();
     };
-  }, []);
+  }, [clearAutoCollapseTimeout]);
 
   const statusColor = getStatusColor(status);
   const statusIcon = STATUS_ICON;
@@ -216,7 +234,15 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
 
       {/* Expanded details panel */}
       <div
-        className={`connectivity-details ${isExpanded ? 'expanded' : ''}`}
+        className={`connectivity-details ${isExpanded ? 'expanded' : ''} ${
+          countdownProgress > 0 ? 'countdown' : ''
+        }`}
+        style={{
+          background:
+            isExpanded && countdownProgress > 0
+              ? `rgba(0, 0, 0, ${0.95 + countdownProgress * 0.05})`
+              : undefined,
+        }}
         role='region'
         aria-label='App footer details'
       >
@@ -341,6 +367,22 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
             )}
           </div>
         </div>
+
+        {/* Countdown progress bar */}
+        {isExpanded && countdownProgress > 0 && (
+          <div className='countdown-progress-container'>
+            <div
+              className='countdown-progress-bar'
+              style={{
+                width: `${countdownProgress * 100}%`,
+                background: `linear-gradient(to right,
+                  rgba(239, 68, 68, 0.3),
+                  rgba(239, 68, 68, 0.6),
+                  rgba(239, 68, 68, 0.9))`,
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
