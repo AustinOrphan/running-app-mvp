@@ -80,7 +80,6 @@ describe('StatsPage', () => {
       goalProgress: [],
       loading: false,
       error: null,
-      refetch: vi.fn(),
     });
   });
 

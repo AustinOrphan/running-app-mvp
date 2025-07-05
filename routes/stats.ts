@@ -112,9 +112,10 @@ router.get(
     // Validate period parameter
     const validPeriods = ['1m', '3m', '6m', '1y'];
     if (typeof period !== 'string' || !validPeriods.includes(period)) {
-      return _next(
+      _next(
         createValidationError('Invalid period parameter. Must be one of: 1m, 3m, 6m, 1y', 'period')
       );
+      return;
     }
 
     let daysBack = 90; // default 3 months

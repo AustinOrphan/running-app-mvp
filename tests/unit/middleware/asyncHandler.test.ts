@@ -31,7 +31,7 @@ describe('AsyncHandler Middleware Tests', () => {
 
     it('should not call next when async function succeeds', async () => {
       const testHandler = asyncHandler(async (_req, _res, _next) => {
-        (res as any).json({ success: true });
+        (_res as any).json({ success: true });
       });
 
       await testHandler(mockRequest as Request, mockResponse as Response, mockNext);
