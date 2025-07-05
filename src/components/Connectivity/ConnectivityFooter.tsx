@@ -70,6 +70,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   const [isMouseOver, setIsMouseOver] = useState(false);
   const [countdownProgress, setCountdownProgress] = useState(0);
   const [isResetting, setIsResetting] = useState(false);
+  const [isAutoClosing, setIsAutoClosing] = useState(false);
   const autoCollapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const footerRef = useRef<HTMLDivElement>(null);
@@ -125,17 +126,21 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
 
     // Set main timeout to close footer
     const timeout = setTimeout(() => {
+      setIsAutoClosing(true);
       setIsExpanded(false);
-      setCountdownProgress(0);
+      // Reset states after footer closes
+      setTimeout(() => {
+        setCountdownProgress(0);
+        setIsAutoClosing(false);
+      }, 300); // Match footer close animation duration
     }, countdownDuration);
     autoCollapseTimeoutRef.current = timeout;
   }, [clearAutoCollapseTimeout]);
 
   const handleToggleExpanded = () => {
     setIsExpanded(prev => !prev);
-    if (!isExpanded) {
-      // Will be handled by the effect below
-    }
+    setCountdownProgress(0);
+    setIsAutoClosing(false);
   };
 
   const handleMouseEnter = () => {
@@ -256,8 +261,11 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
         <div
           className='connectivity-content'
           style={{
-            filter: countdownProgress > 0 ? `brightness(${1 - countdownProgress * 0.6})` : 'none',
-            transition: isMouseOver ? 'filter 0.3s ease-out' : 'filter 0.1s ease',
+            filter:
+              countdownProgress > 0 || isAutoClosing
+                ? `brightness(${1 - (isAutoClosing ? 1 : countdownProgress) * 0.6})`
+                : 'none',
+            transition: isMouseOver || isResetting ? 'filter 0.3s ease-out' : 'filter 0.1s ease',
           }}
         >
           <div className='footer-sections'>
