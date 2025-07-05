@@ -6012,7 +6012,6 @@ button:disabled:hover {
 
 .countdown-progress-bar {
   height: 100%;
-  transition: width 0.05s linear;
   border-radius: 0 2px 0 0;
   box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
 }

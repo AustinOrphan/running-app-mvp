@@ -90,6 +90,31 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
     setCountdownProgress(0);
   }, []);
 
+  // Animate countdown back to 0 when cancelling
+  const animateCountdownReset = useCallback(() => {
+    if (countdownProgress > 0) {
+      const startProgress = countdownProgress;
+      const animationDuration = 300; // 300ms to animate back to 0
+      const startTime = Date.now();
+
+      // Clear any existing countdown first
+      clearAutoCollapseTimeout();
+
+      const resetInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / animationDuration, 1);
+        const currentProgress = startProgress * (1 - progress);
+
+        setCountdownProgress(currentProgress);
+
+        if (progress >= 1) {
+          clearInterval(resetInterval);
+          setCountdownProgress(0);
+        }
+      }, 16); // ~60fps
+    }
+  }, [countdownProgress, clearAutoCollapseTimeout]);
+
   // Schedule auto-collapse after 3 seconds with visual countdown
   const scheduleAutoCollapse = useCallback(() => {
     clearAutoCollapseTimeout();
@@ -127,7 +152,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
 
   const handleMouseEnter = () => {
     setIsMouseOver(true);
-    clearAutoCollapseTimeout();
+    animateCountdownReset();
   };
 
   const handleMouseLeave = () => {
@@ -244,7 +269,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
           className='connectivity-content'
           style={{
             filter: countdownProgress > 0 ? `brightness(${1 - countdownProgress * 0.6})` : 'none',
-            transition: 'filter 0.1s ease',
+            transition: isMouseOver ? 'filter 0.3s ease-out' : 'filter 0.1s ease',
           }}
         >
           <div className='footer-sections'>
@@ -379,6 +404,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
                   rgba(239, 68, 68, 0.3),
                   rgba(239, 68, 68, 0.6),
                   rgba(239, 68, 68, 0.9))`,
+                transition: isMouseOver ? 'width 0.3s ease-out' : 'width 0.05s linear',
               }}
             />
           </div>
