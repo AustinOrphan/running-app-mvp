@@ -91,6 +91,7 @@ describe('StatsPage', () => {
       getGoalProgress: vi.fn(),
       refreshProgress: vi.fn(),
       markAchievementSeen: vi.fn(),
+    });
   });
 
   afterEach(() => {
