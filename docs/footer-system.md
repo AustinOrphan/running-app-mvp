@@ -59,7 +59,7 @@ import { ConnectivityFooter } from './components/Connectivity/ConnectivityFooter
     {
       label: 'Help Center',
       href: '/help',
-      onClick: (e) => {
+      onClick: e => {
         e.preventDefault();
         openHelpModal();
       },
@@ -100,7 +100,7 @@ if (process.env.NODE_ENV === 'development') {
   sections.push(createDebugSection());
 }
 
-<ConnectivityFooter additionalSections={sections} />
+<ConnectivityFooter additionalSections={sections} />;
 ```
 
 ### Custom Info Sections
@@ -118,7 +118,9 @@ const customSection = createInfoSection('my-section', 'My Data', [
 ## Built-in Sections
 
 ### Connectivity Section
+
 Always present, shows:
+
 - Current connection status (visual indicator)
 - Last checked timestamp
 - Last successful connection
@@ -127,7 +129,9 @@ Always present, shows:
 - Manual retry functionality
 
 ### App Information Section
+
 Always present, shows:
+
 - App version
 - Build date
 - Current environment (development/production)
@@ -148,18 +152,21 @@ const items = [
 ## CSS Classes
 
 ### Main Structure
+
 - `.connectivity-footer` - Root container
 - `.connectivity-line` - Interactive bar (click to expand)
 - `.connectivity-details` - Expandable content area
 - `.connectivity-content` - Inner content wrapper
 
 ### Sections
+
 - `.footer-sections` - Grid container for sections
 - `.footer-section` - Individual section wrapper
 - `.footer-section h3` - Section headers
 - `.footer-section-content` - Section content wrapper
 
 ### Info Items
+
 - `.footer-info-item` - Individual info rows
 - `.footer-info-label` - Left side labels
 - `.footer-info-value` - Right side values
@@ -168,21 +175,25 @@ const items = [
 - `.footer-info-item.error` - Error variant (red)
 
 ### Links
+
 - `.footer-links` - Links container
 - `.footer-link` - Individual links
 
 ## Responsive Behavior
 
 ### Desktop (768px+)
+
 - 12px bar height (16px on hover)
 - Two-column grid for sections
 - Full-size touch targets
 
 ### Tablet (480px - 768px)
+
 - Single-column grid for sections
 - Adjusted padding and spacing
 
 ### Mobile (< 480px)
+
 - 10px bar height (14px on hover)
 - Smaller touch indicators
 - Condensed spacing
@@ -203,16 +214,19 @@ const items = [
 The footer bar has keyboard accessibility with customizable focus indicators:
 
 **Default behavior** (recommended for accessibility):
+
 ```tsx
-<ConnectivityFooter />  // Shows subtle box-shadow on focus
+<ConnectivityFooter /> // Shows subtle box-shadow on focus
 ```
 
 **Disabled focus indicators** (cleaner visual, but less accessible):
+
 ```tsx
 <ConnectivityFooter disableFocusIndicator={true} />
 ```
 
 **Custom focus styling** (via CSS):
+
 ```css
 .connectivity-line:focus {
   outline: none;
@@ -225,10 +239,12 @@ The footer bar has keyboard accessibility with customizable focus indicators:
 The footer provides intuitive interaction patterns:
 
 **Opening the footer**:
+
 - Click/tap the footer bar
 - Press Enter or Space when bar is focused
 
 **Closing the footer**:
+
 - Click/tap the footer bar again
 - Click/tap anywhere outside the footer
 - Press Escape key
@@ -236,6 +252,7 @@ The footer provides intuitive interaction patterns:
 - Mouse hover pauses auto-collapse timer
 
 **Mouse & Touch Interaction**:
+
 - Touch events work the same as mouse events
 - Large enough touch targets for easy interaction
 - Mouse hover keeps footer open (pauses auto-collapse)
@@ -255,23 +272,27 @@ NODE_ENV=development             # Environment indicator
 ## Best Practices
 
 ### Section Design
+
 - Keep section titles short and descriptive
 - Use consistent info item patterns
 - Limit sections to avoid overcrowding
 - Consider mobile space constraints
 
 ### Link Behavior
+
 - Always provide meaningful onClick handlers
 - Use preventDefault() for SPA navigation
 - Keep link text concise
 - Group related links logically
 
 ### Performance
+
 - Lazy load heavy content in sections
 - Debounce expensive operations
 - Cache static content where possible
 
 ### User Experience
+
 - Show relevant information based on app state
 - Use appropriate variants for status indicators
 - Provide actionable items when applicable
@@ -284,16 +305,19 @@ NODE_ENV=development             # Environment indicator
 ## Example Configurations
 
 ### Minimal Footer
+
 ```tsx
 <ConnectivityFooter />
 ```
 
 ### Clean Footer (no focus indicators)
+
 ```tsx
 <ConnectivityFooter disableFocusIndicator={true} />
 ```
 
 ### Development Footer
+
 ```tsx
 <ConnectivityFooter
   disableFocusIndicator={true}
@@ -309,9 +333,10 @@ NODE_ENV=development             # Environment indicator
 ```
 
 ### User Dashboard Footer
+
 ```tsx
 <ConnectivityFooter
-  disableFocusIndicator={false}  // Keep accessibility for main app
+  disableFocusIndicator={false} // Keep accessibility for main app
   additionalSections={[
     createUserStatsSection(userStats),
     createInfoSection('session', 'Session', [
@@ -326,6 +351,7 @@ NODE_ENV=development             # Environment indicator
 ## Future Enhancements
 
 Planned improvements include:
+
 - Drag-to-resize functionality
 - Persistent expanded state preferences
 - More pre-built section types

@@ -132,7 +132,8 @@ export const apiFetch = async <T = unknown>(
           if (contentType?.includes('application/json')) {
             errorData = await response.json();
             // Use server error message if available
-            errorMessage = (errorData as any)?.message || (errorData as any)?.error || errorMessage;
+            const errorObj = errorData as { message?: string; error?: string };
+            errorMessage = errorObj.message || errorObj.error || errorMessage;
           } else {
             errorData = { message: await response.text() };
           }
