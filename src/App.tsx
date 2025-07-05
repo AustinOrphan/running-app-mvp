@@ -30,7 +30,7 @@ function AppContent() {
   const { isLoggedIn, loading: authLoading, login, register, logout, getToken } = useAuth();
   const { toasts, showToast, removeToast } = useToast();
   const { runs, loading: runsLoading, saving, saveRun, deleteRun } = useRuns(getToken());
-  const { healthStatus, status } = useHealthCheck();
+  const { status } = useHealthCheck();
 
   const triggerSwipeHighlight = () => {
     setSwipeHighlight(true);
@@ -52,7 +52,7 @@ function AppContent() {
     } else if (status === 'disconnected') {
       // Only show error toast if it's not the initial state
       const timer = setTimeout(() => {
-        showToast('Backend server not running - some features may be limited', 'warning');
+        showToast('Backend server not running - some features may be limited', 'info');
       }, 2000);
       return () => clearTimeout(timer);
     }
@@ -96,7 +96,6 @@ function AppContent() {
     return (
       <div className='app'>
         <h1>🏃‍♂️ Running Tracker</h1>
-        <div className='status'>{healthStatus}</div>
 
         {status === 'disconnected' && (
           <div
@@ -172,7 +171,7 @@ function AppContent() {
 
   return (
     <div className='app'>
-      <Header healthStatus={healthStatus} onLogout={handleLogout} />
+      <Header onLogout={handleLogout} />
 
       <TabNavigation
         activeTab={activeTab}
