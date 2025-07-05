@@ -69,6 +69,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMouseOver, setIsMouseOver] = useState(false);
   const [countdownProgress, setCountdownProgress] = useState(0);
+  const [isResetting, setIsResetting] = useState(false);
   const autoCollapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const footerRef = useRef<HTMLDivElement>(null);
@@ -90,30 +91,16 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
     setCountdownProgress(0);
   }, []);
 
-  // Animate countdown back to 0 when cancelling
-  const animateCountdownReset = useCallback(() => {
-    if (countdownProgress > 0) {
-      const startProgress = countdownProgress;
-      const animationDuration = 300; // 300ms to animate back to 0
-      const startTime = Date.now();
-
-      // Clear any existing countdown first
-      clearAutoCollapseTimeout();
-
-      const resetInterval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / animationDuration, 1);
-        const currentProgress = startProgress * (1 - progress);
-
-        setCountdownProgress(currentProgress);
-
-        if (progress >= 1) {
-          clearInterval(resetInterval);
-          setCountdownProgress(0);
-        }
-      }, 16); // ~60fps
-    }
-  }, [countdownProgress, clearAutoCollapseTimeout]);
+  // Reset countdown smoothly using CSS transition
+  const resetCountdown = useCallback(() => {
+    clearAutoCollapseTimeout();
+    setIsResetting(true);
+    setCountdownProgress(0);
+    // Reset the resetting flag after animation completes
+    setTimeout(() => {
+      setIsResetting(false);
+    }, 300);
+  }, [clearAutoCollapseTimeout]);
 
   // Schedule auto-collapse after 3 seconds with visual countdown
   const scheduleAutoCollapse = useCallback(() => {
@@ -134,6 +121,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
       }
     }, updateInterval);
     countdownIntervalRef.current = countdownInterval;
+    setIsResetting(false);
 
     // Set main timeout to close footer
     const timeout = setTimeout(() => {
@@ -152,7 +140,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
 
   const handleMouseEnter = () => {
     setIsMouseOver(true);
-    animateCountdownReset();
+    resetCountdown();
   };
 
   const handleMouseLeave = () => {
@@ -404,7 +392,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
                   rgba(239, 68, 68, 0.3),
                   rgba(239, 68, 68, 0.6),
                   rgba(239, 68, 68, 0.9))`,
-                transition: isMouseOver ? 'width 0.3s ease-out' : 'width 0.05s linear',
+                transition: isResetting ? 'width 0.3s ease-out' : 'width 0.05s linear',
               }}
             />
           </div>
