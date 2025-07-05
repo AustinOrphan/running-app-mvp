@@ -232,11 +232,14 @@ The footer provides intuitive interaction patterns:
 - Click/tap the footer bar again
 - Click/tap anywhere outside the footer
 - Press Escape key
-- Wait 3 seconds (auto-collapse)
+- Wait 3 seconds after mouse leaves footer (auto-collapse)
+- Mouse hover pauses auto-collapse timer
 
-**Mobile-friendly**:
+**Mouse & Touch Interaction**:
 - Touch events work the same as mouse events
 - Large enough touch targets for easy interaction
+- Mouse hover keeps footer open (pauses auto-collapse)
+- Auto-collapse timer starts when mouse leaves footer
 - Responsive design adapts to screen size
 
 ## Environment Variables
@@ -275,6 +278,8 @@ NODE_ENV=development             # Environment indicator
 - Keep content scannable and organized
 - Footer closes automatically when users interact elsewhere
 - Escape key provides quick exit for keyboard users
+- Mouse hover keeps footer open for better usability
+- Auto-collapse only triggers after mouse leaves footer area
 
 ## Example Configurations
 

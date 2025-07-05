@@ -67,6 +67,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
 }) => {
   const { status, lastChecked, lastSuccessful, retryCount, error, retry } = useHealthCheck();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isMouseOver, setIsMouseOver] = useState(false);
   const autoCollapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const footerRef = useRef<HTMLDivElement>(null);
 
@@ -74,22 +75,42 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   const appVersion = getAppVersion();
   const buildDate = getBuildDate();
 
-  // Auto-collapse after 3 seconds of inactivity
+  // Auto-collapse after 3 seconds of inactivity (only when mouse is not hovering)
   const scheduleAutoCollapse = useCallback(() => {
     if (autoCollapseTimeoutRef.current) {
       clearTimeout(autoCollapseTimeoutRef.current);
     }
 
-    const timeout = setTimeout(() => {
-      setIsExpanded(false);
-    }, 3000);
+    // Only schedule auto-collapse if mouse is not hovering
+    if (!isMouseOver) {
+      const timeout = setTimeout(() => {
+        setIsExpanded(false);
+      }, 3000);
 
-    autoCollapseTimeoutRef.current = timeout;
-  }, []);
+      autoCollapseTimeoutRef.current = timeout;
+    }
+  }, [isMouseOver]);
 
   const handleToggleExpanded = () => {
     setIsExpanded(prev => !prev);
     if (!isExpanded) {
+      scheduleAutoCollapse();
+    }
+  };
+
+  const handleMouseEnter = () => {
+    setIsMouseOver(true);
+    // Clear any existing timeout when mouse enters
+    if (autoCollapseTimeoutRef.current) {
+      clearTimeout(autoCollapseTimeoutRef.current);
+      autoCollapseTimeoutRef.current = null;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsMouseOver(false);
+    // Start auto-collapse timer when mouse leaves (if expanded)
+    if (isExpanded) {
       scheduleAutoCollapse();
     }
   };
@@ -103,9 +124,12 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   useEffect(() => {
     if (status === 'disconnected') {
       setIsExpanded(true);
-      scheduleAutoCollapse();
+      // Only schedule auto-collapse if mouse is not hovering
+      if (!isMouseOver) {
+        scheduleAutoCollapse();
+      }
     }
-  }, [status, scheduleAutoCollapse]);
+  }, [status, scheduleAutoCollapse, isMouseOver]);
 
   // Click outside to close footer
   useEffect(() => {
@@ -165,7 +189,12 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   const statusText = getStatusText(status);
 
   return (
-    <div ref={footerRef} className={`connectivity-footer ${className}`}>
+    <div
+      ref={footerRef}
+      className={`connectivity-footer ${className} ${isExpanded ? 'expanded' : ''}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       {/* Thin status line */}
       <div
         className={`connectivity-line ${status} ${disableFocusIndicator ? 'no-focus-indicator' : ''}`}

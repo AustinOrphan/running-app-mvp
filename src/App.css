@@ -5565,6 +5565,15 @@ button:disabled:hover {
   right: 0;
   z-index: 1000;
   pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.connectivity-footer:hover {
+  filter: brightness(1.1);
+}
+
+.connectivity-footer.expanded:hover .connectivity-details {
+  background: rgba(0, 0, 0, 0.98);
 }
 
 .connectivity-line {
