@@ -5589,8 +5589,14 @@ button:disabled:hover {
 }
 
 .connectivity-line:focus {
-  outline: 2px solid rgba(255, 255, 255, 0.5);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+/* Option to completely disable focus indicators */
+.connectivity-line.no-focus-indicator:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 /* Status-specific colors are applied inline via style prop */

@@ -18,6 +18,9 @@ import { ConnectivityFooter } from './components/Connectivity/ConnectivityFooter
 
 // Basic footer with default content
 <ConnectivityFooter />
+
+// Footer without focus indicators (cleaner look)
+<ConnectivityFooter disableFocusIndicator={true} />
 ```
 
 ## Advanced Usage
@@ -26,6 +29,7 @@ import { ConnectivityFooter } from './components/Connectivity/ConnectivityFooter
 
 ```tsx
 <ConnectivityFooter
+  disableFocusIndicator={true}
   additionalSections={[
     {
       id: 'user-stats',
@@ -188,9 +192,31 @@ const items = [
 
 - **Keyboard Navigation**: Tab to focus, Enter/Space to activate
 - **ARIA Labels**: Descriptive labels for screen readers
-- **Focus Management**: Visible focus indicators
+- **Focus Management**: Customizable focus indicators
 - **Semantic HTML**: Proper heading hierarchy and structure
 - **Color Contrast**: High contrast text and indicators
+
+### Focus Indicators
+
+The footer bar has keyboard accessibility with customizable focus indicators:
+
+**Default behavior** (recommended for accessibility):
+```tsx
+<ConnectivityFooter />  // Shows subtle box-shadow on focus
+```
+
+**Disabled focus indicators** (cleaner visual, but less accessible):
+```tsx
+<ConnectivityFooter disableFocusIndicator={true} />
+```
+
+**Custom focus styling** (via CSS):
+```css
+.connectivity-line:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px #your-custom-color;
+}
+```
 
 ## Environment Variables
 
@@ -234,9 +260,15 @@ NODE_ENV=development             # Environment indicator
 <ConnectivityFooter />
 ```
 
+### Clean Footer (no focus indicators)
+```tsx
+<ConnectivityFooter disableFocusIndicator={true} />
+```
+
 ### Development Footer
 ```tsx
 <ConnectivityFooter
+  disableFocusIndicator={true}
   additionalSections={[
     createDebugSection(),
     createSystemStatusSection({
@@ -251,6 +283,7 @@ NODE_ENV=development             # Environment indicator
 ### User Dashboard Footer
 ```tsx
 <ConnectivityFooter
+  disableFocusIndicator={false}  // Keep accessibility for main app
   additionalSections={[
     createUserStatsSection(userStats),
     createInfoSection('session', 'Session', [

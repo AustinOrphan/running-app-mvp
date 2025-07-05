@@ -120,6 +120,7 @@ function AppContent() {
 
         <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
         <ConnectivityFooter
+          disableFocusIndicator={true}
           additionalSections={[
             {
               id: 'welcome-info',
@@ -218,6 +219,7 @@ function AppContent() {
 
       <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
       <ConnectivityFooter
+        disableFocusIndicator={true}
         additionalSections={[
           {
             id: 'user-info',

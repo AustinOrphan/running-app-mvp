@@ -19,6 +19,7 @@ interface ConnectivityFooterProps {
   className?: string;
   additionalSections?: FooterSection[];
   customLinks?: FooterLink[];
+  disableFocusIndicator?: boolean;
 }
 
 const getStatusColor = (status: ConnectivityStatus): string => {
@@ -62,6 +63,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   className = '',
   additionalSections = [],
   customLinks = [],
+  disableFocusIndicator = false,
 }) => {
   const { status, lastChecked, lastSuccessful, retryCount, error, retry } = useHealthCheck();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -121,7 +123,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
     <div className={`connectivity-footer ${className}`}>
       {/* Thin status line */}
       <div
-        className={`connectivity-line ${status}`}
+        className={`connectivity-line ${status} ${disableFocusIndicator ? 'no-focus-indicator' : ''}`}
         style={{ backgroundColor: statusColor }}
         onClick={handleToggleExpanded}
         onKeyDown={e => {
