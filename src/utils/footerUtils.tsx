@@ -1,4 +1,5 @@
 import React from 'react';
+import { getAppVersion, getBuildDate, getEnvironment, isDevelopment } from './env';
 
 export interface FooterInfoItem {
   label: string;
@@ -57,14 +58,10 @@ export const createCustomSection = (
  * Creates standard app information section
  */
 export const createAppInfoSection = (): FooterSection => {
-  const appVersion = process.env.REACT_APP_VERSION || '1.0.0';
-  const buildDate = process.env.REACT_APP_BUILD_DATE || new Date().toISOString().split('T')[0];
-  const environment = process.env.NODE_ENV || 'development';
-
   return createInfoSection('app-info', 'App Info', [
-    { label: 'Version', value: appVersion },
-    { label: 'Build', value: buildDate },
-    { label: 'Environment', value: environment },
+    { label: 'Version', value: getAppVersion() },
+    { label: 'Build', value: getBuildDate() },
+    { label: 'Environment', value: getEnvironment() },
   ]);
 };
 
@@ -85,7 +82,10 @@ export const createUserStatsSection = (stats: {
     items.push({ label: 'Total Distance', value: `${stats.totalDistance.toFixed(1)} km` });
   }
   if (stats.totalTime !== undefined) {
-    items.push({ label: 'Total Time', value: `${Math.floor(stats.totalTime / 60)}h ${stats.totalTime % 60}m` });
+    items.push({
+      label: 'Total Time',
+      value: `${Math.floor(stats.totalTime / 60)}h ${stats.totalTime % 60}m`,
+    });
   }
 
   return createInfoSection('user-stats', 'Your Stats', items);
@@ -104,7 +104,10 @@ export const createDebugSection = (): FooterSection => {
     { label: 'Screen', value: screenSize },
     { label: 'Viewport', value: viewportSize },
     { label: 'Timezone', value: timezone },
-    { label: 'User Agent', value: userAgent.length > 50 ? `${userAgent.substring(0, 50)}...` : userAgent },
+    {
+      label: 'User Agent',
+      value: userAgent.length > 50 ? `${userAgent.substring(0, 50)}...` : userAgent,
+    },
   ]);
 };
 
@@ -157,37 +160,33 @@ export const defaultFooterLinks: FooterLink[] = [
   {
     label: 'Privacy Policy',
     href: '/privacy',
-    onClick: (e) => {
+    onClick: e => {
       e.preventDefault();
       // TODO: Implement privacy policy modal or navigation
-      console.log('Privacy policy clicked');
     },
   },
   {
     label: 'Terms of Service',
     href: '/terms',
-    onClick: (e) => {
+    onClick: e => {
       e.preventDefault();
       // TODO: Implement terms modal or navigation
-      console.log('Terms of service clicked');
     },
   },
   {
     label: 'Help & Support',
     href: '/help',
-    onClick: (e) => {
+    onClick: e => {
       e.preventDefault();
       // TODO: Implement help system
-      console.log('Help & support clicked');
     },
   },
   {
     label: 'About',
     href: '/about',
-    onClick: (e) => {
+    onClick: e => {
       e.preventDefault();
       // TODO: Implement about modal
-      console.log('About clicked');
     },
   },
 ];
@@ -206,7 +205,7 @@ export const createExampleFooterConfig = () => {
   ];
 
   // Add debug section in development
-  if (process.env.NODE_ENV === 'development') {
+  if (isDevelopment()) {
     sections.push(createDebugSection());
   }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useHealthCheck } from '../../contexts/HealthCheckContext';
 import { ConnectivityStatus } from '../../hooks/useConnectivityStatus';
+import { getAppVersion, getBuildDate, getEnvironment } from '../../utils/env';
 
 interface FooterSection {
   id: string;
@@ -66,9 +67,9 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const autoCollapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // App version info
-  const appVersion = process.env.REACT_APP_VERSION || '1.0.0';
-  const buildDate = process.env.REACT_APP_BUILD_DATE || new Date().toISOString().split('T')[0];
+  // App version info - safely access environment variables
+  const appVersion = getAppVersion();
+  const buildDate = getBuildDate();
 
   // Auto-collapse after 3 seconds of inactivity
   const scheduleAutoCollapse = useCallback(() => {
@@ -212,7 +213,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
                 </div>
                 <div className='footer-info-item'>
                   <span className='footer-info-label'>Environment:</span>
-                  <span className='footer-info-value'>{process.env.NODE_ENV || 'development'}</span>
+                  <span className='footer-info-value'>{getEnvironment()}</span>
                 </div>
               </div>
             </div>
