@@ -7,25 +7,26 @@ import { ConnectivityFooter } from './components/Connectivity/ConnectivityFooter
 import { Header } from './components/Navigation/Header';
 import { SwipeHint } from './components/Navigation/SwipeHint';
 import { TabNavigation } from './components/Navigation/TabNavigation';
-import { ComingSoonPage } from './components/Pages/ComingSoonPage';
-import { RunsPage } from './components/Pages/RunsPage';
 import { ToastContainer } from './components/Toast/ToastContainer';
+import { AppRouter } from './components/Router/AppRouter';
 
 // Hooks
 import { useAuth } from './hooks/useAuth';
 import { useRuns } from './hooks/useRuns';
 import { useSwipeNavigation } from './hooks/useSwipeNavigation';
 import { useToast } from './hooks/useToast';
-import { GoalsPage } from './pages/GoalsPage';
-import { StatsPage } from './pages/StatsPage';
+import { useRouter } from './hooks/useRouter';
+
+// Types
+import { RouteKey } from './constants/navigation';
 
 // Context
 import { HealthCheckProvider, useHealthCheck } from './contexts/HealthCheckContext';
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState('runs');
   const [swipeHighlight, setSwipeHighlight] = useState(false);
   const previousStatusRef = useRef<string | null>(null);
+  const { currentRoute: activeTab, navigate: navigateToRoute } = useRouter();
 
   // Custom hooks
   const { isLoggedIn, loading: authLoading, login, register, logout, getToken } = useAuth();
@@ -40,9 +41,13 @@ function AppContent() {
     }, 600);
   };
 
+  const handleTabChange = (tab: RouteKey) => {
+    navigateToRoute(tab); // Type-safe navigation via useRouter hook
+  };
+
   const { hasSwipedOnce, onTouchStart, onTouchMove, onTouchEnd } = useSwipeNavigation(
     activeTab,
-    setActiveTab,
+    handleTabChange,
     triggerSwipeHighlight
   );
 
@@ -176,8 +181,6 @@ function AppContent() {
       <Header onLogout={handleLogout} />
 
       <TabNavigation
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
         swipeHighlight={swipeHighlight}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -193,28 +196,18 @@ function AppContent() {
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          {activeTab === 'runs' && (
-            <RunsPage
-              runs={runs}
-              loading={runsLoading}
-              saving={saving}
-              onSaveRun={saveRun}
-              onDeleteRun={deleteRun}
-              onShowToast={showToast}
-            />
-          )}
-
-          {activeTab === 'goals' && <GoalsPage />}
-
-          {activeTab === 'races' && (
-            <ComingSoonPage
-              title='Races'
-              description='Track upcoming races, set target times, and record your results.'
-              icon='🏆'
-            />
-          )}
-
-          {activeTab === 'stats' && <StatsPage token={getToken()} />}
+          <AppRouter
+            isLoggedIn={isLoggedIn}
+            runs={runs}
+            runsLoading={runsLoading}
+            saving={saving}
+            onSaveRun={saveRun}
+            onDeleteRun={deleteRun}
+            onShowToast={(message, type) =>
+              showToast(message, type as 'success' | 'error' | 'info')
+            }
+            token={getToken()}
+          />
         </div>
       </div>
 
@@ -227,8 +220,8 @@ function AppContent() {
             title: 'Session',
             content: (
               <div className='footer-info-item'>
-                <span className='footer-info-label'>Logged in since:</span>
-                <span className='footer-info-value'>{new Date().toLocaleDateString()}</span>
+                <span className='footer-info-label'>Current Page:</span>
+                <span className='footer-info-value'>{activeTab}</span>
               </div>
             ),
           },
