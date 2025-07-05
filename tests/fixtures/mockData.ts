@@ -6,8 +6,8 @@ import {
   Run,
   User,
   Race,
-} from '../../src/types/index.js';
-import { Goal, GoalProgress, CreateGoalData, GoalType, GoalPeriod } from '../../src/types/goals.js';
+} from '../../src/types/index';
+import { Goal, GoalProgress, CreateGoalData, GoalType, GoalPeriod } from '../../src/types/goals';
 
 // Mock User Data
 export const mockUser: User = {
