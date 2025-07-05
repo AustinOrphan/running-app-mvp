@@ -68,6 +68,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   const { status, lastChecked, lastSuccessful, retryCount, error, retry } = useHealthCheck();
   const [isExpanded, setIsExpanded] = useState(false);
   const autoCollapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
 
   // App version info - safely access environment variables
   const appVersion = getAppVersion();
@@ -106,6 +107,50 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
     }
   }, [status, scheduleAutoCollapse]);
 
+  // Click outside to close footer
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (isExpanded && footerRef.current && !footerRef.current.contains(event.target as Node)) {
+        setIsExpanded(false);
+        if (autoCollapseTimeoutRef.current) {
+          clearTimeout(autoCollapseTimeoutRef.current);
+          autoCollapseTimeoutRef.current = null;
+        }
+      }
+    };
+
+    if (isExpanded) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isExpanded]);
+
+  // Escape key to close footer
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (isExpanded && event.key === 'Escape') {
+        setIsExpanded(false);
+        if (autoCollapseTimeoutRef.current) {
+          clearTimeout(autoCollapseTimeoutRef.current);
+          autoCollapseTimeoutRef.current = null;
+        }
+      }
+    };
+
+    if (isExpanded) {
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [isExpanded]);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -120,7 +165,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
   const statusText = getStatusText(status);
 
   return (
-    <div className={`connectivity-footer ${className}`}>
+    <div ref={footerRef} className={`connectivity-footer ${className}`}>
       {/* Thin status line */}
       <div
         className={`connectivity-line ${status} ${disableFocusIndicator ? 'no-focus-indicator' : ''}`}
@@ -134,7 +179,7 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
         }}
         role='button'
         tabIndex={0}
-        aria-label={`Footer: ${statusText}. Click to expand app details.`}
+        aria-label={`Footer: ${statusText}. Click to expand app details. Press Escape or click outside to close.`}
       />
 
       {/* Expanded details panel */}

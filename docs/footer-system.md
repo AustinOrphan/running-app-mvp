@@ -190,11 +190,13 @@ const items = [
 
 ## Accessibility Features
 
-- **Keyboard Navigation**: Tab to focus, Enter/Space to activate
+- **Keyboard Navigation**: Tab to focus, Enter/Space to activate, Escape to close
 - **ARIA Labels**: Descriptive labels for screen readers
 - **Focus Management**: Customizable focus indicators
 - **Semantic HTML**: Proper heading hierarchy and structure
 - **Color Contrast**: High contrast text and indicators
+- **Click Outside**: Footer automatically closes when clicking elsewhere
+- **Touch Support**: Works with touch events on mobile devices
 
 ### Focus Indicators
 
@@ -217,6 +219,25 @@ The footer bar has keyboard accessibility with customizable focus indicators:
   box-shadow: 0 0 0 3px #your-custom-color;
 }
 ```
+
+### Interaction Behavior
+
+The footer provides intuitive interaction patterns:
+
+**Opening the footer**:
+- Click/tap the footer bar
+- Press Enter or Space when bar is focused
+
+**Closing the footer**:
+- Click/tap the footer bar again
+- Click/tap anywhere outside the footer
+- Press Escape key
+- Wait 3 seconds (auto-collapse)
+
+**Mobile-friendly**:
+- Touch events work the same as mouse events
+- Large enough touch targets for easy interaction
+- Responsive design adapts to screen size
 
 ## Environment Variables
 
@@ -252,6 +273,8 @@ NODE_ENV=development             # Environment indicator
 - Use appropriate variants for status indicators
 - Provide actionable items when applicable
 - Keep content scannable and organized
+- Footer closes automatically when users interact elsewhere
+- Escape key provides quick exit for keyboard users
 
 ## Example Configurations
 
@@ -304,3 +327,5 @@ Planned improvements include:
 - Theme customization support
 - Animation preferences
 - Keyboard shortcuts for quick access
+- Swipe gestures for mobile
+- Configurable auto-collapse timing
