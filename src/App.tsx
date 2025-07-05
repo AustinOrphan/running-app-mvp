@@ -46,16 +46,25 @@ function AppContent() {
   );
 
   useEffect(() => {
-    // Show toast when connection status changes
+    // Show toast when connection status changes, but only after initial load
     if (status === 'healthy') {
       showToast('Connected to server', 'success');
     } else if (status === 'disconnected') {
-      showToast('Failed to connect to server', 'error');
+      // Only show error toast if it's not the initial state
+      const timer = setTimeout(() => {
+        showToast('Backend server not running - some features may be limited', 'warning');
+      }, 2000);
+      return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   const handleLogin = async (email: string, password: string) => {
+    if (status === 'disconnected') {
+      showToast('Cannot login - backend server is not running', 'error');
+      return;
+    }
+
     const result = await login(email, password);
     if (result.success) {
       showToast('Welcome back! Successfully logged in', 'success');
@@ -65,6 +74,11 @@ function AppContent() {
   };
 
   const handleRegister = async (email: string, password: string) => {
+    if (status === 'disconnected') {
+      showToast('Cannot register - backend server is not running', 'error');
+      return;
+    }
+
     const result = await register(email, password);
     if (result.success) {
       showToast('Account created successfully! Welcome to Running Tracker', 'success');
@@ -83,6 +97,24 @@ function AppContent() {
       <div className='app'>
         <h1>🏃‍♂️ Running Tracker</h1>
         <div className='status'>{healthStatus}</div>
+
+        {status === 'disconnected' && (
+          <div
+            className='offline-notice'
+            style={{
+              padding: '12px',
+              margin: '16px 0',
+              backgroundColor: '#fef3c7',
+              border: '1px solid #f59e0b',
+              borderRadius: '6px',
+              color: '#92400e',
+              fontSize: '14px',
+            }}
+          >
+            ⚠️ Backend server is not running. Start it with <code>npm run dev</code> in a separate
+            terminal.
+          </div>
+        )}
 
         <AuthForm onLogin={handleLogin} onRegister={handleRegister} loading={authLoading} />
 
