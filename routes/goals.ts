@@ -48,14 +48,16 @@ router.get(
     });
 
     if (!goal) {
-      return _next(createNotFoundError('Goal'));
+      _next(createNotFoundError('Goal'));
+      return;
     }
 
     // Then check ownership
     if (goal.userId !== req.user!.id) {
-      return _next(createForbiddenError('Access denied to this goal'));
+      _next(createForbiddenError('Access denied to this goal'));
+      return;
     }
-    return res.json(goal);
+    res.json(goal);
   })
 );
 
@@ -79,34 +81,39 @@ router.post(
 
     // Validation
     if (!title || !type || !period || !targetValue || !targetUnit || !startDate || !endDate) {
-      return _next(
+      _next(
         createValidationError(
           'Missing required fields: title, type, period, targetValue, targetUnit, startDate, endDate',
           'all'
         )
       );
+      return;
     }
 
-    // Validate goal type
+    // Validate type
     if (!Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      return _next(createValidationError('Invalid goal type', 'type'));
+      _next(createValidationError('Invalid goal type', 'type'));
+      return;
     }
 
-    // Validate goal period
+    // Validate period
     if (!Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      return _next(createValidationError('Invalid goal period', 'period'));
+      _next(createValidationError('Invalid goal period', 'period'));
+      return;
     }
 
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (start >= end) {
-      return _next(createValidationError('End date must be after start date', 'endDate'));
+      _next(createValidationError('End date must be after start date', 'endDate'));
+      return;
     }
 
     // Validate target value
     if (targetValue <= 0) {
-      return _next(createValidationError('Target value must be positive', 'targetValue'));
+      _next(createValidationError('Target value must be positive', 'targetValue'));
+      return;
     }
 
     const goal = await prisma.goal.create({
@@ -128,7 +135,7 @@ router.post(
       },
     });
 
-    return res.status(201).json(goal);
+    res.status(201).json(goal);
   })
 );
 
@@ -158,38 +165,46 @@ router.put(
     });
 
     if (!existingGoal) {
-      return _next(createNotFoundError('Goal'));
+      _next(createNotFoundError('Goal'));
+      return;
     }
 
     // Then check ownership
     if (existingGoal.userId !== req.user!.id) {
-      return _next(createForbiddenError('Access denied to this goal'));
+      _next(createForbiddenError('Access denied to this goal'));
+      return;
     }
 
     // Prevent editing completed goals
     if (existingGoal.isCompleted) {
-      return _next(createValidationError('Cannot edit completed goals', 'isCompleted'));
+      _next(createValidationError('Cannot edit completed goals', 'isCompleted'));
+      return;
     }
 
-    // Validation (only validate provided fields)
+    // Validate type if provided
     if (type && !Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      return _next(createValidationError('Invalid goal type', 'type'));
+      _next(createValidationError('Invalid goal type', 'type'));
+      return;
     }
 
     if (period && !Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      return _next(createValidationError('Invalid goal period', 'period'));
+      _next(createValidationError('Invalid goal period', 'period'));
+      return;
     }
 
+    // Validate dates if both are provided
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
       if (start >= end) {
-        return _next(createValidationError('End date must be after start date', 'endDate'));
+        _next(createValidationError('End date must be after start date', 'endDate'));
+        return;
       }
     }
 
     if (targetValue !== undefined && targetValue <= 0) {
-      return _next(createValidationError('Target value must be positive', 'targetValue'));
+      _next(createValidationError('Target value must be positive', 'targetValue'));
+      return;
     }
 
     // Update goal
@@ -210,7 +225,7 @@ router.put(
       },
     });
 
-    return res.json(updatedGoal);
+    res.json(updatedGoal);
   })
 );
 
@@ -228,12 +243,14 @@ router.delete(
     });
 
     if (!goal) {
-      return _next(createNotFoundError('Goal'));
+      _next(createNotFoundError('Goal'));
+      return;
     }
 
     // Then check ownership
     if (goal.userId !== req.user!.id) {
-      return _next(createForbiddenError('Access denied to this goal'));
+      _next(createForbiddenError('Access denied to this goal'));
+      return;
     }
 
     // Soft delete by setting isActive to false
@@ -242,7 +259,7 @@ router.delete(
       data: { isActive: false },
     });
 
-    return res.json({ message: 'Goal deleted successfully' });
+    res.json({ message: 'Goal deleted successfully' });
   })
 );
 
@@ -259,21 +276,25 @@ router.post(
     });
 
     if (!goal) {
-      return _next(createNotFoundError('Goal'));
+      _next(createNotFoundError('Goal'));
+      return;
     }
 
     // Then check ownership
     if (goal.userId !== req.user!.id) {
-      return _next(createForbiddenError('Access denied to this goal'));
+      _next(createForbiddenError('Access denied to this goal'));
+      return;
     }
 
     // Check if goal is active
     if (!goal.isActive) {
-      return _next(createNotFoundError('Goal'));
+      _next(createNotFoundError('Goal'));
+      return;
     }
 
     if (goal.isCompleted) {
-      return _next(createValidationError('Goal is already completed', 'isCompleted'));
+      _next(createValidationError('Goal is already completed', 'isCompleted'));
+      return;
     }
 
     // Mark as completed
@@ -286,7 +307,7 @@ router.post(
       },
     });
 
-    return res.json(completedGoal);
+    res.json(completedGoal);
   })
 );
 
@@ -328,7 +349,7 @@ router.get(
       })
     );
 
-    return res.json(progressData);
+    res.json(progressData);
   })
 );
 

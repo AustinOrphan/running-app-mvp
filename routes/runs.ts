@@ -33,7 +33,7 @@ router.get(
       where: { userId: req.user!.id },
       orderBy: { date: 'desc' },
     });
-    return res.json(runs);
+    res.json(runs);
   })
 );
 
@@ -54,7 +54,7 @@ router.get(
       },
       orderBy: { date: 'desc' },
     });
-    return res.json(runs);
+    res.json(runs);
   })
 );
 
@@ -71,15 +71,17 @@ router.get(
     });
 
     if (!run) {
-      return next(createNotFoundError('Run'));
+      next(createNotFoundError('Run'));
+      return;
     }
 
     // Then check ownership
     if (run.userId !== req.user!.id) {
-      return next(createForbiddenError('Access denied to this run'));
+      next(createForbiddenError('Access denied to this run'));
+      return;
     }
 
-    return res.json(run);
+    res.json(run);
   })
 );
 
@@ -118,7 +120,7 @@ router.post(
       },
     });
 
-    return res.status(201).json(run);
+    res.status(201).json(run);
   })
 );
 
@@ -138,12 +140,14 @@ router.put(
     });
 
     if (!existingRun) {
-      return next(createNotFoundError('Run'));
+      next(createNotFoundError('Run'));
+      return;
     }
 
     // Then check ownership
     if (existingRun.userId !== req.user!.id) {
-      return next(createForbiddenError('Access denied to this run'));
+      next(createForbiddenError('Access denied to this run'));
+      return;
     }
     const updateData: Partial<{
       date: Date;
@@ -177,7 +181,7 @@ router.put(
       data: updateData,
     });
 
-    return res.json(run);
+    res.json(run);
   })
 );
 
@@ -194,18 +198,20 @@ router.delete(
     });
 
     if (!existingRun) {
-      return next(createNotFoundError('Run'));
+      next(createNotFoundError('Run'));
+      return;
     }
 
     // Then check ownership
     if (existingRun.userId !== req.user!.id) {
-      return next(createForbiddenError('Access denied to this run'));
+      next(createForbiddenError('Access denied to this run'));
+      return;
     }
     await prisma.run.delete({
       where: { id: req.params.id },
     });
 
-    return res.status(204).send();
+    res.status(204).send();
   })
 );
 

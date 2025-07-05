@@ -36,7 +36,7 @@ router.get(
 
     const avgPace = totalDistance > 0 ? totalDuration / totalDistance : 0;
 
-    return res.json({
+    res.json({
       totalDistance: Number(totalDistance.toFixed(2)),
       totalDuration,
       totalRuns,
@@ -94,10 +94,11 @@ router.get(
 
     // Handle empty data scenario
     if (breakdownArray.length === 0) {
-      return res.json([]);
+      res.json([]);
+      return;
     }
 
-    return res.json(breakdownArray);
+    res.json(breakdownArray);
   })
 );
 
@@ -180,10 +181,11 @@ router.get(
 
     // Handle empty data scenario
     if (trendsData.length === 0) {
-      return res.json([]);
+      res.json([]);
+      return;
     }
 
-    return res.json(trendsData);
+    res.json(trendsData);
   })
 );
 
@@ -234,10 +236,11 @@ router.get(
 
     // Handle empty data scenario
     if (records.length === 0) {
-      return res.json([]);
+      res.json([]);
+      return;
     }
 
-    return res.json(records);
+    res.json(records);
   })
 );
 
