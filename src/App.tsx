@@ -19,8 +19,10 @@ import { useToast } from './hooks/useToast';
 import { GoalsPage } from './pages/GoalsPage';
 import { StatsPage } from './pages/StatsPage';
 
-function App() {
-  const [healthStatus, setHealthStatus] = useState<string>('Checking...');
+// Context
+import { HealthCheckProvider, useHealthCheck } from './contexts/HealthCheckContext';
+
+function AppContent() {
   const [activeTab, setActiveTab] = useState('runs');
   const [swipeHighlight, setSwipeHighlight] = useState(false);
 
@@ -28,6 +30,7 @@ function App() {
   const { isLoggedIn, loading: authLoading, login, register, logout, getToken } = useAuth();
   const { toasts, showToast, removeToast } = useToast();
   const { runs, loading: runsLoading, saving, saveRun, deleteRun } = useRuns(getToken());
+  const { healthStatus, status } = useHealthCheck();
 
   const triggerSwipeHighlight = () => {
     setSwipeHighlight(true);
@@ -43,19 +46,14 @@ function App() {
   );
 
   useEffect(() => {
-    // Check server health
-    fetch('/api/health')
-      .then(res => res.json())
-      .then(_data => {
-        setHealthStatus('✅ Backend Connected');
-        showToast('Connected to server', 'success');
-      })
-      .catch(() => {
-        setHealthStatus('❌ Backend Offline');
-        showToast('Failed to connect to server', 'error');
-      });
+    // Show toast when connection status changes
+    if (status === 'healthy') {
+      showToast('Connected to server', 'success');
+    } else if (status === 'disconnected') {
+      showToast('Failed to connect to server', 'error');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [status]);
 
   const handleLogin = async (email: string, password: string) => {
     const result = await login(email, password);
@@ -144,6 +142,14 @@ function App() {
       <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
       <ConnectivityFooter />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <HealthCheckProvider>
+      <AppContent />
+    </HealthCheckProvider>
   );
 }
 

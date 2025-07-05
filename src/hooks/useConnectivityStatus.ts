@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export type ConnectivityStatus = 'healthy' | 'connecting' | 'disconnected' | 'loading';
 
@@ -25,6 +25,11 @@ export const useConnectivityStatus = (): ConnectivityState & ConnectivityActions
     lastChecked: null,
     lastSuccessful: null,
     retryCount: 0,
+  });
+
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
   });
 
   const checkHealth = useCallback(async (): Promise<void> => {
@@ -55,7 +60,7 @@ export const useConnectivityStatus = (): ConnectivityState & ConnectivityActions
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       setState(prev => ({
         ...prev,
         status: 'disconnected',
@@ -67,13 +72,13 @@ export const useConnectivityStatus = (): ConnectivityState & ConnectivityActions
   }, []);
 
   const retry = useCallback(async (): Promise<void> => {
-    if (state.retryCount >= MAX_RETRY_COUNT) {
+    if (stateRef.current.retryCount >= MAX_RETRY_COUNT) {
       // Reset retry count and try again
       setState(prev => ({ ...prev, retryCount: 0 }));
     }
-    
+
     await checkHealth();
-  }, [checkHealth, state.retryCount]);
+  }, [checkHealth]);
 
   // Initial health check
   useEffect(() => {
@@ -95,9 +100,12 @@ export const useConnectivityStatus = (): ConnectivityState & ConnectivityActions
   // Auto-retry logic for failed connections
   useEffect(() => {
     if (state.status === 'disconnected' && state.retryCount < MAX_RETRY_COUNT) {
-      const timeout = setTimeout(() => {
-        retry();
-      }, RETRY_DELAY * Math.pow(2, state.retryCount)); // Exponential backoff
+      const timeout = setTimeout(
+        () => {
+          retry();
+        },
+        RETRY_DELAY * Math.pow(2, state.retryCount)
+      ); // Exponential backoff
 
       return () => clearTimeout(timeout);
     }

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useConnectivityStatus, ConnectivityStatus } from '../../hooks/useConnectivityStatus';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useHealthCheck } from '../../contexts/HealthCheckContext';
+import { ConnectivityStatus } from '../../hooks/useConnectivityStatus';
 
 interface ConnectivityFooterProps {
   className?: string;
@@ -20,20 +21,7 @@ const getStatusColor = (status: ConnectivityStatus): string => {
   }
 };
 
-const getStatusIcon = (status: ConnectivityStatus): string => {
-  switch (status) {
-    case 'healthy':
-      return '●';
-    case 'connecting':
-      return '●';
-    case 'disconnected':
-      return '●';
-    case 'loading':
-      return '●';
-    default:
-      return '●';
-  }
-};
+const STATUS_ICON = '●';
 
 const getStatusText = (status: ConnectivityStatus): string => {
   switch (status) {
@@ -56,22 +44,22 @@ const formatTime = (date: Date | null): string => {
 };
 
 export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({ className = '' }) => {
-  const { status, lastChecked, lastSuccessful, retryCount, error, retry } = useConnectivityStatus();
+  const { status, lastChecked, lastSuccessful, retryCount, error, retry } = useHealthCheck();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [autoCollapseTimeout, setAutoCollapseTimeout] = useState<NodeJS.Timeout | null>(null);
+  const autoCollapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-collapse after 3 seconds of inactivity
-  const scheduleAutoCollapse = () => {
-    if (autoCollapseTimeout) {
-      clearTimeout(autoCollapseTimeout);
+  const scheduleAutoCollapse = useCallback(() => {
+    if (autoCollapseTimeoutRef.current) {
+      clearTimeout(autoCollapseTimeoutRef.current);
     }
 
     const timeout = setTimeout(() => {
       setIsExpanded(false);
     }, 3000);
 
-    setAutoCollapseTimeout(timeout);
-  };
+    autoCollapseTimeoutRef.current = timeout;
+  }, []);
 
   const handleToggleExpanded = () => {
     setIsExpanded(prev => !prev);
@@ -81,12 +69,8 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({ classNam
   };
 
   const handleRetry = async () => {
-    try {
-      await retry();
-      scheduleAutoCollapse();
-    } catch (error) {
-      console.error('Retry failed:', error);
-    }
+    await retry();
+    scheduleAutoCollapse();
   };
 
   // Auto-expand briefly when status changes to disconnected
@@ -95,19 +79,19 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({ classNam
       setIsExpanded(true);
       scheduleAutoCollapse();
     }
-  }, [status]);
+  }, [status, scheduleAutoCollapse]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      if (autoCollapseTimeout) {
-        clearTimeout(autoCollapseTimeout);
+      if (autoCollapseTimeoutRef.current) {
+        clearTimeout(autoCollapseTimeoutRef.current);
       }
     };
-  }, [autoCollapseTimeout]);
+  }, []);
 
   const statusColor = getStatusColor(status);
-  const statusIcon = getStatusIcon(status);
+  const statusIcon = STATUS_ICON;
   const statusText = getStatusText(status);
 
   return (
@@ -117,70 +101,65 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({ classNam
         className={`connectivity-line ${status}`}
         style={{ backgroundColor: statusColor }}
         onClick={handleToggleExpanded}
-        onKeyDown={(e) => {
+        onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             handleToggleExpanded();
           }
         }}
-        role="button"
+        role='button'
         tabIndex={0}
         aria-label={`Connection status: ${statusText}. Click to expand details.`}
       />
 
       {/* Expanded details panel */}
-      <div 
+      <div
         className={`connectivity-details ${isExpanded ? 'expanded' : ''}`}
-        role="region"
-        aria-expanded={isExpanded}
-        aria-label="Connection details"
+        role='region'
+        aria-label='Connection details'
       >
-        <div className="connectivity-content">
-          <div className="connectivity-status">
-            <span 
-              className="status-indicator"
-              style={{ color: statusColor }}
-              aria-hidden="true"
-            >
+        <div className='connectivity-content'>
+          <div className='connectivity-status'>
+            <span className='status-indicator' style={{ color: statusColor }} aria-hidden='true'>
               {statusIcon}
             </span>
-            <span className="status-text">{statusText}</span>
+            <span className='status-text'>{statusText}</span>
           </div>
 
-          <div className="connectivity-info">
-            <div className="info-row">
-              <span className="info-label">Last checked:</span>
-              <span className="info-value">{formatTime(lastChecked)}</span>
+          <div className='connectivity-info'>
+            <div className='info-row'>
+              <span className='info-label'>Last checked:</span>
+              <span className='info-value'>{formatTime(lastChecked)}</span>
             </div>
-            
+
             {lastSuccessful && (
-              <div className="info-row">
-                <span className="info-label">Last successful:</span>
-                <span className="info-value">{formatTime(lastSuccessful)}</span>
+              <div className='info-row'>
+                <span className='info-label'>Last successful:</span>
+                <span className='info-value'>{formatTime(lastSuccessful)}</span>
               </div>
             )}
 
             {error && (
-              <div className="info-row error">
-                <span className="info-label">Error:</span>
-                <span className="info-value">{error}</span>
+              <div className='info-row error'>
+                <span className='info-label'>Error:</span>
+                <span className='info-value'>{error}</span>
               </div>
             )}
 
             {retryCount > 0 && (
-              <div className="info-row">
-                <span className="info-label">Retry attempts:</span>
-                <span className="info-value">{retryCount}</span>
+              <div className='info-row'>
+                <span className='info-label'>Retry attempts:</span>
+                <span className='info-value'>{retryCount}</span>
               </div>
             )}
           </div>
 
           {(status === 'disconnected' || status === 'connecting') && (
             <button
-              className="retry-button"
+              className='retry-button'
               onClick={handleRetry}
               disabled={status === 'connecting'}
-              aria-label="Retry connection"
+              aria-label='Retry connection'
             >
               {status === 'connecting' ? 'Retrying...' : 'Retry Connection'}
             </button>
