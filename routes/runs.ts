@@ -105,7 +105,8 @@ router.post(
     });
 
     if (!user) {
-      return next(createNotFoundError('User'));
+      next(createNotFoundError('User'));
+      return;
     }
 
     const run = await prisma.run.create({
