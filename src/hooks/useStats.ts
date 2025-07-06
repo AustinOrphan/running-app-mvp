@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 import { WeeklyInsights, RunTypeBreakdown, TrendsDataPoint, PersonalRecord } from '../types';
 import { logError } from '../utils/clientLogger';
+import { apiGet } from '../../utils/apiFetch';
 
 export const useStats = (token: string | null, period: string = '3m') => {
   const [weeklyInsights, setWeeklyInsights] = useState<WeeklyInsights | null>(null);
@@ -19,18 +20,8 @@ export const useStats = (token: string | null, period: string = '3m') => {
 
     const fetchWeeklyInsightsInner = async () => {
       try {
-        const response = await fetch('/api/stats/insights-summary', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setWeeklyInsights(data);
-        } else {
-          throw new Error('Failed to fetch weekly insights');
-        }
+        const response = await apiGet<WeeklyInsights>('/api/stats/insights-summary');
+        setWeeklyInsights(response.data);
       } catch (error) {
         logError(
           'Failed to fetch weekly insights',
@@ -42,18 +33,8 @@ export const useStats = (token: string | null, period: string = '3m') => {
 
     const fetchTypeBreakdownInner = async () => {
       try {
-        const response = await fetch('/api/stats/type-breakdown', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setTypeBreakdown(data);
-        } else {
-          throw new Error('Failed to fetch type breakdown');
-        }
+        const response = await apiGet<RunTypeBreakdown[]>('/api/stats/type-breakdown');
+        setTypeBreakdown(response.data);
       } catch (error) {
         logError(
           'Failed to fetch type breakdown',
@@ -65,18 +46,8 @@ export const useStats = (token: string | null, period: string = '3m') => {
 
     const fetchTrendsDataInner = async () => {
       try {
-        const response = await fetch(`/api/stats/trends?period=${period}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setTrendsData(data);
-        } else {
-          throw new Error('Failed to fetch trends data');
-        }
+        const response = await apiGet<TrendsDataPoint[]>(`/api/stats/trends?period=${period}`);
+        setTrendsData(response.data);
       } catch (error) {
         logError(
           'Failed to fetch trends data',
