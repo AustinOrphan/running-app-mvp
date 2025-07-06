@@ -7,49 +7,35 @@ import {
   mockRunTypeBreakdown,
   mockTrendsData,
   mockPersonalRecords,
-} from '../../fixtures/mockData.js';
+} from '../../fixtures/mockData';
+import { createApiResponse, MockApiError } from '../../utils/mockApiUtils';
 
-// Mock fetch globally
-const mockFetch = vi.fn();
+// Mock apiFetch utilities
+vi.mock('../../../utils/apiFetch', () => ({
+  apiGet: vi.fn(),
+}));
+
+// Import the mocked functions
+import { apiGet } from '../../../utils/apiFetch';
+const mockApiGet = vi.mocked(apiGet);
+
 
 // Helper function to set up mock responses for all endpoints
 const setupMockResponses = () => {
-  mockFetch
-    .mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(mockWeeklyInsights),
-    })
-    .mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(mockRunTypeBreakdown),
-    })
-    .mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(mockTrendsData),
-    })
-    .mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(mockPersonalRecords),
-    });
+  mockApiGet
+    .mockResolvedValueOnce(createApiResponse(mockWeeklyInsights))
+    .mockResolvedValueOnce(createApiResponse(mockRunTypeBreakdown))
+    .mockResolvedValueOnce(createApiResponse(mockTrendsData))
+    .mockResolvedValueOnce(createApiResponse(mockPersonalRecords));
 };
 
 describe('useStats', () => {
   beforeEach(() => {
     // Reset and set up fresh mock for each test
     vi.clearAllMocks();
-    global.fetch = mockFetch;
-
-    // Provide default mock responses to prevent undefined errors
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve([]),
-      text: () => Promise.resolve(''),
-    });
+    
+    // Provide default mock for apiGet
+    mockApiGet.mockResolvedValue(createApiResponse([]));
   });
 
   afterEach(() => {
@@ -71,14 +57,14 @@ describe('useStats', () => {
     it('does not fetch data when token is null', () => {
       renderHook(() => useStats(null));
 
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockApiGet).not.toHaveBeenCalled();
     });
   });
 
   describe('Data Fetching', () => {
     it('fetches all statistics data when token is provided', async () => {
       // Clear default mock and set up specific responses for each endpoint
-      mockFetch.mockClear();
+      mockApiGet.mockClear();
       setupMockResponses();
 
       const { result } = renderHook(() => useStats('valid-token'));
@@ -98,7 +84,7 @@ describe('useStats', () => {
 
     it('makes correct API calls with authorization header', async () => {
       // Clear default mock and set up specific responses
-      mockFetch.mockClear();
+      mockApiGet.mockClear();
       setupMockResponses();
 
       await act(async () => {
@@ -106,27 +92,19 @@ describe('useStats', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledTimes(4);
+        expect(mockApiGet).toHaveBeenCalledTimes(4);
       });
 
-      // Check all endpoints were called with correct headers
-      expect(mockFetch).toHaveBeenCalledWith('/api/stats/insights-summary', {
-        headers: { Authorization: 'Bearer test-token' },
-      });
-      expect(mockFetch).toHaveBeenCalledWith('/api/stats/type-breakdown', {
-        headers: { Authorization: 'Bearer test-token' },
-      });
-      expect(mockFetch).toHaveBeenCalledWith('/api/stats/trends?period=3m', {
-        headers: { Authorization: 'Bearer test-token' },
-      });
-      expect(mockFetch).toHaveBeenCalledWith('/api/stats/personal-records', {
-        headers: { Authorization: 'Bearer test-token' },
-      });
+      // Check all apiGet calls were made
+      expect(mockApiGet).toHaveBeenCalledWith('/api/stats/insights-summary');
+      expect(mockApiGet).toHaveBeenCalledWith('/api/stats/type-breakdown');
+      expect(mockApiGet).toHaveBeenCalledWith('/api/stats/trends?period=3m');
+      expect(mockApiGet).toHaveBeenCalledWith('/api/stats/personal-records');
     });
 
     it('uses custom period for trends data', async () => {
       // Clear default mock and set up specific responses
-      mockFetch.mockClear();
+      mockApiGet.mockClear();
       setupMockResponses();
 
       await act(async () => {
@@ -134,9 +112,7 @@ describe('useStats', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith('/api/stats/trends?period=6m', {
-          headers: { Authorization: 'Bearer test-token' },
-        });
+        expect(mockApiGet).toHaveBeenCalledWith('/api/stats/trends?period=6m');
       });
     });
   });
@@ -144,28 +120,12 @@ describe('useStats', () => {
   describe('Error Handling', () => {
     it('handles weekly insights fetch error', async () => {
       // Clear default mock and set up error for first call, success for others
-      mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 401,
-          json: () => Promise.resolve({ error: 'Unauthorized' }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      mockApiGet.mockClear();
+      mockApiGet
+        .mockRejectedValueOnce(new MockApiError('Unauthorized', 401))
+        .mockResolvedValueOnce(createApiResponse(mockRunTypeBreakdown))
+        .mockResolvedValueOnce(createApiResponse(mockTrendsData))
+        .mockResolvedValueOnce(createApiResponse(mockPersonalRecords));
 
       let hookResult: any;
 
@@ -184,28 +144,12 @@ describe('useStats', () => {
     });
 
     it('handles type breakdown fetch error', async () => {
-      mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          json: () => Promise.resolve({ error: 'Server Error' }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      mockApiGet.mockClear();
+      mockApiGet
+        .mockResolvedValueOnce(createApiResponse(mockWeeklyInsights))
+        .mockRejectedValueOnce(new MockApiError('Server Error', 500))
+        .mockResolvedValueOnce(createApiResponse(mockTrendsData))
+        .mockResolvedValueOnce(createApiResponse(mockPersonalRecords));
 
       let hookResult: any;
 
@@ -224,28 +168,12 @@ describe('useStats', () => {
     });
 
     it('handles trends data fetch error', async () => {
-      mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 404,
-          json: () => Promise.resolve({ error: 'Not Found' }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      mockApiGet.mockClear();
+      mockApiGet
+        .mockResolvedValueOnce(createApiResponse(mockWeeklyInsights))
+        .mockResolvedValueOnce(createApiResponse(mockRunTypeBreakdown))
+        .mockRejectedValueOnce(new MockApiError('Not Found', 404))
+        .mockResolvedValueOnce(createApiResponse(mockPersonalRecords));
 
       let hookResult: any;
 
@@ -264,28 +192,14 @@ describe('useStats', () => {
     });
 
     it('handles personal records fetch error', async () => {
-      mockFetch.mockClear();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 403,
-          json: () => Promise.resolve({ error: 'Forbidden' }),
-        });
+      mockApiGet.mockClear();
+      
+      // Set up successful mocks for first three calls, error for personal records
+      mockApiGet
+        .mockResolvedValueOnce(createApiResponse(mockWeeklyInsights))
+        .mockResolvedValueOnce(createApiResponse(mockRunTypeBreakdown))
+        .mockResolvedValueOnce(createApiResponse(mockTrendsData))
+        .mockRejectedValueOnce(new MockApiError('Forbidden', 403));
 
       let hookResult: any;
 
@@ -304,8 +218,8 @@ describe('useStats', () => {
     });
 
     it('handles network errors', async () => {
-      mockFetch.mockClear();
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      mockApiGet.mockClear();
+      mockApiGet.mockRejectedValueOnce(new Error('Network error'));
 
       let hookResult: any;
 
@@ -325,7 +239,7 @@ describe('useStats', () => {
 
   describe('Loading States', () => {
     it('sets loading to true while fetching data', async () => {
-      mockFetch.mockClear();
+      mockApiGet.mockClear();
       setupMockResponses();
 
       const { result } = renderHook(() => useStats('valid-token'));
@@ -334,7 +248,7 @@ describe('useStats', () => {
     });
 
     it('sets loading to false after successful fetch', async () => {
-      mockFetch.mockClear();
+      mockApiGet.mockClear();
       setupMockResponses();
 
       let hookResult: any;
@@ -351,8 +265,8 @@ describe('useStats', () => {
     });
 
     it('sets loading to false after error', async () => {
-      mockFetch.mockClear();
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      mockApiGet.mockClear();
+      mockApiGet.mockRejectedValueOnce(new Error('Network error'));
 
       let hookResult: any;
 
@@ -371,7 +285,7 @@ describe('useStats', () => {
   describe('Token Changes', () => {
     it('refetches data when token changes', async () => {
       // Setup initial mocks
-      mockFetch.mockClear();
+      mockApiGet.mockClear();
       setupMockResponses();
 
       const { result, rerender } = renderHook(({ token }) => useStats(token), {
@@ -382,7 +296,7 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const initialCallCount = mockFetch.mock.calls.length;
+      const initialCallCount = mockApiGet.mock.calls.length;
 
       // Setup new mocks for rerender
       setupMockResponses();
@@ -390,7 +304,7 @@ describe('useStats', () => {
       rerender({ token: 'token2' });
 
       await waitFor(() => {
-        expect(mockFetch.mock.calls.length).toBeGreaterThan(initialCallCount);
+        expect(mockApiGet.mock.calls.length).toBeGreaterThan(initialCallCount);
       });
     });
 
@@ -405,21 +319,21 @@ describe('useStats', () => {
 
       const { rerender } = hookResult!;
 
-      const initialCallCount = mockFetch.mock.calls.length;
+      const initialCallCount = mockApiGet.mock.calls.length;
 
       await act(async () => {
         rerender({ token: null as string | null });
       });
 
       // Should not make additional calls
-      expect(mockFetch.mock.calls.length).toBe(initialCallCount);
+      expect(mockApiGet.mock.calls.length).toBe(initialCallCount);
     });
   });
 
   describe('Period Changes', () => {
     it('refetches data when period changes', async () => {
       // Setup initial mocks
-      mockFetch.mockClear();
+      mockApiGet.mockClear();
       setupMockResponses();
 
       const { result, rerender } = renderHook(({ period }) => useStats('valid-token', period), {
@@ -430,7 +344,7 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const initialCallCount = mockFetch.mock.calls.length;
+      const initialCallCount = mockApiGet.mock.calls.length;
 
       // Setup new mocks for rerender
       setupMockResponses();
@@ -438,19 +352,17 @@ describe('useStats', () => {
       rerender({ period: '1y' });
 
       await waitFor(() => {
-        expect(mockFetch.mock.calls.length).toBeGreaterThan(initialCallCount);
+        expect(mockApiGet.mock.calls.length).toBeGreaterThan(initialCallCount);
       });
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/stats/trends?period=1y', {
-        headers: { Authorization: 'Bearer valid-token' },
-      });
+      expect(mockApiGet).toHaveBeenCalledWith('/api/stats/trends?period=1y');
     });
   });
 
   describe('Refetch Function', () => {
     it('provides refetch function that reloads all data', async () => {
       // Setup initial mocks
-      mockFetch.mockClear();
+      mockApiGet.mockClear();
       setupMockResponses();
 
       let hookResult: any;
@@ -465,37 +377,21 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      mockFetch.mockClear();
+      mockApiGet.mockClear();
 
       // Mock fresh data for refetch
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockWeeklyInsights),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockRunTypeBreakdown),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockTrendsData),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(mockPersonalRecords),
-        });
+      mockApiGet
+        .mockResolvedValueOnce(createApiResponse(mockWeeklyInsights))
+        .mockResolvedValueOnce(createApiResponse(mockRunTypeBreakdown))
+        .mockResolvedValueOnce(createApiResponse(mockTrendsData))
+        .mockResolvedValueOnce(createApiResponse(mockPersonalRecords));
 
       await act(async () => {
         result.current.refetch();
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledTimes(4);
+        expect(mockApiGet).toHaveBeenCalledTimes(4);
       });
     });
   });

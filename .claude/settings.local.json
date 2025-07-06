@@ -57,7 +57,10 @@
       "Bash(gh label:*)",
       "Bash(gh project:*)",
       "Bash(gh milestone create:*)",
-      "Bash(gh:*)"
+      "Bash(gh:*)",
+      "Bash(mkdir:*)",
+      "Bash(grep:*)",
+      "Bash(NODE_ENV=test npm run validate-test-env)"
     ],
     "deny": []
   }
