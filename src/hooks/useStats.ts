@@ -88,18 +88,8 @@ export const useStats = (token: string | null, period: string = '3m') => {
 
     const fetchPersonalRecordsInner = async () => {
       try {
-        const response = await fetch('/api/stats/personal-records', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setPersonalRecords(data);
-        } else {
-          throw new Error('Failed to fetch personal records');
-        }
+        const response = await apiGet<PersonalRecord[]>('/api/stats/personal-records');
+        setPersonalRecords(response.data);
       } catch (error) {
         logError(
           'Failed to fetch personal records',

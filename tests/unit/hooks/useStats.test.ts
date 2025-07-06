@@ -71,7 +71,7 @@ describe('useStats', () => {
     it('does not fetch data when token is null', () => {
       renderHook(() => useStats(null));
 
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockApiGet).not.toHaveBeenCalled();
     });
   });
 
@@ -106,7 +106,7 @@ describe('useStats', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledTimes(4);
+        expect(mockApiGet).toHaveBeenCalledTimes(4);
       });
 
       // Check all endpoints were called with correct headers
@@ -495,7 +495,7 @@ describe('useStats', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledTimes(4);
+        expect(mockApiGet).toHaveBeenCalledTimes(4);
       });
     });
   });
