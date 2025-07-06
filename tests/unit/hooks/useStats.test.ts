@@ -31,15 +31,16 @@ const setupMockResponses = () => {
 
 describe('useStats', () => {
   beforeEach(() => {
-    // Reset and set up fresh mock for each test
-    vi.clearAllMocks();
+    // Reset only the specific mocks we're using
+    mockApiGet.mockClear();
     
     // Provide default mock for apiGet
     mockApiGet.mockResolvedValue(createApiResponse([]));
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    // More targeted cleanup - only clear our specific mocks
+    mockApiGet.mockReset();
   });
 
   describe('Initial State', () => {
