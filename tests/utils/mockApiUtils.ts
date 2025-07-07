@@ -4,16 +4,13 @@
  */
 
 import { vi } from 'vitest';
+import { ApiResponse, ApiFetchError } from '../../utils/apiFetch';
 
-// ApiResponse type definition (matches the one from utils/apiFetch)
-export interface ApiResponse<T = unknown> {
-  data: T;
-  status: number;
-  headers: Headers;
-}
+// Re-export the real types for convenience
+export type { ApiResponse };
 
-// Mock ApiError class for consistent error handling
-export class MockApiError extends Error {
+// Mock ApiError class that extends the real ApiFetchError interface
+export class MockApiError extends Error implements InstanceType<typeof ApiFetchError> {
   status?: number;
   response?: Response;
   data?: unknown;
