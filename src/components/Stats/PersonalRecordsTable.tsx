@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 import { PersonalRecord } from '../../types';
-import { formatDuration } from '../../utils/formatters';
+import { formatDuration, formatPace } from '../../utils/formatters';
 
 interface PersonalRecordsTableProps {
   records: PersonalRecord[];
@@ -104,11 +104,9 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
     return `${(distance * 1000).toFixed(0)}m`;
   };
 
-  const formatPace = (pace: number) => {
+  const formatPaceWithUnit = (pace: number) => {
     if (pace === 0) return '-';
-    const minutes = Math.floor(pace / 60);
-    const seconds = Math.round(pace % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
+    return formatPace(pace, { includeUnit: true });
   };
 
   const formatRecordDate = (dateString: string) => {
@@ -163,7 +161,7 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
                   <span className='time-value'>{formatDuration(record.bestTime)}</span>
                 </td>
                 <td className='pace-cell'>
-                  <span className='pace-value'>{formatPace(record.bestPace)}</span>
+                  <span className='pace-value'>{formatPaceWithUnit(record.bestPace)}</span>
                 </td>
                 <td className='date-cell'>
                   <span className='date-value'>{formatRecordDate(record.date)}</span>

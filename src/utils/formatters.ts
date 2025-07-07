@@ -15,6 +15,14 @@ export const calculatePace = (distance: number, duration: number): string => {
   const paceInSeconds = duration / distance;
   if (!isFinite(paceInSeconds)) return '0:00';
 
+  // Handle negative pace properly for display
+  if (paceInSeconds < 0) {
+    const absSeconds = Math.abs(paceInSeconds);
+    const minutes = Math.floor(absSeconds / 60);
+    const seconds = Math.round(absSeconds % 60);
+    return `-${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
   return formatPace(paceInSeconds);
 };
 
@@ -74,8 +82,11 @@ export const formatPace = (
 ): string => {
   if (!isFinite(paceInSeconds) || paceInSeconds <= 0) return '-';
 
-  let minutes = Math.floor(paceInSeconds / 60);
-  let seconds = Math.round(paceInSeconds % 60);
+  // Round to 2 decimal places for consistent display
+  const roundedPace = Math.round(paceInSeconds * 100) / 100;
+
+  let minutes = Math.floor(roundedPace / 60);
+  let seconds = Math.round(roundedPace % 60);
 
   if (seconds === 60) {
     minutes += 1;
