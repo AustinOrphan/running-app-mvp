@@ -199,6 +199,7 @@ export class TestEnvironmentValidator {
     const commonTestFiles = [
       'tests/setup/testSetup.ts',
       'tests/fixtures/mockData.ts',
+      'tests/fixtures/testDatabase.ts',
       'tests/utils/mockApiUtils.ts',
     ];
 
@@ -223,7 +224,7 @@ export class TestEnvironmentValidator {
       recommendations: [],
     };
 
-    const databaseUrl = process.env.DATABASE_URL || process.env.TEST_DATABASE_URL;
+    const databaseUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
     
     if (!databaseUrl) {
       result.warnings.push('No database URL configured - database tests may fail');
@@ -231,8 +232,26 @@ export class TestEnvironmentValidator {
     }
 
     try {
-      // Basic URL validation
-      new URL(databaseUrl);
+      // More robust URL validation that handles SQLite file paths
+      if (databaseUrl.startsWith('file:')) {
+        // SQLite file URL - validate file path format
+        const filePath = databaseUrl.replace(/^file:/, '');
+        if (!filePath || filePath.trim() === '') {
+          result.errors.push('SQLite file path is empty');
+        } else {
+          result.recommendations.push('SQLite detected - good for testing but ensure file cleanup');
+        }
+      } else {
+        // Standard URL validation for network databases
+        new URL(databaseUrl);
+        
+        // Check database provider
+        if (databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://')) {
+          result.recommendations.push('PostgreSQL detected - ensure test database is properly isolated');
+        } else if (databaseUrl.startsWith('mysql://')) {
+          result.recommendations.push('MySQL detected - ensure test database is properly isolated');
+        }
+      }
       
       // Check if it's a test database
       if (!databaseUrl.includes('test') && !databaseUrl.includes('_test')) {
@@ -240,15 +259,6 @@ export class TestEnvironmentValidator {
           'Database URL does not appear to be a test database. ' +
           'Ensure you are not using production data.'
         );
-      }
-
-      // Check database provider
-      if (databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://')) {
-        result.recommendations.push('PostgreSQL detected - ensure test database is properly isolated');
-      } else if (databaseUrl.startsWith('mysql://')) {
-        result.recommendations.push('MySQL detected - ensure test database is properly isolated');
-      } else if (databaseUrl.startsWith('sqlite:')) {
-        result.recommendations.push('SQLite detected - good for testing but ensure file cleanup');
       }
 
     } catch (error) {
@@ -474,7 +484,7 @@ export async function validateTestEnvironment(): Promise<void> {
   console.log(validator.generateReport(result));
   
   if (!result.isValid) {
-    process.exit(1);
+    throw new Error('Test environment validation failed. See report above for details.');
   }
 }
 

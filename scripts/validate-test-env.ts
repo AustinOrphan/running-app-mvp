@@ -17,6 +17,7 @@ async function main() {
   try {
     await validateTestEnvironment();
     console.log('\n✨ Test environment validation completed successfully!');
+    process.exit(0);
   } catch (error) {
     console.error('\n💥 Test environment validation failed!');
     console.error(error instanceof Error ? error.message : 'Unknown error');
