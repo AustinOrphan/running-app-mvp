@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import type { TestUser } from './types';
 
 import { testDb } from '../fixtures/testDatabase.js';
 
@@ -107,7 +108,7 @@ test.describe('Authentication Flow E2E Tests', () => {
   });
 
   test.describe('Login Flow', () => {
-    let testUser: any;
+    let testUser: TestUser | undefined;
 
     test.beforeEach(async () => {
       // Create test user for login tests
@@ -118,6 +119,10 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should successfully login with valid credentials', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       // Navigate to login page
       await page.click('text=Sign In');
 
@@ -140,6 +145,10 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should show error for invalid credentials', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       await page.click('text=Sign In');
 
       // Try with wrong password
@@ -162,6 +171,10 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should show validation errors for empty fields', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       await page.click('text=Sign In');
 
       // Try to submit empty form
@@ -179,6 +192,10 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should handle case-insensitive email login', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       await page.click('text=Sign In');
 
       // Login with uppercase email
@@ -191,6 +208,10 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should show loading state during login', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       await page.click('text=Sign In');
 
       await page.fill('input[type="email"]', testUser.email);
@@ -204,7 +225,7 @@ test.describe('Authentication Flow E2E Tests', () => {
   });
 
   test.describe('Logout Flow', () => {
-    let testUser: any;
+    let testUser: TestUser | undefined;
 
     test.beforeEach(async ({ page }) => {
       // Create and login test user
@@ -212,6 +233,10 @@ test.describe('Authentication Flow E2E Tests', () => {
         email: 'logout@test.com',
         password: 'testpassword123',
       });
+
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
 
       // Login programmatically
       await page.goto('/login');

@@ -48,23 +48,31 @@ export class ReliabilityUtils {
     operation: () => Promise<T>,
     maxRetries = 3
   ): Promise<T> {
+    let lastError: Error | null = null;
+    
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         return await operation();
       } catch (error) {
-        const isNetworkError = error instanceof Error && 
-          (error.message.includes('net::') || 
-           error.message.includes('timeout') ||
-           error.message.includes('ECONNREFUSED'));
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        const isNetworkError = lastError.message.includes('net::') || 
+                              lastError.message.includes('timeout') ||
+                              lastError.message.includes('ECONNREFUSED') ||
+                              lastError.message.includes('internetdisconnected');
            
         if (isNetworkError && attempt < maxRetries) {
           await this.page.waitForTimeout(1000 * (attempt + 1));
           continue;
         }
-        throw error;
+        
+        // If not a network error or max retries reached, throw the error
+        throw lastError;
       }
     }
-    throw new Error('Max retries exceeded');
+    
+    // This should never be reached, but included for completeness
+    throw lastError || new Error('Max retries exceeded');
   }
 
   /**

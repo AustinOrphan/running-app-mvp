@@ -7,6 +7,7 @@ import { test, expect } from '@playwright/test';
 import { createE2EHelpers } from './utils/testHelpers';
 import { ReliabilityUtils } from './utils/reliability';
 import { testDb } from '../fixtures/testDatabase';
+import type { TestUser } from './types';
 
 test.describe('Authentication Flow E2E Tests - Improved', () => {
   let helpers: ReturnType<typeof createE2EHelpers>;
@@ -124,7 +125,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
   });
 
   test.describe('Login Flow - Improved', () => {
-    let testUser: any;
+    let testUser: TestUser | undefined;
 
     test.beforeEach(async () => {
       // Create test user with enhanced error handling
@@ -141,6 +142,10 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
     });
 
     test('should login successfully with enhanced reliability', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+      
       // Use enhanced auth helper
       await helpers.auth.login(testUser.email, 'testpassword123');
       
@@ -150,6 +155,10 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
     });
 
     test('should handle invalid credentials with retry logic', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+      
       await reliability.clickSafely('text=Sign In');
       await helpers.helpers.waitForElement('h2:has-text("Welcome Back")');
 
@@ -169,6 +178,10 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
     });
 
     test('should handle network timeouts gracefully', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+      
       await reliability.clickSafely('text=Sign In');
       await helpers.helpers.waitForElement('h2:has-text("Welcome Back")');
 

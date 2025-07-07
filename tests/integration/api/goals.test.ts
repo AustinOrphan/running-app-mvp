@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
+import type { TestUser } from '../../e2e/types';
 
 import goalsRoutes from '../../../routes/goals.js';
 import { mockGoals, createMockGoal, mockRuns } from '../../fixtures/mockData.js';
@@ -17,7 +18,7 @@ const createTestApp = () => {
 
 describe('Goals API Integration Tests', () => {
   let app: express.Application;
-  let testUser: any;
+  let testUser: TestUser | undefined;
   let authToken: string;
 
   beforeAll(async () => {
@@ -31,6 +32,11 @@ describe('Goals API Integration Tests', () => {
       email: 'goals@test.com',
       password: 'testpassword',
     });
+    
+    if (!testUser) {
+      throw new Error('Test user not created');
+    }
+    
     authToken = testDb.generateTestToken(testUser.id);
   });
 

@@ -1,10 +1,11 @@
 import { test, expect, devices } from '@playwright/test';
+import type { TestUser } from './types';
 
 import { mockRuns } from '../fixtures/mockData.js';
 import { testDb } from '../fixtures/testDatabase.js';
 
 test.describe('Navigation and Swipe Functionality E2E Tests', () => {
-  let testUser: any;
+  let testUser: TestUser | undefined;
 
   test.beforeEach(async ({ page: _page }) => {
     // Clean database and create test user
@@ -13,6 +14,10 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
       email: 'navigation@test.com',
       password: 'testpassword123',
     });
+
+    if (!testUser) {
+      throw new Error('Test user not created');
+    }
 
     // Create test data
     await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 8));

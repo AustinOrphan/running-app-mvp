@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
+import type { TestUser } from '../../e2e/types';
 
 import { mockRaces } from '../../fixtures/mockData.js';
 import { testDb } from '../../fixtures/testDatabase.js';
@@ -16,7 +17,7 @@ const createTestApp = () => {
 
 describe('Races API Integration Tests', () => {
   let app: express.Application;
-  let testUser: any;
+  let testUser: TestUser | undefined;
   let authToken: string;
 
   beforeAll(async () => {
@@ -29,6 +30,11 @@ describe('Races API Integration Tests', () => {
       email: 'races@test.com',
       password: 'testpassword',
     });
+    
+    if (!testUser) {
+      throw new Error('Test user not created');
+    }
+    
     authToken = testDb.generateTestToken(testUser.id);
   });
 

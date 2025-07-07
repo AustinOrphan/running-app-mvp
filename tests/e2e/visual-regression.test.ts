@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import type { TestUser } from './types';
 
 import { mockRuns, mockGoals, mockRaces } from '../fixtures/mockData.js';
 import { testDb } from '../fixtures/testDatabase.js';
@@ -14,7 +15,7 @@ const visualTest = new VisualTestHelper({
 });
 
 test.describe('Visual Regression Tests', () => {
-  let testUser: any;
+  let testUser: TestUser | undefined;
 
   test.beforeEach(async ({ page }) => {
     // Clean database and create test user
@@ -23,6 +24,10 @@ test.describe('Visual Regression Tests', () => {
       email: 'visual@test.com',
       password: 'testpassword123',
     });
+
+    if (!testUser) {
+      throw new Error('Test user not created');
+    }
 
     // Create comprehensive test data
     await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 8));
