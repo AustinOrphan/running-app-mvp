@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
+import type { TestUser } from './types';
 
 import { mockRuns } from '../fixtures/mockData.js';
 import { testDb } from '../fixtures/testDatabase.js';
 
 test.describe('Runs Management Flow E2E Tests', () => {
-  let testUser: any;
+  let testUser: TestUser | undefined;
 
   test.beforeEach(async ({ page }) => {
     // Clean database and create test user
@@ -13,6 +14,10 @@ test.describe('Runs Management Flow E2E Tests', () => {
       email: 'runs@test.com',
       password: 'testpassword123',
     });
+
+    if (!testUser) {
+      throw new Error('Test user not created');
+    }
 
     // Login user
     await page.goto('/login');

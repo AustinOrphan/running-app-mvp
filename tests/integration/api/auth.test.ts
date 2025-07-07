@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
+import type { TestUser } from '../../e2e/types';
 
 import authRoutes from '../../../routes/auth.js';
 import { testDb } from '../../fixtures/testDatabase.js';
@@ -144,7 +145,7 @@ describe('Auth API Integration Tests', () => {
   });
 
   describe('POST /api/auth/login', () => {
-    let testUser: any;
+    let testUser: TestUser | undefined;
 
     beforeEach(async () => {
       // Create test user for login tests
@@ -155,6 +156,10 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('successfully logs in with valid credentials', async () => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       const response = await request(app)
         .post('/api/auth/login')
         .send({
@@ -182,6 +187,10 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('returns 400 for missing password', async () => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       const response = await request(app)
         .post('/api/auth/login')
         .send({
@@ -206,6 +215,10 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('returns 401 for invalid password', async () => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       const response = await request(app)
         .post('/api/auth/login')
         .send({
@@ -247,7 +260,7 @@ describe('Auth API Integration Tests', () => {
   });
 
   describe('GET /api/auth/verify', () => {
-    let testUser: any;
+    let testUser: TestUser | undefined;
     let validToken: string;
 
     beforeEach(async () => {
@@ -255,6 +268,11 @@ describe('Auth API Integration Tests', () => {
         email: 'verify@test.com',
         password: 'testpassword123',
       });
+      
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+      
       validToken = testDb.generateTestToken(testUser.id);
     });
 

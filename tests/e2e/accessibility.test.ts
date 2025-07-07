@@ -1,12 +1,13 @@
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, devices } from '@playwright/test';
+import type { TestUser } from './types';
 
 import { mockRuns } from '../fixtures/mockData.js';
 import { testDb } from '../fixtures/testDatabase.js';
 import { accessibilityTestPatterns } from '../setup/axeSetup.js';
 
 test.describe('Accessibility E2E Tests', () => {
-  let testUser: any;
+  let testUser: TestUser | undefined;
 
   test.beforeEach(async ({ page: _page }) => {
     // Clean database and create test user
@@ -15,6 +16,10 @@ test.describe('Accessibility E2E Tests', () => {
       email: 'accessibility@test.com',
       password: 'testpassword123',
     });
+
+    if (!testUser) {
+      throw new Error('Test user not created');
+    }
 
     // Create test data
     await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 5));
@@ -34,6 +39,10 @@ test.describe('Accessibility E2E Tests', () => {
     });
 
     test('should have no accessibility violations on dashboard', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       // Login user
       await page.goto('/login');
       await page.fill('input[type="email"]', testUser.email);
@@ -52,6 +61,10 @@ test.describe('Accessibility E2E Tests', () => {
     });
 
     test('should have no accessibility violations on runs page', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       // Login user
       await page.goto('/login');
       await page.fill('input[type="email"]', testUser.email);
@@ -69,6 +82,10 @@ test.describe('Accessibility E2E Tests', () => {
     });
 
     test('should have no accessibility violations on stats page', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       // Login user
       await page.goto('/login');
       await page.fill('input[type="email"]', testUser.email);
@@ -88,6 +105,10 @@ test.describe('Accessibility E2E Tests', () => {
 
   test.describe('Keyboard Navigation Accessibility', () => {
     test('should support keyboard navigation on login form', async ({ page }) => {
+      if (!testUser) {
+        throw new Error('Test user not created');
+      }
+
       await page.goto('/login');
 
       // Test tab navigation through form
