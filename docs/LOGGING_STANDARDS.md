@@ -118,7 +118,7 @@ All requests are automatically assigned a correlation ID for tracing through the
 
 ```typescript
 // Correlation ID is automatically added to req.correlationId
-console.log(`Processing request ${req.correlationId}`);
+logInfo('server', 'request-processing', 'Processing request', req);
 ```
 
 ## Data Privacy and Security
@@ -218,4 +218,4 @@ See these files for reference implementations:
 
 **Log format issues**: Ensure using structured logging functions, not console methods
 
-For additional support, refer to the secure logging utility documentation in `utils/secureLogger.ts`.
+For additional support, refer to the enhanced logger utility documentation in `utils/logger.ts`.

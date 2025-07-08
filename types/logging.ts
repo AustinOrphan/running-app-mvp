@@ -1,6 +1,6 @@
 /**
  * Enhanced Logging Types for Error Standardization and Observability
- * 
+ *
  * This module extends the existing secureLogger types with additional
  * structures for improved error categorization and observability.
  */
@@ -11,20 +11,21 @@ export interface StructuredLogData {
   timestamp: string;
   level: 'error' | 'warn' | 'info' | 'debug';
   correlationId: string;
-  component: string; // 'auth', 'runs', 'stats', 'goals', 'races', 'server'
+  component: LogComponent; // 'auth', 'runs', 'stats', 'goals', 'races', 'server'
   operation: string; // 'fetchRuns', 'createGoal', 'login', etc.
   error?: {
     message: string;
     stack?: string;
     code?: string;
-    type: string; // 'ValidationError', 'DatabaseError', 'AuthError', etc.
+    type: ErrorType; // 'ValidationError', 'DatabaseError', 'AuthError', etc.
   };
   context?: Record<string, unknown>; // Additional context (user ID, request params, etc.)
+  [key: string]: unknown; // Index signature to allow compatibility with Record<string, unknown>
 }
 
-export type ErrorType = 
+export type ErrorType =
   | 'ValidationError'
-  | 'DatabaseError' 
+  | 'DatabaseError'
   | 'AuthenticationError'
   | 'AuthorizationError'
   | 'NotFoundError'
@@ -34,28 +35,15 @@ export type ErrorType =
   | 'NetworkError'
   | 'UnknownError';
 
-export type LogComponent = 
+export type LogComponent =
   | 'auth'
-  | 'runs' 
+  | 'runs'
   | 'stats'
   | 'goals'
   | 'races'
   | 'server'
   | 'middleware'
   | 'database';
-
-export interface ErrorContext {
-  userId?: string;
-  requestId?: string;
-  userAgent?: string;
-  ip?: string;
-  method?: string;
-  url?: string;
-  statusCode?: number;
-  component: LogComponent;
-  operation: string;
-  metadata?: Record<string, unknown>;
-}
 
 export interface EnhancedLoggerOptions {
   component: LogComponent;
