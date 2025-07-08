@@ -64,21 +64,19 @@ router.get(
   readRateLimit,
   validateIdParam,
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     // First check if run exists
     const run = await prisma.run.findUnique({
       where: { id: req.params.id },
     });
 
     if (!run) {
-      next(createNotFoundError('Run'));
-      return;
+      throw createNotFoundError('Run');
     }
 
     // Then check ownership
     if (run.userId !== req.user!.id) {
-      next(createForbiddenError('Access denied to this run'));
-      return;
+      throw createForbiddenError('Access denied to this run');
     }
 
     res.json(run);
@@ -91,7 +89,7 @@ router.post(
   createRateLimit,
   validateCreateRun,
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
     logUserAction('Creating run', req, {
@@ -105,8 +103,7 @@ router.post(
     });
 
     if (!user) {
-      next(createNotFoundError('User'));
-      return;
+      throw createNotFoundError('User');
     }
 
     const run = await prisma.run.create({
@@ -132,7 +129,7 @@ router.put(
   validateIdParam,
   validateUpdateRun,
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
     // First check if run exists
@@ -141,14 +138,12 @@ router.put(
     });
 
     if (!existingRun) {
-      next(createNotFoundError('Run'));
-      return;
+      throw createNotFoundError('Run');
     }
 
     // Then check ownership
     if (existingRun.userId !== req.user!.id) {
-      next(createForbiddenError('Access denied to this run'));
-      return;
+      throw createForbiddenError('Access denied to this run');
     }
     const updateData: Partial<{
       date: Date;
@@ -192,21 +187,19 @@ router.delete(
   apiRateLimit,
   validateIdParam,
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     // First check if run exists
     const existingRun = await prisma.run.findUnique({
       where: { id: req.params.id },
     });
 
     if (!existingRun) {
-      next(createNotFoundError('Run'));
-      return;
+      throw createNotFoundError('Run');
     }
 
     // Then check ownership
     if (existingRun.userId !== req.user!.id) {
-      next(createForbiddenError('Access denied to this run'));
-      return;
+      throw createForbiddenError('Access denied to this run');
     }
     await prisma.run.delete({
       where: { id: req.params.id },

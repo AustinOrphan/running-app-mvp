@@ -19,7 +19,6 @@ vi.mock('../../../utils/apiFetch', () => ({
 import { apiGet } from '../../../utils/apiFetch';
 const mockApiGet = vi.mocked(apiGet);
 
-
 // Helper function to set up mock responses for all endpoints
 const setupMockResponses = () => {
   mockApiGet
@@ -33,7 +32,7 @@ describe('useStats', () => {
   beforeEach(() => {
     // Reset only the specific mocks we're using
     mockApiGet.mockClear();
-    
+
     // Provide default mock for apiGet
     mockApiGet.mockResolvedValue(createApiResponse([]));
   });
@@ -194,7 +193,7 @@ describe('useStats', () => {
 
     it('handles personal records fetch error', async () => {
       mockApiGet.mockClear();
-      
+
       // Set up successful mocks for first three calls, error for personal records
       mockApiGet
         .mockResolvedValueOnce(createApiResponse(mockWeeklyInsights))

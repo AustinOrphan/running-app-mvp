@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { logError } from './utils/clientLogger';
 
@@ -53,7 +53,7 @@ function App() {
   });
 
   // Toast functions
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now().toString();
     const newToast: Toast = { id, message, type };
     setToasts(prev => [...prev, newToast]);
@@ -62,7 +62,7 @@ function App() {
     setTimeout(() => {
       removeToast(id);
     }, 4000);
-  };
+  }, []);
 
   const removeToast = (id: string) => {
     // Add removing class to trigger animation
@@ -206,31 +206,33 @@ function App() {
     if (hasSwipedBefore === 'true') {
       setHasSwipedOnce(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchRuns, showToast]);
 
-  const fetchRuns = async (token: string) => {
-    setRunsLoading(true);
-    try {
-      const response = await fetch('/api/runs', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const runsData = await response.json();
-        setRuns(runsData);
+  const fetchRuns = useCallback(
+    async (token: string) => {
+      setRunsLoading(true);
+      try {
+        const response = await fetch('/api/runs', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const runsData = await response.json();
+          setRuns(runsData);
+        }
+      } catch (_error) {
+        logError(
+          'Failed to fetch runs',
+          _error instanceof Error ? _error : new Error(String(_error))
+        );
+        showToast('Failed to load runs', 'error');
+      } finally {
+        setRunsLoading(false);
       }
-    } catch (_error) {
-      logError(
-        'Failed to fetch runs',
-        _error instanceof Error ? _error : new Error(String(_error))
-      );
-      showToast('Failed to load runs', 'error');
-    } finally {
-      setRunsLoading(false);
-    }
-  };
+    },
+    [showToast]
+  );
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

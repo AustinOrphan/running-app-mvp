@@ -268,11 +268,11 @@ describe('Auth API Integration Tests', () => {
         email: 'verify@test.com',
         password: 'testpassword123',
       });
-      
+
       if (!testUser) {
         throw new Error('Test user not created');
       }
-      
+
       validToken = testDb.generateTestToken(testUser.id);
     });
 

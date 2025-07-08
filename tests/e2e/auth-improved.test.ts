@@ -13,7 +13,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
   let helpers: ReturnType<typeof createE2EHelpers>;
   let reliability: ReliabilityUtils;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page: _page }) => {
     helpers = createE2EHelpers(page, testDb);
     reliability = new ReliabilityUtils(page);
 
@@ -31,10 +31,12 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
   });
 
   test.describe('Registration Flow - Improved', () => {
-    test('should successfully register a new user with enhanced reliability', async ({ page }) => {
+    test('should successfully register a new user with enhanced reliability', async ({
+      page: _page,
+    }) => {
       // Navigate to registration with proper wait
       await reliability.clickSafely('text=Sign Up');
-      
+
       // Wait for form to be fully loaded and interactive
       await helpers.helpers.waitForElement('h2:has-text("Create Account")');
       await reliability.ensurePageInteractive();
@@ -54,12 +56,12 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
 
       // Verify dashboard is fully loaded
       await helpers.helpers.waitForElement('h1:has-text("Dashboard")');
-      
+
       // Verify user email is displayed
       await helpers.helpers.waitForElement('text=newuser@test.com');
     });
 
-    test('should handle validation errors reliably', async ({ page }) => {
+    test('should handle validation errors reliably', async ({ page: _page }) => {
       await reliability.clickSafely('text=Sign Up');
       await helpers.helpers.waitForElement('h2:has-text("Create Account")');
 
@@ -93,7 +95,9 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       await helpers.helpers.waitForErrorMessage('Passwords do not match');
     });
 
-    test('should prevent duplicate email registration with retry handling', async ({ page }) => {
+    test('should prevent duplicate email registration with retry handling', async ({
+      page: _page,
+    }) => {
       // Create existing user with database helper
       await helpers.db?.createTestUser({
         email: 'existing@test.com',
@@ -141,24 +145,24 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       });
     });
 
-    test('should login successfully with enhanced reliability', async ({ page }) => {
+    test('should login successfully with enhanced reliability', async ({ page: _page }) => {
       if (!testUser) {
         throw new Error('Test user not created');
       }
-      
+
       // Use enhanced auth helper
       await helpers.auth.login(testUser.email, 'testpassword123');
-      
+
       // Verify authenticated state
       await helpers.helpers.waitForElement('h1:has-text("Dashboard")');
       await helpers.helpers.waitForElement(`text=${testUser.email}`);
     });
 
-    test('should handle invalid credentials with retry logic', async ({ page }) => {
+    test('should handle invalid credentials with retry logic', async ({ page: _page }) => {
       if (!testUser) {
         throw new Error('Test user not created');
       }
-      
+
       await reliability.clickSafely('text=Sign In');
       await helpers.helpers.waitForElement('h2:has-text("Welcome Back")');
 
@@ -177,11 +181,11 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       await helpers.helpers.waitForElement('h2:has-text("Welcome Back")');
     });
 
-    test('should handle network timeouts gracefully', async ({ page }) => {
+    test('should handle network timeouts gracefully', async ({ page: _page }) => {
       if (!testUser) {
         throw new Error('Test user not created');
       }
-      
+
       await reliability.clickSafely('text=Sign In');
       await helpers.helpers.waitForElement('h2:has-text("Welcome Back")');
 
@@ -206,21 +210,21 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
   });
 
   test.describe('Protected Routes - Enhanced', () => {
-    test('should handle route protection with proper wait conditions', async ({ page }) => {
+    test('should handle route protection with proper wait conditions', async ({ page: _page }) => {
       const protectedRoutes = ['/dashboard', '/runs', '/stats', '/profile'];
 
       for (const route of protectedRoutes) {
         await page.goto(route);
-        
+
         // Enhanced wait for redirect with timeout
         await helpers.helpers.waitForNavigation('/login', 10000);
-        
+
         // Verify login page is fully loaded
         await helpers.helpers.waitForElement('h2:has-text("Welcome Back")');
       }
     });
 
-    test('should maintain session across navigation', async ({ page }) => {
+    test('should maintain session across navigation', async ({ page: _page }) => {
       const testUser = await helpers.db?.createTestUser({
         email: 'session@test.com',
         password: 'testpassword123',
@@ -234,10 +238,10 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       for (const route of protectedRoutes) {
         await page.goto(route);
         await helpers.helpers.waitForPageLoad();
-        
+
         // Verify we're on the correct route
         await expect(page).toHaveURL(route);
-        
+
         // Verify authenticated state is maintained
         await helpers.helpers.waitForElement(`text=${testUser.email}`);
       }
@@ -245,7 +249,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
   });
 
   test.describe('Performance and Stability', () => {
-    test('should handle concurrent user operations', async ({ page }) => {
+    test('should handle concurrent user operations', async ({ page: _page }) => {
       const testUser = await helpers.db?.createTestUser({
         email: 'concurrent@test.com',
         password: 'testpassword123',
@@ -255,17 +259,17 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
 
       // Simulate rapid navigation
       const routes = ['/dashboard', '/runs', '/stats', '/dashboard'];
-      
+
       for (const route of routes) {
         await page.goto(route);
         await reliability.ensurePageInteractive();
-        
+
         // Verify page is stable before moving to next
         await expect(page.locator('body')).toBeStable();
       }
     });
 
-    test('should recover from temporary network failures', async ({ page }) => {
+    test('should recover from temporary network failures', async ({ page: _page }) => {
       const testUser = await helpers.db?.createTestUser({
         email: 'network@test.com',
         password: 'testpassword123',
@@ -275,7 +279,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       let requestCount = 0;
       await page.route('**/api/**', async route => {
         requestCount++;
-        
+
         // Fail every 3rd request to simulate network issues
         if (requestCount % 3 === 0) {
           await route.abort('internetdisconnected');
