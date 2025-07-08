@@ -121,7 +121,7 @@ class EnhancedLogger {
   private createStructuredLogData(
     level: 'error' | 'warn' | 'info' | 'debug',
     options: EnhancedLoggerOptions,
-    error?: Error
+    error?: unknown
   ): StructuredLogData {
     const correlationId = this.getCorrelationId(options.req);
 
@@ -135,12 +135,14 @@ class EnhancedLogger {
     };
 
     if (error) {
-      const errorType = this.categorizeError(error, options.context);
+      // Ensure we have an Error object while preserving original information
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      const errorType = this.categorizeError(errorObj, options.context);
       logData.error = {
-        message: error.message,
+        message: errorObj.message,
         type: errorType,
-        code: (error as Error & { code?: string }).code || undefined,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        code: (errorObj as Error & { code?: string }).code || undefined,
+        stack: process.env.NODE_ENV === 'development' ? errorObj.stack : undefined,
       };
     }
 
@@ -150,12 +152,13 @@ class EnhancedLogger {
   /**
    * Log error with enhanced categorization and context
    */
-  error(options: EnhancedLoggerOptions, error: Error, message?: string): void {
+  error(options: EnhancedLoggerOptions, error: unknown, message?: string): void {
     const logMessage = message || `${options.component}:${options.operation} error`;
-    const structuredData = this.createStructuredLogData('error', options, error);
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    const structuredData = this.createStructuredLogData('error', options, errorObj);
 
     // Use existing secureLogger for actual logging with redaction
-    secureLogger.error(logMessage, options.req, error, structuredData);
+    secureLogger.error(logMessage, options.req, errorObj, structuredData);
   }
 
   /**
@@ -198,7 +201,7 @@ class EnhancedLogger {
   database(
     operation: string,
     req?: Request,
-    error?: Error,
+    error?: unknown,
     context?: Record<string, unknown>
   ): void {
     const options: EnhancedLoggerOptions = {
@@ -218,7 +221,7 @@ class EnhancedLogger {
   /**
    * Log authentication events with enhanced security context
    */
-  auth(operation: string, req?: Request, error?: Error, context?: Record<string, unknown>): void {
+  auth(operation: string, req?: Request, error?: unknown, context?: Record<string, unknown>): void {
     const options: EnhancedLoggerOptions = {
       component: 'auth',
       operation,
@@ -251,7 +254,7 @@ export const logger = new EnhancedLogger();
 export const logError = (
   component: LogComponent,
   operation: string,
-  error: Error,
+  error: unknown,
   req?: Request,
   context?: Record<string, unknown>
 ) => {
@@ -281,7 +284,7 @@ export const logInfo = (
 export const logDatabase = (
   operation: string,
   req?: Request,
-  error?: Error,
+  error?: unknown,
   context?: Record<string, unknown>
 ) => {
   logger.database(operation, req, error, context);
@@ -290,7 +293,7 @@ export const logDatabase = (
 export const logAuth = (
   operation: string,
   req?: Request,
-  error?: Error,
+  error?: unknown,
   context?: Record<string, unknown>
 ) => {
   logger.auth(operation, req, error, context);

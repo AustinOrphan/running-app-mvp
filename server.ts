@@ -67,12 +67,7 @@ app.get('/api/health', async (req, res) => {
       database: 'connected',
     });
   } catch (error) {
-    logError(
-      'server',
-      'health-check',
-      error instanceof Error ? error : new Error(String(error)),
-      req
-    );
+    logError('server', 'health-check', error, req);
     res.status(500).json({
       status: 'error',
       message: 'Health check failed: Database disconnected',
@@ -90,12 +85,7 @@ if (process.env.NODE_ENV === 'development') {
       });
       res.json(users);
     } catch (error) {
-      logError(
-        'server',
-        'debug-fetch-users',
-        error instanceof Error ? error : new Error(String(error)),
-        req
-      );
+      logError('server', 'debug-fetch-users', error, req);
       res.status(500).json({ message: 'Failed to fetch users' });
     }
   });

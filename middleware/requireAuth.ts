@@ -35,16 +35,11 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
       const authError = createError('Invalid token', 401);
-      logAuth('token-validation', req, authError, {
-        errorType: 'JsonWebTokenError',
-        tokenProvided: !!req.headers.authorization,
-      });
+      logAuth('token-validation', req, authError);
       next(authError);
     } else {
       const unexpectedError = error instanceof Error ? error : new Error(String(error));
-      logAuth('auth-middleware', req, unexpectedError, {
-        errorType: 'UnexpectedError',
-      });
+      logAuth('auth-middleware', req, unexpectedError);
       next(unexpectedError);
     }
   }
