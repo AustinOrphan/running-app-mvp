@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import express from 'express';
 
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createNotFoundError, createForbiddenError } from '../middleware/errorHandler.js';
+import { createNotFoundError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import {
   validateCreateRun,
@@ -65,18 +65,13 @@ router.get(
   validateIdParam,
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // First check if run exists
-    const run = await prisma.run.findUnique({
-      where: { id: req.params.id },
+    // Existence and authorization check
+    const run = await prisma.run.findFirst({
+      where: { id: req.params.id, userId: req.user!.id },
     });
 
     if (!run) {
       throw createNotFoundError('Run');
-    }
-
-    // Then check ownership
-    if (run.userId !== req.user!.id) {
-      throw createForbiddenError('Access denied to this run');
     }
 
     res.json(run);
@@ -132,18 +127,13 @@ router.put(
   asyncAuthHandler(async (req: AuthRequest, res) => {
     const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
-    // First check if run exists
-    const existingRun = await prisma.run.findUnique({
-      where: { id: req.params.id },
+    // Existence and authorization check
+    const existingRun = await prisma.run.findFirst({
+      where: { id: req.params.id, userId: req.user!.id },
     });
 
     if (!existingRun) {
       throw createNotFoundError('Run');
-    }
-
-    // Then check ownership
-    if (existingRun.userId !== req.user!.id) {
-      throw createForbiddenError('Access denied to this run');
     }
     const updateData: Partial<{
       date: Date;
@@ -188,18 +178,13 @@ router.delete(
   validateIdParam,
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // First check if run exists
-    const existingRun = await prisma.run.findUnique({
-      where: { id: req.params.id },
+    // Existence and authorization check
+    const existingRun = await prisma.run.findFirst({
+      where: { id: req.params.id, userId: req.user!.id },
     });
 
     if (!existingRun) {
       throw createNotFoundError('Run');
-    }
-
-    // Then check ownership
-    if (existingRun.userId !== req.user!.id) {
-      throw createForbiddenError('Access denied to this run');
     }
     await prisma.run.delete({
       where: { id: req.params.id },
