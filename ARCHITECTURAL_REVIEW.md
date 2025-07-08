@@ -8,6 +8,25 @@ The running app MVP demonstrates solid architectural foundations with modern Rea
 
 ## Critical Issues Identified
 
+### 🚨 IMMEDIATE PRIORITY (Build Blocking)
+
+#### 0. TypeScript Build Errors (71 errors)
+**Issue**: Build fails due to TypeScript compilation errors
+**Impact**: Prevents baseline measurements and architectural improvements
+**Key Errors**:
+- `testUser` is possibly 'undefined' (65 instances)
+- Missing module './utils/testHelpers' 
+- Property 'toBeStable' does not exist (3 instances)
+- Property 'findUserByEmail' does not exist (2 instances)
+
+**Solution**: Fix TypeScript errors before proceeding with architectural improvements
+```typescript
+// Need to add proper type guards and null checks
+if (testUser) {
+  // Use testUser safely
+}
+```
+
 ### 🚨 HIGH PRIORITY
 
 #### 1. Duplicate Directory Structure (Cleanup Required)
@@ -27,7 +46,7 @@ rm -rf components/ hooks/ pages/ utils/
 ```
 
 #### 2. Oversized CSS File (Performance Issue)
-**File**: `src/App.css` - Monolithic stylesheet
+**File**: `src/App.css` - Monolithic stylesheet (6,019 lines)
 **Impact**: 
 - Difficult maintenance
 - Bundle size bloat
@@ -48,8 +67,8 @@ src/styles/
 
 #### 3. Oversized Hook Files
 **Files with Single Responsibility Violations**:
-- `useGoals.ts` (314 lines) - Manages CRUD + notifications + progress
-- `useNotifications.ts` (400+ lines) - Multiple notification types
+- `useGoals.ts` (313 lines) - Manages CRUD + notifications + progress
+- `useNotifications.ts` (385 lines) - Multiple notification types
 
 **Solution**: Split into focused hooks
 ```typescript
@@ -206,6 +225,18 @@ User 1:M Race    ✅ Cascade delete patterns
 
 ## Improvement Implementation Plan
 
+### Phase 0: Build Stability (1 day) - **CRITICAL**
+1. **Fix TypeScript errors in test files**
+   - Add proper type guards for `testUser` variables
+   - Create missing `./utils/testHelpers` module
+   - Replace `toBeStable` with correct Playwright matcher
+   - Add missing `findUserByEmail` method to test database utilities
+
+2. **Establish baseline measurements**
+   - Measure current build time
+   - Run Lighthouse audit for performance baseline
+   - Document current bundle size
+
 ### Phase 1: Critical Cleanup (1-2 days)
 1. **Remove stub directories**
    ```bash
@@ -224,29 +255,40 @@ User 1:M Race    ✅ Cascade delete patterns
 ### Phase 2: CSS Architecture (2-3 days)
 1. **Implement CSS Modules**
    ```typescript
-   // Install dependencies
-   npm install --save-dev @types/css-modules
-   
-   // Update vite.config.ts
+   // Update vite.config.ts (no additional dependencies needed)
+   // Vite already includes CSS Modules support via vite/client types
    css: {
      modules: {
        localsConvention: 'camelCase'
      }
    }
+   
+   // ✅ vite-env.d.ts already includes correct reference
+   /// <reference types="vite/client" />
+   // Note: @types/css-modules is unnecessary for Vite projects
    ```
 
-2. **Split monolithic CSS**
-   - Extract component-specific styles
-   - Create design system variables
+2. **Split monolithic CSS (6,019 lines → targeted components)**
+   - Extract component-specific styles from App.css
+   - Reduce bundle size by eliminating unused CSS
+   - Improve maintainability with scoped styles
+
+3. **Create design system variables**
    - Implement responsive design patterns
+   - Establish consistent spacing and typography
 
 ### Phase 3: Hook Refactoring (3-4 days)
 1. **Split large hooks**
    ```typescript
-   // useGoals.ts → Multiple focused hooks
-   useGoals()          // CRUD operations
-   useGoalProgress()   // Progress calculation  
-   useGoalNotifications() // Achievement notifications
+   // useGoals.ts (313 lines) → Multiple focused hooks
+   useGoals()          // CRUD operations (~150 lines)
+   useGoalProgress()   // Progress calculation (~80 lines)
+   useGoalNotifications() // Achievement notifications (~83 lines)
+   
+   // useNotifications.ts (385 lines) → Focused notification types
+   useSystemNotifications() // System alerts (~130 lines)
+   useGoalNotifications()   // Achievement notifications (~130 lines)
+   useRunNotifications()    // Run-related notifications (~125 lines)
    ```
 
 2. **Implement error boundaries**
@@ -319,10 +361,13 @@ User 1:M Race    ✅ Cascade delete patterns
 ## Success Metrics
 
 ### Technical Metrics
-- [ ] Bundle size reduction: Target 20% decrease
-- [ ] Test coverage: Maintain >80%
-- [ ] Build time: <30 seconds
-- [ ] Lighthouse score: >90
+- [ ] Bundle size reduction: Target 20% decrease (baseline TBD - build currently failing due to TypeScript errors)
+- [ ] Test coverage: Maintain >70% (current threshold in vitest.config.ts)
+- [ ] Build time: <30 seconds (baseline TBD - build currently failing due to TypeScript errors in test files)
+- [ ] Lighthouse score: >90 (baseline TBD - requires successful build; current targets: Performance >80, Accessibility >90, Best Practices >85, SEO >80)
+- [ ] CSS file size: Reduce from 6,019 lines to <2,000 lines across modules
+- [ ] Hook complexity: Reduce useGoals from 313 lines to <200 lines, useNotifications from 385 lines to <200 lines
+- [ ] TypeScript errors: Resolve current build failures (71 errors related to undefined testUser and missing imports)
 
 ### Developer Experience
 - [ ] Reduced cognitive load in large files
@@ -332,8 +377,15 @@ User 1:M Race    ✅ Cascade delete patterns
 
 ## Conclusion
 
-The running app MVP has a solid architectural foundation with room for strategic improvements. The proposed changes will enhance maintainability, performance, and developer experience while preserving the existing functionality.
+The running app MVP has a solid architectural foundation with room for strategic improvements. However, **immediate attention is required to resolve build-blocking TypeScript errors** before implementing the proposed architectural changes.
 
-**Recommended Priority**: Execute Phase 1 (cleanup) immediately, then assess bandwidth for subsequent phases based on feature development priorities.
+**Recommended Priority**: 
+1. **Phase 0** (Critical): Fix TypeScript build errors (71 errors) - **1 day**
+2. **Phase 1** (Cleanup): Execute cleanup tasks after build stability - **1-2 days**
+3. **Subsequent phases**: Assess bandwidth for architectural improvements based on feature development priorities
 
-**Timeline**: 2-4 weeks for full implementation, depending on available development resources.
+**Timeline**: 
+- Phase 0: 1 day (build fixes)
+- Phases 1-5: 2-4 weeks for full implementation, depending on available development resources
+
+**Note**: Baseline measurements for build time and Lighthouse score can only be established after resolving current TypeScript compilation errors.
