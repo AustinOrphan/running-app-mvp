@@ -31,7 +31,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
   });
 
   test.describe('Registration Flow - Improved', () => {
-    test('should successfully register a new user with enhanced reliability', async ({ page }) => {
+    test('should successfully register a new user with enhanced reliability', async ({ page: _page }) => {
       // Navigate to registration with proper wait
       await reliability.clickSafely('text=Sign Up');
       
@@ -59,7 +59,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       await helpers.helpers.waitForElement('text=newuser@test.com');
     });
 
-    test('should handle validation errors reliably', async ({ page }) => {
+    test('should handle validation errors reliably', async ({ page: _page }) => {
       await reliability.clickSafely('text=Sign Up');
       await helpers.helpers.waitForElement('h2:has-text("Create Account")');
 
@@ -93,7 +93,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       await helpers.helpers.waitForErrorMessage('Passwords do not match');
     });
 
-    test('should prevent duplicate email registration with retry handling', async ({ page }) => {
+    test('should prevent duplicate email registration with retry handling', async ({ page: _page }) => {
       // Create existing user with database helper
       await helpers.db?.createTestUser({
         email: 'existing@test.com',
@@ -141,7 +141,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       });
     });
 
-    test('should login successfully with enhanced reliability', async ({ page }) => {
+    test('should login successfully with enhanced reliability', async ({ page: _page }) => {
       if (!testUser) {
         throw new Error('Test user not created');
       }
@@ -154,7 +154,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       await helpers.helpers.waitForElement(`text=${testUser.email}`);
     });
 
-    test('should handle invalid credentials with retry logic', async ({ page }) => {
+    test('should handle invalid credentials with retry logic', async ({ page: _page }) => {
       if (!testUser) {
         throw new Error('Test user not created');
       }
