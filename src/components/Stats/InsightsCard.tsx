@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { WeeklyInsights } from '../../types';
-import { formatDuration } from '../../utils/formatters';
+import { formatDuration, formatPace } from '../../utils/formatters';
 
 interface InsightsCardProps {
   insights: WeeklyInsights | null;
@@ -85,9 +85,7 @@ export const InsightsCard: React.FC<InsightsCardProps> = ({ insights, loading })
 
         <div className='insight-item'>
           <div className='insight-value'>
-            {insights.avgPace > 0
-              ? `${Math.floor(insights.avgPace / 60)}:${(insights.avgPace % 60).toString().padStart(2, '0')}`
-              : '-'}
+            {insights.avgPace > 0 ? formatPace(insights.avgPace) : '-'}
           </div>
           <div className='insight-label'>Avg Pace</div>
         </div>
