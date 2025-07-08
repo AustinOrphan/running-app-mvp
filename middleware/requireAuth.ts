@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { createError } from './errorHandler.js';
+import { logAuth } from '../utils/logger.js';
 
 interface AuthRequest extends Request {
   user?: {
@@ -33,9 +34,13 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
     next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
-      next(createError('Invalid token', 401));
+      const authError = createError('Invalid token', 401);
+      logAuth('token-validation', req, authError);
+      next(authError);
     } else {
-      next(error);
+      const unexpectedError = error instanceof Error ? error : new Error(String(error));
+      logAuth('auth-middleware', req, unexpectedError);
+      next(unexpectedError);
     }
   }
 };

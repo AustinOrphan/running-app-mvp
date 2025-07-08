@@ -32,11 +32,11 @@ describe('Stats API Integration Tests', () => {
       email: 'stats@test.com',
       password: 'testpassword',
     });
-    
+
     if (!testUser) {
       throw new Error('Test user not created');
     }
-    
+
     authToken = testDb.generateTestToken(testUser.id);
 
     // Create test runs for statistics

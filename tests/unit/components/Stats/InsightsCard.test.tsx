@@ -14,6 +14,12 @@ vi.mock('../../../../src/utils/formatters', () => ({
     }
     return `${minutes}m`;
   }),
+  formatPace: vi.fn((paceInSeconds: number) => {
+    if (!isFinite(paceInSeconds) || paceInSeconds <= 0) return '-';
+    const minutes = Math.floor(paceInSeconds / 60);
+    const seconds = Math.round(paceInSeconds % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }),
 }));
 
 describe('InsightsCard', () => {

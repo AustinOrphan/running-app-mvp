@@ -10,11 +10,9 @@
  * @returns Formatted pace string in "MM:SS" format per kilometer
  */
 export const calculatePace = (distance: number, duration: number): string => {
-  if (distance === 0 || duration <= 0) return '0:00';
+  if (distance <= 0 || duration <= 0) return '-';
 
   const paceInSeconds = duration / distance;
-  if (!isFinite(paceInSeconds)) return '0:00';
-
   return formatPace(paceInSeconds);
 };
 
@@ -74,8 +72,10 @@ export const formatPace = (
 ): string => {
   if (!isFinite(paceInSeconds) || paceInSeconds <= 0) return '-';
 
-  let minutes = Math.floor(paceInSeconds / 60);
-  let seconds = Math.round(paceInSeconds % 60);
+  const roundedPace = paceInSeconds.toFixed(2);
+
+  let minutes = Math.floor(roundedPace / 60);
+  let seconds = Math.round(roundedPace % 60);
 
   if (seconds === 60) {
     minutes += 1;

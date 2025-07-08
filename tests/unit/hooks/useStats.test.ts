@@ -19,7 +19,6 @@ vi.mock('../../../utils/apiFetch', () => ({
 import { apiGet } from '../../../utils/apiFetch';
 const mockApiGet = vi.mocked(apiGet);
 
-
 // Helper function to set up mock responses for all endpoints
 const setupMockResponses = () => {
   mockApiGet
@@ -33,7 +32,7 @@ describe('useStats', () => {
   beforeEach(() => {
     // Reset only the specific mocks we're using
     mockApiGet.mockClear();
-    
+
     // Provide default mock for apiGet
     mockApiGet.mockResolvedValue(createApiResponse([]));
   });
@@ -140,7 +139,7 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load weekly insights');
+      expect(result.current.error).toBe('Failed to load statistics');
       expect(result.current.weeklyInsights).toBeNull();
     });
 
@@ -164,7 +163,7 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load run type breakdown');
+      expect(result.current.error).toBe('Failed to load statistics');
       expect(result.current.typeBreakdown).toEqual([]);
     });
 
@@ -188,13 +187,13 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load trends data');
+      expect(result.current.error).toBe('Failed to load statistics');
       expect(result.current.trendsData).toEqual([]);
     });
 
     it('handles personal records fetch error', async () => {
       mockApiGet.mockClear();
-      
+
       // Set up successful mocks for first three calls, error for personal records
       mockApiGet
         .mockResolvedValueOnce(createApiResponse(mockWeeklyInsights))
@@ -214,7 +213,7 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load personal records');
+      expect(result.current.error).toBe('Failed to load statistics');
       expect(result.current.personalRecords).toEqual([]);
     });
 
@@ -234,7 +233,7 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load weekly insights');
+      expect(result.current.error).toBe('Failed to load statistics');
     });
   });
 
