@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { secureLogger } from '../utils/secureLogger.js';
+import { logError } from '../utils/logger.js';
 
 export interface AppError extends Error {
   statusCode?: number;
@@ -35,12 +35,10 @@ export const errorHandler = (
   // Determine error category for better client handling
   const errorCategory = getErrorCategory(statusCode);
 
-  // Use secure logging with automatic data redaction and context
-  secureLogger.error('Express route error', req, err, {
+  // Use enhanced structured logging with error categorization
+  logError('middleware', 'error-handler', err, req, {
     statusCode,
     isOperational: err.isOperational || false,
-    errorType: err.constructor.name,
-    errorCode: err.errorCode,
     category: errorCategory,
     field: err.field,
   });

@@ -9,6 +9,8 @@
  *   npx tsx scripts/validate-test-env.ts
  */
 
+/* eslint-disable no-console */
+
 import { validateTestEnvironment } from '../tests/setup/validateTestEnvironment';
 
 async function main() {
