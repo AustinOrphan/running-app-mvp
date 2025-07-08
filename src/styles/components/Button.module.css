@@ -1,0 +1,184 @@
+/* Base button styles */
+.btn {
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: background-color 0.2s, transform 0.1s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Button variants */
+.btnPrimary {
+  composes: btn;
+  background: #3b82f6;
+  color: white;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.btnSecondary {
+  composes: btn;
+  background: #2a2a2a;
+  color: rgba(255, 255, 255, 0.87);
+  border: 1px solid #404040;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background: #3a3a3a;
+}
+
+.btnDanger {
+  composes: btn;
+  background: #ef4444;
+  color: white;
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.btnWarning {
+  composes: btn;
+  background: #f59e0b;
+  color: white;
+}
+
+.btnWarning:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.btnSuccess {
+  composes: btn;
+  background: #10b981;
+  color: white;
+}
+
+.btnSuccess:hover:not(:disabled) {
+  background: #059669;
+}
+
+/* Button sizes */
+.btnSmall {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.btnLarge {
+  padding: 14px 20px;
+  font-size: 1rem;
+}
+
+/* Button with icon */
+.btnIcon {
+  composes: btn;
+  padding: 8px;
+  min-width: 36px;
+}
+
+/* Special purpose buttons */
+.primaryBtn {
+  composes: btnPrimary;
+  font-size: 1rem;
+  padding: 12px 24px;
+}
+
+.logoutBtn {
+  composes: btnDanger;
+  font-size: 0.85rem;
+  padding: 8px 16px;
+}
+
+/* Loading state */
+.btnLoading {
+  position: relative;
+  color: transparent;
+}
+
+.btnLoading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Button groups */
+.btnGroup {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btnGroup.vertical {
+  flex-direction: column;
+}
+
+.btnGroup.justified {
+  justify-content: center;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .btn {
+    padding: 12px 16px;
+    font-size: 1rem;
+  }
+
+  .btnSmall {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  .btnIcon {
+    padding: 10px;
+    min-width: 40px;
+  }
+
+  .btnGroup {
+    gap: 12px;
+  }
+
+  .btnGroup.vertical {
+    width: 100%;
+  }
+
+  .btnGroup.vertical .btn {
+    width: 100%;
+  }
+}

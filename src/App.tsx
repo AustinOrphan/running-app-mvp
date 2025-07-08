@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
+import './styles/globals.css';
+import styles from './styles/components/App.module.css';
 
 // Components
 import { AuthForm } from './components/Auth/AuthForm';
@@ -100,7 +102,7 @@ function AppContent() {
 
   if (!isLoggedIn) {
     return (
-      <div className='app'>
+      <div className="app">
         <h1>🏃‍♂️ Running Tracker</h1>
 
         {status === 'disconnected' && (
@@ -176,7 +178,7 @@ function AppContent() {
   }
 
   return (
-    <div className='app'>
+    <div className="app">
       <Header onLogout={handleLogout} />
 
       <TabNavigation
