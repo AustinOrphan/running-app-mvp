@@ -34,7 +34,7 @@ export class ReliabilityUtils {
         break;
       case 'stable':
         await expect(element).toBeVisible({ timeout });
-        await expect(element).toBeStable({ timeout: 2000 });
+        await this.page.waitForLoadState('networkidle');
         break;
     }
 
@@ -137,9 +137,8 @@ export class ReliabilityUtils {
     // Wait for any animations to complete
     await this.page.waitForTimeout(300);
 
-    // Ensure modal is stable
-    const modal = this.page.locator(modalSelector);
-    await expect(modal).toBeStable();
+    // Ensure page is stable
+    await this.page.waitForLoadState('networkidle');
   }
 }
 

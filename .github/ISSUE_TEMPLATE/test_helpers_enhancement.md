@@ -29,6 +29,7 @@ This results in compilation errors and forced the test to be simplified with dir
 Create a comprehensive `tests/e2e/utils/testHelpers.ts` module that provides:
 
 ### 1. Form Interaction Helpers
+
 ```typescript
 interface FormHelpers {
   fillForm(fieldSelectors: Record<string, string>): Promise<void>;
@@ -38,6 +39,7 @@ interface FormHelpers {
 ```
 
 ### 2. Navigation Helpers
+
 ```typescript
 interface NavigationHelpers {
   waitForNavigation(path: string, timeout?: number): Promise<void>;
@@ -47,6 +49,7 @@ interface NavigationHelpers {
 ```
 
 ### 3. Element Interaction Helpers
+
 ```typescript
 interface ElementHelpers {
   waitForElement(selector: string, timeout?: number): Promise<void>;
@@ -57,6 +60,7 @@ interface ElementHelpers {
 ```
 
 ### 4. Authentication Helpers
+
 ```typescript
 interface AuthHelpers {
   login(email: string, password: string): Promise<void>;
@@ -67,6 +71,7 @@ interface AuthHelpers {
 ```
 
 ### 5. Database Helpers
+
 ```typescript
 interface DatabaseHelpers {
   cleanDatabase(): Promise<void>;
@@ -77,6 +82,7 @@ interface DatabaseHelpers {
 ```
 
 ### 6. Network Helpers
+
 ```typescript
 interface NetworkHelpers {
   withNetworkRetry<T>(operation: () => Promise<T>, maxRetries?: number): Promise<T>;
@@ -96,7 +102,7 @@ export function createE2EHelpers(page: Page, testDb: TestDatabase) {
     db: new DatabaseHelpers(testDb),
     network: new NetworkHelpers(page),
     navigation: new NavigationHelpers(page),
-    forms: new FormHelpers(page)
+    forms: new FormHelpers(page),
   };
 }
 ```

@@ -4,17 +4,15 @@
  */
 
 import { test, expect } from '@playwright/test';
-// import { createE2EHelpers } from './utils/testHelpers';
+
 import { ReliabilityUtils } from './utils/reliability';
 import { testDb } from '../fixtures/testDatabase';
 import type { TestUser } from './types';
 
 test.describe('Authentication Flow E2E Tests - Improved', () => {
-  // let helpers: ReturnType<typeof createE2EHelpers>;
   let reliability: ReliabilityUtils;
 
   test.beforeEach(async ({ page: _page }) => {
-    // helpers = createE2EHelpers(_page, testDb);
     reliability = new ReliabilityUtils(_page);
 
     // Clean database with improved error handling
@@ -97,8 +95,13 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       });
 
       // Wait for database state to settle
-      // Wait for database state to settle
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await reliability.waitForDatabaseState(async () => {
+        // Verify user exists in database
+        const user = await testDb.prisma.user.findUnique({
+          where: { email: 'existing@test.com' },
+        });
+        return user !== null;
+      });
 
       await reliability.clickSafely('text=Sign Up');
       await _page.waitForSelector('h2:has-text("Create Account")');
@@ -126,8 +129,12 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       });
 
       // Verify user creation completed
-      // Wait for database state to settle
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await reliability.waitForDatabaseState(async () => {
+        const user = await testDb.prisma.user.findUnique({
+          where: { email: 'login@test.com' },
+        });
+        return user !== null;
+      });
     });
 
     test('should login successfully with enhanced reliability', async ({ page: _page }) => {
