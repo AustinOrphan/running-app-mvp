@@ -46,10 +46,11 @@ NODE_ENV=test
 ### For Development/Testing
 
 1. **PostgreSQL** (Recommended):
+
    ```bash
    # Create test database
    createdb running_app_test
-   
+
    # Set environment variable
    export TEST_DATABASE_URL="postgresql://localhost:5432/running_app_test"
    ```
@@ -157,6 +158,7 @@ beforeEach(async () => {
 ### Issue: "Database connection failed"
 
 **Solution:**
+
 1. Verify database is running
 2. Check `DATABASE_URL` format
 3. Ensure test database exists
@@ -170,6 +172,7 @@ npx prisma db pull --schema ./prisma/schema.prisma
 ### Issue: "Rate limit exceeded in tests"
 
 **Solution:**
+
 ```bash
 export RATE_LIMITING_ENABLED=false
 ```
@@ -177,6 +180,7 @@ export RATE_LIMITING_ENABLED=false
 ### Issue: "Module not found" errors
 
 **Solution:**
+
 1. Run `npm install`
 2. Check import paths
 3. Verify file extensions in imports
@@ -184,6 +188,7 @@ export RATE_LIMITING_ENABLED=false
 ### Issue: "Tests timeout frequently"
 
 **Solution:**
+
 1. Increase test timeouts
 2. Improve wait conditions
 3. Use proper async/await patterns
@@ -194,26 +199,31 @@ export RATE_LIMITING_ENABLED=false
 The validation script checks:
 
 ### Environment Variables
+
 - ✅ Required variables are set
 - ⚠️ Optional variables for better reliability
 - 💡 Recommendations for optimization
 
 ### File Structure
+
 - ✅ Essential config files exist
 - ✅ Test directories are present
 - 💡 Suggested organizational improvements
 
 ### Database Configuration
+
 - ✅ Valid database URL format
 - ⚠️ Using test database (not production)
 - 💡 Database provider recommendations
 
 ### Dependencies
+
 - ✅ Critical test dependencies installed
 - ✅ Node.js version compatibility
 - 💡 Additional useful packages
 
 ### Performance Settings
+
 - ⚠️ Rate limiting configuration
 - 💡 Optimization suggestions
 - 💡 Mock service setup
@@ -229,12 +239,12 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     env:
       NODE_ENV: test
       RATE_LIMITING_ENABLED: false
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
-    
+
     services:
       postgres:
         image: postgres:14
@@ -246,14 +256,14 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
+
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
-      
+
       - run: npm ci
       - run: npm run validate-test-env
       - run: npm run test:all

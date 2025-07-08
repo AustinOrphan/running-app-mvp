@@ -15,6 +15,13 @@ vi.mock('../../../../src/utils/formatters', () => ({
     }
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   }),
+  formatPace: vi.fn((paceInSeconds: number, options: any = {}) => {
+    if (!isFinite(paceInSeconds) || paceInSeconds <= 0) return '-';
+    const minutes = Math.floor(paceInSeconds / 60);
+    const seconds = Math.round(paceInSeconds % 60);
+    const formatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return options.includeUnit ? `${formatted}/km` : formatted;
+  }),
 }));
 
 describe('PersonalRecordsTable', () => {

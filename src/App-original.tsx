@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { logError } from './utils/clientLogger';
 
@@ -53,18 +53,7 @@ function App() {
   });
 
   // Toast functions
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const id = Date.now().toString();
-    const newToast: Toast = { id, message, type };
-    setToasts(prev => [...prev, newToast]);
-
-    // Auto remove after 4 seconds
-    setTimeout(() => {
-      removeToast(id);
-    }, 4000);
-  };
-
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     // Add removing class to trigger animation
     const toastElement = document.querySelector(`[data-toast-id="${id}"]`);
     if (toastElement) {
@@ -77,7 +66,21 @@ function App() {
       // Fallback if element not found
       setToasts(prev => prev.filter(toast => toast.id !== id));
     }
-  };
+  }, []);
+
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+      const id = Date.now().toString();
+      const newToast: Toast = { id, message, type };
+      setToasts(prev => [...prev, newToast]);
+
+      // Auto remove after 4 seconds
+      setTimeout(() => {
+        removeToast(id);
+      }, 4000);
+    },
+    [removeToast]
+  );
 
   // Utility functions
   const calculatePace = (distance: number, durationInSeconds: number) => {
@@ -181,6 +184,32 @@ function App() {
     }, 600);
   };
 
+  const fetchRuns = useCallback(
+    async (token: string) => {
+      setRunsLoading(true);
+      try {
+        const response = await fetch('/api/runs', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const runsData = await response.json();
+          setRuns(runsData);
+        }
+      } catch (_error) {
+        logError(
+          'Failed to fetch runs',
+          _error instanceof Error ? _error : new Error(String(_error))
+        );
+        showToast('Failed to load runs', 'error');
+      } finally {
+        setRunsLoading(false);
+      }
+    },
+    [showToast]
+  );
+
   useEffect(() => {
     // Check server health
     fetch('/api/health')
@@ -206,31 +235,7 @@ function App() {
     if (hasSwipedBefore === 'true') {
       setHasSwipedOnce(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchRuns = async (token: string) => {
-    setRunsLoading(true);
-    try {
-      const response = await fetch('/api/runs', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const runsData = await response.json();
-        setRuns(runsData);
-      }
-    } catch (_error) {
-      logError(
-        'Failed to fetch runs',
-        _error instanceof Error ? _error : new Error(String(_error))
-      );
-      showToast('Failed to load runs', 'error');
-    } finally {
-      setRunsLoading(false);
-    }
-  };
+  }, [fetchRuns, showToast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

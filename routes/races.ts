@@ -35,14 +35,13 @@ router.get(
   '/:id',
   requireAuth,
   validateIdParam,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     const race = await prisma.race.findFirst({
       where: { id: req.params.id, userId: req.user!.id },
     });
 
     if (!race) {
-      next(createNotFoundError('Race'));
-      return;
+      throw createNotFoundError('Race');
     }
 
     res.json(race);
@@ -79,14 +78,13 @@ router.put(
   requireAuth,
   validateIdParam,
   validateUpdateRace,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     const existingRace = await prisma.race.findFirst({
       where: { id: req.params.id, userId: req.user!.id },
     });
 
     if (!existingRace) {
-      next(createNotFoundError('Race'));
-      return;
+      throw createNotFoundError('Race');
     }
 
     const { name, raceDate, distance, targetTime, actualTime, notes } = req.body;
@@ -119,14 +117,13 @@ router.delete(
   '/:id',
   requireAuth,
   validateIdParam,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     const existingRace = await prisma.race.findFirst({
       where: { id: req.params.id, userId: req.user!.id },
     });
 
     if (!existingRace) {
-      next(createNotFoundError('Race'));
-      return;
+      throw createNotFoundError('Race');
     }
 
     await prisma.race.delete({ where: { id: req.params.id } });

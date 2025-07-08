@@ -32,11 +32,11 @@ describe('Runs API Integration Tests', () => {
       email: 'runs@test.com',
       password: 'testpassword',
     });
-    
+
     if (!testUser) {
       throw new Error('Test user not created');
     }
-    
+
     authToken = testDb.generateTestToken(testUser.id);
   });
 
