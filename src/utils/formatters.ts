@@ -72,8 +72,7 @@ export const formatPace = (
 ): string => {
   if (!isFinite(paceInSeconds) || paceInSeconds <= 0) return '-';
 
-  // Round to 2 decimal places for consistent display
-  const roundedPace = Math.round(paceInSeconds * 100) / 100;
+  const roundedPace = paceInSeconds.toFixed(2);
 
   let minutes = Math.floor(roundedPace / 60);
   let seconds = Math.round(roundedPace % 60);
