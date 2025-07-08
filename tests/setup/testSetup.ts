@@ -68,19 +68,20 @@ Object.defineProperty(window, 'localStorage', {
 // Validate test environment before running tests
 beforeAll(async () => {
   // Only run validation if not in CI or if explicitly requested
-  const shouldValidate = process.env.VALIDATE_TEST_ENV === 'true' || 
-                        (!process.env.CI && process.env.NODE_ENV !== 'test');
-  
+  const shouldValidate =
+    process.env.VALIDATE_TEST_ENV === 'true' ||
+    (!process.env.CI && process.env.NODE_ENV !== 'test');
+
   if (shouldValidate) {
     const validator = new TestEnvironmentValidator();
     const result = await validator.validateEnvironment();
-    
+
     if (!result.isValid) {
       console.error('\n🚨 Test Environment Validation Failed:');
       console.error(validator.generateReport(result));
       throw new Error('Test environment validation failed. Please fix the errors above.');
     }
-    
+
     // Show warnings if any
     if (result.warnings.length > 0 || result.recommendations.length > 0) {
       console.warn('\n⚠️  Test Environment Validation Warnings:');

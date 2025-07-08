@@ -36,11 +36,7 @@ export const createApiResponse = <T>(data: T, status = 200): ApiResponse<T> => (
 /**
  * Helper function to create API error responses
  */
-export const createApiError = (
-  message: string,
-  status = 500,
-  data?: unknown
-): MockApiError => {
+export const createApiError = (message: string, status = 500, data?: unknown): MockApiError => {
   return new MockApiError(message, status, undefined, data);
 };
 

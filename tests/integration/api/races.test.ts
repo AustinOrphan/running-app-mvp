@@ -30,11 +30,11 @@ describe('Races API Integration Tests', () => {
       email: 'races@test.com',
       password: 'testpassword',
     });
-    
+
     if (!testUser) {
       throw new Error('Test user not created');
     }
-    
+
     authToken = testDb.generateTestToken(testUser.id);
   });
 
