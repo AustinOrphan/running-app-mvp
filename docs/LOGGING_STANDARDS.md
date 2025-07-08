@@ -62,13 +62,14 @@ import { logError } from '../utils/logger.js';
 
 try {
   // Operation that might fail
-} catch (error) {
+} catch (err) {
+  const error = err instanceof Error ? err : new Error(String(err));
   logError(
-    'runs',                    // component
-    'create-run',              // operation
-    error,                     // error object
-    req,                       // request (optional)
-    { userId: req.user?.id }   // additional context (optional)
+    'runs', // component
+    'create-run', // operation
+    error, // error object
+    req, // request (optional)
+    { userId: req.user?.id } // additional context (optional)
   );
   // Handle error response
 }
@@ -103,12 +104,12 @@ logDatabase('create-user', req, error, { table: 'users' });
 ```typescript
 import { logWarn, logInfo } from '../utils/logger.js';
 
-logWarn('auth', 'token-expiry', 'Token expiring soon', req, { 
-  expiresIn: '1 hour' 
+logWarn('auth', 'token-expiry', 'Token expiring soon', req, {
+  expiresIn: '1 hour',
 });
 
-logInfo('runs', 'batch-process', 'Processing runs batch', req, { 
-  batchSize: 100 
+logInfo('runs', 'batch-process', 'Processing runs batch', req, {
+  batchSize: 100,
 });
 ```
 
@@ -133,6 +134,7 @@ The logging system automatically:
 ### Sensitive Field Detection
 
 Fields containing these terms are automatically redacted:
+
 - `password`, `token`, `secret`, `key`
 - `email`, `phone`, `address`, `name`
 - `authorization`, `ssn`, `creditcard`
@@ -140,6 +142,7 @@ Fields containing these terms are automatically redacted:
 ## Best Practices
 
 ### DO:
+
 - ✅ Always capture error objects in catch blocks
 - ✅ Provide meaningful operation names
 - ✅ Include relevant context without sensitive data
@@ -147,6 +150,7 @@ Fields containing these terms are automatically redacted:
 - ✅ Log successful critical operations (auth, payments)
 
 ### DON'T:
+
 - ❌ Log sensitive information directly
 - ❌ Use generic error messages
 - ❌ Ignore errors (empty catch blocks)
@@ -167,12 +171,14 @@ When implementing logging in new code:
 ## Environment Configuration
 
 ### Development
+
 - Full error stacks included
 - User IDs logged directly
 - IP addresses not masked
 - Debug logs enabled
 
 ### Production
+
 - Error stacks excluded
 - User IDs hashed
 - IP addresses hashed

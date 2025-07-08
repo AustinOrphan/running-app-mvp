@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { secureLogger } from '../utils/secureLogger.js';
 import { logError } from '../utils/logger.js';
 
 export interface AppError extends Error {

@@ -77,13 +77,13 @@ class EnhancedLogger {
       return 'ConflictError';
     }
 
+    // Network errors
+    if (errorMessage.includes('network') || errorMessage.includes('timeout')) {
+      return 'NetworkError';
+    }
+
     // External service errors
-    if (
-      errorMessage.includes('fetch') ||
-      errorMessage.includes('request') ||
-      errorMessage.includes('network') ||
-      errorMessage.includes('timeout')
-    ) {
+    if (errorMessage.includes('fetch') || errorMessage.includes('request')) {
       return 'ExternalServiceError';
     }
 
