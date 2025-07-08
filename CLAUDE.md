@@ -112,8 +112,8 @@ server.ts             # Express server entry point
 - `useRuns`: Running data management
 - `useGoals`: Goals CRUD and progress tracking
 - `useStats`: Statistics and analytics
-- `useNotifications`: Notification system
-- `useConnectivityStatus`: Backend health monitoring
+- `useToast`: Notification system
+- `useHealthCheck`: Backend health monitoring
 
 ### Backend Architecture Patterns
 

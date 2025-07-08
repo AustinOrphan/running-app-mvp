@@ -35,7 +35,6 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
   const {
     showMilestoneNotification,
     showDeadlineNotification,
-
     preferences: notificationPreferences,
   } = useNotifications();
 
