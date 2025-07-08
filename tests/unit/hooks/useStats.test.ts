@@ -139,7 +139,7 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load weekly insights');
+      expect(result.current.error).toBe('Failed to load statistics');
       expect(result.current.weeklyInsights).toBeNull();
     });
 
@@ -163,7 +163,7 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load run type breakdown');
+      expect(result.current.error).toBe('Failed to load statistics');
       expect(result.current.typeBreakdown).toEqual([]);
     });
 
@@ -187,7 +187,7 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load trends data');
+      expect(result.current.error).toBe('Failed to load statistics');
       expect(result.current.trendsData).toEqual([]);
     });
 
@@ -213,7 +213,7 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load personal records');
+      expect(result.current.error).toBe('Failed to load statistics');
       expect(result.current.personalRecords).toEqual([]);
     });
 
@@ -233,7 +233,7 @@ describe('useStats', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load weekly insights');
+      expect(result.current.error).toBe('Failed to load statistics');
     });
   });
 
