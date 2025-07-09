@@ -233,7 +233,7 @@ git push origin --delete feature/windows-setup-and-fixes
 npm outdated
 
 # Update patch versions only
-npm update --save-dev --save-exact
+npm update
 
 # Check for security vulnerabilities
 npm audit
