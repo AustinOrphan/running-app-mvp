@@ -114,6 +114,13 @@ export const cleanupDatabase = async () => {
   await prisma.user.deleteMany();
 };
 
+// Find user by email
+export const findUserByEmail = async (email: string) => {
+  return await prisma.user.findUnique({
+    where: { email },
+  });
+};
+
 // Database seed for tests
 export const seedTestDatabase = async () => {
   // Clean existing data
@@ -138,6 +145,7 @@ export const testDb = {
   generateTestToken,
   cleanupDatabase,
   seedTestDatabase,
+  findUserByEmail,
 };
 
 export default testDb;
