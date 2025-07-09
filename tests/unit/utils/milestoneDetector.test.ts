@@ -112,7 +112,7 @@ describe('MilestoneDetector', () => {
       const result = MilestoneDetector.checkMilestones(goal, progress);
 
       expect(result.nextMilestone).toBe(75);
-      expect(result.progressToNextMilestone).toBe(60); // (60-50)/(75-50) * 100 = 40%
+      expect(result.progressToNextMilestone).toBe(40); // (60-50)/(75-50) * 100 = 40%
     });
 
     it('should handle 100% completion correctly', () => {
@@ -366,7 +366,7 @@ describe('StreakDetector', () => {
       const result = StreakDetector.calculateRunningStreak(runDates);
 
       expect(result.currentStreak).toBe(1); // Only today
-      expect(result.longestStreak).toBe(4); // Historical 4-day streak
+      expect(result.longestStreak).toBe(5); // Historical 5-day streak (Jan 6-10)
     });
 
     it('should detect celebration milestones', () => {

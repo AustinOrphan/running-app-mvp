@@ -60,7 +60,17 @@
       "Bash(gh:*)",
       "Bash(mkdir:*)",
       "Bash(grep:*)",
-      "Bash(NODE_ENV=test npm run validate-test-env)"
+      "Bash(NODE_ENV=test npm run validate-test-env)",
+      "mcp__serena__execute_shell_command",
+      "mcp__serena__search_for_pattern",
+      "mcp__serena__replace_regex",
+      "mcp__serena__find_symbol",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "mcp__Context7__resolve-library-id",
+      "mcp__filesystem__list_directory",
+      "mcp__Context7__get-library-docs",
+      "mcp__serena__find_file"
     ],
     "deny": []
   }
