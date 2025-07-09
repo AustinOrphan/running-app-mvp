@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { GoalAnalyticsCalculator } from '../../../src/utils/goalAnalytics';
 import { Goal, GoalProgress } from '../../../src/types/goals';
 

@@ -275,26 +275,34 @@ describe('apiFetch', () => {
       const errorData = { error: 'Validation failed' };
       mockFetch.mockResolvedValueOnce(createMockResponse(errorData, 400));
 
-      await expect(apiFetch('/api/test', { requiresAuth: false })).rejects.toThrow('Validation failed');
+      await expect(apiFetch('/api/test', { requiresAuth: false })).rejects.toThrow(
+        'Validation failed'
+      );
     });
 
     it('should handle HTTP error with default message', async () => {
       mockFetch.mockResolvedValueOnce(createMockResponse({}, 500));
 
-      await expect(apiFetch('/api/test', { requiresAuth: false, retries: 0 })).rejects.toThrow('HTTP 500: Error');
+      await expect(apiFetch('/api/test', { requiresAuth: false, retries: 0 })).rejects.toThrow(
+        'HTTP 500: Error'
+      );
     });
 
     it('should handle non-JSON error responses', async () => {
       const response = createMockResponse('Internal Server Error', 500, 'text/plain');
       mockFetch.mockResolvedValueOnce(response);
 
-      await expect(apiFetch('/api/test', { requiresAuth: false, retries: 0 })).rejects.toThrow('HTTP 500: Error');
+      await expect(apiFetch('/api/test', { requiresAuth: false, retries: 0 })).rejects.toThrow(
+        'HTTP 500: Error'
+      );
     });
 
     it('should handle network errors', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(apiFetch('/api/test', { retries: 0, requiresAuth: false })).rejects.toThrow('Network error');
+      await expect(apiFetch('/api/test', { retries: 0, requiresAuth: false })).rejects.toThrow(
+        'Network error'
+      );
     });
 
     it('should include error details in ApiFetchError', async () => {
@@ -315,19 +323,20 @@ describe('apiFetch', () => {
     it('should timeout after specified duration', async () => {
       vi.useFakeTimers();
 
-      let timeoutResolve: (value: any) => void;
-      const timeoutPromise = new Promise((resolve) => {
-        timeoutResolve = resolve;
-      });
+      const timeoutPromise = new Promise(() => {});
 
       // Mock fetch to never resolve
       mockFetch.mockImplementationOnce(() => timeoutPromise);
 
-      const fetchPromise = apiFetch('/api/test', { timeout: 1000, requiresAuth: false, retries: 0 });
+      const fetchPromise = apiFetch('/api/test', {
+        timeout: 1000,
+        requiresAuth: false,
+        retries: 0,
+      });
 
       // Advance time past timeout
       vi.advanceTimersByTime(1001);
-      
+
       await expect(fetchPromise).rejects.toThrow('Request timeout');
 
       vi.useRealTimers();
@@ -336,10 +345,7 @@ describe('apiFetch', () => {
     it('should use default timeout when not specified', async () => {
       vi.useFakeTimers();
 
-      let timeoutResolve: (value: any) => void;
-      const timeoutPromise = new Promise((resolve) => {
-        timeoutResolve = resolve;
-      });
+      const timeoutPromise = new Promise(() => {});
 
       // Mock fetch to never resolve
       mockFetch.mockImplementationOnce(() => timeoutPromise);
@@ -348,7 +354,7 @@ describe('apiFetch', () => {
 
       // Advance time past default timeout (10 seconds)
       vi.advanceTimersByTime(10001);
-      
+
       await expect(fetchPromise).rejects.toThrow('Request timeout');
 
       vi.useRealTimers();
@@ -366,14 +372,18 @@ describe('apiFetch', () => {
 
     it('should retry on retryable status codes', async () => {
       vi.useRealTimers();
-      
+
       // First two attempts fail, third succeeds
       mockFetch
         .mockResolvedValueOnce(createMockResponse({}, 500))
         .mockResolvedValueOnce(createMockResponse({}, 502))
         .mockResolvedValueOnce(createMockResponse({ success: true }));
 
-      const result = await apiFetch('/api/test', { retries: 2, retryDelay: 1, requiresAuth: false });
+      const result = await apiFetch('/api/test', {
+        retries: 2,
+        retryDelay: 1,
+        requiresAuth: false,
+      });
 
       expect(mockFetch).toHaveBeenCalledTimes(3);
       expect(result.data).toEqual({ success: true });
@@ -389,20 +399,24 @@ describe('apiFetch', () => {
 
     it('should respect retry limit', async () => {
       vi.useRealTimers();
-      
+
       mockFetch.mockResolvedValue(createMockResponse({}, 500));
 
-      await expect(apiFetch('/api/test', { retries: 2, retryDelay: 1, requiresAuth: false })).rejects.toThrow();
+      await expect(
+        apiFetch('/api/test', { retries: 2, retryDelay: 1, requiresAuth: false })
+      ).rejects.toThrow();
 
       expect(mockFetch).toHaveBeenCalledTimes(3); // Initial + 2 retries
     }, 10000);
 
     it('should use exponential backoff for retries', async () => {
       vi.useRealTimers();
-      
+
       mockFetch.mockResolvedValue(createMockResponse({}, 503));
 
-      await expect(apiFetch('/api/test', { retries: 2, retryDelay: 1, requiresAuth: false })).rejects.toThrow();
+      await expect(
+        apiFetch('/api/test', { retries: 2, retryDelay: 1, requiresAuth: false })
+      ).rejects.toThrow();
 
       // Verify that retries were attempted
       expect(mockFetch).toHaveBeenCalledTimes(3); // Initial + 2 retries
@@ -496,7 +510,9 @@ describe('apiFetch', () => {
 
       mockFetch.mockResolvedValueOnce(response);
 
-      await expect(apiFetch('/api/test', { requiresAuth: false })).rejects.toThrow('HTTP 400: Bad Request');
+      await expect(apiFetch('/api/test', { requiresAuth: false })).rejects.toThrow(
+        'HTTP 400: Bad Request'
+      );
     });
 
     it('should handle empty response body', async () => {
@@ -537,7 +553,9 @@ describe('apiFetch', () => {
       mockFetch.mockResolvedValueOnce(response);
 
       // Should throw ApiFetchError when JSON parsing fails
-      await expect(apiFetch('/api/test', { requiresAuth: false, retries: 0 })).rejects.toThrow('JSON parse error');
+      await expect(apiFetch('/api/test', { requiresAuth: false, retries: 0 })).rejects.toThrow(
+        'JSON parse error'
+      );
     });
 
     it('should handle localStorage not available', async () => {
@@ -550,9 +568,7 @@ describe('apiFetch', () => {
       mockFetch.mockResolvedValueOnce(createMockResponse({}));
 
       // Should not throw when localStorage is not available
-      await expect(
-        apiFetch('/api/test', { requiresAuth: false })
-      ).resolves.toBeDefined();
+      await expect(apiFetch('/api/test', { requiresAuth: false })).resolves.toBeDefined();
 
       // Restore localStorage
       Object.defineProperty(window, 'localStorage', {

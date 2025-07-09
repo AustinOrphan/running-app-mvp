@@ -82,7 +82,8 @@
       "Bash(cd:*)",
       "Bash(for file in *.test.ts)",
       "Bash(do)",
-      "Bash(done)"
+      "Bash(done)",
+      "mcp__serena__list_memories"
     ],
     "deny": []
   }

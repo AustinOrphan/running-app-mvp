@@ -86,13 +86,13 @@ describe('NotificationPermissionManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockNotification.mockClear();
-    
+
     // Reset Notification permission
     Object.defineProperty(mockNotification, 'permission', {
       value: 'default',
       writable: true,
     });
-    
+
     mockNotification.requestPermission = vi.fn();
   });
 
@@ -218,10 +218,10 @@ describe('BrowserNotificationManager', () => {
     mockNotification.mockClear();
     mockNotification.permission = 'granted';
     mockNotification.mockImplementation(() => mockNotificationInstance);
-    
+
     // Clear active notifications
     BrowserNotificationManager.closeAllNotifications();
-    
+
     vi.useFakeTimers();
   });
 
@@ -349,10 +349,13 @@ describe('BrowserNotificationManager', () => {
 
   describe('closeNotification', () => {
     it('should close notification by tag', async () => {
-      await BrowserNotificationManager.show({
-        title: 'Test',
-        body: 'Test',
-      }, 'test-tag');
+      await BrowserNotificationManager.show(
+        {
+          title: 'Test',
+          body: 'Test',
+        },
+        'test-tag'
+      );
 
       BrowserNotificationManager.closeNotification('test-tag');
 
@@ -371,9 +374,7 @@ describe('BrowserNotificationManager', () => {
       const notification1 = { close: vi.fn() };
       const notification2 = { close: vi.fn() };
 
-      mockNotification
-        .mockReturnValueOnce(notification1)
-        .mockReturnValueOnce(notification2);
+      mockNotification.mockReturnValueOnce(notification1).mockReturnValueOnce(notification2);
 
       await BrowserNotificationManager.show({ title: 'Test1', body: 'Body1' }, 'tag1');
       await BrowserNotificationManager.show({ title: 'Test2', body: 'Body2' }, 'tag2');
@@ -849,12 +850,7 @@ describe('NotificationContentGenerator', () => {
     });
 
     it('should generate monthly summary content', () => {
-      const result = NotificationContentGenerator.generateSummaryContent(
-        'monthly',
-        2,
-        4,
-        75
-      );
+      const result = NotificationContentGenerator.generateSummaryContent('monthly', 2, 4, 75);
 
       expect(result.title).toBe('📊 Month Summary');
       expect(result.message).toContain('2/4 goals completed');
@@ -863,24 +859,14 @@ describe('NotificationContentGenerator', () => {
     });
 
     it('should handle zero goals correctly', () => {
-      const result = NotificationContentGenerator.generateSummaryContent(
-        'weekly',
-        0,
-        0,
-        0
-      );
+      const result = NotificationContentGenerator.generateSummaryContent('weekly', 0, 0, 0);
 
       expect(result.message).toContain('0/0 goals completed (0%)');
       expect(result.message).toContain('Average progress: 0%');
     });
 
     it('should handle summary without top performing goal', () => {
-      const result = NotificationContentGenerator.generateSummaryContent(
-        'weekly',
-        1,
-        3,
-        40
-      );
+      const result = NotificationContentGenerator.generateSummaryContent('weekly', 1, 3, 40);
 
       expect(result.message).not.toContain('Top performer:');
     });
@@ -988,7 +974,9 @@ describe('NotificationPreferencesStorage', () => {
 
       expect(loaded.enableMilestoneNotifications).toBe(false);
       expect(loaded.deadlineReminderDays).toEqual([1]);
-      expect(loaded.enableBrowserNotifications).toBe(DEFAULT_NOTIFICATION_PREFERENCES.enableBrowserNotifications);
+      expect(loaded.enableBrowserNotifications).toBe(
+        DEFAULT_NOTIFICATION_PREFERENCES.enableBrowserNotifications
+      );
     });
 
     it('should handle localStorage errors gracefully', () => {

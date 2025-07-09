@@ -3,14 +3,16 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // Mock the entire env module
 vi.mock('../../../src/utils/env', () => {
   let mockEnv: Record<string, string> = {};
-  
+
   return {
     getEnvVar: vi.fn((key: string, fallback: string = '') => {
       const value = mockEnv[key];
       return value ?? fallback;
     }),
     getAppVersion: vi.fn(() => mockEnv['VITE_APP_VERSION'] || '1.0.0'),
-    getBuildDate: vi.fn(() => mockEnv['VITE_APP_BUILD_DATE'] || new Date().toISOString().split('T')[0]),
+    getBuildDate: vi.fn(
+      () => mockEnv['VITE_APP_BUILD_DATE'] || new Date().toISOString().split('T')[0]
+    ),
     getEnvironment: vi.fn(() => mockEnv['MODE'] || 'development'),
     isDevelopment: vi.fn(() => (mockEnv['MODE'] || 'development') === 'development'),
     isProduction: vi.fn(() => (mockEnv['MODE'] || 'development') === 'production'),
@@ -27,7 +29,7 @@ vi.mock('../../../src/utils/env', () => {
     },
     __clearMockEnv: () => {
       mockEnv = {};
-    }
+    },
   };
 });
 
@@ -79,9 +81,9 @@ describe('env utilities', () => {
     });
 
     it('should handle null/undefined environment values', () => {
-      __setMockEnv({ 
+      __setMockEnv({
         VITE_NULL_VAR: null as any,
-        VITE_UNDEFINED_VAR: undefined as any 
+        VITE_UNDEFINED_VAR: undefined as any,
       });
 
       const nullResult = getEnvVar('VITE_NULL_VAR' as keyof ImportMetaEnv, 'fallback');
@@ -152,7 +154,7 @@ describe('env utilities', () => {
     it('should return current date when empty string', () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2024-02-14T15:30:00Z'));
-      
+
       __setMockEnv({ VITE_APP_BUILD_DATE: '' });
 
       const result = getBuildDate();
@@ -256,10 +258,10 @@ describe('env utilities', () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2024-01-25T10:00:00Z'));
 
-      __setMockEnv({ 
+      __setMockEnv({
         VITE_APP_VERSION: '3.2.1',
         VITE_APP_BUILD_DATE: '2024-01-20',
-        MODE: 'production'
+        MODE: 'production',
       });
 
       const result = getAppInfo();
@@ -293,9 +295,9 @@ describe('env utilities', () => {
     });
 
     it('should return consistent values when called multiple times', () => {
-      __setMockEnv({ 
+      __setMockEnv({
         VITE_APP_VERSION: '1.5.0',
-        MODE: 'staging'
+        MODE: 'staging',
       });
 
       const result1 = getAppInfo();
@@ -320,10 +322,10 @@ describe('env utilities', () => {
 
   describe('edge cases and error handling', () => {
     it('should handle various falsy values correctly', () => {
-      __setMockEnv({ 
+      __setMockEnv({
         VITE_FALSE_VAR: 'false',
         VITE_ZERO_VAR: '0',
-        VITE_EMPTY_VAR: ''
+        VITE_EMPTY_VAR: '',
       });
 
       expect(getEnvVar('VITE_FALSE_VAR' as keyof ImportMetaEnv, 'fallback')).toBe('false');

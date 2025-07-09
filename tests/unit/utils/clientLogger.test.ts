@@ -58,7 +58,7 @@ describe('ClientLogger', () => {
     // Clear all mocks
     vi.clearAllMocks();
     mockFetch.mockClear();
-    
+
     // Reset NODE_ENV
     process.env.NODE_ENV = 'development';
   });
@@ -69,7 +69,7 @@ describe('ClientLogger', () => {
     console.warn = originalConsole.warn;
     console.info = originalConsole.info;
     console.debug = originalConsole.debug;
-    
+
     // Restore NODE_ENV
     process.env.NODE_ENV = originalNodeEnv;
   });
@@ -77,17 +77,17 @@ describe('ClientLogger', () => {
   describe('environment detection', () => {
     it('should detect development environment', () => {
       process.env.NODE_ENV = 'development';
-      
+
       clientLogger.debug('Test debug message');
-      
+
       expect(mockConsole.debug).toHaveBeenCalled();
     });
 
     it('should detect production environment', () => {
       process.env.NODE_ENV = 'production';
-      
+
       clientLogger.debug('Test debug message');
-      
+
       // Debug logs should be skipped in production
       expect(mockConsole.debug).not.toHaveBeenCalled();
     });

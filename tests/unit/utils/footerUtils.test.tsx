@@ -176,7 +176,7 @@ describe('footerUtils', () => {
 
       expect(section.id).toBe('app-info');
       expect(section.title).toBe('App Info');
-      
+
       // Verify that our mocked functions were called
       const { getAppVersion, getBuildDate, getEnvironment } = require('../../../src/utils/env');
       expect(getAppVersion).toHaveBeenCalled();
@@ -304,7 +304,8 @@ describe('footerUtils', () => {
 
     it('should truncate long user agent strings', () => {
       // Override navigator with a very long user agent
-      const longUserAgent = 'Very long user agent string that should be truncated because it exceeds fifty characters';
+      const longUserAgent =
+        'Very long user agent string that should be truncated because it exceeds fifty characters';
       Object.defineProperty(global, 'navigator', {
         value: { userAgent: longUserAgent },
         writable: true,
@@ -438,7 +439,7 @@ describe('footerUtils', () => {
     });
 
     it('should have proper link structure', () => {
-      defaultFooterLinks.forEach((link) => {
+      defaultFooterLinks.forEach(link => {
         expect(link).toHaveProperty('label');
         expect(link).toHaveProperty('href');
         expect(typeof link.label).toBe('string');
@@ -450,7 +451,7 @@ describe('footerUtils', () => {
 
     it('should include expected links', () => {
       const linkLabels = defaultFooterLinks.map(link => link.label);
-      
+
       expect(linkLabels).toContain('Privacy Policy');
       expect(linkLabels).toContain('Terms of Service');
       expect(linkLabels).toContain('Help & Support');
@@ -458,7 +459,7 @@ describe('footerUtils', () => {
     });
 
     it('should have click handlers for all links', () => {
-      defaultFooterLinks.forEach((link) => {
+      defaultFooterLinks.forEach(link => {
         expect(link.onClick).toBeDefined();
         expect(typeof link.onClick).toBe('function');
       });
@@ -469,7 +470,7 @@ describe('footerUtils', () => {
         preventDefault: vi.fn(),
       } as unknown as React.MouseEvent;
 
-      defaultFooterLinks.forEach((link) => {
+      defaultFooterLinks.forEach(link => {
         if (link.onClick) {
           expect(() => link.onClick(mockEvent)).not.toThrow();
           expect(mockEvent.preventDefault).toHaveBeenCalled();
@@ -490,7 +491,7 @@ describe('footerUtils', () => {
 
     it('should include app info section', () => {
       const config = createExampleFooterConfig();
-      
+
       const appInfoSection = config.sections.find(section => section.id === 'app-info');
       expect(appInfoSection).toBeDefined();
       expect(appInfoSection?.title).toBe('App Info');
@@ -498,7 +499,7 @@ describe('footerUtils', () => {
 
     it('should include user stats section', () => {
       const config = createExampleFooterConfig();
-      
+
       const userStatsSection = config.sections.find(section => section.id === 'user-stats');
       expect(userStatsSection).toBeDefined();
       expect(userStatsSection?.title).toBe('Your Stats');
@@ -507,7 +508,7 @@ describe('footerUtils', () => {
     it('should include debug section in development', () => {
       // isDevelopment is mocked to return true
       const config = createExampleFooterConfig();
-      
+
       const debugSection = config.sections.find(section => section.id === 'debug');
       expect(debugSection).toBeDefined();
       expect(debugSection?.title).toBe('Debug Info');
@@ -519,7 +520,7 @@ describe('footerUtils', () => {
       vi.mocked(isDevelopment).mockReturnValue(false);
 
       const config = createExampleFooterConfig();
-      
+
       const debugSection = config.sections.find(section => section.id === 'debug');
       expect(debugSection).toBeUndefined();
 
@@ -538,7 +539,7 @@ describe('footerUtils', () => {
     it('should create valid React content for all sections', () => {
       const config = createExampleFooterConfig();
 
-      config.sections.forEach((section) => {
+      config.sections.forEach(section => {
         expect(section.content).toBeDefined();
         if (React.isValidElement(section.content)) {
           expect(React.isValidElement(section.content)).toBe(true);
@@ -608,7 +609,7 @@ describe('footerUtils', () => {
       ];
 
       expect(sections.length).toBe(4);
-      sections.forEach((section) => {
+      sections.forEach(section => {
         expect(section.id).toBeDefined();
         expect(section.title).toBeDefined();
         expect(section.content).toBeDefined();
@@ -632,7 +633,7 @@ describe('footerUtils', () => {
   describe('error handling and edge cases', () => {
     it('should handle undefined window properties gracefully', () => {
       const originalWindow = global.window;
-      
+
       Object.defineProperty(global, 'window', {
         value: {
           screen: {},
@@ -652,7 +653,7 @@ describe('footerUtils', () => {
 
     it('should handle missing Intl support gracefully', () => {
       const originalIntl = global.Intl;
-      
+
       Object.defineProperty(global, 'Intl', {
         value: undefined,
         writable: true,
