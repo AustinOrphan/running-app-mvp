@@ -114,7 +114,7 @@ jobs:
         run: npm audit --audit-level moderate
 
       - name: 🔍 Dependency review
-        uses: actions/dependency-review-action@v3
+        uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
 
