@@ -70,7 +70,8 @@
       "mcp__Context7__resolve-library-id",
       "mcp__filesystem__list_directory",
       "mcp__Context7__get-library-docs",
-      "mcp__serena__find_file"
+      "mcp__serena__find_file",
+      "Bash(cd:*)"
     ],
     "deny": []
   }
