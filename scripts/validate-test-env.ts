@@ -21,8 +21,10 @@ async function main() {
     console.log('\n✨ Test environment validation completed successfully!');
     process.exit(0);
   } catch (error) {
-    console.error('\n💥 Test environment validation failed!');
-    console.error(error instanceof Error ? error.message : 'Unknown error');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const validationFailedMessage = '\n💥 Test environment validation failed!';
+    console.error(validationFailedMessage);
+    console.error(errorMessage);
     process.exit(1);
   }
 }

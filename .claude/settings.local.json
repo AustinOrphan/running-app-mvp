@@ -83,7 +83,10 @@
       "Bash(for file in *.test.ts)",
       "Bash(do)",
       "Bash(done)",
-      "mcp__serena__list_memories"
+      "mcp__serena__list_memories",
+      "mcp__playwright__playwright_navigate",
+      "mcp__playwright__playwright_get_visible_text",
+      "mcp__serena__think_about_task_adherence"
     ],
     "deny": []
   }
