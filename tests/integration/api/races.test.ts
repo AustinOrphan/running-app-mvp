@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
 import type { TestUser } from '../../e2e/types';
+import { assertTestUser } from '../../e2e/types/index.js';
 
 import { mockRaces } from '../../fixtures/mockData.js';
 import { testDb } from '../../fixtures/testDatabase.js';
@@ -30,12 +31,12 @@ describe('Races API Integration Tests', () => {
       email: 'races@test.com',
       password: 'testpassword',
     });
-    
+
     if (!testUser) {
       throw new Error('Test user not created');
     }
-    
-    authToken = testDb.generateTestToken(testUser.id);
+
+    authToken = testDb.generateTestToken(assertTestUser(testUser).id);
   });
 
   afterAll(async () => {
@@ -45,7 +46,7 @@ describe('Races API Integration Tests', () => {
 
   describe('GET /api/races', () => {
     it('returns races for authenticated user', async () => {
-      await testDb.createTestRaces(testUser.id, mockRaces);
+      await testDb.createTestRaces(assertTestUser(testUser).id, mockRaces);
 
       const res = await request(app)
         .get('/api/races')
@@ -89,7 +90,7 @@ describe('Races API Integration Tests', () => {
       expect(res.body).toMatchObject({
         name: raceData.name,
         distance: raceData.distance,
-        userId: testUser.id,
+        userId: assertTestUser(testUser).id,
       });
     });
 
@@ -106,7 +107,7 @@ describe('Races API Integration Tests', () => {
     let race: any;
 
     beforeEach(async () => {
-      const races = await testDb.createTestRaces(testUser.id, [mockRaces[0]]);
+      const races = await testDb.createTestRaces(assertTestUser(testUser).id, [mockRaces[0]]);
       race = races[0];
     });
 
@@ -133,7 +134,7 @@ describe('Races API Integration Tests', () => {
     let race: any;
 
     beforeEach(async () => {
-      const races = await testDb.createTestRaces(testUser.id, [mockRaces[0]]);
+      const races = await testDb.createTestRaces(assertTestUser(testUser).id, [mockRaces[0]]);
       race = races[0];
     });
 

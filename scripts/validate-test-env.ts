@@ -3,17 +3,19 @@
 /**
  * Test Environment Validation CLI
  * Run this script to validate your test environment setup
- * 
+ *
  * Usage:
  *   npm run validate-test-env
  *   npx tsx scripts/validate-test-env.ts
  */
 
+/* eslint-disable no-console */
+
 import { validateTestEnvironment } from '../tests/setup/validateTestEnvironment';
 
 async function main() {
   console.log('🔍 Validating test environment...\n');
-  
+
   try {
     await validateTestEnvironment();
     console.log('\n✨ Test environment validation completed successfully!');
@@ -24,5 +26,4 @@ async function main() {
     process.exit(1);
   }
 }
-
 main().catch(console.error);

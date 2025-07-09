@@ -19,55 +19,23 @@ export const useStats = (token: string | null, period: string = '3m') => {
     setError(null);
 
     const fetchWeeklyInsightsInner = async () => {
-      try {
-        const response = await apiGet<WeeklyInsights>('/api/stats/insights-summary');
-        setWeeklyInsights(response.data);
-      } catch (error) {
-        logError(
-          'Failed to fetch weekly insights',
-          error instanceof Error ? error : new Error(String(error))
-        );
-        setError('Failed to load weekly insights');
-      }
+      const response = await apiGet<WeeklyInsights>('/api/stats/insights-summary');
+      setWeeklyInsights(response.data);
     };
 
     const fetchTypeBreakdownInner = async () => {
-      try {
-        const response = await apiGet<RunTypeBreakdown[]>('/api/stats/type-breakdown');
-        setTypeBreakdown(response.data);
-      } catch (error) {
-        logError(
-          'Failed to fetch type breakdown',
-          error instanceof Error ? error : new Error(String(error))
-        );
-        setError('Failed to load run type breakdown');
-      }
+      const response = await apiGet<RunTypeBreakdown[]>('/api/stats/type-breakdown');
+      setTypeBreakdown(response.data);
     };
 
     const fetchTrendsDataInner = async () => {
-      try {
-        const response = await apiGet<TrendsDataPoint[]>(`/api/stats/trends?period=${period}`);
-        setTrendsData(response.data);
-      } catch (error) {
-        logError(
-          'Failed to fetch trends data',
-          error instanceof Error ? error : new Error(String(error))
-        );
-        setError('Failed to load trends data');
-      }
+      const response = await apiGet<TrendsDataPoint[]>(`/api/stats/trends?period=${period}`);
+      setTrendsData(response.data);
     };
 
     const fetchPersonalRecordsInner = async () => {
-      try {
-        const response = await apiGet<PersonalRecord[]>('/api/stats/personal-records');
-        setPersonalRecords(response.data);
-      } catch (error) {
-        logError(
-          'Failed to fetch personal records',
-          error instanceof Error ? error : new Error(String(error))
-        );
-        setError('Failed to load personal records');
-      }
+      const response = await apiGet<PersonalRecord[]>('/api/stats/personal-records');
+      setPersonalRecords(response.data);
     };
 
     try {
@@ -77,7 +45,12 @@ export const useStats = (token: string | null, period: string = '3m') => {
         fetchTrendsDataInner(),
         fetchPersonalRecordsInner(),
       ]);
-    } catch {
+    } catch (error) {
+      // Centralized error handling - now reachable and functional
+      logError(
+        'Failed to fetch statistics',
+        error instanceof Error ? error : new Error(String(error))
+      );
       setError('Failed to load statistics');
     } finally {
       setLoading(false);

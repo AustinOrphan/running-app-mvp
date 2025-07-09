@@ -17,7 +17,7 @@ router.use(sanitizeInput);
 router.get(
   '/insights-summary',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
@@ -52,7 +52,7 @@ router.get(
 router.get(
   '/type-breakdown',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
       select: {
@@ -106,16 +106,16 @@ router.get(
 router.get(
   '/trends',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     const { period = '3m' } = req.query; // 1m, 3m, 6m, 1y
 
     // Validate period parameter
     const validPeriods = ['1m', '3m', '6m', '1y'];
     if (typeof period !== 'string' || !validPeriods.includes(period)) {
-      _next(
-        createValidationError('Invalid period parameter. Must be one of: 1m, 3m, 6m, 1y', 'period')
+      throw createValidationError(
+        'Invalid period parameter. Must be one of: 1m, 3m, 6m, 1y',
+        'period'
       );
-      return;
     }
 
     let daysBack = 90; // default 3 months
@@ -194,7 +194,7 @@ router.get(
 router.get(
   '/personal-records',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, _next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     const runs = await prisma.run.findMany({
       where: { userId: req.user!.id },
       orderBy: { date: 'desc' },

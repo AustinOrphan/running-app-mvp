@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
 import type { TestUser } from '../../e2e/types';
+import { assertTestUser } from '../../e2e/types/index.js';
 
 import statsRoutes from '../../../routes/stats.js';
 import { mockRuns } from '../../fixtures/mockData.js';
@@ -32,15 +33,15 @@ describe('Stats API Integration Tests', () => {
       email: 'stats@test.com',
       password: 'testpassword',
     });
-    
+
     if (!testUser) {
       throw new Error('Test user not created');
     }
-    
-    authToken = testDb.generateTestToken(testUser.id);
+
+    authToken = testDb.generateTestToken(assertTestUser(testUser).id);
 
     // Create test runs for statistics
-    await testDb.createTestRuns(testUser.id, mockRuns);
+    await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns);
   });
 
   afterAll(async () => {

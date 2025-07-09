@@ -22,9 +22,9 @@ export class ReliabilityUtils {
     } = {}
   ) {
     const { timeout = 10000, strategy = 'visible' } = options;
-    
+
     const element = this.page.locator(selector);
-    
+
     switch (strategy) {
       case 'visible':
         await expect(element).toBeVisible({ timeout });
@@ -34,43 +34,41 @@ export class ReliabilityUtils {
         break;
       case 'stable':
         await expect(element).toBeVisible({ timeout });
-        await expect(element).toBeStable({ timeout: 2000 });
+        await this.page.waitForLoadState('networkidle');
         break;
     }
-    
+
     return element;
   }
 
   /**
    * Handle intermittent network issues
    */
-  async withNetworkRetry<T>(
-    operation: () => Promise<T>,
-    maxRetries = 3
-  ): Promise<T> {
+  async withNetworkRetry<T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> {
     let lastError: Error | null = null;
-    
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         return await operation();
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
-        const isNetworkError = lastError.message.includes('net::') || 
-                              lastError.message.includes('timeout') ||
-                              lastError.message.includes('ECONNREFUSED') ||
-                              lastError.message.includes('internetdisconnected');
-           
+
+        const isNetworkError =
+          lastError.message.includes('net::') ||
+          lastError.message.includes('timeout') ||
+          lastError.message.includes('ECONNREFUSED') ||
+          lastError.message.includes('internetdisconnected');
+
         if (isNetworkError && attempt < maxRetries) {
           await this.page.waitForTimeout(1000 * (attempt + 1));
           continue;
         }
-        
+
         // If not a network error or max retries reached, throw the error
         throw lastError;
       }
     }
-    
+
     // This should never be reached, but included for completeness
     throw lastError || new Error('Max retries exceeded');
   }
@@ -83,14 +81,14 @@ export class ReliabilityUtils {
     timeout = 15000
   ): Promise<void> {
     const startTime = Date.now();
-    
+
     while (Date.now() - startTime < timeout) {
       if (await checkFunction()) {
         return;
       }
       await this.page.waitForTimeout(500);
     }
-    
+
     throw new Error('Database state check timed out');
   }
 
@@ -100,11 +98,10 @@ export class ReliabilityUtils {
   async ensurePageInteractive(): Promise<void> {
     await this.page.waitForLoadState('domcontentloaded');
     await this.page.waitForLoadState('networkidle');
-    
+
     // Wait for any pending JavaScript to complete
     await this.page.waitForFunction(() => {
-      return document.readyState === 'complete' && 
-             !document.querySelector('[data-loading="true"]');
+      return document.readyState === 'complete' && !document.querySelector('[data-loading="true"]');
     });
   }
 
@@ -115,14 +112,14 @@ export class ReliabilityUtils {
     selector: string,
     options: { force?: boolean; timeout?: number } = {}
   ): Promise<void> {
-    const element = await this.waitForElementSafely(selector, { 
+    const element = await this.waitForElementSafely(selector, {
       strategy: 'stable',
-      timeout: options.timeout 
+      timeout: options.timeout,
     });
-    
+
     await element.scrollIntoViewIfNeeded();
     await expect(element).toBeEnabled();
-    
+
     if (options.force) {
       await element.click({ force: true });
     } else {
@@ -136,13 +133,12 @@ export class ReliabilityUtils {
   async waitForModalToSettle(modalSelector: string): Promise<void> {
     // Wait for modal to appear
     await this.waitForElementSafely(modalSelector);
-    
+
     // Wait for any animations to complete
     await this.page.waitForTimeout(300);
-    
-    // Ensure modal is stable
-    const modal = this.page.locator(modalSelector);
-    await expect(modal).toBeStable();
+
+    // Ensure page is stable
+    await this.page.waitForLoadState('networkidle');
   }
 }
 
@@ -162,17 +158,17 @@ export class FlakeyTestPatterns {
   ): Promise<void> {
     const form = this.page.locator(formSelector);
     const submitButton = this.page.locator(submitButtonSelector);
-    
+
     // Ensure form is ready
     await expect(form).toBeVisible();
     await expect(submitButton).toBeEnabled();
-    
+
     // Submit form
     await submitButton.click();
-    
+
     // Handle loading state
     await expect(submitButton).toBeDisabled({ timeout: 2000 });
-    
+
     switch (expectedOutcome) {
       case 'redirect':
         await this.page.waitForURL(/\/dashboard|\//, { timeout: 15000 });
@@ -181,7 +177,9 @@ export class FlakeyTestPatterns {
         await expect(this.page.locator('[role="alert"], .error')).toBeVisible({ timeout: 10000 });
         break;
       case 'success':
-        await expect(this.page.locator('.success, [data-success="true"]')).toBeVisible({ timeout: 10000 });
+        await expect(this.page.locator('.success, [data-success="true"]')).toBeVisible({
+          timeout: 10000,
+        });
         break;
     }
   }
@@ -196,10 +194,10 @@ export class FlakeyTestPatterns {
   ): Promise<void> {
     // Wait for container to be present
     await expect(this.page.locator(containerSelector)).toBeVisible({ timeout: 5000 });
-    
+
     // Wait for loading indicators to disappear
     await expect(this.page.locator('[data-loading="true"], .loading')).not.toBeVisible({ timeout });
-    
+
     // Wait for actual data to appear
     await expect(this.page.locator(expectedElementSelector)).toBeVisible({ timeout });
   }
@@ -212,11 +210,11 @@ export class FlakeyTestPatterns {
     const hasToken = await this.page.evaluate(() => {
       return localStorage.getItem('authToken') !== null;
     });
-    
+
     if (!hasToken) {
       throw new Error('Authentication token not found');
     }
-    
+
     // Verify UI shows authenticated state
     await expect(this.page.locator(`text=${userEmail}`)).toBeVisible({ timeout: 10000 });
   }
