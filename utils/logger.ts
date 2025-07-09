@@ -19,14 +19,53 @@ import { v4 as uuidv4 } from 'uuid';
 class EnhancedLogger {
   /**
    * Determines error type based on error object and context
+   * Uses instanceof checks for better reliability, fallback to string matching
    */
   private categorizeError(error: Error, context?: Record<string, unknown>): ErrorType {
     const errorMessage = error.message.toLowerCase();
-    const errorName = error.constructor.name.toLowerCase();
+    const errorName = error.constructor.name;
 
+    // Check for specific error types first using instanceof/constructor checks
+    // JWT/Authentication errors
+    if (
+      errorName === 'JsonWebTokenError' ||
+      errorName === 'TokenExpiredError' ||
+      errorName === 'NotBeforeError'
+    ) {
+      return 'AuthenticationError';
+    }
+
+    // Prisma database errors
+    if (
+      errorName === 'PrismaClientKnownRequestError' ||
+      errorName === 'PrismaClientUnknownRequestError' ||
+      errorName === 'PrismaClientRustPanicError' ||
+      errorName === 'PrismaClientInitializationError' ||
+      errorName === 'PrismaClientValidationError'
+    ) {
+      return 'DatabaseError';
+    }
+
+    // Zod validation errors
+    if (errorName === 'ZodError') {
+      return 'ValidationError';
+    }
+
+    // HTTP status code based classification
+    if (context?.statusCode) {
+      const statusCode = context.statusCode as number;
+      if (statusCode === 400) return 'ValidationError';
+      if (statusCode === 401) return 'AuthenticationError';
+      if (statusCode === 403) return 'AuthorizationError';
+      if (statusCode === 404) return 'NotFoundError';
+      if (statusCode === 409) return 'ConflictError';
+      if (statusCode >= 500) return 'DatabaseError';
+    }
+
+    // Fallback to string matching for compatibility
     // Database errors
     if (
-      errorName.includes('prisma') ||
+      errorName.toLowerCase().includes('prisma') ||
       errorMessage.includes('database') ||
       errorMessage.includes('connection') ||
       errorMessage.includes('query')
@@ -55,25 +94,20 @@ class EnhancedLogger {
 
     // Validation errors
     if (
-      errorName.includes('validation') ||
+      errorName.toLowerCase().includes('validation') ||
       errorMessage.includes('required') ||
-      errorMessage.includes('invalid') ||
-      context?.statusCode === 400
+      errorMessage.includes('invalid')
     ) {
       return 'ValidationError';
     }
 
     // Not found errors
-    if (errorMessage.includes('not found') || context?.statusCode === 404) {
+    if (errorMessage.includes('not found')) {
       return 'NotFoundError';
     }
 
     // Conflict errors
-    if (
-      errorMessage.includes('already exists') ||
-      errorMessage.includes('conflict') ||
-      context?.statusCode === 409
-    ) {
+    if (errorMessage.includes('already exists') || errorMessage.includes('conflict')) {
       return 'ConflictError';
     }
 
