@@ -16,9 +16,6 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
       password: 'testpassword123',
     });
 
-    if (!testUser) {
-      throw new Error('Test user not created');
-    }
 
     // Create test data
     await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 8));

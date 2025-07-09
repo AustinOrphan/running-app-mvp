@@ -157,9 +157,6 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('successfully logs in with valid credentials', async () => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       const response = await request(app)
         .post('/api/auth/login')
@@ -188,9 +185,6 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('returns 400 for missing password', async () => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       const response = await request(app)
         .post('/api/auth/login')
@@ -216,9 +210,6 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('returns 401 for invalid password', async () => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       const response = await request(app)
         .post('/api/auth/login')
@@ -270,9 +261,6 @@ describe('Auth API Integration Tests', () => {
         password: 'testpassword123',
       });
 
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       validToken = testDb.generateTestToken(assertTestUser(testUser).id);
     });
@@ -396,12 +384,10 @@ describe('Auth API Integration Tests', () => {
 
       // Make exactly 5 failed login attempts (the limit)
       for (let i = 0; i < 5; i++) {
-        const response = await request(app)
-          .post('/api/auth/login')
-          .send({
-            email: assertTestUser(testUser).email,
-            password: 'wrongpassword',
-          });
+        const response = await request(app).post('/api/auth/login').send({
+          email: assertTestUser(testUser).email,
+          password: 'wrongpassword',
+        });
         responses.push(response);
       }
 
