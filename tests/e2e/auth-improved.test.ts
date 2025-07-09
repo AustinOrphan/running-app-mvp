@@ -138,6 +138,19 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       });
     });
 
+<<<<<<< HEAD
+    test('should login successfully with enhanced reliability', async ({ page }) => {
+
+      // Use enhanced auth helper
+      await helpers.auth.login(assertTestUser(testUser).email, 'testpassword123');
+
+      // Verify authenticated state
+      await helpers.helpers.waitForElement('h1:has-text("Dashboard")');
+      await helpers.helpers.waitForElement(`text=${assertTestUser(testUser).email}`);
+    });
+
+    test('should handle invalid credentials with retry logic', async ({ page }) => {
+=======
     test('should login successfully with enhanced reliability', async ({ page: _page }) => {
       if (!testUser) {
         throw new Error('Test user not created');
@@ -159,24 +172,42 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       if (!testUser) {
         throw new Error('Test user not created');
       }
+>>>>>>> origin/main
 
       await reliability.clickSafely('text=Sign In');
       await _page.waitForSelector('h2:has-text("Welcome Back")');
 
+<<<<<<< HEAD
+      // Test wrong password with network retry wrapper
+      await reliability.withNetworkRetry(async () => {
+        await helpers.helpers.fillForm({
+          'input[type="email"]': assertTestUser(testUser).email,
+          'input[type="password"]': 'wrongpassword',
+        });
+
+        await helpers.helpers.submitForm('button[type="submit"]');
+        await helpers.helpers.waitForErrorMessage('Invalid credentials');
+      });
+=======
       // Test wrong password handling
       await _page.fill('input[type="email"]', assertTestUser(testUser).email);
       await _page.fill('input[type="password"]', 'wrongpassword');
       await _page.click('button[type="submit"]');
       await _page.waitForSelector('text=Invalid credentials');
+>>>>>>> origin/main
 
       // Verify still on login page
       await _page.waitForSelector('h2:has-text("Welcome Back")');
     });
 
+<<<<<<< HEAD
+    test('should handle network timeouts gracefully', async ({ page }) => {
+=======
     test('should handle network timeouts gracefully', async ({ page: _page }) => {
       if (!testUser) {
         throw new Error('Test user not created');
       }
+>>>>>>> origin/main
 
       await reliability.clickSafely('text=Sign In');
       await _page.waitForSelector('h2:has-text("Welcome Back")');
@@ -188,8 +219,15 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
         await route.continue();
       });
 
+<<<<<<< HEAD
+      await helpers.helpers.fillForm({
+        'input[type="email"]': assertTestUser(testUser).email,
+        'input[type="password"]': 'testpassword123',
+      });
+=======
       await _page.fill('input[type="email"]', assertTestUser(testUser).email);
       await _page.fill('input[type="password"]', 'testpassword123');
+>>>>>>> origin/main
 
       // Use network retry wrapper for flaky network conditions
       await _page.click('button[type="submit"]');
@@ -202,10 +240,17 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       const protectedRoutes = ['/dashboard', '/runs', '/stats', '/profile'];
 
       for (const route of protectedRoutes) {
+<<<<<<< HEAD
+        await page.goto(route);
+
+        // Enhanced wait for redirect with timeout
+        await helpers.helpers.waitForNavigation('/login', 10000);
+=======
         await _page.goto(route);
 
         // Enhanced wait for redirect with timeout
         await _page.waitForURL('**/login', { timeout: 10000 });
+>>>>>>> origin/main
 
         // Verify login page is fully loaded
         await _page.waitForSelector('h2:has-text("Welcome Back")');
@@ -219,16 +264,30 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       });
 
       // Login with enhanced helper
+<<<<<<< HEAD
+      await helpers.auth.login(assertTestUser(testUser).email, 'testpassword123');
+=======
       await reliability.clickSafely('text=Sign In');
       await _page.waitForSelector('h2:has-text("Welcome Back")');
       await _page.fill('input[type="email"]', assertTestUser(testUser).email);
       await _page.fill('input[type="password"]', 'testpassword123');
       await _page.click('button[type="submit"]');
       await _page.waitForURL('**/dashboard');
+>>>>>>> origin/main
 
       const protectedRoutes = ['/dashboard', '/runs', '/stats'];
 
       for (const route of protectedRoutes) {
+<<<<<<< HEAD
+        await page.goto(route);
+        await helpers.helpers.waitForPageLoad();
+
+        // Verify we're on the correct route
+        await expect(page).toHaveURL(route);
+
+        // Verify authenticated state is maintained
+        await helpers.helpers.waitForElement(`text=${assertTestUser(testUser).email}`);
+=======
         await _page.goto(route);
         await _page.waitForLoadState('networkidle');
 
@@ -237,6 +296,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
 
         // Verify authenticated state is maintained
         await _page.waitForSelector(`text=${assertTestUser(testUser).email}`);
+>>>>>>> origin/main
       }
     });
   });
@@ -248,12 +308,16 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
         password: 'testpassword123',
       });
 
+<<<<<<< HEAD
+      await helpers.auth.login(assertTestUser(testUser).email, 'testpassword123');
+=======
       await reliability.clickSafely('text=Sign In');
       await _page.waitForSelector('h2:has-text("Welcome Back")');
       await _page.fill('input[type="email"]', assertTestUser(testUser).email);
       await _page.fill('input[type="password"]', 'testpassword123');
       await _page.click('button[type="submit"]');
       await _page.waitForURL('**/dashboard');
+>>>>>>> origin/main
 
       // Simulate rapid navigation
       const routes = ['/dashboard', '/runs', '/stats', '/dashboard'];
@@ -288,12 +352,16 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
 
       // Login should succeed despite network issues due to retry logic
       await reliability.withNetworkRetry(async () => {
+<<<<<<< HEAD
+        await helpers.auth.login(assertTestUser(testUser).email, 'testpassword123');
+=======
         await reliability.clickSafely('text=Sign In');
         await _page.waitForSelector('h2:has-text("Welcome Back")');
         await _page.fill('input[type="email"]', assertTestUser(testUser).email);
         await _page.fill('input[type="password"]', 'testpassword123');
         await _page.click('button[type="submit"]');
         await _page.waitForURL('**/dashboard');
+>>>>>>> origin/main
       });
 
       // Verify successful login

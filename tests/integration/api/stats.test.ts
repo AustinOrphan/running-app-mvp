@@ -34,9 +34,6 @@ describe('Stats API Integration Tests', () => {
       password: 'testpassword',
     });
 
-    if (!testUser) {
-      throw new Error('Test user not created');
-    }
 
     authToken = testDb.generateTestToken(assertTestUser(testUser).id);
 

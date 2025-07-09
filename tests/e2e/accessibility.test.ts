@@ -18,9 +18,6 @@ test.describe('Accessibility E2E Tests', () => {
       password: 'testpassword123',
     });
 
-    if (!testUser) {
-      throw new Error('Test user not created');
-    }
 
     // Create test data
     await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 5));
@@ -40,10 +37,6 @@ test.describe('Accessibility E2E Tests', () => {
     });
 
     test('should have no accessibility violations on dashboard', async ({ page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
-
       // Login user
       await page.goto('/login');
       await page.fill('input[type="email"]', assertTestUser(testUser).email);
@@ -62,10 +55,6 @@ test.describe('Accessibility E2E Tests', () => {
     });
 
     test('should have no accessibility violations on runs page', async ({ page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
-
       // Login user
       await page.goto('/login');
       await page.fill('input[type="email"]', assertTestUser(testUser).email);
@@ -83,10 +72,6 @@ test.describe('Accessibility E2E Tests', () => {
     });
 
     test('should have no accessibility violations on stats page', async ({ page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
-
       // Login user
       await page.goto('/login');
       await page.fill('input[type="email"]', assertTestUser(testUser).email);
@@ -106,10 +91,6 @@ test.describe('Accessibility E2E Tests', () => {
 
   test.describe('Keyboard Navigation Accessibility', () => {
     test('should support keyboard navigation on login form', async ({ page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
-
       await page.goto('/login');
 
       // Test tab navigation through form

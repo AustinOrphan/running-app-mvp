@@ -120,9 +120,6 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should successfully login with valid credentials', async ({ page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       // Navigate to login page
       await page.click('text=Sign In');
@@ -146,9 +143,6 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should show error for invalid credentials', async ({ page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       await page.click('text=Sign In');
 
@@ -172,9 +166,6 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should show validation errors for empty fields', async ({ page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       await page.click('text=Sign In');
 
@@ -193,9 +184,6 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should handle case-insensitive email login', async ({ page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       await page.click('text=Sign In');
 
@@ -209,9 +197,6 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should show loading state during login', async ({ page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       await page.click('text=Sign In');
 
@@ -235,9 +220,6 @@ test.describe('Authentication Flow E2E Tests', () => {
         password: 'testpassword123',
       });
 
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       // Login programmatically
       await page.goto('/login');
