@@ -69,7 +69,7 @@
     "react-router-dom": "^6.8.0",
     "recharts": "^2.15.4",
     "uuid": "^11.1.0",
-    "zod": "^3.22.4"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",
