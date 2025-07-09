@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, devices } from '@playwright/test';
 import type { TestUser } from './types';
+import { assertTestUser } from './types/index.js';
 
 import { mockRuns } from '../fixtures/mockData.js';
 import { testDb } from '../fixtures/testDatabase.js';
@@ -22,7 +23,7 @@ test.describe('Accessibility E2E Tests', () => {
     }
 
     // Create test data
-    await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 5));
+    await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 5));
   });
 
   test.afterAll(async () => {
@@ -45,7 +46,7 @@ test.describe('Accessibility E2E Tests', () => {
 
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -67,7 +68,7 @@ test.describe('Accessibility E2E Tests', () => {
 
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
 
@@ -88,7 +89,7 @@ test.describe('Accessibility E2E Tests', () => {
 
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
 
@@ -122,7 +123,7 @@ test.describe('Accessibility E2E Tests', () => {
       await expect(page.locator('button[type="submit"]')).toBeFocused();
 
       // Test form submission with Enter key
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.locator('button[type="submit"]').focus();
       await page.keyboard.press('Enter');
@@ -133,7 +134,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should support keyboard navigation in dashboard', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -144,7 +145,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should support arrow key navigation in data tables', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
 
@@ -174,7 +175,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should have proper heading hierarchy', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -185,7 +186,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should have proper landmark regions', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -202,7 +203,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should have proper ARIA labels for charts and complex widgets', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
 
@@ -226,7 +227,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should provide text alternatives for data visualizations', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
 
@@ -332,7 +333,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should manage focus when navigating between pages', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -359,7 +360,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should trap focus in modal dialogs', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -407,7 +408,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should not rely solely on color to convey information', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
 
@@ -420,7 +421,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should have sufficient color contrast', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -447,7 +448,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should have proper touch target sizes', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -475,7 +476,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should handle orientation changes accessibly', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -495,7 +496,7 @@ test.describe('Accessibility E2E Tests', () => {
     test('should support assistive touch and voice control', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -525,7 +526,7 @@ test.describe('Accessibility E2E Tests', () => {
 
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -541,7 +542,7 @@ test.describe('Accessibility E2E Tests', () => {
 
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
