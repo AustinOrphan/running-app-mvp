@@ -20,6 +20,10 @@ vi.mock('../../../../src/utils/formatters', () => ({
     const seconds = Math.round(paceInSeconds % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }),
+  formatDate: vi.fn((dateInput: string | Date, _format: string = 'weekday-short') => {
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }),
 }));
 
 describe('InsightsCard', () => {

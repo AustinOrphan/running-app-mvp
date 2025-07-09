@@ -72,7 +72,7 @@ export const formatPace = (
 ): string => {
   if (!isFinite(paceInSeconds) || paceInSeconds <= 0) return '-';
 
-  const roundedPace = paceInSeconds.toFixed(2);
+  const roundedPace = parseFloat(paceInSeconds.toFixed(2));
 
   let minutes = Math.floor(roundedPace / 60);
   let seconds = Math.round(roundedPace % 60);
