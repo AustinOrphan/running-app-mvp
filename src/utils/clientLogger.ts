@@ -153,7 +153,7 @@ class ClientLogger {
 
     const logEntry: LogEntry = {
       level,
-      message,
+      message: this.redactString(message),
       timestamp: new Date().toISOString(),
       metadata: redactedMetadata,
       userAgent: this.isProduction ? undefined : navigator.userAgent,
