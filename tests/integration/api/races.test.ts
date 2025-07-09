@@ -35,7 +35,7 @@ describe('Races API Integration Tests', () => {
       throw new Error('Test user not created');
     }
     
-    authToken = testDb.generateTestToken(testUser.id);
+    authToken = testDb.generateTestToken(testUser!.id);
   });
 
   afterAll(async () => {
@@ -45,7 +45,7 @@ describe('Races API Integration Tests', () => {
 
   describe('GET /api/races', () => {
     it('returns races for authenticated user', async () => {
-      await testDb.createTestRaces(testUser.id, mockRaces);
+      await testDb.createTestRaces(testUser!.id, mockRaces);
 
       const res = await request(app)
         .get('/api/races')
@@ -89,7 +89,7 @@ describe('Races API Integration Tests', () => {
       expect(res.body).toMatchObject({
         name: raceData.name,
         distance: raceData.distance,
-        userId: testUser.id,
+        userId: testUser!.id,
       });
     });
 
@@ -106,7 +106,7 @@ describe('Races API Integration Tests', () => {
     let race: any;
 
     beforeEach(async () => {
-      const races = await testDb.createTestRaces(testUser.id, [mockRaces[0]]);
+      const races = await testDb.createTestRaces(testUser!.id, [mockRaces[0]]);
       race = races[0];
     });
 
@@ -133,7 +133,7 @@ describe('Races API Integration Tests', () => {
     let race: any;
 
     beforeEach(async () => {
-      const races = await testDb.createTestRaces(testUser.id, [mockRaces[0]]);
+      const races = await testDb.createTestRaces(testUser!.id, [mockRaces[0]]);
       race = races[0];
     });
 

@@ -34,7 +34,7 @@ export class ReliabilityUtils {
         break;
       case 'stable':
         await expect(element).toBeVisible({ timeout });
-        await expect(element).toBeStable({ timeout: 2000 });
+        await expect(element).toBeVisible({ timeout: 2000 });
         break;
     }
     
@@ -142,7 +142,7 @@ export class ReliabilityUtils {
     
     // Ensure modal is stable
     const modal = this.page.locator(modalSelector);
-    await expect(modal).toBeStable();
+    await expect(modal).toBeVisible();
   }
 }
 

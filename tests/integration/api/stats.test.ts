@@ -37,10 +37,10 @@ describe('Stats API Integration Tests', () => {
       throw new Error('Test user not created');
     }
     
-    authToken = testDb.generateTestToken(testUser.id);
+    authToken = testDb.generateTestToken(testUser!.id);
 
     // Create test runs for statistics
-    await testDb.createTestRuns(testUser.id, mockRuns);
+    await testDb.createTestRuns(testUser!.id, mockRuns);
   });
 
   afterAll(async () => {

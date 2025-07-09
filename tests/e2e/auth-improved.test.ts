@@ -147,11 +147,11 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       }
       
       // Use enhanced auth helper
-      await helpers.auth.login(testUser.email, 'testpassword123');
+      await helpers.auth.login(testUser!.email, 'testpassword123');
       
       // Verify authenticated state
       await helpers.helpers.waitForElement('h1:has-text("Dashboard")');
-      await helpers.helpers.waitForElement(`text=${testUser.email}`);
+      await helpers.helpers.waitForElement(`text=${testUser!.email}`);
     });
 
     test('should handle invalid credentials with retry logic', async ({ page }) => {
@@ -165,7 +165,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       // Test wrong password with network retry wrapper
       await reliability.withNetworkRetry(async () => {
         await helpers.helpers.fillForm({
-          'input[type="email"]': testUser.email,
+          'input[type="email"]': testUser!.email,
           'input[type="password"]': 'wrongpassword',
         });
 
@@ -193,7 +193,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       });
 
       await helpers.helpers.fillForm({
-        'input[type="email"]': testUser.email,
+        'input[type="email"]': testUser!.email,
         'input[type="password"]': 'testpassword123',
       });
 
@@ -227,7 +227,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       });
 
       // Login with enhanced helper
-      await helpers.auth.login(testUser.email, 'testpassword123');
+      await helpers.auth.login(testUser!.email, 'testpassword123');
 
       const protectedRoutes = ['/dashboard', '/runs', '/stats'];
 
@@ -239,7 +239,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
         await expect(page).toHaveURL(route);
         
         // Verify authenticated state is maintained
-        await helpers.helpers.waitForElement(`text=${testUser.email}`);
+        await helpers.helpers.waitForElement(`text=${testUser!.email}`);
       }
     });
   });
@@ -251,7 +251,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
         password: 'testpassword123',
       });
 
-      await helpers.auth.login(testUser.email, 'testpassword123');
+      await helpers.auth.login(testUser!.email, 'testpassword123');
 
       // Simulate rapid navigation
       const routes = ['/dashboard', '/runs', '/stats', '/dashboard'];
@@ -261,7 +261,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
         await reliability.ensurePageInteractive();
         
         // Verify page is stable before moving to next
-        await expect(page.locator('body')).toBeStable();
+        await expect(page.locator('body')).toBeVisible();
       }
     });
 
@@ -286,7 +286,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
 
       // Login should succeed despite network issues due to retry logic
       await reliability.withNetworkRetry(async () => {
-        await helpers.auth.login(testUser.email, 'testpassword123');
+        await helpers.auth.login(testUser!.email, 'testpassword123');
       });
 
       // Verify successful login

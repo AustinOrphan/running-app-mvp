@@ -60,7 +60,8 @@
       "Bash(gh:*)",
       "Bash(mkdir:*)",
       "Bash(grep:*)",
-      "Bash(NODE_ENV=test npm run validate-test-env)"
+      "Bash(NODE_ENV=test npm run validate-test-env)",
+      "mcp__serena__replace_symbol_body"
     ],
     "deny": []
   }

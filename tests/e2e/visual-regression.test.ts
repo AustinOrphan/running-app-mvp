@@ -30,9 +30,9 @@ test.describe('Visual Regression Tests', () => {
     }
 
     // Create comprehensive test data
-    await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 8));
-    await testDb.createTestGoals(testUser.id, mockGoals.slice(0, 4));
-    await testDb.createTestRaces(testUser.id, mockRaces.slice(0, 3));
+    await testDb.createTestRuns(testUser!.id, mockRuns.slice(0, 8));
+    await testDb.createTestGoals(testUser!.id, mockGoals.slice(0, 4));
+    await testDb.createTestRaces(testUser!.id, mockRaces.slice(0, 3));
 
     // Setup page for consistent visual testing
     await visualTest.setupPageForVisualTesting(page);
@@ -89,7 +89,7 @@ test.describe('Visual Regression Tests', () => {
     test.beforeEach(async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -127,7 +127,7 @@ test.describe('Visual Regression Tests', () => {
 
       // Login with empty user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -144,7 +144,7 @@ test.describe('Visual Regression Tests', () => {
     test.beforeEach(async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await page.goto('/runs');
@@ -198,7 +198,7 @@ test.describe('Visual Regression Tests', () => {
     test.beforeEach(async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await page.goto('/stats');
@@ -271,7 +271,7 @@ test.describe('Visual Regression Tests', () => {
     test.beforeEach(async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
     });
@@ -316,7 +316,7 @@ test.describe('Visual Regression Tests', () => {
 
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -338,7 +338,7 @@ test.describe('Visual Regression Tests', () => {
 
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await page.goto('/runs');
@@ -356,7 +356,7 @@ test.describe('Visual Regression Tests', () => {
     test('should match dark mode dashboard if supported', async ({ page }) => {
       // Try to enable dark mode
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -397,7 +397,7 @@ test.describe('Visual Regression Tests', () => {
     test('should match network error state', async ({ page }) => {
       // Login user first
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');

@@ -130,7 +130,7 @@ test.describe('Authentication Flow E2E Tests', () => {
       await expect(page.locator('h2')).toContainText('Welcome Back');
 
       // Fill login form
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
 
       // Submit form
@@ -141,7 +141,7 @@ test.describe('Authentication Flow E2E Tests', () => {
       await expect(page.locator('h1')).toContainText('Dashboard');
 
       // Should show user's email
-      await expect(page.locator(`text=${testUser.email}`)).toBeVisible();
+      await expect(page.locator(`text=${testUser!.email}`)).toBeVisible();
     });
 
     test('should show error for invalid credentials', async ({ page }) => {
@@ -152,7 +152,7 @@ test.describe('Authentication Flow E2E Tests', () => {
       await page.click('text=Sign In');
 
       // Try with wrong password
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'wrongpassword');
       await page.click('button[type="submit"]');
 
@@ -185,7 +185,7 @@ test.describe('Authentication Flow E2E Tests', () => {
       await expect(page.locator('text=Password is required')).toBeVisible();
 
       // Fill only email and submit
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.click('button[type="submit"]');
 
       await expect(page.locator('text=Password is required')).toBeVisible();
@@ -199,7 +199,7 @@ test.describe('Authentication Flow E2E Tests', () => {
       await page.click('text=Sign In');
 
       // Login with uppercase email
-      await page.fill('input[type="email"]', testUser.email.toUpperCase());
+      await page.fill('input[type="email"]', testUser!.email.toUpperCase());
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
 
@@ -214,7 +214,7 @@ test.describe('Authentication Flow E2E Tests', () => {
 
       await page.click('text=Sign In');
 
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
 
       // Click submit and check loading state
@@ -240,7 +240,7 @@ test.describe('Authentication Flow E2E Tests', () => {
 
       // Login programmatically
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -296,7 +296,7 @@ test.describe('Authentication Flow E2E Tests', () => {
       });
 
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
 
@@ -319,7 +319,7 @@ test.describe('Authentication Flow E2E Tests', () => {
       });
 
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
 
@@ -330,7 +330,7 @@ test.describe('Authentication Flow E2E Tests', () => {
 
       // Should still be logged in
       await expect(page).toHaveURL('/dashboard');
-      await expect(page.locator(`text=${testUser.email}`)).toBeVisible();
+      await expect(page.locator(`text=${testUser!.email}`)).toBeVisible();
     });
 
     test('should handle expired tokens gracefully', async ({ page }) => {
@@ -341,7 +341,7 @@ test.describe('Authentication Flow E2E Tests', () => {
       });
 
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
 

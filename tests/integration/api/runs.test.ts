@@ -37,7 +37,7 @@ describe('Runs API Integration Tests', () => {
       throw new Error('Test user not created');
     }
     
-    authToken = testDb.generateTestToken(testUser.id);
+    authToken = testDb.generateTestToken(testUser!.id);
   });
 
   afterAll(async () => {
@@ -48,7 +48,7 @@ describe('Runs API Integration Tests', () => {
   describe('GET /api/runs', () => {
     it('returns all runs for authenticated user', async () => {
       // Create test runs
-      await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 3));
+      await testDb.createTestRuns(testUser!.id, mockRuns.slice(0, 3));
 
       const response = await request(app)
         .get('/api/runs')
@@ -65,7 +65,7 @@ describe('Runs API Integration Tests', () => {
         expect(run).toHaveProperty('duration');
         expect(run).toHaveProperty('tag');
         expect(run).toHaveProperty('notes');
-        expect(run).toHaveProperty('userId', testUser.id);
+        expect(run).toHaveProperty('userId', testUser!.id);
       });
     });
 
@@ -76,7 +76,7 @@ describe('Runs API Integration Tests', () => {
         { ...mockRuns[2], date: '2024-06-05T06:00:00Z' },
       ];
 
-      await testDb.createTestRuns(testUser.id, sortedRuns);
+      await testDb.createTestRuns(testUser!.id, sortedRuns);
 
       const response = await request(app)
         .get('/api/runs')
@@ -110,7 +110,7 @@ describe('Runs API Integration Tests', () => {
       await testDb.createTestRuns(otherUser.id, mockRuns.slice(0, 2));
 
       // Create runs for test user
-      await testDb.createTestRuns(testUser.id, mockRuns.slice(2, 4));
+      await testDb.createTestRuns(testUser!.id, mockRuns.slice(2, 4));
 
       const response = await request(app)
         .get('/api/runs')
@@ -119,7 +119,7 @@ describe('Runs API Integration Tests', () => {
 
       expect(response.body).toHaveLength(2);
       response.body.forEach((run: any) => {
-        expect(run.userId).toBe(testUser.id);
+        expect(run.userId).toBe(testUser!.id);
       });
     });
 
@@ -136,7 +136,7 @@ describe('Runs API Integration Tests', () => {
     let testRun: any;
 
     beforeEach(async () => {
-      const runs = await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
+      const runs = await testDb.createTestRuns(testUser!.id, [mockRuns[0]]);
       testRun = runs[0];
     });
 
@@ -151,7 +151,7 @@ describe('Runs API Integration Tests', () => {
       expect(response.body).toHaveProperty('duration', testRun.duration);
       expect(response.body).toHaveProperty('tag', testRun.tag);
       expect(response.body).toHaveProperty('notes', testRun.notes);
-      expect(response.body).toHaveProperty('userId', testUser.id);
+      expect(response.body).toHaveProperty('userId', testUser!.id);
     });
 
     it('returns 404 for non-existent run', async () => {
@@ -205,14 +205,14 @@ describe('Runs API Integration Tests', () => {
       expect(response.body).toHaveProperty('duration', validRunData.duration);
       expect(response.body).toHaveProperty('tag', validRunData.tag);
       expect(response.body).toHaveProperty('notes', validRunData.notes);
-      expect(response.body).toHaveProperty('userId', testUser.id);
+      expect(response.body).toHaveProperty('userId', testUser!.id);
 
       // Verify run was created in database
       const createdRun = await testDb.prisma.run.findUnique({
         where: { id: response.body.id },
       });
       expect(createdRun).toBeTruthy();
-      expect(createdRun?.userId).toBe(testUser.id);
+      expect(createdRun?.userId).toBe(testUser!.id);
     });
 
     it('creates run with minimal required data', async () => {
@@ -302,7 +302,7 @@ describe('Runs API Integration Tests', () => {
     };
 
     beforeEach(async () => {
-      const runs = await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
+      const runs = await testDb.createTestRuns(testUser!.id, [mockRuns[0]]);
       testRun = runs[0];
     });
 
@@ -395,7 +395,7 @@ describe('Runs API Integration Tests', () => {
     let testRun: any;
 
     beforeEach(async () => {
-      const runs = await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
+      const runs = await testDb.createTestRuns(testUser!.id, [mockRuns[0]]);
       testRun = runs[0];
     });
 

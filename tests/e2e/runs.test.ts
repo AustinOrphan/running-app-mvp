@@ -21,7 +21,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
 
     // Login user
     await page.goto('/login');
-    await page.fill('input[type="email"]', testUser.email);
+    await page.fill('input[type="email"]', testUser!.email);
     await page.fill('input[type="password"]', 'testpassword123');
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL('/dashboard');
@@ -44,7 +44,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
 
     test('should display list of runs when they exist', async ({ page }) => {
       // Create test runs
-      await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 3));
+      await testDb.createTestRuns(testUser!.id, mockRuns.slice(0, 3));
 
       await page.goto('/runs');
 
@@ -63,7 +63,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
         { ...mockRuns[1], date: '2024-06-08T06:00:00Z' },
         { ...mockRuns[2], date: '2024-06-05T06:00:00Z' },
       ];
-      await testDb.createTestRuns(testUser.id, sortedRuns);
+      await testDb.createTestRuns(testUser!.id, sortedRuns);
 
       await page.goto('/runs');
 
@@ -197,7 +197,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
 
   test.describe('Edit Existing Run', () => {
     test.beforeEach(async ({ page }) => {
-      await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
+      await testDb.createTestRuns(testUser!.id, [mockRuns[0]]);
       await page.goto('/runs');
     });
 
@@ -255,7 +255,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
 
   test.describe('Delete Run', () => {
     test.beforeEach(async ({ page }) => {
-      await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 2));
+      await testDb.createTestRuns(testUser!.id, mockRuns.slice(0, 2));
       await page.goto('/runs');
     });
 
@@ -312,7 +312,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
 
   test.describe('Run Details View', () => {
     test.beforeEach(async ({ page }) => {
-      await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
+      await testDb.createTestRuns(testUser!.id, [mockRuns[0]]);
       await page.goto('/runs');
     });
 
@@ -355,7 +355,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
         { ...mockRuns[2], tag: 'Speed Work' },
         { ...mockRuns[3], tag: 'Easy Run' },
       ];
-      await testDb.createTestRuns(testUser.id, mixedRuns);
+      await testDb.createTestRuns(testUser!.id, mixedRuns);
       await page.goto('/runs');
     });
 
@@ -399,7 +399,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
         distance: 5 + i * 0.1,
       }));
 
-      await testDb.createTestRuns(testUser.id, manyRuns);
+      await testDb.createTestRuns(testUser!.id, manyRuns);
       await page.goto('/runs');
 
       // Should show pagination controls
@@ -421,7 +421,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
   test.describe('Mobile Responsiveness', () => {
     test('should work on mobile viewport', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 });
-      await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 2));
+      await testDb.createTestRuns(testUser!.id, mockRuns.slice(0, 2));
       await page.goto('/runs');
 
       // Should show mobile-optimized layout
@@ -438,7 +438,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
 
     test('should support swipe gestures on mobile', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 });
-      await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
+      await testDb.createTestRuns(testUser!.id, [mockRuns[0]]);
       await page.goto('/runs');
 
       const runItem = page.locator('.run-item').first();
@@ -495,7 +495,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
 
   test.describe('Accessibility', () => {
     test('should be keyboard navigable', async ({ page }) => {
-      await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 2));
+      await testDb.createTestRuns(testUser!.id, mockRuns.slice(0, 2));
       await page.goto('/runs');
 
       // Tab through interactive elements
@@ -511,7 +511,7 @@ test.describe('Runs Management Flow E2E Tests', () => {
     });
 
     test('should have proper ARIA labels and roles', async ({ page }) => {
-      await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
+      await testDb.createTestRuns(testUser!.id, [mockRuns[0]]);
       await page.goto('/runs');
 
       // Check list has proper role

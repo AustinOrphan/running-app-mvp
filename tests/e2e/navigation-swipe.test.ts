@@ -20,7 +20,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     }
 
     // Create test data
-    await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 8));
+    await testDb.createTestRuns(testUser!.id, mockRuns.slice(0, 8));
   });
 
   test.afterAll(async () => {
@@ -32,7 +32,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should navigate between main pages using navigation menu', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -75,7 +75,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should handle browser back/forward navigation', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -102,7 +102,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should handle keyboard navigation', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -135,7 +135,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should handle mobile navigation menu', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -182,7 +182,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should handle swipe gestures for navigation', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -221,7 +221,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should handle pull-to-refresh gesture', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -254,7 +254,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should handle long press gestures', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -302,7 +302,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should handle pinch-to-zoom gestures on compatible content', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -341,7 +341,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should support screen reader navigation', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -372,7 +372,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should support arrow key navigation for lists', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -419,7 +419,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
         // Should redirect to login if not authenticated
         if (page.url().includes('/login')) {
           // Login user
-          await page.fill('input[type="email"]', testUser.email);
+          await page.fill('input[type="email"]', testUser!.email);
           await page.fill('input[type="password"]', 'testpassword123');
           await page.click('button[type="submit"]');
           await page.waitForLoadState('networkidle');
@@ -433,7 +433,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should handle 404 pages gracefully', async ({ page }) => {
       // Login user first
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -461,7 +461,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should preserve authentication state across navigation', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -487,7 +487,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should load pages quickly during navigation', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -514,7 +514,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
     test('should handle rapid navigation without issues', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser.email);
+      await page.fill('input[type="email"]', testUser!.email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
