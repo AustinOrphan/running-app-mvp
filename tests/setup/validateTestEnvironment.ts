@@ -245,9 +245,9 @@ export class TestEnvironmentValidator {
         );
       }
     } catch (error) {
-      result.errors.push(
-        `Invalid database URL format: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const invalidDatabaseUrlFormat = `Invalid database URL format: ${errorMessage}`;
+      result.errors.push(invalidDatabaseUrlFormat);
     }
 
     return result;
@@ -311,15 +311,15 @@ export class TestEnvironmentValidator {
             }
           }
         } catch (error) {
-          result.errors.push(
-            `Error reading package.json: ${error instanceof Error ? error.message : 'Unknown error'}`
-          );
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          const errorReadingPackageJson = `Error reading package.json: ${errorMessage}`;
+          result.errors.push(errorReadingPackageJson);
         }
       }
     } catch (error) {
-      result.errors.push(
-        `Error validating Node environment: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorValidatingNodeEnvironment = `Error validating Node environment: ${errorMessage}`;
+      result.errors.push(errorValidatingNodeEnvironment);
     }
 
     return result;

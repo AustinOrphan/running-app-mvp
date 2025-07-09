@@ -186,8 +186,10 @@ export const apiFetch = async <T = unknown>(
         }
 
         // Handle network errors, timeouts, etc.
+        const defaultNetworkErrorMessage = 'Network error';
+        const errorMessage = error instanceof Error ? error.message : defaultNetworkErrorMessage;
         throw new ApiFetchError(
-          error instanceof Error ? error.message : 'Network error',
+          errorMessage,
           0,
           undefined,
           { originalError: error }
@@ -196,8 +198,9 @@ export const apiFetch = async <T = unknown>(
 
       // Retry for retryable errors
       // eslint-disable-next-line no-console -- Intentional retry warning for debugging
+      const { message } = error as Error;
       console.warn(
-        `API request failed (attempt ${attempt + 1}/${retries + 1}): ${error.message}. Retrying...`
+        `API request failed (attempt ${attempt + 1}/${retries + 1}): ${message}. Retrying...`
       );
       await delay(retryDelay * Math.pow(2, attempt)); // Exponential backoff
     }

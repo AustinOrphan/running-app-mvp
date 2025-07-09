@@ -75,12 +75,13 @@ export const useConnectivityStatus = (): ConnectivityState & ConnectivityActions
       let errorMessage = 'Connection failed';
 
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
+        const { name, message } = error;
+        if (name === 'AbortError') {
           errorMessage = 'Request timeout (5s)';
-        } else if (error.message.includes('Failed to fetch')) {
+        } else if (message.includes('Failed to fetch')) {
           errorMessage = 'Backend server not running';
         } else {
-          errorMessage = error.message;
+          errorMessage = message;
         }
       }
 
