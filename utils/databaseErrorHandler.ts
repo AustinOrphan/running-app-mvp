@@ -72,9 +72,10 @@ export const handleDatabaseError = (error: unknown, operation: string = 'Databas
 
       default:
         // Generic Prisma error
+        const { message } = error;
         return createDatabaseError(`${operation} failed`, {
           code: error.code,
-          message: error.message,
+          message,
           operation,
         });
     }
@@ -104,8 +105,9 @@ export const handleDatabaseError = (error: unknown, operation: string = 'Databas
 
   // Handle standard Error objects
   if (error instanceof Error) {
-    return createDatabaseError(`${operation} failed: ${error.message}`, {
-      originalError: error.name,
+    const { message, name } = error;
+    return createDatabaseError(`${operation} failed: ${message}`, {
+      originalError: name,
       operation,
     });
   }
