@@ -5,18 +5,13 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "// Development": "Scripts for development workflow",
     "dev": "tsx watch server.ts",
     "dev:frontend": "vite",
     "dev:full": "concurrently \"npm run dev\" \"npm run dev:frontend\"",
     "setup": "npm install && npx prisma migrate dev --name init && npx prisma generate",
-    
-    "// Build & Production": "Scripts for building and production",
     "build": "tsc && vite build",
     "start": "node dist/server.js",
     "preview": "vite preview",
-    
-    "// Code Quality": "Scripts for linting, formatting, and type checking",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "lint:server": "eslint server.ts server/**/* --ext .ts,.tsx,.js,.jsx",
@@ -25,13 +20,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    
-    "// Database": "Scripts for database operations",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    
-    "// Testing - Unit & Integration": "Scripts for unit and integration tests",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
@@ -40,13 +31,9 @@
     "test:integration:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:setup": "npx playwright install",
     "validate-test-env": "tsx scripts/validate-test-env.ts",
-    
-    "// Testing - E2E": "Scripts for end-to-end testing",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    
-    "// Testing - Coverage": "Scripts for test coverage reporting",
     "test:coverage": "vitest run --coverage",
     "test:coverage:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.js --coverage",
     "test:coverage:all": "npm run test:coverage && npm run test:coverage:integration",
@@ -56,21 +43,15 @@
     "test:coverage:quality": "node tests/coverage/coverage-quality.cjs",
     "test:coverage:badges": "node tests/coverage/generate-badges.cjs",
     "test:coverage:check": "node tests/coverage/coverage-quality.cjs --ci",
-    
-    "// Testing - Accessibility": "Scripts for accessibility testing",
     "test:a11y": "vitest run tests/unit/accessibility",
     "test:a11y:watch": "vitest watch tests/unit/accessibility",
     "test:a11y:e2e": "playwright test tests/e2e/accessibility.test.ts",
     "test:a11y:all": "npm run test:a11y && npm run test:a11y:e2e",
     "test:a11y:ci": "npm run test:a11y && playwright test tests/e2e/accessibility.test.ts --reporter=html",
-    
-    "// Testing - Visual Regression": "Scripts for visual regression testing",
     "test:visual": "playwright test tests/e2e/visual-regression.test.ts",
     "test:visual:update": "UPDATE_VISUAL_BASELINES=true playwright test tests/e2e/visual-regression.test.ts",
     "test:visual:ci": "CI=true playwright test tests/e2e/visual-regression.test.ts --reporter=html",
     "test:visual:headed": "playwright test tests/e2e/visual-regression.test.ts --headed",
-    
-    "// Testing - All": "Scripts for running all tests",
     "test:all": "npm run test:coverage && npm run test:integration && npm run test:e2e",
     "test:all:complete": "npm run test:coverage && npm run test:integration && npm run test:e2e && npm run test:a11y:all && npm run test:visual"
   },

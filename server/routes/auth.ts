@@ -1,8 +1,8 @@
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 
+import { prisma } from '../../lib/prisma.js';
 import { asyncHandler, asyncAuthHandler } from '../middleware/asyncHandler.js';
 import {
   createError,
@@ -20,7 +20,6 @@ import { logUserAction } from '../utils/secureLogger.js';
 import { requireAuth, type AuthRequest } from '../middleware/requireAuth.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Apply rate limiting to all auth routes
 router.use(authRateLimit);

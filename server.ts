@@ -1,9 +1,11 @@
-import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+// Import database client
+import { prisma } from './lib/prisma.js';
 
 // Import middleware
 import { errorHandler } from './server/middleware/errorHandler.js';
@@ -26,7 +28,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const prisma = new PrismaClient();
 
 // Middleware
 app.use(cors());
