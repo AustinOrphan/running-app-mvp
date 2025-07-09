@@ -43,7 +43,7 @@ jobs:
       - name: 📄 Check allowed licenses
         run: |
           echo "🔍 Checking license compliance..."
-          license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense;0BSD;BlueOak-1.0.0;CC0-1.0;Python-2.0;Zlib' --excludePrivatePackages --summary
+          license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense;0BSD;BlueOak-1.0.0;CC0-1.0;Python-2.0;Zlib;MPL-2.0' --excludePrivatePackages --summary
           
       - name: 📊 Generate detailed license report
         run: |
