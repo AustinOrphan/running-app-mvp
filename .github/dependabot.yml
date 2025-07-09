@@ -1,0 +1,80 @@
+version: 2
+updates:
+  # NPM dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "AustinOrphan"
+    assignees:
+      - "AustinOrphan"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      # Group dev dependencies together
+      dev-dependencies:
+        applies-to: version-updates
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "prettier"
+          - "typescript"
+          - "vitest"
+          - "playwright"
+          - "@playwright/*"
+          - "jest"
+          - "@testing-library/*"
+          - "jsdom"
+          - "supertest"
+          - "cross-env"
+          - "concurrently"
+          - "tsx"
+          - "vite"
+          - "@vitejs/*"
+          - "prisma"
+          - "autoprefixer"
+          - "postcss"
+          - "tailwindcss"
+      # Group React ecosystem
+      react-ecosystem:
+        applies-to: version-updates
+        patterns:
+          - "react*"
+          - "@vitejs/plugin-react"
+      # Group testing tools
+      testing-tools:
+        applies-to: version-updates
+        patterns:
+          - "*test*"
+          - "*jest*"
+          - "*vitest*"
+          - "*playwright*"
+          - "axe-core"
+          - "@axe-core/*"
+    # Ignore specific packages that need manual updates
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/.github/workflows"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    reviewers:
+      - "AustinOrphan"
+    assignees:
+      - "AustinOrphan"
