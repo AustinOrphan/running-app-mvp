@@ -11,6 +11,7 @@ import {
 import type { TooltipProps } from 'recharts';
 
 import { TrendsDataPoint } from '../../types';
+import { formatPace } from '../../utils/formatters';
 
 interface TrendsChartProps {
   data: TrendsDataPoint[];
@@ -41,9 +42,7 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
         <p className='tooltip-item'>
           Avg Pace:{' '}
           <span className='tooltip-value'>
-            {data.pace > 0
-              ? `${Math.floor(data.pace / 60)}:${(data.pace % 60).toString().padStart(2, '0')}/km`
-              : '-'}
+            {data.pace > 0 ? formatPace(data.pace, { includeUnit: true }) : '-'}
           </span>
         </p>
       </div>

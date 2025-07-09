@@ -27,3 +27,15 @@ export interface TestGoal {
   period: string;
   deadline?: string;
 }
+
+/**
+ * Helper function to assert testUser is defined
+ */
+export function assertTestUser(testUser: TestUser | undefined): TestUser {
+  if (!testUser) {
+    throw new Error(
+      'Test user not created - this should not happen if beforeEach hook ran correctly'
+    );
+  }
+  return testUser;
+}

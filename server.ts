@@ -17,8 +17,8 @@ import raceRoutes from './routes/races.js';
 import runRoutes from './routes/runs.js';
 import statsRoutes from './routes/stats.js';
 
-// Import secure logging
-import { logError, logInfo } from './utils/secureLogger.js';
+// Import enhanced logging
+import { logError, logInfo, correlationMiddleware } from './utils/logger.js';
 
 dotenv.config();
 
@@ -31,6 +31,9 @@ const prisma = new PrismaClient();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Correlation ID middleware for request tracing
+app.use(correlationMiddleware());
 
 // Security middleware
 app.use(securityHeaders);
@@ -64,7 +67,7 @@ app.get('/api/health', async (req, res) => {
       database: 'connected',
     });
   } catch (error) {
-    logError('Health check error', req, error instanceof Error ? error : new Error(String(error)));
+    logError('server', 'health-check', error, req);
     res.status(500).json({
       status: 'error',
       message: 'Health check failed: Database disconnected',
@@ -81,7 +84,8 @@ if (process.env.NODE_ENV === 'development') {
         select: { id: true, email: true, createdAt: true },
       });
       res.json(users);
-    } catch {
+    } catch (error) {
+      logError('server', 'debug-fetch-users', error, req);
       res.status(500).json({ message: 'Failed to fetch users' });
     }
   });
@@ -104,7 +108,7 @@ process.on('SIGTERM', async () => {
 });
 
 app.listen(PORT, () => {
-  logInfo(`🚀 Server running on port ${PORT}`);
+  logInfo('server', 'startup', `🚀 Server running on port ${PORT}`, undefined, { port: PORT });
 });
 
 export { app, prisma };

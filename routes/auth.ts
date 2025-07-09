@@ -40,7 +40,7 @@ router.get('/test', (req, res) => {
 router.post(
   '/register',
   validateRegister,
-  asyncHandler(async (req, res, next) => {
+  asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
     // Check if user already exists
@@ -49,8 +49,7 @@ router.post(
     });
 
     if (existingUser) {
-      next(createConflictError('User already exists', { email }));
-      return;
+      throw createConflictError('User already exists', { email });
     }
 
     // Hash password
@@ -68,8 +67,7 @@ router.post(
 
     // Generate JWT
     if (!process.env.JWT_SECRET) {
-      next(createError('JWT secret not configured', 500));
-      return;
+      throw createError('JWT secret not configured', 500);
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
@@ -91,7 +89,7 @@ router.post(
 router.post(
   '/login',
   validateLogin,
-  asyncHandler(async (req, res, next) => {
+  asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
     // Find user by email
@@ -100,23 +98,20 @@ router.post(
     });
 
     if (!user) {
-      next(createUnauthorizedError('Invalid credentials'));
-      return;
+      throw createUnauthorizedError('Invalid credentials');
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      next(createUnauthorizedError('Invalid credentials'));
-      return;
+      throw createUnauthorizedError('Invalid credentials');
     }
 
     logUserAction('User login', req, { email });
 
     // Generate JWT
     if (!process.env.JWT_SECRET) {
-      next(createError('JWT secret not configured', 500));
-      return;
+      throw createError('JWT secret not configured', 500);
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
@@ -138,12 +133,11 @@ router.post(
 router.get(
   '/verify',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res, next) => {
+  asyncAuthHandler(async (req: AuthRequest, res) => {
     // Safely validate user ID from token
     const userId = req.user?.id;
     if (typeof userId !== 'string') {
-      next(createUnauthorizedError('Invalid token'));
-      return;
+      throw createUnauthorizedError('Invalid token');
     }
 
     const user = await prisma.user.findUnique({
@@ -152,8 +146,7 @@ router.get(
     });
 
     if (!user) {
-      next(createUnauthorizedError('Invalid token'));
-      return;
+      throw createUnauthorizedError('Invalid token');
     }
 
     res.json({ user });

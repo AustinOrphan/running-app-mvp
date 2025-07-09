@@ -32,32 +32,18 @@ interface TestConfig {
  * Default test environment configuration
  */
 const DEFAULT_TEST_CONFIG: TestConfig = {
-  requiredEnvVars: [
-    'NODE_ENV',
-  ],
+  requiredEnvVars: ['NODE_ENV'],
   optionalEnvVars: [
     'DATABASE_URL',
-    'TEST_DATABASE_URL', 
+    'TEST_DATABASE_URL',
     'RATE_LIMITING_ENABLED',
     'JWT_SECRET',
     'BCRYPT_ROUNDS',
     'API_BASE_URL',
     'CI',
   ],
-  requiredFiles: [
-    'package.json',
-    'tsconfig.json',
-    'vitest.config.ts',
-    'playwright.config.ts',
-  ],
-  requiredDirectories: [
-    'tests',
-    'tests/unit',
-    'tests/e2e',
-    'tests/fixtures',
-    'tests/setup',
-    'src',
-  ],
+  requiredFiles: ['package.json', 'tsconfig.json', 'vitest.config.ts', 'playwright.config.ts'],
+  requiredDirectories: ['tests', 'tests/unit', 'tests/e2e', 'tests/fixtures', 'tests/setup', 'src'],
 };
 
 export class TestEnvironmentValidator {
@@ -142,14 +128,10 @@ export class TestEnvironmentValidator {
             );
             break;
           case 'TEST_DATABASE_URL':
-            result.warnings.push(
-              'TEST_DATABASE_URL not set - tests may use production database'
-            );
+            result.warnings.push('TEST_DATABASE_URL not set - tests may use production database');
             break;
           case 'JWT_SECRET':
-            result.warnings.push(
-              'JWT_SECRET not set - authentication tests may fail'
-            );
+            result.warnings.push('JWT_SECRET not set - authentication tests may fail');
             break;
           default:
             result.recommendations.push(`Consider setting ${envVar} for better test reliability`);
@@ -225,7 +207,7 @@ export class TestEnvironmentValidator {
     };
 
     const databaseUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
-    
+
     if (!databaseUrl) {
       result.warnings.push('No database URL configured - database tests may fail');
       return result;
@@ -244,25 +226,28 @@ export class TestEnvironmentValidator {
       } else {
         // Standard URL validation for network databases
         new URL(databaseUrl);
-        
+
         // Check database provider
         if (databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://')) {
-          result.recommendations.push('PostgreSQL detected - ensure test database is properly isolated');
+          result.recommendations.push(
+            'PostgreSQL detected - ensure test database is properly isolated'
+          );
         } else if (databaseUrl.startsWith('mysql://')) {
           result.recommendations.push('MySQL detected - ensure test database is properly isolated');
         }
       }
-      
+
       // Check if it's a test database
       if (!databaseUrl.includes('test') && !databaseUrl.includes('_test')) {
         result.warnings.push(
           'Database URL does not appear to be a test database. ' +
-          'Ensure you are not using production data.'
+            'Ensure you are not using production data.'
         );
       }
-
     } catch (error) {
-      result.errors.push(`Invalid database URL format: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      result.errors.push(
+        `Invalid database URL format: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
 
     return result;
@@ -283,7 +268,7 @@ export class TestEnvironmentValidator {
       // Check Node.js version
       const nodeVersion = process.version;
       const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
-      
+
       if (majorVersion < 18) {
         result.warnings.push(`Node.js version ${nodeVersion} is older than recommended (18+)`);
       }
@@ -294,15 +279,15 @@ export class TestEnvironmentValidator {
         try {
           const packageJsonContent = readFileSync(packageJsonPath, 'utf-8');
           const packageJson = JSON.parse(packageJsonContent);
-          
+
           if (!packageJson.scripts?.test) {
             result.warnings.push('No test script found in package.json');
           }
-          
+
           if (!packageJson.scripts?.['test:e2e']) {
             result.recommendations.push('Consider adding test:e2e script for E2E tests');
           }
-          
+
           if (!packageJson.scripts?.['test:unit']) {
             result.recommendations.push('Consider adding test:unit script for unit tests');
           }
@@ -325,14 +310,16 @@ export class TestEnvironmentValidator {
               result.recommendations.push(`Consider adding ${dep} for comprehensive testing`);
             }
           }
-
         } catch (error) {
-          result.errors.push(`Error reading package.json: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          result.errors.push(
+            `Error reading package.json: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
         }
       }
-
     } catch (error) {
-      result.errors.push(`Error validating Node environment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      result.errors.push(
+        `Error validating Node environment: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
 
     return result;
@@ -350,7 +337,7 @@ export class TestEnvironmentValidator {
     };
 
     const nodeModulesPath = join(this.projectRoot, 'node_modules');
-    
+
     if (!existsSync(nodeModulesPath)) {
       result.errors.push('node_modules directory not found. Run npm install.');
       return result;
@@ -358,7 +345,7 @@ export class TestEnvironmentValidator {
 
     // Check for critical test dependencies
     const criticalDeps = ['vitest', '@playwright/test'];
-    
+
     for (const dep of criticalDeps) {
       const depPath = join(nodeModulesPath, dep);
       if (!existsSync(depPath)) {
@@ -381,12 +368,12 @@ export class TestEnvironmentValidator {
     };
 
     const rateLimitingEnabled = process.env.RATE_LIMITING_ENABLED;
-    
+
     if (rateLimitingEnabled === 'true') {
       result.warnings.push(
         'Rate limiting is enabled in test environment. ' +
-        'This may cause test failures due to rate limit hits. ' +
-        'Consider setting RATE_LIMITING_ENABLED=false'
+          'This may cause test failures due to rate limit hits. ' +
+          'Consider setting RATE_LIMITING_ENABLED=false'
       );
     }
 
@@ -412,9 +399,11 @@ export class TestEnvironmentValidator {
 
     // Check for mock server setup
     const mockServerPath = join(this.projectRoot, 'tests/setup/mockServer.ts');
-    
+
     if (existsSync(mockServerPath)) {
-      result.recommendations.push('Mock server setup detected - ensure it\'s properly configured for test isolation');
+      result.recommendations.push(
+        "Mock server setup detected - ensure it's properly configured for test isolation"
+      );
     } else {
       result.recommendations.push('Consider setting up a mock server for API testing isolation');
     }
@@ -436,11 +425,11 @@ export class TestEnvironmentValidator {
    */
   generateReport(result: ValidationResult): string {
     const lines: string[] = [];
-    
+
     lines.push('🧪 Test Environment Validation Report');
     lines.push('=====================================');
     lines.push('');
-    
+
     if (result.isValid) {
       lines.push('✅ Environment validation PASSED');
     } else {
@@ -480,9 +469,9 @@ export class TestEnvironmentValidator {
 export async function validateTestEnvironment(): Promise<void> {
   const validator = new TestEnvironmentValidator();
   const result = await validator.validateEnvironment();
-  
+
   console.log(validator.generateReport(result));
-  
+
   if (!result.isValid) {
     throw new Error('Test environment validation failed. See report above for details.');
   }

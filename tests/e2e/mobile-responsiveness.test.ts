@@ -1,5 +1,6 @@
 import { test, expect, devices } from '@playwright/test';
 import type { TestUser } from './types';
+import { assertTestUser } from './types/index.js';
 
 import { mockRuns } from '../fixtures/mockData.js';
 import { testDb } from '../fixtures/testDatabase.js';
@@ -31,7 +32,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     }
 
     // Create test data
-    await testDb.createTestRuns(testUser!.id, mockRuns.slice(0, 5));
+    await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 5));
   });
 
   test.afterAll(async () => {
@@ -66,7 +67,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
       test(`should handle touch interactions on ${device.name}`, async ({ page }) => {
         // Login user first
         await page.goto('/login');
-        await page.fill('input[type="email"]', testUser!.email);
+        await page.fill('input[type="email"]', assertTestUser(testUser).email);
         await page.fill('input[type="password"]', 'testpassword123');
         await page.tap('button[type="submit"]');
         await expect(page).toHaveURL('/dashboard');
@@ -156,7 +157,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     test('should provide mobile-friendly navigation', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser!.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -186,7 +187,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     test('should handle navigation between pages smoothly', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser!.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -219,7 +220,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     test('should display dashboard content properly on mobile', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser!.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -248,7 +249,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     test('should display runs list properly on mobile', async ({ page }) => {
       // Login and navigate to runs
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser!.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
 
@@ -279,7 +280,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     test('should display statistics properly on mobile', async ({ page }) => {
       // Login and navigate to stats
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser!.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
 
@@ -324,7 +325,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     test('should handle rapid navigation without issues', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser!.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -423,7 +424,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     test('should handle network errors gracefully on mobile', async ({ page }) => {
       // Login user first
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser!.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
@@ -442,7 +443,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
       await page.goto('/login');
 
       // Fill form quickly and tap submit multiple times
-      await page.fill('input[type="email"]', testUser!.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
 
       const submitButton = page.locator('button[type="submit"]');
@@ -488,7 +489,7 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     test('should handle add run form on mobile', async ({ page }) => {
       // Login user
       await page.goto('/login');
-      await page.fill('input[type="email"]', testUser!.email);
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
       await page.tap('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');

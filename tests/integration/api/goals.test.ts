@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
 import type { TestUser } from '../../e2e/types';
+import { assertTestUser } from '../../e2e/types/index.js';
 
 import goalsRoutes from '../../../routes/goals.js';
 import { mockGoals, createMockGoal, mockRuns } from '../../fixtures/mockData.js';
@@ -32,12 +33,12 @@ describe('Goals API Integration Tests', () => {
       email: 'goals@test.com',
       password: 'testpassword',
     });
-    
+
     if (!testUser) {
       throw new Error('Test user not created');
     }
-    
-    authToken = testDb.generateTestToken(testUser!.id);
+
+    authToken = testDb.generateTestToken(assertTestUser(testUser).id);
   });
 
   afterAll(async () => {
@@ -48,7 +49,7 @@ describe('Goals API Integration Tests', () => {
   describe('GET /api/goals', () => {
     it('returns all active goals for authenticated user', async () => {
       // Create test goals
-      await testDb.createTestGoals(testUser!.id, mockGoals.slice(0, 3));
+      await testDb.createTestGoals(assertTestUser(testUser).id, mockGoals.slice(0, 3));
 
       const response = await request(app)
         .get('/api/goals')
@@ -66,7 +67,7 @@ describe('Goals API Integration Tests', () => {
         expect(goal).toHaveProperty('period');
         expect(goal).toHaveProperty('startDate');
         expect(goal).toHaveProperty('endDate');
-        expect(goal).toHaveProperty('userId', testUser!.id);
+        expect(goal).toHaveProperty('userId', assertTestUser(testUser).id);
         expect(goal).toHaveProperty('isActive', true);
       });
     });
@@ -80,7 +81,11 @@ describe('Goals API Integration Tests', () => {
       const activeGoal1 = createMockGoal({ title: 'Active Goal 1' });
       const activeGoal2 = createMockGoal({ title: 'Active Goal 2' });
 
-      await testDb.createTestGoals(testUser!.id, [completedGoal, activeGoal1, activeGoal2]);
+      await testDb.createTestGoals(assertTestUser(testUser).id, [
+        completedGoal,
+        activeGoal1,
+        activeGoal2,
+      ]);
 
       const response = await request(app)
         .get('/api/goals')
@@ -120,7 +125,7 @@ describe('Goals API Integration Tests', () => {
       await testDb.createTestGoals(otherUser.id, mockGoals.slice(0, 2));
 
       // Create goals for test user
-      await testDb.createTestGoals(testUser!.id, mockGoals.slice(2, 4));
+      await testDb.createTestGoals(assertTestUser(testUser).id, mockGoals.slice(2, 4));
 
       const response = await request(app)
         .get('/api/goals')
@@ -129,7 +134,7 @@ describe('Goals API Integration Tests', () => {
 
       expect(response.body).toHaveLength(2);
       response.body.forEach((goal: any) => {
-        expect(goal.userId).toBe(testUser!.id);
+        expect(goal.userId).toBe(assertTestUser(testUser).id);
       });
     });
 
@@ -146,7 +151,7 @@ describe('Goals API Integration Tests', () => {
     let testGoal: any;
 
     beforeEach(async () => {
-      const goals = await testDb.createTestGoals(testUser!.id, [mockGoals[0]]);
+      const goals = await testDb.createTestGoals(assertTestUser(testUser).id, [mockGoals[0]]);
       testGoal = goals[0];
     });
 
@@ -160,7 +165,7 @@ describe('Goals API Integration Tests', () => {
       expect(response.body).toHaveProperty('title', testGoal.title);
       expect(response.body).toHaveProperty('type', testGoal.type);
       expect(response.body).toHaveProperty('targetValue', testGoal.targetValue);
-      expect(response.body).toHaveProperty('userId', testUser!.id);
+      expect(response.body).toHaveProperty('userId', assertTestUser(testUser).id);
     });
 
     it('returns 404 for non-existent goal', async () => {
@@ -218,7 +223,7 @@ describe('Goals API Integration Tests', () => {
       expect(response.body).toHaveProperty('type', validGoalData.type);
       expect(response.body).toHaveProperty('targetValue', validGoalData.targetValue);
       expect(response.body).toHaveProperty('period', validGoalData.period);
-      expect(response.body).toHaveProperty('userId', testUser!.id);
+      expect(response.body).toHaveProperty('userId', assertTestUser(testUser).id);
       expect(response.body).toHaveProperty('isActive', true);
       expect(response.body).toHaveProperty('isCompleted', false);
 
@@ -227,7 +232,7 @@ describe('Goals API Integration Tests', () => {
         where: { id: response.body.id },
       });
       expect(createdGoal).toBeTruthy();
-      expect(createdGoal?.userId).toBe(testUser!.id);
+      expect(createdGoal?.userId).toBe(assertTestUser(testUser).id);
     });
 
     it('creates goal with minimal required data', async () => {
@@ -354,7 +359,7 @@ describe('Goals API Integration Tests', () => {
     };
 
     beforeEach(async () => {
-      const goals = await testDb.createTestGoals(testUser!.id, [mockGoals[0]]);
+      const goals = await testDb.createTestGoals(assertTestUser(testUser).id, [mockGoals[0]]);
       testGoal = goals[0];
     });
 
@@ -445,7 +450,7 @@ describe('Goals API Integration Tests', () => {
         isCompleted: true,
         completedAt: new Date(),
       });
-      const goals = await testDb.createTestGoals(testUser!.id, [completedGoal]);
+      const goals = await testDb.createTestGoals(assertTestUser(testUser).id, [completedGoal]);
       const completed = goals[0];
 
       await request(app)
@@ -464,7 +469,7 @@ describe('Goals API Integration Tests', () => {
     let testGoal: any;
 
     beforeEach(async () => {
-      const goals = await testDb.createTestGoals(testUser!.id, [mockGoals[0]]);
+      const goals = await testDb.createTestGoals(assertTestUser(testUser).id, [mockGoals[0]]);
       testGoal = goals[0];
     });
 
@@ -523,7 +528,7 @@ describe('Goals API Integration Tests', () => {
 
     beforeEach(async () => {
       const activeGoal = createMockGoal({ isCompleted: false, completedAt: undefined });
-      const goals = await testDb.createTestGoals(testUser!.id, [activeGoal]);
+      const goals = await testDb.createTestGoals(assertTestUser(testUser).id, [activeGoal]);
       testGoal = goals[0];
     });
 
@@ -592,10 +597,10 @@ describe('Goals API Integration Tests', () => {
   describe('GET /api/goals/progress/all', () => {
     beforeEach(async () => {
       // Create test goals
-      await testDb.createTestGoals(testUser!.id, mockGoals.slice(0, 3));
+      await testDb.createTestGoals(assertTestUser(testUser).id, mockGoals.slice(0, 3));
 
       // Create some test runs for progress calculation
-      await testDb.createTestRuns(testUser!.id, mockRuns.slice(0, 2));
+      await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 2));
     });
 
     it('returns progress for all active goals', async () => {
@@ -641,7 +646,7 @@ describe('Goals API Integration Tests', () => {
     it('returns empty array for user with no goals', async () => {
       // Clean goals for this test
       await testDb.prisma.goal.deleteMany({
-        where: { userId: testUser!.id },
+        where: { userId: assertTestUser(testUser).id },
       });
 
       const response = await request(app)
