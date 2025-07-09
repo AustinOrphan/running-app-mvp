@@ -13,6 +13,14 @@
 
 import { validateTestEnvironment } from '../tests/setup/validateTestEnvironment';
 
+/**
+ * Logs test environment validation errors
+ */
+function logTestEnvError(message: string, error: string): void {
+  console.error(message);
+  console.error(error);
+}
+
 async function main() {
   console.log('🔍 Validating test environment...\n');
 
@@ -23,8 +31,7 @@ async function main() {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const validationFailedMessage = '\n💥 Test environment validation failed!';
-    console.error(validationFailedMessage);
-    console.error(errorMessage);
+    logTestEnvError(validationFailedMessage, errorMessage);
     process.exit(1);
   }
 }
