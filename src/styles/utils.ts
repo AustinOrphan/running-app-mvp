@@ -12,17 +12,20 @@ const sizes = {
 } as const;
 
 // Generate media query helpers
-export const media = Object.keys(sizes).reduce((accumulator, label) => {
-  const key = label as keyof typeof sizes;
-  // Use em in breakpoints for better cross-browser support
-  const emSize = sizes[key] / 16;
-  accumulator[key] = (styles: string) => `
+export const media = Object.keys(sizes).reduce(
+  (accumulator, label) => {
+    const key = label as keyof typeof sizes;
+    // Use em in breakpoints for better cross-browser support
+    const emSize = sizes[key] / 16;
+    accumulator[key] = (styles: string) => `
     @media (max-width: ${emSize}em) {
       ${styles}
     }
   `;
-  return accumulator;
-}, {} as Record<keyof typeof sizes, (styles: string) => string>);
+    return accumulator;
+  },
+  {} as Record<keyof typeof sizes, (styles: string) => string>
+);
 
 // Text Truncation Utility
 export function truncate(width: string) {

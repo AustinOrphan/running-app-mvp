@@ -121,7 +121,7 @@ class ClientLogger {
    */
   private maskValue(value: unknown): string {
     if (value === null || value === undefined) {
-      return String(value);
+      return '[REDACTED]';
     }
 
     const str = String(value);
@@ -153,7 +153,7 @@ class ClientLogger {
 
     const logEntry: LogEntry = {
       level,
-      message,
+      message: this.redactString(message),
       timestamp: new Date().toISOString(),
       metadata: redactedMetadata,
       userAgent: this.isProduction ? undefined : navigator.userAgent,
