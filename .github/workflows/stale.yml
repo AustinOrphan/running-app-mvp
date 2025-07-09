@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: 🧹 Stale action
-        uses: actions/stale@v8
+        uses: actions/stale@v9
         with:
           # Repository token
           repo-token: ${{ secrets.GITHUB_TOKEN }}
