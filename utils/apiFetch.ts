@@ -186,7 +186,8 @@ export const apiFetch = async <T = unknown>(
         }
 
         // Handle network errors, timeouts, etc.
-        const errorMessage = error instanceof Error ? error.message : 'Network error';
+        const defaultNetworkErrorMessage = 'Network error';
+        const errorMessage = error instanceof Error ? error.message : defaultNetworkErrorMessage;
         throw new ApiFetchError(
           errorMessage,
           0,
