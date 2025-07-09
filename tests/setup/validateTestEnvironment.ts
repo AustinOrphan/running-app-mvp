@@ -245,9 +245,7 @@ export class TestEnvironmentValidator {
         );
       }
     } catch (error) {
-      result.errors.push(
-        `Invalid database URL format: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      result.errors.push(this.createDatabaseUrlErrorMessage(error));
     }
 
     return result;
@@ -311,15 +309,11 @@ export class TestEnvironmentValidator {
             }
           }
         } catch (error) {
-          result.errors.push(
-            `Error reading package.json: ${error instanceof Error ? error.message : 'Unknown error'}`
-          );
+          result.errors.push(this.createPackageJsonErrorMessage(error));
         }
       }
     } catch (error) {
-      result.errors.push(
-        `Error validating Node environment: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      result.errors.push(this.createNodeEnvironmentErrorMessage(error));
     }
 
     return result;
@@ -418,6 +412,30 @@ export class TestEnvironmentValidator {
     target.errors.push(...source.errors);
     target.warnings.push(...source.warnings);
     target.recommendations.push(...source.recommendations);
+  }
+
+  /**
+   * Creates a formatted error message for database URL validation
+   */
+  private createDatabaseUrlErrorMessage(error: unknown): string {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return `Invalid database URL format: ${errorMessage}`;
+  }
+
+  /**
+   * Creates a formatted error message for package.json reading
+   */
+  private createPackageJsonErrorMessage(error: unknown): string {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return `Error reading package.json: ${errorMessage}`;
+  }
+
+  /**
+   * Creates a formatted error message for Node environment validation
+   */
+  private createNodeEnvironmentErrorMessage(error: unknown): string {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return `Error validating Node environment: ${errorMessage}`;
   }
 
   /**

@@ -22,7 +22,8 @@ class EnhancedLogger {
    * Uses instanceof checks for better reliability, fallback to string matching
    */
   private categorizeError(error: Error, context?: Record<string, unknown>): ErrorType {
-    const errorMessage = error.message.toLowerCase();
+    const { message } = error;
+    const errorMessage = message.toLowerCase();
     const errorName = error.constructor.name;
 
     // Check for specific error types first using instanceof/constructor checks

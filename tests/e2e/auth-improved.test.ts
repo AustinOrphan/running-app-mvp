@@ -139,10 +139,6 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
     });
 
     test('should login successfully with enhanced reliability', async ({ page: _page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
-
       // Use enhanced auth helper
       await reliability.clickSafely('text=Sign In');
       await _page.waitForSelector('h2:has-text("Welcome Back")');
@@ -156,10 +152,6 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
     });
 
     test('should handle invalid credentials gracefully', async ({ page: _page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
-
       await reliability.clickSafely('text=Sign In');
       await _page.waitForSelector('h2:has-text("Welcome Back")');
 
@@ -174,10 +166,6 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
     });
 
     test('should handle network timeouts gracefully', async ({ page: _page }) => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
-
       await reliability.clickSafely('text=Sign In');
       await _page.waitForSelector('h2:has-text("Welcome Back")');
 

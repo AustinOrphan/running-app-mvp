@@ -26,9 +26,6 @@ test.describe('Visual Regression Tests', () => {
       password: 'testpassword123',
     });
 
-    if (!testUser) {
-      throw new Error('Test user not created');
-    }
 
     // Create comprehensive test data
     await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 8));

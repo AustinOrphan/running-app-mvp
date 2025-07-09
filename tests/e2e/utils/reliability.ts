@@ -35,6 +35,8 @@ export class ReliabilityUtils {
       case 'stable':
         await expect(element).toBeVisible({ timeout });
         await this.page.waitForLoadState('networkidle');
+        // Wait for animations to settle
+        await this.page.waitForTimeout(300);
         break;
     }
 
