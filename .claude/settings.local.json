@@ -91,6 +91,7 @@
       "Bash(diff:*)",
       "Bash(git remote:*)",
       "Bash(mv:*)",
+      "Bash(node:*)",
       "Bash(rm:*)"
     ],
     "deny": []

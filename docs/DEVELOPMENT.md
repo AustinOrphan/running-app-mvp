@@ -45,7 +45,7 @@ cp .env.example .env
 # Edit .env with your configuration
 
 # Set up database
-npx prisma migrate dev --name init
+npx prisma migrate dev
 npx prisma generate
 
 # Start development servers
@@ -120,11 +120,11 @@ running-app-mvp/
 │   │   ├── Auth/            # Authentication components
 │   │   ├── Goals/           # Goal-related components
 │   │   ├── Navigation/      # Navigation components
-│   │   ├── Pages/           # Page components
+│   │   ├── Pages/           # UI components used within specific pages
 │   │   ├── Runs/            # Run-related components
 │   │   └── Stats/           # Statistics components
 │   ├── hooks/               # Custom React hooks
-│   ├── pages/               # Page components
+│   ├── pages/               # Top-level page components matching routes
 │   ├── types/               # TypeScript type definitions
 │   ├── utils/               # Frontend utility functions
 │   └── styles/              # CSS modules and styles
@@ -366,7 +366,7 @@ model Run {
 1. **Modify schema** in `prisma/schema.prisma`
 2. **Create migration**:
    ```bash
-   npx prisma migrate dev --name description-of-change
+   npx prisma migrate dev
    ```
 3. **Generate client**:
    ```bash
