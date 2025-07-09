@@ -14,11 +14,34 @@ import {
 } from '../../../src/types/notifications';
 
 // Mock Notification API
-const mockNotification = vi.fn();
+const mockNotification = vi.fn() as any;
 const mockNotificationInstance = {
   close: vi.fn(),
   onclose: null as ((this: Notification, ev: Event) => any) | null,
-};
+  badge: '',
+  body: '',
+  data: null,
+  dir: 'auto',
+  icon: '',
+  image: '',
+  lang: '',
+  onclick: null,
+  onerror: null,
+  onshow: null,
+  requireInteraction: false,
+  silent: false,
+  tag: '',
+  timestamp: Date.now(),
+  title: '',
+  vibrate: [],
+  actions: [],
+  maxActions: 2,
+} as unknown as Notification;
+
+// Set up Notification constructor and static properties
+mockNotification.permission = 'default';
+mockNotification.requestPermission = vi.fn();
+mockNotification.mockReturnValue(mockNotificationInstance);
 
 Object.defineProperty(global, 'Notification', {
   value: mockNotification,
@@ -71,16 +94,24 @@ const createMockNotificationPreferences = (
 
 const createMockGoalNotification = (
   overrides: Partial<GoalNotification> = {}
-): GoalNotification => ({
-  id: 'notification-1',
-  type: 'milestone',
-  title: 'Test Notification',
-  message: 'Test message',
-  priority: 'normal',
-  goalId: 'goal-1',
-  timestamp: new Date(),
-  ...overrides,
-});
+): GoalNotification => {
+  const base = {
+    id: 'notification-1',
+    type: 'milestone' as const,
+    title: 'Test Notification',
+    message: 'Test message',
+    priority: 'medium' as const,
+    goalId: 'goal-1',
+    timestamp: new Date(),
+    read: false,
+    dismissed: false,
+    milestonePercentage: 50,
+    currentProgress: 25,
+    targetValue: 50,
+    goalTitle: 'Test Goal',
+  };
+  return { ...base, ...overrides } as GoalNotification;
+};
 
 describe('NotificationPermissionManager', () => {
   beforeEach(() => {
@@ -553,7 +584,7 @@ describe('NotificationTimingManager', () => {
     });
 
     it('should block non-urgent notifications during quiet hours', () => {
-      const notification = createMockGoalNotification({ type: 'milestone', priority: 'normal' });
+      const notification = createMockGoalNotification({ type: 'milestone', priority: 'medium' });
       const preferences = {
         ...basePreferences,
         quietHours: { enabled: true, start: '14:00', end: '15:00' },
