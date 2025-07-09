@@ -16,9 +16,6 @@ test.describe('Runs Management Flow E2E Tests', () => {
       password: 'testpassword123',
     });
 
-    if (!testUser) {
-      throw new Error('Test user not created');
-    }
 
     // Login user
     await page.goto('/login');

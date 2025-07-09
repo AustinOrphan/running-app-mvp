@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './styles/globals.css';
-import styles from './styles/components/App.module.css';
 import './App.css';
+import styles from './styles/components/App.module.css';
 
 // Components
 import { AuthForm } from './components/Auth/AuthForm';

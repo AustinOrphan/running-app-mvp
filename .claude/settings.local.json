@@ -86,8 +86,8 @@
       "mcp__serena__list_memories",
       "mcp__playwright__playwright_navigate",
       "mcp__playwright__playwright_get_visible_text",
-      "mcp__serena__think_about_task_adherence",
-      "Bash(diff:*)"
+      "Bash(diff:*)",
+      "mcp__serena__think_about_task_adherence"
     ],
     "deny": []
   }
