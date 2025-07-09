@@ -32,53 +32,53 @@
 /* Button variants */
 .btnPrimary {
   composes: btn;
-  background: #3b82f6;
+  background: var(--color-primary);
   color: white;
 }
 
 .btnPrimary:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--color-primary-hover);
 }
 
 .btnSecondary {
   composes: btn;
-  background: #2a2a2a;
-  color: rgba(255, 255, 255, 0.87);
-  border: 1px solid #404040;
+  background: var(--color-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
 .btnSecondary:hover:not(:disabled) {
-  background: #3a3a3a;
+  background: var(--color-secondary-hover);
 }
 
 .btnDanger {
   composes: btn;
-  background: #ef4444;
+  background: var(--color-danger);
   color: white;
 }
 
 .btnDanger:hover:not(:disabled) {
-  background: #dc2626;
+  background: var(--color-danger-hover);
 }
 
 .btnWarning {
   composes: btn;
-  background: #f59e0b;
+  background: var(--color-warning);
   color: white;
 }
 
 .btnWarning:hover:not(:disabled) {
-  background: #d97706;
+  background: var(--color-warning-hover);
 }
 
 .btnSuccess {
   composes: btn;
-  background: #10b981;
+  background: var(--color-success);
   color: white;
 }
 
 .btnSuccess:hover:not(:disabled) {
-  background: #059669;
+  background: var(--color-success-hover);
 }
 
 /* Button sizes */

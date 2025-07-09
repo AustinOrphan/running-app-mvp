@@ -6,7 +6,7 @@
 .formGroup label {
   display: block;
   margin-bottom: 6px;
-  color: rgba(255, 255, 255, 0.87);
+  color: var(--text-primary);
   font-weight: 500;
   font-size: 0.9rem;
 }
@@ -29,8 +29,8 @@
 .formGroup select:focus,
 .formGroup textarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  background: #1a1a1a;
+  border-color: var(--color-primary);
+  background: var(--card-bg);
 }
 
 .formGroup textarea {
@@ -53,14 +53,14 @@
 /* Field description text */
 .fieldDescription {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   margin-top: 4px;
   line-height: 1.4;
 }
 
 /* Error message styling */
 .errorMessage {
-  color: #ef4444;
+  color: var(--color-danger);
   font-size: 0.8rem;
   margin-top: 4px;
   display: flex;
@@ -75,7 +75,7 @@
 
 /* Success message styling */
 .successMessage {
-  color: #10b981;
+  color: var(--color-success);
   font-size: 0.8rem;
   margin-top: 4px;
   display: flex;
@@ -179,7 +179,7 @@
 /* Required field indicator */
 .required::after {
   content: ' *';
-  color: #ef4444;
+  color: var(--color-danger);
 }
 
 /* Disabled field styling */
