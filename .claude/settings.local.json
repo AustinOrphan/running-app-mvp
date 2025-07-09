@@ -61,6 +61,13 @@
       "Bash(mkdir:*)",
       "Bash(grep:*)",
       "Bash(NODE_ENV=test npm run validate-test-env)",
+      "mcp__serena__find_file",
+      "mcp__serena__get_symbols_overview",
+      "mcp__serena__create_text_file",
+      "mcp__filesystem__directory_tree",
+      "mcp__filesystem__list_directory_with_sizes",
+      "mcp__filesystem__read_file",
+      "mcp__serena__find_symbol",
       "mcp__serena__search_for_pattern",
       "mcp__serena__replace_regex",
       "mcp__serena__execute_shell_command",
@@ -68,8 +75,10 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(git pull:*)",
-      "mcp__serena__find_symbol",
-      "mcp__serena__find_file"
+      "Bash(git rm:*)",
+      "Bash(for file in *.test.ts)",
+      "Bash(do)",
+      "Bash(done)"
     ],
     "deny": []
   }

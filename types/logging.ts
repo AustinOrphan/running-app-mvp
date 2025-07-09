@@ -11,7 +11,7 @@ export interface StructuredLogData {
   timestamp: string;
   level: 'error' | 'warn' | 'info' | 'debug';
   correlationId: string;
-  component: LogComponent; // 'auth', 'runs', 'stats', 'goals', 'races', 'server'
+  component: LogComponent; // 'auth', 'runs', 'stats', 'goals', 'races', 'server', 'middleware', 'database'
   operation: string; // 'fetchRuns', 'createGoal', 'login', etc.
   error?: {
     message: string;

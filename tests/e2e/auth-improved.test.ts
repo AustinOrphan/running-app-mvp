@@ -8,6 +8,7 @@ import { test, expect } from '@playwright/test';
 import { ReliabilityUtils } from './utils/reliability';
 import { testDb } from '../fixtures/testDatabase';
 import type { TestUser } from './types';
+import { assertTestUser } from './types/index.js';
 
 test.describe('Authentication Flow E2E Tests - Improved', () => {
   let reliability: ReliabilityUtils;
@@ -145,13 +146,13 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       // Use enhanced auth helper
       await reliability.clickSafely('text=Sign In');
       await _page.waitForSelector('h2:has-text("Welcome Back")');
-      await _page.fill('input[type="email"]', testUser.email);
+      await _page.fill('input[type="email"]', assertTestUser(testUser).email);
       await _page.fill('input[type="password"]', 'testpassword123');
       await _page.click('button[type="submit"]');
 
       // Verify authenticated state
       await _page.waitForSelector('h1:has-text("Dashboard")');
-      await _page.waitForSelector(`text=${testUser.email}`);
+      await _page.waitForSelector(`text=${assertTestUser(testUser).email}`);
     });
 
     test('should handle invalid credentials gracefully', async ({ page: _page }) => {
@@ -163,7 +164,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       await _page.waitForSelector('h2:has-text("Welcome Back")');
 
       // Test wrong password handling
-      await _page.fill('input[type="email"]', testUser.email);
+      await _page.fill('input[type="email"]', assertTestUser(testUser).email);
       await _page.fill('input[type="password"]', 'wrongpassword');
       await _page.click('button[type="submit"]');
       await _page.waitForSelector('text=Invalid credentials');
@@ -187,7 +188,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
         await route.continue();
       });
 
-      await _page.fill('input[type="email"]', testUser.email);
+      await _page.fill('input[type="email"]', assertTestUser(testUser).email);
       await _page.fill('input[type="password"]', 'testpassword123');
 
       // Use network retry wrapper for flaky network conditions
@@ -220,7 +221,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       // Login with enhanced helper
       await reliability.clickSafely('text=Sign In');
       await _page.waitForSelector('h2:has-text("Welcome Back")');
-      await _page.fill('input[type="email"]', testUser.email);
+      await _page.fill('input[type="email"]', assertTestUser(testUser).email);
       await _page.fill('input[type="password"]', 'testpassword123');
       await _page.click('button[type="submit"]');
       await _page.waitForURL('**/dashboard');
@@ -235,7 +236,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
         await expect(_page).toHaveURL(route);
 
         // Verify authenticated state is maintained
-        await _page.waitForSelector(`text=${testUser.email}`);
+        await _page.waitForSelector(`text=${assertTestUser(testUser).email}`);
       }
     });
   });
@@ -249,7 +250,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
 
       await reliability.clickSafely('text=Sign In');
       await _page.waitForSelector('h2:has-text("Welcome Back")');
-      await _page.fill('input[type="email"]', testUser.email);
+      await _page.fill('input[type="email"]', assertTestUser(testUser).email);
       await _page.fill('input[type="password"]', 'testpassword123');
       await _page.click('button[type="submit"]');
       await _page.waitForURL('**/dashboard');
@@ -289,7 +290,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       await reliability.withNetworkRetry(async () => {
         await reliability.clickSafely('text=Sign In');
         await _page.waitForSelector('h2:has-text("Welcome Back")');
-        await _page.fill('input[type="email"]', testUser.email);
+        await _page.fill('input[type="email"]', assertTestUser(testUser).email);
         await _page.fill('input[type="password"]', 'testpassword123');
         await _page.click('button[type="submit"]');
         await _page.waitForURL('**/dashboard');

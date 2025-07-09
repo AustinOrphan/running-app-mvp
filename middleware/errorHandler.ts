@@ -39,8 +39,6 @@ export const errorHandler = (
   logError('middleware', 'error-handler', err, req, {
     statusCode,
     isOperational: err.isOperational || false,
-    errorType: err.constructor.name,
-    errorCode: err.errorCode,
     category: errorCategory,
     field: err.field,
   });

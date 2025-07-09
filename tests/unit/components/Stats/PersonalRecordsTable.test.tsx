@@ -22,6 +22,10 @@ vi.mock('../../../../src/utils/formatters', () => ({
     const formatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
     return options.includeUnit ? `${formatted}/km` : formatted;
   }),
+  formatDate: vi.fn((dateInput: string | Date, _format: string = 'weekday-short') => {
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }),
 }));
 
 describe('PersonalRecordsTable', () => {
