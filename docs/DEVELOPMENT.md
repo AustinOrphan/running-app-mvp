@@ -97,7 +97,6 @@ VITE_API_URL="http://localhost:3001"
 - **TypeScript Importer**
 - **Prisma**
 - **Auto Rename Tag**
-- **Bracket Pair Colorizer**
 
 #### VS Code Settings
 ```json
@@ -395,22 +394,25 @@ import { z } from 'zod';
 
 const router = Router();
 
-const createExampleSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
+const createRunSchema = z.object({
+  date: z.string().datetime(),
+  distance: z.number().positive(),
+  duration: z.number().positive(),
+  tag: z.string().optional(),
+  notes: z.string().optional(),
 });
 
-router.post('/examples', requireAuth, validateBody(createExampleSchema), async (req, res, next) => {
+router.post('/runs', requireAuth, validateBody(createRunSchema), async (req, res, next) => {
   try {
-    const example = await prisma.example.create({
+    const run = await prisma.run.create({
       data: {
         ...req.body,
         userId: req.user.id,
       },
     });
-    res.status(201).json(example);
+    res.status(201).json(run);
   } catch (error) {
-    return next(createError('Failed to create example', 500));
+    return next(createError('Failed to create run', 500));
   }
 });
 
@@ -510,9 +512,9 @@ export const useExample = (id: string) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchExample = async () => {
+    const fetchRun = async () => {
       try {
-        const response = await apiGet(`/api/examples/${id}`);
+        const response = await apiGet(`/api/runs/${id}`);
         setData(response.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
@@ -521,7 +523,7 @@ export const useExample = (id: string) => {
       }
     };
 
-    fetchExample();
+    fetchRun();
   }, [id]);
 
   return { data, loading, error };
