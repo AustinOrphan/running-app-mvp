@@ -4,7 +4,7 @@ import request from 'supertest';
 import type { TestUser } from '../../e2e/types';
 import { assertTestUser } from '../../e2e/types/index.js';
 
-import goalsRoutes from '../../../routes/goals.js';
+import goalsRoutes from '../../../server/routes/goals.js';
 import { mockGoals, createMockGoal, mockRuns } from '../../fixtures/mockData.js';
 import { testDb } from '../../fixtures/testDatabase.js';
 

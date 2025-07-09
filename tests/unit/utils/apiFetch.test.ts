@@ -7,7 +7,7 @@ import {
   apiDelete,
   apiPatch,
   ApiFetchError,
-} from '../../../utils/apiFetch';
+} from '../../../src/utils/apiFetch';
 
 // Mock fetch
 const mockFetch = vi.fn();

@@ -4,7 +4,7 @@
  */
 
 import { vi } from 'vitest';
-import { ApiResponse, ApiFetchError } from '../../utils/apiFetch';
+import { ApiResponse, ApiFetchError } from '../../src/utils/apiFetch';
 
 // Re-export the real types for convenience
 export type { ApiResponse };

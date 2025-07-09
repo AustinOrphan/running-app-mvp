@@ -6,7 +6,7 @@ import { assertTestUser } from '../../e2e/types/index.js';
 
 import { mockRaces } from '../../fixtures/mockData.js';
 import { testDb } from '../../fixtures/testDatabase.js';
-import racesRoutes from '../../../routes/races.js';
+import racesRoutes from '../../../server/routes/races.js';
 
 const createTestApp = () => {
   const app = express();

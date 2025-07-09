@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiPost, ApiError } from '../../utils/apiFetch';
+import { apiPost, ApiError } from '../utils/apiFetch';
 
 export const useAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
