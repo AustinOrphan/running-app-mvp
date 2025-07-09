@@ -83,7 +83,8 @@
       "Bash(for file in *.test.ts)",
       "Bash(do)",
       "Bash(done)",
-      "mcp__serena__list_memories"
+      "mcp__serena__list_memories",
+      "Bash(npx vitest run:*)"
     ],
     "deny": []
   }
