@@ -22,9 +22,7 @@ export function createE2EHelpers(page: Page, testDb: any) {
       submitForm: async (submitSelector: string, loadingText?: string) => {
         await page.click(submitSelector);
         if (loadingText) {
-          await page.waitForSelector(`text=${loadingText}`, { timeout: 5000 }).catch(() => {
-            // Loading text might not appear if form submits quickly
-          });
+          await page.waitForSelector(`text=${loadingText}`, { timeout: 5000 });
         }
       },
       waitForErrorMessage: async (expectedMessage?: string) => {
