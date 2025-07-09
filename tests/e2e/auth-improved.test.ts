@@ -155,7 +155,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       await _page.waitForSelector(`text=${assertTestUser(testUser).email}`);
     });
 
-    test('should handle invalid credentials with retry logic', async ({ page: _page }) => {
+    test('should handle invalid credentials gracefully', async ({ page: _page }) => {
       if (!testUser) {
         throw new Error('Test user not created');
       }
@@ -163,7 +163,7 @@ test.describe('Authentication Flow E2E Tests - Improved', () => {
       await reliability.clickSafely('text=Sign In');
       await _page.waitForSelector('h2:has-text("Welcome Back")');
 
-      // Test wrong password with network retry wrapper
+      // Test wrong password handling
       await _page.fill('input[type="email"]', assertTestUser(testUser).email);
       await _page.fill('input[type="password"]', 'wrongpassword');
       await _page.click('button[type="submit"]');
