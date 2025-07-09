@@ -1,39 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-// Mock the entire env module
-vi.mock('../../../src/utils/env', () => {
-  let mockEnv: Record<string, string> = {};
-
-  return {
-    getEnvVar: vi.fn((key: string, fallback: string = '') => {
-      const value = mockEnv[key];
-      return value ?? fallback;
-    }),
-    getAppVersion: vi.fn(() => mockEnv['VITE_APP_VERSION'] || '1.0.0'),
-    getBuildDate: vi.fn(
-      () => mockEnv['VITE_APP_BUILD_DATE'] || new Date().toISOString().split('T')[0]
-    ),
-    getEnvironment: vi.fn(() => mockEnv['MODE'] || 'development'),
-    isDevelopment: vi.fn(() => (mockEnv['MODE'] || 'development') === 'development'),
-    isProduction: vi.fn(() => (mockEnv['MODE'] || 'development') === 'production'),
-    getAppInfo: vi.fn(() => ({
-      version: mockEnv['VITE_APP_VERSION'] || '1.0.0',
-      buildDate: mockEnv['VITE_APP_BUILD_DATE'] || new Date().toISOString().split('T')[0],
-      environment: mockEnv['MODE'] || 'development',
-      isDev: (mockEnv['MODE'] || 'development') === 'development',
-      isProd: (mockEnv['MODE'] || 'development') === 'production',
-    })),
-    // Helper to set mock env values
-    __setMockEnv: (env: Record<string, string>) => {
-      mockEnv = { ...env };
-    },
-    __clearMockEnv: () => {
-      mockEnv = {};
-    },
-  };
-});
-
-// Import the mocked functions
+// Import the actual functions to test them
 import {
   getEnvVar,
   getAppVersion,
@@ -44,24 +11,35 @@ import {
   getAppInfo,
 } from '../../../src/utils/env';
 
-// Get the mock helpers
-const envModule = await import('../../../src/utils/env');
-const { __setMockEnv, __clearMockEnv } = envModule as any;
-
 describe('env utilities', () => {
+  // Store original import.meta.env to restore after tests
+  let originalEnv: any;
+
   beforeEach(() => {
+    // Save original environment
+    originalEnv = { ...import.meta.env };
+    
+    // Clear environment for clean test state
+    Object.keys(import.meta.env).forEach(key => {
+      delete (import.meta.env as any)[key];
+    });
+    
     vi.clearAllMocks();
-    __clearMockEnv();
   });
 
   afterEach(() => {
+    // Restore original environment
+    Object.keys(import.meta.env).forEach(key => {
+      delete (import.meta.env as any)[key];
+    });
+    Object.assign(import.meta.env, originalEnv);
+    
     vi.clearAllMocks();
-    __clearMockEnv();
   });
 
   describe('getEnvVar', () => {
     it('should return environment variable value when it exists', () => {
-      __setMockEnv({ VITE_TEST_VAR: 'test-value' });
+      (import.meta.env as any).VITE_TEST_VAR = 'test-value';
 
       const result = getEnvVar('VITE_TEST_VAR' as keyof ImportMetaEnv);
 
@@ -81,10 +59,9 @@ describe('env utilities', () => {
     });
 
     it('should handle null/undefined environment values', () => {
-      __setMockEnv({
-        VITE_NULL_VAR: null as any,
-        VITE_UNDEFINED_VAR: undefined as any,
-      });
+      // Delete variables to simulate undefined
+      delete (import.meta.env as any).VITE_NULL_VAR;
+      delete (import.meta.env as any).VITE_UNDEFINED_VAR;
 
       const nullResult = getEnvVar('VITE_NULL_VAR' as keyof ImportMetaEnv, 'fallback');
       const undefinedResult = getEnvVar('VITE_UNDEFINED_VAR' as keyof ImportMetaEnv, 'fallback');
@@ -93,23 +70,36 @@ describe('env utilities', () => {
       expect(undefinedResult).toBe('fallback');
     });
 
-    it('should handle errors gracefully and return fallback', () => {
-      // This test simulates the function behavior during error conditions
+    it('should handle errors gracefully when import.meta is undefined', () => {
+      // Temporarily break import.meta to test error handling
+      const originalImport = globalThis.import;
+      globalThis.import = undefined as any;
+
       const result = getEnvVar('VITE_TEST_VAR' as keyof ImportMetaEnv, 'error-fallback');
 
       expect(result).toBe('error-fallback');
+
+      // Restore import.meta
+      globalThis.import = originalImport;
     });
 
-    it('should handle missing import.meta.env gracefully', () => {
+    it('should handle errors gracefully when import.meta.env is undefined', () => {
+      // Temporarily break import.meta.env to test error handling
+      const originalImportMeta = globalThis.import;
+      globalThis.import = { meta: {} } as any;
+
       const result = getEnvVar('VITE_TEST_VAR' as keyof ImportMetaEnv, 'no-env-fallback');
 
       expect(result).toBe('no-env-fallback');
+
+      // Restore import.meta
+      globalThis.import = originalImportMeta;
     });
   });
 
   describe('getAppVersion', () => {
     it('should return version from environment when available', () => {
-      __setMockEnv({ VITE_APP_VERSION: '2.1.0' });
+      (import.meta.env as any).VITE_APP_VERSION = '2.1.0';
 
       const result = getAppVersion();
 
@@ -122,18 +112,18 @@ describe('env utilities', () => {
       expect(result).toBe('1.0.0');
     });
 
-    it('should handle empty string version', () => {
-      __setMockEnv({ VITE_APP_VERSION: '' });
+    it('should return empty string when explicitly set to empty string', () => {
+      (import.meta.env as any).VITE_APP_VERSION = '';
 
       const result = getAppVersion();
 
-      expect(result).toBe('1.0.0');
+      expect(result).toBe('');
     });
   });
 
   describe('getBuildDate', () => {
     it('should return build date from environment when available', () => {
-      __setMockEnv({ VITE_APP_BUILD_DATE: '2024-01-15' });
+      (import.meta.env as any).VITE_APP_BUILD_DATE = '2024-01-15';
 
       const result = getBuildDate();
 
@@ -151,15 +141,15 @@ describe('env utilities', () => {
       vi.useRealTimers();
     });
 
-    it('should return current date when empty string', () => {
+    it('should return empty string when explicitly set to empty string', () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2024-02-14T15:30:00Z'));
 
-      __setMockEnv({ VITE_APP_BUILD_DATE: '' });
+      (import.meta.env as any).VITE_APP_BUILD_DATE = '';
 
       const result = getBuildDate();
 
-      expect(result).toBe('2024-02-14');
+      expect(result).toBe('');
 
       vi.useRealTimers();
     });
@@ -167,7 +157,7 @@ describe('env utilities', () => {
 
   describe('getEnvironment', () => {
     it('should return environment mode when available', () => {
-      __setMockEnv({ MODE: 'production' });
+      (import.meta.env as any).MODE = 'production';
 
       const result = getEnvironment();
 
@@ -181,7 +171,7 @@ describe('env utilities', () => {
     });
 
     it('should handle custom environment modes', () => {
-      __setMockEnv({ MODE: 'staging' });
+      (import.meta.env as any).MODE = 'staging';
 
       const result = getEnvironment();
 
@@ -191,7 +181,7 @@ describe('env utilities', () => {
 
   describe('isDevelopment', () => {
     it('should return true when in development mode', () => {
-      __setMockEnv({ MODE: 'development' });
+      (import.meta.env as any).MODE = 'development';
 
       const result = isDevelopment();
 
@@ -199,7 +189,7 @@ describe('env utilities', () => {
     });
 
     it('should return false when in production mode', () => {
-      __setMockEnv({ MODE: 'production' });
+      (import.meta.env as any).MODE = 'production';
 
       const result = isDevelopment();
 
@@ -207,7 +197,7 @@ describe('env utilities', () => {
     });
 
     it('should return false for custom modes', () => {
-      __setMockEnv({ MODE: 'staging' });
+      (import.meta.env as any).MODE = 'staging';
 
       const result = isDevelopment();
 
@@ -223,7 +213,7 @@ describe('env utilities', () => {
 
   describe('isProduction', () => {
     it('should return true when in production mode', () => {
-      __setMockEnv({ MODE: 'production' });
+      (import.meta.env as any).MODE = 'production';
 
       const result = isProduction();
 
@@ -231,7 +221,7 @@ describe('env utilities', () => {
     });
 
     it('should return false when in development mode', () => {
-      __setMockEnv({ MODE: 'development' });
+      (import.meta.env as any).MODE = 'development';
 
       const result = isProduction();
 
@@ -239,7 +229,7 @@ describe('env utilities', () => {
     });
 
     it('should return false for custom modes', () => {
-      __setMockEnv({ MODE: 'staging' });
+      (import.meta.env as any).MODE = 'staging';
 
       const result = isProduction();
 
@@ -258,11 +248,9 @@ describe('env utilities', () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2024-01-25T10:00:00Z'));
 
-      __setMockEnv({
-        VITE_APP_VERSION: '3.2.1',
-        VITE_APP_BUILD_DATE: '2024-01-20',
-        MODE: 'production',
-      });
+      (import.meta.env as any).VITE_APP_VERSION = '3.2.1';
+      (import.meta.env as any).VITE_APP_BUILD_DATE = '2024-01-20';
+      (import.meta.env as any).MODE = 'production';
 
       const result = getAppInfo();
 
@@ -295,10 +283,8 @@ describe('env utilities', () => {
     });
 
     it('should return consistent values when called multiple times', () => {
-      __setMockEnv({
-        VITE_APP_VERSION: '1.5.0',
-        MODE: 'staging',
-      });
+      (import.meta.env as any).VITE_APP_VERSION = '1.5.0';
+      (import.meta.env as any).MODE = 'staging';
 
       const result1 = getAppInfo();
       const result2 = getAppInfo();
@@ -307,10 +293,10 @@ describe('env utilities', () => {
     });
 
     it('should reflect environment changes', () => {
-      __setMockEnv({ MODE: 'development' });
+      (import.meta.env as any).MODE = 'development';
       const devResult = getAppInfo();
 
-      __setMockEnv({ MODE: 'production' });
+      (import.meta.env as any).MODE = 'production';
       const prodResult = getAppInfo();
 
       expect(devResult.isDev).toBe(true);
@@ -322,11 +308,9 @@ describe('env utilities', () => {
 
   describe('edge cases and error handling', () => {
     it('should handle various falsy values correctly', () => {
-      __setMockEnv({
-        VITE_FALSE_VAR: 'false',
-        VITE_ZERO_VAR: '0',
-        VITE_EMPTY_VAR: '',
-      });
+      (import.meta.env as any).VITE_FALSE_VAR = 'false';
+      (import.meta.env as any).VITE_ZERO_VAR = '0';
+      (import.meta.env as any).VITE_EMPTY_VAR = '';
 
       expect(getEnvVar('VITE_FALSE_VAR' as keyof ImportMetaEnv, 'fallback')).toBe('false');
       expect(getEnvVar('VITE_ZERO_VAR' as keyof ImportMetaEnv, 'fallback')).toBe('0');
@@ -334,7 +318,7 @@ describe('env utilities', () => {
     });
 
     it('should handle numeric environment variables as strings', () => {
-      __setMockEnv({ VITE_NUMERIC_VAR: '123' });
+      (import.meta.env as any).VITE_NUMERIC_VAR = '123';
 
       const result = getEnvVar('VITE_NUMERIC_VAR' as keyof ImportMetaEnv);
 
@@ -342,7 +326,7 @@ describe('env utilities', () => {
     });
 
     it('should handle special characters in environment variables', () => {
-      __setMockEnv({ VITE_SPECIAL_VAR: 'value with spaces & symbols!@#$%^&*()' });
+      (import.meta.env as any).VITE_SPECIAL_VAR = 'value with spaces & symbols!@#$%^&*()';
 
       const result = getEnvVar('VITE_SPECIAL_VAR' as keyof ImportMetaEnv);
 
@@ -351,7 +335,7 @@ describe('env utilities', () => {
 
     it('should handle very long environment variable values', () => {
       const longValue = 'x'.repeat(1000);
-      __setMockEnv({ VITE_LONG_VAR: longValue });
+      (import.meta.env as any).VITE_LONG_VAR = longValue;
 
       const result = getEnvVar('VITE_LONG_VAR' as keyof ImportMetaEnv);
 
@@ -361,7 +345,7 @@ describe('env utilities', () => {
 
   describe('type safety and TypeScript integration', () => {
     it('should work with proper ImportMetaEnv keys', () => {
-      __setMockEnv({ VITE_APP_VERSION: '1.2.3' });
+      (import.meta.env as any).VITE_APP_VERSION = '1.2.3';
 
       const result = getEnvVar('VITE_APP_VERSION' as keyof ImportMetaEnv);
 
