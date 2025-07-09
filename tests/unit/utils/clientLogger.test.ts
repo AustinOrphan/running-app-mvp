@@ -230,8 +230,8 @@ describe('ClientLogger', () => {
       expect(logEntry.metadata.nullValue).toBe(null);
       expect(logEntry.metadata.undefinedValue).toBeUndefined();
       expect(logEntry.metadata.emptyString).toBe('');
-      expect(logEntry.metadata.password).toBe('null');
-      expect(logEntry.metadata.email).toBe('undefined');
+      expect(logEntry.metadata.password).toBe('[REDACTED]');
+      expect(logEntry.metadata.email).toBe('[REDACTED]');
     });
 
     it('should preserve partial context for debugging', () => {

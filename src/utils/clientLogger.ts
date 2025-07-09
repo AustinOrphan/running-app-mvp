@@ -121,7 +121,7 @@ class ClientLogger {
    */
   private maskValue(value: unknown): string {
     if (value === null || value === undefined) {
-      return String(value);
+      return '[REDACTED]';
     }
 
     const str = String(value);
