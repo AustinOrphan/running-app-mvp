@@ -72,28 +72,28 @@ describe('env utilities', () => {
 
     it('should handle errors gracefully when import.meta is undefined', () => {
       // Temporarily break import.meta to test error handling
-      const originalImport = globalThis.import;
-      globalThis.import = undefined as any;
+      const originalImport = (globalThis as any).import;
+      (globalThis as any).import = undefined as any;
 
       const result = getEnvVar('VITE_TEST_VAR' as keyof ImportMetaEnv, 'error-fallback');
 
       expect(result).toBe('error-fallback');
 
       // Restore import.meta
-      globalThis.import = originalImport;
+      (globalThis as any).import = originalImport;
     });
 
     it('should handle errors gracefully when import.meta.env is undefined', () => {
       // Temporarily break import.meta.env to test error handling
-      const originalImportMeta = globalThis.import;
-      globalThis.import = { meta: {} } as any;
+      const originalImportMeta = (globalThis as any).import;
+      (globalThis as any).import = { meta: {} } as any;
 
       const result = getEnvVar('VITE_TEST_VAR' as keyof ImportMetaEnv, 'no-env-fallback');
 
       expect(result).toBe('no-env-fallback');
 
       // Restore import.meta
-      globalThis.import = originalImportMeta;
+      (globalThis as any).import = originalImportMeta;
     });
   });
 

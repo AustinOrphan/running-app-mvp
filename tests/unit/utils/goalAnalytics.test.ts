@@ -5,6 +5,7 @@ import { Goal, GoalProgress } from '../../../src/types/goals';
 // Mock data factories for testing
 const createMockGoal = (overrides: Partial<Goal> = {}): Goal => ({
   id: 'goal-1',
+  userId: 'user-1',
   title: 'Test Goal',
   type: 'DISTANCE',
   targetValue: 50,
