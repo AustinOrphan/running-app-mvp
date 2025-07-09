@@ -67,6 +67,14 @@ running-app-mvp/
 - JWT authentication
 - bcrypt for password hashing
 
+**DevOps & Automation:**
+
+- GitHub Actions for CI/CD
+- Automated dependency updates (Dependabot)
+- Code security scanning (CodeQL)
+- Automated PR labeling and management
+- License compliance checking
+
 ## 📡 API Endpoints
 
 ### Authentication
