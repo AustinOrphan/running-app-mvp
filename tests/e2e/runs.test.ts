@@ -16,7 +16,6 @@ test.describe('Runs Management Flow E2E Tests', () => {
       password: 'testpassword123',
     });
 
-
     // Login user
     await page.goto('/login');
     await page.fill('input[type="email"]', assertTestUser(testUser).email);

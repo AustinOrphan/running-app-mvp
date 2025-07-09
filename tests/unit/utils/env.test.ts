@@ -18,12 +18,12 @@ describe('env utilities', () => {
   beforeEach(() => {
     // Save original environment
     originalEnv = { ...import.meta.env };
-    
+
     // Clear environment for clean test state
     Object.keys(import.meta.env).forEach(key => {
       delete (import.meta.env as any)[key];
     });
-    
+
     vi.clearAllMocks();
   });
 
@@ -33,7 +33,7 @@ describe('env utilities', () => {
       delete (import.meta.env as any)[key];
     });
     Object.assign(import.meta.env, originalEnv);
-    
+
     vi.clearAllMocks();
   });
 

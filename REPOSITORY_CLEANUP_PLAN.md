@@ -12,6 +12,7 @@ This document outlines a comprehensive plan to clean up and improve the running-
 ## 🔴 High Priority Actions
 
 ### 1. Dependency Updates
+
 **Impact**: Security, bug fixes, performance improvements  
 **Time**: 30-60 minutes  
 **Risk**: Medium (requires testing)
@@ -28,27 +29,32 @@ npm outdated | grep -E "(react|express|vite|tailwindcss)"
 ```
 
 **Dependencies with major version updates available**:
+
 - `react` 18.3.1 → 19.1.0 (breaking changes)
 - `express` 4.21.2 → 5.1.0 (breaking changes)
 - `vite` 6.3.5 → 7.0.3 (breaking changes)
 - `tailwindcss` 3.4.17 → 4.1.11 (breaking changes)
 
 ### 2. Remove Temporary/Unused Files
+
 **Impact**: Cleaner repository, reduced confusion  
 **Time**: 15-30 minutes  
 **Risk**: Low
 
 **Files to remove**:
+
 - `docs/TESTING_TODO.md` (content moved to GitHub issues)
 - `.eslint-custom-rules.js` (if not actively used)
 - `Testing Strategy Overview` (duplicate content)
 - `Testing Update Todos` (duplicate content)
 
 **Files to review**:
+
 - Shell scripts consolidation opportunity
 - Multiple config files can be streamlined
 
 ### 3. Git Branch Cleanup
+
 **Impact**: Cleaner git history, reduced confusion  
 **Time**: 10-15 minutes  
 **Risk**: Low
@@ -66,11 +72,13 @@ git push origin --delete feature/windows-setup-and-fixes
 ## 🟡 Medium Priority Actions
 
 ### 4. Documentation Consolidation
+
 **Impact**: Better developer experience, reduced maintenance  
 **Time**: 2-3 hours  
 **Risk**: Low
 
 **Current documentation files** (27 total):
+
 ```
 ├── ARCHITECTURAL_REVIEW.md
 ├── CLAUDE.md
@@ -94,22 +102,26 @@ git push origin --delete feature/windows-setup-and-fixes
 ```
 
 **Consolidation plan**:
+
 - **Merge**: All `ERROR_HANDLING_*` files into single `docs/ERROR_HANDLING.md`
 - **Create**: `docs/DEVELOPMENT.md` for detailed dev setup
 - **Archive**: One-time setup files to `docs/archive/`
 - **Update**: README with testing section and current tech stack
 
 ### 5. Code Structure Improvements
+
 **Impact**: Better organization, cleaner imports  
 **Time**: 1-2 hours  
 **Risk**: Medium (requires import updates)
 
 **Issues identified**:
+
 - Duplicate `utils/` folders (root and `src/utils/`)
 - Multiple config files could be consolidated
 - CSS architecture inconsistency (CSS modules + regular CSS)
 
 **Proposed changes**:
+
 ```
 # Current structure
 ├── utils/              # Backend utilities
@@ -123,11 +135,13 @@ git push origin --delete feature/windows-setup-and-fixes
 ```
 
 ### 6. Security & Best Practices
+
 **Impact**: Improved security posture  
 **Time**: 1-2 hours  
 **Risk**: Low
 
 **Actions needed**:
+
 - Create `SECURITY.md` with security reporting guidelines
 - Review JWT implementation and auth middleware
 - Add rate limiting configuration documentation
@@ -136,33 +150,39 @@ git push origin --delete feature/windows-setup-and-fixes
 ## 🟢 Low Priority Improvements
 
 ### 7. Developer Experience Enhancements
+
 **Impact**: Better DX, consistency  
 **Time**: 2-3 hours  
 **Risk**: Low
 
 **Improvements**:
+
 - Pre-commit hooks for linting/formatting
 - VS Code workspace settings
 - Docker setup for consistent development
 - Script organization in `package.json`
 
 ### 8. CI/CD Enhancements
+
 **Impact**: Automated quality checks  
 **Time**: 3-4 hours  
 **Risk**: Medium
 
 **Enhancements**:
+
 - Automated dependency updates (Dependabot)
 - Test coverage reporting improvements
 - Performance monitoring setup
 - Release automation
 
 ### 9. Code Quality Improvements
+
 **Impact**: Long-term maintainability  
 **Time**: 4-6 hours  
 **Risk**: Medium
 
 **Improvements**:
+
 - SonarQube or CodeClimate integration
 - TypeScript strict mode configuration
 - Bundle size monitoring
@@ -171,6 +191,7 @@ git push origin --delete feature/windows-setup-and-fixes
 ## 📊 Current State Assessment
 
 ### ✅ Strengths
+
 - Clean and organized label system
 - Comprehensive testing setup (unit, integration, E2E, a11y)
 - Good TypeScript configuration
@@ -179,6 +200,7 @@ git push origin --delete feature/windows-setup-and-fixes
 - Well-structured component architecture
 
 ### ⚠️ Areas for Improvement
+
 - 27 outdated dependencies
 - Documentation proliferation (27 markdown files)
 - Temporary files still present
@@ -189,12 +211,14 @@ git push origin --delete feature/windows-setup-and-fixes
 ## 🚀 Quick Wins (30 minutes)
 
 ### Phase 1: Immediate Actions
+
 1. **Update safe dependencies**: `npm update` (patch versions)
 2. **Clean git branches**: Remove merged/abandoned branches
 3. **Remove temporary files**: Delete TODO and temp files
 4. **Add missing files**: Create `.nvmrc`, `SECURITY.md`
 
 ### Phase 2: Organization (1 hour)
+
 1. **Group npm scripts**: Organize related scripts together
 2. **Consolidate docs**: Merge error handling docs
 3. **Update README**: Add testing section and current status
@@ -202,24 +226,28 @@ git push origin --delete feature/windows-setup-and-fixes
 ## 🎯 Implementation Roadmap
 
 ### Week 1: Foundation Cleanup
+
 - [ ] Remove temporary files
 - [ ] Clean git branches
 - [ ] Update safe dependencies
 - [ ] Consolidate error handling documentation
 
 ### Week 2: Structure Improvements
+
 - [ ] Organize npm scripts
 - [ ] Update README and core documentation
 - [ ] Review and clean up CSS architecture
 - [ ] Add missing configuration files
 
 ### Week 3: Developer Experience
+
 - [ ] Set up pre-commit hooks
 - [ ] Add VS Code workspace settings
 - [ ] Improve CI/CD workflows
 - [ ] Add automated dependency updates
 
 ### Week 4: Quality & Security
+
 - [ ] Security audit and documentation
 - [ ] Code quality improvements
 - [ ] Performance monitoring setup
@@ -228,6 +256,7 @@ git push origin --delete feature/windows-setup-and-fixes
 ## 🔧 Tools & Scripts
 
 ### Dependency Management
+
 ```bash
 # Check for outdated dependencies
 npm outdated
@@ -240,6 +269,7 @@ npm audit
 ```
 
 ### File Cleanup
+
 ```bash
 # Find potential cleanup candidates
 find . -name "*.md" -type f ! -path "./node_modules/*" | wc -l
@@ -248,6 +278,7 @@ find . -name "*temp*" -type f ! -path "./node_modules/*"
 ```
 
 ### Branch Cleanup
+
 ```bash
 # List all branches
 git branch -a

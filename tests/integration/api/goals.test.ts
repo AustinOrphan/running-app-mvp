@@ -34,7 +34,6 @@ describe('Goals API Integration Tests', () => {
       password: 'testpassword',
     });
 
-
     authToken = testDb.generateTestToken(assertTestUser(testUser).id);
   });
 

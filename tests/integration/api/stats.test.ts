@@ -34,7 +34,6 @@ describe('Stats API Integration Tests', () => {
       password: 'testpassword',
     });
 
-
     authToken = testDb.generateTestToken(assertTestUser(testUser).id);
 
     // Create test runs for statistics

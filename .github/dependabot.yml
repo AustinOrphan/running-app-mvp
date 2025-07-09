@@ -1,12 +1,12 @@
 version: 2
 updates:
   # NPM dependencies
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
     open-pull-requests-limit: 10
     # Use CODEOWNERS or configure teams instead of hardcoded usernames
     # reviewers:
@@ -14,63 +14,63 @@ updates:
     # assignees:
     #   - "team-name"
     commit-message:
-      prefix: "deps"
-      include: "scope"
+      prefix: 'deps'
+      include: 'scope'
     groups:
       # Group dev dependencies together
       dev-dependencies:
         applies-to: version-updates
         patterns:
-          - "@types/*"
-          - "eslint*"
-          - "prettier"
-          - "typescript"
-          - "jsdom"
-          - "supertest"
-          - "cross-env"
-          - "concurrently"
-          - "tsx"
-          - "vite"
-          - "@vitejs/*"
-          - "prisma"
-          - "autoprefixer"
-          - "postcss"
-          - "tailwindcss"
+          - '@types/*'
+          - 'eslint*'
+          - 'prettier'
+          - 'typescript'
+          - 'jsdom'
+          - 'supertest'
+          - 'cross-env'
+          - 'concurrently'
+          - 'tsx'
+          - 'vite'
+          - '@vitejs/*'
+          - 'prisma'
+          - 'autoprefixer'
+          - 'postcss'
+          - 'tailwindcss'
       # Group React ecosystem
       react-ecosystem:
         applies-to: version-updates
         patterns:
-          - "react*"
-          - "@vitejs/plugin-react"
+          - 'react*'
+          - '@vitejs/plugin-react'
       # Group testing tools (distinct from dev-dependencies)
       testing-tools:
         applies-to: version-updates
         patterns:
-          - "vitest"
-          - "playwright"
-          - "@playwright/*"
-          - "jest"
-          - "@testing-library/*"
-          - "axe-core"
-          - "@axe-core/*"
+          - 'vitest'
+          - 'playwright'
+          - '@playwright/*'
+          - 'jest'
+          - '@testing-library/*'
+          - 'axe-core'
+          - '@axe-core/*'
     # Ignore specific packages that need manual updates
     ignore:
-      - dependency-name: "node"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react-dom"
-        update-types: ["version-update:semver-major"]
+      - dependency-name: 'node'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-dom'
+        update-types: ['version-update:semver-major']
 
   # GitHub Actions
-  - package-ecosystem: "github-actions"
-    directory: "/.github/workflows"
+  - package-ecosystem: 'github-actions'
+    directory: '/.github/workflows'
     schedule:
-      interval: "monthly"
-      day: "monday"
+      interval: 'monthly'
+      day: 'monday'
     commit-message:
-      prefix: "ci"
-      include: "scope"
+      prefix: 'ci'
+      include: 'scope'
     # Use CODEOWNERS or configure teams instead of hardcoded usernames
     # reviewers:
     #   - "team-name"

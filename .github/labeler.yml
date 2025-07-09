@@ -160,7 +160,7 @@ hotfix:
 # Size labels (will be applied by workflow logic, not file patterns)
 # size-small, size-medium, size-large
 
-# Status labels (will be applied by workflow logic, not file patterns)  
+# Status labels (will be applied by workflow logic, not file patterns)
 # work-in-progress, needs-review, needs-reproduction
 
 # Breaking changes
@@ -168,7 +168,6 @@ breaking-change:
   - '**/*breaking*'
   - 'BREAKING*'
   - 'CHANGELOG*'
-
 # Community contributions (applied by workflow logic based on author)
 # community
 

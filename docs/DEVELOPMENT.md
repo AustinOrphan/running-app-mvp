@@ -60,7 +60,7 @@ If you prefer to run servers separately:
 # Terminal 1: Backend server
 npm run dev
 
-# Terminal 2: Frontend server  
+# Terminal 2: Frontend server
 npm run dev:frontend
 ```
 
@@ -91,6 +91,7 @@ VITE_API_URL="http://localhost:3001"
 ### IDE Configuration
 
 #### VS Code Extensions (Recommended)
+
 - **ES7+ React/Redux/React-Native snippets**
 - **Prettier - Code formatter**
 - **ESLint**
@@ -99,6 +100,7 @@ VITE_API_URL="http://localhost:3001"
 - **Auto Rename Tag**
 
 #### VS Code Settings
+
 ```json
 {
   "editor.formatOnSave": true,
@@ -165,6 +167,7 @@ running-app-mvp/
 ### Development Process
 
 1. **Create a branch** from `main`:
+
    ```bash
    git checkout main
    git pull origin main
@@ -174,6 +177,7 @@ running-app-mvp/
 2. **Make your changes** following the coding standards
 
 3. **Test your changes**:
+
    ```bash
    npm run test:all
    npm run lint
@@ -181,6 +185,7 @@ running-app-mvp/
    ```
 
 4. **Commit your changes**:
+
    ```bash
    git add .
    git commit -m "feat: add new feature description"
@@ -245,6 +250,7 @@ npm run test:watch
 ### Writing Tests
 
 #### Unit Test Example
+
 ```typescript
 // tests/unit/utils/formatters.test.ts
 import { describe, it, expect } from 'vitest';
@@ -258,6 +264,7 @@ describe('formatDuration', () => {
 ```
 
 #### Integration Test Example
+
 ```typescript
 // tests/integration/api/auth.test.ts
 import { describe, it, expect } from 'vitest';
@@ -269,7 +276,7 @@ describe('POST /api/auth/login', () => {
     const response = await request(app)
       .post('/api/auth/login')
       .send({ email: 'test@example.com', password: 'password' });
-    
+
     expect(response.status).toBe(200);
     expect(response.body.token).toBeDefined();
   });
@@ -571,6 +578,7 @@ CMD ["npm", "start"]
 ### Common Issues
 
 #### Backend Won't Start
+
 ```bash
 # Check if port is in use
 lsof -i :3001
@@ -583,6 +591,7 @@ npx prisma studio
 ```
 
 #### Frontend Won't Connect to Backend
+
 ```bash
 # Check if backend is running
 curl http://localhost:3001/api/health
@@ -592,6 +601,7 @@ curl http://localhost:3001/api/health
 ```
 
 #### Database Issues
+
 ```bash
 # Reset database
 npx prisma migrate reset
@@ -604,6 +614,7 @@ ls -la prisma/dev.db
 ```
 
 #### Test Failures
+
 ```bash
 # Clear test cache
 npm run test:clean
@@ -618,11 +629,13 @@ npm test -- --update-snapshots
 ### Performance Issues
 
 #### Slow API Responses
+
 - Check database query performance
 - Add database indexes if needed
 - Use Prisma query profiling
 
 #### Frontend Bundle Size
+
 ```bash
 # Analyze bundle size
 npm run build
@@ -632,6 +645,7 @@ npx vite-bundle-analyzer dist
 ### Development Tools
 
 #### Database Inspection
+
 ```bash
 # Open Prisma Studio
 npm run prisma:studio
@@ -641,6 +655,7 @@ sqlite3 prisma/dev.db
 ```
 
 #### API Testing
+
 ```bash
 # Use curl for API testing
 curl -X POST http://localhost:3001/api/auth/login \

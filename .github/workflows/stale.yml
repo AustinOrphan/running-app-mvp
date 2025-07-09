@@ -14,70 +14,70 @@ jobs:
   stale:
     name: 🧹 Mark Stale Issues & PRs
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 🧹 Stale action
         uses: actions/stale@v8
         with:
           # Repository token
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          
+
           # Issues configuration
           stale-issue-message: |
             👋 This issue has been automatically marked as stale because it has not had recent activity. 
-            
+
             It will be closed if no further activity occurs within **7 days**.
-            
+
             If this issue is still relevant, please:
             - Add a comment to keep it active
             - Remove the `stale` label
             - Provide additional context or updates
-            
+
             Thank you for your contributions! 🙏
-          
+
           close-issue-message: |
             🔒 This issue has been automatically closed due to inactivity.
-            
+
             If you believe this issue is still relevant, please:
             - Reopen the issue
             - Provide updated information
             - Reference any related work
-            
+
             Thank you for your understanding! 🙏
-          
-          # Pull requests configuration  
+
+          # Pull requests configuration
           stale-pr-message: |
             👋 This pull request has been automatically marked as stale because it has not had recent activity.
-            
+
             It will be closed if no further activity occurs within **7 days**.
-            
+
             If this PR is still relevant, please:
             - Add a comment to keep it active
             - Remove the `stale` label
             - Rebase or update the PR
             - Request review if ready
-            
+
             Thank you for your contributions! 🙏
-          
+
           close-pr-message: |
             🔒 This pull request has been automatically closed due to inactivity.
-            
+
             If you'd like to continue this work, please:
             - Open a new PR with updated changes
             - Reference this closed PR
             - Provide current status
-            
+
             Thank you for your understanding! 🙏
-          
+
           # Timing configuration
           days-before-stale: 30
           days-before-close: 7
           days-before-pr-close: 7
-          
+
           # Label configuration
           stale-issue-label: 'stale'
           stale-pr-label: 'stale'
-          
+
           # Exempt labels (these will never be marked stale)
           exempt-issue-labels: |
             pinned
@@ -90,7 +90,7 @@ jobs:
             priority-critical
             wip
             blocked
-            
+
           exempt-pr-labels: |
             pinned
             security
@@ -100,42 +100,42 @@ jobs:
             priority-high
             priority-critical
             dependencies
-            
+
           # Milestone exemption
           exempt-milestones: true
-          
+
           # Assignee exemption
           exempt-assignees: true
-          
+
           # Draft PR exemption
           exempt-draft-pr: true
-          
+
           # Operation limits
           operations-per-run: 100
-          
+
           # Remove stale label when updated
           remove-stale-when-updated: true
-          
+
           # Debug mode (set to true for testing)
           debug-only: false
-          
+
           # Ascending order (oldest first)
           ascending: true
-          
+
           # Only issues or PRs
           only-labels: ''
-          
+
           # Additional configuration
           start-date: '2024-01-01T00:00:00Z'
           delete-branch: false
-          
+
   # Summary job
   stale-summary:
     name: 📋 Stale Management Summary
     runs-on: ubuntu-latest
     needs: [stale]
     if: always()
-    
+
     steps:
       - name: 📊 Generate summary
         run: |
