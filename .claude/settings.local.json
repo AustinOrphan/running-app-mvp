@@ -60,7 +60,11 @@
       "Bash(gh:*)",
       "Bash(mkdir:*)",
       "Bash(grep:*)",
-      "Bash(NODE_ENV=test npm run validate-test-env)"
+      "Bash(NODE_ENV=test npm run validate-test-env)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)"
     ],
     "deny": []
   }
