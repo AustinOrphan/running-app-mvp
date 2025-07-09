@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { TestUser } from './types';
+import { assertTestUser } from './types/index.js';
 
 import { mockRuns } from '../fixtures/mockData.js';
 import { testDb } from '../fixtures/testDatabase.js';
@@ -15,13 +16,10 @@ test.describe('Statistics Dashboard E2E Tests', () => {
       password: 'testpassword123',
     });
 
-    if (!testUser) {
-      throw new Error('Test user not created');
-    }
 
     // Login user
     await page.goto('/login');
-    await page.fill('input[type="email"]', testUser.email);
+    await page.fill('input[type="email"]', assertTestUser(testUser).email);
     await page.fill('input[type="password"]', 'testpassword123');
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL('/dashboard');
@@ -59,7 +57,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
     test.beforeEach(async ({ page }) => {
       // Create runs from the last week
       const lastWeekRuns = mockRuns.slice(0, 4);
-      await testDb.createTestRuns(testUser.id, lastWeekRuns);
+      await testDb.createTestRuns(assertTestUser(testUser).id, lastWeekRuns);
       await page.goto('/stats');
     });
 
@@ -119,7 +117,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
         { ...mockRuns[2], tag: 'Speed Work' },
         { ...mockRuns[3], tag: 'Easy Run' },
       ];
-      await testDb.createTestRuns(testUser.id, taggedRuns);
+      await testDb.createTestRuns(assertTestUser(testUser).id, taggedRuns);
       await page.goto('/stats');
     });
 
@@ -177,7 +175,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
         distance: 5 + (i % 3), // Varying distances
         duration: 1800 + i * 60, // Varying durations
       }));
-      await testDb.createTestRuns(testUser.id, trendRuns);
+      await testDb.createTestRuns(assertTestUser(testUser).id, trendRuns);
       await page.goto('/stats');
     });
 
@@ -239,7 +237,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
         { ...mockRuns[2], distance: 21.1, duration: 6600 }, // Half marathon
         { ...mockRuns[3], distance: 5.0, duration: 1440 }, // Better 5K in 24:00
       ];
-      await testDb.createTestRuns(testUser.id, recordRuns);
+      await testDb.createTestRuns(assertTestUser(testUser).id, recordRuns);
       await page.goto('/stats');
     });
 
@@ -302,7 +300,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
 
   test.describe('Statistics Page Layout', () => {
     test.beforeEach(async ({ page }) => {
-      await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 3));
+      await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 3));
       await page.goto('/stats');
     });
 
@@ -337,7 +335,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
 
   test.describe('Data Refresh and Real-time Updates', () => {
     test('should refresh data when navigating back to stats page', async ({ page }) => {
-      await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
+      await testDb.createTestRuns(assertTestUser(testUser).id, [mockRuns[0]]);
       await page.goto('/stats');
 
       await page.locator('text=1 run').textContent();
@@ -358,7 +356,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
     });
 
     test('should handle refresh button', async ({ page }) => {
-      await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 2));
+      await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 2));
       await page.goto('/stats');
 
       // Should have refresh button
@@ -413,7 +411,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
         route.fulfill({ status: 500, body: 'Server Error' });
       });
 
-      await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
+      await testDb.createTestRuns(assertTestUser(testUser).id, [mockRuns[0]]);
       await page.goto('/stats');
 
       // Insights should load successfully
@@ -428,7 +426,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
 
   test.describe('Accessibility', () => {
     test('should be keyboard navigable', async ({ page }) => {
-      await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 2));
+      await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 2));
       await page.goto('/stats');
 
       // Tab through interactive elements
@@ -453,7 +451,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
     });
 
     test('should have proper ARIA labels for charts and tables', async ({ page }) => {
-      await testDb.createTestRuns(testUser.id, [mockRuns[0]]);
+      await testDb.createTestRuns(assertTestUser(testUser).id, [mockRuns[0]]);
       await page.goto('/stats');
 
       // Charts should have proper labels
@@ -467,7 +465,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
 
   test.describe('Performance', () => {
     test('should load statistics page quickly', async ({ page }) => {
-      await testDb.createTestRuns(testUser.id, mockRuns.slice(0, 5));
+      await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 5));
 
       const startTime = Date.now();
       await page.goto('/stats');
@@ -487,7 +485,7 @@ test.describe('Statistics Dashboard E2E Tests', () => {
         duration: 1800 + i * 30,
       }));
 
-      await testDb.createTestRuns(testUser.id, manyRuns);
+      await testDb.createTestRuns(assertTestUser(testUser).id, manyRuns);
       await page.goto('/stats');
 
       // Should still load and be responsive

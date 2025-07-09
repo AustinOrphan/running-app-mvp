@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
 import type { TestUser } from '../../e2e/types';
+import { assertTestUser } from '../../e2e/types/index.js';
 
 import authRoutes from '../../../routes/auth.js';
 import { testDb } from '../../fixtures/testDatabase.js';
@@ -156,22 +157,19 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('successfully logs in with valid credentials', async () => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: testUser.email,
+          email: assertTestUser(testUser).email,
           password: 'testpassword123',
         })
         .expect(200);
 
       expect(response.body).toHaveProperty('token');
       expect(response.body).toHaveProperty('user');
-      expect(response.body.user).toHaveProperty('id', testUser.id);
-      expect(response.body.user).toHaveProperty('email', testUser.email);
+      expect(response.body.user).toHaveProperty('id', assertTestUser(testUser).id);
+      expect(response.body.user).toHaveProperty('email', assertTestUser(testUser).email);
       expect(response.body.user).not.toHaveProperty('password');
     });
 
@@ -187,14 +185,11 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('returns 400 for missing password', async () => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: testUser.email,
+          email: assertTestUser(testUser).email,
         })
         .expect(400);
 
@@ -215,14 +210,11 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('returns 401 for invalid password', async () => {
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
 
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: testUser.email,
+          email: assertTestUser(testUser).email,
           password: 'wrongpassword',
         })
         .expect(401);
@@ -235,7 +227,7 @@ describe('Auth API Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: testUser.email,
+          email: assertTestUser(testUser).email,
           password: 'testpassword123',
         })
         .expect(200);
@@ -250,12 +242,12 @@ describe('Auth API Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: testUser.email.toUpperCase(),
+          email: assertTestUser(testUser).email.toUpperCase(),
           password: 'testpassword123',
         })
         .expect(200);
 
-      expect(response.body.user.email).toBe(testUser.email);
+      expect(response.body.user.email).toBe(assertTestUser(testUser).email);
     });
   });
 
@@ -268,12 +260,9 @@ describe('Auth API Integration Tests', () => {
         email: 'verify@test.com',
         password: 'testpassword123',
       });
-      
-      if (!testUser) {
-        throw new Error('Test user not created');
-      }
-      
-      validToken = testDb.generateTestToken(testUser.id);
+
+
+      validToken = testDb.generateTestToken(assertTestUser(testUser).id);
     });
 
     it('successfully verifies valid token', async () => {
@@ -283,8 +272,8 @@ describe('Auth API Integration Tests', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('user');
-      expect(response.body.user).toHaveProperty('id', testUser.id);
-      expect(response.body.user).toHaveProperty('email', testUser.email);
+      expect(response.body.user).toHaveProperty('id', assertTestUser(testUser).id);
+      expect(response.body.user).toHaveProperty('email', assertTestUser(testUser).email);
       expect(response.body.user).not.toHaveProperty('password');
     });
 
@@ -317,7 +306,7 @@ describe('Auth API Integration Tests', () => {
     it('returns 401 if user no longer exists', async () => {
       // Delete the user after creating token
       await testDb.prisma.user.delete({
-        where: { id: testUser.id },
+        where: { id: assertTestUser(testUser).id },
       });
 
       await request(app)
@@ -396,7 +385,7 @@ describe('Auth API Integration Tests', () => {
       // Make exactly 5 failed login attempts (the limit)
       for (let i = 0; i < 5; i++) {
         const response = await request(app).post('/api/auth/login').send({
-          email: testUser.email,
+          email: assertTestUser(testUser).email,
           password: 'wrongpassword',
         });
         responses.push(response);
@@ -410,7 +399,7 @@ describe('Auth API Integration Tests', () => {
 
       // 6th attempt should trigger rate limit
       const rateLimitedResponse = await request(app).post('/api/auth/login').send({
-        email: testUser.email,
+        email: assertTestUser(testUser).email,
         password: 'wrongpassword',
       });
 
@@ -424,7 +413,7 @@ describe('Auth API Integration Tests', () => {
 
       // Verify that even a correct password is now rate limited
       const correctPasswordResponse = await request(app).post('/api/auth/login').send({
-        email: testUser.email,
+        email: assertTestUser(testUser).email,
         password: 'correctpassword',
       });
 

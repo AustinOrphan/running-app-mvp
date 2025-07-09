@@ -27,3 +27,16 @@ export interface TestGoal {
   period: string;
   deadline?: string;
 }
+
+/**
+ * Type guard function to ensure testUser is defined
+ * Throws an error if testUser is undefined, otherwise returns the testUser
+ */
+export function assertTestUser(testUser: TestUser | undefined): TestUser {
+  if (!testUser) {
+    throw new Error(
+      'Test user not created - this should not happen if beforeEach hook ran correctly'
+    );
+  }
+  return testUser;
+}
