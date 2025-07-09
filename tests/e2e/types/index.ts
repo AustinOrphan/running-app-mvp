@@ -29,8 +29,7 @@ export interface TestGoal {
 }
 
 /**
- * Type guard function to ensure testUser is defined
- * Throws an error if testUser is undefined, otherwise returns the testUser
+ * Helper function to assert testUser is defined
  */
 export function assertTestUser(testUser: TestUser | undefined): TestUser {
   if (!testUser) {

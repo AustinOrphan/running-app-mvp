@@ -1,1 +1,0 @@
-/* Protected goal creation form */

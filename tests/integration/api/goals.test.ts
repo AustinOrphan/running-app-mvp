@@ -78,7 +78,11 @@ describe('Goals API Integration Tests', () => {
       const activeGoal1 = createMockGoal({ title: 'Active Goal 1' });
       const activeGoal2 = createMockGoal({ title: 'Active Goal 2' });
 
-      await testDb.createTestGoals(assertTestUser(testUser).id, [completedGoal, activeGoal1, activeGoal2]);
+      await testDb.createTestGoals(assertTestUser(testUser).id, [
+        completedGoal,
+        activeGoal1,
+        activeGoal2,
+      ]);
 
       const response = await request(app)
         .get('/api/goals')

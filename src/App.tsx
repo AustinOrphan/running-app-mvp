@@ -64,8 +64,7 @@ function AppContent() {
 
     // Update the previous status
     previousStatusRef.current = status;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, [status, showToast]);
 
   const handleLogin = async (email: string, password: string) => {
     if (status === 'disconnected') {

@@ -398,10 +398,12 @@ describe('Auth API Integration Tests', () => {
       }
 
       // 6th attempt should trigger rate limit
-      const rateLimitedResponse = await request(app).post('/api/auth/login').send({
-        email: assertTestUser(testUser).email,
-        password: 'wrongpassword',
-      });
+      const rateLimitedResponse = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: assertTestUser(testUser).email,
+          password: 'wrongpassword',
+        });
 
       // Verify rate limit was triggered
       expect(rateLimitedResponse.status).toBe(429);
@@ -412,10 +414,12 @@ describe('Auth API Integration Tests', () => {
       expect(rateLimitedResponse.body).toHaveProperty('retryAfter');
 
       // Verify that even a correct password is now rate limited
-      const correctPasswordResponse = await request(app).post('/api/auth/login').send({
-        email: assertTestUser(testUser).email,
-        password: 'correctpassword',
-      });
+      const correctPasswordResponse = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: assertTestUser(testUser).email,
+          password: 'correctpassword',
+        });
 
       expect(correctPasswordResponse.status).toBe(429);
       expect(correctPasswordResponse.body).toHaveProperty('message');

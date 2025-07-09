@@ -1,23 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 import { Toast } from '../types';
 
 export const useToast = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    // Generate unique ID using crypto.randomUUID for better uniqueness
-    const id = crypto.randomUUID();
-    const newToast: Toast = { id, message, type };
-    setToasts(prev => [...prev, newToast]);
-
-    // Auto remove after 4 seconds
-    setTimeout(() => {
-      removeToast(id);
-    }, 4000);
-  };
-
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     // Add removing class to trigger animation
     const toastElement = document.querySelector(`[data-toast-id="${id}"]`);
     if (toastElement) {
@@ -30,7 +18,22 @@ export const useToast = () => {
       // Fallback if element not found
       setToasts(prev => prev.filter(toast => toast.id !== id));
     }
-  };
+  }, []);
+
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+      // Generate unique ID using crypto.randomUUID for better uniqueness
+      const id = crypto.randomUUID();
+      const newToast: Toast = { id, message, type };
+      setToasts(prev => [...prev, newToast]);
+
+      // Auto remove after 4 seconds
+      setTimeout(() => {
+        removeToast(id);
+      }, 4000);
+    },
+    [removeToast]
+  );
 
   return {
     toasts,
