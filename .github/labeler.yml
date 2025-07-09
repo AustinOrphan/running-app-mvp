@@ -43,11 +43,11 @@ database:
 auth:
   - 'middleware/auth*'
   - 'routes/auth*'
-  - '**/*auth*'
-  - '**/*jwt*'
-  - '**/*bcrypt*'
-  - '**/*login*'
-  - '**/*session*'
+  - 'middleware/requireAuth*'
+  - 'src/components/Auth/**/*'
+  - 'src/hooks/useAuth*'
+  - 'src/pages/Login*'
+  - 'src/pages/Register*'
 
 # UI/UX
 UI/UX:
@@ -92,26 +92,19 @@ mobile:
   - '**/*swipe*'
   - 'src/styles/mobile*'
 
-# Technical debt
+# Technical debt (based on specific patterns, not just keywords)
 technical-debt:
-  - '**/*refactor*'
-  - '**/*cleanup*'
-  - '**/*deprecat*'
-  - '**/*todo*'
-  - '**/*fixme*'
+  - 'refactor/**/*'
+  - 'cleanup/**/*'
+  - 'legacy/**/*'
+  - 'deprecated/**/*'
 
 # Tooling
 tooling:
   - '.github/workflows/**/*'
-  - '*.config.ts'
-  - '*.config.js'
-  - '.env*'
-  - 'tsconfig.json'
-  - '.eslintrc*'
-  - '.prettierrc*'
-  - 'vite.config.ts'
-  - 'webpack.config.js'
-  - 'rollup.config.js'
+  - 'scripts/**/*'
+  - 'tools/**/*'
+  - '.github/actions/**/*'
 
 # Observability
 observability:
@@ -154,8 +147,9 @@ config:
   - 'tsconfig.json'
   - '.eslintrc*'
   - '.prettierrc*'
-  - '**/*config*'
-  - '**/*settings*'
+  - 'vite.config.ts'
+  - 'webpack.config.js'
+  - 'rollup.config.js'
 
 # Hotfix
 hotfix:

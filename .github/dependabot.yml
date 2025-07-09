@@ -8,10 +8,11 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "AustinOrphan"
-    assignees:
-      - "AustinOrphan"
+    # Use CODEOWNERS or configure teams instead of hardcoded usernames
+    # reviewers:
+    #   - "team-name"
+    # assignees:
+    #   - "team-name"
     commit-message:
       prefix: "deps"
       include: "scope"
@@ -24,11 +25,6 @@ updates:
           - "eslint*"
           - "prettier"
           - "typescript"
-          - "vitest"
-          - "playwright"
-          - "@playwright/*"
-          - "jest"
-          - "@testing-library/*"
           - "jsdom"
           - "supertest"
           - "cross-env"
@@ -46,14 +42,15 @@ updates:
         patterns:
           - "react*"
           - "@vitejs/plugin-react"
-      # Group testing tools
+      # Group testing tools (distinct from dev-dependencies)
       testing-tools:
         applies-to: version-updates
         patterns:
-          - "*test*"
-          - "*jest*"
-          - "*vitest*"
-          - "*playwright*"
+          - "vitest"
+          - "playwright"
+          - "@playwright/*"
+          - "jest"
+          - "@testing-library/*"
           - "axe-core"
           - "@axe-core/*"
     # Ignore specific packages that need manual updates
@@ -74,7 +71,8 @@ updates:
     commit-message:
       prefix: "ci"
       include: "scope"
-    reviewers:
-      - "AustinOrphan"
-    assignees:
-      - "AustinOrphan"
+    # Use CODEOWNERS or configure teams instead of hardcoded usernames
+    # reviewers:
+    #   - "team-name"
+    # assignees:
+    #   - "team-name"

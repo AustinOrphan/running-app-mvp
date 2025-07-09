@@ -1,7 +1,24 @@
 #!/bin/bash
 
+# Better error handling
+set -eo pipefail
+
 # Setup additional GitHub labels for the repository
 # Run this script to add the missing labels that the auto-label workflow expects
+
+# Check for gh CLI dependency
+if ! command -v gh &> /dev/null; then
+    echo "❌ Error: GitHub CLI (gh) is not installed"
+    echo "Please install it from: https://cli.github.com/"
+    exit 1
+fi
+
+# Check if authenticated
+if ! gh auth status &> /dev/null; then
+    echo "❌ Error: GitHub CLI is not authenticated"
+    echo "Please run: gh auth login"
+    exit 1
+fi
 
 echo "🏷️  Setting up additional GitHub labels..."
 
