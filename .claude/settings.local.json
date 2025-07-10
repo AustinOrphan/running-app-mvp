@@ -96,7 +96,8 @@
       "Bash(npm install:*)",
       "Bash(npm install:*)",
       "Bash(diff:*)",
-      "Bash(npm outdated:*)"
+      "Bash(npm outdated:*)",
+      "Bash(git switch:*)"
     ],
     "deny": []
   }

@@ -1,12 +1,11 @@
 /**
  * Winston-based Structured Logger Implementation - Issue #178
- * 
+ *
  * Implements comprehensive structured logging using Winston as specified in Issue #178.
  * This complements the existing secureLogger while providing Winston-specific features.
  */
 
 import winston from 'winston';
-import { Request } from 'express';
 
 export interface LogEntry {
   level: string;
@@ -22,7 +21,7 @@ export interface LogEntry {
     message: string;
     stack?: string;
   };
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export enum LogCategory {
@@ -32,7 +31,7 @@ export enum LogCategory {
   VALIDATION = 'validation',
   EXTERNAL = 'external',
   SECURITY = 'security',
-  PERFORMANCE = 'performance'
+  PERFORMANCE = 'performance',
 }
 
 export enum LogOperation {
@@ -43,7 +42,7 @@ export enum LogOperation {
   LOGIN = 'login',
   LOGOUT = 'logout',
   VALIDATE = 'validate',
-  PROCESS = 'process'
+  PROCESS = 'process',
 }
 
 // Environment-specific configuration
@@ -52,20 +51,20 @@ export const loggerConfig = {
     level: 'debug',
     handleExceptions: true,
     json: false,
-    colorize: true
+    colorize: true,
   },
   production: {
     level: 'info',
     handleExceptions: true,
     json: true,
-    colorize: false
+    colorize: false,
   },
   test: {
     level: 'error',
     handleExceptions: false,
     json: false,
-    colorize: false
-  }
+    colorize: false,
+  },
 };
 
 // JSON format for structured logging
@@ -79,10 +78,12 @@ const logFormat = winston.format.combine(
 const consoleFormat = winston.format.combine(
   winston.format.timestamp(),
   winston.format.colorize(),
-  winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    const metaString = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
-    return `${timestamp} [${level}]: ${message} ${metaString}`;
-  })
+  winston.format.printf(
+    ({ timestamp, level, message, ...meta }: winston.Logform.TransformableInfo) => {
+      const metaString = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
+      return `${timestamp} [${level}]: ${message} ${metaString}`;
+    }
+  )
 );
 
 // Create Winston logger instance
@@ -91,35 +92,28 @@ export const winstonLogger = winston.createLogger({
   format: logFormat,
   defaultMeta: {
     service: 'running-app-mvp',
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
   },
   transports: [
-    // Console transport
+    // Console transport with environment-specific format
     new winston.transports.Console({
-      format: process.env.NODE_ENV === 'production' ? logFormat : consoleFormat
+      format: process.env.NODE_ENV === 'production' ? logFormat : consoleFormat,
     }),
-    
+
     // File transport for errors
     new winston.transports.File({
       filename: 'logs/error.log',
       level: 'error',
-      format: logFormat
+      format: logFormat,
     }),
-    
+
     // File transport for all logs
     new winston.transports.File({
       filename: 'logs/combined.log',
-      format: logFormat
-    })
-  ]
+      format: logFormat,
+    }),
+  ],
 });
-
-// Development logging enhancement
-if (process.env.NODE_ENV !== 'production') {
-  winstonLogger.add(new winston.transports.Console({
-    format: consoleFormat
-  }));
-}
 
 // Logging helper functions as specified in Issue #178
 export const logError = (
@@ -130,16 +124,16 @@ export const logError = (
     userId?: string;
     component?: string;
     operation?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }
 ) => {
   winstonLogger.error(message, {
     error: {
       name: error.name,
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
     },
-    ...context
+    ...context,
   });
 };
 
@@ -150,7 +144,7 @@ export const logInfo = (
     userId?: string;
     component?: string;
     operation?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }
 ) => {
   winstonLogger.info(message, context);
@@ -163,7 +157,7 @@ export const logWarn = (
     userId?: string;
     component?: string;
     operation?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }
 ) => {
   winstonLogger.warn(message, context);
@@ -176,7 +170,7 @@ export const logDebug = (
     userId?: string;
     component?: string;
     operation?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }
 ) => {
   winstonLogger.debug(message, context);
@@ -189,13 +183,13 @@ export const logDatabase = (
   context?: {
     requestId?: string;
     userId?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }
 ) => {
   logInfo(message, {
     ...context,
     component: LogCategory.DATABASE,
-    operation
+    operation,
   });
 };
 
@@ -205,13 +199,13 @@ export const logAuth = (
   context?: {
     requestId?: string;
     userId?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }
 ) => {
   logInfo(message, {
     ...context,
     component: LogCategory.AUTH,
-    operation
+    operation,
   });
 };
 
@@ -221,13 +215,13 @@ export const logAPI = (
   context?: {
     requestId?: string;
     userId?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }
 ) => {
   logInfo(message, {
     ...context,
     component: LogCategory.API,
-    operation
+    operation,
   });
 };
 
@@ -237,14 +231,17 @@ export const logPerformance = (
   context?: {
     requestId?: string;
     userId?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }
 ) => {
   logInfo(`Performance: ${operation} completed in ${duration}ms`, {
     ...context,
     component: LogCategory.PERFORMANCE,
     operation,
-    duration
+    metadata: {
+      ...context?.metadata,
+      duration,
+    },
   });
 };
 

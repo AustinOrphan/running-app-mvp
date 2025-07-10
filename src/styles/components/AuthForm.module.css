@@ -55,6 +55,13 @@
   cursor: not-allowed;
 }
 
+.authButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
 .toggleText {
   text-align: center;
   margin-top: 20px;

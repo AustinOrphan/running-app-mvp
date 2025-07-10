@@ -1,6 +1,6 @@
 /**
  * Request Logging Middleware - Issue #178
- * 
+ *
  * Winston-based request/response logging middleware for comprehensive API monitoring.
  */
 
@@ -13,125 +13,101 @@ export interface LoggedRequest extends Request {
   startTime: number;
 }
 
-export const requestLogger = (
-  req: LoggedRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
+  const loggedReq = req as LoggedRequest;
   // Generate request ID if not already present
-  req.requestId = req.requestId || uuidv4();
-  req.startTime = Date.now();
+  loggedReq.requestId = loggedReq.requestId || uuidv4();
+  loggedReq.startTime = Date.now();
+
+  // Track if response has been logged to avoid duplicates
+  let responseLogged = false;
 
   // Extract user context from auth middleware if available
-  const userId = req.user?.id;
+  const userId = loggedReq.user?.id;
 
   // Log incoming request
   winstonLogger.info('Request received', {
-    requestId: req.requestId,
-    method: req.method,
-    url: req.url,
-    userAgent: req.get('User-Agent'),
-    ip: req.ip,
+    requestId: loggedReq.requestId,
+    method: loggedReq.method,
+    url: loggedReq.url,
+    userAgent: loggedReq.get('User-Agent'),
+    ip: loggedReq.ip,
     userId,
     component: LogCategory.API,
     operation: LogOperation.PROCESS,
     metadata: {
       headers: {
-        'content-type': req.get('Content-Type'),
-        'accept': req.get('Accept'),
-        'authorization': req.get('Authorization') ? '[REDACTED]' : undefined
+        'content-type': loggedReq.get('Content-Type'),
+        accept: loggedReq.get('Accept'),
+        authorization: loggedReq.get('Authorization') ? '[REDACTED]' : undefined,
       },
-      query: req.query,
-      params: req.params
-    }
+      query: loggedReq.query,
+      params: loggedReq.params,
+    },
   });
+
+  // Helper function to log response completion
+  const logResponse = (type: string, data?: unknown) => {
+    if (responseLogged) return;
+    responseLogged = true;
+
+    const duration = Date.now() - loggedReq.startTime;
+
+    winstonLogger.info(`Request completed${type ? ` (${type})` : ''}`, {
+      requestId: loggedReq.requestId,
+      method: loggedReq.method,
+      url: loggedReq.url,
+      statusCode: res.statusCode,
+      duration,
+      userId,
+      component: LogCategory.API,
+      operation: LogOperation.PROCESS,
+      metadata: {
+        responseSize: data ? Buffer.byteLength(JSON.stringify(data), 'utf8') : undefined,
+        responseDataKeys: data && typeof data === 'object' ? Object.keys(data) : [],
+        contentType: res.get('Content-Type'),
+      },
+    });
+  };
 
   // Capture original response methods
   const originalSend = res.send;
   const originalJson = res.json;
 
   // Override res.send to log response
-  res.send = function(data) {
-    const duration = Date.now() - req.startTime;
-    
-    winstonLogger.info('Request completed', {
-      requestId: req.requestId,
-      method: req.method,
-      url: req.url,
-      statusCode: res.statusCode,
-      duration,
-      userId,
-      component: LogCategory.API,
-      operation: LogOperation.PROCESS,
-      metadata: {
-        responseSize: Buffer.byteLength(data || '', 'utf8'),
-        contentType: res.get('Content-Type')
-      }
-    });
-
-    // Call original send
+  res.send = function (data) {
+    logResponse('send', data);
     return originalSend.call(this, data);
   };
 
   // Override res.json to log response
-  res.json = function(data) {
-    const duration = Date.now() - req.startTime;
-    
-    winstonLogger.info('Request completed (JSON)', {
-      requestId: req.requestId,
-      method: req.method,
-      url: req.url,
-      statusCode: res.statusCode,
-      duration,
-      userId,
-      component: LogCategory.API,
-      operation: LogOperation.PROCESS,
-      metadata: {
-        responseDataKeys: data && typeof data === 'object' ? Object.keys(data) : [],
-        contentType: res.get('Content-Type')
-      }
-    });
-
-    // Call original json
+  res.json = function (data) {
+    logResponse('json', data);
     return originalJson.call(this, data);
   };
 
   // Handle response finish for cases where send/json aren't called
   res.on('finish', () => {
-    // Only log if we haven't already logged (send/json weren't called)
-    if (!res.headersSent) {
-      const duration = Date.now() - req.startTime;
-      
-      winstonLogger.info('Request finished', {
-        requestId: req.requestId,
-        method: req.method,
-        url: req.url,
-        statusCode: res.statusCode,
-        duration,
-        userId,
-        component: LogCategory.API,
-        operation: LogOperation.PROCESS
-      });
-    }
+    logResponse('finish');
   });
 
   // Log slow requests (> 1 second)
   const slowRequestThreshold = 1000;
   setTimeout(() => {
-    if (!res.headersSent) {
-      const duration = Date.now() - req.startTime;
+    if (!responseLogged) {
+      const duration = Date.now() - loggedReq.startTime;
       if (duration > slowRequestThreshold) {
         winstonLogger.warn('Slow request detected', {
-          requestId: req.requestId,
-          method: req.method,
-          url: req.url,
+          requestId: loggedReq.requestId,
+          method: loggedReq.method,
+          url: loggedReq.url,
           duration,
           userId,
           component: LogCategory.PERFORMANCE,
           operation: LogOperation.PROCESS,
           metadata: {
-            threshold: slowRequestThreshold
-          }
+            threshold: slowRequestThreshold,
+          },
         });
       }
     }
@@ -141,19 +117,15 @@ export const requestLogger = (
 };
 
 // Error logging middleware
-export const errorLogger = (
-  error: Error,
-  req: LoggedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const duration = Date.now() - req.startTime;
-  const userId = req.user?.id;
+export const errorLogger = (error: Error, req: Request, res: Response, next: NextFunction) => {
+  const loggedReq = req as LoggedRequest;
+  const duration = Date.now() - loggedReq.startTime;
+  const userId = loggedReq.user?.id;
 
   winstonLogger.error('Request error', {
-    requestId: req.requestId,
-    method: req.method,
-    url: req.url,
+    requestId: loggedReq.requestId,
+    method: loggedReq.method,
+    url: loggedReq.url,
     duration,
     userId,
     component: LogCategory.API,
@@ -161,11 +133,11 @@ export const errorLogger = (
     error: {
       name: error.name,
       message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     },
     metadata: {
-      statusCode: res.statusCode
-    }
+      statusCode: res.statusCode,
+    },
   });
 
   next(error);

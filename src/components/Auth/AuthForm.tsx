@@ -43,11 +43,16 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister, loading
           required
           minLength={6}
         />
-        <div className='auth-buttons'>
+        <div className={styles.authButtons}>
           <button className={styles.button} type='submit' disabled={loading}>
             {loading ? '⏳ Logging in...' : 'Login'}
           </button>
-          <button className={styles.button} type='button' onClick={handleRegister} disabled={loading}>
+          <button
+            className={styles.button}
+            type='button'
+            onClick={handleRegister}
+            disabled={loading}
+          >
             {loading ? '⏳ Creating account...' : 'Register'}
           </button>
         </div>
