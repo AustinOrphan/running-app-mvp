@@ -18,28 +18,28 @@ jobs:
     name: 🔍 Lighthouse CI
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-      
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-      
+
       - name: 📥 Install dependencies
         run: npm ci
-      
+
       - name: 🗄️ Setup database
         run: |
           npx prisma migrate deploy
           npx prisma generate
-      
+
       - name: 🏗️ Build application
         run: npm run build
-      
+
       - name: 🌐 Start application
         run: |
           npm start &
@@ -49,7 +49,7 @@ jobs:
           NODE_ENV: production
           DATABASE_URL: file:./dev.db
           JWT_SECRET: test-secret-for-ci
-      
+
       - name: 🔍 Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
         with:
@@ -63,30 +63,30 @@ jobs:
     name: 📦 Bundle Analysis
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-      
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-      
+
       - name: 📥 Install dependencies
         run: npm ci
-      
+
       - name: 🗄️ Setup database
         run: |
           npx prisma migrate deploy
           npx prisma generate
-      
+
       - name: 🏗️ Build and analyze bundle
         run: |
           npm run build
           npx vite-bundle-analyzer dist --open-analyzer false --analyzer-mode json
-      
+
       - name: 📊 Upload bundle analysis
         uses: actions/upload-artifact@v4
         with:
@@ -98,29 +98,29 @@ jobs:
     name: ⚡ Performance Benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-      
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-      
+
       - name: 📥 Install dependencies
         run: npm ci
-      
+
       - name: 🗄️ Setup database
         run: |
           npx prisma migrate deploy
           npx prisma generate
-      
+
       - name: ⚡ Run performance benchmarks
         run: npm run test:performance
         continue-on-error: true
-      
+
       - name: 📊 Upload benchmark results
         uses: actions/upload-artifact@v4
         if: always()
@@ -133,29 +133,29 @@ jobs:
     name: 🧠 Memory Leak Detection
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-      
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-      
+
       - name: 📥 Install dependencies
         run: npm ci
-      
+
       - name: 🗄️ Setup database
         run: |
           npx prisma migrate deploy
           npx prisma generate
-      
+
       - name: 🧠 Run memory leak tests
         run: npm run test:memory
         continue-on-error: true
-      
+
       - name: 📊 Upload memory analysis
         uses: actions/upload-artifact@v4
         if: always()
@@ -170,14 +170,14 @@ jobs:
     needs: [lighthouse-ci, bundle-analysis, performance-benchmarks, memory-leak-detection]
     if: always()
     timeout-minutes: 10
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-      
+
       - name: 📥 Download all artifacts
         uses: actions/download-artifact@v4
-      
+
       - name: 📊 Generate performance report
         run: |
           echo "# 🚀 Performance Report" > performance-report.md
@@ -189,7 +189,7 @@ jobs:
           echo "- **Memory Leak Detection**: $([ -d memory-analysis ] && echo '✅ Completed' || echo '❌ Failed')" >> performance-report.md
           echo "" >> performance-report.md
           echo "Generated on: $(date)" >> performance-report.md
-      
+
       - name: 📝 Comment performance report on PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -205,7 +205,7 @@ jobs:
                 body: report
               });
             }
-      
+
       - name: 📊 Upload performance report
         uses: actions/upload-artifact@v4
         with:

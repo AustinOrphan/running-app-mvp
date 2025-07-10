@@ -41,11 +41,11 @@ const SENSITIVE_FIELDS = [
 
 const PII_PATTERNS = [
   // Email patterns
-  /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+  /[\w%+.-]+@[\d.A-Za-z-]+\.[A-Za-z]{2,}/g,
   // Credit card patterns
-  /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,
+  /\b(?:\d{4}[\s-]?){3}\d{4}\b/g,
   // Phone number patterns
-  /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g,
+  /\b(?:\d{3}[.-]?){2}\d{4}\b/g,
   // Social security patterns
   /\b\d{3}-\d{2}-\d{4}\b/g,
 ];
@@ -84,11 +84,9 @@ class ClientLogger {
       visited.add(data);
       const redacted: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(data)) {
-        if (this.isSensitiveField(key)) {
-          redacted[key] = this.maskValue(value);
-        } else {
-          redacted[key] = this.redactSensitiveData(value, visited);
-        }
+        redacted[key] = this.isSensitiveField(key)
+          ? this.maskValue(value)
+          : this.redactSensitiveData(value, visited);
       }
       visited.delete(data);
       return redacted;

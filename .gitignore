@@ -118,6 +118,14 @@ prisma/migrations/*/migration.sql
 coverage/
 test-results/
 playwright-report/
+# Code Quality & Analysis
+reports/
+.sonarqube/
+.scannerwork/
+complexity-report.json
+jscpd-report.json
+
+# Performance & Benchmarks
 benchmark-results/
 memory-reports/
 
