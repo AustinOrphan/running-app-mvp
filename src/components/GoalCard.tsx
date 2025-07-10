@@ -63,28 +63,28 @@ export const GoalCard: React.FC<GoalCardProps> = ({
           <div className='goal-actions'>
             {onEdit && (
               <IconButton
-                icon="✏️"
-                aria-label="Edit goal"
-                tooltip="Edit goal"
-                size="small"
-                variant="secondary"
+                icon='✏️'
+                aria-label='Edit goal'
+                tooltip='Edit goal'
+                size='small'
+                variant='secondary'
                 onClick={() => onEdit(goal.id)}
               />
             )}
             <IconButton
-              icon="✓"
-              aria-label="Mark as completed"
-              tooltip="Mark as completed"
-              size="small"
-              variant="success"
+              icon='✓'
+              aria-label='Mark as completed'
+              tooltip='Mark as completed'
+              size='small'
+              variant='success'
               onClick={() => onComplete(goal.id)}
             />
             <IconButton
-              icon="🗑️"
-              aria-label="Delete goal"
-              tooltip="Delete goal"
-              size="small"
-              variant="danger"
+              icon='🗑️'
+              aria-label='Delete goal'
+              tooltip='Delete goal'
+              size='small'
+              variant='danger'
               onClick={() => onDelete(goal.id)}
             />
           </div>
@@ -164,10 +164,10 @@ export const GoalCard: React.FC<GoalCardProps> = ({
               className='expand-btn'
               onClick={() => setIsExpanded(!isExpanded)}
               title={isExpanded ? 'Show less' : 'Show detailed progress'}
-              variant="secondary"
-              size="small"
+              variant='secondary'
+              size='small'
               icon={<span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>▼</span>}
-              iconPosition="right"
+              iconPosition='right'
             >
               {isExpanded ? 'Show less' : 'View details'}
             </Button>
