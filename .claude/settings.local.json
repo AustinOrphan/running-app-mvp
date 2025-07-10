@@ -94,7 +94,8 @@
       "Bash(node:*)",
       "Bash(rm:*)",
       "Bash(npm install:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "mcp__think-mcp__think"
     ],
     "deny": []
   }
