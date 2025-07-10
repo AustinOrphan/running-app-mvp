@@ -192,7 +192,7 @@ npm run validate-test-env      # Validate test environment
 
 ### Testing Best Practices
 
-- Tests are co-located with source code when possible
+- Tests are organized by type in the top-level `tests/` directory
 - Mock external dependencies and APIs
 - Test utilities and fixtures available in `tests/fixtures/`
 - Accessibility testing integrated into all test levels
