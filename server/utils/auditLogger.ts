@@ -185,28 +185,69 @@ class FileAuditStorage implements AuditStorage {
   }
 
   async query(filters: AuditQueryFilters): Promise<AuditEvent[]> {
-    // For production, implement proper log querying
-    // This is a simplified implementation
     const fs = await import('fs/promises');
+    const readline = await import('readline');
+    const stream = await import('stream');
     
     try {
-      const content = await fs.readFile(this.logPath, 'utf8');
-      const lines = content.trim().split('\n').filter(Boolean);
-      
-      const events = lines
-        .map(line => {
-          try {
-            return JSON.parse(line) as AuditEvent;
-          } catch {
-            return null;
-          }
-        })
-        .filter((event): event is AuditEvent => event !== null);
+      // Check if file exists
+      try {
+        await fs.access(this.logPath);
+      } catch {
+        return [];
+      }
 
-      // Apply filters (same logic as memory storage)
-      // ... (implementation similar to MemoryAuditStorage.query)
-      
-      return events.slice(0, filters.limit || 100);
+      // Use streaming to handle large files efficiently
+      const fileStream = (await import('fs')).createReadStream(this.logPath);
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+      });
+
+      const events: AuditEvent[] = [];
+      const limit = filters.limit || 100;
+      const offset = filters.offset || 0;
+      let processedCount = 0;
+      let matchedCount = 0;
+
+      for await (const line of rl) {
+        if (!line.trim()) continue;
+
+        try {
+          const event = JSON.parse(line) as AuditEvent;
+          
+          // Apply filters
+          if (filters.userId && event.userId !== filters.userId) continue;
+          if (filters.action && event.action !== filters.action) continue;
+          if (filters.resource && event.resource !== filters.resource) continue;
+          if (filters.outcome && event.outcome !== filters.outcome) continue;
+          if (filters.riskLevel && event.riskLevel !== filters.riskLevel) continue;
+          if (filters.startDate && new Date(event.timestamp) < filters.startDate) continue;
+          if (filters.endDate && new Date(event.timestamp) > filters.endDate) continue;
+
+          matchedCount++;
+          
+          // Apply pagination
+          if (matchedCount > offset && processedCount < limit) {
+            events.push(event);
+            processedCount++;
+          }
+
+          // Stop if we've collected enough events
+          if (processedCount >= limit) {
+            rl.close();
+            break;
+          }
+        } catch {
+          // Skip malformed lines
+          continue;
+        }
+      }
+
+      // Sort by timestamp (newest first)
+      events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      return events;
     } catch (error) {
       logError('audit', 'file-query', error instanceof Error ? error : new Error('Failed to query audit log'));
       return [];
@@ -214,10 +255,78 @@ class FileAuditStorage implements AuditStorage {
   }
 
   async cleanup(retentionDays: number): Promise<number> {
-    // Implement log rotation and cleanup
-    // This is a placeholder for production implementation
-    logInfo('audit', 'cleanup', `Audit log cleanup requested (${retentionDays} days retention)`);
-    return 0;
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const readline = await import('readline');
+    
+    try {
+      // Check if file exists
+      try {
+        await fs.access(this.logPath);
+      } catch {
+        return 0;
+      }
+
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+      
+      // Create temp file for retained events
+      const tempPath = `${this.logPath}.tmp`;
+      const writeStream = (await import('fs')).createWriteStream(tempPath);
+      
+      // Read through file and keep only recent events
+      const fileStream = (await import('fs')).createReadStream(this.logPath);
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+      });
+
+      let totalCount = 0;
+      let retainedCount = 0;
+
+      for await (const line of rl) {
+        if (!line.trim()) continue;
+        
+        try {
+          const event = JSON.parse(line) as AuditEvent;
+          totalCount++;
+          
+          if (new Date(event.timestamp) > cutoffDate) {
+            writeStream.write(line + '\n');
+            retainedCount++;
+          }
+        } catch {
+          // Skip malformed lines
+          continue;
+        }
+      }
+
+      writeStream.end();
+      
+      // Wait for write to complete
+      await new Promise((resolve, reject) => {
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+      });
+
+      // Archive old log file with timestamp
+      const archiveName = `${this.logPath}.${new Date().toISOString().split('T')[0]}.archive`;
+      await fs.rename(this.logPath, archiveName);
+      
+      // Replace with cleaned file
+      await fs.rename(tempPath, this.logPath);
+      
+      const removedCount = totalCount - retainedCount;
+      logInfo('audit', 'cleanup', `Audit log cleanup completed: removed ${removedCount} events older than ${retentionDays} days`);
+      
+      // TODO: Consider implementing compression and archival to S3/cloud storage
+      // for long-term retention and compliance requirements
+      
+      return removedCount;
+    } catch (error) {
+      logError('audit', 'cleanup', error instanceof Error ? error : new Error('Failed to cleanup audit log'));
+      return 0;
+    }
   }
 }
 

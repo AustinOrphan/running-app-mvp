@@ -7,17 +7,31 @@ import { auditSecurity } from '../utils/auditLogger.js';
 
 const router = express.Router();
 
-// Middleware to check admin access (placeholder - implement based on your user role system)
+// TODO: Implement proper role-based access control (RBAC) for production
+// This is a critical security requirement before deploying audit functionality
+// Example implementation:
+// 1. Add 'role' field to User model in Prisma schema
+// 2. Update authentication to include role in JWT payload
+// 3. Check user role in this middleware
 const requireAdmin = (req: AuthRequest, res: express.Response, next: express.NextFunction) => {
-  // For now, this is a placeholder. In production, you would check user roles:
-  // if (!req.user?.isAdmin) {
+  // IMPORTANT: This is a placeholder implementation
+  // In production, implement proper role checking:
+  // if (!req.user?.role || req.user.role !== 'admin') {
   //   throw createUnauthorizedError('Admin access required');
   // }
   
-  // For development, you can disable this check or implement proper role checking
+  // Development mode bypass - remove before production deployment
   if (process.env.NODE_ENV === 'production') {
-    throw createUnauthorizedError('Admin access required - not implemented');
+    throw createUnauthorizedError('Admin access required - RBAC not yet implemented. See TODO above.');
   }
+  
+  // Log audit access attempt (even in development)
+  auditLogger.logEvent({
+    action: 'admin.system_access',
+    resource: 'audit_logs',
+    outcome: 'success',
+    details: { endpoint: req.path }
+  }, req).catch(() => {});
   
   next();
 };
