@@ -1,0 +1,334 @@
+/**
+ * Card Component Styles - CSS Module
+ * 
+ * Extracted from App.css as part of CSS architecture migration.
+ * Uses CSS variables from globals.css for consistent theming.
+ */
+
+/* Base Card Styles */
+.card {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Goal Card Styles */
+.goalCard {
+  composes: card;
+  animation: slideUp 0.3s ease-out both;
+}
+
+.goalCard.completed {
+  opacity: 0.8;
+  border-color: var(--color-success);
+}
+
+.goalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.goalIcon {
+  font-size: 1.5rem;
+  margin-right: 12px;
+}
+
+.goalTitle {
+  flex: 1;
+}
+
+.goalTitle h4 {
+  margin: 0 0 4px 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.goalType {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.goalActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 15px;
+}
+
+.goalDescription {
+  margin: 0 0 15px 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.goalProgress {
+  margin: 15px 0;
+}
+
+.goalMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Run Card Styles */
+.runCard {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  background: var(--surface-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  animation: slideUp 0.3s ease-out both;
+}
+
+.runCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.runDate {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.runDetails {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.runDetails span {
+  background: var(--surface-color-hover);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.runNotes {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.runHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.runActions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.runCard:hover .runActions {
+  opacity: 1;
+}
+
+.runStats {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.runTag {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Overview Card Styles */
+.overviewCard {
+  composes: card;
+  text-align: center;
+}
+
+.summary {
+  display: flex;
+  justify-content: space-around;
+  margin: 20px 0;
+}
+
+.summaryItem {
+  text-align: center;
+}
+
+.summaryItem h3 {
+  margin: 0;
+  color: var(--color-primary);
+  font-size: 1.8rem;
+}
+
+.summaryItem p {
+  margin: 4px 0 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Grid Layouts */
+.goalsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.runsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Progress List Styles */
+.progressList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.progressItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.progressItem:last-child {
+  border-bottom: none;
+}
+
+.goalInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.goalInfo .goalIcon {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.goalDetails {
+  flex: 1;
+}
+
+.goalDetails h4 {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.progressText {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.percentage {
+  font-weight: 600;
+  color: var(--color-primary);
+  min-width: 50px;
+  text-align: right;
+}
+
+.progressBar {
+  width: 100px;
+  height: 6px;
+  background: var(--surface-color-hover);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .goalsGrid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .runsGrid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .card {
+    padding: 16px;
+  }
+  
+  .goalHeader {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .runDetails {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .runStats {
+    gap: 10px;
+  }
+  
+  .progressItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .goalInfo {
+    width: 100%;
+  }
+  
+  .percentage {
+    min-width: auto;
+    text-align: left;
+  }
+  
+  .progressBar {
+    width: 100%;
+  }
+}
