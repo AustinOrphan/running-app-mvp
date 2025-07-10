@@ -23,6 +23,10 @@ import statsRoutes from './server/routes/stats.js';
 // Import enhanced logging
 import { logError, logInfo, correlationMiddleware } from './server/utils/logger.js';
 
+// Import security utilities
+import { comprehensiveSecurityMiddleware } from './server/utils/securityUtils.js';
+import { securityEventTracker, getSecurityMetrics } from './server/utils/securityLogger.js';
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,40 +35,67 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // Security headers (apply first)
+const cspEnabled = process.env.CSP_ENABLED !== 'false';
+const hstsEnabled = process.env.HSTS_ENABLED !== 'false';
+const hstsMaxAge = parseInt(process.env.HSTS_MAX_AGE || '31536000', 10);
+
 app.use(
   helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
-        connectSrc: ["'self'"],
-        fontSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
-        frameSrc: ["'none'"],
-      },
-    },
+    contentSecurityPolicy: cspEnabled
+      ? {
+          directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", 'data:', 'https:'],
+            connectSrc: ["'self'"],
+            fontSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'"],
+            frameSrc: ["'none'"],
+            frameAncestors: ["'none'"],
+            baseUri: ["'self'"],
+            formAction: ["'self'"],
+          },
+          reportOnly: false,
+        }
+      : false,
     crossOriginEmbedderPolicy: false,
-    hsts: {
-      maxAge: 31536000, // 1 year
-      includeSubDomains: true,
-      preload: true,
-    },
+    hsts: hstsEnabled
+      ? {
+          maxAge: hstsMaxAge,
+          includeSubDomains: true,
+          preload: true,
+        }
+      : false,
   })
 );
 
 // CORS configuration - restrict origins in production
+const allowedOrigins =
+  process.env.NODE_ENV === 'production'
+    ? (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean)
+    : ['http://localhost:3000', 'http://localhost:5173']; // Development origins
+
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === 'production'
-      ? (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean)
-      : ['http://localhost:3000', 'http://localhost:5173'], // Development origins
-  credentials: true,
+  origin: (
+    origin: string | undefined,
+    callback: (error: Error | null, allow?: boolean) => void
+  ) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: process.env.CORS_CREDENTIALS !== 'false',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['X-Total-Count', 'X-Rate-Limit-Remaining', 'X-Rate-Limit-Reset'],
   optionsSuccessStatus: 200,
+  maxAge: 86400, // 24 hours
 };
 
 // Middleware
@@ -74,7 +105,13 @@ app.use(express.json());
 // Correlation ID middleware for request tracing
 app.use(correlationMiddleware());
 
-// Security middleware
+// Security event tracking
+app.use(securityEventTracker);
+
+// Comprehensive security middleware stack
+app.use(comprehensiveSecurityMiddleware);
+
+// Additional security middleware
 app.use(securityHeaders);
 app.use(globalRateLimit);
 
@@ -126,6 +163,20 @@ if (process.env.NODE_ENV === 'development') {
     } catch (error) {
       logError('server', 'debug-fetch-users', error, req);
       res.status(500).json({ message: 'Failed to fetch users' });
+    }
+  });
+
+  // Security metrics endpoint for monitoring
+  app.get('/api/debug/security-metrics', (req, res) => {
+    try {
+      const metrics = getSecurityMetrics();
+      res.json({
+        timestamp: new Date().toISOString(),
+        metrics,
+      });
+    } catch (error) {
+      logError('server', 'security-metrics', error, req);
+      res.status(500).json({ message: 'Failed to fetch security metrics' });
     }
   });
 }
