@@ -11,7 +11,8 @@ import { createError } from './errorHandler.js';
 const emailSchema = z.string().email('Invalid email format').toLowerCase().trim();
 
 // Enhanced password schema with security requirements
-const passwordSchema = z.string()
+const passwordSchema = z
+  .string()
   .min(12, 'Password must be at least 12 characters')
   .max(128, 'Password must be less than 128 characters')
   .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
@@ -193,7 +194,13 @@ export function validateRequest<T>(
 ) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      const dataToValidate = req[target];
+      let dataToValidate = req[target];
+
+      // Sanitize the data before validation
+      if (dataToValidate && typeof dataToValidate === 'object') {
+        dataToValidate = sanitizeObject(dataToValidate) as typeof dataToValidate;
+      }
+
       const result = schema.safeParse(dataToValidate);
 
       if (!result.success) {
@@ -206,7 +213,10 @@ export function validateRequest<T>(
       }
 
       // Replace the original data with parsed/sanitized data
-      (req as Request & Record<string, unknown>)[target] = result.data;
+      // Note: In Express v5, req.query is read-only, so we skip modifying it
+      if (target !== 'query') {
+        (req as Request & Record<string, unknown>)[target] = result.data;
+      }
       next();
     } catch (error) {
       next(error);
@@ -246,10 +256,8 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
       req.body = sanitizeObject(req.body);
     }
 
-    // Sanitize query parameters
-    if (req.query && typeof req.query === 'object') {
-      req.query = sanitizeObject(req.query) as typeof req.query;
-    }
+    // Note: req.query is read-only in Express v5, so we don't modify it directly
+    // Query parameter sanitization is handled by the validation middleware during parsing
 
     next();
   } catch {
