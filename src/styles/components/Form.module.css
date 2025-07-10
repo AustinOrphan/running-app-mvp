@@ -15,16 +15,14 @@
 .formGroup select,
 .formGroup textarea {
   width: 100%;
-  background: var(--secondary-bg);
+  padding: 10px 12px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  padding: 10px 12px;
+  background: var(--surface-color);
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   box-sizing: border-box;
-  transition:
-    border-color 0.2s,
-    background-color 0.2s;
+  transition: border-color 0.2s;
 }
 
 .formGroup input:focus,
@@ -32,7 +30,13 @@
 .formGroup textarea:focus {
   outline: none;
   border-color: var(--color-primary);
-  background: var(--card-bg);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.formGroup input.error,
+.formGroup select.error,
+.formGroup textarea.error {
+  border-color: var(--color-danger);
 }
 
 .formGroup textarea {
@@ -42,14 +46,24 @@
 
 /* Form row for side-by-side fields */
 .formRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
-  align-items: flex-end;
+  margin-bottom: 16px;
 }
 
-.formRow .formGroup {
-  flex: 1;
+.formRowAutoFit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.formRow .formGroup,
+.formRowAutoFit .formGroup {
   margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Field description text */
@@ -184,23 +198,38 @@
   color: var(--color-danger);
 }
 
+/* Special input types */
+.formGroup input[type='color'] {
+  width: 60px;
+  height: 40px;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.formGroup input[type='date'] {
+  cursor: pointer;
+}
+
 /* Disabled field styling */
 .formGroup input:disabled,
 .formGroup select:disabled,
 .formGroup textarea:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: var(--primary-bg);
+  background: var(--surface-color);
 }
 
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
-  .formRow {
-    flex-direction: column;
+  .formRow,
+  .formRowAutoFit {
+    grid-template-columns: 1fr;
     gap: 0;
   }
 
-  .formRow .formGroup {
+  .formRow .formGroup,
+  .formRowAutoFit .formGroup {
     margin-bottom: 20px;
   }
 
