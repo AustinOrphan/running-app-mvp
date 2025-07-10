@@ -54,6 +54,7 @@ running-app-mvp/
 ## 🛠️ Technology Stack
 
 **Frontend:**
+
 - React 18 with TypeScript
 - Vite for development and building
 - CSS Modules for styling
@@ -62,6 +63,7 @@ running-app-mvp/
 - Custom hooks for state management
 
 **Backend:**
+
 - Express.js with TypeScript
 - Prisma ORM with SQLite database
 - JWT authentication with bcrypt password hashing
@@ -72,6 +74,7 @@ running-app-mvp/
 - Zod for input validation
 
 **Testing & Quality:**
+
 - Vitest for unit testing (React components, hooks, utilities)
 - Jest for integration testing (API endpoints, middleware)
 - Playwright for end-to-end testing (cross-browser, mobile)
@@ -117,18 +120,21 @@ This project includes a comprehensive testing suite covering unit, integration, 
 ### Test Types
 
 **Unit Tests (Vitest)**
+
 - **Frontend**: React components, custom hooks, utility functions
 - **Coverage**: React Testing Library for component testing
 - **Location**: `tests/unit/`
 - **Run**: `npm run test` or `npm run test:watch`
 
 **Integration Tests (Jest)**
+
 - **Backend**: API endpoints, middleware, error handling
 - **Database**: Real database operations with test data isolation
 - **Location**: `tests/integration/`
 - **Run**: `npm run test:integration`
 
 **End-to-End Tests (Playwright)**
+
 - **Cross-browser**: Chrome, Firefox, Safari (Desktop & Mobile)
 - **User workflows**: Authentication, run management, goal tracking
 - **Visual regression**: Screenshot comparison testing
@@ -144,7 +150,7 @@ npm run test                    # Run all unit tests
 npm run test:watch              # Watch mode for development
 npm run test:ui                 # Visual test runner interface
 
-# Integration Tests  
+# Integration Tests
 npm run test:integration        # API and backend integration tests
 npm run test:integration:watch  # Watch mode for development
 
@@ -180,11 +186,13 @@ npm run test:all:complete      # All tests including a11y and visual
 ### Test Environment
 
 Tests run against isolated environments:
+
 - **Unit Tests**: Mock services and APIs
 - **Integration Tests**: Test database with automated cleanup
 - **E2E Tests**: Local development server with test data
 
 **Setup Requirements:**
+
 ```bash
 npm run test:setup             # Install Playwright browsers
 npm run validate-test-env      # Validate test environment
@@ -206,7 +214,7 @@ npm run validate-test-env      # Validate test environment
 ```bash
 # Start development servers
 npm run dev                 # Backend server (port 3001)
-npm run dev:frontend       # Frontend server (port 3000)  
+npm run dev:frontend       # Frontend server (port 3000)
 npm run dev:full           # Both servers concurrently
 
 # Production builds
@@ -268,6 +276,7 @@ RATE_LIMITING_ENABLED=true
 ```
 
 **Security Notes:**
+
 - `JWT_SECRET`: Must be a strong, unique secret for production (minimum 256-bit)
 - `LOG_SALT`: Used to anonymize user identifiers in log files for GDPR compliance
 - Never commit actual secrets to version control
@@ -277,6 +286,7 @@ RATE_LIMITING_ENABLED=true
 This application implements comprehensive security measures:
 
 **Authentication & Authorization:**
+
 - JWT tokens with 1-hour expiration (reduced from 7 days for security)
 - bcrypt password hashing with enhanced requirements:
   - Minimum 12 characters
@@ -285,18 +295,21 @@ This application implements comprehensive security measures:
 - User data isolation by user ID
 
 **Security Headers & Protection:**
+
 - Helmet.js for security headers (CSP, HSTS, XSS protection)
 - CORS configuration with environment-based restrictions
 - Rate limiting on all API endpoints (configurable)
 - Content Security Policy with strict directives
 
 **Data Protection:**
+
 - Structured logging with correlation IDs
 - User ID anonymization in logs via `LOG_SALT`
 - Input validation using Zod schemas
 - SQL injection protection via Prisma ORM
 
 **Security Documentation:**
+
 - Complete security policy in `SECURITY.md`
 - Security configuration guide in `docs/SECURITY_CONFIGURATION.md`
 - Incident response procedures included
