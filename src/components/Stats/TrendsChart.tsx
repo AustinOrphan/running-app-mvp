@@ -8,7 +8,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import type { TooltipProps } from 'recharts';
 
 import { TrendsDataPoint } from '../../types';
 import { formatPace } from '../../utils/formatters';
@@ -24,10 +23,18 @@ interface TrendsTooltipPayload {
   date: string;
 }
 
-const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: TrendsTooltipPayload }>;
+  label?: string;
+}) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as TrendsTooltipPayload;
-    const date = new Date(label).toLocaleDateString('en-US', {
+    const date = new Date(label || '').toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
