@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 
 import { createError } from './errorHandler.js';
 import { logAuth } from '../utils/logger.js';
+import { validateToken, extractTokenFromHeader, isTokenBlacklisted } from '../utils/jwtUtils.js';
 
 interface AuthRequest extends Request {
   user?: {
@@ -14,39 +14,33 @@ interface AuthRequest extends Request {
 export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction): void => {
   try {
     const authHeader = req.headers.authorization;
+    const token = extractTokenFromHeader(authHeader);
 
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw createError('No token provided', 401);
+    if (!token) {
+      throw createError('No valid token provided', 401);
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    // Validate the token and ensure it's an access token
+    const decoded = validateToken(token, 'access');
 
-    if (!process.env.JWT_SECRET) {
-      throw createError('JWT secret not configured', 500);
+    // Check if token is blacklisted
+    if (decoded.jti && isTokenBlacklisted(decoded.jti)) {
+      throw createError('Token has been revoked', 401);
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET) as {
-      id: string;
-      email: string;
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
     };
 
-    req.user = decoded;
     next();
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      const authError = createError('Invalid token', 401);
-      logAuth('token-validation', req, authError, {
-        errorType: 'JsonWebTokenError',
-        tokenProvided: !!req.headers.authorization,
-      });
-      next(authError);
-    } else {
-      const unexpectedError = error instanceof Error ? error : new Error(String(error));
-      logAuth('auth-middleware', req, unexpectedError, {
-        errorType: 'UnexpectedError',
-      });
-      next(unexpectedError);
-    }
+    const authError = error instanceof Error ? error : createError('Authentication failed', 401);
+    logAuth('token-validation', req, authError, {
+      errorType: error instanceof Error ? error.constructor.name : 'UnknownError',
+      tokenProvided: !!req.headers.authorization,
+    });
+    next(authError);
   }
 };
 

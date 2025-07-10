@@ -14,6 +14,9 @@ import {
   FooterLink,
 } from '../../../src/utils/footerUtils';
 
+// Import env utilities for mocking
+import * as envUtils from '../../../src/utils/env';
+
 // Mock the env utilities
 vi.mock('../../../src/utils/env', () => ({
   getAppVersion: vi.fn(() => '2.1.0'),
@@ -178,10 +181,9 @@ describe('footerUtils', () => {
       expect(section.title).toBe('App Info');
 
       // Verify that our mocked functions were called
-      const { getAppVersion, getBuildDate, getEnvironment } = require('../../../src/utils/env');
-      expect(getAppVersion).toHaveBeenCalled();
-      expect(getBuildDate).toHaveBeenCalled();
-      expect(getEnvironment).toHaveBeenCalled();
+      expect(envUtils.getAppVersion).toHaveBeenCalled();
+      expect(envUtils.getBuildDate).toHaveBeenCalled();
+      expect(envUtils.getEnvironment).toHaveBeenCalled();
     });
 
     it('should be reusable and consistent', () => {
@@ -516,8 +518,7 @@ describe('footerUtils', () => {
 
     it('should not include debug section in production', () => {
       // Mock isDevelopment to return false
-      const { isDevelopment } = require('../../../src/utils/env');
-      vi.mocked(isDevelopment).mockReturnValue(false);
+      vi.mocked(envUtils.isDevelopment).mockReturnValue(false);
 
       const config = createExampleFooterConfig();
 
@@ -525,7 +526,7 @@ describe('footerUtils', () => {
       expect(debugSection).toBeUndefined();
 
       // Restore mock
-      vi.mocked(isDevelopment).mockReturnValue(true);
+      vi.mocked(envUtils.isDevelopment).mockReturnValue(true);
     });
 
     it('should provide consistent configuration', () => {

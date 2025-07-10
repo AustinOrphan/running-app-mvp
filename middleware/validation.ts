@@ -11,36 +11,13 @@ import { createError } from './errorHandler.js';
 const emailSchema = z.string().email('Invalid email format').toLowerCase().trim();
 
 // Enhanced password schema with security requirements
-const getPasswordMinLength = () => parseInt(process.env.PASSWORD_MIN_LENGTH || '12', 10);
-
-const passwordSchema = z
-  .string()
-  .min(getPasswordMinLength(), `Password must be at least ${getPasswordMinLength()} characters`)
+const passwordSchema = z.string()
+  .min(12, 'Password must be at least 12 characters')
   .max(128, 'Password must be less than 128 characters')
   .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-  .regex(/\d/, 'Password must contain at least one number')
-  .regex(/[^\dA-Za-z]/, 'Password must contain at least one special character')
-  .refine(password => {
-    // Check for common passwords
-    const commonPasswords = [
-      'password',
-      '123456',
-      'password123',
-      'admin',
-      'qwerty',
-      'letmein',
-      'welcome',
-      'monkey',
-      '1234567890',
-    ];
-    const lower = password.toLowerCase();
-    return !commonPasswords.some(common => lower.includes(common));
-  }, 'Password contains common words and is not secure')
-  .refine(password => {
-    // Check for repeated characters (more than 3 in a row)
-    return !/(.)\\1{3,}/.test(password);
-  }, 'Password cannot contain more than 3 repeated characters');
+  .regex(/[0-9]/, 'Password must contain at least one number')
+  .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
 const positiveNumberSchema = z.number().positive('Must be a positive number');
 const dateSchema = z.string().refine(date => !isNaN(Date.parse(date)), 'Invalid date format');
 const uuidSchema = z.string().uuid('Invalid ID format');
@@ -133,7 +110,7 @@ export const createGoalSchema = z
     endDate: dateSchema,
     color: z
       .string()
-      .regex(/^#[\dA-Fa-f]{6}$/, 'Invalid color format')
+      .regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format')
       .optional()
       .nullable(),
     icon: z.string().trim().max(10, 'Icon must be 10 characters or less').optional().nullable(),
@@ -178,7 +155,7 @@ export const updateGoalSchema = z
     endDate: dateSchema.optional(),
     color: z
       .string()
-      .regex(/^#[\dA-Fa-f]{6}$/, 'Invalid color format')
+      .regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format')
       .optional()
       .nullable(),
     icon: z.string().trim().max(10, 'Icon must be 10 characters or less').optional().nullable(),
@@ -216,13 +193,7 @@ export function validateRequest<T>(
 ) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      let dataToValidate = req[target];
-
-      // Sanitize the data before validation
-      if (dataToValidate && typeof dataToValidate === 'object') {
-        dataToValidate = sanitizeObject(dataToValidate) as typeof dataToValidate;
-      }
-
+      const dataToValidate = req[target];
       const result = schema.safeParse(dataToValidate);
 
       if (!result.success) {
@@ -235,10 +206,7 @@ export function validateRequest<T>(
       }
 
       // Replace the original data with parsed/sanitized data
-      // Note: In Express v5, req.query is read-only, so we skip modifying it
-      if (target !== 'query') {
-        (req as Request & Record<string, unknown>)[target] = result.data;
-      }
+      (req as Request & Record<string, unknown>)[target] = result.data;
       next();
     } catch (error) {
       next(error);
@@ -278,8 +246,10 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
       req.body = sanitizeObject(req.body);
     }
 
-    // Note: req.query is read-only in Express v5, so we don't modify it directly
-    // Query parameter sanitization is handled by the validation middleware during parsing
+    // Sanitize query parameters
+    if (req.query && typeof req.query === 'object') {
+      req.query = sanitizeObject(req.query) as typeof req.query;
+    }
 
     next();
   } catch {
