@@ -53,7 +53,8 @@
     "test:visual:ci": "CI=true playwright test tests/e2e/visual-regression.test.ts --reporter=html",
     "test:visual:headed": "playwright test tests/e2e/visual-regression.test.ts --headed",
     "test:all": "npm run test:coverage && npm run test:integration && npm run test:e2e",
-    "test:all:complete": "npm run test:coverage && npm run test:integration && npm run test:e2e && npm run test:a11y:all && npm run test:visual"
+    "test:all:complete": "npm run test:coverage && npm run test:integration && npm run test:e2e && npm run test:a11y:all && npm run test:visual",
+    "prepare": "husky"
   },
   "dependencies": {
     "@mdi/svg": "^7.4.47",
@@ -74,6 +75,8 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",
     "@axe-core/react": "^4.10.2",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "@playwright/test": "^1.53.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
@@ -106,9 +109,11 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-testing-library": "^7.5.3",
+    "husky": "^9.1.7",
     "jest": "^30.0.2",
     "jest-axe": "^10.0.0",
     "jsdom": "^26.1.0",
+    "lint-staged": "^16.1.2",
     "pixelmatch": "^7.1.0",
     "playwright": "^1.53.1",
     "pngjs": "^7.0.0",
@@ -122,5 +127,14 @@
     "typescript": "^5.3.3",
     "vite": "^6.3.5",
     "vitest": "^3.2.4"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }
