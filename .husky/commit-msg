@@ -1,3 +1,4 @@
+#!/bin/sh
 # Validate commit message format
 # Accepts:
 # - Standard types: feat, fix, docs, style, refactor, test, chore
