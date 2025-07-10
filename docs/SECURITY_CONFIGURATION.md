@@ -81,33 +81,33 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
 // Token generation with enhanced security
-export const generateTokens = (user) => {
+export const generateTokens = user => {
   const payload = {
     id: user.id,
     email: user.email,
     iat: Math.floor(Date.now() / 1000),
     jti: crypto.randomUUID(), // Unique token ID
-    type: 'access'
+    type: 'access',
   };
 
   const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
     algorithm: process.env.JWT_ALGORITHM || 'HS256',
     expiresIn: process.env.JWT_ACCESS_EXPIRY || '1h',
     issuer: 'running-app',
-    audience: 'running-app-users'
+    audience: 'running-app-users',
   });
 
   const refreshPayload = {
     id: user.id,
     jti: crypto.randomUUID(),
-    type: 'refresh'
+    type: 'refresh',
   };
 
   const refreshToken = jwt.sign(refreshPayload, process.env.JWT_SECRET, {
     algorithm: process.env.JWT_ALGORITHM || 'HS256',
     expiresIn: process.env.JWT_REFRESH_EXPIRY || '7d',
     issuer: 'running-app',
-    audience: 'running-app-users'
+    audience: 'running-app-users',
   });
 
   return { accessToken, refreshToken };
@@ -119,7 +119,7 @@ export const validateToken = (token, type = 'access') => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, {
       algorithms: [process.env.JWT_ALGORITHM || 'HS256'],
       issuer: 'running-app',
-      audience: 'running-app-users'
+      audience: 'running-app-users',
     });
 
     // Verify token type
@@ -150,7 +150,7 @@ const blacklistedTokens = new Set(); // DEVELOPMENT ONLY - Use Redis in producti
 
 export const blacklistToken = (jti, expiresAt) => {
   blacklistedTokens.add(jti);
-  
+
   // Schedule automatic removal after expiration
   const ttl = expiresAt - Math.floor(Date.now() / 1000);
   if (ttl > 0) {
@@ -160,7 +160,7 @@ export const blacklistToken = (jti, expiresAt) => {
   }
 };
 
-export const isTokenBlacklisted = (jti) => {
+export const isTokenBlacklisted = jti => {
   return blacklistedTokens.has(jti);
 };
 
@@ -169,11 +169,11 @@ export const logout = async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     const decoded = jwt.decode(token);
-    
+
     if (decoded && decoded.jti) {
       blacklistToken(decoded.jti, decoded.exp);
     }
-    
+
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Logout failed' });
@@ -199,7 +199,7 @@ export const blacklistToken = async (jti, expiresAt) => {
   }
 };
 
-export const isTokenBlacklisted = async (jti) => {
+export const isTokenBlacklisted = async jti => {
   const result = await redis.get(`blacklist:${jti}`);
   return result !== null;
 };
@@ -222,31 +222,31 @@ export const securityHeaders = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "https://fonts.googleapis.com"], // Removed 'unsafe-inline' to prevent CSS injection attacks
+      styleSrc: ["'self'", 'https://fonts.googleapis.com'], // Removed 'unsafe-inline' to prevent CSS injection attacks
       scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://api.running-app.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'", 'https://api.running-app.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"],
       frameAncestors: ["'none'"],
       baseUri: ["'self'"],
-      formAction: ["'self'"]
+      formAction: ["'self'"],
     },
-    reportOnly: false // Set to true for testing
+    reportOnly: false, // Set to true for testing
   },
 
   // HTTP Strict Transport Security
   hsts: {
     maxAge: parseInt(process.env.HSTS_MAX_AGE) || 31536000,
     includeSubDomains: true,
-    preload: true
+    preload: true,
   },
 
   // X-Frame-Options
   frameguard: {
-    action: 'deny'
+    action: 'deny',
   },
 
   // X-Content-Type-Options
@@ -254,12 +254,12 @@ export const securityHeaders = helmet({
 
   // Referrer Policy
   referrerPolicy: {
-    policy: 'strict-origin-when-cross-origin'
+    policy: 'strict-origin-when-cross-origin',
   },
 
   // X-DNS-Prefetch-Control
   dnsPrefetchControl: {
-    allow: false
+    allow: false,
   },
 
   // X-Download-Options
@@ -276,13 +276,13 @@ export const securityHeaders = helmet({
 
   // Cross-Origin-Opener-Policy
   crossOriginOpenerPolicy: {
-    policy: 'same-origin'
+    policy: 'same-origin',
   },
 
   // Cross-Origin-Resource-Policy
   crossOriginResourcePolicy: {
-    policy: 'same-origin'
-  }
+    policy: 'same-origin',
+  },
 });
 ```
 
@@ -306,44 +306,34 @@ import cors from 'cors';
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
   'http://localhost:3000', // Development
-  'http://localhost:5173'  // Vite dev server
+  'http://localhost:5173', // Vite dev server
 ];
 
 export const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  
+
   credentials: process.env.CORS_CREDENTIALS === 'true',
-  
+
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  
-  allowedHeaders: [
-    'Origin',
-    'X-Requested-With',
-    'Content-Type',
-    'Accept',
-    'Authorization'
-  ],
-  
-  exposedHeaders: [
-    'X-Total-Count',
-    'X-Rate-Limit-Remaining',
-    'X-Rate-Limit-Reset'
-  ],
-  
+
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+
+  exposedHeaders: ['X-Total-Count', 'X-Rate-Limit-Remaining', 'X-Rate-Limit-Reset'],
+
   optionsSuccessStatus: 200, // IE11 support
-  
+
   preflightContinue: false,
-  
-  maxAge: 86400 // 24 hours
+
+  maxAge: 86400, // 24 hours
 };
 
 // Apply CORS
@@ -359,33 +349,43 @@ app.use(cors(corsOptions));
 import zod from 'zod';
 
 const commonPasswords = [
-  'password', '123456', 'password123', 'admin', 'qwerty',
-  'letmein', 'welcome', 'monkey', '1234567890'
+  'password',
+  '123456',
+  'password123',
+  'admin',
+  'qwerty',
+  'letmein',
+  'welcome',
+  'monkey',
+  '1234567890',
 ];
 
 export const passwordSchema = zod
   .string()
-  .min(parseInt(process.env.PASSWORD_MIN_LENGTH) || 12, 
-    `Password must be at least ${process.env.PASSWORD_MIN_LENGTH || 12} characters`)
+  .min(
+    parseInt(process.env.PASSWORD_MIN_LENGTH) || 12,
+    `Password must be at least ${process.env.PASSWORD_MIN_LENGTH || 12} characters`
+  )
   .max(128, 'Password must be less than 128 characters')
   .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
   .regex(/[0-9]/, 'Password must contain at least one number')
   .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character')
-  .refine((password) => {
+  .refine(password => {
     const lower = password.toLowerCase();
     return !commonPasswords.some(common => lower.includes(common));
   }, 'Password contains common words and is not secure')
-  .refine((password) => {
+  .refine(password => {
     // Check for repeated characters (more than 3 in a row)
     return !/(.)\1{3,}/.test(password);
   }, 'Password cannot contain more than 3 repeated characters')
-  .refine((password) => {
+  .refine(password => {
     // Check for sequential characters
     const sequences = ['0123456789', 'abcdefghijklmnopqrstuvwxyz'];
-    return !sequences.some(seq => 
-      seq.includes(password.toLowerCase().slice(0, 4)) ||
-      seq.split('').reverse().join('').includes(password.toLowerCase().slice(0, 4))
+    return !sequences.some(
+      seq =>
+        seq.includes(password.toLowerCase().slice(0, 4)) ||
+        seq.split('').reverse().join('').includes(password.toLowerCase().slice(0, 4))
     );
   }, 'Password cannot contain sequential characters');
 ```
@@ -394,7 +394,7 @@ export const passwordSchema = zod
 
 ```javascript
 // utils/passwordStrength.js
-export const calculatePasswordStrength = (password) => {
+export const calculatePasswordStrength = password => {
   let score = 0;
   const feedback = [];
 
@@ -421,18 +421,15 @@ export const calculatePasswordStrength = (password) => {
   if (entropy > 60) score += 2;
   else if (entropy > 40) score += 1;
 
-  const strength = score >= 8 ? 'Strong' : 
-                  score >= 6 ? 'Medium' : 
-                  score >= 4 ? 'Weak' : 'Very Weak';
+  const strength =
+    score >= 8 ? 'Strong' : score >= 6 ? 'Medium' : score >= 4 ? 'Weak' : 'Very Weak';
 
   return { score, strength, feedback, entropy };
 };
 
-const calculateEntropy = (password) => {
-  const charSets = [
-    /[a-z]/g, /[A-Z]/g, /[0-9]/g, /[^A-Za-z0-9]/g
-  ];
-  
+const calculateEntropy = password => {
+  const charSets = [/[a-z]/g, /[A-Z]/g, /[0-9]/g, /[^A-Za-z0-9]/g];
+
   let charSetSize = 0;
   charSets.forEach(set => {
     if (set.test(password)) {
@@ -469,7 +466,7 @@ const prisma = new PrismaClient({
       url: process.env.DATABASE_URL + '?sslmode=require'
     }
   },
-  log: process.env.NODE_ENV === 'development' 
+  log: process.env.NODE_ENV === 'development'
     ? ['query', 'info', 'warn', 'error']
     : ['error']
 });
@@ -479,12 +476,12 @@ const prisma = new PrismaClient({
 
 ```javascript
 // Secure query examples
-export const getRunsByUser = async (userId) => {
+export const getRunsByUser = async userId => {
   // Good: Parameterized query via Prisma
   return await prisma.run.findMany({
-    where: { 
+    where: {
       userId: userId, // Type-safe parameter
-      deletedAt: null
+      deletedAt: null,
     },
     select: {
       id: true,
@@ -493,14 +490,14 @@ export const getRunsByUser = async (userId) => {
       duration: true,
       // Exclude sensitive fields
     },
-    orderBy: { date: 'desc' }
+    orderBy: { date: 'desc' },
   });
 };
 
 // Input sanitization for raw queries (avoid if possible)
-export const sanitizeInput = (input) => {
+export const sanitizeInput = input => {
   if (typeof input !== 'string') return input;
-  
+
   return input
     .replace(/[<>]/g, '') // Remove potential HTML
     .trim()
@@ -529,18 +526,20 @@ export const authLimiter = rateLimit({
   max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5,
   message: {
     error: 'Too many authentication attempts',
-    retryAfter: Math.ceil(((parseInt(process.env.AUTH_RATE_LIMIT_WINDOW) || 15) * 60 * 1000) / 1000)
+    retryAfter: Math.ceil(
+      ((parseInt(process.env.AUTH_RATE_LIMIT_WINDOW) || 15) * 60 * 1000) / 1000
+    ),
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
+  keyGenerator: req => {
     // Combine IP and user agent for better accuracy
     return `${req.ip}:${req.get('User-Agent')}`;
   },
-  skip: (req) => {
+  skip: req => {
     // Skip rate limiting for testing in development
     return process.env.NODE_ENV === 'test';
-  }
+  },
 });
 
 // API endpoints
@@ -552,14 +551,14 @@ export const apiLimiter = rateLimit({
   max: parseInt(process.env.API_RATE_LIMIT_MAX) || 100,
   message: {
     error: 'Too many requests',
-    retryAfter: Math.ceil(((parseInt(process.env.API_RATE_LIMIT_WINDOW) || 15) * 60 * 1000) / 1000)
+    retryAfter: Math.ceil(((parseInt(process.env.API_RATE_LIMIT_WINDOW) || 15) * 60 * 1000) / 1000),
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
+  keyGenerator: req => {
     // Use user ID for authenticated requests, IP for others
     return req.user?.id ? `user:${req.user.id}` : `ip:${req.ip}`;
-  }
+  },
 });
 ```
 
@@ -573,25 +572,18 @@ import { createLogger, format, transports } from 'winston';
 
 const securityLogger = createLogger({
   level: process.env.LOG_LEVEL || 'info',
-  format: format.combine(
-    format.timestamp(),
-    format.errors({ stack: true }),
-    format.json()
-  ),
+  format: format.combine(format.timestamp(), format.errors({ stack: true }), format.json()),
   defaultMeta: { service: 'running-app-security' },
   transports: [
-    new transports.File({ 
+    new transports.File({
       filename: 'logs/security.log',
       maxsize: 10485760, // 10MB
-      maxFiles: 5
+      maxFiles: 5,
     }),
     new transports.Console({
-      format: format.combine(
-        format.colorize(),
-        format.simple()
-      )
-    })
-  ]
+      format: format.combine(format.colorize(), format.simple()),
+    }),
+  ],
 });
 
 export const logSecurityEvent = (event, details, req = null) => {
@@ -601,7 +593,7 @@ export const logSecurityEvent = (event, details, req = null) => {
     timestamp: new Date().toISOString(),
     ip: req?.ip,
     userAgent: req?.get('User-Agent'),
-    userId: req?.user?.id
+    userId: req?.user?.id,
   };
 
   // Hash PII in production
@@ -647,26 +639,26 @@ npm run test:security
 export const productionConfig = {
   // Force HTTPS
   httpsRedirect: true,
-  
+
   // Secure cookies
   session: {
     secure: true,
     httpOnly: true,
-    sameSite: 'strict'
+    sameSite: 'strict',
   },
-  
+
   // Disable detailed errors
   showStackTrace: false,
-  
+
   // Enable security logging
   securityLogging: true,
-  
+
   // Database SSL
   database: {
     ssl: {
-      rejectUnauthorized: true
-    }
-  }
+      rejectUnauthorized: true,
+    },
+  },
 };
 ```
 
@@ -680,33 +672,31 @@ describe('Security Tests', () => {
   describe('Authentication', () => {
     test('should reject weak passwords', async () => {
       const weakPasswords = ['123456', 'password', 'qwerty'];
-      
+
       for (const password of weakPasswords) {
-        const response = await request(app)
-          .post('/api/auth/register')
-          .send({
-            email: 'test@example.com',
-            password: password
-          });
-        
+        const response = await request(app).post('/api/auth/register').send({
+          email: 'test@example.com',
+          password: password,
+        });
+
         expect(response.status).toBe(400);
         expect(response.body.error).toMatch(/password/i);
       }
     });
 
     test('should enforce rate limiting on login', async () => {
-      const attempts = Array(6).fill().map(() =>
-        request(app)
-          .post('/api/auth/login')
-          .send({
+      const attempts = Array(6)
+        .fill()
+        .map(() =>
+          request(app).post('/api/auth/login').send({
             email: 'test@example.com',
-            password: 'wrongpassword'
+            password: 'wrongpassword',
           })
-      );
+        );
 
       const responses = await Promise.all(attempts);
       const lastResponse = responses[responses.length - 1];
-      
+
       expect(lastResponse.status).toBe(429);
     });
   });
@@ -714,14 +704,14 @@ describe('Security Tests', () => {
   describe('Input Validation', () => {
     test('should sanitize XSS attempts', async () => {
       const xssPayload = '<script>alert("xss")</script>';
-      
+
       const response = await request(app)
         .post('/api/runs')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
           route: xssPayload,
           distance: 5,
-          duration: 1800
+          duration: 1800,
         });
 
       expect(response.body.route).not.toContain('<script>');
@@ -729,7 +719,7 @@ describe('Security Tests', () => {
 
     test('should prevent SQL injection', async () => {
       const sqlPayload = "'; DROP TABLE users; --";
-      
+
       const response = await request(app)
         .get(`/api/runs?search=${encodeURIComponent(sqlPayload)}`)
         .set('Authorization', `Bearer ${validToken}`);
@@ -741,7 +731,7 @@ describe('Security Tests', () => {
   describe('Headers', () => {
     test('should include security headers', async () => {
       const response = await request(app).get('/');
-      
+
       expect(response.headers['x-content-type-options']).toBe('nosniff');
       expect(response.headers['x-frame-options']).toBe('DENY');
       expect(response.headers['strict-transport-security']).toBeDefined();
@@ -788,6 +778,7 @@ echo "Security scan complete!"
 # Security Incident Response
 
 ## Immediate Actions (0-15 minutes)
+
 1. [ ] Identify the security incident type
 2. [ ] Assess immediate impact and scope
 3. [ ] Implement containment measures
@@ -795,6 +786,7 @@ echo "Security scan complete!"
 5. [ ] Notify security team
 
 ## Investigation (15 minutes - 1 hour)
+
 1. [ ] Collect logs and evidence
 2. [ ] Determine attack vector
 3. [ ] Assess data compromise
@@ -802,6 +794,7 @@ echo "Security scan complete!"
 5. [ ] Identify affected systems
 
 ## Recovery (1-24 hours)
+
 1. [ ] Implement security patches
 2. [ ] Reset compromised credentials
 3. [ ] Restore from clean backups
@@ -809,6 +802,7 @@ echo "Security scan complete!"
 5. [ ] Verify system integrity
 
 ## Post-Incident (24-72 hours)
+
 1. [ ] Conduct lessons learned session
 2. [ ] Update security policies
 3. [ ] Improve monitoring

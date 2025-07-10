@@ -17,6 +17,7 @@ export default [
       'coverage/**',
       '*.d.ts',
       'prisma/generated/**',
+      'scripts/**',
       '.env*',
       '.vscode/**',
       '.idea/**',

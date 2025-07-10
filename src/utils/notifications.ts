@@ -22,8 +22,7 @@ export class NotificationPermissionManager {
     }
 
     try {
-      const permission = await Notification.requestPermission();
-      return permission;
+      return await Notification.requestPermission();
     } catch (error) {
       logError(
         'Error requesting notification permission',

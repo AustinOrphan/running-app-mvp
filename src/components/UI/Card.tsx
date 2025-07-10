@@ -103,23 +103,23 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     },
     ref
   ) => {
+    const variantClasses: Record<string, string> = {
+      goal: styles.cardGoal,
+      run: styles.cardRun,
+      template: styles.cardTemplate,
+    };
+
     const getCardClasses = () => {
-      const classes = [styles.card];
-
-      // Variant classes
-      if (variant === 'goal') classes.push(styles.cardGoal);
-      if (variant === 'run') classes.push(styles.cardRun);
-      if (variant === 'template') classes.push(styles.cardTemplate);
-
-      // State classes
-      if (completed) classes.push(styles.cardCompleted);
-      if (interactive) classes.push(styles.cardInteractive);
-      if (loading) classes.push(styles.cardLoading);
-
-      // Custom className
-      if (className) classes.push(className);
-
-      return classes.join(' ');
+      return [
+        styles.card,
+        variantClasses[variant],
+        completed && styles.cardCompleted,
+        interactive && styles.cardInteractive,
+        loading && styles.cardLoading,
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ');
     };
 
     return (
@@ -144,17 +144,14 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   variant = 'default',
   className = '',
 }) => {
-  const getHeaderClasses = () => {
-    const classes = [styles.cardHeader];
-
-    if (variant === 'template') classes.push(styles.cardHeaderTemplate);
-    if (variant === 'run') classes.push(styles.cardHeaderRun);
-
-    if (className) classes.push(className);
-
-    return classes.join(' ');
+  const headerVariantClasses: Record<string, string> = {
+    template: styles.cardHeaderTemplate,
+    run: styles.cardHeaderRun,
   };
 
+  const getHeaderClasses = () => {
+    return [styles.cardHeader, headerVariantClasses[variant], className].filter(Boolean).join(' ');
+  };
   return <div className={getHeaderClasses()}>{children}</div>;
 };
 
@@ -166,13 +163,9 @@ export const CardIcon: React.FC<CardIconProps> = ({
   className = '',
 }) => {
   const getIconClasses = () => {
-    const classes = [styles.cardIcon];
-
-    if (variant === 'template') classes.push(styles.cardIconTemplate);
-
-    if (className) classes.push(className);
-
-    return classes.join(' ');
+    return [styles.cardIcon, variant === 'template' && styles.cardIconTemplate, className]
+      .filter(Boolean)
+      .join(' ');
   };
 
   return (
@@ -189,13 +182,9 @@ export const CardTitle: React.FC<CardTitleProps> = ({
   className = '',
 }) => {
   const getTitleClasses = () => {
-    const classes = [styles.cardTitle];
-
-    if (variant === 'template') classes.push(styles.cardTitleTemplate);
-
-    if (className) classes.push(className);
-
-    return classes.join(' ');
+    return [styles.cardTitle, variant === 'template' && styles.cardTitleTemplate, className]
+      .filter(Boolean)
+      .join(' ');
   };
 
   return <div className={getTitleClasses()}>{children}</div>;
@@ -208,13 +197,13 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({
   className = '',
 }) => {
   const getDescriptionClasses = () => {
-    const classes = [styles.cardDescription];
-
-    if (variant === 'template') classes.push(styles.cardDescriptionTemplate);
-
-    if (className) classes.push(className);
-
-    return classes.join(' ');
+    return [
+      styles.cardDescription,
+      variant === 'template' && styles.cardDescriptionTemplate,
+      className,
+    ]
+      .filter(Boolean)
+      .join(' ');
   };
 
   return <p className={getDescriptionClasses()}>{children}</p>;
@@ -226,17 +215,16 @@ export const CardActions: React.FC<CardActionsProps> = ({
   variant = 'default',
   className = '',
 }) => {
-  const getActionsClasses = () => {
-    const classes = [styles.cardActions];
-
-    if (variant === 'run') classes.push(styles.cardActionsRun);
-    if (variant === 'template') classes.push(styles.cardActionsTemplate);
-
-    if (className) classes.push(className);
-
-    return classes.join(' ');
+  const actionsVariantClasses: Record<string, string> = {
+    run: styles.cardActionsRun,
+    template: styles.cardActionsTemplate,
   };
 
+  const getActionsClasses = () => {
+    return [styles.cardActions, actionsVariantClasses[variant], className]
+      .filter(Boolean)
+      .join(' ');
+  };
   return <div className={getActionsClasses()}>{children}</div>;
 };
 
@@ -264,21 +252,15 @@ export const IconButton: React.FC<IconButtonProps> = ({
   onClick,
   ...props
 }) => {
+  const buttonVariantClasses: Record<string, string> = {
+    run: styles.iconBtnRun,
+    delete: styles.iconBtnDelete,
+    edit: styles.iconBtnEdit,
+  };
+
   const getButtonClasses = () => {
-    const classes = [];
-
-    if (variant === 'run') {
-      classes.push(styles.iconBtnRun);
-    } else {
-      classes.push(styles.iconBtn);
-    }
-
-    if (variant === 'delete') classes.push(styles.iconBtnDelete);
-    if (variant === 'edit') classes.push(styles.iconBtnEdit);
-
-    if (className) classes.push(className);
-
-    return classes.join(' ');
+    const baseClass = variant === 'run' ? styles.iconBtnRun : styles.iconBtn;
+    return [baseClass, buttonVariantClasses[variant], className].filter(Boolean).join(' ');
   };
 
   return (
@@ -390,17 +372,14 @@ export const CompletionBadge: React.FC<CompletionBadgeProps> = ({ children, clas
 };
 
 export const DifficultyBadge: React.FC<DifficultyBadgeProps> = ({ difficulty, className = '' }) => {
+  const colorMap: Record<string, string> = {
+    beginner: '#10b981',
+    intermediate: '#f59e0b',
+    advanced: '#ef4444',
+  };
+
   const getColor = (level: string) => {
-    switch (level) {
-      case 'beginner':
-        return '#10b981';
-      case 'intermediate':
-        return '#f59e0b';
-      case 'advanced':
-        return '#ef4444';
-      default:
-        return '#6b7280';
-    }
+    return colorMap[level] || '#6b7280';
   };
 
   return (

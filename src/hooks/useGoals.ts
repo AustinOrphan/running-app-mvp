@@ -93,10 +93,13 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       setError(null);
       const goalsData = await makeApiCall('/api/goals');
       setGoals(goalsData);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch goals';
+    } catch (error_) {
+      const errorMessage = error_ instanceof Error ? error_.message : 'Failed to fetch goals';
       setError(errorMessage);
-      logError('Error fetching goals', err instanceof Error ? err : new Error(String(err)));
+      logError(
+        'Error fetching goals',
+        error_ instanceof Error ? error_ : new Error(String(error_))
+      );
     } finally {
       setLoading(false);
     }
@@ -109,8 +112,11 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
     try {
       const progressData = await makeApiCall('/api/goals/progress/all');
       setGoalProgress(progressData);
-    } catch (err) {
-      logError('Error fetching goal progress', err instanceof Error ? err : new Error(String(err)));
+    } catch (error_) {
+      logError(
+        'Error fetching goal progress',
+        error_ instanceof Error ? error_ : new Error(String(error_))
+      );
       // Don't set error state for progress fetch failures
     }
   }, [token, makeApiCall]);

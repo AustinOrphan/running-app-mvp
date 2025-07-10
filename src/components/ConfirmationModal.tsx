@@ -36,7 +36,6 @@ export const LegacyConfirmationModal: React.FC<LegacyConfirmationModalProps> = (
       cancelText={cancelText}
       type={type}
       onConfirm={onConfirm}
-      onCancel={onCancel}
     />
   );
 };
