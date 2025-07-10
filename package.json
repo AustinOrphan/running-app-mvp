@@ -4,6 +4,10 @@
   "description": "Running tracker web app MVP",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "tsx watch server.ts",
     "dev:frontend": "vite",
