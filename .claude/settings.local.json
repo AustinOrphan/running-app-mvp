@@ -92,7 +92,8 @@
       "Bash(git remote:*)",
       "Bash(mv:*)",
       "Bash(node:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm install:*)"
     ],
     "deny": []
   }
