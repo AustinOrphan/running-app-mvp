@@ -54,18 +54,30 @@ running-app-mvp/
 ## 🛠️ Technology Stack
 
 **Frontend:**
-
 - React 18 with TypeScript
-- Vite for development
-- CSS for styling
+- Vite for development and building
+- CSS Modules for styling
+- React Router DOM for navigation
+- Recharts for data visualization
+- Custom hooks for state management
 
 **Backend:**
-
 - Express.js with TypeScript
-- Prisma ORM
-- SQLite database
-- JWT authentication
-- bcrypt for password hashing
+- Prisma ORM with SQLite database
+- JWT authentication with bcrypt password hashing
+- Express Rate Limiting for API protection
+- Helmet.js for security headers
+- CORS configuration
+- Structured logging with correlation IDs
+- Zod for input validation
+
+**Testing & Quality:**
+- Vitest for unit testing (React components, hooks, utilities)
+- Jest for integration testing (API endpoints, middleware)
+- Playwright for end-to-end testing (cross-browser, mobile)
+- ESLint + Prettier for code quality
+- TypeScript strict mode
+- Test coverage tracking and quality gates
 
 ## 📡 API Endpoints
 
@@ -98,49 +110,198 @@ running-app-mvp/
 - `PUT /api/races/:id` - Update race
 - `DELETE /api/races/:id` - Delete race
 
-## 🔧 Development Commands
+## 🧪 Testing
+
+This project includes a comprehensive testing suite covering unit, integration, and end-to-end testing with high coverage requirements and quality gates.
+
+### Test Types
+
+**Unit Tests (Vitest)**
+- **Frontend**: React components, custom hooks, utility functions
+- **Coverage**: React Testing Library for component testing
+- **Location**: `tests/unit/`
+- **Run**: `npm run test` or `npm run test:watch`
+
+**Integration Tests (Jest)**
+- **Backend**: API endpoints, middleware, error handling
+- **Database**: Real database operations with test data isolation
+- **Location**: `tests/integration/`
+- **Run**: `npm run test:integration`
+
+**End-to-End Tests (Playwright)**
+- **Cross-browser**: Chrome, Firefox, Safari (Desktop & Mobile)
+- **User workflows**: Authentication, run management, goal tracking
+- **Visual regression**: Screenshot comparison testing
+- **Accessibility**: Automated a11y testing with axe-core
+- **Location**: `tests/e2e/`
+- **Run**: `npm run test:e2e`
+
+### Test Commands
 
 ```bash
-# Backend development
-npm run dev                 # Start backend with hot reload
-npm run build              # Build backend
-npm run start              # Start production backend
+# Unit Tests
+npm run test                    # Run all unit tests
+npm run test:watch              # Watch mode for development
+npm run test:ui                 # Visual test runner interface
 
-# Frontend development
-npm run dev:frontend       # Start frontend with hot reload
+# Integration Tests  
+npm run test:integration        # API and backend integration tests
+npm run test:integration:watch  # Watch mode for development
+
+# End-to-End Tests
+npm run test:e2e               # Full browser testing
+npm run test:e2e:ui            # Interactive test runner
+npm run test:e2e:headed        # Run with visible browser
+
+# Coverage Reports
+npm run test:coverage          # Unit test coverage
+npm run test:coverage:integration # Integration test coverage
+npm run test:coverage:all      # Combined coverage report
+npm run test:coverage:open     # Open coverage report in browser
+
+# Specialized Testing
+npm run test:a11y              # Accessibility testing
+npm run test:a11y:e2e          # E2E accessibility tests
+npm run test:visual            # Visual regression testing
+npm run test:visual:update     # Update visual baselines
+
+# Complete Test Suite
+npm run test:all               # Unit + Integration + E2E
+npm run test:all:complete      # All tests including a11y and visual
+```
+
+### Coverage & Quality Gates
+
+- **Coverage Thresholds**: 70% minimum for branches, functions, lines, statements
+- **Quality Checks**: Automated via `npm run lint:check` (lint + format + typecheck)
+- **Pre-commit Validation**: Test environment validation and fast test subset
+- **CI Integration**: Full test suite with coverage reporting and badge generation
+
+### Test Environment
+
+Tests run against isolated environments:
+- **Unit Tests**: Mock services and APIs
+- **Integration Tests**: Test database with automated cleanup
+- **E2E Tests**: Local development server with test data
+
+**Setup Requirements:**
+```bash
+npm run test:setup             # Install Playwright browsers
+npm run validate-test-env      # Validate test environment
+```
+
+### Testing Best Practices
+
+- Tests are co-located with source code when possible
+- Mock external dependencies and APIs
+- Test utilities and fixtures available in `tests/fixtures/`
+- Accessibility testing integrated into all test levels
+- Visual regression testing for UI consistency
+- Cross-browser and mobile device testing
+
+## 🔧 Development Commands
+
+### Development Servers
+
+```bash
+# Start development servers
+npm run dev                 # Backend server (port 3001)
+npm run dev:frontend       # Frontend server (port 3000)  
+npm run dev:full           # Both servers concurrently
+
+# Production builds
 npm run build              # Build both backend and frontend
-npm run preview            # Preview production build
+npm run start              # Start production backend
+npm run preview            # Preview production frontend build
+```
 
-# Database
+### Code Quality & Validation
+
+```bash
+# Linting & Formatting
+npm run lint               # Lint all code
+npm run lint:fix           # Auto-fix linting issues
+npm run lint:server        # Lint backend code only
+npm run lint:frontend      # Lint frontend code only
+npm run format             # Format code with Prettier
+npm run format:check       # Check formatting
+
+# Type Checking & Validation
+npm run typecheck          # TypeScript type checking
+npm run lint:check         # Full validation (lint + format + typecheck)
+```
+
+### Database Management
+
+```bash
+# Database Operations
 npm run prisma:migrate     # Run database migrations
 npm run prisma:generate    # Generate Prisma client
-npm run prisma:studio      # Open Prisma Studio
+npm run prisma:studio      # Open Prisma Studio (database GUI)
+
+# Project Setup
+npm run setup              # Full project setup (install + migrate + generate)
 ```
 
 ## ⚙️ Environment Variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root (copy from `.env.example`):
 
 ```env
+# Database
 DATABASE_URL="file:./dev.db"
-JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
+
+# JWT Authentication - CRITICAL: Generate secure secrets before production!
+# Generate with: openssl rand -base64 32
+JWT_SECRET="CHANGE-THIS-TO-SECURE-256-BIT-SECRET-BEFORE-PRODUCTION"
+
+# Salt for deterministic user ID hashing in logs
 LOG_SALT="set-a-strong-random-string-for-production"
+
+# Server Configuration
 PORT=3001
 NODE_ENV=development
+
+# Rate Limiting
+# Set to 'false' to disable rate limiting (useful for testing)
+RATE_LIMITING_ENABLED=true
 ```
 
-`LOG_SALT` is used to anonymize user identifiers in log files. For
-production deployments, generate a cryptographically strong random string
-and set it here.
+**Security Notes:**
+- `JWT_SECRET`: Must be a strong, unique secret for production (minimum 256-bit)
+- `LOG_SALT`: Used to anonymize user identifiers in log files for GDPR compliance
+- Never commit actual secrets to version control
 
-## 🔐 Security Notes
+## 🔐 Security Implementation
 
-- JWT secret is set in `.env` - change this for production
-- `LOG_SALT` must be defined in production so logs can be correlated without
-  exposing raw user IDs
-- Passwords are hashed with bcrypt
-- All API routes except auth are protected with JWT middleware
-- User data is isolated by user ID
+This application implements comprehensive security measures:
+
+**Authentication & Authorization:**
+- JWT tokens with 1-hour expiration (reduced from 7 days for security)
+- bcrypt password hashing with enhanced requirements:
+  - Minimum 12 characters
+  - Must include uppercase, lowercase, numbers, special characters
+- Protected API routes with JWT middleware
+- User data isolation by user ID
+
+**Security Headers & Protection:**
+- Helmet.js for security headers (CSP, HSTS, XSS protection)
+- CORS configuration with environment-based restrictions
+- Rate limiting on all API endpoints (configurable)
+- Content Security Policy with strict directives
+
+**Data Protection:**
+- Structured logging with correlation IDs
+- User ID anonymization in logs via `LOG_SALT`
+- Input validation using Zod schemas
+- SQL injection protection via Prisma ORM
+
+**Security Documentation:**
+- Complete security policy in `SECURITY.md`
+- Security configuration guide in `docs/SECURITY_CONFIGURATION.md`
+- Incident response procedures included
+
+For detailed security configuration, see the [Security Documentation](./SECURITY.md).
 
 ## 🐛 Troubleshooting
 
