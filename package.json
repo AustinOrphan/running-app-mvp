@@ -59,7 +59,7 @@
     "quality:check": "npm run quality:lint && npm run typecheck && npm run format:check",
     "quality:sonar": "sonar-scanner",
     "quality:complexity": "complexity-report --output reports/complexity.json --format json src/ server/",
-    "quality:duplicates": "jscpd --reporters json,html --output reports/ src/ server/",
+    "quality:duplicates": "jscpd src/ server/",
     "quality:metrics": "npm run quality:complexity && npm run quality:duplicates",
     "quality:all": "npm run quality:check && npm run quality:metrics && npm run test:coverage:ci"
   },

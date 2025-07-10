@@ -252,15 +252,6 @@ GitHub Actions workflows enforce quality:
 - TypeScript strict mode
 - Import organization
 
-### CLI Tools
-
-```bash
-# Install global tools for local development
-npm install -g sonarqube-scanner
-npm install -g complexity-report
-npm install -g jscpd
-```
-
 ### GitHub Integration
 
 - **SonarQube App**: PR analysis and quality gates

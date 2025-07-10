@@ -15,8 +15,7 @@
   "output": "./reports/jscpd",
   "format": [
     "typescript",
-    "javascript",
-    "jsx"
+    "javascript"
   ],
   "min-lines": 5,
   "min-tokens": 50,
