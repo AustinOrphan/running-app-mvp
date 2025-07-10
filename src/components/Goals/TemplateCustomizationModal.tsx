@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 
 import { CreateGoalData, GoalPeriod } from '../../types/goals';
 import { GoalTemplate } from '../../types/goalTemplates';
+import { Modal } from '../UI/Modal';
+import { Input, InputGroup, TextArea } from '../UI/Input';
+import { Button } from '../UI/Button';
 
 interface TemplateCustomizationModalProps {
   template: GoalTemplate | null;

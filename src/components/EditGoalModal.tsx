@@ -10,6 +10,9 @@ import {
   GoalPeriod,
 } from '../types/goals';
 import { logError } from '../utils/clientLogger';
+import { Modal } from './UI/Modal';
+import { Input, InputGroup, TextArea } from './UI/Input';
+import { Button } from './UI/Button';
 
 interface EditGoalModalProps {
   isOpen: boolean;
@@ -195,63 +198,36 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
-    <div
-      className='modal-overlay'
-      role='button'
-      tabIndex={0}
-      aria-label='Close modal'
-      onClick={handleClose}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
-          e.preventDefault();
-          handleClose();
-        }
-      }}
+    <Modal 
+      isOpen={isOpen} 
+      onClose={handleClose} 
+      title="Edit Goal"
+      size="large"
     >
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
-      <div
-        className='modal'
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
-        role='dialog'
-        aria-modal='true'
-        aria-labelledby='edit-goal-modal-title'
-        tabIndex={-1}
-      >
-        <div className='modal-header'>
-          <h3 id='edit-goal-modal-title'>Edit Goal</h3>
-          <button className='btn-icon' onClick={handleClose} disabled={isSubmitting}>
-            ✕
-          </button>
-        </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className='modal-body'>
-            {/* Goal Title */}
-            <div className='form-group'>
-              <label htmlFor='edit-title'>Goal Title *</label>
-              <input
-                id='edit-title'
-                type='text'
-                value={formData.title}
-                onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder='e.g., Run 50km this month'
-                className={errors.title ? 'error' : ''}
-              />
-              {errors.title && <span className='error-message'>{errors.title}</span>}
-            </div>
+      <form onSubmit={handleSubmit}>
+        {/* Goal Title */}
+        <Input
+          id='edit-title'
+          type='text'
+          label='Goal Title'
+          value={formData.title}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+          placeholder='e.g., Run 50km this month'
+          error={!!errors.title}
+          errorMessage={errors.title}
+          required
+        />
 
-            {/* Goal Description */}
-            <div className='form-group'>
-              <label htmlFor='edit-description'>Description</label>
-              <textarea
-                id='edit-description'
-                value={formData.description}
-                onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder='Optional description of your goal...'
-                rows={3}
-              />
-            </div>
+        {/* Goal Description */}
+        <TextArea
+          id='edit-description'
+          label='Description'
+          value={formData.description}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          placeholder='Optional description of your goal...'
+          rows={3}
+        />
 
             {/* Goal Type */}
             <div className='form-group'>
@@ -279,38 +255,37 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
               )}
             </div>
 
-            {/* Target Value and Unit */}
-            <div className='form-row'>
-              <div className='form-group'>
-                <label htmlFor='edit-targetValue'>Target Value *</label>
-                <input
-                  id='edit-targetValue'
-                  type='number'
-                  step='0.1'
-                  min='0'
-                  value={formData.targetValue}
-                  onChange={e => setFormData(prev => ({ ...prev, targetValue: e.target.value }))}
-                  placeholder='0'
-                  className={errors.targetValue ? 'error' : ''}
-                />
-                {errors.targetValue && <span className='error-message'>{errors.targetValue}</span>}
-              </div>
-
-              <div className='form-group'>
-                <label htmlFor='edit-targetUnit'>Unit</label>
-                <select
-                  id='edit-targetUnit'
-                  value={formData.targetUnit}
-                  onChange={e => setFormData(prev => ({ ...prev, targetUnit: e.target.value }))}
-                >
-                  {selectedConfig.units.map(unit => (
-                    <option key={unit} value={unit}>
-                      {unit}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+        {/* Target Value and Unit */}
+        <InputGroup horizontal label='Target Value'>
+          <Input
+            id='edit-targetValue'
+            type='number'
+            label='Target Value'
+            value={formData.targetValue}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, targetValue: e.target.value }))}
+            placeholder='0'
+            error={!!errors.targetValue}
+            errorMessage={errors.targetValue}
+            required
+            step='0.1'
+            min='0'
+          />
+          
+          <div className='form-group'>
+            <label htmlFor='edit-targetUnit'>Unit</label>
+            <select
+              id='edit-targetUnit'
+              value={formData.targetUnit}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData(prev => ({ ...prev, targetUnit: e.target.value }))}
+            >
+              {selectedConfig.units.map(unit => (
+                <option key={unit} value={unit}>
+                  {unit}
+                </option>
+              ))}
+            </select>
+          </div>
+        </InputGroup>
 
             {/* Goal Period */}
             <div className='form-group'>
@@ -331,73 +306,65 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
               </select>
             </div>
 
-            {/* Date Range */}
-            <div className='form-row'>
-              <div className='form-group'>
-                <label htmlFor='edit-startDate'>Start Date *</label>
-                <input
-                  id='edit-startDate'
-                  type='date'
-                  value={formData.startDate}
-                  onChange={e => handleStartDateChange(e.target.value)}
-                  className={errors.startDate ? 'error' : ''}
-                />
-                {errors.startDate && <span className='error-message'>{errors.startDate}</span>}
-              </div>
+        {/* Date Range */}
+        <InputGroup horizontal label='Date Range'>
+          <Input
+            id='edit-startDate'
+            type='date'
+            label='Start Date'
+            value={formData.startDate}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleStartDateChange(e.target.value)}
+            error={!!errors.startDate}
+            errorMessage={errors.startDate}
+            required
+          />
+          
+          <Input
+            id='edit-endDate'
+            type='date'
+            label='End Date'
+            value={formData.endDate}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+            error={!!errors.endDate}
+            errorMessage={errors.endDate}
+            required
+          />
+        </InputGroup>
 
-              <div className='form-group'>
-                <label htmlFor='edit-endDate'>End Date *</label>
-                <input
-                  id='edit-endDate'
-                  type='date'
-                  value={formData.endDate}
-                  onChange={e => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                  className={errors.endDate ? 'error' : ''}
-                />
-                {errors.endDate && <span className='error-message'>{errors.endDate}</span>}
-              </div>
-            </div>
-
-            {/* Color and Icon */}
-            <div className='form-row'>
-              <div className='form-group'>
-                <label htmlFor='edit-color'>Color</label>
-                <input
-                  id='edit-color'
-                  type='color'
-                  value={formData.color}
-                  onChange={e => setFormData(prev => ({ ...prev, color: e.target.value }))}
-                />
-              </div>
-
-              <div className='form-group'>
-                <label htmlFor='edit-icon'>Icon</label>
-                <input
-                  id='edit-icon'
-                  type='text'
-                  value={formData.icon}
-                  onChange={e => setFormData(prev => ({ ...prev, icon: e.target.value }))}
-                  placeholder='🎯'
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className='modal-footer'>
-            <button
-              type='button'
-              className='btn-secondary'
-              onClick={handleClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button type='submit' className='btn-primary' disabled={isSubmitting}>
-              {isSubmitting ? 'Updating...' : 'Update Goal'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {/* Color and Icon */}
+        <InputGroup horizontal label='Appearance'>
+          <Input
+            id='edit-color'
+            type='color'
+            label='Color'
+            value={formData.color}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+          />
+          
+          <Input
+            id='edit-icon'
+            type='text'
+            label='Icon'
+            value={formData.icon}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, icon: e.target.value }))}
+            placeholder='🎯'
+          />
+        </InputGroup>
+        
+        <div className='modal-footer'>
+          <Button
+            type='button'
+            variant='secondary'
+            onClick={handleClose}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button type='submit' variant='primary' disabled={isSubmitting}>
+            {isSubmitting ? 'Updating...' : 'Update Goal'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 };
