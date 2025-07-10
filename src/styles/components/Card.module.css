@@ -357,13 +357,6 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-.cardMeta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.6);
-}
 
 .cardPeriod span,
 .cardDeadline span {
