@@ -19,6 +19,7 @@
 This is the most critical pattern to prevent server crashes and "Cannot set headers after they are sent" errors.
 
 #### ❌ DANGEROUS - Never do this:
+
 ```typescript
 catch (error) {
   next(createError('Operation failed', 500));
@@ -27,6 +28,7 @@ catch (error) {
 ```
 
 #### ✅ SAFE - Always do this:
+
 ```typescript
 catch (error) {
   return next(createError('Operation failed', 500));
@@ -45,30 +47,33 @@ catch (error) {
 ### General Principles
 
 #### 1. **Consistency**
+
 - Use standardized error response formats across all endpoints
 - Apply consistent HTTP status codes for similar error scenarios
 - Use the same error handling patterns throughout the codebase
 
 #### 2. **Security**
+
 - Never expose sensitive information in error messages
 - Log detailed error information securely for debugging
 - Provide user-friendly messages without revealing system internals
 
 #### 3. **User Experience**
+
 - Provide clear, actionable error messages
 - Include helpful context where appropriate
 - Maintain consistent error response structure
 
 ### Error Types and Status Codes
 
-| Error Type | Status Code | Use Case |
-|------------|-------------|----------|
-| ValidationError | 400 | Invalid request data |
-| UnauthorizedError | 401 | Missing or invalid authentication |
-| ForbiddenError | 403 | Insufficient permissions |
-| NotFoundError | 404 | Resource not found |
-| ConflictError | 409 | Resource already exists |
-| InternalServerError | 500 | Unexpected server errors |
+| Error Type          | Status Code | Use Case                          |
+| ------------------- | ----------- | --------------------------------- |
+| ValidationError     | 400         | Invalid request data              |
+| UnauthorizedError   | 401         | Missing or invalid authentication |
+| ForbiddenError      | 403         | Insufficient permissions          |
+| NotFoundError       | 404         | Resource not found                |
+| ConflictError       | 409         | Resource already exists           |
+| InternalServerError | 500         | Unexpected server errors          |
 
 ### Error Response Format
 
@@ -88,6 +93,7 @@ interface ErrorResponse {
 ### Implementation Patterns
 
 #### Basic Route Handler Pattern:
+
 ```typescript
 router.get('/example', async (req, res, next) => {
   try {
@@ -100,11 +106,12 @@ router.get('/example', async (req, res, next) => {
 ```
 
 #### Database Error Handling:
+
 ```typescript
 router.post('/users', async (req, res, next) => {
   try {
     const user = await prisma.user.create({
-      data: req.body
+      data: req.body,
     });
     res.status(201).json(user);
   } catch (error) {
@@ -117,6 +124,7 @@ router.post('/users', async (req, res, next) => {
 ```
 
 #### Validation Error Handling:
+
 ```typescript
 router.post('/validate', async (req, res, next) => {
   try {
@@ -135,6 +143,7 @@ router.post('/validate', async (req, res, next) => {
 ## Implementation Summary
 
 ### Current Status
+
 - **Error Handler Middleware**: ✅ Implemented in `middleware/errorHandler.ts`
 - **Route Handlers**: ✅ Most routes follow proper patterns
 - **Database Errors**: ✅ Handled with appropriate status codes
@@ -161,6 +170,7 @@ router.post('/validate', async (req, res, next) => {
 ## Audit Results
 
 ### ✅ Compliant Routes
+
 - `/api/auth/*` - All authentication routes
 - `/api/goals/*` - Goal management endpoints
 - `/api/races/*` - Race management endpoints
@@ -168,12 +178,14 @@ router.post('/validate', async (req, res, next) => {
 - `/api/stats/*` - Statistics endpoints
 
 ### 🔧 Improvements Made
+
 - Added `return` statements to all error handlers
 - Implemented consistent error response format
 - Added proper status code mapping for database errors
 - Enhanced security by sanitizing error messages
 
 ### 📊 Metrics
+
 - **Total Routes Audited**: 23
 - **Compliant Routes**: 23 (100%)
 - **Security Issues Fixed**: 0 (already secure)
@@ -184,13 +196,12 @@ router.post('/validate', async (req, res, next) => {
 ### Testing Error Scenarios
 
 #### 1. Validation Errors
+
 ```typescript
 describe('Validation Error Handling', () => {
   it('should return 400 for invalid data', async () => {
-    const response = await request(app)
-      .post('/api/users')
-      .send({ email: 'invalid-email' });
-    
+    const response = await request(app).post('/api/users').send({ email: 'invalid-email' });
+
     expect(response.status).toBe(400);
     expect(response.body.error.message).toBe('Validation failed');
   });
@@ -198,19 +209,16 @@ describe('Validation Error Handling', () => {
 ```
 
 #### 2. Database Errors
+
 ```typescript
 describe('Database Error Handling', () => {
   it('should handle duplicate key errors', async () => {
     // Create user first
-    await request(app)
-      .post('/api/users')
-      .send({ email: 'test@example.com' });
-    
+    await request(app).post('/api/users').send({ email: 'test@example.com' });
+
     // Try to create duplicate
-    const response = await request(app)
-      .post('/api/users')
-      .send({ email: 'test@example.com' });
-    
+    const response = await request(app).post('/api/users').send({ email: 'test@example.com' });
+
     expect(response.status).toBe(409);
     expect(response.body.error.message).toBe('User already exists');
   });
@@ -218,12 +226,12 @@ describe('Database Error Handling', () => {
 ```
 
 #### 3. Authentication Errors
+
 ```typescript
 describe('Authentication Error Handling', () => {
   it('should return 401 for missing token', async () => {
-    const response = await request(app)
-      .get('/api/protected-route');
-    
+    const response = await request(app).get('/api/protected-route');
+
     expect(response.status).toBe(401);
     expect(response.body.error.message).toBe('Authentication required');
   });
@@ -233,6 +241,7 @@ describe('Authentication Error Handling', () => {
 ### Common Error Scenarios
 
 #### 1. File Not Found
+
 ```typescript
 router.get('/files/:id', async (req, res, next) => {
   try {
@@ -248,6 +257,7 @@ router.get('/files/:id', async (req, res, next) => {
 ```
 
 #### 2. Permission Denied
+
 ```typescript
 router.delete('/admin/:id', requireAuth, async (req, res, next) => {
   try {
@@ -263,6 +273,7 @@ router.delete('/admin/:id', requireAuth, async (req, res, next) => {
 ```
 
 #### 3. Rate Limiting
+
 ```typescript
 router.post('/api/send-email', rateLimit, async (req, res, next) => {
   try {
@@ -280,6 +291,7 @@ router.post('/api/send-email', rateLimit, async (req, res, next) => {
 ## Best Practices Checklist
 
 ### For All Route Handlers:
+
 - [ ] Use `return next(error)` in ALL catch blocks
 - [ ] Use `return next(createError(...))` for custom errors
 - [ ] Ensure no code executes after error handling
@@ -289,12 +301,14 @@ router.post('/api/send-email', rateLimit, async (req, res, next) => {
 - [ ] Use appropriate HTTP status codes
 
 ### For Database Operations:
+
 - [ ] Handle specific Prisma error codes
 - [ ] Map database errors to appropriate HTTP status codes
 - [ ] Sanitize error messages for security
 - [ ] Log detailed error information for debugging
 
 ### For API Endpoints:
+
 - [ ] Validate request data with Zod or similar
 - [ ] Handle authentication and authorization errors
 - [ ] Implement rate limiting where appropriate
@@ -311,6 +325,7 @@ router.post('/api/send-email', rateLimit, async (req, res, next) => {
 ## Migration from Previous Docs
 
 This document consolidates the following previous documentation:
+
 - `ERROR_HANDLING_STANDARDS.md` - Critical patterns and standards
 - `docs/ERROR_HANDLING_GUIDELINES.md` - Implementation guidelines
 - `docs/ERROR_HANDLING_IMPLEMENTATION_SUMMARY.md` - Current implementation status

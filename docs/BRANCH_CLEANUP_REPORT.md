@@ -5,6 +5,7 @@ Generated: 2025-01-09
 ## Remote Branches Deleted ✅
 
 The following remote branches were safely deleted:
+
 - `codex/design-crud-endpoints-for-races` - No associated PR, appears to be old development branch
 - `feature/windows-setup-and-fixes` - No associated PR, appears to be old development branch
 
@@ -13,18 +14,21 @@ The following remote branches were safely deleted:
 The following local branches have unmerged commits and should be reviewed before deletion:
 
 ### `issue-105-fix-unreachable-catch-stats`
+
 - **Status**: Has unmerged commits
 - **Last commit**: `66167be Fix unreachable catch block in stats hook`
 - **Action needed**: Review if work is still needed or can be safely deleted
 
 ### `issue-93-pr75-feedback-cleanup`
-- **Status**: Has unmerged commits  
+
+- **Status**: Has unmerged commits
 - **Last commit**: `280347e Address PR #75 feedback: cleanup and type improvements`
 - **Action needed**: Review if work is still needed or can be safely deleted
 
 ## Current Active Branches ✅
 
 The following branches are part of ongoing cleanup work:
+
 - `cleanup/update-dependencies` - Dependency updates (PR #189)
 - `cleanup/add-nvmrc` - Add .nvmrc and remove temp files (PR #190)
 - `cleanup/git-branches` - This branch (for git cleanup)
@@ -36,7 +40,7 @@ The following branches are part of ongoing cleanup work:
 
 ## Recommendations
 
-1. **For `issue-105-fix-unreachable-catch-stats`**: 
+1. **For `issue-105-fix-unreachable-catch-stats`**:
    - Check if the fix is still needed
    - If not, delete with: `git branch -D issue-105-fix-unreachable-catch-stats`
 
@@ -62,6 +66,7 @@ git branch -a
 ## Remote Tracking Cleanup
 
 Remote tracking references have been cleaned up with:
+
 ```bash
 git remote prune origin
 ```

@@ -16,7 +16,6 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
       password: 'testpassword123',
     });
 
-
     // Create test data
     await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 8));
   });

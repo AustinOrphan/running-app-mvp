@@ -472,7 +472,7 @@ describe('footerUtils', () => {
 
       defaultFooterLinks.forEach(link => {
         if (link.onClick) {
-          expect(() => link.onClick(mockEvent)).not.toThrow();
+          expect(() => link.onClick!(mockEvent)).not.toThrow();
           expect(mockEvent.preventDefault).toHaveBeenCalled();
         }
       });

@@ -1,0 +1,175 @@
+# Auto-labeler configuration for GitHub Actions
+# Uses existing repository labels
+
+# Dependencies
+dependencies:
+  - package.json
+  - package-lock.json
+  - .github/dependabot.yml
+
+# Frontend changes
+frontend:
+  - 'src/**/*'
+  - 'public/**/*'
+  - 'index.html'
+  - 'vite.config.ts'
+  - '*.html'
+
+# Backend changes
+backend:
+  - 'routes/**/*'
+  - 'middleware/**/*'
+  - 'server.ts'
+
+# Testing
+testing:
+  - 'tests/**/*'
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/*.spec.ts'
+  - '**/*.spec.tsx'
+  - 'jest.config.js'
+  - 'playwright.config.ts'
+  - 'vitest.config.ts'
+
+# Database
+database:
+  - 'prisma/**/*'
+  - 'prisma.schema'
+  - '**/*migration*'
+  - '**/*schema*'
+
+# Authentication
+auth:
+  - 'middleware/auth*'
+  - 'routes/auth*'
+  - 'middleware/requireAuth*'
+  - 'src/components/Auth/**/*'
+  - 'src/hooks/useAuth*'
+  - 'src/pages/Login*'
+  - 'src/pages/Register*'
+
+# UI/UX
+UI/UX:
+  - 'src/components/**/*'
+  - 'src/styles/**/*'
+  - '**/*.css'
+  - '**/*.scss'
+  - '**/*.sass'
+  - '**/*.less'
+  - 'tailwind.config.js'
+  - 'postcss.config.js'
+
+# Security
+security:
+  - 'middleware/security*'
+  - '**/*security*'
+  - '**/*vulnerability*'
+  - '**/*cors*'
+  - '**/*helmet*'
+
+# Performance
+performance:
+  - '**/*performance*'
+  - '**/*optimization*'
+  - '**/*lazy*'
+  - '**/*memo*'
+  - '**/*cache*'
+
+# Accessibility
+accessibility:
+  - '**/*a11y*'
+  - '**/*accessibility*'
+  - '**/*axe*'
+  - 'tests/unit/accessibility/**/*'
+  - 'tests/e2e/accessibility*'
+
+# Mobile
+mobile:
+  - '**/*mobile*'
+  - '**/*responsive*'
+  - '**/*touch*'
+  - '**/*swipe*'
+  - 'src/styles/mobile*'
+
+# Technical debt (based on specific patterns, not just keywords)
+technical-debt:
+  - 'refactor/**/*'
+  - 'cleanup/**/*'
+  - 'legacy/**/*'
+  - 'deprecated/**/*'
+
+# Tooling
+tooling:
+  - '.github/workflows/**/*'
+  - 'scripts/**/*'
+  - 'tools/**/*'
+  - '.github/actions/**/*'
+
+# Observability
+observability:
+  - '**/*logger*'
+  - '**/*logging*'
+  - '**/*monitoring*'
+  - '**/*analytics*'
+  - '**/*error*'
+  - '**/*telemetry*'
+
+# Documentation
+documentation:
+  - '*.md'
+  - 'docs/**/*'
+  - 'README*'
+  - 'CHANGELOG*'
+  - 'CONTRIBUTING*'
+  - 'LICENSE*'
+
+# API changes
+api-change:
+  - 'routes/**/*'
+  - 'src/api/**/*'
+  - 'middleware/**/*'
+  - '**/*endpoint*'
+  - '**/*route*'
+
+# Migration
+migration:
+  - 'prisma/migrations/**/*'
+  - 'prisma/schema.prisma'
+  - '**/*migration*'
+  - '**/*schema*'
+
+# Configuration
+config:
+  - '.env*'
+  - '*.config.ts'
+  - '*.config.js'
+  - 'tsconfig.json'
+  - '.eslintrc*'
+  - '.prettierrc*'
+  - 'vite.config.ts'
+  - 'webpack.config.js'
+  - 'rollup.config.js'
+
+# Hotfix
+hotfix:
+  - '**/*hotfix*'
+  - '**/*urgent*'
+  - '**/*emergency*'
+
+# Size labels (will be applied by workflow logic, not file patterns)
+# size-small, size-medium, size-large
+
+# Status labels (will be applied by workflow logic, not file patterns)
+# work-in-progress, needs-review, needs-reproduction
+
+# Breaking changes
+breaking-change:
+  - '**/*breaking*'
+  - 'BREAKING*'
+  - 'CHANGELOG*'
+# Community contributions (applied by workflow logic based on author)
+# community
+
+# Stale (applied by stale workflow)
+# stale

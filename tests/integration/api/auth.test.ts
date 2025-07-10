@@ -157,7 +157,6 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('successfully logs in with valid credentials', async () => {
-
       const response = await request(app)
         .post('/api/auth/login')
         .send({
@@ -185,7 +184,6 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('returns 400 for missing password', async () => {
-
       const response = await request(app)
         .post('/api/auth/login')
         .send({
@@ -210,7 +208,6 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('returns 401 for invalid password', async () => {
-
       const response = await request(app)
         .post('/api/auth/login')
         .send({
@@ -260,7 +257,6 @@ describe('Auth API Integration Tests', () => {
         email: 'verify@test.com',
         password: 'testpassword123',
       });
-
 
       validToken = testDb.generateTestToken(assertTestUser(testUser).id);
     });
@@ -384,10 +380,12 @@ describe('Auth API Integration Tests', () => {
 
       // Make exactly 5 failed login attempts (the limit)
       for (let i = 0; i < 5; i++) {
-        const response = await request(app).post('/api/auth/login').send({
-          email: assertTestUser(testUser).email,
-          password: 'wrongpassword',
-        });
+        const response = await request(app)
+          .post('/api/auth/login')
+          .send({
+            email: assertTestUser(testUser).email,
+            password: 'wrongpassword',
+          });
         responses.push(response);
       }
 

@@ -22,7 +22,9 @@
   color: var(--text-primary);
   font-size: 0.9rem;
   box-sizing: border-box;
-  transition: border-color 0.2s, background-color 0.2s;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
 }
 
 .formGroup input:focus,

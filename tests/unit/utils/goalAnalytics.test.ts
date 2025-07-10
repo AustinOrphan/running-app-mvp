@@ -5,6 +5,7 @@ import { Goal, GoalProgress } from '../../../src/types/goals';
 // Mock data factories for testing
 const createMockGoal = (overrides: Partial<Goal> = {}): Goal => ({
   id: 'goal-1',
+  userId: 'user-1',
   title: 'Test Goal',
   type: 'DISTANCE',
   targetValue: 50,
@@ -12,18 +13,21 @@ const createMockGoal = (overrides: Partial<Goal> = {}): Goal => ({
   period: 'MONTHLY',
   startDate: new Date('2024-01-01'),
   endDate: new Date('2024-01-31'),
+  currentValue: 25,
   isCompleted: false,
   isActive: true,
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
   ...overrides,
 });
 
 const createMockGoalProgress = (overrides: Partial<GoalProgress> = {}): GoalProgress => ({
   goalId: 'goal-1',
   currentValue: 25,
-  targetValue: 50,
   progressPercentage: 50,
+  isCompleted: false,
+  remainingValue: 25,
   daysRemaining: 15,
-  isOnTrack: true,
   ...overrides,
 });
 

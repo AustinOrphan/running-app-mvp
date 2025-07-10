@@ -26,7 +26,6 @@ test.describe('Visual Regression Tests', () => {
       password: 'testpassword123',
     });
 
-
     // Create comprehensive test data
     await testDb.createTestRuns(assertTestUser(testUser).id, mockRuns.slice(0, 8));
     await testDb.createTestGoals(assertTestUser(testUser).id, mockGoals.slice(0, 4));

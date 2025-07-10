@@ -37,7 +37,7 @@ export function createE2EHelpers(page: Page, testDb: any) {
       },
       waitForApiResponse: async (selector: string) => {
         await page.waitForSelector(selector);
-      }
+      },
     },
     db: {
       cleanDatabase: async () => {
@@ -48,7 +48,7 @@ export function createE2EHelpers(page: Page, testDb: any) {
       },
       findUserByEmail: async (email: string) => {
         return await testDb.findUserByEmail(email);
-      }
+      },
     },
     auth: {
       login: async (email: string, password: string) => {
@@ -59,7 +59,7 @@ export function createE2EHelpers(page: Page, testDb: any) {
       },
       logout: async () => {
         await page.click('button[data-test="logout"]');
-      }
-    }
+      },
+    },
   };
 }

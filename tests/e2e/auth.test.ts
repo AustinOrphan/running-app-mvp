@@ -120,7 +120,6 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should successfully login with valid credentials', async ({ page }) => {
-
       // Navigate to login page
       await page.click('text=Sign In');
 
@@ -143,7 +142,6 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should show error for invalid credentials', async ({ page }) => {
-
       await page.click('text=Sign In');
 
       // Try with wrong password
@@ -166,7 +164,6 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should show validation errors for empty fields', async ({ page }) => {
-
       await page.click('text=Sign In');
 
       // Try to submit empty form
@@ -184,7 +181,6 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should handle case-insensitive email login', async ({ page }) => {
-
       await page.click('text=Sign In');
 
       // Login with uppercase email
@@ -197,7 +193,6 @@ test.describe('Authentication Flow E2E Tests', () => {
     });
 
     test('should show loading state during login', async ({ page }) => {
-
       await page.click('text=Sign In');
 
       await page.fill('input[type="email"]', assertTestUser(testUser).email);
@@ -219,7 +214,6 @@ test.describe('Authentication Flow E2E Tests', () => {
         email: 'logout@test.com',
         password: 'testpassword123',
       });
-
 
       // Login programmatically
       await page.goto('/login');
