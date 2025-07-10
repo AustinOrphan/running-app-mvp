@@ -11,7 +11,7 @@ import {
   CardActions,
   CardContent,
   DifficultyBadge,
-  ExpandControls,
+
   ExpandedContent,
 } from '../UI/Card';
 import { Button } from '../UI/Button';
@@ -55,39 +55,37 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
   };
 
   return (
-    <Card variant="template">
-      <CardHeader variant="template">
-        <CardIcon variant="template" color={template.color}>
+    <Card variant='template'>
+      <CardHeader variant='template'>
+        <CardIcon variant='template' color={template.color}>
           {template.icon}
         </CardIcon>
-        <CardTitle variant="template">
+        <CardTitle variant='template'>
           <h4>{template.name}</h4>
-          <CardDescription variant="template">
-            {template.description}
-          </CardDescription>
+          <CardDescription variant='template'>{template.description}</CardDescription>
         </CardTitle>
         <DifficultyBadge difficulty={template.difficulty} />
       </CardHeader>
 
       <CardContent>
-        <div className="template-details">
-          <div className="template-target">
-            <span className="target-label">Target:</span>
-            <span className="target-value">{formatTarget()}</span>
+        <div className='template-details'>
+          <div className='template-target'>
+            <span className='target-label'>Target:</span>
+            <span className='target-value'>{formatTarget()}</span>
           </div>
-          <div className="template-period">
-            <span className="period-label">Period:</span>
-            <span className="period-value">{getPeriodLabel()}</span>
+          <div className='template-period'>
+            <span className='period-label'>Period:</span>
+            <span className='period-value'>{getPeriodLabel()}</span>
           </div>
-          <div className="template-timeframe">
-            <span className="timeframe-label">Timeframe:</span>
-            <span className="timeframe-value">{template.estimatedTimeframe}</span>
+          <div className='template-timeframe'>
+            <span className='timeframe-label'>Timeframe:</span>
+            <span className='timeframe-value'>{template.estimatedTimeframe}</span>
           </div>
         </div>
 
-        <div className="template-tags">
+        <div className='template-tags'>
           {template.tags.map(tag => (
-            <span key={tag} className="template-tag" style={{ borderColor: template.color }}>
+            <span key={tag} className='template-tag' style={{ borderColor: template.color }}>
               {tag}
             </span>
           ))}
@@ -96,7 +94,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
         {expanded && (
           <ExpandedContent>
             {template.prerequisites && template.prerequisites.length > 0 && (
-              <div className="template-section">
+              <div className='template-section'>
                 <h5>Prerequisites:</h5>
                 <ul>
                   {template.prerequisites.map((prereq, index) => (
@@ -106,7 +104,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
               </div>
             )}
 
-            <div className="template-section">
+            <div className='template-section'>
               <h5>Training Tips:</h5>
               <ul>
                 {template.tips.map((tip, index) => (
@@ -116,13 +114,13 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
             </div>
 
             {template.milestones && template.milestones.length > 0 && (
-              <div className="template-section">
+              <div className='template-section'>
                 <h5>Milestones:</h5>
-                <div className="milestones-list">
+                <div className='milestones-list'>
                   {template.milestones.map((milestone, index) => (
-                    <div key={index} className="milestone-item">
-                      <span className="milestone-percentage">{milestone.percentage}%</span>
-                      <span className="milestone-description">{milestone.description}</span>
+                    <div key={index} className='milestone-item'>
+                      <span className='milestone-percentage'>{milestone.percentage}%</span>
+                      <span className='milestone-description'>{milestone.description}</span>
                     </div>
                   ))}
                 </div>
@@ -132,19 +130,15 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
         )}
       </CardContent>
 
-      <CardActions variant="template">
+      <CardActions variant='template'>
         <Button
-          variant="secondary"
+          variant='secondary'
           onClick={() => setExpanded(!expanded)}
-          className="template-expand"
+          className='template-expand'
         >
           {expanded ? 'Show Less ↑' : 'Learn More ↓'}
         </Button>
-        <Button
-          variant="primary"
-          onClick={onSelect}
-          className="template-select"
-        >
+        <Button variant='primary' onClick={onSelect} className='template-select'>
           Use This Template
         </Button>
       </CardActions>

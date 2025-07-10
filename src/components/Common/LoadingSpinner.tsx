@@ -9,7 +9,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ count = 3 }) => 
   return (
     <div className='runs-grid'>
       {Array.from({ length: count }).map((_, i) => (
-        <Card key={i} variant="run" className="skeleton">
+        <Card key={i} variant='run' className='skeleton'>
           <div className='skeleton-line' style={{ width: '60%', height: '20px' }}></div>
           <div
             className='skeleton-line'

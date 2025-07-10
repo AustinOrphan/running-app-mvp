@@ -90,46 +90,51 @@ export interface ExpandedContentProps {
 }
 
 // Base Card Component
-export const Card = forwardRef<HTMLDivElement, CardProps>(({
-  variant = 'default',
-  children,
-  completed = false,
-  interactive = false,
-  loading = false,
-  className = '',
-  ...props
-}, ref) => {
-  const getCardClasses = () => {
-    const classes = [styles.card];
-    
-    // Variant classes
-    if (variant === 'goal') classes.push(styles.cardGoal);
-    if (variant === 'run') classes.push(styles.cardRun);
-    if (variant === 'template') classes.push(styles.cardTemplate);
-    
-    // State classes
-    if (completed) classes.push(styles.cardCompleted);
-    if (interactive) classes.push(styles.cardInteractive);
-    if (loading) classes.push(styles.cardLoading);
-    
-    // Custom className
-    if (className) classes.push(className);
-    
-    return classes.join(' ');
-  };
+export const Card = forwardRef<HTMLDivElement, CardProps>(
+  (
+    {
+      variant = 'default',
+      children,
+      completed = false,
+      interactive = false,
+      loading = false,
+      className = '',
+      ...props
+    },
+    ref
+  ) => {
+    const getCardClasses = () => {
+      const classes = [styles.card];
 
-  return (
-    <div
-      ref={ref}
-      className={getCardClasses()}
-      role={interactive ? 'button' : undefined}
-      tabIndex={interactive ? 0 : undefined}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-});
+      // Variant classes
+      if (variant === 'goal') classes.push(styles.cardGoal);
+      if (variant === 'run') classes.push(styles.cardRun);
+      if (variant === 'template') classes.push(styles.cardTemplate);
+
+      // State classes
+      if (completed) classes.push(styles.cardCompleted);
+      if (interactive) classes.push(styles.cardInteractive);
+      if (loading) classes.push(styles.cardLoading);
+
+      // Custom className
+      if (className) classes.push(className);
+
+      return classes.join(' ');
+    };
+
+    return (
+      <div
+        ref={ref}
+        className={getCardClasses()}
+        role={interactive ? 'button' : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        {...props}
+      >
+        {children}
+      </div>
+    );
+  }
+);
 
 Card.displayName = 'Card';
 
@@ -141,20 +146,16 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
 }) => {
   const getHeaderClasses = () => {
     const classes = [styles.cardHeader];
-    
+
     if (variant === 'template') classes.push(styles.cardHeaderTemplate);
     if (variant === 'run') classes.push(styles.cardHeaderRun);
-    
+
     if (className) classes.push(className);
-    
+
     return classes.join(' ');
   };
 
-  return (
-    <div className={getHeaderClasses()}>
-      {children}
-    </div>
-  );
+  return <div className={getHeaderClasses()}>{children}</div>;
 };
 
 // Card Icon Component
@@ -166,19 +167,16 @@ export const CardIcon: React.FC<CardIconProps> = ({
 }) => {
   const getIconClasses = () => {
     const classes = [styles.cardIcon];
-    
+
     if (variant === 'template') classes.push(styles.cardIconTemplate);
-    
+
     if (className) classes.push(className);
-    
+
     return classes.join(' ');
   };
 
   return (
-    <div 
-      className={getIconClasses()}
-      style={color ? { color } : undefined}
-    >
+    <div className={getIconClasses()} style={color ? { color } : undefined}>
       {children}
     </div>
   );
@@ -192,19 +190,15 @@ export const CardTitle: React.FC<CardTitleProps> = ({
 }) => {
   const getTitleClasses = () => {
     const classes = [styles.cardTitle];
-    
+
     if (variant === 'template') classes.push(styles.cardTitleTemplate);
-    
+
     if (className) classes.push(className);
-    
+
     return classes.join(' ');
   };
 
-  return (
-    <div className={getTitleClasses()}>
-      {children}
-    </div>
-  );
+  return <div className={getTitleClasses()}>{children}</div>;
 };
 
 // Card Description Component
@@ -215,19 +209,15 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({
 }) => {
   const getDescriptionClasses = () => {
     const classes = [styles.cardDescription];
-    
+
     if (variant === 'template') classes.push(styles.cardDescriptionTemplate);
-    
+
     if (className) classes.push(className);
-    
+
     return classes.join(' ');
   };
 
-  return (
-    <p className={getDescriptionClasses()}>
-      {children}
-    </p>
-  );
+  return <p className={getDescriptionClasses()}>{children}</p>;
 };
 
 // Card Actions Component
@@ -238,56 +228,31 @@ export const CardActions: React.FC<CardActionsProps> = ({
 }) => {
   const getActionsClasses = () => {
     const classes = [styles.cardActions];
-    
+
     if (variant === 'run') classes.push(styles.cardActionsRun);
     if (variant === 'template') classes.push(styles.cardActionsTemplate);
-    
+
     if (className) classes.push(className);
-    
+
     return classes.join(' ');
   };
 
-  return (
-    <div className={getActionsClasses()}>
-      {children}
-    </div>
-  );
+  return <div className={getActionsClasses()}>{children}</div>;
 };
 
 // Card Content Component
-export const CardContent: React.FC<CardContentProps> = ({
-  children,
-  className = '',
-}) => {
-  return (
-    <div className={`${styles.cardContent} ${className}`}>
-      {children}
-    </div>
-  );
+export const CardContent: React.FC<CardContentProps> = ({ children, className = '' }) => {
+  return <div className={`${styles.cardContent} ${className}`}>{children}</div>;
 };
 
 // Card Footer Component
-export const CardFooter: React.FC<CardFooterProps> = ({
-  children,
-  className = '',
-}) => {
-  return (
-    <div className={`${styles.cardFooter} ${className}`}>
-      {children}
-    </div>
-  );
+export const CardFooter: React.FC<CardFooterProps> = ({ children, className = '' }) => {
+  return <div className={`${styles.cardFooter} ${className}`}>{children}</div>;
 };
 
 // Card Progress Component
-export const CardProgress: React.FC<CardProgressProps> = ({
-  children,
-  className = '',
-}) => {
-  return (
-    <div className={`${styles.cardProgress} ${className}`}>
-      {children}
-    </div>
-  );
+export const CardProgress: React.FC<CardProgressProps> = ({ children, className = '' }) => {
+  return <div className={`${styles.cardProgress} ${className}`}>{children}</div>;
 };
 
 // Icon Button Component
@@ -301,28 +266,23 @@ export const IconButton: React.FC<IconButtonProps> = ({
 }) => {
   const getButtonClasses = () => {
     const classes = [];
-    
+
     if (variant === 'run') {
       classes.push(styles.iconBtnRun);
     } else {
       classes.push(styles.iconBtn);
     }
-    
+
     if (variant === 'delete') classes.push(styles.iconBtnDelete);
     if (variant === 'edit') classes.push(styles.iconBtnEdit);
-    
+
     if (className) classes.push(className);
-    
+
     return classes.join(' ');
   };
 
   return (
-    <button
-      className={getButtonClasses()}
-      title={title}
-      onClick={onClick}
-      {...props}
-    >
+    <button className={getButtonClasses()} title={title} onClick={onClick} {...props}>
       {children}
     </button>
   );
@@ -353,15 +313,8 @@ export const ExpandControls: React.FC<ExpandControlsProps> = ({
 };
 
 // Expanded Content Component
-export const ExpandedContent: React.FC<ExpandedContentProps> = ({
-  children,
-  className = '',
-}) => {
-  return (
-    <div className={`${styles.expandedContent} ${className}`}>
-      {children}
-    </div>
-  );
+export const ExpandedContent: React.FC<ExpandedContentProps> = ({ children, className = '' }) => {
+  return <div className={`${styles.expandedContent} ${className}`}>{children}</div>;
 };
 
 // Progress Components
@@ -387,15 +340,8 @@ export interface SimpleProgressProps {
   className?: string;
 }
 
-export const ProgressHeader: React.FC<ProgressHeaderProps> = ({
-  children,
-  className = '',
-}) => {
-  return (
-    <div className={`${styles.progressHeader} ${className}`}>
-      {children}
-    </div>
-  );
+export const ProgressHeader: React.FC<ProgressHeaderProps> = ({ children, className = '' }) => {
+  return <div className={`${styles.progressHeader} ${className}`}>{children}</div>;
 };
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
@@ -420,26 +366,12 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   );
 };
 
-export const DetailedProgress: React.FC<DetailedProgressProps> = ({
-  children,
-  className = '',
-}) => {
-  return (
-    <div className={`${styles.detailedProgress} ${className}`}>
-      {children}
-    </div>
-  );
+export const DetailedProgress: React.FC<DetailedProgressProps> = ({ children, className = '' }) => {
+  return <div className={`${styles.detailedProgress} ${className}`}>{children}</div>;
 };
 
-export const SimpleProgress: React.FC<SimpleProgressProps> = ({
-  children,
-  className = '',
-}) => {
-  return (
-    <div className={`${styles.simpleProgress} ${className}`}>
-      {children}
-    </div>
-  );
+export const SimpleProgress: React.FC<SimpleProgressProps> = ({ children, className = '' }) => {
+  return <div className={`${styles.simpleProgress} ${className}`}>{children}</div>;
 };
 
 // Utility Components for specific content types
@@ -453,21 +385,11 @@ export interface DifficultyBadgeProps {
   className?: string;
 }
 
-export const CompletionBadge: React.FC<CompletionBadgeProps> = ({
-  children,
-  className = '',
-}) => {
-  return (
-    <div className={`${styles.completionBadge} ${className}`}>
-      {children}
-    </div>
-  );
+export const CompletionBadge: React.FC<CompletionBadgeProps> = ({ children, className = '' }) => {
+  return <div className={`${styles.completionBadge} ${className}`}>{children}</div>;
 };
 
-export const DifficultyBadge: React.FC<DifficultyBadgeProps> = ({
-  difficulty,
-  className = '',
-}) => {
+export const DifficultyBadge: React.FC<DifficultyBadgeProps> = ({ difficulty, className = '' }) => {
   const getColor = (level: string) => {
     switch (level) {
       case 'beginner':
@@ -482,7 +404,7 @@ export const DifficultyBadge: React.FC<DifficultyBadgeProps> = ({
   };
 
   return (
-    <span 
+    <span
       className={`${styles.difficultyBadge} ${className}`}
       style={{ backgroundColor: getColor(difficulty) }}
     >
