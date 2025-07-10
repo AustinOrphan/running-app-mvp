@@ -2,12 +2,12 @@ import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
 
-import authRoutes from '../../routes/auth.js';
-import runsRoutes from '../../routes/runs.js';
-import goalsRoutes from '../../routes/goals.js';
-import statsRoutes from '../../routes/stats.js';
-import { errorHandler } from '../../middleware/errorHandler.js';
-import { asyncHandler, asyncAuthHandler } from '../../middleware/asyncHandler.js';
+import authRoutes from '../../server/routes/auth.js';
+import runsRoutes from '../../server/routes/runs.js';
+import goalsRoutes from '../../server/routes/goals.js';
+import statsRoutes from '../../server/routes/stats.js';
+import { errorHandler } from '../../server/middleware/errorHandler.js';
+import { asyncHandler, asyncAuthHandler } from '../../server/middleware/asyncHandler.js';
 
 describe('Error Handling Integration Tests', () => {
   let app: express.Application;

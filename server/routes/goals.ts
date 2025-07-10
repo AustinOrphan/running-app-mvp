@@ -1,11 +1,11 @@
 import express from 'express';
 
+import { prisma } from '../../lib/prisma.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
 import { createNotFoundError, createValidationError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
-import { prisma } from '../server.js';
-import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../src/types/goals.js';
+import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../../src/types/goals.js';
 
 const router = express.Router();
 

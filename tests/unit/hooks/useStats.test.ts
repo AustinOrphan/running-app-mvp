@@ -11,12 +11,12 @@ import {
 import { createApiResponse, MockApiError } from '../../utils/mockApiUtils';
 
 // Mock apiFetch utilities
-vi.mock('../../../utils/apiFetch', () => ({
+vi.mock('../../../src/utils/apiFetch', () => ({
   apiGet: vi.fn(),
 }));
 
 // Import the mocked functions
-import { apiGet } from '../../../utils/apiFetch';
+import { apiGet } from '../../../src/utils/apiFetch';
 const mockApiGet = vi.mocked(apiGet);
 
 // Helper function to set up mock responses for all endpoints

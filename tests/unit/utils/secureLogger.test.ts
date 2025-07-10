@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { secureLogger } from '../../../utils/secureLogger.js';
+import { secureLogger } from '../../../server/utils/secureLogger.js';
 import { Request } from 'express';
 
 describe('SecureLogger IP Privacy Enhancements', () => {
