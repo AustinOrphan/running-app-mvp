@@ -34,6 +34,35 @@ jobs:
       - name: 🔧 Type check
         run: npm run typecheck --if-present
 
+  # Infrastructure Tests
+  infrastructure-tests:
+    name: 🏗️ Infrastructure Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Run infrastructure startup tests
+        run: npm run test:infrastructure
+
+      - name: 📊 Upload infrastructure test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: infrastructure-test-results
+          path: |
+            test-results/
+          retention-days: 7
+
   # Unit Tests
   unit-tests:
     name: 🧪 Unit Tests
@@ -453,6 +482,7 @@ jobs:
     needs:
       [
         lint-and-typecheck,
+        infrastructure-tests,
         unit-tests,
         integration-tests,
         e2e-tests,
@@ -472,6 +502,7 @@ jobs:
           echo "| Test Type | Status | " >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Lint & Type Check | ${{ needs.lint-and-typecheck.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Infrastructure Tests | ${{ needs.infrastructure-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Integration Tests | ${{ needs.integration-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| E2E Tests | ${{ needs.e2e-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY

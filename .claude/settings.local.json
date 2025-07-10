@@ -103,7 +103,11 @@
       "mcp__filesystem__create_directory",
       "mcp__filesystem__write_file",
       "mcp__filesystem__edit_file",
-      "mcp__think-mcp__think"
+      "mcp__think-mcp__think",
+      "Bash(npm uninstall:*)",
+      "Bash(cd:*)",
+      "Bash(curl:*)",
+      "Bash(kill:*)"
     ],
     "deny": []
   }
