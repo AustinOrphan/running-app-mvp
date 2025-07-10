@@ -101,8 +101,7 @@
       "Bash(true)",
       "Bash(node:*)",
       "mcp__todos__List-Pending-Todos",
-      "Bash(npx husky:*)",
-      "Bash(touch:*)"
+      "Bash(npx husky:*)"
     ],
     "deny": []
   }

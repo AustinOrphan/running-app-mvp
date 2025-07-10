@@ -54,8 +54,8 @@
     "test:visual:headed": "playwright test tests/e2e/visual-regression.test.ts --headed",
     "test:all": "npm run test:coverage && npm run test:integration && npm run test:e2e",
     "test:all:complete": "npm run test:coverage && npm run test:integration && npm run test:e2e && npm run test:a11y:all && npm run test:visual",
-    "test:performance": "echo 'Performance benchmarks not yet implemented' && exit 0",
-    "test:memory": "echo 'Memory leak tests not yet implemented' && exit 0",
+    "test:performance": "echo 'Performance benchmarks not yet implemented' && exit 1",
+    "test:memory": "echo 'Memory leak tests not yet implemented' && exit 1",
     "prepare": "husky"
   },
   "dependencies": {
