@@ -1,14 +1,20 @@
+/**
+ * Card Component Styles - CSS Module
+ * 
+ * Comprehensive card system extracted from App.css.
+ * Supports both the new generic Card component system and legacy specific cards.
+ * Uses CSS variables from globals.css for consistent theming.
+ */
+
 /* ==========================================================================
-   Card Component Styles
-   Extracted from App.css - Comprehensive card system for goals, runs, and templates
+   Base Card Styles - Generic Component System
    ========================================================================== */
 
-/* Base Card Styles */
 .card {
-  background: var(--card-background, #1a1a1a);
+  background: var(--surface-color, #1a1a1a);
   border: 1px solid var(--border-color, #404040);
-  border-radius: var(--card-border-radius, 12px);
-  padding: var(--card-padding, 20px);
+  border-radius: 12px;
+  padding: 20px;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -17,28 +23,29 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-/* Card Variants */
+/* Card Variants - Generic System */
 .cardGoal {
-  background: #1a1a1a;
+  background: var(--surface-color, #1a1a1a);
   border-radius: 12px;
+  animation: slideUp 0.3s ease-out both;
 }
 
 .cardRun {
-  background: #1a1a1a;
+  background: var(--surface-color, #1a1a1a);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease-out both;
 }
 
 .cardTemplate {
-  background: #2a2a2a;
+  background: var(--surface-color-hover, #2a2a2a);
   border-radius: 12px;
 }
 
 /* Card States */
 .cardCompleted {
   opacity: 0.8;
-  border-color: #10b981;
+  border-color: var(--color-success, #10b981);
 }
 
 .cardInteractive {
@@ -50,20 +57,7 @@
   pointer-events: none;
 }
 
-/* Card Hover Effects */
-.cardGoal:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-.cardRun:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.cardTemplate:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* Card Animation Grid Delays */
+/* Card Animation Delays */
 .cardRun:nth-child(1) {
   animation-delay: 0.1s;
 }
@@ -87,6 +81,184 @@
 .cardRun:nth-child(6) {
   animation-delay: 0.6s;
 }
+
+/* ==========================================================================
+   Specific Card Components - Legacy Support
+   ========================================================================== */
+
+/* Goal Card Styles */
+.goalCard {
+  composes: card;
+  animation: slideUp 0.3s ease-out both;
+}
+
+.goalCard.completed {
+  opacity: 0.8;
+  border-color: var(--color-success);
+}
+
+.goalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.goalIcon {
+  font-size: 1.5rem;
+  margin-right: 12px;
+}
+
+.goalTitle {
+  flex: 1;
+}
+
+.goalTitle h4 {
+  margin: 0 0 4px 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.goalType {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.goalActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 15px;
+}
+
+.goalDescription {
+  margin: 0 0 15px 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.goalProgress {
+  margin: 15px 0;
+}
+
+.goalMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Run Card Styles */
+.runCard {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  background: var(--surface-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  animation: slideUp 0.3s ease-out both;
+}
+
+.runCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.runDate {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.runDetails {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.runDetails span {
+  background: var(--surface-color-hover);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.runNotes {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.runHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.runActions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.runCard:hover .runActions {
+  opacity: 1;
+}
+
+.runStats {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.runTag {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Overview Card Styles */
+.overviewCard {
+  composes: card;
+  text-align: center;
+}
+
+.summary {
+  display: flex;
+  justify-content: space-around;
+  margin: 20px 0;
+}
+
+.summaryItem {
+  text-align: center;
+}
+
+.summaryItem h3 {
+  margin: 0;
+  color: var(--color-primary);
+  font-size: 1.8rem;
+}
+
+.summaryItem p {
+  margin: 4px 0 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   Generic Card Component System - New Architecture
+   ========================================================================== */
 
 /* Card Header */
 .cardHeader {
@@ -124,56 +296,50 @@
 /* Card Title */
 .cardTitle {
   flex: 1;
-}
-
-.cardTitle h4 {
-  margin: 0 0 4px 0;
-  color: rgba(255, 255, 255, 0.87);
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
   font-size: 1.1rem;
+  font-weight: 600;
 }
 
 .cardTitleTemplate {
-  flex: 1;
-}
-
-.cardTitleTemplate h4 {
-  margin: 0 0 6px 0;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 1.1rem;
-}
-
-/* Card Type/Subtitle */
-.cardType {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 12px 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 /* Card Description */
 .cardDescription {
   margin: 0 0 15px 0;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.95rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
   line-height: 1.4;
 }
 
 .cardDescriptionTemplate {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
-  line-height: 1.4;
+  margin: 0 0 16px 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* Card Content */
+.cardContent {
+  flex: 1;
 }
 
 /* Card Actions */
 .cardActions {
   display: flex;
   gap: 8px;
+  justify-content: flex-end;
+  margin-top: 15px;
 }
 
 .cardActionsRun {
-  display: flex;
-  gap: 8px;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s;
 }
 
 .cardRun:hover .cardActionsRun {
@@ -181,163 +347,99 @@
 }
 
 .cardActionsTemplate {
-  display: flex;
-  gap: 12px;
   justify-content: space-between;
+  margin-top: 20px;
+}
+
+/* Card Footer */
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Card Progress */
+.cardProgress {
+  margin: 15px 0;
 }
 
 /* Icon Buttons */
 .iconBtn {
-  background: #2a2a2a;
-  border: 1px solid #404040;
-  border-radius: 6px;
-  padding: 6px 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
   cursor: pointer;
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.7);
-  transition: background-color 0.2s;
+  padding: 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-size: 1rem;
 }
 
 .iconBtn:hover {
-  background: #3a3a3a;
-  color: rgba(255, 255, 255, 0.9);
+  background: var(--surface-color-hover);
+  color: var(--text-primary);
 }
 
 .iconBtnRun {
   background: none;
   border: none;
+  color: var(--text-muted);
   cursor: pointer;
-  font-size: 16px;
-  padding: 6px;
+  padding: 4px;
   border-radius: 4px;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
+  font-size: 0.9rem;
 }
 
 .iconBtnRun:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--surface-color-hover);
+  color: var(--text-primary);
 }
 
 .iconBtnDelete:hover {
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
 }
 
 .iconBtnEdit:hover {
-  background: rgba(59, 130, 246, 0.1);
-}
-
-/* Card Content */
-.cardContent {
-  margin-bottom: 15px;
-}
-
-/* Progress Components */
-.cardProgress {
-  margin-bottom: 15px;
-}
-
-.progressHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.progressText {
-  color: rgba(255, 255, 255, 0.87);
-  font-weight: 500;
-}
-
-.progressPercentage {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
-}
-
-.progressBar {
-  height: 8px;
-  background: #2a2a2a;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progressFill {
-  height: 100%;
-  background: #3b82f6;
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.progressFillCompleted {
-  background: #10b981;
-}
-
-/* Detailed Progress */
-.detailedProgress {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-}
-
-.progressCircular {
-  flex-shrink: 0;
-}
-
-.progressDetails {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.progressStat {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.statLabel {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.9rem;
-}
-
-.statValue {
-  color: rgba(255, 255, 255, 0.87);
-  font-weight: 500;
-}
-
-/* Simple Progress */
-.simpleProgress {
-  /* Uses progressHeader, progressBar, progressFill from above */
+  color: var(--color-primary);
 }
 
 /* Expand Controls */
 .expandControls {
-  margin-top: 10px;
-}
-
-.expandBtn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  background: transparent;
-  border: 1px solid #404040;
-  border-radius: 6px;
-  padding: 8px 12px;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  gap: 8px;
+  margin-top: 15px;
 }
 
-.expandBtn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.9);
+.expandButton {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.expandButton:hover {
+  color: var(--color-primary-hover);
 }
 
 .expandIcon {
-  transition: transform 0.2s ease;
+  font-size: 0.8rem;
+  transition: transform 0.2s;
 }
 
-.expandIconExpanded {
+.expandIcon.expanded {
   transform: rotate(180deg);
 }
 
@@ -345,18 +447,97 @@
 .expandedContent {
   margin-top: 15px;
   padding-top: 15px;
-  border-top: 1px solid #404040;
+  border-top: 1px solid var(--border-color);
 }
 
-/* Card Footer/Meta */
-.cardFooter {
+/* Progress Components */
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.progressBar {
+  width: 100%;
+  height: 6px;
+  background: var(--surface-color-hover);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+  border-radius: 3px;
+}
+
+.progressFill.completed {
+  background: var(--color-success);
+}
+
+.detailedProgress {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.simpleProgress {
+  width: 100%;
+}
+
+/* Utility Components */
+.completionBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--color-success);
+  color: white;
+}
+
+.difficultyBadge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+  text-transform: capitalize;
+}
+
+/* Template specific styles */
+.templateDetails {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.templateInfo {
+  flex: 1;
+}
+
+.templateSelect {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.cardPeriod,
+.cardDeadline {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
 }
-
 
 .cardPeriod span,
 .cardDeadline span {
@@ -365,212 +546,142 @@
   gap: 4px;
 }
 
-.overdue {
-  color: #ef4444 !important;
-}
+/* ==========================================================================
+   Grid Layouts
+   ========================================================================== */
 
-/* Completion Badge */
-.completionBadge {
-  background: #10b981;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.completionDate {
-  text-align: center;
-  color: #10b981;
-  font-size: 0.9rem;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #404040;
-}
-
-/* Run Card Specific Styles */
-.runDate {
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.87);
-  margin-bottom: 10px;
-}
-
-.runDetails {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 10px;
-}
-
-.runDetails span {
-  background: #404040;
-  color: rgba(255, 255, 255, 0.87);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.runTag {
-  background: #dbeafe !important;
-  color: #1e40af !important;
-}
-
-.runNotes {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
-  font-style: italic;
-}
-
-/* Template Card Specific Styles */
-.templateDetails {
+.goalsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
 }
 
-.templateTarget,
-.templatePeriod,
-.templateTimeframe {
+.runsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+/* Progress List Styles */
+.progressList {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 16px;
 }
 
-.targetLabel,
-.periodLabel,
-.timeframeLabel {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.5);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.targetValue,
-.periodValue,
-.timeframeValue {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 600;
-}
-
-.templateTags {
+.progressItem {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.templateTag {
-  padding: 4px 8px;
-  border: 1px solid;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 255, 255, 0.05);
+.progressItem:last-child {
+  border-bottom: none;
 }
 
-.templateExpanded {
-  margin-bottom: 16px;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 8px;
-  border-left: 3px solid #3b82f6;
-}
-
-.templateSection {
-  margin-bottom: 16px;
-}
-
-.templateSection:last-child {
-  margin-bottom: 0;
-}
-
-.templateSection h5 {
-  margin: 0 0 8px 0;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.templateSection ul {
-  margin: 0;
-  padding-left: 20px;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.templateSection li {
-  margin-bottom: 4px;
-  font-size: 0.85rem;
-  line-height: 1.4;
-}
-
-.milestonesList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.milestoneItem {
+.goalInfo {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
-}
-
-.milestonePercentage {
-  font-weight: 600;
-  color: #3b82f6;
-  font-size: 0.85rem;
-  min-width: 35px;
-}
-
-.milestoneDescription {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.85rem;
-}
-
-.templateExpand {
-  flex: 0 0 auto;
-}
-
-.templateSelect {
   flex: 1;
 }
 
-/* Difficulty Badge */
-.difficultyBadge {
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  flex-shrink: 0;
+.goalInfo .goalIcon {
+  font-size: 1.2rem;
+  margin: 0;
 }
 
-/* Animation */
+.goalDetails {
+  flex: 1;
+}
+
+.goalDetails h4 {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.progressText {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.percentage {
+  font-weight: 600;
+  color: var(--color-primary);
+  min-width: 50px;
+  text-align: right;
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
 @keyframes slideUp {
   from {
-    transform: translateY(20px);
     opacity: 0;
+    transform: translateY(20px);
   }
   to {
-    transform: translateY(0);
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* Responsive Design */
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
 @media (max-width: 768px) {
+  .goalsGrid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .runsGrid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
   .card {
     padding: 16px;
+  }
+  
+  .goalHeader {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .runDetails {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .runStats {
+    gap: 10px;
+  }
+  
+  .progressItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .goalInfo {
+    width: 100%;
+  }
+  
+  .percentage {
+    min-width: auto;
+    text-align: left;
+  }
+  
+  .progressBar {
+    width: 100%;
   }
   
   .cardHeaderTemplate {
@@ -581,14 +692,7 @@
   
   .templateDetails {
     grid-template-columns: 1fr;
-  }
-  
-  .cardActionsTemplate {
-    flex-direction: column;
-  }
-  
-  .templateExpand {
-    order: 2;
+    gap: 15px;
   }
   
   .templateSelect {

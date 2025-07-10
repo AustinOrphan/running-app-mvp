@@ -129,7 +129,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
       newErrors.title = 'Goal title is required';
     }
 
-    if (!formData.targetValue || parseFloat(formData.targetValue) <= 0) {
+    if (!formData.targetValue || Number.parseFloat(formData.targetValue) <= 0) {
       newErrors.targetValue = 'Target value must be a positive number';
     }
 
@@ -167,7 +167,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
         description: formData.description.trim() || undefined,
         type: formData.type,
         period: formData.period,
-        targetValue: parseFloat(formData.targetValue),
+        targetValue: Number.parseFloat(formData.targetValue),
         targetUnit: formData.targetUnit,
         startDate: new Date(formData.startDate),
         endDate: new Date(formData.endDate),

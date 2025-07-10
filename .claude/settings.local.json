@@ -93,8 +93,16 @@
       "Bash(mv:*)",
       "Bash(node:*)",
       "Bash(rm:*)",
+      "mcp__todos__List-Pending-Todos",
+      "Bash(npx husky:*)",
       "Bash(npm install:*)",
-      "Bash(npm install:*)",
+      "Bash(npm outdated:*)",
+      "Bash(git switch:*)",
+      "Bash(git tag:*)",
+      "mcp__filesystem__search_files",
+      "mcp__filesystem__create_directory",
+      "mcp__filesystem__write_file",
+      "mcp__filesystem__edit_file",
       "mcp__think-mcp__think"
     ],
     "deny": []

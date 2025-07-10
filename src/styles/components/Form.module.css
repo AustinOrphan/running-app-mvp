@@ -15,16 +15,14 @@
 .formGroup select,
 .formGroup textarea {
   width: 100%;
-  background: var(--secondary-bg);
+  padding: 10px 12px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  padding: 10px 12px;
+  background: var(--surface-color);
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   box-sizing: border-box;
-  transition:
-    border-color 0.2s,
-    background-color 0.2s;
+  transition: border-color 0.2s;
 }
 
 .formGroup input:focus,
@@ -32,7 +30,13 @@
 .formGroup textarea:focus {
   outline: none;
   border-color: var(--color-primary);
-  background: var(--card-bg);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.formGroup input.error,
+.formGroup select.error,
+.formGroup textarea.error {
+  border-color: var(--color-danger);
 }
 
 .formGroup textarea {
@@ -42,14 +46,24 @@
 
 /* Form row for side-by-side fields */
 .formRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
-  align-items: flex-end;
+  margin-bottom: 16px;
 }
 
-.formRow .formGroup {
-  flex: 1;
+.formRowAutoFit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.formRow .formGroup,
+.formRowAutoFit .formGroup {
   margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Field description text */
@@ -184,23 +198,148 @@
   color: var(--color-danger);
 }
 
+/* Special input types */
+.formGroup input[type='color'] {
+  width: 60px;
+  height: 40px;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.formGroup input[type='date'] {
+  cursor: pointer;
+}
+
 /* Disabled field styling */
 .formGroup input:disabled,
 .formGroup select:disabled,
 .formGroup textarea:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: var(--primary-bg);
+  background: var(--surface-color);
+}
+
+/* Input wrapper and icons */
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.leadingIcon {
+  position: absolute;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.trailingIcon {
+  position: absolute;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.trailingIcon:hover:not(:disabled) {
+  background: var(--surface-color-hover);
+  color: var(--text-secondary);
+}
+
+.inputWrapper input {
+  padding-left: 36px;
+}
+
+.inputWrapper input:has(+ .trailingIcon) {
+  padding-right: 36px;
+}
+
+/* Input footer */
+.inputFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  gap: 12px;
+}
+
+.charCount {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Size variants */
+.formGroup input.small,
+.formGroup select.small,
+.formGroup textarea.small {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+
+.formGroup input.large,
+.formGroup select.large,
+.formGroup textarea.large {
+  padding: 14px 16px;
+  font-size: 1rem;
+}
+
+/* Full width variant */
+.fullWidth {
+  width: 100%;
+}
+
+/* Form column layout */
+.formColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Group label for fieldsets */
+.groupLabel {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+}
+
+/* Textarea resize variants */
+.resizeNone {
+  resize: none;
+}
+
+.resizeVertical {
+  resize: vertical;
+}
+
+.resizeHorizontal {
+  resize: horizontal;
+}
+
+.resizeBoth {
+  resize: both;
 }
 
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
-  .formRow {
-    flex-direction: column;
+  .formRow,
+  .formRowAutoFit {
+    grid-template-columns: 1fr;
     gap: 0;
   }
 
-  .formRow .formGroup {
+  .formRow .formGroup,
+  .formRowAutoFit .formGroup {
     margin-bottom: 20px;
   }
 

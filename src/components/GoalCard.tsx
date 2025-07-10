@@ -68,85 +68,66 @@ export const GoalCard: React.FC<GoalCardProps> = ({
   const progressPercentage = isCompleted ? 100 : progress?.progressPercentage || 0;
 
   return (
-    <Card variant="goal" completed={isCompleted}>
+    <Card variant='goal' completed={isCompleted}>
       <CardHeader>
-        <CardIcon color={goal.color || config.color}>
-          {goal.icon || config.icon}
-        </CardIcon>
+        <CardIcon color={goal.color || config.color}>{goal.icon || config.icon}</CardIcon>
         <CardTitle>
           <h4>{goal.title}</h4>
-          <span className="goal-type">{config.label}</span>
+          <span className='goal-type'>{config.label}</span>
         </CardTitle>
         {!isCompleted && (
           <CardActions>
             {onEdit && (
-              <IconButton
-                onClick={() => onEdit(goal.id)}
-                title="Edit goal"
-              >
+              <IconButton onClick={() => onEdit(goal.id)} title='Edit goal'>
                 ✏️
               </IconButton>
             )}
-            <IconButton
-              onClick={() => onComplete(goal.id)}
-              title="Mark as completed"
-            >
+            <IconButton onClick={() => onComplete(goal.id)} title='Mark as completed'>
               ✓
             </IconButton>
-            <IconButton
-              onClick={() => onDelete(goal.id)}
-              title="Delete goal"
-            >
+            <IconButton onClick={() => onDelete(goal.id)} title='Delete goal'>
               🗑️
             </IconButton>
           </CardActions>
         )}
-        {isCompleted && (
-          <CompletionBadge>
-            ✅ Completed
-          </CompletionBadge>
-        )}
+        {isCompleted && <CompletionBadge>✅ Completed</CompletionBadge>}
       </CardHeader>
 
-      {goal.description && (
-        <CardDescription>
-          {goal.description}
-        </CardDescription>
-      )}
+      {goal.description && <CardDescription>{goal.description}</CardDescription>}
 
       <CardContent>
         <CardProgress>
           {showDetailedView ? (
             <DetailedProgress>
-              <div className="progress-circular">
+              <div className='progress-circular'>
                 <CircularProgress
                   percentage={progressPercentage}
                   size={80}
                   strokeWidth={6}
                   color={goal.color || config.color}
                 >
-                  <div className="circular-content">
-                    <div className="circular-percentage">{Math.round(progressPercentage)}%</div>
-                    <div className="circular-label">complete</div>
+                  <div className='circular-content'>
+                    <div className='circular-percentage'>{Math.round(progressPercentage)}%</div>
+                    <div className='circular-label'>complete</div>
                   </div>
                 </CircularProgress>
               </div>
-              <div className="progress-details">
-                <div className="progress-stat">
-                  <span className="stat-label">Current</span>
-                  <span className="stat-value">
+              <div className='progress-details'>
+                <div className='progress-stat'>
+                  <span className='stat-label'>Current</span>
+                  <span className='stat-value'>
                     {formatProgressValue(currentValue, goal.targetUnit)}
                   </span>
                 </div>
-                <div className="progress-stat">
-                  <span className="stat-label">Target</span>
-                  <span className="stat-value">
+                <div className='progress-stat'>
+                  <span className='stat-label'>Target</span>
+                  <span className='stat-value'>
                     {formatProgressValue(goal.targetValue, goal.targetUnit)}
                   </span>
                 </div>
-                <div className="progress-stat">
-                  <span className="stat-label">Remaining</span>
-                  <span className="stat-value">
+                <div className='progress-stat'>
+                  <span className='stat-label'>Remaining</span>
+                  <span className='stat-value'>
                     {formatProgressValue(goal.targetValue - currentValue, goal.targetUnit)}
                   </span>
                 </div>
@@ -155,12 +136,12 @@ export const GoalCard: React.FC<GoalCardProps> = ({
           ) : (
             <SimpleProgress>
               <ProgressHeader>
-                <span className="progress-text">
+                <span className='progress-text'>
                   {formatProgressValue(currentValue, goal.targetUnit)}
                   {' / '}
                   {formatProgressValue(goal.targetValue, goal.targetUnit)}
                 </span>
-                <span className="progress-percentage">{Math.round(progressPercentage)}%</span>
+                <span className='progress-percentage'>{Math.round(progressPercentage)}%</span>
               </ProgressHeader>
               <ProgressBar
                 percentage={progressPercentage}
@@ -175,8 +156,8 @@ export const GoalCard: React.FC<GoalCardProps> = ({
             <ExpandControls
               isExpanded={isExpanded}
               onToggle={() => setIsExpanded(!isExpanded)}
-              expandText="View details"
-              collapseText="Show less"
+              expandText='View details'
+              collapseText='Show less'
             />
           )}
         </CardProgress>
@@ -190,18 +171,18 @@ export const GoalCard: React.FC<GoalCardProps> = ({
       </CardContent>
 
       <CardFooter>
-        <div className="goal-period">
+        <div className='goal-period'>
           <span>📅 {goal.period.toLowerCase()}</span>
         </div>
-        <div className="goal-deadline">
+        <div className='goal-deadline'>
           {isCompleted && goal.completedAt ? (
-            <span className="completion-date">
+            <span className='completion-date'>
               🎉 Completed on {new Date(goal.completedAt).toLocaleDateString()}
             </span>
           ) : progress && progress.daysRemaining > 0 ? (
             <span>⏰ {progress.daysRemaining} days left</span>
           ) : (
-            <span className="overdue">⚠️ Overdue</span>
+            <span className='overdue'>⚠️ Overdue</span>
           )}
         </div>
       </CardFooter>

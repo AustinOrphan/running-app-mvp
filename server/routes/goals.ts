@@ -105,7 +105,7 @@ router.post(
         description: description?.trim(),
         type,
         period,
-        targetValue: parseFloat(targetValue),
+        targetValue: Number.parseFloat(targetValue),
         targetUnit,
         startDate: start,
         endDate: end,
@@ -185,7 +185,7 @@ router.put(
         ...(description !== undefined && { description: description?.trim() }),
         ...(type && { type }),
         ...(period && { period }),
-        ...(targetValue !== undefined && { targetValue: parseFloat(targetValue) }),
+        ...(targetValue !== undefined && { targetValue: Number.parseFloat(targetValue) }),
         ...(targetUnit && { targetUnit }),
         ...(startDate && { startDate: new Date(startDate) }),
         ...(endDate && { endDate: new Date(endDate) }),
@@ -346,12 +346,12 @@ async function calculateGoalProgress(
       if (runs.length === 0) {
         return 0;
       }
-      const avgPace =
+      return (
         runs.reduce((total, run) => {
           const pace = run.distance > 0 ? run.duration / run.distance : 0;
           return total + pace;
-        }, 0) / runs.length;
-      return avgPace;
+        }, 0) / runs.length
+      );
     }
 
     case GOAL_TYPES.LONGEST_RUN:

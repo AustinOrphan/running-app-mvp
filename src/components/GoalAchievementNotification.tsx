@@ -34,6 +34,7 @@ export const GoalAchievementNotification: React.FC<GoalAchievementNotificationPr
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [achievedGoal, handleClose]);
 
   if (!achievedGoal || !isVisible) return null;
