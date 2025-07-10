@@ -83,7 +83,7 @@ export class MilestoneDetector {
     // Calculate progress to next milestone
     let progressToNextMilestone = 0;
     if (nextMilestone) {
-      const previousMilestone = this.MILESTONES.findLast(m => m < nextMilestone) || 0;
+      const previousMilestone = this.MILESTONES.findLast((m: number) => m < nextMilestone) || 0;
       const rangeSize = nextMilestone - previousMilestone;
       const currentInRange = currentProgressPercentage - previousMilestone;
       progressToNextMilestone = (currentInRange / rangeSize) * 100;

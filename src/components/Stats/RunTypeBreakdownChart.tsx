@@ -1,6 +1,5 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import type { TooltipProps } from 'recharts';
 
 import { RunTypeBreakdown } from '../../types';
 
@@ -27,8 +26,14 @@ interface RunTypeTooltipPayload {
   avgPace: number;
 }
 
-const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
-  if (active && payload?.length) {
+const CustomTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: RunTypeTooltipPayload }>;
+}) => {
+  if (active && payload && payload.length) {
     const data = payload[0].payload as RunTypeTooltipPayload;
     return (
       <div className='chart-tooltip'>

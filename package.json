@@ -61,7 +61,10 @@
     "quality:complexity": "complexity-report --output reports/complexity.json --format json src/ server/",
     "quality:duplicates": "jscpd --reporters json,html --output reports/ src/ server/",
     "quality:metrics": "npm run quality:complexity && npm run quality:duplicates",
-    "quality:all": "npm run quality:check && npm run quality:metrics && npm run test:coverage:ci"
+    "quality:all": "npm run quality:check && npm run quality:metrics && npm run test:coverage:ci",
+    "test:performance": "echo 'Performance benchmarks not yet implemented' && exit 1",
+    "test:memory": "echo 'Memory leak tests not yet implemented' && exit 1",
+    "prepare": "husky"
   },
   "dependencies": {
     "@mdi/svg": "^7.4.47",
@@ -77,13 +80,15 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.6.3",
-    "recharts": "^2.15.4",
+    "recharts": "^3.1.0",
     "uuid": "^11.1.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",
     "@axe-core/react": "^4.10.2",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "@playwright/test": "^1.53.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
@@ -120,10 +125,12 @@
     "eslint-plugin-sonarjs": "^3.0.4",
     "eslint-plugin-testing-library": "^7.5.3",
     "eslint-plugin-unicorn": "^59.0.1",
+    "husky": "^9.1.7",
     "jest": "^30.0.2",
     "jest-axe": "^10.0.0",
     "jscpd": "^4.0.5",
     "jsdom": "^26.1.0",
+    "lint-staged": "^16.1.2",
     "pixelmatch": "^7.1.0",
     "playwright": "^1.53.1",
     "pngjs": "^7.0.0",
@@ -138,5 +145,14 @@
     "typescript": "^5.3.3",
     "vite": "^7.0.3",
     "vitest": "^3.2.4"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }
