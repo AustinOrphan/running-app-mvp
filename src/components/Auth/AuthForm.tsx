@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import styles from '../../styles/components/AuthForm.module.css';
 
 interface AuthFormProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -20,10 +21,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister, loading
   };
 
   return (
-    <div className='auth-form'>
-      <h2>Login or Register</h2>
+    <div className={styles.authForm}>
+      <h2 className={styles.title}>Login or Register</h2>
       <form onSubmit={handleLogin}>
         <input
+          className={styles.input}
           type='email'
           placeholder='Email'
           value={email}
@@ -32,6 +34,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister, loading
           required
         />
         <input
+          className={styles.input}
           type='password'
           placeholder='Password (min 6 chars)'
           value={password}
@@ -40,11 +43,16 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister, loading
           required
           minLength={6}
         />
-        <div className='auth-buttons'>
-          <button type='submit' disabled={loading}>
+        <div className={styles.authButtons}>
+          <button className={styles.button} type='submit' disabled={loading}>
             {loading ? '⏳ Logging in...' : 'Login'}
           </button>
-          <button type='button' onClick={handleRegister} disabled={loading}>
+          <button
+            className={styles.button}
+            type='button'
+            onClick={handleRegister}
+            disabled={loading}
+          >
             {loading ? '⏳ Creating account...' : 'Register'}
           </button>
         </div>
