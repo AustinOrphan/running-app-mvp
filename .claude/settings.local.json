@@ -93,8 +93,9 @@
       "Bash(mv:*)",
       "Bash(node:*)",
       "Bash(rm:*)",
-      "Bash(npm install:*)",
-      "Bash(diff:*)"
+      "mcp__todos__List-Pending-Todos",
+      "Bash(npx husky:*)",
+      "Bash(npm install:*)"
     ],
     "deny": []
   }

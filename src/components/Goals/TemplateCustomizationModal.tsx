@@ -62,10 +62,10 @@ export const TemplateCustomizationModal: React.FC<TemplateCustomizationModalProp
           // For custom periods, set a reasonable default based on template type
           const customEnd = new Date(today);
           if (template.estimatedTimeframe.includes('week')) {
-            const weeks = parseInt(template.estimatedTimeframe.match(/(\d+)/)?.[1] || '12');
+            const weeks = Number.parseInt(template.estimatedTimeframe.match(/(\d+)/)?.[1] || '12');
             customEnd.setDate(today.getDate() + weeks * 7);
           } else if (template.estimatedTimeframe.includes('month')) {
-            const months = parseInt(template.estimatedTimeframe.match(/(\d+)/)?.[1] || '3');
+            const months = Number.parseInt(template.estimatedTimeframe.match(/(\d+)/)?.[1] || '3');
             customEnd.setMonth(today.getMonth() + months);
           } else {
             customEnd.setDate(today.getDate() + 84); // 12 weeks default
