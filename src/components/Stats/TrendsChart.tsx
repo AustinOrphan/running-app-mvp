@@ -24,7 +24,7 @@ interface TrendsTooltipPayload {
   date: string;
 }
 
-const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as TrendsTooltipPayload;
     const date = new Date(label).toLocaleDateString('en-US', {

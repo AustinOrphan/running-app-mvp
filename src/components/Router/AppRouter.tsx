@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router';
 
 // Components
 import { ComingSoonPage } from '../Pages/ComingSoonPage';

@@ -70,7 +70,7 @@ router.post(
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
+      expiresIn: '1h', // Reduced from 7 days for security
     });
 
     res.status(201).json({
@@ -114,7 +114,7 @@ router.post(
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
+      expiresIn: '1h', // Reduced from 7 days for security
     });
 
     res.json({

@@ -27,7 +27,7 @@ interface RunTypeTooltipPayload {
   avgPace: number;
 }
 
-const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as RunTypeTooltipPayload;
     return (
