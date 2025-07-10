@@ -1,8 +1,23 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import { app } from '../server.js';
 
 describe('Security Tests', () => {
+  let authToken;
+
+  beforeAll(() => {
+    // Generate a valid JWT token for testing
+    const testUserId = 'test-user-id';
+    const testPayload = {
+      userId: testUserId,
+      email: 'test@example.com'
+    };
+    
+    // Use a test JWT secret or the environment variable
+    const jwtSecret = process.env.JWT_SECRET || 'test-secret-key-for-testing-only';
+    authToken = jwt.sign(testPayload, jwtSecret, { expiresIn: '1h' });
+  });
   describe('Authentication Security', () => {
     test('should reject weak passwords', async () => {
       const weakPasswords = [
@@ -64,7 +79,7 @@ describe('Security Tests', () => {
       for (const payload of xssPayloads) {
         const response = await request(app)
           .post('/api/runs')
-          .set('Authorization', 'Bearer validtoken')
+          .set('Authorization', `Bearer ${authToken}`)
           .send({
             route: payload,
             distance: 5,
@@ -89,7 +104,7 @@ describe('Security Tests', () => {
       for (const payload of sqlPayloads) {
         const response = await request(app)
           .get(`/api/runs?search=${encodeURIComponent(payload)}`)
-          .set('Authorization', 'Bearer validtoken');
+          .set('Authorization', `Bearer ${authToken}`);
 
         // Should not return 500 error or expose database errors
         expect(response.status).not.toBe(500);
