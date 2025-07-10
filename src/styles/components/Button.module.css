@@ -203,6 +203,58 @@
   justify-content: center;
 }
 
+/* Additional button features */
+.btnFullWidth {
+  width: 100%;
+}
+
+.iconWrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btnText {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Button group styles */
+.gapSmall {
+  gap: 4px;
+}
+
+.gapMedium {
+  gap: 8px;
+}
+
+.gapLarge {
+  gap: 12px;
+}
+
+/* Loading spinner */
+.loadingSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Screen reader only text */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
   .btn {
