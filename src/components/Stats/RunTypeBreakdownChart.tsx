@@ -33,7 +33,7 @@ const CustomTooltip = ({
   active?: boolean;
   payload?: Array<{ payload: RunTypeTooltipPayload }>;
 }) => {
-  if (active && payload && payload.length) {
+  if (active && payload?.length) {
     const data = payload[0].payload as RunTypeTooltipPayload;
     return (
       <div className='chart-tooltip'>

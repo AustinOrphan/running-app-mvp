@@ -66,8 +66,8 @@ export const getActiveTabFromPath = (pathname: string): RouteKey => {
   if (pathname === '/') return 'runs';
 
   // Try to extract from path segments - more robust for nested routes
-  const segments = pathname.split('/').filter(Boolean);
-  const firstSegment = segments[0] as RouteKey;
+  const segment = pathname.split('/').find(Boolean);
+  const firstSegment = segment as RouteKey;
 
   return TAB_IDS.includes(firstSegment) ? firstSegment : 'runs';
 };

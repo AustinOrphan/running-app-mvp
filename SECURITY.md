@@ -72,19 +72,19 @@ graph TD
 ```javascript
 // Recommended JWT signing
 const token = jwt.sign(
-  { 
-    id: user.id, 
+  {
+    id: user.id,
     email: user.email,
     iat: Math.floor(Date.now() / 1000),
     jti: crypto.randomUUID(), // Unique token ID
-    type: 'access' // Token type
-  }, 
-  process.env.JWT_SECRET, 
+    type: 'access', // Token type
+  },
+  process.env.JWT_SECRET,
   {
     algorithm: 'HS256',
     expiresIn: '1h', // Reduced from 7 days
     issuer: 'running-app',
-    audience: 'running-app-users'
+    audience: 'running-app-users',
   }
 );
 ```
@@ -108,14 +108,14 @@ openssl rand -base64 32
 #### Password Requirements
 
 ```javascript
-const passwordSchema = z.string()
+const passwordSchema = z
+  .string()
   .min(12, 'Password must be at least 12 characters')
   .regex(/[A-Z]/, 'Must contain uppercase letter')
   .regex(/[a-z]/, 'Must contain lowercase letter')
   .regex(/[0-9]/, 'Must contain number')
   .regex(/[^A-Za-z0-9]/, 'Must contain special character')
-  .refine(password => !COMMON_PASSWORDS.includes(password.toLowerCase()), 
-    'Password is too common');
+  .refine(password => !COMMON_PASSWORDS.includes(password.toLowerCase()), 'Password is too common');
 ```
 
 #### Hashing Implementation
@@ -136,12 +136,12 @@ const hashedPassword = await bcrypt.hash(password, saltRounds);
 
 ### Data Classification
 
-| Type | Classification | Protection Level |
-|------|---------------|------------------|
-| User Credentials | Confidential | Encrypted at rest, hashed passwords |
-| Personal Data | Restricted | Encrypted in transit, access logged |
-| Activity Data | Internal | Standard encryption |
-| System Logs | Internal | Anonymized, retention policy |
+| Type             | Classification | Protection Level                    |
+| ---------------- | -------------- | ----------------------------------- |
+| User Credentials | Confidential   | Encrypted at rest, hashed passwords |
+| Personal Data    | Restricted     | Encrypted in transit, access logged |
+| Activity Data    | Internal       | Standard encryption                 |
+| System Logs      | Internal       | Anonymized, retention policy        |
 
 ### Encryption
 
@@ -156,7 +156,7 @@ const hashedPassword = await bcrypt.hash(password, saltRounds);
 const sanitizedData = {
   ...data,
   email: hashPII(data.email),
-  ipAddress: hashPII(data.ipAddress)
+  ipAddress: hashPII(data.ipAddress),
 };
 ```
 
@@ -172,7 +172,7 @@ const createRunSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   distance: z.number().positive().max(1000),
   duration: z.number().positive().max(86400),
-  route: z.string().max(500)
+  route: z.string().max(500),
 });
 ```
 
@@ -184,7 +184,7 @@ const createRunSchema = z.object({
 // Parameterized queries via Prisma
 const runs = await prisma.run.findMany({
   where: { userId: req.user.id },
-  orderBy: { date: 'desc' }
+  orderBy: { date: 'desc' },
 });
 ```
 
@@ -203,13 +203,15 @@ app.use(sanitizeInput);
 
 ```javascript
 // Recommended CORS setup
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200
-}));
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    optionsSuccessStatus: 200,
+  })
+);
 ```
 
 ## Infrastructure Security
@@ -252,27 +254,29 @@ res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 // Install helmet.js for comprehensive security headers
 import helmet from 'helmet';
 
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'"], // Consider removing 'unsafe-inline' to prevent CSS injection
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'"], // Consider removing 'unsafe-inline' to prevent CSS injection
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
     },
-  },
-  crossOriginEmbedderPolicy: false,
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true
-  }
-}));
+    crossOriginEmbedderPolicy: false,
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
+);
 ```
 
 ## Rate Limiting

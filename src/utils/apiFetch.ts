@@ -1,4 +1,5 @@
 // Comprehensive fetch wrapper with error handling, auth, and retry logic
+import { clientLogger } from './clientLogger.js';
 
 export interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
@@ -192,9 +193,9 @@ export const apiFetch = async <T = unknown>(
       }
 
       // Retry for retryable errors
-      // eslint-disable-next-line no-console -- Intentional retry warning for debugging
+
       const { message } = error as Error;
-      console.warn(
+      clientLogger.warn(
         `API request failed (attempt ${attempt + 1}/${retries + 1}): ${message}. Retrying...`
       );
       await delay(retryDelay * Math.pow(2, attempt)); // Exponential backoff

@@ -37,11 +37,9 @@ export const useRuns = (token: string | null) => {
     };
 
     try {
-      if (editingRun) {
-        await apiPut<Run>(`/api/runs/${editingRun.id}`, runData);
-      } else {
-        await apiPost<Run>('/api/runs', runData);
-      }
+      await (editingRun
+        ? apiPut<Run>(`/api/runs/${editingRun.id}`, runData)
+        : apiPost<Run>('/api/runs', runData));
 
       await fetchRuns(); // Refresh the list
     } catch (error) {
