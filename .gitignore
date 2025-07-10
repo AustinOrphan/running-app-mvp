@@ -91,7 +91,10 @@ temp/
 
 # Editor directories and files
 .vscode/*
+!.vscode/settings.json
 !.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 .idea
 *.swp
 *.swo
@@ -115,6 +118,8 @@ prisma/migrations/*/migration.sql
 coverage/
 test-results/
 playwright-report/
+benchmark-results/
+memory-reports/
 
 # Code Quality & Analysis
 reports/
@@ -122,3 +127,10 @@ reports/
 .scannerwork/
 complexity-report.json
 jscpd-report.json
+
+# CI/CD
+lhci.db
+bundle-report.json
+performance-report.md
+build-report.md
+release-package/
