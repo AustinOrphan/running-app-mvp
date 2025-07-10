@@ -13,11 +13,7 @@
   ],
   "gitignore": true,
   "output": "./reports/jscpd",
-  "format": [
-    "typescript",
-    "javascript",
-    "jsx"
-  ],
+  "format": ["typescript", "javascript"],
   "min-lines": 5,
   "min-tokens": 50,
   "maxLines": 1000,

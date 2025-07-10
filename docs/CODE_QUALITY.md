@@ -63,18 +63,21 @@ Enhanced ESLint rules are defined in `.eslintrc.quality.js` with:
 ### Key Rule Categories
 
 #### 🔒 Security Rules
+
 - Buffer security checks
 - Eval expression detection
 - Regular expression security
 - Object injection prevention
 
 #### 🧠 Complexity Rules
+
 - Cognitive complexity limits (max 15)
 - Switch case limits (max 30)
 - Duplicate code detection
 - Nested structure limits
 
 #### 🚀 Best Practices
+
 - Modern syntax preferences
 - Error handling standards
 - Function naming conventions
@@ -140,6 +143,7 @@ npm run quality:complexity
 ```
 
 **Metrics tracked:**
+
 - Cyclomatic complexity
 - Halstead metrics
 - Lines of code
@@ -158,6 +162,7 @@ npm run quality:duplicates
 ```
 
 **Configuration (`.jscpd.json`):**
+
 - Minimum 5 lines for duplication
 - Minimum 50 tokens
 - HTML and JSON reporting
@@ -194,24 +199,26 @@ GitHub Actions workflows enforce quality:
 
 ### Quality Thresholds
 
-| Metric | Threshold | Action |
-|--------|-----------|--------|
-| Test Coverage | ≥ 80% | Block merge |
-| Cognitive Complexity | ≤ 15 | ESLint error |
-| Duplicate Lines | ≤ 3% | SonarQube warning |
-| Security Hotspots | 0 | Block merge |
-| Code Smells | ≤ 5 | SonarQube warning |
+| Metric               | Threshold | Action            |
+| -------------------- | --------- | ----------------- |
+| Test Coverage        | ≥ 80%     | Block merge       |
+| Cognitive Complexity | ≤ 15      | ESLint error      |
+| Duplicate Lines      | ≤ 3%      | SonarQube warning |
+| Security Hotspots    | 0         | Block merge       |
+| Code Smells          | ≤ 5       | SonarQube warning |
 
 ## 🔄 Development Workflow
 
 ### Before Committing
 
 1. **Run Quality Checks**:
+
    ```bash
    npm run quality:check
    ```
 
 2. **Fix Issues**:
+
    ```bash
    npm run quality:lint:fix
    npm run format
@@ -241,25 +248,18 @@ GitHub Actions workflows enforce quality:
 ### IDE Integration
 
 **VS Code Extensions**:
+
 - ESLint
 - Prettier
 - SonarLint
 - TypeScript Hero
 
 **Settings** (configured in `.vscode/settings.json`):
+
 - Format on save
 - Auto-fix on save
 - TypeScript strict mode
 - Import organization
-
-### CLI Tools
-
-```bash
-# Install global tools for local development
-npm install -g sonarqube-scanner
-npm install -g complexity-report
-npm install -g jscpd
-```
 
 ### GitHub Integration
 
@@ -287,12 +287,14 @@ npm install -g jscpd
 ## 🎯 Quality Goals
 
 ### Short-term (1-3 months)
+
 - [ ] Achieve 90% test coverage
 - [ ] Eliminate all security hotspots
 - [ ] Reduce cognitive complexity to avg < 10
 - [ ] Achieve SonarQube A rating
 
 ### Long-term (6-12 months)
+
 - [ ] Implement mutation testing
 - [ ] Add performance benchmarking
 - [ ] Set up architectural decision records
@@ -307,4 +309,4 @@ npm install -g jscpd
 
 ---
 
-🤖 *This document is automatically updated as part of our code quality CI/CD pipeline.*
+🤖 _This document is automatically updated as part of our code quality CI/CD pipeline._

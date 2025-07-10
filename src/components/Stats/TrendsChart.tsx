@@ -32,7 +32,7 @@ const CustomTooltip = ({
   payload?: Array<{ payload: TrendsTooltipPayload }>;
   label?: string;
 }) => {
-  if (active && payload && payload.length) {
+  if (active && payload?.length) {
     const data = payload[0].payload as TrendsTooltipPayload;
     const date = new Date(label || '').toLocaleDateString('en-US', {
       month: 'short',
