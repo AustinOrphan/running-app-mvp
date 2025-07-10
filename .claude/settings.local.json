@@ -102,7 +102,8 @@
       "mcp__filesystem__search_files",
       "mcp__filesystem__create_directory",
       "mcp__filesystem__write_file",
-      "mcp__filesystem__edit_file"
+      "mcp__filesystem__edit_file",
+      "mcp__think-mcp__think"
     ],
     "deny": []
   }
