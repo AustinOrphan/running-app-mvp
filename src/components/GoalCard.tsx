@@ -4,6 +4,25 @@ import { Goal, GoalProgress, GOAL_TYPE_CONFIGS } from '../types/goals';
 
 import { CircularProgress } from './Goals/CircularProgress';
 import { GoalProgressChart } from './Goals/GoalProgressChart';
+import {
+  Card,
+  CardHeader,
+  CardIcon,
+  CardTitle,
+  CardDescription,
+  CardActions,
+  CardContent,
+  CardProgress,
+  CardFooter,
+  IconButton,
+  ProgressHeader,
+  ProgressBar,
+  DetailedProgress,
+  SimpleProgress,
+  ExpandControls,
+  ExpandedContent,
+  CompletionBadge,
+} from './UI/Card';
 
 interface GoalCardProps {
   goal: Goal;
@@ -49,140 +68,143 @@ export const GoalCard: React.FC<GoalCardProps> = ({
   const progressPercentage = isCompleted ? 100 : progress?.progressPercentage || 0;
 
   return (
-    <div className={`goal-card ${isCompleted ? 'completed' : ''}`}>
-      <div className='goal-header'>
-        <div className='goal-icon' style={{ color: goal.color || config.color }}>
+    <Card variant="goal" completed={isCompleted}>
+      <CardHeader>
+        <CardIcon color={goal.color || config.color}>
           {goal.icon || config.icon}
-        </div>
-        <div className='goal-title'>
+        </CardIcon>
+        <CardTitle>
           <h4>{goal.title}</h4>
-          <span className='goal-type'>{config.label}</span>
-        </div>
+          <span className="goal-type">{config.label}</span>
+        </CardTitle>
         {!isCompleted && (
-          <div className='goal-actions'>
+          <CardActions>
             {onEdit && (
-              <button className='btn-icon' onClick={() => onEdit(goal.id)} title='Edit goal'>
+              <IconButton
+                onClick={() => onEdit(goal.id)}
+                title="Edit goal"
+              >
                 ✏️
-              </button>
+              </IconButton>
             )}
-            <button
-              className='btn-icon'
+            <IconButton
               onClick={() => onComplete(goal.id)}
-              title='Mark as completed'
+              title="Mark as completed"
             >
               ✓
-            </button>
-            <button className='btn-icon' onClick={() => onDelete(goal.id)} title='Delete goal'>
+            </IconButton>
+            <IconButton
+              onClick={() => onDelete(goal.id)}
+              title="Delete goal"
+            >
               🗑️
-            </button>
-          </div>
+            </IconButton>
+          </CardActions>
         )}
         {isCompleted && (
-          <div className='completion-badge'>
-            <span>✅ Completed</span>
-          </div>
+          <CompletionBadge>
+            ✅ Completed
+          </CompletionBadge>
         )}
-      </div>
+      </CardHeader>
 
-      {goal.description && <p className='goal-description'>{goal.description}</p>}
-
-      <div className='goal-progress'>
-        {showDetailedView ? (
-          <div className='detailed-progress'>
-            <div className='progress-circular'>
-              <CircularProgress
-                percentage={progressPercentage}
-                size={80}
-                strokeWidth={6}
-                color={goal.color || config.color}
-              >
-                <div className='circular-content'>
-                  <div className='circular-percentage'>{Math.round(progressPercentage)}%</div>
-                  <div className='circular-label'>complete</div>
-                </div>
-              </CircularProgress>
-            </div>
-            <div className='progress-details'>
-              <div className='progress-stat'>
-                <span className='stat-label'>Current</span>
-                <span className='stat-value'>
-                  {formatProgressValue(currentValue, goal.targetUnit)}
-                </span>
-              </div>
-              <div className='progress-stat'>
-                <span className='stat-label'>Target</span>
-                <span className='stat-value'>
-                  {formatProgressValue(goal.targetValue, goal.targetUnit)}
-                </span>
-              </div>
-              <div className='progress-stat'>
-                <span className='stat-label'>Remaining</span>
-                <span className='stat-value'>
-                  {formatProgressValue(goal.targetValue - currentValue, goal.targetUnit)}
-                </span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className='simple-progress'>
-            <div className='progress-header'>
-              <span className='progress-text'>
-                {formatProgressValue(currentValue, goal.targetUnit)}
-                {' / '}
-                {formatProgressValue(goal.targetValue, goal.targetUnit)}
-              </span>
-              <span className='progress-percentage'>{Math.round(progressPercentage)}%</span>
-            </div>
-            <div className='progress-bar'>
-              <div
-                className={`progress-fill ${isCompleted ? 'completed' : ''}`}
-                style={{
-                  width: `${Math.min(progressPercentage, 100)}%`,
-                  backgroundColor: goal.color || config.color,
-                }}
-              ></div>
-            </div>
-          </div>
-        )}
-
-        {/* Expand/Collapse button */}
-        {enableExpandedView && !isCompleted && (
-          <div className='expand-controls'>
-            <button
-              className='expand-btn'
-              onClick={() => setIsExpanded(!isExpanded)}
-              title={isExpanded ? 'Show less' : 'Show detailed progress'}
-            >
-              <span>{isExpanded ? 'Show less' : 'View details'}</span>
-              <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>▼</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Expanded detailed view */}
-      {isExpanded && progress && (
-        <div className='expanded-content'>
-          <GoalProgressChart goal={goal} progress={progress} />
-        </div>
+      {goal.description && (
+        <CardDescription>
+          {goal.description}
+        </CardDescription>
       )}
 
-      <div className='goal-meta'>
-        <div className='goal-period'>
+      <CardContent>
+        <CardProgress>
+          {showDetailedView ? (
+            <DetailedProgress>
+              <div className="progress-circular">
+                <CircularProgress
+                  percentage={progressPercentage}
+                  size={80}
+                  strokeWidth={6}
+                  color={goal.color || config.color}
+                >
+                  <div className="circular-content">
+                    <div className="circular-percentage">{Math.round(progressPercentage)}%</div>
+                    <div className="circular-label">complete</div>
+                  </div>
+                </CircularProgress>
+              </div>
+              <div className="progress-details">
+                <div className="progress-stat">
+                  <span className="stat-label">Current</span>
+                  <span className="stat-value">
+                    {formatProgressValue(currentValue, goal.targetUnit)}
+                  </span>
+                </div>
+                <div className="progress-stat">
+                  <span className="stat-label">Target</span>
+                  <span className="stat-value">
+                    {formatProgressValue(goal.targetValue, goal.targetUnit)}
+                  </span>
+                </div>
+                <div className="progress-stat">
+                  <span className="stat-label">Remaining</span>
+                  <span className="stat-value">
+                    {formatProgressValue(goal.targetValue - currentValue, goal.targetUnit)}
+                  </span>
+                </div>
+              </div>
+            </DetailedProgress>
+          ) : (
+            <SimpleProgress>
+              <ProgressHeader>
+                <span className="progress-text">
+                  {formatProgressValue(currentValue, goal.targetUnit)}
+                  {' / '}
+                  {formatProgressValue(goal.targetValue, goal.targetUnit)}
+                </span>
+                <span className="progress-percentage">{Math.round(progressPercentage)}%</span>
+              </ProgressHeader>
+              <ProgressBar
+                percentage={progressPercentage}
+                completed={isCompleted}
+                color={goal.color || config.color}
+              />
+            </SimpleProgress>
+          )}
+
+          {/* Expand/Collapse button */}
+          {enableExpandedView && !isCompleted && (
+            <ExpandControls
+              isExpanded={isExpanded}
+              onToggle={() => setIsExpanded(!isExpanded)}
+              expandText="View details"
+              collapseText="Show less"
+            />
+          )}
+        </CardProgress>
+
+        {/* Expanded detailed view */}
+        {isExpanded && progress && (
+          <ExpandedContent>
+            <GoalProgressChart goal={goal} progress={progress} />
+          </ExpandedContent>
+        )}
+      </CardContent>
+
+      <CardFooter>
+        <div className="goal-period">
           <span>📅 {goal.period.toLowerCase()}</span>
         </div>
-        <div className='goal-deadline'>
+        <div className="goal-deadline">
           {isCompleted && goal.completedAt ? (
-            <span className='completion-date'>
+            <span className="completion-date">
               🎉 Completed on {new Date(goal.completedAt).toLocaleDateString()}
             </span>
           ) : progress && progress.daysRemaining > 0 ? (
             <span>⏰ {progress.daysRemaining} days left</span>
           ) : (
-            <span className='overdue'>⚠️ Overdue</span>
+            <span className="overdue">⚠️ Overdue</span>
           )}
         </div>
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   );
 };

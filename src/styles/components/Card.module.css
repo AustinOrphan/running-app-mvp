@@ -1,0 +1,609 @@
+/* ==========================================================================
+   Card Component Styles
+   Extracted from App.css - Comprehensive card system for goals, runs, and templates
+   ========================================================================== */
+
+/* Base Card Styles */
+.card {
+  background: var(--card-background, #1a1a1a);
+  border: 1px solid var(--border-color, #404040);
+  border-radius: var(--card-border-radius, 12px);
+  padding: var(--card-padding, 20px);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Card Variants */
+.cardGoal {
+  background: #1a1a1a;
+  border-radius: 12px;
+}
+
+.cardRun {
+  background: #1a1a1a;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out both;
+}
+
+.cardTemplate {
+  background: #2a2a2a;
+  border-radius: 12px;
+}
+
+/* Card States */
+.cardCompleted {
+  opacity: 0.8;
+  border-color: #10b981;
+}
+
+.cardInteractive {
+  cursor: pointer;
+}
+
+.cardLoading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Card Hover Effects */
+.cardGoal:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.cardRun:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.cardTemplate:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Card Animation Grid Delays */
+.cardRun:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.cardRun:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.cardRun:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.cardRun:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.cardRun:nth-child(5) {
+  animation-delay: 0.5s;
+}
+
+.cardRun:nth-child(6) {
+  animation-delay: 0.6s;
+}
+
+/* Card Header */
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.cardHeaderTemplate {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.cardHeaderRun {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+/* Card Icon */
+.cardIcon {
+  font-size: 1.5rem;
+  margin-right: 12px;
+}
+
+.cardIconTemplate {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+/* Card Title */
+.cardTitle {
+  flex: 1;
+}
+
+.cardTitle h4 {
+  margin: 0 0 4px 0;
+  color: rgba(255, 255, 255, 0.87);
+  font-size: 1.1rem;
+}
+
+.cardTitleTemplate {
+  flex: 1;
+}
+
+.cardTitleTemplate h4 {
+  margin: 0 0 6px 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1rem;
+}
+
+/* Card Type/Subtitle */
+.cardType {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Card Description */
+.cardDescription {
+  margin: 0 0 15px 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.cardDescriptionTemplate {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Card Actions */
+.cardActions {
+  display: flex;
+  gap: 8px;
+}
+
+.cardActionsRun {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.cardRun:hover .cardActionsRun {
+  opacity: 1;
+}
+
+.cardActionsTemplate {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+/* Icon Buttons */
+.iconBtn {
+  background: #2a2a2a;
+  border: 1px solid #404040;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  transition: background-color 0.2s;
+}
+
+.iconBtn:hover {
+  background: #3a3a3a;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.iconBtnRun {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.iconBtnRun:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.iconBtnDelete:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.iconBtnEdit:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* Card Content */
+.cardContent {
+  margin-bottom: 15px;
+}
+
+/* Progress Components */
+.cardProgress {
+  margin-bottom: 15px;
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.progressText {
+  color: rgba(255, 255, 255, 0.87);
+  font-weight: 500;
+}
+
+.progressPercentage {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+}
+
+.progressBar {
+  height: 8px;
+  background: #2a2a2a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progressFillCompleted {
+  background: #10b981;
+}
+
+/* Detailed Progress */
+.detailedProgress {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.progressCircular {
+  flex-shrink: 0;
+}
+
+.progressDetails {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progressStat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.statLabel {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+}
+
+.statValue {
+  color: rgba(255, 255, 255, 0.87);
+  font-weight: 500;
+}
+
+/* Simple Progress */
+.simpleProgress {
+  /* Uses progressHeader, progressBar, progressFill from above */
+}
+
+/* Expand Controls */
+.expandControls {
+  margin-top: 10px;
+}
+
+.expandBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: 1px solid #404040;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.expandBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.expandIcon {
+  transition: transform 0.2s ease;
+}
+
+.expandIconExpanded {
+  transform: rotate(180deg);
+}
+
+/* Expanded Content */
+.expandedContent {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #404040;
+}
+
+/* Card Footer/Meta */
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.cardMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.cardPeriod span,
+.cardDeadline span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.overdue {
+  color: #ef4444 !important;
+}
+
+/* Completion Badge */
+.completionBadge {
+  background: #10b981;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.completionDate {
+  text-align: center;
+  color: #10b981;
+  font-size: 0.9rem;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #404040;
+}
+
+/* Run Card Specific Styles */
+.runDate {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.87);
+  margin-bottom: 10px;
+}
+
+.runDetails {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.runDetails span {
+  background: #404040;
+  color: rgba(255, 255, 255, 0.87);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.runTag {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+}
+
+.runNotes {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+/* Template Card Specific Styles */
+.templateDetails {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+}
+
+.templateTarget,
+.templatePeriod,
+.templateTimeframe {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.targetLabel,
+.periodLabel,
+.timeframeLabel {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.targetValue,
+.periodValue,
+.timeframeValue {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+}
+
+.templateTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.templateTag {
+  padding: 4px 8px;
+  border: 1px solid;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.templateExpanded {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border-left: 3px solid #3b82f6;
+}
+
+.templateSection {
+  margin-bottom: 16px;
+}
+
+.templateSection:last-child {
+  margin-bottom: 0;
+}
+
+.templateSection h5 {
+  margin: 0 0 8px 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.templateSection ul {
+  margin: 0;
+  padding-left: 20px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.templateSection li {
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.milestonesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.milestoneItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.milestonePercentage {
+  font-weight: 600;
+  color: #3b82f6;
+  font-size: 0.85rem;
+  min-width: 35px;
+}
+
+.milestoneDescription {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+}
+
+.templateExpand {
+  flex: 0 0 auto;
+}
+
+.templateSelect {
+  flex: 1;
+}
+
+/* Difficulty Badge */
+.difficultyBadge {
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+/* Animation */
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .card {
+    padding: 16px;
+  }
+  
+  .cardHeaderTemplate {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .templateDetails {
+    grid-template-columns: 1fr;
+  }
+  
+  .cardActionsTemplate {
+    flex-direction: column;
+  }
+  
+  .templateExpand {
+    order: 2;
+  }
+  
+  .templateSelect {
+    order: 1;
+  }
+  
+  .detailedProgress {
+    flex-direction: column;
+    gap: 15px;
+  }
+}
