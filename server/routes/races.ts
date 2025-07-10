@@ -1,15 +1,20 @@
 import express from 'express';
 
-import { asyncAuthHandler } from '../middleware/asyncHandler';
-import { createNotFoundError } from '../middleware/errorHandler';
-import { requireAuth, AuthRequest } from '../middleware/requireAuth';
+import { prisma } from '../../lib/prisma.js';
+import { asyncAuthHandler } from '../middleware/asyncHandler.js';
+import { createNotFoundError } from '../middleware/errorHandler.js';
+import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import {
   sanitizeInput,
   validateCreateRace,
   validateUpdateRace,
   validateIdParam,
+<<<<<<< Updated upstream:server/routes/races.ts
+} from '../middleware/validation.js';
+import { prisma } from '../../server.js';
+=======
 } from '../middleware/validation';
-import { prisma } from '../server';
+>>>>>>> Stashed changes:routes/races.ts
 
 const router = express.Router();
 

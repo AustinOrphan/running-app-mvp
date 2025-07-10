@@ -10,7 +10,7 @@ vi.mock('../../../src/utils/formatters', () => ({
 }));
 
 // Mock the apiFetch utilities
-vi.mock('../../../utils/apiFetch', () => {
+vi.mock('../../../src/utils/apiFetch', () => {
   // Define MockApiError inside the factory to avoid hoisting issues
   class MockApiError extends Error {
     status?: number;
@@ -36,7 +36,7 @@ vi.mock('../../../utils/apiFetch', () => {
 });
 
 // Import the mocked functions
-import { apiGet, apiPost, apiPut, apiDelete, ApiResponse } from '../../../utils/apiFetch';
+import { apiGet, apiPost, apiPut, apiDelete, ApiResponse } from '../../../src/utils/apiFetch';
 
 // Use a simple error class for tests since we defined it in the mock
 class MockApiError extends Error {

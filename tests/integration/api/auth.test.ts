@@ -4,7 +4,7 @@ import request from 'supertest';
 import type { TestUser } from '../../e2e/types';
 import { assertTestUser } from '../../e2e/types/index.js';
 
-import authRoutes from '../../../routes/auth.js';
+import authRoutes from '../../../server/routes/auth.js';
 import { testDb } from '../../fixtures/testDatabase.js';
 
 // Create test app

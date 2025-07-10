@@ -1,24 +1,26 @@
-import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Import database client
+import { prisma } from './lib/prisma.js';
+
 // Import middleware
-import { errorHandler } from './middleware/errorHandler.js';
-import { globalRateLimit } from './middleware/rateLimiting.js';
-import { securityHeaders } from './middleware/validation.js';
+import { errorHandler } from './server/middleware/errorHandler.js';
+import { globalRateLimit } from './server/middleware/rateLimiting.js';
+import { securityHeaders } from './server/middleware/validation.js';
 
 // Import routes
-import authRoutes from './routes/auth.js';
-import goalRoutes from './routes/goals.js';
-import raceRoutes from './routes/races.js';
-import runRoutes from './routes/runs.js';
-import statsRoutes from './routes/stats.js';
+import authRoutes from './server/routes/auth.js';
+import goalRoutes from './server/routes/goals.js';
+import raceRoutes from './server/routes/races.js';
+import runRoutes from './server/routes/runs.js';
+import statsRoutes from './server/routes/stats.js';
 
 // Import enhanced logging
-import { logError, logInfo, correlationMiddleware } from './utils/logger.js';
+import { logError, logInfo, correlationMiddleware } from './server/utils/logger.js';
 
 dotenv.config();
 
@@ -26,7 +28,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const prisma = new PrismaClient();
 
 // Middleware
 app.use(cors());

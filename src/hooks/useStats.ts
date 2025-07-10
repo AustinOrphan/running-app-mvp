@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 import { WeeklyInsights, RunTypeBreakdown, TrendsDataPoint, PersonalRecord } from '../types';
 import { logError } from '../utils/clientLogger';
-import { apiGet } from '../../utils/apiFetch';
+import { apiGet } from '../utils/apiFetch';
 
 export const useStats = (token: string | null, period: string = '3m') => {
   const [weeklyInsights, setWeeklyInsights] = useState<WeeklyInsights | null>(null);

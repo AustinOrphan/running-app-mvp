@@ -90,10 +90,7 @@
       "mcp__serena__think_about_task_adherence",
       "Bash(diff:*)",
       "Bash(git remote:*)",
-      "Bash(mv:*)",
-      "Bash(node:*)",
-      "Bash(rm:*)",
-      "Bash(chmod:*)"
+      "Bash(mv:*)"
     ],
     "deny": []
   }
