@@ -24,6 +24,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister, loading
       <h2>Login or Register</h2>
       <form onSubmit={handleLogin}>
         <input
+          id='auth-email'
           type='email'
           placeholder='Email'
           value={email}
@@ -32,6 +33,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister, loading
           required
         />
         <input
+          id='auth-password'
           type='password'
           placeholder='Password (min 6 chars)'
           value={password}
