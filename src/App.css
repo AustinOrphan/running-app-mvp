@@ -1,15 +1,3 @@
-/* CSS Variables for consistent theming */
-:root {
-  --primary-bg: #242424;
-  --card-bg: #1a1a1a;
-  --secondary-bg: #2a2a2a;
-  --border-color: #404040;
-  --text-primary: rgba(255, 255, 255, 0.87);
-  --text-secondary: rgba(255, 255, 255, 0.6);
-  --records-table-th-bg: var(--secondary-bg);
-  --hover-bg: rgba(255, 255, 255, 0.05);
-}
-
 .app {
   max-width: 1200px;
   width: 100%;

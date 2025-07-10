@@ -4,6 +4,7 @@ import { Goal, GoalProgress, GOAL_TYPE_CONFIGS } from '../types/goals';
 
 import { CircularProgress } from './Goals/CircularProgress';
 import { GoalProgressChart } from './Goals/GoalProgressChart';
+import { IconButton, Button } from './UI/Button';
 
 interface GoalCardProps {
   goal: Goal;
@@ -61,20 +62,31 @@ export const GoalCard: React.FC<GoalCardProps> = ({
         {!isCompleted && (
           <div className='goal-actions'>
             {onEdit && (
-              <button className='btn-icon' onClick={() => onEdit(goal.id)} title='Edit goal'>
-                ✏️
-              </button>
+              <IconButton
+                icon="✏️"
+                aria-label="Edit goal"
+                tooltip="Edit goal"
+                size="small"
+                variant="secondary"
+                onClick={() => onEdit(goal.id)}
+              />
             )}
-            <button
-              className='btn-icon'
+            <IconButton
+              icon="✓"
+              aria-label="Mark as completed"
+              tooltip="Mark as completed"
+              size="small"
+              variant="success"
               onClick={() => onComplete(goal.id)}
-              title='Mark as completed'
-            >
-              ✓
-            </button>
-            <button className='btn-icon' onClick={() => onDelete(goal.id)} title='Delete goal'>
-              🗑️
-            </button>
+            />
+            <IconButton
+              icon="🗑️"
+              aria-label="Delete goal"
+              tooltip="Delete goal"
+              size="small"
+              variant="danger"
+              onClick={() => onDelete(goal.id)}
+            />
           </div>
         )}
         {isCompleted && (
@@ -148,14 +160,17 @@ export const GoalCard: React.FC<GoalCardProps> = ({
         {/* Expand/Collapse button */}
         {enableExpandedView && !isCompleted && (
           <div className='expand-controls'>
-            <button
+            <Button
               className='expand-btn'
               onClick={() => setIsExpanded(!isExpanded)}
               title={isExpanded ? 'Show less' : 'Show detailed progress'}
+              variant="secondary"
+              size="small"
+              icon={<span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>▼</span>}
+              iconPosition="right"
             >
-              <span>{isExpanded ? 'Show less' : 'View details'}</span>
-              <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>▼</span>
-            </button>
+              {isExpanded ? 'Show less' : 'View details'}
+            </Button>
           </div>
         )}
       </div>
