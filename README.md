@@ -157,7 +157,7 @@ npm run test:e2e:headed        # Run with visible browser
 npm run test:coverage          # Unit test coverage
 npm run test:coverage:integration # Integration test coverage
 npm run test:coverage:all      # Combined coverage report
-npm run test:coverage:open     # Open coverage report in browser
+npm run test:coverage:open     # Open coverage report in browser (macOS only)
 
 # Specialized Testing
 npm run test:a11y              # Accessibility testing
