@@ -113,3 +113,14 @@ prisma/migrations/*/migration.sql
 
 # Testing
 coverage/
+test-results/
+playwright-report/
+benchmark-results/
+memory-reports/
+
+# CI/CD
+lhci.db
+bundle-report.json
+performance-report.md
+build-report.md
+release-package/
