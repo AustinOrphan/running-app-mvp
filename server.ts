@@ -1,7 +1,6 @@
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
-import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -26,6 +25,21 @@ import { logError, logInfo, correlationMiddleware } from './server/utils/logger.
 // Import security utilities
 import { comprehensiveSecurityMiddleware } from './server/utils/securityUtils.js';
 import { securityEventTracker, getSecurityMetrics } from './server/utils/securityLogger.js';
+import {
+  enhancedSecurityHeaders,
+  apiSecurityHeaders,
+  staticAssetSecurityHeaders,
+  developmentSecurityHeaders,
+  checkSecurityHeaders,
+} from './server/middleware/securityHeaders.js';
+import { createSSLRedirectMiddleware } from './server/utils/sslUtils.js';
+import {
+  startServer,
+  gracefulShutdown,
+  getServerConfig,
+  setupCertificateMonitoring,
+  setupDevelopmentSSL,
+} from './server/utils/httpsServer.js';
 
 dotenv.config();
 
@@ -34,42 +48,20 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Security headers (apply first)
-const cspEnabled = process.env.CSP_ENABLED !== 'false';
-const hstsEnabled = process.env.HSTS_ENABLED !== 'false';
-const hstsMaxAge = parseInt(process.env.HSTS_MAX_AGE || '31536000', 10);
+// Setup development SSL if needed
+setupDevelopmentSSL();
 
-app.use(
-  helmet({
-    contentSecurityPolicy: cspEnabled
-      ? {
-          directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'"],
-            scriptSrc: ["'self'"],
-            imgSrc: ["'self'", 'data:', 'https:'],
-            connectSrc: ["'self'"],
-            fontSrc: ["'self'"],
-            objectSrc: ["'none'"],
-            mediaSrc: ["'self'"],
-            frameSrc: ["'none'"],
-            frameAncestors: ["'none'"],
-            baseUri: ["'self'"],
-            formAction: ["'self'"],
-          },
-          reportOnly: false,
-        }
-      : false,
-    crossOriginEmbedderPolicy: false,
-    hsts: hstsEnabled
-      ? {
-          maxAge: hstsMaxAge,
-          includeSubDomains: true,
-          preload: true,
-        }
-      : false,
-  })
-);
+// SSL redirect middleware (before any other middleware)
+app.use(createSSLRedirectMiddleware());
+
+// Enhanced security headers (replacing basic helmet configuration)
+app.use(enhancedSecurityHeaders);
+
+// Development-specific security headers
+app.use(developmentSecurityHeaders);
+
+// Static asset security headers
+app.use(staticAssetSecurityHeaders);
 
 // CORS configuration - restrict origins in production
 const allowedOrigins =
@@ -114,6 +106,9 @@ app.use(comprehensiveSecurityMiddleware);
 // Additional security middleware
 app.use(securityHeaders);
 app.use(globalRateLimit);
+
+// API-specific security headers
+app.use('/api', apiSecurityHeaders);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -179,26 +174,79 @@ if (process.env.NODE_ENV === 'development') {
       res.status(500).json({ message: 'Failed to fetch security metrics' });
     }
   });
+
+  // Security headers health check endpoint
+  app.get('/api/debug/security-headers', (req, res) => {
+    try {
+      const headerCheck = checkSecurityHeaders(req);
+      res.json({
+        timestamp: new Date().toISOString(),
+        securityScore: headerCheck.score,
+        missingHeaders: headerCheck.missing,
+        recommendations: headerCheck.recommendations,
+        currentHeaders: Object.keys(req.headers).filter(
+          h =>
+            h.startsWith('x-') ||
+            ['content-security-policy', 'strict-transport-security', 'referrer-policy'].includes(h)
+        ),
+      });
+    } catch (error) {
+      logError('server', 'security-headers-check', error, req);
+      res.status(500).json({ message: 'Failed to check security headers' });
+    }
+  });
 }
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3001;
+// Get server configuration
+const serverConfig = getServerConfig();
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
+// Store server references for graceful shutdown
+let servers: { server: any; redirectServer?: any } | null = null;
+
+// Graceful shutdown handlers
+const shutdown = async (signal: string) => {
+  logInfo('server', 'shutdown', `Received ${signal}, initiating graceful shutdown`);
+
+  if (servers) {
+    await gracefulShutdown(servers);
+  }
+
   await prisma.$disconnect();
   process.exit(0);
-});
+};
 
-process.on('SIGTERM', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-app.listen(PORT, () => {
-  logInfo('server', 'startup', `🚀 Server running on port ${PORT}`, undefined, { port: PORT });
-});
+// Start the server
+startServer(app, serverConfig)
+  .then(serverInstances => {
+    servers = serverInstances;
+
+    // Setup SSL certificate monitoring if HTTPS is enabled
+    setupCertificateMonitoring(serverInstances.server, { enabled: serverConfig.ssl });
+
+    const isHTTPS = serverInstances.server.listening && 'key' in serverInstances.server;
+    const protocol = isHTTPS ? 'HTTPS' : 'HTTP';
+    const port = isHTTPS ? serverConfig.httpsPort || 443 : serverConfig.port;
+
+    logInfo('server', 'startup', `🚀 ${protocol} server running on port ${port}`, undefined, {
+      port,
+      protocol: protocol.toLowerCase(),
+      ssl: serverConfig.ssl,
+      redirectHTTP: !!serverInstances.redirectServer,
+    });
+
+    if (serverInstances.redirectServer) {
+      logInfo('server', 'startup', `🔀 HTTP redirect server running on port ${serverConfig.port}`);
+    }
+  })
+  .catch(error => {
+    logError('server', 'startup', error);
+    process.exit(1);
+  });
 
 export { app, prisma };
