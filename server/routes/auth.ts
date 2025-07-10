@@ -23,6 +23,7 @@ import {
   extractTokenFromHeader,
   blacklistToken,
 } from '../utils/jwtUtils.js';
+import { auditAuth, auditData } from '../utils/auditLogger.js';
 
 const router = express.Router();
 
@@ -53,6 +54,7 @@ router.post(
     });
 
     if (existingUser) {
+      await auditAuth.register(req, email, 'failure');
       throw createConflictError('User already exists', { email });
     }
 
@@ -69,6 +71,8 @@ router.post(
     });
 
     logUserAction('User registration', req, { email });
+    await auditAuth.register(req, user.id, 'success');
+    await auditData.create(req, 'user', user.id, 'success');
 
     // Generate JWT tokens
     const { accessToken, refreshToken } = generateTokens(user);
@@ -98,16 +102,19 @@ router.post(
     });
 
     if (!user) {
+      await auditAuth.login(req, email, 'failure', { reason: 'user_not_found' });
       throw createUnauthorizedError('Invalid credentials');
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
+      await auditAuth.login(req, user.id, 'failure', { reason: 'invalid_password' });
       throw createUnauthorizedError('Invalid credentials');
     }
 
     logUserAction('User login', req, { email });
+    await auditAuth.login(req, user.id, 'success');
 
     // Generate JWT tokens
     const { accessToken, refreshToken } = generateTokens(user);
@@ -176,12 +183,14 @@ router.post(
       const { accessToken } = generateTokens(user);
 
       logUserAction('Token refresh', req, { userId: user.id });
+      await auditAuth.refresh(req, user.id, 'success');
 
       res.json({
         message: 'Token refreshed successfully',
         accessToken,
       });
     } catch {
+      await auditAuth.refresh(req, 'unknown', 'failure');
       throw createUnauthorizedError('Invalid refresh token');
     }
   })
@@ -219,9 +228,11 @@ router.post(
       }
 
       logUserAction('User logout', req, { userId: req.user?.id });
+      await auditAuth.logout(req, req.user?.id || 'unknown');
 
       res.json({ message: 'Logged out successfully' });
     } catch {
+      await auditAuth.logout(req, req.user?.id || 'unknown');
       throw createError('Logout failed', 500);
     }
   })

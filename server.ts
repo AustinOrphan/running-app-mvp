@@ -18,6 +18,7 @@ import goalRoutes from './server/routes/goals.js';
 import raceRoutes from './server/routes/races.js';
 import runRoutes from './server/routes/runs.js';
 import statsRoutes from './server/routes/stats.js';
+import auditRoutes from './server/routes/audit.js';
 
 // Import enhanced logging
 import { logError, logInfo, correlationMiddleware } from './server/utils/logger.js';
@@ -116,6 +117,7 @@ app.use('/api/runs', runRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/races', raceRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/audit', auditRoutes);
 
 // Serve static client and handle SPA routing in production
 if (process.env.NODE_ENV === 'production') {
