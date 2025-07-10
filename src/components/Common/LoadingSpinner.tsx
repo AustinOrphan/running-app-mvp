@@ -1,4 +1,5 @@
 import React from 'react';
+import { Card } from '../UI/Card';
 
 interface LoadingSpinnerProps {
   count?: number;
@@ -8,7 +9,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ count = 3 }) => 
   return (
     <div className='runs-grid'>
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className='run-card skeleton'>
+        <Card key={i} variant='run' className='skeleton'>
           <div className='skeleton-line' style={{ width: '60%', height: '20px' }}></div>
           <div
             className='skeleton-line'
@@ -18,7 +19,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ count = 3 }) => 
             className='skeleton-line'
             style={{ width: '40%', height: '14px', marginTop: '8px' }}
           ></div>
-        </div>
+        </Card>
       ))}
     </div>
   );

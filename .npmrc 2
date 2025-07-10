@@ -1,0 +1,11 @@
+# CI optimization for better dependency resolution
+prefer-offline=false
+fund=false
+audit=false
+optional=true
+engine-strict=true
+
+# Better handling of platform-specific optional dependencies in CI
+platform=linux
+target_arch=x64
+target_platform=linux

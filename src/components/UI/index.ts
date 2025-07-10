@@ -17,3 +17,45 @@ export type { InputProps, InputGroupProps, TextAreaProps } from './Input';
 // Modal components
 export { Modal, ConfirmationModal, LoadingModal } from './Modal';
 export type { ModalProps, ConfirmationModalProps, LoadingModalProps } from './Modal';
+
+// Card components
+export {
+  Card,
+  CardHeader,
+  CardIcon,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardActions,
+  CardFooter,
+  CardProgress,
+  IconButton as CardIconButton,
+  ExpandControls,
+  ExpandedContent,
+  ProgressHeader,
+  ProgressBar,
+  DetailedProgress,
+  SimpleProgress,
+  CompletionBadge,
+  DifficultyBadge,
+} from './Card';
+export type {
+  CardProps,
+  CardHeaderProps,
+  CardIconProps,
+  CardTitleProps,
+  CardDescriptionProps,
+  CardContentProps,
+  CardActionsProps,
+  CardFooterProps,
+  CardProgressProps,
+  IconButtonProps as CardIconButtonProps,
+  ExpandControlsProps,
+  ExpandedContentProps,
+  ProgressHeaderProps,
+  ProgressBarProps,
+  DetailedProgressProps,
+  SimpleProgressProps,
+  CompletionBadgeProps,
+  DifficultyBadgeProps,
+} from './Card';
