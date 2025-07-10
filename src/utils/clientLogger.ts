@@ -193,12 +193,12 @@ class ClientLogger {
     // Implementation would depend on your logging service
     // Examples: Sentry, LogRocket, Datadog, etc.
     try {
-      await fetch('/api/logs', { 
-        method: 'POST', 
+      await fetch('/api/logs', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(logEntry) 
+        body: JSON.stringify(logEntry),
       });
     } catch {
       // Fail silently to avoid recursive logging issues

@@ -11,11 +11,11 @@
  */
 export const calculatePace = (distance: number, duration: number): string => {
   if (distance === 0 || duration === 0) return '0:00';
-  
+
   // Handle negative values
   const isNegative = (distance < 0 && duration > 0) || (distance > 0 && duration < 0);
   const paceInSeconds = Math.abs(duration) / Math.abs(distance);
-  
+
   if (isNegative) {
     // Format the pace and add negative sign
     const formatted = formatPace(paceInSeconds);

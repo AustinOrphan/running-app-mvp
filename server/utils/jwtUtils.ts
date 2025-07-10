@@ -107,29 +107,29 @@ export const extractTokenFromHeader = (authHeader: string | undefined): string |
 
 /**
  * Token blacklist implementation
- * 
+ *
  * CRITICAL TODO: Replace with persistent storage before production deployment
  * Current implementation uses in-memory storage which has two major issues:
  * 1. Blacklist is cleared on server restart (revoked tokens become valid again)
  * 2. Not shared across multiple server instances (horizontal scaling issue)
- * 
+ *
  * Production implementation options:
  * - Redis with TTL matching token expiration
  * - Memcached for distributed caching
  * - Database table with cleanup job
- * 
+ *
  * Example Redis implementation:
  * ```
  * import Redis from 'ioredis';
  * const redis = new Redis(process.env.REDIS_URL);
- * 
+ *
  * export const blacklistToken = async (jti: string, expiresAt: number) => {
  *   const ttl = expiresAt - Math.floor(Date.now() / 1000);
  *   if (ttl > 0) {
  *     await redis.setex(`blacklist:${jti}`, ttl, '1');
  *   }
  * };
- * 
+ *
  * export const isTokenBlacklisted = async (jti: string): boolean => {
  *   const result = await redis.get(`blacklist:${jti}`);
  *   return result === '1';

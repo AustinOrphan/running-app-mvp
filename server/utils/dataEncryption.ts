@@ -3,7 +3,7 @@ import { logError, logInfo } from './logger.js';
 
 /**
  * Data Encryption Utilities for Sensitive Data at Rest
- * 
+ *
  * Implements AES-256-GCM encryption for sensitive data with proper key management
  * Provides field-level encryption for database storage and audit logs
  */
@@ -25,7 +25,7 @@ export interface EncryptionConfig {
 const DEFAULT_CONFIG: EncryptionConfig = {
   algorithm: 'aes-256-gcm',
   keyLength: 32, // 256 bits
-  ivLength: 16,  // 128 bits
+  ivLength: 16, // 128 bits
   tagLength: 16, // 128 bits
 };
 
@@ -40,12 +40,14 @@ class DataEncryption {
 
   private initializeEncryptionKey(): void {
     const keyString = process.env.DATA_ENCRYPTION_KEY;
-    
+
     if (!keyString) {
       if (process.env.NODE_ENV === 'production') {
-        throw new Error('CRITICAL: DATA_ENCRYPTION_KEY environment variable must be set in production');
+        throw new Error(
+          'CRITICAL: DATA_ENCRYPTION_KEY environment variable must be set in production'
+        );
       }
-      
+
       logInfo('encryption', 'key-init', 'Using development encryption key');
       // Generate a consistent key for development
       this.encryptionKey = crypto.scryptSync('dev-encryption-key', 'salt', this.config.keyLength);
@@ -81,12 +83,16 @@ class DataEncryption {
 
     try {
       const iv = crypto.randomBytes(this.config.ivLength);
-      const cipher = crypto.createCipheriv(this.config.algorithm, this.encryptionKey, iv) as crypto.CipherGCM;
+      const cipher = crypto.createCipheriv(
+        this.config.algorithm,
+        this.encryptionKey,
+        iv
+      ) as crypto.CipherGCM;
       cipher.setAAD(Buffer.from('audit-data')); // Additional authenticated data
 
       let encrypted = cipher.update(data, 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
+
       const tag = cipher.getAuthTag();
 
       return {
@@ -116,8 +122,12 @@ class DataEncryption {
     try {
       const iv = Buffer.from(encryptedData.iv, 'hex');
       const tag = Buffer.from(encryptedData.tag, 'hex');
-      
-      const decipher = crypto.createDecipheriv(this.config.algorithm, this.encryptionKey, iv) as crypto.DecipherGCM;
+
+      const decipher = crypto.createDecipheriv(
+        this.config.algorithm,
+        this.encryptionKey,
+        iv
+      ) as crypto.DecipherGCM;
       decipher.setAAD(Buffer.from('audit-data')); // Must match AAD from encryption
       decipher.setAuthTag(tag);
 
@@ -150,18 +160,16 @@ class DataEncryption {
   /**
    * Encrypt specific fields in an object
    */
-  encryptFields(
-    obj: Record<string, unknown>, 
-    fieldsToEncrypt: string[]
-  ): Record<string, unknown> {
+  encryptFields(obj: Record<string, unknown>, fieldsToEncrypt: string[]): Record<string, unknown> {
     const result = { ...obj };
 
     for (const field of fieldsToEncrypt) {
       if (result[field] !== undefined && result[field] !== null) {
-        const value = typeof result[field] === 'string' 
-          ? result[field] as string 
-          : JSON.stringify(result[field]);
-        
+        const value =
+          typeof result[field] === 'string'
+            ? (result[field] as string)
+            : JSON.stringify(result[field]);
+
         result[field] = this.encrypt(value);
       }
     }
@@ -172,10 +180,7 @@ class DataEncryption {
   /**
    * Decrypt specific fields in an object
    */
-  decryptFields(
-    obj: Record<string, unknown>, 
-    fieldsToDecrypt: string[]
-  ): Record<string, unknown> {
+  decryptFields(obj: Record<string, unknown>, fieldsToDecrypt: string[]): Record<string, unknown> {
     const result = { ...obj };
 
     for (const field of fieldsToDecrypt) {
@@ -216,7 +221,7 @@ class DataEncryption {
   static validateKey(key: string): boolean {
     try {
       let keyBuffer: Buffer;
-      
+
       if (key.length === DEFAULT_CONFIG.keyLength * 2) {
         keyBuffer = Buffer.from(key, 'hex');
       } else {
@@ -235,15 +240,20 @@ export const dataEncryption = new DataEncryption();
 
 // Export convenience functions
 export const encryptData = (data: string): EncryptedData => dataEncryption.encrypt(data);
-export const decryptData = (encryptedData: EncryptedData): string => dataEncryption.decrypt(encryptedData);
-export const encryptObject = (obj: Record<string, unknown>): EncryptedData => 
+export const decryptData = (encryptedData: EncryptedData): string =>
+  dataEncryption.decrypt(encryptedData);
+export const encryptObject = (obj: Record<string, unknown>): EncryptedData =>
   dataEncryption.encryptObject(obj);
-export const decryptObject = (encryptedData: EncryptedData): Record<string, unknown> => 
+export const decryptObject = (encryptedData: EncryptedData): Record<string, unknown> =>
   dataEncryption.decryptObject(encryptedData);
-export const encryptFields = (obj: Record<string, unknown>, fields: string[]): Record<string, unknown> => 
-  dataEncryption.encryptFields(obj, fields);
-export const decryptFields = (obj: Record<string, unknown>, fields: string[]): Record<string, unknown> => 
-  dataEncryption.decryptFields(obj, fields);
+export const encryptFields = (
+  obj: Record<string, unknown>,
+  fields: string[]
+): Record<string, unknown> => dataEncryption.encryptFields(obj, fields);
+export const decryptFields = (
+  obj: Record<string, unknown>,
+  fields: string[]
+): Record<string, unknown> => dataEncryption.decryptFields(obj, fields);
 
 // Export utilities
 export const generateEncryptionKey = DataEncryption.generateKey;
@@ -268,7 +278,9 @@ export const encryptUserData = (userData: Record<string, unknown>): Record<strin
 /**
  * Decrypt user sensitive data from database
  */
-export const decryptUserData = (encryptedUserData: Record<string, unknown>): Record<string, unknown> => {
+export const decryptUserData = (
+  encryptedUserData: Record<string, unknown>
+): Record<string, unknown> => {
   return dataEncryption.decryptFields(encryptedUserData, [...SENSITIVE_FIELDS.USER]);
 };
 
@@ -282,6 +294,8 @@ export const encryptAuthData = (authData: Record<string, unknown>): Record<strin
 /**
  * Decrypt authentication data
  */
-export const decryptAuthData = (encryptedAuthData: Record<string, unknown>): Record<string, unknown> => {
+export const decryptAuthData = (
+  encryptedAuthData: Record<string, unknown>
+): Record<string, unknown> => {
   return dataEncryption.decryptFields(encryptedAuthData, [...SENSITIVE_FIELDS.AUTH]);
 };

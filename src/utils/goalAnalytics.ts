@@ -39,16 +39,16 @@ export class GoalAnalyticsCalculator {
       try {
         const startDate = new Date(goal.startDate);
         const completedDate = new Date(goal.completedAt);
-        
+
         // Check if dates are valid
         if (isNaN(startDate.getTime()) || isNaN(completedDate.getTime())) {
           return sum;
         }
-        
+
         const daysDiff = Math.ceil(
           (completedDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
         );
-        
+
         // Only count positive differences
         if (daysDiff > 0) {
           validGoalsCount++;
@@ -122,7 +122,7 @@ export class GoalAnalyticsCalculator {
       try {
         const startDate = new Date(goal.startDate);
         if (isNaN(startDate.getTime())) return; // Skip invalid dates
-        
+
         const startMonth = startDate.toISOString().slice(0, 7);
 
         if (!monthlyData[startMonth]) {
@@ -393,7 +393,7 @@ export class GoalAnalyticsCalculator {
         return 'Stay focused! You can achieve this with consistent effort.';
       case 'moderate':
       default:
-        return 'You\'re on track! Keep up the good work.';
+        return "You're on track! Keep up the good work.";
     }
   }
 }

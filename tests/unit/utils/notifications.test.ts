@@ -585,7 +585,7 @@ describe('NotificationTimingManager', () => {
 
     it('should block non-urgent notifications during quiet hours', () => {
       vi.setSystemTime(new Date('2024-01-15T14:30:00')); // 2:30 PM - within quiet hours
-      
+
       const notification = createMockGoalNotification({ type: 'milestone', priority: 'medium' });
       const preferences = {
         ...basePreferences,
