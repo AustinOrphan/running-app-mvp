@@ -143,7 +143,10 @@ export const validateToken = (token, type = 'access') => {
 
 ```javascript
 // utils/tokenBlacklist.js
-const blacklistedTokens = new Set(); // Use Redis in production
+// ⚠️ CRITICAL: This in-memory Set is NOT suitable for production!
+// In production, use Redis or similar distributed cache for token blacklisting
+// to ensure scalability and persistence across server restarts.
+const blacklistedTokens = new Set(); // DEVELOPMENT ONLY - Use Redis in production
 
 export const blacklistToken = (jti, expiresAt) => {
   blacklistedTokens.add(jti);
@@ -178,6 +181,30 @@ export const logout = async (req, res) => {
 };
 ```
 
+### Production Redis Implementation
+
+For production environments, implement token blacklisting with Redis:
+
+```javascript
+// utils/tokenBlacklist.js (Production version)
+import Redis from 'ioredis';
+
+const redis = new Redis(process.env.REDIS_URL);
+
+export const blacklistToken = async (jti, expiresAt) => {
+  const ttl = expiresAt - Math.floor(Date.now() / 1000);
+  if (ttl > 0) {
+    // Store in Redis with TTL for automatic cleanup
+    await redis.setex(`blacklist:${jti}`, ttl, '1');
+  }
+};
+
+export const isTokenBlacklisted = async (jti) => {
+  const result = await redis.get(`blacklist:${jti}`);
+  return result !== null;
+};
+```
+
 ## Security Headers Configuration
 
 ### Install and Configure Helmet.js
@@ -195,7 +222,7 @@ export const securityHeaders = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      styleSrc: ["'self'", "https://fonts.googleapis.com"], // Removed 'unsafe-inline' to prevent CSS injection attacks
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'", "https://api.running-app.com"],
@@ -747,7 +774,7 @@ npx git-secrets --scan
 # Docker security scan (if using Docker)
 if [ -f "Dockerfile" ]; then
   echo "Scanning Docker image..."
-  docker run --rm -v $(pwd):/app clair-scanner:latest
+  docker run --rm -v $(pwd):/app clair-scanner:v12 # Pin to a specific version
 fi
 
 echo "Security scan complete!"

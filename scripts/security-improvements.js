@@ -87,8 +87,15 @@ NODE_ENV=development
 HTTPS_REDIRECT=false
 `;
 
-fs.writeFileSync('.env.security.template', securityEnvTemplate);
-console.log('✅ Created .env.security.template');
+// Check if file exists to prevent accidental overwrite
+if (fs.existsSync('.env.security.template')) {
+  console.log('⚠️  .env.security.template already exists - writing to .env.security.template.new');
+  fs.writeFileSync('.env.security.template.new', securityEnvTemplate);
+  console.log('✅ Created .env.security.template.new');
+} else {
+  fs.writeFileSync('.env.security.template', securityEnvTemplate);
+  console.log('✅ Created .env.security.template');
+}
 
 // 3. Check current security implementation
 console.log('\n3. 🔍 Auditing current security implementation...');
@@ -419,7 +426,13 @@ describe('Security Tests', () => {
 });
 `;
 
-fs.writeFileSync('tests/security.test.js', securityTestTemplate);
+// Check if file exists to prevent accidental overwrite
+if (fs.existsSync('tests/security.test.js')) {
+  console.log('⚠️  tests/security.test.js already exists - writing to tests/security.test.new.js');
+  fs.writeFileSync('tests/security.test.new.js', securityTestTemplate);
+} else {
+  fs.writeFileSync('tests/security.test.js', securityTestTemplate);
+}
 console.log('✅ Created tests/security.test.js');
 
 // 6. Create security package.json scripts
@@ -537,7 +550,13 @@ const securityChecklist = `# Security Deployment Checklist
 - [ ] Update security documentation
 `;
 
-fs.writeFileSync('SECURITY_CHECKLIST.md', securityChecklist);
+// Check if file exists to prevent accidental overwrite
+if (fs.existsSync('SECURITY_CHECKLIST.md')) {
+  console.log('⚠️  SECURITY_CHECKLIST.md already exists - writing to SECURITY_CHECKLIST.new.md');
+  fs.writeFileSync('SECURITY_CHECKLIST.new.md', securityChecklist);
+} else {
+  fs.writeFileSync('SECURITY_CHECKLIST.md', securityChecklist);
+}
 console.log('✅ Created SECURITY_CHECKLIST.md');
 
 // 8. Summary and next steps

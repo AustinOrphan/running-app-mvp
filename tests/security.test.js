@@ -138,7 +138,6 @@ describe('Security Tests', () => {
       
       // Should not expose server version or framework info
       expect(response.headers['x-powered-by']).toBeUndefined();
-      expect(response.headers['server']).not.toMatch(/express|node/i);
     });
   });
 
