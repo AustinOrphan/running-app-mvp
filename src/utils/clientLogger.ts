@@ -36,7 +36,8 @@ const SENSITIVE_FIELDS = [
   'creditcard',
   'phone',
   'address',
-  'name',
+  'username',
+  'fullname',
 ];
 
 const PII_PATTERNS = [
@@ -188,11 +189,17 @@ class ClientLogger {
   /**
    * Send logs to external logging service in production
    */
-  private async sendToLoggingService(_logEntry: LogEntry): Promise<void> {
+  private async sendToLoggingService(logEntry: LogEntry): Promise<void> {
     // Implementation would depend on your logging service
     // Examples: Sentry, LogRocket, Datadog, etc.
     try {
-      // Example: await fetch('/api/logs', { method: 'POST', body: JSON.stringify(logEntry) });
+      await fetch('/api/logs', { 
+        method: 'POST', 
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(logEntry) 
+      });
     } catch {
       // Fail silently to avoid recursive logging issues
     }

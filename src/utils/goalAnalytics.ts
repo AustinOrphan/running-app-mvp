@@ -32,19 +32,36 @@ export class GoalAnalyticsCalculator {
   private static calculateAverageTimeToCompletion(completedGoals: Goal[]): number {
     if (completedGoals.length === 0) return 0;
 
+    let validGoalsCount = 0;
     const totalDays = completedGoals.reduce((sum, goal) => {
       if (!goal.completedAt) return sum;
 
-      const startDate = new Date(goal.startDate);
-      const completedDate = new Date(goal.completedAt);
-      const daysDiff = Math.ceil(
-        (completedDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      return sum + daysDiff;
+      try {
+        const startDate = new Date(goal.startDate);
+        const completedDate = new Date(goal.completedAt);
+        
+        // Check if dates are valid
+        if (isNaN(startDate.getTime()) || isNaN(completedDate.getTime())) {
+          return sum;
+        }
+        
+        const daysDiff = Math.ceil(
+          (completedDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        
+        // Only count positive differences
+        if (daysDiff > 0) {
+          validGoalsCount++;
+          return sum + daysDiff;
+        }
+        return sum;
+      } catch {
+        // Handle any date parsing errors
+        return sum;
+      }
     }, 0);
 
-    return Math.round(totalDays / completedGoals.length);
+    return validGoalsCount > 0 ? Math.round(totalDays / validGoalsCount) : 0;
   }
 
   private static getMostCommonGoalType(goals: Goal[]): string {
@@ -102,15 +119,22 @@ export class GoalAnalyticsCalculator {
     const monthlyData: Record<string, { total: number; completed: number }> = {};
 
     goals.forEach(goal => {
-      const startMonth = new Date(goal.startDate).toISOString().slice(0, 7);
+      try {
+        const startDate = new Date(goal.startDate);
+        if (isNaN(startDate.getTime())) return; // Skip invalid dates
+        
+        const startMonth = startDate.toISOString().slice(0, 7);
 
-      if (!monthlyData[startMonth]) {
-        monthlyData[startMonth] = { total: 0, completed: 0 };
-      }
+        if (!monthlyData[startMonth]) {
+          monthlyData[startMonth] = { total: 0, completed: 0 };
+        }
 
-      monthlyData[startMonth].total++;
-      if (goal.isCompleted) {
-        monthlyData[startMonth].completed++;
+        monthlyData[startMonth].total++;
+        if (goal.isCompleted) {
+          monthlyData[startMonth].completed++;
+        }
+      } catch {
+        // Skip goals with invalid dates
       }
     });
 
@@ -359,7 +383,7 @@ export class GoalAnalyticsCalculator {
   private static getRecommendedAdjustment(
     challengeLevel: 'easy' | 'moderate' | 'challenging' | 'too_hard',
     _progress: GoalProgress
-  ): string | undefined {
+  ): string {
     switch (challengeLevel) {
       case 'easy':
         return 'Consider increasing your target or adding a new challenge.';
@@ -367,8 +391,9 @@ export class GoalAnalyticsCalculator {
         return 'Consider reducing your target or extending the timeline.';
       case 'challenging':
         return 'Stay focused! You can achieve this with consistent effort.';
+      case 'moderate':
       default:
-        return undefined;
+        return 'You\'re on track! Keep up the good work.';
     }
   }
 }
