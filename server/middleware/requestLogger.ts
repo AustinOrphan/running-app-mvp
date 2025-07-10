@@ -21,6 +21,8 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
 
   // Track if response has been logged to avoid duplicates
   let responseLogged = false;
+  // eslint-disable-next-line prefer-const
+  let slowRequestTimer: NodeJS.Timeout;
 
   // Extract user context from auth middleware if available
   const userId = loggedReq.user?.id;
@@ -50,6 +52,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
   const logResponse = (type: string, data?: unknown) => {
     if (responseLogged) return;
     responseLogged = true;
+    clearTimeout(slowRequestTimer);
 
     const duration = Date.now() - loggedReq.startTime;
 
@@ -93,7 +96,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
 
   // Log slow requests (> 1 second)
   const slowRequestThreshold = 1000;
-  setTimeout(() => {
+  slowRequestTimer = setTimeout(() => {
     if (!responseLogged) {
       const duration = Date.now() - loggedReq.startTime;
       if (duration > slowRequestThreshold) {
