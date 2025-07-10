@@ -28,7 +28,7 @@ interface RunTypeTooltipPayload {
 }
 
 const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
-  if (active && payload && payload.length) {
+  if (active && payload?.length) {
     const data = payload[0].payload as RunTypeTooltipPayload;
     return (
       <div className='chart-tooltip'>

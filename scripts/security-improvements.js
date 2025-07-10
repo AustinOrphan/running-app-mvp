@@ -2,10 +2,10 @@
 
 /**
  * Security Improvements Implementation Script
- * 
+ *
  * This script demonstrates the recommended security improvements
  * for the Running App MVP based on the security audit.
- * 
+ *
  * Run with: node scripts/security-improvements.js
  */
 
@@ -106,13 +106,15 @@ const auditResults = {
   rateLimiting: false,
   inputValidation: false,
   securityHeaders: false,
-  cors: false
+  cors: false,
 };
 
 // Check for JWT implementation
 const authFiles = [
-  'middleware/requireAuth.js', 'middleware/requireAuth.ts',
-  'routes/auth.js', 'routes/auth.ts'
+  'middleware/requireAuth.js',
+  'middleware/requireAuth.ts',
+  'routes/auth.js',
+  'routes/auth.ts',
 ];
 
 for (const file of authFiles) {
@@ -139,8 +141,10 @@ for (const file of authRouteFiles) {
 
 // Check for rate limiting
 const rateLimitFiles = [
-  'middleware/rateLimiting.js', 'middleware/rateLimiting.ts',
-  'server.js', 'server.ts'
+  'middleware/rateLimiting.js',
+  'middleware/rateLimiting.ts',
+  'server.js',
+  'server.ts',
 ];
 
 for (const file of rateLimitFiles) {
@@ -155,8 +159,10 @@ for (const file of rateLimitFiles) {
 
 // Check for input validation
 const validationFiles = [
-  'middleware/validation.js', 'middleware/validation.ts',
-  'routes/auth.js', 'routes/auth.ts'
+  'middleware/validation.js',
+  'middleware/validation.ts',
+  'routes/auth.js',
+  'routes/auth.ts',
 ];
 
 for (const file of validationFiles) {
@@ -210,7 +216,7 @@ if (!auditResults.securityHeaders) {
     priority: 'HIGH',
     title: 'Install and configure Helmet.js',
     command: 'npm install helmet',
-    description: 'Add comprehensive security headers to protect against common attacks'
+    description: 'Add comprehensive security headers to protect against common attacks',
   });
 }
 
@@ -219,40 +225,39 @@ if (!auditResults.cors) {
     priority: 'HIGH',
     title: 'Configure CORS properly',
     command: 'npm install cors',
-    description: 'Restrict cross-origin requests to authorized domains only'
+    description: 'Restrict cross-origin requests to authorized domains only',
   });
 }
 
 recommendations.push({
   priority: 'CRITICAL',
   title: 'Update JWT configuration',
-  description: 'Reduce token expiration from 7 days to 1 hour and implement refresh tokens'
+  description: 'Reduce token expiration from 7 days to 1 hour and implement refresh tokens',
 });
 
 recommendations.push({
   priority: 'HIGH',
   title: 'Strengthen password requirements',
-  description: 'Increase minimum length to 12 characters and add complexity requirements'
+  description: 'Increase minimum length to 12 characters and add complexity requirements',
 });
 
 recommendations.push({
   priority: 'MEDIUM',
   title: 'Implement token blacklisting',
-  description: 'Add logout functionality and token revocation mechanism'
+  description: 'Add logout functionality and token revocation mechanism',
 });
 
 recommendations.push({
   priority: 'MEDIUM',
   title: 'Add security monitoring',
-  description: 'Implement security event logging and failed attempt tracking'
+  description: 'Implement security event logging and failed attempt tracking',
 });
 
 // Display recommendations
 console.log('\nPrioritized Security Improvements:');
 recommendations.forEach((rec, index) => {
-  const priorityIcon = rec.priority === 'CRITICAL' ? '🚨' : 
-                      rec.priority === 'HIGH' ? '⚠️' : '💡';
-  
+  const priorityIcon = rec.priority === 'CRITICAL' ? '🚨' : rec.priority === 'HIGH' ? '⚠️' : '💡';
+
   console.log(`\n${index + 1}. ${priorityIcon} ${rec.priority}: ${rec.title}`);
   console.log(`   ${rec.description}`);
   if (rec.command) {
@@ -445,7 +450,7 @@ const securityScripts = {
   'security:scan': 'node scripts/security-scan.js',
   'security:headers': 'npm run test:security:headers',
   'security:dependencies': 'npm audit && npm run security:scan',
-  'security:full': 'npm run security:dependencies && npm run security:test'
+  'security:full': 'npm run security:dependencies && npm run security:test',
 };
 
 console.log('\nAdd these scripts to your package.json:');

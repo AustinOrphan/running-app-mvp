@@ -137,6 +137,7 @@ export const useConnectivityStatus = (): ConnectivityState & ConnectivityActions
 
       return () => clearTimeout(timeout);
     }
+    return undefined;
   }, [state.status, state.retryCount, retry]);
 
   // Online/offline event listeners

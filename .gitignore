@@ -113,3 +113,12 @@ prisma/migrations/*/migration.sql
 
 # Testing
 coverage/
+test-results/
+playwright-report/
+
+# Code Quality & Analysis
+reports/
+.sonarqube/
+.scannerwork/
+complexity-report.json
+jscpd-report.json

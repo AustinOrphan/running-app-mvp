@@ -83,7 +83,7 @@ export class MilestoneDetector {
     // Calculate progress to next milestone
     let progressToNextMilestone = 0;
     if (nextMilestone) {
-      const previousMilestone = this.MILESTONES.filter(m => m < nextMilestone).pop() || 0;
+      const previousMilestone = this.MILESTONES.findLast(m => m < nextMilestone) || 0;
       const rangeSize = nextMilestone - previousMilestone;
       const currentInRange = currentProgressPercentage - previousMilestone;
       progressToNextMilestone = (currentInRange / rangeSize) * 100;
@@ -253,8 +253,8 @@ export class StreakDetector {
     today.setHours(0, 0, 0, 0);
 
     // Check for current streak (consecutive days with runs)
-    for (let i = 0; i < sortedDates.length; i++) {
-      const runDate = new Date(sortedDates[i]);
+    for (const [i, sortedDate] of sortedDates.entries()) {
+      const runDate = new Date(sortedDate);
       runDate.setHours(0, 0, 0, 0);
 
       const expectedDate = new Date(today);

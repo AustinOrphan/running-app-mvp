@@ -145,6 +145,6 @@ export const parseDuration = (durationStr: string): number => {
 
   if (!match) throw new Error(`Invalid duration string: "${durationStr}"`);
 
-  const [, h, m, s] = match.map(val => parseInt(val ?? '0', 10));
+  const [, h, m, s] = match.map(val => Number.parseInt(val ?? '0', 10));
   return (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
 };

@@ -11,13 +11,14 @@ import { createError } from './errorHandler.js';
 const emailSchema = z.string().email('Invalid email format').toLowerCase().trim();
 
 // Enhanced password schema with security requirements
-const passwordSchema = z.string()
+const passwordSchema = z
+  .string()
   .min(12, 'Password must be at least 12 characters')
   .max(128, 'Password must be less than 128 characters')
   .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-  .regex(/[0-9]/, 'Password must contain at least one number')
-  .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
+  .regex(/\d/, 'Password must contain at least one number')
+  .regex(/[^\dA-Za-z]/, 'Password must contain at least one special character');
 const positiveNumberSchema = z.number().positive('Must be a positive number');
 const dateSchema = z.string().refine(date => !isNaN(Date.parse(date)), 'Invalid date format');
 const uuidSchema = z.string().uuid('Invalid ID format');
@@ -110,7 +111,7 @@ export const createGoalSchema = z
     endDate: dateSchema,
     color: z
       .string()
-      .regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format')
+      .regex(/^#[\dA-Fa-f]{6}$/, 'Invalid color format')
       .optional()
       .nullable(),
     icon: z.string().trim().max(10, 'Icon must be 10 characters or less').optional().nullable(),
@@ -155,7 +156,7 @@ export const updateGoalSchema = z
     endDate: dateSchema.optional(),
     color: z
       .string()
-      .regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format')
+      .regex(/^#[\dA-Fa-f]{6}$/, 'Invalid color format')
       .optional()
       .nullable(),
     icon: z.string().trim().max(10, 'Icon must be 10 characters or less').optional().nullable(),
