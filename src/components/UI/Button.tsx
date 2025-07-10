@@ -230,5 +230,3 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
 
 IconButton.displayName = 'IconButton';
 
-// Export types for external use
-export type { ButtonProps, ButtonGroupProps, IconButtonProps };

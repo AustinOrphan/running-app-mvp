@@ -1,4 +1,4 @@
-import React, { forwardRef, InputHTMLAttributes, useId } from 'react';
+import React, { forwardRef, InputHTMLAttributes, useId, useState, useCallback } from 'react';
 import styles from '../../styles/components/Form.module.css';
 
 /**
@@ -93,6 +93,58 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const generatedId = useId();
     const inputId = id || generatedId;
     
+    // State for password visibility toggle
+    const [showPassword, setShowPassword] = useState(false);
+    
+    // Determine the actual input type (handle password visibility)
+    const actualType = type === 'password' && showPassword ? 'text' : type;
+    
+    // Handle password toggle
+    const handlePasswordToggle = useCallback(() => {
+      setShowPassword(prev => !prev);
+    }, []);
+    
+    // Handle search clear
+    const handleSearchClear = useCallback(() => {
+      if (props.onChange) {
+        const event = {
+          target: { value: '' }
+        } as React.ChangeEvent<HTMLInputElement>;
+        props.onChange(event);
+      }
+    }, [props]);
+    
+    // Determine trailing icon based on input type
+    const getTrailingIcon = () => {
+      if (type === 'password' && !trailingIcon) {
+        return (
+          <span aria-label={showPassword ? 'Hide password' : 'Show password'}>
+            {showPassword ? '👁️‍🗨️' : '👁️'}
+          </span>
+        );
+      }
+      if (type === 'search' && value && !trailingIcon) {
+        return (
+          <span aria-label="Clear search">✕</span>
+        );
+      }
+      return trailingIcon;
+    };
+    
+    // Determine trailing icon click handler
+    const getTrailingIconClick = () => {
+      if (type === 'password' && !onTrailingIconClick) {
+        return handlePasswordToggle;
+      }
+      if (type === 'search' && value && !onTrailingIconClick) {
+        return handleSearchClear;
+      }
+      return onTrailingIconClick;
+    };
+    
+    const effectiveTrailingIcon = getTrailingIcon();
+    const effectiveTrailingIconClick = getTrailingIconClick();
+    
     // Determine input classes
     const inputClasses = [
       styles.formGroup,
@@ -145,7 +197,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
-            type={type}
+            type={actualType}
             className={fieldClasses}
             disabled={disabled}
             readOnly={readOnly}
@@ -158,16 +210,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
           
-          {trailingIcon && (
+          {effectiveTrailingIcon && (
             <button
               type="button"
               className={styles.trailingIcon}
-              onClick={onTrailingIconClick}
+              onClick={effectiveTrailingIconClick}
               disabled={disabled}
-              tabIndex={onTrailingIconClick ? 0 : -1}
-              aria-hidden={!onTrailingIconClick}
+              tabIndex={effectiveTrailingIconClick ? 0 : -1}
+              aria-hidden={!effectiveTrailingIconClick}
             >
-              {trailingIcon}
+              {effectiveTrailingIcon}
             </button>
           )}
         </div>
@@ -288,6 +340,12 @@ export interface TextAreaProps extends Omit<React.TextareaHTMLAttributes<HTMLTex
   
   /** Resize behavior */
   resize?: 'none' | 'vertical' | 'horizontal' | 'both';
+  
+  /** Auto-resize to fit content */
+  autoResize?: boolean;
+  
+  /** Maximum height for auto-resize (in pixels) */
+  maxAutoHeight?: number;
 }
 
 /**
@@ -316,6 +374,8 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
       fullWidth = true,
       showCharCount = false,
       resize = 'vertical',
+      autoResize = false,
+      maxAutoHeight = 400,
       className = '',
       required = false,
       disabled = false,
@@ -329,6 +389,48 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
   ) => {
     const generatedId = useId();
     const textareaId = id || generatedId;
+    const [textareaRef, setTextareaRef] = useState<HTMLTextAreaElement | null>(null);
+    
+    // Combine refs
+    const combinedRef = useCallback(
+      (node: HTMLTextAreaElement | null) => {
+        setTextareaRef(node);
+        if (ref) {
+          if (typeof ref === 'function') {
+            ref(node);
+          } else {
+            ref.current = node;
+          }
+        }
+      },
+      [ref]
+    );
+    
+    // Auto-resize functionality
+    const adjustHeight = useCallback(() => {
+      if (textareaRef && autoResize) {
+        // Reset height to auto to get the correct scrollHeight
+        textareaRef.style.height = 'auto';
+        const newHeight = Math.min(textareaRef.scrollHeight, maxAutoHeight);
+        textareaRef.style.height = `${newHeight}px`;
+      }
+    }, [autoResize, maxAutoHeight]);
+    
+    // Adjust height on value change
+    React.useEffect(() => {
+      adjustHeight();
+    }, [value, adjustHeight]);
+    
+    // Handle input for auto-resize
+    const handleInput = useCallback(
+      (e: React.FormEvent<HTMLTextAreaElement>) => {
+        adjustHeight();
+        if (props.onInput) {
+          props.onInput(e);
+        }
+      },
+      [adjustHeight, props]
+    );
     
     const textareaClasses = [
       styles.formGroup,
@@ -343,7 +445,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
       success && styles.success,
       size === 'small' && styles.small,
       size === 'large' && styles.large,
-      styles[`resize${resize.charAt(0).toUpperCase() + resize.slice(1)}`]
+      autoResize ? styles.autoResize : styles[`resize${resize.charAt(0).toUpperCase() + resize.slice(1)}`]
     ]
       .filter(Boolean)
       .join(' ');
@@ -371,7 +473,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
         )}
         
         <textarea
-          ref={ref}
+          ref={combinedRef}
           id={textareaId}
           className={fieldClasses}
           disabled={disabled}
@@ -382,6 +484,8 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           aria-required={required}
           value={value}
           maxLength={maxLength}
+          onInput={handleInput}
+          style={autoResize ? { overflow: 'hidden', resize: 'none' } : undefined}
           {...props}
         />
         
@@ -407,5 +511,3 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
 
 TextArea.displayName = 'TextArea';
 
-// Export types for external use
-export type { InputProps, InputGroupProps, TextAreaProps };

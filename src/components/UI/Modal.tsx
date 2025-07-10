@@ -405,5 +405,3 @@ export const LoadingModal: React.FC<LoadingModalProps> = ({
   );
 };
 
-// Export types for external use
-export type { ModalProps, ConfirmationModalProps, LoadingModalProps };
