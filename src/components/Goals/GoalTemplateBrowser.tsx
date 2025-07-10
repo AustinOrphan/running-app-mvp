@@ -2,6 +2,19 @@ import React, { useState, useEffect } from 'react';
 
 import { GOAL_TEMPLATE_COLLECTIONS, searchTemplates } from '../../data/goalTemplates';
 import { GoalTemplate, GoalTemplateCollection } from '../../types/goalTemplates';
+import {
+  Card,
+  CardHeader,
+  CardIcon,
+  CardTitle,
+  CardDescription,
+  CardActions,
+  CardContent,
+  DifficultyBadge,
+
+  ExpandedContent,
+} from '../UI/Card';
+import { Button } from '../UI/Button';
 
 interface GoalTemplateBrowserProps {
   isOpen: boolean;
@@ -13,27 +26,6 @@ interface TemplateCardProps {
   template: GoalTemplate;
   onSelect: () => void;
 }
-
-const DifficultyBadge: React.FC<{ difficulty: string }> = ({ difficulty }) => {
-  const getColor = (level: string) => {
-    switch (level) {
-      case 'beginner':
-        return '#10b981';
-      case 'intermediate':
-        return '#f59e0b';
-      case 'advanced':
-        return '#ef4444';
-      default:
-        return '#6b7280';
-    }
-  };
-
-  return (
-    <span className='difficulty-badge' style={{ backgroundColor: getColor(difficulty) }}>
-      {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
-    </span>
-  );
-};
 
 const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
   const [expanded, setExpanded] = useState(false);
@@ -63,88 +55,94 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
   };
 
   return (
-    <div className='template-card'>
-      <div className='template-header'>
-        <div className='template-icon' style={{ color: template.color }}>
+    <Card variant='template'>
+      <CardHeader variant='template'>
+        <CardIcon variant='template' color={template.color}>
           {template.icon}
-        </div>
-        <div className='template-title'>
+        </CardIcon>
+        <CardTitle variant='template'>
           <h4>{template.name}</h4>
-          <p className='template-description'>{template.description}</p>
-        </div>
+          <CardDescription variant='template'>{template.description}</CardDescription>
+        </CardTitle>
         <DifficultyBadge difficulty={template.difficulty} />
-      </div>
+      </CardHeader>
 
-      <div className='template-details'>
-        <div className='template-target'>
-          <span className='target-label'>Target:</span>
-          <span className='target-value'>{formatTarget()}</span>
+      <CardContent>
+        <div className='template-details'>
+          <div className='template-target'>
+            <span className='target-label'>Target:</span>
+            <span className='target-value'>{formatTarget()}</span>
+          </div>
+          <div className='template-period'>
+            <span className='period-label'>Period:</span>
+            <span className='period-value'>{getPeriodLabel()}</span>
+          </div>
+          <div className='template-timeframe'>
+            <span className='timeframe-label'>Timeframe:</span>
+            <span className='timeframe-value'>{template.estimatedTimeframe}</span>
+          </div>
         </div>
-        <div className='template-period'>
-          <span className='period-label'>Period:</span>
-          <span className='period-value'>{getPeriodLabel()}</span>
-        </div>
-        <div className='template-timeframe'>
-          <span className='timeframe-label'>Timeframe:</span>
-          <span className='timeframe-value'>{template.estimatedTimeframe}</span>
-        </div>
-      </div>
 
-      <div className='template-tags'>
-        {template.tags.map(tag => (
-          <span key={tag} className='template-tag' style={{ borderColor: template.color }}>
-            {tag}
-          </span>
-        ))}
-      </div>
+        <div className='template-tags'>
+          {template.tags.map(tag => (
+            <span key={tag} className='template-tag' style={{ borderColor: template.color }}>
+              {tag}
+            </span>
+          ))}
+        </div>
 
-      {expanded && (
-        <div className='template-expanded'>
-          {template.prerequisites && template.prerequisites.length > 0 && (
+        {expanded && (
+          <ExpandedContent>
+            {template.prerequisites && template.prerequisites.length > 0 && (
+              <div className='template-section'>
+                <h5>Prerequisites:</h5>
+                <ul>
+                  {template.prerequisites.map((prereq, index) => (
+                    <li key={index}>{prereq}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className='template-section'>
-              <h5>Prerequisites:</h5>
+              <h5>Training Tips:</h5>
               <ul>
-                {template.prerequisites.map((prereq, index) => (
-                  <li key={index}>{prereq}</li>
+                {template.tips.map((tip, index) => (
+                  <li key={index}>{tip}</li>
                 ))}
               </ul>
             </div>
-          )}
 
-          <div className='template-section'>
-            <h5>Training Tips:</h5>
-            <ul>
-              {template.tips.map((tip, index) => (
-                <li key={index}>{tip}</li>
-              ))}
-            </ul>
-          </div>
-
-          {template.milestones && template.milestones.length > 0 && (
-            <div className='template-section'>
-              <h5>Milestones:</h5>
-              <div className='milestones-list'>
-                {template.milestones.map((milestone, index) => (
-                  <div key={index} className='milestone-item'>
-                    <span className='milestone-percentage'>{milestone.percentage}%</span>
-                    <span className='milestone-description'>{milestone.description}</span>
-                  </div>
-                ))}
+            {template.milestones && template.milestones.length > 0 && (
+              <div className='template-section'>
+                <h5>Milestones:</h5>
+                <div className='milestones-list'>
+                  {template.milestones.map((milestone, index) => (
+                    <div key={index} className='milestone-item'>
+                      <span className='milestone-percentage'>{milestone.percentage}%</span>
+                      <span className='milestone-description'>{milestone.description}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </ExpandedContent>
+        )}
+      </CardContent>
 
-      <div className='template-actions'>
-        <button className='btn-secondary template-expand' onClick={() => setExpanded(!expanded)}>
+      <CardActions variant='template'>
+        <Button
+          variant='secondary'
+          onClick={() => setExpanded(!expanded)}
+          className='template-expand'
+        >
           {expanded ? 'Show Less ↑' : 'Learn More ↓'}
-        </button>
-        <button className='btn-primary template-select' onClick={onSelect}>
+        </Button>
+        <Button variant='primary' onClick={onSelect} className='template-select'>
           Use This Template
-        </button>
-      </div>
-    </div>
+        </Button>
+      </CardActions>
+    </Card>
   );
 };
 
