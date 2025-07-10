@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { asyncHandler, asyncAuthHandler } from '../../../middleware/asyncHandler';
-import { AuthRequest } from '../../../middleware/requireAuth';
+import { asyncHandler, asyncAuthHandler } from '../../../server/middleware/asyncHandler';
+import { AuthRequest } from '../../../server/middleware/requireAuth';
 
 describe('AsyncHandler Middleware Tests', () => {
   let mockRequest: Partial<Request>;

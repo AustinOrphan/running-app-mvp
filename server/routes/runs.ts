@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import express from 'express';
 
+import { prisma } from '../../lib/prisma.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
 import { createNotFoundError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
@@ -15,7 +15,6 @@ import { createRateLimit, readRateLimit, apiRateLimit } from '../middleware/rate
 import { logUserAction } from '../utils/secureLogger.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Apply security headers to all runs routes
 router.use(securityHeaders);
