@@ -54,8 +54,7 @@ describe('CSS Module Migration Tests', () => {
       expect(utilStyles.skeleton).toBeDefined();
       expect(utilStyles.skeletonText).toBeDefined();
       expect(utilStyles.skeletonLine).toBeDefined();
-      expect(utilStyles.shimmer).toBeDefined();
-      expect(utilStyles.loader).toBeDefined();
+      expect(utilStyles.loading).toBeDefined();
       expect(utilStyles.fadeIn).toBeDefined();
       expect(utilStyles.slideIn).toBeDefined();
     });
