@@ -197,6 +197,110 @@
   margin-top: 4px;
 }
 
+/* Additional Achievement Notification Components */
+.achievementConfetti {
+  font-size: 28px;
+  animation: bounce 0.6s ease infinite alternate;
+}
+
+.achievementTrophy {
+  font-size: 32px;
+  animation: pulse 2s infinite;
+}
+
+.achievementHeader {
+  margin-bottom: 20px;
+}
+
+.achievementHeader h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--success-color, #10b981);
+  margin: 0 0 8px 0;
+}
+
+.achievementSubtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.achievementGoal {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.achievementIcon {
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.achievementDetails {
+  flex: 1;
+}
+
+.achievementDetails h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+
+.achievementType {
+  font-size: 14px;
+  color: var(--success-color, #10b981);
+  font-weight: 500;
+  margin: 0 0 8px 0;
+}
+
+.achievementDescription {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.achievementMessage {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.achievementMessage p {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 8px 0;
+  line-height: 1.4;
+}
+
+.achievementActionBtn {
+  width: 100%;
+  padding: 12px 24px;
+  background: var(--success-color, #10b981);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.achievementActionBtn:hover {
+  background: var(--success-hover, #059669);
+}
+
 /* Notification Center */
 .notificationCenterOverlay {
   position: fixed;
