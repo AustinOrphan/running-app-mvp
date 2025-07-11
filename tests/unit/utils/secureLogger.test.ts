@@ -95,10 +95,12 @@ describe('SecureLogger IP Privacy Enhancements', () => {
 
       secureLogger.info('Test info message', mockRequest);
 
-      expect(mockConsoleInfo).toHaveBeenCalledWith(
-        'SecureLog:',
-        expect.stringContaining('"ip":"127.0.0.1"')
-      );
+      expect(mockConsoleInfo).toHaveBeenCalledWith('SecureLog:', expect.any(String));
+
+      // Parse the JSON log output and verify IP is in context
+      const logCall = mockConsoleInfo.mock.calls[0][1] as string;
+      const logData = JSON.parse(logCall);
+      expect(logData.context.ip).toBe('127.0.0.1');
     });
 
     it('should handle missing IP gracefully', () => {
@@ -230,10 +232,12 @@ describe('SecureLogger IP Privacy Enhancements', () => {
 
       secureLogger.debug('Test debug message', mockRequest);
 
-      expect(mockConsoleDebug).toHaveBeenCalledWith(
-        'SecureLog:',
-        expect.stringContaining('"ip":"172.16.0.10"')
-      );
+      expect(mockConsoleDebug).toHaveBeenCalledWith('SecureLog:', expect.any(String));
+
+      // Parse the JSON log output and verify IP is in context
+      const logCall = mockConsoleDebug.mock.calls[0][1] as string;
+      const logData = JSON.parse(logCall);
+      expect(logData.context.ip).toBe('172.16.0.10');
     });
   });
 });

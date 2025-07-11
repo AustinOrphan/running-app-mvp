@@ -1,65 +1,4 @@
-.app {
-  max-width: 1200px;
-  width: 100%;
-  min-height: 100vh;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  box-sizing: border-box;
-  background: var(--primary-bg);
-}
-
-/* Add a general mobile-first approach */
-@media (max-width: 768px) {
-  .app {
-    padding: 16px;
-  }
-
-  .tab-panel {
-    padding: 16px;
-    background: #242424;
-  }
-}
-
-header {
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  padding: 20px;
-  background: #1a1a1a;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  border: 1px solid #404040;
-}
-
-h1 {
-  margin: 0;
-}
-
-h1,
-h2,
-h3 {
-  color: rgba(255, 255, 255, 0.87);
-  font-weight: 600;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.status {
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-weight: 500;
-  background: #f0f9ff;
-  color: #0369a1;
-}
-
-/* Logout button styles moved to Navigation.module.css */
+/* Layout styles moved to Layout.module.css */
 
 .auth-form {
   max-width: 400px;
@@ -94,41 +33,7 @@ h3 {
   border-color: #3b82f6;
 }
 
-/* Circular Progress Styles */
-.circular-progress {
-  position: relative;
-  display: inline-block;
-}
-
-.circular-progress-content {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-}
-
-.circular-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.circular-percentage {
-  font-size: 18px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.circular-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.progress-foreground.animated {
-  transition: stroke-dashoffset 0.5s ease-in-out;
-}
+/* Circular Progress styles moved to Progress.module.css */
 
 /* Detailed Progress Styles */
 .detailed-progress {
@@ -2090,12 +1995,7 @@ h3 {
   color: white;
 }
 
-.dashboard {
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  box-sizing: border-box;
-}
+/* Dashboard styles moved to Layout.module.css */
 
 .actions {
   text-align: center;
@@ -2386,18 +2286,12 @@ h3 {
   margin-bottom: 20px;
 }
 
-/* Tab content transitions */
-.tab-content {
-  position: relative;
-  height: 600px;
-  max-height: calc(100vh - 280px);
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
+/* Tab content styles moved to Layout.module.css */
+/* Note: transition styles kept for functionality */
+.tab-content-transition {
   transition: all 0.3s ease;
   overflow-y: auto;
   overflow-x: hidden;
-  box-sizing: border-box;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
   background: #1a1a1a;
@@ -2760,7 +2654,9 @@ button:disabled:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Navigation button styles moved to Navigation.module.css */
+.nav-btn {
+  transition: all 0.2s ease;
+}
 
 .primary-btn,
 .secondary-btn {
@@ -2894,26 +2790,9 @@ button:disabled:hover {
   font-size: 18px;
 }
 
-/* Skeleton loading */
-.skeleton {
-  pointer-events: none;
-}
+/* Skeleton loading styles moved to Utils.module.css */
 
-.skeleton-line {
-  background: linear-gradient(90deg, #404040 25%, #505050 50%, #404040 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 4px;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
+/* Shimmer animation moved to Utils.module.css */
 
 /* Empty state */
 .empty-state {
@@ -2947,15 +2826,7 @@ button:disabled:hover {
 
 /* Large Desktop: 1201px+ */
 @media (min-width: 1201px) {
-  .dashboard,
-  .tab-content {
-    width: 1100px;
-    max-width: calc(100vw - 40px);
-  }
-
-  .tab-content {
-    height: 700px;
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .runs-grid {
     grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
@@ -2976,15 +2847,7 @@ button:disabled:hover {
 
 /* Standard Desktop: 993px - 1200px */
 @media (min-width: 993px) and (max-width: 1200px) {
-  .dashboard,
-  .tab-content {
-    width: 950px;
-    max-width: calc(100vw - 40px);
-  }
-
-  .tab-content {
-    height: 650px;
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .runs-grid {
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -3005,15 +2868,7 @@ button:disabled:hover {
 
 /* Small Desktop / Large Tablet: 769px - 992px */
 @media (min-width: 769px) and (max-width: 992px) {
-  .dashboard,
-  .tab-content {
-    width: calc(100vw - 40px);
-    max-width: 900px;
-  }
-
-  .tab-content {
-    height: 600px;
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .runs-grid {
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -3045,16 +2900,7 @@ button:disabled:hover {
     background: #242424;
   }
 
-  .dashboard,
-  .tab-content {
-    width: calc(100% - 0px);
-    max-width: 700px;
-  }
-
-  .tab-content {
-    height: 500px;
-    max-height: calc(100vh - 260px);
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .swipe-hint {
     display: block;
@@ -3153,16 +2999,7 @@ button:disabled:hover {
     padding: 12px;
   }
 
-  .dashboard,
-  .tab-content {
-    width: 100%;
-    max-width: none;
-    padding: 0;
-  }
-
-  .tab-content {
-    height: 100%;
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .swipe-hint {
     display: block;
@@ -3275,16 +3112,7 @@ button:disabled:hover {
     background: #242424;
   }
 
-  .dashboard,
-  .tab-content {
-    width: 100%;
-    max-width: none;
-    padding: 0;
-  }
-
-  .tab-content {
-    height: 100%;
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .swipe-hint {
     display: block;
@@ -5747,41 +5575,7 @@ button:disabled:hover {
   letter-spacing: 0.5px;
 }
 
-.footer-section-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.footer-info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
-  padding: 2px 0;
-}
-
-.footer-info-item.error {
-  color: #ef4444;
-}
-
-.footer-info-item.success {
-  color: #10b981;
-}
-
-.footer-info-item.warning {
-  color: #f59e0b;
-}
-
-.footer-info-label {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.footer-info-value {
-  color: rgba(255, 255, 255, 0.87);
-  font-weight: 500;
-}
+/* Footer section styles moved to Layout.module.css */
 
 .footer-links {
   display: flex;
@@ -5944,9 +5738,7 @@ button:disabled:hover {
     font-size: 13px;
   }
 
-  .footer-info-item {
-    font-size: 12px;
-  }
+  /* Footer responsive styles moved to Layout.module.css */
 
   .footer-link {
     font-size: 12px;

@@ -16,6 +16,10 @@ import {
   IconButton,
   ProgressBar,
   ProgressHeader,
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
   SimpleProgress,
   ExpandControls,
   ExpandedContent,

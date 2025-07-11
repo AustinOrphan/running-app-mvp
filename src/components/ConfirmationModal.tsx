@@ -2,7 +2,7 @@ import React from 'react';
 import { ConfirmationModal as UIConfirmationModal } from './UI/Modal';
 
 // Re-export the UI component for backward compatibility
-export { ConfirmationModal } from './UI/Modal';
+export { ConfirmationModal as UIConfirmationModal } from './UI/Modal';
 
 // Legacy wrapper for existing usage if needed
 interface LegacyConfirmationModalProps {

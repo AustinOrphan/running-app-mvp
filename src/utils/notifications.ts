@@ -124,17 +124,22 @@ export class NotificationTimingManager {
     }
 
     const now = new Date();
-    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
     const { start, end } = preferences.quietHours;
+    const [startHour, startMin] = start.split(':').map(Number);
+    const [endHour, endMin] = end.split(':').map(Number);
+
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
 
     // Handle overnight quiet hours (e.g., 22:00 to 08:00)
-    if (start > end) {
-      return currentTime >= start || currentTime <= end;
+    if (startMinutes > endMinutes) {
+      return currentMinutes >= startMinutes || currentMinutes < endMinutes;
     }
 
     // Handle same-day quiet hours (e.g., 12:00 to 14:00)
-    return currentTime >= start && currentTime <= end;
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
   }
 
   static shouldShowNotification(

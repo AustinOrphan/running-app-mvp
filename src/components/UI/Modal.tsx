@@ -101,9 +101,19 @@ export const Modal: React.FC<ModalProps> = ({
     [closeOnBackdrop, onClose]
   );
 
-  // Handle ESC key press
+  // Handle ESC key press for document events
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      if (closeOnEsc && e.key === 'Escape') {
+        onClose();
+      }
+    },
+    [closeOnEsc, onClose]
+  );
+
+  // Handle ESC key press for React events
+  const handleReactKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (closeOnEsc && e.key === 'Escape') {
         onClose();
       }
@@ -190,7 +200,13 @@ export const Modal: React.FC<ModalProps> = ({
     .join(' ');
 
   const modalContent = (
-    <div className={overlayClasses} onClick={handleBackdropClick} role='presentation'>
+    <div
+      className={overlayClasses}
+      onClick={handleBackdropClick}
+      onKeyDown={handleReactKeyDown}
+      role='presentation'
+      aria-describedby={ariaDescribedBy}
+    >
       <div
         ref={modalRef}
         className={modalClasses}
@@ -198,7 +214,6 @@ export const Modal: React.FC<ModalProps> = ({
         aria-modal='true'
         aria-label={ariaLabel}
         aria-labelledby={title ? titleId : ariaLabelledBy}
-        aria-describedby={ariaDescribedBy}
       >
         {(title || showCloseButton) && (
           <div className={styles.modalHeader}>
@@ -294,8 +309,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       await onConfirm();
       modalProps.onClose();
     } catch {
-      // Handle error appropriately in production
-      // Error logging should be handled by proper error reporting service
+      // Error handling - in production, this would be sent to a logging service
     } finally {
       setIsLoading(false);
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './styles/globals.css';
-import './App.css';
 import styles from './styles/components/App.module.css';
+import layoutStyles from './styles/components/Layout.module.css';
 
 // Components
 import { AuthForm } from './components/Auth/AuthForm';
@@ -105,18 +105,7 @@ function AppContent() {
         <h1>🏃‍♂️ Running Tracker</h1>
 
         {status === 'disconnected' && (
-          <div
-            className='offline-notice'
-            style={{
-              padding: '12px',
-              margin: '16px 0',
-              backgroundColor: '#fef3c7',
-              border: '1px solid #f59e0b',
-              borderRadius: '6px',
-              color: '#92400e',
-              fontSize: '14px',
-            }}
-          >
+          <div className={layoutStyles.offlineNotice}>
             ⚠️ Backend server is not running. Start it with <code>npm run dev</code> in a separate
             terminal.
           </div>
@@ -132,14 +121,14 @@ function AppContent() {
               id: 'welcome-info',
               title: 'Welcome',
               content: (
-                <div className='footer-section-content'>
-                  <div className='footer-info-item'>
-                    <span className='footer-info-label'>Status:</span>
-                    <span className='footer-info-value'>Not logged in</span>
+                <div className={layoutStyles.footerSectionContent}>
+                  <div className={layoutStyles.footerInfoItem}>
+                    <span className={layoutStyles.footerInfoLabel}>Status:</span>
+                    <span className={layoutStyles.footerInfoValue}>Not logged in</span>
                   </div>
-                  <div className='footer-info-item'>
-                    <span className='footer-info-label'>Features:</span>
-                    <span className='footer-info-value'>Login to access</span>
+                  <div className={layoutStyles.footerInfoItem}>
+                    <span className={layoutStyles.footerInfoLabel}>Features:</span>
+                    <span className={layoutStyles.footerInfoValue}>Login to access</span>
                   </div>
                 </div>
               ),
@@ -189,9 +178,9 @@ function AppContent() {
 
       <SwipeHint show={!hasSwipedOnce} />
 
-      <div className='dashboard'>
+      <div className={layoutStyles.dashboard}>
         <div
-          className='tab-content'
+          className={layoutStyles.tabContent}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
@@ -219,9 +208,9 @@ function AppContent() {
             id: 'user-info',
             title: 'Session',
             content: (
-              <div className='footer-info-item'>
-                <span className='footer-info-label'>Current Page:</span>
-                <span className='footer-info-value'>{activeTab}</span>
+              <div className={layoutStyles.footerInfoItem}>
+                <span className={layoutStyles.footerInfoLabel}>Current Page:</span>
+                <span className={layoutStyles.footerInfoValue}>{activeTab}</span>
               </div>
             ),
           },
