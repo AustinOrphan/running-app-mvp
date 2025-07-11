@@ -19,14 +19,14 @@ export const winston = {
   },
   transports: {
     Console: class MockConsole {
-      constructor(_options?: unknown) {} // Prefix unused parameter with underscore
+      constructor(_options?: unknown) {} // Better type safety with unknown
     },
     File: class MockFile {
-      constructor(_options?: unknown) {} // Prefix unused parameter with underscore
+      constructor(_options?: unknown) {} // Better type safety with unknown
     },
   },
   createLogger: (_options?: unknown) => ({
-    // Prefix unused parameter with underscore
+    // Better type safety with unknown
     // eslint-disable-next-line no-console
     info: (message: string, meta?: unknown) => console.log('INFO:', message, meta),
     // eslint-disable-next-line no-console
