@@ -59,19 +59,7 @@ h3 {
   color: #0369a1;
 }
 
-.logout-btn {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.logout-btn:hover {
-  background: #dc2626;
-}
+/* Logout button styles moved to Navigation.module.css */
 
 .auth-form {
   max-width: 400px;
@@ -2772,9 +2760,7 @@ button:disabled:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.nav-btn {
-  transition: all 0.2s ease;
-}
+/* Navigation button styles moved to Navigation.module.css */
 
 .primary-btn,
 .secondary-btn {

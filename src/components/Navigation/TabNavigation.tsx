@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router';
 
 import { TAB_CONFIG } from '../../constants/navigation';
+import styles from '../../styles/components/Navigation.module.css';
 
 interface TabNavigationProps {
   swipeHighlight: boolean;
@@ -17,13 +18,13 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   onTouchEnd,
 }) => {
   return (
-    <nav className='main-nav'>
+    <nav className={styles.mainNav}>
       {TAB_CONFIG.map(tab => (
         <NavLink
           key={tab.id}
           to={`/${tab.id}`}
           className={({ isActive }) =>
-            `nav-btn ${isActive ? 'active' : ''} ${isActive && swipeHighlight ? 'swipe-highlight' : ''}`
+            `${styles.navBtn} ${isActive ? styles.active : ''} ${isActive && swipeHighlight ? styles.swipeHighlight : ''}`
           }
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}

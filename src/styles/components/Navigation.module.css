@@ -25,6 +25,20 @@
   gap: 15px;
 }
 
+.logoutBtn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.logoutBtn:hover {
+  background: #dc2626;
+}
+
 .status {
   padding: 8px 12px;
   border-radius: 6px;
