@@ -1,5 +1,7 @@
 import React from 'react';
 
+import styles from '../../styles/components/Progress.module.css';
+
 interface CircularProgressProps {
   percentage: number;
   size?: number;
@@ -27,8 +29,8 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   const offset = circumference - (clamped / 100) * circumference;
 
   return (
-    <div className={`circular-progress ${className}`} style={{ width: size, height: size }}>
-      <svg width={size} height={size} className='circular-progress-svg'>
+    <div className={`${styles.circularProgress} ${className}`} style={{ width: size, height: size }}>
+      <svg width={size} height={size} className={styles.circularProgressSvg}>
         {/* Background circle */}
         <circle
           cx={size / 2}
@@ -37,7 +39,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           stroke={backgroundColor}
           strokeWidth={strokeWidth}
           fill='transparent'
-          className='progress-background'
+          className={styles.progressBackground}
         />
 
         {/* Progress circle */}
@@ -51,7 +53,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap='round'
-          className={`progress-foreground ${animated ? 'animated' : ''}`}
+          className={`${styles.progressForeground} ${animated ? styles.animated : ''}`}
           style={{
             transform: 'rotate(-90deg)',
             transformOrigin: '50% 50%',
@@ -62,15 +64,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
 
       {/* Content overlay */}
       {children && (
-        <div
-          className='circular-progress-content'
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-          }}
-        >
+        <div className={styles.circularProgressContent}>
           {children}
         </div>
       )}
