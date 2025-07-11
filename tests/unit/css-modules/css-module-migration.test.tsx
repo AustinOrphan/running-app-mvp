@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import React from 'react';
 
 // Import the CSS modules to verify they exist and export correctly
 import layoutStyles from '../../../src/styles/components/Layout.module.css';

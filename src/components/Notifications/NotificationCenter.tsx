@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 
 import { useNotifications } from '../../hooks/useNotifications';
 import { GoalNotification } from '../../types/notifications';
+import styles from '../../styles/components/Notification.module.css';
 
 interface NotificationCenterProps {
   isOpen: boolean;
@@ -15,24 +16,28 @@ const NotificationItem: React.FC<{
   onMarkRead: (id: string) => void;
 }> = ({ notification, onDismiss, onMarkRead }) => {
   const getNotificationStyles = (type: string, priority: string) => {
-    const baseClasses = 'notification-item';
-    const typeClasses = {
-      achievement: 'notification-achievement',
-      milestone: 'notification-milestone',
-      deadline: 'notification-deadline',
-      streak: 'notification-streak',
-      summary: 'notification-summary',
-      reminder: 'notification-reminder',
+    const classes = [styles.notificationItem];
+    
+    const typeMap: Record<string, string> = {
+      achievement: styles.notificationAchievement,
+      milestone: styles.notificationMilestone,
+      deadline: styles.notificationDeadline,
+      streak: styles.notificationStreak,
+      summary: styles.notificationSummary,
+      reminder: styles.notificationReminder,
     };
 
-    const priorityClasses = {
-      urgent: 'notification-urgent',
-      high: 'notification-high',
-      medium: 'notification-medium',
-      low: 'notification-low',
+    const priorityMap: Record<string, string> = {
+      urgent: styles.notificationUrgent,
+      high: styles.notificationHigh,
+      medium: styles.notificationMedium,
+      low: styles.notificationLow,
     };
 
-    return `${baseClasses} ${typeClasses[type as keyof typeof typeClasses] || ''} ${priorityClasses[priority as keyof typeof priorityClasses] || ''}`;
+    if (typeMap[type]) classes.push(typeMap[type]);
+    if (priorityMap[priority]) classes.push(priorityMap[priority]);
+
+    return classes.join(' ');
   };
 
   const handleClick = () => {
@@ -50,25 +55,25 @@ const NotificationItem: React.FC<{
 
   return (
     <div
-      className={`${getNotificationStyles(notification.type, notification.priority)} ${!notification.read ? 'unread' : ''}`}
+      className={`${getNotificationStyles(notification.type, notification.priority)} ${!notification.read ? styles.unread : ''}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role='button'
       tabIndex={0}
       aria-label={`Mark notification as read: ${notification.title}`}
     >
-      <div className='notification-header'>
-        <div className='notification-icon' style={{ color: notification.color }}>
+      <div className={styles.notificationHeader}>
+        <div className={styles.notificationIcon} style={{ color: notification.color }}>
           {notification.icon}
         </div>
-        <div className='notification-meta'>
-          <span className='notification-type'>{notification.type.toUpperCase()}</span>
-          <span className='notification-time'>
+        <div className={styles.notificationMeta}>
+          <span className={styles.notificationType}>{notification.type.toUpperCase()}</span>
+          <span className={styles.notificationTime}>
             {formatDistanceToNow(notification.timestamp, { addSuffix: true })}
           </span>
         </div>
         <button
-          className='notification-dismiss'
+          className={styles.notificationDismiss}
           onClick={e => {
             e.stopPropagation();
             onDismiss(notification.id);
@@ -79,23 +84,23 @@ const NotificationItem: React.FC<{
         </button>
       </div>
 
-      <div className='notification-content'>
-        <h4 className='notification-title'>{notification.title}</h4>
-        <p className='notification-message'>{notification.message}</p>
+      <div className={styles.notificationContent}>
+        <h4 className={styles.notificationTitle}>{notification.title}</h4>
+        <p className={styles.notificationMessage}>{notification.message}</p>
 
         {notification.type === 'milestone' && 'milestonePercentage' in notification && (
-          <div className='notification-details'>
-            <div className='milestone-progress'>
-              <div className='milestone-bar'>
+          <div className={styles.notificationDetails}>
+            <div className={styles.milestoneProgress}>
+              <div className={styles.milestoneBar}>
                 <div
-                  className='milestone-fill'
+                  className={styles.milestoneFill}
                   style={{
                     width: `${notification.milestonePercentage}%`,
                     backgroundColor: notification.color,
                   }}
                 />
               </div>
-              <span className='milestone-text'>
+              <span className={styles.milestoneText}>
                 {notification.currentProgress}/{notification.targetValue} completed
               </span>
             </div>
@@ -103,17 +108,17 @@ const NotificationItem: React.FC<{
         )}
 
         {notification.type === 'deadline' && 'daysRemaining' in notification && (
-          <div className='notification-details'>
-            <div className='deadline-info'>
-              <span className='days-remaining'>
+          <div className={styles.notificationDetails}>
+            <div className={styles.deadlineInfo}>
+              <span className={styles.daysRemaining}>
                 {notification.daysRemaining === 0
                   ? 'Due today!'
                   : notification.daysRemaining === 1
                     ? '1 day left'
                     : `${notification.daysRemaining} days left`}
               </span>
-              <div className='deadline-progress'>
-                <span className='progress-text'>
+              <div className={styles.deadlineProgress}>
+                <span className={styles.progressText}>
                   {Math.round((notification.currentProgress / notification.targetValue) * 100)}%
                   complete
                 </span>
@@ -123,10 +128,10 @@ const NotificationItem: React.FC<{
         )}
 
         {notification.type === 'streak' && 'streakCount' in notification && (
-          <div className='notification-details'>
-            <div className='streak-info'>
-              <span className='streak-count'>{notification.streakCount}</span>
-              <span className='streak-type'>{notification.streakType} streak</span>
+          <div className={styles.notificationDetails}>
+            <div className={styles.streakInfo}>
+              <span className={styles.streakCount}>{notification.streakCount}</span>
+              <span className={styles.streakType}>{notification.streakType} streak</span>
             </div>
           </div>
         )}
@@ -176,7 +181,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
   };
   return (
     <div
-      className='notification-center-overlay'
+      className={styles.notificationCenterOverlay}
       role='button'
       tabIndex={0}
       aria-label='Close modal'
@@ -190,7 +195,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
     >
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
-        className='notification-center'
+        className={`${styles.notificationCenter} ${isOpen ? styles.open : ''}`}
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
         role='dialog'
@@ -198,21 +203,21 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
         aria-labelledby='notification-center-title'
         tabIndex={-1}
       >
-        <div className='notification-header'>
-          <div className='notification-title'>
+        <div className={styles.notificationCenterHeader}>
+          <div className={styles.notificationCenterTitle}>
             <h3 id='notification-center-title'>Notifications</h3>
-            {unreadCount > 0 && <span className='unread-badge'>{unreadCount}</span>}
+            {unreadCount > 0 && <span className={styles.unreadBadge}>{unreadCount}</span>}
           </div>
-          <div className='notification-actions'>
-            <button className='btn-icon' onClick={toggleSettings} title='Notification Settings'>
+          <div className={styles.notificationActions}>
+            <button className={styles.btnIcon} onClick={toggleSettings} title='Notification Settings'>
               ⚙️
             </button>
             {notifications.length > 0 && (
-              <button className='btn-icon' onClick={handleClearAll} title='Clear All'>
+              <button className={styles.btnIcon} onClick={handleClearAll} title='Clear All'>
                 🗑️
               </button>
             )}
-            <button className='btn-icon notification-close' onClick={onClose} title='Close'>
+            <button className={`${styles.btnIcon} ${styles.notificationCenterClose}`} onClick={onClose} title='Close'>
               ×
             </button>
           </div>
@@ -311,10 +316,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
           </div>
         )}
 
-        <div className='notification-list'>
+        <div className={styles.notificationList}>
           {recentNotifications.length === 0 ? (
-            <div className='notification-empty'>
-              <div className='empty-icon'>🔔</div>
+            <div className={styles.notificationEmpty}>
+              <div className={styles.emptyIcon}>🔔</div>
               <h4>No notifications yet</h4>
               <p>
                 {`You'll see milestone updates, deadline reminders, and achievement celebrations here.`}

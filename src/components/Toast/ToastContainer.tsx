@@ -20,6 +20,12 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove
           aria-live='polite'
         >
           <div className={styles.toastContent}>
+            <span className={styles.toastIcon}>
+              {toast.type === 'success' && '✅'}
+              {toast.type === 'error' && '❌'}
+              {toast.type === 'info' && 'ℹ️'}
+              {toast.type === 'warning' && '⚠️'}
+            </span>
             <span className={styles.toastMessage}>{toast.message}</span>
             <button
               className={styles.toastClose}
