@@ -77,21 +77,21 @@ function createRateLimitConfig(options: { windowMs: number; max: number; message
 
 /**
  * Strict rate limiting for authentication endpoints
- * 5 requests per 15 minutes to prevent brute force attacks
+ * Configurable via environment variables with secure defaults
  */
 export const authRateLimit = createRateLimitConfig({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  windowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW || '15', 10) * 60 * 1000,
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '5', 10),
   message: 'Too many authentication attempts from this IP, please try again after 15 minutes',
 });
 
 /**
  * Standard rate limiting for general API endpoints
- * 100 requests per 15 minutes for normal operations
+ * Configurable via environment variables with secure defaults
  */
 export const apiRateLimit = createRateLimitConfig({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  windowMs: parseInt(process.env.API_RATE_LIMIT_WINDOW || '15', 10) * 60 * 1000,
+  max: parseInt(process.env.API_RATE_LIMIT_MAX || '100', 10),
   message: 'Too many requests from this IP, please try again later',
 });
 

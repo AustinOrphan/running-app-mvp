@@ -49,13 +49,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister, loading
           helperText='Password must be at least 6 characters long'
         />
         <ButtonGroup className={styles.authButtons} align='justified'>
-          <Button
-            type='submit'
-            variant='primary'
-            loading={loading}
-            disabled={loading}
-            fullWidth
-          >
+          <Button type='submit' variant='primary' loading={loading} disabled={loading} fullWidth>
             {loading ? 'Logging in...' : 'Login'}
           </Button>
           <Button

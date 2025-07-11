@@ -1,4 +1,4 @@
-import React, { forwardRef, InputHTMLAttributes, useId } from 'react';
+import React, { forwardRef, InputHTMLAttributes, useId, useState, useCallback } from 'react';
 import styles from '../../styles/components/Form.module.css';
 
 /**
@@ -6,51 +6,61 @@ import styles from '../../styles/components/Form.module.css';
  */
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size' | 'type'> {
   /** Input type */
-  type?: 'text' | 'email' | 'password' | 'number' | 'date' | 'time' | 'tel' | 'url' | 'search' | 'color';
-  
+  type?:
+    | 'text'
+    | 'email'
+    | 'password'
+    | 'number'
+    | 'date'
+    | 'time'
+    | 'tel'
+    | 'url'
+    | 'search'
+    | 'color';
+
   /** Label text for the input */
   label?: string;
-  
+
   /** Helper text displayed below the input */
   helperText?: string;
-  
+
   /** Whether the input has an error */
   error?: boolean;
-  
+
   /** Error message to display */
   errorMessage?: string;
-  
+
   /** Whether the input has a success state */
   success?: boolean;
-  
+
   /** Success message to display */
   successMessage?: string;
-  
+
   /** Size variant of the input */
   size?: 'small' | 'medium' | 'large';
-  
+
   /** Whether the input should take full width */
   fullWidth?: boolean;
-  
+
   /** Icon to display at the start of the input */
   leadingIcon?: React.ReactNode;
-  
+
   /** Icon to display at the end of the input */
   trailingIcon?: React.ReactNode;
-  
+
   /** Click handler for trailing icon */
   onTrailingIconClick?: () => void;
-  
+
   /** Whether to show character count */
   showCharCount?: boolean;
-  
+
   /** Additional CSS classes */
   className?: string;
 }
 
 /**
  * Input component with validation states and accessibility features
- * 
+ *
  * @example
  * ```tsx
  * <Input
@@ -85,6 +95,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       value,
       maxLength,
       id,
+      onChange,
       ...props
     },
     ref
@@ -92,41 +103,88 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     // Generate unique ID if not provided
     const generatedId = useId();
     const inputId = id || generatedId;
-    
+
+    // State for password visibility toggle
+    const [showPassword, setShowPassword] = useState(false);
+
+    // Determine the actual input type (handle password visibility)
+    const actualType = type === 'password' && showPassword ? 'text' : type;
+
+    // Handle password toggle
+    const handlePasswordToggle = useCallback(() => {
+      setShowPassword(prev => !prev);
+    }, []);
+
+    // Handle search clear
+    const handleSearchClear = useCallback(() => {
+      if (onChange) {
+        const event = {
+          target: { value: '' },
+        } as React.ChangeEvent<HTMLInputElement>;
+        onChange(event);
+      }
+    }, [onChange]);
+
+    // Determine trailing icon based on input type
+    const getTrailingIcon = () => {
+      if (type === 'password' && !trailingIcon) {
+        return (
+          <span aria-label={showPassword ? 'Hide password' : 'Show password'}>
+            {showPassword ? '👁️‍🗨️' : '👁️'}
+          </span>
+        );
+      }
+      if (type === 'search' && value && !trailingIcon) {
+        return <span aria-label='Clear search'>✕</span>;
+      }
+      return trailingIcon;
+    };
+
+    // Determine trailing icon click handler
+    const getTrailingIconClick = () => {
+      if (type === 'password' && !onTrailingIconClick) {
+        return handlePasswordToggle;
+      }
+      if (type === 'search' && value && !onTrailingIconClick) {
+        return handleSearchClear;
+      }
+      return onTrailingIconClick;
+    };
+
+    const effectiveTrailingIcon = getTrailingIcon();
+    const effectiveTrailingIconClick = getTrailingIconClick();
+
     // Determine input classes
-    const inputClasses = [
-      styles.formGroup,
-      fullWidth && styles.fullWidth,
-      className
-    ]
+    const inputClasses = [styles.formGroup, fullWidth && styles.fullWidth, className]
       .filter(Boolean)
       .join(' ');
-    
+
     const fieldClasses = [
       error && styles.error,
       success && styles.success,
       size === 'small' && styles.small,
-      size === 'large' && styles.large
+      size === 'large' && styles.large,
     ]
       .filter(Boolean)
       .join(' ');
-    
+
     // Calculate character count
     const charCount = typeof value === 'string' ? value.length : 0;
-    
+
     // Determine which message to show
-    const message = error && errorMessage 
-      ? errorMessage 
-      : success && successMessage 
-      ? successMessage 
-      : helperText;
-    
-    const messageClass = error 
-      ? styles.errorMessage 
-      : success 
-      ? styles.successMessage 
-      : styles.fieldDescription;
-    
+    const message =
+      error && errorMessage
+        ? errorMessage
+        : success && successMessage
+          ? successMessage
+          : helperText;
+
+    const messageClass = error
+      ? styles.errorMessage
+      : success
+        ? styles.successMessage
+        : styles.fieldDescription;
+
     return (
       <div className={inputClasses}>
         {label && (
@@ -134,18 +192,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {label}
           </label>
         )}
-        
+
         <div className={styles.inputWrapper}>
           {leadingIcon && (
-            <span className={styles.leadingIcon} aria-hidden="true">
+            <span className={styles.leadingIcon} aria-hidden='true'>
               {leadingIcon}
             </span>
           )}
-          
+
           <input
             ref={ref}
             id={inputId}
-            type={type}
+            type={actualType}
             className={fieldClasses}
             disabled={disabled}
             readOnly={readOnly}
@@ -154,24 +212,25 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             aria-describedby={message ? `${inputId}-message` : undefined}
             aria-required={required}
             value={value}
+            onChange={onChange}
             maxLength={maxLength}
             {...props}
           />
-          
-          {trailingIcon && (
+
+          {effectiveTrailingIcon && (
             <button
-              type="button"
+              type='button'
               className={styles.trailingIcon}
-              onClick={onTrailingIconClick}
+              onClick={effectiveTrailingIconClick}
               disabled={disabled}
-              tabIndex={onTrailingIconClick ? 0 : -1}
-              aria-hidden={!onTrailingIconClick}
+              tabIndex={effectiveTrailingIconClick ? 0 : -1}
+              aria-hidden={!effectiveTrailingIconClick}
             >
-              {trailingIcon}
+              {effectiveTrailingIcon}
             </button>
           )}
         </div>
-        
+
         {(message || (showCharCount && maxLength)) && (
           <div className={styles.inputFooter}>
             {message && (
@@ -179,7 +238,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 {message}
               </span>
             )}
-            
+
             {showCharCount && maxLength && (
               <span className={styles.charCount}>
                 {charCount}/{maxLength}
@@ -200,23 +259,23 @@ Input.displayName = 'Input';
 export interface InputGroupProps {
   /** Label for the group */
   label?: string;
-  
+
   /** Helper text for the group */
   helperText?: string;
-  
+
   /** Whether fields are arranged horizontally */
   horizontal?: boolean;
-  
+
   /** Additional CSS classes */
   className?: string;
-  
+
   /** Child inputs */
   children: React.ReactNode;
 }
 
 /**
  * InputGroup component for organizing related inputs
- * 
+ *
  * @example
  * ```tsx
  * <InputGroup label="Personal Information" horizontal>
@@ -230,27 +289,23 @@ export const InputGroup: React.FC<InputGroupProps> = ({
   helperText,
   horizontal = false,
   className = '',
-  children
+  children,
 }) => {
   const groupClasses = [
     styles.formSection,
     horizontal ? styles.formRow : styles.formColumn,
-    className
+    className,
   ]
     .filter(Boolean)
     .join(' ');
-  
+
   return (
     <fieldset className={groupClasses}>
       {label && <legend className={styles.groupLabel}>{label}</legend>}
-      
-      <div className={horizontal ? styles.formRowAutoFit : styles.formColumn}>
-        {children}
-      </div>
-      
-      {helperText && (
-        <p className={styles.fieldDescription}>{helperText}</p>
-      )}
+
+      <div className={horizontal ? styles.formRowAutoFit : styles.formColumn}>{children}</div>
+
+      {helperText && <p className={styles.fieldDescription}>{helperText}</p>}
     </fieldset>
   );
 };
@@ -258,41 +313,48 @@ export const InputGroup: React.FC<InputGroupProps> = ({
 /**
  * Props for TextArea component
  */
-export interface TextAreaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'size'> {
+export interface TextAreaProps
+  extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'size'> {
   /** Label text */
   label?: string;
-  
+
   /** Helper text */
   helperText?: string;
-  
+
   /** Error state */
   error?: boolean;
-  
+
   /** Error message */
   errorMessage?: string;
-  
+
   /** Success state */
   success?: boolean;
-  
+
   /** Success message */
   successMessage?: string;
-  
+
   /** Size variant */
   size?: 'small' | 'medium' | 'large';
-  
+
   /** Full width */
   fullWidth?: boolean;
-  
+
   /** Show character count */
   showCharCount?: boolean;
-  
+
   /** Resize behavior */
   resize?: 'none' | 'vertical' | 'horizontal' | 'both';
+
+  /** Auto-resize to fit content */
+  autoResize?: boolean;
+
+  /** Maximum height for auto-resize (in pixels) */
+  maxAutoHeight?: number;
 }
 
 /**
  * TextArea component for multi-line text input
- * 
+ *
  * @example
  * ```tsx
  * <TextArea
@@ -316,6 +378,8 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
       fullWidth = true,
       showCharCount = false,
       resize = 'vertical',
+      autoResize = false,
+      maxAutoHeight = 400,
       className = '',
       required = false,
       disabled = false,
@@ -323,45 +387,88 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
       value,
       maxLength,
       id,
+      onInput,
+      onChange,
       ...props
     },
     ref
   ) => {
     const generatedId = useId();
     const textareaId = id || generatedId;
-    
-    const textareaClasses = [
-      styles.formGroup,
-      fullWidth && styles.fullWidth,
-      className
-    ]
+    const [textareaRef, setTextareaRef] = useState<HTMLTextAreaElement | null>(null);
+
+    // Combine refs
+    const combinedRef = useCallback(
+      (node: HTMLTextAreaElement | null) => {
+        setTextareaRef(node);
+        if (ref) {
+          if (typeof ref === 'function') {
+            ref(node);
+          } else {
+            ref.current = node;
+          }
+        }
+      },
+      [ref]
+    );
+
+    // Auto-resize functionality
+    const adjustHeight = useCallback(() => {
+      if (textareaRef && autoResize) {
+        // Reset height to auto to get the correct scrollHeight
+        textareaRef.style.height = 'auto';
+        const newHeight = Math.min(textareaRef.scrollHeight, maxAutoHeight);
+        textareaRef.style.height = `${newHeight}px`;
+      }
+    }, [autoResize, maxAutoHeight, textareaRef]);
+
+    // Adjust height on value change
+    React.useEffect(() => {
+      adjustHeight();
+    }, [value, adjustHeight]);
+
+    // Handle input for auto-resize
+    const handleInput = useCallback(
+      (e: React.FormEvent<HTMLTextAreaElement>) => {
+        adjustHeight();
+        if (onInput) {
+          onInput(e);
+        }
+      },
+      [adjustHeight, onInput]
+    );
+
+    const textareaClasses = [styles.formGroup, fullWidth && styles.fullWidth, className]
       .filter(Boolean)
       .join(' ');
-    
+
     const fieldClasses = [
       error && styles.error,
       success && styles.success,
       size === 'small' && styles.small,
       size === 'large' && styles.large,
-      styles[`resize${resize.charAt(0).toUpperCase() + resize.slice(1)}`]
+      autoResize
+        ? styles.autoResize
+        : styles[`resize${resize.charAt(0).toUpperCase() + resize.slice(1)}`],
     ]
       .filter(Boolean)
       .join(' ');
-    
+
     const charCount = typeof value === 'string' ? value.length : 0;
-    
-    const message = error && errorMessage 
-      ? errorMessage 
-      : success && successMessage 
-      ? successMessage 
-      : helperText;
-    
-    const messageClass = error 
-      ? styles.errorMessage 
-      : success 
-      ? styles.successMessage 
-      : styles.fieldDescription;
-    
+
+    const message =
+      error && errorMessage
+        ? errorMessage
+        : success && successMessage
+          ? successMessage
+          : helperText;
+
+    const messageClass = error
+      ? styles.errorMessage
+      : success
+        ? styles.successMessage
+        : styles.fieldDescription;
+
     return (
       <div className={textareaClasses}>
         {label && (
@@ -369,9 +476,9 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
             {label}
           </label>
         )}
-        
+
         <textarea
-          ref={ref}
+          ref={combinedRef}
           id={textareaId}
           className={fieldClasses}
           disabled={disabled}
@@ -381,10 +488,13 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           aria-describedby={message ? `${textareaId}-message` : undefined}
           aria-required={required}
           value={value}
+          onChange={onChange}
           maxLength={maxLength}
+          onInput={handleInput}
+          style={autoResize ? { overflow: 'hidden', resize: 'none' } : undefined}
           {...props}
         />
-        
+
         {(message || (showCharCount && maxLength)) && (
           <div className={styles.inputFooter}>
             {message && (
@@ -392,7 +502,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
                 {message}
               </span>
             )}
-            
+
             {showCharCount && maxLength && (
               <span className={styles.charCount}>
                 {charCount}/{maxLength}
@@ -406,6 +516,3 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
 );
 
 TextArea.displayName = 'TextArea';
-
-// Export types for external use
-export type { InputProps, InputGroupProps, TextAreaProps };

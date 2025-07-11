@@ -25,6 +25,21 @@
   gap: 15px;
 }
 
+.logoutBtn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.logoutBtn:hover {
+  background: #dc2626;
+}
+
 .status {
   padding: 8px 12px;
   border-radius: 6px;
@@ -99,7 +114,9 @@
   border-radius: 6px;
   opacity: 1;
   z-index: -1;
-  animation: clickFadeIn 0.5s, gradientShift 5s ease-in-out infinite;
+  animation:
+    clickFadeIn 0.5s,
+    gradientShift 5s ease-in-out infinite;
   transition: opacity 0.3s ease;
 }
 
@@ -117,7 +134,9 @@
   margin: -10px 0 20px 0;
   display: none;
   animation: fadeInUp 0.5s ease-out;
-  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  transition:
+    opacity 0.3s ease-out,
+    transform 0.3s ease-out;
 }
 
 .swipeHint.fadeOut {
@@ -298,31 +317,31 @@
     padding: 16px;
     margin-bottom: 20px;
   }
-  
+
   .headerActions {
     gap: 10px;
   }
-  
+
   .mainNav {
     margin-bottom: 20px;
     max-width: 100%;
   }
-  
+
   .navBtn {
     padding: 10px 12px;
     font-size: 14px;
   }
-  
+
   .tabContent {
     height: calc(100vh - 200px);
     max-height: none;
     border-radius: 8px;
   }
-  
+
   .tabPanel {
     padding: 16px;
   }
-  
+
   .swipeHint {
     display: block;
     margin: -5px 0 15px 0;
@@ -334,18 +353,18 @@
     padding: 4px;
     gap: 0.5px;
   }
-  
+
   .navBtn {
     padding: 8px 6px;
     font-size: 12px;
   }
-  
+
   .header {
     flex-direction: column;
     gap: 15px;
     text-align: center;
   }
-  
+
   .headerActions {
     width: 100%;
     justify-content: center;
@@ -357,7 +376,7 @@
   .navBtn.active::before {
     background: var(--color-primary);
   }
-  
+
   .swipeText {
     border-width: 2px;
   }
@@ -372,11 +391,11 @@
     animation: none;
     transition: none;
   }
-  
+
   .navBtn:hover {
     transform: none;
   }
-  
+
   .navBtn.active {
     transform: none;
   }

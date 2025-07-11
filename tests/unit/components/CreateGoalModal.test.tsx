@@ -5,6 +5,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateGoalModal } from '../../../src/components/CreateGoalModal';
 import { GOAL_TYPES, GOAL_PERIODS, GOAL_TYPE_CONFIGS } from '../../../src/types/goals';
 
+// Mock the clientLogger
+vi.mock('../../../src/utils/clientLogger', () => ({
+  logError: vi.fn(),
+  logWarn: vi.fn(),
+  logInfo: vi.fn(),
+  logDebug: vi.fn(),
+}));
+
+import { logError } from '../../../src/utils/clientLogger';
+
 describe('CreateGoalModal', () => {
   const mockOnClose = vi.fn();
   const mockOnSubmit = vi.fn();
@@ -409,7 +419,7 @@ describe('CreateGoalModal', () => {
 
     it('handles submission error gracefully', async () => {
       const user = userEvent.setup();
-      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const mockLogError = vi.mocked(logError);
       mockOnSubmit.mockRejectedValue(new Error('Submission failed'));
 
       render(<CreateGoalModal {...defaultProps} />);
@@ -421,11 +431,9 @@ describe('CreateGoalModal', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(consoleError).toHaveBeenCalledWith('Failed to create goal:', expect.any(Error));
+        expect(mockLogError).toHaveBeenCalledWith('Failed to create goal', expect.any(Error));
         expect(screen.getByText('Create Goal')).toBeInTheDocument(); // Back to normal state
       });
-
-      consoleError.mockRestore();
     });
   });
 
