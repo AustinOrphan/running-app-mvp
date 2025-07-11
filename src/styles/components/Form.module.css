@@ -330,6 +330,13 @@
   resize: both;
 }
 
+.autoResize {
+  resize: none;
+  overflow: hidden;
+  min-height: 80px;
+  transition: height 0.2s ease;
+}
+
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
   .formRow,
