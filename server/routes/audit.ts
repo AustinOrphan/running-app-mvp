@@ -30,13 +30,13 @@ const requireAdmin = (req: AuthRequest, res: express.Response, next: express.Nex
   // Log audit access attempt (even in development)
   auditLogger
     .logEvent(
+      'admin.system_access',
+      'audit_logs',
+      'success',
       {
-        action: 'admin.system_access',
-        resource: 'audit_logs',
-        outcome: 'success',
+        req,
         details: { endpoint: req.path },
-      },
-      req
+      }
     )
     .catch(() => {});
 
