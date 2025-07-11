@@ -15,6 +15,7 @@ export const useAuth = () => {
     // Listen for authentication failure events
     const handleAuthFailure = (event: Event) => {
       const customEvent = event as CustomEvent;
+      // eslint-disable-next-line no-console -- Intentional auth failure warning for debugging
       console.warn('Authentication failed:', customEvent.detail);
       setIsLoggedIn(false);
       // Token is already cleared by apiFetch
