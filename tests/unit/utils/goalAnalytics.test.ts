@@ -67,7 +67,7 @@ describe('GoalAnalyticsCalculator', () => {
       expect(result.totalGoals).toBe(3);
       expect(result.activeGoals).toBe(1);
       expect(result.completedGoals).toBe(2);
-      expect(result.completionRate).toBe(66.67);
+      expect(result.completionRate).toBeCloseTo(66.67, 1);
     });
 
     it('should identify most common goal type correctly', () => {

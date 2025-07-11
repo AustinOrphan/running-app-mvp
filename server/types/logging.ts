@@ -43,7 +43,10 @@ export type LogComponent =
   | 'races'
   | 'server'
   | 'middleware'
-  | 'database';
+  | 'database'
+  | 'security'
+  | 'audit'
+  | 'encryption';
 
 export interface EnhancedLoggerOptions {
   component: LogComponent;

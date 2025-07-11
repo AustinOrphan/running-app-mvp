@@ -9,6 +9,14 @@ vi.mock('../../../src/utils/formatters', () => ({
   calculatePace: vi.fn((distance: number, duration: number) => duration / distance),
 }));
 
+// Mock the clientLogger
+vi.mock('../../../src/utils/clientLogger', () => ({
+  logError: vi.fn(),
+  logWarn: vi.fn(),
+  logInfo: vi.fn(),
+  logDebug: vi.fn(),
+}));
+
 // Mock the apiFetch utilities
 vi.mock('../../../src/utils/apiFetch', () => {
   // Define MockApiError inside the factory to avoid hoisting issues
@@ -37,6 +45,7 @@ vi.mock('../../../src/utils/apiFetch', () => {
 
 // Import the mocked functions
 import { apiGet, apiPost, apiPut, apiDelete, ApiResponse } from '../../../src/utils/apiFetch';
+import { logError } from '../../../src/utils/clientLogger';
 
 // Use a simple error class for tests since we defined it in the mock
 class MockApiError extends Error {
@@ -90,6 +99,7 @@ describe('useRuns', () => {
   const mockApiPost = vi.mocked(apiPost);
   const mockApiPut = vi.mocked(apiPut);
   const mockApiDelete = vi.mocked(apiDelete);
+  const mockLogError = vi.mocked(logError);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -205,7 +215,7 @@ describe('useRuns', () => {
       });
 
       expect(result.current.runs).toEqual([]);
-      expect(console.error).toHaveBeenCalledWith('Failed to fetch runs:', error);
+      expect(mockLogError).toHaveBeenCalledWith('Failed to fetch runs', error);
     });
 
     it('handles network errors', async () => {
@@ -225,7 +235,7 @@ describe('useRuns', () => {
       });
 
       expect(result.current.runs).toEqual([]);
-      expect(console.error).toHaveBeenCalledWith('Failed to fetch runs:', error);
+      expect(mockLogError).toHaveBeenCalledWith('Failed to fetch runs', error);
     });
 
     it('can be called manually to refresh data', async () => {
@@ -804,7 +814,7 @@ describe('useRuns', () => {
       });
 
       await waitFor(() => {
-        expect(console.error).toHaveBeenCalledWith('Failed to fetch runs:', error);
+        expect(mockLogError).toHaveBeenCalledWith('Failed to fetch runs', error);
       });
     });
 
@@ -838,7 +848,7 @@ describe('useRuns', () => {
         // Expected to throw
       }
 
-      expect(console.error).toHaveBeenCalledWith('Failed to save run:', error);
+      expect(mockLogError).toHaveBeenCalledWith('Failed to save run', error);
     });
 
     it('logs errors to console on delete failure', async () => {
@@ -865,7 +875,7 @@ describe('useRuns', () => {
         // Expected to throw
       }
 
-      expect(console.error).toHaveBeenCalledWith('Failed to delete run:', error);
+      expect(mockLogError).toHaveBeenCalledWith('Failed to delete run', error);
     });
   });
 });
