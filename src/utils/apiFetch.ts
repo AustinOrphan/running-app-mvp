@@ -45,7 +45,84 @@ const DEFAULT_CONFIG: Required<Pick<ApiFetchOptions, 'timeout' | 'retries' | 're
 
 // Authentication token management
 const getAuthToken = (): string | null => {
-  return localStorage.getItem('authToken');
+  return localStorage.getItem('accessToken');
+};
+
+const getRefreshToken = (): string | null => {
+  return localStorage.getItem('refreshToken');
+};
+
+const setTokens = (accessToken: string, refreshToken: string): void => {
+  localStorage.setItem('accessToken', accessToken);
+  localStorage.setItem('refreshToken', refreshToken);
+};
+
+const clearTokens = (): void => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  // Keep backward compatibility
+  localStorage.removeItem('authToken');
+};
+
+// Auth events for communicating with useAuth hook
+export const authEvents = new EventTarget();
+
+// Token refresh functionality
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+const refreshAccessToken = async (): Promise<boolean> => {
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) {
+        clearTokens();
+        authEvents.dispatchEvent(new CustomEvent('authenticationFailed', {
+          detail: { message: 'No refresh token available' }
+        }));
+        return false;
+      }
+
+      const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        clearTokens();
+        authEvents.dispatchEvent(new CustomEvent('authenticationFailed', {
+          detail: { message: 'Failed to refresh token' }
+        }));
+        return false;
+      }
+
+      const data = await response.json();
+      setTokens(data.accessToken, data.refreshToken);
+      
+      authEvents.dispatchEvent(new CustomEvent('tokenRefreshed', {
+        detail: { accessToken: data.accessToken }
+      }));
+      
+      return true;
+    } catch (error) {
+      clearTokens();
+      authEvents.dispatchEvent(new CustomEvent('authenticationFailed', {
+        detail: { message: 'Token refresh failed' }
+      }));
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 };
 
 // Retry-able HTTP status codes
@@ -141,6 +218,26 @@ export const apiFetch = async <T = unknown>(
         } catch {
           // If parsing fails, use default error message
           errorData = { message: errorMessage };
+        }
+
+        // Handle 401 errors with token refresh (but not for auth endpoints)
+        if (response.status === 401 && !url.includes('/api/auth/') && attempt === 0) {
+          const refreshSuccess = await refreshAccessToken();
+          if (refreshSuccess) {
+            // Update authorization header with new token
+            const newToken = getAuthToken();
+            if (newToken) {
+              headers.Authorization = `Bearer ${newToken}`;
+              requestConfig.headers = headers;
+              // Retry the request with new token
+              continue;
+            }
+          }
+          // If refresh failed, clear tokens and emit auth failure
+          clearTokens();
+          authEvents.dispatchEvent(new CustomEvent('authenticationFailed', {
+            detail: { status: response.status, message: errorMessage, url }
+          }));
         }
 
         // Check if this is a retryable error
@@ -245,5 +342,5 @@ export const apiPatch = <T = unknown>(
   return apiFetch<T>(url, { ...options, method: 'PATCH', body });
 };
 
-// Export the error class and types for use in other modules
-export { ApiFetchError };
+// Export the error class, types, and token management functions for use in other modules
+export { ApiFetchError, setTokens, clearTokens, getAuthToken, getRefreshToken };
