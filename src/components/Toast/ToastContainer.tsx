@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { Toast } from '../../types';
+import styles from '../../styles/components/Notification.module.css';
 
 interface ToastContainerProps {
   toasts: Toast[];
@@ -9,23 +10,24 @@ interface ToastContainerProps {
 
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemoveToast }) => {
   return (
-    <div className='toast-container'>
+    <div className={styles.toastContainer}>
       {toasts.map(toast => (
         <div
           key={toast.id}
           data-toast-id={toast.id}
-          className={`toast toast-${toast.type}`}
+          className={`${styles.toast} ${styles[toast.type]} ${styles.show}`}
           role='status'
           aria-live='polite'
         >
-          <span className='toast-icon'>
+          <span className={styles.toastIcon}>
             {toast.type === 'success' && '✅'}
             {toast.type === 'error' && '❌'}
             {toast.type === 'info' && 'ℹ️'}
+            {toast.type === 'warning' && '⚠️'}
           </span>
-          <span className='toast-message'>{toast.message}</span>
+          <span className={styles.toastMessage}>{toast.message}</span>
           <button
-            className='toast-close'
+            className={styles.toastClose}
             onClick={() => onRemoveToast(toast.id)}
             aria-label={`Dismiss ${toast.type} notification`}
           >
