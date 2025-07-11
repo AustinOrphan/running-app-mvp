@@ -298,6 +298,10 @@
   animation: fadeIn 0.5s ease forwards;
 }
 
+.achievementNotification.show {
+  opacity: 1;
+}
+
 .achievementModal {
   background: var(--surface-color);
   border: 1px solid var(--border-color);
@@ -308,6 +312,11 @@
   text-align: center;
   transform: scale(0.8);
   animation: scaleIn 0.5s ease 0.2s forwards;
+  position: relative;
+}
+
+.achievementModal.animate {
+  animation: scaleIn 0.5s ease forwards;
 }
 
 .achievementIcon {
@@ -374,6 +383,79 @@
 .achievementClose:hover {
   background: var(--primary-hover);
   transform: translateY(-1px);
+}
+
+/* Achievement Content */
+.achievementContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.achievementCelebration {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.achievementConfetti {
+  font-size: 36px;
+  animation: bounce 0.6s ease infinite alternate;
+}
+
+.achievementHeader {
+  margin-bottom: 10px;
+}
+
+.achievementGoal {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--card-bg);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.achievementGoalIcon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.achievementDetails {
+  flex: 1;
+}
+
+.achievementGoalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.achievementGoalType {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.achievementGoalDescription {
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.achievementMessage {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.achievementMessage p {
+  margin: 4px 0;
 }
 
 /* Empty State */
