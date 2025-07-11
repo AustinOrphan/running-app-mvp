@@ -24,14 +24,14 @@ import { Input } from '@/components/UI';
 
 function MyForm() {
   const [email, setEmail] = useState('');
-  
+
   return (
     <Input
-      type="email"
-      label="Email Address"
+      type='email'
+      label='Email Address'
       value={email}
-      onChange={(e) => setEmail(e.target.value)}
-      placeholder="Enter your email"
+      onChange={e => setEmail(e.target.value)}
+      placeholder='Enter your email'
       required
     />
   );
@@ -40,99 +40,98 @@ function MyForm() {
 
 ### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `type` | `'text' \| 'email' \| 'password' \| 'number' \| 'date' \| 'time' \| 'tel' \| 'url' \| 'search' \| 'color'` | `'text'` | Input type |
-| `label` | `string` | - | Label text for the input |
-| `helperText` | `string` | - | Helper text displayed below the input |
-| `error` | `boolean` | `false` | Whether the input has an error |
-| `errorMessage` | `string` | - | Error message to display |
-| `success` | `boolean` | `false` | Whether the input has a success state |
-| `successMessage` | `string` | - | Success message to display |
-| `size` | `'small' \| 'medium' \| 'large'` | `'medium'` | Size variant |
-| `fullWidth` | `boolean` | `true` | Whether the input should take full width |
-| `leadingIcon` | `ReactNode` | - | Icon to display at the start |
-| `trailingIcon` | `ReactNode` | - | Icon to display at the end |
-| `onTrailingIconClick` | `() => void` | - | Click handler for trailing icon |
-| `showCharCount` | `boolean` | `false` | Whether to show character count |
+| Prop                  | Type                                                                                                       | Default    | Description                              |
+| --------------------- | ---------------------------------------------------------------------------------------------------------- | ---------- | ---------------------------------------- |
+| `type`                | `'text' \| 'email' \| 'password' \| 'number' \| 'date' \| 'time' \| 'tel' \| 'url' \| 'search' \| 'color'` | `'text'`   | Input type                               |
+| `label`               | `string`                                                                                                   | -          | Label text for the input                 |
+| `helperText`          | `string`                                                                                                   | -          | Helper text displayed below the input    |
+| `error`               | `boolean`                                                                                                  | `false`    | Whether the input has an error           |
+| `errorMessage`        | `string`                                                                                                   | -          | Error message to display                 |
+| `success`             | `boolean`                                                                                                  | `false`    | Whether the input has a success state    |
+| `successMessage`      | `string`                                                                                                   | -          | Success message to display               |
+| `size`                | `'small' \| 'medium' \| 'large'`                                                                           | `'medium'` | Size variant                             |
+| `fullWidth`           | `boolean`                                                                                                  | `true`     | Whether the input should take full width |
+| `leadingIcon`         | `ReactNode`                                                                                                | -          | Icon to display at the start             |
+| `trailingIcon`        | `ReactNode`                                                                                                | -          | Icon to display at the end               |
+| `onTrailingIconClick` | `() => void`                                                                                               | -          | Click handler for trailing icon          |
+| `showCharCount`       | `boolean`                                                                                                  | `false`    | Whether to show character count          |
 
 ### Input Types
 
 #### Text Input
+
 ```tsx
-<Input
-  type="text"
-  label="Full Name"
-  value={name}
-  onChange={(e) => setName(e.target.value)}
-/>
+<Input type='text' label='Full Name' value={name} onChange={e => setName(e.target.value)} />
 ```
 
 #### Email Input
+
 ```tsx
 <Input
-  type="email"
-  label="Email"
+  type='email'
+  label='Email'
   value={email}
-  onChange={(e) => setEmail(e.target.value)}
+  onChange={e => setEmail(e.target.value)}
   error={!!errors.email}
   errorMessage={errors.email}
 />
 ```
 
 #### Password Input with Auto-Toggle
+
 ```tsx
 <Input
-  type="password"
-  label="Password"
+  type='password'
+  label='Password'
   value={password}
-  onChange={(e) => setPassword(e.target.value)}
-  helperText="Password must be at least 8 characters"
+  onChange={e => setPassword(e.target.value)}
+  helperText='Password must be at least 8 characters'
 />
 ```
-*Note: Password inputs automatically include a show/hide toggle button.*
+
+_Note: Password inputs automatically include a show/hide toggle button._
 
 #### Search Input with Auto-Clear
+
 ```tsx
 <Input
-  type="search"
-  label="Search"
+  type='search'
+  label='Search'
   value={searchTerm}
-  onChange={(e) => setSearchTerm(e.target.value)}
-  placeholder="Search runs..."
+  onChange={e => setSearchTerm(e.target.value)}
+  placeholder='Search runs...'
 />
 ```
-*Note: Search inputs automatically include a clear button when there's content.*
+
+_Note: Search inputs automatically include a clear button when there's content._
 
 #### Number Input
+
 ```tsx
 <Input
-  type="number"
-  label="Distance (km)"
-  step="0.1"
+  type='number'
+  label='Distance (km)'
+  step='0.1'
   value={distance}
-  onChange={(e) => setDistance(e.target.value)}
+  onChange={e => setDistance(e.target.value)}
 />
 ```
 
 #### Date Input
+
 ```tsx
 <Input
-  type="date"
-  label="Start Date"
+  type='date'
+  label='Start Date'
   value={startDate}
-  onChange={(e) => setStartDate(e.target.value)}
+  onChange={e => setStartDate(e.target.value)}
 />
 ```
 
 #### Color Input
+
 ```tsx
-<Input
-  type="color"
-  label="Theme Color"
-  value={color}
-  onChange={(e) => setColor(e.target.value)}
-/>
+<Input type='color' label='Theme Color' value={color} onChange={e => setColor(e.target.value)} />
 ```
 
 ### Size Variants
@@ -147,7 +146,7 @@ function MyForm() {
 
 ```tsx
 <Input
-  label="Search"
+  label='Search'
   leadingIcon={<SearchIcon />}
   trailingIcon={<ClearIcon />}
   onTrailingIconClick={() => setValue('')}
@@ -158,11 +157,11 @@ function MyForm() {
 
 ```tsx
 <Input
-  label="Bio"
+  label='Bio'
   maxLength={160}
   showCharCount
   value={bio}
-  onChange={(e) => setBio(e.target.value)}
+  onChange={e => setBio(e.target.value)}
 />
 ```
 
@@ -176,36 +175,36 @@ The TextArea component provides multi-line text input with auto-resize functiona
 import { TextArea } from '@/components/UI';
 
 <TextArea
-  label="Notes"
+  label='Notes'
   value={notes}
-  onChange={(e) => setNotes(e.target.value)}
-  placeholder="Enter your notes..."
+  onChange={e => setNotes(e.target.value)}
+  placeholder='Enter your notes...'
   rows={4}
-/>
+/>;
 ```
 
 ### Auto-Resize Feature
 
 ```tsx
 <TextArea
-  label="Description"
+  label='Description'
   value={description}
-  onChange={(e) => setDescription(e.target.value)}
+  onChange={e => setDescription(e.target.value)}
   autoResize
   maxAutoHeight={300}
-  placeholder="Enter a description..."
+  placeholder='Enter a description...'
 />
 ```
 
 ### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `autoResize` | `boolean` | `false` | Auto-resize to fit content |
-| `maxAutoHeight` | `number` | `400` | Maximum height for auto-resize (px) |
-| `resize` | `'none' \| 'vertical' \| 'horizontal' \| 'both'` | `'vertical'` | Resize behavior |
+| Prop            | Type                                             | Default      | Description                         |
+| --------------- | ------------------------------------------------ | ------------ | ----------------------------------- |
+| `autoResize`    | `boolean`                                        | `false`      | Auto-resize to fit content          |
+| `maxAutoHeight` | `number`                                         | `400`        | Maximum height for auto-resize (px) |
+| `resize`        | `'none' \| 'vertical' \| 'horizontal' \| 'both'` | `'vertical'` | Resize behavior                     |
 
-*All other props from Input component are also supported.*
+_All other props from Input component are also supported._
 
 ## Select Component
 
@@ -217,25 +216,25 @@ The Select component provides dropdown selection with options array support.
 import { Select } from '@/components/UI';
 
 <Select
-  label="Goal Type"
+  label='Goal Type'
   value={selectedType}
-  onChange={(e) => setSelectedType(e.target.value)}
+  onChange={e => setSelectedType(e.target.value)}
   options={[
     { value: 'distance', label: 'Distance Goal' },
     { value: 'time', label: 'Time Goal' },
-    { value: 'frequency', label: 'Frequency Goal' }
+    { value: 'frequency', label: 'Frequency Goal' },
   ]}
-/>
+/>;
 ```
 
 ### With Placeholder
 
 ```tsx
 <Select
-  label="Category"
+  label='Category'
   value={category}
-  onChange={(e) => setCategory(e.target.value)}
-  placeholder="Select a category"
+  onChange={e => setCategory(e.target.value)}
+  placeholder='Select a category'
   options={categoryOptions}
 />
 ```
@@ -243,22 +242,22 @@ import { Select } from '@/components/UI';
 ### Custom Option Rendering
 
 ```tsx
-<Select label="Priority" value={priority} onChange={handleChange}>
-  <option value="">Select priority</option>
-  <option value="low">🟢 Low</option>
-  <option value="medium">🟡 Medium</option>
-  <option value="high">🔴 High</option>
+<Select label='Priority' value={priority} onChange={handleChange}>
+  <option value=''>Select priority</option>
+  <option value='low'>🟢 Low</option>
+  <option value='medium'>🟡 Medium</option>
+  <option value='high'>🔴 High</option>
 </Select>
 ```
 
 ### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `options` | `Array<{value: string, label: string, disabled?: boolean}>` | `[]` | Options for the select |
-| `placeholder` | `string` | - | Placeholder option |
+| Prop          | Type                                                        | Default | Description            |
+| ------------- | ----------------------------------------------------------- | ------- | ---------------------- |
+| `options`     | `Array<{value: string, label: string, disabled?: boolean}>` | `[]`    | Options for the select |
+| `placeholder` | `string`                                                    | -       | Placeholder option     |
 
-*All other props from Input component (except input-specific ones) are also supported.*
+_All other props from Input component (except input-specific ones) are also supported._
 
 ## InputGroup Component
 
@@ -269,27 +268,27 @@ The InputGroup component organizes related inputs with optional labels and layou
 ```tsx
 import { InputGroup } from '@/components/UI';
 
-<InputGroup label="Personal Information">
-  <Input label="First Name" />
-  <Input label="Last Name" />
-</InputGroup>
+<InputGroup label='Personal Information'>
+  <Input label='First Name' />
+  <Input label='Last Name' />
+</InputGroup>;
 ```
 
 ### Horizontal Layout
 
 ```tsx
-<InputGroup horizontal label="Date Range">
-  <Input type="date" label="Start Date" />
-  <Input type="date" label="End Date" />
+<InputGroup horizontal label='Date Range'>
+  <Input type='date' label='Start Date' />
+  <Input type='date' label='End Date' />
 </InputGroup>
 ```
 
 ### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `label` | `string` | - | Label for the group |
-| `helperText` | `string` | - | Helper text for the group |
+| Prop         | Type      | Default | Description                              |
+| ------------ | --------- | ------- | ---------------------------------------- |
+| `label`      | `string`  | -       | Label for the group                      |
+| `helperText` | `string`  | -       | Helper text for the group                |
 | `horizontal` | `boolean` | `false` | Whether fields are arranged horizontally |
 
 ## Validation States
@@ -299,22 +298,17 @@ All input components support consistent validation states:
 ### Error State
 
 ```tsx
-<Input
-  label="Email"
-  value={email}
-  error={!!errors.email}
-  errorMessage={errors.email}
-/>
+<Input label='Email' value={email} error={!!errors.email} errorMessage={errors.email} />
 ```
 
 ### Success State
 
 ```tsx
 <Input
-  label="Username"
+  label='Username'
   value={username}
   success={usernameAvailable}
-  successMessage="Username is available"
+  successMessage='Username is available'
 />
 ```
 
@@ -322,9 +316,9 @@ All input components support consistent validation states:
 
 ```tsx
 <Input
-  label="Password"
-  type="password"
-  helperText="Must be at least 8 characters with numbers and symbols"
+  label='Password'
+  type='password'
+  helperText='Must be at least 8 characters with numbers and symbols'
 />
 ```
 
@@ -333,22 +327,26 @@ All input components support consistent validation states:
 All components include comprehensive accessibility support:
 
 ### ARIA Attributes
+
 - `aria-invalid` for error states
 - `aria-describedby` for error messages and helper text
 - `aria-required` for required fields
 - `aria-label` for icon buttons
 
 ### Label Association
+
 - Automatic ID generation using `useId()`
 - Proper label-input relationships
 - Support for screen readers
 
 ### Keyboard Navigation
+
 - Tab order follows visual layout
 - Enter/Space activation for buttons
 - Escape to clear search inputs
 
 ### Focus Management
+
 - Visible focus indicators
 - Logical focus flow
 - Focus trap in modals
@@ -360,7 +358,7 @@ All components include comprehensive accessibility support:
 Password inputs automatically include a show/hide toggle:
 
 ```tsx
-<Input type="password" label="Password" />
+<Input type='password' label='Password' />
 // Automatically includes eye icon for toggling visibility
 ```
 
@@ -369,7 +367,7 @@ Password inputs automatically include a show/hide toggle:
 Search inputs automatically include a clear button when there's content:
 
 ```tsx
-<Input type="search" label="Search" />
+<Input type='search' label='Search' />
 // Automatically includes × button when value exists
 ```
 
@@ -378,11 +376,7 @@ Search inputs automatically include a clear button when there's content:
 TextArea components can automatically adjust height based on content:
 
 ```tsx
-<TextArea
-  autoResize
-  maxAutoHeight={200}
-  label="Notes"
-/>
+<TextArea autoResize maxAutoHeight={200} label='Notes' />
 ```
 
 ### Form Integration
@@ -414,27 +408,29 @@ Components work seamlessly with form libraries:
 ### From Raw HTML Inputs
 
 **Before:**
+
 ```tsx
-<div className="form-group">
-  <label htmlFor="email">Email</label>
+<div className='form-group'>
+  <label htmlFor='email'>Email</label>
   <input
-    id="email"
-    type="email"
+    id='email'
+    type='email'
     value={email}
-    onChange={(e) => setEmail(e.target.value)}
+    onChange={e => setEmail(e.target.value)}
     className={errors.email ? 'error' : ''}
   />
-  {errors.email && <span className="error-message">{errors.email}</span>}
+  {errors.email && <span className='error-message'>{errors.email}</span>}
 </div>
 ```
 
 **After:**
+
 ```tsx
 <Input
-  type="email"
-  label="Email"
+  type='email'
+  label='Email'
   value={email}
-  onChange={(e) => setEmail(e.target.value)}
+  onChange={e => setEmail(e.target.value)}
   error={!!errors.email}
   errorMessage={errors.email}
 />
@@ -464,27 +460,25 @@ The Input system provides similar APIs with consistent patterns:
 ## Best Practices
 
 ### Form Organization
+
 ```tsx
 <form>
-  <InputGroup label="Personal Information">
-    <Input label="First Name" required />
-    <Input label="Last Name" required />
+  <InputGroup label='Personal Information'>
+    <Input label='First Name' required />
+    <Input label='Last Name' required />
   </InputGroup>
-  
-  <InputGroup horizontal label="Contact">
-    <Input type="email" label="Email" required />
-    <Input type="tel" label="Phone" />
+
+  <InputGroup horizontal label='Contact'>
+    <Input type='email' label='Email' required />
+    <Input type='tel' label='Phone' />
   </InputGroup>
-  
-  <TextArea
-    label="Additional Notes"
-    autoResize
-    maxAutoHeight={150}
-  />
+
+  <TextArea label='Additional Notes' autoResize maxAutoHeight={150} />
 </form>
 ```
 
 ### Error Handling
+
 ```tsx
 const [errors, setErrors] = useState({});
 
@@ -498,10 +492,10 @@ const validateForm = () => {
 
 return (
   <Input
-    type="email"
-    label="Email"
+    type='email'
+    label='Email'
     value={email}
-    onChange={(e) => setEmail(e.target.value)}
+    onChange={e => setEmail(e.target.value)}
     error={!!errors.email}
     errorMessage={errors.email}
     required
@@ -510,17 +504,18 @@ return (
 ```
 
 ### Performance Optimization
+
 ```tsx
 // Use useCallback for event handlers
-const handleChange = useCallback((e) => {
-  setFormData(prev => ({ ...prev, [field]: e.target.value }));
-}, [field]);
+const handleChange = useCallback(
+  e => {
+    setFormData(prev => ({ ...prev, [field]: e.target.value }));
+  },
+  [field]
+);
 
 // Debounce for search inputs
-const debouncedSearch = useMemo(
-  () => debounce((term) => onSearch(term), 300),
-  [onSearch]
-);
+const debouncedSearch = useMemo(() => debounce(term => onSearch(term), 300), [onSearch]);
 ```
 
 ## Browser Support
@@ -560,67 +555,67 @@ function GoalForm() {
     type: '',
     targetValue: '',
     startDate: '',
-    endDate: ''
+    endDate: '',
   });
-  
+
   const [errors, setErrors] = useState({});
-  
+
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
-  
+
   return (
     <form onSubmit={handleSubmit}>
       <Input
-        label="Goal Title"
+        label='Goal Title'
         value={formData.title}
-        onChange={(e) => updateField('title', e.target.value)}
+        onChange={e => updateField('title', e.target.value)}
         error={!!errors.title}
         errorMessage={errors.title}
         required
       />
-      
+
       <TextArea
-        label="Description"
+        label='Description'
         value={formData.description}
-        onChange={(e) => updateField('description', e.target.value)}
+        onChange={e => updateField('description', e.target.value)}
         autoResize
         maxAutoHeight={120}
-        placeholder="Optional description..."
+        placeholder='Optional description...'
       />
-      
+
       <Select
-        label="Goal Type"
+        label='Goal Type'
         value={formData.type}
-        onChange={(e) => updateField('type', e.target.value)}
+        onChange={e => updateField('type', e.target.value)}
         options={[
           { value: 'distance', label: 'Distance Goal' },
           { value: 'time', label: 'Time Goal' },
-          { value: 'frequency', label: 'Frequency Goal' }
+          { value: 'frequency', label: 'Frequency Goal' },
         ]}
         error={!!errors.type}
         errorMessage={errors.type}
         required
       />
-      
-      <InputGroup horizontal label="Date Range">
+
+      <InputGroup horizontal label='Date Range'>
         <Input
-          type="date"
-          label="Start Date"
+          type='date'
+          label='Start Date'
           value={formData.startDate}
-          onChange={(e) => updateField('startDate', e.target.value)}
+          onChange={e => updateField('startDate', e.target.value)}
           required
         />
         <Input
-          type="date"
-          label="End Date"
+          type='date'
+          label='End Date'
           value={formData.endDate}
-          onChange={(e) => updateField('endDate', e.target.value)}
+          onChange={e => updateField('endDate', e.target.value)}
           required
         />
       </InputGroup>
-      
-      <Button type="submit" variant="primary">
+
+      <Button type='submit' variant='primary'>
         Create Goal
       </Button>
     </form>

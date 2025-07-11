@@ -107,7 +107,8 @@
       "Bash(npm uninstall:*)",
       "Bash(cd:*)",
       "Bash(curl:*)",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(git rev-parse:*)"
     ],
     "deny": []
   }

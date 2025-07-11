@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { Input, TextArea, Select } from '../../../../src/components/UI';
@@ -7,14 +7,7 @@ import { Input, TextArea, Select } from '../../../../src/components/UI';
 describe('Enhanced Input Features', () => {
   describe('Password Toggle Functionality', () => {
     it('automatically adds password toggle for password type', () => {
-      render(
-        <Input
-          type="password"
-          label="Password"
-          value="secretpassword"
-          onChange={vi.fn()}
-        />
-      );
+      render(<Input type='password' label='Password' value='secretpassword' onChange={vi.fn()} />);
 
       const toggleButton = screen.getByRole('button', { name: /show password|hide password/i });
       expect(toggleButton).toBeInTheDocument();
@@ -22,14 +15,7 @@ describe('Enhanced Input Features', () => {
 
     it('toggles password visibility when clicked', async () => {
       const user = userEvent.setup();
-      render(
-        <Input
-          type="password"
-          label="Password"
-          value="secretpassword"
-          onChange={vi.fn()}
-        />
-      );
+      render(<Input type='password' label='Password' value='secretpassword' onChange={vi.fn()} />);
 
       const passwordInput = screen.getByLabelText('Password');
       const toggleButton = screen.getByRole('button', { name: /show password/i });
@@ -49,9 +35,9 @@ describe('Enhanced Input Features', () => {
     it('does not add toggle when custom trailing icon is provided', () => {
       render(
         <Input
-          type="password"
-          label="Password"
-          value="secretpassword"
+          type='password'
+          label='Password'
+          value='secretpassword'
           onChange={vi.fn()}
           trailingIcon={<span>Custom</span>}
           onTrailingIconClick={vi.fn()}
@@ -60,50 +46,32 @@ describe('Enhanced Input Features', () => {
 
       const customIcon = screen.getByText('Custom');
       expect(customIcon).toBeInTheDocument();
-      
+
       // Should not have password toggle
       expect(screen.queryByLabelText(/show password|hide password/i)).not.toBeInTheDocument();
     });
 
     it('maintains proper accessibility for password toggle', () => {
-      render(
-        <Input
-          type="password"
-          label="Password"
-          value="secretpassword"
-          onChange={vi.fn()}
-        />
-      );
+      render(<Input type='password' label='Password' value='secretpassword' onChange={vi.fn()} />);
 
       const toggleButton = screen.getByRole('button');
-      expect(toggleButton).toHaveAttribute('aria-label', expect.stringMatching(/show password|hide password/i));
+      expect(toggleButton).toHaveAttribute(
+        'aria-label',
+        expect.stringMatching(/show password|hide password/i)
+      );
     });
   });
 
   describe('Search Clear Functionality', () => {
     it('shows clear button when search input has value', () => {
-      render(
-        <Input
-          type="search"
-          label="Search"
-          value="search term"
-          onChange={vi.fn()}
-        />
-      );
+      render(<Input type='search' label='Search' value='search term' onChange={vi.fn()} />);
 
       const clearButton = screen.getByRole('button', { name: /clear search/i });
       expect(clearButton).toBeInTheDocument();
     });
 
     it('does not show clear button when search input is empty', () => {
-      render(
-        <Input
-          type="search"
-          label="Search"
-          value=""
-          onChange={vi.fn()}
-        />
-      );
+      render(<Input type='search' label='Search' value='' onChange={vi.fn()} />);
 
       expect(screen.queryByRole('button', { name: /clear search/i })).not.toBeInTheDocument();
     });
@@ -111,22 +79,15 @@ describe('Enhanced Input Features', () => {
     it('clears the input when clear button is clicked', async () => {
       const user = userEvent.setup();
       const handleChange = vi.fn();
-      
-      render(
-        <Input
-          type="search"
-          label="Search"
-          value="search term"
-          onChange={handleChange}
-        />
-      );
+
+      render(<Input type='search' label='Search' value='search term' onChange={handleChange} />);
 
       const clearButton = screen.getByRole('button', { name: /clear search/i });
       await user.click(clearButton);
 
       expect(handleChange).toHaveBeenCalledWith(
         expect.objectContaining({
-          target: expect.objectContaining({ value: '' })
+          target: expect.objectContaining({ value: '' }),
         })
       );
     });
@@ -134,9 +95,9 @@ describe('Enhanced Input Features', () => {
     it('does not add clear button when custom trailing icon is provided', () => {
       render(
         <Input
-          type="search"
-          label="Search"
-          value="search term"
+          type='search'
+          label='Search'
+          value='search term'
           onChange={vi.fn()}
           trailingIcon={<span>Custom</span>}
           onTrailingIconClick={vi.fn()}
@@ -145,7 +106,7 @@ describe('Enhanced Input Features', () => {
 
       const customIcon = screen.getByText('Custom');
       expect(customIcon).toBeInTheDocument();
-      
+
       // Should not have clear button
       expect(screen.queryByLabelText(/clear search/i)).not.toBeInTheDocument();
     });
@@ -153,14 +114,7 @@ describe('Enhanced Input Features', () => {
 
   describe('Auto-resize TextArea', () => {
     it('renders TextArea with auto-resize enabled', () => {
-      render(
-        <TextArea
-          label="Notes"
-          value="Some text"
-          onChange={vi.fn()}
-          autoResize
-        />
-      );
+      render(<TextArea label='Notes' value='Some text' onChange={vi.fn()} autoResize />);
 
       const textarea = screen.getByLabelText('Notes');
       expect(textarea).toBeInTheDocument();
@@ -170,8 +124,8 @@ describe('Enhanced Input Features', () => {
     it('applies max height limit for auto-resize', () => {
       render(
         <TextArea
-          label="Notes"
-          value="Some text"
+          label='Notes'
+          value='Some text'
           onChange={vi.fn()}
           autoResize
           maxAutoHeight={200}
@@ -183,14 +137,7 @@ describe('Enhanced Input Features', () => {
     });
 
     it('uses resize property when autoResize is disabled', () => {
-      render(
-        <TextArea
-          label="Notes"
-          value="Some text"
-          onChange={vi.fn()}
-          resize="vertical"
-        />
-      );
+      render(<TextArea label='Notes' value='Some text' onChange={vi.fn()} resize='vertical' />);
 
       const textarea = screen.getByLabelText('Notes');
       expect(textarea).toBeInTheDocument();
@@ -199,15 +146,8 @@ describe('Enhanced Input Features', () => {
     it('handles input events for auto-resize', async () => {
       const user = userEvent.setup();
       const handleChange = vi.fn();
-      
-      render(
-        <TextArea
-          label="Notes"
-          value=""
-          onChange={handleChange}
-          autoResize
-        />
-      );
+
+      render(<TextArea label='Notes' value='' onChange={handleChange} autoResize />);
 
       const textarea = screen.getByLabelText('Notes');
       await user.type(textarea, 'New text content');
@@ -219,13 +159,7 @@ describe('Enhanced Input Features', () => {
   describe('Character Count Feature', () => {
     it('shows character count when enabled', () => {
       render(
-        <Input
-          label="Bio"
-          value="Hello world"
-          onChange={vi.fn()}
-          maxLength={100}
-          showCharCount
-        />
+        <Input label='Bio' value='Hello world' onChange={vi.fn()} maxLength={100} showCharCount />
       );
 
       expect(screen.getByText('11/100')).toBeInTheDocument();
@@ -234,13 +168,13 @@ describe('Enhanced Input Features', () => {
     it('updates character count as user types', async () => {
       const user = userEvent.setup();
       const [value, setValue] = React.useState('');
-      
+
       function TestComponent() {
         return (
           <Input
-            label="Bio"
+            label='Bio'
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={e => setValue(e.target.value)}
             maxLength={50}
             showCharCount
           />
@@ -260,8 +194,8 @@ describe('Enhanced Input Features', () => {
     it('shows character count for TextArea', () => {
       render(
         <TextArea
-          label="Description"
-          value="Sample text"
+          label='Description'
+          value='Sample text'
           onChange={vi.fn()}
           maxLength={200}
           showCharCount
@@ -274,41 +208,21 @@ describe('Enhanced Input Features', () => {
 
   describe('Size Variants', () => {
     it('applies small size class', () => {
-      render(
-        <Input
-          label="Small Input"
-          size="small"
-          value=""
-          onChange={vi.fn()}
-        />
-      );
+      render(<Input label='Small Input' size='small' value='' onChange={vi.fn()} />);
 
       const input = screen.getByLabelText('Small Input');
       expect(input).toBeInTheDocument();
     });
 
     it('applies large size class', () => {
-      render(
-        <Input
-          label="Large Input"
-          size="large"
-          value=""
-          onChange={vi.fn()}
-        />
-      );
+      render(<Input label='Large Input' size='large' value='' onChange={vi.fn()} />);
 
       const input = screen.getByLabelText('Large Input');
       expect(input).toBeInTheDocument();
     });
 
     it('uses medium size by default', () => {
-      render(
-        <Input
-          label="Default Input"
-          value=""
-          onChange={vi.fn()}
-        />
-      );
+      render(<Input label='Default Input' value='' onChange={vi.fn()} />);
 
       const input = screen.getByLabelText('Default Input');
       expect(input).toBeInTheDocument();
@@ -319,10 +233,10 @@ describe('Enhanced Input Features', () => {
     it('renders leading icon', () => {
       render(
         <Input
-          label="Search"
-          value=""
+          label='Search'
+          value=''
           onChange={vi.fn()}
-          leadingIcon={<span data-testid="search-icon">🔍</span>}
+          leadingIcon={<span data-testid='search-icon'>🔍</span>}
         />
       );
 
@@ -332,13 +246,13 @@ describe('Enhanced Input Features', () => {
     it('renders trailing icon with click handler', async () => {
       const user = userEvent.setup();
       const handleClick = vi.fn();
-      
+
       render(
         <Input
-          label="Input with Action"
-          value=""
+          label='Input with Action'
+          value=''
           onChange={vi.fn()}
-          trailingIcon={<span data-testid="action-icon">⚡</span>}
+          trailingIcon={<span data-testid='action-icon'>⚡</span>}
           onTrailingIconClick={handleClick}
         />
       );
@@ -352,8 +266,8 @@ describe('Enhanced Input Features', () => {
     it('disables trailing icon when input is disabled', () => {
       render(
         <Input
-          label="Disabled Input"
-          value=""
+          label='Disabled Input'
+          value=''
           onChange={vi.fn()}
           disabled
           trailingIcon={<span>Icon</span>}
@@ -370,16 +284,16 @@ describe('Enhanced Input Features', () => {
     it('displays error message', () => {
       render(
         <Input
-          label="Email"
-          value="invalid-email"
+          label='Email'
+          value='invalid-email'
           onChange={vi.fn()}
           error={true}
-          errorMessage="Please enter a valid email"
+          errorMessage='Please enter a valid email'
         />
       );
 
       expect(screen.getByText('Please enter a valid email')).toBeInTheDocument();
-      
+
       const input = screen.getByLabelText('Email');
       expect(input).toHaveAttribute('aria-invalid', 'true');
     });
@@ -387,11 +301,11 @@ describe('Enhanced Input Features', () => {
     it('displays success message', () => {
       render(
         <Input
-          label="Username"
-          value="validuser"
+          label='Username'
+          value='validuser'
           onChange={vi.fn()}
           success={true}
-          successMessage="Username is available"
+          successMessage='Username is available'
         />
       );
 
@@ -401,13 +315,13 @@ describe('Enhanced Input Features', () => {
     it('prioritizes error over success message', () => {
       render(
         <Input
-          label="Field"
-          value="value"
+          label='Field'
+          value='value'
           onChange={vi.fn()}
           error={true}
-          errorMessage="Error message"
+          errorMessage='Error message'
           success={true}
-          successMessage="Success message"
+          successMessage='Success message'
         />
       );
 
@@ -418,10 +332,10 @@ describe('Enhanced Input Features', () => {
     it('displays helper text when no error or success', () => {
       render(
         <Input
-          label="Password"
-          value=""
+          label='Password'
+          value=''
           onChange={vi.fn()}
-          helperText="Must be at least 8 characters"
+          helperText='Must be at least 8 characters'
         />
       );
 
@@ -433,28 +347,21 @@ describe('Enhanced Input Features', () => {
     it('generates unique IDs for inputs', () => {
       render(
         <>
-          <Input label="First Input" value="" onChange={vi.fn()} />
-          <Input label="Second Input" value="" onChange={vi.fn()} />
+          <Input label='First Input' value='' onChange={vi.fn()} />
+          <Input label='Second Input' value='' onChange={vi.fn()} />
         </>
       );
 
       const firstInput = screen.getByLabelText('First Input');
       const secondInput = screen.getByLabelText('Second Input');
-      
+
       expect(firstInput.id).toBeTruthy();
       expect(secondInput.id).toBeTruthy();
       expect(firstInput.id).not.toBe(secondInput.id);
     });
 
     it('uses provided ID when given', () => {
-      render(
-        <Input
-          id="custom-id"
-          label="Custom Input"
-          value=""
-          onChange={vi.fn()}
-        />
-      );
+      render(<Input id='custom-id' label='Custom Input' value='' onChange={vi.fn()} />);
 
       const input = screen.getByLabelText('Custom Input');
       expect(input).toHaveAttribute('id', 'custom-id');
@@ -463,29 +370,22 @@ describe('Enhanced Input Features', () => {
     it('associates error message with input via aria-describedby', () => {
       render(
         <Input
-          label="Email"
-          value=""
+          label='Email'
+          value=''
           onChange={vi.fn()}
           error={true}
-          errorMessage="Invalid email"
+          errorMessage='Invalid email'
         />
       );
 
       const input = screen.getByLabelText('Email');
       const errorMessage = screen.getByText('Invalid email');
-      
+
       expect(input).toHaveAttribute('aria-describedby', errorMessage.id);
     });
 
     it('marks required fields properly', () => {
-      render(
-        <Input
-          label="Required Field"
-          value=""
-          onChange={vi.fn()}
-          required
-        />
-      );
+      render(<Input label='Required Field' value='' onChange={vi.fn()} required />);
 
       const input = screen.getByLabelText('Required Field');
       expect(input).toHaveAttribute('aria-required', 'true');
@@ -496,15 +396,8 @@ describe('Enhanced Input Features', () => {
   describe('Form Integration', () => {
     it('forwards ref correctly', () => {
       const ref = React.createRef<HTMLInputElement>();
-      
-      render(
-        <Input
-          ref={ref}
-          label="Test Input"
-          value=""
-          onChange={vi.fn()}
-        />
-      );
+
+      render(<Input ref={ref} label='Test Input' value='' onChange={vi.fn()} />);
 
       expect(ref.current).toBeInstanceOf(HTMLInputElement);
     });
@@ -512,11 +405,11 @@ describe('Enhanced Input Features', () => {
     it('spreads additional props to input', () => {
       render(
         <Input
-          label="Test Input"
-          value=""
+          label='Test Input'
+          value=''
           onChange={vi.fn()}
-          data-testid="custom-input"
-          placeholder="Custom placeholder"
+          data-testid='custom-input'
+          placeholder='Custom placeholder'
         />
       );
 
@@ -525,28 +418,14 @@ describe('Enhanced Input Features', () => {
     });
 
     it('handles disabled state', () => {
-      render(
-        <Input
-          label="Disabled Input"
-          value=""
-          onChange={vi.fn()}
-          disabled
-        />
-      );
+      render(<Input label='Disabled Input' value='' onChange={vi.fn()} disabled />);
 
       const input = screen.getByLabelText('Disabled Input');
       expect(input).toBeDisabled();
     });
 
     it('handles readonly state', () => {
-      render(
-        <Input
-          label="Readonly Input"
-          value="readonly value"
-          onChange={vi.fn()}
-          readOnly
-        />
-      );
+      render(<Input label='Readonly Input' value='readonly value' onChange={vi.fn()} readOnly />);
 
       const input = screen.getByLabelText('Readonly Input');
       expect(input).toHaveAttribute('readonly');
@@ -558,18 +437,11 @@ describe('Select Component Enhanced Features', () => {
   const sampleOptions = [
     { value: 'option1', label: 'Option 1' },
     { value: 'option2', label: 'Option 2' },
-    { value: 'option3', label: 'Option 3', disabled: true }
+    { value: 'option3', label: 'Option 3', disabled: true },
   ];
 
   it('renders options from options array', () => {
-    render(
-      <Select
-        label="Test Select"
-        value=""
-        onChange={vi.fn()}
-        options={sampleOptions}
-      />
-    );
+    render(<Select label='Test Select' value='' onChange={vi.fn()} options={sampleOptions} />);
 
     expect(screen.getByRole('option', { name: 'Option 1' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Option 2' })).toBeInTheDocument();
@@ -579,10 +451,10 @@ describe('Select Component Enhanced Features', () => {
   it('renders placeholder option', () => {
     render(
       <Select
-        label="Test Select"
-        value=""
+        label='Test Select'
+        value=''
         onChange={vi.fn()}
-        placeholder="Choose an option"
+        placeholder='Choose an option'
         options={sampleOptions}
       />
     );
@@ -593,14 +465,7 @@ describe('Select Component Enhanced Features', () => {
   });
 
   it('handles disabled options', () => {
-    render(
-      <Select
-        label="Test Select"
-        value=""
-        onChange={vi.fn()}
-        options={sampleOptions}
-      />
-    );
+    render(<Select label='Test Select' value='' onChange={vi.fn()} options={sampleOptions} />);
 
     const disabledOption = screen.getByRole('option', { name: 'Option 3' });
     expect(disabledOption).toBeDisabled();
@@ -608,9 +473,9 @@ describe('Select Component Enhanced Features', () => {
 
   it('supports custom option rendering via children', () => {
     render(
-      <Select label="Custom Select" value="" onChange={vi.fn()}>
-        <option value="">Select an option</option>
-        <option value="custom">🎨 Custom Option</option>
+      <Select label='Custom Select' value='' onChange={vi.fn()}>
+        <option value=''>Select an option</option>
+        <option value='custom'>🎨 Custom Option</option>
       </Select>
     );
 
@@ -620,32 +485,26 @@ describe('Select Component Enhanced Features', () => {
   it('displays error state correctly', () => {
     render(
       <Select
-        label="Required Select"
-        value=""
+        label='Required Select'
+        value=''
         onChange={vi.fn()}
         options={sampleOptions}
         error={true}
-        errorMessage="Please select an option"
+        errorMessage='Please select an option'
       />
     );
 
     expect(screen.getByText('Please select an option')).toBeInTheDocument();
-    
+
     const select = screen.getByLabelText('Required Select');
     expect(select).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('forwards ref correctly', () => {
     const ref = React.createRef<HTMLSelectElement>();
-    
+
     render(
-      <Select
-        ref={ref}
-        label="Test Select"
-        value=""
-        onChange={vi.fn()}
-        options={sampleOptions}
-      />
+      <Select ref={ref} label='Test Select' value='' onChange={vi.fn()} options={sampleOptions} />
     );
 
     expect(ref.current).toBeInstanceOf(HTMLSelectElement);

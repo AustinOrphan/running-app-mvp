@@ -418,7 +418,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
         const newHeight = Math.min(textareaRef.scrollHeight, maxAutoHeight);
         textareaRef.style.height = `${newHeight}px`;
       }
-    }, [autoResize, maxAutoHeight]);
+    }, [autoResize, maxAutoHeight, textareaRef]);
 
     // Adjust height on value change
     React.useEffect(() => {
