@@ -1,10 +1,6 @@
 /**
  * Infrastructure Startup Tests
-<<<<<<< HEAD
- *
-=======
  * 
->>>>>>> origin/main
  * These tests validate that critical infrastructure files exist
  * and can be loaded to prevent the app from breaking due to
  * missing configuration or server files.
@@ -66,11 +62,7 @@ describe('Infrastructure Startup Tests', () => {
     it('should have valid vite.config.ts with API proxy', async () => {
       const vitePath = path.join(PROJECT_ROOT, 'vite.config.ts');
       const viteContent = await readFile(vitePath, 'utf-8');
-<<<<<<< HEAD
-
-=======
       
->>>>>>> origin/main
       expect(viteContent, 'vite.config.ts should configure API proxy').toContain('/api');
       expect(viteContent, 'vite.config.ts should have correct backend port').toContain('3001');
     });
@@ -78,11 +70,7 @@ describe('Infrastructure Startup Tests', () => {
     it('should have valid server.ts with required imports', async () => {
       const serverPath = path.join(PROJECT_ROOT, 'server.ts');
       const serverContent = await readFile(serverPath, 'utf-8');
-<<<<<<< HEAD
-
-=======
       
->>>>>>> origin/main
       expect(serverContent, 'server.ts should import express').toContain('express');
       expect(serverContent, 'server.ts should import cors').toContain('cors');
       expect(serverContent, 'server.ts should have health endpoint').toContain('/api/health');
@@ -92,15 +80,8 @@ describe('Infrastructure Startup Tests', () => {
     it('should have valid lib/prisma.ts with PrismaClient', async () => {
       const prismaPath = path.join(PROJECT_ROOT, 'lib/prisma.ts');
       const prismaContent = await readFile(prismaPath, 'utf-8');
-<<<<<<< HEAD
-
-      expect(prismaContent, 'lib/prisma.ts should export prisma client').toContain(
-        'export const prisma'
-      );
-=======
       
       expect(prismaContent, 'lib/prisma.ts should export prisma client').toContain('export const prisma');
->>>>>>> origin/main
       expect(prismaContent, 'lib/prisma.ts should import PrismaClient').toContain('PrismaClient');
     });
   });
@@ -108,11 +89,7 @@ describe('Infrastructure Startup Tests', () => {
   describe('Module Import Validation', () => {
     it('should be able to import server routes', async () => {
       const routeFiles = ['auth.ts', 'runs.ts', 'goals.ts', 'stats.ts', 'races.ts'];
-<<<<<<< HEAD
-
-=======
       
->>>>>>> origin/main
       for (const routeFile of routeFiles) {
         const routePath = path.join(PROJECT_ROOT, 'server/routes', routeFile);
         expect(existsSync(routePath), `Route file ${routeFile} is missing`).toBe(true);
@@ -122,19 +99,6 @@ describe('Infrastructure Startup Tests', () => {
     it('should be able to import middleware files', async () => {
       const middlewareFiles = [
         'errorHandler.ts',
-<<<<<<< HEAD
-        'rateLimiting.ts',
-        'validation.ts',
-        'requireAuth.ts',
-        'asyncHandler.ts',
-      ];
-
-      for (const middlewareFile of middlewareFiles) {
-        const middlewarePath = path.join(PROJECT_ROOT, 'server/middleware', middlewareFile);
-        expect(existsSync(middlewarePath), `Middleware file ${middlewareFile} is missing`).toBe(
-          true
-        );
-=======
         'rateLimiting.ts', 
         'validation.ts',
         'requireAuth.ts',
@@ -144,18 +108,13 @@ describe('Infrastructure Startup Tests', () => {
       for (const middlewareFile of middlewareFiles) {
         const middlewarePath = path.join(PROJECT_ROOT, 'server/middleware', middlewareFile);
         expect(existsSync(middlewarePath), `Middleware file ${middlewareFile} is missing`).toBe(true);
->>>>>>> origin/main
       }
     });
 
     it('should be able to import React components', () => {
       const appPath = path.join(PROJECT_ROOT, 'src/App.tsx');
       const mainPath = path.join(PROJECT_ROOT, 'src/main.tsx');
-<<<<<<< HEAD
-
-=======
       
->>>>>>> origin/main
       expect(existsSync(appPath), 'src/App.tsx is missing').toBe(true);
       expect(existsSync(mainPath), 'src/main.tsx is missing').toBe(true);
     });
@@ -165,26 +124,17 @@ describe('Infrastructure Startup Tests', () => {
     it('should have example environment file', () => {
       // Check for any of the common env example files
       const envExampleFiles = ['.env.example', '.env.template', '.env.security.template'];
-<<<<<<< HEAD
-      const hasEnvExample = envExampleFiles.some(file => existsSync(path.join(PROJECT_ROOT, file)));
-
-=======
       const hasEnvExample = envExampleFiles.some(file => 
         existsSync(path.join(PROJECT_ROOT, file))
       );
       
->>>>>>> origin/main
       expect(hasEnvExample, 'No environment example file found').toBe(true);
     });
 
     it('should have required environment variables documented', async () => {
       const envFiles = ['.env.example', '.env.template', '.env.security.template'];
       let envContent = '';
-<<<<<<< HEAD
-
-=======
       
->>>>>>> origin/main
       for (const envFile of envFiles) {
         const envPath = path.join(PROJECT_ROOT, envFile);
         if (existsSync(envPath)) {
@@ -192,24 +142,12 @@ describe('Infrastructure Startup Tests', () => {
           break;
         }
       }
-<<<<<<< HEAD
-
-      expect(envContent, 'Environment file should exist').toBeTruthy();
-
-      const requiredVars = ['DATABASE_URL', 'JWT_SECRET'];
-      for (const envVar of requiredVars) {
-        expect(
-          envContent,
-          `Required environment variable ${envVar} should be documented`
-        ).toContain(envVar);
-=======
       
       expect(envContent, 'Environment file should exist').toBeTruthy();
       
       const requiredVars = ['DATABASE_URL', 'JWT_SECRET'];
       for (const envVar of requiredVars) {
         expect(envContent, `Required environment variable ${envVar} should be documented`).toContain(envVar);
->>>>>>> origin/main
       }
     });
   });
@@ -229,51 +167,6 @@ describe('Server Startup Integration Tests', () => {
     }
   });
 
-<<<<<<< HEAD
-  it(
-    'should start backend server successfully',
-    async () => {
-      return new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          if (backendProcess) {
-            backendProcess.kill('SIGTERM');
-          }
-          reject(new Error('Backend server failed to start within timeout'));
-        }, STARTUP_TIMEOUT);
-
-        backendProcess = spawn('npm', ['run', 'dev'], {
-          cwd: PROJECT_ROOT,
-          stdio: 'pipe',
-          env: { ...process.env, NODE_ENV: 'test' },
-        });
-
-        let output = '';
-
-        backendProcess.stdout?.on('data', data => {
-          output += data.toString();
-          if (output.includes('Server running on')) {
-            clearTimeout(timeout);
-            resolve();
-          }
-        });
-
-        backendProcess.stderr?.on('data', data => {
-          const error = data.toString();
-          if (error.includes('Error') || error.includes('EADDRINUSE')) {
-            clearTimeout(timeout);
-            reject(new Error(`Backend startup error: ${error}`));
-          }
-        });
-
-        backendProcess.on('error', error => {
-          clearTimeout(timeout);
-          reject(new Error(`Backend process error: ${error.message}`));
-        });
-      });
-    },
-    STARTUP_TIMEOUT + 5000
-  );
-=======
   it('should start backend server successfully', async () => {
     return new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -313,24 +206,15 @@ describe('Server Startup Integration Tests', () => {
       });
     });
   }, STARTUP_TIMEOUT + 5000);
->>>>>>> origin/main
 
   it('should respond to health check endpoint', async () => {
     // Give the server a moment to fully start
     await new Promise(resolve => setTimeout(resolve, 2000));
-<<<<<<< HEAD
-
-    try {
-      const response = await fetch(`http://localhost:${BACKEND_PORT}/api/health`);
-      expect(response.ok, 'Health check endpoint should respond with 200').toBe(true);
-
-=======
     
     try {
       const response = await fetch(`http://localhost:${BACKEND_PORT}/api/health`);
       expect(response.ok, 'Health check endpoint should respond with 200').toBe(true);
       
->>>>>>> origin/main
       const data = await response.json();
       expect(data.status, 'Health check should return status ok').toBe('ok');
       expect(data.timestamp, 'Health check should return timestamp').toBeDefined();
@@ -339,50 +223,6 @@ describe('Server Startup Integration Tests', () => {
     }
   });
 
-<<<<<<< HEAD
-  it(
-    'should start frontend server successfully',
-    async () => {
-      return new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          if (frontendProcess) {
-            frontendProcess.kill('SIGTERM');
-          }
-          reject(new Error('Frontend server failed to start within timeout'));
-        }, STARTUP_TIMEOUT);
-
-        frontendProcess = spawn('npm', ['run', 'dev:frontend'], {
-          cwd: PROJECT_ROOT,
-          stdio: 'pipe',
-        });
-
-        let output = '';
-
-        frontendProcess.stdout?.on('data', data => {
-          output += data.toString();
-          if (output.includes('Local:') && output.includes('3000')) {
-            clearTimeout(timeout);
-            resolve();
-          }
-        });
-
-        frontendProcess.stderr?.on('data', data => {
-          const error = data.toString();
-          if (error.includes('Error') || error.includes('EADDRINUSE')) {
-            clearTimeout(timeout);
-            reject(new Error(`Frontend startup error: ${error}`));
-          }
-        });
-
-        frontendProcess.on('error', error => {
-          clearTimeout(timeout);
-          reject(new Error(`Frontend process error: ${error.message}`));
-        });
-      });
-    },
-    STARTUP_TIMEOUT + 5000
-  );
-=======
   it('should start frontend server successfully', async () => {
     return new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -421,24 +261,15 @@ describe('Server Startup Integration Tests', () => {
       });
     });
   }, STARTUP_TIMEOUT + 5000);
->>>>>>> origin/main
 
   it('should serve frontend application', async () => {
     // Give the frontend server a moment to fully start
     await new Promise(resolve => setTimeout(resolve, 2000));
-<<<<<<< HEAD
-
-    try {
-      const response = await fetch(`http://localhost:${FRONTEND_PORT}`);
-      expect(response.ok, 'Frontend should respond with 200').toBe(true);
-
-=======
     
     try {
       const response = await fetch(`http://localhost:${FRONTEND_PORT}`);
       expect(response.ok, 'Frontend should respond with 200').toBe(true);
       
->>>>>>> origin/main
       const html = await response.text();
       expect(html, 'Frontend should serve HTML with root div').toContain('<div id="root">');
       expect(html, 'Frontend should have correct title').toContain('Running Tracker');
@@ -446,8 +277,4 @@ describe('Server Startup Integration Tests', () => {
       throw new Error(`Frontend server test failed: ${error}`);
     }
   });
-<<<<<<< HEAD
 });
-=======
-});
->>>>>>> origin/main

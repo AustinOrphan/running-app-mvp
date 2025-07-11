@@ -61,7 +61,7 @@ export const GoalAchievementNotification: React.FC<GoalAchievementNotificationPr
           </div>
 
           <div className={styles.achievementHeader}>
-            <h2>Goal Achieved!</h2>
+            <h2 className={styles.achievementTitle}>Goal Achieved!</h2>
             <p className={styles.achievementSubtitle}>Congratulations on your accomplishment!</p>
           </div>
 
@@ -73,7 +73,7 @@ export const GoalAchievementNotification: React.FC<GoalAchievementNotificationPr
               {achievedGoal.icon || config.icon}
             </div>
             <div className={styles.achievementDetails}>
-              <h3>{achievedGoal.title}</h3>
+              <h3 className={styles.achievementGoalTitle}>{achievedGoal.title}</h3>
               <p className={styles.achievementType}>{config.label}</p>
               {achievedGoal.description && (
                 <p className={styles.achievementDescription}>{achievedGoal.description}</p>
