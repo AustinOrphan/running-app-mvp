@@ -28,6 +28,9 @@ import goalsRoutes from './server/routes/goals.js';
 import statsRoutes from './server/routes/stats.js';
 import racesRoutes from './server/routes/races.js';
 
+// Import Winston logger
+import { logInfo, logError, LogCategory, LogOperation } from './server/utils/winstonLogger.js';
+
 // Create Express app
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -73,14 +76,67 @@ app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  logInfo(`Server started on http://localhost:${PORT}`, {
+    component: LogCategory.API,
+    operation: LogOperation.PROCESS,
+    metadata: {
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development',
+      nodeVersion: process.version,
+      startup: true,
+    },
+  });
+
+  logInfo(`Application environment: ${process.env.NODE_ENV || 'development'}`, {
+    component: LogCategory.API,
+    operation: LogOperation.PROCESS,
+    metadata: {
+      environment: process.env.NODE_ENV || 'development',
+      databaseUrl: process.env.DATABASE_URL ? '[CONFIGURED]' : '[NOT_CONFIGURED]',
+      jwtSecret: process.env.JWT_SECRET ? '[CONFIGURED]' : '[NOT_CONFIGURED]',
+    },
+  });
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
-  await prisma.$disconnect();
+  logInfo('Received SIGINT signal - shutting down gracefully', {
+    component: LogCategory.API,
+    operation: LogOperation.PROCESS,
+    metadata: {
+      shutdown: true,
+      signal: 'SIGINT',
+    },
+  });
+
+  try {
+    await prisma.$disconnect();
+    logInfo('Database connection closed successfully', {
+      component: LogCategory.DATABASE,
+      operation: LogOperation.PROCESS,
+      metadata: { shutdown: true },
+    });
+  } catch (error) {
+    logError(
+      'Error during database disconnect',
+      error instanceof Error ? error : new Error('Unknown error'),
+      {
+        component: LogCategory.DATABASE,
+        operation: LogOperation.PROCESS,
+        metadata: { shutdown: true },
+      }
+    );
+  }
+
+  logInfo('Application shutdown complete', {
+    component: LogCategory.API,
+    operation: LogOperation.PROCESS,
+    metadata: {
+      shutdown: true,
+      exitCode: 0,
+    },
+  });
+
   process.exit(0);
 });
 

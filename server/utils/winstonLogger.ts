@@ -118,7 +118,7 @@ export const winstonLogger = winston.createLogger({
 // Logging helper functions as specified in Issue #178
 export const logError = (
   message: string,
-  error: Error,
+  error: Error | null,
   context?: {
     requestId?: string;
     userId?: string;
@@ -128,11 +128,13 @@ export const logError = (
   }
 ) => {
   winstonLogger.error(message, {
-    error: {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    },
+    error: error
+      ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        }
+      : { message: 'Unknown error' },
     ...context,
   });
 };
