@@ -5,7 +5,10 @@ This directory contains tests that validate the app's infrastructure setup to pr
 ## Purpose
 
 These tests ensure that:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - All required files exist (server.ts, vite.config.ts, lib/prisma.ts)
 - Configuration files are valid and properly configured
 - Servers can start successfully
@@ -15,9 +18,13 @@ These tests ensure that:
 ## Test Categories
 
 ### 1. Required Files Existence
+<<<<<<< HEAD
 
 Validates that critical files are present:
 
+=======
+Validates that critical files are present:
+>>>>>>> origin/main
 - `server.ts` entry point
 - `vite.config.ts` frontend configuration
 - `lib/prisma.ts` database client
@@ -26,33 +33,49 @@ Validates that critical files are present:
 - `prisma/schema.prisma` database schema
 
 ### 2. Configuration File Validation
+<<<<<<< HEAD
 
 Ensures configuration files contain required settings:
 
+=======
+Ensures configuration files contain required settings:
+>>>>>>> origin/main
 - Vite config has API proxy setup
 - Server config imports required middleware
 - Prisma client is properly exported
 - Package.json has all necessary scripts
 
 ### 3. Module Import Validation
+<<<<<<< HEAD
 
 Verifies all modules can be imported:
 
+=======
+Verifies all modules can be imported:
+>>>>>>> origin/main
 - Server route files exist
 - Middleware files are present
 - React components are importable
 
 ### 4. Environment Configuration
+<<<<<<< HEAD
 
 Checks environment setup:
 
+=======
+Checks environment setup:
+>>>>>>> origin/main
 - Environment example files exist
 - Required variables are documented
 
 ### 5. Server Startup Integration Tests
+<<<<<<< HEAD
 
 Real startup tests that verify:
 
+=======
+Real startup tests that verify:
+>>>>>>> origin/main
 - Backend server starts on port 3001
 - Frontend server starts on port 3000
 - Health check endpoint responds
@@ -74,7 +97,10 @@ npm run test:all:complete
 ## CI Integration
 
 Infrastructure tests run automatically in GitHub Actions:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - Runs early in the pipeline to catch issues fast
 - Blocks merges if infrastructure is broken
 - Provides clear error messages for fixes
@@ -82,7 +108,10 @@ Infrastructure tests run automatically in GitHub Actions:
 ## Test Configuration
 
 Tests are configured with:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - 30-second timeout for server startup
 - Proper cleanup of spawned processes
 - Environment variable setup for testing
@@ -103,19 +132,28 @@ When adding new infrastructure tests:
 ### Common Issues
 
 **Server startup timeout:**
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - Check if ports 3000/3001 are already in use
 - Verify all dependencies are installed
 - Check for missing environment variables
 
 **File existence failures:**
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - Ensure files are committed to git
 - Check file paths are correct
 - Verify files have proper extensions
 
 **Import validation failures:**
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - Check TypeScript compilation
 - Verify export/import syntax
 - Ensure dependencies are installed
@@ -136,10 +174,17 @@ npm run test:infrastructure
 ## Relationship to Other Tests
 
 Infrastructure tests complement other test suites:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - **Unit tests**: Test individual functions
 - **Integration tests**: Test API endpoints
 - **E2E tests**: Test user workflows
 - **Infrastructure tests**: Test app can start
 
+<<<<<<< HEAD
 These tests run first to ensure the app is even runnable before other tests execute.
+=======
+These tests run first to ensure the app is even runnable before other tests execute.
+>>>>>>> origin/main

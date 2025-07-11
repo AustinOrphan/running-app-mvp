@@ -260,10 +260,8 @@ describe('ClientLogger', () => {
       const error = new Error('Test error');
       clientLogger.error('Error occurred', error, { context: 'test' });
 
-      expect(mockConsole.error).toHaveBeenCalledWith(
-        'ClientLog:',
-        expect.stringContaining('"level":"ERROR"')
-      );
+      expect(mockConsole.error).toHaveBeenCalled();
+      expect(mockConsole.error.mock.calls[0][0]).toBe('ClientLog:');
 
       const logCall = mockConsole.error.mock.calls[0][1];
       const logEntry = JSON.parse(logCall);
@@ -277,10 +275,8 @@ describe('ClientLogger', () => {
     it('should log warning messages', () => {
       clientLogger.warn('Warning message', { data: 'test' });
 
-      expect(mockConsole.warn).toHaveBeenCalledWith(
-        'ClientLog:',
-        expect.stringContaining('"level":"WARN"')
-      );
+      expect(mockConsole.warn).toHaveBeenCalled();
+      expect(mockConsole.warn.mock.calls[0][0]).toBe('ClientLog:');
 
       const logCall = mockConsole.warn.mock.calls[0][1];
       const logEntry = JSON.parse(logCall);
@@ -293,10 +289,8 @@ describe('ClientLogger', () => {
     it('should log info messages', () => {
       clientLogger.info('Info message');
 
-      expect(mockConsole.info).toHaveBeenCalledWith(
-        'ClientLog:',
-        expect.stringContaining('"level":"INFO"')
-      );
+      expect(mockConsole.info).toHaveBeenCalled();
+      expect(mockConsole.info.mock.calls[0][0]).toBe('ClientLog:');
 
       const logCall = mockConsole.info.mock.calls[0][1];
       const logEntry = JSON.parse(logCall);
@@ -309,10 +303,8 @@ describe('ClientLogger', () => {
       process.env.NODE_ENV = 'development';
       clientLogger.debug('Debug message');
 
-      expect(mockConsole.debug).toHaveBeenCalledWith(
-        'ClientLog:',
-        expect.stringContaining('"level":"DEBUG"')
-      );
+      expect(mockConsole.debug).toHaveBeenCalled();
+      expect(mockConsole.debug.mock.calls[0][0]).toBe('ClientLog:');
 
       const logCall = mockConsole.debug.mock.calls[0][1];
       const logEntry = JSON.parse(logCall);

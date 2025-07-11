@@ -27,6 +27,7 @@ The Card component system is designed with accessibility as a core principle, pr
 
 ### Accessibility Features
 
+<<<<<<< HEAD
 | Feature               | Implementation            | WCAG Criteria |
 | --------------------- | ------------------------- | ------------- |
 | Keyboard Navigation   | Tab/Enter/Space support   | 2.1.1 (A)     |
@@ -34,6 +35,15 @@ The Card component system is designed with accessibility as a core principle, pr
 | Screen Reader Support | Semantic HTML + ARIA      | 4.1.3 (AA)    |
 | Color Contrast        | Customizable themes       | 1.4.3 (AA)    |
 | Reduced Motion        | Respects user preferences | 2.3.3 (AAA)   |
+=======
+| Feature | Implementation | WCAG Criteria |
+|---------|---------------|---------------|
+| Keyboard Navigation | Tab/Enter/Space support | 2.1.1 (A) |
+| Focus Indicators | Visible focus states | 2.4.7 (AA) |
+| Screen Reader Support | Semantic HTML + ARIA | 4.1.3 (AA) |
+| Color Contrast | Customizable themes | 1.4.3 (AA) |
+| Reduced Motion | Respects user preferences | 2.3.3 (AAA) |
+>>>>>>> origin/main
 
 ## ARIA Patterns
 
@@ -42,21 +52,39 @@ The Card component system is designed with accessibility as a core principle, pr
 For cards that can be clicked or activated:
 
 ```tsx
+<<<<<<< HEAD
 <Card
   interactive={true}
   role='button'
   tabIndex={0}
   aria-label='Goal card for weekly 5K challenge'
+=======
+<Card 
+  interactive={true}
+  role="button"
+  tabIndex={0}
+  aria-label="Goal card for weekly 5K challenge"
+>>>>>>> origin/main
   onClick={handleCardClick}
   onKeyDown={handleKeyDown}
 >
   <CardHeader>
     <CardTitle>
+<<<<<<< HEAD
       <h4 id='goal-title-123'>Weekly 5K Challenge</h4>
     </CardTitle>
   </CardHeader>
   <CardContent>
     <p aria-describedby='goal-title-123'>Run 5 kilometers every weekday morning</p>
+=======
+      <h4 id="goal-title-123">Weekly 5K Challenge</h4>
+    </CardTitle>
+  </CardHeader>
+  <CardContent>
+    <p aria-describedby="goal-title-123">
+      Run 5 kilometers every weekday morning
+    </p>
+>>>>>>> origin/main
   </CardContent>
 </Card>
 ```
@@ -66,6 +94,7 @@ For cards that can be clicked or activated:
 Progress information should be announced to screen readers:
 
 ```tsx
+<<<<<<< HEAD
 <Card variant='goal'>
   <CardHeader>
     <CardTitle>
@@ -83,6 +112,27 @@ Progress information should be announced to screen readers:
       role='progressbar'
     />
     <span className='sr-only'>Progress: 75% complete. 7.5 of 10 kilometers achieved.</span>
+=======
+<Card variant="goal">
+  <CardHeader>
+    <CardTitle>
+      <h4 id="goal-456">Distance Goal</h4>
+    </CardTitle>
+  </CardHeader>
+  <CardContent>
+    <ProgressBar 
+      percentage={75}
+      aria-labelledby="goal-456"
+      aria-valuenow={75}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuetext="75% complete, 7.5 of 10 kilometers"
+      role="progressbar"
+    />
+    <span className="sr-only">
+      Progress: 75% complete. 7.5 of 10 kilometers achieved.
+    </span>
+>>>>>>> origin/main
   </CardContent>
 </Card>
 ```
@@ -92,25 +142,44 @@ Progress information should be announced to screen readers:
 Action buttons need descriptive labels:
 
 ```tsx
+<<<<<<< HEAD
 <Card variant='run'>
   <CardHeader>
     <CardTitle>
       <h4 id='run-789'>Morning Run - January 15</h4>
+=======
+<Card variant="run">
+  <CardHeader>
+    <CardTitle>
+      <h4 id="run-789">Morning Run - January 15</h4>
+>>>>>>> origin/main
     </CardTitle>
     <CardActions>
       <IconButton
         onClick={() => onEdit(run.id)}
+<<<<<<< HEAD
         aria-label='Edit run from January 15th'
         aria-describedby='run-789'
         title='Edit this run'
+=======
+        aria-label="Edit run from January 15th"
+        aria-describedby="run-789"
+        title="Edit this run"
+>>>>>>> origin/main
       >
         ✏️
       </IconButton>
       <IconButton
         onClick={() => onDelete(run.id)}
+<<<<<<< HEAD
         aria-label='Delete run from January 15th'
         aria-describedby='run-789'
         title='Delete this run permanently'
+=======
+        aria-label="Delete run from January 15th"
+        aria-describedby="run-789"
+        title="Delete this run permanently"
+>>>>>>> origin/main
       >
         🗑️
       </IconButton>
@@ -124,22 +193,42 @@ Action buttons need descriptive labels:
 Expandable content needs proper ARIA attributes:
 
 ```tsx
+<<<<<<< HEAD
 function ExpandableCard({ id, isExpanded, onToggle }) {
   const contentId = `expandable-content-${id}`;
 
   return (
     <Card variant='template'>
+=======
+function ExpandableCard({ isExpanded, onToggle }) {
+  const contentId = `expandable-content-${id}`;
+  
+  return (
+    <Card variant="template">
+>>>>>>> origin/main
       <CardContent>
         <ExpandControls
           isExpanded={isExpanded}
           onToggle={onToggle}
           aria-expanded={isExpanded}
           aria-controls={contentId}
+<<<<<<< HEAD
           aria-label={isExpanded ? 'Collapse template details' : 'Expand template details'}
         />
 
         {isExpanded && (
           <ExpandedContent id={contentId} role='region' aria-label='Template details'>
+=======
+          aria-label={isExpanded ? "Collapse template details" : "Expand template details"}
+        />
+        
+        {isExpanded && (
+          <ExpandedContent
+            id={contentId}
+            role="region"
+            aria-label="Template details"
+          >
+>>>>>>> origin/main
             {/* Expanded content */}
           </ExpandedContent>
         )}
@@ -153,6 +242,7 @@ function ExpandableCard({ id, isExpanded, onToggle }) {
 
 ### Supported Key Interactions
 
+<<<<<<< HEAD
 | Key            | Action                                 | Context                    |
 | -------------- | -------------------------------------- | -------------------------- |
 | **Tab**        | Navigate to next focusable element     | All interactive cards      |
@@ -161,6 +251,16 @@ function ExpandableCard({ id, isExpanded, onToggle }) {
 | **Space**      | Activate card or button                | Interactive cards, buttons |
 | **Escape**     | Close expanded content                 | Expandable cards           |
 | **Arrow Keys** | Navigate within card grid              | Card collections           |
+=======
+| Key | Action | Context |
+|-----|--------|---------|
+| **Tab** | Navigate to next focusable element | All interactive cards |
+| **Shift+Tab** | Navigate to previous focusable element | All interactive cards |
+| **Enter** | Activate card or button | Interactive cards, buttons |
+| **Space** | Activate card or button | Interactive cards, buttons |
+| **Escape** | Close expanded content | Expandable cards |
+| **Arrow Keys** | Navigate within card grid | Card collections |
+>>>>>>> origin/main
 
 ### Tab Order
 
@@ -168,6 +268,7 @@ Cards should have a logical tab order:
 
 ```tsx
 // Example tab order for a goal card
+<<<<<<< HEAD
 <Card tabIndex={0}>
   {' '}
   {/* 1. Card container (if interactive) */}
@@ -181,13 +282,28 @@ Cards should have a logical tab order:
     <IconButton tabIndex={0}>
       {' '}
       {/* 4. Delete button */}
+=======
+<Card tabIndex={0}>                    {/* 1. Card container (if interactive) */}
+  <CardHeader>
+    <IconButton tabIndex={0}>          {/* 2. Edit button */}
+      ✏️
+    </IconButton>
+    <IconButton tabIndex={0}>          {/* 3. Complete button */}
+      ✓
+    </IconButton>
+    <IconButton tabIndex={0}>          {/* 4. Delete button */}
+>>>>>>> origin/main
       🗑️
     </IconButton>
   </CardHeader>
   <CardContent>
+<<<<<<< HEAD
     <ExpandControls tabIndex={0}>
       {' '}
       {/* 5. Expand button */}
+=======
+    <ExpandControls tabIndex={0}>      {/* 5. Expand button */}
+>>>>>>> origin/main
       View Details
     </ExpandControls>
   </CardContent>
@@ -197,7 +313,11 @@ Cards should have a logical tab order:
 ### Keyboard Event Handling
 
 ```tsx
+<<<<<<< HEAD
 const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+=======
+const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+>>>>>>> origin/main
   switch (event.key) {
     case 'Enter':
     case ' ':
@@ -216,9 +336,19 @@ const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
   }
 };
 
+<<<<<<< HEAD
 <Card interactive={interactive} onKeyDown={handleKeyDown} tabIndex={interactive ? 0 : undefined}>
   {/* Card content */}
 </Card>;
+=======
+<Card 
+  interactive={interactive}
+  onKeyDown={handleKeyDown}
+  tabIndex={interactive ? 0 : undefined}
+>
+  {/* Card content */}
+</Card>
+>>>>>>> origin/main
 ```
 
 ### Grid Navigation
@@ -228,6 +358,7 @@ For card grids, implement arrow key navigation:
 ```tsx
 const useGridNavigation = (gridRef: RefObject<HTMLDivElement>) => {
   useEffect(() => {
+<<<<<<< HEAD
     const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (!gridRef.current) return;
 
@@ -238,6 +369,18 @@ const useGridNavigation = (gridRef: RefObject<HTMLDivElement>) => {
       const currentIndex = cards.indexOf(document.activeElement as HTMLElement);
       let nextIndex = currentIndex;
 
+=======
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!gridRef.current) return;
+      
+      const cards = Array.from(
+        gridRef.current.querySelectorAll('[role="button"], [tabindex="0"]')
+      ) as HTMLElement[];
+      
+      const currentIndex = cards.indexOf(document.activeElement as HTMLElement);
+      let nextIndex = currentIndex;
+      
+>>>>>>> origin/main
       switch (event.key) {
         case 'ArrowRight':
           nextIndex = Math.min(currentIndex + 1, cards.length - 1);
@@ -256,11 +399,19 @@ const useGridNavigation = (gridRef: RefObject<HTMLDivElement>) => {
         default:
           return;
       }
+<<<<<<< HEAD
 
       event.preventDefault();
       cards[nextIndex]?.focus();
     };
 
+=======
+      
+      event.preventDefault();
+      cards[nextIndex]?.focus();
+    };
+    
+>>>>>>> origin/main
     gridRef.current?.addEventListener('keydown', handleKeyDown);
     return () => gridRef.current?.removeEventListener('keydown', handleKeyDown);
   }, [gridRef]);
@@ -274,6 +425,7 @@ const useGridNavigation = (gridRef: RefObject<HTMLDivElement>) => {
 Use proper heading hierarchy and semantic elements:
 
 ```tsx
+<<<<<<< HEAD
 <Card variant='goal'>
   <CardHeader>
     <CardTitle>
@@ -292,6 +444,29 @@ Use proper heading hierarchy and semantic elements:
     <dl>
       {' '}
       {/* Statistics */}
+=======
+<Card variant="goal">
+  <CardHeader>
+    <CardTitle>
+      {/* Use appropriate heading level based on page structure */}
+      <h3>Weekly Running Goal</h3>           {/* Main goal title */}
+      <span className="goal-type">Distance</span>  {/* Goal type */}
+    </CardTitle>
+  </CardHeader>
+  
+  <CardContent>
+    <p>Run 25 kilometers this week</p>      {/* Goal description */}
+    
+    <div role="group" aria-labelledby="progress-label">
+      <h4 id="progress-label">Progress</h4>  {/* Progress section */}
+      <ProgressBar 
+        percentage={60}
+        aria-label="60% complete, 15 of 25 kilometers"
+      />
+    </div>
+    
+    <dl>                                     {/* Statistics */}
+>>>>>>> origin/main
       <dt>Current</dt>
       <dd>15 km</dd>
       <dt>Target</dt>
@@ -308,16 +483,25 @@ Use proper heading hierarchy and semantic elements:
 Provide additional context for screen readers:
 
 ```tsx
+<<<<<<< HEAD
 <Card variant='run'>
+=======
+<Card variant="run">
+>>>>>>> origin/main
   <CardHeader>
     <CardTitle>
       <h4>
         Morning Run
+<<<<<<< HEAD
         <span className='sr-only'>completed on</span>
+=======
+        <span className="sr-only">completed on</span>
+>>>>>>> origin/main
         January 15, 2024
       </h4>
     </CardTitle>
   </CardHeader>
+<<<<<<< HEAD
 
   <CardContent>
     <div className='run-stats'>
@@ -338,6 +522,28 @@ Provide additional context for screen readers:
     </div>
 
     <span className='sr-only'>
+=======
+  
+  <CardContent>
+    <div className="run-stats">
+      <div className="stat">
+        <span className="stat-value">5.2</span>
+        <span className="stat-label">
+          kilometers
+          <span className="sr-only">distance</span>
+        </span>
+      </div>
+      <div className="stat">
+        <span className="stat-value">28:45</span>
+        <span className="stat-label">
+          minutes
+          <span className="sr-only">duration</span>
+        </span>
+      </div>
+    </div>
+    
+    <span className="sr-only">
+>>>>>>> origin/main
       Run summary: 5.2 kilometers completed in 28 minutes and 45 seconds
     </span>
   </CardContent>
@@ -351,12 +557,17 @@ Announce dynamic updates:
 ```tsx
 function GoalCard({ goal, progress }) {
   const [announcement, setAnnouncement] = useState('');
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> origin/main
   useEffect(() => {
     if (goal.isCompleted) {
       setAnnouncement(`Goal "${goal.title}" has been completed!`);
     }
   }, [goal.isCompleted, goal.title]);
+<<<<<<< HEAD
 
   return (
     <>
@@ -366,6 +577,21 @@ function GoalCard({ goal, progress }) {
 
       {/* Live region for announcements */}
       <div aria-live='polite' aria-atomic='true' className='sr-only'>
+=======
+  
+  return (
+    <>
+      <Card variant="goal" completed={goal.isCompleted}>
+        {/* Card content */}
+      </Card>
+      
+      {/* Live region for announcements */}
+      <div 
+        aria-live="polite" 
+        aria-atomic="true"
+        className="sr-only"
+      >
+>>>>>>> origin/main
         {announcement}
       </div>
     </>
@@ -411,6 +637,7 @@ When cards open modals, implement focus trapping:
 ```tsx
 const useFocusTrap = (isActive: boolean) => {
   const ref = useRef<HTMLDivElement>(null);
+<<<<<<< HEAD
 
   useEffect(() => {
     if (!isActive || !ref.current) return;
@@ -425,6 +652,22 @@ const useFocusTrap = (isActive: boolean) => {
     const handleTabKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key !== 'Tab') return;
 
+=======
+  
+  useEffect(() => {
+    if (!isActive || !ref.current) return;
+    
+    const focusableElements = ref.current.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+    
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      
+>>>>>>> origin/main
       if (e.shiftKey) {
         if (document.activeElement === firstElement) {
           e.preventDefault();
@@ -437,6 +680,7 @@ const useFocusTrap = (isActive: boolean) => {
         }
       }
     };
+<<<<<<< HEAD
 
     document.addEventListener('keydown', handleTabKey);
     firstElement?.focus();
@@ -444,6 +688,15 @@ const useFocusTrap = (isActive: boolean) => {
     return () => document.removeEventListener('keydown', handleTabKey);
   }, [isActive]);
 
+=======
+    
+    document.addEventListener('keydown', handleTabKey);
+    firstElement?.focus();
+    
+    return () => document.removeEventListener('keydown', handleTabKey);
+  }, [isActive]);
+  
+>>>>>>> origin/main
   return ref;
 };
 ```
@@ -456,16 +709,25 @@ Restore focus after modal interactions:
 function GoalCard({ goal, onEdit }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const editButtonRef = useRef<HTMLButtonElement>(null);
+<<<<<<< HEAD
 
   const handleEdit = () => {
     setIsModalOpen(true);
   };
 
+=======
+  
+  const handleEdit = () => {
+    setIsModalOpen(true);
+  };
+  
+>>>>>>> origin/main
   const handleModalClose = () => {
     setIsModalOpen(false);
     // Restore focus to the edit button
     editButtonRef.current?.focus();
   };
+<<<<<<< HEAD
 
   return (
     <Card variant='goal'>
@@ -476,6 +738,27 @@ function GoalCard({ goal, onEdit }) {
       </CardActions>
 
       {isModalOpen && <EditGoalModal goal={goal} onClose={handleModalClose} />}
+=======
+  
+  return (
+    <Card variant="goal">
+      <CardActions>
+        <IconButton
+          ref={editButtonRef}
+          onClick={handleEdit}
+          aria-label="Edit goal"
+        >
+          ✏️
+        </IconButton>
+      </CardActions>
+      
+      {isModalOpen && (
+        <EditGoalModal 
+          goal={goal}
+          onClose={handleModalClose}
+        />
+      )}
+>>>>>>> origin/main
     </Card>
   );
 }
@@ -490,6 +773,7 @@ Ensure sufficient color contrast ratios:
 ```css
 /* WCAG AA compliant colors */
 :root {
+<<<<<<< HEAD
   --text-high-contrast: #ffffff; /* 21:1 on dark backgrounds */
   --text-medium-contrast: #e2e8f0; /* 12:1 on dark backgrounds */
   --text-low-contrast: #a0aec0; /* 4.5:1 on dark backgrounds */
@@ -499,10 +783,22 @@ Ensure sufficient color contrast ratios:
 
   --background-card: #2d3748; /* Base card background */
   --background-card-hover: #4a5568; /* Hover state */
+=======
+  --text-high-contrast: #ffffff;      /* 21:1 on dark backgrounds */
+  --text-medium-contrast: #e2e8f0;    /* 12:1 on dark backgrounds */
+  --text-low-contrast: #a0aec0;       /* 4.5:1 on dark backgrounds */
+  
+  --border-normal: #4a5568;           /* 3:1 minimum for borders */
+  --border-focus: #0066cc;            /* High contrast for focus */
+  
+  --background-card: #2d3748;         /* Base card background */
+  --background-card-hover: #4a5568;   /* Hover state */
+>>>>>>> origin/main
 }
 
 /* Light theme overrides */
 .theme-light {
+<<<<<<< HEAD
   --text-high-contrast: #1a202c; /* 21:1 on light backgrounds */
   --text-medium-contrast: #2d3748; /* 12:1 on light backgrounds */
   --text-low-contrast: #4a5568; /* 4.5:1 on light backgrounds */
@@ -510,6 +806,15 @@ Ensure sufficient color contrast ratios:
   --border-normal: #e2e8f0; /* 3:1 minimum for borders */
   --background-card: #ffffff; /* Base card background */
   --background-card-hover: #f7fafc; /* Hover state */
+=======
+  --text-high-contrast: #1a202c;      /* 21:1 on light backgrounds */
+  --text-medium-contrast: #2d3748;    /* 12:1 on light backgrounds */
+  --text-low-contrast: #4a5568;       /* 4.5:1 on light backgrounds */
+  
+  --border-normal: #e2e8f0;           /* 3:1 minimum for borders */
+  --background-card: #ffffff;         /* Base card background */
+  --background-card-hover: #f7fafc;   /* Hover state */
+>>>>>>> origin/main
 }
 ```
 
@@ -525,19 +830,31 @@ Support Windows High Contrast Mode:
     background: ButtonFace;
     color: ButtonText;
   }
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> origin/main
   .card:hover {
     border-color: Highlight;
     background: HighlightText;
     color: Highlight;
   }
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> origin/main
   .iconBtn {
     border: 1px solid ButtonText;
     background: ButtonFace;
     color: ButtonText;
   }
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> origin/main
   .iconBtn:focus {
     outline: 2px solid Highlight;
   }
@@ -561,7 +878,11 @@ Ensure information isn't conveyed by color alone:
 </CompletionBadge>
 
 // ✅ Good - progress with multiple indicators
+<<<<<<< HEAD
 <ProgressBar
+=======
+<ProgressBar 
+>>>>>>> origin/main
   percentage={75}
   aria-valuetext="75% complete - 3 of 4 weeks"
 >
@@ -579,9 +900,13 @@ Honor `prefers-reduced-motion`:
 ```css
 /* Default animations */
 .card {
+<<<<<<< HEAD
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
+=======
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+>>>>>>> origin/main
 }
 
 .card:hover {
@@ -594,7 +919,11 @@ Honor `prefers-reduced-motion`:
   .card {
     transition: none;
   }
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> origin/main
   .card:hover {
     transform: none;
     /* Keep non-motion effects */
@@ -615,9 +944,13 @@ Use animations that don't trigger vestibular disorders:
 }
 
 @keyframes fadeIn {
+<<<<<<< HEAD
   to {
     opacity: 1;
   }
+=======
+  to { opacity: 1; }
+>>>>>>> origin/main
 }
 
 /* ✅ Safe - small movement */
@@ -627,13 +960,18 @@ Use animations that don't trigger vestibular disorders:
 }
 
 @keyframes slideUp {
+<<<<<<< HEAD
   to {
     transform: translateY(0);
   }
+=======
+  to { transform: translateY(0); }
+>>>>>>> origin/main
 }
 
 /* ❌ Avoid - rapid movement */
 @keyframes bounce {
+<<<<<<< HEAD
   0%,
   20%,
   50%,
@@ -647,6 +985,11 @@ Use animations that don't trigger vestibular disorders:
   60% {
     transform: translateY(-15px);
   }
+=======
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-30px); }
+  60% { transform: translateY(-15px); }
+>>>>>>> origin/main
 }
 ```
 
@@ -667,6 +1010,7 @@ expect.extend(toHaveNoViolations);
 describe('Card Accessibility', () => {
   test('has no accessibility violations', async () => {
     const { container } = render(
+<<<<<<< HEAD
       <Card variant='goal'>
         <CardHeader>
           <CardTitle>
@@ -688,11 +1032,33 @@ describe('Card Accessibility', () => {
       <Card variant='goal'>
         <CardActions>
           <IconButton onClick={onEdit} aria-label='Edit goal'>
+=======
+      <Card variant="goal">
+        <CardHeader>
+          <CardTitle><h4>Test Goal</h4></CardTitle>
+        </CardHeader>
+      </Card>
+    );
+    
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+  
+  test('supports keyboard navigation', async () => {
+    const user = userEvent.setup();
+    const onEdit = jest.fn();
+    
+    render(
+      <Card variant="goal">
+        <CardActions>
+          <IconButton onClick={onEdit} aria-label="Edit goal">
+>>>>>>> origin/main
             ✏️
           </IconButton>
         </CardActions>
       </Card>
     );
+<<<<<<< HEAD
 
     const editButton = screen.getByLabelText('Edit goal');
 
@@ -704,14 +1070,39 @@ describe('Card Accessibility', () => {
     await user.keyboard('{Enter}');
     expect(onEdit).toHaveBeenCalled();
 
+=======
+    
+    const editButton = screen.getByLabelText('Edit goal');
+    
+    // Test Tab navigation
+    await user.tab();
+    expect(editButton).toHaveFocus();
+    
+    // Test Enter activation
+    await user.keyboard('{Enter}');
+    expect(onEdit).toHaveBeenCalled();
+    
+>>>>>>> origin/main
     // Test Space activation
     await user.keyboard(' ');
     expect(onEdit).toHaveBeenCalledTimes(2);
   });
+<<<<<<< HEAD
 
   test('announces progress to screen readers', () => {
     render(<ProgressBar percentage={75} aria-valuetext='75% complete, 7.5 of 10 kilometers' />);
 
+=======
+  
+  test('announces progress to screen readers', () => {
+    render(
+      <ProgressBar 
+        percentage={75}
+        aria-valuetext="75% complete, 7.5 of 10 kilometers"
+      />
+    );
+    
+>>>>>>> origin/main
     const progressBar = screen.getByRole('progressbar');
     expect(progressBar).toHaveAttribute('aria-valuetext', '75% complete, 7.5 of 10 kilometers');
     expect(progressBar).toHaveAttribute('aria-valuenow', '75');
@@ -770,15 +1161,25 @@ Build accessibility from the ground up:
 ```tsx
 // ✅ Good - semantic HTML first, then enhance
 <Card
+<<<<<<< HEAD
   as='article' // Semantic element
   interactive={interactive} // Progressive enhancement
   role={interactive ? 'button' : undefined}
+=======
+  as="article"                    // Semantic element
+  interactive={interactive}       // Progressive enhancement
+  role={interactive ? "button" : undefined}
+>>>>>>> origin/main
   tabIndex={interactive ? 0 : undefined}
   onClick={interactive ? onClick : undefined}
 >
   <CardHeader>
     <CardTitle>
+<<<<<<< HEAD
       <h4>{title}</h4> {/* Proper heading hierarchy */}
+=======
+      <h4>{title}</h4>            {/* Proper heading hierarchy */}
+>>>>>>> origin/main
     </CardTitle>
   </CardHeader>
 </Card>
@@ -810,7 +1211,11 @@ Use familiar patterns consistently:
 
 ```tsx
 // ✅ Good - consistent interaction
+<<<<<<< HEAD
 const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+=======
+const handleKeyDown = (event: KeyboardEvent) => {
+>>>>>>> origin/main
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault();
     onClick?.();
@@ -818,7 +1223,11 @@ const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
 };
 
 // Apply to all interactive cards
+<<<<<<< HEAD
 <Card onKeyDown={handleKeyDown} />;
+=======
+<Card onKeyDown={handleKeyDown} />
+>>>>>>> origin/main
 ```
 
 ### 4. Error Prevention and Recovery
@@ -826,12 +1235,21 @@ const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
 Provide clear error states and recovery options:
 
 ```tsx
+<<<<<<< HEAD
 <Card variant='goal' className={error ? 'card-error' : ''}>
   {error && (
     <div role='alert' className='error-message'>
       <span className='sr-only'>Error: </span>
       {error.message}
       <button onClick={onRetry} className='retry-button'>
+=======
+<Card variant="goal" className={error ? 'card-error' : ''}>
+  {error && (
+    <div role="alert" className="error-message">
+      <span className="sr-only">Error: </span>
+      {error.message}
+      <button onClick={onRetry} className="retry-button">
+>>>>>>> origin/main
         Try Again
       </button>
     </div>
@@ -846,15 +1264,25 @@ Document accessibility features and test regularly:
 ```tsx
 /**
  * Card Component
+<<<<<<< HEAD
  *
+=======
+ * 
+>>>>>>> origin/main
  * @accessibility
  * - Supports keyboard navigation (Tab, Enter, Space, Escape)
  * - Provides ARIA attributes for screen readers
  * - Maintains focus management for modal interactions
  * - Supports high contrast and reduced motion preferences
+<<<<<<< HEAD
  *
  * @example
  * <Card
+=======
+ * 
+ * @example
+ * <Card 
+>>>>>>> origin/main
  *   interactive={true}
  *   aria-label="Goal card for weekly running challenge"
  *   onClick={handleClick}
@@ -868,9 +1296,16 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(...);
 ---
 
 For more information, see:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - [Card Component Documentation](../components/Card.md)
 - [Migration Guide](../migration/card-system.md)
 - [Styling Guide](../styling/card-theming.md)
 - [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
+<<<<<<< HEAD
 - [MDN Accessibility](https://developer.mozilla.org/en-US/docs/Web/Accessibility)
+=======
+- [MDN Accessibility](https://developer.mozilla.org/en-US/docs/Web/Accessibility)
+>>>>>>> origin/main

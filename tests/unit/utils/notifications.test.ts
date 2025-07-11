@@ -421,7 +421,7 @@ describe('BrowserNotificationManager', () => {
 describe('NotificationTimingManager', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2024-01-15T14:30:00Z')); // 2:30 PM
+    vi.setSystemTime(new Date('2024-01-15T14:30:00')); // 2:30 PM local time
   });
 
   afterEach(() => {
@@ -440,7 +440,7 @@ describe('NotificationTimingManager', () => {
     });
 
     it('should detect within overnight quiet hours', () => {
-      vi.setSystemTime(new Date('2024-01-15T23:30:00Z')); // 11:30 PM
+      vi.setSystemTime(new Date('2024-01-15T23:30:00')); // 11:30 PM local time
 
       const preferences = createMockNotificationPreferences({
         quietHours: { enabled: true, start: '22:00', end: '08:00' },
@@ -452,7 +452,7 @@ describe('NotificationTimingManager', () => {
     });
 
     it('should detect within early morning quiet hours', () => {
-      vi.setSystemTime(new Date('2024-01-15T07:30:00Z')); // 7:30 AM
+      vi.setSystemTime(new Date('2024-01-15T07:30:00')); // 7:30 AM local time
 
       const preferences = createMockNotificationPreferences({
         quietHours: { enabled: true, start: '22:00', end: '08:00' },
@@ -464,7 +464,7 @@ describe('NotificationTimingManager', () => {
     });
 
     it('should detect outside overnight quiet hours', () => {
-      vi.setSystemTime(new Date('2024-01-15T14:30:00Z')); // 2:30 PM
+      vi.setSystemTime(new Date('2024-01-15T14:30:00')); // 2:30 PM local time
 
       const preferences = createMockNotificationPreferences({
         quietHours: { enabled: true, start: '22:00', end: '08:00' },
@@ -476,7 +476,7 @@ describe('NotificationTimingManager', () => {
     });
 
     it('should handle same-day quiet hours', () => {
-      vi.setSystemTime(new Date('2024-01-15T13:30:00Z')); // 1:30 PM
+      vi.setSystemTime(new Date('2024-01-15T13:30:00')); // 1:30 PM local time
 
       const preferences = createMockNotificationPreferences({
         quietHours: { enabled: true, start: '12:00', end: '14:00' },
@@ -488,7 +488,7 @@ describe('NotificationTimingManager', () => {
     });
 
     it('should detect outside same-day quiet hours', () => {
-      vi.setSystemTime(new Date('2024-01-15T15:30:00Z')); // 3:30 PM
+      vi.setSystemTime(new Date('2024-01-15T15:30:00')); // 3:30 PM local time
 
       const preferences = createMockNotificationPreferences({
         quietHours: { enabled: true, start: '12:00', end: '14:00' },
@@ -584,6 +584,8 @@ describe('NotificationTimingManager', () => {
     });
 
     it('should block non-urgent notifications during quiet hours', () => {
+      vi.setSystemTime(new Date('2024-01-15T14:30:00')); // 2:30 PM - within quiet hours
+
       const notification = createMockGoalNotification({ type: 'milestone', priority: 'medium' });
       const preferences = {
         ...basePreferences,
@@ -610,7 +612,7 @@ describe('NotificationTimingManager', () => {
 
   describe('getOptimalNotificationTime', () => {
     it('should schedule morning notification for today if time not passed', () => {
-      vi.setSystemTime(new Date('2024-01-15T07:00:00Z')); // 7:00 AM
+      vi.setSystemTime(new Date('2024-01-15T07:00:00')); // 7:00 AM local time
 
       const preferences = createMockNotificationPreferences({
         reminderTimes: { morning: '08:00', evening: '18:00' },
@@ -624,7 +626,8 @@ describe('NotificationTimingManager', () => {
     });
 
     it('should schedule morning notification for tomorrow if time passed', () => {
-      vi.setSystemTime(new Date('2024-01-15T09:00:00Z')); // 9:00 AM
+      const mockDate = new Date('2024-01-15T09:00:00');
+      vi.setSystemTime(mockDate); // 9:00 AM local time
 
       const preferences = createMockNotificationPreferences({
         reminderTimes: { morning: '08:00', evening: '18:00' },
@@ -632,13 +635,18 @@ describe('NotificationTimingManager', () => {
 
       const result = NotificationTimingManager.getOptimalNotificationTime(preferences, 'morning');
 
-      expect(result.getDate()).toBe(16); // Next day
+      // Should be scheduled for the next day since 9:00 AM > 8:00 AM
+      expect(result.getTime()).toBeGreaterThan(mockDate.getTime());
       expect(result.getHours()).toBe(8);
       expect(result.getMinutes()).toBe(0);
+      // Verify it's scheduled for tomorrow
+      const expectedDate = new Date(mockDate);
+      expectedDate.setDate(expectedDate.getDate() + 1);
+      expect(result.getDate()).toBe(expectedDate.getDate());
     });
 
     it('should schedule evening notification correctly', () => {
-      vi.setSystemTime(new Date('2024-01-15T12:00:00Z')); // 12:00 PM
+      vi.setSystemTime(new Date('2024-01-15T12:00:00')); // 12:00 PM local time
 
       const preferences = createMockNotificationPreferences({
         reminderTimes: { morning: '08:00', evening: '18:00' },

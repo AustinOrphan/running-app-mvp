@@ -9,7 +9,16 @@ import {
   validateCreateRace,
   validateUpdateRace,
   validateIdParam,
+<<<<<<< HEAD
 } from '../middleware/validation.js';
+=======
+<<<<<<< Updated upstream:server/routes/races.ts
+} from '../middleware/validation.js';
+import { prisma } from '../../server.js';
+=======
+} from '../middleware/validation';
+>>>>>>> Stashed changes:routes/races.ts
+>>>>>>> origin/main
 
 const router = express.Router();
 
