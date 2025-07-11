@@ -212,6 +212,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             aria-describedby={message ? `${inputId}-message` : undefined}
             aria-required={required}
             value={value}
+            onChange={onChange}
             maxLength={maxLength}
             {...props}
           />
@@ -387,6 +388,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
       maxLength,
       id,
       onInput,
+      onChange,
       ...props
     },
     ref
@@ -486,6 +488,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           aria-describedby={message ? `${textareaId}-message` : undefined}
           aria-required={required}
           value={value}
+          onChange={onChange}
           maxLength={maxLength}
           onInput={handleInput}
           style={autoResize ? { overflow: 'hidden', resize: 'none' } : undefined}
