@@ -399,6 +399,158 @@
   opacity: 0.8;
 }
 
+/* Additional Notification Center Elements */
+.notificationCenterOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  opacity: 0;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.notificationIcon {
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+.notificationMeta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.notificationType {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.notificationMessage {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.notificationDetails {
+  margin-top: 12px;
+}
+
+.notificationDismiss {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.notificationDismiss:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.unreadBadge {
+  background: var(--primary-color);
+  color: white;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+.btnIcon {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.btnIcon:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+/* Milestone Progress */
+.milestoneProgress {
+  margin-top: 8px;
+}
+
+.milestoneBar {
+  height: 6px;
+  background: var(--border-color);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.milestoneFill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.milestoneText {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Deadline Info */
+.deadlineInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.daysRemaining {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ef4444;
+}
+
+.deadlineProgress {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.progressText {
+  font-weight: 500;
+}
+
+/* Streak Info */
+.streakInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.streakCount {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.streakType {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 /* Animations */
 @keyframes slideInRight {
   from {
