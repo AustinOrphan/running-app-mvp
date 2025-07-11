@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-import { ConfirmationModal } from '../components/ConfirmationModal';
+import { UIConfirmationModal as ConfirmationModal } from '../components/ConfirmationModal';
 import { CreateGoalModal } from '../components/CreateGoalModal';
 import { EditGoalModal } from '../components/EditGoalModal';
 import { GoalAchievementNotification } from '../components/GoalAchievementNotification';
@@ -296,6 +296,7 @@ export const GoalsPage: React.FC = () => {
         type='danger'
         onConfirm={confirmDeleteGoal}
         onCancel={cancelDeleteGoal}
+        onClose={cancelDeleteGoal}
       />
 
       {/* Goal Achievement Notification */}

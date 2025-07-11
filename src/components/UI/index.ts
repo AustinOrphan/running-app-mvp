@@ -14,6 +14,10 @@ export type { ButtonProps, ButtonGroupProps, IconButtonProps } from './Button';
 export { Input, InputGroup, TextArea } from './Input';
 export type { InputProps, InputGroupProps, TextAreaProps } from './Input';
 
+// Select components
+export { Select, OptionGroup } from './Select';
+export type { SelectProps, OptionGroupProps } from './Select';
+
 // Modal components
 export { Modal, ConfirmationModal, LoadingModal } from './Modal';
 export type { ModalProps, ConfirmationModalProps, LoadingModalProps } from './Modal';

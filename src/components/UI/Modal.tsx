@@ -101,9 +101,19 @@ export const Modal: React.FC<ModalProps> = ({
     [closeOnBackdrop, onClose]
   );
 
-  // Handle ESC key press
+  // Handle ESC key press for document events
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      if (closeOnEsc && e.key === 'Escape') {
+        onClose();
+      }
+    },
+    [closeOnEsc, onClose]
+  );
+
+  // Handle ESC key press for React events
+  const handleReactKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (closeOnEsc && e.key === 'Escape') {
         onClose();
       }
@@ -193,13 +203,18 @@ export const Modal: React.FC<ModalProps> = ({
     <div
       className={overlayClasses}
       onClick={handleBackdropClick}
-      role='dialog'
-      aria-modal='true'
-      aria-label={ariaLabel}
-      aria-labelledby={title ? titleId : ariaLabelledBy}
+      onKeyDown={handleReactKeyDown}
+      role='presentation'
       aria-describedby={ariaDescribedBy}
     >
-      <div ref={modalRef} className={modalClasses}>
+      <div
+        ref={modalRef}
+        className={modalClasses}
+        role='dialog'
+        aria-modal='true'
+        aria-label={ariaLabel}
+        aria-labelledby={title ? titleId : ariaLabelledBy}
+      >
         {(title || showCloseButton) && (
           <div className={styles.modalHeader}>
             {title && <h3 id={titleId}>{title}</h3>}
@@ -294,7 +309,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       await onConfirm();
       modalProps.onClose();
     } catch {
-      // Error handling - consider using a proper error logging service
+      // Error handling - in production, this would be sent to a logging service
     } finally {
       setIsLoading(false);
     }
@@ -393,6 +408,3 @@ export const LoadingModal: React.FC<LoadingModalProps> = ({
     </Modal>
   );
 };
-
-// Export types for external use
-export type { ModalProps, ConfirmationModalProps, LoadingModalProps };

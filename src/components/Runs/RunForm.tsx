@@ -1,5 +1,6 @@
 import React from 'react';
-
+import { Input, InputGroup, TextArea, Select } from '../UI';
+import { Button, ButtonGroup } from '../UI';
 import { RunFormData, Run } from '../../types';
 
 interface RunFormProps {
@@ -22,81 +23,81 @@ export const RunForm: React.FC<RunFormProps> = ({
   onCancel,
 }) => {
   return (
-    <form onSubmit={onSubmit} className='run-form'>
+    <form onSubmit={onSubmit}>
       <h3>{editingRun ? 'Edit Run' : 'Add New Run'}</h3>
-      <div className='form-row'>
-        <div className='form-group'>
-          <label htmlFor='run-date'>Date</label>
-          <input
-            id='run-date'
-            type='date'
-            value={formData.date}
-            onChange={e => onUpdateField('date', e.target.value)}
-            className={errors.date ? 'error' : ''}
-          />
-          {errors.date && <span className='error-text'>{errors.date}</span>}
-        </div>
-        <div className='form-group'>
-          <label htmlFor='run-distance'>Distance (km)</label>
-          <input
-            id='run-distance'
-            type='number'
-            step='0.1'
-            value={formData.distance}
-            onChange={e => onUpdateField('distance', e.target.value)}
-            placeholder='5.0'
-            className={errors.distance ? 'error' : ''}
-          />
-          {errors.distance && <span className='error-text'>{errors.distance}</span>}
-        </div>
-        <div className='form-group'>
-          <label htmlFor='run-duration'>Duration (minutes)</label>
-          <input
-            id='run-duration'
-            type='number'
-            value={formData.duration}
-            onChange={e => onUpdateField('duration', e.target.value)}
-            placeholder='30'
-            className={errors.duration ? 'error' : ''}
-          />
-          {errors.duration && <span className='error-text'>{errors.duration}</span>}
-        </div>
-      </div>
-      <div className='form-row'>
-        <div className='form-group'>
-          <label htmlFor='run-tag'>Tag (optional)</label>
-          <select
-            id='run-tag'
-            value={formData.tag}
-            onChange={e => onUpdateField('tag', e.target.value)}
-          >
-            <option value=''>Select a tag</option>
-            <option value='Training'>Training</option>
-            <option value='Race'>Race</option>
-            <option value='Easy'>Easy</option>
-            <option value='Long'>Long Run</option>
-            <option value='Speed'>Speed Work</option>
-          </select>
-        </div>
-      </div>
-      <div className='form-group'>
-        <label htmlFor='run-notes'>Notes (optional)</label>
-        <textarea
-          id='run-notes'
-          value={formData.notes}
-          onChange={e => onUpdateField('notes', e.target.value)}
-          placeholder='How did it feel? Route details, weather, etc.'
-          rows={3}
+
+      <InputGroup horizontal label='Run Details'>
+        <Input
+          id='run-date'
+          type='date'
+          label='Date'
+          value={formData.date}
+          onChange={e => onUpdateField('date', e.target.value)}
+          error={!!errors.date}
+          errorMessage={errors.date}
+          required
         />
-      </div>
-      <div className='form-actions'>
-        <button type='submit' className='primary-btn' disabled={loading}>
-          {loading ? '⏳ Saving...' : editingRun ? 'Update Run' : 'Save Run'}
-        </button>
-        <button type='button' onClick={onCancel} className='secondary-btn' disabled={loading}>
+
+        <Input
+          id='run-distance'
+          type='number'
+          label='Distance (km)'
+          step='0.1'
+          value={formData.distance}
+          onChange={e => onUpdateField('distance', e.target.value)}
+          placeholder='5.0'
+          error={!!errors.distance}
+          errorMessage={errors.distance}
+          required
+        />
+
+        <Input
+          id='run-duration'
+          type='number'
+          label='Duration (minutes)'
+          value={formData.duration}
+          onChange={e => onUpdateField('duration', e.target.value)}
+          placeholder='30'
+          error={!!errors.duration}
+          errorMessage={errors.duration}
+          required
+        />
+      </InputGroup>
+
+      <Select
+        id='run-tag'
+        label='Tag (optional)'
+        value={formData.tag}
+        onChange={e => onUpdateField('tag', e.target.value)}
+        placeholder='Select a tag'
+        options={[
+          { value: 'Training', label: 'Training' },
+          { value: 'Race', label: 'Race' },
+          { value: 'Easy', label: 'Easy' },
+          { value: 'Long', label: 'Long Run' },
+          { value: 'Speed', label: 'Speed Work' },
+        ]}
+      />
+
+      <TextArea
+        id='run-notes'
+        label='Notes (optional)'
+        value={formData.notes}
+        onChange={e => onUpdateField('notes', e.target.value)}
+        placeholder='How did it feel? Route details, weather, etc.'
+        rows={3}
+        autoResize
+        maxAutoHeight={150}
+      />
+
+      <ButtonGroup align='justified'>
+        <Button type='submit' variant='primary' loading={loading} disabled={loading}>
+          {editingRun ? 'Update Run' : 'Save Run'}
+        </Button>
+        <Button type='button' variant='secondary' onClick={onCancel} disabled={loading}>
           Cancel
-        </button>
-      </div>
+        </Button>
+      </ButtonGroup>
     </form>
   );
 };
