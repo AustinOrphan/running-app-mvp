@@ -14,7 +14,6 @@ import {
   CardContent,
   CardProgress,
   CardFooter,
-  IconButton,
   ProgressHeader,
   ProgressBar,
   DetailedProgress,
@@ -23,6 +22,7 @@ import {
   ExpandedContent,
   CompletionBadge,
 } from './UI/Card';
+import { IconButton } from './UI/Button';
 
 interface GoalCardProps {
   goal: Goal;
@@ -78,16 +78,31 @@ export const GoalCard: React.FC<GoalCardProps> = ({
         {!isCompleted && (
           <CardActions>
             {onEdit && (
-              <IconButton onClick={() => onEdit(goal.id)} title='Edit goal'>
-                ✏️
-              </IconButton>
+              <IconButton
+                icon='✏️'
+                aria-label='Edit goal'
+                tooltip='Edit goal'
+                size='small'
+                variant='secondary'
+                onClick={() => onEdit(goal.id)}
+              />
             )}
-            <IconButton onClick={() => onComplete(goal.id)} title='Mark as completed'>
-              ✓
-            </IconButton>
-            <IconButton onClick={() => onDelete(goal.id)} title='Delete goal'>
-              🗑️
-            </IconButton>
+            <IconButton
+              icon='✓'
+              aria-label='Mark as completed'
+              tooltip='Mark as completed'
+              size='small'
+              variant='success'
+              onClick={() => onComplete(goal.id)}
+            />
+            <IconButton
+              icon='🗑️'
+              aria-label='Delete goal'
+              tooltip='Delete goal'
+              size='small'
+              variant='danger'
+              onClick={() => onDelete(goal.id)}
+            />
           </CardActions>
         )}
         {isCompleted && <CompletionBadge>✅ Completed</CompletionBadge>}
