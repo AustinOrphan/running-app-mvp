@@ -7,38 +7,38 @@ import styles from '../../styles/components/Button.module.css';
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size'> {
   /** Visual style variant of the button */
   variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'success';
-  
+
   /** Size variant of the button */
   size?: 'small' | 'medium' | 'large';
-  
+
   /** Whether the button is in a loading state */
   loading?: boolean;
-  
+
   /** Icon to display in the button */
   icon?: React.ReactNode;
-  
+
   /** Position of the icon relative to text */
   iconPosition?: 'left' | 'right';
-  
+
   /** Whether the button should take full width of its container */
   fullWidth?: boolean;
-  
+
   /** Additional CSS classes to apply */
   className?: string;
-  
+
   /** Children elements (usually text) */
   children?: React.ReactNode;
 }
 
 /**
  * Enhanced Button component with multiple variants and features
- * 
+ *
  * @example
  * ```tsx
  * <Button variant="primary" size="medium" onClick={handleClick}>
  *   Click me
  * </Button>
- * 
+ *
  * <Button variant="danger" icon={<TrashIcon />} loading>
  *   Delete
  * </Button>
@@ -71,7 +71,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       loading && styles.btnLoading,
       fullWidth && styles.btnFullWidth,
       !children && icon && styles.btnIcon,
-      className
+      className,
     ]
       .filter(Boolean)
       .join(' ');
@@ -86,9 +86,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     // Render icon if provided
     const renderIcon = () => {
       if (!icon) return null;
-      
+
       return (
-        <span className={styles.iconWrapper} aria-hidden="true">
+        <span className={styles.iconWrapper} aria-hidden='true'>
           {icon}
         </span>
       );
@@ -98,8 +98,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const isDisabled = disabled || loading;
 
     // Determine aria-label for accessibility
-    const ariaLabel = props['aria-label'] || 
-      (typeof children === 'string' ? children : undefined);
+    const ariaLabel = props['aria-label'] || (typeof children === 'string' ? children : undefined);
 
     return (
       <button
@@ -115,8 +114,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {loading ? (
           <>
-            <span className={styles.loadingSpinner} aria-hidden="true" />
-            <span className="sr-only">Loading...</span>
+            <span className={styles.loadingSpinner} aria-hidden='true' />
+            <span className='sr-only'>Loading...</span>
           </>
         ) : (
           <>
@@ -138,23 +137,23 @@ Button.displayName = 'Button';
 export interface ButtonGroupProps {
   /** Direction of button arrangement */
   direction?: 'horizontal' | 'vertical';
-  
+
   /** Alignment of buttons within the group */
   align?: 'start' | 'center' | 'end' | 'justified';
-  
+
   /** Gap between buttons */
   gap?: 'small' | 'medium' | 'large';
-  
+
   /** Additional CSS classes */
   className?: string;
-  
+
   /** Child buttons */
   children: React.ReactNode;
 }
 
 /**
  * ButtonGroup component for organizing multiple buttons together
- * 
+ *
  * @example
  * ```tsx
  * <ButtonGroup>
@@ -168,20 +167,20 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
   align = 'start',
   gap = 'medium',
   className = '',
-  children
+  children,
 }) => {
   const groupClasses = [
     styles.btnGroup,
     direction === 'vertical' && styles.vertical,
     align === 'justified' && styles.justified,
     styles[`gap${gap.charAt(0).toUpperCase() + gap.slice(1)}`],
-    className
+    className,
   ]
     .filter(Boolean)
     .join(' ');
 
   return (
-    <div className={groupClasses} role="group">
+    <div className={groupClasses} role='group'>
       {children}
     </div>
   );
@@ -193,17 +192,17 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
 export interface IconButtonProps extends Omit<ButtonProps, 'children' | 'fullWidth'> {
   /** Accessible label for the icon button */
   'aria-label': string;
-  
+
   /** Icon to display */
   icon: React.ReactNode;
-  
+
   /** Tooltip text to display on hover */
   tooltip?: string;
 }
 
 /**
  * IconButton component for icon-only actions
- * 
+ *
  * @example
  * ```tsx
  * <IconButton
@@ -216,19 +215,8 @@ export interface IconButtonProps extends Omit<ButtonProps, 'children' | 'fullWid
  */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
   ({ icon, tooltip, size = 'medium', ...props }, ref) => {
-    return (
-      <Button
-        ref={ref}
-        size={size}
-        icon={icon}
-        title={tooltip}
-        {...props}
-      />
-    );
+    return <Button ref={ref} size={size} icon={icon} title={tooltip} {...props} />;
   }
 );
 
 IconButton.displayName = 'IconButton';
-
-// Export types for external use
-export type { ButtonProps, ButtonGroupProps, IconButtonProps };

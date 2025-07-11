@@ -1,6 +1,6 @@
 /**
  * UI Component Library
- * 
+ *
  * Central export point for all reusable UI components.
  * These components use CSS modules for styling and provide
  * consistent theming and accessibility features.
@@ -13,6 +13,10 @@ export type { ButtonProps, ButtonGroupProps, IconButtonProps } from './Button';
 // Input components
 export { Input, InputGroup, TextArea } from './Input';
 export type { InputProps, InputGroupProps, TextAreaProps } from './Input';
+
+// Select components
+export { Select, OptionGroup } from './Select';
+export type { SelectProps, OptionGroupProps } from './Select';
 
 // Modal components
 export { Modal, ConfirmationModal, LoadingModal } from './Modal';

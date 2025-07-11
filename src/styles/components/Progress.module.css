@@ -565,35 +565,35 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
-  
+
   .streakStats {
     gap: 16px;
   }
-  
+
   .streakNumber {
     font-size: 20px;
   }
-  
+
   .streakDay {
     width: 28px;
     height: 28px;
     font-size: 9px;
   }
-  
+
   .chartContainer {
     height: 250px;
   }
-  
+
   .chartLegend {
     gap: 12px;
   }
-  
+
   .detailedProgress {
     flex-direction: column;
     gap: 16px;
     align-items: stretch;
   }
-  
+
   .circularPercentage {
     font-size: 16px;
   }
@@ -603,27 +603,27 @@
   .progressStats {
     grid-template-columns: 1fr;
   }
-  
+
   .streakStats {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .streakCards {
     grid-template-columns: 1fr;
   }
-  
+
   .chartBars {
     gap: 4px;
     padding: 0 5px;
   }
-  
+
   .streakDay {
     width: 24px;
     height: 24px;
     font-size: 8px;
   }
-  
+
   .calendarGrid {
     gap: 2px;
   }
@@ -664,11 +664,11 @@
   .progressBar {
     border: 2px solid var(--text-primary);
   }
-  
+
   .streakDay {
     border-width: 2px;
   }
-  
+
   .chartCard {
     border-width: 2px;
   }
@@ -692,7 +692,7 @@
     height: auto;
     min-height: 200px;
   }
-  
+
   .streakCalendar {
     break-inside: avoid;
   }
