@@ -1,5 +1,6 @@
 // Comprehensive fetch wrapper with error handling, auth, and retry logic
 import { clientLogger } from './clientLogger.js';
+import { reportApiError, reportNetworkError, reportAuthError } from './errorReporting.js';
 
 export interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
@@ -143,17 +144,34 @@ export const apiFetch = async <T = unknown>(
           errorData = { message: errorMessage };
         }
 
+        // Report authentication errors
+        if (response.status === 401) {
+          const authError = new ApiFetchError(errorMessage, response.status, response, errorData);
+          reportAuthError(authError, `${fetchOptions.method || 'GET'} ${url}`);
+        }
+
         // Check if this is a retryable error
         if (attempt < retries && isRetryableStatus(response.status)) {
           // eslint-disable-next-line no-console -- Intentional retry warning for debugging
           console.warn(
             `API request failed (attempt ${attempt + 1}/${retries + 1}): ${errorMessage}. Retrying...`
           );
+          
+          // Report network error if on last retry
+          if (attempt === retries - 1) {
+            const networkError = new ApiFetchError(errorMessage, response.status, response, errorData);
+            reportNetworkError(networkError, url, attempt + 1);
+          }
+          
           await delay(retryDelay * Math.pow(2, attempt)); // Exponential backoff
           continue;
         }
 
-        throw new ApiFetchError(errorMessage, response.status, response, errorData);
+        // Report API error
+        const apiError = new ApiFetchError(errorMessage, response.status, response, errorData);
+        reportApiError(apiError, url, fetchOptions.method || 'GET', response.status);
+        
+        throw apiError;
       }
 
       // Parse successful response
@@ -189,7 +207,9 @@ export const apiFetch = async <T = unknown>(
         // Handle network errors, timeouts, etc.
         const defaultNetworkErrorMessage = 'Network error';
         const errorMessage = error instanceof Error ? error.message : defaultNetworkErrorMessage;
-        throw new ApiFetchError(errorMessage, 0, undefined, { originalError: error });
+        const networkError = new ApiFetchError(errorMessage, 0, undefined, { originalError: error });
+        reportNetworkError(networkError, url, attempt);
+        throw networkError;
       }
 
       // Retry for retryable errors
