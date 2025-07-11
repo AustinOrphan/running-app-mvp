@@ -1,77 +1,4 @@
-.app {
-  max-width: 1200px;
-  width: 100%;
-  min-height: 100vh;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  box-sizing: border-box;
-  background: var(--primary-bg);
-}
-
-/* Add a general mobile-first approach */
-@media (max-width: 768px) {
-  .app {
-    padding: 16px;
-  }
-
-  .tab-panel {
-    padding: 16px;
-    background: #242424;
-  }
-}
-
-header {
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  padding: 20px;
-  background: #1a1a1a;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  border: 1px solid #404040;
-}
-
-h1 {
-  margin: 0;
-}
-
-h1,
-h2,
-h3 {
-  color: rgba(255, 255, 255, 0.87);
-  font-weight: 600;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.status {
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-weight: 500;
-  background: #f0f9ff;
-  color: #0369a1;
-}
-
-.logout-btn {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.logout-btn:hover {
-  background: #dc2626;
-}
+/* Layout styles moved to Layout.module.css */
 
 .auth-form {
   max-width: 400px;
@@ -106,41 +33,7 @@ h3 {
   border-color: #3b82f6;
 }
 
-/* Circular Progress Styles */
-.circular-progress {
-  position: relative;
-  display: inline-block;
-}
-
-.circular-progress-content {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-}
-
-.circular-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.circular-percentage {
-  font-size: 18px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.circular-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.progress-foreground.animated {
-  transition: stroke-dashoffset 0.5s ease-in-out;
-}
+/* Circular Progress styles moved to Progress.module.css */
 
 /* Detailed Progress Styles */
 .detailed-progress {
@@ -2908,26 +2801,9 @@ button:disabled:hover {
   font-size: 18px;
 }
 
-/* Skeleton loading */
-.skeleton {
-  pointer-events: none;
-}
+/* Skeleton loading styles moved to Utils.module.css */
 
-.skeleton-line {
-  background: linear-gradient(90deg, #404040 25%, #505050 50%, #404040 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 4px;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
+/* Shimmer animation moved to Utils.module.css */
 
 /* Empty state */
 .empty-state {
