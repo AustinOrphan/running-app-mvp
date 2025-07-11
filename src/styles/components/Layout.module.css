@@ -127,3 +127,147 @@
 .gapLarge {
   gap: 24px;
 }
+
+/* Dashboard Layout */
+.dashboard {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Tab Content Area */
+.tabContent {
+  position: relative;
+  height: 600px;
+  max-height: calc(100vh - 280px);
+  width: 100%;
+  max-width: 900px;
+}
+
+/* Offline Notice */
+.offlineNotice {
+  padding: 12px;
+  margin: 16px 0;
+  background-color: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  color: #92400e;
+  font-size: 14px;
+}
+
+/* Footer Components */
+.footerSectionContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.footerInfoItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.footerInfoItem.error {
+  color: #ef4444;
+}
+
+.footerInfoItem.success {
+  color: #10b981;
+}
+
+.footerInfoItem.warning {
+  color: #f59e0b;
+}
+
+.footerInfoLabel {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.footerInfoValue {
+  color: rgba(255, 255, 255, 0.87);
+  font-weight: 500;
+}
+
+/* Responsive Layout */
+@media (min-width: 1200px) {
+  .dashboard,
+  .tabContent {
+    width: 1100px;
+    max-width: calc(100vw - 40px);
+  }
+
+  .tabContent {
+    height: 700px;
+  }
+}
+
+@media (min-width: 992px) and (max-width: 1199px) {
+  .dashboard,
+  .tabContent {
+    width: 950px;
+    max-width: calc(100vw - 40px);
+  }
+
+  .tabContent {
+    height: 650px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  .dashboard,
+  .tabContent {
+    width: calc(100vw - 40px);
+    max-width: 900px;
+  }
+
+  .tabContent {
+    height: 600px;
+  }
+}
+
+@media (min-width: 576px) and (max-width: 767px) {
+  .dashboard,
+  .tabContent {
+    width: calc(100% - 0px);
+    max-width: 700px;
+  }
+
+  .tabContent {
+    height: 500px;
+    max-height: calc(100vh - 260px);
+  }
+}
+
+@media (min-width: 480px) and (max-width: 575px) {
+  .dashboard,
+  .tabContent {
+    width: 100%;
+    max-width: none;
+    padding: 0;
+  }
+
+  .tabContent {
+    height: 100%;
+  }
+}
+
+@media (max-width: 479px) {
+  .dashboard,
+  .tabContent {
+    width: 100%;
+    max-width: none;
+    padding: 0;
+  }
+
+  .tabContent {
+    height: 100%;
+  }
+
+  .footerInfoItem {
+    font-size: 12px;
+  }
+}

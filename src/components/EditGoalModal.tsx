@@ -198,13 +198,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
-    <Modal 
-      isOpen={isOpen} 
-      onClose={handleClose} 
-      title="Edit Goal"
-      size="large"
-    >
-
+    <Modal isOpen={isOpen} onClose={handleClose} title='Edit Goal' size='large'>
       <form onSubmit={handleSubmit}>
         {/* Goal Title */}
         <Input
@@ -212,7 +206,9 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
           type='text'
           label='Goal Title'
           value={formData.title}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setFormData(prev => ({ ...prev, title: e.target.value }))
+          }
           placeholder='e.g., Run 50km this month'
           error={!!errors.title}
           errorMessage={errors.title}
@@ -224,36 +220,38 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
           id='edit-description'
           label='Description'
           value={formData.description}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            setFormData(prev => ({ ...prev, description: e.target.value }))
+          }
           placeholder='Optional description of your goal...'
           rows={3}
         />
 
-            {/* Goal Type */}
-            <div className='form-group'>
-              <label htmlFor='edit-type'>Goal Type *</label>
-              <select
-                id='edit-type'
-                value={formData.type}
-                onChange={e => handleTypeChange(e.target.value as GoalType)}
-                disabled={goal.isCompleted} // Prevent changing type of completed goals
-              >
-                {Object.values(GOAL_TYPES).map(type => {
-                  const config = GOAL_TYPE_CONFIGS[type];
-                  return (
-                    <option key={type} value={type}>
-                      {config.icon} {config.label}
-                    </option>
-                  );
-                })}
-              </select>
-              <p className='field-description'>{selectedConfig.description}</p>
-              {goal.isCompleted && (
-                <p className='field-description' style={{ color: '#f59e0b' }}>
-                  Cannot change goal type for completed goals
-                </p>
-              )}
-            </div>
+        {/* Goal Type */}
+        <div className='form-group'>
+          <label htmlFor='edit-type'>Goal Type *</label>
+          <select
+            id='edit-type'
+            value={formData.type}
+            onChange={e => handleTypeChange(e.target.value as GoalType)}
+            disabled={goal.isCompleted} // Prevent changing type of completed goals
+          >
+            {Object.values(GOAL_TYPES).map(type => {
+              const config = GOAL_TYPE_CONFIGS[type];
+              return (
+                <option key={type} value={type}>
+                  {config.icon} {config.label}
+                </option>
+              );
+            })}
+          </select>
+          <p className='field-description'>{selectedConfig.description}</p>
+          {goal.isCompleted && (
+            <p className='field-description' style={{ color: '#f59e0b' }}>
+              Cannot change goal type for completed goals
+            </p>
+          )}
+        </div>
 
         {/* Target Value and Unit */}
         <InputGroup horizontal label='Target Value'>
@@ -262,7 +260,9 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
             type='number'
             label='Target Value'
             value={formData.targetValue}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, targetValue: e.target.value }))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, targetValue: e.target.value }))
+            }
             placeholder='0'
             error={!!errors.targetValue}
             errorMessage={errors.targetValue}
@@ -270,13 +270,15 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
             step='0.1'
             min='0'
           />
-          
+
           <div className='form-group'>
             <label htmlFor='edit-targetUnit'>Unit</label>
             <select
               id='edit-targetUnit'
               value={formData.targetUnit}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData(prev => ({ ...prev, targetUnit: e.target.value }))}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setFormData(prev => ({ ...prev, targetUnit: e.target.value }))
+              }
             >
               {selectedConfig.units.map(unit => (
                 <option key={unit} value={unit}>
@@ -287,24 +289,24 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
           </div>
         </InputGroup>
 
-            {/* Goal Period */}
-            <div className='form-group'>
-              <label htmlFor='edit-period'>Time Period *</label>
-              <select
-                id='edit-period'
-                value={formData.period}
-                onChange={e => handlePeriodChange(e.target.value as GoalPeriod)}
-              >
-                {Object.values(GOAL_PERIODS).map(period => {
-                  const config = GOAL_PERIOD_CONFIGS[period];
-                  return (
-                    <option key={period} value={period}>
-                      {config.label}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
+        {/* Goal Period */}
+        <div className='form-group'>
+          <label htmlFor='edit-period'>Time Period *</label>
+          <select
+            id='edit-period'
+            value={formData.period}
+            onChange={e => handlePeriodChange(e.target.value as GoalPeriod)}
+          >
+            {Object.values(GOAL_PERIODS).map(period => {
+              const config = GOAL_PERIOD_CONFIGS[period];
+              return (
+                <option key={period} value={period}>
+                  {config.label}
+                </option>
+              );
+            })}
+          </select>
+        </div>
 
         {/* Date Range */}
         <InputGroup horizontal label='Date Range'>
@@ -313,18 +315,22 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
             type='date'
             label='Start Date'
             value={formData.startDate}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleStartDateChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              handleStartDateChange(e.target.value)
+            }
             error={!!errors.startDate}
             errorMessage={errors.startDate}
             required
           />
-          
+
           <Input
             id='edit-endDate'
             type='date'
             label='End Date'
             value={formData.endDate}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, endDate: e.target.value }))
+            }
             error={!!errors.endDate}
             errorMessage={errors.endDate}
             required
@@ -338,26 +344,25 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
             type='color'
             label='Color'
             value={formData.color}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, color: e.target.value }))
+            }
           />
-          
+
           <Input
             id='edit-icon'
             type='text'
             label='Icon'
             value={formData.icon}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, icon: e.target.value }))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, icon: e.target.value }))
+            }
             placeholder='🎯'
           />
         </InputGroup>
-        
+
         <div className='modal-footer'>
-          <Button
-            type='button'
-            variant='secondary'
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          <Button type='button' variant='secondary' onClick={handleClose} disabled={isSubmitting}>
             Cancel
           </Button>
           <Button type='submit' variant='primary' disabled={isSubmitting}>

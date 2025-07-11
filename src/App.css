@@ -1995,12 +1995,7 @@
   color: white;
 }
 
-.dashboard {
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  box-sizing: border-box;
-}
+/* Dashboard styles moved to Layout.module.css */
 
 .actions {
   text-align: center;
@@ -2291,18 +2286,12 @@
   margin-bottom: 20px;
 }
 
-/* Tab content transitions */
-.tab-content {
-  position: relative;
-  height: 600px;
-  max-height: calc(100vh - 280px);
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
+/* Tab content styles moved to Layout.module.css */
+/* Note: transition styles kept for functionality */
+.tab-content-transition {
   transition: all 0.3s ease;
   overflow-y: auto;
   overflow-x: hidden;
-  box-sizing: border-box;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
   background: #1a1a1a;
@@ -2837,15 +2826,7 @@ button:disabled:hover {
 
 /* Large Desktop: 1201px+ */
 @media (min-width: 1201px) {
-  .dashboard,
-  .tab-content {
-    width: 1100px;
-    max-width: calc(100vw - 40px);
-  }
-
-  .tab-content {
-    height: 700px;
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .runs-grid {
     grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
@@ -2866,15 +2847,7 @@ button:disabled:hover {
 
 /* Standard Desktop: 993px - 1200px */
 @media (min-width: 993px) and (max-width: 1200px) {
-  .dashboard,
-  .tab-content {
-    width: 950px;
-    max-width: calc(100vw - 40px);
-  }
-
-  .tab-content {
-    height: 650px;
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .runs-grid {
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -2895,15 +2868,7 @@ button:disabled:hover {
 
 /* Small Desktop / Large Tablet: 769px - 992px */
 @media (min-width: 769px) and (max-width: 992px) {
-  .dashboard,
-  .tab-content {
-    width: calc(100vw - 40px);
-    max-width: 900px;
-  }
-
-  .tab-content {
-    height: 600px;
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .runs-grid {
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -2935,16 +2900,7 @@ button:disabled:hover {
     background: #242424;
   }
 
-  .dashboard,
-  .tab-content {
-    width: calc(100% - 0px);
-    max-width: 700px;
-  }
-
-  .tab-content {
-    height: 500px;
-    max-height: calc(100vh - 260px);
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .swipe-hint {
     display: block;
@@ -3043,16 +2999,7 @@ button:disabled:hover {
     padding: 12px;
   }
 
-  .dashboard,
-  .tab-content {
-    width: 100%;
-    max-width: none;
-    padding: 0;
-  }
-
-  .tab-content {
-    height: 100%;
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .swipe-hint {
     display: block;
@@ -3165,16 +3112,7 @@ button:disabled:hover {
     background: #242424;
   }
 
-  .dashboard,
-  .tab-content {
-    width: 100%;
-    max-width: none;
-    padding: 0;
-  }
-
-  .tab-content {
-    height: 100%;
-  }
+  /* Dashboard and tab-content responsive styles moved to Layout.module.css */
 
   .swipe-hint {
     display: block;
@@ -5637,41 +5575,7 @@ button:disabled:hover {
   letter-spacing: 0.5px;
 }
 
-.footer-section-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.footer-info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
-  padding: 2px 0;
-}
-
-.footer-info-item.error {
-  color: #ef4444;
-}
-
-.footer-info-item.success {
-  color: #10b981;
-}
-
-.footer-info-item.warning {
-  color: #f59e0b;
-}
-
-.footer-info-label {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.footer-info-value {
-  color: rgba(255, 255, 255, 0.87);
-  font-weight: 500;
-}
+/* Footer section styles moved to Layout.module.css */
 
 .footer-links {
   display: flex;
@@ -5834,9 +5738,7 @@ button:disabled:hover {
     font-size: 13px;
   }
 
-  .footer-info-item {
-    font-size: 12px;
-  }
+  /* Footer responsive styles moved to Layout.module.css */
 
   .footer-link {
     font-size: 12px;

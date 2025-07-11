@@ -171,13 +171,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
-    <Modal 
-      isOpen={isOpen} 
-      onClose={onClose} 
-      title="Create New Goal"
-      size="large"
-    >
-
+    <Modal isOpen={isOpen} onClose={onClose} title='Create New Goal' size='large'>
       <form data-testid='create-goal-form' onSubmit={handleSubmit}>
         {/* Goal Title */}
         <Input
@@ -185,7 +179,9 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
           type='text'
           label='Goal Title'
           value={formData.title}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setFormData(prev => ({ ...prev, title: e.target.value }))
+          }
           placeholder='e.g., Run 50km this month'
           error={!!errors.title}
           errorMessage={errors.title}
@@ -197,30 +193,32 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
           id='description'
           label='Description'
           value={formData.description}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            setFormData(prev => ({ ...prev, description: e.target.value }))
+          }
           placeholder='Optional description of your goal...'
           rows={3}
         />
 
-            {/* Goal Type */}
-            <div className='form-group'>
-              <label htmlFor='type'>Goal Type *</label>
-              <select
-                id='type'
-                value={formData.type}
-                onChange={e => handleTypeChange(e.target.value as GoalType)}
-              >
-                {Object.values(GOAL_TYPES).map(type => {
-                  const config = GOAL_TYPE_CONFIGS[type];
-                  return (
-                    <option key={type} value={type}>
-                      {config.icon} {config.label}
-                    </option>
-                  );
-                })}
-              </select>
-              <p className='field-description'>{selectedConfig.description}</p>
-            </div>
+        {/* Goal Type */}
+        <div className='form-group'>
+          <label htmlFor='type'>Goal Type *</label>
+          <select
+            id='type'
+            value={formData.type}
+            onChange={e => handleTypeChange(e.target.value as GoalType)}
+          >
+            {Object.values(GOAL_TYPES).map(type => {
+              const config = GOAL_TYPE_CONFIGS[type];
+              return (
+                <option key={type} value={type}>
+                  {config.icon} {config.label}
+                </option>
+              );
+            })}
+          </select>
+          <p className='field-description'>{selectedConfig.description}</p>
+        </div>
 
         {/* Target Value and Unit */}
         <InputGroup horizontal label='Target Value'>
@@ -229,20 +227,24 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
             type='number'
             label='Target Value'
             value={formData.targetValue}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, targetValue: e.target.value }))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, targetValue: e.target.value }))
+            }
             placeholder='0'
             error={!!errors.targetValue}
             errorMessage={errors.targetValue}
             required
             step='0.1'
           />
-          
+
           <div className='form-group'>
             <label htmlFor='targetUnit'>Unit</label>
             <select
               id='targetUnit'
               value={formData.targetUnit}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData(prev => ({ ...prev, targetUnit: e.target.value }))}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setFormData(prev => ({ ...prev, targetUnit: e.target.value }))
+              }
             >
               {selectedConfig.units.map(unit => (
                 <option key={unit} value={unit}>
@@ -253,24 +255,24 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
           </div>
         </InputGroup>
 
-            {/* Goal Period */}
-            <div className='form-group'>
-              <label htmlFor='period'>Time Period *</label>
-              <select
-                id='period'
-                value={formData.period}
-                onChange={e => handlePeriodChange(e.target.value as GoalPeriod)}
-              >
-                {Object.values(GOAL_PERIODS).map(period => {
-                  const config = GOAL_PERIOD_CONFIGS[period];
-                  return (
-                    <option key={period} value={period}>
-                      {config.label}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
+        {/* Goal Period */}
+        <div className='form-group'>
+          <label htmlFor='period'>Time Period *</label>
+          <select
+            id='period'
+            value={formData.period}
+            onChange={e => handlePeriodChange(e.target.value as GoalPeriod)}
+          >
+            {Object.values(GOAL_PERIODS).map(period => {
+              const config = GOAL_PERIOD_CONFIGS[period];
+              return (
+                <option key={period} value={period}>
+                  {config.label}
+                </option>
+              );
+            })}
+          </select>
+        </div>
 
         {/* Date Range */}
         <InputGroup horizontal label='Date Range'>
@@ -279,18 +281,22 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
             type='date'
             label='Start Date'
             value={formData.startDate}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleStartDateChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              handleStartDateChange(e.target.value)
+            }
             error={!!errors.startDate}
             errorMessage={errors.startDate}
             required
           />
-          
+
           <Input
             id='endDate'
             type='date'
             label='End Date'
             value={formData.endDate}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, endDate: e.target.value }))
+            }
             error={!!errors.endDate}
             errorMessage={errors.endDate}
             required
@@ -304,26 +310,25 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
             type='color'
             label='Color'
             value={formData.color}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, color: e.target.value }))
+            }
           />
-          
+
           <Input
             id='icon'
             type='text'
             label='Icon'
             value={formData.icon}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, icon: e.target.value }))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, icon: e.target.value }))
+            }
             placeholder='🎯'
           />
         </InputGroup>
-        
+
         <div className='modal-footer'>
-          <Button
-            type='button'
-            variant='secondary'
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
+          <Button type='button' variant='secondary' onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
           <Button type='submit' variant='primary' disabled={isSubmitting}>
