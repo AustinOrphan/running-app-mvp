@@ -1,6 +1,9 @@
 // Comprehensive fetch wrapper with error handling, auth, and retry logic
 import { clientLogger } from './clientLogger.js';
 
+// Event emitter for authentication events
+export const authEvents = new EventTarget();
+
 export interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   timeout?: number;
@@ -143,6 +146,39 @@ export const apiFetch = async <T = unknown>(
           errorData = { message: errorMessage };
         }
 
+        // Handle authentication errors specifically
+        if (response.status === 401) {
+          // Check if this is a token expiration vs invalid token
+          if (errorMessage.toLowerCase().includes('expired')) {
+            errorMessage = 'Your session has expired. Please log in again.';
+            // TODO: Implement token refresh here when refresh tokens are added
+          } else {
+            errorMessage = 'Authentication failed. Please log in again.';
+          }
+
+          // Clear invalid token from storage
+          localStorage.removeItem('authToken');
+
+          // Emit authentication failure event
+          authEvents.dispatchEvent(
+            new CustomEvent('authenticationFailed', {
+              detail: {
+                status: response.status,
+                message: errorMessage,
+                url,
+              },
+            })
+          );
+
+          // Log detailed error for debugging
+          clientLogger.error('Authentication error', undefined, {
+            status: response.status,
+            message: errorMessage,
+            url,
+            originalError: errorData,
+          });
+        }
+
         // Check if this is a retryable error
         if (attempt < retries && isRetryableStatus(response.status)) {
           // eslint-disable-next-line no-console -- Intentional retry warning for debugging
@@ -151,6 +187,17 @@ export const apiFetch = async <T = unknown>(
           );
           await delay(retryDelay * Math.pow(2, attempt)); // Exponential backoff
           continue;
+        }
+
+        // Enhance error messages for common status codes
+        if (response.status === 403) {
+          errorMessage = 'You do not have permission to perform this action.';
+        } else if (response.status === 404) {
+          errorMessage = 'The requested resource was not found.';
+        } else if (response.status === 422) {
+          errorMessage = 'Invalid data provided. Please check your input.';
+        } else if (response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
         }
 
         throw new ApiFetchError(errorMessage, response.status, response, errorData);
