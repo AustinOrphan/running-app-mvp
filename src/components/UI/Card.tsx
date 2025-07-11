@@ -260,12 +260,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
 
   const getButtonClasses = () => {
     const baseClass = variant === 'run' ? styles.iconBtnRun : styles.iconBtn;
-<<<<<<< HEAD
     const variantClass = variant !== 'run' ? buttonVariantClasses[variant] : undefined;
     return [baseClass, variantClass, className].filter(Boolean).join(' ');
-=======
-    return [baseClass, buttonVariantClasses[variant], className].filter(Boolean).join(' ');
->>>>>>> origin/main
   };
 
   return (
