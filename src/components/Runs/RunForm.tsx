@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { RunFormData, Run } from '../../types';
+import styles from '../../styles/components/RunForm.module.css';
 
 interface RunFormProps {
   formData: RunFormData;
@@ -22,21 +23,21 @@ export const RunForm: React.FC<RunFormProps> = ({
   onCancel,
 }) => {
   return (
-    <form onSubmit={onSubmit} className='run-form'>
+    <form onSubmit={onSubmit} className={styles.runForm}>
       <h3>{editingRun ? 'Edit Run' : 'Add New Run'}</h3>
-      <div className='form-row'>
-        <div className='form-group'>
+      <div className={styles.formRow}>
+        <div className={styles.formGroup}>
           <label htmlFor='run-date'>Date</label>
           <input
             id='run-date'
             type='date'
             value={formData.date}
             onChange={e => onUpdateField('date', e.target.value)}
-            className={errors.date ? 'error' : ''}
+            className={errors.date ? styles.error : ''}
           />
-          {errors.date && <span className='error-text'>{errors.date}</span>}
+          {errors.date && <span className={styles.errorText}>{errors.date}</span>}
         </div>
-        <div className='form-group'>
+        <div className={styles.formGroup}>
           <label htmlFor='run-distance'>Distance (km)</label>
           <input
             id='run-distance'
@@ -45,11 +46,11 @@ export const RunForm: React.FC<RunFormProps> = ({
             value={formData.distance}
             onChange={e => onUpdateField('distance', e.target.value)}
             placeholder='5.0'
-            className={errors.distance ? 'error' : ''}
+            className={errors.distance ? styles.error : ''}
           />
-          {errors.distance && <span className='error-text'>{errors.distance}</span>}
+          {errors.distance && <span className={styles.errorText}>{errors.distance}</span>}
         </div>
-        <div className='form-group'>
+        <div className={styles.formGroup}>
           <label htmlFor='run-duration'>Duration (minutes)</label>
           <input
             id='run-duration'
@@ -57,13 +58,13 @@ export const RunForm: React.FC<RunFormProps> = ({
             value={formData.duration}
             onChange={e => onUpdateField('duration', e.target.value)}
             placeholder='30'
-            className={errors.duration ? 'error' : ''}
+            className={errors.duration ? styles.error : ''}
           />
-          {errors.duration && <span className='error-text'>{errors.duration}</span>}
+          {errors.duration && <span className={styles.errorText}>{errors.duration}</span>}
         </div>
       </div>
-      <div className='form-row'>
-        <div className='form-group'>
+      <div className={styles.formRow}>
+        <div className={styles.formGroup}>
           <label htmlFor='run-tag'>Tag (optional)</label>
           <select
             id='run-tag'
@@ -79,7 +80,7 @@ export const RunForm: React.FC<RunFormProps> = ({
           </select>
         </div>
       </div>
-      <div className='form-group'>
+      <div className={styles.formGroup}>
         <label htmlFor='run-notes'>Notes (optional)</label>
         <textarea
           id='run-notes'
@@ -89,11 +90,11 @@ export const RunForm: React.FC<RunFormProps> = ({
           rows={3}
         />
       </div>
-      <div className='form-actions'>
-        <button type='submit' className='primary-btn' disabled={loading}>
+      <div className={styles.formActions}>
+        <button type='submit' className={styles.primaryBtn} disabled={loading}>
           {loading ? '⏳ Saving...' : editingRun ? 'Update Run' : 'Save Run'}
         </button>
-        <button type='button' onClick={onCancel} className='secondary-btn' disabled={loading}>
+        <button type='button' onClick={onCancel} className={styles.secondaryBtn} disabled={loading}>
           Cancel
         </button>
       </div>

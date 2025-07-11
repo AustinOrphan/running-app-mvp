@@ -2540,68 +2540,7 @@ h3 {
   }
 }
 
-/* Run form */
-.run-form {
-  background: #1a1a1a;
-  border: 1px solid #404040;
-  border-radius: 8px;
-  padding: 24px;
-  margin-bottom: 30px;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label {
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.87);
-  margin-bottom: 6px;
-  font-size: 14px;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-  padding: 10px 12px;
-  border: 1px solid #404040;
-  border-radius: 6px;
-  font-size: 16px;
-  transition: border-color 0.2s;
-  background: #2a2a2a;
-  color: rgba(255, 255, 255, 0.87);
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-group textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
-.form-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 20px;
-}
+/* Run form styles moved to RunForm.module.css */
 
 .secondary-btn {
   background: #404040;
