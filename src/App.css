@@ -5635,6 +5635,36 @@ button:disabled:hover {
   margin-bottom: 16px;
 }
 
+.footer-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.footer-info-item.error {
+  color: #ef4444;
+}
+
+.footer-info-item.success {
+  color: #10b981;
+}
+
+.footer-info-item.warning {
+  color: #f59e0b;
+}
+
+.footer-info-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.footer-info-value {
+  color: rgba(255, 255, 255, 0.87);
+  font-weight: 500;
+}
+
 .info-row {
   display: flex;
   justify-content: space-between;
