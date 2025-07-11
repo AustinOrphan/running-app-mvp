@@ -109,7 +109,8 @@
       "Bash(curl:*)",
       "Bash(kill:*)",
       "Bash(timeout 10s npm run dev)",
-      "Bash(git rev-parse:*)"
+      "Bash(git rev-parse:*)",
+      "Bash(pkill:*)"
     ],
     "deny": []
   }

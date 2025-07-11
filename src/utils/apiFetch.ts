@@ -2,6 +2,9 @@
 import { clientLogger } from './clientLogger.js';
 import { reportApiError, reportNetworkError, reportAuthError } from './errorReporting.js';
 
+// Event emitter for authentication events
+export const authEvents = new EventTarget();
+
 export interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   timeout?: number;
@@ -144,8 +147,31 @@ export const apiFetch = async <T = unknown>(
           errorData = { message: errorMessage };
         }
 
-        // Report authentication errors
+        // Handle authentication errors specifically
         if (response.status === 401) {
+          // Check if this is a token expiration vs invalid token
+          if (errorMessage.toLowerCase().includes('expired')) {
+            errorMessage = 'Your session has expired. Please log in again.';
+            // TODO: Implement token refresh here when refresh tokens are added
+          } else {
+            errorMessage = 'Authentication failed. Please log in again.';
+          }
+
+          // Clear invalid token from storage
+          localStorage.removeItem('authToken');
+
+          // Emit authentication failure event
+          authEvents.dispatchEvent(
+            new CustomEvent('authenticationFailed', {
+              detail: {
+                status: response.status,
+                message: errorMessage,
+                url,
+              },
+            })
+          );
+
+          // Report authentication error (from PR #267)
           const authError = new ApiFetchError(errorMessage, response.status, response, errorData);
           reportAuthError(authError, `${fetchOptions.method || 'GET'} ${url}`);
         }
@@ -156,21 +182,37 @@ export const apiFetch = async <T = unknown>(
           console.warn(
             `API request failed (attempt ${attempt + 1}/${retries + 1}): ${errorMessage}. Retrying...`
           );
-          
+
           // Report network error if on last retry
           if (attempt === retries - 1) {
-            const networkError = new ApiFetchError(errorMessage, response.status, response, errorData);
+            const networkError = new ApiFetchError(
+              errorMessage,
+              response.status,
+              response,
+              errorData
+            );
             reportNetworkError(networkError, url, attempt + 1);
           }
-          
+
           await delay(retryDelay * Math.pow(2, attempt)); // Exponential backoff
           continue;
         }
 
-        // Report API error
+        // Enhance error messages for common status codes
+        if (response.status === 403) {
+          errorMessage = 'You do not have permission to perform this action.';
+        } else if (response.status === 404) {
+          errorMessage = 'The requested resource was not found.';
+        } else if (response.status === 422) {
+          errorMessage = 'Invalid data provided. Please check your input.';
+        } else if (response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+
+        // Report API error (from PR #267)
         const apiError = new ApiFetchError(errorMessage, response.status, response, errorData);
         reportApiError(apiError, url, fetchOptions.method || 'GET', response.status);
-        
+
         throw apiError;
       }
 
@@ -207,7 +249,9 @@ export const apiFetch = async <T = unknown>(
         // Handle network errors, timeouts, etc.
         const defaultNetworkErrorMessage = 'Network error';
         const errorMessage = error instanceof Error ? error.message : defaultNetworkErrorMessage;
-        const networkError = new ApiFetchError(errorMessage, 0, undefined, { originalError: error });
+        const networkError = new ApiFetchError(errorMessage, 0, undefined, {
+          originalError: error,
+        });
         reportNetworkError(networkError, url, attempt);
         throw networkError;
       }
