@@ -296,6 +296,7 @@ export const GoalsPage: React.FC = () => {
         type='danger'
         onConfirm={confirmDeleteGoal}
         onCancel={cancelDeleteGoal}
+        onClose={cancelDeleteGoal}
       />
 
       {/* Goal Achievement Notification */}

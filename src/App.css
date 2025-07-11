@@ -3667,10 +3667,7 @@ button:disabled:hover {
   .chart-card,
   .insights-card,
   .trends-chart-card,
-  .records-table-card {
-    padding: 16px;
-    margin-bottom: 16px;
-  }
+  /* Records table card styles moved to Stats.module.css */
 
   .skeleton-chart {
     flex-direction: column;
@@ -3719,10 +3716,7 @@ button:disabled:hover {
   .chart-card,
   .insights-card,
   .trends-chart-card,
-  .records-table-card {
-    padding: 12px;
-    margin-bottom: 12px;
-  }
+  /* Records table card styles moved to Stats.module.css */
 
   .chart-card h3,
   .insights-card h3,
@@ -3819,17 +3813,7 @@ button:disabled:hover {
 }
 
 /* PersonalRecordsTable Component */
-.records-table-card {
-  background: #1a1a1a;
-  border: 1px solid #404040;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-}
+/* Records table card styles moved to Stats.module.css */
 
 .records-table-card h3 {
   margin: 0 0 20px 0;
@@ -3838,16 +3822,9 @@ button:disabled:hover {
   font-weight: 600;
 }
 
-.records-table-container {
-  overflow-x: auto;
-  margin-bottom: 20px;
-}
+/* Records table container styles moved to Stats.module.css */
 
-.records-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: transparent;
-}
+/* Records table styles moved to Stats.module.css */
 
 .records-table th {
   text-align: left;
@@ -3885,9 +3862,7 @@ button:disabled:hover {
   white-space: nowrap;
 }
 
-.record-row {
-  transition: background-color 0.2s ease;
-}
+/* Record row styles moved to Stats.module.css */
 
 .record-row:hover {
   background: rgba(255, 255, 255, 0.02);
@@ -3991,16 +3966,9 @@ button:disabled:hover {
     flex-wrap: wrap;
   }
 
-  .records-table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    margin: 0 -16px;
-    padding: 0 16px;
-  }
+  /* Records table container styles moved to Stats.module.css */
 
-  .records-table {
-    min-width: 320px;
-  }
+  /* Records table styles moved to Stats.module.css */
 
   .records-summary {
     gap: 12px;
@@ -4038,14 +4006,9 @@ button:disabled:hover {
     font-size: 13px;
   }
 
-  .records-table-container {
-    margin: 0 -12px;
-    padding: 0 12px;
-  }
+  /* Records table container styles moved to Stats.module.css */
 
-  .records-table {
-    min-width: 280px;
-  }
+  /* Records table styles moved to Stats.module.css */
 
   .records-table th,
   .records-table td {
