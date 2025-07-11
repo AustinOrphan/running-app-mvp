@@ -11,56 +11,48 @@ describe('Security Tests', () => {
     const testUserId = 'test-user-id';
     const testPayload = {
       userId: testUserId,
-      email: 'test@example.com'
+      email: 'test@example.com',
     };
-    
+
     // Use a test JWT secret or the environment variable
     const jwtSecret = process.env.JWT_SECRET || 'test-secret-key-for-testing-only';
     authToken = jwt.sign(testPayload, jwtSecret, { expiresIn: '1h' });
   });
   describe('Authentication Security', () => {
     test('should reject weak passwords', async () => {
-      const weakPasswords = [
-        '123456',
-        'password',
-        'qwerty',
-        'admin',
-        'letmein'
-      ];
-      
+      const weakPasswords = ['123456', 'password', 'qwerty', 'admin', 'letmein'];
+
       for (const password of weakPasswords) {
-        const response = await request(app)
-          .post('/api/auth/register')
-          .send({
-            email: 'test@example.com',
-            password: password
-          });
-        
+        const response = await request(app).post('/api/auth/register').send({
+          email: 'test@example.com',
+          password: password,
+        });
+
         expect(response.status).toBe(400);
         expect(response.body.error).toMatch(/password/i);
       }
     });
 
     test('should enforce rate limiting on login attempts', async () => {
-      const loginAttempts = Array(6).fill().map(() =>
-        request(app)
-          .post('/api/auth/login')
-          .send({
+      const loginAttempts = Array(6)
+        .fill()
+        .map(() =>
+          request(app).post('/api/auth/login').send({
             email: 'test@example.com',
-            password: 'wrongpassword'
+            password: 'wrongpassword',
           })
-      );
+        );
 
       const responses = await Promise.all(loginAttempts);
       const lastResponse = responses[responses.length - 1];
-      
+
       expect(lastResponse.status).toBe(429);
       expect(lastResponse.body.error).toMatch(/too many/i);
     });
 
     test('should require strong JWT secrets', () => {
       const jwtSecret = process.env.JWT_SECRET;
-      
+
       expect(jwtSecret).toBeDefined();
       expect(jwtSecret.length).toBeGreaterThan(32);
       expect(jwtSecret).not.toBe('your-super-secret-jwt-key-change-this-in-production');
@@ -73,9 +65,9 @@ describe('Security Tests', () => {
         '<script>alert("xss")</script>',
         'javascript:alert("xss")',
         '<img src="x" onerror="alert(\'xss\')">',
-        '<svg onload="alert(\'xss\')"></svg>'
+        '<svg onload="alert(\'xss\')"></svg>',
       ];
-      
+
       for (const payload of xssPayloads) {
         const response = await request(app)
           .post('/api/runs')
@@ -83,7 +75,7 @@ describe('Security Tests', () => {
           .send({
             route: payload,
             distance: 5,
-            duration: 1800
+            duration: 1800,
           });
 
         if (response.status === 200) {
@@ -98,9 +90,9 @@ describe('Security Tests', () => {
         "'; DROP TABLE users; --",
         "' OR '1'='1",
         "'; INSERT INTO users (email) VALUES ('hacker@evil.com'); --",
-        "' UNION SELECT * FROM users --"
+        "' UNION SELECT * FROM users --",
       ];
-      
+
       for (const payload of sqlPayloads) {
         const response = await request(app)
           .get(`/api/runs?search=${encodeURIComponent(payload)}`)
@@ -118,24 +110,24 @@ describe('Security Tests', () => {
   describe('Security Headers', () => {
     test('should include security headers', async () => {
       const response = await request(app).get('/');
-      
+
       expect(response.headers['x-content-type-options']).toBe('nosniff');
       expect(response.headers['x-frame-options']).toBeDefined();
       expect(response.headers['referrer-policy']).toBeDefined();
-      
+
       // Check for Helmet.js headers if implemented
       if (response.headers['strict-transport-security']) {
         expect(response.headers['strict-transport-security']).toMatch(/max-age/);
       }
-      
+
       if (response.headers['content-security-policy']) {
-        expect(response.headers['content-security-policy']).toContain("default-src");
+        expect(response.headers['content-security-policy']).toContain('default-src');
       }
     });
 
     test('should not expose sensitive information', async () => {
       const response = await request(app).get('/');
-      
+
       // Should not expose server version or framework info
       expect(response.headers['x-powered-by']).toBeUndefined();
     });
@@ -164,7 +156,7 @@ describe('Security Tests', () => {
         .set('Authorization', 'Bearer invalidtoken');
 
       expect(response.status).toBe(404);
-      
+
       // Error messages should not contain:
       if (response.body.error) {
         expect(response.body.error).not.toMatch(/database|sql|server|internal|debug/i);

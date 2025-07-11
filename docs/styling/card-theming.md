@@ -123,7 +123,7 @@ The Card system uses CSS custom properties (CSS variables) for flexible theming 
   --card-title-color: #ffffff;
   --card-text-color: #ffffff;
   --card-subtitle-color: #cccccc;
-  
+
   --card-shadow: 0 2px 8px rgba(255, 255, 255, 0.2);
   --card-shadow-hover: 0 4px 12px rgba(255, 255, 255, 0.3);
 }
@@ -180,7 +180,7 @@ The Card system uses CSS custom properties (CSS variables) for flexible theming 
   🏃
 </CardIcon>
 
-<ProgressBar 
+<ProgressBar
   percentage={75}
   color="var(--success-color)"
   completed={false}
@@ -230,7 +230,7 @@ The Card system uses CSS custom properties (CSS variables) for flexible theming 
 ```css
 /* Custom hover animation */
 .card-hover-lift {
-  transition: 
+  transition:
     transform var(--transition-normal),
     box-shadow var(--transition-normal);
 }
@@ -261,12 +261,24 @@ The Card system uses CSS custom properties (CSS variables) for flexible theming 
 
 ```css
 /* Staggered animation for card grids */
-.cards-grid .card:nth-child(1) { animation-delay: 0.05s; }
-.cards-grid .card:nth-child(2) { animation-delay: 0.1s; }
-.cards-grid .card:nth-child(3) { animation-delay: 0.15s; }
-.cards-grid .card:nth-child(4) { animation-delay: 0.2s; }
-.cards-grid .card:nth-child(5) { animation-delay: 0.25s; }
-.cards-grid .card:nth-child(6) { animation-delay: 0.3s; }
+.cards-grid .card:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.cards-grid .card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.cards-grid .card:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.cards-grid .card:nth-child(4) {
+  animation-delay: 0.2s;
+}
+.cards-grid .card:nth-child(5) {
+  animation-delay: 0.25s;
+}
+.cards-grid .card:nth-child(6) {
+  animation-delay: 0.3s;
+}
 
 /* Automatic staggering with CSS counter */
 .cards-grid {
@@ -343,25 +355,25 @@ The Card system uses CSS custom properties (CSS variables) for flexible theming 
   .card {
     /* Reduce padding on mobile */
     --card-padding: 16px;
-    
+
     /* Larger touch targets */
     --button-min-height: 44px;
     --button-min-width: 44px;
   }
-  
+
   .card-header-template {
     /* Stack header elements on mobile */
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .card-actions-template {
     /* Stack action buttons on mobile */
     flex-direction: column;
     width: 100%;
   }
-  
+
   .card-actions-template .button {
     width: 100%;
   }
@@ -379,7 +391,7 @@ The Card system uses CSS custom properties (CSS variables) for flexible theming 
   --border-color: transparent;
   --card-title-color: #ffffff;
   --card-text-color: rgba(255, 255, 255, 0.9);
-  
+
   position: relative;
   overflow: hidden;
 }
@@ -396,15 +408,20 @@ The Card system uses CSS custom properties (CSS variables) for flexible theming 
 }
 
 @keyframes shimmer {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* Custom compact card variant */
 .card-compact {
   --card-padding: 12px;
   --card-border-radius: 8px;
-  
+
   min-height: auto;
 }
 
@@ -467,17 +484,17 @@ The Card system uses CSS custom properties (CSS variables) for flexible theming 
 // Dynamic class application
 const getCardClasses = () => {
   const classes = [styles.card];
-  
+
   if (variant === 'goal') classes.push(styles.cardGoal);
   if (variant === 'run') classes.push(styles.cardRun);
   if (variant === 'template') classes.push(styles.cardTemplate);
-  
+
   if (completed) classes.push(styles.cardCompleted);
   if (interactive) classes.push(styles.cardInteractive);
   if (loading) classes.push(styles.cardLoading);
-  
+
   if (className) classes.push(className);
-  
+
   return classes.join(' ');
 };
 ```
@@ -521,13 +538,18 @@ const getCardClasses = () => {
 
 ```css
 /* ✅ Efficient - low specificity */
-.card { }
-.cardGoal { }
-.cardCompleted { }
+.card {
+}
+.cardGoal {
+}
+.cardCompleted {
+}
 
 /* ❌ Inefficient - high specificity */
-.card.goal-card.completed { }
-div.card > div.header > h4.title { }
+.card.goal-card.completed {
+}
+div.card > div.header > h4.title {
+}
 ```
 
 ### GPU Acceleration
@@ -553,7 +575,7 @@ div.card > div.header > h4.title { }
     --card-transition: none;
     animation: none;
   }
-  
+
   .card:hover {
     transform: none;
   }
@@ -679,6 +701,7 @@ div.card > div.header > h4.title { }
 ---
 
 For more information, see:
+
 - [Card Component Documentation](../components/Card.md)
 - [Migration Guide](../migration/card-system.md)
 - [Accessibility Guide](../accessibility/card-a11y.md)

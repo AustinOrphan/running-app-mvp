@@ -34,7 +34,7 @@ import {
   CardDescription,
   CardContent,
   CardActions,
-  CardFooter
+  CardFooter,
 } from '../UI/Card';
 ```
 
@@ -94,19 +94,19 @@ Base card component with support for different variants and states.
 
 #### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `'default' \| 'goal' \| 'run' \| 'template'` | `'default'` | Card variant affecting styling |
-| `completed` | `boolean` | `false` | Whether the card represents a completed item |
-| `interactive` | `boolean` | `false` | Whether the card is clickable |
-| `loading` | `boolean` | `false` | Whether the card is in loading state |
-| `className` | `string` | `''` | Additional CSS class names |
-| `children` | `ReactNode` | - | Card content |
+| Prop          | Type                                         | Default     | Description                                  |
+| ------------- | -------------------------------------------- | ----------- | -------------------------------------------- |
+| `variant`     | `'default' \| 'goal' \| 'run' \| 'template'` | `'default'` | Card variant affecting styling               |
+| `completed`   | `boolean`                                    | `false`     | Whether the card represents a completed item |
+| `interactive` | `boolean`                                    | `false`     | Whether the card is clickable                |
+| `loading`     | `boolean`                                    | `false`     | Whether the card is in loading state         |
+| `className`   | `string`                                     | `''`        | Additional CSS class names                   |
+| `children`    | `ReactNode`                                  | -           | Card content                                 |
 
 #### Example
 
 ```tsx
-<Card variant="goal" completed={false} interactive={true}>
+<Card variant='goal' completed={false} interactive={true}>
   {/* Card content */}
 </Card>
 ```
@@ -117,16 +117,16 @@ Container for card title, icon, and actions.
 
 #### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `'default' \| 'template' \| 'run'` | `'default'` | Header variant for specific styling |
-| `children` | `ReactNode` | - | Header content |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop        | Type                               | Default     | Description                         |
+| ----------- | ---------------------------------- | ----------- | ----------------------------------- |
+| `variant`   | `'default' \| 'template' \| 'run'` | `'default'` | Header variant for specific styling |
+| `children`  | `ReactNode`                        | -           | Header content                      |
+| `className` | `string`                           | `''`        | Additional CSS class names          |
 
 #### Example
 
 ```tsx
-<CardHeader variant="template">
+<CardHeader variant='template'>
   <CardIcon>🏃</CardIcon>
   <CardTitle>
     <h4>Running Goal</h4>
@@ -140,17 +140,17 @@ Displays an icon with optional color theming.
 
 #### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `'default' \| 'template'` | `'default'` | Icon variant for sizing |
-| `color` | `string` | - | Custom color for the icon |
-| `children` | `ReactNode` | - | Icon content (emoji, SVG, etc.) |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop        | Type                      | Default     | Description                     |
+| ----------- | ------------------------- | ----------- | ------------------------------- |
+| `variant`   | `'default' \| 'template'` | `'default'` | Icon variant for sizing         |
+| `color`     | `string`                  | -           | Custom color for the icon       |
+| `children`  | `ReactNode`               | -           | Icon content (emoji, SVG, etc.) |
+| `className` | `string`                  | `''`        | Additional CSS class names      |
 
 #### Example
 
 ```tsx
-<CardIcon variant="template" color="#3b82f6">
+<CardIcon variant='template' color='#3b82f6'>
   🎯
 </CardIcon>
 ```
@@ -161,18 +161,18 @@ Container for card title and subtitle.
 
 #### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `'default' \| 'template'` | `'default'` | Title variant for styling |
-| `children` | `ReactNode` | - | Title content |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop        | Type                      | Default     | Description                |
+| ----------- | ------------------------- | ----------- | -------------------------- |
+| `variant`   | `'default' \| 'template'` | `'default'` | Title variant for styling  |
+| `children`  | `ReactNode`               | -           | Title content              |
+| `className` | `string`                  | `''`        | Additional CSS class names |
 
 #### Example
 
 ```tsx
 <CardTitle>
   <h4>Goal Title</h4>
-  <span className="goal-type">Weekly Goal</span>
+  <span className='goal-type'>Weekly Goal</span>
 </CardTitle>
 ```
 
@@ -182,18 +182,16 @@ Displays descriptive text content.
 
 #### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `'default' \| 'template'` | `'default'` | Description variant for styling |
-| `children` | `ReactNode` | - | Description content |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop        | Type                      | Default     | Description                     |
+| ----------- | ------------------------- | ----------- | ------------------------------- |
+| `variant`   | `'default' \| 'template'` | `'default'` | Description variant for styling |
+| `children`  | `ReactNode`               | -           | Description content             |
+| `className` | `string`                  | `''`        | Additional CSS class names      |
 
 #### Example
 
 ```tsx
-<CardDescription>
-  Run 5km every weekday morning to build endurance.
-</CardDescription>
+<CardDescription>Run 5km every weekday morning to build endurance.</CardDescription>
 ```
 
 ### CardContent
@@ -202,10 +200,10 @@ Main content area of the card.
 
 #### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `children` | `ReactNode` | - | Content |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop        | Type        | Default | Description                |
+| ----------- | ----------- | ------- | -------------------------- |
+| `children`  | `ReactNode` | -       | Content                    |
+| `className` | `string`    | `''`    | Additional CSS class names |
 
 ### CardActions
 
@@ -213,18 +211,22 @@ Container for action buttons.
 
 #### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `'default' \| 'run' \| 'template'` | `'default'` | Actions variant for styling |
-| `children` | `ReactNode` | - | Action buttons |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop        | Type                               | Default     | Description                 |
+| ----------- | ---------------------------------- | ----------- | --------------------------- |
+| `variant`   | `'default' \| 'run' \| 'template'` | `'default'` | Actions variant for styling |
+| `children`  | `ReactNode`                        | -           | Action buttons              |
+| `className` | `string`                           | `''`        | Additional CSS class names  |
 
 #### Example
 
 ```tsx
-<CardActions variant="run">
-  <IconButton variant="edit" title="Edit run">✏️</IconButton>
-  <IconButton variant="delete" title="Delete run">🗑️</IconButton>
+<CardActions variant='run'>
+  <IconButton variant='edit' title='Edit run'>
+    ✏️
+  </IconButton>
+  <IconButton variant='delete' title='Delete run'>
+    🗑️
+  </IconButton>
 </CardActions>
 ```
 
@@ -234,10 +236,10 @@ Footer area for meta information.
 
 #### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `children` | `ReactNode` | - | Footer content |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop        | Type        | Default | Description                |
+| ----------- | ----------- | ------- | -------------------------- |
+| `children`  | `ReactNode` | -       | Footer content             |
+| `className` | `string`    | `''`    | Additional CSS class names |
 
 ### IconButton
 
@@ -245,13 +247,13 @@ Clickable icon button for actions.
 
 #### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `'default' \| 'run' \| 'delete' \| 'edit'` | `'default'` | Button variant for styling |
-| `title` | `string` | - | Tooltip text |
-| `onClick` | `() => void` | - | Click handler |
-| `children` | `ReactNode` | - | Button content |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop        | Type                                       | Default     | Description                |
+| ----------- | ------------------------------------------ | ----------- | -------------------------- |
+| `variant`   | `'default' \| 'run' \| 'delete' \| 'edit'` | `'default'` | Button variant for styling |
+| `title`     | `string`                                   | -           | Tooltip text               |
+| `onClick`   | `() => void`                               | -           | Click handler              |
+| `children`  | `ReactNode`                                | -           | Button content             |
+| `className` | `string`                                   | `''`        | Additional CSS class names |
 
 ### Progress Components
 
@@ -261,21 +263,17 @@ Animated progress bar with color theming.
 
 ##### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `percentage` | `number` | - | Progress percentage (0-100) |
-| `completed` | `boolean` | `false` | Whether progress is completed |
-| `color` | `string` | - | Custom progress color |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop         | Type      | Default | Description                   |
+| ------------ | --------- | ------- | ----------------------------- |
+| `percentage` | `number`  | -       | Progress percentage (0-100)   |
+| `completed`  | `boolean` | `false` | Whether progress is completed |
+| `color`      | `string`  | -       | Custom progress color         |
+| `className`  | `string`  | `''`    | Additional CSS class names    |
 
 ##### Example
 
 ```tsx
-<ProgressBar 
-  percentage={75} 
-  color="#10b981" 
-  completed={false}
-/>
+<ProgressBar percentage={75} color='#10b981' completed={false} />
 ```
 
 #### ProgressHeader
@@ -284,10 +282,10 @@ Header for progress display with text and percentage.
 
 ##### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `children` | `ReactNode` | - | Header content |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop        | Type        | Default | Description                |
+| ----------- | ----------- | ------- | -------------------------- |
+| `children`  | `ReactNode` | -       | Header content             |
+| `className` | `string`    | `''`    | Additional CSS class names |
 
 ### Utility Components
 
@@ -297,10 +295,10 @@ Badge for displaying completion status.
 
 ##### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `children` | `ReactNode` | - | Badge content |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop        | Type        | Default | Description                |
+| ----------- | ----------- | ------- | -------------------------- |
+| `children`  | `ReactNode` | -       | Badge content              |
+| `className` | `string`    | `''`    | Additional CSS class names |
 
 #### DifficultyBadge
 
@@ -308,15 +306,15 @@ Color-coded badge for difficulty levels.
 
 ##### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `difficulty` | `string` | - | Difficulty level ('beginner', 'intermediate', 'advanced') |
-| `className` | `string` | `''` | Additional CSS class names |
+| Prop         | Type     | Default | Description                                               |
+| ------------ | -------- | ------- | --------------------------------------------------------- |
+| `difficulty` | `string` | -       | Difficulty level ('beginner', 'intermediate', 'advanced') |
+| `className`  | `string` | `''`    | Additional CSS class names                                |
 
 ##### Example
 
 ```tsx
-<DifficultyBadge difficulty="intermediate" />
+<DifficultyBadge difficulty='intermediate' />
 ```
 
 ## Examples
@@ -336,47 +334,39 @@ import {
   IconButton,
   ProgressBar,
   ProgressHeader,
-  SimpleProgress
+  SimpleProgress,
 } from '../UI/Card';
 
 function GoalCard({ goal, progress, onEdit, onDelete }) {
   return (
-    <Card variant="goal" completed={goal.isCompleted}>
+    <Card variant='goal' completed={goal.isCompleted}>
       <CardHeader>
-        <CardIcon color={goal.color}>
-          {goal.icon}
-        </CardIcon>
+        <CardIcon color={goal.color}>{goal.icon}</CardIcon>
         <CardTitle>
           <h4>{goal.title}</h4>
-          <span className="goal-type">{goal.type}</span>
+          <span className='goal-type'>{goal.type}</span>
         </CardTitle>
         {!goal.isCompleted && (
           <CardActions>
-            <IconButton onClick={() => onEdit(goal.id)} title="Edit goal">
+            <IconButton onClick={() => onEdit(goal.id)} title='Edit goal'>
               ✏️
             </IconButton>
-            <IconButton onClick={() => onDelete(goal.id)} title="Delete goal">
+            <IconButton onClick={() => onDelete(goal.id)} title='Delete goal'>
               🗑️
             </IconButton>
           </CardActions>
         )}
       </CardHeader>
 
-      {goal.description && (
-        <CardDescription>
-          {goal.description}
-        </CardDescription>
-      )}
+      {goal.description && <CardDescription>{goal.description}</CardDescription>}
 
       <CardContent>
         <SimpleProgress>
           <ProgressHeader>
-            <span className="progress-text">
+            <span className='progress-text'>
               {progress.current} / {goal.target}
             </span>
-            <span className="progress-percentage">
-              {Math.round(progress.percentage)}%
-            </span>
+            <span className='progress-percentage'>{Math.round(progress.percentage)}%</span>
           </ProgressHeader>
           <ProgressBar
             percentage={progress.percentage}
@@ -402,34 +392,32 @@ import { Card, CardHeader, CardContent, CardActions, IconButton } from '../UI/Ca
 
 function RunCard({ run, onEdit, onDelete }) {
   return (
-    <Card variant="run">
-      <CardHeader variant="run">
-        <div className="run-date">{formatDate(run.date)}</div>
-        <CardActions variant="run">
-          <IconButton variant="edit" onClick={() => onEdit(run)}>
+    <Card variant='run'>
+      <CardHeader variant='run'>
+        <div className='run-date'>{formatDate(run.date)}</div>
+        <CardActions variant='run'>
+          <IconButton variant='edit' onClick={() => onEdit(run)}>
             ✏️
           </IconButton>
-          <IconButton variant="delete" onClick={() => onDelete(run.id)}>
+          <IconButton variant='delete' onClick={() => onDelete(run.id)}>
             🗑️
           </IconButton>
         </CardActions>
       </CardHeader>
 
       <CardContent>
-        <div className="run-stats">
-          <div className="stat">
-            <span className="stat-value">{run.distance}km</span>
-            <span className="stat-label">Distance</span>
+        <div className='run-stats'>
+          <div className='stat'>
+            <span className='stat-value'>{run.distance}km</span>
+            <span className='stat-label'>Distance</span>
           </div>
-          <div className="stat">
-            <span className="stat-value">{run.duration}</span>
-            <span className="stat-label">Duration</span>
+          <div className='stat'>
+            <span className='stat-value'>{run.duration}</span>
+            <span className='stat-label'>Duration</span>
           </div>
         </div>
-        
-        {run.notes && (
-          <div className="run-notes">{run.notes}</div>
-        )}
+
+        {run.notes && <div className='run-notes'>{run.notes}</div>}
       </CardContent>
     </Card>
   );
@@ -448,7 +436,7 @@ import {
   CardContent,
   CardActions,
   DifficultyBadge,
-  ExpandedContent
+  ExpandedContent,
 } from '../UI/Card';
 import { Button } from '../UI/Button';
 
@@ -456,31 +444,29 @@ function TemplateCard({ template, onSelect }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <Card variant="template">
-      <CardHeader variant="template">
-        <CardIcon variant="template" color={template.color}>
+    <Card variant='template'>
+      <CardHeader variant='template'>
+        <CardIcon variant='template' color={template.color}>
           {template.icon}
         </CardIcon>
-        <CardTitle variant="template">
+        <CardTitle variant='template'>
           <h4>{template.name}</h4>
-          <CardDescription variant="template">
-            {template.description}
-          </CardDescription>
+          <CardDescription variant='template'>{template.description}</CardDescription>
         </CardTitle>
         <DifficultyBadge difficulty={template.difficulty} />
       </CardHeader>
 
       <CardContent>
-        <div className="template-details">
-          <div className="template-target">
-            <span className="target-label">Target:</span>
-            <span className="target-value">{template.target}</span>
+        <div className='template-details'>
+          <div className='template-target'>
+            <span className='target-label'>Target:</span>
+            <span className='target-value'>{template.target}</span>
           </div>
         </div>
 
         {expanded && (
           <ExpandedContent>
-            <div className="template-section">
+            <div className='template-section'>
               <h5>Training Tips:</h5>
               <ul>
                 {template.tips.map((tip, index) => (
@@ -492,14 +478,11 @@ function TemplateCard({ template, onSelect }) {
         )}
       </CardContent>
 
-      <CardActions variant="template">
-        <Button 
-          variant="secondary" 
-          onClick={() => setExpanded(!expanded)}
-        >
+      <CardActions variant='template'>
+        <Button variant='secondary' onClick={() => setExpanded(!expanded)}>
           {expanded ? 'Show Less' : 'Learn More'}
         </Button>
-        <Button variant="primary" onClick={onSelect}>
+        <Button variant='primary' onClick={onSelect}>
           Use Template
         </Button>
       </CardActions>
@@ -511,23 +494,30 @@ function TemplateCard({ template, onSelect }) {
 ## Variants
 
 ### Default
+
 Standard card styling suitable for general content.
 
 ### Goal
+
 Enhanced styling for goal cards with:
+
 - Progress tracking support
 - Completion states
 - Action buttons
 - Expand/collapse functionality
 
 ### Run
+
 Optimized for displaying running activity data with:
+
 - Stat display layouts
 - Hover-revealed actions
 - Animation delays in grids
 
 ### Template
+
 Designed for goal template cards with:
+
 - Expanded content areas
 - Difficulty badges
 - Tag displays
@@ -540,12 +530,7 @@ Designed for goal template cards with:
 All Card components include proper ARIA attributes:
 
 ```tsx
-<Card 
-  interactive={true}
-  role="button"
-  tabIndex={0}
-  aria-label="Goal card for weekly running"
->
+<Card interactive={true} role='button' tabIndex={0} aria-label='Goal card for weekly running'>
   {/* Card content */}
 </Card>
 ```
@@ -566,11 +551,7 @@ All Card components include proper ARIA attributes:
 ### Focus Management
 
 ```tsx
-<IconButton
-  title="Edit goal"
-  aria-label="Edit goal: Weekly 5K Challenge"
-  onClick={handleEdit}
->
+<IconButton title='Edit goal' aria-label='Edit goal: Weekly 5K Challenge' onClick={handleEdit}>
   ✏️
 </IconButton>
 ```
@@ -597,7 +578,7 @@ All Card components include proper ARIA attributes:
 
 ```tsx
 // ✅ Good
-<IconButton 
+<IconButton
   title="Delete this goal permanently"
   aria-label="Delete goal: Weekly 5K Challenge"
   onClick={onDelete}
@@ -633,15 +614,17 @@ All Card components include proper ARIA attributes:
 
 ```tsx
 // ✅ Good
-{isLoading ? (
-  <Card loading={true}>
-    <div className="skeleton-content">Loading...</div>
-  </Card>
-) : (
-  <Card variant="goal">
-    <CardContent>{goalData}</CardContent>
-  </Card>
-)}
+{
+  isLoading ? (
+    <Card loading={true}>
+      <div className='skeleton-content'>Loading...</div>
+    </Card>
+  ) : (
+    <Card variant='goal'>
+      <CardContent>{goalData}</CardContent>
+    </Card>
+  );
+}
 ```
 
 ### 5. Maintain Consistent Color Theming
@@ -661,14 +644,13 @@ All Card components include proper ARIA attributes:
 ```tsx
 // ✅ Good - Use React.memo for expensive cards
 const OptimizedGoalCard = React.memo(GoalCard, (prevProps, nextProps) => {
-  return prevProps.goal.id === nextProps.goal.id && 
-         prevProps.progress === nextProps.progress;
+  return prevProps.goal.id === nextProps.goal.id && prevProps.progress === nextProps.progress;
 });
 
 // ✅ Good - Use proper keys in lists
-{goals.map(goal => (
-  <GoalCard key={goal.id} goal={goal} />
-))}
+{
+  goals.map(goal => <GoalCard key={goal.id} goal={goal} />);
+}
 ```
 
 ### 7. Error Handling
@@ -686,17 +668,14 @@ function SafeGoalCard({ goal, progress }) {
     );
   }
 
-  return (
-    <Card variant="goal">
-      {/* Normal card content */}
-    </Card>
-  );
+  return <Card variant='goal'>{/* Normal card content */}</Card>;
 }
 ```
 
 ---
 
 For more information, see:
+
 - [Migration Guide](../migration/card-system.md)
 - [Styling Guide](../styling/card-theming.md)
 - [Accessibility Guide](../accessibility/card-a11y.md)

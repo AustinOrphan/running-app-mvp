@@ -23,15 +23,16 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
         <NavLink
           key={tab.id}
           to={`/${tab.id}`}
-          className={({ isActive }) =>
-            [
-              styles.navBtn,
-              isActive && styles.active,
-              isActive && swipeHighlight && styles.swipeHighlight,
-            ]
-              .filter(Boolean)
-              .join(' ')
-          }
+          className={({ isActive }) => {
+            const classNames = [styles.navBtn];
+            if (isActive) {
+              classNames.push(styles.active);
+              if (swipeHighlight) {
+                classNames.push(styles.swipeHighlight);
+              }
+            }
+            return classNames.join(' ');
+          }}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
