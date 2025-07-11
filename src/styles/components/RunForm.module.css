@@ -25,7 +25,8 @@
 
 /* Form Layout */
 .formRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -89,23 +90,23 @@
   transition: all 0.2s ease;
 }
 
-.formActions .primaryBtn {
+.primaryBtn {
   background: var(--primary-color);
   color: white;
 }
 
-.formActions .primaryBtn:hover:not(:disabled) {
+.primaryBtn:hover:not(:disabled) {
   background: var(--primary-hover);
   transform: translateY(-1px);
 }
 
-.formActions .secondaryBtn {
+.secondaryBtn {
   background: var(--secondary-bg);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
 }
 
-.formActions .secondaryBtn:hover:not(:disabled) {
+.secondaryBtn:hover:not(:disabled) {
   background: var(--secondary-hover);
   transform: translateY(-1px);
 }
@@ -117,6 +118,10 @@
 }
 
 /* Error States */
+.error {
+  /* This empty class makes `styles.error` available in the component */
+}
+
 .formGroup input.error,
 .formGroup select.error,
 .formGroup textarea.error {
@@ -144,11 +149,6 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .formRow {
-    flex-direction: column;
-    gap: 0;
-  }
-  
   .runForm {
     padding: 20px;
   }
