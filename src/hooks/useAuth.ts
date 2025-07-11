@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiPost, ApiError } from '../utils/apiFetch';
+import { apiPost, ApiError, authEvents } from '../utils/apiFetch';
 
 export const useAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -11,6 +11,20 @@ export const useAuth = () => {
     if (token) {
       setIsLoggedIn(true);
     }
+
+    // Listen for authentication failure events
+    const handleAuthFailure = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.warn('Authentication failed:', customEvent.detail);
+      setIsLoggedIn(false);
+      // Token is already cleared by apiFetch
+    };
+
+    authEvents.addEventListener('authenticationFailed', handleAuthFailure);
+
+    return () => {
+      authEvents.removeEventListener('authenticationFailed', handleAuthFailure);
+    };
   }, []);
 
   const login = async (
