@@ -29,7 +29,10 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   const offset = circumference - (clamped / 100) * circumference;
 
   return (
-    <div className={`${styles.circularProgress} ${className}`} style={{ width: size, height: size }}>
+    <div
+      className={`${styles.circularProgress} ${className}`}
+      style={{ width: size, height: size }}
+    >
       <svg width={size} height={size} className={styles.circularProgressSvg}>
         {/* Background circle */}
         <circle
@@ -63,11 +66,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
       </svg>
 
       {/* Content overlay */}
-      {children && (
-        <div className={styles.circularProgressContent}>
-          {children}
-        </div>
-      )}
+      {children && <div className={styles.circularProgressContent}>{children}</div>}
     </div>
   );
 };

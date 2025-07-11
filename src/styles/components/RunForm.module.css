@@ -152,11 +152,11 @@
   .runForm {
     padding: 20px;
   }
-  
+
   .formActions {
     flex-direction: column;
   }
-  
+
   .formActions button {
     flex: none;
   }

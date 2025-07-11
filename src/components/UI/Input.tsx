@@ -407,3 +407,6 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
 );
 
 TextArea.displayName = 'TextArea';
+
+// Export types for external use
+export type { InputProps, InputGroupProps, TextAreaProps };
