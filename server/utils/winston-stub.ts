@@ -1,9 +1,9 @@
 /**
  * Temporary Winston Stub - Fix for missing winston dependency
- * 
+ *
  * This is a minimal stub implementation to unblock tests while
  * the winston dependency installation is resolved.
- * 
+ *
  * TODO: Remove this file once winston is properly installed
  */
 
@@ -14,22 +14,29 @@ export const winston = {
     timestamp: () => ({}),
     errors: () => ({}),
     json: () => ({}),
-    printf: () => ({})
+    printf: () => ({}),
+    colorize: () => ({}), // Added missing colorize function
   },
   transports: {
     Console: class MockConsole {
-      constructor(options?: any) {}
+      constructor(_options?: unknown) {} // Prefix unused parameter with underscore
     },
     File: class MockFile {
-      constructor(options?: any) {}
-    }
+      constructor(_options?: unknown) {} // Prefix unused parameter with underscore
+    },
   },
-  createLogger: (options?: any) => ({
-    info: (message: string, meta?: any) => console.log('INFO:', message, meta),
-    error: (message: string, meta?: any) => console.error('ERROR:', message, meta),
-    warn: (message: string, meta?: any) => console.warn('WARN:', message, meta),
-    debug: (message: string, meta?: any) => console.log('DEBUG:', message, meta),
-  })
+  createLogger: (_options?: unknown) => ({
+    // Prefix unused parameter with underscore
+    // eslint-disable-next-line no-console
+    info: (message: string, meta?: unknown) => console.log('INFO:', message, meta),
+    // eslint-disable-next-line no-console
+    error: (message: string, meta?: unknown) => console.error('ERROR:', message, meta),
+    // eslint-disable-next-line no-console
+    warn: (message: string, meta?: unknown) => console.warn('WARN:', message, meta),
+    // eslint-disable-next-line no-console
+    debug: (message: string, meta?: unknown) => console.log('DEBUG:', message, meta),
+  }),
+  Logform: undefined as any, // Added missing Logform property
 };
 
 export default winston;
