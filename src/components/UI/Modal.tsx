@@ -190,16 +190,16 @@ export const Modal: React.FC<ModalProps> = ({
     .join(' ');
 
   const modalContent = (
-    <div
-      className={overlayClasses}
-      onClick={handleBackdropClick}
-      role='dialog'
-      aria-modal='true'
-      aria-label={ariaLabel}
-      aria-labelledby={title ? titleId : ariaLabelledBy}
-      aria-describedby={ariaDescribedBy}
-    >
-      <div ref={modalRef} className={modalClasses}>
+    <div className={overlayClasses} onClick={handleBackdropClick} role='presentation'>
+      <div
+        ref={modalRef}
+        className={modalClasses}
+        role='dialog'
+        aria-modal='true'
+        aria-label={ariaLabel}
+        aria-labelledby={title ? titleId : ariaLabelledBy}
+        aria-describedby={ariaDescribedBy}
+      >
         {(title || showCloseButton) && (
           <div className={styles.modalHeader}>
             {title && <h3 id={titleId}>{title}</h3>}
@@ -293,8 +293,9 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     try {
       await onConfirm();
       modalProps.onClose();
-    } catch (error) {
-      console.error('Confirmation error:', error);
+    } catch {
+      // Handle error appropriately in production
+      // Error logging should be handled by proper error reporting service
     } finally {
       setIsLoading(false);
     }
@@ -393,6 +394,3 @@ export const LoadingModal: React.FC<LoadingModalProps> = ({
     </Modal>
   );
 };
-
-// Export types for external use
-export type { ModalProps, ConfirmationModalProps, LoadingModalProps };
