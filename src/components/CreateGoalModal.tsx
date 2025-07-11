@@ -10,6 +10,9 @@ import {
   GoalPeriod,
 } from '../types/goals';
 import { logError } from '../utils/clientLogger';
+import { Modal } from './UI/Modal';
+import { Input, InputGroup, TextArea } from './UI/Input';
+import { Button } from './UI/Button';
 
 interface CreateGoalModalProps {
   isOpen: boolean;
@@ -168,207 +171,171 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
   const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
 
   return (
-    <div
-      className='modal-overlay'
-      role='button'
-      tabIndex={0}
-      aria-label='Close modal'
-      onClick={onClose}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
-          e.preventDefault();
-          onClose();
-        }
-      }}
-    >
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
-      <div
-        className='modal'
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => {
-          if (e.key === 'Escape') {
-            onClose();
+    <Modal isOpen={isOpen} onClose={onClose} title='Create New Goal' size='large'>
+      <form data-testid='create-goal-form' onSubmit={handleSubmit}>
+        {/* Goal Title */}
+        <Input
+          id='title'
+          type='text'
+          label='Goal Title'
+          value={formData.title}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setFormData(prev => ({ ...prev, title: e.target.value }))
           }
-          e.stopPropagation();
-        }}
-        role='dialog'
-        aria-modal='true'
-        aria-labelledby='create-goal-modal-title'
-        tabIndex={-1}
-      >
-        <div className='modal-header'>
-          <h3 id='create-goal-modal-title'>Create New Goal</h3>
-          <button className='btn-icon' onClick={onClose} disabled={isSubmitting}>
-            ✕
-          </button>
+          placeholder='e.g., Run 50km this month'
+          error={!!errors.title}
+          errorMessage={errors.title}
+          required
+        />
+
+        {/* Goal Description */}
+        <TextArea
+          id='description'
+          label='Description'
+          value={formData.description}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            setFormData(prev => ({ ...prev, description: e.target.value }))
+          }
+          placeholder='Optional description of your goal...'
+          rows={3}
+        />
+
+        {/* Goal Type */}
+        <div className='form-group'>
+          <label htmlFor='type'>Goal Type *</label>
+          <select
+            id='type'
+            value={formData.type}
+            onChange={e => handleTypeChange(e.target.value as GoalType)}
+          >
+            {Object.values(GOAL_TYPES).map(type => {
+              const config = GOAL_TYPE_CONFIGS[type];
+              return (
+                <option key={type} value={type}>
+                  {config.icon} {config.label}
+                </option>
+              );
+            })}
+          </select>
+          <p className='field-description'>{selectedConfig.description}</p>
         </div>
 
-        <form data-testid='create-goal-form' onSubmit={handleSubmit}>
-          <div className='modal-body'>
-            {/* Goal Title */}
-            <div className='form-group'>
-              <label htmlFor='title'>Goal Title *</label>
-              <input
-                id='title'
-                type='text'
-                value={formData.title}
-                onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder='e.g., Run 50km this month'
-                className={errors.title ? 'error' : ''}
-              />
-              {errors.title && <span className='error-message'>{errors.title}</span>}
-            </div>
+        {/* Target Value and Unit */}
+        <InputGroup horizontal label='Target Value'>
+          <Input
+            id='targetValue'
+            type='number'
+            label='Target Value'
+            value={formData.targetValue}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, targetValue: e.target.value }))
+            }
+            placeholder='0'
+            error={!!errors.targetValue}
+            errorMessage={errors.targetValue}
+            required
+            step='0.1'
+          />
 
-            {/* Goal Description */}
-            <div className='form-group'>
-              <label htmlFor='description'>Description</label>
-              <textarea
-                id='description'
-                value={formData.description}
-                onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder='Optional description of your goal...'
-                rows={3}
-              />
-            </div>
-
-            {/* Goal Type */}
-            <div className='form-group'>
-              <label htmlFor='type'>Goal Type *</label>
-              <select
-                id='type'
-                value={formData.type}
-                onChange={e => handleTypeChange(e.target.value as GoalType)}
-              >
-                {Object.values(GOAL_TYPES).map(type => {
-                  const config = GOAL_TYPE_CONFIGS[type];
-                  return (
-                    <option key={type} value={type}>
-                      {config.icon} {config.label}
-                    </option>
-                  );
-                })}
-              </select>
-              <p className='field-description'>{selectedConfig.description}</p>
-            </div>
-
-            {/* Target Value and Unit */}
-            <div className='form-row'>
-              <div className='form-group'>
-                <label htmlFor='targetValue'>Target Value *</label>
-                <input
-                  id='targetValue'
-                  type='number'
-                  step='0.1'
-                  value={formData.targetValue}
-                  onChange={e => setFormData(prev => ({ ...prev, targetValue: e.target.value }))}
-                  placeholder='0'
-                  className={errors.targetValue ? 'error' : ''}
-                />
-                {errors.targetValue && <span className='error-message'>{errors.targetValue}</span>}
-              </div>
-
-              <div className='form-group'>
-                <label htmlFor='targetUnit'>Unit</label>
-                <select
-                  id='targetUnit'
-                  value={formData.targetUnit}
-                  onChange={e => setFormData(prev => ({ ...prev, targetUnit: e.target.value }))}
-                >
-                  {selectedConfig.units.map(unit => (
-                    <option key={unit} value={unit}>
-                      {unit}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Goal Period */}
-            <div className='form-group'>
-              <label htmlFor='period'>Time Period *</label>
-              <select
-                id='period'
-                value={formData.period}
-                onChange={e => handlePeriodChange(e.target.value as GoalPeriod)}
-              >
-                {Object.values(GOAL_PERIODS).map(period => {
-                  const config = GOAL_PERIOD_CONFIGS[period];
-                  return (
-                    <option key={period} value={period}>
-                      {config.label}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            {/* Date Range */}
-            <div className='form-row'>
-              <div className='form-group'>
-                <label htmlFor='startDate'>Start Date *</label>
-                <input
-                  id='startDate'
-                  type='date'
-                  value={formData.startDate}
-                  onChange={e => handleStartDateChange(e.target.value)}
-                  className={errors.startDate ? 'error' : ''}
-                />
-                {errors.startDate && <span className='error-message'>{errors.startDate}</span>}
-              </div>
-
-              <div className='form-group'>
-                <label htmlFor='endDate'>End Date *</label>
-                <input
-                  id='endDate'
-                  type='date'
-                  value={formData.endDate}
-                  onChange={e => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                  className={errors.endDate ? 'error' : ''}
-                />
-                {errors.endDate && <span className='error-message'>{errors.endDate}</span>}
-              </div>
-            </div>
-
-            {/* Color and Icon */}
-            <div className='form-row'>
-              <div className='form-group'>
-                <label htmlFor='color'>Color</label>
-                <input
-                  id='color'
-                  type='color'
-                  value={formData.color}
-                  onChange={e => setFormData(prev => ({ ...prev, color: e.target.value }))}
-                />
-              </div>
-
-              <div className='form-group'>
-                <label htmlFor='icon'>Icon</label>
-                <input
-                  id='icon'
-                  type='text'
-                  value={formData.icon}
-                  onChange={e => setFormData(prev => ({ ...prev, icon: e.target.value }))}
-                  placeholder='🎯'
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className='modal-footer'>
-            <button
-              type='button'
-              className='btn-secondary'
-              onClick={onClose}
-              disabled={isSubmitting}
+          <div className='form-group'>
+            <label htmlFor='targetUnit'>Unit</label>
+            <select
+              id='targetUnit'
+              value={formData.targetUnit}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setFormData(prev => ({ ...prev, targetUnit: e.target.value }))
+              }
             >
-              Cancel
-            </button>
-            <button type='submit' className='btn-primary' disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Goal'}
-            </button>
+              {selectedConfig.units.map(unit => (
+                <option key={unit} value={unit}>
+                  {unit}
+                </option>
+              ))}
+            </select>
           </div>
-        </form>
-      </div>
-    </div>
+        </InputGroup>
+
+        {/* Goal Period */}
+        <div className='form-group'>
+          <label htmlFor='period'>Time Period *</label>
+          <select
+            id='period'
+            value={formData.period}
+            onChange={e => handlePeriodChange(e.target.value as GoalPeriod)}
+          >
+            {Object.values(GOAL_PERIODS).map(period => {
+              const config = GOAL_PERIOD_CONFIGS[period];
+              return (
+                <option key={period} value={period}>
+                  {config.label}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* Date Range */}
+        <InputGroup horizontal label='Date Range'>
+          <Input
+            id='startDate'
+            type='date'
+            label='Start Date'
+            value={formData.startDate}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              handleStartDateChange(e.target.value)
+            }
+            error={!!errors.startDate}
+            errorMessage={errors.startDate}
+            required
+          />
+
+          <Input
+            id='endDate'
+            type='date'
+            label='End Date'
+            value={formData.endDate}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, endDate: e.target.value }))
+            }
+            error={!!errors.endDate}
+            errorMessage={errors.endDate}
+            required
+          />
+        </InputGroup>
+
+        {/* Color and Icon */}
+        <InputGroup horizontal label='Appearance'>
+          <Input
+            id='color'
+            type='color'
+            label='Color'
+            value={formData.color}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, color: e.target.value }))
+            }
+          />
+
+          <Input
+            id='icon'
+            type='text'
+            label='Icon'
+            value={formData.icon}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFormData(prev => ({ ...prev, icon: e.target.value }))
+            }
+            placeholder='🎯'
+          />
+        </InputGroup>
+
+        <div className='modal-footer'>
+          <Button type='button' variant='secondary' onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button type='submit' variant='primary' disabled={isSubmitting}>
+            {isSubmitting ? 'Creating...' : 'Create Goal'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 };

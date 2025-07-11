@@ -108,6 +108,7 @@
       "Bash(cd:*)",
       "Bash(curl:*)",
       "Bash(kill:*)",
+      "Bash(timeout 10s npm run dev)",
       "Bash(git rev-parse:*)"
     ],
     "deny": []
