@@ -232,21 +232,21 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
         </div>
 
         {showSettings && (
-          <div className='notification-settings'>
+          <div className={styles.notificationSettings}>
             <h4>Notification Preferences</h4>
 
             {canRequestPermission && (
-              <div className='setting-item'>
-                <button className='btn-primary' onClick={handleRequestPermission}>
+              <div className={styles.settingItem}>
+                <button className={styles.btnPrimary} onClick={handleRequestPermission}>
                   Enable Browser Notifications
                 </button>
-                <p className='setting-description'>Get notified even when the app is not open</p>
+                <p className={styles.settingDescription}>Get notified even when the app is not open</p>
               </div>
             )}
 
             {hasPermission && (
-              <div className='setting-item'>
-                <label className='setting-toggle'>
+              <div className={styles.settingItem}>
+                <label className={styles.settingToggle}>
                   <input
                     type='checkbox'
                     checked={preferences.enableBrowserNotifications}
