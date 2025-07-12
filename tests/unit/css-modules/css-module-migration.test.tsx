@@ -64,7 +64,7 @@ describe('CSS Module Migration Tests', () => {
       // CSS modules should generate class names (not be undefined)
       expect(typeof layoutStyles.app).toBe('string');
       expect(layoutStyles.app.length).toBeGreaterThan(0);
-      
+
       expect(typeof layoutStyles.dashboard).toBe('string');
       expect(layoutStyles.dashboard.length).toBeGreaterThan(0);
     });
@@ -72,7 +72,7 @@ describe('CSS Module Migration Tests', () => {
     it('should handle conditional class concatenation', () => {
       const isAnimating = true;
       const className = `${notificationStyles.toast} ${isAnimating ? notificationStyles.show : ''}`;
-      
+
       expect(className).toContain(notificationStyles.toast);
       expect(className).toContain(notificationStyles.show);
     });

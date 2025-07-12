@@ -42,7 +42,8 @@ describe('Auth API Integration Tests', () => {
 
       const response = await request(app).post('/api/auth/register').send(newUser).expect(201);
 
-      expect(response.body).toHaveProperty('token');
+      expect(response.body).toHaveProperty('accessToken');
+      expect(response.body).toHaveProperty('refreshToken');
       expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('id');
       expect(response.body.user).toHaveProperty('email', newUser.email);
@@ -165,7 +166,8 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('token');
+      expect(response.body).toHaveProperty('accessToken');
+      expect(response.body).toHaveProperty('refreshToken');
       expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('id', assertTestUser(testUser).id);
       expect(response.body.user).toHaveProperty('email', assertTestUser(testUser).email);
@@ -220,7 +222,7 @@ describe('Auth API Integration Tests', () => {
       expect(response.body.message).toContain('Invalid credentials');
     });
 
-    it('returns valid JWT token', async () => {
+    it('returns valid JWT tokens', async () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
@@ -229,10 +231,17 @@ describe('Auth API Integration Tests', () => {
         })
         .expect(200);
 
-      const token = response.body.token;
-      expect(token).toBeTruthy();
-      expect(typeof token).toBe('string');
-      expect(token.split('.')).toHaveLength(3); // JWT has 3 parts
+      // Check access token
+      const accessToken = response.body.accessToken;
+      expect(accessToken).toBeTruthy();
+      expect(typeof accessToken).toBe('string');
+      expect(accessToken.split('.')).toHaveLength(3); // JWT has 3 parts
+
+      // Check refresh token
+      const refreshToken = response.body.refreshToken;
+      expect(refreshToken).toBeTruthy();
+      expect(typeof refreshToken).toBe('string');
+      expect(refreshToken.split('.')).toHaveLength(3); // JWT has 3 parts
     });
 
     it('handles case-insensitive email login', async () => {
@@ -479,6 +488,174 @@ describe('Auth API Integration Tests', () => {
     });
   });
 
+  describe('Token Refresh Tests', () => {
+    let testUser: TestUser | undefined;
+    let accessToken: string;
+    let refreshToken: string;
+
+    beforeEach(async () => {
+      testUser = await testDb.createTestUser({
+        email: 'refresh@test.com',
+        password: 'testpassword123',
+      });
+
+      // Login to get initial tokens
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: assertTestUser(testUser).email,
+          password: 'testpassword123',
+        })
+        .expect(200);
+
+      accessToken = loginResponse.body.accessToken;
+      refreshToken = loginResponse.body.refreshToken;
+    });
+
+    it('successfully refreshes tokens with valid refresh token', async () => {
+      const response = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('accessToken');
+      expect(response.body).toHaveProperty('refreshToken');
+      expect(response.body).toHaveProperty('user');
+      expect(response.body.user).toHaveProperty('id', assertTestUser(testUser).id);
+      expect(response.body.user).toHaveProperty('email', assertTestUser(testUser).email);
+
+      // New tokens should be different from old ones (token rotation)
+      expect(response.body.accessToken).not.toBe(accessToken);
+      expect(response.body.refreshToken).not.toBe(refreshToken);
+    });
+
+    it('returns 400 for missing refresh token', async () => {
+      const response = await request(app).post('/api/auth/refresh').send({}).expect(400);
+
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('Refresh token is required');
+    });
+
+    it('returns 401 for invalid refresh token', async () => {
+      const response = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken: 'invalid-refresh-token' })
+        .expect(401);
+
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('Invalid refresh token');
+    });
+
+    it('returns 401 for expired refresh token', async () => {
+      // Create an expired refresh token (would need to mock jwt.sign with past expiry)
+      const expiredToken =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.invalid';
+
+      const response = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken: expiredToken })
+        .expect(401);
+
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('Invalid refresh token');
+    });
+
+    it('returns 401 if user no longer exists', async () => {
+      // Delete the user after getting tokens
+      await testDb.prisma.user.delete({
+        where: { id: assertTestUser(testUser).id },
+      });
+
+      const response = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken })
+        .expect(401);
+
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('Invalid refresh token');
+    });
+
+    it('invalidates old refresh token after successful refresh (token rotation)', async () => {
+      // First refresh - should succeed
+      const firstRefresh = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken })
+        .expect(200);
+
+      const newRefreshToken = firstRefresh.body.refreshToken;
+
+      // Try to use old refresh token again - should fail
+      const secondRefresh = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken })
+        .expect(401);
+
+      expect(secondRefresh.body).toHaveProperty('message');
+      expect(secondRefresh.body.message).toContain('Invalid refresh token');
+
+      // New refresh token should still work
+      const thirdRefresh = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken: newRefreshToken })
+        .expect(200);
+
+      expect(thirdRefresh.body).toHaveProperty('accessToken');
+      expect(thirdRefresh.body).toHaveProperty('refreshToken');
+    });
+
+    it('returns both accessToken and refreshToken in response', async () => {
+      const response = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken })
+        .expect(200);
+
+      // Check both tokens are present and valid JWT format
+      expect(response.body.accessToken).toBeTruthy();
+      expect(response.body.refreshToken).toBeTruthy();
+      expect(response.body.accessToken.split('.')).toHaveLength(3);
+      expect(response.body.refreshToken.split('.')).toHaveLength(3);
+    });
+
+    it('new access token works for protected routes', async () => {
+      // Refresh tokens
+      const refreshResponse = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken })
+        .expect(200);
+
+      const newAccessToken = refreshResponse.body.accessToken;
+
+      // Use new access token to verify auth
+      const verifyResponse = await request(app)
+        .get('/api/auth/verify')
+        .set('Authorization', `Bearer ${newAccessToken}`)
+        .expect(200);
+
+      expect(verifyResponse.body.user).toHaveProperty('id', assertTestUser(testUser).id);
+    });
+
+    it('handles concurrent refresh requests gracefully', async () => {
+      // Make multiple refresh requests concurrently
+      const promises = Array.from({ length: 3 }, () =>
+        request(app).post('/api/auth/refresh').send({ refreshToken })
+      );
+
+      const responses = await Promise.all(promises);
+
+      // At least one should succeed
+      const successfulResponses = responses.filter(r => r.status === 200);
+      expect(successfulResponses.length).toBeGreaterThanOrEqual(1);
+
+      // Others might fail due to token rotation
+      const failedResponses = responses.filter(r => r.status === 401);
+      if (failedResponses.length > 0) {
+        failedResponses.forEach(response => {
+          expect(response.body.message).toContain('Invalid refresh token');
+        });
+      }
+    });
+  });
+
   describe('Security Tests', () => {
     it('does not return password in any response', async () => {
       const userData = {
@@ -502,10 +679,10 @@ describe('Auth API Integration Tests', () => {
       expect(JSON.stringify(loginResponse.body)).not.toContain('securepassword123');
 
       // Verify
-      const token = loginResponse.body.token;
+      const accessToken = loginResponse.body.accessToken;
       const verifyResponse = await request(app)
         .get('/api/auth/verify')
-        .set('Authorization', `Bearer ${token}`)
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
       expect(JSON.stringify(verifyResponse.body)).not.toContain('password');

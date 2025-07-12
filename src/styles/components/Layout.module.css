@@ -143,6 +143,17 @@
   max-height: calc(100vh - 280px);
   width: 100%;
   max-width: 900px;
+  margin: 0 auto;
+  transition: all 0.3s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  background: var(--surface-color);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
 }
 
 /* Offline Notice */

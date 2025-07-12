@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './styles/globals.css';
+import './App.css';
 import styles from './styles/components/App.module.css';
 import layoutStyles from './styles/components/Layout.module.css';
 

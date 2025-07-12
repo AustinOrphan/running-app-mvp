@@ -17,7 +17,7 @@ const NotificationItem: React.FC<{
 }> = ({ notification, onDismiss, onMarkRead }) => {
   const getNotificationStyles = (type: string, priority: string) => {
     const classes = [styles.notificationItem];
-    
+
     const typeMap: Record<string, string> = {
       achievement: styles.notificationAchievement,
       milestone: styles.notificationMilestone,
@@ -209,7 +209,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
             {unreadCount > 0 && <span className={styles.unreadBadge}>{unreadCount}</span>}
           </div>
           <div className={styles.notificationActions}>
-            <button className={styles.btnIcon} onClick={toggleSettings} title='Notification Settings'>
+            <button
+              className={styles.btnIcon}
+              onClick={toggleSettings}
+              title='Notification Settings'
+            >
               ⚙️
             </button>
             {notifications.length > 0 && (
@@ -217,7 +221,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
                 🗑️
               </button>
             )}
-            <button className={`${styles.btnIcon} ${styles.notificationCenterClose}`} onClick={onClose} title='Close'>
+            <button
+              className={`${styles.btnIcon} ${styles.notificationCenterClose}`}
+              onClick={onClose}
+              title='Close'
+            >
               ×
             </button>
           </div>

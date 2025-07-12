@@ -4,12 +4,17 @@
   --card-bg: #1a1a1a;
   --secondary-bg: #2a2a2a;
   --border-color: #404040;
+  --surface-color: #1a1a1a;
+  --surface-color-hover: #2a2a2a;
   --text-primary: rgba(255, 255, 255, 0.87);
   --text-secondary: rgba(255, 255, 255, 0.6);
+  --text-muted: rgba(255, 255, 255, 0.6);
   --records-table-th-bg: var(--secondary-bg);
   --hover-bg: rgba(255, 255, 255, 0.05);
 
   /* Color palette for buttons and UI elements */
+  --primary-color: #3b82f6;
+  --primary-hover: #2563eb;
   --color-primary: #3b82f6;
   --color-primary-hover: #2563eb;
   --color-secondary: #2a2a2a;
