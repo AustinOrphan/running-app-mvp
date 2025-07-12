@@ -154,7 +154,9 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
                   </span>
                 </td>
                 <td className={styles.dateCell}>
-                  <span className={styles.dateValue}>{formatDate(record.date, 'month-day-year')}</span>
+                  <span className={styles.dateValue}>
+                    {formatDate(record.date, 'month-day-year')}
+                  </span>
                 </td>
               </tr>
             ))}

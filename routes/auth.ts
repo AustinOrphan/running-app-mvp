@@ -70,13 +70,18 @@ router.post(
       throw createError('JWT secret not configured', 500);
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '1h', // Reduced from 7 days for security
+    const accessToken = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+      expiresIn: '15m', // Short-lived access token
+    });
+
+    const refreshToken = jwt.sign({ id: user.id, type: 'refresh' }, process.env.JWT_SECRET, {
+      expiresIn: '7d', // Long-lived refresh token
     });
 
     res.status(201).json({
       message: 'User created successfully',
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -114,13 +119,18 @@ router.post(
       throw createError('JWT secret not configured', 500);
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '1h', // Reduced from 7 days for security
+    const accessToken = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+      expiresIn: '15m', // Short-lived access token
+    });
+
+    const refreshToken = jwt.sign({ id: user.id, type: 'refresh' }, process.env.JWT_SECRET, {
+      expiresIn: '7d', // Long-lived refresh token
     });
 
     res.json({
       message: 'Login successful',
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -150,6 +160,72 @@ router.get(
     }
 
     res.json({ user });
+  })
+);
+
+// POST /api/auth/refresh - Refresh access token using refresh token
+router.post(
+  '/refresh',
+  asyncHandler(async (req, res) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      throw createUnauthorizedError('Refresh token required');
+    }
+
+    if (!process.env.JWT_SECRET) {
+      throw createError('JWT secret not configured', 500);
+    }
+
+    try {
+      // Verify refresh token
+      const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET) as {
+        id: string;
+        type: string;
+      };
+
+      // Check if this is actually a refresh token
+      if (decoded.type !== 'refresh') {
+        throw createUnauthorizedError('Invalid refresh token');
+      }
+
+      // Get user from database to ensure they still exist
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+        select: { id: true, email: true },
+      });
+
+      if (!user) {
+        throw createUnauthorizedError('User not found');
+      }
+
+      // Generate new access token
+      const newAccessToken = jwt.sign(
+        { id: user.id, email: user.email },
+        process.env.JWT_SECRET,
+        { expiresIn: '15m' }
+      );
+
+      // Generate new refresh token (rotation for security)
+      const newRefreshToken = jwt.sign(
+        { id: user.id, type: 'refresh' },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      logUserAction('Token refresh', req, { userId: user.id });
+
+      res.json({
+        message: 'Tokens refreshed successfully',
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      });
+    } catch (error) {
+      if (error instanceof jwt.JsonWebTokenError) {
+        throw createUnauthorizedError('Invalid refresh token');
+      }
+      throw error;
+    }
   })
 );
 

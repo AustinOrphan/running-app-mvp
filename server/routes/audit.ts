@@ -29,12 +29,10 @@ const requireAdmin = (req: AuthRequest, res: express.Response, next: express.Nex
 
   // Log audit access attempt (even in development)
   auditLogger
-    .logEvent(
-      'admin.system_access',
-      'audit_logs',
-      'success',
-      { req, details: { endpoint: req.path } }
-    )
+    .logEvent('admin.system_access', 'audit_logs', 'success', {
+      req,
+      details: { endpoint: req.path },
+    })
     .catch(() => {});
 
   next();
@@ -67,10 +65,10 @@ router.get(
       };
 
       if (userId) filters.userId = userId as string;
-      if (action) filters.action = action as any;
+      if (action) filters.action = action as any; // eslint-disable-line @typescript-eslint/no-explicit-any
       if (resource) filters.resource = resource as string;
-      if (outcome) filters.outcome = outcome as any;
-      if (riskLevel) filters.riskLevel = riskLevel as any;
+      if (outcome) filters.outcome = outcome as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      if (riskLevel) filters.riskLevel = riskLevel as any; // eslint-disable-line @typescript-eslint/no-explicit-any
       if (startDate) filters.startDate = new Date(startDate as string);
       if (endDate) filters.endDate = new Date(endDate as string);
 
@@ -88,7 +86,8 @@ router.get(
         totalResults: events.length,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (error) {
+      console.error('Failed to query audit events:', error);
       throw createError('Failed to query audit events', 500);
     }
   })
@@ -107,7 +106,7 @@ router.get(
         throw createError('Invalid timeframe. Must be one of: hour, day, week, month', 400);
       }
 
-      const statistics = await auditLogger.getStatistics(timeframe as any);
+      const statistics = await auditLogger.getStatistics(timeframe as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
       // Log statistics access
       await auditSecurity.suspiciousActivity(req, 'audit_statistics_access', {
@@ -119,7 +118,8 @@ router.get(
         timeframe,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (error) {
+      console.error('Failed to get audit statistics:', error);
       throw createError('Failed to get audit statistics', 500);
     }
   })
@@ -169,7 +169,8 @@ router.get(
         },
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (error) {
+      console.error('Failed to get security events:', error);
       throw createError('Failed to get security events', 500);
     }
   })
@@ -208,7 +209,8 @@ router.get(
         events: userEvents,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (error) {
+      console.error('Failed to get user audit events:', error);
       throw createError('Failed to get user audit events', 500);
     }
   })
@@ -234,7 +236,8 @@ if (process.env.NODE_ENV === 'development') {
           event: { action, outcome, resource },
           timestamp: new Date().toISOString(),
         });
-      } catch {
+      } catch (error) {
+        console.error('Failed to log test audit event:', error);
         throw createError('Failed to log test audit event', 500);
       }
     })

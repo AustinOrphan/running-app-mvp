@@ -263,7 +263,6 @@ class FileAuditStorage implements AuditStorage {
 
   async cleanup(retentionDays: number): Promise<number> {
     const fs = await import('fs/promises');
-    const path = await import('path');
     const readline = await import('readline');
 
     try {
@@ -312,7 +311,7 @@ class FileAuditStorage implements AuditStorage {
 
       // Wait for write to complete
       await new Promise<void>((resolve, reject) => {
-        writeStream.on('finish', resolve);
+        writeStream.on('finish', () => resolve());
         writeStream.on('error', reject);
       });
 
@@ -385,7 +384,7 @@ class AuditLogger {
     const event: AuditEvent = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
-      userId: options.userId || (options.req as any)?.user?.id,
+      userId: options.userId || (options.req as any)?.user?.id, // eslint-disable-line @typescript-eslint/no-explicit-any
       sessionId: this.extractSessionId(options.req),
       ipAddress: this.extractClientIP(options.req),
       userAgent: options.req?.get('User-Agent'),
@@ -395,7 +394,7 @@ class AuditLogger {
       outcome,
       details: this.sanitizeDetails(options.details),
       riskLevel: options.riskLevel || this.determineRiskLevel(action, outcome),
-      correlationId: (options.req as any)?.correlationId,
+      correlationId: (options.req as any)?.correlationId, // eslint-disable-line @typescript-eslint/no-explicit-any
     };
 
     // Encrypt sensitive data if encryption is enabled
@@ -538,7 +537,7 @@ class AuditLogger {
 
   private extractSessionId(req?: Request): string | undefined {
     // Extract session ID from request (implementation depends on session management)
-    return (req as any)?.sessionID || (req as any)?.session?.id;
+    return (req as any)?.sessionID || (req as any)?.session?.id; // eslint-disable-line @typescript-eslint/no-explicit-any
   }
 
   private extractClientIP(req?: Request): string | undefined {

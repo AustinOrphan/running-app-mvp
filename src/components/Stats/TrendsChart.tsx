@@ -201,7 +201,9 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
         </div>
         <div className={styles.trendStat}>
           <span className={styles.statLabel}>Best week: </span>
-          <span className={styles.statValue}>{Math.max(...data.map(d => d.distance)).toFixed(1)}km</span>
+          <span className={styles.statValue}>
+            {Math.max(...data.map(d => d.distance)).toFixed(1)}km
+          </span>
         </div>
         <div className={styles.trendStat}>
           <span className={styles.statLabel}>Avg weekly: </span>
