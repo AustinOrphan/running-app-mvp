@@ -1,0 +1,253 @@
+/* Runs Module CSS */
+
+/* Runs Grid Layout */
+.runsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Runs Section */
+.runsSection {
+  height: 100%;
+  width: 100%;
+  flex: 1;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+/* Run Card Styles */
+.runCard {
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 20px;
+  background: #1a1a1a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  animation: slideUp 0.3s ease-out both;
+}
+
+.runCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.runCard:hover .runActions {
+  opacity: 1;
+}
+
+/* Run Card Content */
+.runDate {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.87);
+  margin-bottom: 10px;
+}
+
+.runDetails {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.runDetails span {
+  background: #404040;
+  color: rgba(255, 255, 255, 0.87);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tag {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+}
+
+.runNotes {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+/* Enhanced Run Cards */
+.runHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.runActions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.runStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.statValue {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.87);
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.runTag {
+  margin-bottom: 8px;
+}
+
+/* Run Form Styles */
+.runForm {
+  background: #1a1a1a;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 30px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  animation: slideUp 0.3s ease-out;
+}
+
+.runForm h3 {
+  margin: 0 0 20px 0;
+  color: rgba(255, 255, 255, 0.87);
+  font-size: 18px;
+}
+
+/* Stagger animation for run cards */
+.runsGrid .runCard:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.runsGrid .runCard:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.runsGrid .runCard:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.runsGrid .runCard:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.runsGrid .runCard:nth-child(5) {
+  animation-delay: 0.5s;
+}
+
+.runsGrid .runCard:nth-child(6) {
+  animation-delay: 0.6s;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Large Desktop: 1201px+ */
+@media (min-width: 1201px) {
+  .runsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 24px;
+  }
+}
+
+/* Standard Desktop: 993px - 1200px */
+@media (min-width: 993px) and (max-width: 1200px) {
+  .runsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 22px;
+  }
+}
+
+/* Small Desktop / Large Tablet: 769px - 992px */
+@media (min-width: 769px) and (max-width: 992px) {
+  .runsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+  }
+}
+
+/* Tablet Portrait: 481px - 768px */
+@media (min-width: 481px) and (max-width: 768px) {
+  .runsSection {
+    height: 100%;
+    padding: 0 16px;
+  }
+
+  .runsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+
+  .runStats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+}
+
+/* Mobile Landscape / Small Tablet: 321px - 480px */
+@media (min-width: 321px) and (max-width: 480px) {
+  .runsSection {
+    height: 100%;
+    padding: 0 12px;
+  }
+
+  .runsGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .runStats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .stat:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .runActions {
+    opacity: 1;
+  }
+}
+
+/* Mobile Portrait: up to 320px */
+@media (max-width: 320px) {
+  .runsSection {
+    height: 100%;
+    padding: 0 8px;
+  }
+}
