@@ -30,13 +30,10 @@ const requireAdmin = (req: AuthRequest, res: express.Response, next: express.Nex
   // Log audit access attempt (even in development)
   auditLogger
     .logEvent(
-      {
-        action: 'admin.system_access',
-        resource: 'audit_logs',
-        outcome: 'success',
-        details: { endpoint: req.path },
-      },
-      req
+      'admin.system_access',
+      'audit_logs',
+      'success',
+      { req, details: { endpoint: req.path } }
     )
     .catch(() => {});
 
@@ -91,7 +88,7 @@ router.get(
         totalResults: events.length,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch {
       throw createError('Failed to query audit events', 500);
     }
   })
@@ -122,7 +119,7 @@ router.get(
         timeframe,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch {
       throw createError('Failed to get audit statistics', 500);
     }
   })
@@ -172,7 +169,7 @@ router.get(
         },
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch {
       throw createError('Failed to get security events', 500);
     }
   })
@@ -211,7 +208,7 @@ router.get(
         events: userEvents,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch {
       throw createError('Failed to get user audit events', 500);
     }
   })
@@ -237,7 +234,7 @@ if (process.env.NODE_ENV === 'development') {
           event: { action, outcome, resource },
           timestamp: new Date().toISOString(),
         });
-      } catch (error) {
+      } catch {
         throw createError('Failed to log test audit event', 500);
       }
     })

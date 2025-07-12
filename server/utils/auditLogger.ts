@@ -191,7 +191,6 @@ class FileAuditStorage implements AuditStorage {
   async query(filters: AuditQueryFilters): Promise<AuditEvent[]> {
     const fs = await import('fs/promises');
     const readline = await import('readline');
-    const stream = await import('stream');
 
     try {
       // Check if file exists
@@ -312,7 +311,7 @@ class FileAuditStorage implements AuditStorage {
       writeStream.end();
 
       // Wait for write to complete
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         writeStream.on('finish', resolve);
         writeStream.on('error', reject);
       });
