@@ -84,9 +84,11 @@ const refreshAccessToken = async (): Promise<boolean> => {
       const refreshToken = getRefreshToken();
       if (!refreshToken) {
         clearTokens();
-        authEvents.dispatchEvent(new CustomEvent('authenticationFailed', {
-          detail: { message: 'No refresh token available' }
-        }));
+        authEvents.dispatchEvent(
+          new CustomEvent('authenticationFailed', {
+            detail: { message: 'No refresh token available' },
+          })
+        );
         return false;
       }
 
@@ -98,25 +100,32 @@ const refreshAccessToken = async (): Promise<boolean> => {
 
       if (!response.ok) {
         clearTokens();
-        authEvents.dispatchEvent(new CustomEvent('authenticationFailed', {
-          detail: { message: 'Failed to refresh token' }
-        }));
+        authEvents.dispatchEvent(
+          new CustomEvent('authenticationFailed', {
+            detail: { message: 'Failed to refresh token' },
+          })
+        );
         return false;
       }
 
       const data = await response.json();
       setTokens(data.accessToken, data.refreshToken);
-      
-      authEvents.dispatchEvent(new CustomEvent('tokenRefreshed', {
-        detail: { accessToken: data.accessToken }
-      }));
-      
+
+      authEvents.dispatchEvent(
+        new CustomEvent('tokenRefreshed', {
+          detail: { accessToken: data.accessToken },
+        })
+      );
+
       return true;
     } catch (error) {
+      console.error('Token refresh failed:', error);
       clearTokens();
-      authEvents.dispatchEvent(new CustomEvent('authenticationFailed', {
-        detail: { message: 'Token refresh failed' }
-      }));
+      authEvents.dispatchEvent(
+        new CustomEvent('authenticationFailed', {
+          detail: { message: 'Token refresh failed' },
+        })
+      );
       return false;
     } finally {
       isRefreshing = false;

@@ -4,7 +4,7 @@ import { clientLogger } from './clientLogger';
 // Error categories for better organization
 export enum ErrorCategory {
   API = 'API',
-  UI = 'UI', 
+  UI = 'UI',
   NETWORK = 'NETWORK',
   AUTH = 'AUTH',
   VALIDATION = 'VALIDATION',
@@ -49,39 +49,33 @@ class ErrorReporter {
   constructor() {
     // Set up global error handlers
     this.setupGlobalHandlers();
-    
+
     // Clean up old aggregations periodically
     setInterval(() => this.cleanupAggregations(), this.aggregationWindow);
   }
 
   private setupGlobalHandlers(): void {
     // Handle unhandled promise rejections
-    window.addEventListener('unhandledrejection', (event) => {
-      this.reportError(
-        new Error(`Unhandled Promise Rejection: ${event.reason}`),
-        {
-          category: ErrorCategory.UNKNOWN,
-          severity: ErrorSeverity.HIGH,
-          action: 'unhandledrejection',
-        }
-      );
+    window.addEventListener('unhandledrejection', event => {
+      this.reportError(new Error(`Unhandled Promise Rejection: ${event.reason}`), {
+        category: ErrorCategory.UNKNOWN,
+        severity: ErrorSeverity.HIGH,
+        action: 'unhandledrejection',
+      });
     });
 
     // Handle global errors
-    window.addEventListener('error', (event) => {
-      this.reportError(
-        event.error || new Error(event.message),
-        {
-          category: ErrorCategory.UI,
-          severity: ErrorSeverity.HIGH,
-          action: 'window.error',
-          metadata: {
-            filename: event.filename,
-            lineno: event.lineno,
-            colno: event.colno,
-          },
-        }
-      );
+    window.addEventListener('error', event => {
+      this.reportError(event.error || new Error(event.message), {
+        category: ErrorCategory.UI,
+        severity: ErrorSeverity.HIGH,
+        action: 'window.error',
+        metadata: {
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+        },
+      });
     });
   }
 
@@ -89,7 +83,7 @@ class ErrorReporter {
     if (providedCategory) return providedCategory;
 
     const message = error.message.toLowerCase();
-    
+
     if (message.includes('network') || message.includes('fetch')) {
       return ErrorCategory.NETWORK;
     } else if (message.includes('auth') || message.includes('token') || message.includes('401')) {
@@ -101,7 +95,7 @@ class ErrorReporter {
     } else if (message.includes('component') || message.includes('render')) {
       return ErrorCategory.UI;
     }
-    
+
     return ErrorCategory.UNKNOWN;
   }
 
@@ -110,17 +104,17 @@ class ErrorReporter {
     if (category === ErrorCategory.AUTH) {
       return ErrorSeverity.HIGH;
     }
-    
+
     // Network errors during critical operations
     if (category === ErrorCategory.NETWORK && error.message.includes('save')) {
       return ErrorSeverity.HIGH;
     }
-    
+
     // Validation errors are usually low severity
     if (category === ErrorCategory.VALIDATION) {
       return ErrorSeverity.LOW;
     }
-    
+
     // Default to medium
     return ErrorSeverity.MEDIUM;
   }
@@ -131,20 +125,20 @@ class ErrorReporter {
 
   private shouldAggregateError(key: string): boolean {
     const aggregation = this.errorAggregation.get(key);
-    
+
     if (!aggregation) {
       return false;
     }
-    
+
     const now = new Date();
     const windowStart = new Date(now.getTime() - this.aggregationWindow);
-    
+
     // Reset aggregation if outside window
     if (aggregation.firstSeen < windowStart) {
       this.errorAggregation.delete(key);
       return false;
     }
-    
+
     // Check if we've hit the limit
     return aggregation.count >= this.maxAggregatedErrors;
   }
@@ -152,7 +146,7 @@ class ErrorReporter {
   private updateAggregation(key: string): void {
     const existing = this.errorAggregation.get(key);
     const now = new Date();
-    
+
     if (existing) {
       existing.count++;
       existing.lastSeen = now;
@@ -169,7 +163,7 @@ class ErrorReporter {
   private cleanupAggregations(): void {
     const now = new Date();
     const windowStart = new Date(now.getTime() - this.aggregationWindow);
-    
+
     for (const [key, aggregation] of this.errorAggregation) {
       if (aggregation.lastSeen < windowStart) {
         this.errorAggregation.delete(key);
@@ -208,13 +202,10 @@ class ErrorReporter {
     return undefined;
   }
 
-  public reportError(
-    error: Error,
-    partialContext?: Partial<ErrorContext>
-  ): void {
+  public reportError(error: Error, partialContext?: Partial<ErrorContext>): void {
     const category = this.categorizeError(error, partialContext?.category);
     const severity = partialContext?.severity || this.determineSeverity(error, category);
-    
+
     const context: ErrorContext = {
       category,
       severity,
@@ -229,35 +220,31 @@ class ErrorReporter {
     };
 
     const errorKey = this.generateErrorKey(error, context);
-    
+
     // Check if we should aggregate this error
     if (this.shouldAggregateError(errorKey)) {
       // Update aggregation but don't log
       this.updateAggregation(errorKey);
       return;
     }
-    
+
     // Update aggregation
     this.updateAggregation(errorKey);
-    
+
     // Log the error with context
-    clientLogger.error(
-      `[${category}] ${error.message}`,
-      error,
-      {
-        ...context,
-        errorKey,
-        aggregation: this.errorAggregation.get(errorKey),
-      }
-    );
-    
+    clientLogger.error(`[${category}] ${error.message}`, error, {
+      ...context,
+      errorKey,
+      aggregation: this.errorAggregation.get(errorKey),
+    });
+
     // Provide recovery suggestions
     this.suggestRecovery(error, context);
   }
 
   private suggestRecovery(error: Error, context: ErrorContext): void {
     let suggestion = '';
-    
+
     switch (context.category) {
       case ErrorCategory.AUTH:
         suggestion = 'Please log in again to continue.';
@@ -281,7 +268,7 @@ class ErrorReporter {
       default:
         suggestion = 'An unexpected error occurred. Please refresh and try again.';
     }
-    
+
     // Log recovery suggestion separately for UI consumption
     if (suggestion) {
       clientLogger.info(`Recovery suggestion: ${suggestion}`, {
@@ -292,12 +279,7 @@ class ErrorReporter {
   }
 
   // Public API for reporting specific error types
-  public reportApiError(
-    error: Error,
-    endpoint: string,
-    method: string,
-    status?: number
-  ): void {
+  public reportApiError(error: Error, endpoint: string, method: string, status?: number): void {
     this.reportError(error, {
       category: ErrorCategory.API,
       action: `${method} ${endpoint}`,
@@ -309,11 +291,7 @@ class ErrorReporter {
     });
   }
 
-  public reportUIError(
-    error: Error,
-    componentName: string,
-    action?: string
-  ): void {
+  public reportUIError(error: Error, componentName: string, action?: string): void {
     this.reportError(error, {
       category: ErrorCategory.UI,
       action: action || 'component-error',
@@ -323,11 +301,7 @@ class ErrorReporter {
     });
   }
 
-  public reportNetworkError(
-    error: Error,
-    url: string,
-    retryCount?: number
-  ): void {
+  public reportNetworkError(error: Error, url: string, retryCount?: number): void {
     this.reportError(error, {
       category: ErrorCategory.NETWORK,
       severity: retryCount && retryCount > 2 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM,
@@ -338,10 +312,7 @@ class ErrorReporter {
     });
   }
 
-  public reportAuthError(
-    error: Error,
-    action: string
-  ): void {
+  public reportAuthError(error: Error, action: string): void {
     this.reportError(error, {
       category: ErrorCategory.AUTH,
       severity: ErrorSeverity.HIGH,
@@ -349,11 +320,7 @@ class ErrorReporter {
     });
   }
 
-  public reportValidationError(
-    error: Error,
-    field: string,
-    value?: unknown
-  ): void {
+  public reportValidationError(error: Error, field: string, value?: unknown): void {
     this.reportError(error, {
       category: ErrorCategory.VALIDATION,
       severity: ErrorSeverity.LOW,

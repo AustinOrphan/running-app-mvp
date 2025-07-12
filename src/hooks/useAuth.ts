@@ -16,7 +16,7 @@ export const useAuth = () => {
     // Check if user has access token (or fallback to old authToken)
     const accessToken = getAuthToken();
     const oldToken = localStorage.getItem('authToken');
-    
+
     if (accessToken || oldToken) {
       setIsLoggedIn(true);
       // Migrate old token to new structure if needed
