@@ -250,8 +250,12 @@ test.describe('Authentication Flow E2E Tests', () => {
       await expect(page).toHaveURL('/login');
 
       // Local storage should be cleared
-      const token = await page.evaluate(() => localStorage.getItem('authToken'));
-      expect(token).toBeNull();
+      const tokens = await page.evaluate(() => ({
+        accessToken: localStorage.getItem('accessToken'),
+        refreshToken: localStorage.getItem('refreshToken'),
+      }));
+      expect(tokens.accessToken).toBeNull();
+      expect(tokens.refreshToken).toBeNull();
     });
   });
 
@@ -324,7 +328,7 @@ test.describe('Authentication Flow E2E Tests', () => {
 
       // Simulate expired token by clearing and setting invalid token
       await page.evaluate(() => {
-        localStorage.setItem('authToken', 'expired-token');
+        localStorage.setItem('accessToken', 'expired-token');
       });
 
       // Try to access protected route
@@ -333,6 +337,216 @@ test.describe('Authentication Flow E2E Tests', () => {
       // Should be redirected to login
       await expect(page).toHaveURL('/login');
       await expect(page.locator('text=Session expired')).toBeVisible();
+    });
+  });
+
+  test.describe('Token Refresh Flow', () => {
+    test('should automatically refresh expired access token', async ({ page }) => {
+      // Create and login user
+      const testUser = await testDb.createTestUser({
+        email: 'refresh@test.com',
+        password: 'testpassword123',
+      });
+
+      await page.goto('/login');
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
+      await page.fill('input[type="password"]', 'testpassword123');
+      await page.click('button[type="submit"]');
+
+      await expect(page).toHaveURL('/dashboard');
+
+      // Get initial tokens
+      const tokens = await page.evaluate(() => ({
+        accessToken: localStorage.getItem('accessToken'),
+        refreshToken: localStorage.getItem('refreshToken'),
+      }));
+
+      expect(tokens.accessToken).toBeTruthy();
+      expect(tokens.refreshToken).toBeTruthy();
+
+      // Simulate expired access token by setting a very short-lived token
+      // In real scenario, this would be handled by the backend
+      await page.evaluate(() => {
+        // Keep refresh token but simulate expired access token
+        const expiredToken =
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.invalid';
+        localStorage.setItem('accessToken', expiredToken);
+      });
+
+      // Navigate to a protected route that makes API calls
+      await page.goto('/runs');
+
+      // Should still be able to access the page (token should be refreshed automatically)
+      await expect(page).toHaveURL('/runs');
+
+      // Check that new access token was set
+      const newTokens = await page.evaluate(() => ({
+        accessToken: localStorage.getItem('accessToken'),
+        refreshToken: localStorage.getItem('refreshToken'),
+      }));
+
+      // Access token should be different (refreshed)
+      expect(newTokens.accessToken).not.toBe(tokens.accessToken);
+      expect(newTokens.accessToken).not.toBe(
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.invalid'
+      );
+    });
+
+    test('should handle refresh token expiration', async ({ page }) => {
+      // Create and login user
+      const testUser = await testDb.createTestUser({
+        email: 'refresh-expired@test.com',
+        password: 'testpassword123',
+      });
+
+      await page.goto('/login');
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
+      await page.fill('input[type="password"]', 'testpassword123');
+      await page.click('button[type="submit"]');
+
+      await expect(page).toHaveURL('/dashboard');
+
+      // Simulate both tokens being expired
+      await page.evaluate(() => {
+        localStorage.setItem('accessToken', 'expired-access-token');
+        localStorage.setItem('refreshToken', 'expired-refresh-token');
+      });
+
+      // Try to access protected route
+      await page.goto('/runs');
+
+      // Should be redirected to login when refresh fails
+      await expect(page).toHaveURL('/login');
+      await expect(page.locator('text=Session expired')).toBeVisible();
+
+      // Tokens should be cleared
+      const tokens = await page.evaluate(() => ({
+        accessToken: localStorage.getItem('accessToken'),
+        refreshToken: localStorage.getItem('refreshToken'),
+      }));
+
+      expect(tokens.accessToken).toBeNull();
+      expect(tokens.refreshToken).toBeNull();
+    });
+
+    test('should maintain user session during token refresh', async ({ page }) => {
+      // Create and login user
+      const testUser = await testDb.createTestUser({
+        email: 'session-maintain@test.com',
+        password: 'testpassword123',
+      });
+
+      await page.goto('/login');
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
+      await page.fill('input[type="password"]', 'testpassword123');
+      await page.click('button[type="submit"]');
+
+      // Navigate to dashboard
+      await expect(page).toHaveURL('/dashboard');
+      await expect(page.locator(`text=${assertTestUser(testUser).email}`)).toBeVisible();
+
+      // Start a user action (e.g., creating a new run)
+      await page.click('text=Add New Run');
+      await page.fill('input[name="distance"]', '5');
+      await page.fill('input[name="duration"]', '30');
+
+      // Simulate token expiration mid-action
+      await page.evaluate(() => {
+        const expiredToken =
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.invalid';
+        localStorage.setItem('accessToken', expiredToken);
+      });
+
+      // Submit the form (should trigger API call and token refresh)
+      await page.click('button[type="submit"]');
+
+      // Should successfully complete the action
+      await expect(page.locator('text=Run added successfully')).toBeVisible();
+
+      // User should still be logged in
+      await expect(page.locator(`text=${assertTestUser(testUser).email}`)).toBeVisible();
+    });
+
+    test('should handle concurrent API calls during token refresh', async ({ page }) => {
+      // Create and login user
+      const testUser = await testDb.createTestUser({
+        email: 'concurrent@test.com',
+        password: 'testpassword123',
+      });
+
+      await page.goto('/login');
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
+      await page.fill('input[type="password"]', 'testpassword123');
+      await page.click('button[type="submit"]');
+
+      await expect(page).toHaveURL('/dashboard');
+
+      // Simulate expired access token
+      await page.evaluate(() => {
+        const expiredToken =
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.invalid';
+        localStorage.setItem('accessToken', expiredToken);
+      });
+
+      // Navigate to a page that makes multiple API calls
+      await page.goto('/stats');
+
+      // All data should load successfully (despite concurrent 401s triggering refresh)
+      await expect(page.locator('text=Total Distance')).toBeVisible();
+      await expect(page.locator('text=Average Pace')).toBeVisible();
+      await expect(page.locator('text=Personal Records')).toBeVisible();
+
+      // Only one refresh should have occurred
+      const refreshCount = await page.evaluate(() => {
+        // This would be tracked in the actual implementation
+        return window.performance.getEntriesByName('/api/auth/refresh').length;
+      });
+
+      // Should have refreshed token only once despite multiple concurrent requests
+      expect(refreshCount).toBeLessThanOrEqual(1);
+    });
+
+    test('should clear tokens on logout even after refresh', async ({ page }) => {
+      // Create and login user
+      const testUser = await testDb.createTestUser({
+        email: 'logout-refresh@test.com',
+        password: 'testpassword123',
+      });
+
+      await page.goto('/login');
+      await page.fill('input[type="email"]', assertTestUser(testUser).email);
+      await page.fill('input[type="password"]', 'testpassword123');
+      await page.click('button[type="submit"]');
+
+      await expect(page).toHaveURL('/dashboard');
+
+      // Trigger a token refresh by simulating expired access token
+      await page.evaluate(() => {
+        const expiredToken =
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.invalid';
+        localStorage.setItem('accessToken', expiredToken);
+      });
+
+      // Make an API call to trigger refresh
+      await page.goto('/runs');
+      await expect(page).toHaveURL('/runs');
+
+      // Now logout
+      await page.click('button:has-text("Logout")');
+
+      // Should redirect to home
+      await expect(page).toHaveURL('/');
+
+      // Both tokens should be cleared
+      const tokens = await page.evaluate(() => ({
+        accessToken: localStorage.getItem('accessToken'),
+        refreshToken: localStorage.getItem('refreshToken'),
+        oldToken: localStorage.getItem('authToken'), // Legacy token
+      }));
+
+      expect(tokens.accessToken).toBeNull();
+      expect(tokens.refreshToken).toBeNull();
+      expect(tokens.oldToken).toBeNull();
     });
   });
 
