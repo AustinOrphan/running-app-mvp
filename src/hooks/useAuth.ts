@@ -1,18 +1,32 @@
 import { useState, useEffect } from 'react';
-import { apiPost, ApiError, authEvents } from '../utils/apiFetch';
+import {
+  apiPost,
+  ApiError,
+  setTokens,
+  clearTokens,
+  getAuthToken,
+  authEvents,
+} from '../utils/apiFetch';
 
 export const useAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Check if user has token
-    const token = localStorage.getItem('authToken');
-    if (token) {
+    // Check if user has access token (or fallback to old authToken)
+    const accessToken = getAuthToken();
+    const oldToken = localStorage.getItem('authToken');
+
+    if (accessToken || oldToken) {
       setIsLoggedIn(true);
+      // Migrate old token to new structure if needed
+      if (oldToken && !accessToken) {
+        localStorage.setItem('accessToken', oldToken);
+        localStorage.removeItem('authToken');
+      }
     }
 
-    // Listen for authentication failure events
+    // Listen for authentication events
     const handleAuthFailure = (event: Event) => {
       const customEvent = event as CustomEvent;
       // eslint-disable-next-line no-console -- Intentional auth failure warning for debugging
@@ -21,28 +35,38 @@ export const useAuth = () => {
       // Token is already cleared by apiFetch
     };
 
+    const handleTokenRefresh = () => {
+      setIsLoggedIn(true);
+    };
+
     authEvents.addEventListener('authenticationFailed', handleAuthFailure);
+    authEvents.addEventListener('tokenRefreshed', handleTokenRefresh);
 
     return () => {
       authEvents.removeEventListener('authenticationFailed', handleAuthFailure);
+      authEvents.removeEventListener('tokenRefreshed', handleTokenRefresh);
     };
   }, []);
 
   const login = async (
     email: string,
     password: string
-  ): Promise<{ success: boolean; token?: string; message?: string }> => {
+  ): Promise<{ success: boolean; accessToken?: string; message?: string }> => {
     setLoading(true);
     try {
-      const response = await apiPost<{ token: string; user: { id: string; email: string } }>(
+      const response = await apiPost<{
+        accessToken: string;
+        refreshToken: string;
+        user: { id: string; email: string };
+      }>(
         '/api/auth/login',
         { email, password },
         { skipAuth: true } // Login doesn't require existing auth
       );
 
-      localStorage.setItem('authToken', response.data.token);
+      setTokens(response.data.accessToken, response.data.refreshToken);
       setIsLoggedIn(true);
-      return { success: true, token: response.data.token };
+      return { success: true, accessToken: response.data.accessToken };
     } catch (error) {
       const apiError = error as ApiError;
       return {
@@ -63,18 +87,22 @@ export const useAuth = () => {
   const register = async (
     email: string,
     password: string
-  ): Promise<{ success: boolean; token?: string; message?: string }> => {
+  ): Promise<{ success: boolean; accessToken?: string; message?: string }> => {
     setLoading(true);
     try {
-      const response = await apiPost<{ token: string; user: { id: string; email: string } }>(
+      const response = await apiPost<{
+        accessToken: string;
+        refreshToken: string;
+        user: { id: string; email: string };
+      }>(
         '/api/auth/register',
         { email, password },
         { skipAuth: true } // Registration doesn't require existing auth
       );
 
-      localStorage.setItem('authToken', response.data.token);
+      setTokens(response.data.accessToken, response.data.refreshToken);
       setIsLoggedIn(true);
-      return { success: true, token: response.data.token };
+      return { success: true, accessToken: response.data.accessToken };
     } catch (error) {
       const apiError = error as ApiError;
       return {
@@ -93,11 +121,11 @@ export const useAuth = () => {
   };
 
   const logout = () => {
-    localStorage.removeItem('authToken');
+    clearTokens();
     setIsLoggedIn(false);
   };
 
-  const getToken = () => localStorage.getItem('authToken');
+  const getToken = () => getAuthToken();
 
   return {
     isLoggedIn,

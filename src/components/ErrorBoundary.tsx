@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
   override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // Report the error
     reportUIError(error, errorInfo.componentStack || 'Unknown', 'componentDidCatch');
-    
+
     // Call custom error handler if provided
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
@@ -45,14 +45,14 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="error-boundary-fallback">
+        <div className='error-boundary-fallback'>
           <h2>Something went wrong</h2>
-          <p>We're sorry, but something unexpected happened.</p>
+          <p>We&apos;re sorry, but something unexpected happened.</p>
           <details style={{ whiteSpace: 'pre-wrap', marginTop: '1rem' }}>
             <summary>Error details</summary>
             {this.state.error && this.state.error.toString()}
           </details>
-          <button 
+          <button
             onClick={this.handleReset}
             style={{
               marginTop: '1rem',
@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
               color: 'white',
               border: 'none',
               borderRadius: '0.25rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             Try again
