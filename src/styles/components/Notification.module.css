@@ -194,9 +194,9 @@
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 20px;
-  padding: 6px;
-  width: 32px;
-  height: 32px;
+  padding: 12px;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -207,6 +207,11 @@
 .btnIcon:hover {
   color: var(--text-primary);
   background: var(--surface-color-hover);
+}
+
+.btnIcon:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .notificationCenterClose {
@@ -399,11 +404,11 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1;
-  padding: 0;
-  width: 24px;
-  height: 24px;
+  padding: 12px;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -415,6 +420,11 @@
 .notificationDismiss:hover {
   color: var(--text-primary);
   background: var(--surface-color-hover);
+}
+
+.notificationDismiss:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .notificationContent {
