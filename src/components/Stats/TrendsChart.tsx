@@ -11,6 +11,7 @@ import {
 
 import { TrendsDataPoint } from '../../types';
 import { formatPace } from '../../utils/formatters';
+import styles from '../../styles/components/Stats.module.css';
 
 interface TrendsChartProps {
   data: TrendsDataPoint[];
@@ -41,14 +42,14 @@ const CustomTooltip = ({
     });
 
     return (
-      <div className='chart-tooltip'>
-        <p className='tooltip-label'>Week of {date}</p>
-        <p className='tooltip-item'>
-          Distance: <span className='tooltip-value'>{data.distance}km</span>
+      <div className={styles.chartTooltip}>
+        <p className={styles.tooltipLabel}>Week of {date}</p>
+        <p className={styles.tooltipItem}>
+          Distance: <span className={styles.tooltipValue}>{data.distance}km</span>
         </p>
-        <p className='tooltip-item'>
+        <p className={styles.tooltipItem}>
           Avg Pace:{' '}
-          <span className='tooltip-value'>
+          <span className={styles.tooltipValue}>
             {data.pace > 0 ? formatPace(data.pace, { includeUnit: true }) : '-'}
           </span>
         </p>
@@ -63,24 +64,24 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
 
   if (loading) {
     return (
-      <div className='trends-chart-card'>
-        <div className='trends-header'>
+      <div className={styles.trendsChartCard}>
+        <div className={styles.trendsHeader}>
           <h3>Running Trends</h3>
-          <div className='trends-controls'>
+          <div className={styles.trendsControls}>
             <div
               data-testid='skeleton-line'
-              className='skeleton-line'
+              className={styles.skeletonLine}
               style={{ width: '80px', height: '32px' }}
             ></div>
           </div>
         </div>
-        <div className='chart-loading'>
-          <div className='skeleton-chart'>
-            <div className='skeleton-line-chart'>
+        <div className={styles.chartLoading}>
+          <div className={styles.skeletonChart}>
+            <div className={styles.skeletonLineChart}>
               {[1, 2, 3, 4, 5].map(i => (
                 <div
                   key={i}
-                  className='skeleton-line'
+                  className={styles.skeletonLine}
                   style={{
                     width: '100%',
                     height: `${20 + Math.random() * 40}px`,
@@ -97,11 +98,11 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
 
   if (!data || data.length === 0) {
     return (
-      <div className='trends-chart-card'>
-        <div className='trends-header'>
+      <div className={styles.trendsChartCard}>
+        <div className={styles.trendsHeader}>
           <h3>Running Trends</h3>
         </div>
-        <div className='empty-chart'>
+        <div className={styles.emptyChart}>
           <div className='empty-icon'>📈</div>
           <p>Not enough data for trends</p>
           <span>Add more runs to see your progress over time</span>
@@ -138,14 +139,14 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
   }));
 
   return (
-    <div className='trends-chart-card'>
-      <div className='trends-header'>
+    <div className={styles.trendsChartCard}>
+      <div className={styles.trendsHeader}>
         <h3>Running Trends</h3>
-        <div className='trends-controls'>
+        <div className={styles.trendsControls}>
           <select
             value={selectedMetric}
             onChange={e => setSelectedMetric(e.target.value as 'distance' | 'pace')}
-            className='metric-selector'
+            className={styles.metricSelector}
             aria-label='Metric selector'
           >
             <option value='distance'>Distance</option>
@@ -154,7 +155,7 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
         </div>
       </div>
 
-      <div className='chart-container'>
+      <div className={styles.chartContainer}>
         <ResponsiveContainer width='100%' height={300}>
           <LineChart data={processedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray='3 3' stroke='rgba(255,255,255,0.1)' />
@@ -193,18 +194,20 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
         </ResponsiveContainer>
       </div>
 
-      <div className='trends-summary'>
-        <div className='trend-stat'>
-          <span className='stat-label'>Total weeks: </span>
-          <span className='stat-value'>{data.length}</span>
+      <div className={styles.trendsSummary}>
+        <div className={styles.trendStat}>
+          <span className={styles.statLabel}>Total weeks: </span>
+          <span className={styles.statValue}>{data.length}</span>
         </div>
-        <div className='trend-stat'>
-          <span className='stat-label'>Best week: </span>
-          <span className='stat-value'>{Math.max(...data.map(d => d.distance)).toFixed(1)}km</span>
+        <div className={styles.trendStat}>
+          <span className={styles.statLabel}>Best week: </span>
+          <span className={styles.statValue}>
+            {Math.max(...data.map(d => d.distance)).toFixed(1)}km
+          </span>
         </div>
-        <div className='trend-stat'>
-          <span className='stat-label'>Avg weekly: </span>
-          <span className='stat-value'>
+        <div className={styles.trendStat}>
+          <span className={styles.statLabel}>Avg weekly: </span>
+          <span className={styles.statValue}>
             {(data.reduce((sum, d) => sum + d.distance, 0) / data.length).toFixed(1)}km
           </span>
         </div>

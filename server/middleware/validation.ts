@@ -11,14 +11,36 @@ import { createError } from './errorHandler.js';
 const emailSchema = z.string().email('Invalid email format').toLowerCase().trim();
 
 // Enhanced password schema with security requirements
+const getPasswordMinLength = () => parseInt(process.env.PASSWORD_MIN_LENGTH || '12', 10);
+
 const passwordSchema = z
   .string()
-  .min(12, 'Password must be at least 12 characters')
+  .min(getPasswordMinLength(), `Password must be at least ${getPasswordMinLength()} characters`)
   .max(128, 'Password must be less than 128 characters')
   .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
   .regex(/\d/, 'Password must contain at least one number')
-  .regex(/[^\dA-Za-z]/, 'Password must contain at least one special character');
+  .regex(/[^\dA-Za-z]/, 'Password must contain at least one special character')
+  .refine(password => {
+    // Check for common passwords
+    const commonPasswords = [
+      'password',
+      '123456',
+      'password123',
+      'admin',
+      'qwerty',
+      'letmein',
+      'welcome',
+      'monkey',
+      '1234567890',
+    ];
+    const lower = password.toLowerCase();
+    return !commonPasswords.some(common => lower.includes(common));
+  }, 'Password contains common words and is not secure')
+  .refine(password => {
+    // Check for repeated characters (more than 3 in a row)
+    return !/(.)\\1{3,}/.test(password);
+  }, 'Password cannot contain more than 3 repeated characters');
 const positiveNumberSchema = z.number().positive('Must be a positive number');
 const dateSchema = z.string().refine(date => !isNaN(Date.parse(date)), 'Invalid date format');
 const uuidSchema = z.string().uuid('Invalid ID format');

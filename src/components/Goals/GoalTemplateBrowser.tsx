@@ -11,7 +11,6 @@ import {
   CardActions,
   CardContent,
   DifficultyBadge,
-
   ExpandedContent,
 } from '../UI/Card';
 import { Button } from '../UI/Button';

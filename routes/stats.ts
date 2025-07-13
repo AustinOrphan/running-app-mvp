@@ -1,6 +1,6 @@
+import { PrismaClient } from '@prisma/client';
 import express from 'express';
 
-import { prisma } from '../../lib/prisma.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
 import { createValidationError } from '../middleware/errorHandler.js';
 
@@ -8,6 +8,7 @@ import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
 
 const router = express.Router();
+const prisma = new PrismaClient();
 
 // Apply input sanitization to all stats routes
 router.use(sanitizeInput);

@@ -95,10 +95,13 @@ export const createUserStatsSection = (stats: {
  * Creates debug information section for development
  */
 export const createDebugSection = (): FooterSection => {
-  const userAgent = navigator.userAgent;
-  const screenSize = `${window.screen.width}x${window.screen.height}`;
-  const viewportSize = `${window.innerWidth}x${window.innerHeight}`;
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const userAgent = navigator.userAgent || '';
+  const screenSize = window.screen ? `${window.screen.width}x${window.screen.height}` : 'N/A';
+  const viewportSize = `${window.innerWidth || 0}x${window.innerHeight || 0}`;
+  const timezone =
+    typeof Intl !== 'undefined' && Intl.DateTimeFormat
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
+      : 'Unknown';
 
   return createInfoSection('debug', 'Debug Info', [
     { label: 'Screen', value: screenSize },

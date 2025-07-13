@@ -43,33 +43,40 @@ export const GoalAchievementNotification: React.FC<GoalAchievementNotificationPr
   const config = GOAL_TYPE_CONFIGS[achievedGoal.type];
 
   return (
-    <div className={`${styles.achievementNotification} ${isAnimating ? styles.show : ''}`}>
-      <div className={`${styles.achievementModal} ${isAnimating ? styles.animate : ''}`}>
-        <button className={styles.achievementClose} onClick={handleClose} aria-label='Close celebration'>
+    <div className={`${styles.achievementOverlay} ${isAnimating ? styles.show : ''}`}>
+      <div className={`${styles.achievementNotification} ${isAnimating ? styles.animate : ''}`}>
+        <button
+          className={styles.achievementClose}
+          onClick={handleClose}
+          aria-label='Close celebration'
+        >
           ✕
         </button>
 
         <div className={styles.achievementContent}>
           <div className={styles.achievementCelebration}>
             <div className={styles.achievementConfetti}>🎉</div>
-            <div className={styles.achievementIcon}>🏆</div>
+            <div className={styles.achievementTrophy}>🏆</div>
             <div className={styles.achievementConfetti}>🎊</div>
           </div>
 
           <div className={styles.achievementHeader}>
             <h2 className={styles.achievementTitle}>Goal Achieved!</h2>
-            <p className={styles.achievementDescription}>Congratulations on your accomplishment!</p>
+            <p className={styles.achievementSubtitle}>Congratulations on your accomplishment!</p>
           </div>
 
           <div className={styles.achievementGoal}>
-            <div className={styles.achievementGoalIcon} style={{ color: achievedGoal.color || config.color }}>
+            <div
+              className={styles.achievementIcon}
+              style={{ color: achievedGoal.color || config.color }}
+            >
               {achievedGoal.icon || config.icon}
             </div>
             <div className={styles.achievementDetails}>
               <h3 className={styles.achievementGoalTitle}>{achievedGoal.title}</h3>
-              <p className={styles.achievementGoalType}>{config.label}</p>
+              <p className={styles.achievementType}>{config.label}</p>
               {achievedGoal.description && (
-                <p className={styles.achievementGoalDescription}>{achievedGoal.description}</p>
+                <p className={styles.achievementDescription}>{achievedGoal.description}</p>
               )}
             </div>
           </div>
@@ -83,7 +90,9 @@ export const GoalAchievementNotification: React.FC<GoalAchievementNotificationPr
             </div>
             <div className={styles.achievementStat}>
               <span className={styles.achievementStatLabel}>Period</span>
-              <span className={styles.achievementStatValue}>{achievedGoal.period.toLowerCase()}</span>
+              <span className={styles.achievementStatValue}>
+                {achievedGoal.period.toLowerCase()}
+              </span>
             </div>
             {achievedGoal.completedAt && (
               <div className={styles.achievementStat}>
@@ -100,7 +109,7 @@ export const GoalAchievementNotification: React.FC<GoalAchievementNotificationPr
             <p>Keep up the great work and set your next challenge!</p>
           </div>
 
-          <button className={styles.achievementClose} onClick={handleClose}>
+          <button className={styles.achievementActionBtn} onClick={handleClose}>
             Continue
           </button>
         </div>

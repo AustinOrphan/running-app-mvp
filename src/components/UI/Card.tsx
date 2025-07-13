@@ -260,7 +260,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
 
   const getButtonClasses = () => {
     const baseClass = variant === 'run' ? styles.iconBtnRun : styles.iconBtn;
-    return [baseClass, buttonVariantClasses[variant], className].filter(Boolean).join(' ');
+    const variantClass = variant !== 'run' ? buttonVariantClasses[variant] : undefined;
+    return [baseClass, variantClass, className].filter(Boolean).join(' ');
   };
 
   return (
@@ -340,7 +341,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
       <div
         className={fillClasses.join(' ')}
         style={{
-          width: `${Math.min(percentage, 100)}%`,
+          transform: `scaleX(${Math.min(percentage, 100) / 100})`,
           backgroundColor: color || undefined,
         }}
       />

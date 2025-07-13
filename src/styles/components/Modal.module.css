@@ -71,8 +71,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
 }
 
 .closeButton:hover {
@@ -299,33 +299,33 @@
     margin: 20px;
     max-height: calc(100vh - 40px);
   }
-  
+
   .modalHeader,
   .modalBody,
   .modalFooter {
     padding: 16px;
   }
-  
+
   .modalFooter {
     flex-direction: column-reverse;
     gap: 8px;
   }
-  
+
   .modalFooter button {
     width: 100%;
   }
-  
+
   .confirmationModal {
     width: 95%;
     margin: 20px;
   }
-  
+
   .confirmationHeader {
     flex-direction: column;
     text-align: center;
     gap: 16px;
   }
-  
+
   .modalFullScreen {
     width: 100%;
     height: 100%;
@@ -338,20 +338,20 @@
   .modalHeader h3 {
     font-size: 1.1rem;
   }
-  
+
   .confirmationIcon {
     width: 36px;
     height: 36px;
     font-size: 1.3rem;
   }
-  
+
   .confirmationMessage {
     font-size: 0.9rem;
   }
-  
+
   .closeButton {
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: 44px;
     font-size: 1.3rem;
   }
 }
@@ -361,11 +361,11 @@
   .modal {
     border-width: 2px;
   }
-  
+
   .closeButton:focus {
     outline-width: 3px;
   }
-  
+
   .confirmationIcon {
     border: 2px solid currentColor;
   }
@@ -378,7 +378,7 @@
   .loadingSpinner {
     animation: none;
   }
-  
+
   .closeButton {
     transition: none;
   }
@@ -389,7 +389,7 @@
   .modalOverlay {
     background: rgba(0, 0, 0, 0.9);
   }
-  
+
   .modal {
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.8);
   }

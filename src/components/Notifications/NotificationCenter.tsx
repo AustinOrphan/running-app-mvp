@@ -17,7 +17,7 @@ const NotificationItem: React.FC<{
 }> = ({ notification, onDismiss, onMarkRead }) => {
   const getNotificationStyles = (type: string, priority: string) => {
     const classes = [styles.notificationItem];
-    
+
     const typeMap: Record<string, string> = {
       achievement: styles.notificationAchievement,
       milestone: styles.notificationMilestone,
@@ -95,7 +95,7 @@ const NotificationItem: React.FC<{
                 <div
                   className={styles.milestoneFill}
                   style={{
-                    width: `${notification.milestonePercentage}%`,
+                    transform: `scaleX(${notification.milestonePercentage / 100})`,
                     backgroundColor: notification.color,
                   }}
                 />
@@ -209,7 +209,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
             {unreadCount > 0 && <span className={styles.unreadBadge}>{unreadCount}</span>}
           </div>
           <div className={styles.notificationActions}>
-            <button className={styles.btnIcon} onClick={toggleSettings} title='Notification Settings'>
+            <button
+              className={styles.btnIcon}
+              onClick={toggleSettings}
+              title='Notification Settings'
+            >
               ⚙️
             </button>
             {notifications.length > 0 && (
@@ -217,28 +221,34 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
                 🗑️
               </button>
             )}
-            <button className={`${styles.btnIcon} ${styles.notificationCenterClose}`} onClick={onClose} title='Close'>
+            <button
+              className={`${styles.btnIcon} ${styles.notificationCenterClose}`}
+              onClick={onClose}
+              title='Close'
+            >
               ×
             </button>
           </div>
         </div>
 
         {showSettings && (
-          <div className='notification-settings'>
+          <div className={styles.notificationSettings}>
             <h4>Notification Preferences</h4>
 
             {canRequestPermission && (
-              <div className='setting-item'>
-                <button className='btn-primary' onClick={handleRequestPermission}>
+              <div className={styles.settingItem}>
+                <button className={styles.btnPrimary} onClick={handleRequestPermission}>
                   Enable Browser Notifications
                 </button>
-                <p className='setting-description'>Get notified even when the app is not open</p>
+                <p className={styles.settingDescription}>
+                  Get notified even when the app is not open
+                </p>
               </div>
             )}
 
             {hasPermission && (
-              <div className='setting-item'>
-                <label className='setting-toggle'>
+              <div className={styles.settingItem}>
+                <label className={styles.settingToggle}>
                   <input
                     type='checkbox'
                     checked={preferences.enableBrowserNotifications}

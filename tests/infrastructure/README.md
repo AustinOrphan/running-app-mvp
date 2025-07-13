@@ -14,7 +14,6 @@ These tests ensure that:
 ## Test Categories
 
 ### 1. Required Files Existence
-Validates that critical files are present:
 - `server.ts` entry point
 - `vite.config.ts` frontend configuration
 - `lib/prisma.ts` database client
@@ -23,25 +22,21 @@ Validates that critical files are present:
 - `prisma/schema.prisma` database schema
 
 ### 2. Configuration File Validation
-Ensures configuration files contain required settings:
 - Vite config has API proxy setup
 - Server config imports required middleware
 - Prisma client is properly exported
 - Package.json has all necessary scripts
 
 ### 3. Module Import Validation
-Verifies all modules can be imported:
 - Server route files exist
 - Middleware files are present
 - React components are importable
 
 ### 4. Environment Configuration
-Checks environment setup:
 - Environment example files exist
 - Required variables are documented
 
 ### 5. Server Startup Integration Tests
-Real startup tests that verify:
 - Backend server starts on port 3001
 - Frontend server starts on port 3000
 - Health check endpoint responds
@@ -125,4 +120,3 @@ Infrastructure tests complement other test suites:
 - **E2E tests**: Test user workflows
 - **Infrastructure tests**: Test app can start
 
-These tests run first to ensure the app is even runnable before other tests execute.

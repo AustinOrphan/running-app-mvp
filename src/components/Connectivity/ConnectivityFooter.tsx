@@ -411,12 +411,12 @@ export const ConnectivityFooter: React.FC<ConnectivityFooterProps> = ({
             <div
               className='countdown-progress-bar'
               style={{
-                width: `${countdownProgress * 100}%`,
+                transform: `scaleX(${countdownProgress})`,
                 background: `linear-gradient(to right,
                   rgba(239, 68, 68, 0.3),
                   rgba(239, 68, 68, 0.6),
                   rgba(239, 68, 68, 0.9))`,
-                transition: isResetting ? 'width 0.3s ease-out' : 'width 0.05s linear',
+                transition: isResetting ? 'transform 0.3s ease-out' : 'transform 0.05s linear',
               }}
             />
           </div>

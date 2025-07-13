@@ -1,0 +1,406 @@
+/* Connectivity Footer Styles */
+
+/* Main Footer Container */
+.connectivityFooter {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  transition: all 0.2s ease;
+}
+
+.connectivityFooter:hover {
+  filter: brightness(1.1);
+}
+
+.connectivityFooter.expanded:hover .connectivityDetails {
+  background: rgba(0, 0, 0, 0.98);
+}
+
+/* Connectivity Line (Status Bar) */
+.connectivityLine {
+  height: 12px;
+  width: 100%;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  background: linear-gradient(to right, #4b5563, #6b7280, #9ca3af);
+  background-size: 200% 100%;
+  opacity: 0.9;
+}
+
+.connectivityLine:hover {
+  height: 16px;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+  animation: footerGradientShift 2.5s ease-in-out infinite;
+  opacity: 1;
+}
+
+.connectivityLine::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
+}
+
+.connectivityLine:hover::before {
+  width: 60px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+}
+
+.connectivityLine:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+/* Option to completely disable focus indicators */
+.connectivityLine.noFocusIndicator:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Status-specific colors and animations */
+.connectivityLine.healthy {
+  animation:
+    footerGradientShift 6s ease-in-out infinite,
+    subtle-pulse 4s ease-in-out infinite;
+  background: linear-gradient(to right, #065f46, #10b981, #6ee7b7);
+  background-size: 200% 100%;
+}
+
+.connectivityLine.connecting {
+  animation:
+    footerGradientShift 2s ease-in-out infinite,
+    connecting-pulse 1s ease-in-out infinite;
+  background: linear-gradient(to right, #78350f, #f59e0b, #fcd34d);
+  background-size: 200% 100%;
+}
+
+.connectivityLine.disconnected {
+  animation:
+    footerGradientShift 8s ease-in-out infinite,
+    error-pulse 2s ease-in-out infinite;
+  background: linear-gradient(to right, #7f1d1d, #ef4444, #fca5a5);
+  background-size: 200% 100%;
+}
+
+.connectivityLine.loading {
+  animation:
+    footerGradientShift 3s ease-in-out infinite,
+    loading-shimmer 2s linear infinite;
+  background: linear-gradient(to right, #6b7280, #9ca3af, #d1d5db);
+  background-size: 200% 100%;
+}
+
+/* Expanded details panel */
+.connectivityDetails {
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  pointer-events: none;
+}
+
+.connectivityDetails.expanded {
+  max-height: 400px;
+  animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto;
+}
+
+.connectivityDetails.countdown {
+  /* Countdown visual effects handled via inline styles */
+}
+
+/* Content Container */
+.connectivityContent {
+  padding: 20px 24px;
+  color: rgba(255, 255, 255, 0.87);
+}
+
+/* Status Display */
+.connectivityStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.statusIndicator {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.statusText {
+  color: rgba(255, 255, 255, 0.87);
+}
+
+/* Info Section */
+.connectivityInfo {
+  margin-bottom: 16px;
+}
+
+/* Footer Sections */
+.footerSections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 32px;
+  margin-bottom: 20px;
+}
+
+.footerSection {
+  display: flex;
+  flex-direction: column;
+}
+
+.footerSection h4 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 12px 0;
+}
+
+.footerSectionContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Info Items */
+.footerInfoItem {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.footerInfoItem.error {
+  color: #ef4444;
+}
+
+.footerInfoLabel {
+  flex-shrink: 0;
+}
+
+.footerInfoValue {
+  color: rgba(255, 255, 255, 0.87);
+}
+
+/* Footer Links */
+.footerLinks {
+  display: flex;
+  gap: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 16px;
+}
+
+.footerLink {
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.2s ease;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.footerLink:hover {
+  color: rgba(255, 255, 255, 0.87);
+}
+
+/* Retry Button */
+.retryButton {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.87);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+
+.retryButton:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.retryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Countdown Progress */
+.countdownProgressContainer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.countdownProgressBar {
+  height: 100%;
+  background: linear-gradient(to right, #3b82f6, #10b981);
+  transform-origin: left;
+  transition: transform 0.1s linear;
+  will-change: transform;
+  border-radius: 2px;
+}
+
+/* Animations */
+@keyframes footerGradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes subtle-pulse {
+  0%, 100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes connecting-pulse {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes error-pulse {
+  0%, 100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .connectivityContent {
+    padding: 16px 20px;
+  }
+  
+  .footerSections {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .connectivityStatus {
+    font-size: 15px;
+  }
+  
+  .footerLinks {
+    flex-wrap: wrap;
+    gap: 12px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .connectivityContent {
+    padding: 14px 16px;
+  }
+  
+  .connectivityDetails.expanded {
+    max-height: 350px;
+  }
+  
+  .connectivityStatus {
+    font-size: 14px;
+  }
+  
+  .connectivityLine {
+    height: 10px;
+  }
+  
+  .connectivityLine:hover {
+    height: 14px;
+  }
+  
+  .connectivityLine::before {
+    width: 30px;
+    height: 3px;
+  }
+  
+  .connectivityLine:hover::before {
+    width: 45px;
+    height: 4px;
+  }
+  
+  .footerInfoItem {
+    font-size: 13px;
+  }
+  
+  .footerLink {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 320px) {
+  .connectivityContent {
+    padding: 12px;
+  }
+  
+  .footerInfoItem {
+    font-size: 12px;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .footerLinks {
+    gap: 10px 16px;
+  }
+}

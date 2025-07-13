@@ -15,7 +15,9 @@
   border: 1px solid var(--border-color, #404040);
   border-radius: 12px;
   padding: 20px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .card:hover {
@@ -374,7 +376,9 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 6px;
+  padding: 12px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 4px;
   transition: all 0.2s;
   font-size: 1rem;
@@ -471,7 +475,9 @@
 .progressFill {
   height: 100%;
   background: var(--color-primary);
-  transition: width 0.3s ease;
+  transform-origin: left;
+  transition: transform 0.3s ease;
+  will-change: transform;
   border-radius: 3px;
 }
 
@@ -640,65 +646,65 @@
     grid-template-columns: 1fr;
     gap: 15px;
   }
-  
+
   .runsGrid {
     grid-template-columns: 1fr;
     gap: 15px;
   }
-  
+
   .card {
     padding: 16px;
   }
-  
+
   .goalHeader {
     flex-direction: column;
     gap: 10px;
     align-items: flex-start;
   }
-  
+
   .runDetails {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .runStats {
     gap: 10px;
   }
-  
+
   .progressItem {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
-  
+
   .goalInfo {
     width: 100%;
   }
-  
+
   .percentage {
     min-width: auto;
     text-align: left;
   }
-  
+
   .progressBar {
     width: 100%;
   }
-  
+
   .cardHeaderTemplate {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .templateDetails {
     grid-template-columns: 1fr;
     gap: 15px;
   }
-  
+
   .templateSelect {
     order: 1;
   }
-  
+
   .detailedProgress {
     flex-direction: column;
     gap: 15px;
