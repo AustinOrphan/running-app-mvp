@@ -1,4 +1,5 @@
 import React from 'react';
+import styles from '../../styles/components/Stats.module.css';
 
 import { Goal, GoalProgress, GOAL_TYPE_CONFIGS } from '../../types/goals';
 
@@ -35,12 +36,12 @@ export const GoalsOverviewCard: React.FC<GoalsOverviewCardProps> = ({
 
   if (loading) {
     return (
-      <div className='stats-card goals-overview-card'>
-        <div className='stats-card-header'>
+      <div className={`${styles.statsCard} ${styles.goalsOverviewCard}`}>
+        <div className={styles.statsCardHeader}>
           <h3>🎯 Goals Overview</h3>
         </div>
-        <div className='stats-card-content'>
-          <div className='loading-spinner'></div>
+        <div className={styles.statsCardContent}>
+          <div className={styles.loadingSpinner}></div>
           <p>Loading goals...</p>
         </div>
       </div>
@@ -49,13 +50,13 @@ export const GoalsOverviewCard: React.FC<GoalsOverviewCardProps> = ({
 
   if (goals.length === 0) {
     return (
-      <div className='stats-card goals-overview-card'>
-        <div className='stats-card-header'>
+      <div className={`${styles.statsCard} ${styles.goalsOverviewCard}`}>
+        <div className={styles.statsCardHeader}>
           <h3>🎯 Goals Overview</h3>
         </div>
-        <div className='stats-card-content'>
-          <div className='empty-goals-state'>
-            <div className='empty-icon'>🎯</div>
+        <div className={styles.statsCardContent}>
+          <div className={styles.emptyGoalsState}>
+            <div className={styles.emptyIcon}>🎯</div>
             <p>No goals set yet</p>
             <small>Create your first goal to start tracking progress!</small>
           </div>
@@ -79,57 +80,60 @@ export const GoalsOverviewCard: React.FC<GoalsOverviewCardProps> = ({
     .slice(0, 3);
 
   return (
-    <div className='stats-card goals-overview-card'>
-      <div className='stats-card-header'>
+    <div className={`${styles.statsCard} ${styles.goalsOverviewCard}`}>
+      <div className={styles.statsCardHeader}>
         <h3>🎯 Goals Overview</h3>
       </div>
-      <div className='stats-card-content'>
+      <div className={styles.statsCardContent}>
         {/* Summary Statistics */}
-        <div className='goals-summary'>
-          <div className='summary-stat'>
-            <span className='stat-number'>{totalGoals}</span>
-            <span className='stat-label'>Total Goals</span>
+        <div className={styles.goalsSummary}>
+          <div className={styles.summaryStat}>
+            <span className={styles.statNumber}>{totalGoals}</span>
+            <span className={styles.statLabel}>Total Goals</span>
           </div>
-          <div className='summary-stat'>
-            <span className='stat-number'>{completedCount}</span>
-            <span className='stat-label'>Completed</span>
+          <div className={styles.summaryStat}>
+            <span className={styles.statNumber}>{completedCount}</span>
+            <span className={styles.statLabel}>Completed</span>
           </div>
-          <div className='summary-stat'>
-            <span className='stat-number'>{Math.round(completionRate)}%</span>
-            <span className='stat-label'>Success Rate</span>
+          <div className={styles.summaryStat}>
+            <span className={styles.statNumber}>{Math.round(completionRate)}%</span>
+            <span className={styles.statLabel}>Success Rate</span>
           </div>
         </div>
 
         {/* Active Goals Progress */}
         {activeGoals.length > 0 && (
-          <div className='active-goals-section'>
+          <div className={styles.activeGoalsSection}>
             <h4>Active Goals Progress</h4>
-            <div className='goals-progress-list'>
+            <div className={styles.goalsProgressList}>
               {topActiveGoals.map(({ goal, progress }) => {
                 const config = GOAL_TYPE_CONFIGS[goal.type];
                 const progressPercentage = progress?.progressPercentage || 0;
                 const currentValue = progress?.currentValue || 0;
 
                 return (
-                  <div key={goal.id} className='goal-progress-item'>
-                    <div className='goal-info'>
-                      <div className='goal-icon' style={{ color: goal.color || config.color }}>
+                  <div key={goal.id} className={styles.goalProgressItem}>
+                    <div className={styles.goalInfo}>
+                      <div
+                        className={styles.goalIcon}
+                        style={{ color: goal.color || config.color }}
+                      >
                         {goal.icon || config.icon}
                       </div>
-                      <div className='goal-details'>
-                        <span className='goal-title'>{goal.title}</span>
-                        <span className='goal-progress-text'>
+                      <div className={styles.goalDetails}>
+                        <span className={styles.goalTitle}>{goal.title}</span>
+                        <span className={styles.goalProgressText}>
                           {formatProgressValue(currentValue, goal.targetUnit)} /{' '}
                           {formatProgressValue(goal.targetValue, goal.targetUnit)}
                         </span>
                       </div>
-                      <div className='goal-percentage'>{Math.round(progressPercentage)}%</div>
+                      <div className={styles.goalPercentage}>{Math.round(progressPercentage)}%</div>
                     </div>
-                    <div className='goal-progress-bar'>
+                    <div className={styles.goalProgressBar}>
                       <div
-                        className='goal-progress-fill'
+                        className={styles.goalProgressFill}
                         style={{
-                          width: `${Math.min(progressPercentage, 100)}%`,
+                          transform: `scaleX(${Math.min(progressPercentage, 100) / 100})`,
                           backgroundColor: goal.color || config.color,
                         }}
                       ></div>
@@ -143,9 +147,9 @@ export const GoalsOverviewCard: React.FC<GoalsOverviewCardProps> = ({
 
         {/* Recent Achievements */}
         {completedGoals.length > 0 && (
-          <div className='recent-achievements-section'>
+          <div className={styles.recentAchievementsSection}>
             <h4>Recent Achievements</h4>
-            <div className='achievements-list'>
+            <div className={styles.achievementsList}>
               {completedGoals
                 .sort((a, b) => {
                   const dateA = new Date(a.completedAt || a.updatedAt).getTime();
@@ -156,22 +160,22 @@ export const GoalsOverviewCard: React.FC<GoalsOverviewCardProps> = ({
                 .map(goal => {
                   const config = GOAL_TYPE_CONFIGS[goal.type];
                   return (
-                    <div key={goal.id} className='achievement-item'>
+                    <div key={goal.id} className={styles.achievementItem}>
                       <div
-                        className='achievement-icon'
+                        className={styles.achievementIcon}
                         style={{ color: goal.color || config.color }}
                       >
                         {goal.icon || config.icon}
                       </div>
-                      <div className='achievement-details'>
-                        <span className='achievement-title'>{goal.title}</span>
-                        <span className='achievement-date'>
+                      <div className={styles.achievementDetails}>
+                        <span className={styles.achievementTitle}>{goal.title}</span>
+                        <span className={styles.achievementDate}>
                           {goal.completedAt
                             ? new Date(goal.completedAt).toLocaleDateString()
                             : 'Recently completed'}
                         </span>
                       </div>
-                      <div className='achievement-badge'>🏆</div>
+                      <div className={styles.achievementBadge}>🏆</div>
                     </div>
                   );
                 })}
@@ -181,7 +185,7 @@ export const GoalsOverviewCard: React.FC<GoalsOverviewCardProps> = ({
 
         {/* Call to Action */}
         {activeGoals.length === 0 && completedGoals.length > 0 && (
-          <div className='goals-cta'>
+          <div className={styles.goalsCta}>
             <p>🎉 All goals completed! Ready for your next challenge?</p>
           </div>
         )}

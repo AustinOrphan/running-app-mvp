@@ -1,0 +1,370 @@
+/* Loading Module CSS */
+
+/* Loading Container */
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  text-align: center;
+  min-height: 200px;
+  justify-content: center;
+}
+
+.loadingText {
+  margin-top: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 18px;
+}
+
+/* Loading Spinner */
+.loadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #2a2a2a;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  pointer-events: none;
+}
+
+.skeletonLine {
+  background: linear-gradient(90deg, #404040 25%, #505050 50%, #404040 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+  height: 20px;
+  margin-bottom: 8px;
+}
+
+/* Skeleton Chart */
+.skeletonChart {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.skeletonCircle {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #404040 25%, #505050 50%, #404040 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeletonLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeletonLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Skeleton Line Chart */
+.skeletonLineChart {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  height: 200px;
+  width: 100%;
+  justify-content: flex-end;
+  padding: 20px;
+}
+
+.skeletonLineChart .skeletonLine {
+  background: linear-gradient(90deg, #404040 25%, #505050 50%, #404040 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 2px;
+  margin-bottom: 2px;
+}
+
+/* Table Skeleton */
+.tableSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeletonRow {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.headerSkeleton {
+  padding: 12px 0;
+  border-bottom: 2px solid #404040;
+}
+
+.skeletonRow:not(.headerSkeleton) {
+  padding: 12px 0;
+  border-bottom: 1px solid #404040;
+}
+
+/* Empty State */
+.emptyState {
+  text-align: center;
+  padding: 150px 20px;
+  color: rgba(255, 255, 255, 0.6);
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  animation: float 3s ease-in-out infinite;
+}
+
+.emptyState h3 {
+  color: rgba(255, 255, 255, 0.87);
+  margin-bottom: 8px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.emptyState h4 {
+  margin: 0 0 8px 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Empty Chart */
+.emptyChart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 40px 20px;
+  text-align: center;
+  min-height: 200px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.chartLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  min-height: 200px;
+}
+
+/* Connectivity Loading */
+.connectivityLine.loading {
+  animation:
+    footerGradientShift 3s ease-in-out infinite,
+    loading-shimmer 2s linear infinite;
+  background: linear-gradient(to right, #6b7280, #9ca3af, #d1d5db);
+  background-size: 200% 100%;
+}
+
+/* Animations */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes footerGradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Route loader for page transitions */
+.routeLoader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  min-height: 200px;
+  background: var(--surface-color);
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+/* Screen reader only text */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Responsive Design */
+
+/* Large Desktop: 1201px+ */
+@media (min-width: 1201px) {
+  .emptyState {
+    padding: 120px 20px;
+    min-height: 350px;
+  }
+  
+  .skeletonChart {
+    gap: 50px;
+  }
+  
+  .skeletonCircle {
+    width: 180px;
+    height: 180px;
+  }
+}
+
+/* Standard Desktop: 993px - 1200px */
+@media (min-width: 993px) and (max-width: 1200px) {
+  .emptyState {
+    padding: 110px 20px;
+    min-height: 330px;
+  }
+}
+
+/* Small Desktop / Large Tablet: 769px - 992px */
+@media (min-width: 769px) and (max-width: 992px) {
+  .emptyState {
+    padding: 100px 20px;
+    min-height: 320px;
+  }
+}
+
+/* Tablet Portrait: 481px - 768px */
+@media (min-width: 481px) and (max-width: 768px) {
+  .emptyState {
+    height: auto;
+    min-height: 300px;
+    padding: 80px 20px;
+  }
+  
+  .skeletonChart {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .skeletonCircle {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+/* Mobile Landscape / Small Tablet: 321px - 480px */
+@media (min-width: 321px) and (max-width: 480px) {
+  .emptyState {
+    height: auto;
+    min-height: 280px;
+    padding: 70px 16px;
+  }
+  
+  .emptyIcon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+  
+  .emptyState h3 {
+    font-size: 20px;
+  }
+  
+  .emptyState p {
+    font-size: 14px;
+  }
+  
+  .loadingContainer {
+    padding: 30px 16px;
+    min-height: 150px;
+  }
+  
+  .loadingText {
+    font-size: 16px;
+  }
+}
+
+/* Mobile Portrait: up to 320px */
+@media (max-width: 320px) {
+  .emptyState {
+    height: auto;
+    min-height: 250px;
+    padding: 60px 12px;
+  }
+  
+  .emptyIcon {
+    font-size: 36px;
+    margin-bottom: 10px;
+  }
+  
+  .emptyState h3 {
+    font-size: 18px;
+  }
+  
+  .emptyState p {
+    font-size: 12px;
+  }
+  
+  .loadingContainer {
+    padding: 20px 12px;
+    min-height: 120px;
+  }
+  
+  .loadingText {
+    font-size: 14px;
+  }
+  
+  .loadingSpinner {
+    width: 24px;
+    height: 24px;
+    border-width: 2px;
+  }
+}
