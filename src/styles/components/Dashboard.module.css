@@ -1,0 +1,263 @@
+/* Dashboard Layout */
+@import '../animations.css';
+
+.dashboard {
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.dashboardHeader {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.dashboardTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 0.5rem 0;
+}
+
+.dashboardSubtitle {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  opacity: 0.8;
+}
+
+/* Responsive Grid System */
+.dashboardGrid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'quick-stats'
+    'insights'
+    'actions'
+    'recent-runs'
+    'goal-progress'
+    'activity-heatmap';
+}
+
+/* Grid Areas */
+.quickStatsSection {
+  grid-area: quick-stats;
+}
+
+.insightsSection {
+  grid-area: insights;
+}
+
+.actionsSection {
+  grid-area: actions;
+}
+
+.recentRunsSection {
+  grid-area: recent-runs;
+}
+
+.goalProgressSection {
+  grid-area: goal-progress;
+}
+
+.activityHeatmapSection {
+  grid-area: activity-heatmap;
+}
+
+/* Tablet Layout */
+@media (min-width: 768px) {
+  .dashboard {
+    padding: 1.5rem;
+  }
+
+  .dashboardGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    grid-template-areas:
+      'quick-stats insights'
+      'actions actions'
+      'recent-runs goal-progress'
+      'activity-heatmap activity-heatmap';
+  }
+
+  .dashboardTitle {
+    font-size: 2.5rem;
+  }
+}
+
+/* Desktop Layout */
+@media (min-width: 1024px) {
+  .dashboard {
+    padding: 2rem;
+  }
+
+  .dashboardGrid {
+    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-areas:
+      'quick-stats insights actions'
+      'recent-runs recent-runs goal-progress'
+      'activity-heatmap activity-heatmap activity-heatmap';
+  }
+
+  .dashboardHeader {
+    margin-bottom: 3rem;
+  }
+}
+
+/* Large Desktop Layout */
+@media (min-width: 1280px) {
+  .dashboardGrid {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+      'quick-stats quick-stats insights actions'
+      'recent-runs recent-runs goal-progress goal-progress'
+      'activity-heatmap activity-heatmap activity-heatmap activity-heatmap';
+  }
+}
+
+/* Widget Base Styles */
+.widget {
+  background: var(--color-card-background);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.widget::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.widget:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-primary-subtle);
+}
+
+.widget:hover::before {
+  left: 100%;
+}
+
+.widgetHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.widgetTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.widgetIcon {
+  font-size: 1.25rem;
+}
+
+.widgetContent {
+  min-height: 100px;
+}
+
+/* Loading States */
+.widgetLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  color: var(--color-text-secondary);
+}
+
+.loadingSpinner {
+  animation: spin 1s linear infinite;
+  font-size: 1.5rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Empty States */
+.widgetEmpty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--color-text-secondary);
+}
+
+.emptyIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.emptyMessage {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.emptyHint {
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
+
+/* Animation entrance effects */
+.widget {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger animations for multiple widgets */
+.quickStatsSection {
+  animation-delay: 0.1s;
+}
+.insightsSection {
+  animation-delay: 0.2s;
+}
+.actionsSection {
+  animation-delay: 0.3s;
+}
+.recentRunsSection {
+  animation-delay: 0.4s;
+}
+.goalProgressSection {
+  animation-delay: 0.5s;
+}

@@ -6,6 +6,7 @@ import { ComingSoonPage } from '../Pages/ComingSoonPage';
 import { RunsPage } from '../Pages/RunsPage';
 import { GoalsPage } from '../../pages/GoalsPage';
 import { StatsPage } from '../../pages/StatsPage';
+import { DashboardPage } from '../../pages/DashboardPage';
 
 // Types and constants
 import { ROUTES } from '../../constants/navigation';
@@ -61,8 +62,15 @@ export const AppRouter: React.FC<AppRouterProps> = ({
   return (
     <Suspense fallback={<RouteLoader />}>
       <Routes>
-        {/* Root redirect */}
-        <Route path='/' element={<Navigate to={ROUTES.runs.path} replace />} />
+        {/* Dashboard route */}
+        <Route
+          path={ROUTES.dashboard.path}
+          element={
+            <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <DashboardPage onShowToast={onShowToast} />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Protected routes */}
         <Route
@@ -113,7 +121,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
         />
 
         {/* Catch-all route */}
-        <Route path='*' element={<Navigate to={ROUTES.runs.path} replace />} />
+        <Route path='*' element={<Navigate to={ROUTES.dashboard.path} replace />} />
       </Routes>
     </Suspense>
   );
