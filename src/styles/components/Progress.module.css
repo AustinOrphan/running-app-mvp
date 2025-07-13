@@ -135,9 +135,10 @@
   height: 100%;
   background: var(--color-primary);
   border-radius: inherit;
-  transition: width var(--progress-transition);
+  transform-origin: left;
+  transition: transform var(--progress-transition);
   position: relative;
-  will-change: width;
+  will-change: transform;
 }
 
 .progressBar.large .progressFill {
@@ -506,18 +507,37 @@
 }
 
 .streakCard {
+  position: relative;
   padding: var(--progress-gap);
   background: var(--surface-color);
   border-radius: var(--progress-border-radius);
   border: 1px solid var(--border-color);
   text-align: center;
-  transition: transform var(--progress-transition), box-shadow var(--progress-transition);
+  transition: transform var(--progress-transition);
   will-change: transform;
+}
+
+.streakCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transition: opacity var(--progress-transition);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .streakCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.streakCard:hover::before {
+  opacity: 1;
 }
 
 .streakIcon {

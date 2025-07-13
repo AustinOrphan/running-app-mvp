@@ -126,7 +126,7 @@ export const GoalProgressChart: React.FC<GoalProgressChartProps> = ({
               <div
                 className='progress-fill'
                 style={{
-                  width: `${progressPercentage}%`,
+                  transform: `scaleX(${progressPercentage / 100})`,
                   backgroundColor: getStatusColor(),
                 }}
               ></div>
@@ -144,7 +144,10 @@ export const GoalProgressChart: React.FC<GoalProgressChartProps> = ({
           </div>
           <div className='progress-bar-container'>
             <div className='progress-bar large'>
-              <div className='progress-fill time' style={{ width: `${timePercentage}%` }}></div>
+              <div
+                className='progress-fill time'
+                style={{ transform: `scaleX(${timePercentage / 100})` }}
+              ></div>
               <div className='progress-label'>
                 {daysElapsed} / {totalDays} days
               </div>

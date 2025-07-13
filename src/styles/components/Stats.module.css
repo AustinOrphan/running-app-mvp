@@ -163,7 +163,7 @@
 
 .metricSelector:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 .chartContainer {
@@ -324,7 +324,7 @@
 }
 
 .recordsTable th.sortable.active {
-  color: var(--primary-color);
+  color: var(--color-primary);
 }
 
 .recordsTable td {
@@ -354,7 +354,7 @@
 
 .distanceValue {
   font-weight: 600;
-  color: var(--primary-color);
+  color: var(--color-primary);
 }
 
 .timeValue {
@@ -397,7 +397,7 @@
 }
 
 .headerSkeleton .skeletonLine {
-  height: 16px !important;
+  height: 16px;
 }
 
 /* Empty Records State */

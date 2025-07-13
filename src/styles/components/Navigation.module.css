@@ -355,8 +355,9 @@
   }
 
   .navBtn {
-    padding: 8px 6px;
+    padding: 16px 6px;
     font-size: 12px;
+    min-height: 44px;
   }
 
   .header {

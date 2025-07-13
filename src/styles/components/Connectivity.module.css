@@ -265,7 +265,9 @@
 .countdownProgressBar {
   height: 100%;
   background: linear-gradient(to right, #3b82f6, #10b981);
-  transition: width 0.1s linear;
+  transform-origin: left;
+  transition: transform 0.1s linear;
+  will-change: transform;
   border-radius: 2px;
 }
 

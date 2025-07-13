@@ -376,7 +376,9 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 6px;
+  padding: 12px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 4px;
   transition: all 0.2s;
   font-size: 1rem;
@@ -473,7 +475,9 @@
 .progressFill {
   height: 100%;
   background: var(--color-primary);
-  transition: width 0.3s ease;
+  transform-origin: left;
+  transition: transform 0.3s ease;
+  will-change: transform;
   border-radius: 3px;
 }
 

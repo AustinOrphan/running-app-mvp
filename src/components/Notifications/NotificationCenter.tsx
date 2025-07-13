@@ -95,7 +95,7 @@ const NotificationItem: React.FC<{
                 <div
                   className={styles.milestoneFill}
                   style={{
-                    width: `${notification.milestonePercentage}%`,
+                    transform: `scaleX(${notification.milestonePercentage / 100})`,
                     backgroundColor: notification.color,
                   }}
                 />
@@ -240,7 +240,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
                 <button className={styles.btnPrimary} onClick={handleRequestPermission}>
                   Enable Browser Notifications
                 </button>
-                <p className={styles.settingDescription}>Get notified even when the app is not open</p>
+                <p className={styles.settingDescription}>
+                  Get notified even when the app is not open
+                </p>
               </div>
             )}
 
