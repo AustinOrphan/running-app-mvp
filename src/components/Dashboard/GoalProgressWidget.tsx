@@ -58,9 +58,44 @@ export const GoalProgressWidget: React.FC<GoalProgressWidgetProps> = ({ goals, r
         const totalDistance = runs.reduce((sum, run) => sum + run.distance, 0);
         return Math.min((totalDistance / goal.targetValue) * 100, 100);
       }
-      case GOAL_TYPES.PACE:
-        // For pace goals, we'd need to calculate if the user is meeting their target
-        return 0; // Simplified for now
+      case GOAL_TYPES.PACE: {
+        // Filter runs within the goal period for pace calculation
+        const goalStartTime = new Date(goal.startDate).getTime();
+        const goalEndTime = new Date(goal.endDate).getTime();
+        
+        const relevantRuns = runs.filter(run => {
+          const runTime = new Date(run.date).getTime();
+          return runTime >= goalStartTime && runTime <= goalEndTime;
+        });
+
+        if (relevantRuns.length === 0) {
+          return 0; // No runs to calculate pace from
+        }
+
+        // Calculate average pace from relevant runs
+        const totalDistance = relevantRuns.reduce((sum, run) => sum + run.distance, 0);
+        const totalTime = relevantRuns.reduce((sum, run) => sum + run.duration, 0);
+        
+        if (totalDistance === 0) {
+          return 0; // No distance covered
+        }
+
+        // Average pace in minutes per km
+        const averagePaceMinPerKm = (totalTime / 60) / totalDistance;
+        const targetPaceMinPerKm = goal.targetValue;
+
+        // For pace goals, better pace = lower time
+        // Progress is how much better/worse current pace is vs target
+        if (averagePaceMinPerKm <= targetPaceMinPerKm) {
+          // Current pace is better than or equal to target - 100% achieved
+          return 100;
+        } else {
+          // Calculate how close we are to the target
+          // If target is 5:00 min/km and current is 6:00 min/km, we're 83.3% there
+          const progressRatio = targetPaceMinPerKm / averagePaceMinPerKm;
+          return Math.max(0, Math.min(100, progressRatio * 100));
+        }
+      }
       case GOAL_TYPES.TIME: {
         const totalTime = runs.reduce((sum, run) => sum + run.duration, 0);
         return Math.min((totalTime / goal.targetValue) * 100, 100);

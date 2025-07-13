@@ -3,6 +3,14 @@ import { Run } from '../../types';
 import { formatDistance } from '../../utils/formatters';
 import { SkeletonLoader, SkeletonStyles } from './SkeletonLoader';
 
+// Activity level thresholds for heatmap visualization
+const ACTIVITY_THRESHOLDS = {
+  LIGHT: 0,     // Any activity > 0
+  MODERATE: 5,  // > 5km
+  ACTIVE: 10,   // > 10km  
+  VERY_ACTIVE: 15, // > 15km
+} as const;
+
 interface ActivityHeatmapProps {
   runs: Run[];
   weeks?: number;
@@ -60,10 +68,10 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
     const totalDistance = dayRuns.reduce((sum, run) => sum + run.distance, 0);
 
     let level = 0;
-    if (totalDistance > 0) level = 1;
-    if (totalDistance > 5) level = 2;
-    if (totalDistance > 10) level = 3;
-    if (totalDistance > 15) level = 4;
+    if (totalDistance > ACTIVITY_THRESHOLDS.LIGHT) level = 1;
+    if (totalDistance > ACTIVITY_THRESHOLDS.MODERATE) level = 2;
+    if (totalDistance > ACTIVITY_THRESHOLDS.ACTIVE) level = 3;
+    if (totalDistance > ACTIVITY_THRESHOLDS.VERY_ACTIVE) level = 4;
 
     return { level, distance: totalDistance, runs: dayRuns.length };
   };

@@ -3,6 +3,21 @@ import { Run } from '../../types';
 import { formatDistance, formatDuration, formatDate } from '../../utils/formatters';
 import { SkeletonLoader, SkeletonStyles } from './SkeletonLoader';
 import { useRouter } from '../../hooks/useRouter';
+
+// Icon mapping for run types
+const RUN_TYPE_ICONS = {
+  race: '🏆',
+  tempo: '⚡',
+  interval: '🔥',
+  long: '🛣️',
+  default: '🏃‍♂️',
+} as const;
+
+// Helper function to get run icon based on tag
+const getRunIcon = (tag?: string): string => {
+  if (!tag) return RUN_TYPE_ICONS.default;
+  return RUN_TYPE_ICONS[tag as keyof typeof RUN_TYPE_ICONS] || RUN_TYPE_ICONS.default;
+};
 import styles from '../../styles/components/Dashboard.module.css';
 
 interface RecentRunsWidgetProps {
@@ -76,15 +91,7 @@ export const RecentRunsWidget: React.FC<RecentRunsWidgetProps> = ({ runs, loadin
                 }}
               >
                 <div className='run-icon'>
-                  {run.tag === 'race'
-                    ? '🏆'
-                    : run.tag === 'tempo'
-                      ? '⚡'
-                      : run.tag === 'interval'
-                        ? '🔥'
-                        : run.tag === 'long'
-                          ? '🛣️'
-                          : '🏃‍♂️'}
+                  {getRunIcon(run.tag)}
                 </div>
                 <div className='run-details'>
                   <div className='run-primary'>

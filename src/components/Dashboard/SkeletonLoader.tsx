@@ -280,11 +280,9 @@ export const SkeletonStyles = () => (
     }
 
     /* Dark mode skeleton styles */
-    @media (prefers-color-scheme: dark) {
-      .skeleton {
-        background: linear-gradient(90deg, #2a2a2a 25%, #1a1a1a 50%, #2a2a2a 75%);
-        background-size: 200% 100%;
-      }
+    [data-theme="dark"] .skeleton {
+      background: linear-gradient(90deg, #2a2a2a 25%, #1a1a1a 50%, #2a2a2a 75%);
+      background-size: 200% 100%;
     }
 
     /* Reduced motion */
@@ -294,11 +292,10 @@ export const SkeletonStyles = () => (
         background: #f0f0f0;
       }
 
-      @media (prefers-color-scheme: dark) {
-        .skeleton {
-          background: #2a2a2a;
-        }
-      }
+    }
+
+    [data-theme="dark"] .skeleton {
+      background: #2a2a2a;
     }
   `}</style>
 );

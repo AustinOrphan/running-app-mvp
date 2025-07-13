@@ -135,3 +135,4 @@ bundle-report.json
 performance-report.md
 build-report.md
 release-package/
+node_modules.bak/

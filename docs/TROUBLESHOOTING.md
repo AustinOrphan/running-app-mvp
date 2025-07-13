@@ -132,7 +132,7 @@ ps aux | grep vite | grep -v grep
 # Check what's listening on port 3000
 sudo lsof -i :3000
 # OR on macOS if lsof isn't working:
-sudo netstat -tulpn | grep :3000
+sudo netstat -an | grep :3000
 ```
 
 **Step 2: Test Direct Connectivity**

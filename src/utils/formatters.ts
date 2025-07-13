@@ -157,3 +157,19 @@ export const parseDuration = (durationStr: string): number => {
   const [, h, m, s] = match.map(val => Number.parseInt(val ?? '0', 10));
   return (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
 };
+
+/**
+ * Calculates average pace from an array of runs
+ * @param runs - Array of Run objects
+ * @returns Average pace in seconds per kilometer
+ */
+export const calculateAveragePace = (runs: Array<{ distance: number; duration: number }>): number => {
+  if (!runs.length) return 0;
+  
+  const totalDistance = runs.reduce((sum, run) => sum + run.distance, 0);
+  const totalDuration = runs.reduce((sum, run) => sum + run.duration, 0);
+  
+  if (totalDistance === 0) return 0;
+  
+  return totalDuration / totalDistance; // seconds per kilometer
+};
