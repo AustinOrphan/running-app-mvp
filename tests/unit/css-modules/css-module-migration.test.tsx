@@ -148,7 +148,7 @@ describe('CSS Module Migration Tests', () => {
 
   describe('CSS Module Class Name Generation', () => {
     it('should generate valid class names for all modules', () => {
-      const testClassNameGeneration = (styles: object, moduleName: string) => {
+      const testClassNameGeneration = (styles: object, _moduleName: string) => {
         const keys = Object.keys(styles);
         expect(keys.length).toBeGreaterThan(0);
         

@@ -86,7 +86,7 @@ function isValidPassword(password: string): { isValid: boolean; issues: string[]
 }
 
 /**
- * Creates a new test user with the given configuration
+ * Creates a new test user with the given configuration using upsert for idempotency
  */
 async function createTestUser(config: UserConfig): Promise<void> {
   const prisma = new PrismaClient();
@@ -94,63 +94,36 @@ async function createTestUser(config: UserConfig): Promise<void> {
   try {
     console.log('\nCreating test user...');
     
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: config.email },
-    });
-    
-    if (existingUser) {
-      if (!config.force) {
-        console.error(`\nError: User with email '${config.email}' already exists.`);
-        console.log('Use --force flag to overwrite, or choose a different email address.');
-        process.exit(1);
-      }
-      
-      console.log('Updating existing user...');
-      const hashedPassword = await bcrypt.hash(config.password, 12);
-      
-      const updatedUser = await prisma.user.update({
-        where: { email: config.email },
-        data: {
-          password: hashedPassword,
-          name: config.name,
-        },
-      });
-      
-      console.log('\n✓ Test user updated successfully!');
-      console.log(`  Email: ${updatedUser.email}`);
-      console.log(`  Name: ${updatedUser.name}`);
-      console.log(`  ID: ${updatedUser.id}`);
-      return;
-    }
-    
     // Hash password securely
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(config.password, saltRounds);
     
-    // Create new user
-    const user = await prisma.user.create({
-      data: {
+    // Use upsert to make the operation idempotent
+    const user = await prisma.user.upsert({
+      where: { email: config.email },
+      update: {
+        password: hashedPassword,
+        name: config.name,
+      },
+      create: {
         email: config.email,
         password: hashedPassword,
         name: config.name,
       },
     });
     
-    console.log('\n✓ Test user created successfully!');
+    console.log('\n✓ Test user created or updated successfully!');
     console.log(`  Email: ${user.email}`);
     console.log(`  Name: ${user.name}`);
     console.log(`  ID: ${user.id}`);
     console.log(`  Created: ${user.createdAt.toISOString()}`);
     
   } catch (error) {
-    console.error('\nError creating user:');
+    console.error('\nError creating/updating user:');
     
     if (error instanceof Error) {
       // Handle specific database errors
-      if (error.message.includes('Unique constraint')) {
-        console.error('A user with this email already exists.');
-      } else if (error.message.includes('ECONNREFUSED')) {
+      if (error.message.includes('ECONNREFUSED')) {
         console.error('Cannot connect to database. Is it running?');
       } else {
         console.error(error.message);

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './styles/globals.css';
+import './styles/themes.css';
+import './styles/micro-interactions.css';
 import './App.css';
 import styles from './styles/components/App.module.css';
 import layoutStyles from './styles/components/Layout.module.css';
@@ -24,6 +26,9 @@ import { RouteKey } from './constants/navigation';
 
 // Context
 import { HealthCheckProvider, useHealthCheck } from './contexts/HealthCheckContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { FeedbackProvider } from './components/Feedback/FeedbackProvider';
+import { FeedbackContainer } from './components/Feedback/FeedbackContainer';
 
 function AppContent() {
   const [swipeHighlight, setSwipeHighlight] = useState(false);
@@ -202,6 +207,7 @@ function AppContent() {
       </div>
 
       <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
+      <FeedbackContainer />
       <ConnectivityFooter
         disableFocusIndicator={true}
         additionalSections={[
@@ -249,9 +255,13 @@ function AppContent() {
 
 function App() {
   return (
-    <HealthCheckProvider>
-      <AppContent />
-    </HealthCheckProvider>
+    <ThemeProvider>
+      <FeedbackProvider>
+        <HealthCheckProvider>
+          <AppContent />
+        </HealthCheckProvider>
+      </FeedbackProvider>
+    </ThemeProvider>
   );
 }
 

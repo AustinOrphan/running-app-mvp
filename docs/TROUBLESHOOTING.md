@@ -39,7 +39,223 @@ export { ConfirmationModal } from './UI/Modal';
 
 ---
 
-## Issue 2: Login Failures and Timeouts
+## Issue 2: Vite WebSocket Connection Failures
+
+### Problem
+
+**Date Discovered:** 2025-07-13  
+**Context:** After fixing ConfirmationModal import errors and restarting dev servers
+
+Frontend browser console shows repeated WebSocket connection failures:
+
+```
+[vite] server connection lost. Polling for restart...
+WebSocket connection to 'ws://localhost:3000/' failed:
+ping @ client:921
+waitForSuccessfulPing @ client:940
+handleMessage @ client:868
+```
+
+This error repeats continuously, indicating the Vite development server's Hot Module Replacement (HMR) WebSocket connection is failing.
+
+### Root Cause Analysis
+
+**Investigation Steps Taken:**
+
+1. **Process Check**: Confirmed development servers are running
+
+   ```bash
+   ps aux | grep -E "(vite|tsx)" | grep -v grep
+   # Shows tsx server running on backend
+   # Need to verify Vite frontend server status
+   ```
+
+2. **Port Availability**: Attempted to check port usage
+
+   ```bash
+   lsof -i:3000,3001  # Failed
+   netstat -an | grep -E "3000|3001"  # Failed
+   ```
+
+3. **HTTP Connectivity**: Tested HTTP endpoints
+
+   ```bash
+   curl -s http://localhost:3000/  # No output (concerning)
+   curl -s http://localhost:3001/api/health  # Failed
+   ```
+
+4. **Vite Configuration Review**: Examined `vite.config.ts`
+   ```typescript
+   server: {
+     port: 3000,
+     proxy: {
+       '/api': {
+         target: 'http://localhost:3001',
+         changeOrigin: true,
+       },
+     },
+   }
+   ```
+
+### Likely Causes
+
+Based on the investigation, the most probable causes are:
+
+1. **Vite Development Server Crashed**: The frontend Vite server may have crashed while the backend tsx server continues running
+2. **Port Conflict**: Another process may be using port 3000
+3. **WebSocket Configuration Issue**: Vite's HMR WebSocket may be misconfigured
+4. **Network Interface Binding**: Server may be bound to wrong interface (IPv4 vs IPv6)
+
+### Symptoms
+
+- ✅ Backend server appears to be running (tsx process found)
+- ❌ Frontend HTTP requests return no response
+- ❌ WebSocket connections to `ws://localhost:3000/` fail
+- ❌ Vite HMR polling continuously fails
+- 🔄 Browser shows "Polling for restart..." message
+
+### Impact
+
+- **Development Experience**: Hot Module Replacement doesn't work
+- **Live Reloading**: Changes require manual browser refresh
+- **Debugging**: Console spam makes debugging difficult
+- **Performance**: Continuous failed polling consumes resources
+
+### Immediate Debugging Steps
+
+**Step 1: Verify Process Status**
+
+```bash
+# Check if Vite is actually running
+ps aux | grep vite | grep -v grep
+
+# Check what's listening on port 3000
+sudo lsof -i :3000
+# OR on macOS if lsof isn't working:
+sudo netstat -an | grep :3000
+```
+
+**Step 2: Test Direct Connectivity**
+
+```bash
+# Test if anything responds on port 3000
+telnet localhost 3000
+
+# Check if we can reach the WebSocket endpoint
+curl -I http://localhost:3000/
+```
+
+**Step 3: Restart Development Servers**
+
+```bash
+# Kill all related processes
+pkill -f "vite"
+pkill -f "tsx"
+
+# Clean restart
+npm run dev:full
+```
+
+### Potential Solutions
+
+**Solution 1: Clean Server Restart**
+
+```bash
+# Stop all processes
+lsof -ti:3000,3001 | xargs kill -9 2>/dev/null || true
+
+# Start servers individually to isolate issues
+npm run dev &          # Backend first
+npm run dev:frontend   # Frontend second
+```
+
+**Solution 2: Alternative Port Configuration**
+If port 3000 is conflicted, modify `vite.config.ts`:
+
+```typescript
+server: {
+  port: 3002,  // Use different port
+  host: '0.0.0.0',  // Bind to all interfaces
+  // ... rest of config
+}
+```
+
+**Solution 3: WebSocket Configuration**
+Add explicit WebSocket configuration to `vite.config.ts`:
+
+```typescript
+server: {
+  port: 3000,
+  hmr: {
+    port: 3000,
+    host: 'localhost'
+  },
+  // ... rest of config
+}
+```
+
+**Solution 4: Development Environment Reset**
+
+```bash
+# Clear Vite cache
+rm -rf node_modules/.vite
+
+# Clear npm cache
+npm cache clean --force
+
+# Reinstall dependencies
+rm -rf node_modules
+npm install
+
+# Restart servers
+npm run dev:full
+```
+
+### Prevention
+
+1. **Graceful Shutdown**: Always use Ctrl+C to stop servers instead of killing processes
+2. **Port Management**: Use tools like `lsof` to check port usage before starting servers
+3. **Process Monitoring**: Regularly check that both frontend and backend servers are running
+4. **Configuration Validation**: Ensure Vite and backend configurations are compatible
+
+### Resolution
+
+**Root Cause Confirmed**: Vite development server crashed while backend remained running
+
+**Investigation Results**:
+
+```bash
+ps aux | grep vite | grep -v grep
+# No output - Vite process was not running
+```
+
+**Solution Applied**:
+
+```bash
+# Restarted frontend server
+npm run dev:frontend
+
+# Result: VITE v7.0.3 ready in 127 ms
+# ➜  Local:   http://localhost:3000/
+```
+
+**Status**: ✅ **RESOLVED**
+
+**Outcome**:
+
+- WebSocket connection restored
+- HMR (Hot Module Replacement) working
+- No more polling errors in browser console
+- Frontend accessible at http://localhost:3000/
+
+### Related Issues
+
+- See "Issue 1: ConfirmationModal Import Error" - This WebSocket issue appeared after fixing import errors and restarting servers
+- May be related to process cleanup after multiple server restarts during development
+
+---
+
+## Issue 3: Login Failures and Timeouts
 
 ### Problem
 
@@ -194,17 +410,24 @@ To avoid these issues in the future:
 3. **Start Services**
 
    ```bash
+   # Clean start (kill any existing processes first)
+   lsof -ti:3000,3001 | xargs kill -9 2>/dev/null || true
+
    # Terminal 1: Backend
    npm run dev
 
    # Terminal 2: Frontend
    npm run dev:frontend
+
+   # OR: Both together
+   npm run dev:full
    ```
 
 4. **Verify Setup**
    - Backend running on http://localhost:3001
    - Frontend running on http://localhost:3000
    - Can login with test credentials
+   - WebSocket connection working (no polling errors in console)
 
 ---
 
@@ -224,13 +447,23 @@ To avoid these issues in the future:
 4. Ensure test data exists
 5. Check rate limiting and security settings
 
+### For Vite/Frontend Issues
+
+1. Check browser console for WebSocket errors
+2. Verify Vite process is running: `ps aux | grep vite`
+3. Test HTTP connectivity: `curl -I http://localhost:3000/`
+4. Check port conflicts: `lsof -i :3000`
+5. Clear Vite cache: `rm -rf node_modules/.vite`
+6. Restart with clean slate: Kill all processes, then `npm run dev:full`
+
 ### For Environment Issues
 
 1. Always restart the backend after .env changes
 2. Verify which database you're connected to
 3. Check if security features are blocking development
+4. Ensure both frontend and backend servers are running simultaneously
 
 ---
 
-_Document created: 2025-07-13_
-_Last updated: 2025-07-13_
+_Document created: 2025-07-13_  
+_Last updated: 2025-07-13 (Added WebSocket investigation)_
