@@ -341,7 +341,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
       <div
         className={fillClasses.join(' ')}
         style={{
-          width: `${Math.min(percentage, 100)}%`,
+          transform: `scaleX(${Math.min(percentage, 100) / 100})`,
           backgroundColor: color || undefined,
         }}
       />

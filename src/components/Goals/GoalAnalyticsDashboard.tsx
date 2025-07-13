@@ -315,7 +315,7 @@ export const GoalAnalyticsDashboard: React.FC<GoalAnalyticsDashboardProps> = ({
                           <div
                             className='distribution-fill'
                             style={{
-                              width: `${(count / analytics.totalGoals) * 100}%`,
+                              transform: `scaleX(${count / analytics.totalGoals})`,
                               backgroundColor: '#3b82f6',
                             }}
                           />
@@ -335,7 +335,7 @@ export const GoalAnalyticsDashboard: React.FC<GoalAnalyticsDashboardProps> = ({
                             <div
                               className='distribution-fill'
                               style={{
-                                width: `${(count / analytics.totalGoals) * 100}%`,
+                                transform: `scaleX(${count / analytics.totalGoals})`,
                                 backgroundColor:
                                   DIFFICULTY_COLORS[difficulty as keyof typeof DIFFICULTY_COLORS] ||
                                   '#6b7280',

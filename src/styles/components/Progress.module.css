@@ -4,7 +4,22 @@
  * Extracted from App.css as part of CSS architecture migration.
  * Uses CSS variables from globals.css for consistent theming.
  * Includes circular progress, linear progress, charts, and visualizations.
+ * 
+ * Performance optimizations:
+ * - CSS custom properties for shared values
+ * - Consolidated responsive breakpoints
+ * - Hardware-accelerated transforms
+ * - Efficient animations using transform/opacity
  */
+
+/* Custom properties for shared values */
+:root {
+  --progress-transition: 0.3s ease;
+  --progress-border-radius: 8px;
+  --progress-gap: 16px;
+  --streak-day-size: 32px;
+  --chart-height: 300px;
+}
 
 /* Circular Progress Components */
 .circularProgress {
@@ -47,11 +62,12 @@
 .progressForeground {
   stroke: var(--color-primary);
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.5s ease-in-out;
+  transition: stroke-dashoffset var(--progress-transition);
+  will-change: stroke-dashoffset;
 }
 
 .progressForeground.animated {
-  transition: stroke-dashoffset 0.5s ease-in-out;
+  transition: stroke-dashoffset var(--progress-transition);
 }
 
 .progressBackground {
@@ -119,8 +135,10 @@
   height: 100%;
   background: var(--color-primary);
   border-radius: inherit;
-  transition: width 0.3s ease;
+  transform-origin: left;
+  transition: transform var(--progress-transition);
   position: relative;
+  will-change: transform;
 }
 
 .progressBar.large .progressFill {
@@ -214,8 +232,8 @@
 
 .chartContainer {
   position: relative;
-  height: 300px;
-  margin: 16px 0;
+  height: var(--chart-height);
+  margin: var(--progress-gap) 0;
 }
 
 .chartLoading,
@@ -374,8 +392,8 @@
 }
 
 .streakDay {
-  width: 32px;
-  height: 32px;
+  width: var(--streak-day-size);
+  height: var(--streak-day-size);
   border-radius: 4px;
   display: flex;
   flex-direction: column;
@@ -385,12 +403,13 @@
   color: var(--text-secondary);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform var(--progress-transition), background-color var(--progress-transition), border-color var(--progress-transition);
   background: var(--surface-color-hover);
+  will-change: transform;
 }
 
 .streakDay:hover {
-  transform: scale(1.1);
+  transform: scale(1.2);
   border-color: var(--border-color);
   background: var(--surface-color);
 }
@@ -488,17 +507,37 @@
 }
 
 .streakCard {
-  padding: 16px;
+  position: relative;
+  padding: var(--progress-gap);
   background: var(--surface-color);
-  border-radius: 8px;
+  border-radius: var(--progress-border-radius);
   border: 1px solid var(--border-color);
   text-align: center;
-  transition: all 0.2s ease;
+  transition: transform var(--progress-transition);
+  will-change: transform;
+}
+
+.streakCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transition: opacity var(--progress-transition);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .streakCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.streakCard:hover::before {
+  opacity: 1;
 }
 
 .streakIcon {
@@ -559,38 +598,35 @@
   margin-right: 12px;
 }
 
-/* Mobile Responsive Design */
+/* Mobile Responsive Design - Consolidated and Optimized */
 @media (max-width: 768px) {
+  /* Update CSS custom properties for tablet */
+  :root {
+    --streak-day-size: 28px;
+    --chart-height: 250px;
+    --progress-gap: 12px;
+  }
+
   .progressStats {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: var(--progress-gap);
   }
 
   .streakStats {
-    gap: 16px;
+    gap: var(--progress-gap);
   }
 
   .streakNumber {
     font-size: 20px;
   }
 
-  .streakDay {
-    width: 28px;
-    height: 28px;
-    font-size: 9px;
-  }
-
-  .chartContainer {
-    height: 250px;
-  }
-
   .chartLegend {
-    gap: 12px;
+    gap: var(--progress-gap);
   }
 
   .detailedProgress {
     flex-direction: column;
-    gap: 16px;
+    gap: var(--progress-gap);
     align-items: stretch;
   }
 
@@ -600,17 +636,20 @@
 }
 
 @media (max-width: 480px) {
-  .progressStats {
+  /* Update CSS custom properties for mobile */
+  :root {
+    --streak-day-size: 24px;
+    --progress-gap: 8px;
+  }
+
+  .progressStats,
+  .streakCards {
     grid-template-columns: 1fr;
   }
 
   .streakStats {
     flex-direction: column;
-    gap: 12px;
-  }
-
-  .streakCards {
-    grid-template-columns: 1fr;
+    gap: var(--progress-gap);
   }
 
   .chartBars {
@@ -618,22 +657,13 @@
     padding: 0 5px;
   }
 
-  .streakDay {
-    width: 24px;
-    height: 24px;
-    font-size: 8px;
-  }
-
   .calendarGrid {
     gap: 2px;
   }
 }
 
-/* Animation Keyframes */
+/* Animation Keyframes - Optimized for Performance */
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
   to {
     transform: rotate(360deg);
   }
@@ -641,21 +671,21 @@
 
 @keyframes progressFill {
   from {
-    width: 0%;
+    transform: scaleX(0);
   }
   to {
-    width: var(--progress-width, 0%);
+    transform: scaleX(1);
   }
 }
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translate3d(0, 20px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
