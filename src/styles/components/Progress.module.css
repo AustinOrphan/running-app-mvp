@@ -409,7 +409,7 @@
 }
 
 .streakDay:hover {
-  transform: scale(1.1);
+  transform: scale(1.2);
   border-color: var(--border-color);
   background: var(--surface-color);
 }
