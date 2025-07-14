@@ -47,7 +47,7 @@ const CustomTooltip = ({
         <p className='tooltip-item'>
           Avg pace:{' '}
           <span className='tooltip-value'>
-            {data.avgPace > 0
+            {data.avgPace > 0 && isFinite(data.avgPace)
               ? `${Math.floor(data.avgPace / 60)}:${(data.avgPace % 60).toString().padStart(2, '0')}/km`
               : '-'}
           </span>
@@ -118,7 +118,7 @@ export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ da
               dataKey='count'
             >
               {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
+                <Cell key={`cell-${entry.tag}-${index}`} fill={entry.color} />
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />
@@ -127,13 +127,13 @@ export const RunTypeBreakdownChart: React.FC<RunTypeBreakdownChartProps> = ({ da
       </div>
 
       <div className='chart-legend'>
-        {chartData.map((item, _index) => (
-          <div key={item.tag} className='legend-item'>
+        {chartData.map((item, index) => (
+          <div key={`${item.tag}-${index}`} className='legend-item'>
             <div className='legend-color' style={{ backgroundColor: item.color }}></div>
             <div className='legend-content'>
               <div className='legend-label'>{item.tag}</div>
               <div className='legend-stats'>
-                {item.count} runs ({item.percentage}%) • {item.totalDistance}km
+                {item.count} runs ({item.percentage}%) • {item.totalDistance?.toFixed(1) || '0.0'}km
               </div>
             </div>
           </div>

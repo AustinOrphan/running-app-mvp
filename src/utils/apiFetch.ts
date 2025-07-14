@@ -1,5 +1,6 @@
 // Comprehensive fetch wrapper with error handling, auth, and retry logic
 import { clientLogger } from './clientLogger.js';
+import { devConfig } from './environment.js';
 
 // Event emitter for authentication events
 export const authEvents = new EventTarget();
@@ -153,6 +154,225 @@ const delay = (ms: number): Promise<void> => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
+// Development mock response function
+const mockApiResponse = async <T = unknown>(
+  url: string,
+  options: ApiFetchOptions = {}
+): Promise<ApiResponse<T>> => {
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  // Mock responses for common endpoints
+  const mockData = generateMockData<T>(url, options);
+
+  return {
+    data: mockData,
+    status: 200,
+    headers: new Headers(),
+  };
+};
+
+const generateMockData = <T = unknown>(url: string, options: ApiFetchOptions): T => {
+  // Mock data based on URL patterns
+  if (url.includes('/api/runs')) {
+    if (options.method === 'GET') {
+      return [
+        {
+          id: 'dev-run-1',
+          distance: 5.2,
+          duration: 1800, // 30 minutes
+          pace: '5:45',
+          date: new Date().toISOString(),
+          notes: 'Development mock run - great weather!',
+        },
+        {
+          id: 'dev-run-2',
+          distance: 3.1,
+          duration: 1200, // 20 minutes
+          pace: '6:30',
+          date: new Date(Date.now() - 86400000).toISOString(), // yesterday
+          notes: 'Development mock run - easy pace',
+        },
+      ] as T;
+    } else if (options.method === 'POST') {
+      return {
+        id: 'dev-run-' + Date.now(),
+        ...(options.body as object),
+        date: new Date().toISOString(),
+      } as T;
+    }
+  }
+
+  if (url.includes('/api/goals')) {
+    // Handle goal progress endpoint
+    if (url.includes('/api/goals/progress/all')) {
+      return [
+        {
+          goalId: 'dev-goal-1',
+          currentValue: 32.5,
+          progressPercentage: 65,
+          isCompleted: false,
+          remainingValue: 17.5,
+          daysRemaining: 15,
+          averageRequired: 1.17, // per day
+        },
+        {
+          goalId: 'dev-goal-2',
+          currentValue: 2,
+          progressPercentage: 67,
+          isCompleted: false,
+          remainingValue: 1,
+          daysRemaining: 3,
+          averageRequired: 0.33, // per day
+        },
+      ] as T;
+    }
+
+    // Handle regular goals endpoint
+    return [
+      {
+        id: 'dev-goal-1',
+        userId: 'dev-user-1',
+        title: 'Run 50km this month',
+        description: 'Monthly distance goal',
+        type: 'DISTANCE',
+        period: 'MONTHLY',
+        targetValue: 50,
+        targetUnit: 'km',
+        startDate: new Date(Date.now() - 15 * 86400000).toISOString(),
+        endDate: new Date(Date.now() + 15 * 86400000).toISOString(),
+        currentValue: 32.5,
+        isCompleted: false,
+        color: '#3b82f6',
+        icon: '🎯',
+        isActive: true,
+        createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 1 * 86400000).toISOString(),
+      },
+      {
+        id: 'dev-goal-2',
+        userId: 'dev-user-1',
+        title: 'Run 3 times per week',
+        description: 'Weekly frequency goal',
+        type: 'FREQUENCY',
+        period: 'WEEKLY',
+        targetValue: 3,
+        targetUnit: 'runs',
+        startDate: new Date(Date.now() - 30 * 86400000).toISOString(),
+        endDate: new Date(Date.now() + 60 * 86400000).toISOString(),
+        currentValue: 2,
+        isCompleted: false,
+        color: '#f59e0b',
+        icon: '📅',
+        isActive: true,
+        createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+      },
+    ] as T;
+  }
+
+  if (url.includes('/api/stats')) {
+    // Handle different stats endpoints
+    if (url.includes('/api/stats/personal-records')) {
+      return [
+        {
+          distance: 5,
+          bestTime: 1500, // 25 minutes
+          bestPace: '5:00',
+          date: new Date(Date.now() - 7 * 86400000).toISOString(), // 1 week ago
+          runId: 'dev-pr-1',
+        },
+        {
+          distance: 10,
+          bestTime: 3300, // 55 minutes
+          bestPace: '5:30',
+          date: new Date(Date.now() - 14 * 86400000).toISOString(), // 2 weeks ago
+          runId: 'dev-pr-2',
+        },
+        {
+          distance: 21.1, // Half marathon
+          bestTime: 7200, // 2 hours
+          bestPace: '5:41',
+          date: new Date(Date.now() - 30 * 86400000).toISOString(), // 1 month ago
+          runId: 'dev-pr-3',
+        },
+      ] as T;
+    }
+
+    if (url.includes('/api/stats/insights-summary')) {
+      return {
+        totalRuns: 12,
+        totalDistance: 68.4,
+        avgWeeklyDistance: 17.1,
+        weekOverWeekChange: 15.2,
+        consistencyScore: 85,
+      } as T;
+    }
+
+    if (url.includes('/api/stats/type-breakdown')) {
+      return [
+        {
+          tag: 'easy',
+          count: 8,
+          totalDistance: 45.6,
+          totalDuration: 10800, // 3 hours
+          avgPace: 4.21,
+        },
+        {
+          tag: 'tempo',
+          count: 3,
+          totalDistance: 18.5,
+          totalDuration: 3600, // 1 hour
+          avgPace: 3.24,
+        },
+        {
+          tag: 'long',
+          count: 1,
+          totalDistance: 21.1,
+          totalDuration: 7200, // 2 hours
+          avgPace: 5.68,
+        },
+      ] as T;
+    }
+
+    if (url.includes('/api/stats/trends')) {
+      const weeks = 12;
+      const trends = [];
+      for (let i = weeks; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i * 7);
+        trends.push({
+          week: date.toISOString(),
+          distance: Math.floor(Math.random() * 20) + 10,
+          runs: Math.floor(Math.random() * 4) + 1,
+          avgPace: '5:' + (Math.floor(Math.random() * 30) + 15),
+        });
+      }
+      return trends as T;
+    }
+
+    // Default stats response
+    return {
+      totalRuns: 12,
+      totalDistance: 68.4,
+      totalTime: 21600, // 6 hours
+      averagePace: '6:15',
+      weeklyDistance: 15.2,
+    } as T;
+  }
+
+  // Default empty response - return appropriate type
+  if (url.includes('/api/') && url.includes('/')) {
+    // For API endpoints that expect arrays, return empty array
+    const arrayEndpoints = ['runs', 'goals', 'records', 'trends', 'breakdown'];
+    if (arrayEndpoints.some(endpoint => url.includes(endpoint))) {
+      return [] as T;
+    }
+  }
+
+  return {} as T;
+};
+
 // Main apiFetch function
 export const apiFetch = async <T = unknown>(
   url: string,
@@ -180,6 +400,11 @@ export const apiFetch = async <T = unknown>(
     const token = getAuthToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
+
+      // Development mode: handle mock tokens by returning mock data
+      if (devConfig.enableLoginBypass && token.startsWith('dev-mock-token-')) {
+        return mockApiResponse<T>(url, options);
+      }
     } else if (requiresAuth) {
       throw new ApiFetchError('Authentication required but no token available', 401);
     }

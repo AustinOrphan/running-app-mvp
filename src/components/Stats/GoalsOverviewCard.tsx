@@ -107,7 +107,7 @@ export const GoalsOverviewCard: React.FC<GoalsOverviewCardProps> = ({
             <h4>Active Goals Progress</h4>
             <div className={styles.goalsProgressList}>
               {topActiveGoals.map(({ goal, progress }) => {
-                const config = GOAL_TYPE_CONFIGS[goal.type];
+                const config = GOAL_TYPE_CONFIGS[goal.type as keyof typeof GOAL_TYPE_CONFIGS];
                 const progressPercentage = progress?.progressPercentage || 0;
                 const currentValue = progress?.currentValue || 0;
 
@@ -116,9 +116,9 @@ export const GoalsOverviewCard: React.FC<GoalsOverviewCardProps> = ({
                     <div className={styles.goalInfo}>
                       <div
                         className={styles.goalIcon}
-                        style={{ color: goal.color || config.color }}
+                        style={{ color: goal.color || config?.color || '#666' }}
                       >
-                        {goal.icon || config.icon}
+                        {goal.icon || config?.icon || '📊'}
                       </div>
                       <div className={styles.goalDetails}>
                         <span className={styles.goalTitle}>{goal.title}</span>
@@ -134,7 +134,7 @@ export const GoalsOverviewCard: React.FC<GoalsOverviewCardProps> = ({
                         className={styles.goalProgressFill}
                         style={{
                           transform: `scaleX(${Math.min(progressPercentage, 100) / 100})`,
-                          backgroundColor: goal.color || config.color,
+                          backgroundColor: goal.color || config?.color || '#3b82f6',
                         }}
                       ></div>
                     </div>
@@ -158,14 +158,14 @@ export const GoalsOverviewCard: React.FC<GoalsOverviewCardProps> = ({
                 })
                 .slice(0, 2)
                 .map(goal => {
-                  const config = GOAL_TYPE_CONFIGS[goal.type];
+                  const config = GOAL_TYPE_CONFIGS[goal.type as keyof typeof GOAL_TYPE_CONFIGS];
                   return (
                     <div key={goal.id} className={styles.achievementItem}>
                       <div
                         className={styles.achievementIcon}
-                        style={{ color: goal.color || config.color }}
+                        style={{ color: goal.color || config?.color || '#10b981' }}
                       >
-                        {goal.icon || config.icon}
+                        {goal.icon || config?.icon || '🏆'}
                       </div>
                       <div className={styles.achievementDetails}>
                         <span className={styles.achievementTitle}>{goal.title}</span>

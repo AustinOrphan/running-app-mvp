@@ -64,7 +64,10 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
     );
   }
 
-  if (!records || records.length === 0) {
+  // Ensure records is an array
+  const recordsArray = Array.isArray(records) ? records : [];
+
+  if (!recordsArray || recordsArray.length === 0) {
     return (
       <div className={styles.recordsTableCard}>
         <h3>Personal Records</h3>
@@ -78,7 +81,7 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
   }
 
   // Sort records
-  const sortedRecords = [...records].sort((a, b) => {
+  const sortedRecords = [...recordsArray].sort((a, b) => {
     let aValue: string | number = a[sortKey];
     let bValue: string | number = b[sortKey];
 
@@ -146,11 +149,11 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
                   <span className={styles.distanceValue}>{formatDistance(record.distance)}</span>
                 </td>
                 <td className={styles.timeCell}>
-                  <span className={styles.timeValue}>{formatDuration(record.bestTime)}</span>
+                  <span className={styles.timeValue}>{formatDuration(record.bestTime || 0)}</span>
                 </td>
                 <td className={styles.paceCell}>
                   <span className={styles.paceValue}>
-                    {formatPace(record.bestPace, { includeUnit: true })}
+                    {formatPace(record.bestPace || 0, { includeUnit: true })}
                   </span>
                 </td>
                 <td className={styles.dateCell}>
@@ -167,13 +170,13 @@ export const PersonalRecordsTable: React.FC<PersonalRecordsTableProps> = ({ reco
       <div className={styles.recordsSummary}>
         <div className={styles.recordStat}>
           <span className={styles.statLabel}>Total PRs: </span>
-          <span className={styles.statValue}>{records.length}</span>
+          <span className={styles.statValue}>{recordsArray.length}</span>
         </div>
         <div className={styles.recordStat}>
           <span className={styles.statLabel}>Latest: </span>
           <span className={styles.statValue}>
             {formatDate(
-              records.reduce((latest, record) =>
+              recordsArray.reduce((latest, record) =>
                 new Date(record.date) > new Date(latest.date) ? record : latest
               ).date,
               'month-day-year'
