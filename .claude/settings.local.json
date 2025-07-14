@@ -50,7 +50,6 @@
       "mcp__serena__insert_before_symbol",
       "mcp__serena__insert_after_symbol",
       "Bash(npm run test:integration:*)",
-      "Bash(npm run test:*)",
       "Bash(npm run test:e2e:*)",
       "Bash(npm run:*)",
       "mcp__serena__summarize_changes",
@@ -105,13 +104,13 @@
       "mcp__filesystem__edit_file",
       "mcp__think-mcp__think",
       "Bash(npm uninstall:*)",
-      "Bash(cd:*)",
       "Bash(curl:*)",
       "Bash(kill:*)",
       "Bash(timeout 10s npm run dev)",
       "Bash(git rev-parse:*)",
       "Bash(git cherry-pick:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(python3:*)"
     ],
     "deny": []
   }

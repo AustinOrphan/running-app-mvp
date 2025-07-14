@@ -107,12 +107,12 @@ defaultErrorMessage: |
   For more details, see the contributing guidelines.
 
 # Additional validation rules
-subjectPattern: '^[A-Z].+[^.]$'
+subjectPattern: '^[a-z].*[^.]$'
 subjectPatternError: |
   The subject "$subject" doesn't match our requirements:
-  - Must start with a capital letter
+  - Must start with a lowercase letter
   - Must not end with a period
-  - Should be written in imperative mood (e.g., "Add feature" not "Added feature")
+  - Should be written in imperative mood (e.g., "add feature" not "added feature")
 
 # Examples of valid PR titles:
 # ✅ feat(runs): add GPS tracking functionality

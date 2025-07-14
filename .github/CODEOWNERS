@@ -1,64 +1,31 @@
 # Global owners for all files
+# Since @AustinOrphan is the sole maintainer, all files are owned by them
 * @AustinOrphan
 
-# Frontend code - React components and UI
-/src/ @AustinOrphan
-/src/components/ @AustinOrphan
-/src/pages/ @AustinOrphan
-/src/hooks/ @AustinOrphan
-*.css @AustinOrphan
-*.scss @AustinOrphan
-/index.html @AustinOrphan
-/vite.config.ts @AustinOrphan
+# When the project grows and you have specific teams or contributors
+# responsible for different areas, you can uncomment and modify these sections:
 
-# Backend code - API and server logic
-/routes/ @AustinOrphan
-/middleware/ @AustinOrphan
-/server.ts @AustinOrphan
-/server/ @AustinOrphan
+# # Frontend code - React components and UI
+# /src/ @frontend-team
+# /src/components/ @ui-team
+# *.css @design-team
+# *.scss @design-team
 
-# Database and schema
-/prisma/ @AustinOrphan
-*.sql @AustinOrphan
+# # Backend code - API and server logic
+# /routes/ @backend-team
+# /middleware/ @backend-team
+# /server.ts @backend-team
 
-# Configuration files
-package.json @AustinOrphan
-package-lock.json @AustinOrphan
-tsconfig.json @AustinOrphan
-eslint.config.js @AustinOrphan
-.prettierrc @AustinOrphan
-commitlint.config.js @AustinOrphan
+# # Database and schema
+# /prisma/ @database-team
+# *.sql @database-team
 
-# Documentation
-/docs/ @AustinOrphan
-*.md @AustinOrphan
-README.md @AustinOrphan
-CONTRIBUTING.md @AustinOrphan
-SECURITY.md @AustinOrphan
+# # Documentation
+# /docs/ @docs-team
+# *.md @docs-team
 
-# DevOps and CI/CD
-/.github/ @AustinOrphan
-/.github/workflows/ @AustinOrphan
-/scripts/ @AustinOrphan
-Dockerfile @AustinOrphan
-Dockerfile.frontend @AustinOrphan
-docker-compose.yml @AustinOrphan
-/deployment/ @AustinOrphan
-/monitoring/ @AustinOrphan
-
-# Security and environment
-.env.* @AustinOrphan
-*.security.* @AustinOrphan
-SECURITY*.md @AustinOrphan
-
-# Testing
-/tests/ @AustinOrphan
-*.test.* @AustinOrphan
-*.spec.* @AustinOrphan
-jest.config.js @AustinOrphan
-playwright.config.* @AustinOrphan
-
-# Build and deployment scripts
-*.sh @AustinOrphan
-setup.sh @AustinOrphan
-quick-start.sh @AustinOrphan
+# # DevOps and CI/CD
+# /.github/ @devops-team
+# /scripts/ @devops-team
+# Dockerfile* @devops-team
+# docker-compose.yml @devops-team

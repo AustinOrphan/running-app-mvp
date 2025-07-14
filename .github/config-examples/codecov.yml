@@ -86,20 +86,8 @@ flags:
       - prisma/
     carryforward: true
 
-# Pull request configuration
-pull_request_rules:
-  rules:
-    - name: 'Require coverage on new code'
-      conditions:
-        - coverage_delta < -5%
-      actions:
-        - fail
-
-    - name: 'Approve high coverage PRs'
-      conditions:
-        - coverage_delta > 10%
-      actions:
-        - approve
+# Pull request behavior is configured via status checks above
+# The patch status will enforce coverage requirements on new code
 
 # Notification settings
 notifications:

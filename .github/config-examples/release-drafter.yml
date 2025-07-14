@@ -150,9 +150,10 @@ autolabeler:
   - label: 'frontend'
     files:
       - 'src/**/*'
-      - '*.tsx'
-      - '*.ts'
+      - 'src/**/*.tsx'
+      - 'src/**/*.ts'
       - 'vite.config.ts'
+      - 'index.html'
   - label: 'backend'
     files:
       - 'routes/**/*'
