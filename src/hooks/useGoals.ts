@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Goal, GoalProgress, CreateGoalData } from '../types/goals';
 import { MilestoneDetector, DeadlineDetector } from '../utils/milestoneDetector';
 import { logError } from '../utils/clientLogger';
+import { apiGet, apiPost, apiPut, apiDelete } from '../utils/apiFetch';
 
 import { useNotifications } from './useNotifications';
 
@@ -57,30 +58,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
     .filter((goal): goal is Goal => goal !== undefined);
 
   // Helper function for API calls
-  const makeApiCall = useCallback(
-    async (url: string, options: RequestInit = {}) => {
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          ...options.headers,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-        throw new Error(errorData.message || `Request failed with status ${response.status}`);
-      }
-
-      return response.json();
-    },
-    [token]
-  );
+  // Remove the custom makeApiCall since we're using apiFetch now
 
   // Fetch goals
   const fetchGoals = useCallback(async () => {
@@ -91,8 +69,8 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
     try {
       setError(null);
-      const goalsData = await makeApiCall('/api/goals');
-      setGoals(goalsData);
+      const response = await apiGet<Goal[]>('/api/goals');
+      setGoals(response.data || []);
     } catch (error_) {
       const errorMessage = error_ instanceof Error ? error_.message : 'Failed to fetch goals';
       setError(errorMessage);
@@ -103,15 +81,15 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
     } finally {
       setLoading(false);
     }
-  }, [token, makeApiCall]);
+  }, [token]);
 
   // Fetch goal progress
   const refreshProgress = useCallback(async () => {
     if (!token) return;
 
     try {
-      const progressData = await makeApiCall('/api/goals/progress/all');
-      setGoalProgress(progressData);
+      const response = await apiGet<GoalProgress[]>('/api/goals/progress/all');
+      setGoalProgress(response.data || []);
     } catch (error_) {
       logError(
         'Error fetching goal progress',
@@ -119,7 +97,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
       );
       // Don't set error state for progress fetch failures
     }
-  }, [token, makeApiCall]);
+  }, [token]);
 
   // Check for milestone and deadline notifications
   const checkNotifications = useCallback(() => {
@@ -174,10 +152,8 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
   // Create goal
   const createGoal = useCallback(
     async (goalData: CreateGoalData): Promise<Goal> => {
-      const newGoal = await makeApiCall('/api/goals', {
-        method: 'POST',
-        body: JSON.stringify(goalData),
-      });
+      const response = await apiPost<Goal>('/api/goals', goalData);
+      const newGoal = response.data;
 
       // Update local state
       setGoals(prev => [...prev, newGoal]);
@@ -187,16 +163,14 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
       return newGoal;
     },
-    [refreshProgress, makeApiCall]
+    [refreshProgress]
   );
 
   // Update goal
   const updateGoal = useCallback(
     async (goalId: string, goalData: Partial<Goal>): Promise<Goal> => {
-      const updatedGoal = await makeApiCall(`/api/goals/${goalId}`, {
-        method: 'PUT',
-        body: JSON.stringify(goalData),
-      });
+      const response = await apiPut<Goal>(`/api/goals/${goalId}`, goalData);
+      const updatedGoal = response.data;
 
       // Update local state
       setGoals(prev => prev.map(goal => (goal.id === goalId ? updatedGoal : goal)));
@@ -206,29 +180,23 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
       return updatedGoal;
     },
-    [refreshProgress, makeApiCall]
+    [refreshProgress]
   );
 
   // Delete goal
-  const deleteGoal = useCallback(
-    async (goalId: string): Promise<void> => {
-      await makeApiCall(`/api/goals/${goalId}`, {
-        method: 'DELETE',
-      });
+  const deleteGoal = useCallback(async (goalId: string): Promise<void> => {
+    await apiDelete(`/api/goals/${goalId}`);
 
-      // Update local state
-      setGoals(prev => prev.filter(goal => goal.id !== goalId));
-      setGoalProgress(prev => prev.filter(progress => progress.goalId !== goalId));
-    },
-    [makeApiCall]
-  );
+    // Update local state
+    setGoals(prev => prev.filter(goal => goal.id !== goalId));
+    setGoalProgress(prev => prev.filter(progress => progress.goalId !== goalId));
+  }, []);
 
   // Complete goal
   const completeGoal = useCallback(
     async (goalId: string): Promise<Goal> => {
-      const completedGoal = await makeApiCall(`/api/goals/${goalId}/complete`, {
-        method: 'POST',
-      });
+      const response = await apiPost<Goal>(`/api/goals/${goalId}/complete`);
+      const completedGoal = response.data;
 
       // Update local state
       setGoals(prev => prev.map(goal => (goal.id === goalId ? completedGoal : goal)));
@@ -238,7 +206,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
       return completedGoal;
     },
-    [refreshProgress, makeApiCall]
+    [refreshProgress]
   );
 
   // Get progress for specific goal

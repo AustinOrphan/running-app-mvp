@@ -6,6 +6,7 @@ import {
   formatDate,
   formatPace,
   formatDistance,
+  safeAverage,
 } from '../../../src/utils/formatters';
 
 describe('Formatter Utilities', () => {
@@ -423,6 +424,46 @@ describe('Formatter Utilities', () => {
         // Should return negative sign with minutes and seconds
         expect(formatted).toBe('-30m 0s');
       });
+
+      it('handles NaN values', () => {
+        const duration = NaN;
+
+        const formatted = formatDuration(duration);
+
+        expect(formatted).toBe('--');
+      });
+
+      it('handles null values', () => {
+        const duration = null as any;
+
+        const formatted = formatDuration(duration);
+
+        expect(formatted).toBe('--');
+      });
+
+      it('handles undefined values', () => {
+        const duration = undefined as any;
+
+        const formatted = formatDuration(duration);
+
+        expect(formatted).toBe('--');
+      });
+
+      it('handles Infinity values', () => {
+        const duration = Infinity;
+
+        const formatted = formatDuration(duration);
+
+        expect(formatted).toBe('--');
+      });
+
+      it('handles -Infinity values', () => {
+        const duration = -Infinity;
+
+        const formatted = formatDuration(duration);
+
+        expect(formatted).toBe('--');
+      });
     });
 
     describe('formatDate edge cases', () => {
@@ -563,6 +604,39 @@ describe('Formatter Utilities', () => {
 
     it('respects precision', () => {
       expect(formatDistance(5, { precision: 2 })).toBe('5.00km');
+    });
+  });
+
+  describe('safeAverage', () => {
+    it('calculates average correctly for valid inputs', () => {
+      expect(safeAverage(100, 4)).toBe(25);
+      expect(safeAverage(50, 2)).toBe(25);
+      expect(safeAverage(0, 1)).toBe(0);
+    });
+
+    it('handles division by zero', () => {
+      expect(safeAverage(100, 0)).toBe(0);
+    });
+
+    it('handles NaN values', () => {
+      expect(safeAverage(NaN, 4)).toBe(0);
+      expect(safeAverage(100, NaN)).toBe(0);
+      expect(safeAverage(NaN, NaN)).toBe(0);
+    });
+
+    it('handles Infinity values', () => {
+      expect(safeAverage(Infinity, 4)).toBe(0);
+      expect(safeAverage(100, Infinity)).toBe(0);
+      expect(safeAverage(Infinity, Infinity)).toBe(0);
+    });
+
+    it('handles negative values correctly', () => {
+      expect(safeAverage(-100, 4)).toBe(-25);
+      expect(safeAverage(100, -4)).toBe(-25);
+    });
+
+    it('handles decimal results', () => {
+      expect(safeAverage(100, 3)).toBeCloseTo(33.333333);
     });
   });
 });

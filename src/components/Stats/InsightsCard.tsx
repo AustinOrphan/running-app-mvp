@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { WeeklyInsights } from '../../types';
-import { formatDuration, formatPace } from '../../utils/formatters';
+import { formatDuration, formatPace, safeAverage } from '../../utils/formatters';
 import styles from '../../styles/components/Stats.module.css';
 
 interface InsightsCardProps {
@@ -80,13 +80,15 @@ export const InsightsCard: React.FC<InsightsCardProps> = ({ insights, loading })
         </div>
 
         <div className={styles.insightItem}>
-          <div className={styles.insightValue}>{formatDuration(insights.totalDuration)}</div>
+          <div className={styles.insightValue}>{formatDuration(insights.totalDuration || 0)}</div>
           <div className={styles.insightLabel}>Time</div>
         </div>
 
         <div className={styles.insightItem}>
           <div className={styles.insightValue}>
-            {insights.avgPace > 0 ? formatPace(insights.avgPace) : '-'}
+            {insights.avgPace > 0 && isFinite(insights.avgPace)
+              ? formatPace(insights.avgPace)
+              : '-'}
           </div>
           <div className={styles.insightLabel}>Avg Pace</div>
         </div>
@@ -97,13 +99,13 @@ export const InsightsCard: React.FC<InsightsCardProps> = ({ insights, loading })
           <div className={styles.insightStat}>
             <span className={styles.statLabel}>Avg Distance: </span>
             <span className={styles.statValue}>
-              {(insights.totalDistance / insights.totalRuns).toFixed(1)}km
+              {safeAverage(insights.totalDistance, insights.totalRuns).toFixed(1)}km
             </span>
           </div>
           <div className={styles.insightStat}>
             <span className={styles.statLabel}>Avg Duration: </span>
             <span className={styles.statValue}>
-              {formatDuration(Math.floor(insights.totalDuration / insights.totalRuns))}
+              {formatDuration(Math.floor(safeAverage(insights.totalDuration, insights.totalRuns)))}
             </span>
           </div>
         </div>
