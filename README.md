@@ -1,5 +1,16 @@
 # 🏃‍♂️ Running Tracker MVP
 
+[![CI Pipeline](https://github.com/AustinOrphan/running-app-mvp/workflows/🚀%20CI%20Pipeline/badge.svg)](https://github.com/AustinOrphan/running-app-mvp/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/AustinOrphan/running-app-mvp/workflows/CodeQL/badge.svg)](https://github.com/AustinOrphan/running-app-mvp/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18.0+-blue.svg)](https://reactjs.org/)
+[![Express](https://img.shields.io/badge/Express-4.0+-green.svg)](https://expressjs.com/)
+[![Prisma](https://img.shields.io/badge/Prisma-5.0+-2D3748.svg)](https://prisma.io/)
+[![Code Style: Prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 A full-stack web application for tracking running activities, built with React, Express, Prisma, and SQLite.
 
 ## 🚀 Quick Start

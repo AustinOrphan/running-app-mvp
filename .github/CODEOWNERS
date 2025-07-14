@@ -1,0 +1,64 @@
+# Global owners for all files
+* @AustinOrphan
+
+# Frontend code - React components and UI
+/src/ @AustinOrphan
+/src/components/ @AustinOrphan
+/src/pages/ @AustinOrphan
+/src/hooks/ @AustinOrphan
+*.css @AustinOrphan
+*.scss @AustinOrphan
+/index.html @AustinOrphan
+/vite.config.ts @AustinOrphan
+
+# Backend code - API and server logic
+/routes/ @AustinOrphan
+/middleware/ @AustinOrphan
+/server.ts @AustinOrphan
+/server/ @AustinOrphan
+
+# Database and schema
+/prisma/ @AustinOrphan
+*.sql @AustinOrphan
+
+# Configuration files
+package.json @AustinOrphan
+package-lock.json @AustinOrphan
+tsconfig.json @AustinOrphan
+eslint.config.js @AustinOrphan
+.prettierrc @AustinOrphan
+commitlint.config.js @AustinOrphan
+
+# Documentation
+/docs/ @AustinOrphan
+*.md @AustinOrphan
+README.md @AustinOrphan
+CONTRIBUTING.md @AustinOrphan
+SECURITY.md @AustinOrphan
+
+# DevOps and CI/CD
+/.github/ @AustinOrphan
+/.github/workflows/ @AustinOrphan
+/scripts/ @AustinOrphan
+Dockerfile @AustinOrphan
+Dockerfile.frontend @AustinOrphan
+docker-compose.yml @AustinOrphan
+/deployment/ @AustinOrphan
+/monitoring/ @AustinOrphan
+
+# Security and environment
+.env.* @AustinOrphan
+*.security.* @AustinOrphan
+SECURITY*.md @AustinOrphan
+
+# Testing
+/tests/ @AustinOrphan
+*.test.* @AustinOrphan
+*.spec.* @AustinOrphan
+jest.config.js @AustinOrphan
+playwright.config.* @AustinOrphan
+
+# Build and deployment scripts
+*.sh @AustinOrphan
+setup.sh @AustinOrphan
+quick-start.sh @AustinOrphan

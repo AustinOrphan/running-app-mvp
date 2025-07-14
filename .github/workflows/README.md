@@ -1,305 +1,269 @@
-# 🚀 CI/CD Workflows
+# GitHub Workflows Documentation
 
-This directory contains comprehensive GitHub Actions workflows for automated testing, deployment, and maintenance of the Running Tracker MVP.
+This directory contains automated workflows that power the CI/CD pipeline and repository management for the Running Tracker MVP.
 
 ## 📋 Workflow Overview
 
-### 🧪 Test Suite (`test.yml`)
+### 🔄 Core CI/CD Workflows
 
-**Triggers:** Push to main/develop, Pull Requests, Manual dispatch
+#### **ci.yml** - Main CI Pipeline
 
-**Jobs:**
+- **Triggers**: Push to `main`/`develop`, PRs to `main`/`develop`
+- **Purpose**: Code quality, testing, building
+- **Jobs**:
+  - Quality checks (linting, formatting, type checking)
+  - Unit tests with coverage
+  - Integration tests
+  - Build verification
+- **Artifacts**: Build outputs, test coverage reports
+- **Duration**: ~5-8 minutes
 
-- **Lint & Type Check** - Code quality validation
-- **Unit Tests** - Frontend component and hook testing with coverage
-- **Integration Tests** - Backend API testing with real database
-- **E2E Tests** - Full application testing with Playwright
-- **Coverage Analysis** - Comprehensive coverage reporting and badge generation
-- **Security Audit** - Dependency vulnerability scanning
-- **Build Verification** - Production build validation
-- **Test Matrix** - Multi-platform and Node version testing
-- **Performance Tests** - Lighthouse performance auditing
-- **Dependency Review** - License and security compliance
-- **Test Summary** - Consolidated results reporting
+#### **test.yml** - Dedicated Testing
 
-### 🚀 Deploy (`deploy.yml`)
+- **Triggers**: Push, PR events
+- **Purpose**: Comprehensive test suite execution
+- **Jobs**: Unit, integration, e2e tests
+- **Coverage**: Frontend (React), Backend (Express), Database (Prisma)
+- **Reports**: Test results, coverage metrics
 
-**Triggers:** Push to main, Version tags, Manual dispatch
+### 🚀 Deployment Workflows
 
-**Jobs:**
+#### **deploy.yml** - Production Deployment
 
-- **Pre-deployment Tests** - Full test suite validation
-- **Security Checks** - Enhanced security scanning
-- **Build & Package** - Production artifact creation
-- **Staging Deployment** - Automated staging environment deployment
-- **Production Deployment** - Production environment deployment (tags only)
-- **Post-deployment Tests** - Live environment validation
-- **Rollback** - Automated rollback on failure
-- **Notifications** - Success/failure notifications
-- **Release Creation** - Automated GitHub releases
+- **Triggers**: Push to `main` (after CI passes)
+- **Purpose**: Deploy to production environment
+- **Strategy**: Standard deployment with health checks
+- **Rollback**: Automatic on failure
+- **Notifications**: Slack/Teams integration
 
-### 🔧 Maintenance (`maintenance.yml`)
+#### **deploy-rolling.yml** - Rolling Deployment
 
-**Triggers:** Daily schedule (2 AM UTC), Manual dispatch
+- **Triggers**: Manual or scheduled
+- **Purpose**: Zero-downtime deployments
+- **Strategy**: Gradual instance replacement
+- **Monitoring**: Real-time health monitoring
 
-**Jobs:**
+#### **rollback.yml** - Automated Rollback
 
-- **Dependency Updates** - Automated dependency monitoring
-- **Security Audit** - Daily vulnerability scanning with issue creation
-- **Test Health Check** - Continuous test suite validation
-- **Performance Monitoring** - Bundle size and performance tracking
-- **Cleanup Artifacts** - Automated artifact cleanup
-- **Maintenance Summary** - Daily maintenance reporting
+- **Triggers**: Deployment failure, manual trigger
+- **Purpose**: Restore previous stable version
+- **Speed**: < 2 minutes rollback time
+- **Safety**: Preserves data integrity
 
-### 🔍 PR Validation (`pr-validation.yml`)
+### 🔒 Security & Quality Workflows
 
-**Triggers:** Pull Request events
+#### **codeql.yml** - Security Analysis
 
-**Jobs:**
+- **Triggers**: Push to `main`, PRs, scheduled weekly
+- **Purpose**: Static security analysis
+- **Languages**: JavaScript, TypeScript
+- **Output**: SARIF reports, security alerts
+- **Integration**: GitHub Security tab
 
-- **PR Information** - Change analysis and metadata collection
-- **Quick Checks** - Fast validation (lint, type, build)
-- **Security Validation** - PR-specific security checks
-- **Test Validation** - Comprehensive test execution
-- **E2E Validation** - Critical E2E test execution
-- **Performance Check** - Bundle impact analysis
-- **Code Quality** - Code change analysis
-- **PR Feedback** - Automated PR comments with results
-- **Auto-assign** - Intelligent reviewer assignment
+#### **sonarqube.yml** - Code Quality Analysis
 
-## 🛠️ Configuration Files
+- **Triggers**: Push, PR events
+- **Purpose**: Code quality metrics, technical debt
+- **Metrics**: Coverage, complexity, duplication
+- **Reports**: SonarQube dashboard
+- **Quality Gates**: Configurable pass/fail criteria
 
-### `lighthouserc.json`
+#### **license-check.yml** - License Compliance
 
-Performance testing configuration for Lighthouse CI:
+- **Triggers**: PRs, dependency updates
+- **Purpose**: Verify license compatibility
+- **Scope**: All dependencies and their licenses
+- **Alerts**: Incompatible license detection
 
-- Performance threshold: 80%
-- Accessibility threshold: 90%
-- Best practices threshold: 85%
-- SEO threshold: 80%
+### 📊 Performance & Monitoring
 
-## 🔧 Environment Variables
+#### **performance.yml** - Performance Testing
 
-### Required Secrets
+- **Triggers**: PRs, scheduled runs
+- **Purpose**: Performance regression detection
+- **Tools**: Lighthouse CI, custom benchmarks
+- **Metrics**: Core Web Vitals, load times
+- **Alerts**: Performance degradation notifications
 
-```bash
-GITHUB_TOKEN          # GitHub access token (auto-provided)
-DATABASE_URL          # PostgreSQL connection string
-JWT_SECRET            # JWT signing secret
+### 🤖 Automation Workflows
+
+#### **dependabot-auto-merge.yml** - Dependency Management
+
+- **Triggers**: Dependabot PRs
+- **Purpose**: Automated dependency updates
+- **Safety**: Only patch/minor updates
+- **Verification**: Full CI pipeline before merge
+- **Grouping**: Smart dependency grouping
+
+#### **auto-label.yml** - Issue/PR Labeling
+
+- **Triggers**: Issues, PRs opened/modified
+- **Purpose**: Automatic label assignment
+- **Logic**: File path analysis, content analysis
+- **Labels**: Feature, bug fix, documentation, etc.
+
+#### **stale.yml** - Stale Content Management
+
+- **Triggers**: Scheduled (daily)
+- **Purpose**: Clean up stale issues/PRs
+- **Timeline**: 30 days inactive → stale, 7 days → close
+- **Exceptions**: Pinned issues, certain labels
+
+### 🔧 Maintenance Workflows
+
+#### **maintenance.yml** - Repository Maintenance
+
+- **Triggers**: Scheduled (weekly)
+- **Purpose**: Repository health maintenance
+- **Tasks**: Cache cleanup, artifact pruning
+- **Reports**: Maintenance summary
+
+#### **release.yml** - Release Management
+
+- **Triggers**: Version tags (v\*)
+- **Purpose**: Automated release creation
+- **Features**: Release notes generation, asset compilation
+- **Distribution**: GitHub Releases, NPM (if applicable)
+
+### 🧠 AI-Assisted Workflows
+
+#### **claude.yml** - AI Code Review
+
+- **Triggers**: PR events
+- **Purpose**: AI-powered code review assistance
+- **Features**: Code suggestions, best practices
+- **Integration**: Comments on PRs
+
+#### **claude-code-review.yml** - Enhanced AI Review
+
+- **Triggers**: Large PRs, complex changes
+- **Purpose**: Deep code analysis
+- **Features**: Architecture review, security analysis
+
+#### **pr-validation.yml** - PR Validation
+
+- **Triggers**: PR opened/updated
+- **Purpose**: Validate PR requirements
+- **Checks**: Branch naming, description completeness
+- **Requirements**: CODEOWNERS approval, CI passing
+
+## 🎯 Workflow Dependencies
+
+```mermaid
+graph TD
+    A[PR Created] --> B[pr-validation.yml]
+    A --> C[auto-label.yml]
+    A --> D[ci.yml]
+    A --> E[test.yml]
+    A --> F[codeql.yml]
+    A --> G[sonarqube.yml]
+    A --> H[performance.yml]
+
+    D --> I[PR Approval]
+    E --> I
+    F --> I
+    G --> I
+
+    I --> J[Merge to main]
+    J --> K[deploy.yml]
+    K --> L[Production]
+
+    M[Dependabot PR] --> N[dependabot-auto-merge.yml]
+    N --> D
 ```
 
-### Optional Secrets
+## 📈 Performance Metrics
 
-```bash
-CODECOV_TOKEN         # Codecov integration token
-SLACK_WEBHOOK         # Slack notification webhook
-LIGHTHOUSE_TOKEN      # Lighthouse CI token
-```
+### Workflow Execution Times
 
-## 📊 Workflow Features
+- **ci.yml**: 5-8 minutes
+- **test.yml**: 3-5 minutes
+- **deploy.yml**: 8-12 minutes
+- **codeql.yml**: 10-15 minutes
+- **performance.yml**: 3-5 minutes
 
-### 🎯 Quality Gates
+### Success Rates (Target)
 
-- **Coverage Thresholds**: 70% minimum across all metrics
-- **Security Audit**: Automated vulnerability detection
-- **Performance Budgets**: Bundle size and performance monitoring
-- **Code Quality**: Automated code analysis and feedback
+- **CI Pipeline**: > 95%
+- **Deployments**: > 98%
+- **Security Scans**: 100% completion
+- **Performance Tests**: > 90% pass rate
 
-### 🔄 Automation Features
+## 🔧 Configuration Management
 
-- **Auto-assign Reviewers**: Based on changed files
-- **Dependency Updates**: Daily monitoring and issue creation
-- **Artifact Cleanup**: Automated old artifact removal
-- **Issue Creation**: Automated issue creation for failures
+### Secrets Required
 
-### 📈 Reporting
+- `CODECOV_TOKEN`: Code coverage reporting
+- `SONAR_TOKEN`: SonarQube integration
+- `DEPLOY_TOKEN`: Production deployment
+- `SLACK_WEBHOOK`: Notification integration
 
-- **Coverage Badges**: Automated SVG badge generation
-- **Test Reports**: Comprehensive HTML and JSON reports
-- **Performance Reports**: Bundle size and Lighthouse metrics
-- **Security Reports**: Vulnerability scanning results
+### Environment Variables
 
-## 🚀 Deployment Strategies
+- `NODE_ENV`: Environment context
+- `DATABASE_URL`: Database connection
+- `JWT_SECRET`: Authentication secret
 
-### Staging Environment
-
-- **Auto-deploy**: Every push to main branch
-- **Smoke Tests**: Automated health checks
-- **Environment**: `staging`
-
-### Production Environment
-
-- **Tag-based**: Only version tags (v\*) trigger production
-- **Manual Approval**: Environment protection rules
-- **Rollback**: Automated on failure
-- **Environment**: `production`
-
-## 📱 Platform Support
-
-### Test Matrix
-
-- **Operating Systems**: Ubuntu, Windows, macOS
-- **Node Versions**: 18.x, 20.x
-- **Browsers**: Chromium, Firefox, Safari (E2E)
-- **Databases**: PostgreSQL 15
-
-## 🔒 Security Features
-
-### Automated Security
-
-- **Dependency Scanning**: Daily vulnerability audits
-- **Secret Scanning**: TruffleHog integration
-- **License Compliance**: Automated license checking
-- **Security Issues**: Auto-creation of critical vulnerability issues
-
-### Access Control
-
-- **Environment Protection**: Production deployment requires approval
-- **Branch Protection**: Main branch requires PR and status checks
-- **Secret Management**: GitHub Secrets for sensitive data
-
-## 📊 Monitoring & Alerting
-
-### Performance Monitoring
-
-- **Bundle Size Tracking**: Automated bundle size analysis
-- **Performance Budgets**: Lighthouse performance thresholds
-- **Trend Analysis**: Performance degradation detection
-
-### Health Monitoring
-
-- **Daily Test Health**: Automated test suite validation
-- **Dependency Health**: Outdated package monitoring
-- **Security Health**: Vulnerability trend tracking
-
-## 🛠️ Local Development
-
-### Running Workflows Locally
-
-```bash
-# Install act (GitHub Actions local runner)
-brew install act
-
-# Run test workflow locally
-act -j unit-tests
-
-# Run with secrets
-act -j unit-tests --secret-file .secrets
-```
-
-### Testing Workflow Changes
-
-```bash
-# Validate workflow syntax
-yamllint .github/workflows/
-
-# Test specific job
-act -j quick-checks --dry-run
-```
-
-## 📋 Workflow Commands
-
-### Manual Triggers
-
-```bash
-# Trigger test suite manually
-gh workflow run test.yml
-
-# Trigger deployment to staging
-gh workflow run deploy.yml -f environment=staging
-
-# Trigger maintenance checks
-gh workflow run maintenance.yml
-```
-
-### Workflow Status
-
-```bash
-# Check workflow status
-gh run list
-
-# View specific run
-gh run view <run-id>
-
-# View workflow logs
-gh run view <run-id> --log
-```
-
-## 🎯 Best Practices
-
-### Workflow Design
-
-- **Fail Fast**: Quick checks run first
-- **Parallel Execution**: Independent jobs run concurrently
-- **Resource Efficiency**: Caching and artifact reuse
-- **Clear Naming**: Descriptive job and step names
-
-### Security
-
-- **Least Privilege**: Minimal required permissions
-- **Secret Management**: Proper secret handling
-- **Dependency Scanning**: Regular security audits
-- **Branch Protection**: Enforce quality gates
-
-### Performance
-
-- **Caching**: NPM and build artifact caching
-- **Matrix Strategy**: Efficient multi-platform testing
-- **Conditional Execution**: Skip unnecessary jobs
-- **Artifact Management**: Automatic cleanup
-
-## 🔧 Troubleshooting
+## 🚨 Troubleshooting
 
 ### Common Issues
 
-**Tests failing in CI but passing locally**
+#### Workflow Failures
 
-- Check environment variables
-- Verify database setup
-- Review dependency versions
+1. **Lint failures**: Check ESLint configuration
+2. **Test failures**: Verify test environment setup
+3. **Build failures**: Check dependencies and build scripts
+4. **Deploy failures**: Verify secrets and environment config
 
-**Slow workflow execution**
+#### Performance Issues
 
-- Review caching strategy
-- Optimize test execution
-- Consider parallelization
-
-**Coverage thresholds not met**
-
-- Run coverage analysis locally
-- Review coverage reports
-- Add missing tests
-
-**Deployment failures**
-
-- Check environment configuration
-- Verify database migrations
-- Review deployment logs
+1. **Slow CI**: Review job parallelization
+2. **Cache misses**: Verify cache key configuration
+3. **Resource limits**: Monitor workflow resource usage
 
 ### Debug Commands
 
 ```bash
-# View workflow run details
-gh run view --log
-
-# Download workflow artifacts
-gh run download <run-id>
-
-# Check workflow configuration
-gh workflow list
-
-# View workflow file
-gh workflow view test.yml
+# Local testing
+npm run lint          # Check linting issues
+npm run test          # Run test suite
+npm run build         # Verify build process
+npm run dev           # Test development setup
 ```
 
-## 📚 Additional Resources
+## 📚 Best Practices
 
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Playwright Testing](https://playwright.dev/)
-- [Lighthouse CI](https://github.com/GoogleChrome/lighthouse-ci)
-- [Jest Testing Framework](https://jestjs.io/)
-- [Vitest Testing Framework](https://vitest.dev/)
+### Workflow Development
+
+1. Test workflows in feature branches
+2. Use job dependencies for efficiency
+3. Implement proper error handling
+4. Cache dependencies for speed
+5. Use matrix strategies for testing multiple environments
+
+### Security
+
+1. Never commit secrets to workflows
+2. Use minimal permissions for tokens
+3. Validate all external inputs
+4. Regular security scan reviews
+
+### Maintenance
+
+1. Regular workflow updates
+2. Monitor execution metrics
+3. Clean up unused workflows
+4. Document workflow changes
+
+## 🔄 Workflow Update Process
+
+1. **Development**: Create feature branch
+2. **Testing**: Test workflow changes in PR
+3. **Review**: Code review for workflow files
+4. **Deployment**: Merge to main
+5. **Monitoring**: Watch first execution
+6. **Documentation**: Update this README
 
 ---
 
-_CI/CD system designed for the Running Tracker MVP - Automate your builds, just like your runs! 🏃‍♂️🚀_
+**Need Help?** Check the [GitHub Actions documentation](https://docs.github.com/en/actions) or create an issue for workflow-related questions.

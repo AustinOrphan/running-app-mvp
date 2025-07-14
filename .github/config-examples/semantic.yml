@@ -1,0 +1,133 @@
+# Semantic Pull Requests Configuration for Running Tracker MVP
+
+# Validate the entire title, and ignore any commits
+titleOnly: true
+
+# Allow merging PRs with titles that don't follow the conventional format
+# if they have specific labels applied
+allowMergeCommits: true
+allowSquashMerge: true
+allowRebaseCommits: true
+
+# Allowed types (conventional commit format)
+types:
+  # Main development types
+  - feat # New features
+  - fix # Bug fixes
+  - docs # Documentation changes
+  - style # Code style changes (formatting, missing semi-colons, etc)
+  - refactor # Code refactoring (neither fixes a bug nor adds a feature)
+  - perf # Performance improvements
+  - test # Adding or correcting tests
+  - chore # Updating build tasks, package manager configs, etc
+
+  # Additional types for this project
+  - ui # UI/UX improvements
+  - api # API changes
+  - db # Database related changes
+  - security # Security improvements
+  - ci # CI/CD related changes
+  - deploy # Deployment related changes
+
+# Allowed scopes (areas of the codebase)
+scopes:
+  # Frontend scopes
+  - frontend
+  - ui
+  - components
+  - pages
+  - hooks
+  - utils
+  - types
+
+  # Backend scopes
+  - backend
+  - api
+  - routes
+  - middleware
+  - auth
+  - validation
+
+  # Database scopes
+  - database
+  - prisma
+  - schema
+  - migrations
+
+  # Feature-specific scopes
+  - runs # Running activity tracking
+  - goals # Goal management
+  - races # Race tracking
+  - stats # Statistics and analytics
+  - dashboard # Dashboard functionality
+
+  # Infrastructure scopes
+  - ci
+  - cd
+  - deploy
+  - docker
+  - config
+  - deps # Dependencies
+  - build
+  - test
+  - docs
+  - security
+
+  # General scopes
+  - core
+  - shared
+  - common
+
+# Require scope to be provided
+requireScope: false
+
+# Allow custom scopes not in the list above
+allowCustomScopes: true
+
+# Disable validation for specific scenarios
+disableValidation: false
+
+# Custom validation messages
+defaultErrorMessage: |
+  The subject "$subject" found in pull request title "$title" 
+  doesn't match the conventional commit format.
+
+  Please use the format: type(scope): description
+
+  Examples:
+  - feat(runs): add distance tracking
+  - fix(api): resolve authentication bug
+  - docs(readme): update installation instructions
+  - chore(deps): update dependencies
+
+  Valid types: feat, fix, docs, style, refactor, perf, test, chore, ui, api, db, security, ci, deploy
+
+  Valid scopes include: frontend, backend, api, database, runs, goals, races, stats, ui, auth, etc.
+
+  For more details, see the contributing guidelines.
+
+# Additional validation rules
+subjectPattern: '^[A-Z].+[^.]$'
+subjectPatternError: |
+  The subject "$subject" doesn't match our requirements:
+  - Must start with a capital letter
+  - Must not end with a period
+  - Should be written in imperative mood (e.g., "Add feature" not "Added feature")
+
+# Examples of valid PR titles:
+# ✅ feat(runs): add GPS tracking functionality
+# ✅ fix(api): resolve user authentication timeout
+# ✅ docs: update API documentation
+# ✅ chore(deps): bump react to version 18.2.0
+# ✅ ui(dashboard): improve responsive layout
+# ✅ test(components): add unit tests for RunCard
+# ✅ refactor(auth): simplify JWT token handling
+# ✅ perf(database): optimize query performance
+# ✅ security(api): add rate limiting middleware
+
+# Examples of invalid PR titles:
+# ❌ Fix bug (missing type parentheses and scope)
+# ❌ feat: new feature (missing scope)
+# ❌ feature(runs): add tracking (invalid type)
+# ❌ fix(runs): fixed the bug. (ends with period)
+# ❌ fix(runs): fixed the bug (past tense instead of imperative)
