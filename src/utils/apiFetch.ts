@@ -1,5 +1,6 @@
 // Comprehensive fetch wrapper with error handling, auth, and retry logic
 import { clientLogger } from './clientLogger.js';
+import { devConfig } from './environment.js';
 
 // Event emitter for authentication events
 export const authEvents = new EventTarget();
@@ -153,6 +154,82 @@ const delay = (ms: number): Promise<void> => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
+// Development mock response function
+const mockApiResponse = async <T = unknown>(
+  url: string,
+  options: ApiFetchOptions = {}
+): Promise<ApiResponse<T>> => {
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  // Mock responses for common endpoints
+  const mockData = generateMockData<T>(url, options);
+
+  return {
+    data: mockData,
+    status: 200,
+    headers: new Headers(),
+  };
+};
+
+const generateMockData = <T = unknown>(url: string, options: ApiFetchOptions): T => {
+  // Mock data based on URL patterns
+  if (url.includes('/api/runs')) {
+    if (options.method === 'GET') {
+      return [
+        {
+          id: 'dev-run-1',
+          distance: 5.2,
+          duration: 1800, // 30 minutes
+          pace: '5:45',
+          date: new Date().toISOString(),
+          notes: 'Development mock run - great weather!',
+        },
+        {
+          id: 'dev-run-2',
+          distance: 3.1,
+          duration: 1200, // 20 minutes
+          pace: '6:30',
+          date: new Date(Date.now() - 86400000).toISOString(), // yesterday
+          notes: 'Development mock run - easy pace',
+        },
+      ] as T;
+    } else if (options.method === 'POST') {
+      return {
+        id: 'dev-run-' + Date.now(),
+        ...(options.body as object),
+        date: new Date().toISOString(),
+      } as T;
+    }
+  }
+
+  if (url.includes('/api/goals')) {
+    return [
+      {
+        id: 'dev-goal-1',
+        title: 'Run 5K under 25 minutes',
+        target: 25,
+        current: 27.5,
+        type: 'time',
+        deadline: new Date(Date.now() + 30 * 86400000).toISOString(), // 30 days from now
+      },
+    ] as T;
+  }
+
+  if (url.includes('/api/stats')) {
+    return {
+      totalRuns: 12,
+      totalDistance: 68.4,
+      totalTime: 21600, // 6 hours
+      averagePace: '6:15',
+      weeklyDistance: 15.2,
+    } as T;
+  }
+
+  // Default empty response
+  return {} as T;
+};
+
 // Main apiFetch function
 export const apiFetch = async <T = unknown>(
   url: string,
@@ -180,6 +257,11 @@ export const apiFetch = async <T = unknown>(
     const token = getAuthToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
+
+      // Development mode: handle mock tokens by returning mock data
+      if (devConfig.enableLoginBypass && token.startsWith('dev-mock-token-')) {
+        return mockApiResponse<T>(url, options);
+      }
     } else if (requiresAuth) {
       throw new ApiFetchError('Authentication required but no token available', 401);
     }
