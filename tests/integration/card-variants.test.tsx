@@ -8,13 +8,7 @@ import { RunCard } from '../../src/components/Runs/RunCard';
 import { GoalTemplateBrowser } from '../../src/components/Goals/GoalTemplateBrowser';
 import { LoadingSpinner } from '../../src/components/Common/LoadingSpinner';
 
-import {
-  mockGoals,
-  createMockGoal,
-  createMockGoalProgress,
-  mockRuns,
-  createMockRun,
-} from '../fixtures/mockData.js';
+import { createMockGoal, createMockGoalProgress, createMockRun } from '../fixtures/mockData.js';
 
 expect.extend(toHaveNoViolations);
 
@@ -69,7 +63,7 @@ vi.mock('../../src/data/goalTemplates', () => ({
       ],
     },
   ],
-  searchTemplates: vi.fn((query: string) => []),
+  searchTemplates: vi.fn((_query: string) => []),
 }));
 
 // Mock utilities
@@ -458,7 +452,7 @@ describe('Card Variants Integration Tests', () => {
 
       render(
         <div className='goals-grid'>
-          {goals.map((goal, index) => (
+          {goals.map(goal => (
             <GoalCard
               key={goal.id}
               goal={goal}
