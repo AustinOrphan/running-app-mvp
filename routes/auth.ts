@@ -200,18 +200,14 @@ router.post(
       }
 
       // Generate new access token
-      const newAccessToken = jwt.sign(
-        { id: user.id, email: user.email },
-        process.env.JWT_SECRET,
-        { expiresIn: '15m' }
-      );
+      const newAccessToken = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+        expiresIn: '15m',
+      });
 
       // Generate new refresh token (rotation for security)
-      const newRefreshToken = jwt.sign(
-        { id: user.id, type: 'refresh' },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
+      const newRefreshToken = jwt.sign({ id: user.id, type: 'refresh' }, process.env.JWT_SECRET, {
+        expiresIn: '7d',
+      });
 
       logUserAction('Token refresh', req, { userId: user.id });
 

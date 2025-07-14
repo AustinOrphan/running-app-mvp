@@ -484,7 +484,12 @@
 
 /* Loading States */
 .skeletonLine {
-  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-shine) 50%, var(--skeleton-base) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-shine) 50%,
+    var(--skeleton-base) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 4px;
@@ -517,26 +522,26 @@
   .statsRow {
     grid-template-columns: 1fr;
   }
-  
+
   .insightsGrid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
-  
+
   .insightItem {
     padding: 12px;
   }
-  
+
   .insightValue {
     font-size: 20px;
   }
-  
+
   .insightsCard,
   .trendsChartCard,
   .recordsTableCard {
     padding: 16px;
   }
-  
+
   .chartContainer {
     height: 250px;
   }
@@ -546,31 +551,31 @@
   .insightsGrid {
     grid-template-columns: 1fr;
   }
-  
+
   .insightItem {
     padding: 8px;
   }
-  
+
   .insightValue {
     font-size: 18px;
   }
-  
+
   .insightsCard,
   .trendsChartCard,
   .recordsTableCard {
     padding: 12px;
   }
-  
+
   .insightsCard h3,
   .trendsChartCard h3,
   .recordsTableCard h3 {
     font-size: 14px;
   }
-  
+
   .recordsTable {
     font-size: 14px;
   }
-  
+
   .recordsTable th,
   .recordsTable td {
     padding: 8px;

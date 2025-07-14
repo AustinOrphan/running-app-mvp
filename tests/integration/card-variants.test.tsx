@@ -452,7 +452,7 @@ describe('Card Variants Integration Tests', () => {
 
       render(
         <div className='goals-grid'>
-          {goals.map(goal => (
+          {goals.map((goal, _index) => (
             <GoalCard
               key={goal.id}
               goal={goal}

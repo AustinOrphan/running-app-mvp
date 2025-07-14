@@ -1259,39 +1259,39 @@
   .goalsContent {
     grid-template-columns: 1fr;
   }
-  
+
   .goalsGrid {
     grid-template-columns: 1fr;
   }
-  
+
   .progressDetails {
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  
+
   .progressCircular {
     margin-right: 0;
     margin-bottom: 20px;
   }
-  
+
   .templateGrid {
     grid-template-columns: 1fr;
   }
-  
+
   .analyticsGrid {
     grid-template-columns: 1fr;
   }
-  
+
   .goalsHeader {
     flex-direction: column;
     gap: 16px;
     align-items: stretch;
   }
-  
+
   .headerActions {
     flex-wrap: wrap;
   }
-  
+
   .analyticsHeader {
     flex-direction: column;
     gap: 16px;
@@ -1303,20 +1303,20 @@
   .goalsPage {
     padding: 12px;
   }
-  
+
   .goalCard {
     padding: 16px;
   }
-  
+
   .progressStats {
     grid-template-columns: 1fr;
   }
-  
+
   .streakStats {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .heatmapDay {
     width: 10px;
     height: 10px;

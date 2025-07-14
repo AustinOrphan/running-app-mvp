@@ -403,7 +403,10 @@
   color: var(--text-secondary);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: transform var(--progress-transition), background-color var(--progress-transition), border-color var(--progress-transition);
+  transition:
+    transform var(--progress-transition),
+    background-color var(--progress-transition),
+    border-color var(--progress-transition);
   background: var(--surface-color-hover);
   will-change: transform;
 }

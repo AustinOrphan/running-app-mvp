@@ -32,7 +32,7 @@ interface UserConfig {
  */
 function validateEnvironment(): void {
   const missing = REQUIRED_ENV.filter(envVar => !process.env[envVar]);
-  
+
   if (missing.length > 0) {
     console.error('Error: Missing required environment variables:');
     missing.forEach(envVar => {
@@ -62,7 +62,7 @@ function isValidEmail(email: string): boolean {
  */
 function isValidPassword(password: string): { isValid: boolean; issues: string[] } {
   const issues: string[] = [];
-  
+
   if (password.length < 8) {
     issues.push('Password must be at least 8 characters long');
   }
@@ -90,14 +90,14 @@ function isValidPassword(password: string): { isValid: boolean; issues: string[]
  */
 async function createTestUser(config: UserConfig): Promise<void> {
   const prisma = new PrismaClient();
-  
+
   try {
     console.log('\nCreating test user...');
-    
+
     // Hash password securely
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(config.password, saltRounds);
-    
+
     // Use upsert to make the operation idempotent
     const user = await prisma.user.upsert({
       where: { email: config.email },
@@ -111,16 +111,15 @@ async function createTestUser(config: UserConfig): Promise<void> {
         name: config.name,
       },
     });
-    
+
     console.log('\n✓ Test user created or updated successfully!');
     console.log(`  Email: ${user.email}`);
     console.log(`  Name: ${user.name}`);
     console.log(`  ID: ${user.id}`);
     console.log(`  Created: ${user.createdAt.toISOString()}`);
-    
   } catch (error) {
     console.error('\nError creating/updating user:');
-    
+
     if (error instanceof Error) {
       // Handle specific database errors
       if (error.message.includes('ECONNREFUSED')) {
@@ -131,7 +130,7 @@ async function createTestUser(config: UserConfig): Promise<void> {
     } else {
       console.error('Unknown error occurred:', error);
     }
-    
+
     process.exit(1);
   } finally {
     await prisma.$disconnect();
@@ -149,7 +148,7 @@ function parseArgs(): UserConfig & { help?: boolean } {
     name: DEFAULT_CONFIG.name,
     force: false,
   };
-  
+
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--email':
@@ -174,7 +173,7 @@ function parseArgs(): UserConfig & { help?: boolean } {
         }
     }
   }
-  
+
   return config;
 }
 
@@ -184,7 +183,7 @@ function parseArgs(): UserConfig & { help?: boolean } {
 async function main(): Promise<void> {
   try {
     const config = parseArgs();
-    
+
     if (config.help) {
       console.log('Test User Creation Script');
       console.log('\nUsage:');
@@ -202,32 +201,31 @@ async function main(): Promise<void> {
       console.log(`  npm run create-test-user --force --email ${DEFAULT_CONFIG.email}`);
       process.exit(0);
     }
-    
+
     // Validate environment before proceeding
     validateEnvironment();
-    
+
     console.log('Development Test User Creation Script');
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    
+
     // Validate config
     if (!isValidEmail(config.email)) {
       console.error(`Invalid email format: ${config.email}`);
       process.exit(1);
     }
-    
+
     const passwordValidation = isValidPassword(config.password);
     if (!passwordValidation.isValid) {
       console.error('Password validation failed:');
       passwordValidation.issues.forEach(issue => console.error(`  - ${issue}`));
       process.exit(1);
     }
-    
+
     await createTestUser(config);
-    
+
     console.log('\nYou can now sign in with these credentials:');
     console.log(`  Email: ${config.email}`);
     console.log(`  Password: ${config.password}`);
-    
   } catch (error) {
     console.error('\nUnexpected error:');
     console.error(error instanceof Error ? error.message : String(error));
@@ -237,7 +235,7 @@ async function main(): Promise<void> {
 
 // Execute main function if script is run directly
 if (require.main === module) {
-  main().catch((error) => {
+  main().catch(error => {
     console.error('Fatal error:', error);
     process.exit(1);
   });

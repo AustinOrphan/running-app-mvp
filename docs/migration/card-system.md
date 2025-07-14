@@ -21,11 +21,10 @@ This guide helps you migrate from the old card implementations to the new unifie
 <<<<<<< HEAD
 
 - Goal cards using `.goal-card` CSS classes
-- Run cards using `.run-card` CSS classes
-=======
+- # Run cards using `.run-card` CSS classes
 - Goal cards using `.goal-card` CSS classes
-- Run cards using `.run-card` CSS classes  
->>>>>>> origin/main
+- Run cards using `.run-card` CSS classes
+  > > > > > > > origin/main
 - Template cards using `.template-card` CSS classes
 - Styles scattered throughout `App.css`
 
@@ -33,7 +32,9 @@ This guide helps you migrate from the old card implementations to the new unifie
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 - Single `Card` component with variants
 - Modular CSS with `Card.module.css`
 - TypeScript interfaces for all props
@@ -50,22 +51,26 @@ This guide helps you migrate from the old card implementations to the new unifie
 ## Migration Strategy
 
 ### 1. Incremental Migration
+
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
-Migrate one card type at a time to minimize disruption:
+
+> > > > > > > origin/main
+> > > > > > > Migrate one card type at a time to minimize disruption:
 
 1. **Goal Cards** (most complex) - Start here
 2. **Run Cards** (medium complexity)
 3. **Template Cards** (least complex)
 
 ### 2. Import New Components
+
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
-Add the new Card imports to your files:
+
+> > > > > > > origin/main
+> > > > > > > Add the new Card imports to your files:
 
 ```tsx
 import {
@@ -86,11 +91,13 @@ import {
 ```
 
 ### 3. Replace Gradually
+
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
-Replace old patterns with new components section by section.
+
+> > > > > > > origin/main
+> > > > > > > Replace old patterns with new components section by section.
 
 ## Goal Card Migration
 
@@ -132,18 +139,18 @@ export const GoalCard: React.FC<GoalCardProps> = ({ goal, progress, onEdit, onDe
         <div className='progress-bar'>
           <div className='progress-fill' style={{ width: `${progress.percentage}%` }} />
 =======
-      
+
       {goal.description && (
         <p className='goal-description'>{goal.description}</p>
       )}
-      
+
       <div className='goal-progress'>
         <div className='progress-header'>
           <span className='progress-text'>{progress.current} / {goal.target}</span>
           <span className='progress-percentage'>{progress.percentage}%</span>
         </div>
         <div className='progress-bar'>
-          <div 
+          <div
             className='progress-fill'
             style={{ width: `${progress.percentage}%` }}
           />
@@ -382,7 +389,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
 <<<<<<< HEAD
 
 =======
-      
+
 >>>>>>> origin/main
       <div className='template-details'>
         <div className='template-target'>
@@ -393,7 +400,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
 <<<<<<< HEAD
 
 =======
-      
+
 >>>>>>> origin/main
       <div className='template-actions'>
         <button className='btn-secondary'>Learn More</button>
@@ -604,16 +611,16 @@ After migration, you can remove these CSS classes from `App.css`:
 ### CSS Class Mapping
 
 <<<<<<< HEAD
-| Old Class        | New Approach                |
+| Old Class | New Approach |
 | ---------------- | --------------------------- |
-| `.goal-card`     | `<Card variant="goal">`     |
-| `.goal-header`   | `<CardHeader>`              |
-| `.goal-icon`     | `<CardIcon>`                |
-| `.goal-title`    | `<CardTitle>`               |
-| `.goal-actions`  | `<CardActions>`             |
-| `.btn-icon`      | `<IconButton>`              |
-| `.progress-bar`  | `<ProgressBar>`             |
-| `.run-card`      | `<Card variant="run">`      |
+| `.goal-card` | `<Card variant="goal">` |
+| `.goal-header` | `<CardHeader>` |
+| `.goal-icon` | `<CardIcon>` |
+| `.goal-title` | `<CardTitle>` |
+| `.goal-actions` | `<CardActions>` |
+| `.btn-icon` | `<IconButton>` |
+| `.progress-bar` | `<ProgressBar>` |
+| `.run-card` | `<Card variant="run">` |
 =======
 | Old Class | New Approach |
 |-----------|--------------|
@@ -625,8 +632,9 @@ After migration, you can remove these CSS classes from `App.css`:
 | `.btn-icon` | `<IconButton>` |
 | `.progress-bar` | `<ProgressBar>` |
 | `.run-card` | `<Card variant="run">` |
->>>>>>> origin/main
-| `.template-card` | `<Card variant="template">` |
+
+> > > > > > > origin/main
+> > > > > > > | `.template-card` | `<Card variant="template">` |
 
 ## Common Patterns
 
@@ -643,16 +651,17 @@ After migration, you can remove these CSS classes from `App.css`:
 
 **After:**
 
-```tsx
+````tsx
 {
   goal.description && <CardDescription>{goal.description}</CardDescription>;
 }
 =======
 ```tsx
 {goal.description && <p className='goal-description'>{goal.description}</p>}
-```
+````
 
 **After:**
+
 ```tsx
 {goal.description && (
   <CardDescription>
@@ -667,7 +676,7 @@ After migration, you can remove these CSS classes from `App.css`:
 **Before:**
 <<<<<<< HEAD
 
-```tsx
+````tsx
 <div className='goal-actions'>
   <button className='btn-icon' onClick={handleEdit}>
     ✏️
@@ -682,12 +691,12 @@ After migration, you can remove these CSS classes from `App.css`:
   <button className='btn-icon' onClick={handleDelete}>🗑️</button>
 >>>>>>> origin/main
 </div>
-```
+````
 
 **After:**
 <<<<<<< HEAD
 
-```tsx
+````tsx
 <CardActions>
   <IconButton onClick={handleEdit} title='Edit'>
     ✏️
@@ -702,41 +711,41 @@ After migration, you can remove these CSS classes from `App.css`:
   <IconButton onClick={handleDelete} title="Delete">🗑️</IconButton>
 >>>>>>> origin/main
 </CardActions>
-```
+````
 
 ### 3. Progress Bars
 
 **Before:**
 <<<<<<< HEAD
 
-```tsx
+````tsx
 <div className='progress-bar'>
   <div className='progress-fill' style={{ width: `${percentage}%`, backgroundColor: color }} />
 =======
 ```tsx
 <div className='progress-bar'>
-  <div 
+  <div
     className='progress-fill'
     style={{ width: `${percentage}%`, backgroundColor: color }}
   />
 >>>>>>> origin/main
 </div>
-```
+````
 
 **After:**
 <<<<<<< HEAD
 
-```tsx
+````tsx
 <ProgressBar percentage={percentage} color={color} completed={isCompleted} />
 =======
 ```tsx
-<ProgressBar 
-  percentage={percentage} 
+<ProgressBar
+  percentage={percentage}
   color={color}
   completed={isCompleted}
 />
 >>>>>>> origin/main
-```
+````
 
 ### 4. Loading States
 
@@ -757,7 +766,7 @@ After migration, you can remove these CSS classes from `App.css`:
 
 **After:**
 
-```tsx
+````tsx
 {
   isLoading ? (
     <Card variant='run' loading={true}>
@@ -778,9 +787,10 @@ After migration, you can remove these CSS classes from `App.css`:
     {/* content */}
   </div>
 )}
-```
+````
 
 **After:**
+
 ```tsx
 {isLoading ? (
   <Card variant="run" loading={true}>
@@ -804,7 +814,9 @@ After migration, you can remove these CSS classes from `App.css`:
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 ```tsx
 import { Card, CardHeader, CardContent } from '../UI/Card';
 ```
@@ -813,7 +825,9 @@ import { Card, CardHeader, CardContent } from '../UI/Card';
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 ```tsx
 // Card.tsx should import:
 import styles from '../../styles/components/Card.module.css';
@@ -829,7 +843,9 @@ import styles from '../../styles/components/Card.module.css';
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 ```tsx
 // ✅ Correct
 <Card variant="goal" completed={false}>
@@ -846,7 +862,9 @@ import styles from '../../styles/components/Card.module.css';
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 ```tsx
 // ✅ Correct
 <IconButton onClick={() => onEdit(item.id)}>✏️</IconButton>
@@ -862,7 +880,7 @@ import styles from '../../styles/components/Card.module.css';
 **Solution**: Use the `className` prop for additional styling:
 <<<<<<< HEAD
 
-```tsx
+````tsx
 <Card variant='goal' className='custom-goal-card'>
 =======
 ```tsx
@@ -870,13 +888,15 @@ import styles from '../../styles/components/Card.module.css';
 >>>>>>> origin/main
   {/* content */}
 </Card>
-```
+````
 
 **CSS:**
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 ```css
 .custom-goal-card {
   border: 2px solid var(--primary-color);
@@ -891,7 +911,9 @@ import styles from '../../styles/components/Card.module.css';
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 ```tsx
 // ✅ Correct - run cards have special hover animations
 <Card variant="run">
@@ -908,7 +930,9 @@ import styles from '../../styles/components/Card.module.css';
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 ```tsx
 // ✅ Correct
 <ProgressBar percentage={Math.min(Math.max(percentage, 0), 100)} />
@@ -924,14 +948,14 @@ import styles from '../../styles/components/Card.module.css';
 **Solution**: Add proper ARIA attributes:
 <<<<<<< HEAD
 
-```tsx
+````tsx
 <IconButton
   onClick={onDelete}
   title='Delete goal permanently'
   aria-label='Delete goal: Weekly 5K Challenge'
 =======
 ```tsx
-<IconButton 
+<IconButton
   onClick={onDelete}
   title="Delete goal permanently"
   aria-label="Delete goal: Weekly 5K Challenge"
@@ -939,45 +963,57 @@ import styles from '../../styles/components/Card.module.css';
 >
   🗑️
 </IconButton>
-```
+````
 
 ## Testing After Migration
 
 ### 1. Visual Testing
+
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 - Compare before/after screenshots
 - Check all card variants (goal, run, template)
 - Test hover states and animations
 - Verify responsive behavior
 
 ### 2. Functional Testing
+
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 - Test all click handlers
 - Verify progress bars update correctly
 - Check expand/collapse functionality
 - Test keyboard navigation
 
 ### 3. Accessibility Testing
+
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 - Run automated accessibility tests
 - Test with screen readers
 - Verify keyboard navigation
 - Check color contrast
 
 ### 4. Performance Testing
+
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 - Monitor bundle size changes
 - Check rendering performance
 - Verify CSS loading efficiency
@@ -987,13 +1023,16 @@ import styles from '../../styles/components/Card.module.css';
 If issues arise during migration:
 
 ### 1. Component-Level Rollback
+
 <<<<<<< HEAD
 
 Keep old components alongside new ones:
 
 =======
 Keep old components alongside new ones:
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 ```tsx
 // Keep both during transition
 import { OldGoalCard } from './components/OldGoalCard';
@@ -1004,13 +1043,16 @@ const CardComponent = useNewCards ? GoalCard : OldGoalCard;
 ```
 
 ### 2. CSS Fallback
+
 <<<<<<< HEAD
 
 Keep old CSS classes temporarily:
 
 =======
 Keep old CSS classes temporarily:
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 ```css
 /* Keep old styles during migration */
 .goal-card.legacy {
@@ -1019,19 +1061,20 @@ Keep old CSS classes temporarily:
 ```
 
 ### 3. Gradual Rollback
+
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
-Roll back one card type at a time if needed.
+
+> > > > > > > origin/main
+> > > > > > > Roll back one card type at a time if needed.
 
 ## Need Help?
 
 - Check the [Card Component Documentation](../components/Card.md)
 - Review [Best Practices](../components/Card.md#best-practices)
 - See [Accessibility Guide](../accessibility/card-a11y.md)
-<<<<<<< HEAD
+  <<<<<<< HEAD
+- # Look at [Styling Guide](../styling/card-theming.md)
 - Look at [Styling Guide](../styling/card-theming.md)
-=======
-- Look at [Styling Guide](../styling/card-theming.md)
->>>>>>> origin/main
+  > > > > > > > origin/main

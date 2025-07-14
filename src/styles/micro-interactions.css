@@ -18,7 +18,9 @@
   background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  transition: width 0.3s ease, height 0.3s ease;
+  transition:
+    width 0.3s ease,
+    height 0.3s ease;
   pointer-events: none;
 }
 
@@ -53,8 +55,8 @@
   bottom: 0;
   background: linear-gradient(
     45deg,
-    transparent 30%, 
-    rgba(255, 255, 255, 0.1) 50%, 
+    transparent 30%,
+    rgba(255, 255, 255, 0.1) 50%,
     transparent 70%
   );
   transform: translateX(-100%);
@@ -91,9 +93,16 @@
 }
 
 @keyframes counterPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); color: var(--color-primary); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+    color: var(--color-primary);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* Progress Bar Animations */
@@ -109,18 +118,17 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   animation: progressShine 2s infinite;
 }
 
 @keyframes progressShine {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 /* Tab Navigation Enhancements */
@@ -179,12 +187,24 @@
   animation: widgetFadeIn 0.6s ease-out forwards;
 }
 
-.widget-stagger:nth-child(1) { animation-delay: 0.1s; }
-.widget-stagger:nth-child(2) { animation-delay: 0.2s; }
-.widget-stagger:nth-child(3) { animation-delay: 0.3s; }
-.widget-stagger:nth-child(4) { animation-delay: 0.4s; }
-.widget-stagger:nth-child(5) { animation-delay: 0.5s; }
-.widget-stagger:nth-child(6) { animation-delay: 0.6s; }
+.widget-stagger:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.widget-stagger:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.widget-stagger:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.widget-stagger:nth-child(4) {
+  animation-delay: 0.4s;
+}
+.widget-stagger:nth-child(5) {
+  animation-delay: 0.5s;
+}
+.widget-stagger:nth-child(6) {
+  animation-delay: 0.6s;
+}
 
 @keyframes widgetFadeIn {
   to {
@@ -204,11 +224,13 @@
 }
 
 @keyframes toastSlideIn {
-  to { transform: translateX(0); }
+  to {
+    transform: translateX(0);
+  }
 }
 
 @keyframes toastSlideOut {
-  to { 
+  to {
     transform: translateX(100%);
     opacity: 0;
   }
@@ -227,18 +249,17 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--color-primary-subtle),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, var(--color-primary-subtle), transparent);
   animation: loadingPulse 1.5s infinite;
 }
 
 @keyframes loadingPulse {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 /* Ripple Effect */
@@ -257,7 +278,9 @@
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.5);
   transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
+  transition:
+    width 0.6s,
+    height 0.6s;
 }
 
 .ripple-effect:active::before {
@@ -271,8 +294,12 @@
 }
 
 @keyframes dataFlash {
-  0% { background-color: var(--color-success-subtle); }
-  100% { background-color: transparent; }
+  0% {
+    background-color: var(--color-success-subtle);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
 
 /* Achievement Badge Effect */
@@ -315,11 +342,7 @@
   right: 0;
   bottom: 0;
   border-radius: inherit;
-  background: radial-gradient(
-    circle at center,
-    rgba(255, 255, 255, 0.3) 0%,
-    transparent 70%
-  );
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
   opacity: 0;
   transition: opacity var(--transition-fast);
 }
@@ -369,13 +392,13 @@
     animation: none;
     transition: none;
   }
-  
+
   .btn-enhanced:hover,
   .card-interactive:hover,
   .chart-container:hover {
     transform: none;
   }
-  
+
   .progress-enhanced::after,
   .loading-pulse::after,
   .status-pulse::before {

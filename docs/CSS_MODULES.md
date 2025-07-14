@@ -7,6 +7,7 @@ This project uses CSS Modules for component-scoped styling, providing better mai
 ## Architecture
 
 ### Directory Structure
+
 ```
 src/styles/
 ├── globals.css              # Global CSS variables and reset styles
@@ -34,19 +35,17 @@ src/styles/
 ## Usage Patterns
 
 ### Basic Import and Usage
+
 ```tsx
 import styles from '../styles/components/Button.module.css';
 
 export const MyButton = ({ children, variant = 'primary' }) => {
-  return (
-    <button className={styles.btn}>
-      {children}
-    </button>
-  );
+  return <button className={styles.btn}>{children}</button>;
 };
 ```
 
 ### Conditional Classes
+
 ```tsx
 import styles from '../styles/components/Notification.module.css';
 
@@ -60,6 +59,7 @@ export const NotificationItem = ({ notification, isUnread }) => {
 ```
 
 ### Complex Class Combinations
+
 ```tsx
 import styles from '../styles/components/Button.module.css';
 
@@ -70,13 +70,16 @@ export const DynamicButton = ({ size, variant, isLoading, isIcon }) => {
     size === 'small' ? styles.btnSmall : '',
     size === 'large' ? styles.btnLarge : '',
     isLoading ? styles.btnLoading : '',
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return <button className={className}>{/* content */}</button>;
 };
 ```
 
 ### Type-Safe CSS Modules (Recommended)
+
 ```tsx
 // types/css-modules.d.ts
 declare module '*.module.css' {
@@ -89,9 +92,11 @@ import styles from '../styles/components/Form.module.css';
 
 export const FormField = () => {
   return (
-    <div className={styles.formGroup}> {/* IntelliSense will suggest available classes */}
+    <div className={styles.formGroup}>
+      {' '}
+      {/* IntelliSense will suggest available classes */}
       <label className={styles.label}>Email</label>
-      <input className={styles.input} type="email" />
+      <input className={styles.input} type='email' />
       <span className={styles.errorMessage}>Invalid email</span>
     </div>
   );
@@ -101,12 +106,14 @@ export const FormField = () => {
 ## Naming Conventions
 
 ### CSS Class Names
+
 - Use **camelCase** for class names: `.notificationItem`, `.btnPrimary`
 - Use descriptive, semantic names: `.progressBar` not `.blueBar`
 - Use BEM-inspired patterns for variants: `.notificationItem`, `.notificationAchievement`
 - Prefix state classes: `.unread`, `.active`, `.loading`
 
 ### CSS Variables
+
 All CSS modules should use global CSS variables defined in `globals.css`:
 
 ```css
@@ -124,6 +131,7 @@ All CSS modules should use global CSS variables defined in `globals.css`:
 ```
 
 ### File Organization
+
 Each CSS module should be organized with clear sections:
 
 ```css
@@ -178,6 +186,7 @@ Each CSS module should be organized with clear sections:
 ## Performance Optimizations
 
 ### Hardware Acceleration
+
 Use `transform` and `opacity` for animations instead of layout properties:
 
 ```css
@@ -195,6 +204,7 @@ Use `transform` and `opacity` for animations instead of layout properties:
 ```
 
 ### CSS Custom Properties
+
 Use CSS custom properties for shared values to reduce duplication:
 
 ```css
@@ -212,6 +222,7 @@ Use CSS custom properties for shared values to reduce duplication:
 ```
 
 ### Will-Change Property
+
 Use `will-change` sparingly for frequently animated elements:
 
 ```css
@@ -229,6 +240,7 @@ Use `will-change` sparingly for frequently animated elements:
 ## Accessibility Guidelines
 
 ### Touch Targets
+
 All interactive elements must meet WCAG 2.1 touch target requirements:
 
 ```css
@@ -246,6 +258,7 @@ All interactive elements must meet WCAG 2.1 touch target requirements:
 ```
 
 ### Focus Indicators
+
 All interactive elements must have visible focus indicators:
 
 ```css
@@ -256,6 +269,7 @@ All interactive elements must have visible focus indicators:
 ```
 
 ### Color Contrast
+
 Ensure sufficient color contrast for text elements:
 
 ```css
@@ -269,6 +283,7 @@ Ensure sufficient color contrast for text elements:
 ```
 
 ### High Contrast Support
+
 Provide high contrast mode support:
 
 ```css
@@ -280,6 +295,7 @@ Provide high contrast mode support:
 ```
 
 ### Reduced Motion Support
+
 Respect user motion preferences:
 
 ```css
@@ -296,25 +312,32 @@ Respect user motion preferences:
 ### From String Classes to CSS Modules
 
 1. **Create CSS Module File**
+
    ```bash
    # Create new CSS module
    touch src/styles/components/MyComponent.module.css
    ```
 
 2. **Move CSS Rules**
+
    ```css
    /* Before: In App.css */
-   .my-component { /* styles */ }
-   
+   .my-component {
+     /* styles */
+   }
+
    /* After: In MyComponent.module.css */
-   .myComponent { /* styles */ }
+   .myComponent {
+     /* styles */
+   }
    ```
 
 3. **Update Component**
+
    ```tsx
    // Before
    <div className="my-component">
-   
+
    // After
    import styles from '../styles/components/MyComponent.module.css';
    <div className={styles.myComponent}>
@@ -331,21 +354,27 @@ Respect user motion preferences:
 ### Common Migration Issues
 
 1. **Kebab-case to camelCase**
+
    ```css
    /* CSS: kebab-case */
    .notification-item { }
-   
+
    /* JS: camelCase */
    styles.notificationItem
    ```
 
 2. **Global to Scoped**
+
    ```css
    /* Before: Global */
-   .active { color: blue; }
-   
+   .active {
+     color: blue;
+   }
+
    /* After: Scoped */
-   .notificationItem.active { color: var(--color-primary); }
+   .notificationItem.active {
+     color: var(--color-primary);
+   }
    ```
 
 3. **Missing CSS Classes**
@@ -359,6 +388,7 @@ Respect user motion preferences:
 ## Testing
 
 ### CSS Module Tests
+
 Tests are located in `tests/unit/css-modules/css-module-migration.test.tsx`:
 
 ```tsx
@@ -384,7 +414,9 @@ describe('MyComponent CSS Module', () => {
 ```
 
 ### Visual Testing
+
 Use browser dev tools to verify:
+
 - CSS modules generate unique class names
 - No style conflicts between components
 - Responsive breakpoints work correctly
@@ -395,18 +427,21 @@ Use browser dev tools to verify:
 ### Common Issues
 
 1. **"Cannot find module" Error**
+
    ```bash
    # Ensure file exists and has correct extension
    ls src/styles/components/MyComponent.module.css
    ```
 
 2. **Class Name Not Found**
+
    ```tsx
    // Check CSS file for exact class name (camelCase)
    console.log(Object.keys(styles)); // List all available classes
    ```
 
 3. **Styles Not Applied**
+
    ```tsx
    // Verify class name is correctly applied
    console.log(styles.myClass); // Should output a generated class name
@@ -420,7 +455,9 @@ Use browser dev tools to verify:
    ```
 
 ### Build Issues
+
 If CSS modules aren't working in build:
+
 1. Check Vite configuration includes CSS modules support
 2. Verify file naming follows `*.module.css` pattern
 3. Ensure TypeScript declarations are correct
@@ -428,6 +465,7 @@ If CSS modules aren't working in build:
 ## Best Practices
 
 ### Do's ✅
+
 - Use semantic, descriptive class names
 - Leverage CSS custom properties for consistency
 - Include accessibility features (focus, contrast, motion)
@@ -436,6 +474,7 @@ If CSS modules aren't working in build:
 - Follow responsive-first design patterns
 
 ### Don'ts ❌
+
 - Don't use global styles for component-specific styling
 - Don't hardcode values that could use CSS variables
 - Don't create overly specific selectors
@@ -444,6 +483,7 @@ If CSS modules aren't working in build:
 - Don't forget to test class name generation
 
 ### Performance Tips
+
 - Use `will-change` sparingly and remove when done
 - Prefer `transform` and `opacity` for animations
 - Consolidate responsive breakpoints

@@ -99,14 +99,14 @@ Base card component with support for different variants and states.
 #### Props
 
 <<<<<<< HEAD
-| Prop          | Type                                         | Default     | Description                                  |
+| Prop | Type | Default | Description |
 | ------------- | -------------------------------------------- | ----------- | -------------------------------------------- |
-| `variant`     | `'default' \| 'goal' \| 'run' \| 'template'` | `'default'` | Card variant affecting styling               |
-| `completed`   | `boolean`                                    | `false`     | Whether the card represents a completed item |
-| `interactive` | `boolean`                                    | `false`     | Whether the card is clickable                |
-| `loading`     | `boolean`                                    | `false`     | Whether the card is in loading state         |
-| `className`   | `string`                                     | `''`        | Additional CSS class names                   |
-| `children`    | `ReactNode`                                  | -           | Card content                                 |
+| `variant` | `'default' \| 'goal' \| 'run' \| 'template'` | `'default'` | Card variant affecting styling |
+| `completed` | `boolean` | `false` | Whether the card represents a completed item |
+| `interactive` | `boolean` | `false` | Whether the card is clickable |
+| `loading` | `boolean` | `false` | Whether the card is in loading state |
+| `className` | `string` | `''` | Additional CSS class names |
+| `children` | `ReactNode` | - | Card content |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -116,7 +116,8 @@ Base card component with support for different variants and states.
 | `loading` | `boolean` | `false` | Whether the card is in loading state |
 | `className` | `string` | `''` | Additional CSS class names |
 | `children` | `ReactNode` | - | Card content |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 #### Example
 
@@ -137,18 +138,19 @@ Container for card title, icon, and actions.
 #### Props
 
 <<<<<<< HEAD
-| Prop        | Type                               | Default     | Description                         |
+| Prop | Type | Default | Description |
 | ----------- | ---------------------------------- | ----------- | ----------------------------------- |
-| `variant`   | `'default' \| 'template' \| 'run'` | `'default'` | Header variant for specific styling |
-| `children`  | `ReactNode`                        | -           | Header content                      |
-| `className` | `string`                           | `''`        | Additional CSS class names          |
+| `variant` | `'default' \| 'template' \| 'run'` | `'default'` | Header variant for specific styling |
+| `children` | `ReactNode` | - | Header content |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `variant` | `'default' \| 'template' \| 'run'` | `'default'` | Header variant for specific styling |
 | `children` | `ReactNode` | - | Header content |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 #### Example
 
@@ -172,12 +174,12 @@ Displays an icon with optional color theming.
 #### Props
 
 <<<<<<< HEAD
-| Prop        | Type                      | Default     | Description                     |
+| Prop | Type | Default | Description |
 | ----------- | ------------------------- | ----------- | ------------------------------- |
-| `variant`   | `'default' \| 'template'` | `'default'` | Icon variant for sizing         |
-| `color`     | `string`                  | -           | Custom color for the icon       |
-| `children`  | `ReactNode`               | -           | Icon content (emoji, SVG, etc.) |
-| `className` | `string`                  | `''`        | Additional CSS class names      |
+| `variant` | `'default' \| 'template'` | `'default'` | Icon variant for sizing |
+| `color` | `string` | - | Custom color for the icon |
+| `children` | `ReactNode` | - | Icon content (emoji, SVG, etc.) |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -185,7 +187,8 @@ Displays an icon with optional color theming.
 | `color` | `string` | - | Custom color for the icon |
 | `children` | `ReactNode` | - | Icon content (emoji, SVG, etc.) |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 #### Example
 
@@ -206,18 +209,19 @@ Container for card title and subtitle.
 #### Props
 
 <<<<<<< HEAD
-| Prop        | Type                      | Default     | Description                |
+| Prop | Type | Default | Description |
 | ----------- | ------------------------- | ----------- | -------------------------- |
-| `variant`   | `'default' \| 'template'` | `'default'` | Title variant for styling  |
-| `children`  | `ReactNode`               | -           | Title content              |
-| `className` | `string`                  | `''`        | Additional CSS class names |
+| `variant` | `'default' \| 'template'` | `'default'` | Title variant for styling |
+| `children` | `ReactNode` | - | Title content |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `variant` | `'default' \| 'template'` | `'default'` | Title variant for styling |
 | `children` | `ReactNode` | - | Title content |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 #### Example
 
@@ -239,18 +243,19 @@ Displays descriptive text content.
 #### Props
 
 <<<<<<< HEAD
-| Prop        | Type                      | Default     | Description                     |
+| Prop | Type | Default | Description |
 | ----------- | ------------------------- | ----------- | ------------------------------- |
-| `variant`   | `'default' \| 'template'` | `'default'` | Description variant for styling |
-| `children`  | `ReactNode`               | -           | Description content             |
-| `className` | `string`                  | `''`        | Additional CSS class names      |
+| `variant` | `'default' \| 'template'` | `'default'` | Description variant for styling |
+| `children` | `ReactNode` | - | Description content |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `variant` | `'default' \| 'template'` | `'default'` | Description variant for styling |
 | `children` | `ReactNode` | - | Description content |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 #### Example
 
@@ -271,16 +276,17 @@ Main content area of the card.
 #### Props
 
 <<<<<<< HEAD
-| Prop        | Type        | Default | Description                |
+| Prop | Type | Default | Description |
 | ----------- | ----------- | ------- | -------------------------- |
-| `children`  | `ReactNode` | -       | Content                    |
-| `className` | `string`    | `''`    | Additional CSS class names |
+| `children` | `ReactNode` | - | Content |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `children` | `ReactNode` | - | Content |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 ### CardActions
 
@@ -289,18 +295,19 @@ Container for action buttons.
 #### Props
 
 <<<<<<< HEAD
-| Prop        | Type                               | Default     | Description                 |
+| Prop | Type | Default | Description |
 | ----------- | ---------------------------------- | ----------- | --------------------------- |
-| `variant`   | `'default' \| 'run' \| 'template'` | `'default'` | Actions variant for styling |
-| `children`  | `ReactNode`                        | -           | Action buttons              |
-| `className` | `string`                           | `''`        | Additional CSS class names  |
+| `variant` | `'default' \| 'run' \| 'template'` | `'default'` | Actions variant for styling |
+| `children` | `ReactNode` | - | Action buttons |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `variant` | `'default' \| 'run' \| 'template'` | `'default'` | Actions variant for styling |
 | `children` | `ReactNode` | - | Action buttons |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 #### Example
 
@@ -328,16 +335,17 @@ Footer area for meta information.
 #### Props
 
 <<<<<<< HEAD
-| Prop        | Type        | Default | Description                |
+| Prop | Type | Default | Description |
 | ----------- | ----------- | ------- | -------------------------- |
-| `children`  | `ReactNode` | -       | Footer content             |
-| `className` | `string`    | `''`    | Additional CSS class names |
+| `children` | `ReactNode` | - | Footer content |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `children` | `ReactNode` | - | Footer content |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 ### IconButton
 
@@ -346,13 +354,13 @@ Clickable icon button for actions.
 #### Props
 
 <<<<<<< HEAD
-| Prop        | Type                                       | Default     | Description                |
+| Prop | Type | Default | Description |
 | ----------- | ------------------------------------------ | ----------- | -------------------------- |
-| `variant`   | `'default' \| 'run' \| 'delete' \| 'edit'` | `'default'` | Button variant for styling |
-| `title`     | `string`                                   | -           | Tooltip text               |
-| `onClick`   | `() => void`                               | -           | Click handler              |
-| `children`  | `ReactNode`                                | -           | Button content             |
-| `className` | `string`                                   | `''`        | Additional CSS class names |
+| `variant` | `'default' \| 'run' \| 'delete' \| 'edit'` | `'default'` | Button variant for styling |
+| `title` | `string` | - | Tooltip text |
+| `onClick` | `() => void` | - | Click handler |
+| `children` | `ReactNode` | - | Button content |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -361,7 +369,8 @@ Clickable icon button for actions.
 | `onClick` | `() => void` | - | Click handler |
 | `children` | `ReactNode` | - | Button content |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 ### Progress Components
 
@@ -372,12 +381,12 @@ Animated progress bar with color theming.
 ##### Props
 
 <<<<<<< HEAD
-| Prop         | Type      | Default | Description                   |
+| Prop | Type | Default | Description |
 | ------------ | --------- | ------- | ----------------------------- |
-| `percentage` | `number`  | -       | Progress percentage (0-100)   |
-| `completed`  | `boolean` | `false` | Whether progress is completed |
-| `color`      | `string`  | -       | Custom progress color         |
-| `className`  | `string`  | `''`    | Additional CSS class names    |
+| `percentage` | `number` | - | Progress percentage (0-100) |
+| `completed` | `boolean` | `false` | Whether progress is completed |
+| `color` | `string` | - | Custom progress color |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -385,7 +394,8 @@ Animated progress bar with color theming.
 | `completed` | `boolean` | `false` | Whether progress is completed |
 | `color` | `string` | - | Custom progress color |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 ##### Example
 
@@ -393,9 +403,9 @@ Animated progress bar with color theming.
 <<<<<<< HEAD
 <ProgressBar percentage={75} color='#10b981' completed={false} />
 =======
-<ProgressBar 
-  percentage={75} 
-  color="#10b981" 
+<ProgressBar
+  percentage={75}
+  color="#10b981"
   completed={false}
 />
 >>>>>>> origin/main
@@ -408,16 +418,17 @@ Header for progress display with text and percentage.
 ##### Props
 
 <<<<<<< HEAD
-| Prop        | Type        | Default | Description                |
+| Prop | Type | Default | Description |
 | ----------- | ----------- | ------- | -------------------------- |
-| `children`  | `ReactNode` | -       | Header content             |
-| `className` | `string`    | `''`    | Additional CSS class names |
+| `children` | `ReactNode` | - | Header content |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `children` | `ReactNode` | - | Header content |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 ### Utility Components
 
@@ -428,16 +439,17 @@ Badge for displaying completion status.
 ##### Props
 
 <<<<<<< HEAD
-| Prop        | Type        | Default | Description                |
+| Prop | Type | Default | Description |
 | ----------- | ----------- | ------- | -------------------------- |
-| `children`  | `ReactNode` | -       | Badge content              |
-| `className` | `string`    | `''`    | Additional CSS class names |
+| `children` | `ReactNode` | - | Badge content |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `children` | `ReactNode` | - | Badge content |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 #### DifficultyBadge
 
@@ -446,16 +458,17 @@ Color-coded badge for difficulty levels.
 ##### Props
 
 <<<<<<< HEAD
-| Prop         | Type     | Default | Description                                               |
+| Prop | Type | Default | Description |
 | ------------ | -------- | ------- | --------------------------------------------------------- |
-| `difficulty` | `string` | -       | Difficulty level ('beginner', 'intermediate', 'advanced') |
-| `className`  | `string` | `''`    | Additional CSS class names                                |
+| `difficulty` | `string` | - | Difficulty level ('beginner', 'intermediate', 'advanced') |
+| `className` | `string` | `''` | Additional CSS class names |
 =======
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `difficulty` | `string` | - | Difficulty level ('beginner', 'intermediate', 'advanced') |
 | `className` | `string` | `''` | Additional CSS class names |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 ##### Example
 
@@ -630,7 +643,7 @@ function RunCard({ run, onEdit, onDelete }) {
             <span className="stat-label">Duration</span>
           </div>
         </div>
-        
+
         {run.notes && (
           <div className="run-notes">{run.notes}</div>
         )}
@@ -731,8 +744,8 @@ function TemplateCard({ template, onSelect }) {
         <Button variant='primary' onClick={onSelect}>
 =======
       <CardActions variant="template">
-        <Button 
-          variant="secondary" 
+        <Button
+          variant="secondary"
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? 'Show Less' : 'Learn More'}
@@ -750,6 +763,7 @@ function TemplateCard({ template, onSelect }) {
 ## Variants
 
 ### Default
+
 <<<<<<< HEAD
 
 Standard card styling suitable for general content.
@@ -762,33 +776,42 @@ Enhanced styling for goal cards with:
 Standard card styling suitable for general content.
 
 ### Goal
+
 Enhanced styling for goal cards with:
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 - Progress tracking support
 - Completion states
 - Action buttons
 - Expand/collapse functionality
 
 ### Run
+
 <<<<<<< HEAD
 
 Optimized for displaying running activity data with:
 
 =======
 Optimized for displaying running activity data with:
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 - Stat display layouts
 - Hover-revealed actions
 - Animation delays in grids
 
 ### Template
+
 <<<<<<< HEAD
 
 Designed for goal template cards with:
 
 =======
 Designed for goal template cards with:
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 - Expanded content areas
 - Difficulty badges
 - Tag displays
@@ -804,7 +827,7 @@ All Card components include proper ARIA attributes:
 <<<<<<< HEAD
 <Card interactive={true} role='button' tabIndex={0} aria-label='Goal card for weekly running'>
 =======
-<Card 
+<Card
   interactive={true}
   role="button"
   tabIndex={0}
@@ -869,7 +892,7 @@ All Card components include proper ARIA attributes:
 <<<<<<< HEAD
 <IconButton
 =======
-<IconButton 
+<IconButton
 >>>>>>> origin/main
   title="Delete this goal permanently"
   aria-label="Delete goal: Weekly 5K Challenge"
@@ -957,7 +980,7 @@ const OptimizedGoalCard = React.memo(GoalCard, (prevProps, nextProps) => {
   goals.map(goal => <GoalCard key={goal.id} goal={goal} />);
 }
 =======
-  return prevProps.goal.id === nextProps.goal.id && 
+  return prevProps.goal.id === nextProps.goal.id &&
          prevProps.progress === nextProps.progress;
 });
 
@@ -1002,9 +1025,8 @@ For more information, see:
 
 - [Migration Guide](../migration/card-system.md)
 - [Styling Guide](../styling/card-theming.md)
-- [Accessibility Guide](../accessibility/card-a11y.md)
-=======
+- # [Accessibility Guide](../accessibility/card-a11y.md)
 - [Migration Guide](../migration/card-system.md)
 - [Styling Guide](../styling/card-theming.md)
 - [Accessibility Guide](../accessibility/card-a11y.md)
->>>>>>> origin/main
+  > > > > > > > origin/main

@@ -90,9 +90,7 @@ export const RecentRunsWidget: React.FC<RecentRunsWidgetProps> = ({ runs, loadin
                   }
                 }}
               >
-                <div className='run-icon'>
-                  {getRunIcon(run.tag)}
-                </div>
+                <div className='run-icon'>{getRunIcon(run.tag)}</div>
                 <div className='run-details'>
                   <div className='run-primary'>
                     <span className='run-distance'>{formatDistance(run.distance)}</span>
