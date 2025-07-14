@@ -28,13 +28,13 @@ The Card component system is designed with accessibility as a core principle, pr
 ### Accessibility Features
 
 <<<<<<< HEAD
-| Feature               | Implementation            | WCAG Criteria |
+| Feature | Implementation | WCAG Criteria |
 | --------------------- | ------------------------- | ------------- |
-| Keyboard Navigation   | Tab/Enter/Space support   | 2.1.1 (A)     |
-| Focus Indicators      | Visible focus states      | 2.4.7 (AA)    |
-| Screen Reader Support | Semantic HTML + ARIA      | 4.1.3 (AA)    |
-| Color Contrast        | Customizable themes       | 1.4.3 (AA)    |
-| Reduced Motion        | Respects user preferences | 2.3.3 (AAA)   |
+| Keyboard Navigation | Tab/Enter/Space support | 2.1.1 (A) |
+| Focus Indicators | Visible focus states | 2.4.7 (AA) |
+| Screen Reader Support | Semantic HTML + ARIA | 4.1.3 (AA) |
+| Color Contrast | Customizable themes | 1.4.3 (AA) |
+| Reduced Motion | Respects user preferences | 2.3.3 (AAA) |
 =======
 | Feature | Implementation | WCAG Criteria |
 |---------|---------------|---------------|
@@ -43,7 +43,8 @@ The Card component system is designed with accessibility as a core principle, pr
 | Screen Reader Support | Semantic HTML + ARIA | 4.1.3 (AA) |
 | Color Contrast | Customizable themes | 1.4.3 (AA) |
 | Reduced Motion | Respects user preferences | 2.3.3 (AAA) |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 ## ARIA Patterns
 
@@ -59,7 +60,7 @@ For cards that can be clicked or activated:
   tabIndex={0}
   aria-label='Goal card for weekly 5K challenge'
 =======
-<Card 
+<Card
   interactive={true}
   role="button"
   tabIndex={0}
@@ -120,7 +121,7 @@ Progress information should be announced to screen readers:
     </CardTitle>
   </CardHeader>
   <CardContent>
-    <ProgressBar 
+    <ProgressBar
       percentage={75}
       aria-labelledby="goal-456"
       aria-valuenow={75}
@@ -202,7 +203,7 @@ function ExpandableCard({ id, isExpanded, onToggle }) {
 =======
 function ExpandableCard({ isExpanded, onToggle }) {
   const contentId = `expandable-content-${id}`;
-  
+
   return (
     <Card variant="template">
 >>>>>>> origin/main
@@ -221,7 +222,7 @@ function ExpandableCard({ isExpanded, onToggle }) {
 =======
           aria-label={isExpanded ? "Collapse template details" : "Expand template details"}
         />
-        
+
         {isExpanded && (
           <ExpandedContent
             id={contentId}
@@ -243,14 +244,14 @@ function ExpandableCard({ isExpanded, onToggle }) {
 ### Supported Key Interactions
 
 <<<<<<< HEAD
-| Key            | Action                                 | Context                    |
+| Key | Action | Context |
 | -------------- | -------------------------------------- | -------------------------- |
-| **Tab**        | Navigate to next focusable element     | All interactive cards      |
-| **Shift+Tab**  | Navigate to previous focusable element | All interactive cards      |
-| **Enter**      | Activate card or button                | Interactive cards, buttons |
-| **Space**      | Activate card or button                | Interactive cards, buttons |
-| **Escape**     | Close expanded content                 | Expandable cards           |
-| **Arrow Keys** | Navigate within card grid              | Card collections           |
+| **Tab** | Navigate to next focusable element | All interactive cards |
+| **Shift+Tab** | Navigate to previous focusable element | All interactive cards |
+| **Enter** | Activate card or button | Interactive cards, buttons |
+| **Space** | Activate card or button | Interactive cards, buttons |
+| **Escape** | Close expanded content | Expandable cards |
+| **Arrow Keys** | Navigate within card grid | Card collections |
 =======
 | Key | Action | Context |
 |-----|--------|---------|
@@ -260,7 +261,8 @@ function ExpandableCard({ isExpanded, onToggle }) {
 | **Space** | Activate card or button | Interactive cards, buttons |
 | **Escape** | Close expanded content | Expandable cards |
 | **Arrow Keys** | Navigate within card grid | Card collections |
->>>>>>> origin/main
+
+> > > > > > > origin/main
 
 ### Tab Order
 
@@ -341,7 +343,7 @@ const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
   {/* Card content */}
 </Card>;
 =======
-<Card 
+<Card
   interactive={interactive}
   onKeyDown={handleKeyDown}
   tabIndex={interactive ? 0 : undefined}
@@ -372,14 +374,14 @@ const useGridNavigation = (gridRef: RefObject<HTMLDivElement>) => {
 =======
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!gridRef.current) return;
-      
+
       const cards = Array.from(
         gridRef.current.querySelectorAll('[role="button"], [tabindex="0"]')
       ) as HTMLElement[];
-      
+
       const currentIndex = cards.indexOf(document.activeElement as HTMLElement);
       let nextIndex = currentIndex;
-      
+
 >>>>>>> origin/main
       switch (event.key) {
         case 'ArrowRight':
@@ -406,11 +408,11 @@ const useGridNavigation = (gridRef: RefObject<HTMLDivElement>) => {
     };
 
 =======
-      
+
       event.preventDefault();
       cards[nextIndex]?.focus();
     };
-    
+
 >>>>>>> origin/main
     gridRef.current?.addEventListener('keydown', handleKeyDown);
     return () => gridRef.current?.removeEventListener('keydown', handleKeyDown);
@@ -453,18 +455,18 @@ Use proper heading hierarchy and semantic elements:
       <span className="goal-type">Distance</span>  {/* Goal type */}
     </CardTitle>
   </CardHeader>
-  
+
   <CardContent>
     <p>Run 25 kilometers this week</p>      {/* Goal description */}
-    
+
     <div role="group" aria-labelledby="progress-label">
       <h4 id="progress-label">Progress</h4>  {/* Progress section */}
-      <ProgressBar 
+      <ProgressBar
         percentage={60}
         aria-label="60% complete, 15 of 25 kilometers"
       />
     </div>
-    
+
     <dl>                                     {/* Statistics */}
 >>>>>>> origin/main
       <dt>Current</dt>
@@ -523,7 +525,7 @@ Provide additional context for screen readers:
 
     <span className='sr-only'>
 =======
-  
+
   <CardContent>
     <div className="run-stats">
       <div className="stat">
@@ -541,7 +543,7 @@ Provide additional context for screen readers:
         </span>
       </div>
     </div>
-    
+
     <span className="sr-only">
 >>>>>>> origin/main
       Run summary: 5.2 kilometers completed in 28 minutes and 45 seconds
@@ -560,7 +562,7 @@ function GoalCard({ goal, progress }) {
 <<<<<<< HEAD
 
 =======
-  
+
 >>>>>>> origin/main
   useEffect(() => {
     if (goal.isCompleted) {
@@ -578,16 +580,16 @@ function GoalCard({ goal, progress }) {
       {/* Live region for announcements */}
       <div aria-live='polite' aria-atomic='true' className='sr-only'>
 =======
-  
+
   return (
     <>
       <Card variant="goal" completed={goal.isCompleted}>
         {/* Card content */}
       </Card>
-      
+
       {/* Live region for announcements */}
-      <div 
-        aria-live="polite" 
+      <div
+        aria-live="polite"
         aria-atomic="true"
         className="sr-only"
       >
@@ -653,20 +655,20 @@ const useFocusTrap = (isActive: boolean) => {
       if (e.key !== 'Tab') return;
 
 =======
-  
+
   useEffect(() => {
     if (!isActive || !ref.current) return;
-    
+
     const focusableElements = ref.current.querySelectorAll(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
-    
+
     const firstElement = focusableElements[0] as HTMLElement;
     const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
-    
+
     const handleTabKey = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return;
-      
+
 >>>>>>> origin/main
       if (e.shiftKey) {
         if (document.activeElement === firstElement) {
@@ -689,13 +691,13 @@ const useFocusTrap = (isActive: boolean) => {
   }, [isActive]);
 
 =======
-    
+
     document.addEventListener('keydown', handleTabKey);
     firstElement?.focus();
-    
+
     return () => document.removeEventListener('keydown', handleTabKey);
   }, [isActive]);
-  
+
 >>>>>>> origin/main
   return ref;
 };
@@ -716,11 +718,11 @@ function GoalCard({ goal, onEdit }) {
   };
 
 =======
-  
+
   const handleEdit = () => {
     setIsModalOpen(true);
   };
-  
+
 >>>>>>> origin/main
   const handleModalClose = () => {
     setIsModalOpen(false);
@@ -739,7 +741,7 @@ function GoalCard({ goal, onEdit }) {
 
       {isModalOpen && <EditGoalModal goal={goal} onClose={handleModalClose} />}
 =======
-  
+
   return (
     <Card variant="goal">
       <CardActions>
@@ -751,9 +753,9 @@ function GoalCard({ goal, onEdit }) {
           ✏️
         </IconButton>
       </CardActions>
-      
+
       {isModalOpen && (
-        <EditGoalModal 
+        <EditGoalModal
           goal={goal}
           onClose={handleModalClose}
         />
@@ -787,10 +789,10 @@ Ensure sufficient color contrast ratios:
   --text-high-contrast: #ffffff;      /* 21:1 on dark backgrounds */
   --text-medium-contrast: #e2e8f0;    /* 12:1 on dark backgrounds */
   --text-low-contrast: #a0aec0;       /* 4.5:1 on dark backgrounds */
-  
+
   --border-normal: #4a5568;           /* 3:1 minimum for borders */
   --border-focus: #0066cc;            /* High contrast for focus */
-  
+
   --background-card: #2d3748;         /* Base card background */
   --background-card-hover: #4a5568;   /* Hover state */
 >>>>>>> origin/main
@@ -810,7 +812,7 @@ Ensure sufficient color contrast ratios:
   --text-high-contrast: #1a202c;      /* 21:1 on light backgrounds */
   --text-medium-contrast: #2d3748;    /* 12:1 on light backgrounds */
   --text-low-contrast: #4a5568;       /* 4.5:1 on light backgrounds */
-  
+
   --border-normal: #e2e8f0;           /* 3:1 minimum for borders */
   --background-card: #ffffff;         /* Base card background */
   --background-card-hover: #f7fafc;   /* Hover state */
@@ -830,32 +832,17 @@ Support Windows High Contrast Mode:
     background: ButtonFace;
     color: ButtonText;
   }
-<<<<<<< HEAD
-
-=======
-  
->>>>>>> origin/main
-  .card:hover {
+  <<<<<<< HEAD =======>>>>>>>origin/main .card:hover {
     border-color: Highlight;
     background: HighlightText;
     color: Highlight;
   }
-<<<<<<< HEAD
-
-=======
-  
->>>>>>> origin/main
-  .iconBtn {
+  <<<<<<< HEAD =======>>>>>>>origin/main .iconBtn {
     border: 1px solid ButtonText;
     background: ButtonFace;
     color: ButtonText;
   }
-<<<<<<< HEAD
-
-=======
-  
->>>>>>> origin/main
-  .iconBtn:focus {
+  <<<<<<< HEAD =======>>>>>>>origin/main .iconBtn:focus {
     outline: 2px solid Highlight;
   }
 }
@@ -881,7 +868,7 @@ Ensure information isn't conveyed by color alone:
 <<<<<<< HEAD
 <ProgressBar
 =======
-<ProgressBar 
+<ProgressBar
 >>>>>>> origin/main
   percentage={75}
   aria-valuetext="75% complete - 3 of 4 weeks"
@@ -922,7 +909,7 @@ Honor `prefers-reduced-motion`:
 <<<<<<< HEAD
 
 =======
-  
+
 >>>>>>> origin/main
   .card:hover {
     transform: none;
@@ -1039,15 +1026,15 @@ describe('Card Accessibility', () => {
         </CardHeader>
       </Card>
     );
-    
+
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
-  
+
   test('supports keyboard navigation', async () => {
     const user = userEvent.setup();
     const onEdit = jest.fn();
-    
+
     render(
       <Card variant="goal">
         <CardActions>
@@ -1071,17 +1058,17 @@ describe('Card Accessibility', () => {
     expect(onEdit).toHaveBeenCalled();
 
 =======
-    
+
     const editButton = screen.getByLabelText('Edit goal');
-    
+
     // Test Tab navigation
     await user.tab();
     expect(editButton).toHaveFocus();
-    
+
     // Test Enter activation
     await user.keyboard('{Enter}');
     expect(onEdit).toHaveBeenCalled();
-    
+
 >>>>>>> origin/main
     // Test Space activation
     await user.keyboard(' ');
@@ -1093,15 +1080,15 @@ describe('Card Accessibility', () => {
     render(<ProgressBar percentage={75} aria-valuetext='75% complete, 7.5 of 10 kilometers' />);
 
 =======
-  
+
   test('announces progress to screen readers', () => {
     render(
-      <ProgressBar 
+      <ProgressBar
         percentage={75}
         aria-valuetext="75% complete, 7.5 of 10 kilometers"
       />
     );
-    
+
 >>>>>>> origin/main
     const progressBar = screen.getByRole('progressbar');
     expect(progressBar).toHaveAttribute('aria-valuetext', '75% complete, 7.5 of 10 kilometers');
@@ -1267,7 +1254,7 @@ Document accessibility features and test regularly:
 <<<<<<< HEAD
  *
 =======
- * 
+ *
 >>>>>>> origin/main
  * @accessibility
  * - Supports keyboard navigation (Tab, Enter, Space, Escape)
@@ -1279,9 +1266,9 @@ Document accessibility features and test regularly:
  * @example
  * <Card
 =======
- * 
+ *
  * @example
- * <Card 
+ * <Card
 >>>>>>> origin/main
  *   interactive={true}
  *   aria-label="Goal card for weekly running challenge"
@@ -1299,13 +1286,14 @@ For more information, see:
 <<<<<<< HEAD
 
 =======
->>>>>>> origin/main
+
+> > > > > > > origin/main
+
 - [Card Component Documentation](../components/Card.md)
 - [Migration Guide](../migration/card-system.md)
 - [Styling Guide](../styling/card-theming.md)
 - [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
-<<<<<<< HEAD
+  <<<<<<< HEAD
+- # [MDN Accessibility](https://developer.mozilla.org/en-US/docs/Web/Accessibility)
 - [MDN Accessibility](https://developer.mozilla.org/en-US/docs/Web/Accessibility)
-=======
-- [MDN Accessibility](https://developer.mozilla.org/en-US/docs/Web/Accessibility)
->>>>>>> origin/main
+  > > > > > > > origin/main

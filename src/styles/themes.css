@@ -51,7 +51,7 @@
 
 /* Light Theme (Default) */
 :root,
-[data-theme="light"] {
+[data-theme='light'] {
   /* Background Colors */
   --color-background: var(--color-gray-50);
   --color-background-subtle: var(--color-gray-100);
@@ -116,7 +116,7 @@
 }
 
 /* Dark Theme */
-[data-theme="dark"] {
+[data-theme='dark'] {
   /* Background Colors */
   --color-background: var(--color-gray-900);
   --color-background-subtle: var(--color-gray-800);
@@ -296,7 +296,7 @@
 *,
 *::before,
 *::after {
-  transition: 
+  transition:
     background-color var(--transition-normal),
     border-color var(--transition-normal),
     color var(--transition-normal),
@@ -316,5 +316,7 @@
 body {
   background-color: var(--color-background);
   color: var(--color-text-primary);
-  transition: background-color var(--transition-normal), color var(--transition-normal);
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
 }

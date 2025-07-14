@@ -273,7 +273,8 @@
 
 /* Animations */
 @keyframes footerGradientShift {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   50% {
@@ -282,7 +283,8 @@
 }
 
 @keyframes subtle-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.9;
   }
   50% {
@@ -291,7 +293,8 @@
 }
 
 @keyframes connecting-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.8;
   }
   50% {
@@ -300,7 +303,8 @@
 }
 
 @keyframes error-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.9;
   }
   50% {
@@ -333,16 +337,16 @@
   .connectivityContent {
     padding: 16px 20px;
   }
-  
+
   .footerSections {
     grid-template-columns: 1fr;
     gap: 20px;
   }
-  
+
   .connectivityStatus {
     font-size: 15px;
   }
-  
+
   .footerLinks {
     flex-wrap: wrap;
     gap: 12px 20px;
@@ -353,37 +357,37 @@
   .connectivityContent {
     padding: 14px 16px;
   }
-  
+
   .connectivityDetails.expanded {
     max-height: 350px;
   }
-  
+
   .connectivityStatus {
     font-size: 14px;
   }
-  
+
   .connectivityLine {
     height: 10px;
   }
-  
+
   .connectivityLine:hover {
     height: 14px;
   }
-  
+
   .connectivityLine::before {
     width: 30px;
     height: 3px;
   }
-  
+
   .connectivityLine:hover::before {
     width: 45px;
     height: 4px;
   }
-  
+
   .footerInfoItem {
     font-size: 13px;
   }
-  
+
   .footerLink {
     font-size: 12px;
   }
@@ -393,13 +397,13 @@
   .connectivityContent {
     padding: 12px;
   }
-  
+
   .footerInfoItem {
     font-size: 12px;
     flex-direction: column;
     gap: 2px;
   }
-  
+
   .footerLinks {
     gap: 10px 16px;
   }

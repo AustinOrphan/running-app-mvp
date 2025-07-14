@@ -8,7 +8,16 @@
     "src/**/*.tsx",
     "tests/**/*.ts",
     "tests/**/*.tsx",
+    "middleware/**/*.ts",
+    "middleware/**/*.tsx",
+    "routes/**/*.ts",
+    "routes/**/*.tsx",
+    "types/**/*.ts",
+    "types/**/*.tsx",
+    "utils/**/*.ts",
+    "utils/**/*.tsx",
     "**/*.config.ts",
+    "**/*.config.js",
     "scripts/**/*.ts"
   ],
   "exclude": ["node_modules", "dist"]

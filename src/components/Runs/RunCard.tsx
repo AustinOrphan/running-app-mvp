@@ -38,11 +38,13 @@ export const RunCard: React.FC<RunCardProps> = ({ run, onEdit, onDelete }) => {
             <span className='stat-label'>Distance</span>
           </div>
           <div className='stat'>
-            <span className='stat-value'>{formatDuration(run.duration)}</span>
+            <span className='stat-value'>{formatDuration(run.duration || 0)}</span>
             <span className='stat-label'>Duration</span>
           </div>
           <div className='stat'>
-            <span className='stat-value'>{calculatePace(run.distance, run.duration)}</span>
+            <span className='stat-value'>
+              {calculatePace(run.distance || 0, run.duration || 0)}
+            </span>
             <span className='stat-label'>Pace/km</span>
           </div>
         </div>

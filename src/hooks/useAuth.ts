@@ -7,10 +7,28 @@ import {
   getAuthToken,
   authEvents,
 } from '../utils/apiFetch';
+import { devConfig } from '../utils/environment';
 
 export const useAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Development bypass functionality
+  const bypassLogin = () => {
+    if (!devConfig.enableLoginBypass) {
+      return { success: false, message: 'Development bypass is disabled' };
+    }
+
+    // Set a mock token for development
+    const mockToken = 'dev-mock-token-' + Date.now();
+    setTokens(mockToken, mockToken);
+    setIsLoggedIn(true);
+    return {
+      success: true,
+      accessToken: mockToken,
+      message: 'Development login bypass activated',
+    };
+  };
 
   useEffect(() => {
     // Check if user has access token (or fallback to old authToken)
@@ -134,5 +152,6 @@ export const useAuth = () => {
     register,
     logout,
     getToken,
+    bypassLogin, // Development only
   };
 };

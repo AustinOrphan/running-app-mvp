@@ -32,7 +32,7 @@ describe('useGoals', () => {
 
   beforeEach(() => {
     // Reset and set up fresh mock for each test
-    vi.clearAllMocks();
+    mockFetch.mockReset();
     global.fetch = mockFetch;
 
     // Provide default mock responses to prevent undefined errors
@@ -55,7 +55,7 @@ describe('useGoals', () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    mockFetch.mockReset();
   });
 
   describe('Initial State', () => {

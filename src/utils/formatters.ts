@@ -31,6 +31,11 @@ export const calculatePace = (distance: number, duration: number): string => {
  * @returns Formatted duration string in "Xh Ym Zs" or "Xm Zs" format
  */
 export const formatDuration = (seconds: number): string => {
+  // Handle NaN, null, undefined, and non-finite values
+  if (!isFinite(seconds) || seconds == null) {
+    return '--';
+  }
+
   const abs = Math.abs(seconds);
   const sign = seconds < 0 ? '-' : '';
 
@@ -159,17 +164,30 @@ export const parseDuration = (durationStr: string): number => {
 };
 
 /**
+ * Safely calculates average avoiding division by zero and NaN
+ * @param total - Total value
+ * @param count - Count of items
+ * @returns Safe average or 0 if invalid
+ */
+export const safeAverage = (total: number, count: number): number => {
+  if (!isFinite(total) || !isFinite(count) || count === 0) {
+    return 0;
+  }
+  return total / count;
+};
+
+/**
  * Calculates average pace from an array of runs
  * @param runs - Array of Run objects
  * @returns Average pace in seconds per kilometer
  */
-export const calculateAveragePace = (runs: Array<{ distance: number; duration: number }>): number => {
+export const calculateAveragePace = (
+  runs: Array<{ distance: number; duration: number }>
+): number => {
   if (!runs.length) return 0;
-  
+
   const totalDistance = runs.reduce((sum, run) => sum + run.distance, 0);
   const totalDuration = runs.reduce((sum, run) => sum + run.duration, 0);
-  
-  if (totalDistance === 0) return 0;
-  
-  return totalDuration / totalDistance; // seconds per kilometer
+
+  return safeAverage(totalDuration, totalDistance);
 };

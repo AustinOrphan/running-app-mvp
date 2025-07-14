@@ -1,0 +1,371 @@
+name: 🔄 Emergency Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      strategy:
+        description: 'Rollback strategy'
+        required: true
+        default: 'immediate'
+        type: choice
+        options:
+          - immediate
+          - gradual
+          - blue-green
+      target_version:
+        description: 'Target version/image to rollback to (optional - uses previous if not specified)'
+        required: false
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+      notify_stakeholders:
+        description: 'Send notifications to stakeholders'
+        required: true
+        default: true
+        type: boolean
+
+env:
+  ROLLBACK_ID: rollback-${{ github.event.inputs.environment }}-${{ github.run_id }}
+
+jobs:
+  validate-rollback:
+    name: 🔍 Validate Rollback Request
+    runs-on: ubuntu-latest
+    outputs:
+      approved: ${{ steps.validate.outputs.approved }}
+      current_version: ${{ steps.current.outputs.version }}
+      target_version: ${{ steps.target.outputs.version }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Configure kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: 🔐 Configure cloud credentials
+        run: |
+          # Configure your cloud provider credentials
+          echo "Configuring cloud credentials for ${{ github.event.inputs.environment }}"
+
+      - name: 📊 Get current deployment info
+        id: current
+        run: |
+          NAMESPACE="running-app-${{ github.event.inputs.environment }}"
+          CURRENT_VERSION=$(kubectl get deployment running-app-backend-${{ github.event.inputs.environment }} \
+            -n ${NAMESPACE} \
+            -o jsonpath='{.spec.template.spec.containers[0].image}' || echo "unknown")
+
+          echo "version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+          echo "Current version: ${CURRENT_VERSION}"
+
+      - name: 🎯 Determine target version
+        id: target
+        run: |
+          if [[ -n "${{ github.event.inputs.target_version }}" ]]; then
+            echo "version=${{ github.event.inputs.target_version }}" >> $GITHUB_OUTPUT
+          else
+            # Get previous version from deployment history
+            NAMESPACE="running-app-${{ github.event.inputs.environment }}"
+            PREVIOUS_VERSION=$(kubectl rollout history deployment/running-app-backend-${{ github.event.inputs.environment }} \
+              -n ${NAMESPACE} \
+              --revision=0 | tail -2 | head -1 | awk '{print $8}' || echo "unknown")
+            
+            echo "version=${PREVIOUS_VERSION}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: ✅ Validate rollback feasibility
+        id: validate
+        run: |
+          # Check if we can perform rollback
+          if [[ "${{ steps.current.outputs.version }}" == "unknown" ]]; then
+            echo "❌ Cannot determine current version"
+            echo "approved=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "approved=true" >> $GITHUB_OUTPUT
+
+      - name: 📝 Create rollback plan
+        run: |
+          cat > rollback-plan.md <<EOF
+          # Rollback Plan
+
+          ## Request Details
+          - **Environment**: ${{ github.event.inputs.environment }}
+          - **Strategy**: ${{ github.event.inputs.strategy }}
+          - **Reason**: ${{ github.event.inputs.reason }}
+          - **Requested By**: ${{ github.actor }}
+          - **Request Time**: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          ## Version Information
+          - **Current Version**: ${{ steps.current.outputs.version }}
+          - **Target Version**: ${{ steps.target.outputs.version }}
+
+          ## Impact Analysis
+          - Users will experience brief service interruption (< 30 seconds)
+          - Any features from the current version will be rolled back
+          - Database migrations will NOT be rolled back automatically
+
+          ## Rollback Steps
+          1. Create snapshot of current state
+          2. Execute ${{ github.event.inputs.strategy }} rollback
+          3. Verify service health
+          4. Monitor for 15 minutes
+          5. Send notifications
+          EOF
+
+          cat rollback-plan.md
+
+      - name: 📊 Upload rollback plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-plan-${{ env.ROLLBACK_ID }}
+          path: rollback-plan.md
+          retention-days: 90
+
+  approve-rollback:
+    name: 🔐 Approve Rollback
+    runs-on: ubuntu-latest
+    needs: [validate-rollback]
+    if: needs.validate-rollback.outputs.approved == 'true'
+    environment:
+      name: ${{ github.event.inputs.environment }}-rollback
+
+    steps:
+      - name: ⏸️ Wait for approval
+        run: |
+          echo "⏸️ Waiting for manual approval to proceed with rollback..."
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Current Version: ${{ needs.validate-rollback.outputs.current_version }}"
+          echo "Target Version: ${{ needs.validate-rollback.outputs.target_version }}"
+
+  execute-rollback:
+    name: 🔄 Execute Rollback
+    runs-on: ubuntu-latest
+    needs: [validate-rollback, approve-rollback]
+
+    steps:
+      - name: 📥 Checkout scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/
+            deployment/
+
+      - name: 🔧 Configure kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: 🔐 Configure cloud credentials
+        run: |
+          # Configure your cloud provider credentials
+          echo "Configuring cloud credentials for ${{ github.event.inputs.environment }}"
+
+      - name: 📸 Create pre-rollback snapshot
+        run: |
+          ./scripts/create-deployment-snapshot.sh \
+            --environment ${{ github.event.inputs.environment }} \
+            --deployment-id ${{ env.ROLLBACK_ID }} \
+            --type pre-rollback
+
+      - name: 🔄 Execute rollback
+        id: rollback
+        run: |
+          ./scripts/execute-rollback.sh \
+            --environment ${{ github.event.inputs.environment }} \
+            --deployment-id ${{ github.run_id }} \
+            --strategy ${{ github.event.inputs.strategy }} \
+            --target-version "${{ needs.validate-rollback.outputs.target_version }}" \
+            ${{ github.event.inputs.notify_stakeholders == 'true' && '--notify-stakeholders' || '' }}
+
+      - name: 🔍 Verify rollback
+        run: |
+          ./scripts/verify-rollback.sh \
+            --environment ${{ github.event.inputs.environment }} \
+            --expected-version "${{ needs.validate-rollback.outputs.target_version }}" \
+            --timeout 300
+
+      - name: 📊 Run post-rollback tests
+        run: |
+          ./scripts/run-smoke-tests.sh \
+            --environment ${{ github.event.inputs.environment }} \
+            --deployment-id ${{ env.ROLLBACK_ID }}
+
+      - name: 📸 Create post-rollback snapshot
+        if: always()
+        run: |
+          ./scripts/create-deployment-snapshot.sh \
+            --environment ${{ github.event.inputs.environment }} \
+            --deployment-id ${{ env.ROLLBACK_ID }} \
+            --type post-rollback
+
+  post-rollback-actions:
+    name: 📋 Post-Rollback Actions
+    runs-on: ubuntu-latest
+    needs: [execute-rollback]
+    if: always()
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📝 Generate incident report
+        run: |
+          cat > incident-report.md <<EOF
+          # Incident Report - Rollback ${{ env.ROLLBACK_ID }}
+
+          ## Summary
+          - **Status**: ${{ needs.execute-rollback.result }}
+          - **Environment**: ${{ github.event.inputs.environment }}
+          - **Rollback Strategy**: ${{ github.event.inputs.strategy }}
+          - **Reason**: ${{ github.event.inputs.reason }}
+
+          ## Timeline
+          - **Rollback Initiated**: ${{ github.event.repository.updated_at }}
+          - **Approval Received**: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          - **Rollback Completed**: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          ## Actions Taken
+          1. Validated rollback feasibility
+          2. Obtained approval from authorized personnel
+          3. Created pre-rollback snapshot
+          4. Executed ${{ github.event.inputs.strategy }} rollback
+          5. Verified service health
+          6. Ran smoke tests
+
+          ## Impact
+          - Service disruption: Minimal (< 30 seconds)
+          - Users affected: All users in ${{ github.event.inputs.environment }}
+          - Data loss: None
+
+          ## Root Cause
+          To be determined. Initial reason: ${{ github.event.inputs.reason }}
+
+          ## Follow-up Actions
+          - [ ] Conduct root cause analysis
+          - [ ] Update deployment procedures
+          - [ ] Review monitoring alerts
+          - [ ] Schedule post-mortem meeting
+          - [ ] Update runbooks
+
+          ## Lessons Learned
+          (To be filled during post-mortem)
+
+          ## Related Links
+          - [Rollback Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - [Original Deployment](${{ github.event.inputs.deployment_url || 'N/A' }})
+          EOF
+
+      - name: 🎫 Create incident ticket
+        if: needs.execute-rollback.result == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const incidentReport = fs.readFileSync('incident-report.md', 'utf8');
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔄 Rollback Incident: ${context.payload.inputs.environment} - ${process.env.ROLLBACK_ID}`,
+              body: incidentReport,
+              labels: ['incident', 'rollback', context.payload.inputs.environment, 'high-priority']
+            });
+
+            console.log(`Created issue #${issue.data.number}`);
+
+      - name: 📊 Update deployment metrics
+        run: |
+          # Update your metrics system with rollback information
+          echo "Updating metrics for rollback in ${{ github.event.inputs.environment }}"
+
+      - name: 📧 Send final notification
+        if: always()
+        run: |
+          STATUS="${{ needs.execute-rollback.result }}"
+          COLOR="good"
+          EMOJI="✅"
+
+          if [[ "$STATUS" != "success" ]]; then
+            COLOR="danger"
+            EMOJI="❌"
+          fi
+
+          # Send Slack notification
+          if [[ -n "${{ secrets.SLACK_WEBHOOK }}" ]]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{
+                \"attachments\": [{
+                  \"color\": \"${COLOR}\",
+                  \"title\": \"${EMOJI} Rollback ${STATUS^}\",
+                  \"text\": \"Environment: ${{ github.event.inputs.environment }}\nReason: ${{ github.event.inputs.reason }}\",
+                  \"footer\": \"Rollback ID: ${ROLLBACK_ID}\"
+                }]
+              }" \
+              ${{ secrets.SLACK_WEBHOOK }}
+          fi
+
+      - name: 📊 Upload incident report
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-report-${{ env.ROLLBACK_ID }}
+          path: incident-report.md
+          retention-days: 90
+
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    needs: [execute-rollback, post-rollback-actions]
+    if: always()
+
+    steps:
+      - name: 📥 Checkout scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/
+
+      - name: 🧹 Clean up temporary resources
+        run: |
+          # Clean up any temporary resources created during rollback
+          echo "Cleaning up temporary resources..."
+
+          # Remove temporary deployments if any
+          kubectl delete deployment -n running-app-${{ github.event.inputs.environment }} \
+            -l rollback-id=${{ env.ROLLBACK_ID }} \
+            --ignore-not-found=true || true
+
+      - name: 📝 Final summary
+        run: |
+          echo "## 🔄 Rollback Summary"
+          echo ""
+          echo "- **Environment**: ${{ github.event.inputs.environment }}"
+          echo "- **Status**: ${{ needs.execute-rollback.result }}"
+          echo "- **Duration**: ${{ github.run_duration }}s"
+          echo "- **Rollback ID**: ${{ env.ROLLBACK_ID }}"
+          echo ""
+          echo "### Next Steps:"
+          if [[ "${{ needs.execute-rollback.result }}" == "success" ]]; then
+            echo "1. ✅ Monitor the rolled-back version for stability"
+            echo "2. 🔍 Investigate the root cause of the original deployment failure"
+            echo "3. 📝 Complete the incident report"
+            echo "4. 🔧 Fix the issues before attempting re-deployment"
+          else
+            echo "1. ❌ Rollback failed - escalate to on-call engineer"
+            echo "2. 🚨 Consider manual intervention"
+            echo "3. 📞 Contact platform team if needed"
+          fi

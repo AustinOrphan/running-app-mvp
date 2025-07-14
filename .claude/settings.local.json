@@ -110,7 +110,10 @@
       "Bash(git rev-parse:*)",
       "Bash(git cherry-pick:*)",
       "Bash(pkill:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "mcp__filesystem__read_multiple_files",
+      "Bash(NODE_ENV=production npm run build)",
+      "Bash(git stash:*)"
     ],
     "deny": []
   }

@@ -5,9 +5,9 @@ import { SkeletonLoader, SkeletonStyles } from './SkeletonLoader';
 
 // Activity level thresholds for heatmap visualization
 const ACTIVITY_THRESHOLDS = {
-  LIGHT: 0,     // Any activity > 0
-  MODERATE: 5,  // > 5km
-  ACTIVE: 10,   // > 10km  
+  LIGHT: 0, // Any activity > 0
+  MODERATE: 5, // > 5km
+  ACTIVE: 10, // > 10km
   VERY_ACTIVE: 15, // > 15km
 } as const;
 

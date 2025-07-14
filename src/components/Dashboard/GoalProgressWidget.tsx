@@ -62,7 +62,7 @@ export const GoalProgressWidget: React.FC<GoalProgressWidgetProps> = ({ goals, r
         // Filter runs within the goal period for pace calculation
         const goalStartTime = new Date(goal.startDate).getTime();
         const goalEndTime = new Date(goal.endDate).getTime();
-        
+
         const relevantRuns = runs.filter(run => {
           const runTime = new Date(run.date).getTime();
           return runTime >= goalStartTime && runTime <= goalEndTime;
@@ -75,13 +75,13 @@ export const GoalProgressWidget: React.FC<GoalProgressWidgetProps> = ({ goals, r
         // Calculate average pace from relevant runs
         const totalDistance = relevantRuns.reduce((sum, run) => sum + run.distance, 0);
         const totalTime = relevantRuns.reduce((sum, run) => sum + run.duration, 0);
-        
+
         if (totalDistance === 0) {
           return 0; // No distance covered
         }
 
         // Average pace in minutes per km
-        const averagePaceMinPerKm = (totalTime / 60) / totalDistance;
+        const averagePaceMinPerKm = totalTime / 60 / totalDistance;
         const targetPaceMinPerKm = goal.targetValue;
 
         // For pace goals, better pace = lower time

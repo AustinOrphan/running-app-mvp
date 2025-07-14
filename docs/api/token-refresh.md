@@ -205,6 +205,7 @@ useEffect(() => {
    ```
 
 3. **Handling 401 Errors**
+
    ```javascript
    if (response.status === 401) {
      // Attempt refresh

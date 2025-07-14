@@ -71,29 +71,29 @@ describe('CSS Module Migration Tests', () => {
       expect(notificationStyles.toastContent).toBeDefined();
       expect(notificationStyles.toastMessage).toBeDefined();
       expect(notificationStyles.toastClose).toBeDefined();
-      
+
       // Achievement notifications
       expect(notificationStyles.achievementOverlay).toBeDefined();
       expect(notificationStyles.achievementNotification).toBeDefined();
-      
+
       // Notification center
       expect(notificationStyles.notificationCenter).toBeDefined();
       expect(notificationStyles.notificationCenterOverlay).toBeDefined();
       expect(notificationStyles.notificationList).toBeDefined();
       expect(notificationStyles.notificationEmpty).toBeDefined();
-      
+
       // Notification items
       expect(notificationStyles.notificationItem).toBeDefined();
       expect(notificationStyles.notificationHeader).toBeDefined();
       expect(notificationStyles.notificationContent).toBeDefined();
       expect(notificationStyles.notificationDismiss).toBeDefined();
-      
+
       // Settings section (recently migrated)
       expect(notificationStyles.notificationSettings).toBeDefined();
       expect(notificationStyles.settingItem).toBeDefined();
       expect(notificationStyles.settingToggle).toBeDefined();
       expect(notificationStyles.btnPrimary).toBeDefined();
-      
+
       // Notification type variants
       expect(notificationStyles.notificationAchievement).toBeDefined();
       expect(notificationStyles.notificationMilestone).toBeDefined();
@@ -151,7 +151,7 @@ describe('CSS Module Migration Tests', () => {
       const testClassNameGeneration = (styles: object, _moduleName: string) => {
         const keys = Object.keys(styles);
         expect(keys.length).toBeGreaterThan(0);
-        
+
         keys.forEach(key => {
           const className = (styles as any)[key];
           expect(typeof className).toBe('string');
@@ -170,7 +170,7 @@ describe('CSS Module Migration Tests', () => {
     it('should handle conditional class concatenation', () => {
       const isAnimating = true;
       const isOpen = false;
-      
+
       // Test notification toast states
       const toastClassName = `${notificationStyles.toast} ${isAnimating ? notificationStyles.show : ''}`;
       expect(toastClassName).toContain(notificationStyles.toast);
@@ -206,7 +206,9 @@ describe('CSS Module Migration Tests', () => {
         typeMap[notificationType],
         priorityMap[priority],
         isUnread ? notificationStyles.unread : '',
-      ].filter(Boolean).join(' ');
+      ]
+        .filter(Boolean)
+        .join(' ');
 
       expect(className).toContain(notificationStyles.notificationItem);
       expect(className).toContain(notificationStyles.notificationMilestone);
@@ -223,7 +225,9 @@ describe('CSS Module Migration Tests', () => {
         isIcon ? buttonStyles.btnIcon : buttonStyles.btn,
         isSmall ? buttonStyles.btnSmall : '',
         isLoading ? buttonStyles.btnLoading : '',
-      ].filter(Boolean).join(' ');
+      ]
+        .filter(Boolean)
+        .join(' ');
 
       expect(buttonClassName).toContain(buttonStyles.btnIcon);
       expect(buttonClassName).toContain(buttonStyles.btnSmall);

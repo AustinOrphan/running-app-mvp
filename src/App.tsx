@@ -30,13 +30,24 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { FeedbackProvider } from './components/Feedback/FeedbackProvider';
 import { FeedbackContainer } from './components/Feedback/FeedbackContainer';
 
+// Utils
+import { devConfig } from './utils/environment';
+
 function AppContent() {
   const [swipeHighlight, setSwipeHighlight] = useState(false);
   const previousStatusRef = useRef<string | null>(null);
   const { currentRoute: activeTab, navigate: navigateToRoute } = useRouter();
 
   // Custom hooks
-  const { isLoggedIn, loading: authLoading, login, register, logout, getToken } = useAuth();
+  const {
+    isLoggedIn,
+    loading: authLoading,
+    login,
+    register,
+    logout,
+    getToken,
+    bypassLogin,
+  } = useAuth();
   const { toasts, showToast, removeToast } = useToast();
   const { runs, loading: runsLoading, saving, saveRun, deleteRun } = useRuns(getToken());
   const { status } = useHealthCheck();
@@ -105,6 +116,15 @@ function AppContent() {
     showToast('You have been logged out', 'info');
   };
 
+  const handleDevBypass = () => {
+    const result = bypassLogin();
+    if (result.success) {
+      showToast('🔧 Development bypass activated - skipped login', 'success');
+    } else {
+      showToast(result.message || 'Development bypass failed', 'error');
+    }
+  };
+
   if (!isLoggedIn) {
     return (
       <div className={styles.app}>
@@ -118,6 +138,38 @@ function AppContent() {
         )}
 
         <AuthForm onLogin={handleLogin} onRegister={handleRegister} loading={authLoading} />
+
+        {devConfig.enableLoginBypass && (
+          <div
+            style={{
+              margin: '20px 0',
+              padding: '15px',
+              backgroundColor: '#f0f8ff',
+              border: '2px dashed #4a90e2',
+              borderRadius: '8px',
+              textAlign: 'center',
+            }}
+          >
+            <p style={{ margin: '0 0 10px', fontSize: '14px', color: '#666' }}>
+              🔧 Development Mode
+            </p>
+            <button
+              onClick={handleDevBypass}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#4a90e2',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+              }}
+              disabled={authLoading}
+            >
+              Skip Login (Dev Only)
+            </button>
+          </div>
+        )}
 
         <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
         <ConnectivityFooter

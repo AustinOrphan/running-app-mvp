@@ -181,8 +181,12 @@
 
 /* Animations */
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes shimmer {
@@ -195,7 +199,8 @@
 }
 
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px);
   }
   50% {
@@ -213,7 +218,8 @@
 }
 
 @keyframes footerGradientShift {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   50% {
@@ -255,11 +261,11 @@
     padding: 120px 20px;
     min-height: 350px;
   }
-  
+
   .skeletonChart {
     gap: 50px;
   }
-  
+
   .skeletonCircle {
     width: 180px;
     height: 180px;
@@ -289,12 +295,12 @@
     min-height: 300px;
     padding: 80px 20px;
   }
-  
+
   .skeletonChart {
     flex-direction: column;
     gap: 20px;
   }
-  
+
   .skeletonCircle {
     width: 120px;
     height: 120px;
@@ -308,25 +314,25 @@
     min-height: 280px;
     padding: 70px 16px;
   }
-  
+
   .emptyIcon {
     font-size: 40px;
     margin-bottom: 12px;
   }
-  
+
   .emptyState h3 {
     font-size: 20px;
   }
-  
+
   .emptyState p {
     font-size: 14px;
   }
-  
+
   .loadingContainer {
     padding: 30px 16px;
     min-height: 150px;
   }
-  
+
   .loadingText {
     font-size: 16px;
   }
@@ -339,29 +345,29 @@
     min-height: 250px;
     padding: 60px 12px;
   }
-  
+
   .emptyIcon {
     font-size: 36px;
     margin-bottom: 10px;
   }
-  
+
   .emptyState h3 {
     font-size: 18px;
   }
-  
+
   .emptyState p {
     font-size: 12px;
   }
-  
+
   .loadingContainer {
     padding: 20px 12px;
     min-height: 120px;
   }
-  
+
   .loadingText {
     font-size: 14px;
   }
-  
+
   .loadingSpinner {
     width: 24px;
     height: 24px;
