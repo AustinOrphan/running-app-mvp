@@ -136,3 +136,9 @@ performance-report.md
 build-report.md
 release-package/
 node_modules.bak/
+
+.claude/
+.serena/
+* 2.*
+* 3.*
+* 4.*
