@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Training Science Documentation</title>
+  <link rel="stylesheet" href="/styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Navigation Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2>Training Science Docs</h2>
+        <button class="mobile-toggle" id="mobile-toggle">☰</button>
+      </div>
+      
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="Search documentation..." />
+      </div>
+      
+      <ul class="nav-list" id="nav-list">
+        <!-- Navigation items will be dynamically inserted -->
+      </ul>
+    </nav>
+    
+    <!-- Main Content Area -->
+    <main class="content" id="content">
+      <div class="content-header">
+        <h1 id="doc-title">Welcome to Training Science Documentation</h1>
+      </div>
+      
+      <div class="content-body" id="doc-content">
+        <div class="welcome-message">
+          <p>Select a document from the sidebar to begin exploring the scientific foundations of our advanced training system.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+*.d.ts
+
+# Cleanup candidates
+cleanup-candidates/
+
+# Logs
+logs/
+*.log
+
+# Test results
+test-results/
+coverage/
+
+# Environment files
+.env*
+
+# Git
+.git/
+
+# Editor directories
+.vscode/
+.serena/
+
+# System files
+.DS_Store
+
+# Temporary test files
+test-analytics.ts
