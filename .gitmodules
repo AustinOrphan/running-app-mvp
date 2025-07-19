@@ -1,0 +1,9 @@
+[submodule "lib/markdown-docs-viewer"]
+	path = lib/markdown-docs-viewer
+	url = https://github.com/AustinOrphan/markdown-docs-viewer.git
+[submodule "lib/training-science-docs"]
+	path = lib/training-science-docs
+	url = https://github.com/AustinOrphan/training-science-docs.git
+[submodule "lib/training-plan-generator"]
+	path = lib/training-plan-generator
+	url = https://github.com/AustinOrphan/training-plan-generator.git
