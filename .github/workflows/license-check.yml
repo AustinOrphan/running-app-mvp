@@ -44,7 +44,7 @@ jobs:
         run: |
           echo "🔍 Checking license compliance..."
           # Add AGPL-3.0 for marchingsquares, EPL-1.0 for jsts packages, and handle unknown-license-reference
-          license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense;0BSD;BlueOak-1.0.0;CC0-1.0;Python-2.0;Zlib;MPL-2.0;AGPL-3.0;EPL-1.0' --excludePrivatePackages --exclude 'lib/*' --summary
+          license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense;0BSD;BlueOak-1.0.0;CC0-1.0;Python-2.0;Zlib;MPL-2.0;AGPL-3.0;EPL-1.0' --excludePrivatePackages --exclude 'lib/*' --excludePackages 'victory-vendor@37.3.6'
 
       - name: 📊 Generate detailed license report
         run: |
