@@ -1,4 +1,5 @@
 import { SearchOptions } from './types';
+import { escapeHtml } from './utils';
 
 export function createSearch(options: SearchOptions): string {
   return `
@@ -6,7 +7,7 @@ export function createSearch(options: SearchOptions): string {
       <input 
         type="text" 
         class="mdv-search-input" 
-        placeholder="${options.placeholder || 'Search documentation...'}"
+        placeholder="${escapeHtml(options.placeholder || 'Search documentation...')}"
         aria-label="Search documentation"
       />
       <div class="mdv-search-results"></div>

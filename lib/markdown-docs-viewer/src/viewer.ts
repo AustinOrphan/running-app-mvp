@@ -8,6 +8,7 @@ import { createNavigation } from './navigation';
 import { createSearch } from './search';
 import { DocumentLoader } from './loader';
 import { Router } from './router';
+import { escapeHtml, sanitizeUrl } from './utils';
 
 export class MarkdownDocsViewer {
   private config: DocumentationConfig;
@@ -147,11 +148,16 @@ export class MarkdownDocsViewer {
   }
 
   private renderHeader(): string {
+    const logoHtml = this.config.logo 
+      ? `<img src="${sanitizeUrl(this.config.logo)}" alt="Logo" class="mdv-logo">` 
+      : '';
+    const title = escapeHtml(this.config.title || 'Documentation');
+    
     return `
       <header class="mdv-header">
         <button class="mdv-mobile-toggle" aria-label="Toggle navigation">☰</button>
-        ${this.config.logo ? `<img src="${this.config.logo}" alt="Logo" class="mdv-logo">` : ''}
-        <h1 class="mdv-title">${this.config.title || 'Documentation'}</h1>
+        ${logoHtml}
+        <h1 class="mdv-title">${title}</h1>
       </header>
     `;
   }
@@ -181,7 +187,7 @@ export class MarkdownDocsViewer {
     }
 
     if (this.state.error) {
-      return `<main class="mdv-content"><div class="mdv-error">${this.state.error.message}</div></main>`;
+      return `<main class="mdv-content"><div class="mdv-error">${escapeHtml(this.state.error.message)}</div></main>`;
     }
 
     if (!this.state.currentDocument) {
@@ -191,7 +197,7 @@ export class MarkdownDocsViewer {
     return `
       <main class="mdv-content">
         <article class="mdv-document">
-          <h1 class="mdv-document-title">${this.state.currentDocument.title}</h1>
+          <h1 class="mdv-document-title">${escapeHtml(this.state.currentDocument.title)}</h1>
           <div class="mdv-document-content">
             ${this.renderMarkdown(this.state.currentDocument.content || '')}
           </div>
@@ -201,7 +207,7 @@ export class MarkdownDocsViewer {
   }
 
   private renderFooter(): string {
-    return `<footer class="mdv-footer">${this.config.footer}</footer>`;
+    return `<footer class="mdv-footer">${escapeHtml(this.config.footer || '')}</footer>`;
   }
 
   private renderMarkdown(content: string): string {

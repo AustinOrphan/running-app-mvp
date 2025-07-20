@@ -1,4 +1,5 @@
 import { Document, NavigationOptions } from './types';
+import { escapeHtml } from './utils';
 
 export function createNavigation(
   documents: Document[],
@@ -63,7 +64,7 @@ function renderGroup(
         group.category !== 'All Documents'
           ? `
         <div class="mdv-nav-category ${isCollapsible ? 'collapsible' : ''}">
-          ${group.category}
+          ${escapeHtml(group.category)}
           ${isCollapsible ? '<span class="mdv-collapse-icon">▼</span>' : ''}
         </div>
       `
@@ -85,15 +86,15 @@ function renderDocument(
   const tags = options.showTags && doc.tags ? renderTags(doc.tags) : '';
   const description =
     options.showDescription && doc.description
-      ? `<div class="mdv-nav-description">${doc.description}</div>`
+      ? `<div class="mdv-nav-description">${escapeHtml(doc.description)}</div>`
       : '';
 
   return `
     <li class="mdv-nav-item">
-      <a href="#${doc.id}" 
+      <a href="#${escapeHtml(doc.id)}" 
          class="mdv-nav-link ${isActive ? 'active' : ''}"
-         data-doc-id="${doc.id}">
-        <span class="mdv-nav-title">${doc.title}</span>
+         data-doc-id="${escapeHtml(doc.id)}">
+        <span class="mdv-nav-title">${escapeHtml(doc.title)}</span>
         ${description}
         ${tags}
       </a>
@@ -104,7 +105,7 @@ function renderDocument(
 function renderTags(tags: string[]): string {
   return `
     <div class="mdv-nav-tags">
-      ${tags.map(tag => `<span class="mdv-tag">${tag}</span>`).join('')}
+      ${tags.map(tag => `<span class="mdv-tag">${escapeHtml(tag)}</span>`).join('')}
     </div>
   `;
 }
