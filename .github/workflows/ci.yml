@@ -75,6 +75,9 @@ jobs:
     name: 🔗 Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
 
     steps:
       - name: 📥 Checkout code
@@ -111,6 +114,9 @@ jobs:
     name: 🎭 E2E Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
 
     steps:
       - name: 📥 Checkout code
@@ -151,6 +157,9 @@ jobs:
     name: ♿ Accessibility Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
 
     steps:
       - name: 📥 Checkout code
@@ -189,6 +198,9 @@ jobs:
     name: 🏗️ Build Verification
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
 
     steps:
       - name: 📥 Checkout code
@@ -259,6 +271,9 @@ jobs:
     needs: [unit-tests, integration-tests]
     if: always()
     timeout-minutes: 10
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
 
     steps:
       - name: 📥 Checkout code

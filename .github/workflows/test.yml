@@ -375,6 +375,9 @@ jobs:
   build-verification:
     name: 🏗️ Build Verification
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
