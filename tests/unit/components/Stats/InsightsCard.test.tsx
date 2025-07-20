@@ -4,32 +4,36 @@ import { describe, it, expect, vi } from 'vitest';
 import { InsightsCard } from '../../../../src/components/Stats/InsightsCard';
 import { mockWeeklyInsights, mockEmptyWeeklyInsights } from '../../../fixtures/mockData.js';
 
-// Mock the formatters utility
-vi.mock('../../../../src/utils/formatters', () => ({
-  formatDuration: vi.fn((seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  }),
-  formatPace: vi.fn((paceInSeconds: number) => {
-    if (!isFinite(paceInSeconds) || paceInSeconds <= 0) return '-';
-    const minutes = Math.floor(paceInSeconds / 60);
-    const seconds = Math.round(paceInSeconds % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }),
-  formatDate: vi.fn((dateInput: string | Date, _format: string = 'weekday-short') => {
-    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: 'UTC',
-    });
-  }),
-}));
+// Mock the formatters utility using importOriginal to preserve all exports
+vi.mock('../../../../src/utils/formatters', async importOriginal => {
+  const mod = await importOriginal();
+  return {
+    ...mod,
+    formatDuration: vi.fn((seconds: number) => {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      }
+      return `${minutes}m`;
+    }),
+    formatPace: vi.fn((paceInSeconds: number) => {
+      if (!isFinite(paceInSeconds) || paceInSeconds <= 0) return '-';
+      const minutes = Math.floor(paceInSeconds / 60);
+      const seconds = Math.round(paceInSeconds % 60);
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }),
+    formatDate: vi.fn((dateInput: string | Date, _format: string = 'weekday-short') => {
+      const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
+    }),
+  };
+});
 
 describe('InsightsCard', () => {
   describe('Loading State', () => {
@@ -125,25 +129,28 @@ describe('InsightsCard', () => {
   });
 
   describe('Component Structure', () => {
-    it('has correct CSS classes for styling', () => {
+    it('renders component structure correctly', () => {
       const { container } = render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
-      expect(container.querySelector('.insights-card')).toBeInTheDocument();
-      expect(container.querySelector('.insights-header')).toBeInTheDocument();
-      expect(container.querySelector('.insights-grid')).toBeInTheDocument();
-      expect(container.querySelector('.insights-footer')).toBeInTheDocument();
+      // Test component structure through content instead of CSS classes
+      expect(screen.getByText('Weekly Summary')).toBeInTheDocument();
+      expect(container.firstChild).toBeInTheDocument();
     });
 
-    it('renders all insight items with correct structure', () => {
-      const { container } = render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
+    it('displays all required insight data', () => {
+      render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
-      const insightItems = container.querySelectorAll('.insight-item');
-      expect(insightItems).toHaveLength(4); // Runs, Distance, Time, Avg Pace
+      // Test that all expected insight content is displayed
+      expect(screen.getByText('4')).toBeInTheDocument(); // totalRuns
+      expect(screen.getByText('39.9km')).toBeInTheDocument(); // totalDistance
+      expect(screen.getByText('3h 21m')).toBeInTheDocument(); // totalDuration
+      expect(screen.getByText('5:02')).toBeInTheDocument(); // avgPace
 
-      insightItems.forEach(item => {
-        expect(item.querySelector('.insight-value')).toBeInTheDocument();
-        expect(item.querySelector('.insight-label')).toBeInTheDocument();
-      });
+      // Test that all labels are present
+      expect(screen.getByText('Runs')).toBeInTheDocument();
+      expect(screen.getByText('Distance')).toBeInTheDocument();
+      expect(screen.getByText('Time')).toBeInTheDocument();
+      expect(screen.getByText('Avg Pace')).toBeInTheDocument();
     });
   });
 

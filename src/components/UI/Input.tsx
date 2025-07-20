@@ -217,18 +217,32 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
 
-          {effectiveTrailingIcon && (
-            <button
-              type='button'
-              className={styles.trailingIcon}
-              onClick={effectiveTrailingIconClick}
-              disabled={disabled}
-              tabIndex={effectiveTrailingIconClick ? 0 : -1}
-              aria-hidden={!effectiveTrailingIconClick}
-            >
-              {effectiveTrailingIcon}
-            </button>
-          )}
+          {effectiveTrailingIcon &&
+            (effectiveTrailingIconClick ? (
+              <button
+                type='button'
+                className={styles.trailingIcon}
+                onClick={effectiveTrailingIconClick}
+                disabled={disabled}
+                aria-label={
+                  trailingIcon && onTrailingIconClick
+                    ? 'Action button'
+                    : type === 'password'
+                      ? showPassword
+                        ? 'Hide password'
+                        : 'Show password'
+                      : type === 'search' && value
+                        ? 'Clear search'
+                        : 'Action button'
+                }
+              >
+                {effectiveTrailingIcon}
+              </button>
+            ) : (
+              <span className={styles.trailingIcon} aria-hidden='true'>
+                {effectiveTrailingIcon}
+              </span>
+            ))}
         </div>
 
         {(message || (showCharCount && maxLength)) && (

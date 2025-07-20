@@ -4,18 +4,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useGoals } from '../../../src/hooks/useGoals';
 import { mockGoals, createMockGoal } from '../../fixtures/mockData.js';
 
-// Mock fetch globally
+// Mock fetch
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
 
 describe('useGoals - Basic Functionality', () => {
   const mockToken = 'mock-jwt-token-123';
 
   beforeEach(() => {
     mockFetch.mockClear();
+    vi.stubGlobal('fetch', mockFetch);
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
 
@@ -44,6 +45,9 @@ describe('useGoals - Basic Functionality', () => {
     it('makes correct API call for fetching goals', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
+        statusText: 'OK',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => [],
       });
 
@@ -54,12 +58,16 @@ describe('useGoals - Basic Functionality', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${mockToken}`,
         },
+        method: 'GET',
       });
     });
 
     it('handles fetch success', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
+        statusText: 'OK',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => mockGoals,
       });
 
@@ -101,6 +109,9 @@ describe('useGoals - Basic Functionality', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
+        statusText: 'OK',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => goals,
       });
 
@@ -122,6 +133,9 @@ describe('useGoals - Basic Functionality', () => {
     it('getGoalProgress returns undefined for non-existing goal', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
+        statusText: 'OK',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => [],
       });
 

@@ -26,11 +26,12 @@ describe('TrendsChart', () => {
       expect(screen.getByTestId('skeleton-line')).toBeInTheDocument();
     });
 
-    it('displays skeleton chart with correct structure', () => {
-      const { container } = render(<TrendsChart data={[]} loading={true} />);
+    it('displays skeleton chart with loading indicator', () => {
+      render(<TrendsChart data={[]} loading={true} />);
 
-      expect(container.querySelector('.skeleton-chart')).toBeInTheDocument();
-      expect(container.querySelector('.skeleton-line-chart')).toBeInTheDocument();
+      // Verify loading elements are present
+      expect(screen.getByTestId('skeleton-line')).toBeInTheDocument();
+      expect(screen.getByText('Running Trends')).toBeInTheDocument();
     });
   });
 
@@ -129,23 +130,26 @@ describe('TrendsChart', () => {
       expect(screen.getByTestId('tooltip')).toBeInTheDocument();
     });
 
-    it('has correct CSS classes for styling', () => {
-      const { container } = render(<TrendsChart data={mockTrendsData} loading={false} />);
+    it('has correct structure and components', () => {
+      render(<TrendsChart data={mockTrendsData} loading={false} />);
 
-      expect(container.querySelector('.trends-chart-card')).toBeInTheDocument();
-      expect(container.querySelector('.trends-header')).toBeInTheDocument();
-      expect(container.querySelector('.trends-controls')).toBeInTheDocument();
-      expect(container.querySelector('.chart-container')).toBeInTheDocument();
-      expect(container.querySelector('.trends-summary')).toBeInTheDocument();
+      // Verify main structure elements are present
+      expect(screen.getByText('Running Trends')).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: 'Metric selector' })).toBeInTheDocument();
+      expect(screen.getByTestId('line-chart')).toBeInTheDocument();
+      expect(screen.getByText('Total weeks:')).toBeInTheDocument();
+      expect(screen.getByText('Best week:')).toBeInTheDocument();
+      expect(screen.getByText('Avg weekly:')).toBeInTheDocument();
     });
   });
 
   describe('Metric Selector', () => {
-    it('has correct styling classes', () => {
-      const { container } = render(<TrendsChart data={mockTrendsData} loading={false} />);
+    it('has metric selector with aria label', () => {
+      render(<TrendsChart data={mockTrendsData} loading={false} />);
 
-      const selector = container.querySelector('.metric-selector');
+      const selector = screen.getByRole('combobox', { name: 'Metric selector' });
       expect(selector).toBeInTheDocument();
+      expect(selector).toHaveAttribute('aria-label', 'Metric selector');
     });
 
     it('updates chart when metric changes', () => {
