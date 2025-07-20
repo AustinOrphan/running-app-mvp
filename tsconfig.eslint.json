@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.json",
   "include": [
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
     "server.ts",
     "server/**/*.ts",
     "server/**/*.tsx",
