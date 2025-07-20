@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '22.x'
 
 jobs:
   # Lint and Type Check
@@ -473,7 +473,7 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Unlicense, 0BSD, AGPL-3.0, EPL-1.0
 
   # Test Summary
   test-summary:

@@ -142,3 +142,6 @@ node_modules.bak/
 * 2.*
 * 3.*
 * 4.*
+
+# Cleanup candidates - temporary files
+cleanup-candidates/
