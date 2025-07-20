@@ -14,7 +14,12 @@ export function sanitizeUrl(url: string): string {
   try {
     const parsed = new URL(url, window.location.href);
     // Only allow http, https, and relative URLs
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:' || url.startsWith('/') || url.startsWith('./')) {
+    if (
+      parsed.protocol === 'http:' ||
+      parsed.protocol === 'https:' ||
+      url.startsWith('/') ||
+      url.startsWith('./')
+    ) {
       return url;
     }
     return '';

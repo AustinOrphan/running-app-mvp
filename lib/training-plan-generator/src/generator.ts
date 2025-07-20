@@ -10,9 +10,7 @@ import {
   RunData,
   FitnessAssessment,
 } from './types';
-import {
-  PROGRESSION_RATES,
-} from './constants';
+import { PROGRESSION_RATES } from './constants';
 import { WORKOUT_TEMPLATES } from './workouts';
 import { calculateFitnessMetrics, analyzeWeeklyPatterns } from './calculator';
 import { addDays, addWeeks, differenceInWeeks } from 'date-fns';

@@ -148,11 +148,11 @@ export class MarkdownDocsViewer {
   }
 
   private renderHeader(): string {
-    const logoHtml = this.config.logo 
-      ? `<img src="${sanitizeUrl(this.config.logo)}" alt="Logo" class="mdv-logo">` 
+    const logoHtml = this.config.logo
+      ? `<img src="${sanitizeUrl(this.config.logo)}" alt="Logo" class="mdv-logo">`
       : '';
     const title = escapeHtml(this.config.title || 'Documentation');
-    
+
     return `
       <header class="mdv-header">
         <button class="mdv-mobile-toggle" aria-label="Toggle navigation">☰</button>
