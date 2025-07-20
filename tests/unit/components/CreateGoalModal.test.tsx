@@ -47,7 +47,9 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const overlay = document.querySelector('.modal-overlay');
+      // Find the overlay by its role attribute
+      const overlay = document.querySelector('[role="presentation"]');
+      expect(overlay).toBeInTheDocument();
       await user.click(overlay!);
 
       expect(mockOnClose).toHaveBeenCalled();
@@ -57,7 +59,7 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const closeButton = screen.getByRole('button', { name: '✕' });
+      const closeButton = screen.getByRole('button', { name: 'Close modal' });
       await user.click(closeButton);
 
       expect(mockOnClose).toHaveBeenCalled();
@@ -67,7 +69,9 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const modal = document.querySelector('.modal');
+      // Find the modal dialog by its role attribute
+      const modal = document.querySelector('[role="dialog"]');
+      expect(modal).toBeInTheDocument();
       await user.click(modal!);
 
       expect(mockOnClose).not.toHaveBeenCalled();
@@ -78,14 +82,14 @@ describe('CreateGoalModal', () => {
     it('renders all required form fields', () => {
       render(<CreateGoalModal {...defaultProps} />);
 
-      expect(screen.getByLabelText('Goal Title *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Goal Title')).toBeInTheDocument();
       expect(screen.getByLabelText('Description')).toBeInTheDocument();
       expect(screen.getByLabelText('Goal Type *')).toBeInTheDocument();
-      expect(screen.getByLabelText('Target Value *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Target Value')).toBeInTheDocument();
       expect(screen.getByLabelText('Unit')).toBeInTheDocument();
       expect(screen.getByLabelText('Time Period *')).toBeInTheDocument();
-      expect(screen.getByLabelText('Start Date *')).toBeInTheDocument();
-      expect(screen.getByLabelText('End Date *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Start Date')).toBeInTheDocument();
+      expect(screen.getByLabelText('End Date')).toBeInTheDocument();
       expect(screen.getByLabelText('Color')).toBeInTheDocument();
       expect(screen.getByLabelText('Icon')).toBeInTheDocument();
     });
@@ -93,7 +97,7 @@ describe('CreateGoalModal', () => {
     it('has correct default values', () => {
       render(<CreateGoalModal {...defaultProps} />);
 
-      const titleInput = screen.getByLabelText('Goal Title *') as HTMLInputElement;
+      const titleInput = screen.getByLabelText('Goal Title') as HTMLInputElement;
       const typeSelect = screen.getByLabelText('Goal Type *') as HTMLSelectElement;
       const periodSelect = screen.getByLabelText('Time Period *') as HTMLSelectElement;
 
@@ -106,7 +110,7 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const titleInput = screen.getByLabelText('Goal Title *');
+      const titleInput = screen.getByLabelText('Goal Title');
       await user.type(titleInput, 'Run 50km');
 
       expect(titleInput).toHaveValue('Run 50km');
@@ -186,7 +190,7 @@ describe('CreateGoalModal', () => {
       render(<CreateGoalModal {...defaultProps} />);
 
       const periodSelect = screen.getByLabelText('Time Period *');
-      const endDateInput = screen.getByLabelText('End Date *') as HTMLInputElement;
+      const endDateInput = screen.getByLabelText('End Date') as HTMLInputElement;
 
       // Change to monthly
       await user.selectOptions(periodSelect, GOAL_PERIODS.MONTHLY);
@@ -207,7 +211,7 @@ describe('CreateGoalModal', () => {
     it('sets default start date to today', () => {
       render(<CreateGoalModal {...defaultProps} />);
 
-      const startDateInput = screen.getByLabelText('Start Date *') as HTMLInputElement;
+      const startDateInput = screen.getByLabelText('Start Date') as HTMLInputElement;
       const today = new Date().toISOString().split('T')[0];
 
       expect(startDateInput.value).toBe(today);
@@ -217,8 +221,8 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const startDateInput = screen.getByLabelText('Start Date *');
-      const endDateInput = screen.getByLabelText('End Date *') as HTMLInputElement;
+      const startDateInput = screen.getByLabelText('Start Date');
+      const endDateInput = screen.getByLabelText('End Date') as HTMLInputElement;
 
       const newStartDate = '2024-07-01';
       await user.clear(startDateInput);
@@ -233,7 +237,7 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const endDateInput = screen.getByLabelText('End Date *');
+      const endDateInput = screen.getByLabelText('End Date');
       const customEndDate = '2024-08-15';
 
       await user.clear(endDateInput);
@@ -248,31 +252,36 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const submitButton = screen.getByText('Create Goal');
+      // Find the actual button element, not just the text
+      const submitButton = screen.getByRole('button', { name: /create goal/i });
       await user.click(submitButton);
 
-      expect(screen.getByText('Goal title is required')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Goal title is required')).toBeInTheDocument();
+      });
     });
 
     it('shows error when target value is empty', async () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const titleInput = screen.getByLabelText('Goal Title *');
+      const titleInput = screen.getByLabelText('Goal Title');
       await user.type(titleInput, 'Test Goal');
 
-      const submitButton = screen.getByText('Create Goal');
+      const submitButton = screen.getByRole('button', { name: /create goal/i });
       await user.click(submitButton);
 
-      expect(screen.getByText('Target value must be a positive number')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Target value must be a positive number')).toBeInTheDocument();
+      });
     });
 
     it('shows error when target value is negative', async () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const titleInput = screen.getByLabelText('Goal Title *');
-      const targetValueInput = screen.getByLabelText('Target Value *');
+      const titleInput = screen.getByLabelText('Goal Title');
+      const targetValueInput = screen.getByLabelText('Target Value');
 
       await user.type(titleInput, 'Test Goal');
       await user.type(targetValueInput, '-5');
@@ -287,10 +296,10 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const titleInput = screen.getByLabelText('Goal Title *');
-      const targetValueInput = screen.getByLabelText('Target Value *');
-      const startDateInput = screen.getByLabelText('Start Date *');
-      const endDateInput = screen.getByLabelText('End Date *');
+      const titleInput = screen.getByLabelText('Goal Title');
+      const targetValueInput = screen.getByLabelText('Target Value');
+      const startDateInput = screen.getByLabelText('Start Date');
+      const endDateInput = screen.getByLabelText('End Date');
 
       await user.type(titleInput, 'Test Goal');
       await user.type(targetValueInput, '10');
@@ -299,24 +308,29 @@ describe('CreateGoalModal', () => {
       await user.clear(endDateInput);
       await user.type(endDateInput, '2024-07-10');
 
-      const submitButton = screen.getByText('Create Goal');
+      const submitButton = screen.getByRole('button', { name: /create goal/i });
       await user.click(submitButton);
 
-      expect(screen.getByText('End date must be after start date')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('End date must be after start date')).toBeInTheDocument();
+      });
     });
 
     it('applies error class to invalid fields', async () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const submitButton = screen.getByText('Create Goal');
+      const submitButton = screen.getByRole('button', { name: /create goal/i });
       await user.click(submitButton);
 
-      const titleInput = screen.getByLabelText('Goal Title *');
-      const targetValueInput = screen.getByLabelText('Target Value *');
+      await waitFor(() => {
+        const titleInput = screen.getByLabelText('Goal Title');
+        const targetValueInput = screen.getByLabelText('Target Value');
 
-      expect(titleInput).toHaveClass('error');
-      expect(targetValueInput).toHaveClass('error');
+        // Check that inputs have error styling (CSS modules will transform 'error' class)
+        expect(titleInput.className).toContain('error');
+        expect(targetValueInput.className).toContain('error');
+      });
     });
   });
 
@@ -326,9 +340,9 @@ describe('CreateGoalModal', () => {
       render(<CreateGoalModal {...defaultProps} />);
 
       // Fill in valid form data
-      await user.type(screen.getByLabelText('Goal Title *'), 'Run 50km');
+      await user.type(screen.getByLabelText('Goal Title'), 'Run 50km');
       await user.type(screen.getByLabelText('Description'), 'Monthly goal');
-      await user.type(screen.getByLabelText('Target Value *'), '50');
+      await user.type(screen.getByLabelText('Target Value'), '50');
 
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
@@ -350,8 +364,8 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      await user.type(screen.getByLabelText('Goal Title *'), 'Test Goal');
-      await user.type(screen.getByLabelText('Target Value *'), '10');
+      await user.type(screen.getByLabelText('Goal Title'), 'Test Goal');
+      await user.type(screen.getByLabelText('Target Value'), '10');
 
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
@@ -378,8 +392,8 @@ describe('CreateGoalModal', () => {
 
       render(<CreateGoalModal {...defaultProps} />);
 
-      await user.type(screen.getByLabelText('Goal Title *'), 'Test Goal');
-      await user.type(screen.getByLabelText('Target Value *'), '10');
+      await user.type(screen.getByLabelText('Goal Title'), 'Test Goal');
+      await user.type(screen.getByLabelText('Target Value'), '10');
 
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
@@ -399,9 +413,9 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const titleInput = screen.getByLabelText('Goal Title *') as HTMLInputElement;
+      const titleInput = screen.getByLabelText('Goal Title') as HTMLInputElement;
       const descriptionInput = screen.getByLabelText('Description') as HTMLInputElement;
-      const targetValueInput = screen.getByLabelText('Target Value *') as HTMLInputElement;
+      const targetValueInput = screen.getByLabelText('Target Value') as HTMLInputElement;
 
       await user.type(titleInput, 'Test Goal');
       await user.type(descriptionInput, 'Test description');
@@ -424,8 +438,8 @@ describe('CreateGoalModal', () => {
 
       render(<CreateGoalModal {...defaultProps} />);
 
-      await user.type(screen.getByLabelText('Goal Title *'), 'Test Goal');
-      await user.type(screen.getByLabelText('Target Value *'), '10');
+      await user.type(screen.getByLabelText('Goal Title'), 'Test Goal');
+      await user.type(screen.getByLabelText('Target Value'), '10');
 
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
@@ -454,8 +468,8 @@ describe('CreateGoalModal', () => {
 
       render(<CreateGoalModal {...defaultProps} />);
 
-      await user.type(screen.getByLabelText('Goal Title *'), 'Test Goal');
-      await user.type(screen.getByLabelText('Target Value *'), '10');
+      await user.type(screen.getByLabelText('Goal Title'), 'Test Goal');
+      await user.type(screen.getByLabelText('Target Value'), '10');
 
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
@@ -469,14 +483,14 @@ describe('CreateGoalModal', () => {
     it('has proper labels for all form fields', () => {
       render(<CreateGoalModal {...defaultProps} />);
 
-      expect(screen.getByLabelText('Goal Title *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Goal Title')).toBeInTheDocument();
       expect(screen.getByLabelText('Description')).toBeInTheDocument();
       expect(screen.getByLabelText('Goal Type *')).toBeInTheDocument();
-      expect(screen.getByLabelText('Target Value *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Target Value')).toBeInTheDocument();
       expect(screen.getByLabelText('Unit')).toBeInTheDocument();
       expect(screen.getByLabelText('Time Period *')).toBeInTheDocument();
-      expect(screen.getByLabelText('Start Date *')).toBeInTheDocument();
-      expect(screen.getByLabelText('End Date *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Start Date')).toBeInTheDocument();
+      expect(screen.getByLabelText('End Date')).toBeInTheDocument();
     });
 
     it('associates error messages with form fields', async () => {
@@ -486,7 +500,7 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      const titleInput = screen.getByLabelText('Goal Title *');
+      const titleInput = screen.getByLabelText('Goal Title');
       const errorMessage = screen.getByText('Goal title is required');
 
       expect(titleInput).toHaveClass('error');

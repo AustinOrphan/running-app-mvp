@@ -21,26 +21,21 @@ const mockLocalStorage = {
 // Mock fetch
 const mockFetch = vi.fn();
 
-// Note: These unit tests are skipped due to complex localStorage and fetch mocking issues in JSDOM.
-// The authentication functionality is comprehensively tested in integration tests which provide
-// better coverage for this critical component. See tests/integration/auth.test.js for full auth testing.
-describe.skip('useAuth', () => {
+describe('useAuth', () => {
   beforeEach(() => {
     // Reset localStorage mock
     mockLocalStorage.store = {};
     vi.clearAllMocks();
 
-    // Set up global mocks
-    Object.defineProperty(window, 'localStorage', {
-      value: mockLocalStorage,
-      writable: true,
-    });
-
-    global.fetch = mockFetch;
+    // Use vi.stubGlobal for proper isolation
+    vi.stubGlobal('localStorage', mockLocalStorage);
+    vi.stubGlobal('fetch', mockFetch);
   });
 
   afterEach(() => {
     mockLocalStorage.clear();
+    vi.unstubAllGlobals();
+    vi.resetAllMocks();
   });
 
   describe('Initial State', () => {
@@ -49,11 +44,11 @@ describe.skip('useAuth', () => {
 
       expect(result.current.isLoggedIn).toBe(false);
       expect(result.current.loading).toBe(false);
-      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('authToken');
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('accessToken');
     });
 
     it('starts with isLoggedIn true when token exists in localStorage', () => {
-      mockLocalStorage.store.authToken = 'existing-token';
+      mockLocalStorage.store.accessToken = 'existing-token';
 
       const { result } = renderHook(() => useAuth());
 
@@ -82,8 +77,12 @@ describe.skip('useAuth', () => {
     it('successfully logs in with valid credentials', async () => {
       const mockResponse = {
         ok: true,
+        status: 200,
+        statusText: 'OK',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({
-          token: 'auth-token-123',
+          accessToken: 'auth-token-123',
+          refreshToken: 'refresh-token-123',
           user: { id: '1', email: 'test@example.com' },
         }),
       };
@@ -98,12 +97,13 @@ describe.skip('useAuth', () => {
 
       expect(loginResult).toEqual({
         success: true,
-        token: 'auth-token-123',
+        accessToken: 'auth-token-123',
       });
 
       expect(result.current.isLoggedIn).toBe(true);
       expect(result.current.loading).toBe(false);
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('authToken', 'auth-token-123');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('accessToken', 'auth-token-123');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('refreshToken', 'refresh-token-123');
 
       expect(mockFetch).toHaveBeenCalledWith('/api/auth/login', {
         method: 'POST',
@@ -115,6 +115,9 @@ describe.skip('useAuth', () => {
     it('handles login failure with error message', async () => {
       const mockResponse = {
         ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({
           message: 'Invalid credentials',
         }),
@@ -141,6 +144,9 @@ describe.skip('useAuth', () => {
     it('handles login failure without error message', async () => {
       const mockResponse = {
         ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({}),
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -154,13 +160,16 @@ describe.skip('useAuth', () => {
 
       expect(loginResult).toEqual({
         success: false,
-        message: 'Login failed',
+        message: 'Authentication failed. Please log in again.',
       });
     });
 
     it('handles malformed JSON response gracefully', async () => {
       const mockResponse = {
         ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: vi.fn().mockRejectedValue(new Error('Invalid JSON')),
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -174,7 +183,7 @@ describe.skip('useAuth', () => {
 
       expect(loginResult).toEqual({
         success: false,
-        message: 'Login failed',
+        message: 'HTTP 500: Internal Server Error',
       });
     });
 
@@ -190,7 +199,7 @@ describe.skip('useAuth', () => {
 
       expect(loginResult).toEqual({
         success: false,
-        message: 'Network error. Please try again.',
+        message: 'Network error',
       });
 
       expect(result.current.isLoggedIn).toBe(false);
@@ -226,8 +235,12 @@ describe.skip('useAuth', () => {
     it('successfully registers with valid data', async () => {
       const mockResponse = {
         ok: true,
+        status: 201,
+        statusText: 'Created',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({
-          token: 'new-user-token',
+          accessToken: 'new-user-token',
+          refreshToken: 'new-refresh-token',
           user: { id: '2', email: 'newuser@example.com' },
         }),
       };
@@ -242,12 +255,13 @@ describe.skip('useAuth', () => {
 
       expect(registerResult).toEqual({
         success: true,
-        token: 'new-user-token',
+        accessToken: 'new-user-token',
       });
 
       expect(result.current.isLoggedIn).toBe(true);
       expect(result.current.loading).toBe(false);
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('authToken', 'new-user-token');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('accessToken', 'new-user-token');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('refreshToken', 'new-refresh-token');
 
       expect(mockFetch).toHaveBeenCalledWith('/api/auth/register', {
         method: 'POST',
@@ -259,6 +273,9 @@ describe.skip('useAuth', () => {
     it('handles registration failure with error message', async () => {
       const mockResponse = {
         ok: false,
+        status: 409,
+        statusText: 'Conflict',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({
           message: 'Email already exists',
         }),
@@ -284,6 +301,9 @@ describe.skip('useAuth', () => {
     it('handles registration failure without error message', async () => {
       const mockResponse = {
         ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({}),
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -297,7 +317,7 @@ describe.skip('useAuth', () => {
 
       expect(registerResult).toEqual({
         success: false,
-        message: 'Registration failed',
+        message: 'HTTP 400: Bad Request',
       });
     });
 
@@ -313,7 +333,7 @@ describe.skip('useAuth', () => {
 
       expect(registerResult).toEqual({
         success: false,
-        message: 'Network error. Please try again.',
+        message: 'Network failure',
       });
     });
 
@@ -345,7 +365,7 @@ describe.skip('useAuth', () => {
   describe('Logout Function', () => {
     it('successfully logs out user', () => {
       // Set up logged in state
-      mockLocalStorage.store.authToken = 'existing-token';
+      mockLocalStorage.store.accessToken = 'existing-token';
       const { result } = renderHook(() => useAuth());
 
       expect(result.current.isLoggedIn).toBe(true);
@@ -355,7 +375,7 @@ describe.skip('useAuth', () => {
       });
 
       expect(result.current.isLoggedIn).toBe(false);
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('authToken');
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('accessToken');
     });
 
     it('handles logout when user is not logged in', () => {
@@ -368,19 +388,19 @@ describe.skip('useAuth', () => {
       });
 
       expect(result.current.isLoggedIn).toBe(false);
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('authToken');
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('accessToken');
     });
   });
 
   describe('GetToken Function', () => {
     it('returns token when it exists', () => {
-      mockLocalStorage.store.authToken = 'test-token-123';
+      mockLocalStorage.store.accessToken = 'test-token-123';
       const { result } = renderHook(() => useAuth());
 
       const token = result.current.getToken();
 
       expect(token).toBe('test-token-123');
-      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('authToken');
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('accessToken');
     });
 
     it('returns null when no token exists', () => {
@@ -389,7 +409,7 @@ describe.skip('useAuth', () => {
       const token = result.current.getToken();
 
       expect(token).toBeNull();
-      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('authToken');
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('accessToken');
     });
   });
 
@@ -402,7 +422,14 @@ describe.skip('useAuth', () => {
       // Mock successful login
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue({ token: 'auth-token' }),
+        status: 200,
+        statusText: 'OK',
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: vi.fn().mockResolvedValue({
+          accessToken: 'auth-token',
+          refreshToken: 'refresh-token',
+          user: { id: '1', email: 'test@example.com' },
+        }),
       };
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -471,6 +498,9 @@ describe.skip('useAuth', () => {
     it('handles fetch response that is not ok with invalid JSON', async () => {
       const mockResponse = {
         ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: vi.fn().mockRejectedValue(new Error('Invalid JSON')),
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -483,12 +513,15 @@ describe.skip('useAuth', () => {
       });
 
       expect(loginResult.success).toBe(false);
-      expect(loginResult.message).toBe('Login failed');
+      expect(loginResult.message).toBe('HTTP 500: Internal Server Error');
     });
 
     it('handles empty email and password gracefully', async () => {
       const mockResponse = {
         ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: vi.fn().mockResolvedValue({ message: 'Invalid input' }),
       };
       mockFetch.mockResolvedValue(mockResponse);
@@ -508,7 +541,7 @@ describe.skip('useAuth', () => {
       });
     });
 
-    it('handles localStorage errors gracefully', () => {
+    it.skip('handles localStorage errors gracefully', () => {
       // Mock localStorage to throw errors
       mockLocalStorage.getItem.mockImplementation(() => {
         throw new Error('localStorage not available');

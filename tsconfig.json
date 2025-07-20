@@ -28,6 +28,25 @@
     },
     "types": ["vitest/globals", "@testing-library/jest-dom", "jest-axe"]
   },
-  "include": ["server.ts", "server/**/*.ts", "server/**/*.tsx", "src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules", "dist", "tests/**/*", "**/*.test.ts", "**/*.test.tsx"]
+  "include": [
+    "server.ts",
+    "server/**/*.ts",
+    "server/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "hooks/**/*.ts",
+    "hooks/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests/**/*",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "cleanup-candidates/**/*",
+    "services/**/*",
+    "test-analytics.ts"
+  ]
 }

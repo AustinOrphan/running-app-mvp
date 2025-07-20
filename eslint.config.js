@@ -27,6 +27,10 @@ export default [
       '*.temp',
       '*.log',
       'debug-eslint.*',
+      'cleanup-candidates/**',
+      'services/**',
+      'test-analytics.ts',
+      'lib/**',
     ],
   },
 

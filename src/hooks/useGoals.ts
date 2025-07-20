@@ -152,6 +152,8 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
   // Create goal
   const createGoal = useCallback(
     async (goalData: CreateGoalData): Promise<Goal> => {
+      if (!token) throw new Error('No authentication token available');
+
       const response = await apiPost<Goal>('/api/goals', goalData);
       const newGoal = response.data;
 
@@ -163,7 +165,7 @@ export const useGoals = (token: string | null): UseGoalsReturn => {
 
       return newGoal;
     },
-    [refreshProgress]
+    [refreshProgress, token]
   );
 
   // Update goal

@@ -9,9 +9,8 @@ import {
   ApiFetchError,
 } from '../../../src/utils/apiFetch';
 
-// Mock fetch
+// Mock fetch using vi.stubGlobal for proper isolation
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -82,6 +81,8 @@ describe('ApiFetchError', () => {
 
 describe('apiFetch', () => {
   beforeEach(() => {
+    // Stub global fetch to use our mock instead of global endpoint mocks
+    vi.stubGlobal('fetch', mockFetch);
     mockFetch.mockClear();
     localStorage.clear();
     vi.clearAllTimers();
@@ -90,6 +91,8 @@ describe('apiFetch', () => {
   afterEach(() => {
     mockFetch.mockReset();
     vi.useRealTimers();
+    // Restore global fetch to its original state
+    vi.unstubAllGlobals();
   });
 
   describe('successful requests', () => {

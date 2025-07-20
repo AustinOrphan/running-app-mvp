@@ -217,18 +217,32 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
 
-          {effectiveTrailingIcon && (
-            <button
-              type='button'
-              className={styles.trailingIcon}
-              onClick={effectiveTrailingIconClick}
-              disabled={disabled}
-              tabIndex={effectiveTrailingIconClick ? 0 : -1}
-              aria-hidden={!effectiveTrailingIconClick}
-            >
-              {effectiveTrailingIcon}
-            </button>
-          )}
+          {effectiveTrailingIcon &&
+            (effectiveTrailingIconClick ? (
+              <button
+                type='button'
+                className={styles.trailingIcon}
+                onClick={effectiveTrailingIconClick}
+                disabled={disabled}
+                aria-label={
+                  trailingIcon && onTrailingIconClick
+                    ? 'Action button'
+                    : type === 'password'
+                      ? showPassword
+                        ? 'Hide password'
+                        : 'Show password'
+                      : type === 'search' && value
+                        ? 'Clear search'
+                        : 'Action button'
+                }
+              >
+                {effectiveTrailingIcon}
+              </button>
+            ) : (
+              <span className={styles.trailingIcon} aria-hidden='true'>
+                {effectiveTrailingIcon}
+              </span>
+            ))}
         </div>
 
         {(message || (showCharCount && maxLength)) && (
@@ -469,6 +483,15 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
         ? styles.successMessage
         : styles.fieldDescription;
 
+    // Build aria-describedby to include both message and character count
+    const ariaDescribedBy = [];
+    if (message) {
+      ariaDescribedBy.push(`${textareaId}-message`);
+    }
+    if (showCharCount && maxLength) {
+      ariaDescribedBy.push(`${textareaId}-charcount`);
+    }
+
     return (
       <div className={textareaClasses}>
         {label && (
@@ -485,7 +508,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           readOnly={readOnly}
           required={required}
           aria-invalid={error}
-          aria-describedby={message ? `${textareaId}-message` : undefined}
+          aria-describedby={ariaDescribedBy.length > 0 ? ariaDescribedBy.join(' ') : undefined}
           aria-required={required}
           value={value}
           onChange={onChange}
@@ -504,7 +527,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
             )}
 
             {showCharCount && maxLength && (
-              <span className={styles.charCount}>
+              <span id={`${textareaId}-charcount`} className={styles.charCount}>
                 {charCount}/{maxLength}
               </span>
             )}

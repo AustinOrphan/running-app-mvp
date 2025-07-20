@@ -122,12 +122,20 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         .join(' ');
     };
 
+    const handleKeyDown = (event: React.KeyboardEvent) => {
+      if (interactive && props.onClick && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        props.onClick(event as any);
+      }
+    };
+
     return (
       <div
         ref={ref}
         className={getCardClasses()}
         role={interactive ? 'button' : undefined}
         tabIndex={interactive ? 0 : undefined}
+        onKeyDown={handleKeyDown}
         {...props}
       >
         {children}
