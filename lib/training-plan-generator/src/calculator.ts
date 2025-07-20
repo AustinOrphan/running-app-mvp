@@ -1,5 +1,5 @@
 import { RunData, FitnessMetrics, WeeklyPatterns, TrainingLoad } from './types';
-import { differenceInDays, differenceInWeeks, startOfWeek, format } from 'date-fns';
+import { startOfWeek, format } from 'date-fns';
 
 /**
  * Calculate VDOT (VO2max estimate) from race performances
@@ -250,8 +250,6 @@ export function analyzeWeeklyPatterns(runs: RunData[]): WeeklyPatterns {
   const weeklyDistances = Array.from(weeks.values()).map(weekRuns =>
     weekRuns.reduce((sum, run) => sum + run.distance, 0)
   );
-
-  const weeklyRunCounts = Array.from(weeks.values()).map(weekRuns => weekRuns.length);
 
   // Find typical training days
   const dayFrequency = new Array(7).fill(0);

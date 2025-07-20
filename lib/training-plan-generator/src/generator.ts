@@ -11,15 +11,11 @@ import {
   FitnessAssessment,
 } from './types';
 import {
-  PHASE_DURATION,
-  INTENSITY_MODELS,
   PROGRESSION_RATES,
-  ADAPTATION_TIMELINE,
-  WORKOUT_DURATIONS,
 } from './constants';
 import { WORKOUT_TEMPLATES } from './workouts';
 import { calculateFitnessMetrics, analyzeWeeklyPatterns } from './calculator';
-import { addDays, addWeeks, differenceInWeeks, format, startOfWeek } from 'date-fns';
+import { addDays, addWeeks, differenceInWeeks } from 'date-fns';
 
 export class TrainingPlanGenerator {
   private config: TrainingPlanConfig;
@@ -213,7 +209,7 @@ export class TrainingPlanGenerator {
   private calculateProgressionFactor(
     phase: TrainingPhase,
     week: number,
-    totalWeeks: number
+    _totalWeeks: number
   ): number {
     const progressionRate =
       this.fitness.trainingAge && this.fitness.trainingAge > 2
@@ -333,7 +329,7 @@ export class TrainingPlanGenerator {
   /**
    * Select appropriate workout based on type string
    */
-  private selectWorkout(typeString: string, phase: TrainingPhase, volumeRemaining: number): any {
+  private selectWorkout(typeString: string, _phase: TrainingPhase, _volumeRemaining: number): any {
     const workoutMap: Record<string, string[]> = {
       Easy: ['EASY_AEROBIC'],
       Recovery: ['RECOVERY_JOG'],

@@ -76,7 +76,7 @@ export const TRAINING_ZONES: Record<string, TrainingZone> = {
 export function calculatePersonalizedZones(
   maxHR: number,
   thresholdPace: number, // min/km
-  vdot?: number
+  _vdot?: number
 ): Record<string, TrainingZone> {
   const zones: Record<string, TrainingZone> = {};
 

@@ -1,6 +1,6 @@
 import { Theme, DocumentationConfig } from './types';
 
-export function generateStyles(theme: Theme, config: DocumentationConfig): string {
+export function generateStyles(theme: Theme, _config: DocumentationConfig): string {
   const { colors, fonts, spacing, borderRadius } = theme;
   const unit = spacing.unit;
 

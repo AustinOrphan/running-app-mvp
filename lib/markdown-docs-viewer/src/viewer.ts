@@ -1,7 +1,7 @@
 import { marked } from 'marked';
 import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
-import { DocumentationConfig, Document, ViewerState, Theme, DocumentSource } from './types';
+import { DocumentationConfig, ViewerState, Theme } from './types';
 import { defaultTheme } from './themes';
 import { generateStyles } from './styles';
 import { createNavigation } from './navigation';
