@@ -103,23 +103,23 @@ describe('CreateGoalModal', () => {
     });
 
     it('updates title field when user types', async () => {
-      const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const titleInput = screen.getByLabelText('Goal Title');
-      await user.clear(titleInput);
-      await user.type(titleInput, 'Run 50km');
+      const titleInput = screen.getByLabelText('Goal Title') as HTMLInputElement;
+
+      // Use fireEvent.change for more reliable text input
+      fireEvent.change(titleInput, { target: { value: 'Run 50km' } });
 
       expect(titleInput).toHaveValue('Run 50km');
     });
 
     it('updates description field when user types', async () => {
-      const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const descriptionInput = screen.getByLabelText('Description');
-      await user.clear(descriptionInput);
-      await user.type(descriptionInput, 'Monthly running goal');
+      const descriptionInput = screen.getByLabelText('Description') as HTMLInputElement;
+
+      // Use fireEvent.change for more reliable text input
+      fireEvent.change(descriptionInput, { target: { value: 'Monthly running goal' } });
 
       expect(descriptionInput).toHaveValue('Monthly running goal');
     });
