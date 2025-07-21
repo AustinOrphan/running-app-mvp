@@ -392,6 +392,11 @@ describe('CreateGoalModal', () => {
             targetValue: 50,
             type: GOAL_TYPES.DISTANCE,
             period: GOAL_PERIODS.WEEKLY,
+            targetUnit: 'km',
+            color: expect.any(String),
+            icon: expect.any(String),
+            startDate: expect.any(Date),
+            endDate: expect.any(Date),
           })
         );
       });
@@ -411,8 +416,15 @@ describe('CreateGoalModal', () => {
         expect(mockOnSubmit).toHaveBeenCalledWith(
           expect.objectContaining({
             title: 'Test Goal',
-            description: undefined, // Empty description should be undefined
+            description: undefined, // Empty description is undefined
             targetValue: 10,
+            type: GOAL_TYPES.DISTANCE,
+            period: GOAL_PERIODS.WEEKLY,
+            targetUnit: 'km',
+            color: expect.any(String),
+            icon: expect.any(String),
+            startDate: expect.any(Date),
+            endDate: expect.any(Date),
           })
         );
       });

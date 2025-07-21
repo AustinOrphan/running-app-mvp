@@ -98,7 +98,7 @@ describe('InsightsCard', () => {
     it('displays week period correctly', () => {
       render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
-      // Should format dates as "Jun 8 - Jun 15" (actual output based on component logic)
+      // Should format dates as "Jun 8 - Jun 15" based on mock data (weekStart: 2024-06-09)
       expect(screen.getByText(/Jun 8 - Jun 15/)).toBeInTheDocument();
     });
 
