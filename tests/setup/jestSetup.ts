@@ -24,9 +24,25 @@ if (!process.env.CI) {
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: process.env.TEST_DATABASE_URL || 'file:./prisma/test.db',
+      url: process.env.DATABASE_URL || process.env.TEST_DATABASE_URL || 'file:./prisma/test.db',
     },
   },
+});
+
+// Verify database connection before running tests
+beforeAll(async () => {
+  try {
+    await prisma.$connect();
+    // Check if key tables exist
+    const tables =
+      await prisma.$queryRaw`SELECT tablename FROM information_schema.tables WHERE table_schema='public'`;
+    console.log(
+      `Database connected successfully. Found ${Array.isArray(tables) ? tables.length : 0} tables.`
+    );
+  } catch (error) {
+    console.error('Database connection failed:', error);
+    throw error;
+  }
 });
 
 // Clean up database before each test
