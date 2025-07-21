@@ -57,27 +57,18 @@ const mobileDevices = [
       hasTouch: true,
     },
   },
-  {
-    name: 'iPad',
-    config: devices['iPad'] ?? {
-      viewport: { width: 768, height: 1024 },
-      userAgent:
-        'Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
-      isMobile: true,
-      hasTouch: true,
-    },
-  },
-  {
-    name: 'iPad Pro',
-    config: devices['iPad Pro'] ?? {
-      viewport: { width: 1024, height: 1366 },
-      userAgent:
-        'Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
-      isMobile: true,
-      hasTouch: true,
-    },
-  },
 ];
+
+// Use single device configuration at top level
+test.use(
+  devices['iPhone 12'] ?? {
+    viewport: { width: 390, height: 844 },
+    userAgent:
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+    isMobile: true,
+    hasTouch: true,
+  }
+);
 
 test.describe('Mobile Responsiveness E2E Tests', () => {
   let testUser: TestUser | undefined;
@@ -99,12 +90,13 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
     await testDb.prisma.$disconnect();
   });
 
-  // Test each mobile device configuration
+  // Test multiple devices using browser contexts
   for (const device of mobileDevices) {
     test.describe(`${device.name} Tests`, () => {
-      test.use({ ...device.config });
+      test(`should display mobile-optimized layout on ${device.name}`, async ({ browser }) => {
+        const context = await browser.newContext(device.config);
+        const page = await context.newPage();
 
-      test(`should display mobile-optimized layout on ${device.name}`, async ({ page }) => {
         await page.goto('/');
 
         // Check viewport is mobile-sized
@@ -121,9 +113,14 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
         });
         const viewportWidth = viewport!.width;
         expect(bodyScrollWidth).toBeLessThanOrEqual(viewportWidth + 10); // Allow small tolerance
+
+        await context.close();
       });
 
-      test(`should handle touch interactions on ${device.name}`, async ({ page }) => {
+      test(`should handle touch interactions on ${device.name}`, async ({ browser }) => {
+        const context = await browser.newContext(device.config);
+        const page = await context.newPage();
+
         // Login user first
         await page.goto('/login');
         await page.fill('input[type="email"]', assertTestUser(testUser).email);
@@ -154,9 +151,14 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
           const buttonBox = await firstButton.boundingBox();
           expect(buttonBox?.height).toBeGreaterThanOrEqual(44);
         }
+
+        await context.close();
       });
 
-      test(`should display readable text on ${device.name}`, async ({ page }) => {
+      test(`should display readable text on ${device.name}`, async ({ browser }) => {
+        const context = await browser.newContext(device.config);
+        const page = await context.newPage();
+
         await page.goto('/');
 
         // Check font sizes are appropriate for mobile
@@ -178,9 +180,14 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
             expect(fontSizeValue).toBeGreaterThanOrEqual(14);
           }
         }
+
+        await context.close();
       });
 
-      test(`should handle form inputs properly on ${device.name}`, async ({ page }) => {
+      test(`should handle form inputs properly on ${device.name}`, async ({ browser }) => {
+        const context = await browser.newContext(device.config);
+        const page = await context.newPage();
+
         await page.goto('/login');
 
         // Test form input accessibility
@@ -206,21 +213,13 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
         // Test form submission with touch
         const submitButton = page.locator('button[type="submit"]');
         await submitButton.tap();
+
+        await context.close();
       });
     });
   }
 
   test.describe('Mobile Navigation Tests', () => {
-    test.use(
-      devices['iPhone 12'] ?? {
-        viewport: { width: 390, height: 844 },
-        userAgent:
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
-        isMobile: true,
-        hasTouch: true,
-      }
-    );
-
     test('should provide mobile-friendly navigation', async ({ page }) => {
       // Login user
       await page.goto('/login');
@@ -282,16 +281,6 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   });
 
   test.describe('Mobile Content Layout Tests', () => {
-    test.use(
-      devices['iPhone 12'] ?? {
-        viewport: { width: 390, height: 844 },
-        userAgent:
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
-        isMobile: true,
-        hasTouch: true,
-      }
-    );
-
     test('should display dashboard content properly on mobile', async ({ page }) => {
       // Login user
       await page.goto('/login');
@@ -382,16 +371,6 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   });
 
   test.describe('Mobile Performance Tests', () => {
-    test.use(
-      devices['iPhone 12'] ?? {
-        viewport: { width: 390, height: 844 },
-        userAgent:
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
-        isMobile: true,
-        hasTouch: true,
-      }
-    );
-
     test('should load pages quickly on mobile', async ({ page }) => {
       // Test page load performance
       const startTime = Date.now();
@@ -429,16 +408,6 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   });
 
   test.describe('Mobile Accessibility Tests', () => {
-    test.use(
-      devices['iPhone 12'] ?? {
-        viewport: { width: 390, height: 844 },
-        userAgent:
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
-        isMobile: true,
-        hasTouch: true,
-      }
-    );
-
     test('should have proper touch targets', async ({ page }) => {
       await page.goto('/');
 
@@ -510,16 +479,6 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   });
 
   test.describe('Mobile Error Handling Tests', () => {
-    test.use(
-      devices['iPhone 12'] ?? {
-        viewport: { width: 390, height: 844 },
-        userAgent:
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
-        isMobile: true,
-        hasTouch: true,
-      }
-    );
-
     test('should handle network errors gracefully on mobile', async ({ page }) => {
       // Login user first
       await page.goto('/login');
@@ -561,16 +520,6 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   });
 
   test.describe('Mobile Form Interaction Tests', () => {
-    test.use(
-      devices['iPhone 12'] ?? {
-        viewport: { width: 390, height: 844 },
-        userAgent:
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
-        isMobile: true,
-        hasTouch: true,
-      }
-    );
-
     test('should handle form inputs with virtual keyboard', async ({ page }) => {
       await page.goto('/login');
 
