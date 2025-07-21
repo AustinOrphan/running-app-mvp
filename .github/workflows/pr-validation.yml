@@ -5,6 +5,13 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [main, develop]
 
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  actions: read
+  checks: write
+
 env:
   NODE_VERSION: '22.x'
 
@@ -454,6 +461,7 @@ jobs:
   auto-assign:
     name: 👥 Auto-assign Reviewers
     runs-on: ubuntu-latest
+    needs: [pr-info]
     if: github.event.action == 'opened' && github.event.pull_request.draft == false
     steps:
       - name: 👥 Auto-assign reviewers
@@ -462,29 +470,42 @@ jobs:
           script: |
             const changedFiles = '${{ needs.pr-info.outputs.changed-files }}';
 
+            // Only attempt assignment if not from a fork
+            if (context.payload.pull_request.head.repo.full_name !== context.payload.repository.full_name) {
+              console.log('Skipping reviewer assignment for fork PR');
+              return;
+            }
+
             let reviewers = [];
 
-            // Assign based on changed files
+            // Assign based on changed files (replace with actual usernames)
             if (changedFiles.includes('src/hooks/') || changedFiles.includes('src/components/')) {
-              reviewers.push('frontend-team'); // Replace with actual usernames
+              // reviewers.push('frontend-reviewer'); // Add actual usernames
             }
 
             if (changedFiles.includes('routes/') || changedFiles.includes('middleware/')) {
-              reviewers.push('backend-team'); // Replace with actual usernames
+              // reviewers.push('backend-reviewer'); // Add actual usernames
             }
 
             if (changedFiles.includes('tests/') || changedFiles.includes('.test.')) {
-              reviewers.push('qa-team'); // Replace with actual usernames
+              // reviewers.push('qa-reviewer'); // Add actual usernames
             }
 
             // Remove duplicates and filter out empty values
             reviewers = [...new Set(reviewers)].filter(Boolean);
 
             if (reviewers.length > 0) {
-              await github.rest.pulls.requestReviewers({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.issue.number,
-                reviewers: reviewers
-              });
+              try {
+                await github.rest.pulls.requestReviewers({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number,
+                  reviewers: reviewers
+                });
+                console.log(`Assigned reviewers: ${reviewers.join(', ')}`);
+              } catch (error) {
+                console.log(`Failed to assign reviewers: ${error.message}`);
+              }
+            } else {
+              console.log('No reviewers to assign based on changed files');
             }
