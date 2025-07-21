@@ -43,8 +43,12 @@ describe('Error Handling Integration Tests', () => {
   });
 
   afterEach(() => {
-    mockConsoleError.mockRestore();
-    headersSentDetector.mockRestore();
+    if (mockConsoleError && typeof mockConsoleError.mockRestore === 'function') {
+      mockConsoleError.mockRestore();
+    }
+    if (headersSentDetector && typeof headersSentDetector.mockRestore === 'function') {
+      headersSentDetector.mockRestore();
+    }
   });
 
   describe('Auth Route Error Handling', () => {
