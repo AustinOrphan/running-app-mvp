@@ -528,10 +528,14 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
+      // Wait for the submission state to be set
       await waitFor(() => {
-        const cancelButton = screen.getByRole('button', { name: /Cancel/i });
-        expect(cancelButton).toBeDisabled();
+        expect(screen.getByText('Creating...')).toBeInTheDocument();
       });
+
+      // Now check that the cancel button is disabled
+      const cancelButton = screen.getByRole('button', { name: /Cancel/i });
+      expect(cancelButton).toBeDisabled();
     });
   });
 
