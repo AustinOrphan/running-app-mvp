@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -216,21 +216,22 @@ describe('CreateGoalModal', () => {
     });
 
     it('updates end date when start date changes', async () => {
-      const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const startDateInput = screen.getByLabelText('Start Date');
+      const startDateInput = screen.getByLabelText('Start Date') as HTMLInputElement;
       const endDateInput = screen.getByLabelText('End Date') as HTMLInputElement;
 
       const newStartDate = '2024-07-01';
-      await user.clear(startDateInput);
-      await user.type(startDateInput, newStartDate);
 
-      // End date should be updated based on period
-      await waitFor(() => {
-        expect(endDateInput.value).toBeTruthy();
+      // Use fireEvent for more reliable date input change
+      await act(async () => {
+        fireEvent.change(startDateInput, { target: { value: newStartDate } });
       });
-      expect(new Date(endDateInput.value)).toBeInstanceOf(Date);
+
+      // End date should be updated based on period (weekly = 7 days)
+      await waitFor(() => {
+        expect(endDateInput.value).toBe('2024-07-08'); // 7 days after July 1, 2024
+      });
     });
 
     it('allows manual end date modification', async () => {
@@ -452,9 +453,15 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      expect(screen.getByText('Creating...')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Creating.../i })).toBeDisabled();
-      expect(screen.getByRole('button', { name: /Cancel/i })).toBeDisabled();
+      // The button text changes to "Creating..." during submission
+      await waitFor(() => {
+        const submitBtn = screen.getByRole('button', { name: /Creating.../i });
+        expect(submitBtn).toBeInTheDocument();
+        expect(submitBtn).toBeDisabled();
+      });
+
+      const cancelButton = screen.getByRole('button', { name: /Cancel/i });
+      expect(cancelButton).toBeDisabled();
 
       resolveSubmit!(undefined);
 

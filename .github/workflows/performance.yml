@@ -39,15 +39,20 @@ jobs:
         run: |
           npx prisma migrate deploy
           npx prisma generate
+          # Ensure database file exists
+          touch dev.db
 
       - name: 🏗️ Build application
         run: npm run build
 
       - name: 🌐 Start backend server
         run: |
-          npm run start &
+          echo "Starting backend server on port 3001..."
+          npm run start > backend.log 2>&1 &
+          echo "Backend PID: $!"
           echo "Waiting for backend server to start..."
-          npx wait-on http://localhost:3001/api/health --timeout 30000
+          npx wait-on http://localhost:3001/api/health --timeout 30000 || (echo "Backend logs:" && cat backend.log && exit 1)
+          echo "Backend server is ready!"
         env:
           NODE_ENV: production
           DATABASE_URL: file:./dev.db
@@ -56,9 +61,12 @@ jobs:
 
       - name: 🌐 Start frontend server
         run: |
-          npm run preview &
+          echo "Starting frontend server on port 3000..."
+          npm run preview -- --port 3000 > frontend.log 2>&1 &
+          echo "Frontend PID: $!"
           echo "Waiting for frontend server to start..."
-          npx wait-on http://localhost:3000 --timeout 30000
+          npx wait-on http://localhost:3000 --timeout 30000 || (echo "Frontend logs:" && cat frontend.log && exit 1)
+          echo "Frontend server is ready!"
         env:
           NODE_ENV: production
 
