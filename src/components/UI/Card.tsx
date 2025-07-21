@@ -125,7 +125,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     // Check if card contains interactive elements to avoid nested interactive violation
     const shouldHaveButtonRole = interactive;
 
-    const { onKeyDown: propsOnKeyDown, ...restProps } = props;
+    const { onKeyDown: propsOnKeyDown, role: propsRole, ...restProps } = props;
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (shouldHaveButtonRole && (event.key === 'Enter' || event.key === ' ')) {
@@ -135,12 +135,15 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       propsOnKeyDown?.(event);
     };
 
+    // Use explicitly passed role, or default to button for interactive cards
+    const cardRole = propsRole || (shouldHaveButtonRole ? 'button' : undefined);
+
     return (
       <div
         ref={ref}
         className={getCardClasses()}
         {...restProps}
-        role={shouldHaveButtonRole ? 'button' : undefined}
+        role={cardRole}
         tabIndex={shouldHaveButtonRole ? 0 : undefined}
         onKeyDown={handleKeyDown}
       >
