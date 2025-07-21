@@ -227,7 +227,9 @@ describe('CreateGoalModal', () => {
       await user.type(startDateInput, newStartDate);
 
       // End date should be updated based on period
-      expect(endDateInput.value).toBeTruthy();
+      await waitFor(() => {
+        expect(endDateInput.value).toBeTruthy();
+      });
       expect(new Date(endDateInput.value)).toBeInstanceOf(Date);
     });
 
