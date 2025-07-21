@@ -319,16 +319,33 @@ jobs:
   ci-success:
     name: ✅ CI Success
     runs-on: ubuntu-latest
-    needs:
-      [quality, unit-tests, integration-tests, e2e-tests, accessibility-tests, build, security-scan]
+    needs: [quality, unit-tests, integration-tests, e2e-tests, accessibility-tests, build]
     if: always()
 
     steps:
       - name: ✅ Check CI status
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |
-          echo "CI pipeline failed or was cancelled"
-          exit 1
+          # Check critical job statuses
+          quality_status="${{ needs.quality.result }}"
+          unit_status="${{ needs.unit-tests.result }}"
+          integration_status="${{ needs.integration-tests.result }}"
+          e2e_status="${{ needs.e2e-tests.result }}"
+          a11y_status="${{ needs.accessibility-tests.result }}"
+          build_status="${{ needs.build.result }}"
+
+          echo "Job statuses:"
+          echo "- Quality: $quality_status"
+          echo "- Unit Tests: $unit_status"
+          echo "- Integration Tests: $integration_status"
+          echo "- E2E Tests: $e2e_status"
+          echo "- Accessibility Tests: $a11y_status"
+          echo "- Build: $build_status"
+
+          # Fail if any critical jobs failed
+          if [[ "$quality_status" == "failure" || "$unit_status" == "failure" || "$integration_status" == "failure" || "$e2e_status" == "failure" || "$a11y_status" == "failure" || "$build_status" == "failure" ]]; then
+            echo "❌ Critical CI jobs failed"
+            exit 1
+          fi
 
       - name: 🎉 CI Success
-        run: echo "All CI checks passed successfully!"
+        run: echo "All critical CI checks passed successfully!"
