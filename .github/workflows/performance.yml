@@ -43,15 +43,24 @@ jobs:
       - name: 🏗️ Build application
         run: npm run build
 
-      - name: 🌐 Start application
+      - name: 🌐 Start backend server
         run: |
-          npm start &
-          sleep 10
-          curl -f http://localhost:3000 || exit 1
+          npm run start &
+          echo "Waiting for backend server to start..."
+          npx wait-on http://localhost:3001/api/health --timeout 30000
         env:
           NODE_ENV: production
           DATABASE_URL: file:./dev.db
           JWT_SECRET: test-secret-for-ci
+          PORT: 3001
+
+      - name: 🌐 Start frontend server
+        run: |
+          npm run preview &
+          echo "Waiting for frontend server to start..."
+          npx wait-on http://localhost:3000 --timeout 30000
+        env:
+          NODE_ENV: production
 
       - name: 🔍 Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12

@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import authRoutes from '../../server/routes/auth.js';
 import runsRoutes from '../../server/routes/runs.js';
@@ -11,8 +12,8 @@ import { asyncHandler, asyncAuthHandler } from '../../server/middleware/asyncHan
 
 describe('Error Handling Integration Tests', () => {
   let app: express.Application;
-  let mockConsoleError: jest.SpyInstance;
-  let headersSentDetector: jest.SpyInstance;
+  let mockConsoleError: ReturnType<typeof vi.spyOn>;
+  let headersSentDetector: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     app = express();
@@ -20,10 +21,10 @@ describe('Error Handling Integration Tests', () => {
     app.use(express.json());
 
     // Mock console.error to prevent test output pollution
-    mockConsoleError = jest.spyOn(console, 'error').mockImplementation();
+    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     // Detect "Cannot set headers after they are sent" errors
-    headersSentDetector = jest.spyOn(console, 'error').mockImplementation((message: any) => {
+    headersSentDetector = vi.spyOn(console, 'error').mockImplementation((message: any) => {
       if (
         typeof message === 'string' &&
         message.includes('Cannot set headers after they are sent')
