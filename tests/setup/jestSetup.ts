@@ -47,30 +47,29 @@ beforeAll(async () => {
 // Clean up database before each test
 beforeEach(async () => {
   // Handle potential missing tables gracefully
-  try {
-    await prisma.race.deleteMany();
-  } catch (error) {
-    // Race table might not exist in some test environments
-    console.warn('Race table cleanup skipped:', (error as Error).message);
-  }
+  const tables = ['race', 'goal', 'run', 'user'] as const;
 
-  await prisma.goal.deleteMany();
-  await prisma.run.deleteMany();
-  await prisma.user.deleteMany();
+  for (const table of tables) {
+    try {
+      await (prisma[table] as any).deleteMany();
+    } catch (error) {
+      console.warn(`${table} table cleanup skipped:`, (error as Error).message);
+    }
+  }
 });
 
 // Clean up and disconnect after all tests
 afterAll(async () => {
-  try {
-    await prisma.race.deleteMany();
-  } catch (error) {
-    // Race table might not exist in some test environments
-    console.warn('Race table cleanup skipped in afterAll:', (error as Error).message);
+  const tables = ['race', 'goal', 'run', 'user'] as const;
+
+  for (const table of tables) {
+    try {
+      await (prisma[table] as any).deleteMany();
+    } catch (error) {
+      console.warn(`${table} table cleanup skipped in afterAll:`, (error as Error).message);
+    }
   }
 
-  await prisma.goal.deleteMany();
-  await prisma.run.deleteMany();
-  await prisma.user.deleteMany();
   await prisma.$disconnect();
 });
 
