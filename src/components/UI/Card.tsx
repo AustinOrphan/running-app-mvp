@@ -320,7 +320,7 @@ export interface ProgressHeaderProps {
   className?: string;
 }
 
-export interface ProgressBarProps {
+export interface ProgressBarProps extends React.HTMLAttributes<HTMLDivElement> {
   percentage: number;
   completed?: boolean;
   color?: string;
@@ -346,6 +346,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   completed = false,
   color,
   className = '',
+  ...props
 }) => {
   const fillClasses = [styles.progressFill];
   if (completed) fillClasses.push(styles.progressFillCompleted);
@@ -359,6 +360,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
       aria-valuenow={normalizedPercentage}
       aria-valuemin={0}
       aria-valuemax={100}
+      {...props}
     >
       <div
         className={fillClasses.join(' ')}

@@ -56,17 +56,7 @@ describe('Card Accessibility Tests', () => {
       const handleClick = vi.fn();
 
       render(
-        <Card
-          interactive={true}
-          onClick={handleClick}
-          aria-label='Clickable card'
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleClick();
-            }
-          }}
-        >
+        <Card interactive={true} onClick={handleClick} aria-label='Clickable card'>
           <CardContent>Clickable content</CardContent>
         </Card>
       );
@@ -154,16 +144,11 @@ describe('Card Accessibility Tests', () => {
             <span>50 / 100 km</span>
             <span>50%</span>
           </ProgressHeader>
-          <div
-            role='progressbar'
+          <ProgressBar
+            percentage={50}
             aria-label='Goal progress'
-            aria-valuenow={50}
-            aria-valuemin={0}
-            aria-valuemax={100}
             aria-valuetext='50 percent complete'
-          >
-            <ProgressBar percentage={50} />
-          </div>
+          />
         </CardProgress>
       );
 
@@ -184,13 +169,11 @@ describe('Card Accessibility Tests', () => {
             <span id='progress-label'>Running progress</span>
             <span id='progress-value'>25 km of 50 km completed</span>
           </ProgressHeader>
-          <div
-            role='progressbar'
+          <ProgressBar
+            percentage={50}
             aria-labelledby='progress-label'
             aria-describedby='progress-value'
-          >
-            <ProgressBar percentage={50} />
-          </div>
+          />
         </CardProgress>
       );
 

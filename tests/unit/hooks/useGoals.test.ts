@@ -39,8 +39,6 @@ const mockApiPost = apiPost as ReturnType<typeof vi.fn>;
 const mockApiPut = apiPut as ReturnType<typeof vi.fn>;
 const mockApiDelete = apiDelete as ReturnType<typeof vi.fn>;
 
-// Remove old fetch mock - we're mocking apiFetch utilities instead
-
 describe('useGoals', () => {
   const mockToken = 'mock-jwt-token-123';
 
@@ -153,21 +151,21 @@ describe('useGoals', () => {
 
   describe('refreshProgress', () => {
     it('successfully fetches goal progress', async () => {
-      mockFetch.mockClear();
-
       // Mock goals fetch
-      mockFetch.mockResolvedValueOnce(createMockResponse(mockGoals));
-
-      // Mock progress fetch
-      mockFetch.mockResolvedValueOnce(createMockResponse(mockGoalProgress));
-
-      let hookResult: any;
-
-      await act(async () => {
-        hookResult = renderHook(() => useGoals(mockToken));
+      mockApiGet.mockResolvedValueOnce({
+        data: mockGoals,
+        status: 200,
+        headers: new Headers(),
       });
 
-      const { result } = hookResult!;
+      // Mock progress fetch
+      mockApiGet.mockResolvedValueOnce({
+        data: mockGoalProgress,
+        status: 200,
+        headers: new Headers(),
+      });
+
+      const { result } = renderHook(() => useGoals(mockToken));
 
       await waitFor(() => {
         expect(result.current.goals.length).toBe(mockGoals.length);
@@ -177,31 +175,21 @@ describe('useGoals', () => {
         expect(result.current.goalProgress).toEqual(mockGoalProgress);
       });
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/goals/progress/all', {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${mockToken}`,
-        },
-      });
+      expect(mockApiGet).toHaveBeenCalledWith('/api/goals/progress/all');
     });
 
     it('handles progress fetch error silently', async () => {
       // Mock goals fetch success
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGoals,
+      mockApiGet.mockResolvedValueOnce({
+        data: mockGoals,
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock progress fetch failure
-      mockFetch.mockRejectedValueOnce(new Error('Progress fetch failed'));
+      mockApiGet.mockRejectedValueOnce(new Error('Progress fetch failed'));
 
-      let hookResult: any;
-
-      await act(async () => {
-        hookResult = renderHook(() => useGoals(mockToken));
-      });
-
-      const { result } = hookResult!;
+      const { result } = renderHook(() => useGoals(mockToken));
 
       await waitFor(() => {
         expect(result.current.goals.length).toBe(mockGoals.length);
@@ -218,21 +206,24 @@ describe('useGoals', () => {
       const newGoal = createMockGoal({ id: 'new-goal-1' });
 
       // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock create goal
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => newGoal,
+      mockApiPost.mockResolvedValueOnce({
+        data: newGoal,
+        status: 201,
+        headers: new Headers(),
       });
 
       // Mock progress refresh
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
@@ -248,27 +239,21 @@ describe('useGoals', () => {
 
       expect(createdGoal).toEqual(newGoal);
       expect(result.current.goals).toContain(newGoal);
-      expect(mockFetch).toHaveBeenCalledWith('/api/goals', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${mockToken}`,
-        },
-        body: JSON.stringify(mockCreateGoalData),
-      });
+      expect(mockApiPost).toHaveBeenCalledWith('/api/goals', mockCreateGoalData);
     });
 
     it('throws error when create goal fails', async () => {
       const errorMessage = 'Failed to create goal';
 
       // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock create goal failure
-      mockFetch.mockRejectedValueOnce(new Error(errorMessage));
+      mockApiPost.mockRejectedValueOnce(new Error(errorMessage));
 
       const { result } = renderHook(() => useGoals(mockToken));
 
@@ -289,31 +274,32 @@ describe('useGoals', () => {
       const existingGoal = mockGoals[0];
       const updatedGoal = { ...existingGoal, title: 'Updated Goal Title' };
 
-      // Clear the default mock first
-      mockFetch.mockClear();
-
       // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [existingGoal],
+      mockApiGet.mockResolvedValueOnce({
+        data: [existingGoal],
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock initial progress fetch (triggered when goals are loaded)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock update goal
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => updatedGoal,
+      mockApiPut.mockResolvedValueOnce({
+        data: updatedGoal,
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock progress refresh after update
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
@@ -340,25 +326,25 @@ describe('useGoals', () => {
     it('successfully deletes a goal', async () => {
       const goalToDelete = mockGoals[0];
 
-      // Clear the default mock first
-      mockFetch.mockClear();
-
       // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [goalToDelete],
+      mockApiGet.mockResolvedValueOnce({
+        data: [goalToDelete],
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock initial progress fetch (triggered when goals are loaded)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock delete goal
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({}),
+      mockApiDelete.mockResolvedValueOnce({
+        data: {},
+        status: 200,
+        headers: new Headers(),
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
@@ -372,13 +358,7 @@ describe('useGoals', () => {
       });
 
       expect(result.current.goals).not.toContain(goalToDelete);
-      expect(mockFetch).toHaveBeenCalledWith(`/api/goals/${goalToDelete.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${mockToken}`,
-        },
-      });
+      expect(mockApiDelete).toHaveBeenCalledWith(`/api/goals/${goalToDelete.id}`);
     });
   });
 
@@ -391,31 +371,32 @@ describe('useGoals', () => {
         completedAt: new Date().toISOString(),
       };
 
-      // Clear the default mock first
-      mockFetch.mockClear();
-
       // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [goalToComplete],
+      mockApiGet.mockResolvedValueOnce({
+        data: [goalToComplete],
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock initial progress fetch (triggered when goals are loaded)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock complete goal
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => completedGoal,
+      mockApiPost.mockResolvedValueOnce({
+        data: completedGoal,
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock progress refresh after completion
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
@@ -436,19 +417,18 @@ describe('useGoals', () => {
 
   describe('Computed Values', () => {
     it('correctly computes activeGoals', async () => {
-      // Clear the default mock first
-      mockFetch.mockClear();
-
       // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGoals,
+      mockApiGet.mockResolvedValueOnce({
+        data: mockGoals,
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock initial progress fetch (triggered when goals are loaded)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
@@ -462,19 +442,18 @@ describe('useGoals', () => {
     });
 
     it('correctly computes completedGoals', async () => {
-      // Clear the default mock first
-      mockFetch.mockClear();
-
       // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGoals,
+      mockApiGet.mockResolvedValueOnce({
+        data: mockGoals,
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock initial progress fetch (triggered when goals are loaded)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
@@ -496,36 +475,18 @@ describe('useGoals', () => {
         progressPercentage: 100,
       });
 
-      // Clear and reset mocks
-      mockFetch.mockClear();
-      mockFetch.mockReset();
+      // Mock initial goals fetch
+      mockApiGet.mockResolvedValueOnce({
+        data: [mockGoals[0]], // Use existing mock goal which is not completed
+        status: 200,
+        headers: new Headers(),
+      });
 
-      // Set up a specific mock implementation for this test
-      mockFetch.mockImplementation(async (url: string) => {
-        if (url.includes('/api/goals') && !url.includes('progress') && !url.includes('complete')) {
-          // Goals fetch (first call)
-          return {
-            ok: true,
-            json: async () => [mockGoals[0]], // Use existing mock goal which is not completed
-          };
-        } else if (url.includes('/api/goals/progress')) {
-          // Progress fetch (second call)
-          return {
-            ok: true,
-            json: async () => [achievedProgress],
-          };
-        } else if (url.includes('/complete')) {
-          // Complete endpoint (any subsequent calls) - return successful response but goal remains uncompleted
-          return {
-            ok: true,
-            json: async () => ({ ...mockGoals[0], isCompleted: false }),
-          };
-        }
-        // Default fallback
-        return {
-          ok: true,
-          json: async () => [],
-        };
+      // Mock progress fetch
+      mockApiGet.mockResolvedValueOnce({
+        data: [achievedProgress],
+        status: 200,
+        headers: new Headers(),
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
@@ -554,19 +515,18 @@ describe('useGoals', () => {
 
   describe('getGoalProgress', () => {
     it('returns progress for existing goal', async () => {
-      // Clear the default mock first
-      mockFetch.mockClear();
-
       // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGoals,
+      mockApiGet.mockResolvedValueOnce({
+        data: mockGoals,
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock progress fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGoalProgress,
+      mockApiGet.mockResolvedValueOnce({
+        data: mockGoalProgress,
+        status: 200,
+        headers: new Headers(),
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
@@ -580,19 +540,18 @@ describe('useGoals', () => {
     });
 
     it('returns undefined for non-existing goal', async () => {
-      // Clear the default mock first
-      mockFetch.mockClear();
-
       // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGoals,
+      mockApiGet.mockResolvedValueOnce({
+        data: mockGoals,
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock initial progress fetch (triggered when goals are loaded)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
@@ -608,19 +567,18 @@ describe('useGoals', () => {
 
   describe('markAchievementSeen', () => {
     it('marks achievement as seen', async () => {
-      // Clear the default mock first
-      mockFetch.mockClear();
-
       // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGoals,
+      mockApiGet.mockResolvedValueOnce({
+        data: mockGoals,
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock initial progress fetch (triggered when goals are loaded)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
@@ -653,27 +611,31 @@ describe('useGoals', () => {
       });
 
       // Mock initial goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [incompleteGoal],
+      mockApiGet.mockResolvedValueOnce({
+        data: [incompleteGoal],
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock progress fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [completeProgress],
+      mockApiGet.mockResolvedValueOnce({
+        data: [completeProgress],
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock auto-complete goal
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => completedGoal,
+      mockApiPost.mockResolvedValueOnce({
+        data: completedGoal,
+        status: 200,
+        headers: new Headers(),
       });
 
       // Mock progress refresh after completion
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [{ ...completeProgress, isCompleted: true }],
+      mockApiGet.mockResolvedValueOnce({
+        data: [{ ...completeProgress, isCompleted: true }],
+        status: 200,
+        headers: new Headers(),
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
@@ -688,13 +650,7 @@ describe('useGoals', () => {
 
       // Wait for auto-completion effect to trigger
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(`/api/goals/${incompleteGoal.id}/complete`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${mockToken}`,
-          },
-        });
+        expect(mockApiPost).toHaveBeenCalledWith(`/api/goals/${incompleteGoal.id}/complete`);
       });
     });
   });
@@ -711,13 +667,8 @@ describe('useGoals', () => {
     });
 
     it('handles API response without json method', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        json: () => Promise.reject(new Error('Invalid JSON')),
-        text: async () => 'Server error',
-      });
+      const error = new Error('Server error occurred. Please try again.');
+      mockApiGet.mockRejectedValueOnce(error);
 
       const { result } = renderHook(() => useGoals(mockToken));
 
