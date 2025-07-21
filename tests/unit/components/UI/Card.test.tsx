@@ -288,28 +288,28 @@ describe('Card Component System', () => {
     it('renders progress bar with correct percentage', () => {
       const { container } = render(<ProgressBar percentage={75} />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
+      const progressFill = container.querySelector('[class*="progressFill"]');
       expect(progressFill).toHaveStyle({ width: '75%' });
     });
 
     it('applies custom color', () => {
       const { container } = render(<ProgressBar percentage={50} color='#ff0000' />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
+      const progressFill = container.querySelector('[class*="progressFill"]');
       expect(progressFill).toHaveStyle({ backgroundColor: '#ff0000' });
     });
 
     it('handles completed state', () => {
       const { container } = render(<ProgressBar percentage={100} completed={true} />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
+      const progressFill = container.querySelector('[class*="progressFill"]');
       expect(progressFill).toHaveClass(expect.stringMatching(/progressFillCompleted/));
     });
 
     it('caps percentage at 100', () => {
       const { container } = render(<ProgressBar percentage={150} />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
+      const progressFill = container.querySelector('[class*="progressFill"]');
       expect(progressFill).toHaveStyle({ width: '100%' });
     });
   });
@@ -355,7 +355,7 @@ describe('Card Component System', () => {
     it('applies expanded icon class when expanded', () => {
       const { container } = render(<ExpandControls isExpanded={true} onToggle={vi.fn()} />);
 
-      const icon = container.querySelector(`.${expect.stringMatching(/expandIcon/)}`);
+      const icon = container.querySelector('[class*="expandIcon"]');
       expect(icon).toHaveClass(expect.stringMatching(/expandIconExpanded/));
     });
   });

@@ -395,7 +395,7 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={true} />);
 
-      const expandIcon = document.querySelector('.expand-icon');
+      const expandIcon = document.querySelector('[class*="expandIcon"]');
       expect(expandIcon).not.toHaveClass('expanded');
 
       const expandButton = screen.getByText('View details');
@@ -447,8 +447,8 @@ describe('GoalCard', () => {
 
       const { container } = render(<GoalCard {...defaultProps} goal={completedGoal} />);
 
-      const goalCard = container.querySelector('.goal-card');
-      expect(goalCard).toHaveClass('completed');
+      const goalCard = container.querySelector('[class*="card"][class*="Goal"]');
+      expect(goalCard).toHaveClass(/completed/i);
     });
 
     it('does not apply completed class for active goals', () => {
@@ -456,8 +456,8 @@ describe('GoalCard', () => {
 
       const { container } = render(<GoalCard {...defaultProps} goal={activeGoal} />);
 
-      const goalCard = container.querySelector('.goal-card');
-      expect(goalCard).not.toHaveClass('completed');
+      const goalCard = container.querySelector('[class*="card"][class*="Goal"]');
+      expect(goalCard).not.toHaveClass(/completed/i);
     });
   });
 
@@ -468,7 +468,7 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} goal={goal} progress={progress} />);
 
-      const progressFill = document.querySelector('.progress-fill');
+      const progressFill = document.querySelector('[class*="progressFill"]');
       expect(progressFill).toHaveStyle({ backgroundColor: '#10b981' });
     });
 
@@ -477,7 +477,7 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} progress={progress} />);
 
-      const progressFill = document.querySelector('.progress-fill');
+      const progressFill = document.querySelector('[class*="progressFill"]');
       expect(progressFill).toHaveStyle({ width: '75%' });
     });
 
@@ -486,7 +486,7 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} progress={progress} />);
 
-      const progressFill = document.querySelector('.progress-fill');
+      const progressFill = document.querySelector('[class*="progressFill"]');
       expect(progressFill).toHaveStyle({ width: '100%' });
     });
 
@@ -496,7 +496,7 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} goal={completedGoal} progress={progress} />);
 
-      const progressFill = document.querySelector('.progress-fill');
+      const progressFill = document.querySelector('[class*="progressFill"]');
       expect(progressFill).toHaveClass('completed');
     });
   });

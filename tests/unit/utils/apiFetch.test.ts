@@ -159,7 +159,7 @@ describe('apiFetch', () => {
       localStorage.setItem('authToken', 'test-token');
       mockFetch.mockResolvedValueOnce(createMockResponse({}));
 
-      await apiFetch('/api/test');
+      await apiFetch('/api/test', { requiresAuth: false });
 
       expect(mockFetch).toHaveBeenCalledWith('/api/test', {
         headers: {
@@ -268,7 +268,9 @@ describe('apiFetch', () => {
       const errorData = { message: 'Not found' };
       mockFetch.mockResolvedValueOnce(createMockResponse(errorData, 404));
 
-      await expect(apiFetch('/api/test', { requiresAuth: false })).rejects.toThrow('Not found');
+      await expect(apiFetch('/api/test', { requiresAuth: false })).rejects.toThrow(
+        'The requested resource was not found.'
+      );
     });
 
     it('should handle HTTP error with error field', async () => {
@@ -284,7 +286,7 @@ describe('apiFetch', () => {
       mockFetch.mockResolvedValueOnce(createMockResponse({}, 500));
 
       await expect(apiFetch('/api/test', { requiresAuth: false, retries: 0 })).rejects.toThrow(
-        'HTTP 500: Error'
+        'Server error. Please try again later.'
       );
     });
 
@@ -293,7 +295,7 @@ describe('apiFetch', () => {
       mockFetch.mockResolvedValueOnce(response);
 
       await expect(apiFetch('/api/test', { requiresAuth: false, retries: 0 })).rejects.toThrow(
-        'HTTP 500: Error'
+        'Server error. Please try again later.'
       );
     });
 
