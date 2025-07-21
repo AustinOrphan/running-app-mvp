@@ -5,15 +5,78 @@ import { assertTestUser } from './types/index.js';
 import { mockRuns } from '../fixtures/mockData.js';
 import { testDb } from '../fixtures/testDatabase.js';
 
-// Define mobile device configurations with names
+// Define mobile device configurations with names and fallbacks
 const mobileDevices = [
-  { name: 'iPhone 12', config: devices['iPhone 12'] },
-  { name: 'iPhone 12 Pro', config: devices['iPhone 12 Pro'] },
-  { name: 'iPhone SE', config: devices['iPhone SE'] },
-  { name: 'Pixel 5', config: devices['Pixel 5'] },
-  { name: 'Galaxy S9+', config: devices['Galaxy S9+'] },
-  { name: 'iPad', config: devices['iPad'] },
-  { name: 'iPad Pro', config: devices['iPad Pro'] },
+  {
+    name: 'iPhone 12',
+    config: devices['iPhone 12'] ?? {
+      viewport: { width: 390, height: 844 },
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+      isMobile: true,
+      hasTouch: true,
+    },
+  },
+  {
+    name: 'iPhone 12 Pro',
+    config: devices['iPhone 12 Pro'] ?? {
+      viewport: { width: 390, height: 844 },
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+      isMobile: true,
+      hasTouch: true,
+    },
+  },
+  {
+    name: 'iPhone SE',
+    config: devices['iPhone SE'] ?? {
+      viewport: { width: 375, height: 667 },
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 13_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0 Mobile/15E148 Safari/604.1',
+      isMobile: true,
+      hasTouch: true,
+    },
+  },
+  {
+    name: 'Pixel 5',
+    config: devices['Pixel 5'] ?? {
+      viewport: { width: 393, height: 851 },
+      userAgent:
+        'Mozilla/5.0 (Linux; Android 10; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Mobile Safari/537.36',
+      isMobile: true,
+      hasTouch: true,
+    },
+  },
+  {
+    name: 'Galaxy S9+',
+    config: devices['Galaxy S9+'] ?? {
+      viewport: { width: 414, height: 846 },
+      userAgent:
+        'Mozilla/5.0 (Linux; Android 8.0.0; SM-G965U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.111 Mobile Safari/537.36',
+      isMobile: true,
+      hasTouch: true,
+    },
+  },
+  {
+    name: 'iPad',
+    config: devices['iPad'] ?? {
+      viewport: { width: 768, height: 1024 },
+      userAgent:
+        'Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+      isMobile: true,
+      hasTouch: true,
+    },
+  },
+  {
+    name: 'iPad Pro',
+    config: devices['iPad Pro'] ?? {
+      viewport: { width: 1024, height: 1366 },
+      userAgent:
+        'Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+      isMobile: true,
+      hasTouch: true,
+    },
+  },
 ];
 
 test.describe('Mobile Responsiveness E2E Tests', () => {
@@ -148,7 +211,15 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   }
 
   test.describe('Mobile Navigation Tests', () => {
-    test.use(devices['iPhone 12']);
+    test.use(
+      devices['iPhone 12'] ?? {
+        viewport: { width: 390, height: 844 },
+        userAgent:
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+        isMobile: true,
+        hasTouch: true,
+      }
+    );
 
     test('should provide mobile-friendly navigation', async ({ page }) => {
       // Login user
@@ -211,7 +282,15 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   });
 
   test.describe('Mobile Content Layout Tests', () => {
-    test.use(devices['iPhone 12']);
+    test.use(
+      devices['iPhone 12'] ?? {
+        viewport: { width: 390, height: 844 },
+        userAgent:
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+        isMobile: true,
+        hasTouch: true,
+      }
+    );
 
     test('should display dashboard content properly on mobile', async ({ page }) => {
       // Login user
@@ -303,7 +382,15 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   });
 
   test.describe('Mobile Performance Tests', () => {
-    test.use(devices['iPhone 12']);
+    test.use(
+      devices['iPhone 12'] ?? {
+        viewport: { width: 390, height: 844 },
+        userAgent:
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+        isMobile: true,
+        hasTouch: true,
+      }
+    );
 
     test('should load pages quickly on mobile', async ({ page }) => {
       // Test page load performance
@@ -342,7 +429,15 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   });
 
   test.describe('Mobile Accessibility Tests', () => {
-    test.use(devices['iPhone 12']);
+    test.use(
+      devices['iPhone 12'] ?? {
+        viewport: { width: 390, height: 844 },
+        userAgent:
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+        isMobile: true,
+        hasTouch: true,
+      }
+    );
 
     test('should have proper touch targets', async ({ page }) => {
       await page.goto('/');
@@ -415,7 +510,15 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   });
 
   test.describe('Mobile Error Handling Tests', () => {
-    test.use(devices['iPhone 12']);
+    test.use(
+      devices['iPhone 12'] ?? {
+        viewport: { width: 390, height: 844 },
+        userAgent:
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+        isMobile: true,
+        hasTouch: true,
+      }
+    );
 
     test('should handle network errors gracefully on mobile', async ({ page }) => {
       // Login user first
@@ -458,7 +561,15 @@ test.describe('Mobile Responsiveness E2E Tests', () => {
   });
 
   test.describe('Mobile Form Interaction Tests', () => {
-    test.use(devices['iPhone 12']);
+    test.use(
+      devices['iPhone 12'] ?? {
+        viewport: { width: 390, height: 844 },
+        userAgent:
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+        isMobile: true,
+        hasTouch: true,
+      }
+    );
 
     test('should handle form inputs with virtual keyboard', async ({ page }) => {
       await page.goto('/login');
