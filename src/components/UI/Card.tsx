@@ -123,27 +123,26 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     };
 
     // Check if card contains interactive elements to avoid nested interactive violation
-    const shouldHaveButtonRole =
-      interactive &&
-      !React.Children.toArray(children).some(child => {
-        if (React.isValidElement(child)) {
-          // Check if child is CardActions or contains buttons
-          return (
-            child.type === CardActions ||
-            (typeof child.type === 'function' && child.type.name === 'CardActions') ||
-            (child.props?.children && JSON.stringify(child.props.children).includes('button'))
-          );
-        }
-        return false;
-      });
+    const shouldHaveButtonRole = interactive;
+
+    const { onKeyDown: propsOnKeyDown, ...restProps } = props;
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (shouldHaveButtonRole && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        props.onClick?.(event as unknown as React.MouseEvent<HTMLDivElement>);
+      }
+      propsOnKeyDown?.(event);
+    };
 
     return (
       <div
         ref={ref}
         className={getCardClasses()}
+        {...restProps}
         role={shouldHaveButtonRole ? 'button' : undefined}
         tabIndex={shouldHaveButtonRole ? 0 : undefined}
-        {...props}
+        onKeyDown={handleKeyDown}
       >
         {children}
       </div>
@@ -351,12 +350,20 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   const fillClasses = [styles.progressFill];
   if (completed) fillClasses.push(styles.progressFillCompleted);
 
+  const normalizedPercentage = Math.max(0, Math.min(percentage, 100));
+
   return (
-    <div className={`${styles.progressBar} ${className}`}>
+    <div
+      className={`${styles.progressBar} ${className}`}
+      role='progressbar'
+      aria-valuenow={normalizedPercentage}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
       <div
         className={fillClasses.join(' ')}
         style={{
-          transform: `scaleX(${Math.min(percentage, 100) / 100})`,
+          transform: `scaleX(${normalizedPercentage / 100})`,
           backgroundColor: color || undefined,
         }}
       />

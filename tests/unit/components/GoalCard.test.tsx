@@ -517,7 +517,7 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={true} />);
 
-      expect(screen.getByTitle('Show detailed progress')).toBeInTheDocument();
+      expect(screen.getByTitle('View details')).toBeInTheDocument();
     });
 
     it('updates expand button label when expanded', async () => {
@@ -526,7 +526,7 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={true} />);
 
-      const expandButton = screen.getByTitle('Show detailed progress');
+      const expandButton = screen.getByTitle('View details');
       await user.click(expandButton);
 
       expect(screen.getByTitle('Show less')).toBeInTheDocument();
