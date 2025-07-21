@@ -159,7 +159,7 @@ jobs:
           - 5432:5432
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_pr_test
+      DATABASE_URL: file:./prisma/test.db
       JWT_SECRET: test-secret-key
 
     steps:
@@ -222,7 +222,7 @@ jobs:
           - 5432:5432
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_e2e_pr
+      DATABASE_URL: file:./prisma/e2e.db
       JWT_SECRET: test-secret-key
 
     steps:
