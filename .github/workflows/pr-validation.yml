@@ -77,6 +77,9 @@ jobs:
     name: ⚡ Quick Checks
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -261,6 +264,9 @@ jobs:
     name: ⚡ Performance Impact
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4

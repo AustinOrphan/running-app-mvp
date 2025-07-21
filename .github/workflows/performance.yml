@@ -63,6 +63,9 @@ jobs:
     name: 📦 Bundle Analysis
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
 
     steps:
       - name: 📥 Checkout code

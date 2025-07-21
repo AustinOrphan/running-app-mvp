@@ -405,6 +405,9 @@ jobs:
   test-matrix:
     name: 🧪 Test Matrix
     runs-on: ${{ matrix.os }}
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -440,6 +443,9 @@ jobs:
     name: ⚡ Performance Tests
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
