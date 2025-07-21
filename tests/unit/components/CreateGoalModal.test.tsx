@@ -415,20 +415,21 @@ describe('CreateGoalModal', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: 'Test Goal',
-            description: undefined, // Empty description is undefined
-            targetValue: 10,
-            type: GOAL_TYPES.DISTANCE,
-            period: GOAL_PERIODS.WEEKLY,
-            targetUnit: 'km',
-            color: expect.any(String),
-            icon: expect.any(String),
-            startDate: expect.any(Date),
-            endDate: expect.any(Date),
-          })
-        );
+        expect(mockOnSubmit).toHaveBeenCalled();
+        const callArgs = mockOnSubmit.mock.calls[0][0];
+        expect(callArgs).toMatchObject({
+          title: 'Test Goal',
+          targetValue: 10,
+          type: GOAL_TYPES.DISTANCE,
+          period: GOAL_PERIODS.WEEKLY,
+          targetUnit: 'km',
+          color: expect.any(String),
+          icon: expect.any(String),
+          startDate: expect.any(Date),
+          endDate: expect.any(Date),
+        });
+        // Description should be undefined (not empty string)
+        expect(callArgs.description).toBeUndefined();
       });
     });
 

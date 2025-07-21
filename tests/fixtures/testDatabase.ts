@@ -1,7 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
 
 import { mockRuns, mockTestUser, mockGoals, mockRaces } from './mockData.js';
 
