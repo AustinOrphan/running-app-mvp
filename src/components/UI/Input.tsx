@@ -138,6 +138,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
     // Determine trailing icon click handler
     const getTrailingIconClick = () => {
+      if (trailingIcon) {
+        return onTrailingIconClick;
+      }
       if (type === 'password' && !onTrailingIconClick) {
         return handlePasswordToggle;
       }
@@ -229,15 +232,19 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               tabIndex={effectiveTrailingIconClick ? 0 : -1}
               aria-hidden={!effectiveTrailingIconClick}
               aria-label={
-                type === 'password'
-                  ? showPassword
-                    ? 'Hide password'
-                    : 'Show password'
-                  : type === 'search' && value
-                    ? 'Clear search'
-                    : onTrailingIconClick
-                      ? 'Activate button'
-                      : undefined
+                trailingIcon
+                  ? onTrailingIconClick
+                    ? 'Activate button'
+                    : undefined
+                  : type === 'password'
+                    ? showPassword
+                      ? 'Hide password'
+                      : 'Show password'
+                    : type === 'search' && value
+                      ? 'Clear search'
+                      : onTrailingIconClick
+                        ? 'Activate button'
+                        : undefined
               }
             >
               {effectiveTrailingIcon}
