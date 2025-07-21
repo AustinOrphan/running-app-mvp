@@ -202,7 +202,9 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
 
         {/* Goal Type */}
         <div className='form-group'>
-          <label htmlFor='type'>Goal Type *</label>
+          <label htmlFor='type' className='required'>
+            Goal Type
+          </label>
           <select
             id='type'
             value={formData.type}
@@ -257,7 +259,9 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
 
         {/* Goal Period */}
         <div className='form-group'>
-          <label htmlFor='period'>Time Period *</label>
+          <label htmlFor='period' className='required'>
+            Time Period
+          </label>
           <select
             id='period'
             value={formData.period}

@@ -20,7 +20,9 @@
     "utils/**/*.tsx",
     "**/*.config.ts",
     "**/*.config.js",
-    "scripts/**/*.ts"
+    "scripts/**/*.ts",
+    "*.ts",
+    "*.tsx"
   ],
   "exclude": ["node_modules", "dist"]
 }

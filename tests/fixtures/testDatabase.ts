@@ -7,7 +7,7 @@ import { mockRuns, mockTestUser, mockGoals, mockRaces } from './mockData.js';
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: process.env.TEST_DATABASE_URL || 'file:./test.db',
+      url: process.env.TEST_DATABASE_URL || 'file:./prisma/test.db',
     },
   },
 });

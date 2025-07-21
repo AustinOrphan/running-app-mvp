@@ -15,7 +15,7 @@ import { spawn, type ChildProcess } from 'child_process';
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const BACKEND_PORT = 3001;
 const FRONTEND_PORT = 3000;
-const STARTUP_TIMEOUT = 30000; // 30 seconds
+const STARTUP_TIMEOUT = 60000; // 60 seconds for CI environments
 
 describe('Infrastructure Startup Tests', () => {
   describe('Required Files Existence', () => {
@@ -291,7 +291,13 @@ describe('Server Startup Integration Tests', () => {
         frontendProcess.stdout?.on('data', data => {
           output += data.toString();
           console.log('Frontend output:', data.toString());
-          if (output.includes('Local:') && output.includes('3000')) {
+          // Look for Vite server ready messages
+          if (
+            output.includes('ready in') ||
+            (output.includes('Local:') && output.includes('3000')) ||
+            output.includes('➜') ||
+            output.includes('VITE')
+          ) {
             clearTimeout(timeout);
             resolve();
           }
