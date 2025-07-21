@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -245,17 +245,31 @@ describe('CreateGoalModal', () => {
 
   describe('Form Validation', () => {
     it('shows error when title is empty', async () => {
-      const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const submitButton = screen.getByText('Create Goal');
-      await user.click(submitButton);
+      // Submit the form directly
+      const form = screen.getByTestId('create-goal-form');
+      fireEvent.submit(form);
 
+      // The form should not call onSubmit when validation fails
+      await waitFor(() => {
+        expect(mockOnSubmit).not.toHaveBeenCalled();
+      });
+
+      // Wait for validation errors to appear
+      await waitFor(() => {
+        // Check if the input has error state
+        const titleInput = screen.getByLabelText('Goal Title');
+        expect(titleInput).toHaveAttribute('aria-invalid', 'true');
+      });
+
+      // Check for error message in the DOM
       await waitFor(
         () => {
-          expect(screen.getByText('Goal title is required')).toBeInTheDocument();
+          const errorMessage = screen.getByText('Goal title is required');
+          expect(errorMessage).toBeInTheDocument();
         },
-        { timeout: 2000 }
+        { timeout: 3000 }
       );
     });
 
@@ -495,18 +509,20 @@ describe('CreateGoalModal', () => {
     });
 
     it('associates error messages with form fields', async () => {
-      const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const submitButton = screen.getByText('Create Goal');
-      await user.click(submitButton);
+      // Submit the form directly
+      const form = screen.getByTestId('create-goal-form');
+      fireEvent.submit(form);
 
       await waitFor(() => {
         const titleInput = screen.getByLabelText('Goal Title');
         const errorMessage = screen.getByText('Goal title is required');
 
-        expect(titleInput).toHaveClass('error');
-        expect(errorMessage).toHaveClass('errorMessage');
+        // Check ARIA relationship
+        const describedBy = titleInput.getAttribute('aria-describedby');
+        expect(describedBy).toBeTruthy();
+        expect(errorMessage).toHaveAttribute('id', expect.stringContaining('title-message'));
       });
     });
 

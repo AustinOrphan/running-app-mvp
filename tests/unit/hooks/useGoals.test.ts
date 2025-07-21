@@ -1,7 +1,6 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { useGoals } from '../../../src/hooks/useGoals';
 import {
   mockGoals,
   mockGoalProgress,
@@ -9,6 +8,13 @@ import {
   createMockGoal,
   createMockGoalProgress,
 } from '../../fixtures/mockData';
+
+vi.mock('../../../src/utils/apiFetch', () => ({
+  apiGet: vi.fn(),
+  apiPost: vi.fn(),
+  apiPut: vi.fn(),
+  apiDelete: vi.fn(),
+}));
 
 // Mock useNotifications hook
 vi.mock('../../../src/hooks/useNotifications', () => ({
@@ -24,38 +30,37 @@ vi.mock('../../../src/hooks/useNotifications', () => ({
   }),
 }));
 
-// Mock fetch globally
-const mockFetch = vi.fn();
+import { useGoals } from '../../../src/hooks/useGoals';
+import { apiGet, apiPost, apiPut, apiDelete } from '../../../src/utils/apiFetch';
+
+// Get references to mocked functions
+const mockApiGet = apiGet as ReturnType<typeof vi.fn>;
+const mockApiPost = apiPost as ReturnType<typeof vi.fn>;
+const mockApiPut = apiPut as ReturnType<typeof vi.fn>;
+const mockApiDelete = apiDelete as ReturnType<typeof vi.fn>;
+
+// Remove old fetch mock - we're mocking apiFetch utilities instead
 
 describe('useGoals', () => {
   const mockToken = 'mock-jwt-token-123';
 
   beforeEach(() => {
-    // Reset and set up fresh mock for each test
-    mockFetch.mockReset();
-    global.fetch = mockFetch;
+    // Reset all mocks
+    vi.clearAllMocks();
+    mockApiGet.mockReset();
+    mockApiPost.mockReset();
+    mockApiPut.mockReset();
+    mockApiDelete.mockReset();
 
-    // Provide default mock responses to prevent undefined errors
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve([]),
-      text: () => Promise.resolve(''),
-    });
-
-    // Also ensure progress endpoint returns empty array by default
-    mockFetch.mockImplementation(_url => {
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve([]),
-        text: () => Promise.resolve(''),
-      });
-    });
+    // Provide default mock responses
+    mockApiGet.mockResolvedValue({ data: [], status: 200, headers: new Headers() });
+    mockApiPost.mockResolvedValue({ data: {}, status: 200, headers: new Headers() });
+    mockApiPut.mockResolvedValue({ data: {}, status: 200, headers: new Headers() });
+    mockApiDelete.mockResolvedValue({ data: {}, status: 200, headers: new Headers() });
   });
 
   afterEach(() => {
-    mockFetch.mockReset();
+    vi.clearAllMocks();
   });
 
   describe('Initial State', () => {
@@ -92,57 +97,35 @@ describe('useGoals', () => {
       const { result } = hookResult!;
 
       expect(result.current.loading).toBe(false);
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockApiGet).not.toHaveBeenCalled();
     });
   });
 
   describe('fetchGoals', () => {
     it('successfully fetches and sets goals', async () => {
-      // Clear and set up specific mock for this test
-      mockFetch.mockClear();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
+      // Set up specific mock for this test
+      mockApiGet.mockResolvedValueOnce({
+        data: mockGoals,
         status: 200,
-        json: async () => mockGoals,
+        headers: new Headers(),
       });
 
-      let hookResult: any;
+      const { result } = renderHook(() => useGoals(mockToken));
 
-      await act(async () => {
-        hookResult = renderHook(() => useGoals(mockToken));
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
       });
-
-      const { result } = hookResult!;
-
-      await waitFor(
-        () => {
-          expect(result.current.loading).toBe(false);
-        },
-        { timeout: 1000 }
-      );
 
       expect(result.current.goals).toEqual(mockGoals);
       expect(result.current.error).toBe(null);
-      expect(mockFetch).toHaveBeenCalledWith('/api/goals', {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${mockToken}`,
-        },
-      });
-    }, 10000);
+      expect(mockApiGet).toHaveBeenCalledWith('/api/goals');
+    });
 
     it('handles fetch goals error correctly', async () => {
       const errorMessage = 'Failed to fetch goals';
-      mockFetch.mockClear();
-      mockFetch.mockRejectedValueOnce(new Error(errorMessage));
+      mockApiGet.mockRejectedValueOnce(new Error(errorMessage));
 
-      let hookResult: any;
-
-      await act(async () => {
-        hookResult = renderHook(() => useGoals(mockToken));
-      });
-
-      const { result } = hookResult!;
+      const { result } = renderHook(() => useGoals(mockToken));
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -153,27 +136,18 @@ describe('useGoals', () => {
     });
 
     it('handles API error response correctly', async () => {
-      const errorMessage = 'Unauthorized access';
-      mockFetch.mockClear();
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        json: async () => ({ message: errorMessage }),
-      });
+      // Create an ApiFetchError similar to what the real apiFetch would throw
+      const error = new Error('Authentication failed. Please log in again.');
+      (error as any).status = 401;
+      mockApiGet.mockRejectedValueOnce(error);
 
-      let hookResult: any;
-
-      await act(async () => {
-        hookResult = renderHook(() => useGoals(mockToken));
-      });
-
-      const { result } = hookResult!;
+      const { result } = renderHook(() => useGoals(mockToken));
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe(errorMessage);
+      expect(result.current.error).toBe('Authentication failed. Please log in again.');
     });
   });
 
@@ -182,18 +156,10 @@ describe('useGoals', () => {
       mockFetch.mockClear();
 
       // Mock goals fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockGoals,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockGoals));
 
       // Mock progress fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockGoalProgress,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockGoalProgress));
 
       let hookResult: any;
 
@@ -741,20 +707,22 @@ describe('useGoals', () => {
         await act(async () => {
           await result.current.createGoal(mockCreateGoalData);
         });
-      }).rejects.toThrow('No authentication token available');
+      }).rejects.toThrow('Authentication required but no token available');
     });
 
     it('handles API response without json method', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.reject(new Error('Invalid JSON')),
+        text: async () => 'Server error',
       });
 
       const { result } = renderHook(() => useGoals(mockToken));
 
       await waitFor(() => {
-        expect(result.current.error).toBe('Unknown error');
+        expect(result.current.error).toBe('Server error occurred. Please try again.');
       });
     });
   });

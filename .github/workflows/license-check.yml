@@ -23,6 +23,8 @@ permissions:
 
 env:
   NODE_VERSION: '22.x'
+  DATABASE_URL: file:./prisma/test.db
+  JWT_SECRET: test-secret-key
 
 jobs:
   license-check:
