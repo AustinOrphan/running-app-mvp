@@ -6,7 +6,7 @@ import { writeFileSync } from 'fs';
 const initialMemory = process.memoryUsage();
 
 // Memory leak detection function
-function checkMemoryUsage(label, threshold = 50) {
+function checkMemoryUsage(label) {
   global.gc && global.gc(); // Force garbage collection if available
   
   const usage = process.memoryUsage();
