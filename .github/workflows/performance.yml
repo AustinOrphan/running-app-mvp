@@ -9,6 +9,11 @@ on:
     # Run weekly performance audits
     - cron: '0 9 * * MON'
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -62,7 +67,7 @@ jobs:
       - name: 🌐 Start frontend server
         run: |
           echo "Starting frontend server on port 3000..."
-          npm run preview -- --port 3000 > frontend.log 2>&1 &
+          npm run preview -- --port 3000 --host > frontend.log 2>&1 &
           echo "Frontend PID: $!"
           echo "Waiting for frontend server to start..."
           npx wait-on http://localhost:3000 --timeout 30000 || (echo "Frontend logs:" && cat frontend.log && exit 1)
