@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -111,7 +111,7 @@ jobs:
 
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
     steps:
       - name: 📥 Checkout code
@@ -156,7 +156,7 @@ jobs:
 
     env:
       DATABASE_URL: file:./prisma/e2e-test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
     steps:
       - name: 📥 Checkout code
@@ -202,7 +202,7 @@ jobs:
     needs: [unit-tests, integration-tests]
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -257,7 +257,7 @@ jobs:
 
     env:
       DATABASE_URL: file:./prisma/a11y-test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
     steps:
       - name: 📥 Checkout code
@@ -324,7 +324,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -347,7 +347,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -377,7 +377,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -415,7 +415,7 @@ jobs:
     if: github.event_name == 'pull_request'
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4

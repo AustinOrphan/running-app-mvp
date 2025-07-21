@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
-import { app } from '../server.js';
+import app from '../server.js';
 
 describe('Security Tests', () => {
   let authToken;

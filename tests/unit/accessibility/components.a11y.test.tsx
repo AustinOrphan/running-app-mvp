@@ -44,7 +44,9 @@ describe('Accessibility Tests - Statistics Components', () => {
       const { container } = render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
       // Check for aria-labels or descriptive text
-      const stats = container.querySelectorAll('[aria-label], .stat-value, .stat-label');
+      const stats = container.querySelectorAll(
+        '[aria-label], [class*="insightValue"], [class*="insightLabel"]'
+      );
       expect(stats.length).toBeGreaterThan(0);
     });
 
@@ -53,7 +55,7 @@ describe('Accessibility Tests - Statistics Components', () => {
 
       // Should have loading indicators that are accessible
       const loadingElements = container.querySelectorAll(
-        '.skeleton-line, [aria-label*="loading"], [role="status"]'
+        '[class*="skeletonLine"], [aria-label*="loading"], [role="status"]'
       );
       expect(loadingElements.length).toBeGreaterThan(0);
     });
