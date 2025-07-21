@@ -144,20 +144,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_pr_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
       DATABASE_URL: file:./prisma/test.db
       JWT_SECRET: test-secret-key
@@ -206,20 +192,6 @@ jobs:
     name: 🎭 E2E Validation
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_e2e_pr
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     env:
       DATABASE_URL: file:./prisma/e2e.db

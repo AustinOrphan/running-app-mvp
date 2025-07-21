@@ -33,9 +33,8 @@ const prisma = new PrismaClient({
 beforeAll(async () => {
   try {
     await prisma.$connect();
-    // Check if key tables exist
-    const tables =
-      await prisma.$queryRaw`SELECT tablename FROM information_schema.tables WHERE table_schema='public'`;
+    // Check if key tables exist (SQLite compatible)
+    const tables = await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type='table'`;
     console.log(
       `Database connected successfully. Found ${Array.isArray(tables) ? tables.length : 0} tables.`
     );

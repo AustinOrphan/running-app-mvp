@@ -28,6 +28,12 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts', './tests/setup/testSetup.ts'],
+    include: [
+      'tests/unit/**/*.{test,spec}.{js,ts,tsx}',
+      'tests/accessibility/**/*.{test,spec}.{js,ts,tsx}',
+      'tests/infrastructure/**/*.{test,spec}.{js,ts,tsx}',
+      'src/**/*.{test,spec}.{js,ts,tsx}',
+    ],
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
@@ -44,8 +50,6 @@ export default defineConfig({
         classNameStrategy: 'non-scoped',
       },
     },
-    alias: {
-      '\.(css|less|scss|sass)$': '<rootDir>/tests/setup/cssModuleMock.ts',
-    },
+    // CSS imports are handled by the CSS modules configuration above
   },
 });
