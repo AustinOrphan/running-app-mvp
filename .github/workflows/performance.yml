@@ -18,6 +18,9 @@ jobs:
     name: 🔍 Lighthouse CI
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
 
     steps:
       - name: 📥 Checkout code
@@ -101,6 +104,9 @@ jobs:
     name: ⚡ Performance Benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
 
     steps:
       - name: 📥 Checkout code
@@ -136,6 +142,9 @@ jobs:
     name: 🧠 Memory Leak Detection
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
 
     steps:
       - name: 📥 Checkout code
