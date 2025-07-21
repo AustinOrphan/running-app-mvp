@@ -122,12 +122,27 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         .join(' ');
     };
 
+    // Check if card contains interactive elements to avoid nested interactive violation
+    const shouldHaveButtonRole =
+      interactive &&
+      !React.Children.toArray(children).some(child => {
+        if (React.isValidElement(child)) {
+          // Check if child is CardActions or contains buttons
+          return (
+            child.type === CardActions ||
+            (typeof child.type === 'function' && child.type.name === 'CardActions') ||
+            (child.props?.children && JSON.stringify(child.props.children).includes('button'))
+          );
+        }
+        return false;
+      });
+
     return (
       <div
         ref={ref}
         className={getCardClasses()}
-        role={interactive ? 'button' : undefined}
-        tabIndex={interactive ? 0 : undefined}
+        role={shouldHaveButtonRole ? 'button' : undefined}
+        tabIndex={shouldHaveButtonRole ? 0 : undefined}
         {...props}
       >
         {children}
