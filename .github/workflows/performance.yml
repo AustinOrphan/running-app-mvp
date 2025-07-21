@@ -53,7 +53,7 @@ jobs:
       - name: 🌐 Start backend server
         run: |
           echo "Starting backend server on port 3001..."
-          npm run start > backend.log 2>&1 &
+          npx tsx server.ts > backend.log 2>&1 &
           echo "Backend PID: $!"
           echo "Waiting for backend server to start..."
           npx wait-on http://localhost:3001/api/health --timeout 30000 || (echo "Backend logs:" && cat backend.log && exit 1)
