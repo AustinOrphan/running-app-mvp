@@ -156,10 +156,10 @@ describe('apiFetch', () => {
 
   describe('authentication', () => {
     it('should include auth token when available', async () => {
-      localStorage.setItem('authToken', 'test-token');
+      localStorage.setItem('accessToken', 'test-token');
       mockFetch.mockResolvedValueOnce(createMockResponse({}));
 
-      await apiFetch('/api/test', { requiresAuth: false });
+      await apiFetch('/api/test'); // Default requiresAuth is true
 
       expect(mockFetch).toHaveBeenCalledWith('/api/test', {
         headers: {
