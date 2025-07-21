@@ -144,22 +144,16 @@ describe('RunTypeBreakdownChart', () => {
       render(<RunTypeBreakdownChart data={testData} loading={false} />);
 
       // Each should be 50%
-      expect(
-        screen.getByText(
-          (content, element) =>
-            element?.textContent?.includes('5 runs') &&
-            element?.textContent?.includes('50.0%') &&
-            element?.textContent?.includes('25km')
-        )
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          (content, element) =>
-            element?.textContent?.includes('5 runs') &&
-            element?.textContent?.includes('50.0%') &&
-            element?.textContent?.includes('20km')
-        )
-      ).toBeInTheDocument();
+      const legendStats = screen.getAllByText(
+        (content, element) =>
+          element?.className?.includes('legend-stats') &&
+          element?.textContent?.includes('5 runs') &&
+          element?.textContent?.includes('50.0%')
+      );
+
+      expect(legendStats).toHaveLength(2);
+      expect(legendStats[0]).toHaveTextContent('25.0km');
+      expect(legendStats[1]).toHaveTextContent('20.0km');
     });
 
     it('handles single run type correctly', () => {
@@ -168,14 +162,14 @@ describe('RunTypeBreakdownChart', () => {
       render(<RunTypeBreakdownChart data={singleTypeData} loading={false} />);
 
       expect(screen.getByText('Easy Run')).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          (content, element) =>
-            element?.textContent?.includes('8 runs') &&
-            element?.textContent?.includes('100.0%') &&
-            element?.textContent?.includes('42.5km')
-        )
-      ).toBeInTheDocument();
+      const legendStat = screen.getByText(
+        (content, element) =>
+          element?.className?.includes('legend-stats') &&
+          element?.textContent?.includes('8 runs') &&
+          element?.textContent?.includes('100.0%') &&
+          element?.textContent?.includes('42.5km')
+      );
+      expect(legendStat).toBeInTheDocument();
     });
 
     it('handles zero counts correctly', () => {
@@ -186,14 +180,14 @@ describe('RunTypeBreakdownChart', () => {
       render(<RunTypeBreakdownChart data={zeroCountData} loading={false} />);
 
       expect(screen.getByText('No Runs')).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          (content, element) =>
-            element?.textContent?.includes('0 runs') &&
-            element?.textContent?.includes('0.0%') &&
-            element?.textContent?.includes('0km')
-        )
-      ).toBeInTheDocument();
+      const legendStat = screen.getByText(
+        (content, element) =>
+          element?.className?.includes('legend-stats') &&
+          element?.textContent?.includes('0 runs') &&
+          element?.textContent?.includes('0.0%') &&
+          element?.textContent?.includes('0km')
+      );
+      expect(legendStat).toBeInTheDocument();
     });
   });
 
@@ -230,14 +224,14 @@ describe('RunTypeBreakdownChart', () => {
       render(<RunTypeBreakdownChart data={largeData} loading={false} />);
 
       expect(screen.getByText('Marathon Training')).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          (content, element) =>
-            element?.textContent?.includes('999 runs') &&
-            element?.textContent?.includes('100.0%') &&
-            element?.textContent?.includes('9999.99km')
-        )
-      ).toBeInTheDocument();
+      const legendStat = screen.getByText(
+        (content, element) =>
+          element?.className?.includes('legend-stats') &&
+          element?.textContent?.includes('999 runs') &&
+          element?.textContent?.includes('100.0%') &&
+          element?.textContent?.includes('10000.0km')
+      );
+      expect(legendStat).toBeInTheDocument();
     });
 
     it('handles decimal calculations correctly', () => {
@@ -249,22 +243,23 @@ describe('RunTypeBreakdownChart', () => {
       render(<RunTypeBreakdownChart data={decimalData} loading={false} />);
 
       // 3 out of 10 = 30%, 7 out of 10 = 70%
-      expect(
-        screen.getByText(
-          (content, element) =>
-            element?.textContent?.includes('3 runs') &&
-            element?.textContent?.includes('30.0%') &&
-            element?.textContent?.includes('10.1km')
-        )
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          (content, element) =>
-            element?.textContent?.includes('7 runs') &&
-            element?.textContent?.includes('70.0%') &&
-            element?.textContent?.includes('23.3km')
-        )
-      ).toBeInTheDocument();
+      const testStats = screen.getByText(
+        (content, element) =>
+          element?.className?.includes('legend-stats') &&
+          element?.textContent?.includes('3 runs') &&
+          element?.textContent?.includes('30.0%') &&
+          element?.textContent?.includes('10.1km')
+      );
+      expect(testStats).toBeInTheDocument();
+
+      const otherStats = screen.getByText(
+        (content, element) =>
+          element?.className?.includes('legend-stats') &&
+          element?.textContent?.includes('7 runs') &&
+          element?.textContent?.includes('70.0%') &&
+          element?.textContent?.includes('23.3km')
+      );
+      expect(otherStats).toBeInTheDocument();
     });
 
     it('handles untagged runs correctly', () => {
