@@ -289,7 +289,7 @@ describe('Card Component System', () => {
       const { container } = render(<ProgressBar percentage={75} />);
 
       const progressFill = container.querySelector('[class*="progressFill"]');
-      expect(progressFill).toHaveStyle({ width: '75%' });
+      expect(progressFill).toHaveStyle({ transform: 'scaleX(0.75)' });
     });
 
     it('applies custom color', () => {
@@ -310,7 +310,7 @@ describe('Card Component System', () => {
       const { container } = render(<ProgressBar percentage={150} />);
 
       const progressFill = container.querySelector('[class*="progressFill"]');
-      expect(progressFill).toHaveStyle({ width: '100%' });
+      expect(progressFill).toHaveStyle({ transform: 'scaleX(1)' });
     });
   });
 

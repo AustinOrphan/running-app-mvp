@@ -396,12 +396,12 @@ describe('GoalCard', () => {
       render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={true} />);
 
       const expandIcon = document.querySelector('[class*="expandIcon"]');
-      expect(expandIcon).not.toHaveClass('expanded');
+      expect(expandIcon).not.toHaveClass(/expandIconExpanded/);
 
       const expandButton = screen.getByText('View details');
       await user.click(expandButton);
 
-      expect(expandIcon).toHaveClass('expanded');
+      expect(expandIcon).toHaveClass(/expandIconExpanded/);
     });
   });
 
@@ -478,7 +478,7 @@ describe('GoalCard', () => {
       render(<GoalCard {...defaultProps} progress={progress} />);
 
       const progressFill = document.querySelector('[class*="progressFill"]');
-      expect(progressFill).toHaveStyle({ width: '75%' });
+      expect(progressFill).toHaveStyle({ transform: 'scaleX(0.75)' });
     });
 
     it('caps progress bar width at 100%', () => {
@@ -487,7 +487,7 @@ describe('GoalCard', () => {
       render(<GoalCard {...defaultProps} progress={progress} />);
 
       const progressFill = document.querySelector('[class*="progressFill"]');
-      expect(progressFill).toHaveStyle({ width: '100%' });
+      expect(progressFill).toHaveStyle({ transform: 'scaleX(1)' });
     });
 
     it('applies completed class to progress fill for completed goals', () => {
@@ -497,7 +497,7 @@ describe('GoalCard', () => {
       render(<GoalCard {...defaultProps} goal={completedGoal} progress={progress} />);
 
       const progressFill = document.querySelector('[class*="progressFill"]');
-      expect(progressFill).toHaveClass('completed');
+      expect(progressFill).toHaveClass(/progressFillCompleted/);
     });
   });
 
