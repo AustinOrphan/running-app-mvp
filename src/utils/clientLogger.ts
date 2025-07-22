@@ -181,16 +181,20 @@ class ClientLogger {
     }
 
     // In production, you might want to send logs to a logging service
-    // Disabled for now to prevent test failures due to missing /api/logs endpoint
-    // if (this.isProduction && level === LogLevel.ERROR) {
-    //   this.sendToLoggingService(logEntry);
-    // }
+    if (this.isProduction && level === LogLevel.ERROR) {
+      this.sendToLoggingService(logEntry);
+    }
   }
 
   /**
    * Send logs to external logging service in production
    */
   private async sendToLoggingService(logEntry: LogEntry): Promise<void> {
+    // Skip actual network calls in test environment to avoid failures
+    if (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') {
+      return;
+    }
+
     // Implementation would depend on your logging service
     // Examples: Sentry, LogRocket, Datadog, etc.
     try {
