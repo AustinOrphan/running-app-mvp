@@ -28,6 +28,6 @@ export default async function globalSetup(): Promise<() => void> {
       // Teardown if needed
     };
   } catch (error) {
-    throw new Error(\`Failed to setup test database: \${error}\`);
+    throw new Error(`Failed to setup test database: ${error}`);
   }
 }
