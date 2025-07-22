@@ -1,0 +1,196 @@
+name: 💰 Cost Optimization
+
+on:
+  schedule:
+    - cron: '0 2 * * 1' # Weekly on Monday at 2 AM
+  workflow_dispatch:
+
+jobs:
+  analyze-ci-costs:
+    name: 📊 Analyze CI/CD Costs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Analyze workflow usage
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: workflows } = await github.rest.actions.listRepoWorkflows({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+
+            const usage = [];
+            for (const workflow of workflows.workflows) {
+              const { data: runs } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflow.id,
+                created: `>${new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()}`
+              });
+              
+              const totalMinutes = runs.workflow_runs.reduce((sum, run) => {
+                const duration = new Date(run.updated_at) - new Date(run.created_at);
+                return sum + (duration / 1000 / 60);
+              }, 0);
+              
+              usage.push({
+                name: workflow.name,
+                runs: runs.total_count,
+                totalMinutes: Math.round(totalMinutes),
+                averageMinutes: Math.round(totalMinutes / runs.total_count) || 0
+              });
+            }
+
+            // Sort by total minutes descending
+            usage.sort((a, b) => b.totalMinutes - a.totalMinutes);
+
+            // Generate report
+            let report = '# CI/CD Usage Report\n\n';
+            report += `Generated: ${new Date().toISOString()}\n\n`;
+            report += '| Workflow | Runs | Total Minutes | Avg Minutes |\n';
+            report += '|----------|------|---------------|-------------|\n';
+
+            for (const item of usage) {
+              report += `| ${item.name} | ${item.runs} | ${item.totalMinutes} | ${item.averageMinutes} |\n`;
+            }
+
+            // Write report
+            const fs = require('fs');
+            fs.writeFileSync('ci-usage-report.md', report);
+
+            // Create cost optimization suggestions
+            const suggestions = [];
+
+            for (const item of usage) {
+              if (item.averageMinutes > 30) {
+                suggestions.push(`⚠️ ${item.name}: Consider optimizing - average runtime is ${item.averageMinutes} minutes`);
+              }
+              if (item.runs > 100 && item.averageMinutes > 10) {
+                suggestions.push(`💡 ${item.name}: High frequency (${item.runs} runs) - consider caching or parallelization`);
+              }
+            }
+
+            if (suggestions.length > 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '💰 CI/CD Cost Optimization Suggestions',
+                body: suggestions.join('\n'),
+                labels: ['optimization', 'ci/cd']
+              });
+            }
+
+      - name: Upload usage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-usage-report
+          path: ci-usage-report.md
+
+  optimize-caching:
+    name: 🚀 Optimize Caching
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Analyze cache usage
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: caches } = await github.rest.actions.getActionsCacheList({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+
+            console.log(`Total caches: ${caches.total_count}`);
+            console.log(`Total size: ${(caches.total_size_in_bytes / 1024 / 1024 / 1024).toFixed(2)} GB`);
+
+            // Find unused caches
+            const unusedCaches = caches.actions_caches.filter(cache => {
+              const lastUsed = new Date(cache.last_accessed_at);
+              const daysOld = (Date.now() - lastUsed) / (1000 * 60 * 60 * 24);
+              return daysOld > 7;
+            });
+
+            console.log(`Unused caches (>7 days): ${unusedCaches.length}`);
+
+            // Clean up old caches
+            for (const cache of unusedCaches) {
+              await github.rest.actions.deleteActionsCacheById({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                cache_id: cache.id
+              });
+              console.log(`Deleted cache: ${cache.key}`);
+            }
+
+  optimize-artifacts:
+    name: 📦 Optimize Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clean old artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: artifacts } = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+
+            const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days
+            let deletedCount = 0;
+            let deletedSize = 0;
+
+            for (const artifact of artifacts.artifacts) {
+              if (new Date(artifact.created_at) < cutoffDate) {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id
+                });
+                deletedCount++;
+                deletedSize += artifact.size_in_bytes;
+              }
+            }
+
+            console.log(`Deleted ${deletedCount} artifacts`);
+            console.log(`Freed ${(deletedSize / 1024 / 1024).toFixed(2)} MB`);
+
+  optimize-docker-images:
+    name: 🐳 Optimize Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Analyze Dockerfile
+        run: |
+          # Install hadolint
+          wget -O hadolint https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
+          chmod +x hadolint
+
+          # Lint Dockerfile
+          ./hadolint Dockerfile > dockerfile-lint.txt || true
+
+      - name: Check image size
+        run: |
+          # Build image and check size
+          docker build -t test-image .
+          IMAGE_SIZE=$(docker images test-image --format "{{.Size}}")
+          echo "Current image size: $IMAGE_SIZE"
+
+          # Generate optimization report
+          echo "# Docker Image Optimization Report" > docker-optimization.md
+          echo "Current size: $IMAGE_SIZE" >> docker-optimization.md
+          echo "" >> docker-optimization.md
+          echo "## Hadolint Results" >> docker-optimization.md
+          cat dockerfile-lint.txt >> docker-optimization.md
+
+      - name: Upload optimization reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: optimization-reports
+          path: |
+            docker-optimization.md
+            dockerfile-lint.txt

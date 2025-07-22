@@ -1,0 +1,146 @@
+name: 📊 Monitoring & Observability
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Every 6 hours
+  workflow_dispatch:
+
+jobs:
+  performance-metrics:
+    name: 📈 Performance Metrics
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run performance benchmarks
+        run: npm run test:performance
+
+      - name: Memory leak detection
+        run: npm run test:memory
+
+      - name: Bundle size analysis
+        run: |
+          npm run build
+          npx bundlesize --config .bundlesizerc.json
+
+      - name: Upload metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-metrics-${{ github.run_id }}
+          path: |
+            performance-results.json
+            memory-report.json
+            bundle-analysis.json
+
+  dependency-health:
+    name: 🏥 Dependency Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for outdated dependencies
+        run: |
+          npx npm-check-updates --format json > outdated-deps.json
+
+      - name: Security audit
+        run: |
+          npm audit --json > security-audit.json || true
+
+      - name: License compliance check
+        run: |
+          npx license-checker --json > license-report.json
+
+      - name: Generate dependency report
+        run: |
+          echo "# Dependency Health Report" > dependency-report.md
+          echo "Generated: $(date)" >> dependency-report.md
+          echo "" >> dependency-report.md
+
+          echo "## Outdated Dependencies" >> dependency-report.md
+          npx npm-check-updates >> dependency-report.md
+
+          echo "" >> dependency-report.md
+          echo "## Security Vulnerabilities" >> dependency-report.md
+          npm audit >> dependency-report.md || true
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-health-${{ github.run_id }}
+          path: |
+            outdated-deps.json
+            security-audit.json
+            license-report.json
+            dependency-report.md
+
+  api-health:
+    name: 🌐 API Health Monitoring
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: API response time check
+        run: |
+          # Check production API endpoints
+          curl -w "@.github/curl-format.txt" -o /dev/null -s https://your-api.com/health
+
+      - name: Synthetic monitoring
+        run: |
+          # Run synthetic API tests
+          npx newman run api-tests/health-check.postman_collection.json \
+            --reporters cli,json \
+            --reporter-json-export api-health-report.json
+
+  database-health:
+    name: 🗄️ Database Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check migration status
+        run: |
+          npx prisma migrate status
+
+      - name: Schema validation
+        run: |
+          npx prisma validate
+
+      - name: Database metrics
+        run: |
+          # Custom script to check DB health
+          node scripts/check-db-health.js > db-health-report.json
+
+  alerts:
+    name: 🚨 Send Alerts
+    needs: [performance-metrics, dependency-health, api-health, database-health]
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: '⚠️ Monitoring checks failed! Check the workflow for details.'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Create issue for failures
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Monitoring Alert: Health Check Failed',
+              body: `Automated monitoring detected issues at ${new Date().toISOString()}\n\nWorkflow: ${context.workflow}\nRun: ${context.runId}`,
+              labels: ['monitoring', 'automated']
+            });

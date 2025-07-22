@@ -1,0 +1,186 @@
+name: 🐤 Canary Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      percentage:
+        description: 'Traffic percentage for canary (1-50)'
+        required: true
+        default: '10'
+        type: number
+      duration:
+        description: 'Canary duration in minutes'
+        required: true
+        default: '30'
+        type: number
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-canary:
+    name: 🏗️ Build Canary Image
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=canary-
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_VERSION=${{ github.sha }}
+            BUILD_TIME=${{ github.event.head_commit.timestamp }}
+
+  deploy-canary:
+    name: 🚀 Deploy Canary
+    needs: build-canary
+    runs-on: ubuntu-latest
+    environment: production-canary
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy canary with traffic split
+        run: |
+          # Update load balancer rules for canary traffic
+          aws elbv2 modify-rule \
+            --rule-arn ${{ secrets.CANARY_RULE_ARN }} \
+            --conditions Field=path-pattern,Values="/*" \
+            --actions Type=forward,ForwardConfig="{TargetGroups=[{TargetGroupArn=${{ secrets.PROD_TARGET_GROUP }},Weight=$((100 - ${{ inputs.percentage }})},{TargetGroupArn=${{ secrets.CANARY_TARGET_GROUP }},Weight=${{ inputs.percentage }}}]}"
+
+      - name: Deploy canary containers
+        run: |
+          # Update ECS service with new image
+          aws ecs update-service \
+            --cluster production \
+            --service running-app-canary \
+            --force-new-deployment \
+            --task-definition running-app:canary-${{ github.sha }}
+
+  monitor-canary:
+    name: 📊 Monitor Canary
+    needs: deploy-canary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup monitoring
+        run: |
+          echo "Starting canary monitoring for ${{ inputs.duration }} minutes"
+          echo "Traffic split: ${{ inputs.percentage }}% to canary"
+
+      - name: Monitor metrics
+        run: |
+          # Monitor key metrics during canary period
+          START_TIME=$(date +%s)
+          DURATION_SECONDS=$(({{ inputs.duration }} * 60))
+
+          while [ $(($(date +%s) - START_TIME)) -lt $DURATION_SECONDS ]; do
+            # Check error rates
+            ERROR_RATE=$(aws cloudwatch get-metric-statistics \
+              --namespace AWS/ELB \
+              --metric-name HTTPCode_Target_5XX_Count \
+              --dimensions Name=TargetGroup,Value=${{ secrets.CANARY_TARGET_GROUP }} \
+              --statistics Sum \
+              --start-time $(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%S) \
+              --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+              --period 300 \
+              --query 'Datapoints[0].Sum' \
+              --output text)
+            
+            if [ "$ERROR_RATE" -gt "10" ]; then
+              echo "❌ High error rate detected: $ERROR_RATE"
+              exit 1
+            fi
+            
+            echo "✅ Canary healthy - Error rate: $ERROR_RATE"
+            sleep 60
+          done
+
+      - name: Collect canary metrics
+        run: |
+          # Generate canary report
+          node scripts/generate-canary-report.js \
+            --duration ${{ inputs.duration }} \
+            --percentage ${{ inputs.percentage }} \
+            > canary-report.json
+
+      - name: Upload canary report
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-report-${{ github.run_id }}
+          path: canary-report.json
+
+  promote-or-rollback:
+    name: 🎯 Promote or Rollback
+    needs: monitor-canary
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Analyze canary results
+        id: analyze
+        run: |
+          # Check if canary was successful
+          if [ "${{ needs.monitor-canary.result }}" == "success" ]; then
+            echo "decision=promote" >> $GITHUB_OUTPUT
+          else
+            echo "decision=rollback" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Promote canary to production
+        if: steps.analyze.outputs.decision == 'promote'
+        run: |
+          echo "✅ Promoting canary to full production"
+          # Update load balancer to send 100% traffic to canary
+          aws elbv2 modify-rule \
+            --rule-arn ${{ secrets.CANARY_RULE_ARN }} \
+            --actions Type=forward,TargetGroupArn=${{ secrets.CANARY_TARGET_GROUP }}
+
+      - name: Rollback canary
+        if: steps.analyze.outputs.decision == 'rollback'
+        run: |
+          echo "❌ Rolling back canary deployment"
+          # Remove canary traffic
+          aws elbv2 modify-rule \
+            --rule-arn ${{ secrets.CANARY_RULE_ARN }} \
+            --actions Type=forward,TargetGroupArn=${{ secrets.PROD_TARGET_GROUP }}
+
+          # Stop canary service
+          aws ecs update-service \
+            --cluster production \
+            --service running-app-canary \
+            --desired-count 0

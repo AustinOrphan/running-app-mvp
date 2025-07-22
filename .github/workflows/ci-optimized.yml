@@ -1,0 +1,215 @@
+name: 🚀 Optimized CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22.x'
+  CACHE_VERSION: v1
+
+jobs:
+  # Dependency installation (shared artifact)
+  install:
+    name: 📦 Install Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Cache dependencies
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            ~/.npm
+            ~/.cache
+          key: deps-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            deps-${{ env.CACHE_VERSION }}-${{ runner.os }}-
+
+      - name: Install dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Upload node_modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-modules
+          path: node_modules
+          retention-days: 1
+
+  # Parallel quality checks
+  quality:
+    name: 🔍 Code Quality
+    needs: install
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        check: [lint, format, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download dependencies
+        uses: actions/download-artifact@v4
+        with:
+          name: node-modules
+          path: node_modules
+
+      - name: Run ${{ matrix.check }}
+        run: npm run ${{ matrix.check }}${{ matrix.check == 'format' && ':check' || '' }}
+
+  # Parallel test execution
+  test:
+    name: 🧪 Tests - ${{ matrix.suite }}
+    needs: install
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        suite: [unit, integration, e2e]
+        include:
+          - suite: unit
+            command: test:coverage
+          - suite: integration
+            command: test:integration
+          - suite: e2e
+            command: test:e2e
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download dependencies
+        uses: actions/download-artifact@v4
+        with:
+          name: node-modules
+          path: node_modules
+
+      - name: Setup database
+        if: matrix.suite != 'unit'
+        run: |
+          npx prisma migrate dev --name init || npx prisma migrate deploy
+          npx prisma generate
+
+      - name: Install Playwright
+        if: matrix.suite == 'e2e'
+        run: npx playwright install --with-deps chromium
+
+      - name: Run ${{ matrix.suite }} tests
+        run: npm run ${{ matrix.command }}
+
+      - name: Upload coverage
+        if: matrix.suite == 'unit'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # Build verification
+  build:
+    name: 🏗️ Build
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download dependencies
+        uses: actions/download-artifact@v4
+        with:
+          name: node-modules
+          path: node_modules
+
+      - name: Build application
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 7
+
+  # Security scanning (parallel)
+  security:
+    name: 🔒 Security - ${{ matrix.scan }}
+    needs: install
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        scan: [dependencies, licenses, secrets]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: matrix.scan == 'dependencies' || matrix.scan == 'licenses'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download dependencies
+        if: matrix.scan == 'dependencies' || matrix.scan == 'licenses'
+        uses: actions/download-artifact@v4
+        with:
+          name: node-modules
+          path: node_modules
+
+      - name: Dependency audit
+        if: matrix.scan == 'dependencies'
+        run: npm audit --audit-level=high
+
+      - name: License check
+        if: matrix.scan == 'licenses'
+        run: npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense;CC0-1.0;0BSD' --excludePrivatePackages
+
+      - name: Secret scanning
+        if: matrix.scan == 'secrets'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+  # Final status check
+  ci-status:
+    name: ✅ CI Status
+    needs: [quality, test, build, security]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check job statuses
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "❌ One or more CI jobs failed"
+            exit 1
+          else
+            echo "✅ All CI jobs passed successfully"
+          fi

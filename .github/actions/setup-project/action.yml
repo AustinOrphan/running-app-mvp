@@ -1,0 +1,43 @@
+name: 'Setup Project'
+description: 'Reusable action for project setup'
+inputs:
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '22.x'
+  install-playwright:
+    description: 'Install Playwright browsers'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'npm'
+
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          node_modules
+          ~/.npm
+          ~/.cache/Cypress
+          ~/.cache/ms-playwright
+        key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          deps-${{ runner.os }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        npm ci --prefer-offline --no-audit
+        npx prisma generate
+
+    - name: Install Playwright
+      if: inputs.install-playwright == 'true'
+      shell: bash
+      run: npx playwright install --with-deps chromium
