@@ -97,7 +97,7 @@ jobs:
 
       - name: 🗄️ Setup database
         run: |
-          npx prisma migrate deploy
+          npx prisma migrate dev --name init || npx prisma migrate deploy
           npx prisma generate
 
       - name: 🔗 Run integration tests with coverage
@@ -139,7 +139,7 @@ jobs:
 
       - name: 🗄️ Setup database
         run: |
-          npx prisma migrate deploy
+          npx prisma migrate dev --name init || npx prisma migrate deploy
           npx prisma generate
 
       - name: 🎭 Run E2E tests
@@ -182,7 +182,7 @@ jobs:
 
       - name: 🗄️ Setup database
         run: |
-          npx prisma migrate deploy
+          npx prisma migrate dev --name init || npx prisma migrate deploy
           npx prisma generate
 
       - name: ♿ Run accessibility tests
@@ -220,7 +220,7 @@ jobs:
 
       - name: 🗄️ Setup database
         run: |
-          npx prisma migrate deploy
+          npx prisma migrate dev --name init || npx prisma migrate deploy
           npx prisma generate
 
       - name: 🏗️ Build application
@@ -293,7 +293,7 @@ jobs:
 
       - name: 🗄️ Setup database
         run: |
-          npx prisma migrate deploy
+          npx prisma migrate dev --name init || npx prisma migrate deploy
           npx prisma generate
 
       - name: 📊 Generate combined coverage report

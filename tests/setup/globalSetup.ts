@@ -17,12 +17,20 @@ export default async function globalSetup(): Promise<() => void> {
       env: process.env,
     });
 
-    // Run migrations
-    execSync('npx prisma migrate deploy', {
-      stdio: 'inherit',
-      cwd: rootDir,
-      env: process.env,
-    });
+    // Run migrations - try dev first for initial setup, fall back to deploy
+    try {
+      execSync('npx prisma migrate dev --name init', {
+        stdio: 'inherit',
+        cwd: rootDir,
+        env: process.env,
+      });
+    } catch {
+      execSync('npx prisma migrate deploy', {
+        stdio: 'inherit',
+        cwd: rootDir,
+        env: process.env,
+      });
+    }
 
     return () => {
       // Teardown if needed
