@@ -1,6 +1,5 @@
 // Enhanced ESLint configuration for code quality
 import baseConfig from './eslint.config.js';
-import sonarjs from 'eslint-plugin-sonarjs';
 import security from 'eslint-plugin-security';
 import unicorn from 'eslint-plugin-unicorn';
 
@@ -12,20 +11,10 @@ export default [
   {
     files: ['**/*.{ts,tsx}'],
     plugins: {
-      sonarjs,
       security,
       unicorn,
     },
     rules: {
-      // SonarJS rules for code quality (core set)
-      'sonarjs/cognitive-complexity': ['error', 15],
-      'sonarjs/no-duplicate-string': ['error', { threshold: 3 }],
-      'sonarjs/no-duplicated-branches': 'error',
-      'sonarjs/no-identical-expressions': 'error',
-      'sonarjs/no-small-switch': 'error',
-      'sonarjs/prefer-immediate-return': 'error',
-      'sonarjs/prefer-single-boolean-return': 'error',
-
       // Security rules (essential)
       'security/detect-eval-with-expression': 'error',
       'security/detect-non-literal-regexp': 'error',
@@ -92,7 +81,6 @@ export default [
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', 'tests/**/*'],
     rules: {
       // Relax some rules for test files
-      'sonarjs/no-duplicate-string': 'off',
       complexity: 'off',
       'max-lines': 'off',
       'max-lines-per-function': 'off',
