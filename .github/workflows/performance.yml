@@ -48,7 +48,7 @@ jobs:
           touch dev.db
 
       - name: 🏗️ Build frontend only
-        run: vite build
+        run: npm run build
 
       - name: 🌐 Start backend server
         run: |

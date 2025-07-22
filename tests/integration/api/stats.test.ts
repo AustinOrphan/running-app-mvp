@@ -5,6 +5,7 @@ import type { TestUser } from '../../e2e/types';
 import { assertTestUser } from '../../e2e/types/index.js';
 
 import statsRoutes from '../../../server/routes/stats.js';
+import { errorHandler } from '../../../middleware/errorHandler.js';
 import { mockRuns } from '../../fixtures/mockData.js';
 import { testDb } from '../../fixtures/testDatabase.js';
 
@@ -14,6 +15,7 @@ const createTestApp = () => {
   app.use(cors());
   app.use(express.json());
   app.use('/api/stats', statsRoutes);
+  app.use(errorHandler);
   return app;
 };
 
@@ -352,6 +354,15 @@ describe('Stats API Integration Tests', () => {
   });
 
   describe('Error Handling', () => {
+    afterEach(async () => {
+      // Reconnect to database if disconnected
+      try {
+        await testDb.prisma.$connect();
+      } catch {
+        // Ignore connection errors
+      }
+    });
+
     it('handles database errors gracefully', async () => {
       // Mock a database error by closing the connection
       await testDb.prisma.$disconnect();
