@@ -8,12 +8,12 @@ const initialMemory = process.memoryUsage();
 // Memory leak detection function
 function checkMemoryUsage(label) {
   global.gc && global.gc(); // Force garbage collection if available
-  
+
   const usage = process.memoryUsage();
   const heapUsedMB = usage.heapUsed / 1024 / 1024;
   const externalMB = usage.external / 1024 / 1024;
   const rssGB = usage.rss / 1024 / 1024 / 1024;
-  
+
   return {
     label,
     timestamp: new Date().toISOString(),
@@ -22,7 +22,7 @@ function checkMemoryUsage(label) {
     rssGB: Math.round(rssGB * 1000) / 1000,
     heapTotal: usage.heapTotal,
     external: usage.external,
-    arrayBuffers: usage.arrayBuffers
+    arrayBuffers: usage.arrayBuffers,
   };
 }
 
@@ -48,7 +48,7 @@ for (let i = 0; i < 10000; i++) {
   objects.set(i, {
     id: i,
     data: new Array(100).fill(i),
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 }
 results.push(checkMemoryUsage('After object allocation'));
@@ -69,16 +69,16 @@ const report = {
   environment: {
     node: process.version,
     platform: process.platform,
-    arch: process.arch
+    arch: process.arch,
   },
   measurements: results,
   analysis: {
-    initialHeapMB: Math.round(initialMemory.heapUsed / 1024 / 1024 * 100) / 100,
-    finalHeapMB: Math.round(finalMemory.heapUsed / 1024 / 1024 * 100) / 100,
+    initialHeapMB: Math.round((initialMemory.heapUsed / 1024 / 1024) * 100) / 100,
+    finalHeapMB: Math.round((finalMemory.heapUsed / 1024 / 1024) * 100) / 100,
     heapGrowthMB: Math.round(heapGrowth * 100) / 100,
     potentialLeak: isLeaking,
-    status: isLeaking ? 'WARNING' : 'PASS'
-  }
+    status: isLeaking ? 'WARNING' : 'PASS',
+  },
 };
 
 // Write results

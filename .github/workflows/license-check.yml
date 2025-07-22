@@ -62,7 +62,7 @@ jobs:
       - name: 📄 Check for problematic licenses
         run: |
           echo "🚨 Checking for problematic licenses..."
-          
+
           # Check for GPL licenses
           if [ -f licenses.json ] && [ -s licenses.json ]; then
             GPL_COUNT=$(jq -r '[.[] | select(.licenses | test("GPL"))] | length' licenses.json || echo 0)
@@ -93,18 +93,18 @@ jobs:
           echo "" >> license-summary.md
           echo "## 📊 License Distribution" >> license-summary.md
           echo "" >> license-summary.md
-          
+
           if [ -f licenses.json ] && [ -s licenses.json ]; then
             # Count licenses by type
             jq -r '.[] | .licenses' licenses.json | sort | uniq -c | sort -nr >> license-summary.md
           else
             echo "No license data available." >> license-summary.md
           fi
-          
+
           echo "" >> license-summary.md
           echo "## 🔍 License Details" >> license-summary.md
           echo "" >> license-summary.md
-          
+
           if [ -f licenses.csv ]; then
             head -20 licenses.csv >> license-summary.md
           else
