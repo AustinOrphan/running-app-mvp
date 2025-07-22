@@ -119,7 +119,7 @@ describe('Races API Integration Tests', () => {
 
     it('returns 404 for unknown race', async () => {
       await request(app)
-        .put('/api/races/nonexistent')
+        .put('/api/races/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Nope' })
         .expect(404);
