@@ -2,7 +2,7 @@ import express from 'express';
 
 import { prisma } from '../../lib/prisma.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createNotFoundError, createValidationError } from '../middleware/errorHandler.js';
+import { createNotFoundError, createValidationError, createForbiddenError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
 import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../../src/types/goals.js';
@@ -37,13 +37,18 @@ router.get(
   '/:id',
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Existence and authorization check
-    const goal = await prisma.goal.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+    // First check if goal exists
+    const goal = await prisma.goal.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!goal) {
       throw createNotFoundError('Goal');
+    }
+
+    // Then check authorization  
+    if (goal.userId !== req.user!.id) {
+      throw createForbiddenError('Access denied');
     }
 
     res.json(goal);
@@ -141,13 +146,18 @@ router.put(
       isActive,
     } = req.body;
 
-    // Existence and authorization check
-    const existingGoal = await prisma.goal.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+    // First check if goal exists
+    const existingGoal = await prisma.goal.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!existingGoal) {
       throw createNotFoundError('Goal');
+    }
+
+    // Then check authorization
+    if (existingGoal.userId !== req.user!.id) {
+      throw createForbiddenError('Access denied');
     }
 
     // Prevent editing completed goals
@@ -204,13 +214,18 @@ router.delete(
   '/:id',
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Existence and authorization check
-    const goal = await prisma.goal.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+    // First check if goal exists
+    const goal = await prisma.goal.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!goal) {
       throw createNotFoundError('Goal');
+    }
+
+    // Then check authorization
+    if (goal.userId !== req.user!.id) {
+      throw createForbiddenError('Access denied');
     }
 
     // Soft delete by setting isActive to false
@@ -228,13 +243,18 @@ router.post(
   '/:id/complete',
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Existence and authorization check
-    const goal = await prisma.goal.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+    // First check if goal exists
+    const goal = await prisma.goal.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!goal) {
       throw createNotFoundError('Goal');
+    }
+
+    // Then check authorization
+    if (goal.userId !== req.user!.id) {
+      throw createForbiddenError('Access denied');
     }
 
     // Check if goal is active

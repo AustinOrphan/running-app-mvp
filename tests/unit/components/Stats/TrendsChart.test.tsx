@@ -29,8 +29,12 @@ describe('TrendsChart', () => {
     it('displays skeleton chart with correct structure', () => {
       const { container } = render(<TrendsChart data={[]} loading={true} />);
 
-      expect(container.querySelector('.skeleton-chart')).toBeInTheDocument();
-      expect(container.querySelector('.skeleton-line-chart')).toBeInTheDocument();
+      // With CSS modules, we need to look for elements that contain the class names
+      const skeletonChart = container.querySelector('[class*="skeletonChart"]');
+      const skeletonLineChart = container.querySelector('[class*="skeletonLineChart"]');
+
+      expect(skeletonChart).toBeInTheDocument();
+      expect(skeletonLineChart).toBeInTheDocument();
     });
   });
 
@@ -132,11 +136,12 @@ describe('TrendsChart', () => {
     it('has correct CSS classes for styling', () => {
       const { container } = render(<TrendsChart data={mockTrendsData} loading={false} />);
 
-      expect(container.querySelector('.trends-chart-card')).toBeInTheDocument();
-      expect(container.querySelector('.trends-header')).toBeInTheDocument();
-      expect(container.querySelector('.trends-controls')).toBeInTheDocument();
-      expect(container.querySelector('.chart-container')).toBeInTheDocument();
-      expect(container.querySelector('.trends-summary')).toBeInTheDocument();
+      // With CSS modules, we need to match partial class names
+      expect(container.querySelector('[class*="trendsChartCard"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="trendsHeader"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="trendsControls"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="chartContainer"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="trendsSummary"]')).toBeInTheDocument();
     });
   });
 
@@ -144,7 +149,7 @@ describe('TrendsChart', () => {
     it('has correct styling classes', () => {
       const { container } = render(<TrendsChart data={mockTrendsData} loading={false} />);
 
-      const selector = container.querySelector('.metric-selector');
+      const selector = container.querySelector('[class*="metricSelector"]');
       expect(selector).toBeInTheDocument();
     });
 

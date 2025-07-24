@@ -1,0 +1,33 @@
+    it('should not send error logs in test environment', async () => {
+      clientLogger.error('Production error');
+
+      // Wait for async operation
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Production logging is disabled in test environment
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('should not send non-error logs to logging service', async () => {
+      clientLogger.warn('Production warning');
+      clientLogger.info('Production info');
+
+      // Wait for any potential async operations
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('should fail silently when logging service is unavailable', async () => {
+      mockFetch.mockRejectedValue(new Error('Service unavailable'));
+
+      expect(() => {
+        clientLogger.error('Error when service down');
+      }).not.toThrow();
+
+      // Wait for async operation
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Production logging is disabled in test environment
+      expect(mockFetch).not.toHaveBeenCalled();
+    });

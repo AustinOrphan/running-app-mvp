@@ -152,6 +152,8 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_test
+          JWT_SECRET: test-secret-key
 
       - name: 🔐 Log in to container registry
         uses: docker/login-action@v3

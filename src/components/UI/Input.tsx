@@ -128,20 +128,19 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     // Determine trailing icon based on input type
     const getTrailingIcon = () => {
       if (type === 'password' && !trailingIcon) {
-        return (
-          <span aria-label={showPassword ? 'Hide password' : 'Show password'}>
-            {showPassword ? '👁️‍🗨️' : '👁️'}
-          </span>
-        );
+        return <span aria-hidden='true'>{showPassword ? '👁️‍🗨️' : '👁️'}</span>;
       }
       if (type === 'search' && value && !trailingIcon) {
-        return <span aria-label='Clear search'>✕</span>;
+        return <span aria-hidden='true'>✕</span>;
       }
       return trailingIcon;
     };
 
     // Determine trailing icon click handler
     const getTrailingIconClick = () => {
+      if (trailingIcon) {
+        return onTrailingIconClick;
+      }
       if (type === 'password' && !onTrailingIconClick) {
         return handlePasswordToggle;
       }
@@ -209,7 +208,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             readOnly={readOnly}
             required={required}
             aria-invalid={error}
-            aria-describedby={message ? `${inputId}-message` : undefined}
+            aria-describedby={
+              [
+                message && `${inputId}-message`,
+                showCharCount && maxLength && `${inputId}-charcount`,
+              ]
+                .filter(Boolean)
+                .join(' ') || undefined
+            }
             aria-required={required}
             value={value}
             onChange={onChange}
@@ -225,6 +231,21 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               disabled={disabled}
               tabIndex={effectiveTrailingIconClick ? 0 : -1}
               aria-hidden={!effectiveTrailingIconClick}
+              aria-label={
+                trailingIcon
+                  ? onTrailingIconClick
+                    ? 'Activate button'
+                    : undefined
+                  : type === 'password'
+                    ? showPassword
+                      ? 'Hide password'
+                      : 'Show password'
+                    : type === 'search' && value
+                      ? 'Clear search'
+                      : onTrailingIconClick
+                        ? 'Activate button'
+                        : undefined
+              }
             >
               {effectiveTrailingIcon}
             </button>
@@ -240,7 +261,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             )}
 
             {showCharCount && maxLength && (
-              <span className={styles.charCount}>
+              <span id={`${inputId}-charcount`} className={styles.charCount}>
                 {charCount}/{maxLength}
               </span>
             )}
@@ -485,7 +506,14 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           readOnly={readOnly}
           required={required}
           aria-invalid={error}
-          aria-describedby={message ? `${textareaId}-message` : undefined}
+          aria-describedby={
+            [
+              message && `${textareaId}-message`,
+              showCharCount && maxLength && `${textareaId}-charcount`,
+            ]
+              .filter(Boolean)
+              .join(' ') || undefined
+          }
           aria-required={required}
           value={value}
           onChange={onChange}
@@ -504,7 +532,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
             )}
 
             {showCharCount && maxLength && (
-              <span className={styles.charCount}>
+              <span id={`${textareaId}-charcount`} className={styles.charCount}>
                 {charCount}/{maxLength}
               </span>
             )}

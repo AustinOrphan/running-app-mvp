@@ -56,17 +56,7 @@ describe('Card Accessibility Tests', () => {
       const handleClick = vi.fn();
 
       render(
-        <Card
-          interactive={true}
-          onClick={handleClick}
-          aria-label='Clickable card'
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleClick();
-            }
-          }}
-        >
+        <Card interactive={true} onClick={handleClick} aria-label='Clickable card'>
           <CardContent>Clickable content</CardContent>
         </Card>
       );
@@ -154,16 +144,11 @@ describe('Card Accessibility Tests', () => {
             <span>50 / 100 km</span>
             <span>50%</span>
           </ProgressHeader>
-          <div
-            role='progressbar'
+          <ProgressBar
+            percentage={50}
             aria-label='Goal progress'
-            aria-valuenow={50}
-            aria-valuemin={0}
-            aria-valuemax={100}
             aria-valuetext='50 percent complete'
-          >
-            <ProgressBar percentage={50} />
-          </div>
+          />
         </CardProgress>
       );
 
@@ -184,13 +169,11 @@ describe('Card Accessibility Tests', () => {
             <span id='progress-label'>Running progress</span>
             <span id='progress-value'>25 km of 50 km completed</span>
           </ProgressHeader>
-          <div
-            role='progressbar'
+          <ProgressBar
+            percentage={50}
             aria-labelledby='progress-label'
             aria-describedby='progress-value'
-          >
-            <ProgressBar percentage={50} />
-          </div>
+          />
         </CardProgress>
       );
 
@@ -311,16 +294,12 @@ describe('Card Accessibility Tests', () => {
                 <span id='goal-progress'>25.0km / 50.0km</span>
                 <span id='goal-percentage'>50%</span>
               </ProgressHeader>
-              <div
-                role='progressbar'
+              <ProgressBar
+                percentage={50}
+                color='#10b981'
                 aria-labelledby='goal-progress'
-                aria-valuenow={50}
-                aria-valuemin={0}
-                aria-valuemax={100}
                 aria-valuetext='25 kilometers of 50 kilometers completed'
-              >
-                <ProgressBar percentage={50} color='#10b981' />
-              </div>
+              />
             </CardProgress>
           </CardContent>
           <CardFooter>
@@ -507,7 +486,7 @@ describe('Card Accessibility Tests', () => {
   describe('Screen Reader Support', () => {
     it('Card content is properly announced', () => {
       render(
-        <Card role='article' aria-labelledby='card-title' aria-describedby='card-description'>
+        <Card aria-labelledby='card-title' aria-describedby='card-description'>
           <CardHeader>
             <CardTitle>
               <h4 id='card-title'>Goal Progress</h4>
@@ -516,23 +495,17 @@ describe('Card Accessibility Tests', () => {
           <CardContent>
             <div id='card-description'>Track your weekly running distance goal progress.</div>
             <CardProgress>
-              <div
-                role='progressbar'
+              <ProgressBar
+                percentage={75}
                 aria-label='Weekly distance progress'
-                aria-valuenow={75}
-                aria-valuemin={0}
-                aria-valuemax={100}
                 aria-valuetext='75 percent of weekly distance goal completed'
-              >
-                <ProgressBar percentage={75} />
-              </div>
+              />
             </CardProgress>
           </CardContent>
         </Card>
       );
 
-      const card = screen.getByRole('article');
-      expect(card).toHaveAttribute('aria-labelledby', 'card-title');
+      const card = screen.getByLabelText('Goal Progress');
       expect(card).toHaveAttribute('aria-describedby', 'card-description');
 
       const progressBar = screen.getByRole('progressbar');

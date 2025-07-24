@@ -8,9 +8,6 @@
         "http://localhost:3000/races",
         "http://localhost:3000/analytics"
       ],
-      "startServerCommand": "npm start",
-      "startServerReadyPattern": "Server running on port",
-      "startServerReadyTimeout": 30000,
       "numberOfRuns": 3,
       "settings": {
         "preset": "desktop",
