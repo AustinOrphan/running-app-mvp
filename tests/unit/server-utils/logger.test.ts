@@ -1,6 +1,6 @@
 import { logInfo, logError, logWarn, logDatabase, logAuth } from '../../../server/utils/logger.js';
 // Using mocked logger from mockSetup
-import type { Request } from 'express';
+// Logger utility tests
 
 describe('Logger Utility Functions', () => {
   // Mock request is set up in beforeEach

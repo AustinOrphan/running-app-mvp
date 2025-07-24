@@ -256,7 +256,7 @@ describe('Audit API Integration Tests', () => {
     });
 
     it('accepts query filters', async () => {
-      const response = await request(app)
+      await request(app)
         .get('/api/audit/events')
         .query({
           userId: 'test-user-id',

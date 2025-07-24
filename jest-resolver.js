@@ -1,4 +1,4 @@
-import { createRequire } from 'module';
+// Custom Jest resolver for TypeScript
 import path from 'path';
 import fs from 'fs';
 
@@ -13,7 +13,7 @@ export default (request, options) => {
       if (fs.existsSync(tsPath)) {
         return options.defaultResolver(tsRequest, options);
       }
-    } catch (e) {
+    } catch {
       // If .ts doesn't exist, fallback to default resolution
     }
   }

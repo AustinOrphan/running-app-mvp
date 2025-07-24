@@ -77,4 +77,3 @@ export async function createRunSeries(userId: string, count: number = 5): Promis
 
   return runs;
 }
-EOF < /dev/llnu;
