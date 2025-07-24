@@ -22,7 +22,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
   describe('asyncHandlerGeneric', () => {
     it('should handle successful async operations', async () => {
       const successHandler = asyncHandlerGeneric(
-        async (req: Request, res: Response, next: NextFunction) => {
+        async (_req: Request, _res: Response, _next: NextFunction) => {
           await new Promise(resolve => setTimeout(resolve, 10));
           res.json({ success: true });
         }
@@ -37,7 +37,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
     it('should catch and pass async errors to next', async () => {
       const testError = new Error('Async error');
       const errorHandler = asyncHandlerGeneric(
-        async (req: Request, res: Response, next: NextFunction) => {
+        async (_req: Request, _res: Response, _next: NextFunction) => {
           await new Promise(resolve => setTimeout(resolve, 10));
           throw testError;
         }
@@ -52,7 +52,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
     it('should handle synchronous errors', async () => {
       const testError = new Error('Sync error');
       const errorHandler = asyncHandlerGeneric(
-        (req: Request, res: Response, next: NextFunction) => {
+        (_req: Request, _res: Response, _next: NextFunction) => {
           throw testError;
         }
       );
@@ -65,7 +65,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
     it('should handle Promise rejections', async () => {
       const testError = new Error('Promise rejection');
       const rejectHandler = asyncHandlerGeneric(
-        async (req: Request, res: Response, next: NextFunction) => {
+        async (_req: Request, _res: Response, _next: NextFunction) => {
           return Promise.reject(testError);
         }
       );
@@ -77,7 +77,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
 
     it('should handle handlers that return void', async () => {
       const voidHandler = asyncHandlerGeneric(
-        async (req: Request, res: Response, next: NextFunction) => {
+        async (_req: Request, _res: Response, _next: NextFunction) => {
           await new Promise(resolve => setTimeout(resolve, 10));
           // No return statement
         }
@@ -90,7 +90,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
 
     it('should handle handlers that return promises', async () => {
       const promiseHandler = asyncHandlerGeneric(
-        (req: Request, res: Response, next: NextFunction) => {
+        (_req: Request, _res: Response, _next: NextFunction) => {
           return new Promise(resolve => {
             setTimeout(() => {
               res.json({ delayed: true });
@@ -109,7 +109,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
 
   describe('asyncHandler', () => {
     it('should handle successful operations', async () => {
-      const handler = asyncHandler(async (req: Request, res: Response) => {
+      const handler = asyncHandler(async (_req: Request, _res: Response) => {
         await new Promise(resolve => setTimeout(resolve, 10));
         res.json({ data: 'test' });
       });
@@ -122,7 +122,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
 
     it('should catch and forward errors', async () => {
       const testError = new Error('Handler error');
-      const handler = asyncHandler(async (req: Request, res: Response) => {
+      const handler = asyncHandler(async (_req: Request, _res: Response) => {
         throw testError;
       });
 
@@ -147,7 +147,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
     it('should handle successful authenticated operations', async () => {
       mockRequest.user = { id: 1, email: 'test@example.com' };
 
-      const handler = asyncAuthHandler(async (req: Request, res: Response) => {
+      const handler = asyncAuthHandler(async (_req: Request, _res: Response) => {
         res.json({ user: req.user });
       });
 
@@ -160,7 +160,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
 
     it('should catch and forward authentication errors', async () => {
       const authError = new Error('Authentication failed');
-      const handler = asyncAuthHandler(async (req: Request, res: Response) => {
+      const handler = asyncAuthHandler(async (_req: Request, _res: Response) => {
         throw authError;
       });
 
@@ -172,7 +172,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
     it('should work with user-specific operations', async () => {
       mockRequest.user = { id: 123, email: 'user@example.com' };
 
-      const handler = asyncAuthHandler(async (req: Request, res: Response) => {
+      const handler = asyncAuthHandler(async (_req: Request, _res: Response) => {
         const userId = req.user?.id;
         res.json({ userId });
       });
@@ -185,7 +185,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
     it('should handle missing user context gracefully', async () => {
       mockRequest.user = undefined;
 
-      const handler = asyncAuthHandler(async (req: Request, res: Response) => {
+      const handler = asyncAuthHandler(async (_req: Request, _res: Response) => {
         res.json({ user: req.user || null });
       });
 
@@ -197,7 +197,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
 
   describe('Error handling edge cases', () => {
     it('should handle non-Error objects thrown', async () => {
-      const handler = asyncHandler(async (req: Request, res: Response) => {
+      const handler = asyncHandler(async (_req: Request, _res: Response) => {
         throw 'String error';
       });
 
@@ -207,7 +207,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
     });
 
     it('should handle null/undefined errors', async () => {
-      const handler = asyncHandler(async (req: Request, res: Response) => {
+      const handler = asyncHandler(async (_req: Request, _res: Response) => {
         throw null;
       });
 
@@ -217,7 +217,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
     });
 
     it('should handle complex async chains', async () => {
-      const handler = asyncHandler(async (req: Request, res: Response) => {
+      const handler = asyncHandler(async (_req: Request, _res: Response) => {
         const step1 = await Promise.resolve(1);
         const step2 = await Promise.resolve(step1 + 1);
         const step3 = await Promise.resolve(step2 * 2);
@@ -231,7 +231,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
 
     it('should handle errors in complex async chains', async () => {
       const chainError = new Error('Chain error');
-      const handler = asyncHandler(async (req: Request, res: Response) => {
+      const handler = asyncHandler(async (_req: Request, _res: Response) => {
         const step1 = await Promise.resolve(1);
         await Promise.resolve(step1 + 1);
         throw chainError;
@@ -245,7 +245,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
 
   describe('Performance and memory handling', () => {
     it('should handle multiple concurrent operations', async () => {
-      const handler = asyncHandler(async (req: Request, res: Response) => {
+      const handler = asyncHandler(async (_req: Request, _res: Response) => {
         const promises = Array.from({ length: 5 }, (_, i) => Promise.resolve(i).then(n => n * 2));
         const results = await Promise.all(promises);
         res.json({ results });
@@ -261,7 +261,7 @@ describe('AsyncHandler Middleware - Complete Coverage', () => {
     it('should handle operations with timeouts', async () => {
       jest.useFakeTimers();
 
-      const handler = asyncHandler(async (req: Request, res: Response) => {
+      const handler = asyncHandler(async (_req: Request, _res: Response) => {
         await new Promise(resolve => setTimeout(resolve, 1000));
         res.json({ completed: true });
       });

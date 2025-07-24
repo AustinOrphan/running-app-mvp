@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Request } from 'express';
+// Express Request type not needed for this test
 import crypto from 'crypto';
 import {
   auditLogger,
@@ -190,7 +190,7 @@ describe('Audit Logger', () => {
   describe('Audit Event Querying', () => {
     beforeEach(async () => {
       // Add some test events
-      const baseTime = new Date();
+      // const baseTime = new Date(); // Unused variable
       for (let i = 0; i < 5; i++) {
         await auditLogger.logEvent(
           i % 2 === 0 ? 'auth.login' : 'data.read',
@@ -406,7 +406,7 @@ describe('Audit Logger', () => {
         throw new Error('Decryption failed');
       });
 
-      const events = await auditLogger.queryEvents({ limit: 1 });
+      // const events = await auditLogger.queryEvents({ limit: 1 }); // Unused variable
 
       expect(logError).toHaveBeenCalledWith('audit', 'decryption-failure', expect.any(Error));
     });

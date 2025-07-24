@@ -3,8 +3,7 @@
  */
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { spawn } from 'child_process';
-import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
+import { existsSync, mkdirSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -157,7 +156,7 @@ describe('Test Runner', () => {
     };
 
     // Validate all suites have required properties
-    for (const [key, suite] of Object.entries(testSuites)) {
+    for (const [, suite] of Object.entries(testSuites)) {
       expect(suite.name).toBeDefined();
       expect(suite.command).toBeDefined();
       expect(suite.args).toBeDefined();

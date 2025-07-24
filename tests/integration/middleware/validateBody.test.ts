@@ -438,7 +438,12 @@ describe('ValidateBody Middleware', () => {
 
       // Custom error handler
       app.use(
-        (err: Error & { statusCode?: number }, req: Request, res: Response, next: NextFunction) => {
+        (
+          err: Error & { statusCode?: number },
+          _req: Request,
+          res: Response,
+          _next: NextFunction
+        ) => {
           errorHandlerCalled = true;
           res.status(err.statusCode || 500).json({
             customError: true,

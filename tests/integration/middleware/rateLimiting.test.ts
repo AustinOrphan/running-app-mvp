@@ -9,7 +9,7 @@ import {
   globalRateLimit,
   getRateLimitMiddleware,
 } from '../../../server/middleware/rateLimiting.js';
-import * as logger from '../../../server/utils/secureLogger.js';
+// Logger is mocked in setupFilesAfterEnv
 import type { Request, Response } from 'express';
 
 describe('RateLimiting Middleware - Complete Coverage', () => {

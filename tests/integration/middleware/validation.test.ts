@@ -1,32 +1,13 @@
 import {
-  validateRequest,
-  validateBody,
-  validateParams,
-  validateQuery,
   sanitizeInput,
   securityHeaders,
   // Pre-defined validators
   validateRegister,
   validateLogin,
-  validateCreateRun,
-  validateUpdateRun,
-  validateCreateGoal,
-  validateUpdateGoal,
-  validateCreateRace,
-  validateUpdateRace,
   validateIdParam,
-  validateStatsQuery,
   // Schemas
   registerSchema,
-  loginSchema,
   createRunSchema,
-  updateRunSchema,
-  createGoalSchema,
-  updateGoalSchema,
-  createRaceSchema,
-  updateRaceSchema,
-  idParamSchema,
-  statsQuerySchema,
 } from '../../../server/middleware/validation.js';
 import express from 'express';
 import request from 'supertest';

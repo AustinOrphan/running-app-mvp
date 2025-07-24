@@ -74,8 +74,8 @@ describe('Data Encryption', () => {
         '1234567890123456789012345678901234567890123456789012345678901234'; // 64 chars hex
 
       // Force reinitialization
-      const DataEncryption = dataEncryption.constructor;
-      const instance = new DataEncryption();
+      // const DataEncryption = dataEncryption.constructor; // Unused variable
+      // const instance = new DataEncryption(); // Unused variable
 
       expect(logInfo).not.toHaveBeenCalledWith(
         'encryption',
@@ -99,8 +99,8 @@ describe('Data Encryption', () => {
       process.env.NODE_ENV = 'development';
       delete process.env.DATA_ENCRYPTION_KEY;
 
-      const DataEncryption = dataEncryption.constructor;
-      const instance = new DataEncryption();
+      // const DataEncryption = dataEncryption.constructor; // Unused variable
+      // const instance = new DataEncryption(); // Unused variable
 
       expect(logInfo).toHaveBeenCalledWith(
         'encryption',
@@ -113,8 +113,8 @@ describe('Data Encryption', () => {
       process.env.DATA_ENCRYPTION_KEY =
         '1234567890123456789012345678901234567890123456789012345678901234'; // 64 chars = 32 bytes
 
-      const DataEncryption = dataEncryption.constructor;
-      const instance = new DataEncryption();
+      // const DataEncryption = dataEncryption.constructor; // Unused variable
+      // const instance = new DataEncryption(); // Unused variable
 
       expect(logError).not.toHaveBeenCalled();
     });
@@ -123,8 +123,8 @@ describe('Data Encryption', () => {
       const key = Buffer.from('12345678901234567890123456789012').toString('base64');
       process.env.DATA_ENCRYPTION_KEY = key;
 
-      const DataEncryption = dataEncryption.constructor;
-      const instance = new DataEncryption();
+      // const DataEncryption = dataEncryption.constructor; // Unused variable
+      // const instance = new DataEncryption(); // Unused variable
 
       expect(logError).not.toHaveBeenCalled();
     });

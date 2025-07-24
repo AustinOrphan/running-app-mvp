@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Request } from 'express';
-import crypto from 'crypto';
+// Types and crypto not needed for this test
 import {
   secureLogger,
   logUserAction,

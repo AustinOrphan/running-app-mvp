@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Request, Response, NextFunction } from 'express';
+// Express types not needed for this test
 import {
   logSecurityEvent,
   logAuthEvent,

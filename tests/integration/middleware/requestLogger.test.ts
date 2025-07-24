@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import type { LoggedRequest } from '../../../server/middleware/requestLogger.js';
+// LoggedRequest type is for request extension
 import type { Request, Response, NextFunction } from 'express';
 
 // Mock uuid module

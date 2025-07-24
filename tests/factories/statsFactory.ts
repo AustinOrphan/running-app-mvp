@@ -188,7 +188,7 @@ export async function createProgressData(
 ): Promise<Run[]> {
   const runs: Run[] = [];
   const dailyTarget = targetDistance / days;
-  const accumulated = 0;
+  // Progress tracking for distance accumulation
 
   for (let day = 0; day < days; day++) {
     const date = new Date();
