@@ -1,5 +1,5 @@
 import { winston } from '../../../server/utils/winston-stub.js';
-import type { Logform } from '../../../server/utils/winston-stub.js';
+// Type imports handled internally
 
 describe('Winston Stub', () => {
   // Store original console methods

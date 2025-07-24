@@ -1,5 +1,4 @@
-import { execSync } from 'child_process';
-import { resolve } from 'path';
+// No imports needed for simple environment setup
 
 export default async function globalSetup(): Promise<() => void> {
   // Set test environment variables
@@ -8,7 +7,7 @@ export default async function globalSetup(): Promise<() => void> {
   process.env.JWT_SECRET = 'test-secret-key';
   process.env.NODE_ENV = 'test';
   process.env.RUN_MIGRATIONS = 'false'; // Skip migrations in tests
-  
+
   // Return empty teardown function
   return () => {
     // Teardown if needed

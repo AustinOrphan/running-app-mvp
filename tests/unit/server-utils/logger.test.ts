@@ -1,9 +1,9 @@
 import { logInfo, logError, logWarn, logDatabase, logAuth } from '../../../server/utils/logger.js';
-import { secureLogger } from '../../../server/utils/secureLogger.js';
+// Using mocked logger from mockSetup
 import type { Request } from 'express';
 
 describe('Logger Utility Functions', () => {
-  let mockRequest: Partial<Request>;
+  // Mock request is set up in beforeEach
   let dateNowSpy: jest.SpyInstance;
   let consoleLogSpy: jest.SpyInstance;
   let consoleErrorSpy: jest.SpyInstance;

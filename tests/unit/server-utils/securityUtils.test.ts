@@ -18,7 +18,7 @@ import {
   validateOTP,
   getPasswordStrength,
 } from '../../../server/utils/securityUtils.js';
-import type { PasswordStrengthResult } from '../../../server/utils/securityUtils.js';
+// Type is imported with the main import
 
 // Mock bcrypt
 jest.mock('bcrypt', () => ({

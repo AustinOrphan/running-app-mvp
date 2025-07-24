@@ -1,5 +1,4 @@
 import {
-  dataEncryption,
   encryptData,
   decryptData,
   encryptObject,
