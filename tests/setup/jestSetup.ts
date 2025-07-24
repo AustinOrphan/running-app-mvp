@@ -1,80 +1,39 @@
-import { PrismaClient } from '@prisma/client';
-import { execSync } from 'child_process';
 import { jest } from '@jest/globals';
+import { testDb } from '../integration/utils/testDbSetup.js';
 
 // Make Jest globals available
 (global as any).jest = jest;
 
-// Ensure test database is migrated before running tests
-if (!process.env.CI) {
-  // In local development, ensure test database is set up
-  process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'file:./prisma/test.db';
+// Set up test environment variables
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key';
+process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-refresh-secret';
+process.env.LOG_SALT = process.env.LOG_SALT || 'test-log-salt';
+process.env.AUDIT_ENCRYPTION_KEY = process.env.AUDIT_ENCRYPTION_KEY || 'test-audit-key';
+process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'test-encryption-key';
+process.env.BCRYPT_ROUNDS = process.env.BCRYPT_ROUNDS || '10'; // Lower for faster tests
 
-  try {
-    // Run migrations on test database
-    execSync('npx prisma migrate deploy', { stdio: 'ignore' });
-  } catch {
-    console.warn('Warning: Could not run migrations on test database. Running prisma generate...');
-    try {
-      execSync('npx prisma generate', { stdio: 'ignore' });
-      execSync('npx prisma migrate deploy', { stdio: 'ignore' });
-    } catch (e) {
-      console.error('Error setting up test database:', e);
-    }
-  }
-}
-
-// Test database setup
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL || process.env.TEST_DATABASE_URL || 'file:./prisma/test.db',
-    },
-  },
-});
-
-// Verify database connection before running tests
+// Initialize test database once before all tests
 beforeAll(async () => {
   try {
-    await prisma.$connect();
-    // Check if key tables exist (SQLite compatible)
-    const tables = await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type='table'`;
-    console.log(
-      `Database connected successfully. Found ${Array.isArray(tables) ? tables.length : 0} tables.`
-    );
+    await testDb.initialize();
+    console.log('Test database initialized successfully');
   } catch (error) {
-    console.error('Database connection failed:', error);
+    console.error('Failed to initialize test database:', error);
     throw error;
   }
 });
 
-// Clean up database before each test
+// Clean database before each test
 beforeEach(async () => {
-  // Handle potential missing tables gracefully
-  const tables = ['race', 'goal', 'run', 'user'] as const;
-
-  for (const table of tables) {
-    try {
-      await (prisma[table] as any).deleteMany();
-    } catch (error) {
-      console.warn(`${table} table cleanup skipped:`, (error as Error).message);
-    }
-  }
+  await testDb.clean();
 });
 
-// Clean up and disconnect after all tests
+// Disconnect after all tests
 afterAll(async () => {
-  const tables = ['race', 'goal', 'run', 'user'] as const;
-
-  for (const table of tables) {
-    try {
-      await (prisma[table] as any).deleteMany();
-    } catch (error) {
-      console.warn(`${table} table cleanup skipped in afterAll:`, (error as Error).message);
-    }
-  }
-
-  await prisma.$disconnect();
+  await testDb.clean();
+  await testDb.disconnect();
 });
 
-export { prisma };
+// Export for use in tests
+export { testDb };

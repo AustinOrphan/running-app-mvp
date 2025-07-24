@@ -3,11 +3,11 @@ export default {
   testEnvironment: 'node',
   extensionsToTreatAsEsm: ['.ts'],
   globalSetup: '<rootDir>/tests/setup/globalSetup.ts',
-  setupFilesAfterEnv: [
-    '<rootDir>/tests/setup/mockSetup.ts',
-    '<rootDir>/tests/setup/jestSetup.ts'
-  ],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup/mockSetup.ts', '<rootDir>/tests/setup/jestSetup.ts'],
   testMatch: ['**/tests/integration/**/*.test.ts', '**/tests/integration/**/*.test.js'],
+  testPathIgnorePatterns: [
+    'tests/integration/middleware/', // Middleware tests are covered by unit tests
+  ],
   testEnvironmentOptions: {
     env: {
       DATABASE_URL: 'file:./prisma/test.db',
@@ -40,8 +40,8 @@ export default {
         tsconfig: {
           types: ['jest', '@types/jest', '@testing-library/jest-dom'],
           esModuleInterop: true,
-          allowSyntheticDefaultImports: true
-        }
+          allowSyntheticDefaultImports: true,
+        },
       },
     ],
   },
