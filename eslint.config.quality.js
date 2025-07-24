@@ -87,6 +87,12 @@ export default [
       'max-nested-callbacks': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
       'unicorn/no-null': 'off',
+
+      // Relax security rules for test files
+      'security/detect-eval-with-expression': 'off',
+      'security/detect-non-literal-regexp': 'off',
+      'security/detect-object-injection': 'off',
+      'security/detect-unsafe-regex': 'off',
     },
   },
 ];

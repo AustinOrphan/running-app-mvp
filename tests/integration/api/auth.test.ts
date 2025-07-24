@@ -472,7 +472,7 @@ describe('Auth API Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/register')
         .set('Content-Type', 'application/json')
-        .send('{"invalid": json}')
+        .send('{invalid-json}')
         .expect(400);
 
       expect(response.body).toHaveProperty('message');

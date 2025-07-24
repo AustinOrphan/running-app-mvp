@@ -549,7 +549,7 @@ describe('Runs API Integration Tests', () => {
         .post('/api/runs')
         .set('Authorization', `Bearer ${authToken}`)
         .set('Content-Type', 'application/json')
-        .send('{"invalid": json}')
+        .send('{invalid-json}')
         .expect(400);
 
       expect(response.body).toHaveProperty('error');

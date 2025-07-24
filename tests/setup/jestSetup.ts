@@ -1,5 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
+import { jest } from '@jest/globals';
+
+// Make Jest globals available
+(global as any).jest = jest;
 
 // Ensure test database is migrated before running tests
 if (!process.env.CI) {

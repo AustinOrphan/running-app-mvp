@@ -1,0 +1,3 @@
+#!/bin/bash
+# Quick launcher for multi-agent deployment
+./deploy-agents.sh

@@ -419,18 +419,27 @@ describe('ClientLogger', () => {
     });
 
     it('should send error logs to logging service in production', async () => {
+      // Temporarily clear VITEST to allow fetch calls in test
+      const originalVitest = process.env.VITEST;
+      delete process.env.VITEST;
+
       clientLogger.error('Production error');
 
       // Wait for async operation
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.stringContaining('"level":"ERROR"'),
-        })
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/logs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: expect.stringMatching(/.*Production error.*/),
+      });
+
+      // Restore environment variable
+      if (originalVitest) {
+        process.env.VITEST = originalVitest;
+      }
     });
 
     it('should not send non-error logs to logging service', async () => {
@@ -444,6 +453,12 @@ describe('ClientLogger', () => {
     });
 
     it('should fail silently when logging service is unavailable', async () => {
+      // Temporarily set NODE_ENV to production and clear VITEST to allow fetch calls
+      const originalNodeEnv = process.env.NODE_ENV;
+      const originalVitest = process.env.VITEST;
+      process.env.NODE_ENV = 'production';
+      delete process.env.VITEST;
+
       mockFetch.mockRejectedValue(new Error('Service unavailable'));
 
       expect(() => {
@@ -451,9 +466,15 @@ describe('ClientLogger', () => {
       }).not.toThrow();
 
       // Wait for async operation
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(mockFetch).toHaveBeenCalled();
+
+      // Restore environment variables
+      process.env.NODE_ENV = originalNodeEnv;
+      if (originalVitest) {
+        process.env.VITEST = originalVitest;
+      }
     });
   });
 
