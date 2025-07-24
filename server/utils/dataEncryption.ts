@@ -29,7 +29,7 @@ const DEFAULT_CONFIG: EncryptionConfig = {
   tagLength: 16, // 128 bits
 };
 
-class DataEncryption {
+export class DataEncryption {
   private readonly config: EncryptionConfig;
   private encryptionKey?: Buffer;
 

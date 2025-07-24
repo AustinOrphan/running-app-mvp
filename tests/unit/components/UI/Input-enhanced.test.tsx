@@ -167,9 +167,9 @@ describe('Enhanced Input Features', () => {
 
     it('updates character count as user types', async () => {
       const user = userEvent.setup();
-      const [value, setValue] = React.useState('');
 
       function TestComponent() {
+        const [value, setValue] = React.useState('');
         return (
           <Input
             label='Bio'

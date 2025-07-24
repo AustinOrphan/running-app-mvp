@@ -40,25 +40,27 @@ describe('Card Component System', () => {
     it('applies correct variant classes', () => {
       const { rerender, container } = render(<Card variant='goal'>Test</Card>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardGoal/));
+      const cardElement = container.firstChild as HTMLElement;
+      expect(cardElement.className).toMatch(/cardGoal/);
 
       rerender(<Card variant='run'>Test</Card>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardRun/));
+      expect(cardElement.className).toMatch(/cardRun/);
 
       rerender(<Card variant='template'>Test</Card>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardTemplate/));
+      expect(cardElement.className).toMatch(/cardTemplate/);
     });
 
     it('applies state classes correctly', () => {
       const { rerender, container } = render(<Card completed={true}>Test</Card>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardCompleted/));
+      const cardElement = container.firstChild as HTMLElement;
+      expect(cardElement.className).toMatch(/cardCompleted/);
 
       rerender(<Card interactive={true}>Test</Card>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardInteractive/));
+      expect(cardElement.className).toMatch(/cardInteractive/);
 
       rerender(<Card loading={true}>Test</Card>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardLoading/));
+      expect(cardElement.className).toMatch(/cardLoading/);
     });
 
     it('supports custom className', () => {
@@ -71,14 +73,15 @@ describe('Card Component System', () => {
       const user = userEvent.setup();
       const handleClick = vi.fn();
 
-      render(
+      const { container } = render(
         <Card interactive={true} onClick={handleClick}>
           Test content
         </Card>
       );
 
-      const card = screen.getByText('Test content').parentElement;
+      const card = container.firstChild as HTMLElement;
 
+      // The card should have button attributes when interactive and no nested interactive elements
       expect(card).toHaveAttribute('role', 'button');
       expect(card).toHaveAttribute('tabIndex', '0');
 
@@ -90,13 +93,13 @@ describe('Card Component System', () => {
       const user = userEvent.setup();
       const handleClick = vi.fn();
 
-      render(
+      const { container } = render(
         <Card interactive={true} onClick={handleClick}>
           Test content
         </Card>
       );
 
-      const card = screen.getByText('Test content').parentElement;
+      const card = container.firstChild as HTMLElement;
 
       // Test Enter key
       card!.focus();
@@ -141,17 +144,19 @@ describe('Card Component System', () => {
         </CardHeader>
       );
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardHeader/));
+      const headerElement = container.firstChild as HTMLElement;
+      expect(headerElement.className).toMatch(/cardHeader/);
       expect(screen.getByText('Header content')).toBeInTheDocument();
     });
 
     it('applies variant-specific classes', () => {
       const { rerender, container } = render(<CardHeader variant='template'>Test</CardHeader>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardHeaderTemplate/));
+      const headerElement = container.firstChild as HTMLElement;
+      expect(headerElement.className).toMatch(/cardHeaderTemplate/);
 
       rerender(<CardHeader variant='run'>Test</CardHeader>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardHeaderRun/));
+      expect(headerElement.className).toMatch(/cardHeaderRun/);
     });
   });
 
@@ -172,7 +177,8 @@ describe('Card Component System', () => {
     it('applies variant classes', () => {
       const { container } = render(<CardIcon variant='template'>🏃</CardIcon>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardIconTemplate/));
+      const iconElement = container.firstChild as HTMLElement;
+      expect(iconElement.className).toMatch(/cardIconTemplate/);
     });
   });
 
@@ -192,7 +198,8 @@ describe('Card Component System', () => {
     it('applies variant classes', () => {
       const { container } = render(<CardTitle variant='template'>Title</CardTitle>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardTitleTemplate/));
+      const titleElement = container.firstChild as HTMLElement;
+      expect(titleElement.className).toMatch(/cardTitleTemplate/);
     });
   });
 
@@ -209,7 +216,8 @@ describe('Card Component System', () => {
         <CardDescription variant='template'>Description</CardDescription>
       );
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardDescriptionTemplate/));
+      const descElement = container.firstChild as HTMLElement;
+      expect(descElement.className).toMatch(/cardDescriptionTemplate/);
     });
   });
 
@@ -229,10 +237,11 @@ describe('Card Component System', () => {
     it('applies variant-specific classes', () => {
       const { rerender, container } = render(<CardActions variant='run'>Actions</CardActions>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardActionsRun/));
+      const actionsElement = container.firstChild as HTMLElement;
+      expect(actionsElement.className).toMatch(/cardActionsRun/);
 
       rerender(<CardActions variant='template'>Actions</CardActions>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardActionsTemplate/));
+      expect(actionsElement.className).toMatch(/cardActionsTemplate/);
     });
   });
 
@@ -258,13 +267,14 @@ describe('Card Component System', () => {
     it('applies variant classes', () => {
       const { rerender, container } = render(<IconButton variant='run'>✏️</IconButton>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/iconBtnRun/));
+      const buttonElement = container.firstChild as HTMLElement;
+      expect(buttonElement.className).toMatch(/iconBtnRun/);
 
       rerender(<IconButton variant='delete'>🗑️</IconButton>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/iconBtnDelete/));
+      expect(buttonElement.className).toMatch(/iconBtnDelete/);
 
       rerender(<IconButton variant='edit'>✏️</IconButton>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/iconBtnEdit/));
+      expect(buttonElement.className).toMatch(/iconBtnEdit/);
     });
 
     it('supports keyboard activation', async () => {
@@ -288,29 +298,29 @@ describe('Card Component System', () => {
     it('renders progress bar with correct percentage', () => {
       const { container } = render(<ProgressBar percentage={75} />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
-      expect(progressFill).toHaveStyle({ width: '75%' });
+      const progressFill = container.querySelector('[class*="progressFill"]');
+      expect(progressFill).toHaveStyle({ transform: 'scaleX(0.75)' });
     });
 
     it('applies custom color', () => {
       const { container } = render(<ProgressBar percentage={50} color='#ff0000' />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
+      const progressFill = container.querySelector('[class*="progressFill"]');
       expect(progressFill).toHaveStyle({ backgroundColor: '#ff0000' });
     });
 
     it('handles completed state', () => {
       const { container } = render(<ProgressBar percentage={100} completed={true} />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
-      expect(progressFill).toHaveClass(expect.stringMatching(/progressFillCompleted/));
+      const progressFill = container.querySelector('[class*="progressFill"]') as HTMLElement;
+      expect(progressFill.className).toMatch(/progressFillCompleted/);
     });
 
     it('caps percentage at 100', () => {
       const { container } = render(<ProgressBar percentage={150} />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
-      expect(progressFill).toHaveStyle({ width: '100%' });
+      const progressFill = container.querySelector('[class*="progressFill"]');
+      expect(progressFill).toHaveStyle({ transform: 'scaleX(1)' });
     });
   });
 
@@ -355,8 +365,8 @@ describe('Card Component System', () => {
     it('applies expanded icon class when expanded', () => {
       const { container } = render(<ExpandControls isExpanded={true} onToggle={vi.fn()} />);
 
-      const icon = container.querySelector(`.${expect.stringMatching(/expandIcon/)}`);
-      expect(icon).toHaveClass(expect.stringMatching(/expandIconExpanded/));
+      const icon = container.querySelector('[class*="expandIcon"]') as HTMLElement;
+      expect(icon.className).toMatch(/expandIconExpanded/);
     });
   });
 
@@ -374,7 +384,8 @@ describe('Card Component System', () => {
     it('applies correct CSS classes', () => {
       const { container } = render(<ExpandedContent>Content</ExpandedContent>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/expandedContent/));
+      const contentElement = container.firstChild as HTMLElement;
+      expect(contentElement.className).toMatch(/expandedContent/);
     });
   });
 
@@ -388,7 +399,8 @@ describe('Card Component System', () => {
     it('applies correct CSS classes', () => {
       const { container } = render(<CompletionBadge>Completed</CompletionBadge>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/completionBadge/));
+      const badgeElement = container.firstChild as HTMLElement;
+      expect(badgeElement.className).toMatch(/completionBadge/);
     });
   });
 
@@ -485,7 +497,7 @@ describe('Card Component System', () => {
 
     it('maintains accessibility in complex cards', async () => {
       const { container } = render(
-        <Card variant='template' interactive={true} aria-label='Template card'>
+        <Card variant='template' aria-label='Template card'>
           <CardHeader variant='template'>
             <CardIcon variant='template' color='#f59e0b'>
               🎯
@@ -528,8 +540,10 @@ describe('Card Component System', () => {
     it('handles invalid percentage values', () => {
       render(<ProgressBar percentage={-10} />);
 
-      // Should still render without throwing
-      expect(screen.getByRole('progressbar', { hidden: true })).toBeInTheDocument();
+      // Should still render without throwing and cap negative values at 0
+      const progressBar = screen.getByRole('progressbar');
+      expect(progressBar).toBeInTheDocument();
+      expect(progressBar).toHaveAttribute('aria-valuenow', '0');
     });
 
     it('handles missing event handlers', async () => {

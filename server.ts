@@ -32,6 +32,9 @@ import racesRoutes from './server/routes/races.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Disable x-powered-by header for security
+app.disable('x-powered-by');
+
 // Middleware
 app.use(
   cors({

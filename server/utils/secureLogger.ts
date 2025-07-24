@@ -79,6 +79,10 @@ class SecureLogger {
     return process.env.NODE_ENV === 'production';
   }
 
+  private get isTest(): boolean {
+    return process.env.NODE_ENV === 'test';
+  }
+
   /**
    * Redacts sensitive data from any object or string
    */
@@ -292,6 +296,11 @@ class SecureLogger {
       metadata: redactedMetadata,
       ...(error && this.isDevelopment && { stack: error.stack }),
     };
+
+    // Skip console logging in test environment to reduce noise
+    if (this.isTest) {
+      return;
+    }
 
     // Use appropriate console method based on level
     switch (level) {

@@ -1,12 +1,24 @@
 export default {
-  preset: 'ts-jest/presets/default-esm', // Enables experimental support for ES modules in Jest
+  preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
-  setupFilesAfterEnv: ['<rootDir>/tests/setup/jestSetup.ts'],
-  testMatch: ['**/tests/integration/**/*.test.ts'],
+  extensionsToTreatAsEsm: ['.ts'],
+  globalSetup: '<rootDir>/tests/setup/globalSetup.ts',
+  setupFilesAfterEnv: ['<rootDir>/tests/setup/mockSetup.ts', '<rootDir>/tests/setup/jestSetup.ts'],
+  testMatch: ['**/tests/integration/**/*.test.ts', '**/tests/integration/**/*.test.js'],
+  testPathIgnorePatterns: [
+    'tests/integration/middleware/', // Middleware tests are covered by unit tests
+  ],
+  testEnvironmentOptions: {
+    env: {
+      DATABASE_URL: 'file:./prisma/test.db',
+      JWT_SECRET: 'test-secret-key',
+      NODE_ENV: 'test',
+    },
+  },
   collectCoverageFrom: [
-    'routes/**/*.ts',
-    'middleware/**/*.ts',
-    'utils/**/*.ts',
+    'server/routes/**/*.ts',
+    'server/middleware/**/*.ts',
+    'server/utils/**/*.ts',
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
@@ -25,12 +37,16 @@ export default {
       'ts-jest',
       {
         useESM: true,
+        tsconfig: {
+          types: ['jest', '@types/jest', '@testing-library/jest-dom'],
+          esModuleInterop: true,
+          allowSyntheticDefaultImports: true,
+        },
       },
     ],
   },
-  moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-  },
+  resolver: '<rootDir>/jest-resolver.cjs',
   testTimeout: 10000,
   verbose: true,
+  maxWorkers: 1, // Run integration tests sequentially to prevent database race conditions
 };

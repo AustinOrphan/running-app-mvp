@@ -3,67 +3,73 @@ import { vi, afterEach, beforeAll } from 'vitest';
 import 'jest-axe/extend-expect';
 import { TestEnvironmentValidator } from './validateTestEnvironment';
 
-// Mock window.matchMedia for responsive tests
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-});
+// Declare localStorageMock at module level
+let localStorageMock: any;
 
-// Mock IntersectionObserver
-global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// Skip browser-specific setup in Node environment
+if (typeof window !== 'undefined') {
+  // Mock window.matchMedia for responsive tests
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
 
-// Mock ResizeObserver
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+  // Mock IntersectionObserver
+  global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+  }));
 
-// Mock fetch globally with default safe response
-global.fetch = vi.fn().mockResolvedValue({
-  ok: true,
-  status: 200,
-  json: () => Promise.resolve([]),
-  text: () => Promise.resolve(''),
-}) as any;
+  // Mock ResizeObserver
+  global.ResizeObserver = vi.fn().mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+  }));
 
-// Mock scrollTo
-global.scrollTo = vi.fn();
+  // Mock fetch globally with default safe response
+  global.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve([]),
+    text: () => Promise.resolve(''),
+  }) as any;
 
-// Mock localStorage
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
+  // Mock scrollTo
+  global.scrollTo = vi.fn();
 
-  return {
-    getItem: vi.fn((key: string) => store[key] || null),
-    setItem: vi.fn((key: string, value: string) => {
-      store[key] = value.toString();
-    }),
-    removeItem: vi.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: vi.fn(() => {
-      store = {};
-    }),
-  };
-})();
+  // Mock localStorage
+  localStorageMock = (() => {
+    let store: Record<string, string> = {};
 
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-});
+    return {
+      getItem: vi.fn((key: string) => store[key] || null),
+      setItem: vi.fn((key: string, value: string) => {
+        store[key] = value.toString();
+      }),
+      removeItem: vi.fn((key: string) => {
+        delete store[key];
+      }),
+      clear: vi.fn(() => {
+        store = {};
+      }),
+    };
+  })();
+
+  Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock,
+  });
+} // End of if (typeof window !== 'undefined')
 
 // Validate test environment before running tests
 beforeAll(async () => {
@@ -95,5 +101,7 @@ beforeAll(async () => {
 // Reset all mocks after each test
 afterEach(() => {
   vi.clearAllMocks();
-  localStorageMock.clear();
+  if (localStorageMock?.clear) {
+    localStorageMock.clear();
+  }
 });

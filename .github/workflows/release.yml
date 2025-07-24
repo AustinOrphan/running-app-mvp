@@ -80,6 +80,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: validate-release
     timeout-minutes: 20
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key
 
     steps:
       - name: 📥 Checkout code

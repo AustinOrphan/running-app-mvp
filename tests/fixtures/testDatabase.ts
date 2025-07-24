@@ -1,13 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 import { mockRuns, mockTestUser, mockGoals, mockRaces } from './mockData.js';
 
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: process.env.TEST_DATABASE_URL || 'file:./test.db',
+      url: process.env.DATABASE_URL || process.env.TEST_DATABASE_URL || 'file:./prisma/test.db',
     },
   },
 });
@@ -103,7 +104,19 @@ export const createTestRaces = async (userId: string, races = mockRaces) => {
 
 // Generate test JWT token
 export const generateTestToken = (userId: string) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET || 'test-secret', { expiresIn: '1h' });
+  const secret = process.env.JWT_SECRET || 'test-secret';
+  const payload = {
+    id: userId,
+    email: 'test@example.com',
+    type: 'access',
+    jti: crypto.randomUUID(),
+    iat: Math.floor(Date.now() / 1000),
+  };
+  return jwt.sign(payload, secret, {
+    expiresIn: '1h',
+    issuer: 'running-app',
+    audience: 'running-app-users',
+  });
 };
 
 // Clean up database utility

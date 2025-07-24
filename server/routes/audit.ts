@@ -119,6 +119,10 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
+      // Re-throw errors that are already HTTP errors with status codes
+      if (error && typeof error === 'object' && 'statusCode' in error) {
+        throw error;
+      }
       console.error('Failed to get audit statistics:', error);
       throw createError('Failed to get audit statistics', 500);
     }
@@ -217,31 +221,35 @@ router.get(
 );
 
 // POST /api/audit/test - Test audit logging (development only)
-if (process.env.NODE_ENV === 'development') {
-  router.post(
-    '/test',
-    requireAdmin,
-    asyncAuthHandler(async (req: AuthRequest, res) => {
-      try {
-        const { action = 'auth.login', outcome = 'success', resource = 'user' } = req.body;
+router.post(
+  '/test',
+  requireAdmin,
+  asyncAuthHandler(async (req: AuthRequest, res) => {
+    // Check environment at runtime
+    if (process.env.NODE_ENV !== 'development') {
+      res.status(404).json({ message: 'Not Found' });
+      return;
+    }
 
-        await auditLogger.logEvent(action, resource, outcome, {
-          req,
-          userId: req.user?.id,
-          details: { test: true, timestamp: new Date().toISOString() },
-        });
+    try {
+      const { action = 'auth.login', outcome = 'success', resource = 'user' } = req.body;
 
-        res.json({
-          message: 'Test audit event logged successfully',
-          event: { action, outcome, resource },
-          timestamp: new Date().toISOString(),
-        });
-      } catch (error) {
-        console.error('Failed to log test audit event:', error);
-        throw createError('Failed to log test audit event', 500);
-      }
-    })
-  );
-}
+      await auditLogger.logEvent(action, resource, outcome, {
+        req,
+        userId: req.user?.id,
+        details: { test: true, timestamp: new Date().toISOString() },
+      });
+
+      res.json({
+        message: 'Test audit event logged successfully',
+        event: { action, outcome, resource },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('Failed to log test audit event:', error);
+      throw createError('Failed to log test audit event', 500);
+    }
+  })
+);
 
 export default router;
