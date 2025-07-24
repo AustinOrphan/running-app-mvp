@@ -22,7 +22,7 @@ describe('Goals API Integration Tests', () => {
       const token = testDb.generateToken(user.id, user.email);
 
       // Create test goals
-      const goals = await Promise.all([
+      await Promise.all([
         testDb.prisma.goal.create({
           data: {
             userId: user.id,

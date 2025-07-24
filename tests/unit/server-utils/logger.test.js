@@ -64,10 +64,7 @@ describe('Enhanced Logger', () => {
       const error = new Error('Database connection failed');
       error.constructor = { name: 'PrismaClientKnownRequestError' };
 
-      logger.error(
-        { component: 'database', operation: 'query', req: undefined },
-        error
-      );
+      logger.error({ component: 'database', operation: 'query', req: undefined }, error);
 
       expect(secureLogger.error).toHaveBeenCalledWith(
         expect.any(String),
@@ -85,10 +82,7 @@ describe('Enhanced Logger', () => {
       const error = new Error('Validation failed');
       error.constructor = { name: 'ZodError' };
 
-      logger.error(
-        { component: 'api', operation: 'validate', req: undefined },
-        error
-      );
+      logger.error({ component: 'api', operation: 'validate', req: undefined }, error);
 
       expect(secureLogger.error).toHaveBeenCalledWith(
         expect.any(String),
@@ -106,11 +100,11 @@ describe('Enhanced Logger', () => {
       const error = new Error('Not found');
 
       logger.error(
-        { 
-          component: 'api', 
-          operation: 'fetch', 
+        {
+          component: 'api',
+          operation: 'fetch',
           req: undefined,
-          context: { statusCode: 404 }
+          context: { statusCode: 404 },
         },
         error
       );
@@ -140,10 +134,7 @@ describe('Enhanced Logger', () => {
       testCases.forEach(({ message, expectedType }) => {
         const error = new Error(message);
 
-        logger.error(
-          { component: 'test', operation: 'test', req: undefined },
-          error
-        );
+        logger.error({ component: 'test', operation: 'test', req: undefined }, error);
 
         expect(secureLogger.error).toHaveBeenCalledWith(
           expect.any(String),
@@ -163,10 +154,7 @@ describe('Enhanced Logger', () => {
     it('should categorize unknown errors as UnknownError', () => {
       const error = new Error('Something went wrong');
 
-      logger.error(
-        { component: 'test', operation: 'test', req: undefined },
-        error
-      );
+      logger.error({ component: 'test', operation: 'test', req: undefined }, error);
 
       expect(secureLogger.error).toHaveBeenCalledWith(
         expect.any(String),
@@ -185,10 +173,7 @@ describe('Enhanced Logger', () => {
     it('should generate correlation ID when not present', () => {
       const mockReq = {};
 
-      logger.info(
-        { component: 'api', operation: 'request', req: mockReq },
-        'New request'
-      );
+      logger.info({ component: 'api', operation: 'request', req: mockReq }, 'New request');
 
       expect(mockReq.correlationId).toBe('mock-uuid-12345');
       expect(secureLogger.info).toHaveBeenCalledWith(
@@ -218,10 +203,7 @@ describe('Enhanced Logger', () => {
     });
 
     it('should handle missing request object', () => {
-      logger.info(
-        { component: 'system', operation: 'startup', req: undefined },
-        'System starting'
-      );
+      logger.info({ component: 'system', operation: 'startup', req: undefined }, 'System starting');
 
       expect(secureLogger.info).toHaveBeenCalledWith(
         expect.any(String),
@@ -239,11 +221,11 @@ describe('Enhanced Logger', () => {
       const context = { userId: 'user123', action: 'create' };
 
       logger.info(
-        { 
-          component: 'api', 
-          operation: 'createUser', 
+        {
+          component: 'api',
+          operation: 'createUser',
           req: mockReq,
-          context 
+          context,
         },
         'User created'
       );
@@ -267,10 +249,7 @@ describe('Enhanced Logger', () => {
       error.code = 'ERR_TEST';
       process.env.NODE_ENV = 'development';
 
-      logger.error(
-        { component: 'test', operation: 'test', req: undefined },
-        error
-      );
+      logger.error({ component: 'test', operation: 'test', req: undefined }, error);
 
       expect(secureLogger.error).toHaveBeenCalledWith(
         expect.any(String),
@@ -291,10 +270,7 @@ describe('Enhanced Logger', () => {
       const error = new Error('Production error');
       process.env.NODE_ENV = 'production';
 
-      logger.error(
-        { component: 'test', operation: 'test', req: undefined },
-        error
-      );
+      logger.error({ component: 'test', operation: 'test', req: undefined }, error);
 
       expect(secureLogger.error).toHaveBeenCalledWith(
         expect.any(String),
@@ -329,10 +305,7 @@ describe('Enhanced Logger', () => {
     });
 
     it('should log warning messages', () => {
-      logger.warn(
-        { component: 'test', operation: 'test', req: undefined },
-        'Warning message'
-      );
+      logger.warn({ component: 'test', operation: 'test', req: undefined }, 'Warning message');
 
       expect(secureLogger.warn).toHaveBeenCalledWith(
         'test:test - Warning message',
@@ -342,10 +315,7 @@ describe('Enhanced Logger', () => {
     });
 
     it('should log info messages', () => {
-      logger.info(
-        { component: 'test', operation: 'test', req: undefined },
-        'Info message'
-      );
+      logger.info({ component: 'test', operation: 'test', req: undefined }, 'Info message');
 
       expect(secureLogger.info).toHaveBeenCalledWith(
         'test:test - Info message',
@@ -357,10 +327,7 @@ describe('Enhanced Logger', () => {
     it('should log debug messages only in development', () => {
       process.env.NODE_ENV = 'development';
 
-      logger.debug(
-        { component: 'test', operation: 'test', req: undefined },
-        'Debug message'
-      );
+      logger.debug({ component: 'test', operation: 'test', req: undefined }, 'Debug message');
 
       expect(secureLogger.debug).toHaveBeenCalledWith(
         'test:test - Debug message',
@@ -372,10 +339,7 @@ describe('Enhanced Logger', () => {
     it('should not log debug messages in production', () => {
       process.env.NODE_ENV = 'production';
 
-      logger.debug(
-        { component: 'test', operation: 'test', req: undefined },
-        'Debug message'
-      );
+      logger.debug({ component: 'test', operation: 'test', req: undefined }, 'Debug message');
 
       expect(secureLogger.debug).not.toHaveBeenCalled();
     });
@@ -524,10 +488,7 @@ describe('Enhanced Logger', () => {
     it('should handle non-Error objects', () => {
       const notAnError = 'String error';
 
-      logger.error(
-        { component: 'test', operation: 'test', req: undefined },
-        notAnError
-      );
+      logger.error({ component: 'test', operation: 'test', req: undefined }, notAnError);
 
       expect(secureLogger.error).toHaveBeenCalledWith(
         expect.any(String),
@@ -542,10 +503,7 @@ describe('Enhanced Logger', () => {
     });
 
     it('should handle null/undefined errors gracefully', () => {
-      logger.error(
-        { component: 'test', operation: 'test', req: undefined },
-        null
-      );
+      logger.error({ component: 'test', operation: 'test', req: undefined }, null);
 
       expect(secureLogger.error).toHaveBeenCalledWith(
         expect.any(String),

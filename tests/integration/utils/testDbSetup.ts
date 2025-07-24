@@ -35,17 +35,8 @@ export const initializeTestDatabase = async () => {
     // Check connection
     await prisma.$connect();
 
-    // Run migrations if needed
-    if (!process.env.CI && process.env.RUN_MIGRATIONS !== 'false') {
-      console.log('Running database migrations...');
-      execSync('npx prisma migrate deploy', {
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          DATABASE_URL: process.env.TEST_DATABASE_URL || 'file:./prisma/test.db',
-        },
-      });
-    }
+    // Skip migrations - they should be run once before all tests
+    // Migrations are handled by globalSetup.ts or CI pipeline
 
     return prisma;
   } catch (error) {
@@ -118,7 +109,7 @@ export const generateTestToken = (userId: string, email?: string) => {
  */
 export const generateTestTokens = (userId: string, email?: string) => {
   const secret = process.env.JWT_SECRET || 'test-secret';
-  const refreshSecret = process.env.JWT_REFRESH_SECRET || secret;
+  // Using the same secret for both tokens as per application logic
 
   const accessPayload = {
     id: userId,

@@ -12,7 +12,6 @@ import {
 import * as logger from '../../../server/utils/secureLogger.js';
 import type { Request, Response } from 'express';
 
-
 describe('RateLimiting Middleware - Complete Coverage', () => {
   let app: express.Application;
   const originalNodeEnv = process.env.NODE_ENV;
@@ -23,7 +22,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
     // Enable rate limiting for tests
     process.env.NODE_ENV = 'test';
     process.env.RATE_LIMITING_ENABLED = 'true';
-    
+
     app = express();
     app.use(express.json());
   });
@@ -85,9 +84,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
     });
 
     it('should allow requests within limit', async () => {
-      const response = await request(app)
-        .get('/api/data')
-        .expect(200);
+      const response = await request(app).get('/api/data').expect(200);
 
       expect(response.body.data).toBe('test');
     });
@@ -99,9 +96,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
       }
 
       // This request should be rate limited
-      const response = await request(app)
-        .get('/api/data')
-        .expect(429);
+      const response = await request(app).get('/api/data').expect(429);
 
       expect(response.body.error).toBe('Too many API requests, please try again later.');
     });
@@ -126,9 +121,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
     it('should block create requests after limit exceeded', async () => {
       // Make requests up to the limit (20 per hour)
       for (let i = 0; i < 20; i++) {
-        await request(app)
-          .post('/api/runs')
-          .send({ distance: 5.0, duration: 1800 });
+        await request(app).post('/api/runs').send({ distance: 5.0, duration: 1800 });
       }
 
       // This request should be rate limited
@@ -149,9 +142,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
     });
 
     it('should allow read requests within limit', async () => {
-      const response = await request(app)
-        .get('/api/runs')
-        .expect(200);
+      const response = await request(app).get('/api/runs').expect(200);
 
       expect(response.body.runs).toEqual([]);
     });
@@ -163,9 +154,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
       }
 
       // This request should be rate limited
-      const response = await request(app)
-        .get('/api/runs')
-        .expect(429);
+      const response = await request(app).get('/api/runs').expect(429);
 
       expect(response.body.error).toBe('Too many read requests, please slow down.');
     });
@@ -190,9 +179,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
     it('should block sensitive requests after limit exceeded', async () => {
       // Make requests up to the limit (3 per hour)
       for (let i = 0; i < 3; i++) {
-        await request(app)
-          .post('/auth/reset-password')
-          .send({ email: 'test@example.com' });
+        await request(app).post('/auth/reset-password').send({ email: 'test@example.com' });
       }
 
       // This request should be rate limited
@@ -213,9 +200,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
     });
 
     it('should allow requests within global limit', async () => {
-      const response = await request(app)
-        .get('/any-endpoint')
-        .expect(200);
+      const response = await request(app).get('/any-endpoint').expect(200);
 
       expect(response.body.success).toBe(true);
     });
@@ -227,9 +212,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
       }
 
       // This request should be rate limited
-      const response = await request(app)
-        .get('/any-endpoint')
-        .expect(429);
+      const response = await request(app).get('/any-endpoint').expect(429);
 
       expect(response.body.error).toBe('Too many requests from this IP, please try again later.');
     });
@@ -279,9 +262,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
     it('should bypass rate limiting when disabled', async () => {
       // Make many requests that would normally be rate limited
       for (let i = 0; i < 50; i++) {
-        const response = await request(app)
-          .get('/test')
-          .expect(200);
+        const response = await request(app).get('/test').expect(200);
         expect(response.body.success).toBe(true);
       }
     });
@@ -295,9 +276,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
     });
 
     it('should include standard rate limit headers', async () => {
-      const response = await request(app)
-        .get('/test-headers')
-        .expect(200);
+      const response = await request(app).get('/test-headers').expect(200);
 
       expect(response.headers['x-ratelimit-limit']).toBeDefined();
       expect(response.headers['x-ratelimit-remaining']).toBeDefined();
@@ -328,9 +307,7 @@ describe('RateLimiting Middleware - Complete Coverage', () => {
         await request(app).get('/test-error');
       }
 
-      const response = await request(app)
-        .get('/test-error')
-        .expect(429);
+      const response = await request(app).get('/test-error').expect(429);
 
       expect(response.body).toHaveProperty('error');
       expect(response.body.error).toContain('Too many');

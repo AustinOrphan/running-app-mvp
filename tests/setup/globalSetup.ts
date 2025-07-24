@@ -2,40 +2,15 @@ import { execSync } from 'child_process';
 import { resolve } from 'path';
 
 export default async function globalSetup(): Promise<() => void> {
-  const rootDir = resolve(process.cwd());
-
-  // Set test environment
+  // Set test environment variables
   process.env.DATABASE_URL = 'file:./prisma/test.db';
+  process.env.TEST_DATABASE_URL = 'file:./prisma/test.db';
   process.env.JWT_SECRET = 'test-secret-key';
   process.env.NODE_ENV = 'test';
-
-  try {
-    // Generate Prisma client
-    execSync('npx prisma generate', {
-      stdio: 'inherit',
-      cwd: rootDir,
-      env: process.env,
-    });
-
-    // Run migrations - try dev first for initial setup, fall back to deploy
-    try {
-      execSync('npx prisma migrate dev --name init', {
-        stdio: 'inherit',
-        cwd: rootDir,
-        env: process.env,
-      });
-    } catch {
-      execSync('npx prisma migrate deploy', {
-        stdio: 'inherit',
-        cwd: rootDir,
-        env: process.env,
-      });
-    }
-
-    return () => {
-      // Teardown if needed
-    };
-  } catch (error) {
-    throw new Error(`Failed to setup test database: ${error}`);
-  }
+  process.env.RUN_MIGRATIONS = 'false'; // Skip migrations in tests
+  
+  // Return empty teardown function
+  return () => {
+    // Teardown if needed
+  };
 }

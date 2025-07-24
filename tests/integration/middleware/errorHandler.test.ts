@@ -11,7 +11,6 @@ import {
 import * as logger from '../../../server/utils/logger.js';
 import type { Request, Response, NextFunction } from 'express';
 
-
 describe('ErrorHandler Middleware - Complete Coverage', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
@@ -20,7 +19,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockRequest = {
       originalUrl: '/api/test',
       method: 'GET',
@@ -89,7 +88,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
   describe('Error Handler Middleware', () => {
     it('should handle standard errors with status code', () => {
       const error = createError('Test error', 400) as Error & { statusCode: number };
-      
+
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -97,23 +96,17 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
         error: 'Test error',
         statusCode: 400,
       });
-      expect(logger.logError).toHaveBeenCalledWith(
-        'api',
-        'error-handler',
-        error,
-        mockRequest,
-        {
-          statusCode: 400,
-          method: 'GET',
-          url: '/api/test',
-          ip: '127.0.0.1',
-        }
-      );
+      expect(logger.logError).toHaveBeenCalledWith('api', 'error-handler', error, mockRequest, {
+        statusCode: 400,
+        method: 'GET',
+        url: '/api/test',
+        ip: '127.0.0.1',
+      });
     });
 
     it('should handle errors without status code (default to 500)', () => {
       const error = new Error('Internal error');
-      
+
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
@@ -132,7 +125,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
           { path: ['password'], message: 'Password too short' },
         ],
       } as any;
-      
+
       errorHandler(zodError, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -152,7 +145,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
         message: 'Unique constraint failed',
         meta: { target: ['email'] },
       } as any;
-      
+
       errorHandler(prismaError, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(409);
@@ -167,7 +160,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
         code: 'P2025',
         message: 'Record not found',
       } as any;
-      
+
       errorHandler(prismaError, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(404);
@@ -182,7 +175,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
         name: 'JsonWebTokenError',
         message: 'Invalid token',
       } as any;
-      
+
       errorHandler(jwtError, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
@@ -197,7 +190,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
         name: 'TokenExpiredError',
         message: 'Token expired',
       } as any;
-      
+
       errorHandler(expiredError, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
@@ -211,7 +204,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
       process.env.NODE_ENV = 'development';
       const error = createError('Test error', 400) as Error & { statusCode: number };
       error.stack = 'Error stack trace';
-      
+
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.json).toHaveBeenCalledWith({
@@ -225,7 +218,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
       process.env.NODE_ENV = 'production';
       const error = createError('Test error', 400) as Error & { statusCode: number };
       error.stack = 'Error stack trace';
-      
+
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.json).toHaveBeenCalledWith({
@@ -237,7 +230,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
     it('should handle errors when headers are already sent', () => {
       const error = createError('Test error', 400);
       mockResponse.headersSent = true;
-      
+
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(error);
@@ -248,27 +241,21 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
     it('should include user ID in logging context when available', () => {
       const error = createError('Test error', 400) as Error & { statusCode: number };
       mockRequest.user = { id: 123, email: 'test@example.com' } as any;
-      
+
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(logger.logError).toHaveBeenCalledWith(
-        'api',
-        'error-handler',
-        error,
-        mockRequest,
-        {
-          statusCode: 400,
-          method: 'GET',
-          url: '/api/test',
-          ip: '127.0.0.1',
-          userId: 123,
-        }
-      );
+      expect(logger.logError).toHaveBeenCalledWith('api', 'error-handler', error, mockRequest, {
+        statusCode: 400,
+        method: 'GET',
+        url: '/api/test',
+        ip: '127.0.0.1',
+        userId: 123,
+      });
     });
 
     it('should handle non-Error objects', () => {
       const stringError = 'String error message';
-      
+
       errorHandler(stringError as any, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
@@ -280,7 +267,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
 
     it('should handle null errors', () => {
       const nullError = null;
-      
+
       errorHandler(nullError as any, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
@@ -295,26 +282,20 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
     it('should log errors with appropriate context', () => {
       const error = createError('Test error', 400) as Error & { statusCode: number };
       mockRequest.headers = { 'user-agent': 'Test Agent' };
-      
+
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(logger.logError).toHaveBeenCalledWith(
-        'api',
-        'error-handler',
-        error,
-        mockRequest,
-        {
-          statusCode: 400,
-          method: 'GET',
-          url: '/api/test',
-          ip: '127.0.0.1',
-        }
-      );
+      expect(logger.logError).toHaveBeenCalledWith('api', 'error-handler', error, mockRequest, {
+        statusCode: 400,
+        method: 'GET',
+        url: '/api/test',
+        ip: '127.0.0.1',
+      });
     });
 
     it('should not log 404 errors', () => {
       const error = createNotFoundError('Not found') as Error & { statusCode: number };
-      
+
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(logger.logError).not.toHaveBeenCalled();
@@ -322,7 +303,7 @@ describe('ErrorHandler Middleware - Complete Coverage', () => {
 
     it('should log 5xx errors as high priority', () => {
       const error = createDatabaseError('Database error') as Error & { statusCode: number };
-      
+
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(logger.logError).toHaveBeenCalledWith(

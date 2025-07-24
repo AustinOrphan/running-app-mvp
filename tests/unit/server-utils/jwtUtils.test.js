@@ -10,7 +10,7 @@ describe('JWT Utilities', () => {
     it('should extract token from valid Bearer header', () => {
       const authHeader = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.signature';
       const result = extractTokenFromHeader(authHeader);
-      
+
       expect(result).toBe('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.signature');
     });
 
@@ -113,7 +113,7 @@ describe('JWT Utilities', () => {
 
       it('should handle different expiration times correctly', () => {
         const now = Math.floor(Date.now() / 1000);
-        
+
         blacklistToken('token-1min', now + 60);
         blacklistToken('token-5min', now + 300);
         blacklistToken('token-1hour', now + 3600);
@@ -158,7 +158,7 @@ describe('JWT Utilities', () => {
         ];
 
         const expiresAt = Math.floor(Date.now() / 1000) + 3600;
-        
+
         specialTokens.forEach(jti => {
           blacklistToken(jti, expiresAt);
           expect(isTokenBlacklisted(jti)).toBe(true);
@@ -181,10 +181,10 @@ describe('JWT Utilities', () => {
     it('should warn when using in-memory blacklist in production', async () => {
       // Dynamic import to trigger the warning
       process.env.NODE_ENV = 'production';
-      
+
       // Clear the module cache to force re-evaluation
       vi.resetModules();
-      
+
       // Re-import the module
       await import('../../../server/utils/jwtUtils.js');
 
@@ -195,7 +195,7 @@ describe('JWT Utilities', () => {
 
     it('should not warn in development environment', async () => {
       process.env.NODE_ENV = 'development';
-      
+
       vi.resetModules();
       await import('../../../server/utils/jwtUtils.js');
 
@@ -204,7 +204,7 @@ describe('JWT Utilities', () => {
 
     it('should not warn in test environment', async () => {
       process.env.NODE_ENV = 'test';
-      
+
       vi.resetModules();
       await import('../../../server/utils/jwtUtils.js');
 
@@ -221,7 +221,7 @@ describe('JWT Utilities', () => {
       // These functions should still work without JWT_SECRET
       expect(extractTokenFromHeader('Bearer token')).toBe('token');
       expect(isTokenBlacklisted('some-token')).toBe(false);
-      
+
       // Blacklisting should work without JWT_SECRET
       blacklistToken('test-token', Math.floor(Date.now() / 1000) + 3600);
       expect(isTokenBlacklisted('test-token')).toBe(true);

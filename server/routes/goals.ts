@@ -2,7 +2,11 @@ import express from 'express';
 
 import { prisma } from '../../lib/prisma.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createNotFoundError, createValidationError, createForbiddenError } from '../middleware/errorHandler.js';
+import {
+  createNotFoundError,
+  createValidationError,
+  createForbiddenError,
+} from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
 import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../../src/types/goals.js';
@@ -46,7 +50,7 @@ router.get(
       throw createNotFoundError('Goal');
     }
 
-    // Then check authorization  
+    // Then check authorization
     if (goal.userId !== req.user!.id) {
       throw createForbiddenError('Access denied');
     }

@@ -67,7 +67,7 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.metadata.password).toBe('se***23');
       expect(logData.metadata.token).toBe('jw***re');
       expect(logData.metadata.secret).toBe('ap***ey');
@@ -89,15 +89,15 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.metadata.message).toContain('[REDACTED]');
       expect(logData.metadata.message).not.toContain('user@example.com');
       expect(logData.metadata.message).not.toContain('555-123-4567');
-      
+
       // 'creditCardInfo' field contains 'creditcard' so the field value is masked
       expect(logData.metadata.creditCardInfo).toBe('Ca***11');
       expect(logData.metadata.creditCardInfo).not.toContain('4111');
-      
+
       // 'ssnInfo' field contains 'ssn' so the field value is masked
       expect(logData.metadata.ssnInfo).toBe('SS***89');
       expect(logData.metadata.ssnInfo).not.toContain('123-45-6789');
@@ -124,7 +124,7 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.metadata.user.profile.password).toBe('se***23');
       expect(logData.metadata.user.profile.settings.apiKey).toBe('ke***45');
       expect(logData.metadata.user.profile.settings.theme).toBe('dark');
@@ -146,7 +146,7 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.metadata.shortPassword).toBe('[REDACTED]');
       expect(logData.metadata.longPassword).toBe('ve***23');
       expect(logData.metadata.nullPassword).toBe('null');
@@ -166,7 +166,7 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.context.url).toContain('token=[REDACTED]');
       expect(logData.context.url).toContain('key=[REDACTED]');
       expect(logData.context.url).toContain('email=[REDACTED]');
@@ -178,7 +178,7 @@ describe('SecureLogger Enhanced Tests', () => {
     it('should hash user ID in production', () => {
       process.env.NODE_ENV = 'production';
       process.env.LOG_SALT = 'test-salt-12345';
-      
+
       const mockReq = {
         user: { id: 'user12345' },
         method: 'GET',
@@ -191,14 +191,14 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.context.userId).toBe('user_mockedhash123456');
       expect(logData.context.userId).not.toContain('user12345');
     });
 
     it('should show actual user ID in development', () => {
       process.env.NODE_ENV = 'development';
-      
+
       const mockReq = {
         user: { id: 'user12345' },
         method: 'GET',
@@ -211,14 +211,14 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.context.userId).toBe('user12345');
     });
 
     it('should throw error when LOG_SALT is missing in production', () => {
       process.env.NODE_ENV = 'production';
       delete process.env.LOG_SALT;
-      
+
       const mockReq = {
         user: { id: 'user12345' },
         method: 'GET',
@@ -235,7 +235,7 @@ describe('SecureLogger Enhanced Tests', () => {
     it('should use default salt in development when LOG_SALT is missing', () => {
       process.env.NODE_ENV = 'development';
       delete process.env.LOG_SALT;
-      
+
       const mockReq = {
         user: { id: 'user12345' },
         method: 'GET',
@@ -283,7 +283,7 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleError.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.stack).toBeDefined();
       expect(logData.stack).toContain('Error: Test error');
     });
@@ -296,7 +296,7 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleError.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.stack).toBeUndefined();
     });
   });
@@ -311,14 +311,14 @@ describe('SecureLogger Enhanced Tests', () => {
       secureLogger.info('Test message', mockReq);
 
       expect(mockReq.correlationId).toBe('mock-uuid-12345');
-      
+
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
       expect(logData.context.correlationId).toBe('mock-uuid-12345');
     });
 
     it('should use existing correlation ID', () => {
-      const mockReq = { 
+      const mockReq = {
         correlationId: 'existing-id-123',
         url: '/test',
         get: vi.fn(),
@@ -349,7 +349,7 @@ describe('SecureLogger Enhanced Tests', () => {
         url: '/api/users',
         ip: '192.168.1.100',
         socket: { remoteAddress: '192.168.1.100' },
-        get: vi.fn((header) => header === 'User-Agent' ? 'Mozilla/5.0' : null),
+        get: vi.fn(header => (header === 'User-Agent' ? 'Mozilla/5.0' : null)),
         user: { id: 'user123' },
       };
 
@@ -357,7 +357,7 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.context).toMatchObject({
         method: 'POST',
         url: '/api/users',
@@ -374,7 +374,7 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.context).toMatchObject({
         timestamp: expect.any(String),
         environment: expect.any(String),
@@ -396,7 +396,7 @@ describe('SecureLogger Enhanced Tests', () => {
 
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
-      
+
       expect(logData.context.ip).toBe('10.0.0.1');
     });
   });
@@ -404,7 +404,7 @@ describe('SecureLogger Enhanced Tests', () => {
   describe('User Action Logging', () => {
     it('should log user actions with full context in development', () => {
       process.env.NODE_ENV = 'development';
-      const mockReq = { 
+      const mockReq = {
         user: { id: 'user123' },
         url: '/test',
         get: vi.fn(),
@@ -422,7 +422,7 @@ describe('SecureLogger Enhanced Tests', () => {
     it('should log user actions with limited context in production', () => {
       process.env.NODE_ENV = 'production';
       process.env.LOG_SALT = 'test-salt';
-      const mockReq = { 
+      const mockReq = {
         user: { id: 'user123' },
         url: '/test',
         get: vi.fn(),
@@ -435,7 +435,7 @@ describe('SecureLogger Enhanced Tests', () => {
         'SecureLog:',
         expect.stringContaining('Action: Updated item')
       );
-      
+
       const logCall = mockConsoleInfo.mock.calls[0][1];
       const logData = JSON.parse(logCall);
       expect(logData.metadata).toMatchObject({
@@ -523,12 +523,12 @@ describe('SecureLogger Enhanced Tests', () => {
 
       environments.forEach(env => {
         process.env.NODE_ENV = env;
-        
+
         secureLogger.info(`Test in ${env || 'undefined'} environment`);
-        
+
         const logCall = mockConsoleInfo.mock.calls[mockConsoleInfo.mock.calls.length - 1][1];
         const logData = JSON.parse(logCall);
-        
+
         expect(logData.context.environment).toBe(env || 'unknown');
       });
     });

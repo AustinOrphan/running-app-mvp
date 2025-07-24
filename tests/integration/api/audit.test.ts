@@ -38,7 +38,6 @@ interface AuditQueryFilters {
   offset: number;
 }
 
-
 const createTestApp = (): express.Application => {
   const app = express();
   app.use(express.json());
@@ -52,7 +51,7 @@ describe('Audit API Integration Tests', () => {
   let app: express.Application;
   let testUser: TestUser | undefined;
   let authToken: string;
-  
+
   // Create local mock functions
   const mockLogEvent = jest.fn();
   const mockQueryEvents = jest.fn();
@@ -60,18 +59,21 @@ describe('Audit API Integration Tests', () => {
   const mockSuspiciousActivity = jest.fn();
 
   // Mock the audit logger module before importing
-  jest.doMock('/Users/austinorphan/Library/Mobile Documents/com~apple~CloudDocs/src/running-app-mvp/server/utils/auditLogger.ts', () => ({
-    auditLogger: {
-      logEvent: mockLogEvent,
-      queryEvents: mockQueryEvents,
-      getStatistics: mockGetStatistics
-    },
-    auditSecurity: {
-      suspiciousActivity: mockSuspiciousActivity,
-      attackDetected: jest.fn(),
-      rateLimitExceeded: jest.fn()
-    }
-  }));
+  jest.doMock(
+    '/Users/austinorphan/Library/Mobile Documents/com~apple~CloudDocs/src/running-app-mvp/server/utils/auditLogger.ts',
+    () => ({
+      auditLogger: {
+        logEvent: mockLogEvent,
+        queryEvents: mockQueryEvents,
+        getStatistics: mockGetStatistics,
+      },
+      auditSecurity: {
+        suspiciousActivity: mockSuspiciousActivity,
+        attackDetected: jest.fn(),
+        rateLimitExceeded: jest.fn(),
+      },
+    })
+  );
 
   beforeAll(async () => {
     app = createTestApp();
@@ -79,18 +81,18 @@ describe('Audit API Integration Tests', () => {
 
   beforeEach(async () => {
     await testDb.cleanupDatabase();
-    
+
     // Create test user and get auth token
     testUser = await testDb.createTestUser({
       email: 'audit-test@example.com',
-      password: 'Test123!@#'
+      password: 'Test123!@#',
     });
-    
+
     authToken = testDb.generateTestToken(assertTestUser(testUser).id);
-    
+
     // Clear mock calls
     jest.clearAllMocks();
-    
+
     // Set up default mock implementations
     mockQueryEvents.mockResolvedValue([
       {
@@ -101,7 +103,7 @@ describe('Audit API Integration Tests', () => {
         outcome: 'success',
         userId: 'test-user-id',
         riskLevel: 'low',
-        metadata: {}
+        metadata: {},
       },
       {
         id: 'event-2',
@@ -111,22 +113,22 @@ describe('Audit API Integration Tests', () => {
         outcome: 'success',
         userId: 'test-user-id',
         riskLevel: 'medium',
-        metadata: {}
-      }
+        metadata: {},
+      },
     ] as AuditEvent[]);
-    
+
     mockGetStatistics.mockResolvedValue({
       totalEvents: 100,
       uniqueUsers: 10,
       eventsByAction: {
         'auth.login': 50,
         'data.access': 30,
-        'admin.access': 20
+        'admin.access': 20,
       },
       eventsByOutcome: {
         success: 80,
-        failure: 20
-      }
+        failure: 20,
+      },
     } as AuditStatistics);
   });
 
@@ -141,13 +143,13 @@ describe('Audit API Integration Tests', () => {
         method: 'get' | 'post';
         path: string;
       }
-      
+
       const endpoints: Endpoint[] = [
         { method: 'get', path: '/api/audit/events' },
         { method: 'get', path: '/api/audit/statistics' },
         { method: 'get', path: '/api/audit/security-events' },
         { method: 'get', path: '/api/audit/user/test-user-id' },
-        { method: 'post', path: '/api/audit/test' }
+        { method: 'post', path: '/api/audit/test' },
       ];
 
       for (const endpoint of endpoints) {
@@ -179,7 +181,7 @@ describe('Audit API Integration Tests', () => {
   describe('Admin Role Requirements', () => {
     it('allows access in development mode', async () => {
       process.env.NODE_ENV = 'development';
-      
+
       const response = await request(app)
         .get('/api/audit/events')
         .set('Authorization', `Bearer ${authToken}`)
@@ -192,7 +194,7 @@ describe('Audit API Integration Tests', () => {
     it('blocks access in production mode without RBAC', async () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
-      
+
       try {
         const response = await request(app)
           .get('/api/audit/events')
@@ -208,12 +210,12 @@ describe('Audit API Integration Tests', () => {
 
     it('logs admin access attempts', async () => {
       process.env.NODE_ENV = 'development';
-      
+
       await request(app)
         .get('/api/audit/events')
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
-      
+
       expect(mockLogEvent).toHaveBeenCalledWith(
         'admin.system_access',
         'audit_logs',
@@ -221,11 +223,11 @@ describe('Audit API Integration Tests', () => {
         expect.objectContaining({
           req: expect.objectContaining({
             method: 'GET',
-            path: '/api/audit/events'
+            path: '/api/audit/events',
           }),
           details: expect.objectContaining({
-            endpoint: '/events'
-          })
+            endpoint: '/events',
+          }),
         })
       );
     });
@@ -246,7 +248,7 @@ describe('Audit API Integration Tests', () => {
       expect(response.body).toHaveProperty('filters');
       expect(response.body).toHaveProperty('totalResults');
       expect(response.body).toHaveProperty('timestamp');
-      
+
       expect(response.body.events).toBeInstanceOf(Array);
       expect(response.body.events.length).toBe(2);
       expect(response.body.filters.limit).toBe(100);
@@ -265,11 +267,11 @@ describe('Audit API Integration Tests', () => {
           startDate: '2025-01-01',
           endDate: '2025-12-31',
           limit: '50',
-          offset: '10'
+          offset: '10',
         })
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
-      
+
       expect(mockQueryEvents).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'test-user-id',
@@ -280,7 +282,7 @@ describe('Audit API Integration Tests', () => {
           startDate: expect.any(Date),
           endDate: expect.any(Date),
           limit: 50,
-          offset: 10
+          offset: 10,
         })
       );
     });
@@ -295,15 +297,15 @@ describe('Audit API Integration Tests', () => {
       expect(mockSuspiciousActivity).toHaveBeenCalledWith(
         expect.objectContaining({
           method: 'GET',
-          url: '/api/audit/events'
+          url: '/api/audit/events',
         }),
         'audit_log_access',
         expect.objectContaining({
           queriedFilters: expect.objectContaining({
             limit: 100,
-            offset: 0
+            offset: 0,
           }),
-          resultCount: 2
+          resultCount: 2,
         })
       );
     });
@@ -334,18 +336,18 @@ describe('Audit API Integration Tests', () => {
       expect(response.body).toHaveProperty('statistics');
       expect(response.body).toHaveProperty('timeframe', 'day');
       expect(response.body).toHaveProperty('timestamp');
-      
+
       expect(response.body.statistics).toMatchObject({
         totalEvents: 100,
         uniqueUsers: 10,
         eventsByAction: expect.any(Object),
-        eventsByOutcome: expect.any(Object)
+        eventsByOutcome: expect.any(Object),
       });
     });
 
     it('accepts valid timeframe parameters', async () => {
       const validTimeframes = ['hour', 'day', 'week', 'month'];
-      
+
       for (const timeframe of validTimeframes) {
         const response = await request(app)
           .get('/api/audit/statistics')
@@ -383,30 +385,34 @@ describe('Audit API Integration Tests', () => {
   describe('GET /api/audit/security-events', () => {
     beforeEach(() => {
       process.env.NODE_ENV = 'development';
-      
+
       mockQueryEvents.mockImplementation(async (filters: AuditQueryFilters) => {
         if (filters.riskLevel === 'high') {
-          return Array(5).fill(null).map((_, i) => ({
-            id: `high-event-${i}`,
-            timestamp: new Date().toISOString(),
-            action: 'security.breach_attempt',
-            resource: 'system',
-            outcome: 'failure' as const,
-            userId: 'attacker',
-            riskLevel: 'high' as const,
-            metadata: {}
-          }));
+          return Array(5)
+            .fill(null)
+            .map((_, i) => ({
+              id: `high-event-${i}`,
+              timestamp: new Date().toISOString(),
+              action: 'security.breach_attempt',
+              resource: 'system',
+              outcome: 'failure' as const,
+              userId: 'attacker',
+              riskLevel: 'high' as const,
+              metadata: {},
+            }));
         } else if (filters.riskLevel === 'critical') {
-          return Array(3).fill(null).map((_, i) => ({
-            id: `critical-event-${i}`,
-            timestamp: new Date().toISOString(),
-            action: 'security.privilege_escalation',
-            resource: 'admin',
-            outcome: 'blocked' as const,
-            userId: 'attacker',
-            riskLevel: 'critical' as const,
-            metadata: {}
-          }));
+          return Array(3)
+            .fill(null)
+            .map((_, i) => ({
+              id: `critical-event-${i}`,
+              timestamp: new Date().toISOString(),
+              action: 'security.privilege_escalation',
+              resource: 'admin',
+              outcome: 'blocked' as const,
+              userId: 'attacker',
+              riskLevel: 'critical' as const,
+              metadata: {},
+            }));
         }
         return [];
       });
@@ -421,14 +427,14 @@ describe('Audit API Integration Tests', () => {
       expect(response.body).toHaveProperty('summary');
       expect(response.body).toHaveProperty('events');
       expect(response.body).toHaveProperty('timestamp');
-      
+
       expect(response.body.summary).toMatchObject({
         timeframe: '24 hours',
         highRiskEvents: 5,
         criticalEvents: 3,
-        totalSecurityEvents: 8
+        totalSecurityEvents: 8,
       });
-      
+
       expect(response.body.events.high).toHaveLength(5);
       expect(response.body.events.critical).toHaveLength(3);
     });
@@ -446,16 +452,18 @@ describe('Audit API Integration Tests', () => {
     it('limits results to 50 most recent per risk level', async () => {
       mockQueryEvents.mockImplementation(async (filters: AuditQueryFilters) => {
         if (filters.riskLevel === 'high') {
-          return Array(100).fill(null).map((_, i) => ({
-            id: `high-event-${i}`,
-            timestamp: new Date().toISOString(),
-            action: 'security.breach_attempt',
-            resource: 'system',
-            outcome: 'failure' as const,
-            userId: 'attacker',
-            riskLevel: 'high' as const,
-            metadata: {}
-          }));
+          return Array(100)
+            .fill(null)
+            .map((_, i) => ({
+              id: `high-event-${i}`,
+              timestamp: new Date().toISOString(),
+              action: 'security.breach_attempt',
+              resource: 'system',
+              outcome: 'failure' as const,
+              userId: 'attacker',
+              riskLevel: 'high' as const,
+              metadata: {},
+            }));
         }
         return [];
       });
@@ -485,12 +493,12 @@ describe('Audit API Integration Tests', () => {
       expect(response.body).toHaveProperty('eventCount', 2);
       expect(response.body).toHaveProperty('events');
       expect(response.body).toHaveProperty('timestamp');
-      
+
       expect(mockQueryEvents).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'test-user-123',
           startDate: expect.any(Date),
-          limit: 1000
+          limit: 1000,
         })
       );
     });
@@ -509,14 +517,14 @@ describe('Audit API Integration Tests', () => {
   describe('POST /api/audit/test (development only)', () => {
     it('logs test audit events in development mode', async () => {
       process.env.NODE_ENV = 'development';
-      
+
       const response = await request(app)
         .post('/api/audit/test')
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           action: 'test.event',
           outcome: 'success',
-          resource: 'test_resource'
+          resource: 'test_resource',
         })
         .expect(200);
 
@@ -525,11 +533,11 @@ describe('Audit API Integration Tests', () => {
         event: {
           action: 'test.event',
           outcome: 'success',
-          resource: 'test_resource'
+          resource: 'test_resource',
         },
-        timestamp: expect.any(String)
+        timestamp: expect.any(String),
       });
-      
+
       expect(mockLogEvent).toHaveBeenCalledWith(
         'test.event',
         'test_resource',
@@ -539,8 +547,8 @@ describe('Audit API Integration Tests', () => {
           userId: assertTestUser(testUser).id,
           details: expect.objectContaining({
             test: true,
-            timestamp: expect.any(String)
-          })
+            timestamp: expect.any(String),
+          }),
         })
       );
     });
@@ -548,7 +556,7 @@ describe('Audit API Integration Tests', () => {
     it('returns 404 in production mode', async () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
-      
+
       try {
         const response = await request(app)
           .post('/api/audit/test')
@@ -570,18 +578,18 @@ describe('Audit API Integration Tests', () => {
 
     it('enforces rate limits on audit endpoints', async () => {
       // Make many requests quickly
-      const requests = Array(101).fill(null).map(() =>
-        request(app)
-          .get('/api/audit/events')
-          .set('Authorization', `Bearer ${authToken}`)
-      );
+      const requests = Array(101)
+        .fill(null)
+        .map(() =>
+          request(app).get('/api/audit/events').set('Authorization', `Bearer ${authToken}`)
+        );
 
       const responses = await Promise.all(requests);
-      
+
       // Some requests should be rate limited
       const rateLimited = responses.filter(r => r.status === 429);
       expect(rateLimited.length).toBeGreaterThan(0);
-      
+
       // Rate limited responses should have proper headers
       if (rateLimited.length > 0) {
         expect(rateLimited[0].body).toHaveProperty('message');

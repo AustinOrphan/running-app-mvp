@@ -33,17 +33,17 @@ npm run test:runner
 
 ### Command Line Options
 
-| Option | Short | Description | Default |
-|--------|-------|-------------|---------|
-| `--suite` | `-s` | Test suite to run (unit, integration, e2e, a11y, visual, performance, memory, all) | all |
-| `--parallel` | `-p` | Run tests in parallel where possible | false |
-| `--reporter` | `-r` | Reporter type (console, json, html, all) | console |
-| `--output` | `-o` | Output directory for reports | test-reports |
-| `--ci` | | Run in CI mode | false |
-| `--verbose` | `-v` | Verbose output | false |
-| `--bail` | `-b` | Stop on first test failure | false |
-| `--watch` | `-w` | Run in watch mode (where supported) | false |
-| `--help` | `-h` | Show help message | |
+| Option       | Short | Description                                                                        | Default      |
+| ------------ | ----- | ---------------------------------------------------------------------------------- | ------------ |
+| `--suite`    | `-s`  | Test suite to run (unit, integration, e2e, a11y, visual, performance, memory, all) | all          |
+| `--parallel` | `-p`  | Run tests in parallel where possible                                               | false        |
+| `--reporter` | `-r`  | Reporter type (console, json, html, all)                                           | console      |
+| `--output`   | `-o`  | Output directory for reports                                                       | test-reports |
+| `--ci`       |       | Run in CI mode                                                                     | false        |
+| `--verbose`  | `-v`  | Verbose output                                                                     | false        |
+| `--bail`     | `-b`  | Stop on first test failure                                                         | false        |
+| `--watch`    | `-w`  | Run in watch mode (where supported)                                                | false        |
+| `--help`     | `-h`  | Show help message                                                                  |              |
 
 ### Examples
 
@@ -67,42 +67,49 @@ node scripts/test-runner.js --verbose
 ## Test Suites
 
 ### Unit Tests
+
 - **Framework**: Vitest
 - **Coverage**: Yes
 - **Target**: React components and utilities
 - **Command**: `npm run test:coverage`
 
 ### Integration Tests
+
 - **Framework**: Jest
 - **Coverage**: Yes
 - **Target**: API endpoints and database operations
 - **Command**: `npm run test:coverage:integration`
 
 ### E2E Tests
+
 - **Framework**: Playwright
 - **Coverage**: No
 - **Target**: Full user workflows
 - **Command**: `npm run test:e2e`
 
 ### Accessibility Tests
+
 - **Framework**: Vitest + Playwright
 - **Coverage**: No
 - **Target**: WCAG compliance
 - **Command**: `npm run test:a11y:all`
 
 ### Visual Regression Tests
+
 - **Framework**: Playwright
 - **Coverage**: No
 - **Target**: UI consistency
 - **Command**: `npm run test:visual`
 
 ### Performance Tests
+
 - **Framework**: Custom benchmarks
 - **Coverage**: No
 - **Target**: Load times and responsiveness
 - **Command**: `npm run test:performance`
 
 ### Memory Tests
+
 - **Framework**: Custom memory profiling
 - **Coverage**: No
 - **Target**: Memory leaks and usage
@@ -111,6 +118,7 @@ node scripts/test-runner.js --verbose
 ## Output Reports
 
 ### Console Report
+
 - Always generated
 - Color-coded results
 - Summary statistics
@@ -118,6 +126,7 @@ node scripts/test-runner.js --verbose
 - Warnings and errors
 
 ### JSON Report
+
 - Machine-readable format
 - Complete test results
 - Detailed timing information
@@ -125,6 +134,7 @@ node scripts/test-runner.js --verbose
 - Output: `test-reports/test-results.json`
 
 ### HTML Report
+
 - Interactive web page
 - Visual coverage bars
 - Detailed suite information
@@ -132,6 +142,7 @@ node scripts/test-runner.js --verbose
 - Output: `test-reports/test-report.html`
 
 ### Coverage Summary
+
 - Merged coverage from all suites
 - Per-metric breakdown
 - Threshold validation
@@ -140,6 +151,7 @@ node scripts/test-runner.js --verbose
 ## CI/CD Integration
 
 ### Environment Variables
+
 ```bash
 # Enable CI mode
 CI=true node scripts/test-runner.js
@@ -149,16 +161,18 @@ COVERAGE_THRESHOLD=80 node scripts/test-runner.js
 ```
 
 ### Exit Codes
+
 - `0`: All tests passed
 - `1`: One or more tests failed
 - `1`: Coverage below threshold (CI mode)
 - `1`: Environment validation failed
 
 ### GitHub Actions Example
+
 ```yaml
 - name: Run all tests
   run: node scripts/test-runner.js --ci --reporter all --bail
-  
+
 - name: Upload test reports
   uses: actions/upload-artifact@v3
   if: always()
@@ -170,6 +184,7 @@ COVERAGE_THRESHOLD=80 node scripts/test-runner.js
 ## Thresholds
 
 Default thresholds (customizable):
+
 - **Coverage**: 70% (lines, statements, functions, branches)
 - **Performance**: 1000ms max response time
 - **Memory**: 100MB max heap usage
@@ -200,6 +215,7 @@ Default thresholds (customizable):
 ### Debug Mode
 
 Run with verbose output for detailed information:
+
 ```bash
 node scripts/test-runner.js --verbose --suite unit
 ```

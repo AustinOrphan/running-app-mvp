@@ -13,6 +13,7 @@ import runsRoutes from '../../../server/routes/runs.js';
 import goalsRoutes from '../../../server/routes/goals.js';
 import statsRoutes from '../../../server/routes/stats.js';
 import racesRoutes from '../../../server/routes/races.js';
+import auditRoutes from '../../../server/routes/audit.js';
 
 /**
  * Creates a properly configured Express app for integration testing
@@ -53,6 +54,7 @@ export const createTestApp = () => {
   app.use('/api/goals', goalsRoutes);
   app.use('/api/stats', statsRoutes);
   app.use('/api/races', racesRoutes);
+  app.use('/api/audit', auditRoutes);
 
   // Error handling middleware (must be last)
   app.use(errorHandler);

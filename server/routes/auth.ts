@@ -215,7 +215,7 @@ router.post(
       }
 
       // Also blacklist refresh token if provided
-      const { refreshToken } = req.body;
+      const refreshToken = req.body?.refreshToken;
       if (refreshToken) {
         try {
           const decodedRefresh = validateToken(refreshToken, 'refresh');

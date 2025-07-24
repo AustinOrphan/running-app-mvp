@@ -4,15 +4,14 @@ import * as logger from '../../../server/utils/logger.js';
 import * as jwtUtils from '../../../server/utils/jwtUtils.js';
 import type { Request, Response, NextFunction } from 'express';
 
-
 describe('requireAuth Middleware - Blacklisted Token Coverage', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
   let mockNext: NextFunction;
-  
+
   // Get mocked functions from centralized setup
   const mockedLogger = jest.mocked(logger);
-  const mockedErrorHandler = jest.mocked(errorHandler); 
+  const mockedErrorHandler = jest.mocked(errorHandler);
   const mockedJwtUtils = jest.mocked(jwtUtils);
 
   beforeEach(() => {

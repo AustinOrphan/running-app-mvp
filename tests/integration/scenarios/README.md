@@ -5,7 +5,9 @@ This directory contains comprehensive integration test scenarios that test compl
 ## Test Scenarios
 
 ### 1. User Registration & First Run Flow (`userRegistrationFlow.test.ts`)
+
 Tests the complete onboarding experience for new users:
+
 - User registration with validation
 - Login authentication flow
 - Creating first run
@@ -16,7 +18,9 @@ Tests the complete onboarding experience for new users:
 - Logout and session invalidation
 
 ### 2. Goal Achievement Workflow (`goalAchievementWorkflow.test.ts`)
+
 Tests goal management and progress tracking:
+
 - Creating distance, runs, and duration goals
 - Tracking progress through multiple runs
 - Automatic goal completion
@@ -26,7 +30,9 @@ Tests goal management and progress tracking:
 - Goal deletion and archiving
 
 ### 3. Data Management Scenarios (`dataManagementScenarios.test.ts`)
+
 Tests comprehensive data operations:
+
 - Creating runs with complete metadata (notes, routes, tags)
 - Bulk data creation and updates
 - Data validation and error handling
@@ -35,7 +41,9 @@ Tests comprehensive data operations:
 - Data deletion with proper cleanup
 
 ### 4. Multi-User Scenarios (`multiUserScenarios.test.ts`)
+
 Tests user isolation and concurrent operations:
+
 - Complete data isolation between users
 - Concurrent operations from multiple users
 - Race participation across users
@@ -44,7 +52,9 @@ Tests user isolation and concurrent operations:
 - Security boundaries verification
 
 ### 5. Error Handling Workflows (`errorHandlingWorkflows.test.ts`)
+
 Tests system resilience and error recovery:
+
 - Invalid authentication handling
 - Network timeout scenarios
 - Database error recovery
@@ -56,7 +66,9 @@ Tests system resilience and error recovery:
 - Concurrent modification conflicts
 
 ### 6. Performance & Load Scenarios (`performanceLoadScenarios.test.ts`)
+
 Tests system performance under load:
+
 - Large dataset operations (100+ records)
 - Concurrent user load testing
 - Memory usage monitoring
@@ -68,11 +80,13 @@ Tests system performance under load:
 ## Running the Tests
 
 Run all integration scenarios:
+
 ```bash
 npm run test:integration -- tests/integration/scenarios/
 ```
 
 Run a specific scenario:
+
 ```bash
 npm run test:integration -- tests/integration/scenarios/userRegistrationFlow.test.ts
 ```
@@ -80,6 +94,7 @@ npm run test:integration -- tests/integration/scenarios/userRegistrationFlow.tes
 ## Test Infrastructure
 
 These tests use:
+
 - `supertest` for HTTP request simulation
 - `testDb` fixture for database operations and cleanup
 - JWT token generation for authentication
@@ -98,6 +113,7 @@ These tests use:
 ## Adding New Scenarios
 
 When adding new integration scenarios:
+
 1. Create a new test file in this directory
 2. Import necessary routes and middleware
 3. Set up test app with all required routes

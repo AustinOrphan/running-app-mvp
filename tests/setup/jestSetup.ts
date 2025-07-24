@@ -17,12 +17,11 @@ process.env.BCRYPT_ROUNDS = process.env.BCRYPT_ROUNDS || '10'; // Lower for fast
 beforeAll(async () => {
   try {
     await testDb.initialize();
-    console.log('Test database initialized successfully');
   } catch (error) {
     console.error('Failed to initialize test database:', error);
     throw error;
   }
-});
+}, 30000); // 30 second timeout
 
 // Clean database before each test
 beforeEach(async () => {

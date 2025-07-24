@@ -64,7 +64,7 @@ describe('Audit Logger', () => {
       const mockReq = {
         user: { id: 'user123' },
         ip: '192.168.1.100',
-        get: vi.fn((header) => header === 'User-Agent' ? 'Mozilla/5.0' : null),
+        get: vi.fn(header => (header === 'User-Agent' ? 'Mozilla/5.0' : null)),
         correlationId: 'corr-123',
       };
 
@@ -101,7 +101,7 @@ describe('Audit Logger', () => {
 
         const events = await auditLogger.queryEvents({ limit: 1 });
         expect(events[0].ipAddress).toBe(testCase.expected || 'unknown');
-        
+
         vi.clearAllMocks();
         clearAuditLoggerStorage();
       }
@@ -139,10 +139,10 @@ describe('Audit Logger', () => {
 
       for (const { action, outcome, expectedRisk } of testCases) {
         await auditLogger.logEvent(action, 'test', outcome);
-        
+
         const events = await auditLogger.queryEvents({ limit: 1 });
         expect(events[0].riskLevel).toBe(expectedRisk);
-        
+
         vi.clearAllMocks();
         clearAuditLoggerStorage();
       }
@@ -254,7 +254,7 @@ describe('Audit Logger', () => {
 
     it('should sort by timestamp (newest first)', async () => {
       const events = await auditLogger.queryEvents({});
-      
+
       for (let i = 1; i < events.length; i++) {
         const prevTime = new Date(events[i - 1].timestamp).getTime();
         const currTime = new Date(events[i].timestamp).getTime();
@@ -266,13 +266,9 @@ describe('Audit Logger', () => {
       vi.spyOn(auditLogger.storage, 'query').mockRejectedValueOnce(new Error('Query failed'));
 
       const events = await auditLogger.queryEvents({});
-      
+
       expect(events).toEqual([]);
-      expect(logError).toHaveBeenCalledWith(
-        'audit',
-        'query-failure',
-        expect.any(Error)
-      );
+      expect(logError).toHaveBeenCalledWith('audit', 'query-failure', expect.any(Error));
     });
   });
 
@@ -338,7 +334,7 @@ describe('Audit Logger', () => {
     // Note: The auditLogger singleton is initialized before these tests run,
     // so changing the encryption key in beforeEach won't affect it.
     // We need to test with the existing instance state.
-    
+
     beforeEach(() => {
       // Set 32-byte encryption key for AES-256
       process.env.AUDIT_ENCRYPTION_KEY = 'test-encryption-key-32-bytes-xxx';
@@ -388,7 +384,7 @@ describe('Audit Logger', () => {
     it.skip('should handle encryption failures gracefully', async () => {
       // This test requires the auditLogger to be initialized with an encryption key
       process.env.AUDIT_ENCRYPTION_KEY = 'test-encryption-key-32-bytes-xxx';
-      
+
       vi.mocked(crypto).createCipheriv.mockImplementationOnce(() => {
         throw new Error('Encryption failed');
       });
@@ -397,11 +393,7 @@ describe('Audit Logger', () => {
         details: { email: 'test@example.com' },
       });
 
-      expect(logError).toHaveBeenCalledWith(
-        'audit',
-        'encryption-failure',
-        expect.any(Error)
-      );
+      expect(logError).toHaveBeenCalledWith('audit', 'encryption-failure', expect.any(Error));
     });
 
     it.skip('should handle decryption failures gracefully', async () => {
@@ -415,19 +407,15 @@ describe('Audit Logger', () => {
       });
 
       const events = await auditLogger.queryEvents({ limit: 1 });
-      
-      expect(logError).toHaveBeenCalledWith(
-        'audit',
-        'decryption-failure',
-        expect.any(Error)
-      );
+
+      expect(logError).toHaveBeenCalledWith('audit', 'decryption-failure', expect.any(Error));
     });
   });
 
   describe('Cleanup', () => {
     it('should cleanup old events based on retention period', async () => {
       const now = Date.now();
-      
+
       // Add old events (400 days ago)
       for (let i = 0; i < 5; i++) {
         const event = {
@@ -447,9 +435,9 @@ describe('Audit Logger', () => {
       }
 
       const cleanedCount = await auditLogger.storage.cleanup(365);
-      
+
       expect(cleanedCount).toBe(5);
-      
+
       const remainingEvents = await auditLogger.queryEvents({});
       expect(remainingEvents).toHaveLength(3);
     });
@@ -461,7 +449,7 @@ describe('Audit Logger', () => {
 
       // Verify that cleanup throws the expected error
       await expect(auditLogger.storage.cleanup(365)).rejects.toThrow('Cleanup failed');
-      
+
       // Verify the cleanup method was called with correct parameters
       expect(cleanupSpy).toHaveBeenCalledWith(365);
     });
@@ -469,11 +457,11 @@ describe('Audit Logger', () => {
 
   describe('Convenience Functions', () => {
     it('should log authentication events', async () => {
-      const mockReq = { 
+      const mockReq = {
         user: { id: 'user123' },
         headers: { 'x-forwarded-for': '10.0.0.1' },
-        get: vi.fn((header) => header === 'User-Agent' ? 'test-agent' : undefined),
-        ip: '192.168.1.1'
+        get: vi.fn(header => (header === 'User-Agent' ? 'test-agent' : undefined)),
+        ip: '192.168.1.1',
       };
 
       await auditAuth.login(mockReq, 'user123', 'success', { method: 'password' });
@@ -483,7 +471,7 @@ describe('Audit Logger', () => {
       await auditAuth.passwordChange(mockReq, 'user123', 'success');
 
       const events = await auditLogger.queryEvents({ userId: 'user123' });
-      
+
       expect(events).toHaveLength(5);
       expect(events.map(e => e.action)).toContain('auth.login');
       expect(events.map(e => e.action)).toContain('auth.logout');
@@ -493,11 +481,11 @@ describe('Audit Logger', () => {
     });
 
     it('should log data operations', async () => {
-      const mockReq = { 
+      const mockReq = {
         user: { id: 'user123' },
         headers: { 'x-forwarded-for': '10.0.0.1' },
-        get: vi.fn((header) => header === 'User-Agent' ? 'test-agent' : undefined),
-        ip: '192.168.1.1'
+        get: vi.fn(header => (header === 'User-Agent' ? 'test-agent' : undefined)),
+        ip: '192.168.1.1',
       };
 
       await auditData.create(mockReq, 'runs', 'run123', 'success');
@@ -506,7 +494,7 @@ describe('Audit Logger', () => {
       await auditData.delete(mockReq, 'runs', 'run123', 'success');
 
       const events = await auditLogger.queryEvents({ resource: 'runs' });
-      
+
       expect(events).toHaveLength(4);
       expect(events.map(e => e.action)).toContain('data.create');
       expect(events.map(e => e.action)).toContain('data.read');
@@ -515,24 +503,24 @@ describe('Audit Logger', () => {
     });
 
     it('should log security events', async () => {
-      const mockReq = { 
+      const mockReq = {
         ip: '192.168.1.100',
         headers: { 'x-forwarded-for': '10.0.0.1' },
-        get: vi.fn((header) => header === 'User-Agent' ? 'test-agent' : undefined)
+        get: vi.fn(header => (header === 'User-Agent' ? 'test-agent' : undefined)),
       };
 
-      await auditSecurity.attackDetected(mockReq, 'SQL Injection', { 
-        payload: 'DROP TABLE users' 
+      await auditSecurity.attackDetected(mockReq, 'SQL Injection', {
+        payload: 'DROP TABLE users',
       });
       await auditSecurity.rateLimitExceeded(mockReq, '/api/login');
       await auditSecurity.suspiciousActivity(mockReq, 'Multiple failed logins', {
         attempts: 10,
       });
 
-      const events = await auditLogger.queryEvents({ 
-        action: 'security.attack_detected' 
+      const events = await auditLogger.queryEvents({
+        action: 'security.attack_detected',
       });
-      
+
       expect(events).toHaveLength(1);
       expect(events[0].riskLevel).toBe('critical');
       expect(events[0].details.attackType).toBe('SQL Injection');

@@ -38,7 +38,7 @@ describe('Security Logger', () => {
         ip: '192.168.1.100',
         method: 'GET',
         path: '/api/users',
-        get: vi.fn((header) => header === 'User-Agent' ? 'Mozilla/5.0' : null),
+        get: vi.fn(header => (header === 'User-Agent' ? 'Mozilla/5.0' : null)),
         user: { id: 'user123' },
       };
 
@@ -240,8 +240,8 @@ describe('Security Logger', () => {
     });
 
     it('should log privilege escalation attempt with high severity', () => {
-      logAuthzEvent('privilege_escalation_attempt', mockReq, { 
-        attemptedRole: 'admin' 
+      logAuthzEvent('privilege_escalation_attempt', mockReq, {
+        attemptedRole: 'admin',
       });
 
       expect(logError).toHaveBeenCalledWith(
@@ -314,9 +314,9 @@ describe('Security Logger', () => {
     };
 
     it('should log rate limit exceeded with medium severity', () => {
-      logRateLimitEvent('rate_limit_exceeded', mockReq, { 
+      logRateLimitEvent('rate_limit_exceeded', mockReq, {
         limit: 100,
-        window: '1h' 
+        window: '1h',
       });
 
       expect(logInfo).toHaveBeenCalledWith(
@@ -389,7 +389,7 @@ describe('Security Logger', () => {
     it('should be a singleton', () => {
       const instance1 = securityMetrics;
       const instance2 = securityMetrics;
-      
+
       expect(instance1).toBe(instance2);
     });
 
@@ -399,7 +399,7 @@ describe('Security Logger', () => {
       securityMetrics.increment('another_metric');
 
       const metrics = securityMetrics.getMetrics();
-      
+
       expect(metrics).toEqual({
         test_metric: 2,
         another_metric: 1,
@@ -409,9 +409,9 @@ describe('Security Logger', () => {
     it('should reset metrics', () => {
       securityMetrics.increment('test_metric');
       securityMetrics.increment('another_metric');
-      
+
       securityMetrics.reset();
-      
+
       const metrics = securityMetrics.getMetrics();
       expect(metrics).toEqual({});
     });
@@ -436,7 +436,7 @@ describe('Security Logger', () => {
     it('should track metrics through the convenience function', () => {
       trackSecurityMetric('custom_metric');
       trackSecurityMetric('custom_metric');
-      
+
       const metrics = securityMetrics.getMetrics();
       expect(metrics.custom_metric).toBe(2);
     });
@@ -451,7 +451,7 @@ describe('Security Logger', () => {
       mockReq = {
         method: 'GET',
         path: '/api/test',
-        get: vi.fn((header) => {
+        get: vi.fn(header => {
           if (header === 'User-Agent') return 'Mozilla/5.0 (compatible; Chrome)';
           if (header === 'Referer') return 'https://example.com';
           return null;
@@ -468,14 +468,14 @@ describe('Security Logger', () => {
       securityEventTracker(mockReq, mockRes, mockNext);
 
       const metrics = securityMetrics.getMetrics();
-      
+
       expect(metrics.requests_total).toBe(1);
       expect(metrics.requests_get).toBe(1);
       expect(mockNext).toHaveBeenCalled();
     });
 
     it('should track suspicious user agents', () => {
-      mockReq.get = vi.fn((header) => {
+      mockReq.get = vi.fn(header => {
         if (header === 'User-Agent') return 'bot';
         return null;
       });
@@ -501,7 +501,7 @@ describe('Security Logger', () => {
       methods.forEach((method, index) => {
         mockReq.method = method;
         securityEventTracker(mockReq, mockRes, mockNext);
-        
+
         const metrics = securityMetrics.getMetrics();
         expect(metrics[`requests_${method.toLowerCase()}`]).toBe(1);
         expect(metrics.requests_total).toBe(index + 1);
@@ -520,7 +520,7 @@ describe('Security Logger', () => {
       mockRes.statusCode = 200;
 
       securityEventTracker(mockReq, mockRes, mockNext);
-      
+
       // Simulate response finish
       if (finishCallback) {
         finishCallback();
@@ -543,7 +543,7 @@ describe('Security Logger', () => {
 
       statusTests.forEach(({ status, metric }) => {
         securityMetrics.reset();
-        
+
         let finishCallback;
         mockRes.on = vi.fn((event, callback) => {
           if (event === 'finish') {
@@ -553,7 +553,7 @@ describe('Security Logger', () => {
         mockRes.statusCode = status;
 
         securityEventTracker(mockReq, mockRes, mockNext);
-        
+
         if (finishCallback) {
           finishCallback();
         }
@@ -572,7 +572,7 @@ describe('Security Logger', () => {
       });
 
       securityEventTracker(mockReq, mockRes, mockNext);
-      
+
       // Simulate connection close
       if (closeCallback) {
         closeCallback();

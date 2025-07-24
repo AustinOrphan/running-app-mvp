@@ -65,7 +65,7 @@ describe('Test Runner', () => {
 
   test('should create output directories', async () => {
     const outputDir = join(tempDir, 'test-output');
-    
+
     // This would require the ensureDirectories function to be exported
     // For now, test directory creation manually
     const dirs = [
@@ -97,7 +97,7 @@ describe('Test Runner', () => {
     ];
 
     // For now, implement the formatting logic inline for testing
-    const formatDuration = (ms) => {
+    const formatDuration = ms => {
       if (ms < 1000) return `${ms.toFixed(0)}ms`;
       if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
       return `${(ms / 60000).toFixed(2)}m`;
@@ -173,7 +173,7 @@ describe('Test Runner', () => {
       functions: { pct: 65 },
       branches: { pct: 70 },
     };
-    
+
     const threshold = 70;
     const warnings = [];
 

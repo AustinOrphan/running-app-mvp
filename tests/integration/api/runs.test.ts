@@ -22,7 +22,7 @@ describe('Runs API Integration Tests', () => {
       const token = testDb.generateToken(user.id, user.email);
 
       // Create test runs
-      const runs = await Promise.all([
+      await Promise.all([
         testDb.prisma.run.create({
           data: {
             userId: user.id,

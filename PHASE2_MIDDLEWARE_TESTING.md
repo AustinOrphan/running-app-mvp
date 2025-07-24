@@ -1,9 +1,11 @@
 # 🛡️ Phase 2: Middleware Testing Agent
 
 ## 🎯 Mission Statement
+
 **Objective**: Transform middleware/ directory from 10.77% to 80%+ test coverage by implementing comprehensive security, validation, and error handling middleware testing.
 
-**Success Criteria**: 
+**Success Criteria**:
+
 - Middleware coverage: 10.77% → 80%+
 - All security middleware thoroughly tested
 - Error handling and validation verified
@@ -15,6 +17,7 @@
 ## 🚀 Agent Instructions
 
 ### **CRITICAL REQUIREMENTS**
+
 - **NO INDEPENDENT DECISIONS**: Follow these instructions exactly
 - **USE SPECIFIC MCP TOOLS**: Only use tools specified in each step
 - **DOCUMENT DEVIATIONS**: Any issues or changes → create markdown file
@@ -28,14 +31,16 @@
 ## 📋 Step 1: Middleware Analysis
 
 ### **1.1 Read All Middleware Files**
+
 ```
 Tool: mcp__filesystem__read_multiple_files
-Parameters: 
+Parameters:
   paths: ["middleware/asyncHandler.ts", "middleware/errorHandler.ts", "middleware/rateLimiting.ts", "middleware/requireAuth.ts", "middleware/validateBody.ts", "middleware/validation.ts"]
 Purpose: Analyze all middleware functions and security logic
 ```
 
 ### **1.2 Use Serena to Get Middleware Overview**
+
 ```
 Tool: mcp__serena__get_symbols_overview
 Parameters:
@@ -44,14 +49,16 @@ Purpose: Identify all middleware functions and their purposes
 ```
 
 ### **1.3 Read Server Integration**
+
 ```
-Tool: mcp__filesystem__read_file  
+Tool: mcp__filesystem__read_file
 Parameters:
   path: "server.ts"
 Purpose: Understand how middleware is integrated and chained
 ```
 
 ### **🔍 Validation Checkpoint 1**
+
 ```
 Tool: mcp__serena__think_about_collected_information
 Purpose: Confirm all middleware components identified and integration understood
@@ -62,6 +69,7 @@ Purpose: Confirm all middleware components identified and integration understood
 ## 📝 Step 2: Test File Creation
 
 ### **2.1 Create Comprehensive Middleware Test File**
+
 ```
 Tool: mcp__filesystem__write_file
 Parameters:
@@ -71,6 +79,7 @@ Purpose: Implement comprehensive middleware testing
 ```
 
 ### **Test File Template Structure:**
+
 ```typescript
 import request from 'supertest';
 import { app } from '../../../server';
@@ -97,7 +106,7 @@ describe('Middleware Security and Functionality', () => {
   });
 
   afterAll(async () => {
-    // Database cleanup  
+    // Database cleanup
   });
 
   beforeEach(async () => {
@@ -177,6 +186,7 @@ describe('Middleware Security and Functionality', () => {
 ### **Required Test Cases (Minimum 80 tests):**
 
 #### **AsyncHandler Middleware Tests (10+ tests)**
+
 - Async function success handling
 - Async function error catching
 - Promise rejection handling
@@ -189,6 +199,7 @@ describe('Middleware Security and Functionality', () => {
 - Performance impact measurement
 
 #### **ErrorHandler Middleware Tests (15+ tests)**
+
 - Generic error handling
 - Validation error formatting
 - Authentication error handling
@@ -206,6 +217,7 @@ describe('Middleware Security and Functionality', () => {
 - Uncaught exception handling
 
 #### **Rate Limiting Middleware Tests (20+ tests)**
+
 - Basic rate limit enforcement
 - Rate limit per IP address
 - Rate limit per user (if applicable)
@@ -228,6 +240,7 @@ describe('Middleware Security and Functionality', () => {
 - Whitelist/blacklist functionality
 
 #### **RequireAuth Middleware Tests (15+ tests)**
+
 - Valid JWT token authentication
 - Invalid JWT token rejection
 - Expired JWT token handling
@@ -245,6 +258,7 @@ describe('Middleware Security and Functionality', () => {
 - Authentication bypass attempts
 
 #### **ValidateBody Middleware Tests (12+ tests)**
+
 - Valid JSON body validation
 - Invalid JSON body rejection
 - Schema validation success
@@ -259,6 +273,7 @@ describe('Middleware Security and Functionality', () => {
 - Array validation
 
 #### **Validation Middleware Tests (15+ tests)**
+
 - Security headers application
 - Content Security Policy (CSP)
 - X-Frame-Options header
@@ -276,6 +291,7 @@ describe('Middleware Security and Functionality', () => {
 - Parameter pollution prevention
 
 #### **Middleware Integration Tests (13+ tests)**
+
 - Complete middleware chain execution
 - Middleware execution order
 - Middleware chain interruption
@@ -291,6 +307,7 @@ describe('Middleware Security and Functionality', () => {
 - Security middleware stacking effectiveness
 
 ### **🔍 Validation Checkpoint 2**
+
 ```
 Tool: mcp__serena__think_about_collected_information
 Purpose: Verify test file covers all middleware security and functionality thoroughly
@@ -301,6 +318,7 @@ Purpose: Verify test file covers all middleware security and functionality thoro
 ## 🧪 Step 3: Test Execution and Validation
 
 ### **3.1 Run Integration Tests**
+
 ```
 Tool: mcp__serena__execute_shell_command
 Parameters:
@@ -309,14 +327,16 @@ Purpose: Execute middleware tests and verify functionality
 ```
 
 ### **3.2 Run Coverage Analysis**
+
 ```
-Tool: mcp__serena__execute_shell_command  
+Tool: mcp__serena__execute_shell_command
 Parameters:
   command: "npm run test:coverage:integration"
 Purpose: Measure middleware coverage improvement
 ```
 
 ### **3.3 Read Coverage Report**
+
 ```
 Tool: mcp__filesystem__read_file
 Parameters:
@@ -325,6 +345,7 @@ Purpose: Verify middleware/ directory coverage meets 80%+ requirement
 ```
 
 ### **🔍 Validation Checkpoint 3**
+
 ```
 Tool: mcp__serena__think_about_collected_information
 Purpose: Confirm tests pass and coverage targets achieved
@@ -335,6 +356,7 @@ Purpose: Confirm tests pass and coverage targets achieved
 ## 🔧 Step 4: Quality Assurance
 
 ### **4.1 Run Full Test Suite**
+
 ```
 Tool: mcp__serena__execute_shell_command
 Parameters:
@@ -342,7 +364,8 @@ Parameters:
 Purpose: Ensure no regressions in existing functionality
 ```
 
-### **4.2 Run Linting Check**  
+### **4.2 Run Linting Check**
+
 ```
 Tool: mcp__serena__execute_shell_command
 Parameters:
@@ -351,6 +374,7 @@ Purpose: Verify no ESLint violations introduced
 ```
 
 ### **4.3 Run Type Checking**
+
 ```
 Tool: mcp__serena__execute_shell_command
 Parameters:
@@ -359,6 +383,7 @@ Purpose: Ensure TypeScript compliance
 ```
 
 ### **🔍 Validation Checkpoint 4**
+
 ```
 Tool: mcp__serena__think_about_task_adherence
 Purpose: Confirm all requirements met and no regressions
@@ -369,6 +394,7 @@ Purpose: Confirm all requirements met and no regressions
 ## 📊 Step 5: Final Validation and Completion
 
 ### **5.1 Final Coverage Verification**
+
 ```
 Tool: mcp__serena__execute_shell_command
 Parameters:
@@ -377,27 +403,31 @@ Purpose: Final coverage measurement
 ```
 
 ### **5.2 Create Progress Report**
+
 ```
 Tool: mcp__filesystem__write_file
 Parameters:
-  path: "PHASE2_MIDDLEWARE_PROGRESS.md" 
+  path: "PHASE2_MIDDLEWARE_PROGRESS.md"
   content: [Detailed progress report with metrics]
 Purpose: Document achievement of objectives
 ```
 
 ### **5.3 Final Completion Check**
+
 ```
 Tool: mcp__serena__think_about_whether_you_are_done
 Purpose: Confirm all success criteria met
 ```
 
 ### **5.4 Summarize Changes**
+
 ```
 Tool: mcp__serena__summarize_changes
 Purpose: Create final summary of middleware testing implementation
 ```
 
 ### **5.5 Create Completion Report**
+
 ```
 Tool: mcp__filesystem__write_file
 Parameters:
@@ -411,7 +441,9 @@ Purpose: Document successful completion for coordination
 ## ⚠️ Error Handling Protocol
 
 ### **If Tests Fail**
+
 1. Create issue documentation:
+
    ```
    Tool: mcp__filesystem__write_file
    Parameters:
@@ -420,6 +452,7 @@ Purpose: Document successful completion for coordination
    ```
 
 2. Use Serena validation to analyze:
+
    ```
    Tool: mcp__serena__think_about_collected_information
    ```
@@ -427,6 +460,7 @@ Purpose: Document successful completion for coordination
 3. **DO NOT** mark task complete until all tests pass
 
 ### **If Security Tests Fail**
+
 1. Critical security vulnerability identified
 2. Document security implications
 3. Ensure all security paths tested
@@ -437,6 +471,7 @@ Purpose: Document successful completion for coordination
 ## 📈 Success Metrics
 
 ### **Primary Metrics**
+
 - **Middleware Coverage**: 10.77% → 80%+
 - **Test Count**: 80+ comprehensive test cases
 - **Security Coverage**: 100% of security middleware
@@ -444,6 +479,7 @@ Purpose: Document successful completion for coordination
 - **Integration**: No regressions introduced
 
 ### **Security Metrics**
+
 - **Authentication**: All auth scenarios tested
 - **Authorization**: All access controls verified
 - **Rate Limiting**: All bypass attempts blocked
@@ -451,6 +487,7 @@ Purpose: Document successful completion for coordination
 - **Error Handling**: No information disclosure
 
 ### **Quality Metrics**
+
 - **Middleware Chain**: Integration verified
 - **Performance Impact**: Measured and acceptable
 - **Error Propagation**: Proper error handling
@@ -461,12 +498,14 @@ Purpose: Document successful completion for coordination
 ## 🔗 Dependencies and Coordination
 
 ### **Phase Dependencies**
+
 - **Requires**: Phase 1 (Test Infrastructure Setup) completed
 - **Coordinates**: With Phase 2 Authentication (auth middleware overlap)
 - **Enables**: All other phases (provides security foundation)
 
 ### **File Dependencies**
-- **Reads**: middleware/*.ts, server.ts
+
+- **Reads**: middleware/\*.ts, server.ts
 - **Creates**: tests/integration/middleware/middleware.comprehensive.test.ts
 - **Updates**: Coverage metrics, security validation status
 
@@ -475,6 +514,7 @@ Purpose: Document successful completion for coordination
 ## 🎯 Completion Checklist
 
 ### **Before Marking Complete - ALL Must Be ✅**
+
 - [ ] middleware/ directory coverage ≥ 80%
 - [ ] 80+ middleware test cases implemented
 - [ ] All security middleware tested (auth, rate limiting, validation)
@@ -490,6 +530,7 @@ Purpose: Document successful completion for coordination
 - [ ] Serena validation confirms completion
 
 ### **Deliverables**
+
 1. **tests/integration/middleware/middleware.comprehensive.test.ts** - Complete test suite
 2. **PHASE2_MIDDLEWARE_PROGRESS.md** - Progress tracking report
 3. **PHASE2_MIDDLEWARE_COMPLETION.md** - Final completion report
@@ -500,6 +541,7 @@ Purpose: Document successful completion for coordination
 ## 🚨 Critical Reminders
 
 ### **ABSOLUTE REQUIREMENTS**
+
 - **SECURITY FIRST**: All security middleware must be thoroughly tested
 - **NO BYPASS ALLOWED**: All security bypass attempts must be blocked
 - **COMPLETE COVERAGE**: All middleware functions must be tested
@@ -507,6 +549,7 @@ Purpose: Document successful completion for coordination
 - **COMPLETE TESTING**: Task incomplete until thoroughly tested
 
 ### **SUCCESS DEFINITION**
+
 This agent is successful ONLY when middleware/ directory achieves 80%+ test coverage through comprehensive security and functionality testing, with all security measures verified and no bypass vulnerabilities.
 
 **Agent Status**: Ready for deployment after Phase 1 completion

@@ -41,30 +41,30 @@ export const validateEmail = (email: string): boolean => {
  */
 export const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];
-  
+
   if (password.length < 8) {
     errors.push('Password must be at least 8 characters long');
   }
-  
+
   if (!/[A-Z]/.test(password)) {
     errors.push('Password must contain at least one uppercase letter');
   }
-  
+
   if (!/[a-z]/.test(password)) {
     errors.push('Password must contain at least one lowercase letter');
   }
-  
+
   if (!/\d/.test(password)) {
     errors.push('Password must contain at least one number');
   }
-  
+
   if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
     errors.push('Password must contain at least one special character');
   }
-  
+
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 };
 
@@ -74,29 +74,29 @@ export const validatePassword = (password: string): { isValid: boolean; errors: 
 export const getPasswordStrength = (password: string): { score: number; feedback: string } => {
   let score = 0;
   const feedback: string[] = [];
-  
+
   if (password.length >= 8) score += 1;
   else feedback.push('Use at least 8 characters');
-  
+
   if (password.length >= 12) score += 1;
   else feedback.push('Consider using 12+ characters');
-  
+
   if (/[A-Z]/.test(password)) score += 1;
   else feedback.push('Add uppercase letters');
-  
+
   if (/[a-z]/.test(password)) score += 1;
   else feedback.push('Add lowercase letters');
-  
+
   if (/\d/.test(password)) score += 1;
   else feedback.push('Add numbers');
-  
+
   if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score += 1;
   else feedback.push('Add special characters');
-  
+
   const strengthLevels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
   return {
     score,
-    feedback: `${strengthLevels[score] || 'Very Weak'}${feedback.length ? ': ' + feedback.join(', ') : ''}`
+    feedback: `${strengthLevels[score] || 'Very Weak'}${feedback.length ? ': ' + feedback.join(', ') : ''}`,
   };
 };
 
@@ -127,19 +127,23 @@ export const rateLimitKey = (ip: string, endpoint?: string): string => {
   return endpoint ? `${ip}:${endpoint}` : ip;
 };
 
-export const isRateLimited = (key: string, limit: number = 100, windowMs: number = 15 * 60 * 1000): boolean => {
+export const isRateLimited = (
+  key: string,
+  limit: number = 100,
+  windowMs: number = 15 * 60 * 1000
+): boolean => {
   const now = Date.now();
   const record = rateLimitStore.get(key);
-  
+
   if (!record || now > record.resetTime) {
     rateLimitStore.set(key, { count: 1, resetTime: now + windowMs });
     return false;
   }
-  
+
   if (record.count >= limit) {
     return true;
   }
-  
+
   record.count++;
   return false;
 };
@@ -178,7 +182,10 @@ export const decryptSensitiveData = (encryptedText: string): string => {
 /**
  * PII masking utility
  */
-export const maskPII = (data: string, type: 'email' | 'phone' | 'ssn' | 'creditcard' = 'email'): string => {
+export const maskPII = (
+  data: string,
+  type: 'email' | 'phone' | 'ssn' | 'creditcard' = 'email'
+): string => {
   switch (type) {
     case 'email':
       return data.replace(/(.{1,3}).*@(.*)/, '$1***@$2');
@@ -221,17 +228,17 @@ export const generateOTP = (length: number = 6): string => {
 
 export const validateOTP = (identifier: string, providedOTP: string): boolean => {
   const record = otpStore.get(identifier);
-  
+
   if (!record || Date.now() > record.expiresAt) {
     otpStore.delete(identifier);
     return false;
   }
-  
+
   const isValid = record.otp === providedOTP;
   if (isValid) {
     otpStore.delete(identifier);
   }
-  
+
   return isValid;
 };
 

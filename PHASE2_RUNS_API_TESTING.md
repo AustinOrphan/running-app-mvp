@@ -1,9 +1,11 @@
 # 🏃 Phase 2: Runs API Testing Agent
 
 ## 🎯 Mission Statement
+
 **Objective**: Transform routes/runs.ts from 0% to 80%+ test coverage by implementing comprehensive CRUD operations testing for running data management.
 
-**Success Criteria**: 
+**Success Criteria**:
+
 - Runs routes coverage: 0% → 80%+
 - All CRUD operations thoroughly tested
 - Data integrity and validation verified
@@ -15,6 +17,7 @@
 ## 🚀 Agent Instructions
 
 ### **CRITICAL REQUIREMENTS**
+
 - **NO INDEPENDENT DECISIONS**: Follow these instructions exactly
 - **USE SPECIFIC MCP TOOLS**: Only use tools specified in each step
 - **DOCUMENT DEVIATIONS**: Any issues or changes → create markdown file
@@ -28,32 +31,36 @@
 ## 📋 Step 1: Runs Route Analysis
 
 ### **1.1 Read Runs Route File**
+
 ```
 Tool: mcp__filesystem__read_file
-Parameters: 
+Parameters:
   path: "routes/runs.ts"
 Purpose: Analyze all running data CRUD endpoints and business logic
 ```
 
 ### **1.2 Read Database Schema**
+
 ```
-Tool: mcp__filesystem__read_file  
+Tool: mcp__filesystem__read_file
 Parameters:
   path: "prisma/schema.prisma"
 Purpose: Understand Run model structure and relationships
 ```
 
 ### **1.3 Use Serena to Find Runs Symbols**
+
 ```
 Tool: mcp__serena__find_symbol
 Parameters:
   name_path: "/"
-  relative_path: "routes/runs.ts" 
+  relative_path: "routes/runs.ts"
   include_body: true
 Purpose: Identify all runs endpoints and functions for testing
 ```
 
 ### **🔍 Validation Checkpoint 1**
+
 ```
 Tool: mcp__serena__think_about_collected_information
 Purpose: Confirm all runs endpoints identified and data model understood
@@ -64,6 +71,7 @@ Purpose: Confirm all runs endpoints identified and data model understood
 ## 📝 Step 2: Test File Creation
 
 ### **2.1 Create Comprehensive Runs Test File**
+
 ```
 Tool: mcp__filesystem__write_file
 Parameters:
@@ -73,6 +81,7 @@ Purpose: Implement comprehensive runs CRUD testing
 ```
 
 ### **Test File Template Structure:**
+
 ```typescript
 import request from 'supertest';
 import { app } from '../../../server';
@@ -94,7 +103,7 @@ describe('Runs API Routes', () => {
   });
 
   afterAll(async () => {
-    // Database cleanup  
+    // Database cleanup
   });
 
   beforeEach(async () => {
@@ -176,6 +185,7 @@ describe('Runs API Routes', () => {
 ### **Required Test Cases (Minimum 60 tests):**
 
 #### **Create Run Tests (12+ tests)**
+
 - Valid run creation with all fields
 - Valid run creation with minimum fields
 - Invalid distance (negative, zero, too large)
@@ -189,7 +199,8 @@ describe('Runs API Routes', () => {
 - SQL injection in text fields
 - XSS in description fields
 
-#### **Get Runs Tests (15+ tests)**  
+#### **Get Runs Tests (15+ tests)**
+
 - Get all runs for authenticated user
 - Get runs with pagination (limit, offset)
 - Get runs with date filtering
@@ -207,6 +218,7 @@ describe('Runs API Routes', () => {
 - Concurrent request handling
 
 #### **Get Single Run Tests (8+ tests)**
+
 - Get existing run by ID
 - Get non-existent run (404)
 - Get run belonging to other user (403)
@@ -217,6 +229,7 @@ describe('Runs API Routes', () => {
 - Run with minimal fields
 
 #### **Update Run Tests (12+ tests)**
+
 - Update all editable fields
 - Update single field
 - Partial updates
@@ -231,6 +244,7 @@ describe('Runs API Routes', () => {
 - Race condition testing
 
 #### **Delete Run Tests (8+ tests)**
+
 - Delete existing run
 - Delete non-existent run (404)
 - Delete run belonging to other user (403)
@@ -241,8 +255,9 @@ describe('Runs API Routes', () => {
 - Bulk deletion
 
 #### **Data Validation Tests (10+ tests)**
+
 - Distance bounds validation
-- Duration bounds validation  
+- Duration bounds validation
 - Pace calculation accuracy
 - Date range validation
 - GPS coordinate bounds
@@ -253,6 +268,7 @@ describe('Runs API Routes', () => {
 - User data association
 
 #### **User Isolation Security Tests (8+ tests)**
+
 - User can only see own runs
 - User cannot modify others' runs
 - User cannot delete others' runs
@@ -263,6 +279,7 @@ describe('Runs API Routes', () => {
 - Token tampering detection
 
 #### **Performance and Scalability Tests (7+ tests)**
+
 - Large dataset retrieval
 - Bulk run creation
 - Complex filtering performance
@@ -272,6 +289,7 @@ describe('Runs API Routes', () => {
 - Memory usage with large results
 
 ### **🔍 Validation Checkpoint 2**
+
 ```
 Tool: mcp__serena__think_about_collected_information
 Purpose: Verify test file covers all runs functionality comprehensively
@@ -282,6 +300,7 @@ Purpose: Verify test file covers all runs functionality comprehensively
 ## 🧪 Step 3: Test Execution and Validation
 
 ### **3.1 Run Integration Tests**
+
 ```
 Tool: mcp__serena__execute_shell_command
 Parameters:
@@ -290,14 +309,16 @@ Purpose: Execute runs API tests and verify functionality
 ```
 
 ### **3.2 Run Coverage Analysis**
+
 ```
-Tool: mcp__serena__execute_shell_command  
+Tool: mcp__serena__execute_shell_command
 Parameters:
   command: "npm run test:coverage:integration"
 Purpose: Measure runs route coverage improvement
 ```
 
 ### **3.3 Read Coverage Report**
+
 ```
 Tool: mcp__filesystem__read_file
 Parameters:
@@ -306,6 +327,7 @@ Purpose: Verify routes/runs.ts coverage meets 80%+ requirement
 ```
 
 ### **🔍 Validation Checkpoint 3**
+
 ```
 Tool: mcp__serena__think_about_collected_information
 Purpose: Confirm tests pass and coverage targets achieved
@@ -316,6 +338,7 @@ Purpose: Confirm tests pass and coverage targets achieved
 ## 🔧 Step 4: Quality Assurance
 
 ### **4.1 Run Full Test Suite**
+
 ```
 Tool: mcp__serena__execute_shell_command
 Parameters:
@@ -323,7 +346,8 @@ Parameters:
 Purpose: Ensure no regressions in existing functionality
 ```
 
-### **4.2 Run Linting Check**  
+### **4.2 Run Linting Check**
+
 ```
 Tool: mcp__serena__execute_shell_command
 Parameters:
@@ -332,6 +356,7 @@ Purpose: Verify no ESLint violations introduced
 ```
 
 ### **4.3 Run Type Checking**
+
 ```
 Tool: mcp__serena__execute_shell_command
 Parameters:
@@ -340,6 +365,7 @@ Purpose: Ensure TypeScript compliance
 ```
 
 ### **🔍 Validation Checkpoint 4**
+
 ```
 Tool: mcp__serena__think_about_task_adherence
 Purpose: Confirm all requirements met and no regressions
@@ -350,6 +376,7 @@ Purpose: Confirm all requirements met and no regressions
 ## 📊 Step 5: Final Validation and Completion
 
 ### **5.1 Final Coverage Verification**
+
 ```
 Tool: mcp__serena__execute_shell_command
 Parameters:
@@ -358,27 +385,31 @@ Purpose: Final coverage measurement
 ```
 
 ### **5.2 Create Progress Report**
+
 ```
 Tool: mcp__filesystem__write_file
 Parameters:
-  path: "PHASE2_RUNS_PROGRESS.md" 
+  path: "PHASE2_RUNS_PROGRESS.md"
   content: [Detailed progress report with metrics]
 Purpose: Document achievement of objectives
 ```
 
 ### **5.3 Final Completion Check**
+
 ```
 Tool: mcp__serena__think_about_whether_you_are_done
 Purpose: Confirm all success criteria met
 ```
 
 ### **5.4 Summarize Changes**
+
 ```
 Tool: mcp__serena__summarize_changes
 Purpose: Create final summary of runs API testing implementation
 ```
 
 ### **5.5 Create Completion Report**
+
 ```
 Tool: mcp__filesystem__write_file
 Parameters:
@@ -392,7 +423,9 @@ Purpose: Document successful completion for coordination
 ## ⚠️ Error Handling Protocol
 
 ### **If Tests Fail**
+
 1. Create issue documentation:
+
    ```
    Tool: mcp__filesystem__write_file
    Parameters:
@@ -401,6 +434,7 @@ Purpose: Document successful completion for coordination
    ```
 
 2. Use Serena validation to analyze:
+
    ```
    Tool: mcp__serena__think_about_collected_information
    ```
@@ -408,8 +442,9 @@ Purpose: Document successful completion for coordination
 3. **DO NOT** mark task complete until all tests pass
 
 ### **If Coverage Below 80%**
+
 1. Identify missing coverage areas
-2. Add additional tests for uncovered code paths  
+2. Add additional tests for uncovered code paths
 3. Repeat testing cycle until target achieved
 
 ---
@@ -417,6 +452,7 @@ Purpose: Document successful completion for coordination
 ## 📈 Success Metrics
 
 ### **Primary Metrics**
+
 - **Runs Route Coverage**: 0% → 80%+
 - **Test Count**: 60+ comprehensive test cases
 - **CRUD Coverage**: 100% of all operations
@@ -424,12 +460,14 @@ Purpose: Document successful completion for coordination
 - **Integration**: No regressions introduced
 
 ### **Quality Metrics**
+
 - **Data Integrity**: All validation rules tested
 - **User Security**: Complete isolation verification
 - **Performance**: Bulk operations tested
 - **Error Handling**: All edge cases covered
 
 ### **Business Logic Metrics**
+
 - **Distance Validation**: All boundary conditions
 - **Duration Validation**: Realistic constraints
 - **Pace Calculations**: Mathematical accuracy
@@ -440,11 +478,13 @@ Purpose: Document successful completion for coordination
 ## 🔗 Dependencies and Coordination
 
 ### **Phase Dependencies**
+
 - **Requires**: Phase 1 (Test Infrastructure Setup) completed
 - **Coordinates**: With Phase 2 Authentication (user auth testing)
 - **Enables**: Phase 3 Integration testing with goals/stats
 
 ### **File Dependencies**
+
 - **Reads**: routes/runs.ts, prisma/schema.prisma
 - **Creates**: tests/integration/api/runs.comprehensive.test.ts
 - **Updates**: Coverage metrics, test suite status
@@ -454,6 +494,7 @@ Purpose: Document successful completion for coordination
 ## 🎯 Completion Checklist
 
 ### **Before Marking Complete - ALL Must Be ✅**
+
 - [ ] routes/runs.ts coverage ≥ 80%
 - [ ] 60+ runs API test cases implemented
 - [ ] All CRUD operations tested (Create, Read, Update, Delete)
@@ -468,6 +509,7 @@ Purpose: Document successful completion for coordination
 - [ ] Serena validation confirms completion
 
 ### **Deliverables**
+
 1. **tests/integration/api/runs.comprehensive.test.ts** - Complete test suite
 2. **PHASE2_RUNS_PROGRESS.md** - Progress tracking report
 3. **PHASE2_RUNS_COMPLETION.md** - Final completion report
@@ -478,6 +520,7 @@ Purpose: Document successful completion for coordination
 ## 🚨 Critical Reminders
 
 ### **ABSOLUTE REQUIREMENTS**
+
 - **USER ISOLATION**: Verify users can only access own data
 - **DATA INTEGRITY**: Test all validation rules thoroughly
 - **NO INDEPENDENT DECISIONS**: Follow instructions exactly
@@ -485,6 +528,7 @@ Purpose: Document successful completion for coordination
 - **DOCUMENT EVERYTHING**: All progress, issues, and completions
 
 ### **SUCCESS DEFINITION**
+
 This agent is successful ONLY when routes/runs.ts achieves 80%+ test coverage through comprehensive CRUD testing, with complete user isolation verification and all tests passing.
 
 **Agent Status**: Ready for deployment after Phase 1 completion

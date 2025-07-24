@@ -22,7 +22,7 @@ describe('Races API Integration Tests', () => {
       const token = testDb.generateToken(user.id, user.email);
 
       // Create test races
-      const races = await Promise.all([
+      await Promise.all([
         testDb.prisma.race.create({
           data: {
             userId: user.id,

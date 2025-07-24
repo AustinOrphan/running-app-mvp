@@ -31,7 +31,7 @@ const mockEncryptedData = 'encrypted-data-hex';
 
 vi.mock('crypto', () => ({
   default: {
-    randomBytes: vi.fn((length) => {
+    randomBytes: vi.fn(length => {
       if (length === 16) return mockIv;
       if (length === 32) return Buffer.from('12345678901234567890123456789012');
       return Buffer.alloc(length);
@@ -46,7 +46,7 @@ vi.mock('crypto', () => ({
     createDecipheriv: vi.fn(() => ({
       setAAD: vi.fn(),
       setAuthTag: vi.fn(),
-      update: vi.fn((data) => {
+      update: vi.fn(data => {
         if (data === mockEncryptedData) return 'decrypted-';
         return data;
       }),
@@ -70,7 +70,8 @@ describe('Data Encryption', () => {
   describe('Initialization', () => {
     it('should initialize with environment key in production', () => {
       process.env.NODE_ENV = 'production';
-      process.env.DATA_ENCRYPTION_KEY = '1234567890123456789012345678901234567890123456789012345678901234'; // 64 chars hex
+      process.env.DATA_ENCRYPTION_KEY =
+        '1234567890123456789012345678901234567890123456789012345678901234'; // 64 chars hex
 
       // Force reinitialization
       const DataEncryption = dataEncryption.constructor;
@@ -88,7 +89,7 @@ describe('Data Encryption', () => {
       delete process.env.DATA_ENCRYPTION_KEY;
 
       const DataEncryption = dataEncryption.constructor;
-      
+
       expect(() => new DataEncryption()).toThrow(
         'CRITICAL: DATA_ENCRYPTION_KEY environment variable must be set in production'
       );
@@ -109,7 +110,8 @@ describe('Data Encryption', () => {
     });
 
     it('should support hex encoded keys', () => {
-      process.env.DATA_ENCRYPTION_KEY = '1234567890123456789012345678901234567890123456789012345678901234'; // 64 chars = 32 bytes
+      process.env.DATA_ENCRYPTION_KEY =
+        '1234567890123456789012345678901234567890123456789012345678901234'; // 64 chars = 32 bytes
 
       const DataEncryption = dataEncryption.constructor;
       const instance = new DataEncryption();
@@ -131,7 +133,7 @@ describe('Data Encryption', () => {
       process.env.DATA_ENCRYPTION_KEY = '1234'; // Too short
 
       const DataEncryption = dataEncryption.constructor;
-      
+
       expect(() => new DataEncryption()).toThrow('Invalid DATA_ENCRYPTION_KEY format');
       expect(logError).toHaveBeenCalled();
     });
@@ -153,11 +155,7 @@ describe('Data Encryption', () => {
         encrypted: true,
       });
 
-      expect(crypto.createCipheriv).toHaveBeenCalledWith(
-        'aes-256-gcm',
-        expect.any(Buffer),
-        mockIv
-      );
+      expect(crypto.createCipheriv).toHaveBeenCalledWith('aes-256-gcm', expect.any(Buffer), mockIv);
     });
 
     it('should decrypt data', () => {
@@ -195,11 +193,7 @@ describe('Data Encryption', () => {
       });
 
       expect(() => encryptData('test')).toThrow('Encryption failed');
-      expect(logError).toHaveBeenCalledWith(
-        'encryption',
-        'encrypt',
-        expect.any(Error)
-      );
+      expect(logError).toHaveBeenCalledWith('encryption', 'encrypt', expect.any(Error));
     });
 
     it('should handle decryption errors gracefully', () => {
@@ -215,22 +209,18 @@ describe('Data Encryption', () => {
       };
 
       expect(() => decryptData(encryptedData)).toThrow('Decryption failed');
-      expect(logError).toHaveBeenCalledWith(
-        'encryption',
-        'decrypt',
-        expect.any(Error)
-      );
+      expect(logError).toHaveBeenCalledWith('encryption', 'decrypt', expect.any(Error));
     });
   });
 
   describe('Object Encryption/Decryption', () => {
     beforeEach(() => {
       process.env.NODE_ENV = 'development';
-      
+
       // Mock for JSON string encryption
       vi.mocked(crypto.createCipheriv).mockReturnValue({
         setAAD: vi.fn(),
-        update: vi.fn((data) => {
+        update: vi.fn(data => {
           if (data.includes('{')) return 'encrypted-json';
           return 'encrypted';
         }),
@@ -241,7 +231,7 @@ describe('Data Encryption', () => {
       vi.mocked(crypto.createDecipheriv).mockReturnValue({
         setAAD: vi.fn(),
         setAuthTag: vi.fn(),
-        update: vi.fn((data) => {
+        update: vi.fn(data => {
           if (data === 'encrypted-json-data') return '{"name":"John","age":';
           return 'decrypted-';
         }),
@@ -278,7 +268,7 @@ describe('Data Encryption', () => {
   describe('Field-level Encryption', () => {
     beforeEach(() => {
       process.env.NODE_ENV = 'development';
-      
+
       // Reset to default mocks for field encryption
       vi.mocked(crypto.createCipheriv).mockReturnValue({
         setAAD: vi.fn(),
@@ -290,7 +280,7 @@ describe('Data Encryption', () => {
       vi.mocked(crypto.createDecipheriv).mockReturnValue({
         setAAD: vi.fn(),
         setAuthTag: vi.fn(),
-        update: vi.fn((data) => {
+        update: vi.fn(data => {
           if (data === mockEncryptedData) return 'decrypted-';
           return data;
         }),
