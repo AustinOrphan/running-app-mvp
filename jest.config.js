@@ -48,4 +48,5 @@ export default {
   resolver: '<rootDir>/jest-resolver.cjs',
   testTimeout: 10000,
   verbose: true,
+  maxWorkers: 1, // Run integration tests sequentially to prevent database race conditions
 };

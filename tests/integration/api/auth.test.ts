@@ -11,8 +11,8 @@ describe('Auth API Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    // Database is already cleaned by jestSetup
-    // Add any test-specific setup here
+    // Ensure clean database state for each test
+    await testDb.clean();
   });
 
   describe('POST /api/auth/register', () => {
