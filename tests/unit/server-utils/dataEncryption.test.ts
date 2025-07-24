@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   encryptData,
   decryptData,
@@ -23,7 +24,7 @@ describe('Data Encryption Utilities', () => {
   beforeEach(() => {
     // Set a test encryption key
     process.env.DATA_ENCRYPTION_KEY = crypto.randomBytes(32).toString('hex');
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {

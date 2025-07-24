@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import jwt from 'jsonwebtoken';
 import {
   generateTokens,
@@ -18,7 +19,7 @@ describe('JWT Utilities', () => {
 
   beforeEach(() => {
     // Clear blacklist by waiting a bit (since we can't directly clear it)
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('generateTokens', () => {
@@ -193,8 +194,8 @@ describe('JWT Utilities', () => {
         expect(isTokenBlacklisted(jti)).toBe(true);
       });
 
-      test('blacklisted token is automatically removed after expiration', done => {
-        jest.useRealTimers();
+      test('blacklisted token is automatically removed after expiration', () => {
+        vi.useFakeTimers();
         const jti = 'test-jti-expire';
         const expiresAt = Math.floor(Date.now() / 1000) + 1; // 1 second from now
 
@@ -202,10 +203,10 @@ describe('JWT Utilities', () => {
         expect(isTokenBlacklisted(jti)).toBe(true);
 
         // Wait for token to expire
-        setTimeout(() => {
-          expect(isTokenBlacklisted(jti)).toBe(false);
-          done();
-        }, 1500);
+        vi.advanceTimersByTime(1500);
+        expect(isTokenBlacklisted(jti)).toBe(false);
+
+        vi.useRealTimers();
       }, 10000);
     });
 

@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { CreateGoalModal } from '../../../src/components/CreateGoalModal';
 import { GOAL_TYPES, GOAL_PERIODS, GOAL_TYPE_CONFIGS } from '../../../src/types/goals';
@@ -27,7 +27,16 @@ describe('CreateGoalModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetAllMocks();
+    vi.useRealTimers(); // Ensure real timers are used
+    mockOnSubmit.mockReset();
+    mockOnClose.mockReset();
     mockOnSubmit.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   describe('Modal Visibility', () => {
@@ -485,11 +494,20 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
+      // Wait for the form submission to complete
       await waitFor(() => {
-        expect(titleInput.value).toBe('');
-        expect(descriptionInput.value).toBe('');
-        expect(targetValueInput.value).toBe('');
+        expect(mockOnSubmit).toHaveBeenCalled();
       });
+
+      // Then wait for the form to reset
+      await waitFor(
+        () => {
+          expect(titleInput.value).toBe('');
+          expect(descriptionInput.value).toBe('');
+          expect(targetValueInput.value).toBe('');
+        },
+        { timeout: 3000 }
+      );
     });
 
     it('handles submission error gracefully', async () => {

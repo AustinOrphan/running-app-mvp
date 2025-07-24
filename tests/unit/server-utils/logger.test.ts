@@ -1,214 +1,524 @@
-import { logInfo, logError, logWarn, logDatabase, logAuth } from '../../../server/utils/logger.js';
-// Using mocked logger from mockSetup
-// Logger utility tests
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {
+  logger,
+  logError,
+  logWarn,
+  logInfo,
+  logDatabase,
+  logAuth,
+  correlationMiddleware,
+} from '../../../server/utils/logger.js';
+import { secureLogger } from '../../../server/utils/secureLogger.js';
+import type { Request } from 'express';
 
-describe('Logger Utility Functions', () => {
-  // Mock request is set up in beforeEach
-  let dateNowSpy: jest.SpyInstance;
-  let consoleLogSpy: jest.SpyInstance;
-  let consoleErrorSpy: jest.SpyInstance;
-  let consoleWarnSpy: jest.SpyInstance;
+// Mock dependencies
+vi.mock('../../../server/utils/secureLogger.js', () => ({
+  secureLogger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+vi.mock('uuid', () => ({
+  v4: vi.fn(() => 'mock-uuid-12345'),
+}));
+
+describe('Enhanced Logger', () => {
+  const originalEnv = process.env;
 
   beforeEach(() => {
-    // Set up console spies
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-    mockRequest = {
-      ip: '127.0.0.1',
-      method: 'GET',
-      originalUrl: '/test',
-      headers: { 'user-agent': 'test-agent' },
-    };
-
-    dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(1704067200000); // 2024-01-01
-    jest.clearAllMocks();
+    process.env = { ...originalEnv };
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    consoleLogSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
+    process.env = originalEnv;
   });
 
-  describe('logInfo', () => {
-    test('logs info messages with category and operation', () => {
-      logInfo('test-category', 'test-operation', 'Test message');
+  describe('Error Categorization', () => {
+    it('should categorize JWT errors as AuthenticationError', () => {
+      const error = new Error('JsonWebTokenError');
+      error.constructor = { name: 'JsonWebTokenError' };
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[INFO]'),
-        expect.stringContaining('[2024-01-01T00:00:00.000Z]'),
-        expect.stringContaining('[test-category:test-operation]'),
-        'Test message'
+      logger.error(
+        { component: 'auth', operation: 'login', req: undefined },
+        error,
+        'JWT validation failed'
+      );
+
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        'JWT validation failed',
+        undefined,
+        error,
+        expect.objectContaining({
+          error: expect.objectContaining({
+            type: 'AuthenticationError',
+          }),
+        })
       );
     });
 
-    test('logs info messages with additional data', () => {
-      const data = { key: 'value', number: 123 };
-      logInfo('auth', 'login', 'User logged in', data);
+    it('should categorize Prisma errors as DatabaseError', () => {
+      const error = new Error('Database connection failed');
+      error.constructor = { name: 'PrismaClientKnownRequestError' };
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[INFO]'),
-        expect.stringContaining('[2024-01-01T00:00:00.000Z]'),
-        expect.stringContaining('[auth:login]'),
-        'User logged in',
-        JSON.stringify(data)
+      logger.error({ component: 'database', operation: 'query', req: undefined }, error);
+
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        expect.any(String),
+        undefined,
+        error,
+        expect.objectContaining({
+          error: expect.objectContaining({
+            type: 'DatabaseError',
+          }),
+        })
       );
     });
 
-    test('handles null and undefined data', () => {
-      logInfo('test', 'op', 'Message', null);
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[INFO]'),
-        expect.any(String),
-        expect.any(String),
-        'Message'
-      );
+    it('should categorize Zod errors as ValidationError', () => {
+      const error = new Error('Validation failed');
+      error.constructor = { name: 'ZodError' };
 
-      logInfo('test', 'op', 'Message', undefined);
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[INFO]'),
-        expect.any(String),
-        expect.any(String),
-        'Message'
-      );
-    });
-  });
+      logger.error({ component: 'api', operation: 'validate', req: undefined }, error);
 
-  describe('logError', () => {
-    test('logs error messages', () => {
-      const error = new Error('Test error');
-      logError('db', 'query', error);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[ERROR]'),
-        expect.stringContaining('[2024-01-01T00:00:00.000Z]'),
-        expect.stringContaining('[db:query]'),
-        'Test error'
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        expect.any(String),
+        undefined,
+        error,
+        expect.objectContaining({
+          error: expect.objectContaining({
+            type: 'ValidationError',
+          }),
+        })
       );
     });
 
-    test('logs error with user ID', () => {
-      const error = new Error('Auth error');
-      logError('auth', 'verify', error, 'user123');
+    it('should use status code for categorization when available', () => {
+      const error = new Error('Not found');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[ERROR]'),
-        expect.stringContaining('[2024-01-01T00:00:00.000Z]'),
-        expect.stringContaining('[auth:verify]'),
-        expect.stringContaining('[User: user123]'),
-        'Auth error'
+      logger.error(
+        {
+          component: 'api',
+          operation: 'fetch',
+          req: undefined,
+          context: { statusCode: 404 },
+        },
+        error
+      );
+
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        expect.any(String),
+        undefined,
+        error,
+        expect.objectContaining({
+          error: expect.objectContaining({
+            type: 'NotFoundError',
+          }),
+        })
       );
     });
 
-    test('logs error with additional data', () => {
-      const error = new Error('Validation error');
-      const data = { field: 'email', value: 'invalid' };
-      logError('validation', 'check', error, undefined, data);
+    it('should fallback to string matching for error categorization', () => {
+      const testCases = [
+        { message: 'unauthorized access', expectedType: 'AuthenticationError' },
+        { message: 'access denied', expectedType: 'AuthorizationError' },
+        { message: 'field is required', expectedType: 'ValidationError' },
+        { message: 'already exists', expectedType: 'ConflictError' },
+        { message: 'network timeout', expectedType: 'NetworkError' },
+        { message: 'config not found', expectedType: 'NotFoundError' },
+      ];
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[ERROR]'),
-        expect.any(String),
-        expect.any(String),
-        'Validation error',
-        JSON.stringify(data)
-      );
-    });
+      testCases.forEach(({ message, expectedType }) => {
+        const error = new Error(message);
 
-    test('logs error with stack trace', () => {
-      const error = new Error('Stack trace error');
-      error.stack = 'Error: Stack trace error\n    at test.js:10:5';
-      logError('system', 'crash', error);
+        logger.error({ component: 'test', operation: 'test', req: undefined }, error);
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[ERROR]'),
-        expect.any(String),
-        expect.any(String),
-        'Stack trace error',
-        expect.stringContaining('Stack:'),
-        error.stack
-      );
-    });
+        expect(secureLogger.error).toHaveBeenCalledWith(
+          expect.any(String),
+          undefined,
+          error,
+          expect.objectContaining({
+            error: expect.objectContaining({
+              type: expectedType,
+            }),
+          })
+        );
 
-    test('handles non-Error objects', () => {
-      const errorString = 'String error';
-      logError('api', 'parse', errorString as unknown as Error);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[ERROR]'),
-        expect.any(String),
-        expect.any(String),
-        'String error'
-      );
-    });
-  });
-
-  describe('logWarn', () => {
-    test('logs warning messages', () => {
-      logWarn('security', 'suspicious', 'Suspicious activity detected');
-
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[WARN]'),
-        expect.stringContaining('[2024-01-01T00:00:00.000Z]'),
-        expect.stringContaining('[security:suspicious]'),
-        'Suspicious activity detected'
-      );
-    });
-
-    test('logs warning with data', () => {
-      const data = { attempts: 5, ip: '192.168.1.1' };
-      logWarn('auth', 'failed-attempts', 'Multiple failed login attempts', data);
-
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[WARN]'),
-        expect.any(String),
-        expect.any(String),
-        'Multiple failed login attempts',
-        JSON.stringify(data)
-      );
-    });
-  });
-
-  describe('logDatabase', () => {
-    test('logs database operations', () => {
-      logDatabase('query', undefined, undefined, { table: 'users' });
-
-      expect(consoleLogSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('logAuth', () => {
-    test('logs auth operations', () => {
-      logAuth('login', undefined, undefined, { userId: '123' });
-
-      expect(consoleLogSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('Error scenarios', () => {
-    test('handles logging errors during log operation', () => {
-      // Force JSON.stringify to throw
-      const circularRef: Record<string, unknown> = {};
-      circularRef.self = circularRef;
-
-      // This should not throw, just log without the data
-      expect(() => {
-        logInfo('test', 'circular', 'Message', circularRef);
-      }).not.toThrow();
-
-      expect(consoleLogSpy).toHaveBeenCalled();
-    });
-
-    test('handles Date.now() errors gracefully', () => {
-      dateNowSpy.mockImplementation(() => {
-        throw new Error('Date error');
+        vi.clearAllMocks();
       });
+    });
 
-      // Should still log, even with broken timestamp
-      expect(() => {
-        logInfo('test', 'date-error', 'Message');
-      }).not.toThrow();
+    it('should categorize unknown errors as UnknownError', () => {
+      const error = new Error('Something went wrong');
+
+      logger.error({ component: 'test', operation: 'test', req: undefined }, error);
+
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        expect.any(String),
+        undefined,
+        error,
+        expect.objectContaining({
+          error: expect.objectContaining({
+            type: 'UnknownError',
+          }),
+        })
+      );
+    });
+  });
+
+  describe('Correlation ID Management', () => {
+    it('should generate correlation ID when not present', () => {
+      const mockReq = {} as Request;
+
+      logger.info({ component: 'api', operation: 'request', req: mockReq }, 'New request');
+
+      expect((mockReq as any).correlationId).toBe('mock-uuid-12345');
+      expect(secureLogger.info).toHaveBeenCalledWith(
+        expect.any(String),
+        mockReq,
+        expect.objectContaining({
+          correlationId: 'mock-uuid-12345',
+        })
+      );
+    });
+
+    it('should use existing correlation ID from request', () => {
+      const mockReq = { correlationId: 'existing-correlation-id' } as Request & {
+        correlationId: string;
+      };
+
+      logger.info(
+        { component: 'api', operation: 'request', req: mockReq },
+        'Request with correlation ID'
+      );
+
+      expect(secureLogger.info).toHaveBeenCalledWith(
+        expect.any(String),
+        mockReq,
+        expect.objectContaining({
+          correlationId: 'existing-correlation-id',
+        })
+      );
+    });
+
+    it('should handle missing request object', () => {
+      logger.info({ component: 'system', operation: 'startup', req: undefined }, 'System starting');
+
+      expect(secureLogger.info).toHaveBeenCalledWith(
+        expect.any(String),
+        undefined,
+        expect.objectContaining({
+          correlationId: 'mock-uuid-12345',
+        })
+      );
+    });
+  });
+
+  describe('Structured Logging', () => {
+    it('should create structured log data with all fields', () => {
+      const mockReq = { correlationId: 'test-correlation' } as Request & {
+        correlationId: string;
+      };
+      const context = { userId: 'user123', action: 'create' };
+
+      logger.info(
+        {
+          component: 'api',
+          operation: 'createUser',
+          req: mockReq,
+          context,
+        },
+        'User created'
+      );
+
+      expect(secureLogger.info).toHaveBeenCalledWith(
+        'api:createUser - User created',
+        mockReq,
+        expect.objectContaining({
+          timestamp: expect.any(String),
+          level: 'info',
+          correlationId: 'test-correlation',
+          component: 'api',
+          operation: 'createUser',
+          context,
+        })
+      );
+    });
+
+    it('should include error details in structured data', () => {
+      const error = new Error('Test error');
+      (error as any).code = 'ERR_TEST';
+      process.env.NODE_ENV = 'development';
+
+      logger.error({ component: 'test', operation: 'test', req: undefined }, error);
+
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        expect.any(String),
+        undefined,
+        error,
+        expect.objectContaining({
+          error: expect.objectContaining({
+            message: 'Test error',
+            type: expect.any(String),
+            code: 'ERR_TEST',
+            stack: expect.stringContaining('Error: Test error'),
+          }),
+        })
+      );
+    });
+
+    it('should exclude stack trace in production', () => {
+      const error = new Error('Production error');
+      process.env.NODE_ENV = 'production';
+
+      logger.error({ component: 'test', operation: 'test', req: undefined }, error);
+
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        expect.any(String),
+        undefined,
+        error,
+        expect.objectContaining({
+          error: expect.objectContaining({
+            message: 'Production error',
+            stack: undefined,
+          }),
+        })
+      );
+    });
+  });
+
+  describe('Log Levels', () => {
+    it('should log error messages', () => {
+      const error = new Error('Error message');
+
+      logger.error(
+        { component: 'test', operation: 'test', req: undefined },
+        error,
+        'Custom error message'
+      );
+
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        'Custom error message',
+        undefined,
+        error,
+        expect.any(Object)
+      );
+    });
+
+    it('should log warning messages', () => {
+      logger.warn({ component: 'test', operation: 'test', req: undefined }, 'Warning message');
+
+      expect(secureLogger.warn).toHaveBeenCalledWith(
+        'test:test - Warning message',
+        undefined,
+        expect.any(Object)
+      );
+    });
+
+    it('should log info messages', () => {
+      logger.info({ component: 'test', operation: 'test', req: undefined }, 'Info message');
+
+      expect(secureLogger.info).toHaveBeenCalledWith(
+        'test:test - Info message',
+        undefined,
+        expect.any(Object)
+      );
+    });
+
+    it('should log debug messages only in development', () => {
+      process.env.NODE_ENV = 'development';
+
+      logger.debug({ component: 'test', operation: 'test', req: undefined }, 'Debug message');
+
+      expect(secureLogger.debug).toHaveBeenCalledWith(
+        'test:test - Debug message',
+        undefined,
+        expect.any(Object)
+      );
+    });
+
+    it('should not log debug messages in production', () => {
+      process.env.NODE_ENV = 'production';
+
+      logger.debug({ component: 'test', operation: 'test', req: undefined }, 'Debug message');
+
+      expect(secureLogger.debug).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Specialized Logging Methods', () => {
+    it('should log database operations', () => {
+      const mockReq = {} as Request;
+
+      logger.database('SELECT', mockReq, null, { table: 'users' });
+
+      expect(secureLogger.info).toHaveBeenCalledWith(
+        'database:SELECT - Database operation completed: SELECT',
+        mockReq,
+        expect.objectContaining({
+          component: 'database',
+          operation: 'SELECT',
+          context: { table: 'users' },
+        })
+      );
+    });
+
+    it('should log database errors', () => {
+      const error = new Error('Connection lost');
+      const mockReq = {} as Request;
+
+      logger.database('INSERT', mockReq, error, { table: 'runs' });
+
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        'Database operation failed: INSERT',
+        mockReq,
+        error,
+        expect.objectContaining({
+          component: 'database',
+          operation: 'INSERT',
+          context: { table: 'runs' },
+        })
+      );
+    });
+
+    it('should log authentication events', () => {
+      const mockReq = {} as Request;
+
+      logger.auth('login', mockReq, null, { userId: 'user123' });
+
+      expect(secureLogger.info).toHaveBeenCalledWith(
+        'auth:login - Authentication login successful',
+        mockReq,
+        expect.objectContaining({
+          component: 'auth',
+          operation: 'login',
+          context: { userId: 'user123' },
+        })
+      );
+    });
+
+    it('should log authentication failures', () => {
+      const error = new Error('Invalid credentials');
+      const mockReq = {} as Request;
+
+      logger.auth('login', mockReq, error, { email: 'test@example.com' });
+
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        'Authentication login failed',
+        mockReq,
+        error,
+        expect.objectContaining({
+          component: 'auth',
+          operation: 'login',
+          context: { email: 'test@example.com' },
+        })
+      );
+    });
+  });
+
+  describe('Convenience Functions', () => {
+    it('should provide logError convenience function', () => {
+      const error = new Error('Test error');
+      const mockReq = {} as Request;
+
+      logError('api', 'test', error, mockReq, { extra: 'data' });
+
+      expect(secureLogger.error).toHaveBeenCalled();
+    });
+
+    it('should provide logWarn convenience function', () => {
+      const mockReq = {} as Request;
+
+      logWarn('api', 'test', 'Warning message', mockReq, { extra: 'data' });
+
+      expect(secureLogger.warn).toHaveBeenCalled();
+    });
+
+    it('should provide logInfo convenience function', () => {
+      const mockReq = {} as Request;
+
+      logInfo('api', 'test', 'Info message', mockReq, { extra: 'data' });
+
+      expect(secureLogger.info).toHaveBeenCalled();
+    });
+
+    it('should provide logDatabase convenience function', () => {
+      const mockReq = {} as Request;
+
+      logDatabase('SELECT', mockReq, null, { table: 'users' });
+
+      expect(secureLogger.info).toHaveBeenCalled();
+    });
+
+    it('should provide logAuth convenience function', () => {
+      const mockReq = {} as Request;
+
+      logAuth('logout', mockReq, null, { userId: 'user123' });
+
+      expect(secureLogger.info).toHaveBeenCalled();
+    });
+  });
+
+  describe('Correlation Middleware', () => {
+    it('should create correlation middleware', () => {
+      const middleware = correlationMiddleware();
+      const mockReq = {} as Request;
+      const mockRes = {} as any;
+      const mockNext = vi.fn();
+
+      middleware(mockReq, mockRes, mockNext);
+
+      expect((mockReq as any).correlationId).toBe('mock-uuid-12345');
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('should preserve existing correlation ID', () => {
+      const middleware = correlationMiddleware();
+      const mockReq = { correlationId: 'existing-id' } as Request & { correlationId: string };
+      const mockRes = {} as any;
+      const mockNext = vi.fn();
+
+      middleware(mockReq, mockRes, mockNext);
+
+      expect((mockReq as any).correlationId).toBe('existing-id');
+      expect(mockNext).toHaveBeenCalled();
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle non-Error objects', () => {
+      const notAnError = 'String error';
+
+      logger.error({ component: 'test', operation: 'test', req: undefined }, notAnError);
+
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        expect.any(String),
+        undefined,
+        expect.any(Error),
+        expect.objectContaining({
+          error: expect.objectContaining({
+            message: 'String error',
+          }),
+        })
+      );
+    });
+
+    it('should handle null/undefined errors gracefully', () => {
+      logger.error({ component: 'test', operation: 'test', req: undefined }, null);
+
+      expect(secureLogger.error).toHaveBeenCalledWith(
+        expect.any(String),
+        undefined,
+        expect.any(Error),
+        expect.objectContaining({
+          error: expect.objectContaining({
+            message: 'null',
+          }),
+        })
+      );
     });
   });
 });

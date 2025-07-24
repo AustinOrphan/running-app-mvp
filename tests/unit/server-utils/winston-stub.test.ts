@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { winston } from '../../../server/utils/winston-stub.js';
 // Type imports handled internally
 
@@ -7,21 +8,21 @@ describe('Winston Stub', () => {
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
 
-  let consoleLogSpy: jest.SpyInstance;
-  let consoleErrorSpy: jest.SpyInstance;
-  let consoleWarnSpy: jest.SpyInstance;
+  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
     console.log = originalConsoleLog;
     console.error = originalConsoleError;
     console.warn = originalConsoleWarn;
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('format methods', () => {

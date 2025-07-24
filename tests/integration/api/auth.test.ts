@@ -15,6 +15,11 @@ describe('Auth API Integration Tests', () => {
     await testDb.clean();
   });
 
+  afterAll(async () => {
+    // Properly disconnect from the database to prevent Jest from hanging
+    await testDb.disconnect();
+  });
+
   describe('POST /api/auth/register', () => {
     it('successfully registers a new user', async () => {
       const newUser = {
