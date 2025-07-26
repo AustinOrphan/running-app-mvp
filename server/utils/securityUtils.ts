@@ -393,7 +393,7 @@ export const sanitizeObject = (obj: unknown): unknown => {
  */
 export const securityValidationMiddleware = (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): void => {
   try {
@@ -455,7 +455,7 @@ export const securityValidationMiddleware = (
 /**
  * Enhanced CSRF protection middleware
  */
-export const csrfProtection = (req: Request, res: Response, next: NextFunction): void => {
+export const csrfProtection = (req: Request, _res: Response, next: NextFunction): void => {
   // Skip CSRF for safe methods
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
@@ -481,7 +481,7 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
  * Request size validation middleware
  */
 export const requestSizeValidation = (maxSize: number = 1024 * 1024) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     const contentLength = parseInt(req.headers['content-length'] || '0', 10);
 
     if (contentLength > maxSize) {
@@ -498,7 +498,7 @@ export const requestSizeValidation = (maxSize: number = 1024 * 1024) => {
 /**
  * IP allowlist/blocklist middleware
  */
-export const ipFilterMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+export const ipFilterMiddleware = (req: Request, _res: Response, next: NextFunction): void => {
   const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
 
   // Check blocklist
@@ -521,7 +521,7 @@ export const ipFilterMiddleware = (req: Request, res: Response, next: NextFuncti
 /**
  * Headers security validation
  */
-export const validateSecurityHeaders = (req: Request, res: Response, next: NextFunction): void => {
+export const validateSecurityHeaders = (req: Request, _res: Response, next: NextFunction): void => {
   // Validate User-Agent to block suspicious requests
   const userAgent = req.get('User-Agent') || '';
   const suspiciousPatterns = [

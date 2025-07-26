@@ -274,7 +274,7 @@ export const staticAssetSecurityHeaders = (
  * Development security headers (less restrictive)
  */
 export const developmentSecurityHeaders = (
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): void => {

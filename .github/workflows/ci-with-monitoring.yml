@@ -1,0 +1,152 @@
+name: CI with Resource Monitoring
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop, fix/integration-tests]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  setup-ci-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      ci-env-file: ${{ steps.generate.outputs.env-file }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate CI performance adjustments
+        id: generate
+        run: |
+          npm run ci:performance-adjust
+          echo "env-file=.env.ci" >> $GITHUB_OUTPUT
+
+      - name: Display CI resource limits
+        run: npm run ci:resource-monitor
+
+      - name: Upload CI configuration
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-config
+          path: |
+            .env.ci
+            performance-thresholds-ci.json
+            scripts/ci-env-export.sh
+
+  test-with-monitoring:
+    needs: setup-ci-environment
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-suite: [unit, integration, e2e]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Download CI configuration
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-config
+
+      - name: Apply CI environment settings
+        run: |
+          source scripts/ci-env-export.sh
+          echo "NODE_OPTIONS=$NODE_OPTIONS" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup database
+        if: matrix.test-suite != 'unit'
+        run: |
+          npm run ci-db-setup
+          npm run verify-db-setup
+
+      - name: Install Playwright browsers
+        if: matrix.test-suite == 'e2e'
+        run: npx playwright install --with-deps chromium
+
+      - name: Monitor test resources - ${{ matrix.test-suite }}
+        run: |
+          npm run monitor-test-resources -- --test ${{ matrix.test-suite }}
+        env:
+          CI: true
+          DATABASE_URL: file:./prisma/test.db
+          JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+          NODE_ENV: test
+        continue-on-error: true
+
+      - name: Upload resource reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-reports-${{ matrix.test-suite }}
+          path: performance-reports/
+
+      - name: Cleanup database
+        if: always() && matrix.test-suite != 'unit'
+        run: npm run ci-db-teardown
+
+  analyze-resources:
+    needs: test-with-monitoring
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all resource reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: resource-reports-*
+          merge-multiple: true
+          path: performance-reports/
+
+      - name: Generate summary report
+        run: |
+          echo "## 📊 CI Resource Usage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          for report in performance-reports/test-resources-*.json; do
+            if [ -f "$report" ]; then
+              echo "### $(basename $report .json)" >> $GITHUB_STEP_SUMMARY
+              echo '```json' >> $GITHUB_STEP_SUMMARY
+              jq '.summary' "$report" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: Check resource violations
+        run: |
+          # Check if any tests exceeded resource limits
+          exceeded=false
+
+          for report in performance-reports/test-resources-*.json; do
+            if [ -f "$report" ]; then
+              peak_memory=$(jq '.summary.overallPeakMemory' "$report")
+              if (( $(echo "$peak_memory > 4096" | bc -l) )); then
+                echo "⚠️ Memory limit exceeded in $(basename $report): ${peak_memory}MB > 4096MB"
+                exceeded=true
+              fi
+            fi
+          done
+
+          if [ "$exceeded" = true ]; then
+            echo "::warning::Some tests exceeded resource limits. Review the reports for details."
+          fi

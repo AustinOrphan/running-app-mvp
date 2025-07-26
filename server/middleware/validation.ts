@@ -214,7 +214,7 @@ export function validateRequest<T>(
   schema: ZodSchema<T>,
   target: 'body' | 'params' | 'query' = 'body'
 ) {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     try {
       let dataToValidate = req[target];
 
@@ -271,7 +271,7 @@ export const validateStatsQuery = validateQuery(statsQuerySchema);
  * Input sanitization middleware
  * Removes potentially dangerous characters and normalizes input
  */
-export const sanitizeInput = (req: Request, res: Response, next: NextFunction): void => {
+export const sanitizeInput = (req: Request, _res: Response, next: NextFunction): void => {
   try {
     // Sanitize body
     if (req.body && typeof req.body === 'object') {
@@ -331,7 +331,7 @@ function sanitizeString(str: string): string {
 /**
  * Security headers middleware
  */
-export const securityHeaders = (req: Request, res: Response, next: NextFunction): void => {
+export const securityHeaders = (_req: Request, res: Response, next: NextFunction): void => {
   // Prevent MIME type sniffing
   res.setHeader('X-Content-Type-Options', 'nosniff');
 

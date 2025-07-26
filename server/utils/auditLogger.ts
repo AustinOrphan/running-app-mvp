@@ -67,6 +67,7 @@ export type AuditAction =
   | 'system.config_change'
   | 'system.backup'
   | 'system.maintenance'
+  | 'system.error'
   // Admin events
   | 'admin.user_create'
   | 'admin.user_delete'

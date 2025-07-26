@@ -5,9 +5,13 @@ This directory contains comprehensive integration test scenarios that test compl
 ## Test Scenarios
 
 ### 1. User Registration & First Run Flow (`userRegistrationFlow.test.ts`)
+<<<<<<< Updated upstream
 
 Tests the complete onboarding experience for new users:
 
+=======
+Tests the complete onboarding experience for new users:
+>>>>>>> Stashed changes
 - User registration with validation
 - Login authentication flow
 - Creating first run
@@ -18,9 +22,13 @@ Tests the complete onboarding experience for new users:
 - Logout and session invalidation
 
 ### 2. Goal Achievement Workflow (`goalAchievementWorkflow.test.ts`)
+<<<<<<< Updated upstream
 
 Tests goal management and progress tracking:
 
+=======
+Tests goal management and progress tracking:
+>>>>>>> Stashed changes
 - Creating distance, runs, and duration goals
 - Tracking progress through multiple runs
 - Automatic goal completion
@@ -30,9 +38,13 @@ Tests goal management and progress tracking:
 - Goal deletion and archiving
 
 ### 3. Data Management Scenarios (`dataManagementScenarios.test.ts`)
+<<<<<<< Updated upstream
 
 Tests comprehensive data operations:
 
+=======
+Tests comprehensive data operations:
+>>>>>>> Stashed changes
 - Creating runs with complete metadata (notes, routes, tags)
 - Bulk data creation and updates
 - Data validation and error handling
@@ -41,9 +53,13 @@ Tests comprehensive data operations:
 - Data deletion with proper cleanup
 
 ### 4. Multi-User Scenarios (`multiUserScenarios.test.ts`)
+<<<<<<< Updated upstream
 
 Tests user isolation and concurrent operations:
 
+=======
+Tests user isolation and concurrent operations:
+>>>>>>> Stashed changes
 - Complete data isolation between users
 - Concurrent operations from multiple users
 - Race participation across users
@@ -52,9 +68,13 @@ Tests user isolation and concurrent operations:
 - Security boundaries verification
 
 ### 5. Error Handling Workflows (`errorHandlingWorkflows.test.ts`)
+<<<<<<< Updated upstream
 
 Tests system resilience and error recovery:
 
+=======
+Tests system resilience and error recovery:
+>>>>>>> Stashed changes
 - Invalid authentication handling
 - Network timeout scenarios
 - Database error recovery
@@ -66,9 +86,13 @@ Tests system resilience and error recovery:
 - Concurrent modification conflicts
 
 ### 6. Performance & Load Scenarios (`performanceLoadScenarios.test.ts`)
+<<<<<<< Updated upstream
 
 Tests system performance under load:
 
+=======
+Tests system performance under load:
+>>>>>>> Stashed changes
 - Large dataset operations (100+ records)
 - Concurrent user load testing
 - Memory usage monitoring
@@ -80,13 +104,19 @@ Tests system performance under load:
 ## Running the Tests
 
 Run all integration scenarios:
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 ```bash
 npm run test:integration -- tests/integration/scenarios/
 ```
 
 Run a specific scenario:
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 ```bash
 npm run test:integration -- tests/integration/scenarios/userRegistrationFlow.test.ts
 ```
@@ -94,7 +124,10 @@ npm run test:integration -- tests/integration/scenarios/userRegistrationFlow.tes
 ## Test Infrastructure
 
 These tests use:
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - `supertest` for HTTP request simulation
 - `testDb` fixture for database operations and cleanup
 - JWT token generation for authentication
@@ -113,7 +146,10 @@ These tests use:
 ## Adding New Scenarios
 
 When adding new integration scenarios:
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 1. Create a new test file in this directory
 2. Import necessary routes and middleware
 3. Set up test app with all required routes
@@ -121,4 +157,8 @@ When adding new integration scenarios:
 5. Test complete workflows, not just individual operations
 6. Verify data consistency across operations
 7. Include error scenarios and edge cases
+<<<<<<< Updated upstream
 8. Add performance benchmarks where appropriate
+=======
+8. Add performance benchmarks where appropriate
+>>>>>>> Stashed changes

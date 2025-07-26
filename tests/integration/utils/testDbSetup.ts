@@ -11,7 +11,8 @@ let prismaInstance: PrismaClient | null = null;
  */
 export const getTestPrisma = () => {
   if (!prismaInstance) {
-    const databaseUrl = process.env.TEST_DATABASE_URL || 'file:./prisma/test.db';
+    const databaseUrl =
+      process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || 'file:./prisma/test.db';
     prismaInstance = new PrismaClient({
       datasources: {
         db: {

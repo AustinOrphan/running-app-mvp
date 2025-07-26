@@ -100,6 +100,7 @@ node scripts/test-runner.js --parallel --verbose --bail
 
 ### Command Line Options
 
+<<<<<<< Updated upstream
 | Option              | Description                                                                        | Default      |
 | ------------------- | ---------------------------------------------------------------------------------- | ------------ |
 | `--suite <name>`    | Test suite to run (unit, integration, e2e, a11y, visual, performance, memory, all) | all          |
@@ -110,6 +111,18 @@ node scripts/test-runner.js --parallel --verbose --bail
 | `--verbose`         | Verbose output for debugging                                                       | false        |
 | `--bail`            | Stop on first test failure                                                         | false        |
 | `--watch`           | Run in watch mode (where supported)                                                | false        |
+=======
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--suite <name>` | Test suite to run (unit, integration, e2e, a11y, visual, performance, memory, all) | all |
+| `--parallel` | Run tests in parallel where possible | false |
+| `--reporter <type>` | Reporter type (console, json, html, all) | console |
+| `--output <dir>` | Output directory for reports | test-reports |
+| `--ci` | Run in CI mode with strict thresholds | false |
+| `--verbose` | Verbose output for debugging | false |
+| `--bail` | Stop on first test failure | false |
+| `--watch` | Run in watch mode (where supported) | false |
+>>>>>>> Stashed changes
 
 ## Performance Monitoring
 
@@ -136,21 +149,30 @@ node scripts/test-performance-monitor.js record test-reports/test-results.json
 ## Test Configuration Files
 
 ### Vitest Configuration
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - File: `vite.config.ts` (test section)
 - Environment: jsdom
 - Setup: `vitest.setup.ts`, `tests/setup/testSetup.ts`
 - Coverage: v8 provider
 
 ### Jest Configuration
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - File: `jest.config.js`
 - Environment: Node.js
 - Setup: `tests/setup/globalSetup.ts`, `tests/setup/jestSetup.ts`
 - Coverage: Default Jest coverage
 
 ### Playwright Configuration
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - File: `playwright.config.ts`
 - Browsers: Chromium, Firefox, WebKit
 - Base URL: http://localhost:3000
@@ -159,14 +181,20 @@ node scripts/test-performance-monitor.js record test-reports/test-results.json
 ## Coverage Requirements
 
 ### Default Thresholds
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Lines: 70%
 - Statements: 70%
 - Functions: 70%
 - Branches: 70%
 
 ### Coverage Collection
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - **Unit Tests**: Frontend React components, utilities
 - **Integration Tests**: Backend routes, middleware, database operations
 - **Combined Reports**: Merged coverage data from all test suites
@@ -183,6 +211,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+<<<<<<< Updated upstream
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -199,27 +228,53 @@ jobs:
 
 ### Environment Variables
 
+=======
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    - run: npm ci
+    - run: npm run test:runner:ci
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-reports
+        path: test-reports/
+```
+
+### Environment Variables
+>>>>>>> Stashed changes
 - `CI=true`: Enables CI mode
 - `COVERAGE_THRESHOLD=80`: Custom coverage threshold
 - `DATABASE_URL`: Test database connection
 - `JWT_SECRET`: Test JWT secret
 
 ### Exit Codes
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - `0`: All tests passed
 - `1`: Test failures or coverage below threshold
 
 ## Test Data Management
 
 ### Test Database
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - SQLite database for integration tests
 - Setup: `npm run test:setup:db`
 - Validation: `npm run validate-test-env`
 - Cleanup: Automatic after each test
 
 ### Test User Creation
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Command: `npm run create-test-user`
 - Creates test users for authentication testing
 
@@ -288,11 +343,18 @@ tests/
 ### Common Issues
 
 1. **Database Connection Errors**
+<<<<<<< Updated upstream
 
    ```bash
    # Reset test database
    npm run test:setup:db
 
+=======
+   ```bash
+   # Reset test database
+   npm run test:setup:db
+   
+>>>>>>> Stashed changes
    # Verify environment
    npm run validate-test-env
    ```
@@ -303,11 +365,18 @@ tests/
    - Ensure ports are available
 
 3. **Browser Issues (E2E)**
+<<<<<<< Updated upstream
 
    ```bash
    # Install browsers
    npx playwright install
 
+=======
+   ```bash
+   # Install browsers
+   npx playwright install
+   
+>>>>>>> Stashed changes
    # Run with headed mode for debugging
    npm run test:e2e:headed
    ```
@@ -421,4 +490,8 @@ npm run test:runner:monitor
 
 ---
 
+<<<<<<< Updated upstream
 This comprehensive testing infrastructure provides a robust foundation for maintaining code quality, catching regressions early, and ensuring the Running App MVP meets all functional and non-functional requirements.
+=======
+This comprehensive testing infrastructure provides a robust foundation for maintaining code quality, catching regressions early, and ensuring the Running App MVP meets all functional and non-functional requirements.
+>>>>>>> Stashed changes

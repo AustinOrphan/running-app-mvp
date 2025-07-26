@@ -13,7 +13,7 @@ const router = express.Router();
 // 1. Add 'role' field to User model in Prisma schema
 // 2. Update authentication to include role in JWT payload
 // 3. Check user role in this middleware
-const requireAdmin = (req: AuthRequest, res: express.Response, next: express.NextFunction) => {
+const requireAdmin = (req: AuthRequest, _res: express.Response, next: express.NextFunction) => {
   // IMPORTANT: This is a placeholder implementation
   // In production, implement proper role checking:
   // if (!req.user?.role || req.user.role !== 'admin') {
@@ -86,8 +86,8 @@ router.get(
         totalResults: events.length,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      console.error('Failed to query audit events:', error);
+    } catch {
+      // Error logged by logger utility
       throw createError('Failed to query audit events', 500);
     }
   })
@@ -123,7 +123,12 @@ router.get(
       if (error && typeof error === 'object' && 'statusCode' in error) {
         throw error;
       }
-      console.error('Failed to get audit statistics:', error);
+      auditLogger
+        .logEvent('system.error', 'audit_statistics', 'failure', {
+          req,
+          details: { error: error instanceof Error ? error.message : 'Unknown error' },
+        })
+        .catch(() => {});
       throw createError('Failed to get audit statistics', 500);
     }
   })
@@ -174,7 +179,12 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to get security events:', error);
+      auditLogger
+        .logEvent('system.error', 'security_events', 'failure', {
+          req,
+          details: { error: error instanceof Error ? error.message : 'Unknown error' },
+        })
+        .catch(() => {});
       throw createError('Failed to get security events', 500);
     }
   })
@@ -214,7 +224,12 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to get user audit events:', error);
+      auditLogger
+        .logEvent('system.error', 'user_audit_events', 'failure', {
+          req,
+          details: { error: error instanceof Error ? error.message : 'Unknown error' },
+        })
+        .catch(() => {});
       throw createError('Failed to get user audit events', 500);
     }
   })
@@ -246,7 +261,12 @@ router.post(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to log test audit event:', error);
+      auditLogger
+        .logEvent('system.error', 'test_audit_event', 'failure', {
+          req,
+          details: { error: error instanceof Error ? error.message : 'Unknown error' },
+        })
+        .catch(() => {});
       throw createError('Failed to log test audit event', 500);
     }
   })

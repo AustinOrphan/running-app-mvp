@@ -1,6 +1,7 @@
 import https from 'https';
 import http from 'http';
 import { Express } from 'express';
+import { TLSSocket } from 'tls';
 import {
   getSSLConfig,
   validateSSLCertificates,
@@ -76,7 +77,7 @@ export const createHTTPSServer = (
       logInfo('server', 'ssl-connection', 'Secure connection established', undefined, {
         protocol: tlsSocket.getProtocol(),
         cipher: tlsSocket.getCipher(),
-        serverName: (tlsSocket as any).servername,
+        serverName: (tlsSocket as TLSSocket & { servername?: string }).servername,
       });
     });
 

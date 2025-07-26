@@ -1,6 +1,7 @@
 # Global Deployment Issues
 
 ## Critical Issues (Blocking Multiple Agents)
+<<<<<<< Updated upstream
 
 | Issue ID | Description        | Affected Agents | Severity | Status | Owner | ETA |
 | -------- | ------------------ | --------------- | -------- | ------ | ----- | --- |
@@ -17,5 +18,20 @@
 | Issue ID | Resolution         | Resolved By | Date | Impact |
 | -------- | ------------------ | ----------- | ---- | ------ |
 | (None)   | No resolutions yet | -           | -    | -      |
+=======
+| Issue ID | Description | Affected Agents | Severity | Status | Owner | ETA |
+|----------|-------------|-----------------|----------|--------|-------|-----|
+| (None)   | No critical issues | - | - | - | - | - |
+
+## High Priority Issues (Single Agent Blocking)  
+| Issue ID | Description | Agent | Severity | Status | Owner | ETA |
+|----------|-------------|-------|----------|--------|-------|-----|
+| (None)   | No high priority issues | - | - | - | - | - |
+
+## Resolution Log
+| Issue ID | Resolution | Resolved By | Date | Impact |
+|----------|------------|-------------|------|--------|
+| (None)   | No resolutions yet | - | - | - |
+>>>>>>> Stashed changes
 
 **Created**: $(date)

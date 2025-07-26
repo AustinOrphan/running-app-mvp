@@ -1,7 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, devices } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import type { TestUser } from './types';
 import { assertTestUser } from './types/index.js';
+import { iPhone12Config } from './helpers/deviceConfigs.js';
 
 import { mockRuns } from '../fixtures/mockData.js';
 import { testDb } from '../fixtures/testDatabase.js';
@@ -423,7 +424,7 @@ test.describe('Accessibility E2E Tests', () => {
   });
 
   test.describe('Mobile Accessibility', () => {
-    test.use(devices['iPhone 12']);
+    test.use(iPhone12Config);
 
     test('should have proper touch target sizes', async ({ page }) => {
       // Login user

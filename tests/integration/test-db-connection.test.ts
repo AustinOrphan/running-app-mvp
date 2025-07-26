@@ -5,7 +5,7 @@ describe('Database Connection Test', () => {
     const prisma = new PrismaClient({
       datasources: {
         db: {
-          url: process.env.DATABASE_URL || 'file:./prisma/test.db',
+          url: process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || 'file:./prisma/test.db',
         },
       },
     });

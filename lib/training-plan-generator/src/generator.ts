@@ -9,6 +9,8 @@ import {
   IntensityDistribution,
   RunData,
   FitnessAssessment,
+  WorkoutSegment,
+  Workout,
 } from './types';
 import { PROGRESSION_RATES } from './constants';
 import { WORKOUT_TEMPLATES } from './workouts';
@@ -307,12 +309,15 @@ export class TrainingPlanGenerator {
         description: this.generateWorkoutDescription(workout),
         workout,
         targetMetrics: {
-          duration: workout.segments.reduce((sum: number, s: any) => sum + s.duration, 0),
+          duration: workout.segments.reduce(
+            (sum: number, s: WorkoutSegment) => sum + s.duration,
+            0
+          ),
           distance: targetDistance,
           tss: workout.estimatedTSS,
           load: workout.estimatedTSS,
           intensity:
-            workout.segments.reduce((sum: number, s: any) => sum + s.intensity, 0) /
+            workout.segments.reduce((sum: number, s: WorkoutSegment) => sum + s.intensity, 0) /
             workout.segments.length,
         },
       });
@@ -327,7 +332,11 @@ export class TrainingPlanGenerator {
   /**
    * Select appropriate workout based on type string
    */
-  private selectWorkout(typeString: string, _phase: TrainingPhase, _volumeRemaining: number): any {
+  private selectWorkout(
+    typeString: string,
+    _phase: TrainingPhase,
+    _volumeRemaining: number
+  ): Workout {
     const workoutMap: Record<string, string[]> = {
       Easy: ['EASY_AEROBIC'],
       Recovery: ['RECOVERY_JOG'],
@@ -356,13 +365,16 @@ export class TrainingPlanGenerator {
    * Calculate workout distance based on time and remaining volume
    */
   private calculateWorkoutDistance(
-    workout: any,
+    workout: Workout,
     volumeRemaining: number,
     workoutsLeft: number
   ): number {
-    const totalMinutes = workout.segments.reduce((sum: number, s: any) => sum + s.duration, 0);
+    const totalMinutes = workout.segments.reduce(
+      (sum: number, s: WorkoutSegment) => sum + s.duration,
+      0
+    );
     const avgIntensity =
-      workout.segments.reduce((sum: number, s: any) => sum + s.intensity, 0) /
+      workout.segments.reduce((sum: number, s: WorkoutSegment) => sum + s.intensity, 0) /
       workout.segments.length;
 
     // Estimate pace based on intensity and fitness
@@ -470,9 +482,9 @@ export class TrainingPlanGenerator {
   /**
    * Generate workout description
    */
-  private generateWorkoutDescription(workout: any): string {
+  private generateWorkoutDescription(workout: Workout): string {
     const segments = workout.segments
-      .map((s: any) => `${s.duration}min ${s.description}`)
+      .map((s: WorkoutSegment) => `${s.duration}min ${s.description || 'segment'}`)
       .join(', ');
     return `${workout.adaptationTarget}. Workout: ${segments}`;
   }

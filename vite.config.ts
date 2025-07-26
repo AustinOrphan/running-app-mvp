@@ -27,7 +27,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./vitest.setup.ts', './tests/setup/testSetup.ts'],
+    setupFiles: [
+      path.resolve(__dirname, './vitest.setup.ts'),
+      path.resolve(__dirname, './tests/setup/testSetup.ts'),
+    ],
     include: [
       'tests/unit/**/*.{test,spec}.{js,ts,tsx}',
       'tests/accessibility/**/*.{test,spec}.{js,ts,tsx}',
@@ -51,5 +54,9 @@ export default defineConfig({
       },
     },
     // CSS imports are handled by the CSS modules configuration above
+
+    // Timeout configuration with CI awareness
+    testTimeout: process.env.CI ? 30000 : 10000, // 30s in CI, 10s locally
+    hookTimeout: process.env.CI ? 20000 : 5000, // 20s in CI, 5s locally
   },
 });

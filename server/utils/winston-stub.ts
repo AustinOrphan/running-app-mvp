@@ -36,10 +36,10 @@ export const winston = {
     // eslint-disable-next-line no-console
     debug: (message: string, meta?: unknown) => console.log('DEBUG:', message, meta),
   }),
-  Logform: {} as any, // Mock Logform property for tests
+  Logform: {} as Record<string, unknown>, // Mock Logform property for tests
 };
 
 export default winston;
 
 // Export Logform type for tests
-export type Logform = any;
+export type Logform = Record<string, unknown>;

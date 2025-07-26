@@ -5,7 +5,10 @@ This directory contains comprehensive tests for all middleware functions used in
 ## Test Coverage Requirements
 
 ### 1. Authentication Middleware (requireAuth.test.ts)
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Valid JWT token processing
 - Invalid token rejection (malformed, wrong signature)
 - Missing token handling
@@ -15,7 +18,10 @@ This directory contains comprehensive tests for all middleware functions used in
 - Error handling for unexpected errors
 
 ### 2. Validation Middleware (validation.test.ts)
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Input validation using Zod schemas
 - Email validation and normalization
 - Password complexity requirements
@@ -28,7 +34,10 @@ This directory contains comprehensive tests for all middleware functions used in
 - Edge cases (empty values, special characters)
 
 ### 3. Rate Limiting Middleware (rateLimiting.test.ts)
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Request counting and throttling
 - Different limits for different endpoints
 - Rate limit header inclusion
@@ -39,7 +48,10 @@ This directory contains comprehensive tests for all middleware functions used in
 - Concurrent request handling
 
 ### 4. Error Handling Middleware (errorHandler.test.ts)
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Error response formatting
 - Status code mapping
 - Error message sanitization
@@ -50,7 +62,10 @@ This directory contains comprehensive tests for all middleware functions used in
 - Security considerations
 
 ### 5. Async Handler Middleware (asyncHandler.test.ts)
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Promise rejection catching
 - Error forwarding to error handler
 - Next() function calling
@@ -60,7 +75,10 @@ This directory contains comprehensive tests for all middleware functions used in
 - Performance considerations
 
 ### 6. ValidateBody Middleware (validateBody.test.ts)
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Required field validation
 - Type validation (string, number, boolean, date)
 - Length/value constraints (min/max)
@@ -82,12 +100,17 @@ describe('Middleware Name', () => {
   let mockNext: NextFunction;
 
   beforeEach(() => {
+<<<<<<< Updated upstream
     mockReq = {
       /* setup */
     };
     mockRes = {
       /* setup */
     };
+=======
+    mockReq = { /* setup */ };
+    mockRes = { /* setup */ };
+>>>>>>> Stashed changes
     mockNext = vi.fn();
   });
 
@@ -129,7 +152,10 @@ npm run test:integration -- tests/integration/middleware
 ## Environment Configuration
 
 Tests should handle environment variables properly:
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Use test-specific JWT secrets
 - Enable rate limiting explicitly in tests
 - Set NODE_ENV=test
@@ -138,7 +164,13 @@ Tests should handle environment variables properly:
 ## Mocking External Dependencies
 
 Mock external dependencies to isolate middleware behavior:
+<<<<<<< Updated upstream
 
 - Mock loggers to prevent actual logging
 - Mock database calls if middleware interacts with DB
 - Mock time-based functions for rate limiting tests
+=======
+- Mock loggers to prevent actual logging
+- Mock database calls if middleware interacts with DB
+- Mock time-based functions for rate limiting tests
+>>>>>>> Stashed changes

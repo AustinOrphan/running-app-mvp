@@ -1,0 +1,319 @@
+name: 🔍 Flaky Test Detection
+
+on:
+  schedule:
+    # Run flaky test detection weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Test suite to analyze (all, unit, integration, e2e)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+          - e2e
+      runs:
+        description: 'Number of test runs per suite'
+        required: false
+        default: '5'
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: test
+  JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+  DATABASE_URL: file:./prisma/flaky-test.db
+
+jobs:
+  detect-flaky-tests:
+    name: 🔍 Detect Flaky Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: 💾 Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            deps-${{ runner.os }}-
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 📦 Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: 🗄️ Setup test database
+        run: |
+          mkdir -p prisma
+          rm -f prisma/flaky-test.db*
+          npx prisma migrate dev --name init || npx prisma migrate deploy
+          npx prisma generate
+
+      - name: 💾 Restore flaky test data
+        uses: actions/cache@v4
+        with:
+          path: test-flakiness/
+          key: flaky-tests-${{ github.sha }}
+          restore-keys: |
+            flaky-tests-
+
+      - name: 🧪 Run Unit Test Flakiness Detection
+        if: github.event.inputs.suite == 'all' || github.event.inputs.suite == 'unit' || github.event.inputs.suite == ''
+        continue-on-error: true
+        run: |
+          echo "🧪 Detecting flakiness in unit tests..."
+          RUNS=${{ github.event.inputs.runs || '5' }}
+          tsx scripts/flaky-test-detector.ts run unit $RUNS
+
+      - name: 🔗 Run Integration Test Flakiness Detection
+        if: github.event.inputs.suite == 'all' || github.event.inputs.suite == 'integration' || github.event.inputs.suite == ''
+        continue-on-error: true
+        run: |
+          echo "🔗 Detecting flakiness in integration tests..."
+          RUNS=${{ github.event.inputs.runs || '5' }}
+          tsx scripts/flaky-test-detector.ts run integration $RUNS
+
+      - name: 🎭 Run E2E Test Flakiness Detection
+        if: github.event.inputs.suite == 'all' || github.event.inputs.suite == 'e2e' || github.event.inputs.suite == ''
+        continue-on-error: true
+        run: |
+          echo "🎭 Detecting flakiness in E2E tests..."
+          RUNS=${{ github.event.inputs.runs || '3' }}
+          tsx scripts/flaky-test-detector.ts run e2e $RUNS
+
+      - name: 📊 Calculate Test Statistics
+        run: |
+          echo "📊 Calculating test statistics..."
+          tsx scripts/flaky-test-detector.ts stats
+
+      - name: 📋 Generate Flaky Test Report
+        run: |
+          echo "📋 Generating flaky test report..."
+          tsx scripts/flaky-test-detector.ts report > flaky-test-report.txt 2>&1
+
+      - name: 💾 Save flaky test data
+        uses: actions/cache@v4
+        with:
+          path: test-flakiness/
+          key: flaky-tests-${{ github.sha }}
+
+      - name: 📤 Upload flaky test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flaky-test-analysis
+          path: |
+            test-flakiness/
+            flaky-test-report.txt
+          retention-days: 30
+
+      - name: 📊 Flaky Test Summary
+        if: always()
+        run: |
+          echo "# 🔍 Flaky Test Detection Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "test-flakiness/test-stats.json" ]; then
+            echo "## 📊 Test Statistics" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Count total tests and flaky tests
+            TOTAL_TESTS=$(jq 'length' test-flakiness/test-stats.json 2>/dev/null || echo "0")
+            FLAKY_TESTS=$(jq '[.[] | select(.isFlaky == true)] | length' test-flakiness/test-stats.json 2>/dev/null || echo "0")
+            HIGH_RISK=$(jq '[.[] | select(.flakyScore > 0.7)] | length' test-flakiness/test-stats.json 2>/dev/null || echo "0")
+            MEDIUM_RISK=$(jq '[.[] | select(.flakyScore > 0.4 and .flakyScore <= 0.7)] | length' test-flakiness/test-stats.json 2>/dev/null || echo "0")
+            LOW_RISK=$(jq '[.[] | select(.flakyScore > 0.3 and .flakyScore <= 0.4)] | length' test-flakiness/test-stats.json 2>/dev/null || echo "0")
+            
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Tests | $TOTAL_TESTS |" >> $GITHUB_STEP_SUMMARY
+            echo "| Flaky Tests | $FLAKY_TESTS |" >> $GITHUB_STEP_SUMMARY
+            echo "| High Risk | $HIGH_RISK |" >> $GITHUB_STEP_SUMMARY
+            echo "| Medium Risk | $MEDIUM_RISK |" >> $GITHUB_STEP_SUMMARY
+            echo "| Low Risk | $LOW_RISK |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            if [ "$FLAKY_TESTS" -gt "0" ]; then
+              echo "## 🚨 Top Flaky Tests" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "```" >> $GITHUB_STEP_SUMMARY
+              jq -r '[.[] | select(.isFlaky == true)] | sort_by(.flakyScore) | reverse | .[0:5] | .[] | "• \(.testName) (\(.testPath)) - \(.flakyScore * 100 | floor)% flaky, \(.successRate | floor)% success rate"' test-flakiness/test-stats.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to parse flaky test details" >> $GITHUB_STEP_SUMMARY
+              echo "```" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "🎉 **No flaky tests detected!** Your test suite is stable." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "## 📋 Full Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+            if [ -f "flaky-test-report.txt" ]; then
+              head -30 flaky-test-report.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Report generation completed"
+            else
+              echo "Full report available in artifacts"
+            fi
+            echo "```" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Flaky test data not generated" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This may be the first run or there was an issue with data collection." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 🚨 Create issue for high-risk flaky tests
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            try {
+              // Check if we have flaky test data
+              if (!fs.existsSync('test-flakiness/test-stats.json')) {
+                console.log('No test stats file found, skipping issue creation');
+                return;
+              }
+              
+              const stats = JSON.parse(fs.readFileSync('test-flakiness/test-stats.json', 'utf8'));
+              const highRiskTests = stats.filter(test => test.flakyScore > 0.7);
+              
+              if (highRiskTests.length === 0) {
+                console.log('No high-risk flaky tests found');
+                return;
+              }
+              
+              // Check if similar issue already exists
+              const existingIssues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'flaky-tests,high-risk',
+                state: 'open'
+              });
+              
+              const recentIssue = existingIssues.data.find(issue => 
+                issue.title.includes('High-Risk Flaky Tests') &&
+                Date.now() - new Date(issue.created_at).getTime() < 7 * 24 * 60 * 60 * 1000 // Less than 7 days old
+              );
+              
+              if (recentIssue) {
+                console.log(`Recent flaky test issue already exists: #${recentIssue.number}`);
+                
+                // Add comment to existing issue
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: recentIssue.number,
+                  body: `## 🔄 Updated Flaky Test Detection - ${new Date().toLocaleDateString()}
+                  
+                  **High-Risk Tests Found**: ${highRiskTests.length}
+                  
+                  ### 🚨 Current High-Risk Tests:
+                  ${highRiskTests.slice(0, 5).map(test => 
+                    `- **${test.testName}** (${test.testPath})
+                      - Flaky Score: ${(test.flakyScore * 100).toFixed(1)}%
+                      - Success Rate: ${test.successRate.toFixed(1)}%
+                      - Total Runs: ${test.totalRuns}`
+                  ).join('\n')}
+                  
+                  Please review the full analysis in the workflow artifacts.`
+                });
+                
+                return;
+              }
+              
+              // Create new issue
+              const issueBody = `# 🚨 High-Risk Flaky Tests Detected
+              
+              **Detection Date**: ${new Date().toLocaleDateString()}
+              **Workflow Run**: [View Details](${context.payload.repository.html_url}/actions/runs/${context.runId})
+              
+              ## 📊 Summary
+              
+              - **High-Risk Flaky Tests**: ${highRiskTests.length}
+              - **Detection Threshold**: >70% flakiness score
+              
+              ## 🚨 High-Risk Tests
+              
+              ${highRiskTests.map((test, index) => `
+              ### ${index + 1}. ${test.testName}
+              
+              - **File**: \`${test.testPath}\`
+              - **Suite**: ${test.suite.toUpperCase()}
+              - **Flaky Score**: ${(test.flakyScore * 100).toFixed(1)}%
+              - **Success Rate**: ${test.successRate.toFixed(1)}% (${test.passedRuns}/${test.totalRuns} runs)
+              - **Average Duration**: ${test.averageDuration.toFixed(0)}ms
+              ${test.consecutiveFailures > 1 ? `- **Max Consecutive Failures**: ${test.consecutiveFailures}` : ''}
+              ${test.timeoutRuns > 0 ? `- **Timeout Issues**: ${test.timeoutRuns} timeouts` : ''}
+              ${test.lastFailure ? `- **Last Error**: \`${test.lastFailure.substring(0, 100)}...\`` : ''}
+              `).join('\n')}
+              
+              ## 🔍 Recommended Actions
+              
+              ### Immediate (High Priority)
+              - [ ] **Quarantine high-risk tests** - Consider skipping these tests temporarily
+              - [ ] **Review test implementations** for race conditions and timing issues
+              - [ ] **Check test isolation** - Ensure tests don't affect each other
+              - [ ] **Analyze failure patterns** - Look for common causes across flaky tests
+              
+              ### Investigation Steps
+              - [ ] Run tests locally multiple times to reproduce flakiness
+              - [ ] Check for external dependencies (APIs, databases, file system)
+              - [ ] Review async/await usage and promise handling
+              - [ ] Verify proper cleanup and teardown procedures
+              - [ ] Check for shared state or global variables
+              
+              ### Fix Strategies
+              - [ ] Add proper wait conditions and timeouts
+              - [ ] Implement retry logic for external dependencies
+              - [ ] Use test fixtures and mocks to reduce external factors
+              - [ ] Improve test data setup and cleanup
+              - [ ] Add explicit synchronization points
+              
+              ## 📈 Monitoring
+              
+              This issue will be updated weekly with new flaky test detection results.
+              For detailed analysis, check the workflow artifacts.
+              
+              ---
+              
+              *This issue was automatically created by the Flaky Test Detection workflow.*`;
+              
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 High-Risk Flaky Tests Detected - ${new Date().toLocaleDateString()}`,
+                body: issueBody,
+                labels: ['flaky-tests', 'high-risk', 'automated', 'needs-investigation', 'testing']
+              });
+              
+              console.log(`Created issue for ${highRiskTests.length} high-risk flaky tests`);
+              
+            } catch (error) {
+              console.error('Error creating flaky test issue:', error);
+            }
+
+      - name: 🧹 Cleanup
+        if: always()
+        run: |
+          rm -f prisma/flaky-test.db*
+          echo "🧹 Cleanup completed"

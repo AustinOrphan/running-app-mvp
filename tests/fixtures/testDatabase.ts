@@ -29,75 +29,108 @@ export const createTestUser = async (userData?: { email?: string; password?: str
   return { ...user, plainPassword: password };
 };
 
-// Test runs creation utility
+// Test runs creation utility - optimized with batch insert
 export const createTestRuns = async (userId: string, runs = mockRuns) => {
-  const createdRuns = [];
+  // Use createMany for batch insert - much faster than individual creates
+  const runData = runs.map(run => ({
+    date: new Date(run.date),
+    distance: run.distance,
+    duration: run.duration,
+    tag: run.tag,
+    notes: run.notes,
+    userId: userId,
+  }));
 
-  for (const run of runs) {
-    const createdRun = await prisma.run.create({
-      data: {
-        date: new Date(run.date),
-        distance: run.distance,
-        duration: run.duration,
-        tag: run.tag,
-        notes: run.notes,
-        userId: userId,
+  // Batch insert all runs at once
+  await prisma.run.createMany({
+    data: runData,
+  });
+
+  // Fetch the created runs to return them
+  // This is still faster than creating one by one
+  const createdRuns = await prisma.run.findMany({
+    where: {
+      userId: userId,
+      date: {
+        in: runData.map(r => r.date),
       },
-    });
-    createdRuns.push(createdRun);
-  }
+    },
+    orderBy: {
+      date: 'desc',
+    },
+  });
 
   return createdRuns;
 };
 
-// Test goals creation utility
+// Test goals creation utility - optimized with batch insert
 export const createTestGoals = async (userId: string, goals = mockGoals) => {
-  const createdGoals = [];
+  // Use createMany for batch insert
+  const goalData = goals.map(goal => ({
+    title: goal.title,
+    description: goal.description,
+    type: goal.type,
+    targetValue: goal.targetValue,
+    targetUnit: goal.targetUnit,
+    currentValue: goal.currentValue || 0,
+    period: goal.period,
+    startDate: new Date(goal.startDate),
+    endDate: new Date(goal.endDate),
+    isCompleted: goal.isCompleted || false,
+    completedAt: goal.completedAt ? new Date(goal.completedAt) : null,
+    color: goal.color,
+    icon: goal.icon,
+    isActive: true,
+    userId: userId,
+  }));
 
-  for (const goal of goals) {
-    const createdGoal = await prisma.goal.create({
-      data: {
-        title: goal.title,
-        description: goal.description,
-        type: goal.type,
-        targetValue: goal.targetValue,
-        targetUnit: goal.targetUnit,
-        currentValue: goal.currentValue || 0,
-        period: goal.period,
-        startDate: new Date(goal.startDate),
-        endDate: new Date(goal.endDate),
-        isCompleted: goal.isCompleted || false,
-        completedAt: goal.completedAt ? new Date(goal.completedAt) : null,
-        color: goal.color,
-        icon: goal.icon,
-        isActive: true,
-        userId: userId,
+  await prisma.goal.createMany({
+    data: goalData,
+  });
+
+  const createdGoals = await prisma.goal.findMany({
+    where: {
+      userId: userId,
+      title: {
+        in: goalData.map(g => g.title),
       },
-    });
-    createdGoals.push(createdGoal);
-  }
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
 
   return createdGoals;
 };
 
-// Test races creation utility
+// Test races creation utility - optimized with batch insert
 export const createTestRaces = async (userId: string, races = mockRaces) => {
-  const createdRaces = [];
+  // Use createMany for batch insert
+  const raceData = races.map(race => ({
+    name: race.name,
+    raceDate: new Date(race.raceDate),
+    distance: race.distance,
+    targetTime: race.targetTime,
+    actualTime: race.actualTime,
+    notes: race.notes,
+    userId: userId,
+  }));
 
-  for (const race of races) {
-    const createdRace = await prisma.race.create({
-      data: {
-        name: race.name,
-        raceDate: new Date(race.raceDate),
-        distance: race.distance,
-        targetTime: race.targetTime,
-        actualTime: race.actualTime,
-        notes: race.notes,
-        userId: userId,
+  await prisma.race.createMany({
+    data: raceData,
+  });
+
+  const createdRaces = await prisma.race.findMany({
+    where: {
+      userId: userId,
+      name: {
+        in: raceData.map(r => r.name),
       },
-    });
-    createdRaces.push(createdRace);
-  }
+    },
+    orderBy: {
+      raceDate: 'desc',
+    },
+  });
 
   return createdRaces;
 };
@@ -119,12 +152,15 @@ export const generateTestToken = (userId: string) => {
   });
 };
 
-// Clean up database utility
+// Clean up database utility - optimized with transaction
 export const cleanupDatabase = async () => {
-  await prisma.race.deleteMany();
-  await prisma.goal.deleteMany();
-  await prisma.run.deleteMany();
-  await prisma.user.deleteMany();
+  // Use transaction for atomic cleanup - faster and safer
+  await prisma.$transaction([
+    prisma.race.deleteMany(),
+    prisma.goal.deleteMany(),
+    prisma.run.deleteMany(),
+    prisma.user.deleteMany(),
+  ]);
 };
 
 // Find user by email

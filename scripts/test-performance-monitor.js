@@ -2,7 +2,11 @@
 
 /**
  * Test Performance Monitor
+<<<<<<< Updated upstream
+ *
+=======
  * 
+>>>>>>> Stashed changes
  * This script monitors test execution performance and generates reports
  * for tracking test suite performance over time.
  */
@@ -51,7 +55,11 @@ class TestPerformanceMonitor {
 
   recordTestRun(testResults) {
     const historicalData = this.loadHistoricalData();
+<<<<<<< Updated upstream
+
+=======
     
+>>>>>>> Stashed changes
     const run = {
       timestamp: new Date().toISOString(),
       totalDuration: testResults.totalDuration,
@@ -77,7 +85,11 @@ class TestPerformanceMonitor {
     }
 
     historicalData.runs.push(run);
+<<<<<<< Updated upstream
+
+=======
     
+>>>>>>> Stashed changes
     // Keep only last 100 runs to prevent file size bloat
     if (historicalData.runs.length > 100) {
       historicalData.runs = historicalData.runs.slice(-100);
@@ -109,7 +121,11 @@ class TestPerformanceMonitor {
 
     const latest = runs[runs.length - 1];
     const previousRuns = runs.slice(-10); // Last 10 runs
+<<<<<<< Updated upstream
+
+=======
     
+>>>>>>> Stashed changes
     const report = {
       summary: {
         totalRuns: runs.length,
@@ -123,7 +139,14 @@ class TestPerformanceMonitor {
     };
 
     // Save report
+<<<<<<< Updated upstream
+    const reportPath = join(
+      this.reportDir,
+      `performance-report-${new Date().toISOString().split('T')[0]}.json`
+    );
+=======
     const reportPath = join(this.reportDir, `performance-report-${new Date().toISOString().split('T')[0]}.json`);
+>>>>>>> Stashed changes
     writeFileSync(reportPath, JSON.stringify(report, null, 2));
 
     return report;
@@ -161,7 +184,11 @@ class TestPerformanceMonitor {
 
   analyzeSuitePerformance(runs) {
     const suiteStats = {};
+<<<<<<< Updated upstream
+
+=======
     
+>>>>>>> Stashed changes
     for (const run of runs) {
       for (const [suiteName, suite] of Object.entries(run.suites || {})) {
         if (!suiteStats[suiteName]) {
@@ -171,10 +198,17 @@ class TestPerformanceMonitor {
             total: 0,
           };
         }
+<<<<<<< Updated upstream
+
+        suiteStats[suiteName].durations.push(suite.duration);
+        suiteStats[suiteName].total++;
+
+=======
         
         suiteStats[suiteName].durations.push(suite.duration);
         suiteStats[suiteName].total++;
         
+>>>>>>> Stashed changes
         if (suite.status === 'failed') {
           suiteStats[suiteName].failures++;
         }
@@ -230,7 +264,11 @@ class TestPerformanceMonitor {
       regressions.push({
         type: 'total_duration',
         severity: 'high',
+<<<<<<< Updated upstream
+        description: `Total test duration increased by ${(((recentAvg - baselineAvg) / baselineAvg) * 100).toFixed(1)}%`,
+=======
         description: `Total test duration increased by ${((recentAvg - baselineAvg) / baselineAvg * 100).toFixed(1)}%`,
+>>>>>>> Stashed changes
         baseline: baselineAvg,
         current: recentAvg,
       });
@@ -267,17 +305,32 @@ class TestPerformanceMonitor {
     const latest = runs[runs.length - 1];
 
     // General recommendations
+<<<<<<< Updated upstream
+    if (latest.totalDuration > 300000) {
+      // 5 minutes
+      recommendations.push({
+        priority: 'high',
+        category: 'performance',
+        message:
+          'Total test execution time is over 5 minutes. Consider parallel execution or test optimization.',
+=======
     if (latest.totalDuration > 300000) { // 5 minutes
       recommendations.push({
         priority: 'high',
         category: 'performance',
         message: 'Total test execution time is over 5 minutes. Consider parallel execution or test optimization.',
+>>>>>>> Stashed changes
       });
     }
 
     // Suite-specific recommendations
     for (const [suiteName, suite] of Object.entries(latest.suites || {})) {
+<<<<<<< Updated upstream
+      if (suite.duration > 120000) {
+        // 2 minutes
+=======
       if (suite.duration > 120000) { // 2 minutes
+>>>>>>> Stashed changes
         recommendations.push({
           priority: 'medium',
           category: 'suite_performance',
@@ -288,6 +341,19 @@ class TestPerformanceMonitor {
 
     // Coverage vs performance trade-off
     if (latest.coverage) {
+<<<<<<< Updated upstream
+      const totalCoverage =
+        Object.values(latest.coverage).reduce((sum, cov) => sum + cov.lines.pct, 0) /
+        Object.keys(latest.coverage).length;
+
+      if (totalCoverage > 95 && latest.totalDuration > 180000) {
+        // 3 minutes
+        recommendations.push({
+          priority: 'low',
+          category: 'optimization',
+          message:
+            'High coverage achieved. Consider if all tests are necessary or if some can be optimized.',
+=======
       const totalCoverage = Object.values(latest.coverage)
         .reduce((sum, cov) => sum + cov.lines.pct, 0) / Object.keys(latest.coverage).length;
       
@@ -296,6 +362,7 @@ class TestPerformanceMonitor {
           priority: 'low',
           category: 'optimization',
           message: 'High coverage achieved. Consider if all tests are necessary or if some can be optimized.',
+>>>>>>> Stashed changes
         });
       }
     }
@@ -303,12 +370,23 @@ class TestPerformanceMonitor {
     // Failure rate recommendations
     const totalTests = latest.passed + latest.failed;
     const failureRate = latest.failed / totalTests;
+<<<<<<< Updated upstream
+
+    if (failureRate > 0.1) {
+      // 10% failure rate
+      recommendations.push({
+        priority: 'high',
+        category: 'stability',
+        message:
+          'High failure rate detected. Focus on stabilizing tests before performance optimization.',
+=======
     
     if (failureRate > 0.1) { // 10% failure rate
       recommendations.push({
         priority: 'high',
         category: 'stability',
         message: 'High failure rate detected. Focus on stabilizing tests before performance optimization.',
+>>>>>>> Stashed changes
       });
     }
 
@@ -326,18 +404,41 @@ class TestPerformanceMonitor {
       cyan: '\x1b[36m',
     };
 
+<<<<<<< Updated upstream
+    process.stdout.write(
+      `\n${colors.bright}${colors.cyan}Test Performance Report${colors.reset}\n`
+    );
+=======
     process.stdout.write(`\n${colors.bright}${colors.cyan}Test Performance Report${colors.reset}\n`);
+>>>>>>> Stashed changes
     process.stdout.write('='.repeat(50) + '\n\n');
 
     // Summary
     process.stdout.write(`${colors.cyan}Summary:${colors.reset}\n`);
     process.stdout.write(`  Total Runs: ${report.summary.totalRuns}\n`);
+<<<<<<< Updated upstream
+    process.stdout.write(
+      `  Latest Duration: ${(report.summary.latestRun.totalDuration / 1000).toFixed(2)}s\n`
+    );
+    process.stdout.write(
+      `  Average Duration: ${(report.summary.averageTime / 1000).toFixed(2)}s\n`
+    );
+
+    const trend = report.summary.trends;
+    const trendColor =
+      trend.status === 'improving'
+        ? colors.green
+        : trend.status === 'deteriorating'
+          ? colors.red
+          : colors.yellow;
+=======
     process.stdout.write(`  Latest Duration: ${(report.summary.latestRun.totalDuration / 1000).toFixed(2)}s\n`);
     process.stdout.write(`  Average Duration: ${(report.summary.averageTime / 1000).toFixed(2)}s\n`);
     
     const trend = report.summary.trends;
     const trendColor = trend.status === 'improving' ? colors.green : 
                       trend.status === 'deteriorating' ? colors.red : colors.yellow;
+>>>>>>> Stashed changes
     process.stdout.write(`  Trend: ${trendColor}${trend.status}${colors.reset}\n\n`);
 
     // Regressions
@@ -345,7 +446,13 @@ class TestPerformanceMonitor {
       process.stdout.write(`${colors.red}Regressions Detected:${colors.reset}\n`);
       for (const regression of report.regressions) {
         const severityColor = regression.severity === 'high' ? colors.red : colors.yellow;
+<<<<<<< Updated upstream
+        process.stdout.write(
+          `  ${severityColor}[${regression.severity.toUpperCase()}]${colors.reset} ${regression.description}\n`
+        );
+=======
         process.stdout.write(`  ${severityColor}[${regression.severity.toUpperCase()}]${colors.reset} ${regression.description}\n`);
+>>>>>>> Stashed changes
       }
       process.stdout.write('\n');
     }
@@ -354,9 +461,21 @@ class TestPerformanceMonitor {
     if (report.recommendations.length > 0) {
       process.stdout.write(`${colors.yellow}Recommendations:${colors.reset}\n`);
       for (const rec of report.recommendations) {
+<<<<<<< Updated upstream
+        const priorityColor =
+          rec.priority === 'high'
+            ? colors.red
+            : rec.priority === 'medium'
+              ? colors.yellow
+              : colors.blue;
+        process.stdout.write(
+          `  ${priorityColor}[${rec.priority.toUpperCase()}]${colors.reset} ${rec.message}\n`
+        );
+=======
         const priorityColor = rec.priority === 'high' ? colors.red : 
                             rec.priority === 'medium' ? colors.yellow : colors.blue;
         process.stdout.write(`  ${priorityColor}[${rec.priority.toUpperCase()}]${colors.reset} ${rec.message}\n`);
+>>>>>>> Stashed changes
       }
       process.stdout.write('\n');
     }
@@ -368,7 +487,11 @@ class TestPerformanceMonitor {
 // CLI usage
 if (import.meta.url === `file://${__filename}`) {
   const monitor = new TestPerformanceMonitor();
+<<<<<<< Updated upstream
+
+=======
   
+>>>>>>> Stashed changes
   const args = process.argv.slice(2);
   const command = args[0] || 'report';
 
@@ -377,7 +500,11 @@ if (import.meta.url === `file://${__filename}`) {
       const report = monitor.generatePerformanceReport();
       monitor.printReport(report);
       break;
+<<<<<<< Updated upstream
+
+=======
       
+>>>>>>> Stashed changes
     case 'record':
       // This would be called by the test runner to record results
       const resultsFile = args[1];
@@ -390,11 +517,23 @@ if (import.meta.url === `file://${__filename}`) {
         process.exit(1);
       }
       break;
+<<<<<<< Updated upstream
+
+    default:
+      process.stderr.write(
+        'Usage: node test-performance-monitor.js [report|record <results-file>]\n'
+      );
+=======
       
     default:
       process.stderr.write('Usage: node test-performance-monitor.js [report|record <results-file>]\n');
+>>>>>>> Stashed changes
       process.exit(1);
   }
 }
 
+<<<<<<< Updated upstream
 export { TestPerformanceMonitor };
+=======
+export { TestPerformanceMonitor };
+>>>>>>> Stashed changes

@@ -33,6 +33,7 @@ npm run test:runner
 
 ### Command Line Options
 
+<<<<<<< Updated upstream
 | Option       | Short | Description                                                                        | Default      |
 | ------------ | ----- | ---------------------------------------------------------------------------------- | ------------ |
 | `--suite`    | `-s`  | Test suite to run (unit, integration, e2e, a11y, visual, performance, memory, all) | all          |
@@ -44,6 +45,19 @@ npm run test:runner
 | `--bail`     | `-b`  | Stop on first test failure                                                         | false        |
 | `--watch`    | `-w`  | Run in watch mode (where supported)                                                | false        |
 | `--help`     | `-h`  | Show help message                                                                  |              |
+=======
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--suite` | `-s` | Test suite to run (unit, integration, e2e, a11y, visual, performance, memory, all) | all |
+| `--parallel` | `-p` | Run tests in parallel where possible | false |
+| `--reporter` | `-r` | Reporter type (console, json, html, all) | console |
+| `--output` | `-o` | Output directory for reports | test-reports |
+| `--ci` | | Run in CI mode | false |
+| `--verbose` | `-v` | Verbose output | false |
+| `--bail` | `-b` | Stop on first test failure | false |
+| `--watch` | `-w` | Run in watch mode (where supported) | false |
+| `--help` | `-h` | Show help message | |
+>>>>>>> Stashed changes
 
 ### Examples
 
@@ -67,49 +81,70 @@ node scripts/test-runner.js --verbose
 ## Test Suites
 
 ### Unit Tests
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - **Framework**: Vitest
 - **Coverage**: Yes
 - **Target**: React components and utilities
 - **Command**: `npm run test:coverage`
 
 ### Integration Tests
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - **Framework**: Jest
 - **Coverage**: Yes
 - **Target**: API endpoints and database operations
 - **Command**: `npm run test:coverage:integration`
 
 ### E2E Tests
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - **Framework**: Playwright
 - **Coverage**: No
 - **Target**: Full user workflows
 - **Command**: `npm run test:e2e`
 
 ### Accessibility Tests
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - **Framework**: Vitest + Playwright
 - **Coverage**: No
 - **Target**: WCAG compliance
 - **Command**: `npm run test:a11y:all`
 
 ### Visual Regression Tests
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - **Framework**: Playwright
 - **Coverage**: No
 - **Target**: UI consistency
 - **Command**: `npm run test:visual`
 
 ### Performance Tests
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - **Framework**: Custom benchmarks
 - **Coverage**: No
 - **Target**: Load times and responsiveness
 - **Command**: `npm run test:performance`
 
 ### Memory Tests
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - **Framework**: Custom memory profiling
 - **Coverage**: No
 - **Target**: Memory leaks and usage
@@ -118,7 +153,10 @@ node scripts/test-runner.js --verbose
 ## Output Reports
 
 ### Console Report
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Always generated
 - Color-coded results
 - Summary statistics
@@ -126,7 +164,10 @@ node scripts/test-runner.js --verbose
 - Warnings and errors
 
 ### JSON Report
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Machine-readable format
 - Complete test results
 - Detailed timing information
@@ -134,7 +175,10 @@ node scripts/test-runner.js --verbose
 - Output: `test-reports/test-results.json`
 
 ### HTML Report
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Interactive web page
 - Visual coverage bars
 - Detailed suite information
@@ -142,7 +186,10 @@ node scripts/test-runner.js --verbose
 - Output: `test-reports/test-report.html`
 
 ### Coverage Summary
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - Merged coverage from all suites
 - Per-metric breakdown
 - Threshold validation
@@ -151,7 +198,10 @@ node scripts/test-runner.js --verbose
 ## CI/CD Integration
 
 ### Environment Variables
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 ```bash
 # Enable CI mode
 CI=true node scripts/test-runner.js
@@ -161,18 +211,28 @@ COVERAGE_THRESHOLD=80 node scripts/test-runner.js
 ```
 
 ### Exit Codes
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - `0`: All tests passed
 - `1`: One or more tests failed
 - `1`: Coverage below threshold (CI mode)
 - `1`: Environment validation failed
 
 ### GitHub Actions Example
+<<<<<<< Updated upstream
 
 ```yaml
 - name: Run all tests
   run: node scripts/test-runner.js --ci --reporter all --bail
 
+=======
+```yaml
+- name: Run all tests
+  run: node scripts/test-runner.js --ci --reporter all --bail
+  
+>>>>>>> Stashed changes
 - name: Upload test reports
   uses: actions/upload-artifact@v3
   if: always()
@@ -184,7 +244,10 @@ COVERAGE_THRESHOLD=80 node scripts/test-runner.js
 ## Thresholds
 
 Default thresholds (customizable):
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 - **Coverage**: 70% (lines, statements, functions, branches)
 - **Performance**: 1000ms max response time
 - **Memory**: 100MB max heap usage
@@ -215,7 +278,10 @@ Default thresholds (customizable):
 ### Debug Mode
 
 Run with verbose output for detailed information:
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 ```bash
 node scripts/test-runner.js --verbose --suite unit
 ```
@@ -271,4 +337,8 @@ Potential improvements for the test runner:
 5. **Test Impact Analysis**: Run only affected tests
 6. **Performance Budgets**: Set limits per test suite
 7. **Notification Integration**: Slack/email alerts
+<<<<<<< Updated upstream
 8. **Dashboard Integration**: Real-time monitoring
+=======
+8. **Dashboard Integration**: Real-time monitoring
+>>>>>>> Stashed changes

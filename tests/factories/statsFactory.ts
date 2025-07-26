@@ -1,5 +1,6 @@
 import { Run } from '@prisma/client';
-import { createRun } from './runFactory.js';
+import { testDb } from '../fixtures/testDatabase.js';
+import { createRun, createRunSeries } from './runFactory.js';
 
 /**
  * Statistics Factory
@@ -188,7 +189,7 @@ export async function createProgressData(
 ): Promise<Run[]> {
   const runs: Run[] = [];
   const dailyTarget = targetDistance / days;
-  // Progress tracking for distance accumulation
+  let accumulated = 0;
 
   for (let day = 0; day < days; day++) {
     const date = new Date();
@@ -198,6 +199,7 @@ export async function createProgressData(
     if (Math.random() > 0.3) {
       // Vary around daily target
       const distance = dailyTarget * (0.5 + Math.random());
+      accumulated += distance;
 
       const run = await createRun({
         userId,

@@ -1,6 +1,7 @@
-import { test, expect, devices } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import type { TestUser } from './types';
 import { assertTestUser } from './types/index.js';
+import { iPhone12Config, iPadConfig } from './helpers/deviceConfigs.js';
 
 import { mockRuns } from '../fixtures/mockData.js';
 import { testDb } from '../fixtures/testDatabase.js';
@@ -127,15 +128,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
   });
 
   test.describe('Mobile Navigation Tests', () => {
-    test.use(
-      devices['iPhone 12'] ?? {
-        viewport: { width: 390, height: 844 },
-        userAgent:
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
-        isMobile: true,
-        hasTouch: true,
-      }
-    );
+    test.use(iPhone12Config);
 
     test('should handle mobile navigation menu', async ({ page }) => {
       // Login user
@@ -254,7 +247,7 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
   });
 
   test.describe('Touch and Gesture Navigation', () => {
-    test.use(devices['iPad']);
+    test.use(iPadConfig);
 
     test('should handle long press gestures', async ({ page }) => {
       // Login user

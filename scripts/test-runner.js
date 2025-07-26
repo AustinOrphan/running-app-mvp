@@ -188,12 +188,22 @@ ${colors.cyan}Examples:${colors.reset}
 
 function log(message, level = 'info') {
   const timestamp = new Date().toISOString();
+<<<<<<< Updated upstream
+  const prefix =
+    {
+      info: `${colors.blue}[INFO]${colors.reset}`,
+      success: `${colors.green}[SUCCESS]${colors.reset}`,
+      warning: `${colors.yellow}[WARNING]${colors.reset}`,
+      error: `${colors.red}[ERROR]${colors.reset}`,
+    }[level] || '[LOG]';
+=======
   const prefix = {
     info: `${colors.blue}[INFO]${colors.reset}`,
     success: `${colors.green}[SUCCESS]${colors.reset}`,
     warning: `${colors.yellow}[WARNING]${colors.reset}`,
     error: `${colors.red}[ERROR]${colors.reset}`,
   }[level] || '[LOG]';
+>>>>>>> Stashed changes
 
   const logEntry = {
     timestamp,
@@ -202,7 +212,11 @@ function log(message, level = 'info') {
   };
 
   output.push(logEntry);
+<<<<<<< Updated upstream
+
+=======
   
+>>>>>>> Stashed changes
   if (!options.ci || options.verbose) {
     process.stdout.write(`${colors.dim}${timestamp}${colors.reset} ${prefix} ${message}\n`);
   }
@@ -233,18 +247,30 @@ async function runCommand(command, args, options = {}) {
     let stderr = '';
 
     if (!options.verbose) {
+<<<<<<< Updated upstream
+      child.stdout?.on('data', data => {
+=======
       child.stdout?.on('data', (data) => {
+>>>>>>> Stashed changes
         stdout += data.toString();
         if (options.stream) process.stdout.write(data);
       });
 
+<<<<<<< Updated upstream
+      child.stderr?.on('data', data => {
+=======
       child.stderr?.on('data', (data) => {
+>>>>>>> Stashed changes
         stderr += data.toString();
         if (options.stream) process.stderr.write(data);
       });
     }
 
+<<<<<<< Updated upstream
+    child.on('close', code => {
+=======
     child.on('close', (code) => {
+>>>>>>> Stashed changes
       const duration = performance.now() - startTime;
       resolve({
         code,
@@ -255,7 +281,11 @@ async function runCommand(command, args, options = {}) {
       });
     });
 
+<<<<<<< Updated upstream
+    child.on('error', error => {
+=======
     child.on('error', (error) => {
+>>>>>>> Stashed changes
       reject(error);
     });
   });
@@ -278,7 +308,11 @@ async function ensureDirectories() {
 
 async function checkEnvironment() {
   log('Checking test environment...', 'info');
+<<<<<<< Updated upstream
+
+=======
   
+>>>>>>> Stashed changes
   // Check Node.js version
   const nodeVersion = process.version;
   const majorVersion = parseInt(nodeVersion.split('.')[0].substring(1));
@@ -314,7 +348,11 @@ async function checkEnvironment() {
 async function runTestSuite(suiteName, suiteConfig) {
   const startTime = performance.now();
   log(`Running ${suiteConfig.name}...`, 'info');
+<<<<<<< Updated upstream
+
+=======
   
+>>>>>>> Stashed changes
   testResults.suites[suiteName] = {
     name: suiteConfig.name,
     status: 'running',
@@ -325,11 +363,18 @@ async function runTestSuite(suiteName, suiteConfig) {
   };
 
   try {
+<<<<<<< Updated upstream
+    const result = await runCommand(suiteConfig.command, suiteConfig.args, {
+      verbose: options.verbose,
+      stream: !options.parallel,
+    });
+=======
     const result = await runCommand(
       suiteConfig.command,
       suiteConfig.args,
       { verbose: options.verbose, stream: !options.parallel }
     );
+>>>>>>> Stashed changes
 
     const duration = performance.now() - startTime;
     testResults.suites[suiteName].duration = duration;
@@ -345,7 +390,11 @@ async function runTestSuite(suiteName, suiteConfig) {
       testResults.suites[suiteName].error = result.stderr || result.stdout;
       testResults.failed++;
       log(`${suiteConfig.name} failed after ${formatDuration(duration)}`, 'error');
+<<<<<<< Updated upstream
+
+=======
       
+>>>>>>> Stashed changes
       if (options.bail) {
         throw new Error(`Test suite ${suiteName} failed. Bailing out.`);
       }
@@ -355,13 +404,20 @@ async function runTestSuite(suiteName, suiteConfig) {
     if (suiteConfig.coverageDir) {
       await extractCoverageData(suiteName, suiteConfig.coverageDir);
     }
+<<<<<<< Updated upstream
+=======
 
+>>>>>>> Stashed changes
   } catch (error) {
     testResults.suites[suiteName].status = 'error';
     testResults.suites[suiteName].error = error.message;
     testResults.failed++;
     log(`${suiteConfig.name} encountered an error: ${error.message}`, 'error');
+<<<<<<< Updated upstream
+
+=======
     
+>>>>>>> Stashed changes
     if (options.bail) {
       throw error;
     }
@@ -370,12 +426,20 @@ async function runTestSuite(suiteName, suiteConfig) {
 
 async function extractCoverageData(suiteName, coverageDir) {
   const coveragePath = join(projectRoot, coverageDir, 'coverage-summary.json');
+<<<<<<< Updated upstream
+
+=======
   
+>>>>>>> Stashed changes
   if (existsSync(coveragePath)) {
     try {
       const coverageData = JSON.parse(readFileSync(coveragePath, 'utf8'));
       testResults.coverage[suiteName] = coverageData.total;
+<<<<<<< Updated upstream
+
+=======
       
+>>>>>>> Stashed changes
       // Check coverage thresholds
       const metrics = ['lines', 'statements', 'functions', 'branches'];
       for (const metric of metrics) {
@@ -459,13 +523,23 @@ function generateConsoleReport() {
   reportLines.push(`  Completed: ${testResults.endTime}`);
   reportLines.push(`  ${colors.green}Passed: ${testResults.passed}${colors.reset}`);
   reportLines.push(`  ${colors.red}Failed: ${testResults.failed}${colors.reset}`);
+<<<<<<< Updated upstream
+
+=======
   
+>>>>>>> Stashed changes
   // Suite details
   reportLines.push(`\n${colors.cyan}Test Suites:${colors.reset}`);
   for (const [name, suite] of Object.entries(testResults.suites)) {
     const icon = suite.status === 'passed' ? '✓' : '✗';
     const color = suite.status === 'passed' ? colors.green : colors.red;
+<<<<<<< Updated upstream
+    reportLines.push(
+      `  ${color}${icon} ${suite.name}${colors.reset} - ${formatDuration(suite.duration)}`
+    );
+=======
     reportLines.push(`  ${color}${icon} ${suite.name}${colors.reset} - ${formatDuration(suite.duration)}`);
+>>>>>>> Stashed changes
   }
 
   // Coverage summary
@@ -505,10 +579,17 @@ function generateConsoleReport() {
   } else {
     reportLines.push(`${colors.red}${colors.bright}Tests failed!${colors.reset}`);
   }
+<<<<<<< Updated upstream
+
+  // Write report to stdout
+  process.stdout.write(reportLines.join('\n') + '\n');
+
+=======
   
   // Write report to stdout
   process.stdout.write(reportLines.join('\n') + '\n');
   
+>>>>>>> Stashed changes
   return exitCode;
 }
 
@@ -682,14 +763,40 @@ async function generateHTMLReport() {
                 </div>
             </div>
 
+<<<<<<< Updated upstream
+            ${
+              Object.keys(testResults.coverage).length > 0
+                ? `
+            <div class="card">
+                <h3>Coverage Overview</h3>
+                ${Object.entries(testResults.coverage)
+                  .map(
+                    ([suite, coverage]) => `
+=======
             ${Object.keys(testResults.coverage).length > 0 ? `
             <div class="card">
                 <h3>Coverage Overview</h3>
                 ${Object.entries(testResults.coverage).map(([suite, coverage]) => `
+>>>>>>> Stashed changes
                     <div class="metric">
                         <span>${suite}:</span>
                         <span class="metric-value">${coverage.lines.pct}%</span>
                     </div>
+<<<<<<< Updated upstream
+                `
+                  )
+                  .join('')}
+            </div>
+            `
+                : ''
+            }
+        </div>
+
+        <h2>Suite Details</h2>
+        ${Object.entries(testResults.suites)
+          .map(
+            ([name, suite]) => `
+=======
                 `).join('')}
             </div>
             ` : ''}
@@ -697,6 +804,7 @@ async function generateHTMLReport() {
 
         <h2>Suite Details</h2>
         ${Object.entries(testResults.suites).map(([name, suite]) => `
+>>>>>>> Stashed changes
             <div class="suite-results">
                 <div class="suite-header">
                     <div>
@@ -712,10 +820,20 @@ async function generateHTMLReport() {
                     </div>
                 </div>
                 
+<<<<<<< Updated upstream
+                ${
+                  testResults.coverage[name]
+                    ? `
+                    <div class="coverage">
+                        <h4>Coverage</h4>
+                        ${['lines', 'statements', 'functions', 'branches']
+                          .map(metric => {
+=======
                 ${testResults.coverage[name] ? `
                     <div class="coverage">
                         <h4>Coverage</h4>
                         ${['lines', 'statements', 'functions', 'branches'].map(metric => {
+>>>>>>> Stashed changes
                             const pct = testResults.coverage[name][metric].pct;
                             const level = pct >= 80 ? 'high' : pct >= 60 ? 'medium' : 'low';
                             return `
@@ -729,15 +847,71 @@ async function generateHTMLReport() {
                                     </div>
                                 </div>
                             `;
+<<<<<<< Updated upstream
+                          })
+                          .join('')}
+                    </div>
+                `
+                    : ''
+                }
+                
+                ${
+                  suite.error
+                    ? `
+=======
                         }).join('')}
                     </div>
                 ` : ''}
                 
                 ${suite.error ? `
+>>>>>>> Stashed changes
                     <div class="error-output">
                         <h4>Error Output</h4>
                         <pre>${suite.error}</pre>
                     </div>
+<<<<<<< Updated upstream
+                `
+                    : ''
+                }
+            </div>
+        `
+          )
+          .join('')}
+
+        ${
+          testResults.warnings.length > 0
+            ? `
+            <div class="warnings">
+                <h2>Warnings</h2>
+                ${testResults.warnings
+                  .map(
+                    warning => `
+                    <div class="message warning">${warning}</div>
+                `
+                  )
+                  .join('')}
+            </div>
+        `
+            : ''
+        }
+
+        ${
+          testResults.errors.length > 0
+            ? `
+            <div class="errors">
+                <h2>Errors</h2>
+                ${testResults.errors
+                  .map(
+                    error => `
+                    <div class="message error">${error}</div>
+                `
+                  )
+                  .join('')}
+            </div>
+        `
+            : ''
+        }
+=======
                 ` : ''}
             </div>
         `).join('')}
@@ -759,6 +933,7 @@ async function generateHTMLReport() {
                 `).join('')}
             </div>
         ` : ''}
+>>>>>>> Stashed changes
     </div>
 </body>
 </html>
@@ -772,7 +947,11 @@ async function generateHTMLReport() {
 async function generateCoverageReport() {
   // Merge coverage data from different test suites
   const mergedCoverage = {};
+<<<<<<< Updated upstream
+
+=======
   
+>>>>>>> Stashed changes
   for (const [suite, coverage] of Object.entries(testResults.coverage)) {
     for (const metric of ['lines', 'statements', 'functions', 'branches']) {
       if (!mergedCoverage[metric]) {
@@ -790,7 +969,11 @@ async function generateCoverageReport() {
   // Calculate percentages
   for (const metric of Object.keys(mergedCoverage)) {
     const data = mergedCoverage[metric];
+<<<<<<< Updated upstream
+    data.pct = data.total > 0 ? ((data.covered / data.total) * 100).toFixed(2) : 0;
+=======
     data.pct = data.total > 0 ? (data.covered / data.total * 100).toFixed(2) : 0;
+>>>>>>> Stashed changes
   }
 
   // Generate coverage summary
@@ -828,14 +1011,24 @@ async function generateCoverageBadges(coverage) {
 // Main execution
 async function main() {
   try {
+<<<<<<< Updated upstream
+    process.stdout.write(
+      `${colors.bright}${colors.cyan}Running App MVP - Test Runner${colors.reset}\n`
+    );
+=======
     process.stdout.write(`${colors.bright}${colors.cyan}Running App MVP - Test Runner${colors.reset}\n`);
+>>>>>>> Stashed changes
     process.stdout.write(`${colors.dim}Starting test execution...${colors.reset}\n\n`);
 
     // Ensure output directories exist
     await ensureDirectories();
 
     // Check environment
+<<<<<<< Updated upstream
+    if (!(await checkEnvironment())) {
+=======
     if (!await checkEnvironment()) {
+>>>>>>> Stashed changes
       log('Environment check failed. Aborting.', 'error');
       process.exit(1);
     }
@@ -848,7 +1041,11 @@ async function main() {
 
     // Determine exit code
     const exitCode = testResults.failed > 0 ? 1 : 0;
+<<<<<<< Updated upstream
+
+=======
     
+>>>>>>> Stashed changes
     // CI-specific checks
     if (options.ci) {
       // Check coverage thresholds
@@ -863,7 +1060,10 @@ async function main() {
     }
 
     process.exit(exitCode);
+<<<<<<< Updated upstream
+=======
 
+>>>>>>> Stashed changes
   } catch (error) {
     log(`Fatal error: ${error.message}`, 'error');
     process.stderr.write(error.stack + '\n');
@@ -876,4 +1076,8 @@ if (import.meta.url === `file://${__filename}`) {
   main();
 }
 
+<<<<<<< Updated upstream
 export { main, runAllTests, generateReports };
+=======
+export { main, runAllTests, generateReports };
+>>>>>>> Stashed changes

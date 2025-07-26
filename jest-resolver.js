@@ -1,4 +1,5 @@
 // Custom Jest resolver for TypeScript
+import { createRequire } from 'module';
 import path from 'path';
 import fs from 'fs';
 

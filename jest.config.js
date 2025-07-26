@@ -46,7 +46,7 @@ export default {
     ],
   },
   resolver: '<rootDir>/jest-resolver.cjs',
-  testTimeout: 10000,
+  testTimeout: process.env.CI ? 30000 : 10000, // 30s in CI, 10s locally
   verbose: true,
   maxWorkers: 1, // Run integration tests sequentially to prevent database race conditions
 };

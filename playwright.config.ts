@@ -21,7 +21,13 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: process.env.CI ? [['html'], ['./tests/reporters/accessibility-reporter.ts']] : 'html',
+  reporter: process.env.CI
+    ? [
+        ['html', { outputFolder: 'playwright-report' }],
+        ['junit', { outputFile: 'test-results/e2e-junit.xml' }],
+        ['./tests/reporters/accessibility-reporter.ts'],
+      ]
+    : 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -29,7 +35,14 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+
+    /* CI-aware timeout configuration */
+    actionTimeout: process.env.CI ? 15000 : 10000, // 15s in CI, 10s locally
+    navigationTimeout: process.env.CI ? 45000 : 30000, // 45s in CI, 30s locally
   },
+
+  /* Test timeout configuration */
+  timeout: process.env.CI ? 60000 : 30000, // 60s in CI, 30s locally
 
   /* Configure projects for major browsers */
   projects: [
@@ -75,5 +88,15 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
+  },
+
+  /* Expect configuration for assertions */
+  expect: {
+    timeout: process.env.CI ? 30000 : 15000,
+    toHaveScreenshot: {
+      threshold: 0.2,
+      maxDiffPixels: 100,
+      animations: 'disabled',
+    },
   },
 });
