@@ -49,6 +49,9 @@ jobs:
       
       - name: Setup test database
         run: |
+          # Ensure database directory exists
+          mkdir -p prisma
+          # Deploy migrations and generate client
           npm run ci-db-setup
           npm run prisma:generate
       

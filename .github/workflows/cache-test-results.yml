@@ -138,6 +138,9 @@ jobs:
       - name: 🗄️ Setup test environment
         if: steps.check-cache.outputs.cache-hit != 'true' && inputs.test-type != 'unit'
         run: |
+          # Ensure database directory exists
+          mkdir -p prisma
+          # Deploy migrations and generate client
           npm run ci-db-setup
           npm run verify-db-setup
 
