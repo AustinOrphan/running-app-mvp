@@ -7,7 +7,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import { setupInMemoryDb, cleanupInMemoryDb, getTestDbClient } from '../../setup/inMemoryDbSetup';
-import { seedBasicTestData, seedMinimalTestData, TEST_USERS } from '../../utils/testSeeds';
+import { seedBasicTestData, TEST_USERS } from '../../utils/testSeeds';
 import type { PrismaClient } from '@prisma/client';
 
 describe('In-Memory Database', () => {
@@ -15,7 +15,7 @@ describe('In-Memory Database', () => {
 
   beforeAll(async () => {
     // Setup in-memory database with basic test data
-    const db = await setupInMemoryDb({
+    await setupInMemoryDb({
       enableLogging: false,
       cleanBetweenTests: true,
       seedFunction: seedBasicTestData,

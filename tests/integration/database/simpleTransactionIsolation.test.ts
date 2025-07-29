@@ -66,7 +66,7 @@ describe('Simple Transaction Isolation Demo', () => {
         // Intentionally throw to rollback
         throw new Error('ROLLBACK_TEST');
       });
-    } catch (error) {
+    } catch {
       console.log('Transaction rolled back as expected');
     }
 

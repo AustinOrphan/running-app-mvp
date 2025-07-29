@@ -5,7 +5,7 @@
  * and ensures tests don't interfere with each other.
  */
 
-import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
+import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import { PrismaClient } from '@prisma/client';
 import {
   setupTransactionTestingJest,
@@ -168,7 +168,7 @@ describe('Transaction Isolation', () => {
       });
 
       // Create runs for the user
-      const run1 = await client.run.create({
+      await client.run.create({
         data: {
           userId: user.id,
           date: new Date('2024-01-15T08:00:00Z'),
@@ -178,7 +178,7 @@ describe('Transaction Isolation', () => {
         },
       });
 
-      const run2 = await client.run.create({
+      await client.run.create({
         data: {
           userId: user.id,
           date: new Date('2024-01-16T18:00:00Z'),
@@ -189,7 +189,7 @@ describe('Transaction Isolation', () => {
       });
 
       // Create goal for the user
-      const goal = await client.goal.create({
+      await client.goal.create({
         data: {
           userId: user.id,
           title: 'Monthly Distance Goal',

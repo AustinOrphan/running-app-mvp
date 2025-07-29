@@ -12,7 +12,7 @@ import {
   setupTransactionRollbackJest,
   setupTransactionRollbackVitest,
   initializeTransactionIsolation,
-  getTransactionManager,
+  // getTransactionManager,
 } from '../utils/transactionIsolation';
 
 // Global transaction manager instance

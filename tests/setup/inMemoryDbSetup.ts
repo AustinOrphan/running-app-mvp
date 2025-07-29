@@ -19,7 +19,7 @@ try {
   // Fallback to Jest globals
   beforeAll = (global as any).beforeAll;
   afterAll = (global as any).afterAll;
-  beforeEach = (global as any).beforeEach;
+  // beforeEach = (global as any).beforeEach;
   afterEach = (global as any).afterEach;
 }
 import { InMemoryDatabase, InMemoryDbManager, createTestDatabase } from '../utils/inMemoryDb';
