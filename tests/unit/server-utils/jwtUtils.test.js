@@ -188,9 +188,11 @@ describe('JWT Utilities', () => {
       // Re-import the module
       await import('../../../server/utils/jwtUtils.js');
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'WARNING: Using in-memory token blacklist in production. This is not recommended!'
-      );
+      // Check that warning was called (the message format has changed to SecureLog)
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      const callArgs = consoleWarnSpy.mock.calls[0];
+      expect(callArgs[0]).toContain('SecureLog');
+      expect(callArgs[1]).toContain('Using in-memory token blacklist in production');
     });
 
     it('should not warn in development environment', async () => {

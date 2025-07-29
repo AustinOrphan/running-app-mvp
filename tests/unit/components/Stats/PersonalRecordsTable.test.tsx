@@ -126,8 +126,9 @@ describe('PersonalRecordsTable', () => {
       const distanceHeader = screen.getByRole('columnheader', { name: /Distance/i });
       fireEvent.click(distanceHeader);
 
-      // Check that header has active class
-      expect(distanceHeader.closest('th')).toHaveClass('active');
+      // Check that header has active styling by checking for active class (CSS modules or regular)
+      const thElement = distanceHeader.closest('th');
+      expect(thElement?.className).toMatch(/active/);
     });
 
     it('toggles sort direction when same header is clicked twice', () => {
@@ -163,7 +164,9 @@ describe('PersonalRecordsTable', () => {
       const timeHeader = screen.getByRole('columnheader', { name: /Time/i });
       fireEvent.click(timeHeader);
 
-      expect(timeHeader.closest('th')).toHaveClass('active');
+      // Check that header has active styling by checking for active class (CSS modules or regular)
+      const thElement = timeHeader.closest('th');
+      expect(thElement?.className).toMatch(/active/);
       expect(screen.getByText('Time ↑')).toBeInTheDocument();
     });
 
@@ -173,7 +176,9 @@ describe('PersonalRecordsTable', () => {
       const paceHeader = screen.getByRole('columnheader', { name: /Pace/i });
       fireEvent.click(paceHeader);
 
-      expect(paceHeader.closest('th')).toHaveClass('active');
+      // Check that header has active styling by checking for active class (CSS modules or regular)
+      const thElement = paceHeader.closest('th');
+      expect(thElement?.className).toMatch(/active/);
     });
 
     it('sorts by date when date header is clicked', () => {
@@ -182,7 +187,9 @@ describe('PersonalRecordsTable', () => {
       const dateHeader = screen.getByRole('columnheader', { name: /Date/i });
       fireEvent.click(dateHeader);
 
-      expect(dateHeader.closest('th')).toHaveClass('active');
+      // Check that header has active styling by checking for active class (CSS modules or regular)
+      const thElement = dateHeader.closest('th');
+      expect(thElement?.className).toMatch(/active/);
     });
   });
 
