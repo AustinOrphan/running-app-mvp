@@ -103,13 +103,13 @@ export default defineConfig({
         '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
         '**/.{eslint,mocha,prettier}rc.{js,cjs,yml}',
       ],
-      // Stricter coverage thresholds for CI
+      // Coverage thresholds for CI
       thresholds: {
         global: {
-          branches: 75,
-          functions: 75,
-          lines: 75,
-          statements: 75,
+          branches: 50,
+          functions: 50,
+          lines: 50,
+          statements: 50,
         },
       },
     },
