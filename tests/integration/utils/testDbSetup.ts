@@ -35,8 +35,8 @@ export const initializeTestDatabase = async () => {
     // Check connection
     await prisma.$connect();
 
-    // Skip migrations - they should be run once before all tests
-    // Migrations are handled by globalSetup.ts or CI pipeline
+    // Schema should already be applied by globalSetup.ts for in-memory databases
+    // For file-based databases, migrations are handled elsewhere
 
     return prisma;
   } catch (error) {
@@ -51,7 +51,7 @@ export const initializeTestDatabase = async () => {
 export const cleanTestDatabase = async () => {
   const prisma = getTestPrisma();
 
-  // Order matters due to foreign key constraints
+  // Order matters due to foreign key constraints - use proper Prisma model names
   const tables = ['race', 'goal', 'run', 'user'] as const;
 
   for (const table of tables) {

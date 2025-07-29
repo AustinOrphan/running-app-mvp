@@ -9,9 +9,24 @@ export default async function globalSetup(): Promise<() => void> {
     // Use in-memory database for faster tests
     console.log('🚀 Using in-memory database for tests');
 
-    process.env.DATABASE_URL = ':memory:';
-    process.env.TEST_DATABASE_URL = ':memory:';
+    // Use proper Prisma-compatible in-memory SQLite URL
+    process.env.DATABASE_URL = 'file::memory:?cache=shared';
+    process.env.TEST_DATABASE_URL = 'file::memory:?cache=shared';
     process.env.USE_IN_MEMORY_DB = 'true';
+
+    // Apply schema to in-memory database immediately
+    try {
+      const { execSync } = await import('child_process');
+      console.log('📋 Applying schema to in-memory database...');
+      execSync('npx prisma db push --force-reset --skip-generate', {
+        stdio: 'pipe',
+        env: { ...process.env },
+      });
+      console.log('✅ Schema applied successfully');
+    } catch (error) {
+      console.error('❌ Failed to apply schema to in-memory database:', error);
+      throw error;
+    }
   } else {
     // Use file-based database (legacy mode)
     console.log('📁 Using file-based database for tests');
