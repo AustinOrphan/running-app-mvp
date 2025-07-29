@@ -74,14 +74,26 @@ export default defineConfig({
     },
 
     /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
+    {
+      name: 'Mobile Safari',
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: true,
+      },
+      testMatch: ['**/accessibility.test.ts', '**/navigation-swipe.test.ts'],
+    },
+    {
+      name: 'iPad',
+      use: {
+        ...devices['iPad Pro 11'],
+        viewport: { width: 1024, height: 1366 },
+        hasTouch: true,
+        isMobile: false,
+      },
+      testMatch: ['**/navigation-swipe.test.ts'],
+    },
 
     /* Test against branded browsers. */
     // {

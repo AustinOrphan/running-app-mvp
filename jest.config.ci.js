@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 const baseConfig = require('./jest.config.js');
 
 module.exports = {

@@ -3,7 +3,8 @@ import { globalDbCleanup } from './inMemoryDbSetup';
 
 export default async function globalSetup(): Promise<() => void> {
   // Check if in-memory database should be used
-  const useInMemoryDb = process.env.USE_IN_MEMORY_DB === 'true' || process.env.NODE_ENV === 'test';
+  // Disable in-memory database for now due to sharing issues between connections
+  const useInMemoryDb = process.env.USE_IN_MEMORY_DB === 'true' && false;
 
   if (useInMemoryDb) {
     // Use in-memory database for faster tests

@@ -5,7 +5,7 @@
  */
 
 import { test as base, expect } from '@playwright/test';
-import { testDb } from '../../fixtures/testDatabase.js';
+import { testDb } from '../../fixtures/testDatabase';
 
 // Extend base test with custom fixtures
 export const test = base.extend({

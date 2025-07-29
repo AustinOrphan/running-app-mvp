@@ -1,10 +1,7 @@
 // Quick test script to verify Goals API currentValue persistence
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-
 const prisma = new PrismaClient();
-const JWT_SECRET = 'your-super-secret-jwt-key-change-this-in-production';
 
 async function testGoalsCurrentValue() {
   console.log('🧪 Testing Goals API currentValue persistence...\n');

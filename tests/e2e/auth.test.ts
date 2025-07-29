@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { TestUser } from './types';
 import { assertTestUser } from './types/index.js';
 
-import { testDb } from '../fixtures/testDatabase.js';
+import { testDb } from '../fixtures/testDatabase';
 
 test.describe('Authentication Flow E2E Tests', () => {
   test.beforeEach(async ({ page }) => {

@@ -4,7 +4,7 @@ import { assertTestUser } from './types/index.js';
 import { iPhone12Config } from './helpers/deviceConfigs.js';
 
 import { mockRuns } from '../fixtures/mockData.js';
-import { testDb } from '../fixtures/testDatabase.js';
+import { testDb } from '../fixtures/testDatabase';
 
 // Define mobile device configurations with names and fallbacks
 const mobileDevices = [
