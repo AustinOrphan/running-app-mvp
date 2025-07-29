@@ -157,7 +157,7 @@ export default [
 
   // Test files configuration
   {
-    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', 'tests/**/*'],
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', 'tests/**/*', 'test-*.js'],
     plugins: {
       '@typescript-eslint': typescript,
     },
@@ -224,6 +224,7 @@ export default [
     },
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
       'no-console': 'off',
     },
   },
