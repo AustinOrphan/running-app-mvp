@@ -25,6 +25,12 @@ on:
 jobs:
   test-with-cache:
     runs-on: ubuntu-latest
+    
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
+    
     outputs:
       cache-hit: ${{ steps.check-cache.outputs.cache-hit }}
       test-passed: ${{ steps.run-tests.outputs.passed }}

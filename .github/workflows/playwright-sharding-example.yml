@@ -14,6 +14,11 @@ jobs:
     name: E2E Tests (Shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
+    
     strategy:
       fail-fast: false
       matrix:

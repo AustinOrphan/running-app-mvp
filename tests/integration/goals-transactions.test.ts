@@ -2,7 +2,6 @@ import request from 'supertest';
 import { createTestApp } from './utils/testApp.js';
 import { testDb } from './utils/testDbSetup.js';
 import { prisma } from '../../lib/prisma.js';
-import jwt from 'jsonwebtoken';
 
 describe('Goals API - Transaction Rollback Scenarios', () => {
   let app: ReturnType<typeof createTestApp>;
@@ -18,10 +17,9 @@ describe('Goals API - Transaction Rollback Scenarios', () => {
     const user = await testDb.createUser({
       email: 'test@example.com',
       password: 'password123',
-      name: 'Test User',
     });
     userId = user.id;
-    authToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'test-secret');
+    authToken = testDb.generateToken(user.id, user.email);
   });
 
   afterEach(async () => {

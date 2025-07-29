@@ -38,6 +38,20 @@ export default async function globalSetup(): Promise<() => void> {
 
     process.env.DATABASE_URL = dbUrl;
     process.env.TEST_DATABASE_URL = dbUrl;
+
+    // Apply schema to file-based test database
+    try {
+      const { execSync } = await import('child_process');
+      console.log('📋 Applying schema to test database...');
+      execSync('npx prisma db push --force-reset --skip-generate', {
+        stdio: 'pipe',
+        env: { ...process.env, DATABASE_URL: dbUrl },
+      });
+      console.log('✅ Test database schema applied successfully');
+    } catch (error) {
+      console.error('❌ Failed to apply schema to test database:', error);
+      throw error;
+    }
   }
 
   // Common test environment variables

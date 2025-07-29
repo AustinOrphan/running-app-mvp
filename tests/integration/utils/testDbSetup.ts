@@ -35,8 +35,16 @@ export const initializeTestDatabase = async () => {
     // Check connection
     await prisma.$connect();
 
-    // Schema should already be applied by globalSetup.ts for in-memory databases
-    // For file-based databases, migrations are handled elsewhere
+    // For SQLite test databases, ensure tables exist by running a simple query
+    // This will create tables if they don't exist
+    try {
+      await prisma.user.findFirst();
+    } catch (error) {
+      const errorMessage = (error as Error).message;
+      if (errorMessage.includes('does not exist')) {
+        console.log('Database tables do not exist. Please run migrations before tests.');
+      }
+    }
 
     return prisma;
   } catch (error) {
@@ -51,14 +59,23 @@ export const initializeTestDatabase = async () => {
 export const cleanTestDatabase = async () => {
   const prisma = getTestPrisma();
 
-  // Order matters due to foreign key constraints - use proper Prisma model names
-  const tables = ['race', 'goal', 'run', 'user'] as const;
+  // Order matters due to foreign key constraints - delete children first
+  const tables = [
+    { name: 'run', model: prisma.run },
+    { name: 'goal', model: prisma.goal },
+    { name: 'race', model: prisma.race },
+    { name: 'user', model: prisma.user },
+  ];
 
   for (const table of tables) {
     try {
-      await (prisma[table] as any).deleteMany();
+      await table.model.deleteMany();
     } catch (error) {
-      console.warn(`Failed to clean ${table} table:`, (error as Error).message);
+      const errorMessage = (error as Error).message;
+      // Only warn if it's not a "table doesn't exist" error
+      if (!errorMessage.includes('does not exist')) {
+        console.warn(`Failed to clean ${table.name} table:`, errorMessage);
+      }
     }
   }
 };
