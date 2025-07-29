@@ -57,8 +57,9 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const overlay = document.querySelector('.modalOverlay');
-      await user.click(overlay!);
+      // Find overlay by role and click it (but not the modal content)
+      const overlay = screen.getByRole('presentation');
+      await user.click(overlay);
 
       expect(mockOnClose).toHaveBeenCalled();
     });
