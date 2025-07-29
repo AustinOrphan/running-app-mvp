@@ -1,0 +1,1263 @@
+openapi: 3.0.3
+info:
+  title: Running App MVP API
+  description: |
+    A comprehensive running tracker application API that allows users to manage their running activities, 
+    set goals, track races, and view performance statistics.
+    
+    ## Authentication
+    This API uses JWT (JSON Web Tokens) for authentication. Include the access token in the Authorization header:
+    ```
+    Authorization: Bearer <access_token>
+    ```
+    
+    ## Rate Limiting
+    - Authentication endpoints: 5 requests per 15 minutes
+    - Read operations: 100 requests per 15 minutes  
+    - Write operations: 20 requests per 15 minutes
+    - API endpoints: 100 requests per 15 minutes
+    
+    ## Error Handling
+    The API uses standard HTTP status codes and returns errors in a consistent format.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@runningapp.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3001/api
+    description: Development server
+  - url: https://api.runningapp.com/api
+    description: Production server
+
+security:
+  - bearerAuth: []
+
+paths:
+  # Authentication Endpoints
+  /auth/test:
+    get:
+      tags:
+        - Authentication
+      summary: Test auth routes
+      description: Simple endpoint to verify that authentication routes are working
+      security: []
+      responses:
+        '200':
+          description: Auth routes are working
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Auth routes are working"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Create a new user account with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+                password:
+                  type: string
+                  minLength: 8
+                  example: "securePassword123"
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User created successfully"
+                  accessToken:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  refreshToken:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    $ref: '#/components/schemas/PublicUser'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+                password:
+                  type: string
+                  example: "securePassword123"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Login successful"
+                  accessToken:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  refreshToken:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    $ref: '#/components/schemas/PublicUser'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+
+  /auth/verify:
+    get:
+      tags:
+        - Authentication
+      summary: Verify JWT token
+      description: Verify the current JWT token and return user information
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/PublicUser'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Generate a new access token using a valid refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Token refreshed successfully"
+                  accessToken:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Logout user and blacklist tokens
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  description: Optional refresh token to blacklist
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Goals Endpoints
+  /goals:
+    get:
+      tags:
+        - Goals
+      summary: Get all goals
+      description: Retrieve all active goals for the authenticated user
+      responses:
+        '200':
+          description: List of goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Goal'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Goals
+      summary: Create new goal
+      description: Create a new goal for the authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGoalRequest'
+      responses:
+        '201':
+          description: Goal created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goal'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /goals/{id}:
+    get:
+      tags:
+        - Goals
+      summary: Get specific goal
+      description: Retrieve a specific goal by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Goal ID
+      responses:
+        '200':
+          description: Goal details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goal'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Goals
+      summary: Update goal
+      description: Update an existing goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Goal ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGoalRequest'
+      responses:
+        '200':
+          description: Goal updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goal'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Goals
+      summary: Delete goal
+      description: Soft delete a goal (marks as inactive)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Goal ID
+      responses:
+        '200':
+          description: Goal deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Goal deleted successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # Runs Endpoints
+  /runs:
+    get:
+      tags:
+        - Runs
+      summary: Get all runs
+      description: Retrieve all runs for the authenticated user
+      responses:
+        '200':
+          description: List of runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Run'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Runs
+      summary: Create new run
+      description: Create a new running activity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRunRequest'
+      responses:
+        '201':
+          description: Run created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /runs/simple-list:
+    get:
+      tags:
+        - Runs
+      summary: Get simplified run list
+      description: Retrieve a simplified list of runs with basic information
+      responses:
+        '200':
+          description: Simplified list of runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SimpleRun'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /runs/{id}:
+    get:
+      tags:
+        - Runs
+      summary: Get specific run
+      description: Retrieve a specific run by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Run ID
+      responses:
+        '200':
+          description: Run details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Runs
+      summary: Update run
+      description: Update an existing run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Run ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRunRequest'
+      responses:
+        '200':
+          description: Run updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Runs
+      summary: Delete run
+      description: Delete a run permanently
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Run ID
+      responses:
+        '200':
+          description: Run deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Run deleted successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # Races Endpoints
+  /races:
+    get:
+      tags:
+        - Races
+      summary: Get all races
+      description: Retrieve all races for the authenticated user
+      responses:
+        '200':
+          description: List of races
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Race'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Races
+      summary: Create new race
+      description: Create a new race event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRaceRequest'
+      responses:
+        '201':
+          description: Race created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Race'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /races/{id}:
+    get:
+      tags:
+        - Races
+      summary: Get specific race
+      description: Retrieve a specific race by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Race ID
+      responses:
+        '200':
+          description: Race details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Race'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Races
+      summary: Update race
+      description: Update an existing race
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Race ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRaceRequest'
+      responses:
+        '200':
+          description: Race updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Race'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Races
+      summary: Delete race
+      description: Delete a race permanently
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Race ID
+      responses:
+        '200':
+          description: Race deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Race deleted successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # Statistics Endpoints
+  /stats/insights-summary:
+    get:
+      tags:
+        - Statistics
+      summary: Get weekly insights summary
+      description: Retrieve weekly running statistics and insights
+      responses:
+        '200':
+          description: Weekly insights summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeeklyInsights'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /stats/type-breakdown:
+    get:
+      tags:
+        - Statistics
+      summary: Get run type breakdown
+      description: Retrieve statistics broken down by run type
+      responses:
+        '200':
+          description: Run type breakdown statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TypeBreakdown'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # Audit Endpoints (Admin only)
+  /audit/events:
+    get:
+      tags:
+        - Audit
+      summary: Query audit events
+      description: Query audit events with filters (Admin access required)
+      parameters:
+        - name: action
+          in: query
+          schema:
+            type: string
+          description: Filter by action type
+        - name: entityType
+          in: query
+          schema:
+            type: string
+          description: Filter by entity type
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter events after this date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter events before this date
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+          description: Maximum number of events to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of events to skip
+      responses:
+        '200':
+          description: Audit events list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PublicUser:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "clm123abc456"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+
+    Goal:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "clm123abc456"
+        userId:
+          type: string
+          example: "clm123abc456"
+        type:
+          type: string
+          enum: [distance, time, frequency, pace]
+          example: "distance"
+        period:
+          type: string
+          enum: [daily, weekly, monthly, yearly]
+          example: "weekly"
+        targetValue:
+          type: number
+          example: 50.0
+        currentValue:
+          type: number
+          example: 25.5
+        isCompleted:
+          type: boolean
+          example: false
+        isActive:
+          type: boolean
+          example: true
+        startDate:
+          type: string
+          format: date-time
+          example: "2024-01-01T00:00:00Z"
+        endDate:
+          type: string
+          format: date-time
+          example: "2024-12-31T23:59:59Z"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T12:00:00Z"
+
+    CreateGoalRequest:
+      type: object
+      required:
+        - type
+        - period
+        - targetValue
+        - startDate
+        - endDate
+      properties:
+        type:
+          type: string
+          enum: [distance, time, frequency, pace]
+        period:
+          type: string
+          enum: [daily, weekly, monthly, yearly]
+        targetValue:
+          type: number
+          minimum: 0.1
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+
+    UpdateGoalRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [distance, time, frequency, pace]
+        period:
+          type: string
+          enum: [daily, weekly, monthly, yearly]
+        targetValue:
+          type: number
+          minimum: 0.1
+        currentValue:
+          type: number
+          minimum: 0
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        isCompleted:
+          type: boolean
+
+    Run:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "clm123abc456"
+        userId:
+          type: string
+          example: "clm123abc456"
+        date:
+          type: string
+          format: date-time
+          example: "2024-01-15T08:00:00Z"
+        distance:
+          type: number
+          example: 5.2
+        duration:
+          type: integer
+          description: Duration in seconds
+          example: 1800
+        pace:
+          type: number
+          description: Pace in minutes per kilometer
+          example: 5.77
+        runType:
+          type: string
+          example: "easy"
+        notes:
+          type: string
+          example: "Great morning run"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T12:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T12:00:00Z"
+
+    SimpleRun:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "clm123abc456"
+        date:
+          type: string
+          format: date-time
+          example: "2024-01-15T08:00:00Z"
+        distance:
+          type: number
+          example: 5.2
+        duration:
+          type: integer
+          example: 1800
+        runType:
+          type: string
+          example: "easy"
+
+    CreateRunRequest:
+      type: object
+      required:
+        - date
+        - distance
+        - duration
+      properties:
+        date:
+          type: string
+          format: date-time
+        distance:
+          type: number
+          minimum: 0.1
+        duration:
+          type: integer
+          minimum: 1
+        runType:
+          type: string
+        notes:
+          type: string
+
+    UpdateRunRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date-time
+        distance:
+          type: number
+          minimum: 0.1
+        duration:
+          type: integer
+          minimum: 1
+        runType:
+          type: string
+        notes:
+          type: string
+
+    Race:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "clm123abc456"
+        userId:
+          type: string
+          example: "clm123abc456"
+        name:
+          type: string
+          example: "Boston Marathon"
+        distance:
+          type: number
+          example: 42.195
+        raceDate:
+          type: string
+          format: date-time
+          example: "2024-04-15T09:00:00Z"
+        targetTime:
+          type: integer
+          description: Target time in seconds
+          example: 10800
+        actualTime:
+          type: integer
+          description: Actual time in seconds
+          example: 10650
+        location:
+          type: string
+          example: "Boston, MA"
+        notes:
+          type: string
+          example: "Personal best!"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T12:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-04-15T15:00:00Z"
+
+    CreateRaceRequest:
+      type: object
+      required:
+        - name
+        - distance
+        - raceDate
+      properties:
+        name:
+          type: string
+        distance:
+          type: number
+          minimum: 0.1
+        raceDate:
+          type: string
+          format: date-time
+        targetTime:
+          type: integer
+          minimum: 1
+        location:
+          type: string
+        notes:
+          type: string
+
+    UpdateRaceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        distance:
+          type: number
+          minimum: 0.1
+        raceDate:
+          type: string
+          format: date-time
+        targetTime:
+          type: integer
+          minimum: 1
+        actualTime:
+          type: integer
+          minimum: 1
+        location:
+          type: string
+        notes:
+          type: string
+
+    WeeklyInsights:
+      type: object
+      properties:
+        totalDistance:
+          type: number
+          example: 25.5
+        totalDuration:
+          type: integer
+          description: Total duration in seconds
+          example: 7200
+        totalRuns:
+          type: integer
+          example: 5
+        avgPace:
+          type: number
+          description: Average pace in minutes per kilometer
+          example: 4.71
+        weekStart:
+          type: string
+          format: date-time
+          example: "2024-01-08T00:00:00Z"
+        weekEnd:
+          type: string
+          format: date-time
+          example: "2024-01-15T00:00:00Z"
+        hasData:
+          type: boolean
+          example: true
+
+    TypeBreakdown:
+      type: object
+      properties:
+        breakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              runType:
+                type: string
+                example: "easy"
+              count:
+                type: integer
+                example: 10
+              totalDistance:
+                type: number
+                example: 50.5
+              averagePace:
+                type: number
+                example: 5.25
+
+    AuditEventsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: "clm123abc456"
+              timestamp:
+                type: string
+                format: date-time
+                example: "2024-01-15T12:00:00Z"
+              action:
+                type: string
+                example: "create"
+              entityType:
+                type: string
+                example: "run"
+              entityId:
+                type: string
+                example: "clm123abc456"
+              outcome:
+                type: string
+                enum: [success, failure]
+                example: "success"
+              details:
+                type: object
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+              example: 1000
+            limit:
+              type: integer
+              example: 100
+            offset:
+              type: integer
+              example: 0
+            hasMore:
+              type: boolean
+              example: true
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Validation failed"
+        message:
+          type: string
+          example: "The provided data is invalid"
+        details:
+          type: object
+          description: Additional error details
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T12:00:00Z"
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Validation failed"
+            message: "Email is required"
+            details:
+              field: "email"
+              code: "REQUIRED"
+            timestamp: "2024-01-15T12:00:00Z"
+
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Unauthorized"
+            message: "Authentication required"
+            timestamp: "2024-01-15T12:00:00Z"
+
+    ForbiddenError:
+      description: Access forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Forbidden"
+            message: "You do not have permission to access this resource"
+            timestamp: "2024-01-15T12:00:00Z"
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Not Found"
+            message: "The requested resource was not found"
+            timestamp: "2024-01-15T12:00:00Z"
+
+    ConflictError:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Conflict"
+            message: "User already exists"
+            details:
+              email: "user@example.com"
+            timestamp: "2024-01-15T12:00:00Z"
+
+    RateLimitError:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Rate Limit Exceeded"
+            message: "Too many requests, please try again later"
+            timestamp: "2024-01-15T12:00:00Z"
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Internal Server Error"
+            message: "An unexpected error occurred"
+            timestamp: "2024-01-15T12:00:00Z"
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Goals
+    description: Running goals management
+  - name: Runs
+    description: Running activities tracking
+  - name: Races
+    description: Race events management
+  - name: Statistics
+    description: Running statistics and insights
+  - name: Audit
+    description: Audit logging and monitoring (Admin only)

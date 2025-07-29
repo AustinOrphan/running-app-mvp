@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Input, TextArea, Select, InputGroup } from '../../src/components/UI';
+import { TEST_DATES } from '../utils/dateTestUtils';
 
 // Extend expect with jest-axe matchers
 expect.extend(toHaveNoViolations);
@@ -408,8 +409,8 @@ describe('Input Component System Accessibility', () => {
     it('has no accessibility violations with horizontal layout', async () => {
       const { container } = render(
         <InputGroup horizontal label='Date Range'>
-          <Input type='date' label='Start Date' value='2024-01-01' onChange={vi.fn()} />
-          <Input type='date' label='End Date' value='2024-01-31' onChange={vi.fn()} />
+          <Input type='date' label='Start Date' value={TEST_DATES.GOAL_START} onChange={vi.fn()} />
+          <Input type='date' label='End Date' value={TEST_DATES.GOAL_END} onChange={vi.fn()} />
         </InputGroup>
       );
 

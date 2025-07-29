@@ -4,6 +4,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { CreateGoalModal } from '../../../src/components/CreateGoalModal';
 import { GOAL_TYPES, GOAL_PERIODS, GOAL_TYPE_CONFIGS } from '../../../src/types/goals';
+import {
+  setDateInputValue,
+  setDateRange,
+  TEST_DATES,
+  DATE_VALIDATION_SCENARIOS,
+  createDateTestEnvironment,
+} from '../../utils/dateTestUtils';
 
 // Mock the clientLogger
 vi.mock('../../../src/utils/clientLogger', () => ({
@@ -215,6 +222,9 @@ describe('CreateGoalModal', () => {
   });
 
   describe('Date Handling', () => {
+    // NOTE: For date inputs, use fireEvent.change() instead of userEvent.type()
+    // Date inputs require direct value setting for reliable test behavior
+    // Always wrap date changes in act() when they trigger state updates
     it('sets default start date to today', () => {
       render(<CreateGoalModal {...defaultProps} />);
 
@@ -244,14 +254,15 @@ describe('CreateGoalModal', () => {
     });
 
     it('allows manual end date modification', async () => {
-      const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const endDateInput = screen.getByLabelText('End Date');
+      const endDateInput = screen.getByLabelText('End Date') as HTMLInputElement;
       const customEndDate = '2024-08-15';
 
-      await user.clear(endDateInput);
-      await user.type(endDateInput, customEndDate);
+      // Use fireEvent for more reliable date input change
+      await act(async () => {
+        fireEvent.change(endDateInput, { target: { value: customEndDate } });
+      });
 
       expect(endDateInput).toHaveValue(customEndDate);
     });
@@ -344,21 +355,26 @@ describe('CreateGoalModal', () => {
 
       const titleInput = screen.getByLabelText('Goal Title');
       const targetValueInput = screen.getByLabelText('Target Value');
-      const startDateInput = screen.getByLabelText('Start Date');
-      const endDateInput = screen.getByLabelText('End Date');
+      const startDateInput = screen.getByLabelText('Start Date') as HTMLInputElement;
+      const endDateInput = screen.getByLabelText('End Date') as HTMLInputElement;
 
       await user.type(titleInput, 'Test Goal');
       await user.type(targetValueInput, '10');
-      await user.clear(startDateInput);
-      await user.type(startDateInput, '2024-07-15');
-      await user.clear(endDateInput);
-      await user.type(endDateInput, '2024-07-10');
+
+      // Use standardized date utilities for invalid date range
+      const invalidScenario = DATE_VALIDATION_SCENARIOS.invalidOrder;
+      await setDateRange(
+        startDateInput,
+        endDateInput,
+        invalidScenario.startDate,
+        invalidScenario.endDate
+      );
 
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText('End date must be after start date')).toBeInTheDocument();
+        expect(screen.getByText(invalidScenario.expectedError)).toBeInTheDocument();
       });
     });
 

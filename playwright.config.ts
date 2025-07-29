@@ -18,8 +18,20 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Configure workers for parallel/sharded execution */
+  workers: process.env.CI
+    ? process.env.PLAYWRIGHT_SHARD
+      ? 2
+      : 1 // 2 workers per shard in CI, or 1 if no sharding
+    : undefined, // Use default worker count locally
+
+  /* Sharding configuration for distributed test execution */
+  ...(process.env.PLAYWRIGHT_SHARD && {
+    shard: {
+      current: parseInt(process.env.PLAYWRIGHT_SHARD.split('/')[0], 10),
+      total: parseInt(process.env.PLAYWRIGHT_SHARD.split('/')[1], 10),
+    },
+  }),
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI
     ? [

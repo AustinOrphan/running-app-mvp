@@ -171,7 +171,7 @@ describe('Races API Integration Tests', () => {
       expect(response.body).toHaveProperty('error', true);
     });
 
-    it("returns 404 when trying to access another user's race", async () => {
+    it("returns 403 when trying to access another user's race", async () => {
       const user1 = await testDb.createUser();
       const user2 = await testDb.createUser();
       const token2 = testDb.generateToken(user2.id, user2.email);
@@ -189,9 +189,11 @@ describe('Races API Integration Tests', () => {
       const response = await request(app)
         .get(`/api/races/${race.id}`)
         .set('Authorization', `Bearer ${token2}`)
-        .expect(404);
+        .expect(403);
 
       expect(response.body).toHaveProperty('error', true);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('permission');
     });
   });
 
@@ -363,7 +365,7 @@ describe('Races API Integration Tests', () => {
       expect(response.body).toHaveProperty('message');
     });
 
-    it("returns 404 when trying to update another user's race", async () => {
+    it("returns 403 when trying to update another user's race", async () => {
       const user1 = await testDb.createUser();
       const user2 = await testDb.createUser();
       const token2 = testDb.generateToken(user2.id, user2.email);
@@ -382,9 +384,11 @@ describe('Races API Integration Tests', () => {
         .put(`/api/races/${race.id}`)
         .set('Authorization', `Bearer ${token2}`)
         .send({ name: 'Hacked' })
-        .expect(404);
+        .expect(403);
 
       expect(response.body).toHaveProperty('error', true);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('permission');
     });
 
     it('requires authentication', async () => {
@@ -438,7 +442,7 @@ describe('Races API Integration Tests', () => {
       expect(response.body).toHaveProperty('error', true);
     });
 
-    it("returns 404 when trying to delete another user's race", async () => {
+    it("returns 403 when trying to delete another user's race", async () => {
       const user1 = await testDb.createUser();
       const user2 = await testDb.createUser();
       const token2 = testDb.generateToken(user2.id, user2.email);
@@ -456,9 +460,11 @@ describe('Races API Integration Tests', () => {
       const response = await request(app)
         .delete(`/api/races/${race.id}`)
         .set('Authorization', `Bearer ${token2}`)
-        .expect(404);
+        .expect(403);
 
       expect(response.body).toHaveProperty('error', true);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('permission');
     });
 
     it('requires authentication', async () => {

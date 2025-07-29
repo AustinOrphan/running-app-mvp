@@ -89,6 +89,17 @@ npm run test:performance:dashboard         # Generate HTML dashboard
 npm run test:performance:dashboard:open    # Open dashboard in browser
 ```
 
+#### Code Coverage Monitoring
+
+```bash
+# Coverage collection and analysis
+npm run coverage:collect           # Collect coverage from all tests
+npm run coverage:analyze          # Analyze coverage trends
+npm run coverage:report           # Generate coverage reports
+npm run coverage:enforce          # Enforce coverage thresholds
+npm run coverage:watch            # Monitor coverage in watch mode
+```
+
 #### Database Setup for Tests
 
 ```bash
@@ -143,6 +154,7 @@ This project uses a comprehensive multi-layered testing strategy:
 4. **Performance Tests** - Test execution performance monitoring
 5. **Accessibility Tests** - WCAG compliance verification
 6. **Visual Regression Tests** - UI consistency validation
+7. **Code Coverage** - Maintain >80% code coverage
 
 ### When to Use Each Test Type
 
@@ -207,6 +219,7 @@ npm run test:e2e -- --headed      # Visual E2E testing
 # Before pushing changes
 npm run test:all:complete          # Full test suite
 npm run lint:check                # Code quality
+npm run coverage:enforce          # Ensure >80% coverage
 ```
 
 #### CI Environment

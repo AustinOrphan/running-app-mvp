@@ -2,7 +2,7 @@ import express from 'express';
 
 import { prisma } from '../../lib/prisma.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createNotFoundError } from '../middleware/errorHandler.js';
+import { createNotFoundError, createForbiddenError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import {
   sanitizeInput,
@@ -36,12 +36,18 @@ router.get(
   requireAuth,
   validateIdParam,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    const race = await prisma.race.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+    // Check if race exists first
+    const race = await prisma.race.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!race) {
       throw createNotFoundError('Race');
+    }
+
+    // Then check authorization
+    if (race.userId !== req.user!.id) {
+      throw createForbiddenError('You do not have permission to access this race');
     }
 
     res.json(race);
@@ -79,12 +85,18 @@ router.put(
   validateIdParam,
   validateUpdateRace,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    const existingRace = await prisma.race.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+    // Check if race exists first
+    const existingRace = await prisma.race.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!existingRace) {
       throw createNotFoundError('Race');
+    }
+
+    // Then check authorization
+    if (existingRace.userId !== req.user!.id) {
+      throw createForbiddenError('You do not have permission to update this race');
     }
 
     const { name, raceDate, distance, targetTime, actualTime, notes } = req.body;
@@ -118,12 +130,18 @@ router.delete(
   requireAuth,
   validateIdParam,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    const existingRace = await prisma.race.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+    // Check if race exists first
+    const existingRace = await prisma.race.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!existingRace) {
       throw createNotFoundError('Race');
+    }
+
+    // Then check authorization
+    if (existingRace.userId !== req.user!.id) {
+      throw createForbiddenError('You do not have permission to delete this race');
     }
 
     await prisma.race.delete({ where: { id: req.params.id } });

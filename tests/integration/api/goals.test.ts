@@ -21,37 +21,39 @@ describe('Goals API Integration Tests', () => {
       const user = await testDb.createUser();
       const token = testDb.generateToken(user.id, user.email);
 
-      // Create test goals
+      // Create test goals (in sequence for predictable order)
+      await testDb.prisma.goal.create({
+        data: {
+          userId: user.id,
+          title: 'Run 100km this month',
+          description: 'Monthly distance goal',
+          type: 'DISTANCE',
+          period: 'MONTHLY',
+          targetValue: 100,
+          targetUnit: 'km',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-31'),
+          currentValue: 45,
+          isActive: true,
+        },
+      });
+
+      await testDb.prisma.goal.create({
+        data: {
+          userId: user.id,
+          title: 'Run 5 times per week',
+          type: 'FREQUENCY',
+          period: 'WEEKLY',
+          targetValue: 5,
+          targetUnit: 'runs',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-12-31'),
+          currentValue: 3,
+          isActive: true,
+        },
+      });
+
       await Promise.all([
-        testDb.prisma.goal.create({
-          data: {
-            userId: user.id,
-            title: 'Run 100km this month',
-            description: 'Monthly distance goal',
-            type: 'DISTANCE',
-            period: 'MONTHLY',
-            targetValue: 100,
-            targetUnit: 'km',
-            startDate: new Date('2024-01-01'),
-            endDate: new Date('2024-01-31'),
-            currentValue: 45,
-            isActive: true,
-          },
-        }),
-        testDb.prisma.goal.create({
-          data: {
-            userId: user.id,
-            title: 'Run 5 times per week',
-            type: 'FREQUENCY',
-            period: 'WEEKLY',
-            targetValue: 5,
-            targetUnit: 'runs',
-            startDate: new Date('2024-01-01'),
-            endDate: new Date('2024-12-31'),
-            currentValue: 3,
-            isActive: true,
-          },
-        }),
         testDb.prisma.goal.create({
           data: {
             userId: user.id,
@@ -76,8 +78,8 @@ describe('Goals API Integration Tests', () => {
       // Should only return active goals
       expect(response.body).toHaveLength(2);
       expect(response.body[0]).toHaveProperty('id');
-      expect(response.body[0]).toHaveProperty('title', 'Run 100km this month');
-      expect(response.body[1]).toHaveProperty('title', 'Run 5 times per week');
+      expect(response.body[0]).toHaveProperty('title', 'Run 5 times per week'); // Newest first
+      expect(response.body[1]).toHaveProperty('title', 'Run 100km this month');
     });
 
     it('returns empty array when user has no goals', async () => {
@@ -310,7 +312,241 @@ describe('Goals API Integration Tests', () => {
       expect(response.body).toHaveProperty('message');
     });
 
-    it("returns 404 when trying to update another user's goal", async () => {
+    it('rejects negative currentValue with validation error', async () => {
+      const user = await testDb.createUser();
+      const token = testDb.generateToken(user.id, user.email);
+
+      // Create a goal
+      const goal = await testDb.prisma.goal.create({
+        data: {
+          userId: user.id,
+          title: 'Test Goal',
+          type: 'DISTANCE',
+          period: 'MONTHLY',
+          targetValue: 100,
+          targetUnit: 'km',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-31'),
+          currentValue: 25,
+          isActive: true,
+        },
+      });
+
+      const response = await request(app)
+        .put(`/api/goals/${goal.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ currentValue: -5 })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error', true);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('Current value cannot be negative');
+    });
+
+    it('updates currentValue alone without modifying other fields', async () => {
+      const user = await testDb.createUser();
+      const token = testDb.generateToken(user.id, user.email);
+
+      // Create a goal
+      const goal = await testDb.prisma.goal.create({
+        data: {
+          userId: user.id,
+          title: 'Test Goal',
+          description: 'Original description',
+          type: 'DISTANCE',
+          period: 'MONTHLY',
+          targetValue: 100,
+          targetUnit: 'km',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-31'),
+          currentValue: 25,
+          isActive: true,
+        },
+      });
+
+      const response = await request(app)
+        .put(`/api/goals/${goal.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ currentValue: 50 })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('currentValue', 50);
+      // Verify other fields remain unchanged
+      expect(response.body).toHaveProperty('title', 'Test Goal');
+      expect(response.body).toHaveProperty('description', 'Original description');
+      expect(response.body).toHaveProperty('targetValue', 100);
+      expect(response.body).toHaveProperty('isCompleted', false);
+
+      // Verify in database
+      const updatedGoal = await testDb.prisma.goal.findUnique({
+        where: { id: goal.id },
+      });
+      expect(updatedGoal?.currentValue).toBe(50);
+      expect(updatedGoal?.title).toBe('Test Goal');
+    });
+
+    it('updates currentValue along with other fields', async () => {
+      const user = await testDb.createUser();
+      const token = testDb.generateToken(user.id, user.email);
+
+      // Create a goal
+      const goal = await testDb.prisma.goal.create({
+        data: {
+          userId: user.id,
+          title: 'Original Goal',
+          description: 'Original description',
+          type: 'DISTANCE',
+          period: 'MONTHLY',
+          targetValue: 100,
+          targetUnit: 'km',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-31'),
+          currentValue: 25,
+          isActive: true,
+        },
+      });
+
+      const response = await request(app)
+        .put(`/api/goals/${goal.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          title: 'Updated Goal',
+          description: 'Updated description',
+          currentValue: 60,
+          targetValue: 120,
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('title', 'Updated Goal');
+      expect(response.body).toHaveProperty('description', 'Updated description');
+      expect(response.body).toHaveProperty('currentValue', 60);
+      expect(response.body).toHaveProperty('targetValue', 120);
+      expect(response.body).toHaveProperty('isCompleted', false);
+    });
+
+    it('auto-completes goal when currentValue exceeds targetValue', async () => {
+      const user = await testDb.createUser();
+      const token = testDb.generateToken(user.id, user.email);
+
+      // Create a goal
+      const goal = await testDb.prisma.goal.create({
+        data: {
+          userId: user.id,
+          title: 'Test Goal',
+          type: 'DISTANCE',
+          period: 'MONTHLY',
+          targetValue: 100,
+          targetUnit: 'km',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-31'),
+          currentValue: 80,
+          isActive: true,
+          isCompleted: false,
+        },
+      });
+
+      const response = await request(app)
+        .put(`/api/goals/${goal.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ currentValue: 150 }) // Exceeds target
+        .expect(200);
+
+      expect(response.body).toHaveProperty('currentValue', 150);
+      expect(response.body).toHaveProperty('isCompleted', true);
+      expect(response.body).toHaveProperty('completedAt');
+      expect(new Date(response.body.completedAt)).toBeInstanceOf(Date);
+    });
+
+    it('handles currentValue as string and converts to number', async () => {
+      const user = await testDb.createUser();
+      const token = testDb.generateToken(user.id, user.email);
+
+      // Create a goal
+      const goal = await testDb.prisma.goal.create({
+        data: {
+          userId: user.id,
+          title: 'Test Goal',
+          type: 'DISTANCE',
+          period: 'MONTHLY',
+          targetValue: 100,
+          targetUnit: 'km',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-31'),
+          currentValue: 25,
+          isActive: true,
+        },
+      });
+
+      const response = await request(app)
+        .put(`/api/goals/${goal.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ currentValue: '42.5' }) // String value
+        .expect(200);
+
+      expect(response.body).toHaveProperty('currentValue', 42.5);
+      expect(typeof response.body.currentValue).toBe('number');
+    });
+
+    it('preserves currentValue when not included in update', async () => {
+      const user = await testDb.createUser();
+      const token = testDb.generateToken(user.id, user.email);
+
+      // Create a goal with initial currentValue
+      const goal = await testDb.prisma.goal.create({
+        data: {
+          userId: user.id,
+          title: 'Test Goal',
+          type: 'DISTANCE',
+          period: 'MONTHLY',
+          targetValue: 100,
+          targetUnit: 'km',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-31'),
+          currentValue: 75,
+          isActive: true,
+        },
+      });
+
+      const response = await request(app)
+        .put(`/api/goals/${goal.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ title: 'Updated Title Only' }) // No currentValue in update
+        .expect(200);
+
+      expect(response.body).toHaveProperty('title', 'Updated Title Only');
+      expect(response.body).toHaveProperty('currentValue', 75); // Unchanged
+    });
+
+    it('allows currentValue of 0', async () => {
+      const user = await testDb.createUser();
+      const token = testDb.generateToken(user.id, user.email);
+
+      // Create a goal
+      const goal = await testDb.prisma.goal.create({
+        data: {
+          userId: user.id,
+          title: 'Test Goal',
+          type: 'DISTANCE',
+          period: 'MONTHLY',
+          targetValue: 100,
+          targetUnit: 'km',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-31'),
+          currentValue: 50,
+          isActive: true,
+        },
+      });
+
+      const response = await request(app)
+        .put(`/api/goals/${goal.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ currentValue: 0 }) // Reset to 0
+        .expect(200);
+
+      expect(response.body).toHaveProperty('currentValue', 0);
+    });
+
+    it("returns 403 when trying to update another user's goal", async () => {
       const user1 = await testDb.createUser();
       const user2 = await testDb.createUser();
       const token2 = testDb.generateToken(user2.id, user2.email);
@@ -334,9 +570,11 @@ describe('Goals API Integration Tests', () => {
         .put(`/api/goals/${goal.id}`)
         .set('Authorization', `Bearer ${token2}`)
         .send({ title: 'Hacked' })
-        .expect(404);
+        .expect(403);
 
       expect(response.body).toHaveProperty('error', true);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('permission');
     });
   });
 
@@ -367,11 +605,12 @@ describe('Goals API Integration Tests', () => {
 
       expect(response.body).toEqual({});
 
-      // Verify it was deleted from database
+      // Verify it was soft deleted (isActive = false)
       const deletedGoal = await testDb.prisma.goal.findUnique({
         where: { id: goal.id },
       });
-      expect(deletedGoal).toBeNull();
+      expect(deletedGoal).not.toBeNull();
+      expect(deletedGoal!.isActive).toBe(false);
     });
 
     it('returns 404 for non-existent goal', async () => {
@@ -386,7 +625,7 @@ describe('Goals API Integration Tests', () => {
       expect(response.body).toHaveProperty('error', true);
     });
 
-    it("returns 404 when trying to delete another user's goal", async () => {
+    it("returns 403 when trying to delete another user's goal", async () => {
       const user1 = await testDb.createUser();
       const user2 = await testDb.createUser();
       const token2 = testDb.generateToken(user2.id, user2.email);
@@ -409,9 +648,11 @@ describe('Goals API Integration Tests', () => {
       const response = await request(app)
         .delete(`/api/goals/${goal.id}`)
         .set('Authorization', `Bearer ${token2}`)
-        .expect(404);
+        .expect(403);
 
       expect(response.body).toHaveProperty('error', true);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('permission');
     });
   });
 });

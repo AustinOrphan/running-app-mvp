@@ -1,0 +1,286 @@
+name: 🔒 CodeQL Security Analysis
+
+on:
+  # Run on push to main and PRs
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    
+  # Run weekly on Sundays for comprehensive analysis
+  schedule:
+    - cron: '0 06:00 * * 0'  # 6 AM ET on Sundays
+    
+  # Manual trigger for security audits
+  workflow_dispatch:
+    inputs:
+      full_scan:
+        description: 'Perform full repository scan'
+        required: false
+        default: 'false'
+        type: boolean
+
+# Limit concurrency to prevent resource conflicts
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: 🔍 CodeQL Analysis
+    runs-on: ubuntu-latest
+    
+    # Required for private repositories to use CodeQL
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+      
+    strategy:
+      fail-fast: false
+      matrix:
+        # Define languages to analyze
+        language: ['javascript', 'typescript']
+        
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Full history for better analysis
+          fetch-depth: 0
+          
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: 🔧 Install dependencies
+        run: npm ci
+        
+      # Initialize CodeQL tools for scanning
+      - name: 🔧 Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Custom queries for enhanced security analysis
+          queries: |
+            security-extended
+            security-and-quality
+          # Enable CodeQL debugging in workflow logs
+          debug: ${{ github.event.inputs.full_scan == 'true' }}
+          
+      # Build the project for analysis
+      - name: 🏗️ Build project
+        run: |
+          npm run build
+          
+      # Perform CodeQL analysis
+      - name: 🔍 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          # Upload results even if there are findings
+          upload: true
+          
+      # Generate security report
+      - name: 📊 Generate Security Report
+        if: always()
+        run: |
+          echo "## 🔒 Security Analysis Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Language**: ${{ matrix.language }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Analysis Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Results have been uploaded to GitHub Security tab." >> $GITHUB_STEP_SUMMARY
+          echo "Check the Security tab for detailed findings." >> $GITHUB_STEP_SUMMARY
+
+  # Dependency vulnerability scanning
+  dependency-scan:
+    name: 📦 Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      security-events: write
+      
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: 🔧 Install dependencies
+        run: npm ci
+        
+      # Run npm audit with JSON output
+      - name: 🔍 Run npm audit
+        id: audit
+        run: |
+          # Run audit and capture output
+          audit_output=$(npm audit --json 2>/dev/null || true)
+          echo "audit_result<<EOF" >> $GITHUB_OUTPUT
+          echo "$audit_output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Get vulnerability count
+          vuln_count=$(echo "$audit_output" | jq -r '.metadata.vulnerabilities.total // 0')
+          echo "vulnerability_count=$vuln_count" >> $GITHUB_OUTPUT
+          
+      # Generate vulnerability report
+      - name: 📊 Generate Vulnerability Report
+        if: always()
+        run: |
+          echo "## 📦 Dependency Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          vuln_count="${{ steps.audit.outputs.vulnerability_count }}"
+          
+          if [ "$vuln_count" -eq 0 ]; then
+            echo "✅ **No vulnerabilities found**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Found $vuln_count vulnerabilities**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm audit\` locally for detailed information." >> $GITHUB_STEP_SUMMARY
+            echo "Use \`npm audit fix\` to automatically fix issues." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          
+      # Fail if high/critical vulnerabilities found
+      - name: ❌ Check for critical vulnerabilities
+        if: steps.audit.outputs.vulnerability_count != '0'
+        run: |
+          audit_output='${{ steps.audit.outputs.audit_result }}'
+          critical=$(echo "$audit_output" | jq -r '.metadata.vulnerabilities.critical // 0')
+          high=$(echo "$audit_output" | jq -r '.metadata.vulnerabilities.high // 0')
+          
+          echo "Critical vulnerabilities: $critical"
+          echo "High vulnerabilities: $high"
+          
+          if [ "$critical" -gt 0 ] || [ "$high" -gt 0 ]; then
+            echo "❌ Critical or high severity vulnerabilities found!"
+            echo "Please run 'npm audit fix' to resolve security issues."
+            exit 1
+          fi
+
+  # License compliance scanning
+  license-scan:
+    name: 📜 License Compliance Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: 🔧 Install license checker
+        run: npm install -g license-checker
+        
+      - name: 🔧 Install dependencies
+        run: npm ci
+        
+      # Check for license compliance
+      - name: 📜 Check licenses
+        id: license-check
+        run: |
+          # Generate license report
+          license-checker --json --out licenses.json --excludePrivatePackages
+          
+          # Check for problematic licenses
+          problematic_licenses=$(license-checker --summary --excludePrivatePackages | grep -E "(GPL|AGPL|LGPL|MPL)" || true)
+          
+          if [ -n "$problematic_licenses" ]; then
+            echo "has_issues=true" >> $GITHUB_OUTPUT
+            echo "issues<<EOF" >> $GITHUB_OUTPUT
+            echo "$problematic_licenses" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "has_issues=false" >> $GITHUB_OUTPUT
+          fi
+          
+      # Generate license report
+      - name: 📊 Generate License Report
+        if: always()
+        run: |
+          echo "## 📜 License Compliance Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.license-check.outputs.has_issues }}" = "true" ]; then
+            echo "⚠️ **Potentially problematic licenses found:**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.license-check.outputs.issues }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please review these licenses for compliance with your organization's policies." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All licenses appear to be compatible**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          
+      # Upload license report as artifact
+      - name: 📤 Upload license report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: licenses.json
+          retention-days: 30
+
+  # Security notification
+  notify-security-results:
+    name: 📢 Security Scan Notification
+    runs-on: ubuntu-latest
+    needs: [analyze, dependency-scan, license-scan]
+    if: always()
+    
+    steps:
+      - name: 📊 Generate Overall Security Summary
+        run: |
+          echo "# 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # CodeQL Analysis Status
+          if [ "${{ needs.analyze.result }}" = "success" ]; then
+            echo "✅ **CodeQL Analysis**: Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **CodeQL Analysis**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Dependency Scan Status
+          if [ "${{ needs.dependency-scan.result }}" = "success" ]; then
+            echo "✅ **Dependency Scan**: Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Dependency Scan**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # License Scan Status
+          if [ "${{ needs.license-scan.result }}" = "success" ]; then
+            echo "✅ **License Compliance**: Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **License Compliance**: Issues found" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "For detailed results, check the Security tab and individual job logs." >> $GITHUB_STEP_SUMMARY

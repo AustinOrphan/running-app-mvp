@@ -77,39 +77,35 @@ jobs:
           restore-keys: |
             flaky-tests-
 
-      - name: 🧪 Run Unit Test Flakiness Detection
-        if: github.event.inputs.suite == 'all' || github.event.inputs.suite == 'unit' || github.event.inputs.suite == ''
-        continue-on-error: true
+      - name: 🔍 Run Comprehensive Flaky Test Detection
         run: |
-          echo "🧪 Detecting flakiness in unit tests..."
-          RUNS=${{ github.event.inputs.runs || '5' }}
-          tsx scripts/flaky-test-detector.ts run unit $RUNS
+          echo "🔍 Running comprehensive flaky test detection..."
+          
+          # Set up environment for the tracker
+          export FLAKY_OUTPUT_DIR="./test-flakiness"
+          export FLAKY_THRESHOLD="0.1"
+          export FLAKY_RETRY_COUNT="${{ github.event.inputs.runs || '3' }}"
+          export FLAKY_HISTORY_LENGTH="50"
+          
+          # Create output directory
+          mkdir -p test-flakiness
+          
+          # Determine which suite to run
+          SUITE="${{ github.event.inputs.suite || 'all' }}"
+          echo "Running flaky test detection for suite: $SUITE"
+          
+          # Run the comprehensive flaky test tracker
+          node scripts/flaky-test-tracker.js track "$SUITE"
 
-      - name: 🔗 Run Integration Test Flakiness Detection
-        if: github.event.inputs.suite == 'all' || github.event.inputs.suite == 'integration' || github.event.inputs.suite == ''
-        continue-on-error: true
+      - name: 📊 Generate Additional Analysis
         run: |
-          echo "🔗 Detecting flakiness in integration tests..."
-          RUNS=${{ github.event.inputs.runs || '5' }}
-          tsx scripts/flaky-test-detector.ts run integration $RUNS
-
-      - name: 🎭 Run E2E Test Flakiness Detection
-        if: github.event.inputs.suite == 'all' || github.event.inputs.suite == 'e2e' || github.event.inputs.suite == ''
-        continue-on-error: true
-        run: |
-          echo "🎭 Detecting flakiness in E2E tests..."
-          RUNS=${{ github.event.inputs.runs || '3' }}
-          tsx scripts/flaky-test-detector.ts run e2e $RUNS
-
-      - name: 📊 Calculate Test Statistics
-        run: |
-          echo "📊 Calculating test statistics..."
-          tsx scripts/flaky-test-detector.ts stats
-
-      - name: 📋 Generate Flaky Test Report
-        run: |
-          echo "📋 Generating flaky test report..."
-          tsx scripts/flaky-test-detector.ts report > flaky-test-report.txt 2>&1
+          echo "📊 Generating additional analysis and reports..."
+          
+          # Generate retry configuration
+          node scripts/flaky-test-tracker.js config
+          
+          # Create comprehensive analysis
+          node scripts/flaky-test-tracker.js analyze
 
       - name: 💾 Save flaky test data
         uses: actions/cache@v4
@@ -124,8 +120,15 @@ jobs:
           name: flaky-test-analysis
           path: |
             test-flakiness/
-            flaky-test-report.txt
           retention-days: 30
+          
+      - name: 📤 Upload retry configuration
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flaky-test-retry-config
+          path: test-flakiness/retry-config.json
+          retention-days: 90
 
       - name: 📊 Flaky Test Summary
         if: always()
@@ -133,31 +136,34 @@ jobs:
           echo "# 🔍 Flaky Test Detection Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ -f "test-flakiness/test-stats.json" ]; then
+          if [ -f "test-flakiness/flaky-tests-report.json" ]; then
             echo "## 📊 Test Statistics" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
-            # Count total tests and flaky tests
-            TOTAL_TESTS=$(jq 'length' test-flakiness/test-stats.json 2>/dev/null || echo "0")
-            FLAKY_TESTS=$(jq '[.[] | select(.isFlaky == true)] | length' test-flakiness/test-stats.json 2>/dev/null || echo "0")
-            HIGH_RISK=$(jq '[.[] | select(.flakyScore > 0.7)] | length' test-flakiness/test-stats.json 2>/dev/null || echo "0")
-            MEDIUM_RISK=$(jq '[.[] | select(.flakyScore > 0.4 and .flakyScore <= 0.7)] | length' test-flakiness/test-stats.json 2>/dev/null || echo "0")
-            LOW_RISK=$(jq '[.[] | select(.flakyScore > 0.3 and .flakyScore <= 0.4)] | length' test-flakiness/test-stats.json 2>/dev/null || echo "0")
+            # Extract statistics from the new tracker format
+            TOTAL_TESTS=$(jq '.summary.total' test-flakiness/flaky-tests-report.json 2>/dev/null || echo "0")
+            FLAKY_TESTS=$(jq '.summary.flakyCount' test-flakiness/flaky-tests-report.json 2>/dev/null || echo "0")
+            FLAKY_PERCENTAGE=$(jq '.summary.flakyPercentage' test-flakiness/flaky-tests-report.json 2>/dev/null || echo "0")
+            HIGH_RISK=$(jq '[.flakyTests[] | select(.severity == "high")] | length' test-flakiness/flaky-tests-report.json 2>/dev/null || echo "0")
+            MEDIUM_RISK=$(jq '[.flakyTests[] | select(.severity == "medium")] | length' test-flakiness/flaky-tests-report.json 2>/dev/null || echo "0")
+            LOW_RISK=$(jq '[.flakyTests[] | select(.severity == "low")] | length' test-flakiness/flaky-tests-report.json 2>/dev/null || echo "0")
+            CONSISTENTLY_FAILING=$(jq '.consistentlyFailing | length' test-flakiness/flaky-tests-report.json 2>/dev/null || echo "0")
             
             echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
             echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| Total Tests | $TOTAL_TESTS |" >> $GITHUB_STEP_SUMMARY
-            echo "| Flaky Tests | $FLAKY_TESTS |" >> $GITHUB_STEP_SUMMARY
-            echo "| High Risk | $HIGH_RISK |" >> $GITHUB_STEP_SUMMARY
-            echo "| Medium Risk | $MEDIUM_RISK |" >> $GITHUB_STEP_SUMMARY
-            echo "| Low Risk | $LOW_RISK |" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Tests Tracked | $TOTAL_TESTS |" >> $GITHUB_STEP_SUMMARY
+            echo "| Flaky Tests | $FLAKY_TESTS ($FLAKY_PERCENTAGE%) |" >> $GITHUB_STEP_SUMMARY
+            echo "| High Severity | $HIGH_RISK |" >> $GITHUB_STEP_SUMMARY
+            echo "| Medium Severity | $MEDIUM_RISK |" >> $GITHUB_STEP_SUMMARY
+            echo "| Low Severity | $LOW_RISK |" >> $GITHUB_STEP_SUMMARY
+            echo "| Consistently Failing | $CONSISTENTLY_FAILING |" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
             if [ "$FLAKY_TESTS" -gt "0" ]; then
               echo "## 🚨 Top Flaky Tests" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "```" >> $GITHUB_STEP_SUMMARY
-              jq -r '[.[] | select(.isFlaky == true)] | sort_by(.flakyScore) | reverse | .[0:5] | .[] | "• \(.testName) (\(.testPath)) - \(.flakyScore * 100 | floor)% flaky, \(.successRate | floor)% success rate"' test-flakiness/test-stats.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to parse flaky test details" >> $GITHUB_STEP_SUMMARY
+              jq -r '.flakyTests | sort_by(.flakyScore) | reverse | .[0:5] | .[] | "• \(.testName) (\(.suite)) - Score: \(.flakyScore), Success: \(100 - (.failureRate | tonumber))%, Severity: \(.severity)"' test-flakiness/flaky-tests-report.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to parse flaky test details" >> $GITHUB_STEP_SUMMARY
               echo "```" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
             else
@@ -165,15 +171,16 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
             
-            echo "## 📋 Full Report" >> $GITHUB_STEP_SUMMARY
+            echo "## 📋 Recommendations" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "```" >> $GITHUB_STEP_SUMMARY
-            if [ -f "flaky-test-report.txt" ]; then
-              head -30 flaky-test-report.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Report generation completed"
-            else
-              echo "Full report available in artifacts"
-            fi
-            echo "```" >> $GITHUB_STEP_SUMMARY
+            jq -r '.recommendations[] | "- \(.)"' test-flakiness/flaky-tests-report.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "- Review full report in artifacts for detailed recommendations"
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "## 📊 Resources" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- [Flaky Test Dashboard](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})" >> $GITHUB_STEP_SUMMARY
+            echo "- [Retry Configuration](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})" >> $GITHUB_STEP_SUMMARY
+            echo "- Full HTML dashboard available in artifacts" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Flaky test data not generated" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -189,13 +196,13 @@ jobs:
 
             try {
               // Check if we have flaky test data
-              if (!fs.existsSync('test-flakiness/test-stats.json')) {
-                console.log('No test stats file found, skipping issue creation');
+              if (!fs.existsSync('test-flakiness/flaky-tests-report.json')) {
+                console.log('No flaky test report found, skipping issue creation');
                 return;
               }
               
-              const stats = JSON.parse(fs.readFileSync('test-flakiness/test-stats.json', 'utf8'));
-              const highRiskTests = stats.filter(test => test.flakyScore > 0.7);
+              const report = JSON.parse(fs.readFileSync('test-flakiness/flaky-tests-report.json', 'utf8'));
+              const highRiskTests = report.flakyTests ? report.flakyTests.filter(test => test.severity === 'high') : [];
               
               if (highRiskTests.length === 0) {
                 console.log('No high-risk flaky tests found');
@@ -226,13 +233,16 @@ jobs:
                   body: `## 🔄 Updated Flaky Test Detection - ${new Date().toLocaleDateString()}
                   
                   **High-Risk Tests Found**: ${highRiskTests.length}
+                  **Total Flaky Tests**: ${report.summary.flakyCount}
+                  **Flaky Percentage**: ${report.summary.flakyPercentage}%
                   
                   ### 🚨 Current High-Risk Tests:
                   ${highRiskTests.slice(0, 5).map(test => 
-                    `- **${test.testName}** (${test.testPath})
-                      - Flaky Score: ${(test.flakyScore * 100).toFixed(1)}%
-                      - Success Rate: ${test.successRate.toFixed(1)}%
-                      - Total Runs: ${test.totalRuns}`
+                    `- **${test.testName}** (${test.suite})
+                      - Flaky Score: ${test.flakyScore.toFixed(3)}
+                      - Success Rate: ${(100 - parseFloat(test.failureRate)).toFixed(1)}%
+                      - Total Runs: ${test.totalRuns}
+                      - Severity: ${test.severity}`
                   ).join('\n')}
                   
                   Please review the full analysis in the workflow artifacts.`
@@ -249,22 +259,22 @@ jobs:
               
               ## 📊 Summary
               
+              - **Total Tests Tracked**: ${report.summary.total}
+              - **Flaky Tests**: ${report.summary.flakyCount} (${report.summary.flakyPercentage}%)
               - **High-Risk Flaky Tests**: ${highRiskTests.length}
-              - **Detection Threshold**: >70% flakiness score
+              - **Consistently Failing**: ${report.consistentlyFailing.length}
               
               ## 🚨 High-Risk Tests
               
               ${highRiskTests.map((test, index) => `
               ### ${index + 1}. ${test.testName}
               
-              - **File**: \`${test.testPath}\`
               - **Suite**: ${test.suite.toUpperCase()}
-              - **Flaky Score**: ${(test.flakyScore * 100).toFixed(1)}%
-              - **Success Rate**: ${test.successRate.toFixed(1)}% (${test.passedRuns}/${test.totalRuns} runs)
-              - **Average Duration**: ${test.averageDuration.toFixed(0)}ms
-              ${test.consecutiveFailures > 1 ? `- **Max Consecutive Failures**: ${test.consecutiveFailures}` : ''}
-              ${test.timeoutRuns > 0 ? `- **Timeout Issues**: ${test.timeoutRuns} timeouts` : ''}
-              ${test.lastFailure ? `- **Last Error**: \`${test.lastFailure.substring(0, 100)}...\`` : ''}
+              - **Flaky Score**: ${test.flakyScore.toFixed(3)}
+              - **Success Rate**: ${(100 - parseFloat(test.failureRate)).toFixed(1)}%
+              - **Total Runs**: ${test.totalRuns}
+              - **Severity**: ${test.severity}
+              - **Recent Pattern**: ${test.recentRuns ? test.recentRuns.length : 'N/A'} recent runs tracked
               `).join('\n')}
               
               ## 🔍 Recommended Actions

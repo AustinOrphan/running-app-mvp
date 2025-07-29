@@ -1,7 +1,11 @@
 import express from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/requireAuth.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createUnauthorizedError, createError } from '../middleware/errorHandler.js';
+import {
+  createUnauthorizedError,
+  createError,
+  createNotFoundError,
+} from '../middleware/errorHandler.js';
 import { auditLogger, type AuditQueryFilters } from '../utils/auditLogger.js';
 import { auditSecurity } from '../utils/auditLogger.js';
 
@@ -242,8 +246,7 @@ router.post(
   asyncAuthHandler(async (req: AuthRequest, res) => {
     // Check environment at runtime
     if (process.env.NODE_ENV !== 'development') {
-      res.status(404).json({ message: 'Not Found' });
-      return;
+      throw createNotFoundError('Endpoint not available in production');
     }
 
     try {

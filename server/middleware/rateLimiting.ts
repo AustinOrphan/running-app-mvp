@@ -1,6 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
 import { logInfo } from '../utils/secureLogger.js';
+import { createError } from './errorHandler.js';
 
 /**
  * Rate limiting middleware configurations
@@ -10,8 +11,8 @@ import { logInfo } from '../utils/secureLogger.js';
 // Custom error handler for rate limit violations
 const rateLimitErrorHandler = (
   req: Request,
-  res: Response,
-  _next: NextFunction,
+  _res: Response,
+  next: NextFunction,
   options: { statusCode?: number; message?: string | { message: string } }
 ) => {
   logInfo('Rate limit exceeded', req, {
@@ -23,12 +24,11 @@ const rateLimitErrorHandler = (
 
   const statusCode = options.statusCode || 429;
   const message = options.message || 'Too many requests from this IP, please try again later';
+  const errorMessage = typeof message === 'string' ? message : message.message;
 
-  res.status(statusCode).json({
-    message: typeof message === 'string' ? message : message.message,
-    status: statusCode,
-    retryAfter: res.get('Retry-After'),
-  });
+  // Use standardized error handler instead of manual JSON response
+  const error = createError(errorMessage, statusCode);
+  next(error);
 };
 
 // Custom key generator that includes user ID for authenticated requests

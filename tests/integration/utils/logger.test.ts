@@ -1,5 +1,4 @@
 import { logInfo, logError, logWarn, logDatabase, logAuth } from '../../../server/utils/logger.js';
-import type { Request } from 'express';
 
 describe('Logger Utility Functions', () => {
   let dateNowSpy: jest.SpyInstance;

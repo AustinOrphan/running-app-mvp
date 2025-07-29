@@ -1,0 +1,343 @@
+name: Code Coverage Monitoring
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  coverage-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for accurate git info
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Setup database
+        run: |
+          npm run prisma:generate
+          npm run ci-db-setup
+      
+      - name: Collect coverage data
+        id: coverage
+        run: |
+          # Run coverage collection
+          npm run coverage:collect || true
+          
+          # Extract coverage percentage
+          if [ -f "coverage-data/reports/coverage-combined-*.json" ]; then
+            COVERAGE=$(cat coverage-data/reports/coverage-combined-*.json | jq -r '.summary.lines.percentage')
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "has_data=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_data=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Generate reports
+        if: steps.coverage.outputs.has_data == 'true'
+        run: npm run coverage:report
+      
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports-${{ github.run_number }}
+          path: |
+            coverage/
+            coverage-integration/
+            coverage-data/
+          retention-days: 30
+      
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request' && steps.coverage.outputs.has_data == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const coverage = ${{ steps.coverage.outputs.coverage || 0 }};
+            const target = 80;
+            const passed = coverage >= target;
+            
+            // Read detailed report if available
+            let details = '';
+            try {
+              const summaryPath = 'coverage-data/coverage-summary.md';
+              if (fs.existsSync(summaryPath)) {
+                const summary = fs.readFileSync(summaryPath, 'utf8');
+                // Extract relevant parts
+                const lines = summary.split('\n');
+                const tableStart = lines.findIndex(l => l.includes('| Metric |'));
+                const tableEnd = lines.findIndex((l, i) => i > tableStart && l.trim() === '');
+                if (tableStart > -1 && tableEnd > -1) {
+                  details = lines.slice(tableStart, tableEnd).join('\n');
+                }
+              }
+            } catch (e) {
+              console.log('Could not read detailed summary');
+            }
+            
+            const emoji = passed ? '✅' : '❌';
+            const status = passed ? 'PASSED' : 'FAILED';
+            
+            const body = `## 📊 Code Coverage Report
+            
+            **Overall Coverage**: ${coverage.toFixed(1)}% ${emoji}
+            **Target**: ${target}%
+            **Status**: ${status}
+            
+            ${details}
+            
+            ### 📈 Coverage Trend
+            View the full [coverage report](../actions/runs/${{ github.run_id }}) for details.
+            
+            ${!passed ? `
+            ### ⚠️ Coverage Below Target
+            
+            This PR reduces code coverage below our ${target}% target. Please add tests to improve coverage.
+            
+            **Tips to improve coverage:**
+            - Add unit tests for new functions
+            - Test error handling paths
+            - Cover edge cases
+            - Add integration tests for complex workflows
+            ` : `
+            ### ✅ Coverage Target Met
+            
+            Great job maintaining code coverage above ${target}%! 
+            `}
+            
+            _Run \`npm run test:coverage\` locally to see detailed coverage information._`;
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Code Coverage Report')
+            );
+            
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+      
+      - name: Enforce coverage thresholds
+        if: steps.coverage.outputs.has_data == 'true'
+        run: |
+          npm run coverage:enforce
+          
+          # Exit with error if coverage fails
+          if [ $? -ne 0 ]; then
+            echo "❌ Coverage thresholds not met"
+            exit 1
+          fi
+      
+      - name: Create coverage issue
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const coverage = ${{ steps.coverage.outputs.coverage || 0 }};
+            const target = 80;
+            
+            // Check for existing issue
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'coverage,automated',
+              state: 'open'
+            });
+            
+            if (issues.length > 0) {
+              console.log('Coverage issue already exists');
+              return;
+            }
+            
+            const body = `## ⚠️ Code Coverage Below Target
+            
+            Our code coverage has dropped below the ${target}% threshold.
+            
+            ### 📊 Current Status
+            - **Current Coverage**: ${coverage.toFixed(1)}%
+            - **Target Coverage**: ${target}%
+            - **Gap**: ${(target - coverage).toFixed(1)}%
+            
+            ### 🔍 Impact
+            - Reduced confidence in code quality
+            - Higher risk of undetected bugs
+            - Technical debt accumulation
+            - Slower development velocity
+            
+            ### 🛠️ Action Items
+            
+            1. **Identify gaps**: Run \`npm run coverage:analyze\` to find low coverage areas
+            2. **Add unit tests**: Focus on untested functions and methods
+            3. **Test edge cases**: Add tests for error handling and boundary conditions
+            4. **Integration tests**: Cover complex workflows and API endpoints
+            5. **Review PR practices**: Ensure new code includes adequate tests
+            
+            ### 📈 How to Fix
+            
+            \`\`\`bash
+            # Check current coverage
+            npm run test:coverage
+            
+            # Analyze coverage gaps
+            npm run coverage:analyze
+            
+            # Generate detailed report
+            npm run coverage:report
+            
+            # Monitor while adding tests
+            npm run coverage:watch
+            \`\`\`
+            
+            ### 🎯 Goal
+            
+            Restore code coverage to ${target}% or higher within the next sprint.
+            
+            _This issue was automatically created by our coverage monitoring system._`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Code Coverage Below ${target}% Target (${coverage.toFixed(1)}%)`,
+              body: body,
+              labels: ['coverage', 'automated', 'high-priority', 'technical-debt']
+            });
+
+  coverage-trends:
+    runs-on: ubuntu-latest
+    needs: coverage-check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Download coverage data
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage-reports-${{ github.run_number }}
+          path: ./
+      
+      - name: Update coverage badge
+        run: |
+          # Generate coverage badge
+          npm run coverage:report
+          
+          # Extract badge markdown
+          if [ -f "coverage-data/badge.md" ]; then
+            BADGE=$(cat coverage-data/badge.md)
+            
+            # Update README if it exists
+            if [ -f "README.md" ]; then
+              # Replace existing badge or add new one
+              if grep -q "!\[Coverage\]" README.md; then
+                sed -i "s|!\[Coverage\].*|$BADGE|" README.md
+              else
+                # Add after title
+                sed -i "2a\\
+$BADGE" README.md
+              fi
+            fi
+          fi
+      
+        - name: Commit coverage updates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Stage coverage data
+          git add coverage-data/ || true
+          git add README.md || true
+          
+          # Commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No coverage changes to commit"
+          else
+            git commit -m "chore: update coverage data and badge [skip ci]"
+            git push
+          fi
+
+  # Close resolved coverage issues
+  close-resolved-issues:
+    runs-on: ubuntu-latest
+    needs: coverage-check
+    if: success() && github.event_name == 'schedule'
+    
+    steps:
+      - name: Close coverage issues
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'coverage,automated',
+              state: 'open'
+            });
+            
+            for (const issue of issues) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: '✅ **Coverage Issue Resolved**\n\nCode coverage has been restored above 80%. Great work team! 🎉\n\n_Automatically closed by coverage monitoring._'
+              });
+              
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+            }

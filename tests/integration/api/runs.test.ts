@@ -224,7 +224,7 @@ describe('Runs API Integration Tests', () => {
       expect(response.body).toHaveProperty('message');
     });
 
-    it("returns 404 when trying to update another user's run", async () => {
+    it("returns 403 when trying to update another user's run", async () => {
       const user1 = await testDb.createUser();
       const user2 = await testDb.createUser();
       const token2 = testDb.generateToken(user2.id, user2.email);
@@ -243,9 +243,11 @@ describe('Runs API Integration Tests', () => {
         .put(`/api/runs/${run.id}`)
         .set('Authorization', `Bearer ${token2}`)
         .send({ distance: 10.0 })
-        .expect(404);
+        .expect(403);
 
       expect(response.body).toHaveProperty('error', true);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('permission');
     });
   });
 
@@ -290,7 +292,7 @@ describe('Runs API Integration Tests', () => {
       expect(response.body).toHaveProperty('error', true);
     });
 
-    it("returns 404 when trying to delete another user's run", async () => {
+    it("returns 403 when trying to delete another user's run", async () => {
       const user1 = await testDb.createUser();
       const user2 = await testDb.createUser();
       const token2 = testDb.generateToken(user2.id, user2.email);
@@ -308,9 +310,11 @@ describe('Runs API Integration Tests', () => {
       const response = await request(app)
         .delete(`/api/runs/${run.id}`)
         .set('Authorization', `Bearer ${token2}`)
-        .expect(404);
+        .expect(403);
 
       expect(response.body).toHaveProperty('error', true);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('permission');
     });
   });
 });

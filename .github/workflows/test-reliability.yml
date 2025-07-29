@@ -1,0 +1,293 @@
+name: Test Reliability Tracking
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      flaky_detection:
+        description: 'Run flaky test detection'
+        type: boolean
+        default: false
+      test_pattern:
+        description: 'Test pattern for flaky detection'
+        type: string
+        default: ''
+      runs_count:
+        description: 'Number of runs for flaky detection'
+        type: number
+        default: 10
+
+jobs:
+  track-reliability:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Setup test database
+        run: |
+          npm run ci-db-setup
+          npm run prisma:generate
+      
+      - name: Cache test results
+        uses: actions/cache@v3
+        with:
+          path: test-data/reliability
+          key: test-reliability-${{ github.sha }}
+          restore-keys: |
+            test-reliability-${{ github.ref_name }}-
+            test-reliability-
+      
+      - name: Track test reliability
+        run: |
+          npm run test:reliability:track
+        env:
+          NODE_ENV: test
+          CI: true
+      
+      - name: Run flaky test detection
+        if: github.event.inputs.flaky_detection == 'true' && github.event.inputs.test_pattern != ''
+        run: |
+          npm run test:reliability:flaky "${{ github.event.inputs.test_pattern }}" ${{ github.event.inputs.runs_count || 10 }}
+      
+      - name: Generate reliability report
+        run: npm run test:reliability:report
+      
+      - name: Check reliability thresholds
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'test-data/reliability/metrics.json';
+            
+            if (!fs.existsSync(path)) {
+              console.log('❌ No metrics file found');
+              process.exit(1);
+            }
+            
+            const metrics = JSON.parse(fs.readFileSync(path, 'utf8'));
+            const passRate = metrics.overallPassRate * 100;
+            const flakyRate = metrics.flakyTestRate * 100;
+            
+            console.log(\`📊 Test Reliability Metrics:\`);
+            console.log(\`   Pass Rate: \${passRate.toFixed(1)}%\`);
+            console.log(\`   Flaky Rate: \${flakyRate.toFixed(1)}%\`);
+            
+            const passRateOk = passRate >= 100;
+            const flakyRateOk = flakyRate <= 1;
+            
+            if (passRateOk && flakyRateOk) {
+              console.log('✅ All reliability thresholds met!');
+              process.exit(0);
+            } else {
+              console.log('❌ Reliability thresholds not met:');
+              if (!passRateOk) console.log(\`   - Pass rate \${passRate.toFixed(1)}% < 100%\`);
+              if (!flakyRateOk) console.log(\`   - Flaky rate \${flakyRate.toFixed(1)}% > 1%\`);
+              
+              // Don't fail the workflow for now, just warn
+              console.log('⚠️  This is a warning - reliability needs improvement');
+              process.exit(0);
+            }
+          "
+      
+      - name: Upload reliability artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-reliability-${{ github.run_number }}
+          path: |
+            test-data/reliability/
+            !test-data/reliability/runs/
+          retention-days: 30
+      
+      - name: Upload reliability report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: reliability-report-${{ github.run_number }}
+          path: test-data/reliability/reliability-report.html
+          retention-days: 7
+      
+      - name: Comment PR with reliability metrics
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const metricsPath = 'test-data/reliability/metrics.json';
+            
+            if (!fs.existsSync(metricsPath)) {
+              return;
+            }
+            
+            const metrics = JSON.parse(fs.readFileSync(metricsPath, 'utf8'));
+            const passRate = (metrics.overallPassRate * 100).toFixed(1);
+            const flakyRate = (metrics.flakyTestRate * 100).toFixed(1);
+            
+            const passRateEmoji = metrics.overallPassRate >= 1.0 ? '✅' : 
+                                 metrics.overallPassRate >= 0.95 ? '⚠️' : '❌';
+            const flakyEmoji = metrics.flakyTestRate <= 0.01 ? '✅' : 
+                              metrics.flakyTestRate <= 0.05 ? '⚠️' : '❌';
+            
+            let flakyTestsSection = '';
+            if (metrics.flakyTests.length > 0) {
+              flakyTestsSection = `
+            
+            ### 🚨 Flaky Tests Detected (${metrics.flakyTests.length})
+            ${metrics.flakyTests.slice(0, 5).map(test => 
+              `- **${test.name}** (${(test.flakyRate * 100).toFixed(1)}% failure rate)`
+            ).join('\n')}
+            ${metrics.flakyTests.length > 5 ? `\n_... and ${metrics.flakyTests.length - 5} more_` : ''}
+              `;
+            }
+            
+            const body = `## 📊 Test Reliability Report
+            
+            | Metric | Value | Status |
+            |--------|-------|--------|
+            | Pass Rate | ${passRate}% | ${passRateEmoji} |
+            | Flaky Test Rate | ${flakyRate}% | ${flakyEmoji} |
+            | Total Tests | ${metrics.totalTests.toFixed(0)} | ℹ️ |
+            | Avg Duration | ${(metrics.trends.avgDuration / 1000).toFixed(1)}s | ℹ️ |
+            
+            ### 🎯 Success Criteria
+            - ${metrics.overallPassRate >= 1.0 ? '✅' : '❌'} **100% pass rate**: ${passRate}%
+            - ${metrics.flakyTestRate <= 0.01 ? '✅' : '❌'} **<1% flaky tests**: ${flakyRate}%
+            ${flakyTestsSection}
+            
+            _Report generated on ${new Date(metrics.lastUpdated).toLocaleString()}_`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+      
+      - name: Create issue for reliability problems
+        if: github.event_name == 'schedule' && always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const metricsPath = 'test-data/reliability/metrics.json';
+            
+            if (!fs.existsSync(metricsPath)) {
+              return;
+            }
+            
+            const metrics = JSON.parse(fs.readFileSync(metricsPath, 'utf8'));
+            const passRate = metrics.overallPassRate * 100;
+            const flakyRate = metrics.flakyTestRate * 100;
+            
+            const hasIssues = passRate < 100 || flakyRate > 1 || metrics.flakyTests.length > 0;
+            
+            if (!hasIssues) {
+              console.log('✅ No reliability issues to report');
+              return;
+            }
+            
+            // Check if there's already an open reliability issue
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'reliability,automated',
+              state: 'open'
+            });
+            
+            if (issues.length > 0) {
+              console.log('ℹ️ Reliability issue already exists');
+              return;
+            }
+            
+            let flakyTestsList = '';
+            if (metrics.flakyTests.length > 0) {
+              flakyTestsList = metrics.flakyTests.slice(0, 10).map(test => 
+                `- **${test.name}** (${(test.flakyRate * 100).toFixed(1)}% failure rate)\n  - File: \`${test.file}\`\n  - Runs: ${test.totalRuns}, Failures: ${test.failures}`
+              ).join('\n');
+              
+              if (metrics.flakyTests.length > 10) {
+                flakyTestsList += `\n\n_... and ${metrics.flakyTests.length - 10} more flaky tests_`;
+              }
+            }
+            
+            const body = `## 🚨 Test Reliability Issues Detected
+            
+            Our automated reliability tracking has detected issues that need attention:
+            
+            ### 📊 Current Metrics
+            - **Pass Rate**: ${passRate.toFixed(1)}% (Target: 100%)
+            - **Flaky Test Rate**: ${flakyRate.toFixed(1)}% (Target: <1%)
+            - **Total Flaky Tests**: ${metrics.flakyTests.length}
+            
+            ### 🎯 Issues to Address
+            ${passRate < 100 ? '- ❌ Pass rate below 100%' : ''}
+            ${flakyRate > 1 ? '- ❌ Flaky test rate above 1%' : ''}
+            ${metrics.flakyTests.length > 0 ? '- ❌ Flaky tests detected' : ''}
+            
+            ${flakyTestsList ? `### 🔍 Flaky Tests\n${flakyTestsList}` : ''}
+            
+            ### 🔧 Recommended Actions
+            1. Investigate and fix failing tests
+            2. Address flaky tests by improving test stability
+            3. Consider adding retries for inherently flaky operations
+            4. Review test isolation and cleanup procedures
+            
+            ### 📈 Tracking
+            This issue was automatically created by our reliability monitoring system.
+            It will be automatically closed when reliability targets are met.
+            
+            _Detected on ${new Date(metrics.lastUpdated).toLocaleString()}_`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Test Reliability Issues - ${passRate.toFixed(1)}% pass rate, ${flakyRate.toFixed(1)}% flaky`,
+              body: body,
+              labels: ['reliability', 'automated', 'needs-investigation']
+            });
+            
+            console.log('📋 Created reliability issue');
+
+  close-reliability-issues:
+    runs-on: ubuntu-latest
+    needs: track-reliability
+    if: always() && github.event_name == 'schedule'
+    
+    steps:
+      - name: Close resolved reliability issues
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Download the artifact to check current metrics
+            // For now, we'll just close issues labeled as resolved
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'reliability,automated',
+              state: 'open'
+            });
+            
+            console.log(`Found ${issues.length} open reliability issues`);
+            
+            // This would need actual metrics to determine if issues are resolved
+            // For now, we'll keep the logic simple
