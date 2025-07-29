@@ -27,6 +27,8 @@ jobs:
         run: |
           npx prisma migrate dev --name init || npx prisma migrate deploy
           npx prisma generate
+        env:
+          DATABASE_URL: file:./prisma/test.db
 
       - name: Run tests with coverage
         run: npm run test:coverage:ci
