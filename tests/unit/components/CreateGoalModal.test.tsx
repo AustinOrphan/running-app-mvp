@@ -4,13 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { CreateGoalModal } from '../../../src/components/CreateGoalModal';
 import { GOAL_TYPES, GOAL_PERIODS, GOAL_TYPE_CONFIGS } from '../../../src/types/goals';
-import {
-  setDateInputValue,
-  setDateRange,
-  TEST_DATES,
-  DATE_VALIDATION_SCENARIOS,
-  createDateTestEnvironment,
-} from '../../utils/dateTestUtils';
+import { setDateRange, DATE_VALIDATION_SCENARIOS } from '../../utils/dateTestUtils';
 
 // Mock the clientLogger
 vi.mock('../../../src/utils/clientLogger', () => ({

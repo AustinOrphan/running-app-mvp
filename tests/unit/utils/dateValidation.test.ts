@@ -5,7 +5,7 @@
  * Tests date parsing, validation, and edge cases like leap years and month boundaries.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   isValidDateFormat,
   parseInputDate,
@@ -302,7 +302,7 @@ describe('Date Format Validation', () => {
         ([key]) => !key.includes('INVALID') && !key.includes('EMPTY')
       );
 
-      validDates.forEach(([key, date]) => {
+      validDates.forEach(([, date]) => {
         expect(isValidDateFormat(date)).toBe(true);
       });
     });

@@ -317,7 +317,7 @@ export function setupTransactionRollbackVitest(
   try {
     const { beforeEach, afterEach } = require('vitest');
     return setupTransactionRollback(prisma, { beforeEach, afterEach }, config);
-  } catch (error) {
+  } catch {
     throw new Error('Vitest not available. Make sure vitest is installed.');
   }
 }

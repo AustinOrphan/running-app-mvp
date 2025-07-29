@@ -76,7 +76,7 @@ async function testGoalsCurrentValue() {
         data: { currentValue: -10 },
       });
       console.log('❌ ERROR: Negative currentValue should be rejected');
-    } catch (error) {
+    } catch {
       console.log('✅ Negative currentValue properly rejected');
     }
 

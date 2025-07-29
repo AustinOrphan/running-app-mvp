@@ -6,20 +6,18 @@
  */
 
 // Import from appropriate test framework
-let beforeAll: any, afterAll: any, beforeEach: any, afterEach: any;
+let beforeAll: any, afterAll: any, afterEach: any;
 
 try {
   // Try Vitest first
   const vitest = require('vitest');
   beforeAll = vitest.beforeAll;
   afterAll = vitest.afterAll;
-  beforeEach = vitest.beforeEach;
   afterEach = vitest.afterEach;
 } catch {
   // Fallback to Jest globals
   beforeAll = (global as any).beforeAll;
   afterAll = (global as any).afterAll;
-  // beforeEach = (global as any).beforeEach;
   afterEach = (global as any).afterEach;
 }
 import { InMemoryDatabase, InMemoryDbManager, createTestDatabase } from '../utils/inMemoryDb';

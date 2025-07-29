@@ -154,7 +154,7 @@ export const TEST_RACES = [
  */
 export async function seedBasicTestData(client: PrismaClient): Promise<void> {
   // Create users with hashed passwords
-  const users = await Promise.all(
+  await Promise.all(
     Object.values(TEST_USERS).map(async user => {
       const hashedPassword = await bcrypt.hash(user.password, 10);
       return client.user.create({
@@ -188,7 +188,7 @@ export async function seedBasicTestData(client: PrismaClient): Promise<void> {
  * Seed function for minimal test data (just users)
  */
 export async function seedMinimalTestData(client: PrismaClient): Promise<void> {
-  const users = await Promise.all(
+  await Promise.all(
     Object.values(TEST_USERS).map(async user => {
       const hashedPassword = await bcrypt.hash(user.password, 10);
       return client.user.create({

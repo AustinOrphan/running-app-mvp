@@ -5,7 +5,7 @@
  * and ensuring consistent behavior across different environments and timezones.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   mockCurrentDate,
   formatDateForInput,
@@ -165,7 +165,7 @@ describe('Timezone Handling in Tests', () => {
         },
       ];
 
-      edgeCases.forEach(({ description, time, expectedDate }) => {
+      edgeCases.forEach(({ time, expectedDate }) => {
         if (cleanup) cleanup();
         cleanup = mockCurrentDate(time);
 

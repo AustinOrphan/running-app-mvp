@@ -165,11 +165,11 @@ export function testWithRetry(
 export function describeWithRetry(
   name: string,
   suiteFn: () => void,
-  options?: { retries?: number }
+  _options?: { retries?: number }
 ) {
   return describe(name, () => {
     // Set default retry count for all tests in this suite
-    const defaultRetries = options?.retries ?? 2;
+    // const defaultRetries = options?.retries ?? 2;
 
     beforeEach(() => {
       // Setup retry context for each test
@@ -210,7 +210,7 @@ beforeEach(() => {
 
 afterEach(() => {
   // Track test duration for flaky test analysis
-  const duration = Date.now() - (globalThis.testStartTime || Date.now());
+  // const duration = Date.now() - (globalThis.testStartTime || Date.now());
   // Note: Vitest doesn't have expect.getState() like Jest
   // We'll track this differently in the reporter
 });

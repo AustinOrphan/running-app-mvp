@@ -271,7 +271,7 @@ export class InMemoryDatabase {
           const pageSize = Number(pageSizeResult[0].page_size);
           databaseSize = pageCount * pageSize;
         }
-      } catch (error) {
+      } catch {
         // Size calculation failed, use 0
         databaseSize = 0;
       }
