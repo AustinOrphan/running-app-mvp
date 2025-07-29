@@ -564,10 +564,14 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      // Wait for the submission state to be set
+      // Wait for the submission state to be set - check for disabled state first
       await waitFor(() => {
-        expect(screen.getByText('Creating...')).toBeInTheDocument();
-      });
+        const submitBtn = screen.getByRole('button', { name: /create goal|creating/i });
+        expect(submitBtn).toBeDisabled();
+      }, { timeout: 3000 });
+
+      // Check that the text has changed to Creating...
+      expect(screen.getByText('Creating...')).toBeInTheDocument();
 
       // Now check that the cancel button is disabled
       const cancelButton = screen.getByRole('button', { name: /Cancel/i });
