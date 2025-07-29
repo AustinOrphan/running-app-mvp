@@ -108,7 +108,7 @@ jobs:
           "
       
       - name: Upload reliability artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-reliability-${{ github.run_number }}
@@ -118,7 +118,7 @@ jobs:
           retention-days: 30
       
       - name: Upload reliability report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: reliability-report-${{ github.run_number }}
