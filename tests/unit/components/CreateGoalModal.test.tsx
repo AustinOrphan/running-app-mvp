@@ -431,8 +431,12 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      await user.type(screen.getByLabelText('Goal Title'), 'Test Goal');
-      await user.type(screen.getByLabelText('Target Value'), '10');
+      // Use fireEvent.change for more reliable input setting
+      const titleInput = screen.getByLabelText('Goal Title');
+      fireEvent.change(titleInput, { target: { value: 'Test Goal' } });
+      
+      const valueInput = screen.getByLabelText('Target Value');
+      fireEvent.change(valueInput, { target: { value: '10' } });
 
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
