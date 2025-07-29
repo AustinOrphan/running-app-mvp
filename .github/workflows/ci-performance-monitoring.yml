@@ -79,10 +79,10 @@ jobs:
           npm run prisma:generate
       
       - name: Run unit tests
-        run: npm run test:run --maxWorkers=100%
+        run: npm run test:coverage:unit:ci
       
       - name: Run integration tests
-        run: npm run test:integration --maxWorkers=50%
+        run: npm run test:coverage:integration:ci
       
       - name: Build application
         run: npm run build
