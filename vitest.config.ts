@@ -10,9 +10,21 @@ export default defineConfig({
     setupFiles: ['./tests/setup/testSetup.ts'],
     include: [
       'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
-      'tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+      'tests/unit/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+      'tests/accessibility/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+      'tests/infrastructure/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
     ],
-    exclude: ['node_modules', 'dist', '.idea', '.git', '.cache', 'playwright-report'],
+    exclude: [
+      'node_modules', 
+      'dist', 
+      '.idea', 
+      '.git', 
+      '.cache', 
+      'playwright-report',
+      '**/tests/integration/**',
+      '**/tests/e2e/**',
+      '**/playwright/**',
+    ],
     testTimeout: 10000,
     hookTimeout: 10000,
     coverage: {

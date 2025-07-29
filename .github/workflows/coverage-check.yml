@@ -25,6 +25,9 @@ jobs:
 
       - name: Setup database
         run: |
+          # Ensure database directory exists
+          mkdir -p prisma
+          # Deploy migrations and generate client
           npx prisma migrate dev --name init || npx prisma migrate deploy
           npx prisma generate
         env:
