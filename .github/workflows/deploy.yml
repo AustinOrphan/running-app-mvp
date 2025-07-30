@@ -16,7 +16,7 @@ on:
           - production
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '22.x'
 
 jobs:
   # Pre-deployment Tests
@@ -40,7 +40,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_test
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
     steps:
       - name: 📥 Checkout code
@@ -121,6 +121,9 @@ jobs:
     name: 🏗️ Build & Package
     runs-on: ubuntu-latest
     needs: [pre-deployment-tests, security-checks]
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4

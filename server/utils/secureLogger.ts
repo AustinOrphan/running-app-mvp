@@ -79,6 +79,10 @@ class SecureLogger {
     return process.env.NODE_ENV === 'production';
   }
 
+  private get isTest(): boolean {
+    return process.env.NODE_ENV === 'test';
+  }
+
   /**
    * Redacts sensitive data from any object or string
    */
@@ -231,25 +235,6 @@ class SecureLogger {
   }
 
   /**
-   * Legacy method - masks IP address for privacy compliance
-   * @deprecated Use hashIpAddress() for enhanced privacy compliance
-   */
-  private maskIpAddress(ip?: string): string {
-    if (!ip) return '[UNKNOWN]';
-
-    // For IPv4, mask last octet
-    if (ip.includes('.')) {
-      const parts = ip.split('.');
-      if (parts.length === 4) {
-        return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
-      }
-    }
-
-    // For IPv6 or other formats, show only prefix
-    return `${ip.substring(0, Math.min(ip.length, 8))}...`;
-  }
-
-  /**
    * Creates a non-reversible hash of user ID for production correlation
    */
   private hashUserId(userId: string): string {
@@ -292,6 +277,11 @@ class SecureLogger {
       metadata: redactedMetadata,
       ...(error && this.isDevelopment && { stack: error.stack }),
     };
+
+    // Skip console logging in test environment to reduce noise
+    if (this.isTest) {
+      return;
+    }
 
     // Use appropriate console method based on level
     switch (level) {

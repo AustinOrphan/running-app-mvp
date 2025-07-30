@@ -132,14 +132,14 @@ jobs:
         run: npm run test:coverage
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_test
-          JWT_SECRET: test-secret-key
+          JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
           NODE_ENV: test
 
       - name: 🧪 Run integration tests
         run: npm run test:integration
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_test
-          JWT_SECRET: test-secret-key
+          JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
           NODE_ENV: test
 
       - name: 📊 Code quality checks
@@ -152,6 +152,8 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_test
+          JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
       - name: 🔐 Log in to container registry
         uses: docker/login-action@v3

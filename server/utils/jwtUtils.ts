@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { createError } from '../middleware/errorHandler.js';
+import { secureLogger } from './secureLogger.js';
 
 export interface JWTPayload {
   id: string;
@@ -19,37 +20,47 @@ export const generateTokens = (user: { id: string; email: string }) => {
   if (!secret) {
     throw createError('JWT secret not configured', 500);
   }
+  // TypeScript assertion after null check
+  const jwtSecret: string = secret;
 
   // Access token payload
-  const accessPayload: JWTPayload = {
+  const accessPayload = {
     id: user.id,
     email: user.email,
     iat: Math.floor(Date.now() / 1000),
     jti: crypto.randomUUID(),
-    type: 'access',
+    type: 'access' as const,
   };
 
   // Generate access token
-  const accessToken = (jwt as any).sign(accessPayload, secret, {
-    expiresIn: process.env.JWT_ACCESS_EXPIRY || '1h',
-    issuer: 'running-app',
-    audience: 'running-app-users',
-  });
+  const accessToken = jwt.sign(
+    accessPayload,
+    jwtSecret as jwt.Secret,
+    {
+      expiresIn: process.env.JWT_ACCESS_EXPIRY || '1h',
+      issuer: 'running-app',
+      audience: 'running-app-users',
+    } as jwt.SignOptions
+  );
 
   // Refresh token payload (minimal data for security)
   const refreshPayload = {
     id: user.id,
     jti: crypto.randomUUID(),
-    type: 'refresh',
+    type: 'refresh' as const,
     iat: Math.floor(Date.now() / 1000),
   };
 
   // Generate refresh token
-  const refreshToken = (jwt as any).sign(refreshPayload, secret, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRY || '7d',
-    issuer: 'running-app',
-    audience: 'running-app-users',
-  });
+  const refreshToken = jwt.sign(
+    refreshPayload,
+    jwtSecret as jwt.Secret,
+    {
+      expiresIn: process.env.JWT_REFRESH_EXPIRY || '7d',
+      issuer: 'running-app',
+      audience: 'running-app-users',
+    } as jwt.SignOptions
+  );
 
   return { accessToken, refreshToken };
 };
@@ -62,12 +73,18 @@ export const validateToken = (token: string, type: 'access' | 'refresh' = 'acces
   if (!secret) {
     throw createError('JWT secret not configured', 500);
   }
+  // TypeScript assertion after null check
+  const jwtSecret: string = secret;
 
   try {
-    const decoded = jwt.verify(token, secret, {
-      issuer: 'running-app',
-      audience: 'running-app-users',
-    }) as JWTPayload;
+    const decoded = jwt.verify(
+      token,
+      jwtSecret as jwt.Secret,
+      {
+        issuer: 'running-app',
+        audience: 'running-app-users',
+      } as jwt.VerifyOptions
+    ) as JWTPayload;
 
     // Verify token type
     if (decoded.type && decoded.type !== type) {
@@ -140,7 +157,9 @@ const blacklistedTokens = new Set<string>();
 
 // Development-only warning
 if (process.env.NODE_ENV === 'production') {
-  console.warn('WARNING: Using in-memory token blacklist in production. This is not recommended!');
+  secureLogger.warn(
+    'Using in-memory token blacklist in production. This is not recommended for scalability.'
+  );
 }
 
 export const blacklistToken = (jti: string, expiresAt: number) => {

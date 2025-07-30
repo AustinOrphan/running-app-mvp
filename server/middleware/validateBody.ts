@@ -11,7 +11,7 @@ interface ValidationRule {
 }
 
 export const validateBody = (rules: ValidationRule[]) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     try {
       const errors: string[] = [];
 

@@ -1,10 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, devices } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import type { TestUser } from './types';
 import { assertTestUser } from './types/index.js';
 
 import { mockRuns } from '../fixtures/mockData.js';
-import { testDb } from '../fixtures/testDatabase.js';
+import { testDb } from '../fixtures/testDatabase';
 import { accessibilityTestPatterns } from '../setup/axeSetup.js';
 
 test.describe('Accessibility E2E Tests', () => {
@@ -423,8 +423,6 @@ test.describe('Accessibility E2E Tests', () => {
   });
 
   test.describe('Mobile Accessibility', () => {
-    test.use(devices['iPhone 12']);
-
     test('should have proper touch target sizes', async ({ page }) => {
       // Login user
       await page.goto('/login');

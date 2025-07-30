@@ -1,0 +1,274 @@
+name: 📊 Test Performance Tracking
+
+on:
+  workflow_run:
+    workflows: ['🧪 CI Pipeline']
+    types: [completed]
+  schedule:
+    # Run performance tracking daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false # Don't cancel performance tracking
+
+env:
+  NODE_ENV: test
+  JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+  DATABASE_URL: file:./prisma/performance-test.db
+
+jobs:
+  track-performance:
+    name: 📈 Track Test Performance
+    runs-on: ubuntu-latest
+    if: always() # Run even if triggering workflow failed
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: 💾 Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            deps-${{ runner.os }}-
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🗄️ Setup test database
+        run: |
+          mkdir -p prisma
+          rm -f prisma/performance-test.db*
+          npx prisma migrate dev --name init || npx prisma migrate deploy
+          npx prisma generate
+
+      - name: 📊 Track unit test performance
+        continue-on-error: true
+        run: |
+          echo "🧪 Tracking unit test performance..."
+          tsx scripts/test-performance-tracker.ts track unit
+
+      - name: 📊 Track integration test performance
+        continue-on-error: true
+        run: |
+          echo "🔗 Tracking integration test performance..."
+          tsx scripts/test-performance-tracker.ts track integration
+
+      - name: 📊 Track E2E test performance
+        continue-on-error: true
+        run: |
+          echo "🌐 Setting up browser for E2E tests..."
+          npx playwright install --with-deps chromium
+          echo "🎭 Tracking E2E test performance..."
+          tsx scripts/test-performance-tracker.ts track e2e
+
+      - name: 📈 Generate performance report
+        run: |
+          echo "📋 Generating performance report..."
+          tsx scripts/test-performance-tracker.ts report
+
+      - name: 📊 Generate performance dashboard
+        run: |
+          echo "🎨 Generating performance dashboard..."
+          tsx scripts/test-performance-dashboard.ts generate
+
+      - name: 💾 Cache performance data
+        uses: actions/cache@v4
+        with:
+          path: test-performance-data/
+          key: performance-data-${{ github.sha }}-${{ github.run_number }}
+          restore-keys: |
+            performance-data-${{ github.sha }}-
+            performance-data-
+
+      - name: 📤 Upload performance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-performance-report
+          path: |
+            test-performance-data/
+            test-results/
+          retention-days: 30
+
+      - name: 📊 Performance Summary
+        if: always()
+        run: |
+          echo "# 📊 Test Performance Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "test-performance-data/test-results.json" ]; then
+            echo "## 📈 Latest Performance Metrics" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Extract summary data (simplified - would normally parse JSON)
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Tracking Run | $(date) |" >> $GITHUB_STEP_SUMMARY
+            echo "| Performance Data | Available in artifacts |" >> $GITHUB_STEP_SUMMARY
+            echo "| Dashboard | Generated successfully |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "## 📋 Performance Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+            tsx scripts/test-performance-tracker.ts report 2>/dev/null | head -30 >> $GITHUB_STEP_SUMMARY || echo "Report generation completed"
+            echo "```" >> $GITHUB_STEP_SUMMARY
+            
+            echo "## 🔗 Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- Download performance artifacts to view detailed dashboard" >> $GITHUB_STEP_SUMMARY
+            echo "- Check for performance regressions in the report above" >> $GITHUB_STEP_SUMMARY
+            echo "- Review slowest tests for optimization opportunities" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Performance tracking data not generated" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 🧹 Cleanup
+        if: always()
+        run: |
+          rm -f prisma/performance-test.db*
+          echo "🧹 Cleanup completed"
+
+  # Job to analyze performance trends and create issues for regressions
+  analyze-trends:
+    name: 📉 Analyze Performance Trends
+    needs: track-performance
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: 💾 Restore performance data
+        uses: actions/cache@v4
+        with:
+          path: test-performance-data/
+          key: performance-data-${{ github.sha }}-${{ github.run_number }}
+          restore-keys: |
+            performance-data-${{ github.sha }}-
+            performance-data-
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 📈 Analyze performance trends
+        id: trends
+        run: |
+          echo "📊 Analyzing performance trends..."
+
+          if [ -f "test-performance-data/test-results.json" ]; then
+            # Generate trends analysis
+            tsx scripts/test-performance-tracker.ts trends > trends.json
+            
+            # Check for significant regressions (simplified check)
+            if grep -q '"trend": "degrading"' trends.json; then
+              echo "regression=true" >> $GITHUB_OUTPUT
+              echo "⚠️ Performance regression detected!"
+            else
+              echo "regression=false" >> $GITHUB_OUTPUT
+              echo "✅ No significant performance regressions detected"
+            fi
+          else
+            echo "regression=false" >> $GITHUB_OUTPUT
+            echo "❌ No performance data available for trend analysis"
+          fi
+
+      - name: 🚨 Create performance regression issue
+        if: steps.trends.outputs.regression == 'true' && github.event_name != 'workflow_dispatch'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read trends data
+            let trendsData = [];
+            try {
+              if (fs.existsSync('trends.json')) {
+                trendsData = JSON.parse(fs.readFileSync('trends.json', 'utf8'));
+              }
+            } catch (error) {
+              console.log('Could not read trends data:', error);
+            }
+
+            // Find degrading trends
+            const degradingTrends = trendsData.filter(trend => trend.trend === 'degrading');
+
+            if (degradingTrends.length > 0) {
+              const issueBody = `# 📉 Performance Regression Detected
+
+            **Detected:** ${new Date().toISOString()}
+            **Commit:** ${context.sha}
+            **Workflow:** ${context.workflow}
+
+            ## 🚨 Degrading Performance Trends
+
+            ${degradingTrends.map(trend => 
+              `- **${trend.suite}** ${trend.metric}: ${trend.changePercent.toFixed(1)}% degradation (${trend.samples} samples)`
+            ).join('\n')}
+
+            ## 📊 Analysis
+
+            This issue was automatically created when performance tracking detected significant regressions in test execution times or pass rates.
+
+            ## 🔍 Investigation Steps
+
+            1. Review the performance dashboard in the workflow artifacts
+            2. Identify which specific tests are causing the regression
+            3. Check recent code changes that might impact performance
+            4. Consider optimizing slow tests or infrastructure changes
+
+            ## 📈 Tracking
+
+            - [ ] Investigate root cause
+            - [ ] Implement performance improvements
+            - [ ] Verify improvements with subsequent test runs
+            - [ ] Update performance baselines if needed
+
+            ---
+
+            *This issue was automatically created by the Test Performance Tracking workflow.*`;
+
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Performance Regression Detected - ${new Date().toLocaleDateString()}`,
+                body: issueBody,
+                labels: ['performance', 'regression', 'automated']
+              });
+              
+              console.log('Created performance regression issue');
+            }
+
+      - name: 💬 Performance trend comment
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // This would add a comment to the PR with performance insights
+            // For now, just log the trends
+            console.log('Performance trends analysis completed');
+
+            if (fs.existsSync('trends.json')) {
+              const trends = JSON.parse(fs.readFileSync('trends.json', 'utf8'));
+              console.log('Performance trends:', JSON.stringify(trends, null, 2));
+            }

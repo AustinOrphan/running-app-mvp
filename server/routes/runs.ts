@@ -2,7 +2,7 @@ import express from 'express';
 
 import { prisma } from '../../lib/prisma.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createNotFoundError } from '../middleware/errorHandler.js';
+import { createNotFoundError, createForbiddenError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import {
   validateCreateRun,
@@ -126,13 +126,18 @@ router.put(
   asyncAuthHandler(async (req: AuthRequest, res) => {
     const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
-    // Existence and authorization check
-    const existingRun = await prisma.run.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+    // Check if run exists first
+    const existingRun = await prisma.run.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!existingRun) {
       throw createNotFoundError('Run');
+    }
+
+    // Then check authorization
+    if (existingRun.userId !== req.user!.id) {
+      throw createForbiddenError('You do not have permission to update this run');
     }
     const updateData: Partial<{
       date: Date;
@@ -177,13 +182,18 @@ router.delete(
   validateIdParam,
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Existence and authorization check
-    const existingRun = await prisma.run.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+    // Check if run exists first
+    const existingRun = await prisma.run.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!existingRun) {
       throw createNotFoundError('Run');
+    }
+
+    // Then check authorization
+    if (existingRun.userId !== req.user!.id) {
+      throw createForbiddenError('You do not have permission to delete this run');
     }
     await prisma.run.delete({
       where: { id: req.params.id },

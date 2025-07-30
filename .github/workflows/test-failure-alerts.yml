@@ -1,0 +1,538 @@
+name: 🚨 Test Failure Alerts
+
+on:
+  workflow_run:
+    workflows: ['🧪 CI Pipeline', '🧪 Tests', '📈 Coverage Check']
+    types: [completed]
+  schedule:
+    # Check for repeated failures daily at 6 AM UTC
+    - cron: '0 6 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  analyze-test-failures:
+    name: 📊 Analyze Test Failures
+    runs-on: ubuntu-latest
+    if: always()
+
+    outputs:
+      has-failures: ${{ steps.analysis.outputs.has-failures }}
+      failure-type: ${{ steps.analysis.outputs.failure-type }}
+      failure-count: ${{ steps.analysis.outputs.failure-count }}
+      is-recurring: ${{ steps.analysis.outputs.is-recurring }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📊 Analyze workflow results
+        id: analysis
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get the triggering workflow run
+            const triggeringRun = context.payload.workflow_run;
+
+            if (!triggeringRun) {
+              console.log('No triggering workflow run found');
+              core.setOutput('has-failures', 'false');
+              return;
+            }
+
+            console.log(`Analyzing workflow: ${triggeringRun.name}`);
+            console.log(`Status: ${triggeringRun.conclusion}`);
+            console.log(`Run ID: ${triggeringRun.id}`);
+
+            // Check if workflow failed
+            if (triggeringRun.conclusion === 'failure') {
+              core.setOutput('has-failures', 'true');
+              
+              // Get workflow jobs to determine failure type
+              const jobs = await github.rest.actions.listJobsForWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: triggeringRun.id
+              });
+              
+              let failureType = 'unknown';
+              let failureCount = 0;
+              
+              const failedJobs = jobs.data.jobs.filter(job => job.conclusion === 'failure');
+              failureCount = failedJobs.length;
+              
+              // Categorize failure types
+              const jobNames = failedJobs.map(job => job.name.toLowerCase());
+              
+              if (jobNames.some(name => name.includes('unit'))) {
+                failureType = 'unit-tests';
+              } else if (jobNames.some(name => name.includes('integration'))) {
+                failureType = 'integration-tests';
+              } else if (jobNames.some(name => name.includes('e2e'))) {
+                failureType = 'e2e-tests';
+              } else if (jobNames.some(name => name.includes('lint') || name.includes('quality'))) {
+                failureType = 'code-quality';
+              } else if (jobNames.some(name => name.includes('build'))) {
+                failureType = 'build';
+              } else {
+                failureType = 'other';
+              }
+              
+              core.setOutput('failure-type', failureType);
+              core.setOutput('failure-count', failureCount.toString());
+              
+              console.log(`Failure type: ${failureType}`);
+              console.log(`Failed jobs: ${failureCount}`);
+              
+              // Check for recurring failures (last 5 runs of same workflow)
+              const recentRuns = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: triggeringRun.workflow_id,
+                per_page: 5
+              });
+              
+              const recentFailures = recentRuns.data.workflow_runs.filter(
+                run => run.conclusion === 'failure'
+              ).length;
+              
+              const isRecurring = recentFailures >= 3;
+              core.setOutput('is-recurring', isRecurring.toString());
+              
+              console.log(`Recent failures: ${recentFailures}/5`);
+              console.log(`Is recurring: ${isRecurring}`);
+              
+            } else {
+              core.setOutput('has-failures', 'false');
+              console.log('No failures detected');
+            }
+
+  send-notifications:
+    name: 📬 Send Failure Notifications
+    needs: analyze-test-failures
+    runs-on: ubuntu-latest
+    if: needs.analyze-test-failures.outputs.has-failures == 'true'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Get failure details
+        id: details
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const triggeringRun = context.payload.workflow_run;
+
+            if (!triggeringRun) {
+              core.setFailed('No triggering workflow run found');
+              return;
+            }
+
+            // Get failed jobs details
+            const jobs = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: triggeringRun.id
+            });
+
+            const failedJobs = jobs.data.jobs.filter(job => job.conclusion === 'failure');
+
+            let failureDetails = '';
+            for (const job of failedJobs) {
+              failureDetails += `\n• **${job.name}**: ${job.conclusion}`;
+              if (job.steps) {
+                const failedSteps = job.steps.filter(step => step.conclusion === 'failure');
+                for (const step of failedSteps) {
+                  failureDetails += `\n  - ${step.name}`;
+                }
+              }
+            }
+
+            core.setOutput('failure-details', failureDetails);
+            core.setOutput('workflow-name', triggeringRun.name);
+            core.setOutput('run-url', triggeringRun.html_url);
+            core.setOutput('commit-sha', triggeringRun.head_sha.substring(0, 8));
+            core.setOutput('branch', triggeringRun.head_branch);
+
+      - name: 💬 Create GitHub Issue for Recurring Failures
+        if: needs.analyze-test-failures.outputs.is-recurring == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failureType = '${{ needs.analyze-test-failures.outputs.failure-type }}';
+            const failureCount = '${{ needs.analyze-test-failures.outputs.failure-count }}';
+            const workflowName = '${{ steps.details.outputs.workflow-name }}';
+            const runUrl = '${{ steps.details.outputs.run-url }}';
+            const commitSha = '${{ steps.details.outputs.commit-sha }}';
+            const branch = '${{ steps.details.outputs.branch }}';
+            const failureDetails = '${{ steps.details.outputs.failure-details }}';
+
+            const issueTitle = `🚨 Recurring Test Failures - ${failureType.replace('-', ' ').toUpperCase()}`;
+
+            const issueBody = `# 🚨 Recurring Test Failures Detected
+
+            **Alert Type**: Recurring Failures
+            **Workflow**: ${workflowName}
+            **Failure Type**: ${failureType}
+            **Failed Jobs**: ${failureCount}
+            **Latest Run**: [${commitSha}](${runUrl})
+            **Branch**: ${branch}
+            **Detection**: 3+ failures in last 5 runs
+
+            ## 📊 Failure Details
+            ${failureDetails}
+
+            ## 🔍 Investigation Steps
+
+            1. **Review Recent Changes**
+               - Check commits since last successful run
+               - Look for changes in test files or configurations
+               - Review dependency updates
+
+            2. **Analyze Failure Patterns**
+               - Are failures consistent across runs?
+               - Do failures occur on specific platforms?
+               - Are there timing/flakiness issues?
+
+            3. **Check Environment Issues**
+               - Verify CI environment configuration
+               - Check for resource constraints
+               - Validate test data and setup
+
+            ## 🛠️ Quick Fixes to Try
+
+            ### For Unit Test Failures:
+            - Run tests locally: \`npm run test:coverage:unit:ci\`
+            - Check for flaky tests: \`npm run test -- --repeat-each 5\`
+            - Verify mocks and test isolation
+
+            ### For Integration Test Failures:
+            - Check database setup: \`npm run verify-db-setup\`
+            - Run integration tests: \`npm run test:integration:ci\`
+            - Review test data and cleanup
+
+            ### For E2E Test Failures:
+            - Verify browser installation: \`npx playwright install\`
+            - Run headed tests: \`npm run test:e2e -- --headed\`
+            - Check for timing issues and selectors
+
+            ### For Build/Quality Failures:
+            - Run quality checks: \`npm run quality:check\`
+            - Fix linting: \`npm run lint:fix\`
+            - Check TypeScript: \`npm run typecheck\`
+
+            ## 📋 Action Items
+
+            - [ ] Identify root cause of recurring failures
+            - [ ] Implement fix or workaround
+            - [ ] Add tests to prevent regression
+            - [ ] Update CI configuration if needed
+            - [ ] Monitor next few runs for stability
+
+            ---
+
+            **Priority**: ${failureType === 'unit-tests' || failureType === 'build' ? 'High' : 'Medium'}
+
+            *This issue was automatically created due to recurring test failures. Please investigate promptly to maintain CI/CD pipeline health.*`;
+
+            // Check if similar issue already exists
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'test-failure,recurring',
+              state: 'open'
+            });
+
+            const similarIssue = existingIssues.data.find(issue => 
+              issue.title.includes(failureType.replace('-', ' ').toUpperCase())
+            );
+
+            if (similarIssue) {
+              // Add comment to existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: similarIssue.number,
+                body: `## 🔄 Additional Failure Detected
+                
+                **Latest Run**: [${commitSha}](${runUrl})
+                **Branch**: ${branch}
+                **Time**: ${new Date().toISOString()}
+                
+                The recurring failure pattern continues. Please prioritize investigation.
+                
+                ### Latest Failure Details
+                ${failureDetails}`
+              });
+              
+              console.log(`Added comment to existing issue #${similarIssue.number}`);
+            } else {
+              // Create new issue
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: issueBody,
+                labels: ['test-failure', 'recurring', 'automated', failureType, 'needs-investigation']
+              });
+              
+              console.log(`Created new issue #${issue.data.number}`);
+            }
+
+      - name: 📧 Send Email Notification (Webhook)
+        if: needs.analyze-test-failures.outputs.is-recurring == 'true'
+        run: |
+          # This would send an email notification via webhook
+          # For security, webhook URL would be stored in GitHub Secrets
+
+          FAILURE_TYPE="${{ needs.analyze-test-failures.outputs.failure-type }}"
+          WORKFLOW_NAME="${{ steps.details.outputs.workflow-name }}"
+          RUN_URL="${{ steps.details.outputs.run-url }}"
+          COMMIT_SHA="${{ steps.details.outputs.commit-sha }}"
+          BRANCH="${{ steps.details.outputs.branch }}"
+
+          echo "📧 Email notification would be sent for recurring $FAILURE_TYPE failures"
+          echo "Workflow: $WORKFLOW_NAME"
+          echo "Run: $RUN_URL"
+          echo "Commit: $COMMIT_SHA on $BRANCH"
+
+          # Actual webhook call would be:
+          # curl -X POST "${{ secrets.EMAIL_WEBHOOK_URL }}" \
+          #   -H "Content-Type: application/json" \
+          #   -d "{\"type\":\"test-failure\",\"severity\":\"recurring\",\"workflow\":\"$WORKFLOW_NAME\",\"url\":\"$RUN_URL\"}"
+
+      - name: 💬 Slack Notification (Webhook)
+        if: needs.analyze-test-failures.outputs.is-recurring == 'true'
+        run: |
+          # This would send a Slack notification via webhook
+          # For security, webhook URL would be stored in GitHub Secrets
+
+          FAILURE_TYPE="${{ needs.analyze-test-failures.outputs.failure-type }}"
+          WORKFLOW_NAME="${{ steps.details.outputs.workflow-name }}"
+          RUN_URL="${{ steps.details.outputs.run-url }}"
+          COMMIT_SHA="${{ steps.details.outputs.commit-sha }}"
+          BRANCH="${{ steps.details.outputs.branch }}"
+
+          echo "💬 Slack notification would be sent for recurring $FAILURE_TYPE failures"
+
+          # Actual Slack webhook call would be:
+          # curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          #   -H "Content-Type: application/json" \
+          #   -d "{
+          #     \"text\": \"🚨 Recurring Test Failures in $WORKFLOW_NAME\",
+          #     \"blocks\": [
+          #       {
+          #         \"type\": \"section\",
+          #         \"text\": {
+          #           \"type\": \"mrkdwn\",
+          #           \"text\": \"*Recurring $FAILURE_TYPE failures detected*\n\n• Workflow: $WORKFLOW_NAME\n• Branch: $BRANCH\n• Commit: $COMMIT_SHA\n\n<$RUN_URL|View Failed Run>\"
+          #         }
+          #       }
+          #     ]
+          #   }"
+
+  update-pr-status:
+    name: 🔄 Update PR Status Checks
+    needs: analyze-test-failures
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔄 Update PR Status Checks
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const triggeringRun = context.payload.workflow_run;
+
+            if (!triggeringRun) {
+              console.log('No triggering workflow run found');
+              return;
+            }
+
+            // Only update status for PR events
+            if (triggeringRun.event !== 'pull_request') {
+              console.log('Not a PR event, skipping status update');
+              return;
+            }
+
+            const hasFailures = '${{ needs.analyze-test-failures.outputs.has-failures }}' === 'true';
+            const failureType = '${{ needs.analyze-test-failures.outputs.failure-type }}';
+            const isRecurring = '${{ needs.analyze-test-failures.outputs.is-recurring }}' === 'true';
+
+            // Get PR details
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${triggeringRun.head_branch}`,
+              state: 'open'
+            });
+
+            if (prs.data.length === 0) {
+              console.log('No open PR found for this branch');
+              return;
+            }
+
+            const pr = prs.data[0];
+            console.log(`Updating status for PR #${pr.number}`);
+
+            // Create status check
+            let state, description;
+
+            if (!hasFailures) {
+              state = 'success';
+              description = 'All tests passed successfully';
+            } else if (isRecurring) {
+              state = 'failure';
+              description = `Recurring ${failureType.replace('-', ' ')} failures detected`;
+            } else {
+              state = 'failure';
+              description = `${failureType.replace('-', ' ')} failures detected`;
+            }
+
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: triggeringRun.head_sha,
+              state: state,
+              target_url: triggeringRun.html_url,
+              description: description,
+              context: 'test-failure-alerts/status'
+            });
+
+            // Add PR comment for recurring failures
+            if (hasFailures && isRecurring) {
+              const commentBody = `## 🚨 Recurring Test Failures Detected
+              
+              This PR has recurring **${failureType.replace('-', ' ')}** failures that need attention:
+              
+              🔗 **[View Failed Workflow Run](${triggeringRun.html_url})**
+              
+              ### 🛠️ Recommended Actions:
+              
+              1. **Review the failed tests locally**:
+                 \`\`\`bash
+                 npm run test:all:complete
+                 \`\`\`
+              
+              2. **Check for recent changes** that might have caused the failures
+              
+              3. **Fix the failing tests** before merging
+              
+              4. **Verify the fix** by pushing another commit
+              
+              ### 📋 Debug Commands:
+              
+              \`\`\`bash
+              # Quick diagnosis
+              npm run validate-test-env
+              npm run verify-db-setup
+              
+              # Run specific test types
+              npm run test:coverage:unit:ci
+              npm run test:integration:ci
+              npm run test:e2e:ci
+              \`\`\`
+              
+              ---
+              
+              ⚠️ **This PR cannot be merged until the test failures are resolved.**
+              
+              *This comment was automatically generated by the test failure alert system.*`;
+              
+              // Check if we already commented on this PR
+              const existingComments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number
+              });
+              
+              const hasExistingAlert = existingComments.data.some(comment => 
+                comment.body.includes('Recurring Test Failures Detected') &&
+                comment.user.type === 'Bot'
+              );
+              
+              if (!hasExistingAlert) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: commentBody
+                });
+                
+                console.log(`Added failure alert comment to PR #${pr.number}`);
+              } else {
+                console.log(`Alert comment already exists on PR #${pr.number}`);
+              }
+            }
+
+  cleanup-resolved-issues:
+    name: 🧹 Cleanup Resolved Issues
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 🧹 Close resolved test failure issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get recent workflow runs to check if issues should be closed
+            const workflows = await github.rest.actions.listWorkflowRunsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 10,
+              status: 'completed'
+            });
+
+            const recentSuccesses = workflows.data.workflow_runs.filter(run => 
+              run.conclusion === 'success' && 
+              ['🧪 CI Pipeline', '🧪 Tests', '📈 Coverage Check'].includes(run.name)
+            ).length;
+
+            // If we have 3+ recent successes, close stale failure issues
+            if (recentSuccesses >= 3) {
+              const staleIssues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'test-failure,recurring',
+                state: 'open'
+              });
+              
+              for (const issue of staleIssues.data) {
+                // Check if issue is older than 24 hours
+                const issueAge = Date.now() - new Date(issue.created_at).getTime();
+                const oneDayMs = 24 * 60 * 60 * 1000;
+                
+                if (issueAge > oneDayMs) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    body: `## ✅ Test Failures Resolved
+                    
+                    This issue is being automatically closed because:
+                    - Recent workflow runs have been successful
+                    - No new failures detected in the last 24 hours
+                    
+                    If test failures reoccur, a new issue will be created automatically.
+                    
+                    *Closed by automated test failure monitoring.*`
+                  });
+                  
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    state: 'closed',
+                    labels: [...issue.labels.map(l => l.name), 'auto-resolved']
+                  });
+                  
+                  console.log(`Closed resolved issue #${issue.number}`);
+                }
+              }
+            }

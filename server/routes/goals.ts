@@ -2,7 +2,11 @@ import express from 'express';
 
 import { prisma } from '../../lib/prisma.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createNotFoundError, createValidationError } from '../middleware/errorHandler.js';
+import {
+  createNotFoundError,
+  createValidationError,
+  createForbiddenError,
+} from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
 import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../../src/types/goals.js';
@@ -37,13 +41,17 @@ router.get(
   '/:id',
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Existence and authorization check
-    const goal = await prisma.goal.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+    // Check if goal exists AND belongs to user (combined for security)
+    const goal = await prisma.goal.findUnique({
+      where: { id: req.params.id },
     });
 
     if (!goal) {
       throw createNotFoundError('Goal');
+    }
+
+    if (goal.userId !== req.user!.id) {
+      throw createForbiddenError('You do not have permission to access this goal');
     }
 
     res.json(goal);
@@ -98,23 +106,26 @@ router.post(
       throw createValidationError('Target value must be positive', 'targetValue');
     }
 
-    const goal = await prisma.goal.create({
-      data: {
-        userId: req.user!.id,
-        title: title.trim(),
-        description: description?.trim(),
-        type,
-        period,
-        targetValue: Number.parseFloat(targetValue),
-        targetUnit,
-        startDate: start,
-        endDate: end,
-        currentValue: 0,
-        color,
-        icon,
-        isActive: true,
-        isCompleted: false,
-      },
+    // Use transaction for atomic creation
+    const goal = await prisma.$transaction(async tx => {
+      return await tx.goal.create({
+        data: {
+          userId: req.user!.id,
+          title: title.trim(),
+          description: description?.trim(),
+          type,
+          period,
+          targetValue: Number.parseFloat(targetValue),
+          targetUnit,
+          startDate: start,
+          endDate: end,
+          currentValue: 0,
+          color,
+          icon,
+          isActive: true,
+          isCompleted: false,
+        },
+      });
     });
 
     res.status(201).json(goal);
@@ -139,48 +150,58 @@ router.put(
       color,
       icon,
       isActive,
+      currentValue,
     } = req.body;
 
-    // Existence and authorization check
-    const existingGoal = await prisma.goal.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
-    });
+    // Use transaction to ensure atomic updates
+    const updatedGoal = await prisma.$transaction(async tx => {
+      // Check if goal exists first
+      const existingGoal = await tx.goal.findUnique({
+        where: { id: req.params.id },
+      });
 
-    if (!existingGoal) {
-      throw createNotFoundError('Goal');
-    }
-
-    // Prevent editing completed goals
-    if (existingGoal.isCompleted) {
-      throw createValidationError('Cannot edit completed goals', 'isCompleted');
-    }
-
-    // Validate type if provided
-    if (type && !Object.values(GOAL_TYPES).includes(type as GoalType)) {
-      throw createValidationError('Invalid goal type', 'type');
-    }
-
-    if (period && !Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-      throw createValidationError('Invalid goal period', 'period');
-    }
-
-    // Validate dates if both are provided
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      if (start >= end) {
-        throw createValidationError('End date must be after start date', 'endDate');
+      if (!existingGoal) {
+        throw createNotFoundError('Goal');
       }
-    }
 
-    if (targetValue !== undefined && targetValue <= 0) {
-      throw createValidationError('Target value must be positive', 'targetValue');
-    }
+      // Then check authorization
+      if (existingGoal.userId !== req.user!.id) {
+        throw createForbiddenError('You do not have permission to update this goal');
+      }
 
-    // Update goal
-    const updatedGoal = await prisma.goal.update({
-      where: { id: goalId },
-      data: {
+      // Prevent editing completed goals
+      if (existingGoal.isCompleted) {
+        throw createValidationError('Cannot edit completed goals', 'isCompleted');
+      }
+
+      // Validate type if provided
+      if (type && !Object.values(GOAL_TYPES).includes(type as GoalType)) {
+        throw createValidationError('Invalid goal type', 'type');
+      }
+
+      if (period && !Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
+        throw createValidationError('Invalid goal period', 'period');
+      }
+
+      // Validate dates if both are provided
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        if (start >= end) {
+          throw createValidationError('End date must be after start date', 'endDate');
+        }
+      }
+
+      if (targetValue !== undefined && targetValue <= 0) {
+        throw createValidationError('Target value must be positive', 'targetValue');
+      }
+
+      if (currentValue !== undefined && currentValue < 0) {
+        throw createValidationError('Current value cannot be negative', 'currentValue');
+      }
+
+      // Prepare update data
+      const updateData: Record<string, unknown> = {
         ...(title && { title: title.trim() }),
         ...(description !== undefined && { description: description?.trim() }),
         ...(type && { type }),
@@ -192,7 +213,26 @@ router.put(
         ...(color !== undefined && { color }),
         ...(icon !== undefined && { icon }),
         ...(isActive !== undefined && { isActive }),
-      },
+        ...(currentValue !== undefined && { currentValue: Number.parseFloat(currentValue) }),
+      };
+
+      // Auto-complete goal if currentValue reaches or exceeds targetValue
+      if (currentValue !== undefined) {
+        const newCurrentValue = Number.parseFloat(currentValue);
+        const goalTargetValue =
+          targetValue !== undefined ? Number.parseFloat(targetValue) : existingGoal.targetValue;
+
+        if (newCurrentValue >= goalTargetValue && !existingGoal.isCompleted) {
+          updateData.isCompleted = true;
+          updateData.completedAt = new Date();
+        }
+      }
+
+      // Update goal within transaction
+      return await tx.goal.update({
+        where: { id: goalId },
+        data: updateData,
+      });
     });
 
     res.json(updatedGoal);
@@ -204,22 +244,30 @@ router.delete(
   '/:id',
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Existence and authorization check
-    const goal = await prisma.goal.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
+    // Use transaction for atomic soft delete
+    await prisma.$transaction(async tx => {
+      // Check if goal exists first
+      const goal = await tx.goal.findUnique({
+        where: { id: req.params.id },
+      });
+
+      if (!goal) {
+        throw createNotFoundError('Goal');
+      }
+
+      // Then check authorization
+      if (goal.userId !== req.user!.id) {
+        throw createForbiddenError('You do not have permission to delete this goal');
+      }
+
+      // Soft delete by setting isActive to false
+      await tx.goal.update({
+        where: { id: goal.id },
+        data: { isActive: false },
+      });
     });
 
-    if (!goal) {
-      throw createNotFoundError('Goal');
-    }
-
-    // Soft delete by setting isActive to false
-    await prisma.goal.update({
-      where: { id: goal.id },
-      data: { isActive: false },
-    });
-
-    res.json({ message: 'Goal deleted successfully' });
+    res.status(204).send();
   })
 );
 
@@ -228,32 +276,40 @@ router.post(
   '/:id/complete',
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Existence and authorization check
-    const goal = await prisma.goal.findFirst({
-      where: { id: req.params.id, userId: req.user!.id },
-    });
+    // Use transaction for atomic completion
+    const completedGoal = await prisma.$transaction(async tx => {
+      // Check if goal exists first
+      const goal = await tx.goal.findUnique({
+        where: { id: req.params.id },
+      });
 
-    if (!goal) {
-      throw createNotFoundError('Goal');
-    }
+      if (!goal) {
+        throw createNotFoundError('Goal');
+      }
 
-    // Check if goal is active
-    if (!goal.isActive) {
-      throw createNotFoundError('Goal');
-    }
+      // Then check authorization
+      if (goal.userId !== req.user!.id) {
+        throw createForbiddenError('You do not have permission to complete this goal');
+      }
 
-    if (goal.isCompleted) {
-      throw createValidationError('Goal is already completed', 'isCompleted');
-    }
+      // Check if goal is active
+      if (!goal.isActive) {
+        throw createNotFoundError('Goal');
+      }
 
-    // Mark as completed
-    const completedGoal = await prisma.goal.update({
-      where: { id: goal.id },
-      data: {
-        isCompleted: true,
-        completedAt: new Date(),
-        currentValue: goal.targetValue, // Set current to target when manually completed
-      },
+      if (goal.isCompleted) {
+        throw createValidationError('Goal is already completed', 'isCompleted');
+      }
+
+      // Mark as completed
+      return await tx.goal.update({
+        where: { id: goal.id },
+        data: {
+          isCompleted: true,
+          completedAt: new Date(),
+          currentValue: goal.targetValue, // Set current to target when manually completed
+        },
+      });
     });
 
     res.json(completedGoal);

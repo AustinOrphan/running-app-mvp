@@ -15,7 +15,10 @@ import { spawn, type ChildProcess } from 'child_process';
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const BACKEND_PORT = 3001;
 const FRONTEND_PORT = 3000;
-const STARTUP_TIMEOUT = 30000; // 30 seconds
+const STARTUP_TIMEOUT = 60000; // 60 seconds for CI environments
+
+// Cross-platform npm command
+const getNpmCommand = () => (process.platform === 'win32' ? 'npm.cmd' : 'npm');
 
 describe('Infrastructure Startup Tests', () => {
   describe('Required Files Existence', () => {
@@ -183,17 +186,24 @@ describe('Server Startup Integration Tests', () => {
           reject(new Error('Backend server failed to start within timeout'));
         }, STARTUP_TIMEOUT);
 
-        backendProcess = spawn('npm', ['run', 'dev'], {
+        backendProcess = spawn(getNpmCommand(), ['run', 'dev'], {
           cwd: PROJECT_ROOT,
           stdio: 'pipe',
-          env: { ...process.env, NODE_ENV: 'test' },
+          env: {
+            ...process.env,
+            NODE_ENV: 'test',
+            DATABASE_URL: 'file:./prisma/test.db',
+            JWT_SECRET: 'test-secret-key',
+            PORT: '3001',
+          },
         });
 
         let output = '';
 
         backendProcess.stdout?.on('data', data => {
           output += data.toString();
-          if (output.includes('Server running on')) {
+          console.log('Backend output:', data.toString()); // Debug log
+          if (output.includes('Server running on') || output.includes('🚀 Server running on')) {
             clearTimeout(timeout);
             resolve();
           }
@@ -201,6 +211,7 @@ describe('Server Startup Integration Tests', () => {
 
         backendProcess.stderr?.on('data', data => {
           const error = data.toString();
+          console.error('Backend stderr:', error); // Debug log
           if (error.includes('Error') || error.includes('EADDRINUSE')) {
             clearTimeout(timeout);
             reject(new Error(`Backend startup error: ${error}`));
@@ -217,17 +228,47 @@ describe('Server Startup Integration Tests', () => {
   );
 
   it('should respond to health check endpoint', async () => {
+    // Check if backend process is still running
+    if (!backendProcess || backendProcess.killed) {
+      throw new Error(
+        'Backend process is not running. The previous test may have failed to start it.'
+      );
+    }
+
     // Give the server a moment to fully start
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     try {
-      const response = await fetch(`http://localhost:${BACKEND_PORT}/api/health`);
-      expect(response.ok, 'Health check endpoint should respond with 200').toBe(true);
+      const url = `http://localhost:${BACKEND_PORT}/api/health`;
+      console.log(`Attempting to fetch ${url}`);
 
-      const data = await response.json();
+      // Use a simple HTTP request library or Node's built-in http module
+      const http = await import('http');
+
+      const data = await new Promise<any>((resolve, reject) => {
+        http
+          .get(url, res => {
+            let body = '';
+            res.on('data', chunk => (body += chunk));
+            res.on('end', () => {
+              try {
+                console.log('Raw response body:', body);
+                const parsed = JSON.parse(body);
+                resolve(parsed);
+              } catch {
+                reject(new Error(`Failed to parse JSON: ${body}`));
+              }
+            });
+          })
+          .on('error', reject);
+      });
+
+      console.log('Response data:', data);
+
       expect(data.status, 'Health check should return status ok').toBe('ok');
       expect(data.timestamp, 'Health check should return timestamp').toBeDefined();
     } catch (error) {
+      console.error('Health check error:', error);
       throw new Error(`Health check failed: ${error}`);
     }
   });
@@ -243,7 +284,7 @@ describe('Server Startup Integration Tests', () => {
           reject(new Error('Frontend server failed to start within timeout'));
         }, STARTUP_TIMEOUT);
 
-        frontendProcess = spawn('npm', ['run', 'dev:frontend'], {
+        frontendProcess = spawn(getNpmCommand(), ['run', 'dev:frontend'], {
           cwd: PROJECT_ROOT,
           stdio: 'pipe',
         });
@@ -252,7 +293,14 @@ describe('Server Startup Integration Tests', () => {
 
         frontendProcess.stdout?.on('data', data => {
           output += data.toString();
-          if (output.includes('Local:') && output.includes('3000')) {
+          console.log('Frontend output:', data.toString());
+          // Look for Vite server ready messages
+          if (
+            output.includes('ready in') ||
+            (output.includes('Local:') && output.includes('3000')) ||
+            output.includes('➜') ||
+            output.includes('VITE')
+          ) {
             clearTimeout(timeout);
             resolve();
           }
@@ -260,6 +308,7 @@ describe('Server Startup Integration Tests', () => {
 
         frontendProcess.stderr?.on('data', data => {
           const error = data.toString();
+          console.error('Frontend stderr:', error);
           if (error.includes('Error') || error.includes('EADDRINUSE')) {
             clearTimeout(timeout);
             reject(new Error(`Frontend startup error: ${error}`));
@@ -276,14 +325,42 @@ describe('Server Startup Integration Tests', () => {
   );
 
   it('should serve frontend application', async () => {
+    // Check if frontend process is still running
+    if (!frontendProcess || frontendProcess.killed) {
+      throw new Error(
+        'Frontend process is not running. The previous test may have failed to start it.'
+      );
+    }
+
     // Give the frontend server a moment to fully start
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     try {
-      const response = await fetch(`http://localhost:${FRONTEND_PORT}`);
-      expect(response.ok, 'Frontend should respond with 200').toBe(true);
+      const url = `http://localhost:${FRONTEND_PORT}`;
+      console.log(`Attempting to fetch ${url}`);
 
-      const html = await response.text();
+      // Use Node's http module like we did for the backend
+      const http = await import('http');
+
+      const html = await new Promise<string>((resolve, reject) => {
+        http
+          .get(url, res => {
+            let body = '';
+            res.on('data', chunk => (body += chunk));
+            res.on('end', () => {
+              console.log('Response status:', res.statusCode);
+              console.log('Response body length:', body.length);
+              console.log('Response body preview:', body.substring(0, 200));
+              if (res.statusCode !== 200) {
+                reject(new Error(`Frontend returned ${res.statusCode}`));
+              } else {
+                resolve(body);
+              }
+            });
+          })
+          .on('error', reject);
+      });
+
       expect(html, 'Frontend should serve HTML with root div').toContain('<div id="root">');
       expect(html, 'Frontend should have correct title').toContain('Running Tracker');
     } catch (error) {

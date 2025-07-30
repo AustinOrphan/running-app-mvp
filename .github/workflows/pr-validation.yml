@@ -5,8 +5,15 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [main, develop]
 
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  actions: read
+  checks: write
+
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '22.x'
 
 # Cancel previous runs for the same PR
 concurrency:
@@ -70,6 +77,9 @@ jobs:
     name: ⚡ Quick Checks
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -97,6 +107,9 @@ jobs:
     name: 🔒 Security Validation
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -131,23 +144,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_pr_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_pr_test
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
     steps:
       - name: 📥 Checkout code
@@ -194,23 +193,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_e2e_pr
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_e2e_pr
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/e2e.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
     steps:
       - name: 📥 Checkout code
@@ -254,6 +239,9 @@ jobs:
     name: ⚡ Performance Impact
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -312,6 +300,9 @@ jobs:
     name: 📊 Code Quality
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -421,16 +412,23 @@ jobs:
             `;
 
             // Find existing comment
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
+            let existingComment = null;
+            try {
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
 
-            const existingComment = comments.data.find(comment => 
-              comment.user.login === 'github-actions[bot]' && 
-              comment.body.includes('PR Validation Results')
-            );
+              if (comments && comments.data && Array.isArray(comments.data)) {
+                existingComment = comments.data.find(comment => 
+                  comment && comment.user && comment.user.login === 'github-actions[bot]' && 
+                  comment.body && comment.body.includes('PR Validation Results')
+                );
+              }
+            } catch (error) {
+              console.log('Failed to fetch comments:', error.message);
+            }
 
             if (existingComment) {
               // Update existing comment
@@ -454,6 +452,7 @@ jobs:
   auto-assign:
     name: 👥 Auto-assign Reviewers
     runs-on: ubuntu-latest
+    needs: [pr-info]
     if: github.event.action == 'opened' && github.event.pull_request.draft == false
     steps:
       - name: 👥 Auto-assign reviewers
@@ -462,29 +461,42 @@ jobs:
           script: |
             const changedFiles = '${{ needs.pr-info.outputs.changed-files }}';
 
+            // Only attempt assignment if not from a fork
+            if (context.payload.pull_request.head.repo.full_name !== context.payload.repository.full_name) {
+              console.log('Skipping reviewer assignment for fork PR');
+              return;
+            }
+
             let reviewers = [];
 
-            // Assign based on changed files
+            // Assign based on changed files (replace with actual usernames)
             if (changedFiles.includes('src/hooks/') || changedFiles.includes('src/components/')) {
-              reviewers.push('frontend-team'); // Replace with actual usernames
+              // reviewers.push('frontend-reviewer'); // Add actual usernames
             }
 
             if (changedFiles.includes('routes/') || changedFiles.includes('middleware/')) {
-              reviewers.push('backend-team'); // Replace with actual usernames
+              // reviewers.push('backend-reviewer'); // Add actual usernames
             }
 
             if (changedFiles.includes('tests/') || changedFiles.includes('.test.')) {
-              reviewers.push('qa-team'); // Replace with actual usernames
+              // reviewers.push('qa-reviewer'); // Add actual usernames
             }
 
             // Remove duplicates and filter out empty values
             reviewers = [...new Set(reviewers)].filter(Boolean);
 
             if (reviewers.length > 0) {
-              await github.rest.pulls.requestReviewers({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.issue.number,
-                reviewers: reviewers
-              });
+              try {
+                await github.rest.pulls.requestReviewers({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number,
+                  reviewers: reviewers
+                });
+                console.log(`Assigned reviewers: ${reviewers.join(', ')}`);
+              } catch (error) {
+                console.log(`Failed to assign reviewers: ${error.message}`);
+              }
+            } else {
+              console.log('No reviewers to assign based on changed files');
             }

@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '22.x'
 
 jobs:
   analyze:
@@ -22,11 +22,15 @@ jobs:
       actions: read
       contents: read
       security-events: write
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
 
     strategy:
       fail-fast: false
       matrix:
-        language: ['javascript', 'typescript']
+        language: ['typescript']
 
     steps:
       - name: 📥 Checkout repository
@@ -92,4 +96,4 @@ jobs:
           echo "### 🔍 Results:" >> $GITHUB_STEP_SUMMARY
           echo "Security findings (if any) will be available in the Security tab of your repository." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📚 [Learn more about CodeQL](https://docs.github.com/en/code-security/code-scanning)
+          echo "📚 [Learn more about CodeQL](https://docs.github.com/en/code-security/code-scanning)"

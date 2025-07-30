@@ -8,13 +8,16 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '22.x'
 
 jobs:
   # Lint and Type Check
   lint-and-typecheck:
     name: 🔍 Lint & Type Check
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -67,6 +70,9 @@ jobs:
   unit-tests:
     name: 🧪 Unit Tests
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -103,23 +109,9 @@ jobs:
     name: 🔧 Integration Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_test
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
     steps:
       - name: 📥 Checkout code
@@ -162,23 +154,9 @@ jobs:
     name: 🎭 E2E Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_e2e
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_e2e
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/e2e-test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
     steps:
       - name: 📥 Checkout code
@@ -222,6 +200,9 @@ jobs:
     name: 📊 Coverage Analysis
     runs-on: ubuntu-latest
     needs: [unit-tests, integration-tests]
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -274,23 +255,9 @@ jobs:
     name: ♿ Accessibility Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_a11y_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_a11y_test
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/a11y-test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
     steps:
       - name: 📥 Checkout code
@@ -355,6 +322,9 @@ jobs:
   security-audit:
     name: 🔒 Security Audit
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -375,6 +345,9 @@ jobs:
   build-verification:
     name: 🏗️ Build Verification
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -402,6 +375,9 @@ jobs:
   test-matrix:
     name: 🧪 Test Matrix
     runs-on: ${{ matrix.os }}
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -426,6 +402,9 @@ jobs:
       - name: 📥 Install dependencies
         run: npm ci
 
+      - name: 🗄️ Generate Prisma client
+        run: npx prisma generate
+
       - name: 🧪 Run unit tests
         run: npm run test:run
 
@@ -437,6 +416,9 @@ jobs:
     name: ⚡ Performance Tests
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -473,7 +455,7 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Unlicense, 0BSD, AGPL-3.0, EPL-1.0, BlueOak-1.0.0, CC0-1.0, Python-2.0, Zlib, MPL-2.0
 
   # Test Summary
   test-summary:

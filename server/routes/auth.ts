@@ -37,7 +37,7 @@ router.use(securityHeaders);
 router.use(sanitizeInput);
 
 // Test endpoint to verify auth route is working
-router.get('/test', (req, res) => {
+router.get('/test', (_req, res) => {
   res.json({ message: 'Auth routes are working', timestamp: new Date().toISOString() });
 });
 
@@ -215,7 +215,7 @@ router.post(
       }
 
       // Also blacklist refresh token if provided
-      const { refreshToken } = req.body;
+      const refreshToken = req.body?.refreshToken;
       if (refreshToken) {
         try {
           const decodedRefresh = validateToken(refreshToken, 'refresh');

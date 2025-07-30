@@ -395,13 +395,13 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={true} />);
 
-      const expandIcon = document.querySelector('.expand-icon');
-      expect(expandIcon).not.toHaveClass('expanded');
+      const expandIcon = document.querySelector('[class*="expandIcon"]');
+      expect(expandIcon).not.toHaveClass(/expandIconExpanded/);
 
       const expandButton = screen.getByText('View details');
       await user.click(expandButton);
 
-      expect(expandIcon).toHaveClass('expanded');
+      expect(expandIcon).toHaveClass(/expandIconExpanded/);
     });
   });
 
@@ -447,8 +447,8 @@ describe('GoalCard', () => {
 
       const { container } = render(<GoalCard {...defaultProps} goal={completedGoal} />);
 
-      const goalCard = container.querySelector('.goal-card');
-      expect(goalCard).toHaveClass('completed');
+      const goalCard = container.querySelector('[class*="card"][class*="Goal"]');
+      expect(goalCard).toHaveClass(/completed/i);
     });
 
     it('does not apply completed class for active goals', () => {
@@ -456,8 +456,8 @@ describe('GoalCard', () => {
 
       const { container } = render(<GoalCard {...defaultProps} goal={activeGoal} />);
 
-      const goalCard = container.querySelector('.goal-card');
-      expect(goalCard).not.toHaveClass('completed');
+      const goalCard = container.querySelector('[class*="card"][class*="Goal"]');
+      expect(goalCard).not.toHaveClass(/completed/i);
     });
   });
 
@@ -468,7 +468,7 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} goal={goal} progress={progress} />);
 
-      const progressFill = document.querySelector('.progress-fill');
+      const progressFill = document.querySelector('[class*="progressFill"]');
       expect(progressFill).toHaveStyle({ backgroundColor: '#10b981' });
     });
 
@@ -477,8 +477,8 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} progress={progress} />);
 
-      const progressFill = document.querySelector('.progress-fill');
-      expect(progressFill).toHaveStyle({ width: '75%' });
+      const progressFill = document.querySelector('[class*="progressFill"]');
+      expect(progressFill).toHaveStyle({ transform: 'scaleX(0.75)' });
     });
 
     it('caps progress bar width at 100%', () => {
@@ -486,8 +486,8 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} progress={progress} />);
 
-      const progressFill = document.querySelector('.progress-fill');
-      expect(progressFill).toHaveStyle({ width: '100%' });
+      const progressFill = document.querySelector('[class*="progressFill"]');
+      expect(progressFill).toHaveStyle({ transform: 'scaleX(1)' });
     });
 
     it('applies completed class to progress fill for completed goals', () => {
@@ -496,8 +496,8 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} goal={completedGoal} progress={progress} />);
 
-      const progressFill = document.querySelector('.progress-fill');
-      expect(progressFill).toHaveClass('completed');
+      const progressFill = document.querySelector('[class*="progressFill"]');
+      expect(progressFill).toHaveClass(/progressFillCompleted/);
     });
   });
 
@@ -517,7 +517,7 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={true} />);
 
-      expect(screen.getByTitle('Show detailed progress')).toBeInTheDocument();
+      expect(screen.getByTitle('View details')).toBeInTheDocument();
     });
 
     it('updates expand button label when expanded', async () => {
@@ -526,7 +526,7 @@ describe('GoalCard', () => {
 
       render(<GoalCard {...defaultProps} goal={activeGoal} enableExpandedView={true} />);
 
-      const expandButton = screen.getByTitle('Show detailed progress');
+      const expandButton = screen.getByTitle('View details');
       await user.click(expandButton);
 
       expect(screen.getByTitle('Show less')).toBeInTheDocument();

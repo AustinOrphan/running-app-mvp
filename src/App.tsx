@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './styles/globals.css';
 import './styles/themes.css';
 import './styles/micro-interactions.css';

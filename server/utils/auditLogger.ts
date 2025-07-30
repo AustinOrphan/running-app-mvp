@@ -67,6 +67,7 @@ export type AuditAction =
   | 'system.config_change'
   | 'system.backup'
   | 'system.maintenance'
+  | 'system.error'
   // Admin events
   | 'admin.user_create'
   | 'admin.user_delete'
@@ -155,6 +156,11 @@ class MemoryAuditStorage implements AuditStorage {
     this.events = this.events.filter(e => new Date(e.timestamp) > cutoffDate);
 
     return originalLength - this.events.length;
+  }
+
+  // Test helper method to clear all events
+  clear(): void {
+    this.events = [];
   }
 }
 
@@ -691,10 +697,26 @@ class AuditLogger {
       cleanupInterval * 60 * 60 * 1000
     ); // Convert hours to milliseconds
   }
+
+  /**
+   * Test helper method to access storage for testing purposes
+   * Only available in test environment
+   */
+  getStorageForTesting(): AuditStorage | null {
+    return process.env.NODE_ENV === 'test' ? this.storage : null;
+  }
 }
 
 // Export singleton instance
 export const auditLogger = new AuditLogger();
+
+// Export for testing purposes
+export const clearAuditLoggerStorage = (): void => {
+  const storage = auditLogger.getStorageForTesting();
+  if (storage instanceof MemoryAuditStorage) {
+    storage.clear();
+  }
+};
 
 // Convenience functions for common audit events
 export const auditAuth = {

@@ -6,6 +6,16 @@ import { mockGoals, createMockGoal } from '../../fixtures/mockData.js';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
+
+// Create proper response mock structure that matches what apiFetch expects
+const createMockResponse = (data: any, ok: boolean = true, status: number = 200) => ({
+  ok,
+  status,
+  headers: new Headers({ 'content-type': 'application/json' }),
+  json: async () => data,
+  text: async () => JSON.stringify(data),
+});
+
 global.fetch = mockFetch;
 
 describe('useGoals - Basic Functionality', () => {
@@ -13,10 +23,13 @@ describe('useGoals - Basic Functionality', () => {
 
   beforeEach(() => {
     mockFetch.mockClear();
+    // Set up localStorage with the mock token for apiFetch to use
+    window.localStorage.setItem('accessToken', mockToken);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
   });
 
   describe('Initial State', () => {
@@ -42,14 +55,12 @@ describe('useGoals - Basic Functionality', () => {
 
   describe('Basic API Calls', () => {
     it('makes correct API call for fetching goals', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse([]));
 
       renderHook(() => useGoals(mockToken));
 
       expect(mockFetch).toHaveBeenCalledWith('/api/goals', {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${mockToken}`,
@@ -58,10 +69,11 @@ describe('useGoals - Basic Functionality', () => {
     });
 
     it('handles fetch success', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGoals,
-      });
+      // Mock goals fetch
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockGoals));
+
+      // Mock progress fetch (automatically triggered after goals load)
+      mockFetch.mockResolvedValueOnce(createMockResponse([]));
 
       const { result } = renderHook(() => useGoals(mockToken));
 
@@ -99,10 +111,11 @@ describe('useGoals - Basic Functionality', () => {
       const completedGoal = createMockGoal({ id: '2', isCompleted: true });
       const goals = [activeGoal, completedGoal];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => goals,
-      });
+      // Mock goals fetch
+      mockFetch.mockResolvedValueOnce(createMockResponse(goals));
+
+      // Mock progress fetch (automatically triggered after goals load)
+      mockFetch.mockResolvedValueOnce(createMockResponse([]));
 
       const { result } = renderHook(() => useGoals(mockToken));
 
@@ -120,10 +133,11 @@ describe('useGoals - Basic Functionality', () => {
 
   describe('Helper Functions', () => {
     it('getGoalProgress returns undefined for non-existing goal', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      });
+      // Mock goals fetch
+      mockFetch.mockResolvedValueOnce(createMockResponse([]));
+
+      // Mock progress fetch (automatically triggered after goals load)
+      mockFetch.mockResolvedValueOnce(createMockResponse([]));
 
       const { result } = renderHook(() => useGoals(mockToken));
 
@@ -141,6 +155,9 @@ describe('useGoals - Basic Functionality', () => {
 
   describe('Error Handling', () => {
     it('handles missing authentication token', async () => {
+      // Clear localStorage to ensure no token is available
+      window.localStorage.clear();
+
       const { result } = renderHook(() => useGoals(null));
 
       await expect(async () => {
@@ -153,7 +170,7 @@ describe('useGoals - Basic Functionality', () => {
           startDate: new Date('2024-01-01'),
           endDate: new Date('2024-01-07'),
         });
-      }).rejects.toThrow('No authentication token available');
+      }).rejects.toThrow('Authentication required but no token available');
     });
   });
 });

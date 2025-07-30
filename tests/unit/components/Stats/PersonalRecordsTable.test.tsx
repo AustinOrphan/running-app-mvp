@@ -45,8 +45,9 @@ describe('PersonalRecordsTable', () => {
     it('displays table skeleton with correct structure', () => {
       const { container } = render(<PersonalRecordsTable records={[]} loading={true} />);
 
-      expect(container.querySelector('.table-skeleton')).toBeInTheDocument();
-      expect(container.querySelector('.header-skeleton')).toBeInTheDocument();
+      // Look for skeleton elements by their structure and test-ids instead of CSS classes
+      expect(screen.getAllByTestId('skeleton-line').length).toBeGreaterThan(0);
+      expect(container.querySelector('[data-testid="skeleton-line"]')).toBeInTheDocument();
     });
   });
 
@@ -125,8 +126,9 @@ describe('PersonalRecordsTable', () => {
       const distanceHeader = screen.getByRole('columnheader', { name: /Distance/i });
       fireEvent.click(distanceHeader);
 
-      // Check that header has active class
-      expect(distanceHeader.closest('th')).toHaveClass('active');
+      // Check that header has active styling by checking for active class (CSS modules or regular)
+      const thElement = distanceHeader.closest('th');
+      expect(thElement?.className).toMatch(/active/);
     });
 
     it('toggles sort direction when same header is clicked twice', () => {
@@ -162,7 +164,9 @@ describe('PersonalRecordsTable', () => {
       const timeHeader = screen.getByRole('columnheader', { name: /Time/i });
       fireEvent.click(timeHeader);
 
-      expect(timeHeader.closest('th')).toHaveClass('active');
+      // Check that header has active styling by checking for active class (CSS modules or regular)
+      const thElement = timeHeader.closest('th');
+      expect(thElement?.className).toMatch(/active/);
       expect(screen.getByText('Time ↑')).toBeInTheDocument();
     });
 
@@ -172,7 +176,9 @@ describe('PersonalRecordsTable', () => {
       const paceHeader = screen.getByRole('columnheader', { name: /Pace/i });
       fireEvent.click(paceHeader);
 
-      expect(paceHeader.closest('th')).toHaveClass('active');
+      // Check that header has active styling by checking for active class (CSS modules or regular)
+      const thElement = paceHeader.closest('th');
+      expect(thElement?.className).toMatch(/active/);
     });
 
     it('sorts by date when date header is clicked', () => {
@@ -181,7 +187,9 @@ describe('PersonalRecordsTable', () => {
       const dateHeader = screen.getByRole('columnheader', { name: /Date/i });
       fireEvent.click(dateHeader);
 
-      expect(dateHeader.closest('th')).toHaveClass('active');
+      // Check that header has active styling by checking for active class (CSS modules or regular)
+      const thElement = dateHeader.closest('th');
+      expect(thElement?.className).toMatch(/active/);
     });
   });
 
@@ -231,25 +239,23 @@ describe('PersonalRecordsTable', () => {
 
   describe('Component Structure', () => {
     it('has correct CSS classes for styling', () => {
-      const { container } = render(
-        <PersonalRecordsTable records={mockPersonalRecords} loading={false} />
-      );
+      render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      expect(container.querySelector('.records-table-card')).toBeInTheDocument();
-      expect(container.querySelector('.records-table-container')).toBeInTheDocument();
-      expect(container.querySelector('.records-table')).toBeInTheDocument();
-      expect(container.querySelector('.records-summary')).toBeInTheDocument();
+      // Check for table by ARIA label instead of CSS classes
+      expect(screen.getByLabelText('Personal records table')).toBeInTheDocument();
+      // Check for text content that indicates structure
+      expect(screen.getByText('Personal Records')).toBeInTheDocument();
+      expect(screen.getByText(/Total PRs:/)).toBeInTheDocument();
     });
 
     it('applies correct styling classes to cells', () => {
-      const { container } = render(
-        <PersonalRecordsTable records={mockPersonalRecords} loading={false} />
-      );
+      render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      expect(container.querySelector('.distance-value')).toBeInTheDocument();
-      expect(container.querySelector('.time-value')).toBeInTheDocument();
-      expect(container.querySelector('.pace-value')).toBeInTheDocument();
-      expect(container.querySelector('.date-value')).toBeInTheDocument();
+      // Check for actual content instead of CSS classes
+      expect(screen.getByText('5K')).toBeInTheDocument(); // distance value
+      expect(screen.getByText('22:00')).toBeInTheDocument(); // time value from mock (5K = 1320 seconds = 22:00)
+      expect(screen.getByText('4:24/km')).toBeInTheDocument(); // specific pace value with unit (5K pace)
+      expect(screen.getByText('May 1, 2024')).toBeInTheDocument(); // specific date value (5K record)
     });
   });
 

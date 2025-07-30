@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '22.x'
 
 jobs:
   # Dependency Updates
@@ -150,7 +150,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_test
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
     steps:
       - name: 📥 Checkout code
@@ -273,6 +273,9 @@ jobs:
   performance-monitoring:
     name: ⚡ Performance Monitoring
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4

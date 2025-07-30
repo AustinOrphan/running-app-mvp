@@ -1,0 +1,34 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Running pre-push checks..."
+
+# Check code coverage
+echo "📊 Checking code coverage..."
+npm run coverage:enforce
+
+if [ $? -ne 0 ]; then
+  echo "❌ Code coverage is below 80% threshold!"
+  echo ""
+  echo "Please improve test coverage before pushing:"
+  echo "  • Run 'npm run coverage:analyze' to identify gaps"
+  echo "  • Add tests for uncovered code"
+  echo "  • Run 'npm run coverage:watch' while adding tests"
+  echo ""
+  echo "Push blocked due to insufficient coverage."
+  exit 1
+fi
+
+echo "✅ Code coverage check passed!"
+
+# Run lint check
+echo "🧹 Running lint check..."
+npm run lint:check
+
+if [ $? -ne 0 ]; then
+  echo "❌ Lint check failed!"
+  echo "Run 'npm run lint:fix' to fix issues"
+  exit 1
+fi
+
+echo "✅ All pre-push checks passed!"

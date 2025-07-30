@@ -1,9 +1,9 @@
-import { test, expect, devices } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import type { TestUser } from './types';
 import { assertTestUser } from './types/index.js';
 
 import { mockRuns } from '../fixtures/mockData.js';
-import { testDb } from '../fixtures/testDatabase.js';
+import { testDb } from '../fixtures/testDatabase';
 
 test.describe('Navigation and Swipe Functionality E2E Tests', () => {
   let testUser: TestUser | undefined;
@@ -127,8 +127,6 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
   });
 
   test.describe('Mobile Navigation Tests', () => {
-    test.use(devices['iPhone 12']);
-
     test('should handle mobile navigation menu', async ({ page }) => {
       // Login user
       await page.goto('/login');
@@ -246,8 +244,6 @@ test.describe('Navigation and Swipe Functionality E2E Tests', () => {
   });
 
   test.describe('Touch and Gesture Navigation', () => {
-    test.use(devices['iPad']);
-
     test('should handle long press gestures', async ({ page }) => {
       // Login user
       await page.goto('/login');

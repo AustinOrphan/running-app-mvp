@@ -1,0 +1,377 @@
+name: 💬 PR Test Results
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main, develop]
+  
+  # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to comment on'
+        required: false
+        type: string
+
+# Prevent multiple comment workflows for the same PR
+concurrency:
+  group: pr-test-results-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # Run all tests and collect results
+  run-tests:
+    name: 🧪 Run All Tests
+    runs-on: ubuntu-latest
+    outputs:
+      test-results-available: ${{ steps.check-results.outputs.available }}
+      
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Need previous commit for comparison
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: 🔧 Install dependencies
+        run: npm ci
+        
+      # Create reports directory
+      - name: 📁 Create reports directory
+        run: |
+          mkdir -p reports/pr-comments
+          mkdir -p reports/performance
+          mkdir -p reports/flaky-tests
+        
+      # Setup test database
+      - name: 🗄️ Setup test database
+        run: |
+          npx prisma generate
+          npx prisma migrate dev --name init
+        env:
+          DATABASE_URL: "file:./test.db"
+          
+      # Install Playwright browsers
+      - name: 🎭 Install Playwright browsers
+        run: npx playwright install --with-deps
+        
+      # Run unit tests with coverage
+      - name: 📦 Run unit tests
+        continue-on-error: true
+        run: |
+          echo "Running unit tests..."
+          npm run test:coverage || echo "Unit tests completed with errors"
+          
+      # Run integration tests with coverage
+      - name: 🔗 Run integration tests
+        continue-on-error: true
+        run: |
+          echo "Running integration tests..."
+          npm run test:coverage:integration || echo "Integration tests completed with errors"
+          
+      # Run E2E tests
+      - name: 🎭 Run E2E tests
+        continue-on-error: true
+        run: |
+          echo "Running E2E tests..."
+          npm run test:e2e || echo "E2E tests completed with errors"
+          
+      # Run performance tests if available
+      - name: ⚡ Run performance tests
+        continue-on-error: true
+        run: |
+          if npm run --silent test:performance > /dev/null 2>&1; then
+            echo "Running performance tests..."
+            npm run test:performance || echo "Performance tests completed with errors"
+          else
+            echo "Performance tests not available"
+          fi
+          
+      # Collect flaky test data if available
+      - name: 🔄 Collect flaky test data
+        continue-on-error: true
+        run: |
+          if [ -f "scripts/flaky-test-tracker.js" ]; then
+            echo "Collecting flaky test data..."
+            node scripts/flaky-test-tracker.js analyze > reports/flaky-tests/flaky-tests-report.json || echo "Flaky test analysis completed with errors"
+          else
+            echo "Flaky test tracker not available"
+          fi
+          
+      # Check if we have test results
+      - name: 📊 Check test results availability
+        id: check-results
+        run: |
+          AVAILABLE="false"
+          
+          # Check for any test results
+          if [ -f "coverage/coverage-summary.json" ] || [ -f "coverage-integration/coverage-summary.json" ] || [ -d "test-results" ]; then
+            AVAILABLE="true"
+            echo "Test results found"
+          else
+            echo "No test results found"
+          fi
+          
+          echo "available=$AVAILABLE" >> $GITHUB_OUTPUT
+          
+      # Upload test results and coverage
+      - name: 📤 Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.event.pull_request.number || github.run_number }}
+          path: |
+            coverage/
+            coverage-integration/
+            test-results/
+            reports/
+          retention-days: 7
+
+  # Generate and post PR comment
+  post-comment:
+    name: 💬 Post Test Results Comment
+    runs-on: ubuntu-latest
+    needs: [run-tests]
+    if: always() && (github.event_name == 'pull_request' || github.event.inputs.pr_number)
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: 🔧 Install dependencies
+        run: npm ci
+        
+      # Download test results
+      - name: 📥 Download test artifacts
+        if: needs.run-tests.outputs.test-results-available == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-${{ github.event.pull_request.number || github.run_number }}
+          path: ./
+        continue-on-error: true
+        
+      # Generate PR comment
+      - name: 🤖 Generate PR comment
+        id: generate-comment
+        run: |
+          echo "Generating PR comment..."
+          
+          # Set PR data for the bot
+          export PR_TITLE="${{ github.event.pull_request.title || 'Manual Test Run' }}"
+          export GITHUB_HEAD_REF="${{ github.event.pull_request.head.ref || github.ref_name }}"
+          export GITHUB_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          export GITHUB_ACTOR="${{ github.event.pull_request.user.login || github.actor }}"
+          
+          # Generate the comment
+          node scripts/pr-comment-bot.js generate
+          
+          # Check if comment was generated
+          if [ -f "reports/pr-comments/pr-comment.md" ]; then
+            echo "comment-generated=true" >> $GITHUB_OUTPUT
+            echo "Comment generated successfully"
+          else
+            echo "comment-generated=false" >> $GITHUB_OUTPUT
+            echo "Failed to generate comment"
+          fi
+          
+      # Read the generated comment
+      - name: 📖 Read PR comment
+        id: read-comment
+        if: steps.generate-comment.outputs.comment-generated == 'true'
+        run: |
+          # Read the comment file and prepare it for GitHub Actions
+          COMMENT_BODY=$(cat reports/pr-comments/pr-comment.md)
+          
+          # Save to environment file for multi-line content
+          echo "PR_COMMENT_BODY<<EOF" >> $GITHUB_ENV
+          echo "$COMMENT_BODY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+      # Find existing bot comments
+      - name: 🔍 Find existing bot comments
+        id: find-comment
+        if: steps.generate-comment.outputs.comment-generated == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ github.event.pull_request.number || github.event.inputs.pr_number }};
+            
+            if (!prNumber) {
+              console.log('No PR number available');
+              return null;
+            }
+            
+            try {
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber
+              });
+              
+              // Find our bot comment
+              const botComment = comments.data.find(comment => 
+                comment.user.type === 'Bot' && 
+                comment.body.includes('Test Results Report') &&
+                comment.body.includes('PR Comment Bot')
+              );
+              
+              if (botComment) {
+                console.log(`Found existing bot comment: ${botComment.id}`);
+                return botComment.id;
+              } else {
+                console.log('No existing bot comment found');
+                return null;
+              }
+            } catch (error) {
+              console.error('Error finding comments:', error);
+              return null;
+            }
+            
+      # Post or update PR comment
+      - name: 💬 Post/Update PR comment
+        if: steps.generate-comment.outputs.comment-generated == 'true' && github.event.pull_request.number
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ github.event.pull_request.number }};
+            const existingCommentId = ${{ steps.find-comment.outputs.result }};
+            const commentBody = process.env.PR_COMMENT_BODY;
+            
+            if (!commentBody) {
+              console.error('No comment body available');
+              return;
+            }
+            
+            try {
+              if (existingCommentId) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existingCommentId,
+                  body: commentBody
+                });
+                
+                console.log(`Updated existing comment ${existingCommentId}`);
+              } else {
+                // Create new comment
+                const comment = await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: commentBody
+                });
+                
+                console.log(`Created new comment ${comment.data.id}`);
+              }
+            } catch (error) {
+              console.error('Error posting comment:', error);
+              core.setFailed(`Failed to post PR comment: ${error.message}`);
+            }
+            
+      # Post manual run comment if triggered manually
+      - name: 💬 Post manual run comment
+        if: steps.generate-comment.outputs.comment-generated == 'true' && github.event.inputs.pr_number
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = parseInt('${{ github.event.inputs.pr_number }}');
+            const commentBody = process.env.PR_COMMENT_BODY;
+            
+            if (!commentBody || !prNumber) {
+              console.error('Missing comment body or PR number');
+              return;
+            }
+            
+            try {
+              const comment = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: `${commentBody}\n\n*This comment was generated by a manual workflow run*`
+              });
+              
+              console.log(`Posted manual run comment ${comment.data.id} to PR #${prNumber}`);
+            } catch (error) {
+              console.error('Error posting manual comment:', error);
+              core.setFailed(`Failed to post manual PR comment: ${error.message}`);
+            }
+            
+      # Upload comment artifacts
+      - name: 📤 Upload comment artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-comment-${{ github.event.pull_request.number || github.run_number }}
+          path: |
+            reports/pr-comments/
+          retention-days: 30
+
+  # Workflow summary
+  workflow-summary:
+    name: 📋 Workflow Summary
+    runs-on: ubuntu-latest
+    needs: [run-tests, post-comment]
+    if: always()
+    
+    steps:
+      - name: 📊 Generate workflow summary
+        run: |
+          echo "# 💬 PR Test Results Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR Number**: ${{ github.event.pull_request.number || github.event.inputs.pr_number || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch**: ${{ github.event.pull_request.head.ref || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.event.pull_request.head.sha || github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Test execution status
+          if [ "${{ needs.run-tests.result }}" = "success" ]; then
+            echo "✅ **Test Execution**: Completed successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.run-tests.result }}" = "failure" ]; then
+            echo "❌ **Test Execution**: Failed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Test Execution**: ${{ needs.run-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Test results availability
+          if [ "${{ needs.run-tests.outputs.test-results-available }}" = "true" ]; then
+            echo "📊 **Test Results**: Available" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "📊 **Test Results**: Not available" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Comment posting status
+          if [ "${{ needs.post-comment.result }}" = "success" ]; then
+            echo "💬 **PR Comment**: Posted successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.post-comment.result }}" = "failure" ]; then
+            echo "💬 **PR Comment**: Failed to post" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.post-comment.result }}" = "skipped" ]; then
+            echo "💬 **PR Comment**: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "💬 **PR Comment**: ${{ needs.post-comment.result }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Resources" >> $GITHUB_STEP_SUMMARY
+          echo "- [Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Test Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ github.event.pull_request.number }}" != "" ]; then
+            echo "- [Pull Request #${{ github.event.pull_request.number }}](https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }})" >> $GITHUB_STEP_SUMMARY
+          fi

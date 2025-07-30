@@ -275,7 +275,7 @@ class EnhancedLogger {
    * Create correlation middleware for request tracking
    */
   correlationMiddleware() {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (req: Request, _res: Response, next: NextFunction) => {
       req.correlationId = this.getCorrelationId(req);
       next();
     };

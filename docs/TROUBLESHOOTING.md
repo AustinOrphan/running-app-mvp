@@ -1,6 +1,808 @@
 # Troubleshooting Guide
 
-This document captures common issues encountered during development and their solutions.
+This comprehensive guide covers common issues encountered during development, testing, and deployment of the Running App MVP. It includes solutions for test failures, CI/CD problems, and local development issues.
+
+## Table of Contents
+
+- [Common Test Failures](#common-test-failures)
+- [CI/CD Issues](#cicd-issues)
+- [Local Development Problems](#local-development-problems)
+- [Database Issues](#database-issues)
+- [Authentication Problems](#authentication-problems)
+- [Performance Issues](#performance-issues)
+- [Build and Deployment Issues](#build-and-deployment-issues)
+- [Historical Issues](#historical-issues)
+
+## Common Test Failures
+
+### Unit Test Failures
+
+#### Jest/Vitest Memory Leaks
+
+**Symptoms:**
+- Tests pass individually but fail when run together
+- "EMFILE: too many open files" errors
+- Memory usage continuously increasing
+
+**Solutions:**
+```bash
+# 1. Check for unclosed resources
+npm run test:memory
+
+# 2. Increase file descriptor limits (macOS/Linux)
+ulimit -n 4096
+
+# 3. Run tests with specific memory limit
+NODE_OPTIONS="--max-old-space-size=4096" npm run test
+
+# 4. Clean up test environment
+npm run test:setup
+```
+
+#### React Component Test Failures
+
+**Common Error:** `ReferenceError: ResizeObserver is not defined`
+
+**Solution:**
+```javascript
+// Add to test setup file
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}));
+```
+
+**Common Error:** `TypeError: Cannot read properties of undefined (reading 'useContext')`
+
+**Solution:**
+```javascript
+// Wrap component in proper providers
+import { render } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
+
+test('component renders correctly', () => {
+  render(
+    <BrowserRouter>
+      <YourComponent />
+    </BrowserRouter>
+  );
+});
+```
+
+#### Date/Time Related Test Failures
+
+**Common Error:** Tests failing due to timezone differences
+
+**Solution:**
+```javascript
+// Mock Date in tests
+beforeAll(() => {
+  jest.useFakeTimers();
+  jest.setSystemTime(new Date('2024-01-15T10:00:00Z'));
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+```
+
+### Integration Test Failures
+
+#### Database Connection Issues
+
+**Symptoms:**
+- `P1001: Can't reach database server`
+- `ECONNREFUSED` errors
+- Timeout errors during database operations
+
+**Solutions:**
+```bash
+# 1. Check database status
+npm run verify-db-setup
+
+# 2. Reset database
+npm run ci-db-cleanup
+npm run ci-db-setup
+
+# 3. Use in-memory database for testing
+USE_IN_MEMORY_DB=true npm run test:integration
+
+# 4. Check Prisma connection
+npx prisma db pull
+npx prisma generate
+```
+
+#### Transaction Isolation Issues
+
+**Symptoms:**
+- Tests interfering with each other
+- Data persisting between tests
+- Race conditions in parallel tests
+
+**Solutions:**
+```bash
+# 1. Run tests sequentially
+npm run test:sequential:db
+
+# 2. Use proper test isolation
+npm run test:integration -- --runInBand
+
+# 3. Clean database between tests
+# Ensure proper setup/teardown in test files
+```
+
+#### Authentication Test Failures
+
+**Common Error:** `401 Unauthorized` in tests
+
+**Solution:**
+```javascript
+// Ensure proper test user setup
+beforeEach(async () => {
+  await testDb.user.deleteMany();
+  testUser = await testDb.user.create({
+    data: {
+      email: 'test@example.com',
+      password: await bcrypt.hash('password123', 10)
+    }
+  });
+  
+  // Generate valid token
+  accessToken = jwt.sign(
+    { id: testUser.id, email: testUser.email },
+    process.env.JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+});
+```
+
+### End-to-End Test Failures
+
+#### Playwright Browser Issues
+
+**Common Error:** `Browser not found`
+
+**Solution:**
+```bash
+# Install browsers
+npx playwright install
+
+# Install with dependencies
+npx playwright install --with-deps chromium
+
+# Check browser status
+npx playwright install --dry-run
+```
+
+**Common Error:** `Page crashed` or `Navigation timeout`
+
+**Solutions:**
+```javascript
+// Increase timeouts in playwright.config.ts
+export default {
+  timeout: 60000,
+  expect: { timeout: 10000 },
+  use: {
+    navigationTimeout: 30000,
+    actionTimeout: 10000,
+  }
+};
+```
+
+#### Element Not Found Errors
+
+**Solutions:**
+```javascript
+// Use more robust selectors
+await page.waitForSelector('[data-testid="submit-button"]');
+await page.click('[data-testid="submit-button"]');
+
+// Wait for page state
+await page.waitForLoadState('networkidle');
+
+// Use explicit waits
+await page.waitForFunction(() => 
+  document.querySelector('.loading-spinner') === null
+);
+```
+
+#### Test Environment Issues
+
+**Common Error:** Tests pass locally but fail in CI
+
+**Solutions:**
+```bash
+# 1. Use headless mode consistently
+HEADLESS=true npm run test:e2e
+
+# 2. Check CI-specific configuration
+npm run test:e2e:ci
+
+# 3. Enable verbose logging
+DEBUG=pw:* npm run test:e2e
+```
+
+## CI/CD Issues
+
+### GitHub Actions Failures
+
+#### Dependency Installation Issues
+
+**Symptoms:**
+- `npm install` failures
+- Package version conflicts
+- Network timeouts
+
+**Solutions:**
+```yaml
+# In .github/workflows/
+- name: Setup Node.js
+  uses: actions/setup-node@v4
+  with:
+    node-version: '20'
+    cache: 'npm'
+
+- name: Install dependencies with retry
+  run: |
+    npm ci --timeout=300000 || npm ci --timeout=300000 || npm ci --timeout=300000
+```
+
+#### Test Failures in CI
+
+**Common Issues:**
+- Tests pass locally but fail in CI
+- Flaky tests causing build failures
+- Memory issues in CI environment
+
+**Solutions:**
+```bash
+# 1. Use CI-optimized test commands
+npm run test:coverage:unit:ci
+npm run test:integration:ci
+npm run test:e2e:ci
+
+# 2. Run flaky test detection
+npm run flaky:track
+
+# 3. Check CI memory limits
+NODE_OPTIONS="--max-old-space-size=4096" npm run test:all:complete
+```
+
+#### Performance Timeouts
+
+**Solutions:**
+```yaml
+# Increase timeout for long-running jobs
+jobs:
+  test:
+    timeout-minutes: 30
+    steps:
+      - name: Run tests
+        run: npm run test:all:complete
+        timeout-minutes: 20
+```
+
+### Deployment Issues
+
+#### Database Migration Failures
+
+**Symptoms:**
+- Migration stuck in pending state
+- Schema drift errors
+- Connection timeouts during migration
+
+**Solutions:**
+```bash
+# 1. Check migration status
+npx prisma migrate status
+
+# 2. Reset and re-run migrations
+npx prisma migrate reset
+npx prisma migrate deploy
+
+# 3. Generate client after migration
+npx prisma generate
+```
+
+#### Environment Variable Issues
+
+**Common Error:** `process.env.VARIABLE is undefined`
+
+**Solutions:**
+```bash
+# 1. Check .env file exists and is loaded
+cp .env.example .env
+
+# 2. Verify environment variables in CI
+echo $DATABASE_URL
+echo $JWT_SECRET
+
+# 3. Use fallback values
+const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
+```
+
+## Local Development Problems
+
+### Server Startup Issues
+
+#### Port Already in Use
+
+**Error:** `EADDRINUSE: address already in use :::3001`
+
+**Solutions:**
+```bash
+# 1. Find and kill process using port
+lsof -ti:3001 | xargs kill -9
+
+# 2. Use different port
+PORT=3002 npm run dev
+
+# 3. Kill all node processes (careful!)
+killall node
+```
+
+#### Environment Setup Issues
+
+**Symptoms:**
+- Missing environment variables
+- Database connection failures
+- Authentication not working
+
+**Solutions:**
+```bash
+# 1. Complete setup
+npm run setup
+
+# 2. Check environment file
+cat .env
+
+# 3. Verify database connection
+npm run verify-db-setup
+
+# 4. Reset everything
+npm run ci-db-teardown
+npm run setup
+```
+
+### Frontend Development Issues
+
+#### Hot Reload Not Working
+
+**Solutions:**
+```bash
+# 1. Clear Vite cache
+rm -rf node_modules/.vite
+
+# 2. Restart dev server
+npm run dev:frontend
+
+# 3. Check file watcher limits (Linux)
+echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
+#### Module Resolution Errors
+
+**Common Error:** `Cannot resolve module '@/components/...'`
+
+**Solutions:**
+```typescript
+// Check tsconfig.json paths
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}
+```
+
+```javascript
+// Check vite.config.ts aliases
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+});
+```
+
+### Package Management Issues
+
+#### Dependency Conflicts
+
+**Symptoms:**
+- `npm install` warnings
+- Version conflicts
+- Peer dependency issues
+
+**Solutions:**
+```bash
+# 1. Clean install
+rm -rf node_modules package-lock.json
+npm install
+
+# 2. Check for conflicts
+npm ls
+
+# 3. Fix peer dependencies
+npm install --legacy-peer-deps
+
+# 4. Audit and fix
+npm audit fix
+```
+
+#### TypeScript Compilation Errors
+
+**Common Error:** `Property 'xyz' does not exist on type`
+
+**Solutions:**
+```bash
+# 1. Clear TypeScript cache
+npx tsc --build --clean
+
+# 2. Regenerate types
+npm run prisma:generate
+
+# 3. Check TypeScript version
+npm list typescript
+
+# 4. Full type check
+npm run typecheck
+```
+
+## Database Issues
+
+### Prisma Issues
+
+#### Schema Sync Problems
+
+**Error:** `Schema drift detected`
+
+**Solutions:**
+```bash
+# 1. Reset database
+npx prisma db push --force-reset
+
+# 2. Create new migration
+npx prisma migrate dev --create-only
+
+# 3. Apply pending migrations
+npx prisma migrate deploy
+```
+
+#### Connection Pool Issues
+
+**Symptoms:**
+- `P2034: Transaction failed due to a write conflict`
+- Connection timeout errors
+- Too many connections
+
+**Solutions:**
+```javascript
+// In prisma/schema.prisma
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+  // Add connection pooling for production
+  relationMode = "prisma"
+}
+```
+
+```bash
+# For testing, use in-memory database
+USE_IN_MEMORY_DB=true npm run test
+```
+
+### Data Integrity Issues
+
+#### Foreign Key Constraints
+
+**Error:** `Foreign key constraint failed`
+
+**Solutions:**
+```javascript
+// Check relationship definitions in schema
+model Goal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+#### Unique Constraint Violations
+
+**Solutions:**
+```javascript
+// Handle in application code
+try {
+  await prisma.user.create({ data: userData });
+} catch (error) {
+  if (error.code === 'P2002') {
+    throw new Error('Email already exists');
+  }
+  throw error;
+}
+```
+
+## Authentication Problems
+
+### JWT Token Issues
+
+#### Token Expiration
+
+**Symptoms:**
+- Frequent 401 errors
+- Users logged out unexpectedly
+
+**Solutions:**
+```javascript
+// Implement automatic token refresh
+const refreshToken = async () => {
+  try {
+    const response = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: localStorage.getItem('refreshToken') })
+    });
+    
+    if (response.ok) {
+      const { accessToken } = await response.json();
+      localStorage.setItem('accessToken', accessToken);
+      return accessToken;
+    }
+  } catch (error) {
+    // Redirect to login
+    window.location.href = '/login';
+  }
+};
+```
+
+#### Token Validation Errors
+
+**Common Error:** `JsonWebTokenError: invalid signature`
+
+**Solutions:**
+```bash
+# 1. Check JWT_SECRET is set
+echo $JWT_SECRET
+
+# 2. Ensure consistent secret across environments
+# 3. Clear existing tokens
+localStorage.clear();
+```
+
+### Session Management
+
+#### Cross-Origin Issues
+
+**Error:** `CORS policy: credentials omitted`
+
+**Solutions:**
+```javascript
+// In server CORS configuration
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
+
+// In frontend requests
+fetch('/api/endpoint', {
+  credentials: 'include',
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+```
+
+## Performance Issues
+
+### Slow Query Performance
+
+#### Database Query Optimization
+
+**Solutions:**
+```javascript
+// Add database indexes
+model Run {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime
+  
+  @@index([userId, date])
+  @@index([userId])
+}
+```
+
+```javascript
+// Optimize queries with select
+const runs = await prisma.run.findMany({
+  where: { userId },
+  select: {
+    id: true,
+    date: true,
+    distance: true,
+    // Only select needed fields
+  },
+  orderBy: { date: 'desc' },
+  take: 50 // Limit results
+});
+```
+
+### Memory Leaks
+
+#### React Component Leaks
+
+**Solutions:**
+```javascript
+// Clean up subscriptions
+useEffect(() => {
+  const controller = new AbortController();
+  
+  fetchData({ signal: controller.signal });
+  
+  return () => {
+    controller.abort();
+  };
+}, []);
+```
+
+#### Test Memory Issues
+
+**Solutions:**
+```bash
+# Monitor memory usage
+npm run test:memory
+
+# Run tests with memory tracking
+NODE_OPTIONS="--expose-gc" npm run test
+```
+
+## Build and Deployment Issues
+
+### Build Failures
+
+#### TypeScript Build Errors
+
+**Solutions:**
+```bash
+# 1. Clean build
+rm -rf dist/
+npm run build
+
+# 2. Check TypeScript configuration
+npx tsc --noEmit
+
+# 3. Update dependencies
+npm update
+```
+
+#### Asset Build Issues
+
+**Common Error:** `Failed to resolve import`
+
+**Solutions:**
+```javascript
+// Check import paths
+import Component from '@/components/Component'; // Correct
+import Component from '../../../components/Component'; // Avoid
+```
+
+### Production Deployment
+
+#### Environment Configuration
+
+**Checklist:**
+```bash
+# 1. Environment variables set
+- [ ] DATABASE_URL
+- [ ] JWT_SECRET
+- [ ] NODE_ENV=production
+
+# 2. Database migrations applied
+npx prisma migrate deploy
+
+# 3. Build assets
+npm run build
+
+# 4. Security headers configured
+# 5. HTTPS enabled
+# 6. Rate limiting configured
+```
+
+#### Health Check Failures
+
+**Solutions:**
+```javascript
+// Add health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+  } catch (error) {
+    res.status(503).json({ status: 'unhealthy', error: error.message });
+  }
+});
+```
+
+## Quick Diagnostic Commands
+
+### Health Check Commands
+
+```bash
+# System health
+npm run verify-db-setup
+npm run validate-test-env
+npm run typecheck
+
+# Test health
+npm run test:run
+npm run test:integration -- --verbose
+npm run test:e2e -- --headed
+
+# Performance check
+npm run test:performance:track
+npm run analyze-test-performance
+```
+
+### Debug Information Collection
+
+```bash
+# Environment info
+node --version
+npm --version
+npx prisma --version
+
+# Database info
+npx prisma db pull
+npx prisma migrate status
+
+# Test info
+npm run flaky:analyze
+npm run test:performance:report
+```
+
+### Log Analysis
+
+```bash
+# Application logs
+tail -f logs/app.log
+
+# Test logs
+npm run test -- --verbose 2>&1 | tee test-output.log
+
+# CI logs (GitHub Actions)
+# Check Actions tab in GitHub repository
+```
+
+## Getting Help
+
+### Documentation Resources
+
+- **API Documentation**: `/docs/API_DOCUMENTATION.md`
+- **API Examples**: `/docs/api/API_EXAMPLES.md`
+- **Test Patterns**: Check test files for examples
+- **Architecture**: `/docs/ARCHITECTURE.md` (if exists)
+
+### Debugging Tools
+
+- **VS Code**: Use launch configurations for debugging
+- **Chrome DevTools**: For frontend debugging
+- **Prisma Studio**: `npm run prisma:studio`
+- **Database Browser**: For SQLite inspection
+
+### Community Support
+
+- **GitHub Issues**: Check existing issues and discussions
+- **Documentation**: Refer to framework-specific docs
+- **Stack Overflow**: Search for specific error messages
+
+---
+
+## Historical Issues
+
+The following issues were encountered and resolved during development:
 
 ## Issue 1: ConfirmationModal Import Error
 

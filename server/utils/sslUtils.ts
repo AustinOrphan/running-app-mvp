@@ -1,5 +1,6 @@
 import fs from 'fs';
 import https from 'https';
+import { Request, Response, NextFunction } from 'express';
 import { logInfo, logError } from './logger.js';
 
 /**
@@ -250,7 +251,7 @@ export const checkCertificateExpiry = (
  * Setup SSL redirect middleware for HTTPS enforcement
  */
 export const createSSLRedirectMiddleware = () => {
-  return (req: any, res: any, next: any) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     const forceHTTPS = process.env.FORCE_HTTPS === 'true';
     const trustProxy = process.env.TRUST_PROXY === 'true';
 

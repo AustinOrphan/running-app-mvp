@@ -1,7 +1,11 @@
 import express from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/requireAuth.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createUnauthorizedError, createError } from '../middleware/errorHandler.js';
+import {
+  createUnauthorizedError,
+  createError,
+  createNotFoundError,
+} from '../middleware/errorHandler.js';
 import { auditLogger, type AuditQueryFilters } from '../utils/auditLogger.js';
 import { auditSecurity } from '../utils/auditLogger.js';
 
@@ -13,7 +17,7 @@ const router = express.Router();
 // 1. Add 'role' field to User model in Prisma schema
 // 2. Update authentication to include role in JWT payload
 // 3. Check user role in this middleware
-const requireAdmin = (req: AuthRequest, res: express.Response, next: express.NextFunction) => {
+const requireAdmin = (req: AuthRequest, _res: express.Response, next: express.NextFunction) => {
   // IMPORTANT: This is a placeholder implementation
   // In production, implement proper role checking:
   // if (!req.user?.role || req.user.role !== 'admin') {
@@ -86,8 +90,8 @@ router.get(
         totalResults: events.length,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      console.error('Failed to query audit events:', error);
+    } catch {
+      // Error logged by logger utility
       throw createError('Failed to query audit events', 500);
     }
   })
@@ -119,7 +123,16 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to get audit statistics:', error);
+      // Re-throw errors that are already HTTP errors with status codes
+      if (error && typeof error === 'object' && 'statusCode' in error) {
+        throw error;
+      }
+      auditLogger
+        .logEvent('system.error', 'audit_statistics', 'failure', {
+          req,
+          details: { error: error instanceof Error ? error.message : 'Unknown error' },
+        })
+        .catch(() => {});
       throw createError('Failed to get audit statistics', 500);
     }
   })
@@ -170,7 +183,12 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to get security events:', error);
+      auditLogger
+        .logEvent('system.error', 'security_events', 'failure', {
+          req,
+          details: { error: error instanceof Error ? error.message : 'Unknown error' },
+        })
+        .catch(() => {});
       throw createError('Failed to get security events', 500);
     }
   })
@@ -210,38 +228,51 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to get user audit events:', error);
+      auditLogger
+        .logEvent('system.error', 'user_audit_events', 'failure', {
+          req,
+          details: { error: error instanceof Error ? error.message : 'Unknown error' },
+        })
+        .catch(() => {});
       throw createError('Failed to get user audit events', 500);
     }
   })
 );
 
 // POST /api/audit/test - Test audit logging (development only)
-if (process.env.NODE_ENV === 'development') {
-  router.post(
-    '/test',
-    requireAdmin,
-    asyncAuthHandler(async (req: AuthRequest, res) => {
-      try {
-        const { action = 'auth.login', outcome = 'success', resource = 'user' } = req.body;
+router.post(
+  '/test',
+  requireAdmin,
+  asyncAuthHandler(async (req: AuthRequest, res) => {
+    // Check environment at runtime
+    if (process.env.NODE_ENV !== 'development') {
+      throw createNotFoundError('Endpoint not available in production');
+    }
 
-        await auditLogger.logEvent(action, resource, outcome, {
+    try {
+      const { action = 'auth.login', outcome = 'success', resource = 'user' } = req.body;
+
+      await auditLogger.logEvent(action, resource, outcome, {
+        req,
+        userId: req.user?.id,
+        details: { test: true, timestamp: new Date().toISOString() },
+      });
+
+      res.json({
+        message: 'Test audit event logged successfully',
+        event: { action, outcome, resource },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      auditLogger
+        .logEvent('system.error', 'test_audit_event', 'failure', {
           req,
-          userId: req.user?.id,
-          details: { test: true, timestamp: new Date().toISOString() },
-        });
-
-        res.json({
-          message: 'Test audit event logged successfully',
-          event: { action, outcome, resource },
-          timestamp: new Date().toISOString(),
-        });
-      } catch (error) {
-        console.error('Failed to log test audit event:', error);
-        throw createError('Failed to log test audit event', 500);
-      }
-    })
-  );
-}
+          details: { error: error instanceof Error ? error.message : 'Unknown error' },
+        })
+        .catch(() => {});
+      throw createError('Failed to log test audit event', 500);
+    }
+  })
+);
 
 export default router;

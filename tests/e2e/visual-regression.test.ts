@@ -3,7 +3,7 @@ import type { TestUser } from './types';
 import { assertTestUser } from './types/index.js';
 
 import { mockRuns, mockGoals, mockRaces } from '../fixtures/mockData.js';
-import { testDb } from '../fixtures/testDatabase.js';
+import { testDb } from '../fixtures/testDatabase';
 import { VisualTestHelper, visualConfigs } from '../setup/visualTestingSetup.js';
 
 // Configure visual testing based on environment

@@ -122,13 +122,30 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         .join(' ');
     };
 
+    // Check if card contains interactive elements to avoid nested interactive violation
+    const shouldHaveButtonRole = interactive;
+
+    const { onKeyDown: propsOnKeyDown, role: propsRole, ...restProps } = props;
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (shouldHaveButtonRole && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        props.onClick?.(event as unknown as React.MouseEvent<HTMLDivElement>);
+      }
+      propsOnKeyDown?.(event);
+    };
+
+    // Use explicitly passed role, or default to button for interactive cards
+    const cardRole = propsRole || (shouldHaveButtonRole ? 'button' : undefined);
+
     return (
       <div
         ref={ref}
         className={getCardClasses()}
-        role={interactive ? 'button' : undefined}
-        tabIndex={interactive ? 0 : undefined}
-        {...props}
+        {...restProps}
+        role={cardRole}
+        tabIndex={shouldHaveButtonRole ? 0 : undefined}
+        onKeyDown={handleKeyDown}
       >
         {children}
       </div>
@@ -306,7 +323,7 @@ export interface ProgressHeaderProps {
   className?: string;
 }
 
-export interface ProgressBarProps {
+export interface ProgressBarProps extends React.HTMLAttributes<HTMLDivElement> {
   percentage: number;
   completed?: boolean;
   color?: string;
@@ -332,16 +349,26 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   completed = false,
   color,
   className = '',
+  ...props
 }) => {
   const fillClasses = [styles.progressFill];
   if (completed) fillClasses.push(styles.progressFillCompleted);
 
+  const normalizedPercentage = Math.max(0, Math.min(percentage, 100));
+
   return (
-    <div className={`${styles.progressBar} ${className}`}>
+    <div
+      className={`${styles.progressBar} ${className}`}
+      role='progressbar'
+      aria-valuenow={normalizedPercentage}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      {...props}
+    >
       <div
         className={fillClasses.join(' ')}
         style={{
-          transform: `scaleX(${Math.min(percentage, 100) / 100})`,
+          transform: `scaleX(${normalizedPercentage / 100})`,
           backgroundColor: color || undefined,
         }}
       />

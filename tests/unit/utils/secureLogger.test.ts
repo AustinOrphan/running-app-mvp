@@ -19,10 +19,18 @@ describe('SecureLogger IP Privacy Enhancements', () => {
   });
 
   afterEach(() => {
-    mockConsoleError.mockRestore();
-    mockConsoleWarn.mockRestore();
-    mockConsoleInfo.mockRestore();
-    mockConsoleDebug.mockRestore();
+    if (mockConsoleError && typeof mockConsoleError.mockRestore === 'function') {
+      mockConsoleError.mockRestore();
+    }
+    if (mockConsoleWarn && typeof mockConsoleWarn.mockRestore === 'function') {
+      mockConsoleWarn.mockRestore();
+    }
+    if (mockConsoleInfo && typeof mockConsoleInfo.mockRestore === 'function') {
+      mockConsoleInfo.mockRestore();
+    }
+    if (mockConsoleDebug && typeof mockConsoleDebug.mockRestore === 'function') {
+      mockConsoleDebug.mockRestore();
+    }
     process.env.NODE_ENV = originalNodeEnv;
     process.env.IP_SALT = originalIpSalt;
     process.env.LOG_SALT = originalLogSalt;

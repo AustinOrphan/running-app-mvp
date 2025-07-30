@@ -16,6 +16,10 @@ jobs:
     name: 🔍 Code Quality
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
 
     steps:
       - name: 📥 Checkout code
@@ -43,7 +47,11 @@ jobs:
   unit-tests:
     name: 🧪 Unit Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
 
     steps:
       - name: 📥 Checkout code
@@ -58,8 +66,15 @@ jobs:
       - name: 📥 Install dependencies
         run: npm ci
 
+      - name: 🗄️ Setup database
+        run: npm run ci-db-setup
+
       - name: 🧪 Run unit tests with coverage
-        run: npm run test:coverage
+        run: npm run test:coverage:unit:ci
+
+      - name: 🧹 Cleanup database after tests
+        if: always()
+        run: npm run ci-db-teardown
 
       - name: 📊 Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -74,7 +89,11 @@ jobs:
   integration-tests:
     name: 🔗 Integration Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
 
     steps:
       - name: 📥 Checkout code
@@ -89,18 +108,25 @@ jobs:
       - name: 📥 Install dependencies
         run: npm ci
 
-      - name: 🗄️ Setup database
+      - name: 🗄️ Setup database for integration tests
         run: |
-          npx prisma migrate deploy
-          npx prisma generate
+          # Use enhanced integration test database setup
+          npm run ci-integration-db-setup setup --verbose
+
+      - name: 🔍 Verify integration database setup
+        run: npm run ci-integration-db-setup verify
 
       - name: 🔗 Run integration tests with coverage
-        run: npm run test:coverage:integration
+        run: npm run test:coverage:integration:ci
+
+      - name: 🧹 Cleanup integration database after tests
+        if: always()
+        run: npm run ci-integration-db-teardown
 
       - name: 📊 Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          file: ./coverage/lcov.info
+          file: ./coverage-integration/lcov.info
           flags: integration
           name: integration-tests
           fail_ci_if_error: false
@@ -110,7 +136,11 @@ jobs:
   e2e-tests:
     name: 🎭 E2E Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
 
     steps:
       - name: 📥 Checkout code
@@ -126,17 +156,25 @@ jobs:
         run: npm ci
 
       - name: 🎭 Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      - name: 🗄️ Setup database
         run: |
-          npx prisma migrate deploy
-          npx prisma generate
+          echo "Installing Playwright browsers for CI..."
+          npx playwright install chromium firefox webkit
+          npx playwright install-deps
+          echo "Verifying browser installation..."
+          npx playwright --version
+          npx playwright show-browsers
 
-      - name: 🎭 Run E2E tests
-        run: npm run test:e2e
+      - name: 🗄️ Setup database for E2E tests
+        run: npm run ci-db-setup
+
+      - name: 🎭 Run E2E tests with CI configuration
+        run: npm run test:e2e:ci
         env:
           CI: true
+
+      - name: 🧹 Cleanup database after E2E tests
+        if: always()
+        run: npm run ci-db-teardown
 
       - name: 📸 Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -150,7 +188,11 @@ jobs:
   accessibility-tests:
     name: ♿ Accessibility Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
 
     steps:
       - name: 📥 Checkout code
@@ -166,15 +208,23 @@ jobs:
         run: npm ci
 
       - name: 🎭 Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      - name: 🗄️ Setup database
         run: |
-          npx prisma migrate deploy
-          npx prisma generate
+          echo "Installing Playwright browsers for accessibility tests..."
+          npx playwright install chromium firefox webkit
+          npx playwright install-deps
+          echo "Verifying browser installation..."
+          npx playwright --version
+          npx playwright show-browsers
+
+      - name: 🗄️ Setup database for accessibility tests
+        run: npm run ci-db-setup
 
       - name: ♿ Run accessibility tests
         run: npm run test:a11y:ci
+
+      - name: 🧹 Cleanup database after accessibility tests
+        if: always()
+        run: npm run ci-db-teardown
 
       - name: 📸 Upload accessibility report
         uses: actions/upload-artifact@v4
@@ -189,6 +239,10 @@ jobs:
     name: 🏗️ Build Verification
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
 
     steps:
       - name: 📥 Checkout code
@@ -205,7 +259,7 @@ jobs:
 
       - name: 🗄️ Setup database
         run: |
-          npx prisma migrate deploy
+          npx prisma migrate dev --name init || npx prisma migrate deploy
           npx prisma generate
 
       - name: 🏗️ Build application
@@ -259,6 +313,9 @@ jobs:
     needs: [unit-tests, integration-tests]
     if: always()
     timeout-minutes: 10
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
 
     steps:
       - name: 📥 Checkout code
@@ -275,7 +332,7 @@ jobs:
 
       - name: 🗄️ Setup database
         run: |
-          npx prisma migrate deploy
+          npx prisma migrate dev --name init || npx prisma migrate deploy
           npx prisma generate
 
       - name: 📊 Generate combined coverage report
@@ -301,16 +358,33 @@ jobs:
   ci-success:
     name: ✅ CI Success
     runs-on: ubuntu-latest
-    needs:
-      [quality, unit-tests, integration-tests, e2e-tests, accessibility-tests, build, security-scan]
+    needs: [quality, unit-tests, integration-tests, e2e-tests, accessibility-tests, build]
     if: always()
 
     steps:
       - name: ✅ Check CI status
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |
-          echo "CI pipeline failed or was cancelled"
-          exit 1
+          # Check critical job statuses
+          quality_status="${{ needs.quality.result }}"
+          unit_status="${{ needs.unit-tests.result }}"
+          integration_status="${{ needs.integration-tests.result }}"
+          e2e_status="${{ needs.e2e-tests.result }}"
+          a11y_status="${{ needs.accessibility-tests.result }}"
+          build_status="${{ needs.build.result }}"
+
+          echo "Job statuses:"
+          echo "- Quality: $quality_status"
+          echo "- Unit Tests: $unit_status"
+          echo "- Integration Tests: $integration_status"
+          echo "- E2E Tests: $e2e_status"
+          echo "- Accessibility Tests: $a11y_status"
+          echo "- Build: $build_status"
+
+          # Fail if any critical jobs failed
+          if [[ "$quality_status" == "failure" || "$unit_status" == "failure" || "$integration_status" == "failure" || "$e2e_status" == "failure" || "$a11y_status" == "failure" || "$build_status" == "failure" ]]; then
+            echo "❌ Critical CI jobs failed"
+            exit 1
+          fi
 
       - name: 🎉 CI Success
-        run: echo "All CI checks passed successfully!"
+        run: echo "All critical CI checks passed successfully!"

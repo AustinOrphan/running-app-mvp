@@ -120,7 +120,9 @@ const refreshAccessToken = async (): Promise<boolean> => {
 
       return true;
     } catch (error) {
-      console.error('Token refresh failed:', error);
+      clientLogger.error('Token refresh failed', error instanceof Error ? error : undefined, {
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      });
       clearTokens();
       authEvents.dispatchEvent(
         new CustomEvent('authenticationFailed', {
