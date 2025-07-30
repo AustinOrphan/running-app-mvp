@@ -216,6 +216,18 @@
 - [X] Fix server middleware and route handlers
 - [X] Update accessibility and unit tests
 
+## CI Infrastructure Fixes (Phase 2) - July 30, 2025
+- [X] Fix Test Coverage workflow permissions issue
+- [X] Fix CodeQL workflow failure (removed duplicate JavaScript from matrix)
+- [X] Fix Test Matrix Windows failure - removed invalid path files
+- [X] Fix Test Matrix failures - added Prisma generation step
+- [X] Fix E2E test failures - updated Node version and migration
+- [X] Fix CreateGoalModal test cross-platform input handling
+- [X] Fix infrastructure startup test failures (cross-platform npm)
+- [X] Fix lint errors and remove duplicate files with '2' suffix
+- [X] Create plan-v003.md for remaining CI test failure resolution
+
 ---
 *Converted from plan-v002.md on 2025-07-26*
 *Updated with recent changes on 2025-07-28*
+*Updated with CI fixes on 2025-07-30*
