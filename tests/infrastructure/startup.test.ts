@@ -17,6 +17,9 @@ const BACKEND_PORT = 3001;
 const FRONTEND_PORT = 3000;
 const STARTUP_TIMEOUT = 60000; // 60 seconds for CI environments
 
+// Cross-platform npm command
+const getNpmCommand = () => process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
 describe('Infrastructure Startup Tests', () => {
   describe('Required Files Existence', () => {
     it('should have server.ts entry point', () => {
@@ -183,7 +186,7 @@ describe('Server Startup Integration Tests', () => {
           reject(new Error('Backend server failed to start within timeout'));
         }, STARTUP_TIMEOUT);
 
-        backendProcess = spawn('npm', ['run', 'dev'], {
+        backendProcess = spawn(getNpmCommand(), ['run', 'dev'], {
           cwd: PROJECT_ROOT,
           stdio: 'pipe',
           env: {
@@ -281,7 +284,7 @@ describe('Server Startup Integration Tests', () => {
           reject(new Error('Frontend server failed to start within timeout'));
         }, STARTUP_TIMEOUT);
 
-        frontendProcess = spawn('npm', ['run', 'dev:frontend'], {
+        frontendProcess = spawn(getNpmCommand(), ['run', 'dev:frontend'], {
           cwd: PROJECT_ROOT,
           stdio: 'pipe',
         });
