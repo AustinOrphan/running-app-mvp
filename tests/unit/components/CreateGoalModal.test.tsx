@@ -410,12 +410,13 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      // Fill in valid form data
-      await user.type(screen.getByLabelText('Goal Title'), 'Run 50km');
-      // Use fireEvent for description field to ensure it's set correctly
+      // Fill in valid form data - use fireEvent for reliable cross-platform input
+      const titleInput = screen.getByLabelText('Goal Title');
+      fireEvent.change(titleInput, { target: { value: 'Run 50km' } });
       const descriptionInput = screen.getByLabelText('Description');
       fireEvent.change(descriptionInput, { target: { value: 'Monthly goal' } });
-      await user.type(screen.getByLabelText('Target Value'), '50');
+      const targetValueInput = screen.getByLabelText('Target Value');
+      fireEvent.change(targetValueInput, { target: { value: '50' } });
 
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
