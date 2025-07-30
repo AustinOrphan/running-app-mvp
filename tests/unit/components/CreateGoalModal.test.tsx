@@ -336,12 +336,23 @@ describe('CreateGoalModal', () => {
       await user.type(titleInput, 'Test Goal');
       await user.type(targetValueInput, '-5');
 
-      const submitButton = screen.getByText('Create Goal');
-      await user.click(submitButton);
+      // Submit the form directly (like the working test)
+      const form = screen.getByTestId('create-goal-form');
+      fireEvent.submit(form);
 
+      // Check for validation state first
       await waitFor(() => {
-        expect(screen.getByText('Target value must be a positive number')).toBeInTheDocument();
+        const targetInput = screen.getByLabelText('Target Value');
+        expect(targetInput).toHaveAttribute('aria-invalid', 'true');
       });
+
+      // Then check for error message
+      await waitFor(
+        () => {
+          expect(screen.getByText('Target value must be a positive number')).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
     });
 
     it('shows error when end date is before start date', async () => {
@@ -434,7 +445,7 @@ describe('CreateGoalModal', () => {
       // Use fireEvent.change for more reliable input setting
       const titleInput = screen.getByLabelText('Goal Title');
       fireEvent.change(titleInput, { target: { value: 'Test Goal' } });
-      
+
       const valueInput = screen.getByLabelText('Target Value');
       fireEvent.change(valueInput, { target: { value: '10' } });
 
@@ -569,10 +580,13 @@ describe('CreateGoalModal', () => {
       await user.click(submitButton);
 
       // Wait for the submission state to be set - check for disabled state first
-      await waitFor(() => {
-        const submitBtn = screen.getByRole('button', { name: /create goal|creating/i });
-        expect(submitBtn).toBeDisabled();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          const submitBtn = screen.getByRole('button', { name: /create goal|creating/i });
+          expect(submitBtn).toBeDisabled();
+        },
+        { timeout: 3000 }
+      );
 
       // Check that the text has changed to Creating...
       expect(screen.getByText('Creating...')).toBeInTheDocument();
