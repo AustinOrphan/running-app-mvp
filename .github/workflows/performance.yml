@@ -25,7 +25,8 @@ jobs:
     timeout-minutes: 20
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
 
     steps:
       - name: 📥 Checkout code
@@ -90,7 +91,8 @@ jobs:
     timeout-minutes: 15
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
 
     steps:
       - name: 📥 Checkout code
@@ -128,7 +130,8 @@ jobs:
     timeout-minutes: 25
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
 
     steps:
       - name: 📥 Checkout code
@@ -218,7 +221,8 @@ jobs:
     timeout-minutes: 20
     env:
       DATABASE_URL: file:./prisma/test.db
-      JWT_SECRET: test-secret-key
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
 
     steps:
       - name: 📥 Checkout code
