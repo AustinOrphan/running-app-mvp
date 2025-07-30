@@ -18,7 +18,7 @@ const FRONTEND_PORT = 3000;
 const STARTUP_TIMEOUT = 60000; // 60 seconds for CI environments
 
 // Cross-platform npm command
-const getNpmCommand = () => process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const getNpmCommand = () => (process.platform === 'win32' ? 'npm.cmd' : 'npm');
 
 describe('Infrastructure Startup Tests', () => {
   describe('Required Files Existence', () => {
