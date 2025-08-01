@@ -3,9 +3,9 @@ import { test, expect } from '@playwright/test';
 import type { TestUser } from './types';
 import { assertTestUser } from './types/index.js';
 
-import { mockRuns } from '../fixtures/mockData.js';
+import { mockRuns } from '../fixtures/mockData';
 import { testDb } from '../fixtures/testDatabase';
-import { accessibilityTestPatterns } from '../setup/axeSetup.js';
+import { accessibilityTestPatterns } from '../setup/axeSetup';
 
 test.describe('Accessibility E2E Tests', () => {
   let testUser: TestUser | undefined;
@@ -428,7 +428,7 @@ test.describe('Accessibility E2E Tests', () => {
       await page.goto('/login');
       await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
-      await page.tap('button[type="submit"]');
+      await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
 
       // Check touch target sizes
@@ -456,7 +456,7 @@ test.describe('Accessibility E2E Tests', () => {
       await page.goto('/login');
       await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
-      await page.tap('button[type="submit"]');
+      await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
 
       // Test portrait orientation
@@ -476,7 +476,7 @@ test.describe('Accessibility E2E Tests', () => {
       await page.goto('/login');
       await page.fill('input[type="email"]', assertTestUser(testUser).email);
       await page.fill('input[type="password"]', 'testpassword123');
-      await page.tap('button[type="submit"]');
+      await page.click('button[type="submit"]');
       await expect(page).toHaveURL('/dashboard');
 
       // Check that interactive elements have accessible names for voice control

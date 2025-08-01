@@ -128,97 +128,103 @@ function AppContent() {
   if (!isLoggedIn) {
     return (
       <div className={styles.app}>
-        <h1>🏃‍♂️ Running Tracker</h1>
+        <header>
+          <h1>🏃‍♂️ Running Tracker</h1>
+        </header>
 
-        {status === 'disconnected' && (
-          <div className={layoutStyles.offlineNotice}>
-            ⚠️ Backend server is not running. Start it with <code>npm run dev</code> in a separate
-            terminal.
-          </div>
-        )}
+        <main>
+          {status === 'disconnected' && (
+            <div className={layoutStyles.offlineNotice}>
+              ⚠️ Backend server is not running. Start it with <code>npm run dev</code> in a separate
+              terminal.
+            </div>
+          )}
 
-        <AuthForm onLogin={handleLogin} onRegister={handleRegister} loading={authLoading} />
+          <AuthForm onLogin={handleLogin} onRegister={handleRegister} loading={authLoading} />
 
-        {devConfig.enableLoginBypass && (
-          <div
-            style={{
-              margin: '20px 0',
-              padding: '15px',
-              backgroundColor: '#f0f8ff',
-              border: '2px dashed #4a90e2',
-              borderRadius: '8px',
-              textAlign: 'center',
-            }}
-          >
-            <p style={{ margin: '0 0 10px', fontSize: '14px', color: '#666' }}>
-              🔧 Development Mode
-            </p>
-            <button
-              onClick={handleDevBypass}
+          {devConfig.enableLoginBypass && (
+            <div
               style={{
-                padding: '8px 16px',
-                backgroundColor: '#4a90e2',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px',
+                margin: '20px 0',
+                padding: '15px',
+                backgroundColor: '#f0f8ff',
+                border: '2px dashed #4a90e2',
+                borderRadius: '8px',
+                textAlign: 'center',
               }}
-              disabled={authLoading}
             >
-              Skip Login (Dev Only)
-            </button>
-          </div>
-        )}
+              <p style={{ margin: '0 0 10px', fontSize: '14px', color: '#666' }}>
+                🔧 Development Mode
+              </p>
+              <button
+                onClick={handleDevBypass}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#2563eb', // Darker blue for better contrast (4.5:1 with white)
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+                disabled={authLoading}
+              >
+                Skip Login (Dev Only)
+              </button>
+            </div>
+          )}
+        </main>
 
         <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
-        <ConnectivityFooter
-          disableFocusIndicator={true}
-          additionalSections={[
-            {
-              id: 'welcome-info',
-              title: 'Welcome',
-              content: (
-                <div className={layoutStyles.footerSectionContent}>
-                  <div className={layoutStyles.footerInfoItem}>
-                    <span className={layoutStyles.footerInfoLabel}>Status:</span>
-                    <span className={layoutStyles.footerInfoValue}>Not logged in</span>
+        <footer>
+          <ConnectivityFooter
+            disableFocusIndicator={true}
+            additionalSections={[
+              {
+                id: 'welcome-info',
+                title: 'Welcome',
+                content: (
+                  <div className={layoutStyles.footerSectionContent}>
+                    <div className={layoutStyles.footerInfoItem}>
+                      <span className={layoutStyles.footerInfoLabel}>Status:</span>
+                      <span className={layoutStyles.footerInfoValue}>Not logged in</span>
+                    </div>
+                    <div className={layoutStyles.footerInfoItem}>
+                      <span className={layoutStyles.footerInfoLabel}>Features:</span>
+                      <span className={layoutStyles.footerInfoValue}>Login to access</span>
+                    </div>
                   </div>
-                  <div className={layoutStyles.footerInfoItem}>
-                    <span className={layoutStyles.footerInfoLabel}>Features:</span>
-                    <span className={layoutStyles.footerInfoValue}>Login to access</span>
-                  </div>
-                </div>
-              ),
-            },
-          ]}
-          customLinks={[
-            {
-              label: 'Create Account',
-              href: '/register',
-              onClick: e => {
-                e.preventDefault();
-                showToast('Use the registration form above to create an account!', 'info');
+                ),
               },
-            },
-            {
-              label: 'Privacy Policy',
-              href: '/privacy',
-              onClick: e => {
-                e.preventDefault();
-                showToast('Privacy policy feature coming soon!', 'info');
+            ]}
+            customLinks={[
+              {
+                label: 'Create Account',
+                href: '/register',
+                onClick: e => {
+                  e.preventDefault();
+                  showToast('Use the registration form above to create an account!', 'info');
+                },
               },
-            },
-            {
-              label: 'About Running Tracker',
-              href: '/about',
-              onClick: e => {
-                e.preventDefault();
-                showToast('Track your runs, set goals, and improve your performance!', 'info');
+              {
+                label: 'Privacy Policy',
+                href: '/privacy',
+                onClick: e => {
+                  e.preventDefault();
+                  showToast('Privacy policy feature coming soon!', 'info');
+                },
               },
-            },
-          ]}
-        />
+              {
+                label: 'About Running Tracker',
+                href: '/about',
+                onClick: e => {
+                  e.preventDefault();
+                  showToast('Track your runs, set goals, and improve your performance!', 'info');
+                },
+              },
+            ]}
+          />
+        </footer>
       </div>
     );
   }
@@ -227,16 +233,18 @@ function AppContent() {
     <div className={styles.app}>
       <Header onLogout={handleLogout} />
 
-      <TabNavigation
-        swipeHighlight={swipeHighlight}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      />
+      <nav>
+        <TabNavigation
+          swipeHighlight={swipeHighlight}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        />
+      </nav>
 
       <SwipeHint show={!hasSwipedOnce} />
 
-      <div className={layoutStyles.dashboard}>
+      <main className={layoutStyles.dashboard}>
         <div
           className={layoutStyles.tabContent}
           onTouchStart={onTouchStart}
@@ -256,51 +264,53 @@ function AppContent() {
             token={getToken()}
           />
         </div>
-      </div>
+      </main>
 
       <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
       <FeedbackContainer />
-      <ConnectivityFooter
-        disableFocusIndicator={true}
-        additionalSections={[
-          {
-            id: 'user-info',
-            title: 'Session',
-            content: (
-              <div className={layoutStyles.footerInfoItem}>
-                <span className={layoutStyles.footerInfoLabel}>Current Page:</span>
-                <span className={layoutStyles.footerInfoValue}>{activeTab}</span>
-              </div>
-            ),
-          },
-        ]}
-        customLinks={[
-          {
-            label: 'Privacy Policy',
-            href: '/privacy',
-            onClick: e => {
-              e.preventDefault();
-              showToast('Privacy policy feature coming soon!', 'info');
+      <footer>
+        <ConnectivityFooter
+          disableFocusIndicator={true}
+          additionalSections={[
+            {
+              id: 'user-info',
+              title: 'Session',
+              content: (
+                <div className={layoutStyles.footerInfoItem}>
+                  <span className={layoutStyles.footerInfoLabel}>Current Page:</span>
+                  <span className={layoutStyles.footerInfoValue}>{activeTab}</span>
+                </div>
+              ),
             },
-          },
-          {
-            label: 'Help & Support',
-            href: '/help',
-            onClick: e => {
-              e.preventDefault();
-              showToast('Help system feature coming soon!', 'info');
+          ]}
+          customLinks={[
+            {
+              label: 'Privacy Policy',
+              href: '/privacy',
+              onClick: e => {
+                e.preventDefault();
+                showToast('Privacy policy feature coming soon!', 'info');
+              },
             },
-          },
-          {
-            label: 'About',
-            href: '/about',
-            onClick: e => {
-              e.preventDefault();
-              showToast('About page feature coming soon!', 'info');
+            {
+              label: 'Help & Support',
+              href: '/help',
+              onClick: e => {
+                e.preventDefault();
+                showToast('Help system feature coming soon!', 'info');
+              },
             },
-          },
-        ]}
-      />
+            {
+              label: 'About',
+              href: '/about',
+              onClick: e => {
+                e.preventDefault();
+                showToast('About page feature coming soon!', 'info');
+              },
+            },
+          ]}
+        />
+      </footer>
     </div>
   );
 }
