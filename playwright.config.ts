@@ -14,6 +14,9 @@ export default defineConfig({
   testMatch: '**/*.test.ts',
   /* Run tests in files in parallel */
   fullyParallel: true,
+  /* Global setup and teardown */
+  globalSetup: './tests/e2e/global-setup.ts',
+  globalTeardown: './tests/e2e/global-teardown.ts',
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
@@ -82,7 +85,11 @@ export default defineConfig({
         hasTouch: true,
         isMobile: true,
       },
-      testMatch: ['**/accessibility.test.ts', '**/navigation-swipe.test.ts'],
+      testMatch: [
+        '**/accessibility.test.ts',
+        '**/navigation-swipe.test.ts',
+        '**/mobile-responsiveness.test.ts',
+      ],
     },
     {
       name: 'iPad',
@@ -92,7 +99,7 @@ export default defineConfig({
         hasTouch: true,
         isMobile: false,
       },
-      testMatch: ['**/navigation-swipe.test.ts'],
+      testMatch: ['**/navigation-swipe.test.ts', '**/mobile-responsiveness.test.ts'],
     },
 
     /* Test against branded browsers. */

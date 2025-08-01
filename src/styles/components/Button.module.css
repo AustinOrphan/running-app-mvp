@@ -52,8 +52,8 @@
 .btnSecondary {
   composes: btn;
   background: var(--color-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  color: white; /* Changed from var(--text-primary) to ensure proper contrast */
+  border: 1px solid var(--color-secondary);
 }
 
 .btnSecondary:hover:not(:disabled) {

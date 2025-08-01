@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-import { mockRuns, mockTestUser, mockGoals, mockRaces } from './mockData.js';
+import { mockRuns, mockTestUser, mockGoals, mockRaces } from './mockData';
 
 const prisma = new PrismaClient({
   datasources: {
@@ -15,7 +15,11 @@ const prisma = new PrismaClient({
 
 // Test user creation utility
 export const createTestUser = async (userData?: { email?: string; password?: string }) => {
-  const email = userData?.email || mockTestUser.email;
+  // Make email unique by adding timestamp and random id to avoid conflicts in parallel tests
+  const timestamp = Date.now();
+  const uniqueId = crypto.randomBytes(4).toString('hex');
+  const baseEmail = userData?.email || mockTestUser.email;
+  const email = `${baseEmail.split('@')[0]}-${timestamp}-${uniqueId}@${baseEmail.split('@')[1]}`;
   const password = userData?.password || 'testpassword123';
   const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -26,7 +30,7 @@ export const createTestUser = async (userData?: { email?: string; password?: str
     },
   });
 
-  return { ...user, plainPassword: password };
+  return { ...user, email, plainPassword: password };
 };
 
 // Test runs creation utility - optimized with batch insert
