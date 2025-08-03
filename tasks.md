@@ -105,14 +105,14 @@
     - Touch/tap issues: tests using `page.tap()` in non-mobile browser contexts
     - Test timeouts: 30+ second timeouts on focus management and modal tests
     - Database isolation working: unique email generation successful
-- [ ] Fix critical E2E test issues before running remaining shards
+- [x] Fix critical E2E test issues before running remaining shards
   - [x] Fix accessibility color contrast violations in Register button and Skip Login button
   - [x] Add main landmark and proper page structure
   - [x] Replace `page.tap()` with `page.click()` for non-mobile browser tests
-  - [ ] Optimize slow tests causing 30s timeouts
-- [ ] Run `npm run test:e2e -- --shard=2/3`
-- [ ] Run `npm run test:e2e -- --shard=3/3`
-- [ ] Fix any local failures before pushing
+  - [x] Optimize slow tests causing 30s timeouts
+- [x] Run `npm run test:e2e -- --shard=2/3`
+- [x] Run `npm run test:e2e -- --shard=3/3`
+- [x] Fix any local failures before pushing
 
 ---
 
@@ -122,42 +122,42 @@
 
 ### Standardize test utilities
 
-- [ ] Replace remaining `userEvent` with `fireEvent`
-  - [ ] Search for all userEvent usage
-  - [ ] Update to fireEvent.change for inputs
-  - [ ] Test cross-platform compatibility
-- [ ] Fix timezone-sensitive tests
-  - [ ] Mock Date globally in test setup
-  - [ ] Use fixed timestamps for tests
-  - [ ] Add timezone test utilities
-- [ ] Handle platform differences
-  - [ ] Fix Windows-specific path issues
-  - [ ] Handle line ending differences
-  - [ ] Update file system operations
+- [x] Replace remaining `userEvent` with `fireEvent`
+  - [x] Search for all userEvent usage
+  - [x] Update to fireEvent.change for inputs
+  - [x] Test cross-platform compatibility
+- [x] Fix timezone-sensitive tests
+  - [x] Mock Date globally in test setup
+  - [x] Use fixed timestamps for tests
+  - [x] Add timezone test utilities
+- [x] Handle platform differences
+  - [x] Fix Windows-specific path issues
+  - [x] Handle line ending differences
+  - [x] Update file system operations
 
 ### Fix test database setup
 
-- [ ] Ensure Prisma client generation
-  - [ ] Add generate step to test setup
-  - [ ] Verify client is available in tests
-- [ ] Add proper test isolation
-  - [ ] Implement transaction rollback
-  - [ ] Clean database between tests
-  - [ ] Fix test data conflicts
-- [ ] Fix seed data issues
-  - [ ] Create consistent test fixtures
-  - [ ] Implement data factories
-  - [ ] Remove hard-coded test data
+- [x] Ensure Prisma client generation
+  - [x] Add generate step to test setup
+  - [x] Verify client is available in tests
+- [x] Add proper test isolation
+  - [x] Implement transaction rollback
+  - [x] Clean database between tests
+  - [x] Fix test data conflicts
+- [x] Fix seed data issues
+  - [x] Create consistent test fixtures
+  - [x] Implement data factories
+  - [x] Remove hard-coded test data
 
 ### Update test timeouts
 
-- [ ] Increase timeouts for CI environment
-  - [ ] Set global test timeout to 30s
-  - [ ] Add specific timeouts for slow tests
-- [ ] Add retry logic for flaky tests
-  - [ ] Implement retry wrapper
-  - [ ] Configure retry count (3 max)
-  - [ ] Log retry attempts
+- [x] Increase timeouts for CI environment
+  - [x] Set global test timeout to 30s
+  - [x] Add specific timeouts for slow tests
+- [x] Add retry logic for flaky tests
+  - [x] Implement retry wrapper
+  - [x] Configure retry count (3 max)
+  - [x] Log retry attempts
 
 ---
 
@@ -167,47 +167,47 @@
 
 ### Verify test setup
 
-- [ ] Check `@axe-core/react` integration
-  - [ ] Verify package is installed
-  - [ ] Check configuration setup
-  - [ ] Test axe-core initialization
-- [ ] Validate test file locations
-  - [ ] Confirm test directory structure
-  - [ ] Check for missing test files
-- [ ] Ensure proper component mounting
-  - [ ] Review test render setup
-  - [ ] Add necessary providers
-  - [ ] Fix mounting issues
+- [x] Check `@axe-core/react` integration
+  - [x] Verify package is installed
+  - [x] Check configuration setup
+  - [x] Test axe-core initialization
+- [x] Validate test file locations
+  - [x] Confirm test directory structure
+  - [x] Check for missing test files
+- [x] Ensure proper component mounting
+  - [x] Review test render setup
+  - [x] Add necessary providers
+  - [x] Fix mounting issues
 
 ### Fix test implementation
 
-- [ ] Add proper accessibility assertions
-  - [ ] Implement axe() checks
-  - [ ] Add custom a11y matchers
-  - [ ] Test WCAG compliance
-- [ ] Configure axe-core rules
-  - [ ] Set appropriate rule severity
-  - [ ] Disable false-positive rules
-  - [ ] Add custom rule configuration
-- [ ] Handle async component loading
-  - [ ] Add waitFor wrappers
-  - [ ] Fix timing issues
-  - [ ] Handle dynamic content
+- [x] Add proper accessibility assertions
+  - [x] Implement axe() checks
+  - [x] Add custom a11y matchers
+  - [x] Test WCAG compliance
+- [x] Configure axe-core rules
+  - [x] Set appropriate rule severity
+  - [x] Disable false-positive rules
+  - [x] Add custom rule configuration
+- [x] Handle async component loading
+  - [x] Add waitFor wrappers
+  - [x] Fix timing issues
+  - [x] Handle dynamic content
 
 ### Add missing tests
 
-- [ ] Create tests for key components
-  - [ ] Test form components
-  - [ ] Test navigation components
-  - [ ] Test modal/dialog components
-- [ ] Test keyboard navigation
-  - [ ] Tab order testing
-  - [ ] Focus management tests
-  - [ ] Keyboard shortcut tests
-- [ ] Verify ARIA attributes
-  - [ ] Test role attributes
-  - [ ] Verify aria-label usage
-  - [ ] Check aria-describedby
+- [x] Create tests for key components
+  - [x] Test form components
+  - [x] Test navigation components
+  - [x] Test modal/dialog components
+- [x] Test keyboard navigation
+  - [x] Tab order testing
+  - [x] Focus management tests
+  - [x] Keyboard shortcut tests
+- [x] Verify ARIA attributes
+  - [x] Test role attributes
+  - [x] Verify aria-label usage
+  - [x] Check aria-describedby
 
 ---
 
@@ -217,31 +217,31 @@
 
 ### Configure performance baselines
 
-- [ ] Set realistic thresholds
-  - [ ] Define FCP targets
-  - [ ] Set LCP thresholds
-  - [ ] Configure CLS limits
-- [ ] Create `lighthouserc.json` if missing
-  - [ ] Add CI configuration
-  - [ ] Set assertion thresholds
-  - [ ] Configure upload targets
-- [ ] Configure bundle size limits
-  - [ ] Set main bundle limit
-  - [ ] Configure chunk size warnings
-  - [ ] Add size tracking
+- [x] Set realistic thresholds
+  - [x] Define FCP targets
+  - [x] Set LCP thresholds
+  - [x] Configure CLS limits
+- [x] Create `lighthouserc.json` if missing
+  - [x] Add CI configuration
+  - [x] Set assertion thresholds
+  - [x] Configure upload targets
+- [x] Configure bundle size limits
+  - [x] Set main bundle limit
+  - [x] Configure chunk size warnings
+  - [x] Add size tracking
 
 ### Fix test execution
 
-- [ ] Ensure build completes before testing
-  - [ ] Add build step dependency
-  - [ ] Verify build output exists
-- [ ] Add proper wait conditions
-  - [ ] Wait for server ready
-  - [ ] Check page load complete
-- [ ] Handle CI environment constraints
-  - [ ] Adjust for slower CI runners
-  - [ ] Configure headless mode
-  - [ ] Set appropriate viewport
+- [x] Ensure build completes before testing
+  - [x] Add build step dependency
+  - [x] Verify build output exists
+- [x] Add proper wait conditions
+  - [x] Wait for server ready
+  - [x] Check page load complete
+- [x] Handle CI environment constraints
+  - [x] Adjust for slower CI runners
+  - [x] Configure headless mode
+  - [x] Set appropriate viewport
 
 ---
 
@@ -251,29 +251,29 @@
 
 ### Fix database setup
 
-- [ ] Ensure migrations run properly
-  - [ ] Run migrations before tests
-  - [ ] Verify schema is current
-  - [ ] Handle migration errors
-- [ ] Add proper transaction handling
-  - [ ] Wrap tests in transactions
-  - [ ] Implement rollback on failure
-  - [ ] Fix transaction nesting
-- [ ] Fix connection pooling
-  - [ ] Configure pool size for tests
-  - [ ] Handle connection cleanup
-  - [ ] Fix connection leaks
+- [x] Ensure migrations run properly
+  - [x] Run migrations before tests
+  - [x] Verify schema is current
+  - [x] Handle migration errors
+- [x] Add proper transaction handling
+  - [x] Wrap tests in transactions
+  - [x] Implement rollback on failure
+  - [x] Fix transaction nesting
+- [x] Fix connection pooling
+  - [x] Configure pool size for tests
+  - [x] Handle connection cleanup
+  - [x] Fix connection leaks
 
 ### Resolve API test issues
 
-- [ ] Add proper authentication setup
-  - [ ] Create test auth tokens
-  - [ ] Mock auth middleware
-  - [ ] Fix authorization tests
-- [ ] Fix request/response mocking
-  - [ ] Update mock implementations
-  - [ ] Fix response status codes
-  - [ ] Handle edge cases
+- [x] Add proper authentication setup
+  - [x] Create test auth tokens
+  - [x] Mock auth middleware
+  - [x] Fix authorization tests
+- [x] Fix request/response mocking
+  - [x] Update mock implementations
+  - [x] Fix response status codes
+  - [x] Handle edge cases
 - [ ] Handle async operations
   - [ ] Add proper await usage
   - [ ] Fix promise rejections
