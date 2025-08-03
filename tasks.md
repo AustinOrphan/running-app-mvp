@@ -274,21 +274,21 @@
   - [x] Update mock implementations
   - [x] Fix response status codes
   - [x] Handle edge cases
-- [ ] Handle async operations
-  - [ ] Add proper await usage
-  - [ ] Fix promise rejections
-  - [ ] Handle timeouts
+- [X] Handle async operations
+  - [X] Add proper await usage
+  - [X] Fix promise rejections
+  - [X] Handle timeouts
 
 ### Improve test isolation
 
-- [ ] Clean database between tests
-  - [ ] Implement afterEach cleanup
-  - [ ] Reset sequences
-  - [ ] Clear all tables
-- [ ] Reset application state
-  - [ ] Clear in-memory caches
-  - [ ] Reset global variables
-  - [ ] Clean up side effects
+- [X] Clean database between tests
+  - [X] Implement afterEach cleanup
+  - [X] Reset sequences
+  - [X] Clear all tables
+- [X] Reset application state
+  - [X] Clear in-memory caches
+  - [X] Reset global variables
+  - [X] Clean up side effects
 - [ ] Fix test order dependencies
   - [ ] Make tests independent
   - [ ] Remove shared state
