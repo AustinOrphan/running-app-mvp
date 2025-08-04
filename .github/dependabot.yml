@@ -37,7 +37,6 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-          - 'security'
 
       # Production runtime dependencies
       production-deps:
@@ -190,8 +189,8 @@ updates:
       - 'automated'
       - 'priority-high'
     # Only security updates in this configuration
-    update-types:
-      - 'security'
+    # Note: Dependabot automatically detects security vulnerabilities
+    # This section will handle security advisories for all semver levels
 
   # GitHub Actions
   - package-ecosystem: 'github-actions'
