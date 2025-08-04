@@ -140,7 +140,7 @@
     "jest-axe": "^10.0.0",
     "jscpd": "^4.0.5",
     "jsdom": "^26.1.0",
-    "lint-staged": "^16.1.2",
+    "lint-staged": "^16.1.4",
     "pixelmatch": "^7.1.0",
     "playwright": "^1.54.0",
     "pngjs": "^7.0.0",
