@@ -7,16 +7,19 @@ The test data factory system provides a comprehensive set of tools for creating 
 ## Benefits
 
 ### Consistency
+
 - **Standardized data**: All tests use the same data patterns
 - **Realistic values**: Generated data matches real-world scenarios
 - **Unique identifiers**: Automated generation prevents conflicts
 
 ### Maintainability
+
 - **Single source of truth**: Change data patterns in one place
 - **Type safety**: Full TypeScript support with Prisma types
 - **Reusable patterns**: Common scenarios can be easily recreated
 
 ### Flexibility
+
 - **Builder patterns**: Fluent API for complex object creation
 - **Scenario builders**: Create interconnected test data
 - **Override capabilities**: Customize any aspect of generated data
@@ -32,14 +35,14 @@ test('basic factory usage', async () => {
   // Create a user
   const user = await createUser({
     email: 'test@example.com',
-    name: 'Test User'
+    name: 'Test User',
   });
 
   // Create a run for the user
   const run = await createRun({
     userId: user.id,
     distance: 10.0,
-    duration: 3600
+    duration: 3600,
   });
 
   // Create a goal for the user
@@ -47,7 +50,7 @@ test('basic factory usage', async () => {
     userId: user.id,
     title: 'Monthly Distance Goal',
     type: 'DISTANCE',
-    targetValue: 100
+    targetValue: 100,
   });
 });
 ```
@@ -59,10 +62,7 @@ import { user, run, goal, race } from '../factories/builders';
 
 test('builder pattern usage', async () => {
   // Build a user with fluent API
-  const userData = await user()
-    .withEmail('runner@example.com')
-    .withName('Marathon Runner')
-    .build();
+  const userData = await user().withEmail('runner@example.com').withName('Marathon Runner').build();
 
   // Build related data
   const runData = await run()
@@ -113,16 +113,17 @@ test('complex scenario', async () => {
 const user = await createUser({
   email: 'user@test.com',
   name: 'Test User',
-  password: 'securePassword123'
+  password: 'securePassword123',
 });
 
 // Multiple users
 const users = await createMultipleUsers(5, {
-  name: 'Batch User'
+  name: 'Batch User',
 });
 ```
 
 **Available Options:**
+
 - `email?: string` - Custom email (auto-generated if not provided)
 - `password?: string` - Plain text password (hashed automatically)
 - `name?: string` - User display name
@@ -138,13 +139,13 @@ const run = await createRun({
   userId: user.id,
   distance: 10.5,
   duration: 3600,
-  tag: 'Long Run'
+  tag: 'Long Run',
 });
 
 // Run with route
 const runWithRoute = await createRunWithRoute({
   userId: user.id,
-  distance: 5.0
+  distance: 5.0,
 });
 
 // Multiple runs
@@ -152,6 +153,7 @@ const runs = await createRunSeries(user.id, 10);
 ```
 
 **Available Options:**
+
 - `userId: string` - **Required** - User who performed the run
 - `date?: Date` - Run date (defaults to now)
 - `distance?: number` - Distance in kilometers
@@ -168,7 +170,7 @@ const goal = await createGoal({
   userId: user.id,
   title: 'Monthly Distance',
   type: 'DISTANCE',
-  targetValue: 100
+  targetValue: 100,
 });
 
 // Distance goal
@@ -182,13 +184,15 @@ const activeGoal = await createActiveGoal(user.id, 75);
 ```
 
 **Goal Types:**
+
 - `DISTANCE` - Total distance goals
-- `TIME` - Total time goals  
+- `TIME` - Total time goals
 - `FREQUENCY` - Frequency goals (runs per period)
 - `PACE` - Average pace goals
 - `LONGEST_RUN` - Longest single run goals
 
 **Periods:**
+
 - `WEEKLY` - Weekly goals
 - `MONTHLY` - Monthly goals
 - `YEARLY` - Yearly goals
@@ -202,7 +206,7 @@ const race = await createRace({
   name: '10K City Race',
   distance: 10,
   raceDate: new Date('2024-06-15'),
-  targetTime: 2700 // 45 minutes
+  targetTime: 2700, // 45 minutes
 });
 ```
 
@@ -324,7 +328,7 @@ await basicContext.cleanup();
 
 ```typescript
 // Create isolated test data
-const context = await testManager.createIsolatedData(async (userId) => {
+const context = await testManager.createIsolatedData(async userId => {
   // Create custom data for the user
   await createRunSeries(userId, 15);
   await createGoal({ userId, type: 'DISTANCE', targetValue: 200 });
@@ -360,14 +364,14 @@ const dates = generateDates(10, range); // 10 random dates in range
 ### Realistic Data
 
 ```typescript
-import { 
-  generateEmail, 
-  generatePassword, 
-  generateGeoJSON, 
+import {
+  generateEmail,
+  generatePassword,
+  generateGeoJSON,
   generateRunTag,
   generateRunNotes,
   generateGoalColor,
-  generateGoalIcon
+  generateGoalIcon,
 } from '../factories/commonFactory';
 
 const email = generateEmail('runner'); // runner_1234567890_abc123@test.com
@@ -409,14 +413,14 @@ import { createUser, createRun } from '../factories';
 describe('Runs API', () => {
   test('creates run successfully', async () => {
     const user = await createUser();
-    
+
     const response = await request(app)
       .post('/api/runs')
       .set('Authorization', `Bearer ${user.token}`)
       .send({
         date: new Date(),
         distance: 10,
-        duration: 3600
+        duration: 3600,
       });
 
     expect(response.status).toBe(201);
@@ -435,7 +439,7 @@ describe('User Dashboard', () => {
     const user = context.users[0];
 
     await page.goto(`/dashboard?user=${user.id}`);
-    
+
     // Verify stats are displayed correctly
     expect(await page.textContent('[data-testid="total-runs"]')).toBe('20');
     expect(await page.textContent('[data-testid="total-distance"]')).toContain('km');
@@ -467,7 +471,7 @@ const goal = await createGoal({
   targetUnit: 'km',
   currentValue: 50,
   startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-  endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+  endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0),
 });
 ```
 
@@ -531,7 +535,7 @@ const runData = await run()
 const runData = await createRun({
   userId: user.id,
   distance: 15.7,
-  duration: 5423
+  duration: 5423,
 });
 ```
 
@@ -597,14 +601,15 @@ const goal = await createGoal({ userId: user.id });
 ### From Manual Test Data
 
 **Before:**
+
 ```typescript
 test('user can create run', async () => {
   const user = await prisma.user.create({
     data: {
       email: 'test@example.com',
       password: await bcrypt.hash('password', 10),
-      name: 'Test User'
-    }
+      name: 'Test User',
+    },
   });
 
   const run = await prisma.run.create({
@@ -612,8 +617,8 @@ test('user can create run', async () => {
       userId: user.id,
       date: new Date(),
       distance: 5.0,
-      duration: 1800
-    }
+      duration: 1800,
+    },
   });
 
   // test logic
@@ -621,18 +626,15 @@ test('user can create run', async () => {
 ```
 
 **After:**
+
 ```typescript
 test('user can create run', async () => {
   const user = await createUser({
     email: 'test@example.com',
-    name: 'Test User'
+    name: 'Test User',
   });
 
-  const runData = await run()
-    .withUserId(user.id)
-    .withDistance(5.0)
-    .withDuration(1800)
-    .build();
+  const runData = await run().withUserId(user.id).withDistance(5.0).withDuration(1800).build();
 
   // test logic
 });
@@ -641,17 +643,19 @@ test('user can create run', async () => {
 ### From Simple Factories
 
 **Before:**
+
 ```typescript
 const goal = await createGoal({
   userId: user.id,
   type: 'DISTANCE',
   period: 'MONTHLY',
   targetValue: 100,
-  currentValue: 75
+  currentValue: 75,
 });
 ```
 
 **After:**
+
 ```typescript
 const goalData = await goal()
   .withUserId(user.id)
@@ -666,20 +670,22 @@ const goalData = await goal()
 ### Common Issues
 
 1. **"UserId is required" error**
+
    ```typescript
    // ❌ Missing userId
    const runData = await run().withDistance(10).build();
-   
+
    // ✅ Include userId
    const runData = await run().withUserId(user.id).withDistance(10).build();
    ```
 
 2. **Type errors with Prisma**
+
    ```typescript
    // ❌ Don't mix built data with Prisma operations
    const runData = await run().withUserId(user.id).build();
    await prisma.run.update({ where: { id: runData.id } }); // id doesn't exist on built data
-   
+
    // ✅ Create in database first
    const runData = await run().withUserId(user.id).build();
    const savedRun = await prisma.run.create({ data: runData });
@@ -687,10 +693,11 @@ const goalData = await goal()
    ```
 
 3. **Memory issues with large datasets**
+
    ```typescript
    // ❌ Creating too much data at once
    const runs = await createRunSeries(user.id, 10000);
-   
+
    // ✅ Use smaller batches or streaming
    for (let batch = 0; batch < 10; batch++) {
      const runs = await createRunSeries(user.id, 100);

@@ -14,21 +14,25 @@ Pre-commit hooks automatically run checks on your code before each commit to ens
 When you run `git commit`, the following checks are automatically executed:
 
 ### 1. ESLint (Auto-fix enabled)
+
 - Checks JavaScript/TypeScript code for errors and style issues
 - Automatically fixes fixable issues
 - Runs only on staged `.js`, `.jsx`, `.ts`, and `.tsx` files
 
 ### 2. Prettier (Auto-format enabled)
+
 - Formats code to ensure consistent style
 - Runs on all staged files (JS/TS, JSON, Markdown, YAML)
 - Automatically applies formatting
 
 ### 3. Vitest (Related tests only)
+
 - Runs tests related to changed files
 - Helps catch regressions early
 - Only runs tests affected by your changes
 
 ### 4. TypeScript Type Checking
+
 - Checks the entire project for type errors
 - Ensures type safety across the codebase
 - Prevents type-related runtime errors
@@ -110,14 +114,8 @@ The `lint-staged` configuration in `package.json`:
 ```json
 {
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
-      "eslint --fix",
-      "prettier --write",
-      "vitest related --run"
-    ],
-    "*.{json,md,yml,yaml}": [
-      "prettier --write"
-    ]
+    "*.{ts,tsx,js,jsx}": ["eslint --fix", "prettier --write", "vitest related --run"],
+    "*.{json,md,yml,yaml}": ["prettier --write"]
   }
 }
 ```
@@ -138,11 +136,13 @@ To modify what runs on pre-commit, edit `.husky/pre-commit`:
 ### Hooks Not Running
 
 1. Check if hooks are installed:
+
    ```bash
    ls -la .husky/
    ```
 
 2. Make sure hooks are executable:
+
    ```bash
    chmod +x .husky/pre-commit
    ```
@@ -157,6 +157,7 @@ To modify what runs on pre-commit, edit `.husky/pre-commit`:
 The pre-commit hook only runs tests related to changed files. If it's still slow:
 
 1. Check if you have too many changed files:
+
    ```bash
    git status
    ```
@@ -174,6 +175,7 @@ The pre-commit hook only runs tests related to changed files. If it's still slow
 If you see formatting conflicts:
 
 1. Run the full lint fix:
+
    ```bash
    npm run lint:fix
    ```
@@ -186,6 +188,7 @@ If TypeScript fails:
 
 1. Check the specific error in the output
 2. Run type checking separately for details:
+
    ```bash
    npm run typecheck
    ```
@@ -203,11 +206,13 @@ If TypeScript fails:
 ## Performance Tips
 
 1. **Stage Selectively**: Only stage files you've actually changed
+
    ```bash
    git add specific-file.ts
    ```
 
 2. **Use Patch Mode**: For partial file changes
+
    ```bash
    git add -p
    ```

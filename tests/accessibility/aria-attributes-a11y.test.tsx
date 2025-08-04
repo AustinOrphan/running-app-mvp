@@ -8,7 +8,7 @@ import { Modal } from '../../src/components/UI/Modal';
 import { Card } from '../../src/components/UI/Card';
 import { AuthForm } from '../../src/components/Auth/AuthForm';
 import { RunForm } from '../../src/components/Runs/RunForm';
-import { RunFormData, Run } from '../../src/types';
+import { RunFormData } from '../../src/types';
 import { TEST_DATES } from '../utils/dateTestUtils';
 
 // Extend expect with jest-axe matchers
@@ -270,10 +270,10 @@ describe('ARIA Attributes Verification', () => {
           </div>
 
           {/* Test list structures */}
-          <ul role='list' aria-label='Recent activities'>
-            <li role='listitem'>Completed 5K run</li>
-            <li role='listitem'>Updated weekly goal</li>
-            <li role='listitem'>Achieved personal record</li>
+          <ul aria-label='Recent activities'>
+            <li>Completed 5K run</li>
+            <li>Updated weekly goal</li>
+            <li>Achieved personal record</li>
           </ul>
 
           {/* Test article/content structure */}
@@ -324,9 +324,9 @@ describe('ARIA Attributes Verification', () => {
       render(
         <div>
           {/* Test list roles */}
-          <ul role='list'>
-            <li role='listitem'>Item 1</li>
-            <li role='listitem'>Item 2</li>
+          <ul>
+            <li>Item 1</li>
+            <li>Item 2</li>
           </ul>
 
           {/* Test menu roles */}
@@ -404,7 +404,7 @@ describe('ARIA Attributes Verification', () => {
     it('verifies role attributes work correctly with focus management', () => {
       render(
         <div>
-          <div role='application' tabIndex={0} aria-label='Custom Application'>
+          <div role='application' aria-label='Custom Application'>
             <div role='toolbar' aria-label='Edit Tools'>
               <button type='button'>Bold</button>
               <button type='button'>Italic</button>

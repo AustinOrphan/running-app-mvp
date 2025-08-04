@@ -198,28 +198,31 @@ import './platformSetup'; // Automatically configures platform settings
 Most existing tests will continue to work without changes. However, you can improve them by:
 
 1. **Replace hardcoded paths**:
+
    ```typescript
    // Before
    const dbPath = 'file:./prisma/test.db';
-   
+
    // After
    const dbPath = platformUtils.createDatabaseUrl('test.db');
    ```
 
 2. **Use platform-aware commands**:
+
    ```typescript
    // Before
    execSync('npm install');
-   
+
    // After
    platformUtils.execCommand('npm install');
    ```
 
 3. **Normalize line endings in assertions**:
+
    ```typescript
    // Before
    expect(output).toBe(expectedOutput);
-   
+
    // After
    expect(platformUtils.normalizeToLF(output)).toBe(platformUtils.normalizeToLF(expectedOutput));
    ```
@@ -237,13 +240,13 @@ describe('My Test Suite', () => {
     // Use platform utilities for file operations
     const tempFile = platformUtils.createTempFilePath('test', 'json');
     const testData = { message: 'Hello World' };
-    
+
     await fs.writeFile(tempFile, JSON.stringify(testData));
-    
+
     // Use platform-aware timeouts
     const timeout = platformUtils.getAdjustedTimeout(5000);
     await waitForCondition(condition, { timeout });
-    
+
     // Normalize output for comparison
     const output = normalizeTestOutput(processOutput);
     expect(output).toContain('success');
@@ -260,6 +263,7 @@ npm run test tests/examples/platform-compatibility.test.ts
 ```
 
 This test suite verifies:
+
 - Path handling across platforms
 - Command execution compatibility
 - Line ending normalization
@@ -301,6 +305,7 @@ npm run test
 ```
 
 This will show:
+
 - Detected platform information
 - Applied timeout adjustments
 - Environment variable configurations
@@ -316,6 +321,7 @@ The platform utilities have minimal performance overhead:
 - **Line ending normalization**: ~0.5ms per 1KB of text
 
 The benefits far outweigh the minimal performance cost:
+
 - Eliminates platform-specific test failures
 - Reduces CI debugging time
 - Improves developer experience across platforms

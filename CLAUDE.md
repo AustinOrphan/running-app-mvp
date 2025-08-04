@@ -373,23 +373,27 @@ npm run test:memory
 #### E2E Test Issues
 
 **Accessibility Violations**
+
 - **Problem**: Color contrast failures (e.g., 2.85:1 vs required 4.5:1)
 - **Solution**: Update CSS to meet WCAG AA standards, check button/link contrast ratios
 - **Debug**: Use browser dev tools Lighthouse audit or axe-core browser extension
 
 **Missing Landmarks**
+
 - **Problem**: `page-has-heading`, `landmark-one-main` violations
 - **Solution**: Add proper semantic HTML structure with `<main>`, `<nav>`, `<header>` elements
 - **Example**: Wrap page content in `<main role="main">` element
 
 **Touch/Tap Issues**
+
 - **Problem**: `page.tap()` used in non-mobile browser contexts
 - **Solution**: Use `page.click()` for desktop browsers, reserve `page.tap()` for mobile device projects
 - **Pattern**: Check browser context before using touch-specific methods
 
 **Test Timeouts (30+ seconds)**
+
 - **Problem**: Slow focus management, modal tests, or data loading
-- **Solution**: 
+- **Solution**:
   - Replace `waitForTimeout()` with specific conditions like `waitForSelector()` or `waitForLoadState()`
   - Use `waitForLoadState('networkidle')` for data loading
   - Add proper error handling with shorter timeouts
@@ -403,16 +407,19 @@ npm run test:e2e -- tests/e2e/specific-test.test.ts --reporter=list
 #### Unit Test Issues
 
 **Cross-Platform Compatibility**
+
 - **Problem**: `userEvent` causing issues on different platforms
 - **Solution**: Use `fireEvent` for consistent cross-platform behavior
 - **Pattern**: `fireEvent.change(input, { target: { value: 'test' } })`
 
 **Timezone-Sensitive Tests**
+
 - **Problem**: Date/time tests failing in different timezones
 - **Solution**: Mock `Date` globally in test setup with fixed timestamps
 - **Implementation**: Use `vi.setSystemTime()` in Vitest setup
 
 **Canvas/jsdom Issues**
+
 - **Problem**: Canvas API not available in jsdom environment
 - **Solution**: Mock canvas methods in test setup or skip canvas-dependent tests
 - **Pattern**: Add canvas mocks to `src/test/setup.ts`
@@ -426,9 +433,10 @@ npm run test -- src/specific/component.test.tsx --watch
 #### Integration Test Issues
 
 **Database Locked Errors**
+
 - **Problem**: Multiple tests accessing database simultaneously
 - **Solution**: Use proper test isolation with transactions and cleanup
-- **Commands**: 
+- **Commands**:
   ```bash
   npm run ci-db-teardown  # Clean database state
   npm run ci-db-setup     # Reinitialize database
@@ -436,11 +444,13 @@ npm run test -- src/specific/component.test.tsx --watch
   ```
 
 **Migration Conflicts**
+
 - **Problem**: Prisma schema out of sync during tests
 - **Solution**: Ensure `npx prisma generate` runs before tests
 - **CI Pattern**: Always run generation step in CI workflows
 
 **Connection Pool Issues**
+
 - **Problem**: Database connections not properly closed
 - **Solution**: Implement proper cleanup in test teardown
 - **Pattern**: Use singleton Prisma client with proper lifecycle management
@@ -454,11 +464,13 @@ npm run test:integration -- --verbose --runInBand
 #### Performance Test Issues
 
 **Lighthouse Failures**
+
 - **Problem**: Performance metrics below thresholds
 - **Solution**: Check `lighthouserc.json` thresholds and adjust build optimization
 - **Debug**: Run `npm run build` first, then performance tests
 
 **Bundle Size Issues**
+
 - **Problem**: Bundle exceeding size limits
 - **Solution**: Analyze bundle with Vite bundle analyzer, implement code splitting
 - **Commands**:
@@ -470,11 +482,13 @@ npm run test:integration -- --verbose --runInBand
 #### Accessibility Test Issues
 
 **Axe-Core Configuration**
+
 - **Problem**: False positive accessibility violations
 - **Solution**: Configure axe-core rules in test setup to disable problematic rules
 - **Location**: Update `tests/accessibility/axeSetup.ts`
 
 **Component Mounting Issues**
+
 - **Problem**: Components not rendering properly in accessibility tests
 - **Solution**: Ensure proper React providers and context setup
 - **Pattern**: Wrap components with necessary providers (Theme, Router, etc.)
@@ -507,64 +521,75 @@ npm run coverage:analyze
 #### Major Infrastructure Overhaul (Phases 1-8 Completed)
 
 **Phase 1: Root Cause Diagnosis**
+
 - **Comprehensive Analysis**: Analyzed all 30+ failing CI workflows and categorized errors into 7 main patterns
 - **Test File Verification**: Confirmed existence of all E2E tests (9 files), accessibility tests (2 files), performance tests (3 files)
 - **Configuration Validation**: Verified Playwright 3-shard setup, Vitest glob patterns, Jest ESM configuration
 - **Dependency Audit**: Confirmed all test utilities, mock helpers, and database seed data are properly implemented
 
 **Phase 2: E2E Test Infrastructure**
+
 - **Test Coverage Expansion**: Added missing E2E tests for goals and dashboard user flows
 - **Import Path Standardization**: Fixed inconsistent .js extensions, standardized TypeScript imports
 - **Playwright Configuration**: Optimized 3-shard distribution, baseURL setup, and server integration
 - **Wait Condition Improvements**: Replaced `waitForTimeout()` with specific `waitForSelector()` and `waitForLoadState()`
 
 **Phase 3: Unit & Fast-CI Test Fixes**
+
 - **Cross-Platform Compatibility**: Replaced `userEvent` with `fireEvent` for consistent behavior
 - **Timezone Test Fixes**: Implemented global Date mocking with fixed timestamps
 - **Database Test Isolation**: Added transaction rollback and proper cleanup between tests
 - **Timeout Optimization**: Set appropriate timeouts (30s global, 60s for slow tests) with retry logic
 
 **Phase 4: Accessibility Compliance**
+
 - **Axe-Core Integration**: Verified @axe-core/react setup with proper configuration
 - **WCAG Compliance**: Fixed color contrast violations (4.5:1 minimum ratio)
 - **Semantic Structure**: Added proper landmark elements (`<main>`, `<nav>`, `<header>`)
 - **Component Coverage**: Implemented accessibility tests for forms, navigation, and modal components
 
 **Phase 5: Performance Test Infrastructure**
+
 - **Lighthouse CI**: Configured realistic performance thresholds (FCP, LCP, CLS)
 - **Bundle Size Monitoring**: Set main bundle limits with size tracking
 - **Performance Baselines**: Established CI-appropriate thresholds for slower runners
 
 **Phase 6: Integration Test Reliability**
+
 - **Database Lifecycle**: Automated migration handling and proper connection pooling
 - **Transaction Management**: Implemented proper transaction wrapping with rollback on failure
 - **API Authentication**: Created test auth tokens and mock middleware setup
 - **Async Operation Handling**: Fixed promise rejections and timeout issues
 
 **Phase 7: Security & CodeQL**
+
 - **Vulnerability Scanning**: Configured CodeQL with high/critical severity thresholds
 - **Security Policies**: Fixed job dependencies and null value handling
 - **Workflow Dependencies**: Proper job ordering and input requirement validation
 
 **Phase 8: Performance & Monitoring**
+
 - **Test Performance Tracking**: Automated performance monitoring with GitHub issue creation
 - **Coverage Enforcement**: Maintained >80% code coverage (currently 80.98%)
 - **Parallel Test Optimization**: Categorized tests for optimal parallel/sequential execution
 - **CI Runtime Optimization**: Achieved 4-7 minute CI runtime with smart caching
 
 #### Test Configuration Improvements
+
 - **Sharding**: E2E tests properly distributed across 3 shards for parallel execution
 - **Timeouts**: Increased CI timeouts to handle slower CI runners (30s global, 60s for slow tests)
 - **Retries**: Added retry logic for flaky tests (max 3 retries with exponential backoff)
 - **Isolation**: Improved test isolation with proper database cleanup and transaction handling
 
 #### Infrastructure Enhancements
+
 - **Database Setup**: Automated CI database lifecycle management with proper migration handling
 - **Performance Monitoring**: Automatic test performance tracking with GitHub issue creation for regressions
 - **Coverage Enforcement**: Maintained >80% code coverage (currently 80.98%) with detailed HTML/LCOV reporting
 - **Cross-Platform**: Fixed Windows/macOS/Linux compatibility issues in file paths and line endings
 
 #### Test Pattern Standardization
+
 - **Import Paths**: Fixed inconsistent .js extensions in E2E test imports, standardized extension-less TypeScript imports
 - **Async/Await**: Standardized async patterns across all test types with proper error handling
 - **Wait Conditions**: Replaced generic `waitForTimeout()` with specific `waitForSelector()` and `waitForLoadState()`
@@ -573,6 +598,7 @@ npm run coverage:analyze
 ### Recent CI Improvements and New Test Commands (2024-08-04)
 
 #### New Test Commands Added
+
 ```bash
 # E2E Test Sharding (run specific shards locally)
 npm run test:e2e -- --shard=1/3    # Run shard 1 of 3
@@ -589,6 +615,7 @@ npm run verify-jest-workers       # Verify Jest worker configuration for paralle
 ```
 
 #### Test Coverage Achievements
+
 - **Overall Coverage**: 80.98% (above 80% target)
 - **Unit Tests**: 91% pass rate (1265 passed, 100 failed - canvas/accessibility issues identified)
 - **Integration Tests**: Database isolation improved with transaction rollback
@@ -596,6 +623,7 @@ npm run verify-jest-workers       # Verify Jest worker configuration for paralle
 - **Accessibility Tests**: WCAG AA compliance validation with axe-core integration
 
 #### Major Issues Resolved in Phase 1-8
+
 1. **E2E Infrastructure Collapse**: Fixed Playwright configuration, added proper server startup, resolved accessibility violations
 2. **Database Race Conditions**: Implemented proper test isolation with transactions and FK-aware cleanup
 3. **Cross-Platform Issues**: Standardized on `fireEvent` instead of `userEvent` for consistent behavior across OS
@@ -606,6 +634,7 @@ npm run verify-jest-workers       # Verify Jest worker configuration for paralle
 8. **Performance Thresholds**: Configured realistic Lighthouse performance baselines
 
 #### Best Practices Established
+
 - **E2E Tests**: Use `data-testid` attributes for stable selectors, avoid `page.tap()` in non-mobile contexts
 - **Unit Tests**: Mock `Date` globally for timezone-independent tests, use `fireEvent` for form interactions
 - **Integration Tests**: Always clean database state between tests, use proper async/await patterns
@@ -613,23 +642,27 @@ npm run verify-jest-workers       # Verify Jest worker configuration for paralle
 - **Performance**: Build before performance tests, use realistic CI thresholds, monitor bundle size
 
 #### Accessibility Compliance Fixes
+
 - **Color Contrast**: Fixed button color contrast ratios to meet WCAG AA standards (4.5:1 minimum)
 - **Semantic Structure**: Added proper landmark elements (`<main>`, `<nav>`, `<header>`) for screen reader navigation
 - **Focus Management**: Improved keyboard navigation and focus management in modal dialogs
 - **ARIA Attributes**: Enhanced ARIA labeling and descriptions for interactive elements
 
 #### E2E Test Reliability Improvements
+
 - **Test Coverage**: Added comprehensive E2E tests for all major user flows (auth, dashboard, runs, goals, stats)
 - **Device Testing**: Proper mobile responsiveness testing with device emulation
 - **Visual Regression**: Implemented screenshot comparison testing for UI consistency
 - **Error Handling**: Enhanced error state testing and graceful degradation scenarios
 
 #### Security and CodeQL Enhancements
+
 - **Vulnerability Scanning**: Configured CodeQL with appropriate severity thresholds (high/critical only)
 - **Security Policies**: Updated security scanning with proper job dependencies and null value handling
 - **Dependency Management**: Automated security updates and vulnerability monitoring
 
 #### Results Achieved
+
 - **CI Workflow Success**: Improved from 35/89 passing to comprehensive fix implementation
 - **Test Coverage**: Maintained >80% code coverage (80.98% overall)
 - **Runtime Performance**: Achieved 4-7 minute CI runtime with 5-minute target monitoring
@@ -649,6 +682,7 @@ This is a **monorepo** with frontend and backend in the same directory:
 [... rest of the file remains unchanged ...]
 
 **Problem**: Database locked or migration conflicts
+
 ```bash
 # Generate Prisma client before tests
 npx prisma generate
@@ -659,6 +693,7 @@ npm run ci-db-setup
 ```
 
 **Problem**: Authentication and authorization failures
+
 ```bash
 # Create proper test auth tokens
 const token = jwt.sign({ userId: testUser.id }, process.env.JWT_SECRET_TEST);
@@ -670,6 +705,7 @@ headers: { Authorization: `Bearer ${token}` }
 #### Performance Test Issues
 
 **Problem**: Performance thresholds not met
+
 ```bash
 # Check Lighthouse CI configuration
 cat lighthouserc.json
@@ -758,11 +794,13 @@ npm run test:sequential:db
 ### Recent CI Fixes Applied
 
 #### Phase 1: Root Cause Analysis
+
 - ✅ Analyzed 89 workflows (35 passing, 31 failing, 4 pending, 19 skipping)
 - ✅ Identified 7 major error categories: E2E infrastructure, database races, config conflicts
 - ✅ Created comprehensive failure matrix and resolution strategy
 
 #### Phase 2: E2E Test Infrastructure
+
 - ✅ Fixed 255 E2E tests across 9 test files
 - ✅ Resolved accessibility violations (color contrast, landmarks)
 - ✅ Fixed touch/tap issues in non-mobile contexts
@@ -770,35 +808,41 @@ npm run test:sequential:db
 - ✅ Standardized import paths and module resolution
 
 #### Phase 3: Unit Test Stabilization
+
 - ✅ Replaced userEvent with fireEvent for cross-platform compatibility
 - ✅ Fixed timezone-sensitive tests with global date mocking
 - ✅ Implemented proper test isolation and database cleanup
 - ✅ Added retry logic and appropriate timeouts
 
 #### Phase 4: Accessibility Testing
+
 - ✅ Integrated @axe-core/react with proper configuration
 - ✅ Added comprehensive accessibility tests for key components
 - ✅ Implemented WCAG compliance checks
 - ✅ Fixed keyboard navigation and ARIA attribute testing
 
 #### Phase 5: Performance Testing
+
 - ✅ Configured realistic performance baselines
 - ✅ Set up Lighthouse CI with appropriate thresholds
 - ✅ Implemented performance monitoring and reporting
 - ✅ Added bundle size tracking and limits
 
 #### Phase 6: Integration Testing
+
 - ✅ Fixed database setup and migration handling
 - ✅ Implemented proper transaction isolation
 - ✅ Resolved authentication and API testing issues
 - ✅ Added comprehensive test data cleanup
 
 #### Phase 7: Security (CodeQL)
+
 - ✅ Fixed workflow configuration and job dependencies
 - ✅ Configured security thresholds and vulnerability handling
 - ✅ Added proper null checks and default values
 
 ### Test Coverage Status
+
 - **Overall Coverage**: 80.98% (above 80% target)
 - **Unit Tests**: 1265 tests (91% pass rate after fixes)
 - **Integration Tests**: Fixed database locking and migration issues
@@ -841,12 +885,14 @@ tests/
 ### Test Naming Conventions
 
 #### File Naming
+
 - **Unit Tests**: `ComponentName.test.tsx` or `utilityName.test.ts`
 - **Integration Tests**: `feature-name.test.ts` or `api-endpoint.test.ts`
 - **E2E Tests**: `user-workflow.test.ts` (e.g., `auth.test.ts`, `dashboard.test.ts`)
 - **Accessibility Tests**: `component-a11y.test.tsx`
 
 #### Test Case Naming
+
 Use descriptive, behavior-focused names:
 
 ```typescript
@@ -873,10 +919,10 @@ it('should calculate total price with tax', () => {
   // Arrange
   const items = [{ price: 100 }, { price: 200 }];
   const taxRate = 0.1;
-  
+
   // Act
   const result = calculateTotalWithTax(items, taxRate);
-  
+
   // Assert
   expect(result).toBe(330);
 });
@@ -922,15 +968,15 @@ describe('Button component', () => {
   it('should call onClick handler when clicked', () => {
     const handleClick = vi.fn();
     render(<Button onClick={handleClick}>Click me</Button>);
-    
+
     fireEvent.click(screen.getByText('Click me'));
-    
+
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
 
   it('should be disabled when loading', () => {
     render(<Button isLoading>Submit</Button>);
-    
+
     expect(screen.getByRole('button')).toBeDisabled();
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
@@ -946,14 +992,14 @@ import { useAuth } from './useAuth';
 describe('useAuth hook', () => {
   it('should login user and update state', async () => {
     const { result } = renderHook(() => useAuth());
-    
+
     expect(result.current.user).toBeNull();
     expect(result.current.isLoading).toBe(false);
-    
+
     await act(async () => {
       await result.current.login('test@example.com', 'password');
     });
-    
+
     expect(result.current.user).toBeDefined();
     expect(result.current.isLoading).toBe(false);
   });
@@ -1049,9 +1095,9 @@ import { LoginPage } from '../pages/LoginPage';
 
 test('user can login with valid credentials', async ({ page }) => {
   const loginPage = new LoginPage(page);
-  
+
   await loginPage.login('test@example.com', 'password123');
-  
+
   await expect(page).toHaveURL('/dashboard');
   await expect(page.getByText('Welcome back!')).toBeVisible();
 });
@@ -1063,9 +1109,9 @@ Use consistent `data-testid` attributes for reliable element selection:
 
 ```tsx
 // Component
-<button data-testid="submit-button" onClick={handleSubmit}>
+<button data-testid='submit-button' onClick={handleSubmit}>
   {isLoading ? 'Submitting...' : 'Submit'}
-</button>
+</button>;
 
 // Test
 await page.click('[data-testid="submit-button"]');
@@ -1079,14 +1125,14 @@ await page.click('[data-testid="submit-button"]');
 it('should handle API errors gracefully', async () => {
   // Mock API to return error
   vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
-  
+
   render(<UserProfile userId="123" />);
-  
+
   // Wait for error state
   await waitFor(() => {
     expect(screen.getByText('Failed to load user profile')).toBeInTheDocument();
   });
-  
+
   // Verify retry button is present
   expect(screen.getByText('Try again')).toBeInTheDocument();
 });
@@ -1101,9 +1147,7 @@ it('should handle database connection errors', async () => {
     throw new Error('Database connection failed');
   });
 
-  const response = await request(app)
-    .get('/api/users/123')
-    .expect(500);
+  const response = await request(app).get('/api/users/123').expect(500);
 
   expect(response.body).toEqual({
     error: 'Internal server error',
@@ -1126,20 +1170,20 @@ it('should be accessible', async () => {
   const { container } = render(
     <Button variant="primary">Click me</Button>
   );
-  
+
   const results = await axe(container);
   expect(results).toHaveNoViolations();
 });
 
 it('should support keyboard navigation', () => {
   render(<Modal isOpen onClose={vi.fn()}>Modal content</Modal>);
-  
+
   const modal = screen.getByRole('dialog');
-  
+
   // Test focus trap
   fireEvent.keyDown(modal, { key: 'Tab' });
   expect(screen.getByText('Close')).toHaveFocus();
-  
+
   // Test escape key
   fireEvent.keyDown(modal, { key: 'Escape' });
   expect(onClose).toHaveBeenCalled();
@@ -1165,7 +1209,7 @@ beforeEach(() => {
 
 it('should send welcome email after registration', async () => {
   await registerUser({ email: 'test@example.com' });
-  
+
   expect(mockSendEmail).toHaveBeenCalledWith({
     to: 'test@example.com',
     template: 'welcome',
@@ -1187,12 +1231,12 @@ afterEach(() => {
 
 // Test time-dependent behavior
 it('should show "today" for runs created today', () => {
-  const run = createTestRun({ 
-    startTime: new Date('2024-01-01T10:00:00Z') 
+  const run = createTestRun({
+    startTime: new Date('2024-01-01T10:00:00Z')
   });
-  
+
   render(<RunCard run={run} />);
-  
+
   expect(screen.getByText('Today')).toBeInTheDocument();
 });
 ```
@@ -1202,6 +1246,7 @@ it('should show "today" for runs created today', () => {
 ### Unit Test Patterns
 
 #### Component Testing Pattern
+
 ```typescript
 // src/components/Button/Button.test.tsx
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -1217,7 +1262,7 @@ describe('Button Component', () => {
   it('should handle click events', () => {
     const handleClick = vi.fn()
     render(<Button onClick={handleClick}>Click me</Button>)
-    
+
     fireEvent.click(screen.getByRole('button'))
     expect(handleClick).toHaveBeenCalledTimes(1)
   })
@@ -1225,107 +1270,111 @@ describe('Button Component', () => {
 ```
 
 #### Utility Function Testing Pattern
+
 ```typescript
 // src/utils/calculations.test.ts
-import { vi } from 'vitest'
-import { calculatePace, formatTime } from './calculations'
+import { vi } from 'vitest';
+import { calculatePace, formatTime } from './calculations';
 
 describe('Calculation Utilities', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
   it('should calculate pace correctly', () => {
-    const result = calculatePace(3600, 5) // 1 hour, 5 miles
-    expect(result).toBe(720) // 12 minutes per mile in seconds
-  })
-})
+    const result = calculatePace(3600, 5); // 1 hour, 5 miles
+    expect(result).toBe(720); // 12 minutes per mile in seconds
+  });
+});
 ```
 
 ### Integration Test Patterns
 
 #### API Endpoint Testing Pattern
+
 ```typescript
 // tests/integration/api/runs.test.ts
-import request from 'supertest'
-import { app } from '../../../src/server/app'
-import { testDb } from '../../fixtures/testDatabase'
-import { createTestUser, createTestToken } from '../../utils/testHelpers'
+import request from 'supertest';
+import { app } from '../../../src/server/app';
+import { testDb } from '../../fixtures/testDatabase';
+import { createTestUser, createTestToken } from '../../utils/testHelpers';
 
 describe('Runs API', () => {
-  let testUser: any
-  let authToken: string
+  let testUser: any;
+  let authToken: string;
 
   beforeEach(async () => {
-    await testDb.reset()
-    testUser = await createTestUser()
-    authToken = createTestToken(testUser.id)
-  })
+    await testDb.reset();
+    testUser = await createTestUser();
+    authToken = createTestToken(testUser.id);
+  });
 
   afterEach(async () => {
-    await testDb.cleanup()
-  })
+    await testDb.cleanup();
+  });
 
   describe('POST /api/runs', () => {
     it('should create a new run', async () => {
       const runData = {
         distance: 5.0,
         time: 1800,
-        date: '2024-01-01T10:00:00Z'
-      }
+        date: '2024-01-01T10:00:00Z',
+      };
 
       const response = await request(app)
         .post('/api/runs')
         .set('Authorization', `Bearer ${authToken}`)
         .send(runData)
-        .expect(201)
+        .expect(201);
 
       expect(response.body).toMatchObject({
         id: expect.any(Number),
         distance: 5.0,
         time: 1800,
-        userId: testUser.id
-      })
-    })
-  })
-})
+        userId: testUser.id,
+      });
+    });
+  });
+});
 ```
 
 ### E2E Test Patterns
 
 #### User Workflow Testing Pattern
+
 ```typescript
 // tests/e2e/auth-flow.test.ts
-import { test, expect } from '@playwright/test'
-import { testDb } from '../fixtures/testDatabase'
-import { generateUniqueEmail } from '../utils/testHelpers'
+import { test, expect } from '@playwright/test';
+import { testDb } from '../fixtures/testDatabase';
+import { generateUniqueEmail } from '../utils/testHelpers';
 
 test.describe('Authentication Flow', () => {
   test.beforeEach(async () => {
-    await testDb.reset()
-  })
+    await testDb.reset();
+  });
 
   test('should complete registration and login', async ({ page }) => {
-    const email = generateUniqueEmail()
-    const password = 'TestPassword123!'
+    const email = generateUniqueEmail();
+    const password = 'TestPassword123!';
 
     // Navigate and register
-    await page.goto('/')
-    await page.click('[data-testid="register-link"]')
-    await page.fill('[data-testid="email-input"]', email)
-    await page.fill('[data-testid="password-input"]', password)
-    await page.click('[data-testid="register-button"]')
-    
+    await page.goto('/');
+    await page.click('[data-testid="register-link"]');
+    await page.fill('[data-testid="email-input"]', email);
+    await page.fill('[data-testid="password-input"]', password);
+    await page.click('[data-testid="register-button"]');
+
     // Verify success
-    await expect(page).toHaveURL('/dashboard')
-    await expect(page.locator('[data-testid="welcome-message"]')).toContainText('Welcome')
-  })
-})
+    await expect(page).toHaveURL('/dashboard');
+    await expect(page.locator('[data-testid="welcome-message"]')).toContainText('Welcome');
+  });
+});
 ```
 
 ### Testing Guidelines Summary
 
 #### DO's:
+
 - ✅ Use descriptive test names that explain expected behavior
 - ✅ Follow AAA pattern: Arrange, Act, Assert
 - ✅ Test behavior, not implementation details
@@ -1335,6 +1384,7 @@ test.describe('Authentication Flow', () => {
 - ✅ Keep tests independent and atomic
 
 #### DON'Ts:
+
 - ❌ Don't test third-party library functionality
 - ❌ Don't use generic waits (setTimeout) in E2E tests
 - ❌ Don't hardcode dates or rely on system time

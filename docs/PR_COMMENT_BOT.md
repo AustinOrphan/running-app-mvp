@@ -31,11 +31,13 @@ The PR Comment Bot automatically posts comprehensive test results and coverage i
 ### 📊 Comprehensive Test Results
 
 #### Multi-Framework Support
+
 - **Unit Tests** (Vitest): Component and utility function testing
 - **Integration Tests** (Jest): API and database interaction testing
 - **E2E Tests** (Playwright): Full user workflow testing
 
 #### Test Metrics Collected
+
 - **Test Counts**: Total, passed, failed, skipped tests
 - **Execution Time**: Per suite and total duration
 - **Failure Details**: Error messages and stack traces
@@ -44,11 +46,13 @@ The PR Comment Bot automatically posts comprehensive test results and coverage i
 ### 📈 Coverage Integration
 
 #### Coverage Sources
+
 - Unit test coverage (Vitest with coverage)
 - Integration test coverage (Jest with coverage)
 - Combined coverage metrics
 
 #### Coverage Metrics
+
 - **Statements**: Percentage of executed statements
 - **Branches**: Percentage of executed conditional branches
 - **Functions**: Percentage of called functions
@@ -57,6 +61,7 @@ The PR Comment Bot automatically posts comprehensive test results and coverage i
 ### ⚡ Performance Monitoring
 
 #### Performance Metrics
+
 - Total test execution duration
 - Per-suite performance breakdown
 - Tests per second calculations
@@ -65,6 +70,7 @@ The PR Comment Bot automatically posts comprehensive test results and coverage i
 ### 🔄 Flaky Test Detection
 
 #### Flaky Test Information
+
 - Total flaky tests count
 - New flaky tests identified
 - Recently fixed flaky tests
@@ -73,6 +79,7 @@ The PR Comment Bot automatically posts comprehensive test results and coverage i
 ### 💬 Rich Comment Formatting
 
 #### Comment Structure
+
 1. **Header**: Branch, commit, author, timestamp
 2. **Test Summary**: Overview table with all test suites
 3. **Detailed Results**: Failure details with collapsible sections
@@ -86,6 +93,7 @@ The PR Comment Bot automatically posts comprehensive test results and coverage i
 ### Command Line Interface
 
 #### Basic Commands
+
 ```bash
 # Generate complete PR comment
 npm run pr:comment
@@ -98,6 +106,7 @@ npm run pr:comment:only
 ```
 
 #### Direct Script Usage
+
 ```bash
 # Full comment generation
 node scripts/pr-comment-bot.js generate
@@ -112,12 +121,15 @@ node scripts/pr-comment-bot.js comment
 ### GitHub Actions Integration
 
 #### Automatic Execution
+
 The PR comment bot runs automatically on:
+
 - **Pull Request Events**: opened, synchronize, reopened
 - **Target Branches**: main, develop
 - **Manual Triggers**: workflow_dispatch with PR number
 
 #### Workflow Features
+
 ```yaml
 # Automatic comment posting
 on:
@@ -137,6 +149,7 @@ workflow_dispatch:
 ### Configuration
 
 #### Environment Variables
+
 ```bash
 # Output directory for comments
 PR_COMMENT_OUTPUT_DIR=./reports/pr-comments
@@ -154,6 +167,7 @@ GITHUB_RUN_ID="12345"
 ```
 
 #### Bot Configuration
+
 ```javascript
 const bot = new PRCommentBot({
   outputDir: './reports/pr-comments',
@@ -161,13 +175,14 @@ const bot = new PRCommentBot({
   coverageDir: './coverage',
   integrationCoverageDir: './coverage-integration',
   performanceDir: './reports/performance',
-  flakyTestDir: './reports/flaky-tests'
+  flakyTestDir: './reports/flaky-tests',
 });
 ```
 
 ## Comment Format Examples
 
 ### Basic Test Summary
+
 ```markdown
 # ✅ Test Results Report
 
@@ -178,37 +193,39 @@ const bot = new PRCommentBot({
 
 ## 📊 Test Summary
 
-| Test Suite | Status | Tests | Passed | Failed | Skipped | Duration |
-|------------|--------|-------|--------|--------|---------|----------|
-| Unit Tests | ✅ | 45 | 45 | 0 | 0 | 12s |
-| Integration Tests | ✅ | 23 | 23 | 0 | 0 | 34s |
-| E2E Tests | ✅ | 8 | 8 | 0 | 0 | 2m 15s |
-|------------|--------|-------|--------|--------|---------|----------|
-| **Total** | ✅ | **76** | **76** | **0** | **0** | **3m 1s** |
+| Test Suite        | Status   | Tests   | Passed   | Failed   | Skipped   | Duration   |
+| ----------------- | -------- | ------- | -------- | -------- | --------- | ---------- |
+| Unit Tests        | ✅       | 45      | 45       | 0        | 0         | 12s        |
+| Integration Tests | ✅       | 23      | 23       | 0        | 0         | 34s        |
+| E2E Tests         | ✅       | 8       | 8        | 0        | 0         | 2m 15s     |
+| ------------      | -------- | ------- | -------- | -------- | --------- | ---------- |
+| **Total**         | ✅       | **76**  | **76**   | **0**    | **0**     | **3m 1s**  |
 ```
 
 ### Coverage Section
+
 ```markdown
 ## 📊 Code Coverage
 
 ### Overall Coverage
 
-| Metric | Coverage | Status |
-|--------|----------|---------|
-| Statements | 87.5% | ✅ |
-| Branches | 82.3% | ✅ |
-| Functions | 91.2% | ✅ |
-| Lines | 86.8% | ✅ |
+| Metric     | Coverage | Status |
+| ---------- | -------- | ------ |
+| Statements | 87.5%    | ✅     |
+| Branches   | 82.3%    | ✅     |
+| Functions  | 91.2%    | ✅     |
+| Lines      | 86.8%    | ✅     |
 
 ### Coverage by Test Suite
 
-| Suite | Statements | Branches | Functions | Lines |
-|-------|------------|----------|-----------|-------|
-| Unit Tests | 89.2% | 84.1% | 93.4% | 88.7% |
-| Integration Tests | 85.8% | 80.5% | 89.0% | 85.0% |
+| Suite             | Statements | Branches | Functions | Lines |
+| ----------------- | ---------- | -------- | --------- | ----- |
+| Unit Tests        | 89.2%      | 84.1%    | 93.4%     | 88.7% |
+| Integration Tests | 85.8%      | 80.5%    | 89.0%     | 85.0% |
 ```
 
 ### Failure Details
+
 ```markdown
 ## 📝 Detailed Results
 
@@ -216,19 +233,21 @@ const bot = new PRCommentBot({
 
 <details>
 <summary>❌ UserService > should validate email format</summary>
-
 ```
+
 Expected: true
 Received: false
 
-  at expect (/path/to/test.js:42:5)
-  at /path/to/test.js:40:3
+at expect (/path/to/test.js:42:5)
+at /path/to/test.js:40:3
+
 ```
 
 </details>
 ```
 
 ### Performance Section
+
 ```markdown
 ## ⚡ Performance
 
@@ -236,17 +255,19 @@ Received: false
 
 ### Suite Performance
 
-| Suite | Duration | Tests/sec | Status |
-|-------|----------|-----------|---------|
-| Unit Tests | 12s | 3.8 | ✅ |
-| Integration Tests | 34s | 0.7 | ✅ |
-| E2E Tests | 2m 15s | 0.1 | ⚠️ |
+| Suite             | Duration | Tests/sec | Status |
+| ----------------- | -------- | --------- | ------ |
+| Unit Tests        | 12s      | 3.8       | ✅     |
+| Integration Tests | 34s      | 0.7       | ✅     |
+| E2E Tests         | 2m 15s   | 0.1       | ⚠️     |
 
 ### Performance Alerts
+
 ⚠️ E2E tests taking longer than usual (2m 15s vs avg 1m 45s)
 ```
 
 ### Flaky Tests Section
+
 ```markdown
 ## 🔄 Flaky Tests
 
@@ -269,34 +290,39 @@ Received: false
 ### Comment Update Logic
 
 #### Smart Comment Management
+
 - **Update Existing**: Updates existing bot comments instead of creating new ones
 - **Content Comparison**: Only updates if content has changed
 - **Timestamp Tracking**: Shows when comment was last updated
 
 #### Comment Identification
+
 ```javascript
 // Find existing bot comments
-const botComment = comments.data.find(comment => 
-  comment.user.type === 'Bot' && 
-  comment.body.includes('Test Results Report') &&
-  comment.body.includes('PR Comment Bot')
+const botComment = comments.data.find(
+  comment =>
+    comment.user.type === 'Bot' &&
+    comment.body.includes('Test Results Report') &&
+    comment.body.includes('PR Comment Bot')
 );
 ```
 
 ### Multi-Framework Parsing
 
 #### Result Parser Architecture
+
 ```javascript
 // Framework-specific parsers
-parseVitestResults(output)    // JSON or text output
-parseJestResults(output)      // JSON or text output  
-parsePlaywrightResults(output) // JSON or text output
+parseVitestResults(output); // JSON or text output
+parseJestResults(output); // JSON or text output
+parsePlaywrightResults(output); // JSON or text output
 
 // Fallback text parser
-parseTextTestResults(output)  // Universal text parsing
+parseTextTestResults(output); // Universal text parsing
 ```
 
 #### Flexible Output Handling
+
 - **JSON Output**: Preferred, structured data
 - **Text Output**: Fallback parsing for any framework
 - **Error Handling**: Graceful degradation when parsing fails
@@ -304,16 +330,18 @@ parseTextTestResults(output)  // Universal text parsing
 ### Performance Optimization
 
 #### Efficient Data Collection
+
 ```javascript
 // Parallel test execution
 const [unit, integration, e2e] = await Promise.allSettled([
   this.collectUnitTestResults(),
-  this.collectIntegrationTestResults(), 
-  this.collectE2ETestResults()
+  this.collectIntegrationTestResults(),
+  this.collectE2ETestResults(),
 ]);
 ```
 
 #### Resource Management
+
 - **Memory Limits**: Large buffer sizes for test output
 - **Timeout Handling**: Graceful handling of long-running tests
 - **Error Recovery**: Continue processing even if some tests fail
@@ -321,6 +349,7 @@ const [unit, integration, e2e] = await Promise.allSettled([
 ### Extensibility
 
 #### Custom Test Frameworks
+
 ```javascript
 // Add custom test framework support
 async collectCustomTestResults() {
@@ -334,11 +363,12 @@ async collectCustomTestResults() {
 ```
 
 #### Custom Comment Sections
+
 ```javascript
 // Add custom comment sections
 generateCustomSection() {
   return `## 🔧 Custom Section
-  
+
   Custom metrics and information here...
   `;
 }
@@ -349,12 +379,14 @@ generateCustomSection() {
 ### Comment Content Guidelines
 
 #### Keep Comments Focused
+
 1. **Prioritize Failures**: Show failed tests prominently
 2. **Limit Failure Count**: Show max 5 failures to avoid overwhelming
 3. **Use Collapsible Sections**: Hide detailed error messages in `<details>`
 4. **Highlight Critical Issues**: Use clear visual indicators
 
 #### Performance Considerations
+
 1. **Efficient Parsing**: Use JSON output when available
 2. **Reasonable Limits**: Limit comment length to prevent GitHub issues
 3. **Graceful Degradation**: Handle missing data gracefully
@@ -363,12 +395,14 @@ generateCustomSection() {
 ### GitHub Actions Integration
 
 #### Workflow Best Practices
+
 1. **Concurrency Control**: Prevent multiple comment workflows
 2. **Artifact Management**: Upload test results for debugging
 3. **Error Handling**: Continue on test failures to still post comments
 4. **Resource Optimization**: Use appropriate timeouts and retries
 
 #### Security Considerations
+
 1. **Token Permissions**: Use minimal required permissions
 2. **Input Validation**: Validate PR numbers and inputs
 3. **Error Sanitization**: Don't expose sensitive information in comments
@@ -377,12 +411,14 @@ generateCustomSection() {
 ### Maintenance and Monitoring
 
 #### Regular Maintenance
+
 1. **Comment Format Updates**: Keep format current with test frameworks
 2. **Parser Updates**: Update parsers when test frameworks change
 3. **Performance Monitoring**: Monitor comment generation performance
 4. **Error Rate Tracking**: Track and address parsing failures
 
 #### Debugging and Troubleshooting
+
 1. **Artifact Collection**: Save raw test output for debugging
 2. **Verbose Logging**: Enable detailed logging for troubleshooting
 3. **Manual Testing**: Support manual workflow triggers
@@ -393,6 +429,7 @@ generateCustomSection() {
 ### Common Issues
 
 #### Comment Not Posted
+
 ```bash
 # Check workflow execution
 gh run list --workflow=pr-test-results.yml
@@ -406,6 +443,7 @@ npm run pr:comment:only
 ```
 
 #### Missing Test Results
+
 ```bash
 # Verify test execution
 npm run test:coverage
@@ -419,6 +457,7 @@ ls -la test-results/
 ```
 
 #### Parsing Errors
+
 ```bash
 # Debug with verbose output
 DEBUG=pr-comment-bot npm run pr:comment
@@ -428,6 +467,7 @@ npm run test:coverage -- --reporter=json > test-output.json
 ```
 
 #### GitHub Actions Issues
+
 ```bash
 # Check workflow permissions
 gh api repos/:owner/:repo/actions/permissions
@@ -442,6 +482,7 @@ gh api repos/:owner/:repo/issues/comments --method POST
 ### Debug Mode
 
 #### Enable Verbose Logging
+
 ```bash
 # Environment variable for debug mode
 export DEBUG=pr-comment-bot
@@ -451,6 +492,7 @@ DEBUG=pr-comment-bot npm run pr:comment
 ```
 
 #### Manual Testing
+
 ```bash
 # Test comment generation locally
 node scripts/pr-comment-bot.js generate

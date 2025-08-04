@@ -7,6 +7,7 @@ This directory contains comprehensive integration test scenarios that test compl
 ### 1. User Registration & First Run Flow (`userRegistrationFlow.test.ts`)
 
 Tests the complete onboarding experience for new users:
+
 - User registration with validation
 - Login authentication flow
 - Creating first run
@@ -19,6 +20,7 @@ Tests the complete onboarding experience for new users:
 ### 2. Goal Achievement Workflow (`goalAchievementWorkflow.test.ts`)
 
 Tests goal management and progress tracking:
+
 - Creating distance, runs, and duration goals
 - Tracking progress through multiple runs
 - Automatic goal completion
@@ -30,6 +32,7 @@ Tests goal management and progress tracking:
 ### 3. Data Management Scenarios (`dataManagementScenarios.test.ts`)
 
 Tests comprehensive data operations:
+
 - Creating runs with complete metadata (notes, routes, tags)
 - Bulk data creation and updates
 - Data validation and error handling
@@ -40,6 +43,7 @@ Tests comprehensive data operations:
 ### 4. Multi-User Scenarios (`multiUserScenarios.test.ts`)
 
 Tests user isolation and concurrent operations:
+
 - Complete data isolation between users
 - Concurrent operations from multiple users
 - Race participation across users
@@ -50,6 +54,7 @@ Tests user isolation and concurrent operations:
 ### 5. Error Handling Workflows (`errorHandlingWorkflows.test.ts`)
 
 Tests system resilience and error recovery:
+
 - Invalid authentication handling
 - Network timeout scenarios
 - Database error recovery
@@ -63,6 +68,7 @@ Tests system resilience and error recovery:
 ### 6. Performance & Load Scenarios (`performanceLoadScenarios.test.ts`)
 
 Tests system performance under load:
+
 - Large dataset operations (100+ records)
 - Concurrent user load testing
 - Memory usage monitoring

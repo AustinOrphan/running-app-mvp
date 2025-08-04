@@ -1,6 +1,7 @@
 # Route Authorization Audit
 
 ## Summary
+
 All protected routes in the `/server/routes/` directory have been audited for proper authorization checks.
 
 ## Findings
@@ -8,11 +9,13 @@ All protected routes in the `/server/routes/` directory have been audited for pr
 ### ✅ Properly Protected Routes
 
 #### 1. **auth.ts**
+
 - `/verify` - Protected with `requireAuth`
 - `/logout` - Protected with `requireAuth`
 - No authorization issues found
 
-#### 2. **goals.ts** 
+#### 2. **goals.ts**
+
 - All endpoints protected with `requireAuth`
 - Proper authorization pattern implemented:
   - GET `/` - Returns only user's goals
@@ -24,6 +27,7 @@ All protected routes in the `/server/routes/` directory have been audited for pr
   - GET `/progress/all` - Returns only user's goals
 
 #### 3. **runs.ts**
+
 - All endpoints protected with `requireAuth`
 - Proper authorization pattern implemented:
   - GET `/` - Returns only user's runs
@@ -33,6 +37,7 @@ All protected routes in the `/server/routes/` directory have been audited for pr
   - DELETE `/:id` - Checks existence (404) then ownership (403)
 
 #### 4. **races.ts**
+
 - All endpoints protected with `requireAuth`
 - Proper authorization pattern implemented:
   - GET `/` - Returns only user's races
@@ -42,6 +47,7 @@ All protected routes in the `/server/routes/` directory have been audited for pr
   - DELETE `/:id` - Checks existence (404) then ownership (403)
 
 #### 5. **stats.ts**
+
 - All endpoints protected with `requireAuth`
 - All queries properly filtered by `userId: req.user!.id`
 - No authorization issues found:
@@ -51,6 +57,7 @@ All protected routes in the `/server/routes/` directory have been audited for pr
   - GET `/personal-records` - Filters by user ID
 
 #### 6. **audit.ts**
+
 - All endpoints protected with `requireAuth` (applied to entire router)
 - Additional `requireAdmin` middleware for admin-only endpoints
 - ⚠️ Note: Admin role checking is not fully implemented (placeholder in development)
@@ -64,11 +71,12 @@ All protected routes in the `/server/routes/` directory have been audited for pr
 ## Authorization Patterns Used
 
 1. **Resource Ownership Pattern** (goals, runs, races):
+
    ```typescript
    // First check if resource exists
    const resource = await prisma.resource.findUnique({ where: { id } });
    if (!resource) throw createNotFoundError('Resource');
-   
+
    // Then check ownership
    if (resource.userId !== req.user!.id) {
      throw createForbiddenError('You do not have permission...');
@@ -76,6 +84,7 @@ All protected routes in the `/server/routes/` directory have been audited for pr
    ```
 
 2. **Query Filtering Pattern** (stats, list endpoints):
+
    ```typescript
    const results = await prisma.model.findMany({
      where: { userId: req.user!.id },
@@ -98,6 +107,7 @@ All protected routes in the `/server/routes/` directory have been audited for pr
 ## Conclusion
 
 The authorization audit confirms that all protected routes in the server/routes directory have proper authentication (`requireAuth`) and authorization checks. The main patterns used are:
+
 - Resource ownership validation (404 for not found, 403 for unauthorized)
 - Query filtering by authenticated user ID
 - Role-based access control for admin endpoints (needs full implementation)

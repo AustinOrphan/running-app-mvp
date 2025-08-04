@@ -55,14 +55,14 @@ jobs:
       name: production-approval
     outputs:
       approved: ${{ steps.approval.outputs.approved }}
-      
+
     steps:
       - name: 📋 Deployment approval required
         id: approval
         run: |
           echo "🔒 Production deployment requires manual approval"
           echo "approved=true" >> $GITHUB_OUTPUT
-          
+
           # Log deployment request
           echo "## 🏭 Production Deployment Request" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -70,14 +70,14 @@ jobs:
           echo "**Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "**Strategy**: ${{ github.event.inputs.deployment_strategy }}" >> $GITHUB_STEP_SUMMARY
           echo "**Environment**: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "${{ github.event.inputs.rollback_version }}" != "" ]; then
             echo "**Type**: Rollback to ${{ github.event.inputs.rollback_version }}" >> $GITHUB_STEP_SUMMARY
           else
             echo "**Type**: Promotion from staging" >> $GITHUB_STEP_SUMMARY
             echo "**Staging ID**: ${{ github.event.inputs.staging_deployment_id }}" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "**Maintenance Mode**: ${{ github.event.inputs.maintenance_mode }}" >> $GITHUB_STEP_SUMMARY
 
   # Pre-production validation
@@ -89,66 +89,66 @@ jobs:
     outputs:
       validation-passed: ${{ steps.validation.outputs.passed }}
       build-verified: ${{ steps.build-check.outputs.verified }}
-      
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        
+
       # Verify staging deployment
       - name: 🔍 Verify staging deployment
         if: github.event.inputs.rollback_version == ''
         id: staging-check
         run: |
           echo "🔍 Verifying staging deployment: ${{ github.event.inputs.staging_deployment_id }}"
-          
+
           # In a real system, this would:
           # 1. Check that the staging deployment exists
           # 2. Verify it passed all tests
           # 3. Check deployment health
           # 4. Validate deployment artifacts
-          
+
           echo "✅ Staging deployment verified"
           echo "✅ All staging tests passed"
           echo "✅ Staging health checks passed"
           echo "verified=true" >> $GITHUB_OUTPUT
-          
+
       # Security scan for production
       - name: 🔒 Production security scan
         run: |
           echo "🔒 Running production security validation..."
-          
+
           # Enhanced security checks for production
           echo "✅ No critical vulnerabilities"
           echo "✅ Security configurations verified"
           echo "✅ Secrets properly configured"
           echo "✅ Production security scan passed"
-          
+
       # Build verification
       - name: 🏗️ Build verification
         id: build-check
         run: |
           echo "🏗️ Verifying build artifacts..."
-          
+
           # In a real system, this would verify:
           # 1. Build artifacts are available
           # 2. Checksums match
           # 3. No corrupted files
           # 4. All dependencies present
-          
+
           echo "verified=true" >> $GITHUB_OUTPUT
           echo "✅ Build artifacts verified"
-          
+
       # Database migration dry run
       - name: 🗄️ Database migration validation
         run: |
           echo "🗄️ Validating database migrations..."
-          
+
           # Check migration compatibility
           echo "✅ Migration scripts validated"
           echo "✅ Backup verification passed"
           echo "✅ Rollback procedures verified"
           echo "✅ Database validation completed"
-          
+
       - name: ✅ Pre-production validation complete
         id: validation
         run: |
@@ -164,65 +164,65 @@ jobs:
     environment:
       name: ${{ github.event.inputs.environment }}
       url: https://running-app.example.com
-      
+
     outputs:
       deployment-id: ${{ steps.deploy.outputs.deployment-id }}
       deployment-url: ${{ steps.deploy.outputs.deployment-url }}
       blue-green-slot: ${{ steps.deploy.outputs.blue-green-slot }}
-      
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        
+
       # Enable maintenance mode
       - name: 🚧 Enable maintenance mode
         if: github.event.inputs.maintenance_mode == 'true'
         run: |
           echo "🚧 Enabling maintenance mode..."
-          
+
           # In a real deployment, this would:
           # 1. Show maintenance page to users
           # 2. Gracefully handle ongoing requests
           # 3. Prepare for deployment
-          
+
           echo "✅ Maintenance mode enabled"
-          
+
       # Handle rollback scenario
       - name: 🔄 Handle production rollback
         if: github.event.inputs.rollback_version != ''
         run: |
           echo "🔄 Rolling back production to: ${{ github.event.inputs.rollback_version }}"
-          
+
           # Production rollback process:
           # 1. Verify rollback version exists
           # 2. Check database compatibility
           # 3. Prepare rollback artifacts
-          
+
           echo "ROLLBACK_MODE=true" >> $GITHUB_ENV
           echo "TARGET_VERSION=${{ github.event.inputs.rollback_version }}" >> $GITHUB_ENV
-          
+
       # Database backup
       - name: 💾 Create database backup
         run: |
           echo "💾 Creating production database backup..."
-          
+
           BACKUP_ID="prod-backup-$(date +%Y%m%d-%H%M%S)"
           echo "BACKUP_ID=$BACKUP_ID" >> $GITHUB_ENV
-          
+
           # In a real system, this would:
           # 1. Create full database backup
           # 2. Verify backup integrity
           # 3. Store backup in secure location
-          
+
           echo "✅ Database backup created: $BACKUP_ID"
-          
+
       # Blue-Green deployment
       - name: 🔄 Blue-Green deployment setup
         if: github.event.inputs.deployment_strategy == 'blue-green'
         id: blue-green
         run: |
           echo "🔄 Setting up Blue-Green deployment..."
-          
+
           # Determine target slot
           CURRENT_SLOT="blue"  # In real system, this would be detected
           if [ "$CURRENT_SLOT" = "blue" ]; then
@@ -230,29 +230,29 @@ jobs:
           else
             TARGET_SLOT="blue"
           fi
-          
+
           echo "TARGET_SLOT=$TARGET_SLOT" >> $GITHUB_ENV
           echo "blue-green-slot=$TARGET_SLOT" >> $GITHUB_OUTPUT
-          
+
           echo "✅ Deploying to $TARGET_SLOT slot"
-          
+
       # Run database migrations
       - name: 🗄️ Production database migrations
         run: |
           echo "🗄️ Running production database migrations..."
-          
+
           if [ "$ROLLBACK_MODE" = "true" ]; then
             echo "🔄 Running rollback migrations..."
           else
             echo "⬆️ Running forward migrations..."
           fi
-          
+
           # In a real deployment:
           # npx prisma migrate deploy (for forward)
           # or custom rollback migration logic
-          
+
           echo "✅ Database migrations completed"
-          
+
       # Deploy application
       - name: 🚀 Deploy application
         id: deploy
@@ -264,7 +264,7 @@ jobs:
             echo "🚀 Deploying staging build: ${{ github.event.inputs.staging_deployment_id }}"
             DEPLOYMENT_ID="prod-deploy-$(date +%s)"
           fi
-          
+
           # Deployment process
           echo "📦 Downloading production artifacts..."
           sleep 3
@@ -272,60 +272,60 @@ jobs:
           sleep 2
           echo "🌐 Starting production services..."
           sleep 5
-          
+
           # Set outputs
           echo "deployment-id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
           echo "deployment-url=https://running-app.example.com" >> $GITHUB_OUTPUT
-          
+
           echo "✅ Production deployment completed"
-          
+
       # Health checks
       - name: 🏥 Production health checks
         run: |
           echo "🏥 Running comprehensive production health checks..."
-          
+
           # Comprehensive health validation
           echo "🔍 Application health check..."
           sleep 3
           echo "✅ Application responding"
-          
+
           echo "🔍 Database connectivity..."
           sleep 2
           echo "✅ Database healthy"
-          
+
           echo "🔍 External services..."
           sleep 2
           echo "✅ All external services responsive"
-          
+
           echo "🔍 Performance validation..."
           sleep 2
           echo "✅ Performance within thresholds"
-          
+
           echo "🔍 Security validation..."
           sleep 1
           echo "✅ Security checks passed"
-          
+
           echo "✅ All production health checks passed"
-          
+
       # Traffic routing (Blue-Green)
       - name: 🚦 Route production traffic
         if: github.event.inputs.deployment_strategy == 'blue-green'
         run: |
           echo "🚦 Routing production traffic to $TARGET_SLOT..."
-          
+
           # In a real system, this would:
           # 1. Update load balancer configuration
           # 2. Gradually shift traffic
           # 3. Monitor for issues
-          
+
           echo "✅ Traffic successfully routed to new deployment"
-          
+
       # Disable maintenance mode
       - name: ✅ Disable maintenance mode
         if: github.event.inputs.maintenance_mode == 'true'
         run: |
           echo "✅ Disabling maintenance mode..."
-          
+
           # Remove maintenance page
           echo "✅ Maintenance mode disabled"
           echo "✅ Production is now live"
@@ -336,16 +336,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deploy-production]
     if: needs.deploy-production.result == 'success'
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        
+
       # Production smoke tests
       - name: 💨 Production smoke tests
         run: |
           echo "💨 Running critical production smoke tests..."
-          
+
           # Critical path testing
           echo "✅ Homepage accessible"
           echo "✅ User authentication working"
@@ -353,23 +353,23 @@ jobs:
           echo "✅ Database operations functional"
           echo "✅ Payment processing working" 
           echo "✅ All smoke tests passed"
-          
+
       # Performance monitoring
       - name: ⚡ Production performance check
         run: |
           echo "⚡ Monitoring production performance..."
-          
+
           # Performance baseline validation
           echo "✅ Response times normal"
           echo "✅ Error rates within limits"
           echo "✅ Resource usage optimal"
           echo "✅ Performance metrics healthy"
-          
+
       # Security validation
       - name: 🔒 Production security validation
         run: |
           echo "🔒 Validating production security..."
-          
+
           # Security health check
           echo "✅ SSL certificates valid"
           echo "✅ Security headers present"
@@ -383,24 +383,24 @@ jobs:
     runs-on: ubuntu-latest
     needs: [production-validation]
     if: needs.production-validation.result == 'success' && github.event.inputs.rollback_version == ''
-    
+
     steps:
       - name: 🧹 Cleanup old Blue-Green slot
         if: github.event.inputs.deployment_strategy == 'blue-green'
         run: |
           echo "🧹 Cleaning up previous Blue-Green deployment..."
-          
+
           # Clean up the old slot
           OLD_SLOT="blue"  # This would be determined dynamically
           echo "🗑️ Stopping services in $OLD_SLOT slot"
           echo "🗑️ Cleaning up old artifacts"
           echo "✅ Cleanup completed"
-          
+
       # Cleanup old artifacts
       - name: 🗑️ Cleanup old artifacts
         run: |
           echo "🗑️ Cleaning up old deployment artifacts..."
-          
+
           # Keep last 5 deployments, remove older ones
           echo "✅ Old artifacts cleaned up"
 
@@ -408,9 +408,16 @@ jobs:
   production-summary:
     name: 📋 Production Deployment Summary
     runs-on: ubuntu-latest
-    needs: [production-approval, pre-production-validation, deploy-production, production-validation, cleanup-deployments]
+    needs:
+      [
+        production-approval,
+        pre-production-validation,
+        deploy-production,
+        production-validation,
+        cleanup-deployments,
+      ]
     if: always()
-    
+
     steps:
       - name: 📊 Generate production deployment summary
         run: |
@@ -422,28 +429,28 @@ jobs:
           echo "**URL**: ${{ needs.deploy-production.outputs.deployment-url }}" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "**Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "${{ github.event.inputs.rollback_version }}" != "" ]; then
             echo "**Type**: 🔄 Rollback to ${{ github.event.inputs.rollback_version }}" >> $GITHUB_STEP_SUMMARY
           else
             echo "**Type**: 🚀 Promotion from staging" >> $GITHUB_STEP_SUMMARY
             echo "**Staging ID**: ${{ github.event.inputs.staging_deployment_id }}" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "${{ github.event.inputs.deployment_strategy }}" = "blue-green" ]; then
             echo "**Blue-Green Slot**: ${{ needs.deploy-production.outputs.blue-green-slot }}" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Deployment Status" >> $GITHUB_STEP_SUMMARY
-          
+
           # Status summary with null handling and default values
           approval_result="${{ needs.production-approval.result || 'not_run' }}"
           pre_validation_result="${{ needs.pre-production-validation.result || 'not_run' }}"
           deployment_result="${{ needs.deploy-production.result || 'not_run' }}"
           validation_result="${{ needs.production-validation.result || 'not_run' }}"
           cleanup_result="${{ needs.cleanup-deployments.result || 'not_run' }}"
-          
+
           if [ "$approval_result" = "success" ]; then
             echo "✅ **Approval**: Granted" >> $GITHUB_STEP_SUMMARY
           elif [ "$approval_result" = "not_run" ]; then
@@ -451,7 +458,7 @@ jobs:
           else
             echo "❌ **Approval**: Denied or failed" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "$pre_validation_result" = "success" ]; then
             echo "✅ **Pre-production validation**: Passed" >> $GITHUB_STEP_SUMMARY
           elif [ "$pre_validation_result" = "not_run" ]; then
@@ -459,7 +466,7 @@ jobs:
           else
             echo "❌ **Pre-production validation**: Failed" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "$deployment_result" = "success" ]; then
             echo "✅ **Production deployment**: Successful" >> $GITHUB_STEP_SUMMARY
           elif [ "$deployment_result" = "not_run" ]; then
@@ -467,7 +474,7 @@ jobs:
           else
             echo "❌ **Production deployment**: Failed" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "$validation_result" = "success" ]; then
             echo "✅ **Production validation**: Passed" >> $GITHUB_STEP_SUMMARY
           elif [ "$validation_result" = "failure" ]; then
@@ -477,7 +484,7 @@ jobs:
           else
             echo "⏭️ **Production validation**: Skipped" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "$cleanup_result" = "success" ]; then
             echo "✅ **Cleanup**: Completed" >> $GITHUB_STEP_SUMMARY
           elif [ "$cleanup_result" = "failure" ]; then
@@ -487,9 +494,9 @@ jobs:
           else
             echo "⏭️ **Cleanup**: Skipped" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Overall result with proper handling of empty scan results
           if [ "$deployment_result" = "success" ] && [ "$validation_result" != "failure" ]; then
             echo "🎉 **Production deployment completed successfully!**" >> $GITHUB_STEP_SUMMARY

@@ -9,6 +9,7 @@ Accepted
 ## Context
 
 We needed to establish a testing strategy that would:
+
 - Provide fast feedback during development
 - Support different types of testing (unit, integration, E2E)
 - Allow parallel test execution
@@ -28,6 +29,7 @@ Each framework is configured separately with its own configuration file and npm 
 ## Consequences
 
 ### Positive
+
 - Each test type runs with an optimized framework
 - Vitest provides 3x faster unit test execution than Jest
 - Jest's mature ecosystem works well for API integration tests
@@ -36,6 +38,7 @@ Each framework is configured separately with its own configuration file and npm 
 - Clear separation of concerns
 
 ### Negative
+
 - Multiple test frameworks to maintain
 - Different assertion libraries and patterns
 - Developers need to learn multiple tools
@@ -47,17 +50,18 @@ Each framework is configured separately with its own configuration file and npm 
 ```json
 {
   "scripts": {
-    "test": "vitest",                    // Unit tests (fast)
-    "test:integration": "jest",          // Integration tests
-    "test:e2e": "playwright test",       // E2E tests
+    "test": "vitest", // Unit tests (fast)
+    "test:integration": "jest", // Integration tests
+    "test:e2e": "playwright test", // E2E tests
     "test:all": "npm run test:coverage && npm run test:integration && npm run test:e2e"
   }
 }
 ```
 
 ### Performance Metrics
+
 - Unit tests (Vitest): ~3 seconds for 200 tests
-- Integration tests (Jest): ~15 seconds for 50 tests  
+- Integration tests (Jest): ~15 seconds for 50 tests
 - E2E tests (Playwright): ~45 seconds for 20 scenarios
 
 ## Alternatives Considered
@@ -85,6 +89,7 @@ Each framework is configured separately with its own configuration file and npm 
 ## Migration Path
 
 To minimize disruption:
+
 1. Keep existing Jest tests for integration
 2. Write new unit tests in Vitest
 3. Gradually migrate unit tests from Jest to Vitest

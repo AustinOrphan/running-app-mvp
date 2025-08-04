@@ -87,15 +87,15 @@ const report = {
     other: otherBundles.size,
     css: totalCssSize,
     totalJs: totalJsSize,
-    total: totalSize
+    total: totalSize,
   },
   files: {
     js: jsFiles.length,
     css: cssFiles.length,
-    total: jsFiles.length + cssFiles.length
+    total: jsFiles.length + cssFiles.length,
   },
   thresholds: thresholds.bundleSize,
-  violations: []
+  violations: [],
 };
 
 // Check against thresholds
@@ -106,7 +106,7 @@ function checkThreshold(value, threshold, name) {
       bundle: name,
       actual: value,
       threshold: threshold.max,
-      message: `${name} bundle size (${(value / 1024).toFixed(2)}KB) exceeds maximum threshold (${(threshold.max / 1024).toFixed(2)}KB)`
+      message: `${name} bundle size (${(value / 1024).toFixed(2)}KB) exceeds maximum threshold (${(threshold.max / 1024).toFixed(2)}KB)`,
     });
   } else if (value > threshold.warning) {
     report.violations.push({
@@ -114,7 +114,7 @@ function checkThreshold(value, threshold, name) {
       bundle: name,
       actual: value,
       threshold: threshold.warning,
-      message: `${name} bundle size (${(value / 1024).toFixed(2)}KB) exceeds warning threshold (${(threshold.warning / 1024).toFixed(2)}KB)`
+      message: `${name} bundle size (${(value / 1024).toFixed(2)}KB) exceeds warning threshold (${(threshold.warning / 1024).toFixed(2)}KB)`,
     });
   }
 }
@@ -126,9 +126,15 @@ checkThreshold(totalSize, thresholds.bundleSize.total, 'total');
 // Output results
 console.log('Bundle Size Analysis');
 console.log('===================');
-console.log(`Main bundle: ${(mainBundle.size / 1024).toFixed(2)}KB (${mainBundle.files.length} files)`);
-console.log(`Vendor bundle: ${(vendorBundle.size / 1024).toFixed(2)}KB (${vendorBundle.files.length} files)`);
-console.log(`Other bundles: ${(otherBundles.size / 1024).toFixed(2)}KB (${otherBundles.files.length} files)`);
+console.log(
+  `Main bundle: ${(mainBundle.size / 1024).toFixed(2)}KB (${mainBundle.files.length} files)`
+);
+console.log(
+  `Vendor bundle: ${(vendorBundle.size / 1024).toFixed(2)}KB (${vendorBundle.files.length} files)`
+);
+console.log(
+  `Other bundles: ${(otherBundles.size / 1024).toFixed(2)}KB (${otherBundles.files.length} files)`
+);
 console.log(`CSS files: ${(totalCssSize / 1024).toFixed(2)}KB (${cssFiles.length} files)`);
 console.log(`Total: ${(totalSize / 1024).toFixed(2)}KB`);
 console.log('');
@@ -141,7 +147,7 @@ if (report.violations.length > 0) {
     console.log(`${emoji} ${violation.message}`);
   });
   console.log('');
-  
+
   // Exit with error code if there are any errors (not warnings)
   const hasErrors = report.violations.some(v => v.type === 'error');
   if (hasErrors) {

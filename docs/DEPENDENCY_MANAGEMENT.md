@@ -11,23 +11,27 @@ This project uses automated dependency management through GitHub's Dependabot se
 Dependabot is configured via `.github/dependabot.yml` with multiple update schedules:
 
 #### Regular Updates (Weekly - Mondays 9:00 AM ET)
+
 - **NPM packages**: Grouped by type (security-critical, production, testing, etc.)
 - **Update types**: Minor and patch versions only
 - **Pull request limit**: 15 concurrent PRs
 - **Auto-assignment**: PRs automatically assigned to maintainers
 
-#### Security Updates (Daily - 6:00 AM ET)  
+#### Security Updates (Daily - 6:00 AM ET)
+
 - **Focus**: Security vulnerabilities only
 - **Priority**: High priority labels applied
 - **Pull request limit**: 5 concurrent PRs
 - **Fast-track**: Auto-approved and merged when possible
 
 #### GitHub Actions (Weekly - Tuesdays 10:00 AM ET)
+
 - **Actions updates**: Grouped by functionality
 - **Pull request limit**: 5 concurrent PRs
 - **Validation**: Full CI pipeline runs before merge
 
 #### Docker Images (Weekly - Wednesdays 11:00 AM ET)
+
 - **Base images**: Security and version updates
 - **Pull request limit**: 3 concurrent PRs
 - **Infrastructure focus**: Container security
@@ -37,31 +41,37 @@ Dependabot is configured via `.github/dependabot.yml` with multiple update sched
 Dependencies are organized into logical groups for easier management:
 
 #### Security-Critical Dependencies
+
 - `express`, `helmet`, `cors`, `bcrypt`, `jsonwebtoken`
 - **Auto-merge**: Yes (after validation)
 - **Priority**: Critical security fixes
 
-#### Production Dependencies  
+#### Production Dependencies
+
 - `@prisma/client`, `prisma`, `zod`, `uuid`, `date-fns`
 - **Auto-merge**: Patch versions only
 - **Review**: Minor versions require manual review
 
 #### React Ecosystem
+
 - `react`, `react-dom`, `react-router-dom`, `@vitejs/plugin-react`
 - **Auto-merge**: Patch versions only
 - **Testing**: Full E2E test suite required
 
 #### Testing Tools
+
 - `vitest`, `jest`, `playwright`, `@testing-library/*`
 - **Auto-merge**: Minor and patch versions
 - **Validation**: All test suites must pass
 
 #### Code Quality Tools
+
 - `eslint`, `prettier`, `@typescript-eslint/*`
 - **Auto-merge**: Yes (low risk)
 - **Validation**: Lint checks must pass
 
 #### Type Definitions
+
 - `@types/*` packages
 - **Auto-merge**: Yes (very low risk)
 - **Validation**: Type checking must pass
@@ -73,24 +83,30 @@ Dependencies are organized into logical groups for easier management:
 The `.github/workflows/dependency-updates.yml` workflow provides:
 
 #### Detection and Classification
+
 - Automatically detects Dependabot PRs
 - Classifies update type (security, regular, CI)
 - Identifies package ecosystem (npm, actions, docker)
 
 #### Validation Pipeline
+
 - **Build verification**: Ensures project builds successfully
 - **Test execution**: Runs full test suite (unit, integration, E2E)
 - **Code quality**: Linting and type checking
 - **Security audit**: Vulnerability scanning
 
 #### Auto-merge Logic
+
 Low-risk updates are automatically merged when:
+
 - All validation checks pass
 - Update is a security fix, patch version, or type definition
 - No manual review flags are set
 
 #### Manual Review Triggers
+
 Updates require manual review when:
+
 - Major version changes detected
 - Test validation fails
 - Build or compilation errors occur
@@ -99,18 +115,21 @@ Updates require manual review when:
 ### Workflow Outcomes
 
 #### ✅ Auto-merged Updates
+
 - Security patches
 - Type definition updates
 - Linting tool updates
 - Patch version bumps for stable packages
 
 #### 👀 Manual Review Required
+
 - Minor version updates for core dependencies
 - Major version updates
 - React ecosystem changes
 - Database-related updates
 
 #### ❌ Failed Validation
+
 - Breaking changes detected
 - Test failures
 - Build errors
@@ -142,6 +161,7 @@ node scripts/check-dependencies.js --json
 ### NPM Scripts
 
 #### Package Management
+
 ```bash
 # Check for outdated packages
 npm outdated
@@ -158,6 +178,7 @@ npm audit fix
 ```
 
 #### Automated Commands
+
 ```bash
 # Check dependency health
 npm run deps:check
@@ -174,16 +195,19 @@ npm run deps:update
 For major version updates or complex changes:
 
 1. **Create feature branch**
+
    ```bash
    git checkout -b deps/update-package-name
    ```
 
 2. **Update specific package**
+
    ```bash
    npm install package@latest
    ```
 
 3. **Run full validation**
+
    ```bash
    npm run lint:check
    npm run test:all:complete
@@ -210,6 +234,7 @@ For major version updates or complex changes:
 ### Vulnerability Monitoring
 
 #### Automated Security Scanning
+
 - **Daily**: Dependabot security updates
 - **On PR**: Security audit in CI pipeline
 - **Weekly**: Comprehensive dependency review
@@ -217,12 +242,14 @@ For major version updates or complex changes:
 #### Security Response Process
 
 **Critical/High Severity:**
+
 1. Immediate notification via Dependabot PR
 2. Auto-merge if tests pass
 3. Hotfix deployment if necessary
 4. Security advisory review
 
 **Moderate/Low Severity:**
+
 1. Scheduled update in weekly cycle
 2. Manual review for impact assessment
 3. Regular deployment cycle
@@ -230,12 +257,14 @@ For major version updates or complex changes:
 ### Security Best Practices
 
 #### Dependency Selection
+
 - Choose packages with active maintenance
 - Prefer packages with security disclosure policies
 - Avoid packages with known security issues
 - Regularly review package permissions
 
 #### Update Strategy
+
 - Security updates: Immediate
 - Major versions: Careful review and testing
 - Minor/patch versions: Automated with validation
@@ -246,29 +275,37 @@ For major version updates or complex changes:
 ### Common Issues
 
 #### Dependabot PRs Not Created
+
 **Possible causes:**
+
 - Configuration syntax errors in `dependabot.yml`
 - Rate limits reached
 - Repository permissions issues
 
 **Solutions:**
+
 - Validate YAML syntax
 - Check Dependabot logs in repository insights
 - Verify repository settings allow Dependabot
 
 #### Auto-merge Not Working
+
 **Possible causes:**
+
 - Branch protection rules require reviews
 - CI checks failing
 - Manual review labels present
 
 **Solutions:**
+
 - Check branch protection settings
 - Review CI workflow logs
 - Remove blocking labels if appropriate
 
 #### Large Number of Outdated Dependencies
+
 **Strategies:**
+
 - Prioritize security updates first
 - Group related updates together
 - Update in phases (dev tools → testing → production)
@@ -277,6 +314,7 @@ For major version updates or complex changes:
 ### Dependency Conflicts
 
 #### Peer Dependency Issues
+
 ```bash
 # Check peer dependency warnings
 npm install --legacy-peer-deps
@@ -286,6 +324,7 @@ npm install package@compatible-version
 ```
 
 #### Version Conflicts
+
 ```bash
 # Check dependency tree
 npm ls
@@ -302,14 +341,18 @@ npm install package@exact-version --save-exact
 ### Dependabot Settings
 
 #### Schedule Customization
+
 Modify `.github/dependabot.yml` to adjust:
+
 - Update frequency (daily, weekly, monthly)
 - Time zones and specific times
 - Maximum number of open PRs
 - Target branches
 
 #### Group Configuration
+
 Add new dependency groups:
+
 ```yaml
 groups:
   new-group-name:
@@ -323,7 +366,9 @@ groups:
 ```
 
 #### Ignore Patterns
+
 Exclude specific packages or update types:
+
 ```yaml
 ignore:
   - dependency-name: 'package-name'
@@ -333,13 +378,17 @@ ignore:
 ### Workflow Customization
 
 #### Auto-merge Criteria
+
 Modify auto-merge logic in `.github/workflows/dependency-updates.yml`:
+
 - Add/remove package patterns
 - Adjust risk assessment rules
 - Change validation requirements
 
 #### Notification Settings
+
 Configure Slack/email notifications:
+
 - Security vulnerability alerts
 - Failed update notifications
 - Weekly dependency reports
@@ -349,17 +398,20 @@ Configure Slack/email notifications:
 ### Update Strategy
 
 #### Production Dependencies
+
 - **Conservative approach**: Patch and minor updates only
 - **Extensive testing**: Full test suite including E2E tests
 - **Staged rollout**: Deploy to staging first
 - **Monitoring**: Watch for issues post-deployment
 
 #### Development Dependencies
+
 - **Aggressive updates**: Keep development tools current
 - **Quick validation**: Ensure development workflow works
 - **Team coordination**: Communicate breaking changes
 
 #### Testing Dependencies
+
 - **Balanced approach**: Keep current but validate thoroughly
 - **Test isolation**: Ensure tests remain reliable
 - **Compatibility**: Verify with CI/CD pipeline
@@ -367,11 +419,13 @@ Configure Slack/email notifications:
 ### Security Practices
 
 #### Regular Reviews
+
 - **Monthly audit**: Review all dependencies
 - **Quarterly assessment**: Evaluate dependency necessity
 - **Annual cleanup**: Remove unused dependencies
 
 #### Risk Assessment
+
 - **Package popularity**: Prefer widely-used packages
 - **Maintenance status**: Avoid abandoned packages
 - **Security history**: Research past vulnerabilities
@@ -380,11 +434,13 @@ Configure Slack/email notifications:
 ### Team Coordination
 
 #### Communication
+
 - **Update notifications**: Inform team of major updates
 - **Breaking changes**: Document impact and migration steps
 - **Security updates**: Immediate notification for critical fixes
 
 #### Documentation
+
 - **Changelog maintenance**: Keep dependency changes documented
 - **Migration guides**: Create guides for major updates
 - **Decision records**: Document why certain versions are pinned
@@ -394,16 +450,19 @@ Configure Slack/email notifications:
 ### Key Metrics
 
 #### Update Velocity
+
 - Time from release to deployment
 - Number of automated vs manual updates
 - Update success rate
 
 #### Security Posture
+
 - Time to patch security vulnerabilities
 - Number of known vulnerabilities
 - Security audit frequency
 
 #### Stability Impact
+
 - Build failure rate after updates
 - Test failure rate after updates
 - Production incident correlation
@@ -411,16 +470,19 @@ Configure Slack/email notifications:
 ### Reporting
 
 #### Weekly Reports
+
 - Dependency updates applied
 - Security vulnerabilities addressed
 - Manual updates pending
 
 #### Monthly Analysis
+
 - Dependency health overview
 - Update pattern analysis
 - Security posture assessment
 
 #### Quarterly Review
+
 - Dependency strategy effectiveness
 - Process improvement opportunities
 - Tool and configuration updates

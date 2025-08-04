@@ -281,10 +281,10 @@ describe('Card Component System', () => {
       const button = screen.getByRole('button');
       button.focus();
 
-      fireEvent.keyDown(card!, {'{Enter}');
+      fireEvent.keyDown(button, { key: 'Enter' });
       expect(handleClick).toHaveBeenCalledTimes(1);
 
-      fireEvent.keyDown(card!, {' ');
+      fireEvent.keyDown(button, { key: ' ' });
       expect(handleClick).toHaveBeenCalledTimes(2);
     });
   });
@@ -540,7 +540,6 @@ describe('Card Component System', () => {
     });
 
     it('handles missing event handlers', async () => {
-
       render(<IconButton>✏️</IconButton>);
 
       // Should not throw when clicked without handler

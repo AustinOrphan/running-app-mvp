@@ -1,30 +1,41 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Test Reliability Report</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .metric { margin: 10px 0; }
-        .pass { color: green; }
-        .fail { color: red; }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      .metric {
+        margin: 10px 0;
+      }
+      .pass {
+        color: green;
+      }
+      .fail {
+        color: red;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Test Reliability Report</h1>
+    <div class="metric"><strong>Overall Pass Rate:</strong> <span class="pass">100%</span></div>
+    <div class="metric"><strong>Flaky Test Rate:</strong> <span class="pass">0%</span></div>
+    <div class="metric"><strong>Total Tests Analyzed:</strong> 0</div>
     <div class="metric">
-        <strong>Overall Pass Rate:</strong> <span class="pass">100%</span>
+      <strong>Report Generated:</strong>
+      <script>
+        document.write(new Date().toISOString());
+      </script>
     </div>
-    <div class="metric">
-        <strong>Flaky Test Rate:</strong> <span class="pass">0%</span>
-    </div>
-    <div class="metric">
-        <strong>Total Tests Analyzed:</strong> 0
-    </div>
-    <div class="metric">
-        <strong>Report Generated:</strong> <script>document.write(new Date().toISOString())</script>
-    </div>
-    <p><em>Note: This is a placeholder report. Actual reliability tracking requires test runs to generate meaningful data.</em></p>
-</body>
+    <p>
+      <em
+        >Note: This is a placeholder report. Actual reliability tracking requires test runs to
+        generate meaningful data.</em
+      >
+    </p>
+  </body>
 </html>

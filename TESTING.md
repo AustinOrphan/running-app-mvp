@@ -101,16 +101,16 @@ node scripts/test-runner.js --parallel --verbose --bail
 ### Command Line Options
 
 <<<<<<< Updated upstream
-| Option              | Description                                                                        | Default      |
+| Option | Description | Default |
 | ------------------- | ---------------------------------------------------------------------------------- | ------------ |
-| `--suite <name>`    | Test suite to run (unit, integration, e2e, a11y, visual, performance, memory, all) | all          |
-| `--parallel`        | Run tests in parallel where possible                                               | false        |
-| `--reporter <type>` | Reporter type (console, json, html, all)                                           | console      |
-| `--output <dir>`    | Output directory for reports                                                       | test-reports |
-| `--ci`              | Run in CI mode with strict thresholds                                              | false        |
-| `--verbose`         | Verbose output for debugging                                                       | false        |
-| `--bail`            | Stop on first test failure                                                         | false        |
-| `--watch`           | Run in watch mode (where supported)                                                | false        |
+| `--suite <name>` | Test suite to run (unit, integration, e2e, a11y, visual, performance, memory, all) | all |
+| `--parallel` | Run tests in parallel where possible | false |
+| `--reporter <type>` | Reporter type (console, json, html, all) | console |
+| `--output <dir>` | Output directory for reports | test-reports |
+| `--ci` | Run in CI mode with strict thresholds | false |
+| `--verbose` | Verbose output for debugging | false |
+| `--bail` | Stop on first test failure | false |
+| `--watch` | Run in watch mode (where supported) | false |
 =======
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -122,7 +122,8 @@ node scripts/test-runner.js --parallel --verbose --bail
 | `--verbose` | Verbose output for debugging | false |
 | `--bail` | Stop on first test failure | false |
 | `--watch` | Run in watch mode (where supported) | false |
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
 
 ## Performance Monitoring
 
@@ -149,30 +150,39 @@ node scripts/test-performance-monitor.js record test-reports/test-results.json
 ## Test Configuration Files
 
 ### Vitest Configuration
+
 <<<<<<< Updated upstream
 
 =======
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - File: `vite.config.ts` (test section)
 - Environment: jsdom
 - Setup: `vitest.setup.ts`, `tests/setup/testSetup.ts`
 - Coverage: v8 provider
 
 ### Jest Configuration
+
 <<<<<<< Updated upstream
 
 =======
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - File: `jest.config.js`
 - Environment: Node.js
 - Setup: `tests/setup/globalSetup.ts`, `tests/setup/jestSetup.ts`
 - Coverage: Default Jest coverage
 
 ### Playwright Configuration
+
 <<<<<<< Updated upstream
 
 =======
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - File: `playwright.config.ts`
 - Browsers: Chromium, Firefox, WebKit
 - Base URL: http://localhost:3000
@@ -181,20 +191,26 @@ node scripts/test-performance-monitor.js record test-reports/test-results.json
 ## Coverage Requirements
 
 ### Default Thresholds
+
 <<<<<<< Updated upstream
 
 =======
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - Lines: 70%
 - Statements: 70%
 - Functions: 70%
 - Branches: 70%
 
 ### Coverage Collection
+
 <<<<<<< Updated upstream
 
 =======
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - **Unit Tests**: Frontend React components, utilities
 - **Integration Tests**: Backend routes, middleware, database operations
 - **Combined Reports**: Merged coverage data from all test suites
@@ -228,19 +244,15 @@ jobs:
 
 ### Environment Variables
 
-=======
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-    - run: npm ci
-    - run: npm run test:runner:ci
-    - uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-reports
-        path: test-reports/
+======= - uses: actions/checkout@v4 - uses: actions/setup-node@v4
+with:
+node-version: '20.x'
+cache: 'npm' - run: npm ci - run: npm run test:runner:ci - uses: actions/upload-artifact@v4
+if: always()
+with:
+name: test-reports
+path: test-reports/
+
 ```
 
 ### Environment Variables
@@ -303,23 +315,25 @@ jobs:
 ### Test Organization
 
 ```
+
 tests/
-├── unit/              # Unit tests
-│   ├── components/    # React component tests
-│   ├── hooks/         # Custom hook tests
-│   └── utils/         # Utility function tests
-├── integration/       # Integration tests
-│   ├── api/          # API endpoint tests
-│   └── auth/         # Authentication tests
-├── e2e/              # End-to-end tests
-│   ├── auth/         # Authentication workflows
-│   ├── dashboard/    # Dashboard functionality
-│   └── runs/         # Running data features
-├── accessibility/    # Accessibility tests
-├── performance/      # Performance benchmarks
-├── memory/           # Memory leak tests
-└── setup/           # Test setup and utilities
-```
+├── unit/ # Unit tests
+│ ├── components/ # React component tests
+│ ├── hooks/ # Custom hook tests
+│ └── utils/ # Utility function tests
+├── integration/ # Integration tests
+│ ├── api/ # API endpoint tests
+│ └── auth/ # Authentication tests
+├── e2e/ # End-to-end tests
+│ ├── auth/ # Authentication workflows
+│ ├── dashboard/ # Dashboard functionality
+│ └── runs/ # Running data features
+├── accessibility/ # Accessibility tests
+├── performance/ # Performance benchmarks
+├── memory/ # Memory leak tests
+└── setup/ # Test setup and utilities
+
+````
 
 ### Performance Optimization
 
@@ -353,11 +367,11 @@ tests/
    ```bash
    # Reset test database
    npm run test:setup:db
-   
+
 >>>>>>> Stashed changes
    # Verify environment
    npm run validate-test-env
-   ```
+````
 
 2. **Port Conflicts**
    - Frontend: 3000
@@ -365,21 +379,23 @@ tests/
    - Ensure ports are available
 
 3. **Browser Issues (E2E)**
-<<<<<<< Updated upstream
+   <<<<<<< Updated upstream
 
    ```bash
    # Install browsers
    npx playwright install
+   ```
 
 =======
-   ```bash
-   # Install browsers
-   npx playwright install
-   
+
+```bash
+# Install browsers
+npx playwright install
+
 >>>>>>> Stashed changes
-   # Run with headed mode for debugging
-   npm run test:e2e:headed
-   ```
+# Run with headed mode for debugging
+npm run test:e2e:headed
+```
 
 4. **Coverage Issues**
    - Check file inclusion patterns
@@ -494,4 +510,5 @@ npm run test:runner:monitor
 This comprehensive testing infrastructure provides a robust foundation for maintaining code quality, catching regressions early, and ensuring the Running App MVP meets all functional and non-functional requirements.
 =======
 This comprehensive testing infrastructure provides a robust foundation for maintaining code quality, catching regressions early, and ensuring the Running App MVP meets all functional and non-functional requirements.
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes

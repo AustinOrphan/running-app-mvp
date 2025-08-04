@@ -1,13 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  expectAccessible,
-  testAccessibilityCompliance,
-  expectCriticalAccessibility,
-  expectEssentialAccessibility,
-} from '../utils/accessibilityTestUtils';
+import { describe, it, expect, vi } from 'vitest';
+import { expectAccessible, testAccessibilityCompliance } from '../utils/accessibilityTestUtils';
 import { Button, ButtonGroup, IconButton } from '../../src/components/UI/Button';
 
 expect.extend(toHaveNoViolations);

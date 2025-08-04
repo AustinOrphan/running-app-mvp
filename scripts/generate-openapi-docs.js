@@ -2,7 +2,7 @@
 
 /**
  * OpenAPI Documentation Generator
- * 
+ *
  * Generates HTML documentation from OpenAPI specification and
  * validates the API specification for completeness and correctness.
  */
@@ -17,7 +17,7 @@ class OpenAPIDocGenerator {
       specPath: options.specPath || './docs/api/openapi.yaml',
       outputDir: options.outputDir || './docs/api/generated',
       templateDir: options.templateDir || './docs/api/templates',
-      ...options
+      ...options,
     };
   }
 
@@ -141,7 +141,7 @@ class OpenAPIDocGenerator {
    */
   generateSwaggerUI(spec) {
     const specJson = JSON.stringify(spec, null, 2);
-    
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -284,7 +284,7 @@ class OpenAPIDocGenerator {
    */
   generateRedocHTML(spec) {
     const specJson = JSON.stringify(spec, null, 2);
-    
+
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -324,7 +324,7 @@ class OpenAPIDocGenerator {
       info: {
         name: spec.info?.title || 'API Collection',
         description: spec.info?.description || '',
-        schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
       },
       auth: {
         type: 'bearer',
@@ -332,37 +332,37 @@ class OpenAPIDocGenerator {
           {
             key: 'token',
             value: '{{access_token}}',
-            type: 'string'
-          }
-        ]
+            type: 'string',
+          },
+        ],
       },
       variable: [
         {
           key: 'base_url',
           value: spec.servers?.[0]?.url || 'http://localhost:3001/api',
-          type: 'string'
+          type: 'string',
         },
         {
           key: 'access_token',
           value: '',
-          type: 'string'
-        }
+          type: 'string',
+        },
       ],
-      item: []
+      item: [],
     };
 
     // Group endpoints by tags
     const groupedEndpoints = {};
-    
+
     for (const [pathName, pathItem] of Object.entries(spec.paths || {})) {
       for (const [method, operation] of Object.entries(pathItem)) {
         if (['get', 'post', 'put', 'delete', 'patch'].includes(method.toLowerCase())) {
           const tag = operation.tags?.[0] || 'Default';
-          
+
           if (!groupedEndpoints[tag]) {
             groupedEndpoints[tag] = [];
           }
-          
+
           const request = {
             name: operation.summary || `${method.toUpperCase()} ${pathName}`,
             request: {
@@ -370,15 +370,15 @@ class OpenAPIDocGenerator {
               header: [
                 {
                   key: 'Content-Type',
-                  value: 'application/json'
-                }
+                  value: 'application/json',
+                },
               ],
               url: {
                 raw: '{{base_url}}' + pathName,
                 host: ['{{base_url}}'],
-                path: pathName.split('/').filter(p => p)
-              }
-            }
+                path: pathName.split('/').filter(p => p),
+              },
+            },
           };
 
           // Add auth if required
@@ -389,9 +389,9 @@ class OpenAPIDocGenerator {
                 {
                   key: 'token',
                   value: '{{access_token}}',
-                  type: 'string'
-                }
-              ]
+                  type: 'string',
+                },
+              ],
             };
           }
 
@@ -404,9 +404,9 @@ class OpenAPIDocGenerator {
                 raw: JSON.stringify(this.generateExampleFromSchema(schema), null, 2),
                 options: {
                   raw: {
-                    language: 'json'
-                  }
-                }
+                    language: 'json',
+                  },
+                },
               };
             }
           }
@@ -420,7 +420,7 @@ class OpenAPIDocGenerator {
     for (const [tag, endpoints] of Object.entries(groupedEndpoints)) {
       collection.item.push({
         name: tag,
-        item: endpoints
+        item: endpoints,
       });
     }
 
@@ -474,24 +474,24 @@ class OpenAPIDocGenerator {
         title: spec.info?.title || 'Unknown',
         version: spec.info?.version || 'Unknown',
         description: spec.info?.description || 'No description',
-        servers: spec.servers?.length || 0
+        servers: spec.servers?.length || 0,
       },
       endpoints: {
         paths: Object.keys(spec.paths || {}).length,
         operations: 0,
         byMethod: {},
-        byTag: {}
+        byTag: {},
       },
       schemas: {
         total: Object.keys(spec.components?.schemas || {}).length,
-        components: Object.keys(spec.components || {}).length
+        components: Object.keys(spec.components || {}).length,
       },
       validation: {
         errors: validation.errors.length,
         warnings: validation.warnings.length,
-        isValid: validation.isValid
+        isValid: validation.isValid,
       },
-      generated: new Date().toISOString()
+      generated: new Date().toISOString(),
     };
 
     // Count operations
@@ -499,10 +499,11 @@ class OpenAPIDocGenerator {
       for (const [method, operation] of Object.entries(pathItem)) {
         if (['get', 'post', 'put', 'delete', 'patch'].includes(method.toLowerCase())) {
           summary.endpoints.operations++;
-          
+
           const methodUpper = method.toUpperCase();
-          summary.endpoints.byMethod[methodUpper] = (summary.endpoints.byMethod[methodUpper] || 0) + 1;
-          
+          summary.endpoints.byMethod[methodUpper] =
+            (summary.endpoints.byMethod[methodUpper] || 0) + 1;
+
           const tag = operation.tags?.[0] || 'Untagged';
           summary.endpoints.byTag[tag] = (summary.endpoints.byTag[tag] || 0) + 1;
         }
@@ -521,26 +522,28 @@ class OpenAPIDocGenerator {
    */
   async generateAll() {
     console.log('🚀 Starting OpenAPI documentation generation...\n');
-    
+
     // Load and validate specification
     const spec = await this.loadOpenAPISpec();
     const validation = this.validateSpec(spec);
-    
+
     if (!validation.isValid) {
-      console.error('\n❌ OpenAPI specification has errors. Please fix them before generating documentation.');
+      console.error(
+        '\n❌ OpenAPI specification has errors. Please fix them before generating documentation.'
+      );
       process.exit(1);
     }
-    
+
     // Generate all documentation formats
     await Promise.all([
       this.generateHTMLDocs(spec),
       this.generateRedocDocs(spec),
-      this.generatePostmanCollection(spec)
+      this.generatePostmanCollection(spec),
     ]);
-    
+
     // Generate summary
     const summary = await this.generateSummary(spec, validation);
-    
+
     console.log('\n✅ Documentation generation complete!');
     console.log(`📊 Generated documentation for ${summary.endpoints.operations} API operations`);
     console.log(`📁 Output directory: ${this.options.outputDir}`);
@@ -556,21 +559,21 @@ class OpenAPIDocGenerator {
 async function main() {
   const args = process.argv.slice(2);
   const command = args[0] || 'generate';
-  
+
   const generator = new OpenAPIDocGenerator({
     specPath: process.env.OPENAPI_SPEC_PATH || './docs/api/openapi.yaml',
-    outputDir: process.env.OPENAPI_OUTPUT_DIR || './docs/api/generated'
+    outputDir: process.env.OPENAPI_OUTPUT_DIR || './docs/api/generated',
   });
-  
+
   try {
     await generator.initialize();
-    
+
     switch (command) {
       case 'generate':
       case 'all':
         await generator.generateAll();
         break;
-        
+
       case 'validate':
         const spec = await generator.loadOpenAPISpec();
         const validation = generator.validateSpec(spec);
@@ -582,17 +585,17 @@ async function main() {
           process.exit(1);
         }
         break;
-        
+
       case 'html':
         const htmlSpec = await generator.loadOpenAPISpec();
         await generator.generateHTMLDocs(htmlSpec);
         break;
-        
+
       case 'postman':
         const postmanSpec = await generator.loadOpenAPISpec();
         await generator.generatePostmanCollection(postmanSpec);
         break;
-        
+
       default:
         console.log('Usage: node generate-openapi-docs.js [generate|validate|html|postman]');
         console.log('  generate - Generate all documentation formats (default)');
@@ -601,7 +604,6 @@ async function main() {
         console.log('  postman  - Generate Postman collection only');
         process.exit(1);
     }
-    
   } catch (error) {
     console.error('❌ Documentation generation failed:', error);
     process.exit(1);

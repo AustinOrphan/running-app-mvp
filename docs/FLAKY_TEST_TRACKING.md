@@ -34,12 +34,14 @@ This project implements comprehensive flaky test detection, tracking, and automa
 ### 🔍 Flaky Test Detection
 
 #### Intelligent Detection Algorithm
+
 - **Flaky Score Calculation**: Measures test inconsistency (0.0 = consistent, 1.0 = maximum flakiness)
 - **Pattern Recognition**: Identifies tests that sometimes pass, sometimes fail
 - **Threshold-Based Classification**: Configurable threshold for flaky test identification
 - **Historical Analysis**: Tracks test behavior over multiple runs
 
 #### Severity Classification
+
 - **High Severity (≥0.4)**: Highly unreliable, immediate attention needed
 - **Medium Severity (0.2-0.4)**: Moderately unreliable, should be investigated
 - **Low Severity (0.1-0.2)**: Slightly unreliable, monitor for trends
@@ -47,18 +49,21 @@ This project implements comprehensive flaky test detection, tracking, and automa
 ### 📊 Comprehensive Reporting
 
 #### HTML Dashboard
+
 - Interactive visual dashboard with test stability metrics
 - Flaky test trends and patterns
 - Severity-based categorization
 - Actionable recommendations
 
 #### JSON Reports
+
 - Machine-readable test data for CI/CD integration
 - Historical trend analysis
 - Detailed test run information
 - Performance metrics
 
 #### Summary Reports
+
 - Markdown format for easy sharing
 - Executive summaries
 - Top flaky tests with priority rankings
@@ -67,12 +72,14 @@ This project implements comprehensive flaky test detection, tracking, and automa
 ### 🔄 Automatic Retry System
 
 #### Intelligent Retry Logic
+
 - **Dynamic Retry Counts**: Based on test history and severity
 - **Progressive Delays**: Exponential backoff between retries
 - **Context-Aware**: Different retry strategies per test framework
 - **Resource Optimization**: Balances reliability with CI performance
 
 #### Framework Integration
+
 - **Jest**: Custom retry wrapper with detailed tracking
 - **Vitest**: TypeScript-enabled retry system
 - **Playwright**: Browser-specific retry configurations
@@ -81,12 +88,14 @@ This project implements comprehensive flaky test detection, tracking, and automa
 ### 🚨 Alerting and Monitoring
 
 #### GitHub Integration
+
 - **Automatic Issues**: Creates GitHub issues for high-severity flaky tests
 - **Weekly Updates**: Regular updates on flaky test status
 - **PR Comments**: Contextual information about test changes
 - **Workflow Integration**: Seamless CI/CD pipeline integration
 
 #### Alert Thresholds
+
 - **Critical**: >5% flaky test percentage
 - **High**: Tests with >70% flaky score
 - **Medium**: Tests with 40-70% flaky score
@@ -97,6 +106,7 @@ This project implements comprehensive flaky test detection, tracking, and automa
 ### Command Line Interface
 
 #### Basic Commands
+
 ```bash
 # Track flaky tests across all suites
 npm run flaky:track
@@ -115,6 +125,7 @@ npm run flaky:config
 ```
 
 #### Advanced Usage
+
 ```bash
 # Custom tracking with options
 FLAKY_THRESHOLD=0.15 FLAKY_RETRY_COUNT=5 npm run flaky:track
@@ -129,6 +140,7 @@ node scripts/flaky-test-tracker.js analyze
 ### Configuration
 
 #### Environment Variables
+
 ```bash
 # Flaky test detection threshold (default: 0.1 = 10%)
 FLAKY_THRESHOLD=0.1
@@ -152,6 +164,7 @@ ENABLE_TEST_RETRIES=true
 #### Framework-Specific Configuration
 
 ##### Jest Configuration
+
 ```javascript
 // Use retry configuration
 module.exports = require('./jest.retry.config.js');
@@ -160,14 +173,12 @@ module.exports = require('./jest.retry.config.js');
 const baseConfig = require('./jest.config.js');
 module.exports = {
   ...baseConfig,
-  setupFilesAfterEnv: [
-    ...baseConfig.setupFilesAfterEnv,
-    '<rootDir>/tests/setup/retrySetup.js'
-  ]
+  setupFilesAfterEnv: [...baseConfig.setupFilesAfterEnv, '<rootDir>/tests/setup/retrySetup.js'],
 };
 ```
 
 ##### Vitest Configuration
+
 ```typescript
 // Use retry configuration
 import retryConfig from './vitest.retry.config';
@@ -177,13 +188,18 @@ export default retryConfig;
 import { testWithRetry, describeWithRetry } from './tests/setup/vitestRetrySetup';
 
 describeWithRetry('My Component', () => {
-  testWithRetry('should work reliably', async () => {
-    // Test implementation
-  }, { retries: 3 });
+  testWithRetry(
+    'should work reliably',
+    async () => {
+      // Test implementation
+    },
+    { retries: 3 }
+  );
 });
 ```
 
 ##### Playwright Configuration
+
 ```typescript
 // Use retry configuration
 import retryConfig from './playwright.retry.config';
@@ -200,13 +216,16 @@ test.describe('My E2E Tests', () => {
 ### CI/CD Integration
 
 #### GitHub Actions
+
 The flaky test detection workflow runs automatically:
+
 - **Daily**: 2:00 AM UTC for continuous monitoring
 - **Weekly**: Monday 2:00 PM UTC for comprehensive analysis
 - **Post-CI**: After main CI pipeline completion
 - **Manual**: On-demand via workflow dispatch
 
 #### Workflow Triggers
+
 ```yaml
 # Manual trigger with options
 workflow_dispatch:
@@ -220,6 +239,7 @@ workflow_dispatch:
 ```
 
 #### Artifact Management
+
 - **Reports**: 30-day retention for analysis reports
 - **History**: 90-day retention for historical data
 - **Configuration**: 90-day retention for retry configs
@@ -230,12 +250,14 @@ workflow_dispatch:
 ### Writing Stable Tests
 
 #### Test Design Principles
+
 1. **Isolation**: Tests should not depend on other tests
 2. **Deterministic**: Same input should always produce same output
 3. **Fast**: Minimize test execution time to reduce flakiness
 4. **Resilient**: Handle timing variations and external dependencies
 
 #### Common Flaky Test Patterns
+
 ```javascript
 // ❌ Bad: Race condition
 test('should update counter', async () => {
@@ -266,6 +288,7 @@ test('test 1', () => {
 ### Managing Flaky Tests
 
 #### Investigation Process
+
 1. **Reproduce Locally**: Run the test multiple times
 2. **Analyze Patterns**: Check failure frequency and conditions
 3. **Review Dependencies**: Identify external factors
@@ -273,6 +296,7 @@ test('test 1', () => {
 5. **Verify Environment**: Ensure consistent test environment
 
 #### Remediation Strategies
+
 1. **Add Waits**: Use proper async/await patterns
 2. **Improve Selectors**: Use stable, unique selectors
 3. **Mock Dependencies**: Reduce external factor variability
@@ -282,12 +306,14 @@ test('test 1', () => {
 ### Monitoring and Maintenance
 
 #### Regular Reviews
+
 - **Weekly**: Review flaky test reports and trends
 - **Monthly**: Analyze patterns and implement improvements
 - **Quarterly**: Review retry configurations and thresholds
 - **Annually**: Assess overall test stability strategy
 
 #### Key Metrics to Track
+
 - **Flaky Test Percentage**: Should be <1% for stable suites
 - **Retry Success Rate**: Should be >90% for configured retries
 - **Test Duration Trends**: Monitor for performance degradation
@@ -298,6 +324,7 @@ test('test 1', () => {
 ### Common Issues
 
 #### High Flaky Test Count
+
 ```bash
 # Symptoms: >5% of tests marked as flaky
 # Investigation:
@@ -312,6 +339,7 @@ npm run flaky:report
 ```
 
 #### Retry Configuration Not Working
+
 ```bash
 # Check configuration file exists
 ls reports/flaky-tests/retry-config.json
@@ -325,6 +353,7 @@ npm run flaky:config
 ```
 
 #### Reports Not Generated
+
 ```bash
 # Check output directory permissions
 ls -la reports/flaky-tests/
@@ -339,6 +368,7 @@ DEBUG=flaky-tracker npm run flaky:track
 ### Debug Commands
 
 #### Verbose Analysis
+
 ```bash
 # Run with detailed logging
 node scripts/flaky-test-tracker.js track all --verbose
@@ -351,6 +381,7 @@ node scripts/flaky-test-tracker.js config --validate
 ```
 
 #### Manual Test Execution
+
 ```bash
 # Run specific test multiple times
 for i in {1..10}; do npm test -- specific-test.test.js; done
@@ -367,6 +398,7 @@ FLAKY_RETRY_COUNT=5 npm test
 ### Flaky Test Tracker
 
 #### Main Methods
+
 ```javascript
 const FlakyTestTracker = require('./scripts/flaky-test-tracker');
 
@@ -374,7 +406,7 @@ const tracker = new FlakyTestTracker({
   outputDir: './reports/flaky-tests',
   retryCount: 3,
   threshold: 0.1,
-  historyLength: 50
+  historyLength: 50,
 });
 
 // Initialize tracker
@@ -391,6 +423,7 @@ await tracker.generateReports();
 ```
 
 #### Configuration Options
+
 ```javascript
 {
   outputDir: string,        // Output directory for reports
@@ -403,13 +436,18 @@ await tracker.generateReports();
 ### Retry Utilities
 
 #### Jest Utilities
+
 ```javascript
 const { testWithRetry, isFlakyTest } = require('./tests/setup/retrySetup');
 
 // Manual retry test
-testWithRetry('my test', async () => {
-  // Test implementation
-}, 10000); // 10 second timeout
+testWithRetry(
+  'my test',
+  async () => {
+    // Test implementation
+  },
+  10000
+); // 10 second timeout
 
 // Check if test is flaky
 if (isFlakyTest('my test', 'unit')) {
@@ -418,29 +456,39 @@ if (isFlakyTest('my test', 'unit')) {
 ```
 
 #### Vitest Utilities
+
 ```typescript
 import { testWithRetry, describeWithRetry } from './tests/setup/vitestRetrySetup';
 
 // Retry test with options
-testWithRetry('my test', async () => {
-  // Test implementation
-}, { timeout: 10000, retries: 3 });
+testWithRetry(
+  'my test',
+  async () => {
+    // Test implementation
+  },
+  { timeout: 10000, retries: 3 }
+);
 
 // Retry describe block
-describeWithRetry('my suite', () => {
-  // Test suite
-}, { retries: 2 });
+describeWithRetry(
+  'my suite',
+  () => {
+    // Test suite
+  },
+  { retries: 2 }
+);
 ```
 
 ## Integration Examples
 
 ### Custom Reporter Integration
+
 ```javascript
 // Custom Jest reporter
 class CustomReporter extends RetryReporter {
   onTestResult(test, testResult) {
     super.onTestResult(test, testResult);
-    
+
     // Custom logic for retry tracking
     if (this.retryData.flakyTests.length > 0) {
       this.sendSlackAlert(this.retryData.flakyTests);
@@ -450,6 +498,7 @@ class CustomReporter extends RetryReporter {
 ```
 
 ### CI/CD Pipeline Integration
+
 ```yaml
 # Custom workflow step
 - name: Check Flaky Tests
@@ -463,14 +512,15 @@ class CustomReporter extends RetryReporter {
 ```
 
 ### Monitoring Integration
+
 ```javascript
 // Custom monitoring hook
 const tracker = new FlakyTestTracker();
-tracker.on('flakyTestDetected', (test) => {
+tracker.on('flakyTestDetected', test => {
   // Send to monitoring system
   metrics.increment('flaky_tests.detected', {
     suite: test.suite,
-    severity: test.severity
+    severity: test.severity,
   });
 });
 ```

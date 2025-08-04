@@ -2,7 +2,7 @@
 
 /**
  * Test Worker Configuration Script
- * 
+ *
  * This script tests the parallel execution configuration and monitors performance.
  */
 
@@ -11,7 +11,7 @@ import os from 'os';
 
 const testWorkerConfiguration = async () => {
   console.log('🔧 Testing Vitest Worker Configuration\n');
-  
+
   // Display system information
   console.log('📊 System Information:');
   console.log(`CPU Cores: ${os.cpus().length}`);
@@ -33,25 +33,29 @@ const testWorkerConfiguration = async () => {
 
   // Run a subset of tests to measure performance
   const startTime = Date.now();
-  
+
   return new Promise<void>((resolve, reject) => {
-    const testProcess = spawn('npm', ['test', '--', '--run', '--reporter=verbose', 'tests/unit/utils/', 'tests/unit/components/'], {
-      stdio: 'pipe',
-      env: { ...process.env }
-    });
+    const testProcess = spawn(
+      'npm',
+      ['test', '--', '--run', '--reporter=verbose', 'tests/unit/utils/', 'tests/unit/components/'],
+      {
+        stdio: 'pipe',
+        env: { ...process.env },
+      }
+    );
 
     let stdout = '';
     let stderr = '';
 
-    testProcess.stdout.on('data', (data) => {
+    testProcess.stdout.on('data', data => {
       stdout += data.toString();
     });
 
-    testProcess.stderr.on('data', (data) => {
+    testProcess.stderr.on('data', data => {
       stderr += data.toString();
     });
 
-    testProcess.on('close', (code) => {
+    testProcess.on('close', code => {
       const endTime = Date.now();
       const duration = endTime - startTime;
 
@@ -59,12 +63,12 @@ const testWorkerConfiguration = async () => {
 
       if (code === 0) {
         console.log('✅ Worker configuration test completed successfully!\n');
-        
+
         // Extract test statistics from output
         const lines = stdout.split('\n');
         const testFilesLine = lines.find(line => line.includes('Test Files'));
         const testsLine = lines.find(line => line.includes('Tests') && line.includes('passed'));
-        
+
         if (testFilesLine) {
           console.log('📈 Test Results:');
           console.log(`${testFilesLine.trim()}`);
@@ -75,10 +79,13 @@ const testWorkerConfiguration = async () => {
 
         // Performance analysis
         console.log('\n📊 Performance Analysis:');
-        const testsPerSecond = testFilesLine ? 
-          Math.round(parseInt(testFilesLine.match(/(\d+) passed/)?.[1] || '0') / (duration / 1000)) : 0;
+        const testsPerSecond = testFilesLine
+          ? Math.round(
+              parseInt(testFilesLine.match(/(\d+) passed/)?.[1] || '0') / (duration / 1000)
+            )
+          : 0;
         console.log(`Tests per second: ${testsPerSecond}`);
-        
+
         if (duration < 10000) {
           console.log('🎯 Performance: Excellent (< 10s)');
         } else if (duration < 20000) {
@@ -97,7 +104,7 @@ const testWorkerConfiguration = async () => {
       }
     });
 
-    testProcess.on('error', (error) => {
+    testProcess.on('error', error => {
       console.error('❌ Failed to start test process:', error);
       reject(error);
     });
@@ -107,13 +114,15 @@ const testWorkerConfiguration = async () => {
 const monitorMemoryUsage = () => {
   console.log('\n🔍 Memory Usage Monitoring:');
   console.log('(Run during test execution to monitor resource usage)\n');
-  
+
   const interval = setInterval(() => {
     const used = process.memoryUsage();
     const free = os.freemem();
     const total = os.totalmem();
-    
-    console.log(`Memory: ${Math.round(used.rss / 1024 / 1024)}MB RSS, ${Math.round(used.heapUsed / 1024 / 1024)}MB Heap, ${Math.round(free / 1024 / 1024)}MB Free`);
+
+    console.log(
+      `Memory: ${Math.round(used.rss / 1024 / 1024)}MB RSS, ${Math.round(used.heapUsed / 1024 / 1024)}MB Heap, ${Math.round(free / 1024 / 1024)}MB Free`
+    );
   }, 2000);
 
   // Stop monitoring after 30 seconds
@@ -132,7 +141,6 @@ async function main() {
     console.log('- Integration tests remain sequential for database safety');
     console.log('- Monitor CI performance and adjust maxWorkers if needed');
     console.log('- Use --reporter=verbose for detailed parallel execution info');
-    
   } catch (error) {
     console.error('Test failed:', error);
     process.exit(1);

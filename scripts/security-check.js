@@ -2,14 +2,14 @@
 
 /**
  * Local Security Check Script
- * 
+ *
  * This script performs comprehensive security checks locally before CI deployment.
  * It provides quick feedback on security issues and helps developers identify
  * problems early in the development cycle.
- * 
+ *
  * Usage:
  *   node scripts/security-check.js [options]
- * 
+ *
  * Options:
  *   --quick           Run only fast security checks
  *   --dependencies    Only check dependencies for vulnerabilities
@@ -37,7 +37,7 @@ const CONFIG = {
   checkSecrets: true,
   checkDependencies: true,
   checkConfig: true,
-  checkLinting: true
+  checkLinting: true,
 };
 
 /**
@@ -45,7 +45,7 @@ const CONFIG = {
  */
 function parseArgs() {
   const args = process.argv.slice(2);
-  
+
   for (const arg of args) {
     switch (arg) {
       case '--quick':
@@ -126,15 +126,15 @@ function execCommand(command, options = {}) {
     const result = execSync(command, {
       encoding: 'utf8',
       stdio: options.silent ? 'pipe' : 'inherit',
-      ...options
+      ...options,
     });
     return { success: true, output: result };
   } catch (error) {
-    return { 
-      success: false, 
+    return {
+      success: false,
       output: error.stdout || error.message,
       error: error.stderr || error.message,
-      code: error.status
+      code: error.status,
     };
   }
 }
@@ -144,52 +144,52 @@ function execCommand(command, options = {}) {
  */
 async function checkSecrets() {
   if (!CONFIG.checkSecrets) return null;
-  
+
   console.log('🔍 Scanning for secrets and credentials...\n');
-  
+
   const secretPatterns = [
     {
       name: 'AWS Access Key',
       pattern: /AKIA[0-9A-Z]{16}/g,
-      severity: 'HIGH'
+      severity: 'HIGH',
     },
     {
       name: 'AWS Secret Key',
       pattern: /[0-9a-zA-Z/+]{40}/g,
-      severity: 'HIGH'
+      severity: 'HIGH',
     },
     {
       name: 'GitHub Token',
       pattern: /ghp_[0-9a-zA-Z]{36}/g,
-      severity: 'HIGH'
+      severity: 'HIGH',
     },
     {
       name: 'JWT Token',
       pattern: /ey[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*/g,
-      severity: 'MEDIUM'
+      severity: 'MEDIUM',
     },
     {
       name: 'API Key',
       pattern: /api[_-]?key[\\s]*[:=][\\s]*['\"][0-9a-zA-Z]{16,}['\"]/gi,
-      severity: 'HIGH'
+      severity: 'HIGH',
     },
     {
       name: 'Database URL',
       pattern: /(mongodb|mysql|postgres):\/\/[^\s]+/gi,
-      severity: 'HIGH'
+      severity: 'HIGH',
     },
     {
       name: 'Private Key',
       pattern: /-----BEGIN [A-Z ]+PRIVATE KEY-----/g,
-      severity: 'CRITICAL'
+      severity: 'CRITICAL',
     },
     {
       name: 'Password in Code',
       pattern: /password[\\s]*[:=][\\s]*['\"][^'\"\\s]{8,}['\"]/gi,
-      severity: 'MEDIUM'
-    }
+      severity: 'MEDIUM',
+    },
   ];
-  
+
   const secretsFound = [];
   const filesToCheck = [
     'src/**/*.js',
@@ -198,14 +198,17 @@ async function checkSecrets() {
     'server/**/*.js',
     'server/**/*.ts',
     'tests/**/*.js',
-    'tests/**/*.ts'
+    'tests/**/*.ts',
   ];
-  
+
   // Get all files to check
   const files = [];
   for (const pattern of filesToCheck) {
     try {
-      const result = execCommand(`find . -path "./node_modules" -prune -o -name "${pattern.replace('**/*', '*')}" -print`, { silent: true });
+      const result = execCommand(
+        `find . -path "./node_modules" -prune -o -name "${pattern.replace('**/*', '*')}" -print`,
+        { silent: true }
+      );
       if (result.success) {
         files.push(...result.output.split('\n').filter(f => f.trim()));
       }
@@ -213,33 +216,35 @@ async function checkSecrets() {
       // Ignore errors for file patterns that don't match
     }
   }
-  
+
   // Scan each file
   for (const filePath of files) {
     if (!fs.existsSync(filePath)) continue;
-    
+
     try {
       const content = fs.readFileSync(filePath, 'utf8');
-      
+
       for (const pattern of secretPatterns) {
         const matches = content.match(pattern.pattern);
         if (matches) {
           for (const match of matches) {
             // Skip common test values and placeholders
-            if (match.includes('test') || 
-                match.includes('example') || 
-                match.includes('placeholder') ||
-                match.includes('your_') ||
-                match.includes('xxx')) {
+            if (
+              match.includes('test') ||
+              match.includes('example') ||
+              match.includes('placeholder') ||
+              match.includes('your_') ||
+              match.includes('xxx')
+            ) {
               continue;
             }
-            
+
             secretsFound.push({
               file: filePath,
               type: pattern.name,
               severity: pattern.severity,
               match: match.substring(0, 50) + (match.length > 50 ? '...' : ''),
-              line: findLineNumber(content, match)
+              line: findLineNumber(content, match),
             });
           }
         }
@@ -250,14 +255,14 @@ async function checkSecrets() {
       }
     }
   }
-  
+
   // Display results
   if (secretsFound.length === 0) {
     console.log('✅ No secrets or credentials found in code!\n');
     return { secrets: [], count: 0 };
   } else {
     console.log(`🚨 Found ${secretsFound.length} potential secrets/credentials:\n`);
-    
+
     for (const secret of secretsFound) {
       if (!CONFIG.jsonOutput) {
         console.log(`  🔴 ${secret.type} (${secret.severity})`);
@@ -266,7 +271,7 @@ async function checkSecrets() {
         console.log('');
       }
     }
-    
+
     return { secrets: secretsFound, count: secretsFound.length };
   }
 }
@@ -289,21 +294,21 @@ function findLineNumber(content, match) {
  */
 async function checkDependencyVulnerabilities() {
   if (!CONFIG.checkDependencies) return null;
-  
+
   console.log('📦 Checking dependency vulnerabilities...\n');
-  
+
   // Run npm audit
   const auditResult = execCommand('npm audit --json', { silent: true });
-  
+
   if (auditResult.success && auditResult.output) {
     try {
       const audit = JSON.parse(auditResult.output);
-      
+
       if (audit.metadata.vulnerabilities.total === 0) {
         console.log('✅ No dependency vulnerabilities found!\n');
         return { vulnerabilities: [], total: 0, summary: audit.metadata.vulnerabilities };
       }
-      
+
       const vulns = audit.metadata.vulnerabilities;
       console.log(`🚨 Found ${vulns.total} dependency vulnerabilities:`);
       console.log(`  - Critical: ${vulns.critical || 0}`);
@@ -311,25 +316,24 @@ async function checkDependencyVulnerabilities() {
       console.log(`  - Moderate: ${vulns.moderate || 0}`);
       console.log(`  - Low:      ${vulns.low || 0}`);
       console.log('');
-      
+
       // Auto-fix if requested
       if (CONFIG.autoFix) {
         console.log('🔧 Attempting to fix vulnerabilities...\n');
         const fixResult = execCommand('npm audit fix');
-        
+
         if (fixResult.success) {
           console.log('✅ Vulnerabilities fixed!\n');
         } else {
           console.log('❌ Some vulnerabilities could not be fixed automatically.\n');
         }
       }
-      
-      return { 
-        vulnerabilities: [], 
-        total: vulns.total, 
-        summary: vulns 
+
+      return {
+        vulnerabilities: [],
+        total: vulns.total,
+        summary: vulns,
       };
-      
     } catch (error) {
       console.error('❌ Failed to parse npm audit results:', error.message);
       return null;
@@ -340,14 +344,14 @@ async function checkDependencyVulnerabilities() {
       try {
         const audit = JSON.parse(auditResult.output);
         const vulns = audit.metadata.vulnerabilities;
-        
+
         console.log(`🚨 Found ${vulns.total} dependency vulnerabilities:`);
         console.log(`  - Critical: ${vulns.critical || 0}`);
         console.log(`  - High:     ${vulns.high || 0}`);
         console.log(`  - Moderate: ${vulns.moderate || 0}`);
         console.log(`  - Low:      ${vulns.low || 0}`);
         console.log('');
-        
+
         return { vulnerabilities: [], total: vulns.total, summary: vulns };
       } catch (error) {
         console.error('❌ Failed to parse npm audit results:', error.message);
@@ -365,48 +369,48 @@ async function checkDependencyVulnerabilities() {
  */
 function checkSecurityConfiguration() {
   if (!CONFIG.checkConfig) return null;
-  
+
   console.log('⚙️ Reviewing security configuration...\n');
-  
+
   const configChecks = [
     {
       file: '.github/dependabot.yml',
       description: 'Automated dependency updates',
-      required: true
+      required: true,
     },
     {
       file: '.github/workflows/codeql-analysis.yml',
       description: 'CodeQL security scanning',
-      required: true
+      required: true,
     },
     {
       file: '.github/workflows/security-scanning.yml',
       description: 'Advanced security scanning',
-      required: true
+      required: true,
     },
     {
       file: '.eslintrc.js',
       description: 'ESLint configuration',
-      required: true
+      required: true,
     },
     {
       file: '.gitignore',
       description: 'Git ignore file',
-      required: true
+      required: true,
     },
     {
       file: '.env.example',
       description: 'Environment variable template',
-      required: false
-    }
+      required: false,
+    },
   ];
-  
+
   const configResults = {
     passed: [],
     failed: [],
-    warnings: []
+    warnings: [],
   };
-  
+
   for (const check of configChecks) {
     if (fs.existsSync(check.file)) {
       configResults.passed.push(check);
@@ -427,41 +431,41 @@ function checkSecurityConfiguration() {
       }
     }
   }
-  
+
   // Check for .env file in repository
   if (fs.existsSync('.env')) {
     configResults.warnings.push({
       file: '.env',
       description: 'Environment file found in repository',
-      issue: 'Should be in .gitignore'
+      issue: 'Should be in .gitignore',
     });
     if (!CONFIG.jsonOutput) {
-      console.log('⚠️  .env: Found in repository - ensure it\'s in .gitignore');
+      console.log("⚠️  .env: Found in repository - ensure it's in .gitignore");
     }
   }
-  
+
   // Check package.json for security issues
   if (fs.existsSync('package.json')) {
     try {
       const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-      
+
       // Check scripts for dangerous commands
       if (packageJson.scripts) {
         const dangerousPatterns = [
           { pattern: /sudo/, warning: 'Contains sudo commands' },
           { pattern: /rm -rf/, warning: 'Contains rm -rf commands' },
-          { pattern: /curl.*\|.*sh/, warning: 'Contains curl pipe to shell' }
+          { pattern: /curl.*\|.*sh/, warning: 'Contains curl pipe to shell' },
         ];
-        
+
         for (const [scriptName, scriptContent] of Object.entries(packageJson.scripts)) {
           for (const dangerous of dangerousPatterns) {
             if (dangerous.pattern.test(scriptContent)) {
               configResults.warnings.push({
                 file: 'package.json',
                 description: `Script "${scriptName}": ${dangerous.warning}`,
-                issue: scriptContent
+                issue: scriptContent,
               });
-              
+
               if (!CONFIG.jsonOutput) {
                 console.log(`⚠️  package.json script "${scriptName}": ${dangerous.warning}`);
               }
@@ -475,11 +479,11 @@ function checkSecurityConfiguration() {
       }
     }
   }
-  
+
   if (!CONFIG.jsonOutput) {
     console.log('');
   }
-  
+
   return configResults;
 }
 
@@ -488,13 +492,13 @@ function checkSecurityConfiguration() {
  */
 async function checkLinting() {
   if (!CONFIG.checkLinting || CONFIG.runQuick) return null;
-  
+
   console.log('🔧 Running security-focused linting...\n');
-  
+
   // Check if security ESLint plugins are available
   const securityPlugins = ['eslint-plugin-security'];
   const availablePlugins = [];
-  
+
   for (const plugin of securityPlugins) {
     try {
       require.resolve(plugin);
@@ -505,20 +509,24 @@ async function checkLinting() {
       }
     }
   }
-  
+
   if (availablePlugins.length === 0) {
-    console.log('⚠️  No security ESLint plugins found. Consider installing eslint-plugin-security\n');
+    console.log(
+      '⚠️  No security ESLint plugins found. Consider installing eslint-plugin-security\n'
+    );
     return { issues: [], plugins: [] };
   }
-  
+
   // Run ESLint with security focus
-  const lintResult = execCommand('npx eslint src/ server/ --ext .js,.ts,.tsx --format json', { silent: true });
-  
+  const lintResult = execCommand('npx eslint src/ server/ --ext .js,.ts,.tsx --format json', {
+    silent: true,
+  });
+
   if (lintResult.success) {
     try {
       const results = JSON.parse(lintResult.output);
       const securityIssues = [];
-      
+
       for (const fileResult of results) {
         for (const message of fileResult.messages) {
           if (message.ruleId && message.ruleId.includes('security')) {
@@ -528,29 +536,30 @@ async function checkLinting() {
               column: message.column,
               rule: message.ruleId,
               message: message.message,
-              severity: message.severity === 2 ? 'error' : 'warning'
+              severity: message.severity === 2 ? 'error' : 'warning',
             });
           }
         }
       }
-      
+
       if (securityIssues.length === 0) {
         console.log('✅ No security linting issues found!\n');
       } else {
         console.log(`⚠️  Found ${securityIssues.length} security linting issues:\n`);
-        
+
         for (const issue of securityIssues) {
           if (!CONFIG.jsonOutput) {
-            console.log(`  ${issue.severity === 'error' ? '❌' : '⚠️'} ${issue.file}:${issue.line}:${issue.column}`);
+            console.log(
+              `  ${issue.severity === 'error' ? '❌' : '⚠️'} ${issue.file}:${issue.line}:${issue.column}`
+            );
             console.log(`    Rule: ${issue.rule}`);
             console.log(`    Message: ${issue.message}`);
             console.log('');
           }
         }
       }
-      
+
       return { issues: securityIssues, plugins: availablePlugins };
-      
     } catch (error) {
       console.error('❌ Failed to parse ESLint results:', error.message);
       return null;
@@ -566,58 +575,58 @@ async function checkLinting() {
  */
 function generateRecommendations(results) {
   const recommendations = [];
-  
+
   if (results.secrets && results.secrets.count > 0) {
     const criticalSecrets = results.secrets.secrets.filter(s => s.severity === 'CRITICAL');
     const highSecrets = results.secrets.secrets.filter(s => s.severity === 'HIGH');
-    
+
     if (criticalSecrets.length > 0) {
       recommendations.push({
         priority: 'CRITICAL',
         action: 'Remove critical secrets from code immediately',
-        details: `Found ${criticalSecrets.length} critical secrets (private keys, etc.)`
+        details: `Found ${criticalSecrets.length} critical secrets (private keys, etc.)`,
       });
     }
-    
+
     if (highSecrets.length > 0) {
       recommendations.push({
         priority: 'HIGH',
         action: 'Remove or secure high-risk credentials',
-        details: `Found ${highSecrets.length} high-risk credentials (API keys, tokens, etc.)`
+        details: `Found ${highSecrets.length} high-risk credentials (API keys, tokens, etc.)`,
       });
     }
   }
-  
+
   if (results.dependencies && results.dependencies.total > 0) {
     const summary = results.dependencies.summary;
-    
+
     if (summary.critical > 0 || summary.high > 0) {
       recommendations.push({
         priority: 'HIGH',
         action: 'Fix critical and high severity vulnerabilities immediately',
         details: `Critical: ${summary.critical}, High: ${summary.high}`,
-        command: 'npm audit fix'
+        command: 'npm audit fix',
       });
     }
-    
+
     if (summary.moderate > 0) {
       recommendations.push({
         priority: 'MEDIUM',
         action: 'Review and fix moderate severity vulnerabilities',
         details: `Moderate: ${summary.moderate}`,
-        command: 'npm audit'
+        command: 'npm audit',
       });
     }
   }
-  
+
   if (results.config && results.config.failed.length > 0) {
     recommendations.push({
       priority: 'MEDIUM',
       action: 'Add missing security configuration files',
-      details: `Missing: ${results.config.failed.map(f => f.file).join(', ')}`
+      details: `Missing: ${results.config.failed.map(f => f.file).join(', ')}`,
     });
   }
-  
+
   return recommendations;
 }
 
@@ -628,7 +637,7 @@ async function main() {
   console.log('🛡️  Local Security Check\n');
   console.log('='.repeat(50));
   console.log('');
-  
+
   const results = {
     timestamp: new Date().toISOString(),
     config: CONFIG,
@@ -636,25 +645,25 @@ async function main() {
     dependencies: null,
     configuration: null,
     linting: null,
-    recommendations: []
+    recommendations: [],
   };
-  
+
   try {
     // Run security checks
     if (!CONFIG.runQuick) {
       results.secrets = await checkSecrets();
     }
-    
+
     results.dependencies = await checkDependencyVulnerabilities();
     results.configuration = checkSecurityConfiguration();
-    
+
     if (!CONFIG.runQuick) {
       results.linting = await checkLinting();
     }
-    
+
     // Generate recommendations
     results.recommendations = generateRecommendations(results);
-    
+
     // Output results
     if (CONFIG.jsonOutput) {
       console.log(JSON.stringify(results, null, 2));
@@ -662,29 +671,30 @@ async function main() {
       // Summary
       console.log('📊 Security Check Summary');
       console.log('='.repeat(50));
-      
+
       if (results.secrets) {
         console.log(`🔍 Secrets scan: ${results.secrets.count} issues found`);
       }
-      
+
       if (results.dependencies) {
         console.log(`📦 Dependencies: ${results.dependencies.total} vulnerabilities found`);
       }
-      
+
       if (results.configuration) {
-        const configIssues = results.configuration.failed.length + results.configuration.warnings.length;
+        const configIssues =
+          results.configuration.failed.length + results.configuration.warnings.length;
         console.log(`⚙️  Configuration: ${configIssues} issues found`);
       }
-      
+
       if (results.linting) {
         console.log(`🔧 Security linting: ${results.linting.issues.length} issues found`);
       }
-      
+
       // Recommendations
       if (results.recommendations.length > 0) {
         console.log('\n💡 Security Recommendations');
         console.log('='.repeat(50));
-        
+
         for (const rec of results.recommendations) {
           console.log(`[${rec.priority}] ${rec.action}`);
           if (rec.details) {
@@ -699,14 +709,15 @@ async function main() {
         console.log('\n✅ No critical security issues found!');
       }
     }
-    
+
     // Exit with appropriate code
-    const hasCriticalIssues = results.recommendations.some(r => r.priority === 'CRITICAL') ||
-                             (results.dependencies && results.dependencies.summary && 
-                              (results.dependencies.summary.critical > 0 || results.dependencies.summary.high > 0));
-    
+    const hasCriticalIssues =
+      results.recommendations.some(r => r.priority === 'CRITICAL') ||
+      (results.dependencies &&
+        results.dependencies.summary &&
+        (results.dependencies.summary.critical > 0 || results.dependencies.summary.high > 0));
+
     process.exit(hasCriticalIssues ? 1 : 0);
-    
   } catch (error) {
     console.error('💥 Unexpected error:', error.message);
     if (CONFIG.verbose) {

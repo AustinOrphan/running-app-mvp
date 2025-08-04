@@ -49,7 +49,7 @@ class CIPerformanceRunner {
 
   async runCIPerformanceTests(): Promise<void> {
     console.log('🚀 Starting CI Performance Tests with optimizations...');
-    
+
     // Log CI environment details
     this.logEnvironment();
 
@@ -90,7 +90,7 @@ class CIPerformanceRunner {
     process.env.CHROME_FLAGS = this.config.chromeFlags.join(' ');
     process.env.LIGHTHOUSE_VIEWPORT_WIDTH = this.config.viewport.width.toString();
     process.env.LIGHTHOUSE_VIEWPORT_HEIGHT = this.config.viewport.height.toString();
-    
+
     // Increase memory limits for CI
     if (!process.env.NODE_OPTIONS) {
       process.env.NODE_OPTIONS = '--max-old-space-size=4096';
@@ -118,7 +118,11 @@ class CIPerformanceRunner {
     }
   }
 
-  private async runBundleAnalysis(): Promise<{ success: boolean; duration: number; error?: string }> {
+  private async runBundleAnalysis(): Promise<{
+    success: boolean;
+    duration: number;
+    error?: string;
+  }> {
     console.log('📦 Running bundle analysis...');
     const startTime = Date.now();
 
@@ -139,7 +143,11 @@ class CIPerformanceRunner {
     }
   }
 
-  private async runPerformanceBenchmarks(): Promise<{ success: boolean; duration: number; error?: string }> {
+  private async runPerformanceBenchmarks(): Promise<{
+    success: boolean;
+    duration: number;
+    error?: string;
+  }> {
     console.log('⚡ Running performance benchmarks...');
     const startTime = Date.now();
 
@@ -156,13 +164,13 @@ class CIPerformanceRunner {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`❌ Performance benchmarks failed after ${duration}ms: ${errorMessage}`);
-      
+
       // Allow some benchmark failures in CI
       if (errorMessage.includes('BENCHMARK_FAILED')) {
         console.warn('⚠️  Some benchmarks failed, but continuing...');
         return { success: true, duration, error: errorMessage };
       }
-      
+
       return { success: false, duration, error: errorMessage };
     }
   }
@@ -198,7 +206,7 @@ class CIPerformanceRunner {
     console.log(`  • Passed: ${report.summary.passed}`);
     console.log(`  • Failed: ${report.summary.failed}`);
     console.log(`  • Total duration: ${report.summary.totalDuration}ms`);
-    
+
     if (report.summary.failed > 0) {
       console.log('\n❌ Failed tests:');
       Object.entries(results).forEach(([test, result]: [string, any]) => {

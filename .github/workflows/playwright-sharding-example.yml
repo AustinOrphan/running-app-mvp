@@ -13,34 +13,34 @@ jobs:
   e2e-tests:
     name: E2E Tests (Shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    
+
     env:
       DATABASE_URL: file:./prisma/test.db
       JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
       NODE_ENV: test
-    
+
     strategy:
       fail-fast: false
       matrix:
         # Define the shards - each job will run a portion of the tests
         shard: [1/3, 2/3, 3/3]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
           cache: 'npm'
-          
+
       - name: Install dependencies
         run: npm ci
-        
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-        
+
       - name: Setup database
         run: |
           npx prisma migrate deploy
@@ -51,13 +51,13 @@ jobs:
           echo "Building application for E2E testing..."
           npm run build
           echo "Build completed successfully!"
-          
+
       - name: Run E2E tests (Shard ${{ matrix.shard }})
         env:
           CI: true
           PLAYWRIGHT_SHARD: ${{ matrix.shard }}
         run: npm run test:e2e
-        
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -65,7 +65,7 @@ jobs:
           name: playwright-report-shard-${{ strategy.job-index }}
           path: playwright-report/
           retention-days: 30
-          
+
       - name: Upload test results (JUnit)
         if: always()
         uses: actions/upload-artifact@v4
@@ -80,7 +80,7 @@ jobs:
     needs: e2e-tests
     if: always()
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Download all reports
         uses: actions/download-artifact@v4
@@ -88,13 +88,13 @@ jobs:
           pattern: playwright-report-shard-*
           merge-multiple: true
           path: all-reports/
-          
+
       - name: Merge HTML reports
         run: |
           # Simple merge - in practice, you might want a more sophisticated merge
           mkdir -p merged-report
           cp -r all-reports/* merged-report/ || true
-          
+
       - name: Upload merged report
         uses: actions/upload-artifact@v4
         with:

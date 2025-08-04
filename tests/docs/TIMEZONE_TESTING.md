@@ -14,6 +14,7 @@ Timezone handling in tests is critical for ensuring consistent behavior across d
 ## Core Principles
 
 ### 1. Use Local Dates for User Input
+
 All user-facing date operations (like goal start/end dates) should work with local dates without timezone conversion:
 
 ```typescript
@@ -30,6 +31,7 @@ const parseInputDate = (dateString: string): Date => {
 ```
 
 ### 2. Mock Dates for Consistent Testing
+
 Always mock the current date in tests to ensure reproducible results:
 
 ```typescript
@@ -55,15 +57,16 @@ describe('Date-dependent feature', () => {
 ```
 
 ### 3. Use Standardized Date Utilities
+
 Always use the centralized date utilities from `dateTestUtils.ts`:
 
 ```typescript
-import { 
+import {
   setDateInputValue,
   setDateRange,
   TEST_DATES,
   getCurrentDateForInput,
-  getDateFromToday
+  getDateFromToday,
 } from '../utils/dateTestUtils';
 ```
 
@@ -107,10 +110,11 @@ export const mockCurrentDate = (mockDate: Date | string): (() => void) => {
 ### Usage Patterns
 
 #### 1. Simple Date Mocking
+
 ```typescript
 it('calculates dates relative to today', () => {
   const cleanup = mockCurrentDate('2024-07-26');
-  
+
   try {
     expect(getDateFromToday(1)).toBe('2024-07-27'); // Tomorrow
     expect(getDateFromToday(-1)).toBe('2024-07-25'); // Yesterday
@@ -121,6 +125,7 @@ it('calculates dates relative to today', () => {
 ```
 
 #### 2. Testing with Different Times
+
 ```typescript
 it('works regardless of time of day', () => {
   const times = [
@@ -141,10 +146,11 @@ it('works regardless of time of day', () => {
 ```
 
 #### 3. Edge Case Testing
+
 ```typescript
 it('handles month boundaries correctly', () => {
   const cleanup = mockCurrentDate('2024-07-31'); // End of month
-  
+
   try {
     expect(getDateFromToday(1)).toBe('2024-08-01'); // Next month
   } finally {
@@ -163,11 +169,11 @@ export const TEST_DATES = {
   PAST_DATE: '2024-01-01',
   TODAY: '2024-07-26',
   FUTURE_DATE: '2024-12-31',
-  
+
   // Goal testing dates
   GOAL_START: '2024-07-01',
   GOAL_END: '2024-07-31',
-  
+
   // Edge case dates
   LEAP_YEAR_DATE: '2024-02-29',
   MONTH_BOUNDARY_START: '2024-07-01',
@@ -179,18 +185,19 @@ export const TEST_DATES = {
 ## Date Input Testing
 
 ### Standard Pattern for Date Inputs
+
 ```typescript
 import { setDateInputValue, setDateRange, TEST_DATES } from '../utils/dateTestUtils';
 
 it('handles date input correctly', async () => {
   render(<MyDateComponent />);
-  
+
   const startInput = screen.getByLabelText('Start Date') as HTMLInputElement;
   const endInput = screen.getByLabelText('End Date') as HTMLInputElement;
-  
+
   // Use standardized date setting
   await setDateRange(startInput, endInput, TEST_DATES.GOAL_START, TEST_DATES.GOAL_END);
-  
+
   // Assert behavior
   expect(startInput.value).toBe(TEST_DATES.GOAL_START);
   expect(endInput.value).toBe(TEST_DATES.GOAL_END);
@@ -198,6 +205,7 @@ it('handles date input correctly', async () => {
 ```
 
 ### Why fireEvent for Date Inputs
+
 Date inputs require special handling due to browser implementation differences:
 
 ```typescript
@@ -213,6 +221,7 @@ await user.type(dateInput, '2024-07-26');
 ## Cross-Platform Considerations
 
 ### Environment Variables
+
 Set timezone in CI/CD to ensure consistency:
 
 ```yaml
@@ -222,6 +231,7 @@ env:
 ```
 
 ### Test Environment Setup
+
 ```typescript
 // In test setup files
 beforeAll(() => {
@@ -233,6 +243,7 @@ beforeAll(() => {
 ## Best Practices
 
 ### 1. Always Clean Up Date Mocks
+
 ```typescript
 describe('Feature with dates', () => {
   let cleanup: (() => void) | null = null;
@@ -247,12 +258,15 @@ describe('Feature with dates', () => {
 ```
 
 ### 2. Use Consistent Date Formats
+
 - **HTML inputs**: Always use `YYYY-MM-DD` format
 - **Display**: Use locale-appropriate formatting
 - **API**: Use ISO 8601 format for transmission
 
 ### 3. Test Edge Cases
+
 Always test:
+
 - Month boundaries (especially February)
 - Year boundaries
 - Leap years
@@ -260,6 +274,7 @@ Always test:
 - Invalid dates
 
 ### 4. Avoid Timezone Conversion
+
 For user-facing dates, avoid unnecessary timezone conversions:
 
 ```typescript
@@ -299,6 +314,7 @@ console.log('Formatted back:', formatDateForInput(parseInputDate(testDate)));
 ## Integration with Existing Tests
 
 ### Updating Existing Tests
+
 When updating existing date-related tests:
 
 1. Import date utilities: `import { mockCurrentDate, TEST_DATES } from '../utils/dateTestUtils'`
@@ -307,27 +323,28 @@ When updating existing date-related tests:
 4. Use `setDateInputValue` for date input testing
 
 ### Example Migration
+
 ```typescript
 // Before
 it('creates goal with dates', async () => {
   render(<CreateGoalModal />);
-  
+
   const startInput = screen.getByLabelText('Start Date');
   fireEvent.change(startInput, { target: { value: '2024-07-01' } });
-  
+
   // Test continues...
 });
 
 // After
 it('creates goal with dates', async () => {
   const cleanup = mockCurrentDate(TEST_DATES.TODAY);
-  
+
   try {
     render(<CreateGoalModal />);
-    
+
     const startInput = screen.getByLabelText('Start Date') as HTMLInputElement;
     await setDateInputValue(startInput, TEST_DATES.GOAL_START);
-    
+
     // Test continues...
   } finally {
     cleanup();

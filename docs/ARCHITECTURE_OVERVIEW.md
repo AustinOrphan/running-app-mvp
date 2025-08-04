@@ -158,21 +158,25 @@ server/
 ### Frontend Technologies
 
 #### React 18
+
 - **Why**: Industry standard, large ecosystem, excellent DX
 - **Key Features**: Hooks, Suspense, Concurrent rendering
 - **Alternatives Considered**: Vue, Angular, Svelte
 
 #### TypeScript
+
 - **Why**: Type safety, better IDE support, fewer runtime errors
 - **Configuration**: Strict mode enabled
 - **Coverage**: 100% of frontend code
 
 #### Vite
+
 - **Why**: Fast HMR, minimal configuration, ES modules
 - **Benefits**: Sub-200ms dev server start, instant updates
 - **Alternatives Considered**: Create React App, Webpack
 
 #### Tailwind CSS
+
 - **Why**: Utility-first, consistent design, small bundle
 - **Configuration**: Custom theme, PurgeCSS enabled
 - **Alternatives Considered**: Styled Components, CSS Modules
@@ -180,21 +184,25 @@ server/
 ### Backend Technologies
 
 #### Express.js
+
 - **Why**: Minimal, flexible, large middleware ecosystem
 - **Configuration**: TypeScript, async error handling
 - **Alternatives Considered**: Fastify, Koa, NestJS
 
 #### Prisma ORM
+
 - **Why**: Type-safe queries, excellent DX, migrations
 - **Benefits**: Auto-generated types, visual studio
 - **Alternatives Considered**: TypeORM, Sequelize, raw SQL
 
 #### SQLite (Development)
+
 - **Why**: Zero configuration, file-based, fast
 - **Production**: Easy migration to PostgreSQL/MySQL
 - **Alternatives Considered**: PostgreSQL, MySQL
 
 #### JWT Authentication
+
 - **Why**: Stateless, scalable, standard
 - **Implementation**: RS256 algorithm, refresh tokens
 - **Alternatives Considered**: Sessions, OAuth2
@@ -202,16 +210,19 @@ server/
 ### Testing Strategy
 
 #### Vitest (Unit Tests)
+
 - **Why**: Fast, Vite-native, Jest-compatible
 - **Coverage Target**: 80%+
 - **Focus**: Business logic, utilities, components
 
 #### Jest (Integration Tests)
+
 - **Why**: Mature, extensive ecosystem
 - **Focus**: API endpoints, database operations
 - **Configuration**: In-memory database
 
 #### Playwright (E2E Tests)
+
 - **Why**: Modern, reliable, multi-browser
 - **Coverage**: Critical user paths
 - **Browsers**: Chrome, Firefox, Safari
@@ -221,16 +232,17 @@ server/
 ### Frontend Patterns
 
 #### Container/Presenter Pattern
+
 ```typescript
 // Container (smart component)
 const RunListContainer: React.FC = () => {
   const [runs, setRuns] = useState<Run[]>([]);
   const { loading, error } = useApi();
-  
+
   useEffect(() => {
     fetchRuns().then(setRuns);
   }, []);
-  
+
   return <RunList runs={runs} loading={loading} error={error} />;
 };
 
@@ -243,20 +255,22 @@ const RunList: React.FC<RunListProps> = ({ runs, loading, error }) => {
 ```
 
 #### Custom Hooks Pattern
+
 ```typescript
 // Encapsulate logic in custom hooks
 const useRuns = () => {
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  
+
   useEffect(() => {
-    runService.getAll()
+    runService
+      .getAll()
       .then(setRuns)
       .catch(setError)
       .finally(() => setLoading(false));
   }, []);
-  
+
   return { runs, loading, error, refetch };
 };
 ```
@@ -264,6 +278,7 @@ const useRuns = () => {
 ### Backend Patterns
 
 #### Service Layer Pattern
+
 ```typescript
 // Route handler delegates to service
 router.post('/runs', authenticate, async (req, res, next) => {
@@ -287,14 +302,14 @@ class RunService {
 ```
 
 #### Repository Pattern (via Prisma)
+
 ```typescript
 // Data access abstracted through Prisma
 const runRepository = {
   findAll: (userId: number) => prisma.run.findMany({ where: { userId } }),
   findById: (id: number) => prisma.run.findUnique({ where: { id } }),
   create: (data: RunData) => prisma.run.create({ data }),
-  update: (id: number, data: Partial<RunData>) => 
-    prisma.run.update({ where: { id }, data }),
+  update: (id: number, data: Partial<RunData>) => prisma.run.update({ where: { id }, data }),
   delete: (id: number) => prisma.run.delete({ where: { id } }),
 };
 ```
@@ -435,7 +450,7 @@ logger.info('Run created', {
   runId: run.id,
   distance: run.distance,
   duration: run.duration,
-  timestamp: new Date().toISOString()
+  timestamp: new Date().toISOString(),
 });
 ```
 
@@ -506,24 +521,28 @@ main
 ## Future Architecture Considerations
 
 ### Phase 1: Current MVP
+
 - Monolithic architecture
 - SQLite database
 - Server-side sessions
 - Basic monitoring
 
 ### Phase 2: Growth (10K users)
+
 - PostgreSQL migration
 - Redis caching
 - CDN implementation
 - Enhanced monitoring
 
 ### Phase 3: Scale (100K users)
+
 - Microservices architecture
 - Kubernetes deployment
 - Event-driven architecture
 - Global distribution
 
 ### Phase 4: Enterprise (1M+ users)
+
 - Multi-region deployment
 - GraphQL federation
 - Real-time features

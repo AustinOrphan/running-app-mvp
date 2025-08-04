@@ -106,12 +106,12 @@ class PerformanceBenchmark {
     // Detect CI environment
     this.isCI = this.detectCIEnvironment();
     this.ciConfig = this.getCIConfiguration();
-    
+
     // Ensure results directory exists
     if (!existsSync(this.resultsDir)) {
       mkdirSync(this.resultsDir, { recursive: true });
     }
-    
+
     if (this.isCI) {
       console.log('🔧 CI environment detected, applying optimizations...');
       this.logCIConfiguration();
@@ -185,10 +185,10 @@ class PerformanceBenchmark {
     // Measure E2E tests (sample test) - with server readiness check
     try {
       const e2eStart = performance.now();
-      
+
       // Wait for server ready before running E2E tests
       await this.waitForServerReady();
-      
+
       execSync('npx playwright test tests/e2e/auth.test.ts --reporter=dot', { stdio: 'pipe' });
       times.e2e = performance.now() - e2eStart;
     } catch (error) {
@@ -206,17 +206,19 @@ class PerformanceBenchmark {
    */
   private async waitForServerReady(): Promise<void> {
     console.log('⏳ Waiting for servers to be ready...');
-    
+
     // Adjust timeouts based on CI environment
     const maxAttempts = this.isCI ? 45 : 30; // More attempts in CI
     const delayMs = this.isCI ? 3000 : 2000; // Longer delays in CI
-    
-    console.log(`🔧 Environment: ${this.isCI ? 'CI' : 'Local'} | Max attempts: ${maxAttempts} | Delay: ${delayMs}ms`);
-    
+
+    console.log(
+      `🔧 Environment: ${this.isCI ? 'CI' : 'Local'} | Max attempts: ${maxAttempts} | Delay: ${delayMs}ms`
+    );
+
     // Check if servers are already running
     const frontendUrl = 'http://localhost:3000';
     const backendUrl = 'http://localhost:3001';
-    
+
     // Wait for frontend server
     for (let i = 1; i <= maxAttempts; i++) {
       try {
@@ -234,7 +236,7 @@ class PerformanceBenchmark {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
-    
+
     // Wait for backend server
     for (let i = 1; i <= maxAttempts; i++) {
       try {
@@ -252,10 +254,10 @@ class PerformanceBenchmark {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
-    
+
     // Check page load complete
     await this.checkPageLoadComplete();
-    
+
     // Additional wait to ensure servers are fully stabilized
     console.log('⏳ Allowing servers to stabilize...');
     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -267,56 +269,60 @@ class PerformanceBenchmark {
    */
   private async checkPageLoadComplete(): Promise<void> {
     console.log('📄 Checking page load completion...');
-    
+
     const testUrls = [
       'http://localhost:3000/',
       'http://localhost:3000/dashboard',
       'http://localhost:3000/runs',
-      'http://localhost:3000/analytics'
+      'http://localhost:3000/analytics',
     ];
-    
+
     for (const url of testUrls) {
       const maxAttempts = 10;
       const delayMs = 1500;
-      
+
       for (let i = 1; i <= maxAttempts; i++) {
         try {
           console.log(`⏳ Checking page load: ${url} (attempt ${i}/${maxAttempts})`);
-          
+
           const response = await fetch(url, {
             method: 'GET',
             headers: {
-              'Accept': 'text/html,application/xhtml+xml',
-              'User-Agent': 'Performance-Test-Agent'
-            }
+              Accept: 'text/html,application/xhtml+xml',
+              'User-Agent': 'Performance-Test-Agent',
+            },
           });
-          
+
           if (response.ok) {
             const content = await response.text();
-            
+
             // Check if page has essential content loaded
             const hasHTML = content.includes('<!DOCTYPE html>') || content.includes('<html');
             const hasReactRoot = content.includes('root') || content.includes('app');
             const hasBasicStructure = content.length > 1000; // Minimum content size
-            
+
             if (hasHTML && hasReactRoot && hasBasicStructure) {
               console.log(`✅ Page loaded completely: ${url}`);
               break;
             } else {
-              console.log(`⚠️  Page incomplete: ${url} (HTML: ${hasHTML}, Root: ${hasReactRoot}, Size: ${content.length})`);
+              console.log(
+                `⚠️  Page incomplete: ${url} (HTML: ${hasHTML}, Root: ${hasReactRoot}, Size: ${content.length})`
+              );
             }
           } else {
             console.log(`⚠️  Page responded with status ${response.status}: ${url}`);
           }
-          
+
           if (i === maxAttempts) {
             console.warn(`⚠️  Page load check failed after ${maxAttempts} attempts: ${url}`);
           } else {
             await new Promise(resolve => setTimeout(resolve, delayMs));
           }
         } catch (error) {
-          console.log(`⚠️  Page load check error for ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          
+          console.log(
+            `⚠️  Page load check error for ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
+
           if (i === maxAttempts) {
             console.warn(`⚠️  Page load check failed after ${maxAttempts} attempts: ${url}`);
           } else {
@@ -325,7 +331,7 @@ class PerformanceBenchmark {
         }
       }
     }
-    
+
     console.log('✅ Page load completion checks finished');
   }
 
@@ -334,59 +340,60 @@ class PerformanceBenchmark {
    */
   private async checkPageLoadComplete(): Promise<void> {
     console.log('⏳ Checking page load completion...');
-    
+
     try {
       const frontendUrl = 'http://localhost:3000';
-      
+
       // Fetch the HTML content
       const response = await fetch(frontendUrl, {
         timeout: 10000,
         headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.5',
           'Accept-Encoding': 'gzip, deflate',
           'User-Agent': 'Mozilla/5.0 (compatible; PerformanceBenchmark/1.0)',
-        }
+        },
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       const html = await response.text();
-      
+
       // Basic checks for complete page load
       const hasDoctype = html.toLowerCase().includes('<!doctype html>');
       const hasHtmlTag = html.includes('<html');
       const hasBodyTag = html.includes('<body');
       const hasHeadTag = html.includes('<head');
-      
+
       if (!hasDoctype) {
         console.warn('⚠️  Missing DOCTYPE declaration');
       }
-      
+
       if (!hasHtmlTag || !hasBodyTag || !hasHeadTag) {
         throw new Error('Page content appears incomplete - missing essential HTML structure');
       }
-      
+
       // Check for React root element (specific to this app)
       const hasReactRoot = html.includes('id="root"') || html.includes('id="app"');
       if (!hasReactRoot) {
         console.warn('⚠️  React root element not found, page may not be fully rendered');
       }
-      
+
       // Check for JavaScript and CSS assets
       const hasJavaScript = html.includes('<script') || html.includes('.js');
-      const hasCSS = html.includes('<link') && html.includes('stylesheet') || html.includes('.css');
-      
+      const hasCSS =
+        (html.includes('<link') && html.includes('stylesheet')) || html.includes('.css');
+
       if (!hasJavaScript) {
         console.warn('⚠️  No JavaScript assets detected in HTML');
       }
-      
+
       if (!hasCSS) {
         console.warn('⚠️  No CSS assets detected in HTML');
       }
-      
+
       // For production builds, verify build assets
       if (process.env.NODE_ENV === 'production') {
         const hasHashedAssets = /\.(js|css)\?v=\w+|\/assets\/[^\/]+\.(js|css)/.test(html);
@@ -394,33 +401,32 @@ class PerformanceBenchmark {
           console.warn('⚠️  No versioned/hashed assets found in production build');
         }
       }
-      
+
       // Check page size (should not be empty or too small)
       const contentLength = html.length;
       if (contentLength < 1000) {
         console.warn(`⚠️  Page content seems small (${contentLength} bytes), may be incomplete`);
       }
-      
+
       // Basic validation for common meta tags
       const hasTitle = html.includes('<title>') && !html.includes('<title></title>');
       const hasMetaCharset = html.includes('charset=') || html.includes('charset="');
       const hasViewport = html.includes('viewport');
-      
+
       if (!hasTitle) {
         console.warn('⚠️  Page missing title tag');
       }
-      
+
       if (!hasMetaCharset) {
         console.warn('⚠️  Page missing charset declaration');
       }
-      
+
       if (!hasViewport) {
         console.warn('⚠️  Page missing viewport meta tag');
       }
-      
+
       console.log('✅ Page load completion verified');
       console.log(`📊 Page size: ${(contentLength / 1024).toFixed(2)}KB`);
-      
     } catch (error) {
       console.warn('⚠️  Page load completion check failed:', (error as Error).message);
       // Don't throw - this is a soft check that shouldn't fail the benchmark
@@ -711,7 +717,7 @@ class PerformanceBenchmark {
     if (this.isCI && this.ciConfig.performance.relaxedThresholds) {
       console.log('🔧 Applying relaxed thresholds for CI environment');
       const multiplier = this.ciConfig.performance.timeoutMultiplier;
-      
+
       // Increase all time-based thresholds
       baseThresholds.testExecutionTime.unit.max *= multiplier;
       baseThresholds.testExecutionTime.unit.warning *= multiplier;
@@ -721,14 +727,14 @@ class PerformanceBenchmark {
       baseThresholds.testExecutionTime.e2e.warning *= multiplier;
       baseThresholds.testExecutionTime.total.max *= multiplier;
       baseThresholds.testExecutionTime.total.warning *= multiplier;
-      
+
       baseThresholds.buildTime.frontend.max *= multiplier;
       baseThresholds.buildTime.frontend.warning *= multiplier;
       baseThresholds.buildTime.backend.max *= multiplier;
       baseThresholds.buildTime.backend.warning *= multiplier;
       baseThresholds.buildTime.total.max *= multiplier;
       baseThresholds.buildTime.total.warning *= multiplier;
-      
+
       // Relax memory thresholds slightly for CI
       baseThresholds.memoryUsage.heapUsed.max *= 1.5;
       baseThresholds.memoryUsage.heapUsed.warning *= 1.5;
@@ -848,10 +854,12 @@ class PerformanceBenchmark {
       'JENKINS_URL',
       'TRAVIS',
       'BUILDKITE',
-      'TF_BUILD'
+      'TF_BUILD',
     ];
-    
-    return ciIndicators.some(indicator => process.env[indicator] === 'true' || !!process.env[indicator]);
+
+    return ciIndicators.some(
+      indicator => process.env[indicator] === 'true' || !!process.env[indicator]
+    );
   }
 
   /**
@@ -883,7 +891,7 @@ class PerformanceBenchmark {
     return {
       timeouts: {
         server: 60000, // 2x longer for slower CI runners
-        test: 120000,  // 2x longer for test execution
+        test: 120000, // 2x longer for test execution
         build: 300000, // 5 minutes for build in CI
       },
       browser: {
@@ -907,7 +915,7 @@ class PerformanceBenchmark {
       performance: {
         relaxedThresholds: true,
         timeoutMultiplier: 2, // Double timeouts in CI
-        maxRetries: 2,        // Allow more retries in CI
+        maxRetries: 2, // Allow more retries in CI
       },
     };
   }
@@ -921,9 +929,13 @@ class PerformanceBenchmark {
     console.log(`  • Test timeout: ${this.ciConfig.timeouts.test}ms`);
     console.log(`  • Build timeout: ${this.ciConfig.timeouts.build}ms`);
     console.log(`  • Headless mode: ${this.ciConfig.browser.headless ? 'enabled' : 'disabled'}`);
-    console.log(`  • Viewport: ${this.ciConfig.browser.viewport.width}x${this.ciConfig.browser.viewport.height}`);
+    console.log(
+      `  • Viewport: ${this.ciConfig.browser.viewport.width}x${this.ciConfig.browser.viewport.height}`
+    );
     console.log(`  • Chrome flags: ${this.ciConfig.browser.chromeFlags.length} optimization flags`);
-    console.log(`  • Relaxed thresholds: ${this.ciConfig.performance.relaxedThresholds ? 'enabled' : 'disabled'}`);
+    console.log(
+      `  • Relaxed thresholds: ${this.ciConfig.performance.relaxedThresholds ? 'enabled' : 'disabled'}`
+    );
     console.log(`  • Timeout multiplier: ${this.ciConfig.performance.timeoutMultiplier}x`);
     console.log(`  • Max retries: ${this.ciConfig.performance.maxRetries}`);
   }

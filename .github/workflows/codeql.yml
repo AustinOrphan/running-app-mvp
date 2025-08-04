@@ -92,20 +92,20 @@ jobs:
           echo "**Trigger**: ${{ github.event_name || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
           echo "**Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Check analysis job result with comprehensive null handling
           analyze_result="${{ needs.analyze.result || 'not_run' }}"
           analyze_outputs="${{ toJson(needs.analyze.outputs) || '{}' }}"
-          
+
           # Handle empty or null outputs gracefully  
           if [ -z "$analyze_result" ] || [ "$analyze_result" = "null" ]; then
             analyze_result="not_run"
           fi
-          
+
           echo "### 📋 Analysis Details:" >> $GITHUB_STEP_SUMMARY
           echo "- **Languages:** TypeScript" >> $GITHUB_STEP_SUMMARY
           echo "- **Status:** " >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "$analyze_result" = "success" ]; then
             echo "  ✅ **CodeQL Analysis**: Completed successfully" >> $GITHUB_STEP_SUMMARY
           elif [ "$analyze_result" = "failure" ]; then
@@ -117,9 +117,9 @@ jobs:
           else
             echo "  ⚪ **CodeQL Analysis**: Not run or unknown status" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Generate appropriate summary with enhanced error handling
           if [ "$analyze_result" = "success" ]; then
             echo "### ✅ Analysis Successful" >> $GITHUB_STEP_SUMMARY
@@ -149,6 +149,6 @@ jobs:
               echo "Scheduled scans may be skipped if there are no recent code changes." >> $GITHUB_STEP_SUMMARY
             fi
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📚 [Learn more about CodeQL](https://docs.github.com/en/code-security/code-scanning)"

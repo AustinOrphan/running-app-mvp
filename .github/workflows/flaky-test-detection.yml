@@ -80,30 +80,30 @@ jobs:
       - name: 🔍 Run Comprehensive Flaky Test Detection
         run: |
           echo "🔍 Running comprehensive flaky test detection..."
-          
+
           # Set up environment for the tracker
           export FLAKY_OUTPUT_DIR="./test-flakiness"
           export FLAKY_THRESHOLD="0.1"
           export FLAKY_RETRY_COUNT="${{ github.event.inputs.runs || '3' }}"
           export FLAKY_HISTORY_LENGTH="50"
-          
+
           # Create output directory
           mkdir -p test-flakiness
-          
+
           # Determine which suite to run
           SUITE="${{ github.event.inputs.suite || 'all' }}"
           echo "Running flaky test detection for suite: $SUITE"
-          
+
           # Run the comprehensive flaky test tracker
           node scripts/flaky-test-tracker.js track "$SUITE"
 
       - name: 📊 Generate Additional Analysis
         run: |
           echo "📊 Generating additional analysis and reports..."
-          
+
           # Generate retry configuration
           node scripts/flaky-test-tracker.js config
-          
+
           # Create comprehensive analysis
           node scripts/flaky-test-tracker.js analyze
 
@@ -121,7 +121,7 @@ jobs:
           path: |
             test-flakiness/
           retention-days: 30
-          
+
       - name: 📤 Upload retry configuration
         if: always()
         uses: actions/upload-artifact@v4

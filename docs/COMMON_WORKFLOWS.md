@@ -116,6 +116,7 @@ touch src/services/feature-name.ts
 ```
 
 Example component structure:
+
 ```typescript
 // src/components/feature-name/FeatureName.tsx
 import React, { useState, useEffect } from 'react';
@@ -129,14 +130,14 @@ interface FeatureNameProps {
 export const FeatureName: React.FC<FeatureNameProps> = (props) => {
   const [state, setState] = useState<FeatureType>();
   const { data, loading, error } = useApi<FeatureType>('/api/feature');
-  
+
   useEffect(() => {
     // Side effects
   }, []);
-  
+
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
-  
+
   return (
     <div className="feature-container">
       {/* Component JSX */}
@@ -165,6 +166,7 @@ touch tests/integration/api/feature-name.test.ts
 ```
 
 Example route structure:
+
 ```typescript
 // server/routes/feature-name.ts
 import express from 'express';
@@ -180,7 +182,7 @@ router.get('/', authenticate, async (req, res, next) => {
     const userId = req.user!.id;
     const results = await prisma.feature.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(results);
   } catch (error) {
@@ -193,7 +195,7 @@ router.post('/', authenticate, validate(featureSchema), async (req, res, next) =
   try {
     const userId = req.user!.id;
     const feature = await prisma.feature.create({
-      data: { ...req.body, userId }
+      data: { ...req.body, userId },
     });
     res.status(201).json(feature);
   } catch (error) {
@@ -357,17 +359,17 @@ describe('POST /api/resource', () => {
       .post('/api/resource')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Test', value: 42 });
-      
+
     expect(response.status).toBe(201);
     expect(response.body).toHaveProperty('id');
   });
-  
+
   it('should validate input', async () => {
     const response = await request(app)
       .post('/api/resource')
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Test' }); // Missing value
-      
+
     expect(response.status).toBe(400);
   });
 });
@@ -375,7 +377,7 @@ describe('POST /api/resource', () => {
 
 ### 4. Document API
 
-```markdown
+````markdown
 ## POST /api/resource
 
 Create a new resource.
@@ -397,10 +399,12 @@ Create a new resource.
   "value": "number (required)"
 }
 ```
+````
 
 ### Response
 
 **Success (201)**:
+
 ```json
 {
   "id": 1,
@@ -409,7 +413,8 @@ Create a new resource.
   "createdAt": "2024-01-15T10:00:00Z"
 }
 ```
-```
+
+````
 
 ### 5. Test with curl
 
@@ -425,7 +430,7 @@ curl -X POST http://localhost:3001/api/resource \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"name":"Test Resource","value":42}'
-```
+````
 
 ## Database Changes Workflow
 
@@ -440,7 +445,7 @@ model NewModel {
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([userId])
 }
 ```
@@ -484,8 +489,8 @@ async function seed() {
   await prisma.newModel.createMany({
     data: [
       { name: 'Sample 1', userId: 1 },
-      { name: 'Sample 2', userId: 1 }
-    ]
+      { name: 'Sample 2', userId: 1 },
+    ],
   });
 }
 ```

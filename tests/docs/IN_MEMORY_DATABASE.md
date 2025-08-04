@@ -8,11 +8,11 @@ In-memory SQLite databases provide significantly faster test execution by storin
 
 Based on benchmark results:
 
-| Scenario | Setup Time Improvement | Query Time Improvement | Overall Improvement |
-|----------|----------------------|----------------------|-------------------|
-| Basic Test Data | 39.7% | 33.3% | **39.7%** |
-| Large Dataset | 10.1% | 9.1% | **10.0%** |
-| **Average** | **24.9%** | **21.2%** | **24.8%** |
+| Scenario        | Setup Time Improvement | Query Time Improvement | Overall Improvement |
+| --------------- | ---------------------- | ---------------------- | ------------------- |
+| Basic Test Data | 39.7%                  | 33.3%                  | **39.7%**           |
+| Large Dataset   | 10.1%                  | 9.1%                   | **10.0%**           |
+| **Average**     | **24.9%**              | **21.2%**              | **24.8%**           |
 
 ## Quick Start
 
@@ -125,9 +125,9 @@ await setupInMemoryDb({
 
 // Custom seed data
 await setupInMemoryDb({
-  seedFunction: async (client) => {
+  seedFunction: async client => {
     await client.user.create({
-      data: { email: 'custom@test.com', name: 'Custom User', password: 'hashed' }
+      data: { email: 'custom@test.com', name: 'Custom User', password: 'hashed' },
     });
   },
   testSuiteId: 'custom-tests',
@@ -139,20 +139,24 @@ await setupInMemoryDb({
 Pre-built seed functions for common test scenarios:
 
 ### `seedBasicTestData`
+
 - 3 test users (John, Jane, Bob)
 - Sample runs, goals, and races
 - Good for general testing
 
 ### `seedMinimalTestData`
+
 - 3 test users only
 - Minimal setup for user-focused tests
 
 ### `seedPerformanceTestData`
+
 - 3 test users
 - 1000 randomly generated runs
 - Large dataset for performance testing
 
 ### `seedEdgeCaseTestData`
+
 - Edge case scenarios
 - Boundary value testing
 - Null/empty value handling
@@ -195,13 +199,11 @@ const bob = getTestUser('bob');
 
 // Use in tests
 test('should authenticate user', async () => {
-  const response = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email: john.email,
-      password: john.password,
-    });
-  
+  const response = await request(app).post('/api/auth/login').send({
+    email: john.email,
+    password: john.password,
+  });
+
   expect(response.status).toBe(200);
 });
 ```
@@ -213,7 +215,7 @@ import { getTestDataForUser, TEST_USERS } from '../utils/testSeeds';
 
 test('should get user data', async () => {
   const johnData = getTestDataForUser(TEST_USERS.john.id);
-  
+
   expect(johnData.runs.length).toBeGreaterThan(0);
   expect(johnData.goals.length).toBeGreaterThan(0);
   expect(johnData.races.length).toBeGreaterThan(0);
@@ -241,19 +243,20 @@ import { createTestDatabase, InMemoryDatabase } from '../utils/inMemoryDb';
 
 test('manual database management', async () => {
   const db = await createTestDatabase('manual-test');
-  
+
   try {
     const client = db.getClient();
-    
+
     // Use database
-    await client.user.create({ /* ... */ });
-    
+    await client.user.create({
+      /* ... */
+    });
+
     // Clean specific data
     await db.clean();
-    
+
     // Re-seed
     await db.seed(seedBasicTestData);
-    
   } finally {
     await db.destroy();
   }
@@ -266,11 +269,11 @@ test('manual database management', async () => {
 test('should track database stats', async () => {
   const db = getTestDb();
   const stats = await db.getStats();
-  
+
   console.log(`Tables: ${stats.tableCount}`);
   console.log(`Total rows: ${stats.totalRows}`);
   console.log(`Database size: ${stats.databaseSize} bytes`);
-  
+
   stats.tables.forEach(table => {
     console.log(`${table.name}: ${table.rowCount} rows`);
   });
@@ -282,6 +285,7 @@ test('should track database stats', async () => {
 ### 1. Update Test Setup
 
 **Before (file-based):**
+
 ```typescript
 beforeAll(async () => {
   process.env.DATABASE_URL = 'file:./test.db';
@@ -290,6 +294,7 @@ beforeAll(async () => {
 ```
 
 **After (in-memory):**
+
 ```typescript
 beforeAll(async () => {
   await setupInMemoryDb({
@@ -302,11 +307,13 @@ beforeAll(async () => {
 ### 2. Update Client Access
 
 **Before:**
+
 ```typescript
 const client = new PrismaClient();
 ```
 
 **After:**
+
 ```typescript
 const client = getTestDbClient();
 ```
@@ -314,6 +321,7 @@ const client = getTestDbClient();
 ### 3. Update Cleanup
 
 **Before:**
+
 ```typescript
 afterAll(async () => {
   await client.$disconnect();
@@ -322,6 +330,7 @@ afterAll(async () => {
 ```
 
 **After:**
+
 ```typescript
 afterAll(async () => {
   await cleanupInMemoryDb();
@@ -333,21 +342,27 @@ afterAll(async () => {
 ### Common Issues
 
 1. **"Database not setup" error**
+
    ```
    Error: Database not setup. Call setupInMemoryDb() in beforeAll hook.
    ```
+
    **Solution:** Ensure `setupInMemoryDb()` is called before using `getTestDbClient()`.
 
 2. **Tests interfering with each other**
+
    ```
    Expected 1 user, but found 3
    ```
+
    **Solution:** Enable `cleanBetweenTests: true` or use unique `testSuiteId` values.
 
 3. **Slow test setup**
+
    ```
    Setup taking longer than expected
    ```
+
    **Solution:** Use `seedMinimalTestData` instead of `seedPerformanceTestData` for faster setup.
 
 4. **Migration errors**
@@ -384,26 +399,31 @@ npm run test:db:inmemory # In-memory
 ## Best Practices
 
 ### 1. Test Isolation
+
 - Use unique `testSuiteId` for each test file
 - Enable `cleanBetweenTests` for independent tests
 - Avoid shared global state
 
 ### 2. Performance Optimization
+
 - Use `seedMinimalTestData` for unit tests
 - Use `seedBasicTestData` for integration tests
 - Use `seedPerformanceTestData` only for performance tests
 
 ### 3. Data Management
+
 - Create focused seed functions for specific test scenarios
 - Clean up large datasets after performance tests
 - Use transactions for atomic test operations
 
 ### 4. Error Handling
+
 - Always use try/finally blocks with manual database management
 - Set appropriate timeouts for Jest beforeAll/afterAll hooks
 - Handle async cleanup properly
 
 ### 5. CI/CD Integration
+
 ```yaml
 # GitHub Actions example
 - name: Run tests with in-memory database
@@ -414,13 +434,13 @@ npm run test:db:inmemory # In-memory
 
 ## Performance Comparison
 
-| Operation | File-based SQLite | In-memory SQLite | Improvement |
-|-----------|------------------|-----------------|-------------|
-| Database Setup | 1283ms | 774ms | 39.7% |
-| Simple Queries | 3ms | 2ms | 33.3% |
-| Complex Joins | 11ms | 10ms | 9.1% |
-| Bulk Operations | Similar | Similar | Minimal |
-| Cleanup | Instant | Instant | Similar |
+| Operation       | File-based SQLite | In-memory SQLite | Improvement |
+| --------------- | ----------------- | ---------------- | ----------- |
+| Database Setup  | 1283ms            | 774ms            | 39.7%       |
+| Simple Queries  | 3ms               | 2ms              | 33.3%       |
+| Complex Joins   | 11ms              | 10ms             | 9.1%        |
+| Bulk Operations | Similar           | Similar          | Minimal     |
+| Cleanup         | Instant           | Instant          | Similar     |
 
 ## Security Considerations
 

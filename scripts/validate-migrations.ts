@@ -39,10 +39,7 @@ class MigrationValidator {
     });
 
     try {
-      const result = await Promise.race([
-        this.performValidation(),
-        validationTimeout,
-      ]);
+      const result = await Promise.race([this.performValidation(), validationTimeout]);
       return result;
     } catch (error) {
       console.error('❌ Migration validation failed:', error);
@@ -110,14 +107,14 @@ class MigrationValidator {
   private async testDatabaseOperations(): Promise<void> {
     // Add timeout protection to prevent hanging
     const operationTimeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Database operations test timed out after 30 seconds')), 30000);
+      setTimeout(
+        () => reject(new Error('Database operations test timed out after 30 seconds')),
+        30000
+      );
     });
 
     try {
-      await Promise.race([
-        this.performDatabaseOperations(),
-        operationTimeout,
-      ]);
+      await Promise.race([this.performDatabaseOperations(), operationTimeout]);
     } catch (error) {
       if (error instanceof Error && error.message.includes('timed out')) {
         throw new Error(`Database operations test failed: ${error.message}`);
@@ -132,7 +129,7 @@ class MigrationValidator {
   private async performDatabaseOperations(): Promise<void> {
     // Import Prisma client dynamically to avoid import issues
     const { PrismaClient } = await import('@prisma/client');
-    
+
     const prisma = new PrismaClient({
       datasources: {
         db: {
@@ -159,9 +156,10 @@ class MigrationValidator {
         prisma.goal.count(),
         prisma.race.count(),
       ]);
-      
-      console.log(`✅ All tables accessible: users=${userCount}, runs=${runCount}, goals=${goalCount}, races=${raceCount}`);
 
+      console.log(
+        `✅ All tables accessible: users=${userCount}, runs=${runCount}, goals=${goalCount}, races=${raceCount}`
+      );
     } finally {
       await prisma.$disconnect();
     }
@@ -227,7 +225,6 @@ async function main(): Promise<void> {
       }
       process.exit(1);
     }
-
   } catch (error) {
     console.error('💥 Validation tool crashed:', error);
     process.exit(1);

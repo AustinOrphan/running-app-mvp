@@ -2,7 +2,7 @@
 
 /**
  * Code Coverage Monitor
- * 
+ *
  * Monitors and enforces >80% code coverage across all test types.
  * Tracks coverage trends, generates reports, and integrates with CI/CD.
  */
@@ -88,14 +88,14 @@ export class CoverageMonitor {
           lines: 80,
           statements: 80,
           functions: 80,
-          branches: 75
+          branches: 75,
         },
         each: {
           lines: 60,
           statements: 60,
           functions: 60,
-          branches: 50
-        }
+          branches: 50,
+        },
       };
       fs.writeFileSync(this.thresholdsFile, JSON.stringify(defaultThresholds, null, 2));
     }
@@ -117,7 +117,7 @@ export class CoverageMonitor {
     // Collect integration test coverage
     console.log('🔗 Running integration tests with coverage...');
     const integrationReport = await this.runCoverageForTestType(
-      'integration', 
+      'integration',
       'npm run test:coverage:integration'
     );
     if (integrationReport) reports.push(integrationReport);
@@ -147,9 +147,10 @@ export class CoverageMonitor {
       execSync(command, { stdio: 'pipe', encoding: 'utf8' });
 
       // Parse coverage data
-      const coverageFile = testType === 'integration' 
-        ? 'coverage-integration/coverage-final.json'
-        : 'coverage/coverage-final.json';
+      const coverageFile =
+        testType === 'integration'
+          ? 'coverage-integration/coverage-final.json'
+          : 'coverage/coverage-final.json';
 
       if (!fs.existsSync(coverageFile)) {
         console.warn(`⚠️  No coverage file found for ${testType} tests`);
@@ -170,16 +171,20 @@ export class CoverageMonitor {
 
   private parseCoverageData(coverageData: any, testType: string): CoverageReport {
     const files: FileCoverage[] = [];
-    let totalLines = 0, coveredLines = 0;
-    let totalStatements = 0, coveredStatements = 0;
-    let totalFunctions = 0, coveredFunctions = 0;
-    let totalBranches = 0, coveredBranches = 0;
+    let totalLines = 0,
+      coveredLines = 0;
+    let totalStatements = 0,
+      coveredStatements = 0;
+    let totalFunctions = 0,
+      coveredFunctions = 0;
+    let totalBranches = 0,
+      coveredBranches = 0;
 
     for (const [filePath, fileData] of Object.entries(coverageData)) {
       if (typeof fileData !== 'object') continue;
 
       const data = fileData as any;
-      
+
       // Calculate file coverage
       const lines = this.calculateMetric(data.l);
       const statements = this.calculateMetric(data.s);
@@ -191,7 +196,7 @@ export class CoverageMonitor {
         lines,
         statements,
         functions,
-        branches
+        branches,
       });
 
       // Update totals
@@ -209,23 +214,23 @@ export class CoverageMonitor {
       lines: {
         total: totalLines,
         covered: coveredLines,
-        percentage: totalLines > 0 ? (coveredLines / totalLines) * 100 : 0
+        percentage: totalLines > 0 ? (coveredLines / totalLines) * 100 : 0,
       },
       statements: {
         total: totalStatements,
         covered: coveredStatements,
-        percentage: totalStatements > 0 ? (coveredStatements / totalStatements) * 100 : 0
+        percentage: totalStatements > 0 ? (coveredStatements / totalStatements) * 100 : 0,
       },
       functions: {
         total: totalFunctions,
         covered: coveredFunctions,
-        percentage: totalFunctions > 0 ? (coveredFunctions / totalFunctions) * 100 : 0
+        percentage: totalFunctions > 0 ? (coveredFunctions / totalFunctions) * 100 : 0,
       },
       branches: {
         total: totalBranches,
         covered: coveredBranches,
-        percentage: totalBranches > 0 ? (coveredBranches / totalBranches) * 100 : 0
-      }
+        percentage: totalBranches > 0 ? (coveredBranches / totalBranches) * 100 : 0,
+      },
     };
 
     const report: CoverageReport = {
@@ -238,7 +243,7 @@ export class CoverageMonitor {
       testType: testType as any,
       targetMet: summary.lines.percentage >= this.targetCoverage,
       improvements: [],
-      regressions: []
+      regressions: [],
     };
 
     return report;
@@ -254,7 +259,7 @@ export class CoverageMonitor {
     return {
       total,
       covered,
-      percentage: total > 0 ? (covered / total) * 100 : 0
+      percentage: total > 0 ? (covered / total) * 100 : 0,
     };
   }
 
@@ -274,7 +279,7 @@ export class CoverageMonitor {
     return {
       total,
       covered,
-      percentage: total > 0 ? (covered / total) * 100 : 0
+      percentage: total > 0 ? (covered / total) * 100 : 0,
     };
   }
 
@@ -283,7 +288,7 @@ export class CoverageMonitor {
 
     // Merge all files
     const allFiles = new Map<string, FileCoverage>();
-    
+
     for (const report of reports) {
       for (const file of report.files) {
         const existing = allFiles.get(file.path);
@@ -295,10 +300,14 @@ export class CoverageMonitor {
 
     // Calculate combined summary
     const files = Array.from(allFiles.values());
-    let totalLines = 0, coveredLines = 0;
-    let totalStatements = 0, coveredStatements = 0;
-    let totalFunctions = 0, coveredFunctions = 0;
-    let totalBranches = 0, coveredBranches = 0;
+    let totalLines = 0,
+      coveredLines = 0;
+    let totalStatements = 0,
+      coveredStatements = 0;
+    let totalFunctions = 0,
+      coveredFunctions = 0;
+    let totalBranches = 0,
+      coveredBranches = 0;
 
     for (const file of files) {
       totalLines += file.lines.total;
@@ -315,23 +324,23 @@ export class CoverageMonitor {
       lines: {
         total: totalLines,
         covered: coveredLines,
-        percentage: totalLines > 0 ? (coveredLines / totalLines) * 100 : 0
+        percentage: totalLines > 0 ? (coveredLines / totalLines) * 100 : 0,
       },
       statements: {
         total: totalStatements,
         covered: coveredStatements,
-        percentage: totalStatements > 0 ? (coveredStatements / totalStatements) * 100 : 0
+        percentage: totalStatements > 0 ? (coveredStatements / totalStatements) * 100 : 0,
       },
       functions: {
         total: totalFunctions,
         covered: coveredFunctions,
-        percentage: totalFunctions > 0 ? (coveredFunctions / totalFunctions) * 100 : 0
+        percentage: totalFunctions > 0 ? (coveredFunctions / totalFunctions) * 100 : 0,
       },
       branches: {
         total: totalBranches,
         covered: coveredBranches,
-        percentage: totalBranches > 0 ? (coveredBranches / totalBranches) * 100 : 0
-      }
+        percentage: totalBranches > 0 ? (coveredBranches / totalBranches) * 100 : 0,
+      },
     };
 
     return {
@@ -344,7 +353,7 @@ export class CoverageMonitor {
       testType: 'combined',
       targetMet: summary.lines.percentage >= this.targetCoverage,
       improvements: [],
-      regressions: []
+      regressions: [],
     };
   }
 
@@ -386,9 +395,7 @@ export class CoverageMonitor {
       }
 
       // Identify low coverage files
-      const lowCoverageFiles = latest.files
-        .filter(f => f.lines.percentage < 60)
-        .slice(0, 5);
+      const lowCoverageFiles = latest.files.filter(f => f.lines.percentage < 60).slice(0, 5);
 
       if (lowCoverageFiles.length > 0) {
         console.log('\n🔍 Files needing attention:');
@@ -433,7 +440,7 @@ export class CoverageMonitor {
 
   private async generateHTMLReport(reports: CoverageReport[]): Promise<void> {
     const latest = reports.find(r => r.testType === 'combined') || reports[0];
-    
+
     const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -485,7 +492,9 @@ export class CoverageMonitor {
             </tr>
         </thead>
         <tbody>
-            ${latest.files.map(file => `
+            ${latest.files
+              .map(
+                file => `
                 <tr>
                     <td>${file.path.replace(process.cwd(), '.')}</td>
                     <td class="${this.getCoverageClass(file.lines.percentage)}">${file.lines.percentage.toFixed(1)}%</td>
@@ -493,7 +502,9 @@ export class CoverageMonitor {
                     <td class="${this.getCoverageClass(file.functions.percentage)}">${file.functions.percentage.toFixed(1)}%</td>
                     <td class="${this.getCoverageClass(file.branches.percentage)}">${file.branches.percentage.toFixed(1)}%</td>
                 </tr>
-            `).join('')}
+            `
+              )
+              .join('')}
         </tbody>
     </table>
 
@@ -512,7 +523,7 @@ export class CoverageMonitor {
 
   private generateMetricHTML(name: string, metric: CoverageData['lines']): string {
     const coverageClass = this.getCoverageClass(metric.percentage);
-    
+
     return `
         <div class="metric ${coverageClass}">
             <h3>${name}</h3>
@@ -540,14 +551,14 @@ export class CoverageMonitor {
 
     // Create badge markdown
     const badgeMd = `[![Coverage](${badge})](./coverage-data/coverage-report.html)`;
-    
+
     fs.writeFileSync(path.join(this.dataDir, 'badge.md'), badgeMd);
     console.log('🏷️  Badge: coverage-data/badge.md');
   }
 
   private async generateMarkdownSummary(reports: CoverageReport[]): Promise<void> {
     const latest = reports.find(r => r.testType === 'combined') || reports[0];
-    
+
     const summary = `# Code Coverage Summary
 
 Generated: ${new Date().toLocaleString()}
@@ -599,7 +610,9 @@ Run \`npm run test:coverage\` to see detailed coverage information.
     }
 
     const latest = reports[0];
-    const thresholds = JSON.parse(fs.readFileSync(this.thresholdsFile, 'utf8')) as CoverageThreshold;
+    const thresholds = JSON.parse(
+      fs.readFileSync(this.thresholdsFile, 'utf8')
+    ) as CoverageThreshold;
 
     let passed = true;
 
@@ -608,9 +621,9 @@ Run \`npm run test:coverage\` to see detailed coverage information.
     for (const [metric, threshold] of Object.entries(thresholds.global)) {
       const value = (latest.summary as any)[metric].percentage;
       const status = value >= threshold ? '✅' : '❌';
-      
+
       console.log(`  ${metric}: ${value.toFixed(1)}% (threshold: ${threshold}%) ${status}`);
-      
+
       if (value < threshold) {
         passed = false;
       }
@@ -619,10 +632,10 @@ Run \`npm run test:coverage\` to see detailed coverage information.
     // Check per-file thresholds
     console.log('\n📁 Per-file Coverage:');
     const failedFiles = [];
-    
+
     for (const file of latest.files) {
       let filePassed = true;
-      
+
       for (const [metric, threshold] of Object.entries(thresholds.each)) {
         const value = (file as any)[metric].percentage;
         if (value < threshold) {
@@ -630,7 +643,7 @@ Run \`npm run test:coverage\` to see detailed coverage information.
           break;
         }
       }
-      
+
       if (!filePassed) {
         failedFiles.push(file);
       }
@@ -639,7 +652,9 @@ Run \`npm run test:coverage\` to see detailed coverage information.
     if (failedFiles.length > 0) {
       console.log(`  ❌ ${failedFiles.length} files below threshold:`);
       for (const file of failedFiles.slice(0, 5)) {
-        console.log(`    • ${file.path.replace(process.cwd(), '.')}: ${file.lines.percentage.toFixed(1)}%`);
+        console.log(
+          `    • ${file.path.replace(process.cwd(), '.')}: ${file.lines.percentage.toFixed(1)}%`
+        );
       }
       passed = false;
     } else {
@@ -660,28 +675,28 @@ Run \`npm run test:coverage\` to see detailed coverage information.
     const runCoverage = async () => {
       console.clear();
       console.log('🔄 Running coverage check...\n');
-      
+
       const reports = await this.collectCoverage();
       const combined = reports.find(r => r.testType === 'combined');
-      
+
       if (combined) {
         console.log('\n📊 Coverage Summary:');
         console.log(`Lines: ${combined.summary.lines.percentage.toFixed(1)}%`);
         console.log(`Target: ${this.targetCoverage}%`);
         console.log(`Status: ${combined.targetMet ? '✅ Target Met' : '❌ Below Target'}`);
-        
+
         if (!combined.targetMet) {
           console.log('\n🔍 Top files to improve:');
-          const lowFiles = combined.files
-            .filter(f => f.lines.percentage < 80)
-            .slice(0, 3);
-          
+          const lowFiles = combined.files.filter(f => f.lines.percentage < 80).slice(0, 3);
+
           for (const file of lowFiles) {
-            console.log(`  • ${file.path.replace(process.cwd(), '.')}: ${file.lines.percentage.toFixed(1)}%`);
+            console.log(
+              `  • ${file.path.replace(process.cwd(), '.')}: ${file.lines.percentage.toFixed(1)}%`
+            );
           }
         }
       }
-      
+
       console.log('\n⏳ Waiting for file changes...');
     };
 
@@ -727,7 +742,8 @@ Run \`npm run test:coverage\` to see detailed coverage information.
 
   private loadRecentReports(count: number): CoverageReport[] {
     try {
-      const files = fs.readdirSync(this.reportsDir)
+      const files = fs
+        .readdirSync(this.reportsDir)
         .filter(f => f.endsWith('.json'))
         .sort()
         .slice(-count);
@@ -749,16 +765,16 @@ Run \`npm run test:coverage\` to see detailed coverage information.
       trends.push({
         date: report.timestamp,
         coverage: report.summary.lines.percentage,
-        testType: report.testType
+        testType: report.testType,
       });
     }
 
     // Keep last 90 days of data
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 90);
-    
+
     const recentTrends = trends.filter(t => new Date(t.date) > cutoff);
-    
+
     fs.writeFileSync(this.trendsFile, JSON.stringify(recentTrends, null, 2));
   }
 
@@ -814,7 +830,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   switch (command) {
     case 'collect':
-      monitor.collectCoverage()
+      monitor
+        .collectCoverage()
         .then(reports => {
           const combined = reports.find(r => r.testType === 'combined');
           if (combined && !combined.targetMet) {
@@ -836,7 +853,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       break;
 
     case 'enforce':
-      monitor.enforceThresholds()
+      monitor
+        .enforceThresholds()
         .then(passed => process.exit(passed ? 0 : 1))
         .catch(err => {
           console.error(err);

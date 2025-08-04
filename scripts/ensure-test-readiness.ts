@@ -87,9 +87,8 @@ class TestReadinessManager {
 
     try {
       // Use the appropriate database setup based on test type
-      const dbSetupCommand = this.options.testType === 'integration' 
-        ? 'ci-integration-db-setup'
-        : 'ci-db-setup';
+      const dbSetupCommand =
+        this.options.testType === 'integration' ? 'ci-integration-db-setup' : 'ci-db-setup';
 
       execSync(`npm run ${dbSetupCommand}`, {
         stdio: this.options.verbose ? 'inherit' : 'pipe',
@@ -206,7 +205,9 @@ async function main() {
         break;
       default:
         console.error('❌ Unknown command. Use: full, quick, prisma, database, or validate');
-        console.error('Options: --quiet, --skip-prisma, --skip-database, --skip-validation, --type=unit|integration|e2e');
+        console.error(
+          'Options: --quiet, --skip-prisma, --skip-database, --skip-validation, --type=unit|integration|e2e'
+        );
         process.exit(1);
     }
   } catch (error) {

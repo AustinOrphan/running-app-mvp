@@ -1,14 +1,7 @@
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { RenderResult, waitFor } from '@testing-library/react';
 import { expect } from 'vitest';
-import {
-  axeConfig,
-  severityConfigs,
-  SEVERITY_LEVELS,
-  getRulesBySeverity,
-  createAccessibilityConfig,
-  getFalsePositiveRules,
-} from '../setup/axeSetup';
+import { severityConfigs, SEVERITY_LEVELS, createAccessibilityConfig } from '../setup/axeSetup';
 
 // Extend expect with jest-axe matchers
 expect.extend(toHaveNoViolations);
@@ -350,6 +343,15 @@ export async function expectAccessible(
     const configKey = severityLevel as keyof typeof severityConfigs;
     testConfig = severityConfigs[configKey] || severityConfigs.essential;
   } else {
+    // Base configuration for accessibility testing
+    const baseConfig = {
+      rules: {
+        'color-contrast': { enabled: true },
+        'keyboard-navigation': { enabled: true },
+        'focus-order-semantics': { enabled: true },
+      },
+    };
+
     // Build configuration based on WCAG level
     testConfig = {
       ...baseConfig,
@@ -735,9 +737,6 @@ export const accessibilityScenarios = {
     await waitForAsyncContent(container, {
       waitCondition: () => {
         // Check if validation messages have loaded
-        const errorElements = container.querySelectorAll(
-          '[role="alert"], .error-message, [aria-invalid="true"] + *'
-        );
         const loadingElements = container.querySelectorAll('[data-validating], .validating');
         return loadingElements.length === 0; // No validation in progress
       },
@@ -775,7 +774,6 @@ export const accessibilityScenarios = {
     await waitForAsyncContent(container, {
       waitCondition: () => {
         // Check if dropdowns/submenus have loaded
-        const menuToggles = container.querySelectorAll('[aria-expanded]');
         const loadingMenus = container.querySelectorAll('.menu-loading, [data-menu-loading]');
         return loadingMenus.length === 0;
       },

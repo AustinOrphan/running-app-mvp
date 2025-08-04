@@ -38,7 +38,7 @@ updates:
           - 'minor'
           - 'patch'
           - 'security'
-      
+
       # Production runtime dependencies
       production-deps:
         applies-to: version-updates
@@ -52,7 +52,7 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-      
+
       # React ecosystem (grouped for testing compatibility)
       react-ecosystem:
         applies-to: version-updates
@@ -65,7 +65,7 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-      
+
       # Build tools and bundlers
       build-tools:
         applies-to: version-updates
@@ -80,7 +80,7 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-      
+
       # Testing framework dependencies
       testing-tools:
         applies-to: version-updates
@@ -100,7 +100,7 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-      
+
       # Linting and formatting tools
       code-quality:
         applies-to: version-updates
@@ -114,7 +114,7 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-      
+
       # Type definitions (low-risk updates)
       type-definitions:
         applies-to: version-updates
@@ -123,7 +123,7 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-      
+
       # Development utilities
       dev-utilities:
         applies-to: version-updates
@@ -137,29 +137,29 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-    
+
     # Ignore packages that need careful manual review
     ignore:
       # Node.js major version updates require infrastructure changes
       - dependency-name: 'node'
         update-types: ['version-update:semver-major']
-      
+
       # React major versions may have breaking changes
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
       - dependency-name: 'react-dom'
         update-types: ['version-update:semver-major']
-      
+
       # Express major versions may have breaking middleware changes
       - dependency-name: 'express'
         update-types: ['version-update:semver-major']
-      
+
       # Prisma major versions may require migration strategy changes
       - dependency-name: 'prisma'
         update-types: ['version-update:semver-major']
       - dependency-name: '@prisma/client'
         update-types: ['version-update:semver-major']
-      
+
       # Testing framework major versions may change API significantly
       - dependency-name: 'jest'
         update-types: ['version-update:semver-major']
@@ -214,7 +214,7 @@ updates:
       - 'github-actions'
       - 'ci-cd'
       - 'automated'
-    
+
     # Group related actions together
     groups:
       setup-actions:
@@ -224,12 +224,12 @@ updates:
           - 'actions/cache'
           - 'actions/upload-artifact'
           - 'actions/download-artifact'
-      
+
       github-script-actions:
         patterns:
           - 'actions/github-script'
           - 'github/super-linter'
-      
+
       deployment-actions:
         patterns:
           - 'azure/*'

@@ -56,7 +56,7 @@ class MigrationChecker {
   async getMigrationStatus(): Promise<{ status: string; hasIssues: boolean }> {
     try {
       this.log('📊 Checking migration status...');
-      
+
       const output = execSync('npx prisma migrate status', {
         stdio: 'pipe',
         timeout: this.options.timeout,
@@ -65,12 +65,13 @@ class MigrationChecker {
       });
 
       const status = output.toString();
-      
+
       // Check for common issues
-      const hasIssues = status.includes('error') || 
-                       status.includes('failed') || 
-                       status.includes('pending') ||
-                       status.includes('drift');
+      const hasIssues =
+        status.includes('error') ||
+        status.includes('failed') ||
+        status.includes('pending') ||
+        status.includes('drift');
 
       this.log('✅ Migration status retrieved');
       if (this.options.verbose) {
@@ -91,7 +92,7 @@ class MigrationChecker {
   async verifySchema(): Promise<boolean> {
     try {
       this.log('🔍 Verifying database schema...');
-      
+
       execSync('npx prisma validate', {
         stdio: this.options.verbose ? 'inherit' : 'pipe',
         timeout: this.options.timeout,
@@ -123,14 +124,20 @@ class MigrationChecker {
         execSync('npx prisma db push --force-reset --skip-generate', {
           stdio: this.options.verbose ? 'inherit' : 'pipe',
           timeout: this.options.timeout,
-          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL || 'file:./prisma/test.db' },
+          env: {
+            ...process.env,
+            DATABASE_URL: process.env.DATABASE_URL || 'file:./prisma/test.db',
+          },
         });
       } else {
         this.log('🗄️  Deploying migrations...');
         execSync('npx prisma migrate deploy', {
           stdio: this.options.verbose ? 'inherit' : 'pipe',
           timeout: this.options.timeout,
-          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL || 'file:./prisma/test.db' },
+          env: {
+            ...process.env,
+            DATABASE_URL: process.env.DATABASE_URL || 'file:./prisma/test.db',
+          },
         });
       }
 
@@ -165,16 +172,16 @@ class MigrationChecker {
 
       // Check migration status
       const { status, hasIssues } = await this.getMigrationStatus();
-      
+
       if (hasIssues) {
         this.logError('⚠️  Migration issues detected');
-        
+
         if (this.options.fix) {
           const fixed = await this.fixMigrations();
           if (!fixed) {
             return false;
           }
-          
+
           // Re-check after fix
           const { hasIssues: stillHasIssues } = await this.getMigrationStatus();
           if (stillHasIssues) {
@@ -201,12 +208,13 @@ class MigrationChecker {
  */
 async function main() {
   const args = process.argv.slice(2);
-  
+
   const options: MigrationCheckOptions = {
     verbose: !args.includes('--quiet'),
     fix: args.includes('--fix'),
-    timeout: args.includes('--timeout') ? 
-      parseInt(args[args.indexOf('--timeout') + 1]) || 30000 : 30000,
+    timeout: args.includes('--timeout')
+      ? parseInt(args[args.indexOf('--timeout') + 1]) || 30000
+      : 30000,
   };
 
   // Set database URL if provided
@@ -218,7 +226,7 @@ async function main() {
   }
 
   const checker = new MigrationChecker(options);
-  
+
   try {
     const success = await checker.checkMigrations();
     process.exit(success ? 0 : 1);

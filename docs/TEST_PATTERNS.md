@@ -96,9 +96,9 @@ describe('Button', () => {
   it('calls onClick handler when clicked', async () => {
     const user = userEvent.setup();
     const handleClick = vi.fn();
-    
+
     render(<Button onClick={handleClick}>Click me</Button>);
-    
+
     await user.click(screen.getByRole('button'));
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
@@ -106,7 +106,7 @@ describe('Button', () => {
   it('applies correct CSS classes', () => {
     render(<Button variant="primary" size="large">Button</Button>);
     const button = screen.getByRole('button');
-    
+
     expect(button).toHaveClass('btn', 'btn-primary', 'btn-large');
   });
 });
@@ -135,22 +135,22 @@ describe('CreateGoalModal', () => {
   it('submits form with correct data', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    
+
     render(<CreateGoalModal {...defaultProps} onSave={onSave} />);
-    
+
     // Fill form fields
     await user.selectOptions(screen.getByLabelText(/goal type/i), 'distance');
     await user.selectOptions(screen.getByLabelText(/period/i), 'weekly');
     await user.type(screen.getByLabelText(/target value/i), '25');
-    
+
     // Use date test utility for consistent date handling
     await dateTestUtils.setDateInput(
       screen.getByLabelText(/start date/i),
       '2024-01-01'
     );
-    
+
     await user.click(screen.getByRole('button', { name: /save goal/i }));
-    
+
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith({
         type: 'distance',
@@ -164,12 +164,12 @@ describe('CreateGoalModal', () => {
 
   it('shows validation errors for invalid input', async () => {
     const user = userEvent.setup();
-    
+
     render(<CreateGoalModal {...defaultProps} />);
-    
+
     // Submit without filling required fields
     await user.click(screen.getByRole('button', { name: /save goal/i }));
-    
+
     expect(screen.getByText(/target value is required/i)).toBeInTheDocument();
     expect(screen.getByText(/start date is required/i)).toBeInTheDocument();
   });
@@ -217,27 +217,27 @@ describe('useGoals', () => {
     const mockGoals = [
       { id: '1', type: 'distance', targetValue: 25, period: 'weekly' },
     ];
-    
+
     vi.mocked(goalsApi.getAll).mockResolvedValue(mockGoals);
-    
+
     const { result } = renderHook(() => useGoals(), { wrapper });
-    
+
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
     });
-    
+
     expect(result.current.data).toEqual(mockGoals);
   });
 
   it('handles error states', async () => {
     vi.mocked(goalsApi.getAll).mockRejectedValue(new Error('API Error'));
-    
+
     const { result } = renderHook(() => useGoals(), { wrapper });
-    
+
     await waitFor(() => {
       expect(result.current.isError).toBe(true);
     });
-    
+
     expect(result.current.error).toBeInstanceOf(Error);
   });
 });
@@ -263,7 +263,7 @@ describe('calculations', () => {
     });
 
     it('rounds to 2 decimal places', () => {
-      expect(calculatePace(3333, 1000)).toBe(5.00);
+      expect(calculatePace(3333, 1000)).toBe(5.0);
       expect(calculatePace(7777, 2222)).toBe(4.28);
     });
   });
@@ -331,9 +331,9 @@ describe('goalsService', () => {
     });
 
     it('handles validation errors', async () => {
-      await expect(
-        goalsService.updateGoalProgress('1', -5)
-      ).rejects.toThrow('Progress value cannot be negative');
+      await expect(goalsService.updateGoalProgress('1', -5)).rejects.toThrow(
+        'Progress value cannot be negative'
+      );
     });
   });
 });
@@ -357,7 +357,7 @@ describe('Goals API', () => {
   beforeEach(async () => {
     await testDb.goal.deleteMany();
     await testDb.user.deleteMany();
-    
+
     testUser = await createTestUser({
       email: 'test@example.com',
       password: 'password123',
@@ -410,10 +410,7 @@ describe('Goals API', () => {
     });
 
     it('requires authentication', async () => {
-      await request(app)
-        .post('/api/goals')
-        .send({ type: 'distance', targetValue: 25 })
-        .expect(401);
+      await request(app).post('/api/goals').send({ type: 'distance', targetValue: 25 }).expect(401);
     });
   });
 
@@ -496,7 +493,7 @@ describe('Database Transactions', () => {
     await testDb.user.deleteMany();
     await testDb.goal.deleteMany();
     await testDb.run.deleteMany();
-    
+
     testUser = await testDb.user.create({
       data: {
         email: 'test@example.com',
@@ -553,7 +550,7 @@ describe('Database Transactions', () => {
     });
 
     // Create run and update goal in transaction
-    await testDb.$transaction(async (tx) => {
+    await testDb.$transaction(async tx => {
       const run = await tx.run.create({
         data: {
           userId: testUser.id,
@@ -597,7 +594,7 @@ describe('StatsService Integration', () => {
   beforeEach(async () => {
     await testDb.run.deleteMany();
     await testDb.user.deleteMany();
-    
+
     testUser = await createTestUser({
       email: 'test@example.com',
       password: 'password123',
@@ -644,7 +641,7 @@ describe('StatsService Integration', () => {
 
     it('returns empty insights for week with no runs', async () => {
       const weekStart = new Date('2024-01-15');
-      
+
       const insights = await statsService.getWeeklyInsights(testUser.id, weekStart);
 
       expect(insights).toEqual({
@@ -743,7 +740,7 @@ test.describe('User Authentication', () => {
 
   test('displays error for invalid credentials', async ({ page }) => {
     await page.click('[data-testid="login-button"]');
-    
+
     await page.fill('[data-testid="email-input"]', 'invalid@example.com');
     await page.fill('[data-testid="password-input"]', 'wrongpassword');
     await page.click('[data-testid="submit-button"]');
@@ -758,9 +755,7 @@ test.describe('User Authentication', () => {
     await page.click('[data-testid="login-button"]');
     await page.click('[data-testid="submit-button"]');
 
-    await expect(page.locator('[data-testid="email-error"]')).toContainText(
-      'Email is required'
-    );
+    await expect(page.locator('[data-testid="email-error"]')).toContainText('Email is required');
     await expect(page.locator('[data-testid="password-error"]')).toContainText(
       'Password is required'
     );
@@ -799,7 +794,7 @@ test.describe('Goal Management', () => {
     // Verify goal appears in list
     await expect(page.locator('[data-testid="goals-list"]')).toContainText('25 km');
     await expect(page.locator('[data-testid="goals-list"]')).toContainText('Weekly');
-    
+
     // Verify progress bar shows 0%
     const progressBar = page.locator('[data-testid="goal-progress-bar"]').first();
     await expect(progressBar).toHaveAttribute('aria-valuenow', '0');
@@ -808,51 +803,53 @@ test.describe('Goal Management', () => {
   test('updates goal progress', async ({ page }) => {
     // Assume a goal exists from previous test or setup
     const goalCard = page.locator('[data-testid="goal-card"]').first();
-    
+
     // Click update progress button
     await goalCard.locator('[data-testid="update-progress-button"]').click();
-    
+
     // Update progress
     await page.fill('[data-testid="current-value-input"]', '15');
     await page.click('[data-testid="update-button"]');
-    
+
     // Verify progress updated
     await expect(goalCard.locator('[data-testid="current-value"]')).toContainText('15');
-    
+
     const progressBar = goalCard.locator('[data-testid="goal-progress-bar"]');
     await expect(progressBar).toHaveAttribute('aria-valuenow', '60'); // 15/25 = 60%
   });
 
   test('completes goal and shows celebration', async ({ page }) => {
     const goalCard = page.locator('[data-testid="goal-card"]').first();
-    
+
     // Update to complete the goal
     await goalCard.locator('[data-testid="update-progress-button"]').click();
     await page.fill('[data-testid="current-value-input"]', '25');
     await page.click('[data-testid="update-button"]');
-    
+
     // Verify completion state
     await expect(goalCard.locator('[data-testid="completion-badge"]')).toBeVisible();
     await expect(goalCard.locator('[data-testid="completion-badge"]')).toContainText('Completed');
-    
+
     // Check for celebration animation or notification
     await expect(page.locator('[data-testid="celebration-notification"]')).toBeVisible();
   });
 
   test('validates goal form inputs', async ({ page }) => {
     await page.click('[data-testid="create-goal-button"]');
-    
+
     // Try to submit empty form
     await page.click('[data-testid="save-goal-button"]');
-    
+
     // Check validation errors
     await expect(page.locator('[data-testid="type-error"]')).toContainText('Goal type is required');
-    await expect(page.locator('[data-testid="target-error"]')).toContainText('Target value is required');
-    
+    await expect(page.locator('[data-testid="target-error"]')).toContainText(
+      'Target value is required'
+    );
+
     // Test invalid target value
     await page.fill('[data-testid="target-value-input"]', '-5');
     await page.click('[data-testid="save-goal-button"]');
-    
+
     await expect(page.locator('[data-testid="target-error"]')).toContainText(
       'Target value must be positive'
     );
@@ -875,7 +872,7 @@ test.describe('Run Tracking', () => {
 
   test('logs a new run', async ({ page }) => {
     await page.click('[data-testid="log-run-button"]');
-    
+
     // Fill run details
     await page.fill('[data-testid="date-input"]', '2024-01-15');
     await page.fill('[data-testid="time-input"]', '08:00');
@@ -885,15 +882,15 @@ test.describe('Run Tracking', () => {
     await page.fill('[data-testid="duration-seconds"]', '30');
     await page.selectOption('[data-testid="run-type-select"]', 'easy');
     await page.fill('[data-testid="notes-textarea"]', 'Morning run in the park');
-    
+
     await page.click('[data-testid="save-run-button"]');
-    
+
     // Verify run appears in list
     const runsList = page.locator('[data-testid="runs-list"]');
     await expect(runsList).toContainText('5.5 km');
     await expect(runsList).toContainText('32:30');
     await expect(runsList).toContainText('Easy');
-    
+
     // Verify calculated pace
     await expect(runsList).toContainText('5:55'); // 32:30 / 5.5km ≈ 5:55 min/km
   });
@@ -903,11 +900,11 @@ test.describe('Run Tracking', () => {
     await page.fill('[data-testid="start-date-filter"]', '2024-01-01');
     await page.fill('[data-testid="end-date-filter"]', '2024-01-15');
     await page.click('[data-testid="apply-filter-button"]');
-    
+
     // Verify only runs in date range are shown
     const runCards = page.locator('[data-testid="run-card"]');
     const count = await runCards.count();
-    
+
     for (let i = 0; i < count; i++) {
       const dateText = await runCards.nth(i).locator('[data-testid="run-date"]').textContent();
       // Verify date is within range
@@ -918,15 +915,15 @@ test.describe('Run Tracking', () => {
 
   test('edits existing run', async ({ page }) => {
     const firstRun = page.locator('[data-testid="run-card"]').first();
-    
+
     await firstRun.locator('[data-testid="edit-run-button"]').click();
-    
+
     // Update distance
     await page.fill('[data-testid="distance-input"]', '6.0');
     await page.fill('[data-testid="notes-textarea"]', 'Updated: Extended route');
-    
+
     await page.click('[data-testid="save-run-button"]');
-    
+
     // Verify changes
     await expect(firstRun).toContainText('6.0 km');
     await expect(firstRun).toContainText('Updated: Extended route');
@@ -934,14 +931,14 @@ test.describe('Run Tracking', () => {
 
   test('deletes run with confirmation', async ({ page }) => {
     const runCount = await page.locator('[data-testid="run-card"]').count();
-    
+
     const firstRun = page.locator('[data-testid="run-card"]').first();
     await firstRun.locator('[data-testid="delete-run-button"]').click();
-    
+
     // Confirm deletion
     await expect(page.locator('[data-testid="confirm-dialog"]')).toBeVisible();
     await page.click('[data-testid="confirm-delete-button"]');
-    
+
     // Verify run is removed
     await expect(page.locator('[data-testid="run-card"]')).toHaveCount(runCount - 1);
   });
@@ -969,10 +966,10 @@ test.describe('Accessibility', () => {
   test('dashboard is accessible after login', async ({ page }) => {
     await loginAsTestUser(page);
     await page.goto('/dashboard');
-    
+
     // Wait for dynamic content to load
     await page.waitForSelector('[data-testid="dashboard-content"]');
-    
+
     await checkA11y(page, null, {
       detailedReport: true,
       detailedReportOptions: { html: true },
@@ -981,33 +978,36 @@ test.describe('Accessibility', () => {
 
   test('forms have proper labels and ARIA attributes', async ({ page }) => {
     await page.goto('/login');
-    
+
     // Check form labels
     const emailInput = page.locator('[data-testid="email-input"]');
     const passwordInput = page.locator('[data-testid="password-input"]');
-    
+
     await expect(emailInput).toHaveAttribute('aria-label', 'Email address');
     await expect(passwordInput).toHaveAttribute('aria-label', 'Password');
-    
+
     // Check form validation accessibility
     await page.click('[data-testid="submit-button"]');
-    
+
     const emailError = page.locator('[data-testid="email-error"]');
     await expect(emailError).toHaveAttribute('role', 'alert');
-    await expect(emailInput).toHaveAttribute('aria-describedby', expect.stringContaining('email-error'));
+    await expect(emailInput).toHaveAttribute(
+      'aria-describedby',
+      expect.stringContaining('email-error')
+    );
   });
 
   test('keyboard navigation works correctly', async ({ page }) => {
     await page.goto('/dashboard');
     await loginAsTestUser(page);
-    
+
     // Test tab navigation
     await page.keyboard.press('Tab');
     await expect(page.locator(':focus')).toHaveAttribute('data-testid', 'main-nav-goals');
-    
+
     await page.keyboard.press('Tab');
     await expect(page.locator(':focus')).toHaveAttribute('data-testid', 'main-nav-runs');
-    
+
     // Test Enter key activation
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL('/runs');
@@ -1016,13 +1016,13 @@ test.describe('Accessibility', () => {
   test('screen reader announcements work', async ({ page }) => {
     await loginAsTestUser(page);
     await page.goto('/goals');
-    
+
     // Create a goal to trigger announcements
     await page.click('[data-testid="create-goal-button"]');
     await page.selectOption('[data-testid="goal-type-select"]', 'distance');
     await page.fill('[data-testid="target-value-input"]', '25');
     await page.click('[data-testid="save-goal-button"]');
-    
+
     // Check for success announcement
     const announcement = page.locator('[data-testid="sr-announcement"]');
     await expect(announcement).toHaveAttribute('aria-live', 'polite');
@@ -1069,11 +1069,11 @@ export const dateTestUtils = {
     const start = new Date(date);
     start.setDate(date.getDate() - date.getDay() + 1); // Monday
     start.setHours(0, 0, 0, 0);
-    
+
     const end = new Date(start);
     end.setDate(start.getDate() + 6); // Sunday
     end.setHours(23, 59, 59, 999);
-    
+
     return { start, end };
   },
 };
@@ -1093,7 +1093,7 @@ export const createTestUser = async (userData: {
   name?: string;
 }) => {
   const hashedPassword = await bcrypt.hash(userData.password, 10);
-  
+
   return await testDb.user.create({
     data: {
       email: userData.email,
@@ -1104,11 +1104,9 @@ export const createTestUser = async (userData: {
 };
 
 export const generateAuthToken = (user: { id: string; email: string }) => {
-  return jwt.sign(
-    { id: user.id, email: user.email },
-    process.env.JWT_SECRET || 'test-secret',
-    { expiresIn: '1h' }
-  );
+  return jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET || 'test-secret', {
+    expiresIn: '1h',
+  });
 };
 
 export const loginAsTestUser = async (page: any) => {
@@ -1121,7 +1119,7 @@ export const loginAsTestUser = async (page: any) => {
   await page.fill('[data-testid="email-input"]', testUser.email);
   await page.fill('[data-testid="password-input"]', 'TestPassword123!');
   await page.click('[data-testid="submit-button"]');
-  
+
   await page.waitForURL('/dashboard');
   return testUser;
 };
@@ -1150,10 +1148,12 @@ export const runFactory = {
   createMany: async (count: number, overrides: Partial<any> = {}) => {
     const runs = [];
     for (let i = 0; i < count; i++) {
-      runs.push(await runFactory.create({
-        ...overrides,
-        date: new Date(Date.now() - i * 24 * 60 * 60 * 1000), // Spread over days
-      }));
+      runs.push(
+        await runFactory.create({
+          ...overrides,
+          date: new Date(Date.now() - i * 24 * 60 * 60 * 1000), // Spread over days
+        })
+      );
     }
     return runs;
   },
@@ -1194,21 +1194,23 @@ export const goalFactory = {
 ### General Testing Principles
 
 1. **AAA Pattern**: Arrange, Act, Assert
+
    ```typescript
    test('should calculate pace correctly', () => {
      // Arrange
      const distance = 5;
      const duration = 1800;
-     
+
      // Act
      const pace = calculatePace(distance, duration);
-     
+
      // Assert
      expect(pace).toBe(6.0);
    });
    ```
 
 2. **Test Isolation**: Each test should be independent
+
    ```typescript
    beforeEach(() => {
      vi.clearAllMocks();
@@ -1217,10 +1219,11 @@ export const goalFactory = {
    ```
 
 3. **Descriptive Test Names**: Use "should" statements
+
    ```typescript
    // Good
    test('should throw error when target value is negative');
-   
+
    // Bad
    test('negative target value');
    ```
@@ -1228,19 +1231,21 @@ export const goalFactory = {
 ### Mock Strategies
 
 1. **Mock at the Boundary**: Mock external dependencies, not internal logic
+
    ```typescript
    // Good - mock API calls
    vi.mock('@/services/api');
-   
+
    // Bad - mock internal functions
    vi.mock('@/utils/calculations');
    ```
 
 2. **Use Real Objects When Possible**: Prefer real implementations for simple objects
+
    ```typescript
    // Good
    const user = { id: '1', email: 'test@example.com' };
-   
+
    // Overkill for simple objects
    const user = vi.mock({ id: '1', email: 'test@example.com' });
    ```
@@ -1254,15 +1259,17 @@ export const goalFactory = {
 ### Cross-Platform Compatibility (Updated 2024-08-04)
 
 1. **Use `fireEvent` over `userEvent`**: Ensures consistent behavior across operating systems
+
    ```typescript
    // Good - consistent across platforms
    fireEvent.change(input, { target: { value: 'test' } });
-   
+
    // Avoid - can be flaky across platforms
    await userEvent.type(input, 'test');
    ```
 
 2. **Mock Date Globally**: Prevent timezone-related test failures
+
    ```typescript
    // In test setup
    beforeAll(() => {
@@ -1271,10 +1278,11 @@ export const goalFactory = {
    ```
 
 3. **Use Extension-less Imports**: Standardize TypeScript imports
+
    ```typescript
    // Good
    import { mockData } from '../fixtures/mockData';
-   
+
    // Avoid
    import { mockData } from '../fixtures/mockData.js';
    ```
@@ -1282,10 +1290,11 @@ export const goalFactory = {
 ### Assertion Best Practices
 
 1. **Specific Assertions**: Be as specific as possible
+
    ```typescript
    // Good
    expect(response.body.email).toBe('test@example.com');
-   
+
    // Too generic
    expect(response.body).toBeTruthy();
    ```
@@ -1294,9 +1303,9 @@ export const goalFactory = {
    ```typescript
    test('should handle API errors gracefully', async () => {
      api.getGoals.mockRejectedValue(new Error('Network error'));
-     
+
      const { result } = renderHook(() => useGoals());
-     
+
      await waitFor(() => {
        expect(result.current.error).toBeInstanceOf(Error);
      });
@@ -1306,25 +1315,28 @@ export const goalFactory = {
 ### E2E Test Best Practices (Updated 2024-08-04)
 
 1. **Use Specific Wait Conditions**: Replace generic timeouts with specific waits
+
    ```typescript
    // Good - specific wait conditions
    await page.waitForSelector('[data-testid="loading-complete"]');
    await page.waitForLoadState('networkidle');
-   
+
    // Avoid - generic timeouts
    await page.waitForTimeout(5000);
    ```
 
 2. **Avoid `page.tap()` in Non-Mobile Contexts**: Use appropriate interaction methods
+
    ```typescript
    // Good - for desktop browser contexts
    await page.click('[data-testid="button"]');
-   
+
    // Good - for mobile device projects only
    await page.tap('[data-testid="button"]'); // Only in mobile device configs
    ```
 
 3. **Ensure Accessibility Compliance**: Include accessibility checks in E2E tests
+
    ```typescript
    // Check color contrast and landmarks
    await expect(page.locator('button')).toHaveCSS('color', expect.stringMatching(/rgb\(.*)\)/));
@@ -1332,24 +1344,26 @@ export const goalFactory = {
    ```
 
 4. **Use `data-testid` for Stable Selectors**: Avoid CSS class or text-based selectors
+
    ```typescript
    // Good - stable and semantic
    await page.click('[data-testid="create-goal-button"]');
-   
+
    // Avoid - brittle and implementation-dependent
    await page.click('.btn-primary');
    await page.click('text=Create Goal');
    ```
 
 5. **Database Isolation in E2E Tests**: Ensure proper test data cleanup
+
    ```typescript
    // Use unique email generation to avoid conflicts
    const testEmail = `test-${Date.now()}@example.com`;
-   
+
    // Clean up test data after each test
    test.afterEach(async () => {
      await testDb.user.deleteMany({
-       where: { email: { contains: 'test-' } }
+       where: { email: { contains: 'test-' } },
      });
    });
    ```
@@ -1359,30 +1373,37 @@ export const goalFactory = {
 ### Test Performance Optimization
 
 1. **Parallel Execution**: Run tests in parallel when safe
+
    ```bash
    # Vitest runs in parallel by default
    npm run test
-   
+
    # Jest with parallel workers
    npm run test:integration -- --maxWorkers=4
    ```
 
 2. **Test Categorization**: Separate fast and slow tests
+
    ```typescript
    // Fast unit tests
-   describe('calculations', () => { /* ... */ });
-   
+   describe('calculations', () => {
+     /* ... */
+   });
+
    // Slower integration tests
-   describe.slow('database operations', () => { /* ... */ });
+   describe.slow('database operations', () => {
+     /* ... */
+   });
    ```
 
 3. **Setup Optimization**: Minimize expensive setup operations
+
    ```typescript
    // Good - shared setup
    beforeAll(async () => {
      await setupTestDatabase();
    });
-   
+
    // Bad - repeated expensive operations
    beforeEach(async () => {
      await recreateEntireDatabase();
@@ -1392,6 +1413,7 @@ export const goalFactory = {
 ### Memory Management
 
 1. **Clean Up Resources**: Always clean up after tests
+
    ```typescript
    afterEach(async () => {
      await testDb.$disconnect();
@@ -1409,23 +1431,25 @@ export const goalFactory = {
 ### Common Issues and Solutions
 
 1. **Async Test Issues**: Always await async operations
+
    ```typescript
    // Good
    await waitFor(() => {
      expect(screen.getByText('Loading...')).not.toBeInTheDocument();
    });
-   
+
    // Bad - might pass before async operation completes
    expect(screen.getByText('Loading...')).not.toBeInTheDocument();
    ```
 
 2. **Mock Issues**: Ensure mocks are properly configured
+
    ```typescript
    // Clear mocks between tests
    beforeEach(() => {
      vi.clearAllMocks();
    });
-   
+
    // Restore mocks after all tests
    afterAll(() => {
      vi.restoreAllMocks();
@@ -1433,12 +1457,13 @@ export const goalFactory = {
    ```
 
 3. **Date/Time Issues**: Use consistent date mocking
+
    ```typescript
    beforeAll(() => {
      vi.useFakeTimers();
      vi.setSystemTime(new Date('2024-01-15T10:00:00Z'));
    });
-   
+
    afterAll(() => {
      vi.useRealTimers();
    });
@@ -1447,6 +1472,7 @@ export const goalFactory = {
 ### Debugging Tools
 
 1. **Test Debugging**: Use debugging tools appropriately
+
    ```typescript
    // Debug failing tests
    test('should work', () => {
@@ -1456,16 +1482,18 @@ export const goalFactory = {
    ```
 
 2. **Browser DevTools**: For E2E tests
+
    ```bash
    # Run with browser open
    npm run test:e2e -- --headed --debug
    ```
 
 3. **Test Isolation**: Run single tests to isolate issues
+
    ```bash
    # Run specific test file
    npm run test -- calculations.test.ts
-   
+
    # Run specific test case
    npm run test -- --grep "should calculate pace"
    ```

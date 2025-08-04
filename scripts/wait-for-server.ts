@@ -50,10 +50,10 @@ export class ServerReadinessChecker {
         console.log('⏳ Allowing servers to stabilize...');
       }
       await this.delay(3000);
-      
+
       // Verify page load completion
       const pageReady = await this.verifyPageLoadComplete();
-      
+
       if (pageReady) {
         if (this.verbose) {
           console.log('✅ All servers ready and page load verified');
@@ -78,9 +78,9 @@ export class ServerReadinessChecker {
       try {
         const response = await fetch(this.frontendUrl, {
           method: 'HEAD',
-          signal: AbortSignal.timeout(5000)
+          signal: AbortSignal.timeout(5000),
         });
-        
+
         if (response.ok) {
           if (this.verbose) {
             console.log(`✅ Frontend server is ready (attempt ${i})`);
@@ -92,7 +92,7 @@ export class ServerReadinessChecker {
           console.error(`❌ Frontend server not available after ${this.maxAttempts} attempts`);
           return false;
         }
-        
+
         if (this.verbose) {
           console.log(`⏳ Waiting for frontend server... (attempt ${i}/${this.maxAttempts})`);
         }
@@ -115,12 +115,12 @@ export class ServerReadinessChecker {
       try {
         const response = await fetch(`${this.backendUrl}${this.healthcheckPath}`, {
           method: 'GET',
-          signal: AbortSignal.timeout(5000)
+          signal: AbortSignal.timeout(5000),
         });
-        
+
         if (response.ok) {
           const healthData = await response.json();
-          
+
           // Verify health check response indicates ready state
           if (healthData.status === 'ok' || healthData.healthy === true) {
             if (this.verbose) {
@@ -134,7 +134,7 @@ export class ServerReadinessChecker {
           console.error(`❌ Backend server not available after ${this.maxAttempts} attempts`);
           return false;
         }
-        
+
         if (this.verbose) {
           console.log(`⏳ Waiting for backend server... (attempt ${i}/${this.maxAttempts})`);
         }
@@ -157,7 +157,7 @@ export class ServerReadinessChecker {
       // Use a more sophisticated check with resource timing
       const response = await fetch(this.frontendUrl, {
         method: 'GET',
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!response.ok) {
@@ -166,14 +166,11 @@ export class ServerReadinessChecker {
       }
 
       const html = await response.text();
-      
+
       // Check for critical page elements
-      const hasCriticalElements = [
-        '<html',
-        '<head>',
-        '<body',
-        '</html>',
-      ].every(element => html.includes(element));
+      const hasCriticalElements = ['<html', '<head>', '<body', '</html>'].every(element =>
+        html.includes(element)
+      );
 
       if (!hasCriticalElements) {
         console.error('❌ Page HTML is missing critical elements');
@@ -197,9 +194,11 @@ export class ServerReadinessChecker {
         console.log('✅ Page load completion verified');
       }
       return true;
-
     } catch (error) {
-      console.error('❌ Failed to verify page load completion:', error instanceof Error ? error.message : 'Unknown error');
+      console.error(
+        '❌ Failed to verify page load completion:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
       return false;
     }
   }
@@ -254,7 +253,7 @@ async function main() {
   const verbose = args.includes('--verbose') || args.includes('-v');
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
-  
+
   const checker = new ServerReadinessChecker({
     frontendUrl,
     backendUrl,
@@ -262,15 +261,17 @@ async function main() {
   });
 
   console.log('🚀 Starting server readiness check...');
-  
+
   // Check if servers are already running
   const existing = await checker.checkExistingServers();
   if (verbose) {
-    console.log(`📊 Current server status - Frontend: ${existing.frontend ? '✅' : '❌'}, Backend: ${existing.backend ? '✅' : '❌'}`);
+    console.log(
+      `📊 Current server status - Frontend: ${existing.frontend ? '✅' : '❌'}, Backend: ${existing.backend ? '✅' : '❌'}`
+    );
   }
 
   const ready = await checker.waitForServersReady();
-  
+
   if (ready) {
     console.log('✅ Server readiness check completed successfully');
     process.exit(0);
@@ -287,4 +288,3 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   });
 }
-

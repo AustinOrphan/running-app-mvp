@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthForm } from '../../src/components/Auth/AuthForm';
@@ -331,7 +331,7 @@ describe('Form Components Accessibility', () => {
     it('has accessible select options with proper structure', () => {
       render(<RunForm {...mockProps} />);
 
-      const tagSelect = screen.getByLabelText(/tag/i);
+      screen.getByLabelText(/tag/i); // tagSelect
       const options = screen.getAllByRole('option');
 
       expect(options).toHaveLength(6); // 5 tag options + placeholder
@@ -616,7 +616,7 @@ describe('Form Components Accessibility', () => {
     });
 
     it('provides appropriate landmark structure', () => {
-      const { container } = render(
+      render(
         <main>
           <AuthForm onLogin={vi.fn()} onRegister={vi.fn()} loading={false} />
         </main>

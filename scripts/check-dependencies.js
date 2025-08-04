@@ -2,13 +2,13 @@
 
 /**
  * Dependency Checker Script
- * 
+ *
  * This script checks for outdated dependencies and security vulnerabilities.
  * It provides a comprehensive overview of dependency health.
- * 
+ *
  * Usage:
  *   node scripts/check-dependencies.js [options]
- * 
+ *
  * Options:
  *   --security-only    Only check for security vulnerabilities
  *   --outdated-only    Only check for outdated packages
@@ -26,7 +26,7 @@ const CONFIG = {
   checkSecurity: true,
   autoFix: false,
   jsonOutput: false,
-  verbose: false
+  verbose: false,
 };
 
 /**
@@ -34,7 +34,7 @@ const CONFIG = {
  */
 function parseArgs() {
   const args = process.argv.slice(2);
-  
+
   for (const arg of args) {
     switch (arg) {
       case '--security-only':
@@ -96,15 +96,15 @@ function execCommand(command, options = {}) {
     const result = execSync(command, {
       encoding: 'utf8',
       stdio: options.silent ? 'pipe' : 'inherit',
-      ...options
+      ...options,
     });
     return { success: true, output: result };
   } catch (error) {
-    return { 
-      success: false, 
+    return {
+      success: false,
       output: error.stdout || error.message,
       error: error.stderr || error.message,
-      code: error.status
+      code: error.status,
     };
   }
 }
@@ -114,36 +114,36 @@ function execCommand(command, options = {}) {
  */
 async function checkOutdated() {
   if (!CONFIG.checkOutdated) return null;
-  
+
   console.log('📦 Checking for outdated dependencies...\n');
-  
+
   const result = execCommand('npm outdated --json', { silent: true });
-  
+
   if (result.success && result.output) {
     try {
       const outdated = JSON.parse(result.output);
       const packages = Object.keys(outdated);
-      
+
       if (packages.length === 0) {
         console.log('✅ All dependencies are up to date!\n');
         return { outdated: [], count: 0 };
       }
-      
+
       console.log(`⚠️  Found ${packages.length} outdated dependencies:\n`);
-      
+
       const outdatedList = [];
-      
+
       for (const [name, info] of Object.entries(outdated)) {
         const item = {
           name,
           current: info.current,
           wanted: info.wanted,
           latest: info.latest,
-          type: info.type || 'dependencies'
+          type: info.type || 'dependencies',
         };
-        
+
         outdatedList.push(item);
-        
+
         if (!CONFIG.jsonOutput) {
           console.log(`  📍 ${name}:`);
           console.log(`    Current: ${info.current}`);
@@ -153,9 +153,8 @@ async function checkOutdated() {
           console.log('');
         }
       }
-      
+
       return { outdated: outdatedList, count: packages.length };
-      
     } catch (error) {
       console.error('❌ Failed to parse outdated dependencies:', error.message);
       return null;
@@ -171,20 +170,20 @@ async function checkOutdated() {
  */
 async function checkSecurity() {
   if (!CONFIG.checkSecurity) return null;
-  
+
   console.log('🔒 Checking for security vulnerabilities...\n');
-  
+
   const auditResult = execCommand('npm audit --json', { silent: true });
-  
+
   if (auditResult.success && auditResult.output) {
     try {
       const audit = JSON.parse(auditResult.output);
-      
+
       if (audit.metadata.vulnerabilities.total === 0) {
         console.log('✅ No security vulnerabilities found!\n');
         return { vulnerabilities: [], total: 0, summary: audit.metadata.vulnerabilities };
       }
-      
+
       const vulns = audit.metadata.vulnerabilities;
       console.log(`🚨 Found ${vulns.total} security vulnerabilities:`);
       console.log(`  - Critical: ${vulns.critical || 0}`);
@@ -192,9 +191,9 @@ async function checkSecurity() {
       console.log(`  - Moderate: ${vulns.moderate || 0}`);
       console.log(`  - Low:      ${vulns.low || 0}`);
       console.log('');
-      
+
       const vulnerabilityList = [];
-      
+
       if (audit.vulnerabilities) {
         for (const [name, vuln] of Object.entries(audit.vulnerabilities)) {
           const item = {
@@ -202,11 +201,11 @@ async function checkSecurity() {
             severity: vuln.severity,
             title: vuln.title,
             range: vuln.range,
-            fixAvailable: vuln.fixAvailable
+            fixAvailable: vuln.fixAvailable,
           };
-          
+
           vulnerabilityList.push(item);
-          
+
           if (!CONFIG.jsonOutput) {
             console.log(`  🔴 ${name} (${vuln.severity}):`);
             console.log(`    Title: ${vuln.title}`);
@@ -216,25 +215,26 @@ async function checkSecurity() {
           }
         }
       }
-      
+
       // Auto-fix if requested
       if (CONFIG.autoFix) {
         console.log('🔧 Attempting to fix security vulnerabilities...\n');
         const fixResult = execCommand('npm audit fix');
-        
+
         if (fixResult.success) {
           console.log('✅ Security vulnerabilities fixed!\n');
         } else {
-          console.log('❌ Failed to fix some vulnerabilities. Manual intervention may be required.\n');
+          console.log(
+            '❌ Failed to fix some vulnerabilities. Manual intervention may be required.\n'
+          );
         }
       }
-      
-      return { 
-        vulnerabilities: vulnerabilityList, 
-        total: vulns.total, 
-        summary: vulns 
+
+      return {
+        vulnerabilities: vulnerabilityList,
+        total: vulns.total,
+        summary: vulns,
       };
-      
     } catch (error) {
       console.error('❌ Failed to parse security audit:', error.message);
       return null;
@@ -245,14 +245,14 @@ async function checkSecurity() {
       try {
         const audit = JSON.parse(auditResult.output);
         const vulns = audit.metadata.vulnerabilities;
-        
+
         console.log(`🚨 Found ${vulns.total} security vulnerabilities:`);
         console.log(`  - Critical: ${vulns.critical || 0}`);
         console.log(`  - High:     ${vulns.high || 0}`);
         console.log(`  - Moderate: ${vulns.moderate || 0}`);
         console.log(`  - Low:      ${vulns.low || 0}`);
         console.log('');
-        
+
         return { vulnerabilities: [], total: vulns.total, summary: vulns };
       } catch (error) {
         console.error('❌ Failed to parse security audit:', error.message);
@@ -270,23 +270,23 @@ async function checkSecurity() {
  */
 function checkDependabotConfig() {
   const dependabotPath = path.join(process.cwd(), '.github', 'dependabot.yml');
-  
+
   if (fs.existsSync(dependabotPath)) {
     console.log('✅ Dependabot configuration found');
-    
+
     try {
       const config = fs.readFileSync(dependabotPath, 'utf8');
       const updates = (config.match(/package-ecosystem:/g) || []).length;
       console.log(`📋 Configured for ${updates} package ecosystems`);
-      
-      if (config.includes('interval: \'daily\'')) {
+
+      if (config.includes("interval: 'daily'")) {
         console.log('🚨 Daily security updates enabled');
       }
-      
-      if (config.includes('interval: \'weekly\'')) {
+
+      if (config.includes("interval: 'weekly'")) {
         console.log('📅 Weekly dependency updates enabled');
       }
-      
+
       return { configured: true, ecosystems: updates };
     } catch (error) {
       console.log('⚠️  Dependabot config exists but could not be parsed');
@@ -304,52 +304,53 @@ function checkDependabotConfig() {
  */
 function generateRecommendations(outdatedResult, securityResult) {
   const recommendations = [];
-  
+
   if (securityResult && securityResult.total > 0) {
     if (securityResult.summary.critical > 0 || securityResult.summary.high > 0) {
       recommendations.push({
         priority: 'HIGH',
         action: 'Fix critical and high severity vulnerabilities immediately',
-        command: 'npm audit fix --force'
+        command: 'npm audit fix --force',
       });
     }
-    
+
     if (securityResult.summary.moderate > 0) {
       recommendations.push({
         priority: 'MEDIUM',
         action: 'Review and fix moderate severity vulnerabilities',
-        command: 'npm audit fix'
+        command: 'npm audit fix',
       });
     }
   }
-  
+
   if (outdatedResult && outdatedResult.count > 0) {
-    const majorUpdates = outdatedResult.outdated.filter(pkg => 
-      pkg.current.split('.')[0] !== pkg.latest.split('.')[0]
+    const majorUpdates = outdatedResult.outdated.filter(
+      pkg => pkg.current.split('.')[0] !== pkg.latest.split('.')[0]
     );
-    
+
     if (majorUpdates.length > 0) {
       recommendations.push({
         priority: 'MEDIUM',
         action: `Review ${majorUpdates.length} major version updates manually`,
-        command: 'npm update --dry-run'
+        command: 'npm update --dry-run',
       });
     }
-    
-    const minorUpdates = outdatedResult.outdated.filter(pkg => 
-      pkg.current.split('.')[0] === pkg.latest.split('.')[0] &&
-      pkg.current.split('.')[1] !== pkg.latest.split('.')[1]
+
+    const minorUpdates = outdatedResult.outdated.filter(
+      pkg =>
+        pkg.current.split('.')[0] === pkg.latest.split('.')[0] &&
+        pkg.current.split('.')[1] !== pkg.latest.split('.')[1]
     );
-    
+
     if (minorUpdates.length > 0) {
       recommendations.push({
         priority: 'LOW',
         action: `Consider updating ${minorUpdates.length} minor versions`,
-        command: 'npm update'
+        command: 'npm update',
       });
     }
   }
-  
+
   return recommendations;
 }
 
@@ -358,55 +359,55 @@ function generateRecommendations(outdatedResult, securityResult) {
  */
 async function main() {
   console.log('🔍 Dependency Health Check\n');
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
   console.log('');
-  
+
   const results = {
     timestamp: new Date().toISOString(),
     outdated: null,
     security: null,
     dependabot: null,
-    recommendations: []
+    recommendations: [],
   };
-  
+
   try {
     // Check outdated dependencies
     results.outdated = await checkOutdated();
-    
+
     // Check security vulnerabilities
     results.security = await checkSecurity();
-    
+
     // Check Dependabot configuration
     console.log('🤖 Checking Dependabot configuration...\n');
     results.dependabot = checkDependabotConfig();
     console.log('');
-    
+
     // Generate recommendations
     results.recommendations = generateRecommendations(results.outdated, results.security);
-    
+
     // Output results
     if (CONFIG.jsonOutput) {
       console.log(JSON.stringify(results, null, 2));
     } else {
       // Summary
       console.log('📊 Summary');
-      console.log('=' .repeat(50));
-      
+      console.log('='.repeat(50));
+
       if (results.outdated) {
         console.log(`📦 Outdated packages: ${results.outdated.count}`);
       }
-      
+
       if (results.security) {
         console.log(`🔒 Security vulnerabilities: ${results.security.total}`);
       }
-      
+
       console.log(`🤖 Dependabot configured: ${results.dependabot.configured ? 'Yes' : 'No'}`);
-      
+
       // Recommendations
       if (results.recommendations.length > 0) {
         console.log('\n💡 Recommendations');
-        console.log('=' .repeat(50));
-        
+        console.log('='.repeat(50));
+
         for (const rec of results.recommendations) {
           console.log(`[${rec.priority}] ${rec.action}`);
           console.log(`  Command: ${rec.command}`);
@@ -416,13 +417,13 @@ async function main() {
         console.log('\n✅ No immediate actions required!');
       }
     }
-    
+
     // Exit with appropriate code
-    const hasIssues = (results.security && results.security.total > 0) || 
-                     (results.outdated && results.outdated.count > 10);
-    
+    const hasIssues =
+      (results.security && results.security.total > 0) ||
+      (results.outdated && results.outdated.count > 10);
+
     process.exit(hasIssues ? 1 : 0);
-    
   } catch (error) {
     console.error('💥 Unexpected error:', error.message);
     process.exit(1);

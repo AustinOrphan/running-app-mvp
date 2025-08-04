@@ -4,19 +4,19 @@ info:
   description: |
     A comprehensive running tracker application API that allows users to manage their running activities, 
     set goals, track races, and view performance statistics.
-    
+
     ## Authentication
     This API uses JWT (JSON Web Tokens) for authentication. Include the access token in the Authorization header:
     ```
     Authorization: Bearer <access_token>
     ```
-    
+
     ## Rate Limiting
     - Authentication endpoints: 5 requests per 15 minutes
     - Read operations: 100 requests per 15 minutes  
     - Write operations: 20 requests per 15 minutes
     - API endpoints: 100 requests per 15 minutes
-    
+
     ## Error Handling
     The API uses standard HTTP status codes and returns errors in a consistent format.
   version: 1.0.0
@@ -55,7 +55,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Auth routes are working"
+                    example: 'Auth routes are working'
                   timestamp:
                     type: string
                     format: date-time
@@ -80,11 +80,11 @@ paths:
                 email:
                   type: string
                   format: email
-                  example: "user@example.com"
+                  example: 'user@example.com'
                 password:
                   type: string
                   minLength: 8
-                  example: "securePassword123"
+                  example: 'securePassword123'
       responses:
         '201':
           description: User created successfully
@@ -95,13 +95,13 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "User created successfully"
+                    example: 'User created successfully'
                   accessToken:
                     type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
                   refreshToken:
                     type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
                   user:
                     $ref: '#/components/schemas/PublicUser'
         '400':
@@ -131,10 +131,10 @@ paths:
                 email:
                   type: string
                   format: email
-                  example: "user@example.com"
+                  example: 'user@example.com'
                 password:
                   type: string
-                  example: "securePassword123"
+                  example: 'securePassword123'
       responses:
         '200':
           description: Login successful
@@ -145,13 +145,13 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Login successful"
+                    example: 'Login successful'
                   accessToken:
                     type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
                   refreshToken:
                     type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
                   user:
                     $ref: '#/components/schemas/PublicUser'
         '400':
@@ -198,7 +198,7 @@ paths:
               properties:
                 refreshToken:
                   type: string
-                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
       responses:
         '200':
           description: Token refreshed successfully
@@ -209,10 +209,10 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Token refreshed successfully"
+                    example: 'Token refreshed successfully'
                   accessToken:
                     type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 
@@ -241,7 +241,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Logged out successfully"
+                    example: 'Logged out successfully'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '500':
@@ -372,7 +372,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Goal deleted successfully"
+                    example: 'Goal deleted successfully'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -523,7 +523,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Run deleted successfully"
+                    example: 'Run deleted successfully'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -656,7 +656,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Race deleted successfully"
+                    example: 'Race deleted successfully'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -767,29 +767,29 @@ components:
       properties:
         id:
           type: string
-          example: "clm123abc456"
+          example: 'clm123abc456'
         email:
           type: string
           format: email
-          example: "user@example.com"
+          example: 'user@example.com'
 
     Goal:
       type: object
       properties:
         id:
           type: string
-          example: "clm123abc456"
+          example: 'clm123abc456'
         userId:
           type: string
-          example: "clm123abc456"
+          example: 'clm123abc456'
         type:
           type: string
           enum: [distance, time, frequency, pace]
-          example: "distance"
+          example: 'distance'
         period:
           type: string
           enum: [daily, weekly, monthly, yearly]
-          example: "weekly"
+          example: 'weekly'
         targetValue:
           type: number
           example: 50.0
@@ -805,19 +805,19 @@ components:
         startDate:
           type: string
           format: date-time
-          example: "2024-01-01T00:00:00Z"
+          example: '2024-01-01T00:00:00Z'
         endDate:
           type: string
           format: date-time
-          example: "2024-12-31T23:59:59Z"
+          example: '2024-12-31T23:59:59Z'
         createdAt:
           type: string
           format: date-time
-          example: "2024-01-01T12:00:00Z"
+          example: '2024-01-01T12:00:00Z'
         updatedAt:
           type: string
           format: date-time
-          example: "2024-01-15T12:00:00Z"
+          example: '2024-01-15T12:00:00Z'
 
     CreateGoalRequest:
       type: object
@@ -873,14 +873,14 @@ components:
       properties:
         id:
           type: string
-          example: "clm123abc456"
+          example: 'clm123abc456'
         userId:
           type: string
-          example: "clm123abc456"
+          example: 'clm123abc456'
         date:
           type: string
           format: date-time
-          example: "2024-01-15T08:00:00Z"
+          example: '2024-01-15T08:00:00Z'
         distance:
           type: number
           example: 5.2
@@ -894,29 +894,29 @@ components:
           example: 5.77
         runType:
           type: string
-          example: "easy"
+          example: 'easy'
         notes:
           type: string
-          example: "Great morning run"
+          example: 'Great morning run'
         createdAt:
           type: string
           format: date-time
-          example: "2024-01-15T12:00:00Z"
+          example: '2024-01-15T12:00:00Z'
         updatedAt:
           type: string
           format: date-time
-          example: "2024-01-15T12:00:00Z"
+          example: '2024-01-15T12:00:00Z'
 
     SimpleRun:
       type: object
       properties:
         id:
           type: string
-          example: "clm123abc456"
+          example: 'clm123abc456'
         date:
           type: string
           format: date-time
-          example: "2024-01-15T08:00:00Z"
+          example: '2024-01-15T08:00:00Z'
         distance:
           type: number
           example: 5.2
@@ -925,7 +925,7 @@ components:
           example: 1800
         runType:
           type: string
-          example: "easy"
+          example: 'easy'
 
     CreateRunRequest:
       type: object
@@ -970,20 +970,20 @@ components:
       properties:
         id:
           type: string
-          example: "clm123abc456"
+          example: 'clm123abc456'
         userId:
           type: string
-          example: "clm123abc456"
+          example: 'clm123abc456'
         name:
           type: string
-          example: "Boston Marathon"
+          example: 'Boston Marathon'
         distance:
           type: number
           example: 42.195
         raceDate:
           type: string
           format: date-time
-          example: "2024-04-15T09:00:00Z"
+          example: '2024-04-15T09:00:00Z'
         targetTime:
           type: integer
           description: Target time in seconds
@@ -994,18 +994,18 @@ components:
           example: 10650
         location:
           type: string
-          example: "Boston, MA"
+          example: 'Boston, MA'
         notes:
           type: string
-          example: "Personal best!"
+          example: 'Personal best!'
         createdAt:
           type: string
           format: date-time
-          example: "2024-01-15T12:00:00Z"
+          example: '2024-01-15T12:00:00Z'
         updatedAt:
           type: string
           format: date-time
-          example: "2024-04-15T15:00:00Z"
+          example: '2024-04-15T15:00:00Z'
 
     CreateRaceRequest:
       type: object
@@ -1072,11 +1072,11 @@ components:
         weekStart:
           type: string
           format: date-time
-          example: "2024-01-08T00:00:00Z"
+          example: '2024-01-08T00:00:00Z'
         weekEnd:
           type: string
           format: date-time
-          example: "2024-01-15T00:00:00Z"
+          example: '2024-01-15T00:00:00Z'
         hasData:
           type: boolean
           example: true
@@ -1091,7 +1091,7 @@ components:
             properties:
               runType:
                 type: string
-                example: "easy"
+                example: 'easy'
               count:
                 type: integer
                 example: 10
@@ -1112,24 +1112,24 @@ components:
             properties:
               id:
                 type: string
-                example: "clm123abc456"
+                example: 'clm123abc456'
               timestamp:
                 type: string
                 format: date-time
-                example: "2024-01-15T12:00:00Z"
+                example: '2024-01-15T12:00:00Z'
               action:
                 type: string
-                example: "create"
+                example: 'create'
               entityType:
                 type: string
-                example: "run"
+                example: 'run'
               entityId:
                 type: string
-                example: "clm123abc456"
+                example: 'clm123abc456'
               outcome:
                 type: string
                 enum: [success, failure]
-                example: "success"
+                example: 'success'
               details:
                 type: object
         pagination:
@@ -1153,17 +1153,17 @@ components:
       properties:
         error:
           type: string
-          example: "Validation failed"
+          example: 'Validation failed'
         message:
           type: string
-          example: "The provided data is invalid"
+          example: 'The provided data is invalid'
         details:
           type: object
           description: Additional error details
         timestamp:
           type: string
           format: date-time
-          example: "2024-01-15T12:00:00Z"
+          example: '2024-01-15T12:00:00Z'
 
   responses:
     ValidationError:
@@ -1173,12 +1173,12 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: "Validation failed"
-            message: "Email is required"
+            error: 'Validation failed'
+            message: 'Email is required'
             details:
-              field: "email"
-              code: "REQUIRED"
-            timestamp: "2024-01-15T12:00:00Z"
+              field: 'email'
+              code: 'REQUIRED'
+            timestamp: '2024-01-15T12:00:00Z'
 
     UnauthorizedError:
       description: Authentication required
@@ -1187,9 +1187,9 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: "Unauthorized"
-            message: "Authentication required"
-            timestamp: "2024-01-15T12:00:00Z"
+            error: 'Unauthorized'
+            message: 'Authentication required'
+            timestamp: '2024-01-15T12:00:00Z'
 
     ForbiddenError:
       description: Access forbidden
@@ -1198,9 +1198,9 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: "Forbidden"
-            message: "You do not have permission to access this resource"
-            timestamp: "2024-01-15T12:00:00Z"
+            error: 'Forbidden'
+            message: 'You do not have permission to access this resource'
+            timestamp: '2024-01-15T12:00:00Z'
 
     NotFoundError:
       description: Resource not found
@@ -1209,9 +1209,9 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: "Not Found"
-            message: "The requested resource was not found"
-            timestamp: "2024-01-15T12:00:00Z"
+            error: 'Not Found'
+            message: 'The requested resource was not found'
+            timestamp: '2024-01-15T12:00:00Z'
 
     ConflictError:
       description: Resource conflict
@@ -1220,11 +1220,11 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: "Conflict"
-            message: "User already exists"
+            error: 'Conflict'
+            message: 'User already exists'
             details:
-              email: "user@example.com"
-            timestamp: "2024-01-15T12:00:00Z"
+              email: 'user@example.com'
+            timestamp: '2024-01-15T12:00:00Z'
 
     RateLimitError:
       description: Rate limit exceeded
@@ -1233,9 +1233,9 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: "Rate Limit Exceeded"
-            message: "Too many requests, please try again later"
-            timestamp: "2024-01-15T12:00:00Z"
+            error: 'Rate Limit Exceeded'
+            message: 'Too many requests, please try again later'
+            timestamp: '2024-01-15T12:00:00Z'
 
     ServerError:
       description: Internal server error
@@ -1244,9 +1244,9 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: "Internal Server Error"
-            message: "An unexpected error occurred"
-            timestamp: "2024-01-15T12:00:00Z"
+            error: 'Internal Server Error'
+            message: 'An unexpected error occurred'
+            timestamp: '2024-01-15T12:00:00Z'
 
 tags:
   - name: Authentication

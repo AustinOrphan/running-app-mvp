@@ -2,13 +2,13 @@
 
 /**
  * Test Performance Dashboard Generator
- * 
+ *
  * This script generates comprehensive test performance dashboards with metrics collection,
  * trend analysis, and alerting capabilities for monitoring test suite performance over time.
- * 
+ *
  * Usage:
  *   node scripts/test-performance-dashboard.js [options]
- * 
+ *
  * Options:
  *   --generate         Generate new dashboard
  *   --collect          Collect performance metrics
@@ -39,19 +39,19 @@ const CONFIG = {
     unitTests: {
       maxDuration: 30000, // 30 seconds
       maxMemory: 512, // 512 MB
-      minCoverage: 80 // 80%
+      minCoverage: 80, // 80%
     },
     integrationTests: {
       maxDuration: 120000, // 2 minutes
       maxMemory: 1024, // 1 GB
-      minCoverage: 70 // 70%
+      minCoverage: 70, // 70%
     },
     e2eTests: {
       maxDuration: 300000, // 5 minutes
       maxMemory: 2048, // 2 GB
-      minCoverage: 60 // 60%
-    }
-  }
+      minCoverage: 60, // 60%
+    },
+  },
 };
 
 /**
@@ -59,7 +59,7 @@ const CONFIG = {
  */
 function parseArgs() {
   const args = process.argv.slice(2);
-  
+
   for (const arg of args) {
     switch (arg) {
       case '--generate':
@@ -92,9 +92,14 @@ function parseArgs() {
         }
     }
   }
-  
+
   // Default to generating dashboard if no specific action
-  if (!CONFIG.collectMetrics && !CONFIG.analyzeTrends && !CONFIG.checkAlerts && !CONFIG.serveDashboard) {
+  if (
+    !CONFIG.collectMetrics &&
+    !CONFIG.analyzeTrends &&
+    !CONFIG.checkAlerts &&
+    !CONFIG.serveDashboard
+  ) {
     CONFIG.generateDashboard = true;
   }
 }
@@ -134,15 +139,15 @@ function execCommand(command, options = {}) {
     const result = execSync(command, {
       encoding: 'utf8',
       stdio: options.silent ? 'pipe' : 'inherit',
-      ...options
+      ...options,
     });
     return { success: true, output: result };
   } catch (error) {
-    return { 
-      success: false, 
+    return {
+      success: false,
       output: error.stdout || error.message,
       error: error.stderr || error.message,
-      code: error.status
+      code: error.status,
     };
   }
 }
@@ -161,22 +166,24 @@ function ensureOutputDir() {
  */
 async function collectMetrics() {
   console.log('📊 Collecting test performance metrics...\n');
-  
+
   const metrics = {
     timestamp: new Date().toISOString(),
     environment: {
       node: process.version,
       platform: process.platform,
       memory: process.memoryUsage(),
-      cpu: require('os').cpus().length
+      cpu: require('os').cpus().length,
     },
-    testSuites: {}
+    testSuites: {},
   };
-  
+
   // Collect unit test metrics
   console.log('🧪 Running unit tests for metrics...');
-  const unitTestResult = execCommand('npm run test:coverage:unit:ci -- --reporter=json', { silent: true });
-  
+  const unitTestResult = execCommand('npm run test:coverage:unit:ci -- --reporter=json', {
+    silent: true,
+  });
+
   if (unitTestResult.success) {
     try {
       // Parse test results (this would be actual test framework output)
@@ -190,19 +197,21 @@ async function collectMetrics() {
         slowestTests: [
           { name: 'complex calculation test', duration: 2500 },
           { name: 'database integration test', duration: 1800 },
-          { name: 'API validation test', duration: 1200 }
-        ]
+          { name: 'API validation test', duration: 1200 },
+        ],
       };
     } catch (error) {
       console.warn('⚠️ Could not parse unit test results');
       metrics.testSuites.unit = { error: error.message };
     }
   }
-  
+
   // Collect integration test metrics
   console.log('🔗 Running integration tests for metrics...');
-  const integrationTestResult = execCommand('npm run test:integration:ci -- --json', { silent: true });
-  
+  const integrationTestResult = execCommand('npm run test:integration:ci -- --json', {
+    silent: true,
+  });
+
   if (integrationTestResult.success) {
     try {
       metrics.testSuites.integration = {
@@ -216,19 +225,19 @@ async function collectMetrics() {
         slowestTests: [
           { name: 'full API workflow test', duration: 8500 },
           { name: 'database migration test', duration: 6200 },
-          { name: 'authentication flow test', duration: 4800 }
-        ]
+          { name: 'authentication flow test', duration: 4800 },
+        ],
       };
     } catch (error) {
       console.warn('⚠️ Could not parse integration test results');
       metrics.testSuites.integration = { error: error.message };
     }
   }
-  
+
   // Collect E2E test metrics
   console.log('🎭 Running E2E tests for metrics...');
   const e2eTestResult = execCommand('npm run test:e2e:ci -- --reporter=json', { silent: true });
-  
+
   if (e2eTestResult.success) {
     try {
       metrics.testSuites.e2e = {
@@ -242,28 +251,45 @@ async function collectMetrics() {
         slowestTests: [
           { name: 'complete user journey test', duration: 15000 },
           { name: 'data visualization test', duration: 12000 },
-          { name: 'file upload workflow test', duration: 9500 }
-        ]
+          { name: 'file upload workflow test', duration: 9500 },
+        ],
       };
     } catch (error) {
       console.warn('⚠️ Could not parse E2E test results');
       metrics.testSuites.e2e = { error: error.message };
     }
   }
-  
+
   // Calculate overall metrics
   metrics.overall = {
-    totalDuration: Object.values(metrics.testSuites).reduce((sum, suite) => sum + (suite.duration || 0), 0),
-    totalTests: Object.values(metrics.testSuites).reduce((sum, suite) => sum + (suite.tests || 0), 0),
-    totalPassed: Object.values(metrics.testSuites).reduce((sum, suite) => sum + (suite.passed || 0), 0),
-    totalFailed: Object.values(metrics.testSuites).reduce((sum, suite) => sum + (suite.failed || 0), 0),
-    averageCoverage: Object.values(metrics.testSuites).reduce((sum, suite) => sum + (suite.coverage || 0), 0) / Object.keys(metrics.testSuites).length,
-    totalMemoryUsage: Object.values(metrics.testSuites).reduce((sum, suite) => sum + (suite.memoryUsage || 0), 0)
+    totalDuration: Object.values(metrics.testSuites).reduce(
+      (sum, suite) => sum + (suite.duration || 0),
+      0
+    ),
+    totalTests: Object.values(metrics.testSuites).reduce(
+      (sum, suite) => sum + (suite.tests || 0),
+      0
+    ),
+    totalPassed: Object.values(metrics.testSuites).reduce(
+      (sum, suite) => sum + (suite.passed || 0),
+      0
+    ),
+    totalFailed: Object.values(metrics.testSuites).reduce(
+      (sum, suite) => sum + (suite.failed || 0),
+      0
+    ),
+    averageCoverage:
+      Object.values(metrics.testSuites).reduce((sum, suite) => sum + (suite.coverage || 0), 0) /
+      Object.keys(metrics.testSuites).length,
+    totalMemoryUsage: Object.values(metrics.testSuites).reduce(
+      (sum, suite) => sum + (suite.memoryUsage || 0),
+      0
+    ),
   };
-  
+
   // Save metrics
   ensureOutputDir();
-  
+
   // Load existing metrics history
   let metricsHistory = [];
   if (fs.existsSync(CONFIG.metricsFile)) {
@@ -273,25 +299,27 @@ async function collectMetrics() {
       console.warn('⚠️ Could not load existing metrics history');
     }
   }
-  
+
   // Add new metrics to history (keep last 100 entries)
   metricsHistory.push(metrics);
   if (metricsHistory.length > 100) {
     metricsHistory = metricsHistory.slice(-100);
   }
-  
+
   fs.writeFileSync(CONFIG.metricsFile, JSON.stringify(metricsHistory, null, 2));
-  
+
   console.log('✅ Performance metrics collected and saved\n');
-  
+
   // Display summary
   console.log('📊 Performance Summary:');
   console.log(`  Total Duration: ${(metrics.overall.totalDuration / 1000).toFixed(1)}s`);
   console.log(`  Total Tests: ${metrics.overall.totalTests}`);
-  console.log(`  Success Rate: ${((metrics.overall.totalPassed / metrics.overall.totalTests) * 100).toFixed(1)}%`);
+  console.log(
+    `  Success Rate: ${((metrics.overall.totalPassed / metrics.overall.totalTests) * 100).toFixed(1)}%`
+  );
   console.log(`  Average Coverage: ${metrics.overall.averageCoverage.toFixed(1)}%`);
   console.log(`  Memory Usage: ${metrics.overall.totalMemoryUsage}MB`);
-  
+
   return metrics;
 }
 
@@ -300,74 +328,75 @@ async function collectMetrics() {
  */
 async function analyzeTrends() {
   console.log('📈 Analyzing performance trends...\n');
-  
+
   if (!fs.existsSync(CONFIG.metricsFile)) {
     console.log('⚠️ No metrics history found. Run --collect first.');
     return null;
   }
-  
+
   const metricsHistory = JSON.parse(fs.readFileSync(CONFIG.metricsFile, 'utf8'));
-  
+
   if (metricsHistory.length < 2) {
     console.log('⚠️ Need at least 2 data points for trend analysis.');
     return null;
   }
-  
+
   const trends = {
     timestamp: new Date().toISOString(),
     period: {
       start: metricsHistory[0].timestamp,
       end: metricsHistory[metricsHistory.length - 1].timestamp,
-      dataPoints: metricsHistory.length
+      dataPoints: metricsHistory.length,
     },
-    analysis: {}
+    analysis: {},
   };
-  
+
   // Analyze trends for each test suite
   ['unit', 'integration', 'e2e'].forEach(suiteType => {
     const suiteData = metricsHistory
       .filter(m => m.testSuites[suiteType] && !m.testSuites[suiteType].error)
       .map(m => m.testSuites[suiteType]);
-    
+
     if (suiteData.length < 2) return;
-    
+
     trends.analysis[suiteType] = {
       duration: analyzeTrend(suiteData.map(d => d.duration)),
       coverage: analyzeTrend(suiteData.map(d => d.coverage)),
       memoryUsage: analyzeTrend(suiteData.map(d => d.memoryUsage)),
-      successRate: analyzeTrend(suiteData.map(d => (d.passed / d.tests) * 100))
+      successRate: analyzeTrend(suiteData.map(d => (d.passed / d.tests) * 100)),
     };
   });
-  
+
   // Overall trends
-  const overallData = metricsHistory
-    .filter(m => m.overall)
-    .map(m => m.overall);
-    
+  const overallData = metricsHistory.filter(m => m.overall).map(m => m.overall);
+
   if (overallData.length >= 2) {
     trends.analysis.overall = {
       totalDuration: analyzeTrend(overallData.map(d => d.totalDuration)),
       averageCoverage: analyzeTrend(overallData.map(d => d.averageCoverage)),
       totalMemoryUsage: analyzeTrend(overallData.map(d => d.totalMemoryUsage)),
-      successRate: analyzeTrend(overallData.map(d => (d.totalPassed / d.totalTests) * 100))
+      successRate: analyzeTrend(overallData.map(d => (d.totalPassed / d.totalTests) * 100)),
     };
   }
-  
+
   // Save trends
   fs.writeFileSync(CONFIG.trendsFile, JSON.stringify(trends, null, 2));
-  
+
   console.log('✅ Trend analysis completed\n');
-  
+
   // Display trend summary
   console.log('📈 Trend Summary:');
   Object.entries(trends.analysis).forEach(([suite, analysis]) => {
     console.log(`\n  ${suite.toUpperCase()}:`);
     Object.entries(analysis).forEach(([metric, trend]) => {
-      const arrow = trend.direction === 'improving' ? '📈' : trend.direction === 'degrading' ? '📉' : '➡️';
-      console.log(`    ${metric}: ${arrow} ${trend.direction} (${trend.changePercent > 0 ? '+' : ''}${trend.changePercent.toFixed(1)}%)`);
+      const arrow =
+        trend.direction === 'improving' ? '📈' : trend.direction === 'degrading' ? '📉' : '➡️';
+      console.log(
+        `    ${metric}: ${arrow} ${trend.direction} (${trend.changePercent > 0 ? '+' : ''}${trend.changePercent.toFixed(1)}%)`
+      );
     });
   });
-  
+
   return trends;
 }
 
@@ -376,26 +405,28 @@ async function analyzeTrends() {
  */
 function analyzeTrend(values) {
   if (values.length < 2) return { direction: 'stable', changePercent: 0 };
-  
+
   const recent = values.slice(-5); // Last 5 values
   const older = values.slice(-10, -5); // Previous 5 values
-  
+
   const recentAvg = recent.reduce((sum, val) => sum + val, 0) / recent.length;
-  const olderAvg = older.length > 0 ? older.reduce((sum, val) => sum + val, 0) / older.length : recentAvg;
-  
+  const olderAvg =
+    older.length > 0 ? older.reduce((sum, val) => sum + val, 0) / older.length : recentAvg;
+
   const changePercent = ((recentAvg - olderAvg) / olderAvg) * 100;
-  
+
   let direction = 'stable';
-  if (Math.abs(changePercent) > 5) { // 5% threshold
+  if (Math.abs(changePercent) > 5) {
+    // 5% threshold
     direction = changePercent > 0 ? 'degrading' : 'improving';
   }
-  
+
   return {
     direction,
     changePercent,
     recentAverage: recentAvg,
     previousAverage: olderAvg,
-    values: recent
+    values: recent,
   };
 }
 
@@ -404,23 +435,23 @@ function analyzeTrend(values) {
  */
 async function checkAlerts() {
   console.log('🚨 Checking for performance degradation alerts...\n');
-  
+
   if (!fs.existsSync(CONFIG.metricsFile)) {
     console.log('⚠️ No metrics found. Run --collect first.');
     return [];
   }
-  
+
   const metricsHistory = JSON.parse(fs.readFileSync(CONFIG.metricsFile, 'utf8'));
   const latestMetrics = metricsHistory[metricsHistory.length - 1];
-  
+
   const alerts = [];
-  
+
   // Check each test suite against thresholds
   Object.entries(CONFIG.thresholds).forEach(([suiteType, thresholds]) => {
     const suiteMetrics = latestMetrics.testSuites[suiteType];
-    
+
     if (!suiteMetrics || suiteMetrics.error) return;
-    
+
     // Duration alert
     if (suiteMetrics.duration > thresholds.maxDuration) {
       alerts.push({
@@ -430,10 +461,10 @@ async function checkAlerts() {
         message: `${suiteType} tests exceeded duration threshold`,
         actual: suiteMetrics.duration,
         threshold: thresholds.maxDuration,
-        timestamp: latestMetrics.timestamp
+        timestamp: latestMetrics.timestamp,
       });
     }
-    
+
     // Memory alert
     if (suiteMetrics.memoryUsage > thresholds.maxMemory) {
       alerts.push({
@@ -443,10 +474,10 @@ async function checkAlerts() {
         message: `${suiteType} tests exceeded memory threshold`,
         actual: suiteMetrics.memoryUsage,
         threshold: thresholds.maxMemory,
-        timestamp: latestMetrics.timestamp
+        timestamp: latestMetrics.timestamp,
       });
     }
-    
+
     // Coverage alert
     if (suiteMetrics.coverage < thresholds.minCoverage) {
       alerts.push({
@@ -456,15 +487,15 @@ async function checkAlerts() {
         message: `${suiteType} tests below coverage threshold`,
         actual: suiteMetrics.coverage,
         threshold: thresholds.minCoverage,
-        timestamp: latestMetrics.timestamp
+        timestamp: latestMetrics.timestamp,
       });
     }
   });
-  
+
   // Check for trend-based alerts
   if (fs.existsSync(CONFIG.trendsFile)) {
     const trends = JSON.parse(fs.readFileSync(CONFIG.trendsFile, 'utf8'));
-    
+
     Object.entries(trends.analysis).forEach(([suite, analysis]) => {
       Object.entries(analysis).forEach(([metric, trend]) => {
         if (trend.direction === 'degrading' && Math.abs(trend.changePercent) > 20) {
@@ -475,18 +506,18 @@ async function checkAlerts() {
             severity: 'high',
             message: `${suite} ${metric} degraded by ${Math.abs(trend.changePercent).toFixed(1)}%`,
             changePercent: trend.changePercent,
-            timestamp: trends.timestamp
+            timestamp: trends.timestamp,
           });
         }
       });
     });
   }
-  
+
   // Save alerts
   fs.writeFileSync(CONFIG.alertsFile, JSON.stringify(alerts, null, 2));
-  
+
   console.log(`🚨 Found ${alerts.length} performance alerts\n`);
-  
+
   // Display alerts
   if (alerts.length > 0) {
     console.log('⚠️ Performance Alerts:');
@@ -500,13 +531,15 @@ async function checkAlerts() {
         console.log(`     Threshold: ${alert.threshold}`);
       }
       if (alert.changePercent !== undefined) {
-        console.log(`     Change: ${alert.changePercent > 0 ? '+' : ''}${alert.changePercent.toFixed(1)}%`);
+        console.log(
+          `     Change: ${alert.changePercent > 0 ? '+' : ''}${alert.changePercent.toFixed(1)}%`
+        );
       }
     });
   } else {
     console.log('✅ No performance alerts detected');
   }
-  
+
   return alerts;
 }
 
@@ -515,37 +548,38 @@ async function checkAlerts() {
  */
 async function generateDashboard() {
   console.log('🎨 Generating performance dashboard...\n');
-  
+
   ensureOutputDir();
-  
+
   // Load data
   let metricsHistory = [];
   let trends = null;
   let alerts = [];
-  
+
   if (fs.existsSync(CONFIG.metricsFile)) {
     metricsHistory = JSON.parse(fs.readFileSync(CONFIG.metricsFile, 'utf8'));
   }
-  
+
   if (fs.existsSync(CONFIG.trendsFile)) {
     trends = JSON.parse(fs.readFileSync(CONFIG.trendsFile, 'utf8'));
   }
-  
+
   if (fs.existsSync(CONFIG.alertsFile)) {
     alerts = JSON.parse(fs.readFileSync(CONFIG.alertsFile, 'utf8'));
   }
-  
-  const latestMetrics = metricsHistory.length > 0 ? metricsHistory[metricsHistory.length - 1] : null;
-  
+
+  const latestMetrics =
+    metricsHistory.length > 0 ? metricsHistory[metricsHistory.length - 1] : null;
+
   // Generate HTML
   const html = generateDashboardHTML(metricsHistory, latestMetrics, trends, alerts);
-  
+
   // Save dashboard
   const dashboardPath = path.join(CONFIG.outputDir, 'dashboard.html');
   fs.writeFileSync(dashboardPath, html);
-  
+
   console.log(`✅ Dashboard generated: ${dashboardPath}\n`);
-  
+
   return dashboardPath;
 }
 
@@ -554,7 +588,7 @@ async function generateDashboard() {
  */
 function generateDashboardHTML(metricsHistory, latestMetrics, trends, alerts) {
   const now = new Date().toISOString();
-  
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -598,20 +632,30 @@ function generateDashboardHTML(metricsHistory, latestMetrics, trends, alerts) {
             <p>Real-time monitoring and analysis of test suite performance</p>
         </header>
 
-        ${alerts.length > 0 ? `
+        ${
+          alerts.length > 0
+            ? `
         <div class="card">
             <h3>🚨 Performance Alerts (${alerts.length})</h3>
-            ${alerts.map(alert => `
+            ${alerts
+              .map(
+                alert => `
                 <div class="alert alert-${alert.severity}">
                     <strong>${alert.severity.toUpperCase()}:</strong> ${alert.message}
                     ${alert.suite ? `<br><small>Suite: ${alert.suite}</small>` : ''}
                     ${alert.changePercent ? `<br><small>Change: ${alert.changePercent > 0 ? '+' : ''}${alert.changePercent.toFixed(1)}%</small>` : ''}
                 </div>
-            `).join('')}
+            `
+              )
+              .join('')}
         </div>
-        ` : '<div class="card"><h3>✅ No Performance Alerts</h3><p>All test performance metrics are within acceptable thresholds.</p></div>'}
+        `
+            : '<div class="card"><h3>✅ No Performance Alerts</h3><p>All test performance metrics are within acceptable thresholds.</p></div>'
+        }
 
-        ${latestMetrics ? `
+        ${
+          latestMetrics
+            ? `
         <div class="grid">
             <div class="card">
                 <h3>📊 Overall Performance</h3>
@@ -639,29 +683,46 @@ function generateDashboardHTML(metricsHistory, latestMetrics, trends, alerts) {
 
             <div class="card">
                 <h3>📈 Performance Trends</h3>
-                ${trends ? Object.entries(trends.analysis).map(([suite, analysis]) => `
+                ${
+                  trends
+                    ? Object.entries(trends.analysis)
+                        .map(
+                          ([suite, analysis]) => `
                     <div style="margin-bottom: 15px;">
                         <strong>${suite.toUpperCase()}</strong><br>
-                        ${Object.entries(analysis).map(([metric, trend]) => `
+                        ${Object.entries(analysis)
+                          .map(
+                            ([metric, trend]) => `
                             <small>
                                 ${metric}: 
                                 <span class="trend-${trend.direction === 'improving' ? 'down' : trend.direction === 'degrading' ? 'up' : 'stable'}">
                                     ${trend.direction} (${trend.changePercent > 0 ? '+' : ''}${trend.changePercent.toFixed(1)}%)
                                 </span>
                             </small><br>
-                        `).join('')}
+                        `
+                          )
+                          .join('')}
                     </div>
-                `).join('') : '<p>No trend data available</p>'}
+                `
+                        )
+                        .join('')
+                    : '<p>No trend data available</p>'
+                }
             </div>
         </div>
 
         <div class="card">
             <h3>🧪 Test Suite Details</h3>
             <div class="suite-grid">
-                ${Object.entries(latestMetrics.testSuites).map(([suite, data]) => `
+                ${Object.entries(latestMetrics.testSuites)
+                  .map(
+                    ([suite, data]) => `
                     <div class="suite-card">
                         <div class="suite-title">${suite.toUpperCase()} Tests</div>
-                        ${data.error ? `<p class="status-error">Error: ${data.error}</p>` : `
+                        ${
+                          data.error
+                            ? `<p class="status-error">Error: ${data.error}</p>`
+                            : `
                             <div class="metric">
                                 <span class="metric-label">Duration</span>
                                 <span class="metric-value">${(data.duration / 1000).toFixed(1)}s</span>
@@ -674,12 +735,16 @@ function generateDashboardHTML(metricsHistory, latestMetrics, trends, alerts) {
                                 <span class="metric-label">Passed</span>
                                 <span class="metric-value status-good">${data.passed}</span>
                             </div>
-                            ${data.failed > 0 ? `
+                            ${
+                              data.failed > 0
+                                ? `
                             <div class="metric">
                                 <span class="metric-label">Failed</span>
                                 <span class="metric-value status-error">${data.failed}</span>
                             </div>
-                            ` : ''}
+                            `
+                                : ''
+                            }
                             <div class="metric">
                                 <span class="metric-label">Coverage</span>
                                 <span class="metric-value">${data.coverage}%</span>
@@ -688,28 +753,39 @@ function generateDashboardHTML(metricsHistory, latestMetrics, trends, alerts) {
                                 <span class="metric-label">Memory</span>
                                 <span class="metric-value">${data.memoryUsage}MB</span>
                             </div>
-                        `}
+                        `
+                        }
                     </div>
-                `).join('')}
+                `
+                  )
+                  .join('')}
             </div>
         </div>
-        ` : '<div class="card"><h3>📊 No Performance Data</h3><p>Run performance collection to see metrics.</p></div>'}
+        `
+            : '<div class="card"><h3>📊 No Performance Data</h3><p>Run performance collection to see metrics.</p></div>'
+        }
 
-        ${metricsHistory.length > 1 ? `
+        ${
+          metricsHistory.length > 1
+            ? `
         <div class="card">
             <h3>📈 Performance History</h3>
             <div class="chart-container">
                 <canvas id="performanceChart"></canvas>
             </div>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
         <div class="timestamp">
             Last updated: ${now}
         </div>
     </div>
 
-    ${metricsHistory.length > 1 ? `
+    ${
+      metricsHistory.length > 1
+        ? `
     <script>
         const ctx = document.getElementById('performanceChart').getContext('2d');
         const metricsData = ${JSON.stringify(metricsHistory.slice(-20))}; // Last 20 data points
@@ -758,7 +834,9 @@ function generateDashboardHTML(metricsHistory, latestMetrics, trends, alerts) {
             }
         });
     </script>
-    ` : ''}
+    `
+        : ''
+    }
 </body>
 </html>`;
 }
@@ -768,23 +846,23 @@ function generateDashboardHTML(metricsHistory, latestMetrics, trends, alerts) {
  */
 async function serveDashboard() {
   console.log(`🌐 Starting dashboard server on port ${CONFIG.port}...\n`);
-  
+
   const http = require('http');
   const url = require('url');
-  
+
   const server = http.createServer((req, res) => {
     const parsedUrl = url.parse(req.url, true);
     const pathname = parsedUrl.pathname;
-    
+
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
+
     if (pathname === '/' || pathname === '/dashboard') {
       // Serve dashboard
       const dashboardPath = path.join(CONFIG.outputDir, 'dashboard.html');
-      
+
       if (fs.existsSync(dashboardPath)) {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(fs.readFileSync(dashboardPath));
@@ -824,7 +902,7 @@ async function serveDashboard() {
       res.end('Not Found');
     }
   });
-  
+
   server.listen(CONFIG.port, () => {
     console.log(`✅ Dashboard server running at http://localhost:${CONFIG.port}`);
     console.log(`📊 Dashboard URL: http://localhost:${CONFIG.port}/dashboard`);
@@ -841,24 +919,24 @@ async function serveDashboard() {
  */
 async function main() {
   console.log('🎯 Test Performance Dashboard\n');
-  
+
   try {
     if (CONFIG.collectMetrics) {
       await collectMetrics();
     }
-    
+
     if (CONFIG.analyzeTrends) {
       await analyzeTrends();
     }
-    
+
     if (CONFIG.checkAlerts) {
       await checkAlerts();
     }
-    
+
     if (CONFIG.generateDashboard) {
       await generateDashboard();
     }
-    
+
     if (CONFIG.serveDashboard) {
       await serveDashboard();
       // Keep server running
@@ -867,7 +945,6 @@ async function main() {
         process.exit(0);
       });
     }
-    
   } catch (error) {
     console.error('💥 Error:', error.message);
     process.exit(1);

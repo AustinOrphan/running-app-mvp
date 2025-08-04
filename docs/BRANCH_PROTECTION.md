@@ -7,6 +7,7 @@ This repository uses GitHub branch protection rules to ensure code quality and p
 ## Protection Rules for `main` Branch
 
 ### Required Status Checks
+
 The following CI checks must pass before any pull request can be merged:
 
 - **Lint and Type Check** (`ci-lint-and-typecheck`)
@@ -32,12 +33,14 @@ The following CI checks must pass before any pull request can be merged:
 All status checks must pass and branches must be up-to-date with main before merging is allowed.
 
 ### Pull Request Reviews
+
 - **Minimum required approvals**: 1
 - **Dismiss stale reviews**: Yes (when new commits are pushed)
 - **Require review from code owners**: No (but recommended)
 - **Require approval of most recent push**: No
 
 ### Additional Protections
+
 - **Force pushes**: Disabled - protects against accidental history rewriting
 - **Deletions**: Disabled - prevents accidental branch deletion
 - **Conversation resolution**: Required - all PR conversations must be resolved
@@ -54,6 +57,7 @@ The branch protection rules are automatically configured by the `branch-protecti
 ### Workflow Permissions
 
 The workflow requires these permissions:
+
 - `contents: read` - To access repository files
 - `administration: write` - To modify branch protection settings
 
@@ -62,6 +66,7 @@ The workflow requires these permissions:
 ### Standard Development Process
 
 1. **Create feature branch** from `main`
+
    ```bash
    git checkout main
    git pull origin main
@@ -69,6 +74,7 @@ The workflow requires these permissions:
    ```
 
 2. **Make changes** and commit to feature branch
+
    ```bash
    git add .
    git commit -m "feat: implement new feature"
@@ -111,6 +117,7 @@ For critical hotfixes that need immediate deployment:
 ### CI Checks Failing
 
 **Lint and Type Check Issues:**
+
 ```bash
 # Run locally to debug
 npm run lint:fix
@@ -118,6 +125,7 @@ npm run typecheck
 ```
 
 **Unit Test Failures:**
+
 ```bash
 # Run locally with watch mode
 npm run test
@@ -125,12 +133,14 @@ npm run test:coverage
 ```
 
 **Integration Test Issues:**
+
 ```bash
 # Run integration tests locally
 npm run test:integration
 ```
 
 **E2E Test Problems:**
+
 ```bash
 # Run E2E tests locally
 npm run test:e2e
@@ -140,19 +150,23 @@ npm run test:e2e:ui  # With UI for debugging
 ### Cannot Merge PR
 
 **Status checks not passing:**
+
 - Check the Actions tab for detailed error messages
 - Ensure all tests pass locally before pushing
 - Verify linting and type checking passes
 
 **Missing required approval:**
+
 - Request review from team member
 - Ensure reviewer has write access to repository
 
 **Conversations not resolved:**
+
 - Check all comment threads in PR
 - Resolve or reply to all open conversations
 
 **Branch not up-to-date:**
+
 ```bash
 # Update your branch with latest main
 git checkout main
@@ -201,12 +215,12 @@ To add or remove required status checks, modify the `contexts` array in the work
 
 ```yaml
 contexts: [
-  'ci-lint-and-typecheck',
-  'ci-unit-tests',
-  'ci-integration-tests',
-  'ci-e2e-tests',
-  'new-check-name'  # Add new required check
-]
+    'ci-lint-and-typecheck',
+    'ci-unit-tests',
+    'ci-integration-tests',
+    'ci-e2e-tests',
+    'new-check-name', # Add new required check
+  ]
 ```
 
 ### Review Requirements
@@ -215,9 +229,9 @@ To change review requirements, modify the `required_pull_request_reviews` sectio
 
 ```yaml
 required_pull_request_reviews:
-  required_approving_review_count: 2  # Increase required approvals
+  required_approving_review_count: 2 # Increase required approvals
   dismiss_stale_reviews: true
-  require_code_owner_reviews: true    # Require code owner approval
+  require_code_owner_reviews: true # Require code owner approval
 ```
 
 ## Security Considerations
@@ -239,6 +253,7 @@ required_pull_request_reviews:
 ### Compliance
 
 These protection rules help maintain:
+
 - **Code quality standards**
 - **Security review processes**
 - **Audit trail for changes**
@@ -249,6 +264,7 @@ These protection rules help maintain:
 ### Weekly Checks
 
 The automated workflow performs weekly maintenance:
+
 - Verifies protection rules are still in place
 - Reports any configuration drift
 - Re-applies rules if they were modified outside the workflow

@@ -82,8 +82,12 @@ describe('Middleware Name', () => {
   let mockNext: NextFunction;
 
   beforeEach(() => {
-    mockReq = { /* setup */ };
-    mockRes = { /* setup */ };
+    mockReq = {
+      /* setup */
+    };
+    mockRes = {
+      /* setup */
+    };
     mockNext = vi.fn();
   });
 
@@ -134,6 +138,7 @@ Tests should handle environment variables properly:
 ## Mocking External Dependencies
 
 Mock external dependencies to isolate middleware behavior:
+
 - Mock loggers to prevent actual logging
 - Mock database calls if middleware interacts with DB
 - Mock time-based functions for rate limiting tests

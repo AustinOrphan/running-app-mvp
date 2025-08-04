@@ -9,6 +9,7 @@ Accepted
 ## Context
 
 We needed an authentication mechanism that would:
+
 - Work well with our SPA (Single Page Application) architecture
 - Support stateless authentication
 - Be secure and follow industry standards
@@ -19,6 +20,7 @@ We needed an authentication mechanism that would:
 ## Decision
 
 We will use JSON Web Tokens (JWT) for authentication with:
+
 - Short-lived access tokens (15 minutes)
 - Long-lived refresh tokens (7 days)
 - Refresh token rotation on use
@@ -28,6 +30,7 @@ We will use JSON Web Tokens (JWT) for authentication with:
 ## Consequences
 
 ### Positive
+
 - Stateless authentication reduces server load
 - Works well with REST APIs
 - Easy to implement across different clients
@@ -36,6 +39,7 @@ We will use JSON Web Tokens (JWT) for authentication with:
 - Supports horizontal scaling without shared session state
 
 ### Negative
+
 - Cannot revoke access tokens before expiry (mitigated by short lifetime)
 - Token size larger than session ID
 - Must handle token refresh logic on client
@@ -52,11 +56,9 @@ const accessToken = jwt.sign(
   { expiresIn: '15m' }
 );
 
-const refreshToken = jwt.sign(
-  { id: user.id, type: 'refresh' },
-  process.env.JWT_REFRESH_SECRET,
-  { expiresIn: '7d' }
-);
+const refreshToken = jwt.sign({ id: user.id, type: 'refresh' }, process.env.JWT_REFRESH_SECRET, {
+  expiresIn: '7d',
+});
 
 // Middleware
 const authenticate = (req, res, next) => {
@@ -66,6 +68,7 @@ const authenticate = (req, res, next) => {
 ```
 
 ### Security Measures
+
 1. Different secrets for access and refresh tokens
 2. Token blacklisting for immediate revocation
 3. Refresh token rotation prevents reuse

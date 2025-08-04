@@ -9,6 +9,7 @@ Test result caching dramatically reduces CI pipeline execution time by storing a
 ### Cache Key Generation
 
 Cache keys are generated based on:
+
 - **Content hashes** of relevant files for each test type
 - **Configuration files** that affect test execution
 - **Cache version** for controlled invalidation
@@ -22,15 +23,16 @@ e2e-tests-v1-{file-hash}-{config-hash}
 
 ### File Tracking by Test Type
 
-| Test Type | Tracked Directories | Config Files |
-|-----------|-------------------|--------------|
-| Unit | `src/`, `tests/unit/` | `package.json`, `vite.config.ts`, `tsconfig.json` |
-| Integration | `server/`, `tests/integration/` | `package.json`, `jest.config.js`, `tsconfig.json` |
-| E2E | `tests/e2e/`, UI changes in `src/` | `package.json`, `playwright.config.ts` |
+| Test Type   | Tracked Directories                | Config Files                                      |
+| ----------- | ---------------------------------- | ------------------------------------------------- |
+| Unit        | `src/`, `tests/unit/`              | `package.json`, `vite.config.ts`, `tsconfig.json` |
+| Integration | `server/`, `tests/integration/`    | `package.json`, `jest.config.js`, `tsconfig.json` |
+| E2E         | `tests/e2e/`, UI changes in `src/` | `package.json`, `playwright.config.ts`            |
 
 ### Smart Test Skipping
 
 The caching system includes intelligent test skipping:
+
 - **Unit tests** are skipped if no changes are detected in `src/` or `tests/unit/`
 - **Integration tests** are skipped if no changes in `server/` or `tests/integration/`
 - **E2E tests** are skipped if no UI or E2E test changes
@@ -52,7 +54,7 @@ jobs:
   cache-keys:
     name: 🔑 Generate Cache Keys
     # ... (generates cache keys based on file changes)
-  
+
   unit-tests:
     name: 🧪 Unit Tests
     if: needs.cache-keys.outputs.should-skip-unit == 'false'
@@ -115,15 +117,16 @@ Total size: 5.0 MB
 
 ### Typical Time Savings
 
-| Test Suite | Normal Runtime | Cached Runtime | Time Saved |
-|------------|---------------|----------------|------------|
-| Unit Tests | 2-3 minutes | 10-15 seconds | ~85% |
-| Integration Tests | 3-4 minutes | 15-20 seconds | ~90% |
-| E2E Tests (deterministic) | 5-8 minutes | 20-30 seconds | ~85% |
+| Test Suite                | Normal Runtime | Cached Runtime | Time Saved |
+| ------------------------- | -------------- | -------------- | ---------- |
+| Unit Tests                | 2-3 minutes    | 10-15 seconds  | ~85%       |
+| Integration Tests         | 3-4 minutes    | 15-20 seconds  | ~90%       |
+| E2E Tests (deterministic) | 5-8 minutes    | 20-30 seconds  | ~85%       |
 
 ### Cache Hit Rate Monitoring
 
 The system automatically tracks:
+
 - Cache hit/miss rates per test suite
 - Time savings per cached run
 - Cache size and cleanup recommendations
@@ -133,6 +136,7 @@ The system automatically tracks:
 ### Automatic Invalidation
 
 Caches are invalidated when:
+
 1. **Source files change** for the relevant test type
 2. **Configuration files change** (package.json, config files)
 3. **Dependencies change** (package-lock.json updates)
@@ -153,13 +157,13 @@ CACHE_VERSION=v2 # Update in workflow file
 
 ### Invalidation Triggers
 
-| Change Type | Affected Caches | Reason |
-|-------------|----------------|---------|
-| `src/**` changes | Unit, E2E | Source code affects these test types |
-| `server/**` changes | Integration | Server code affects API tests |
-| `tests/unit/**` changes | Unit | Test changes require re-execution |
-| `package.json` changes | All | Dependencies affect all test execution |
-| Config file changes | Relevant | Test configuration changes |
+| Change Type             | Affected Caches | Reason                                 |
+| ----------------------- | --------------- | -------------------------------------- |
+| `src/**` changes        | Unit, E2E       | Source code affects these test types   |
+| `server/**` changes     | Integration     | Server code affects API tests          |
+| `tests/unit/**` changes | Unit            | Test changes require re-execution      |
+| `package.json` changes  | All             | Dependencies affect all test execution |
+| Config file changes     | Relevant        | Test configuration changes             |
 
 ## Best Practices
 
@@ -172,6 +176,7 @@ CACHE_VERSION=v2 # Update in workflow file
 ### 2. Deterministic Tests Only
 
 Cache only deterministic tests:
+
 ```typescript
 // Mark deterministic tests for caching
 test.describe('User Authentication @deterministic', () => {
@@ -223,6 +228,7 @@ The caching system provides metrics for:
 ### PR Comments
 
 Automatic PR comments show cache performance:
+
 ```
 ### 🚀 Test Caching Report
 
@@ -253,6 +259,7 @@ Automatic PR comments show cache performance:
 ### Debug Mode
 
 Enable detailed caching logs:
+
 ```bash
 CACHE_DEBUG=true npm run test:unit
 ```
@@ -260,6 +267,7 @@ CACHE_DEBUG=true npm run test:unit
 ### Cache Validation
 
 Validate cache integrity:
+
 ```bash
 npm run cache:status
 npm run cache:monitor
@@ -277,6 +285,7 @@ npm run cache:monitor
 ### Version Updates
 
 When updating cache versions:
+
 ```bash
 # 1. Update version in workflow
 sed -i 's/TEST_RESULTS_CACHE_VERSION: v1/TEST_RESULTS_CACHE_VERSION: v2/' .github/workflows/test-caching.yml

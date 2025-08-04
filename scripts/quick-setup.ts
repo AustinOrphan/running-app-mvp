@@ -2,7 +2,7 @@
 
 /**
  * Quick Setup Script
- * 
+ *
  * Automated setup script that gets developers from zero to running in <30 minutes.
  * Handles all dependencies, database setup, and initial configuration.
  */
@@ -36,7 +36,7 @@ class QuickSetup {
   constructor() {
     this.rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
     });
   }
 
@@ -84,65 +84,65 @@ class QuickSetup {
         name: 'System Check',
         description: 'Checking system requirements',
         action: async () => this.checkSystemRequirements(),
-        estimated: 0.5
+        estimated: 0.5,
       },
       {
         name: 'Node.js Setup',
         description: 'Verifying Node.js version',
         action: async () => this.checkNodeVersion(),
-        estimated: 0.5
+        estimated: 0.5,
       },
       {
         name: 'Dependencies',
         description: 'Installing npm dependencies',
         command: 'npm ci',
         skipIf: () => fs.existsSync('node_modules'),
-        estimated: 3
+        estimated: 3,
       },
       {
         name: 'Environment Setup',
         description: 'Creating environment configuration',
         action: async () => this.setupEnvironment(),
         skipIf: () => fs.existsSync('.env'),
-        estimated: 1
+        estimated: 1,
       },
       {
         name: 'Database Setup',
         description: 'Setting up SQLite database',
         action: async () => this.setupDatabase(),
-        estimated: 2
+        estimated: 2,
       },
       {
         name: 'Prisma Client',
         description: 'Generating Prisma client',
         command: 'npm run prisma:generate',
-        estimated: 1
+        estimated: 1,
       },
       {
         name: 'Git Hooks',
         description: 'Setting up Git hooks',
         command: 'npm run setup:hooks',
         skipIf: () => fs.existsSync('.husky/_/husky.sh'),
-        estimated: 0.5
+        estimated: 0.5,
       },
       {
         name: 'Test Environment',
         description: 'Verifying test setup',
         command: 'npm run validate-test-env',
-        estimated: 1
+        estimated: 1,
       },
       {
         name: 'IDE Setup',
         description: 'Configuring VS Code',
         action: async () => this.setupIDE(),
-        estimated: 0.5
+        estimated: 0.5,
       },
       {
         name: 'Initial Build',
         description: 'Building the application',
         command: 'npm run build',
-        estimated: 2
-      }
+        estimated: 2,
+      },
     ];
   }
 
@@ -155,7 +155,7 @@ class QuickSetup {
       this.results.push({
         step: step.name,
         success: true,
-        duration: 0
+        duration: 0,
       });
       return;
     }
@@ -175,7 +175,7 @@ class QuickSetup {
       this.results.push({
         step: step.name,
         success: true,
-        duration
+        duration,
       });
     } catch (error) {
       const duration = (Date.now() - startTime) / 1000;
@@ -185,7 +185,7 @@ class QuickSetup {
         step: step.name,
         success: false,
         duration,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
 
       // Ask if should continue
@@ -202,7 +202,7 @@ class QuickSetup {
     const requirements = {
       node: { min: '20.0.0', current: process.version },
       npm: { min: '10.0.0', current: '' },
-      git: { min: '2.0.0', current: '' }
+      git: { min: '2.0.0', current: '' },
     };
 
     // Check npm
@@ -272,7 +272,10 @@ TEST_DATABASE_URL="file:./prisma/test.db"
 
     // Generate secure JWT secret
     const envContent = fs.readFileSync(envFile, 'utf8');
-    if (envContent.includes('JWT_SECRET=""') || envContent.includes('JWT_SECRET="your-secret-key"')) {
+    if (
+      envContent.includes('JWT_SECRET=""') ||
+      envContent.includes('JWT_SECRET="your-secret-key"')
+    ) {
       const newContent = envContent.replace(
         /JWT_SECRET=".*"/,
         `JWT_SECRET="${this.generateSecret()}"`
@@ -306,7 +309,7 @@ TEST_DATABASE_URL="file:./prisma/test.db"
 
   private async setupIDE(): Promise<void> {
     const vscodeDir = '.vscode';
-    
+
     // Ensure .vscode directory exists
     if (!fs.existsSync(vscodeDir)) {
       fs.mkdirSync(vscodeDir);
@@ -317,17 +320,17 @@ TEST_DATABASE_URL="file:./prisma/test.db"
     if (!fs.existsSync(extensionsFile)) {
       const extensions = {
         recommendations: [
-          "dbaeumer.vscode-eslint",
-          "esbenp.prettier-vscode",
-          "ms-vscode.vscode-typescript-next",
-          "prisma.prisma",
-          "ms-playwright.playwright",
-          "vitest.explorer",
-          "orta.vscode-jest",
-          "github.copilot",
-          "eamodio.gitlens",
-          "usernamehw.errorlens"
-        ]
+          'dbaeumer.vscode-eslint',
+          'esbenp.prettier-vscode',
+          'ms-vscode.vscode-typescript-next',
+          'prisma.prisma',
+          'ms-playwright.playwright',
+          'vitest.explorer',
+          'orta.vscode-jest',
+          'github.copilot',
+          'eamodio.gitlens',
+          'usernamehw.errorlens',
+        ],
       };
       fs.writeFileSync(extensionsFile, JSON.stringify(extensions, null, 2));
     }
@@ -336,19 +339,19 @@ TEST_DATABASE_URL="file:./prisma/test.db"
     const settingsFile = path.join(vscodeDir, 'settings.json');
     if (!fs.existsSync(settingsFile)) {
       const settings = {
-        "editor.formatOnSave": true,
-        "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "editor.codeActionsOnSave": {
-          "source.fixAll.eslint": true
+        'editor.formatOnSave': true,
+        'editor.defaultFormatter': 'esbenp.prettier-vscode',
+        'editor.codeActionsOnSave': {
+          'source.fixAll.eslint': true,
         },
-        "typescript.tsdk": "node_modules/typescript/lib",
-        "typescript.enablePromptUseWorkspaceTsdk": true,
-        "jest.autoRun": {
-          "watch": false,
-          "onSave": "test-file"
+        'typescript.tsdk': 'node_modules/typescript/lib',
+        'typescript.enablePromptUseWorkspaceTsdk': true,
+        'jest.autoRun': {
+          watch: false,
+          onSave: 'test-file',
         },
-        "vitest.enable": true,
-        "vitest.commandLine": "npm run test --"
+        'vitest.enable': true,
+        'vitest.commandLine': 'npm run test --',
       };
       fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
     }
@@ -373,10 +376,10 @@ TEST_DATABASE_URL="file:./prisma/test.db"
     // Use spawn to run dev servers
     const devProcess = spawn('npm', ['run', 'dev:full'], {
       stdio: 'inherit',
-      shell: true
+      shell: true,
     });
 
-    devProcess.on('error', (error) => {
+    devProcess.on('error', error => {
       console.error('Failed to start dev servers:', error);
     });
 
@@ -385,7 +388,7 @@ TEST_DATABASE_URL="file:./prisma/test.db"
       try {
         const platform = process.platform;
         const url = 'http://localhost:3000';
-        
+
         if (platform === 'darwin') {
           execSync(`open ${url}`);
         } else if (platform === 'win32') {
@@ -420,7 +423,7 @@ TEST_DATABASE_URL="file:./prisma/test.db"
     console.log('\n' + '='.repeat(60));
     console.log('📊 Setup Summary');
     console.log('='.repeat(60));
-    
+
     console.log(`\n⏱️  Total time: ${totalDuration.toFixed(1)} minutes`);
     console.log(`✅ Successful: ${successCount}`);
     console.log(`❌ Failed: ${failCount}`);
@@ -448,8 +451,8 @@ TEST_DATABASE_URL="file:./prisma/test.db"
   }
 
   private async confirm(message: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      this.rl.question(`\n❓ ${message} (y/n) `, (answer) => {
+    return new Promise(resolve => {
+      this.rl.question(`\n❓ ${message} (y/n) `, answer => {
         resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
       });
     });

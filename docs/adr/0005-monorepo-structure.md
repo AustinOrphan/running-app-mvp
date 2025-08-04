@@ -9,6 +9,7 @@ Accepted
 ## Context
 
 We needed to decide how to structure our codebase for a full-stack application with:
+
 - React frontend (Vite)
 - Express.js backend
 - Shared TypeScript types
@@ -33,6 +34,7 @@ running-app-mvp/
 ## Consequences
 
 ### Positive
+
 - Simplified dependency management with single package.json
 - Atomic commits across frontend and backend
 - Easier code sharing (types, utilities)
@@ -42,6 +44,7 @@ running-app-mvp/
 - Better for small to medium projects
 
 ### Negative
+
 - Frontend and backend dependencies mixed
 - Can't deploy frontend and backend independently
 - Larger repository size
@@ -52,22 +55,25 @@ running-app-mvp/
 ## Implementation Details
 
 ### Development Scripts
+
 ```json
 {
   "scripts": {
-    "dev": "tsx watch server.ts",           // Backend
-    "dev:frontend": "vite",                 // Frontend
+    "dev": "tsx watch server.ts", // Backend
+    "dev:frontend": "vite", // Frontend
     "dev:full": "concurrently npm:dev npm:dev:frontend"
   }
 }
 ```
 
 ### Build Process
+
 - Frontend builds to `dist/`
 - Backend TypeScript compiles to `dist/`
 - Static files served by Express in production
 
 ### Shared Code
+
 - TypeScript types in `/types`
 - Utilities in both `/src/utils` and `/server/utils`
 - Validation schemas shared via Zod
@@ -97,6 +103,7 @@ running-app-mvp/
 ## Migration Path
 
 If we need to split later:
+
 1. Move `/server` to separate repository
 2. Extract shared types to npm package
 3. Set up separate CI/CD pipelines

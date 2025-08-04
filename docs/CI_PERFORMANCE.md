@@ -7,7 +7,7 @@ This document describes the comprehensive CI performance monitoring system desig
 The CI performance system ensures fast development cycles by:
 
 - **Monitoring CI runtime** across all pipeline executions
-- **Identifying bottlenecks** that slow down the build process  
+- **Identifying bottlenecks** that slow down the build process
 - **Providing optimization recommendations** based on data analysis
 - **Automatically applying improvements** where possible
 - **Alerting when performance degrades** below target thresholds
@@ -17,6 +17,7 @@ The CI performance system ensures fast development cycles by:
 🎯 **Target**: <5 minutes total CI runtime for pull requests
 
 This target ensures:
+
 - Fast developer feedback
 - Efficient resource utilization
 - Maintained development velocity
@@ -87,21 +88,21 @@ Fast CI pipeline implementation with:
 
 ```typescript
 interface PerformanceMetrics {
-  averageRuntime: number;        // Average CI runtime
-  medianRuntime: number;         // Median CI runtime  
-  p95Runtime: number;            // 95th percentile runtime
-  fastestRun: number;            // Best recorded runtime
-  slowestRun: number;            // Worst recorded runtime
+  averageRuntime: number; // Average CI runtime
+  medianRuntime: number; // Median CI runtime
+  p95Runtime: number; // 95th percentile runtime
+  fastestRun: number; // Best recorded runtime
+  slowestRun: number; // Worst recorded runtime
   recentTrend: 'improving' | 'stable' | 'degrading';
   bottlenecks: Array<{
-    step: string;                // Pipeline step name
-    avgDuration: number;         // Average duration
-    percentage: number;          // % of total runtime
-    recommendations: string[];   // Optimization suggestions
+    step: string; // Pipeline step name
+    avgDuration: number; // Average duration
+    percentage: number; // % of total runtime
+    recommendations: string[]; // Optimization suggestions
   }>;
-  cacheEfficiency: number;       // 0-1, cache hit rate
+  cacheEfficiency: number; // 0-1, cache hit rate
   parallelizationScore: number; // 0-1, parallel execution effectiveness
-  targetMet: boolean;           // Whether <5min target is met
+  targetMet: boolean; // Whether <5min target is met
 }
 ```
 
@@ -111,6 +112,7 @@ interface PerformanceMetrics {
 
 **Problem**: Slow `npm install` times
 **Solutions**:
+
 - Use `npm ci --prefer-offline --no-audit`
 - Implement aggressive dependency caching
 - Consider switching to `pnpm` for faster installs
@@ -126,6 +128,7 @@ interface PerformanceMetrics {
 
 **Problem**: Sequential test execution
 **Solutions**:
+
 - Split test suites into parallel jobs
 - Use test sharding for E2E tests
 - Configure optimal worker counts
@@ -152,6 +155,7 @@ steps:
 
 **Problem**: Slow build process
 **Solutions**:
+
 - Enable build caching
 - Use incremental builds
 - Optimize bundler configuration
@@ -173,6 +177,7 @@ steps:
 
 **Problem**: Sequential pipeline execution
 **Solutions**:
+
 - Run linting and type checking in parallel
 - Execute fast feedback jobs first
 - Use job dependencies effectively
@@ -192,6 +197,7 @@ steps:
 ### Setting Up Performance Monitoring
 
 1. **Install the monitoring system**:
+
    ```bash
    # The system is already included in the project
    npm run ci:performance:measure
@@ -203,28 +209,31 @@ steps:
    - Daily analysis runs to track trends
 
 3. **Review initial metrics**:
+
    ```bash
    # Check current performance
    npm run ci:performance:analyze
-   
-   # Get optimization recommendations  
+
+   # Get optimization recommendations
    npm run ci:performance:recommend
    ```
 
 ### Optimizing Your CI Pipeline
 
 1. **Identify bottlenecks**:
+
    ```bash
    npm run ci:performance:analyze
    ```
-   
+
    Look for steps taking >20% of total runtime.
 
 2. **Apply recommendations**:
+
    ```bash
    npm run ci:performance:optimize
    ```
-   
+
    This applies automatic optimizations.
 
 3. **Manual optimizations**:
@@ -251,8 +260,8 @@ const optimization: OptimizationRecommendation = {
   implementation: [
     'Configure database connection pooling',
     'Reuse connections across test suites',
-    'Implement proper connection cleanup'
-  ]
+    'Implement proper connection cleanup',
+  ],
 };
 ```
 
@@ -284,13 +293,14 @@ Every PR receives a comment with:
 ```markdown
 ## ⏱️ CI Performance Report
 
-| Metric | Value | Status |
-|--------|-------|--------|
-| **Runtime** | 4m 23s | ✅ |
-| **Target** | 5m 0s | 🎯 |
-| **Difference** | -37s | ✅ |
+| Metric         | Value  | Status |
+| -------------- | ------ | ------ |
+| **Runtime**    | 4m 23s | ✅     |
+| **Target**     | 5m 0s  | 🎯     |
+| **Difference** | -37s   | ✅     |
 
 ### 📊 Performance Analysis
+
 🎉 **Great job!** This PR meets our 5-minute CI runtime target.
 ```
 
@@ -301,11 +311,13 @@ Every PR receives a comment with:
 #### 1. Slow Dependency Installation
 
 **Symptoms**:
+
 - `npm install` takes >60 seconds
 - Cache misses frequently
 - Network timeouts
 
 **Solutions**:
+
 ```bash
 # Use optimized npm commands
 npm ci --prefer-offline --no-audit
@@ -320,11 +332,13 @@ npm config set registry https://registry.npmjs.org/
 #### 2. Test Execution Bottlenecks
 
 **Symptoms**:
+
 - Tests take >3 minutes
 - Database setup is slow
 - Tests run sequentially
 
 **Solutions**:
+
 ```bash
 # Enable test parallelization
 npm run test:run --maxWorkers=100%
@@ -339,11 +353,13 @@ npm run test:e2e -- --shard=1/4
 #### 3. Build Performance Issues
 
 **Symptoms**:
+
 - Build takes >90 seconds
 - Large bundle sizes
 - No build caching
 
 **Solutions**:
+
 ```bash
 # Enable build caching
 npm run build -- --cache
@@ -358,11 +374,13 @@ NODE_ENV=production npm run build
 #### 4. Cache Efficiency Problems
 
 **Symptoms**:
+
 - Low cache hit rates
 - Frequent cache invalidation
 - Large cache sizes
 
 **Solutions**:
+
 ```yaml
 # Optimize cache keys
 key: cache-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.ts') }}
@@ -376,22 +394,26 @@ restore-keys: |
 ### Performance Debugging
 
 1. **Local performance measurement**:
+
    ```bash
    time npm run ci:performance:measure
    ```
 
 2. **Analyze specific bottlenecks**:
+
    ```bash
    npm run ci:performance:analyze
    ```
 
 3. **Check cache efficiency**:
+
    ```bash
    # Review cache statistics
    ls -la node_modules/.cache/
    ```
 
 4. **Profile test execution**:
+
    ```bash
    npm run test:run -- --reporter=verbose --profile
    ```
@@ -482,7 +504,7 @@ if [ -f "ci-data/performance/metrics.json" ]; then
   node -e "
     const fs = require('fs');
     const metrics = JSON.parse(fs.readFileSync('ci-data/performance/metrics.json'));
-    
+
     if (!metrics.targetMet) {
       console.log('⚠️  Warning: Current CI performance exceeds 5-minute target');
       console.log('Consider reviewing your changes for performance impact');
@@ -505,13 +527,14 @@ interface PerformanceDashboard {
 export async function getDashboardData(): Promise<PerformanceDashboard> {
   const monitor = new CIPerformanceMonitor();
   const metrics = await monitor.analyzePerformance();
-  
+
   return {
     currentRuntime: metrics.averageRuntime,
     trend: metrics.recentTrend,
     bottlenecks: metrics.bottlenecks.map(b => b.step),
-    recommendations: await monitor.generateRecommendations()
-      .then(recs => recs.slice(0, 3).map(r => r.title))
+    recommendations: await monitor
+      .generateRecommendations()
+      .then(recs => recs.slice(0, 3).map(r => r.title)),
   };
 }
 ```
@@ -539,7 +562,7 @@ npm run test:fast-only
     key: deps-${{ hashFiles('package-lock.json') }}
 
 - name: Cache build
-  uses: actions/cache@v3  
+  uses: actions/cache@v3
   with:
     path: dist
     key: build-${{ hashFiles('src/**') }}
@@ -572,7 +595,7 @@ strategy:
       - test-type: unit
         runner: ubuntu-latest
         timeout: 5
-      - test-type: integration  
+      - test-type: integration
         runner: ubuntu-latest-4-cores
         timeout: 8
 ```

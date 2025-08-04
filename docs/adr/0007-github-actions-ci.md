@@ -9,6 +9,7 @@ Accepted
 ## Context
 
 We needed a continuous integration and deployment solution that would:
+
 - Run tests automatically on every push and PR
 - Support matrix testing across different environments
 - Integrate seamlessly with GitHub
@@ -21,6 +22,7 @@ We needed a continuous integration and deployment solution that would:
 We will use GitHub Actions as our CI/CD platform.
 
 Key workflows implemented:
+
 - PR validation (tests, linting, type checking)
 - Main branch CI (full test suite, coverage)
 - Security scanning (CodeQL, dependency scanning)
@@ -30,6 +32,7 @@ Key workflows implemented:
 ## Consequences
 
 ### Positive
+
 - Native GitHub integration
 - No additional service to manage
 - Free for public repositories, generous free tier for private
@@ -40,6 +43,7 @@ Key workflows implemented:
 - Self-hosted runner support if needed
 
 ### Negative
+
 - Vendor lock-in to GitHub
 - YAML configuration can become complex
 - Limited to GitHub repositories
@@ -49,6 +53,7 @@ Key workflows implemented:
 ## Implementation Details
 
 ### PR Workflow Example
+
 ```yaml
 name: PR Validation
 on:
@@ -61,22 +66,23 @@ jobs:
     strategy:
       matrix:
         node-version: [18.x, 20.x]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    
-    - run: npm ci
-    - run: npm run lint
-    - run: npm run typecheck
-    - run: npm run test:coverage
-    - run: npm run test:integration
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:coverage
+      - run: npm run test:integration
 ```
 
 ### Performance Optimizations
+
 1. Dependency caching
 2. Parallel job execution
 3. Test result caching

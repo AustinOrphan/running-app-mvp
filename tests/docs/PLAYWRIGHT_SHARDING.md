@@ -1,26 +1,30 @@
 # Playwright Sharding Configuration
 
 ## Overview
+
 Playwright sharding allows distributing E2E tests across multiple parallel processes, reducing overall test execution time.
 
 ## Configuration
 
 ### Environment Variables
+
 - `PLAYWRIGHT_SHARD`: Shard specification in format "current/total" (e.g., "1/2", "2/3")
 - `CI`: Set to "true" to enable CI-optimized settings
 
 ### Usage Examples
 
 #### Local Testing with Shards
+
 ```bash
 # Run shard 1 of 2
 PLAYWRIGHT_SHARD=1/2 npm run test:e2e
 
-# Run shard 2 of 2  
+# Run shard 2 of 2
 PLAYWRIGHT_SHARD=2/2 npm run test:e2e
 ```
 
 #### CI/CD Integration
+
 ```yaml
 # GitHub Actions example
 strategy:
@@ -32,6 +36,7 @@ run: npm run test:e2e
 ```
 
 #### Browser-Specific Sharding
+
 ```bash
 # Shard chromium tests only
 PLAYWRIGHT_SHARD=1/2 npm run test:e2e -- --project chromium
@@ -40,12 +45,15 @@ PLAYWRIGHT_SHARD=1/2 npm run test:e2e -- --project chromium
 ## Configuration Details
 
 ### Workers per Shard
+
 - CI with sharding: 2 workers per shard
 - CI without sharding: 1 worker
 - Local: Default worker count (usually CPU cores / 2)
 
 ### Test Distribution
+
 Tests are automatically distributed across shards based on:
+
 - File-level distribution
 - Estimated execution time
 - Test dependencies
@@ -53,6 +61,7 @@ Tests are automatically distributed across shards based on:
 ## Performance Benefits
 
 Typical improvements with sharding:
+
 - 2 shards: 40-60% faster execution
 - 3 shards: 50-70% faster execution
 - 4+ shards: Diminishing returns due to overhead
@@ -67,11 +76,13 @@ Typical improvements with sharding:
 ## Troubleshooting
 
 ### Common Issues
+
 - **Uneven distribution**: Some shards finish much faster than others
 - **Resource contention**: Too many workers causing instability
 - **Test dependencies**: Tests failing when run in isolation
 
 ### Solutions
+
 - Adjust shard count based on test suite size
 - Monitor CI resource usage
 - Ensure proper test isolation
@@ -80,6 +91,7 @@ Typical improvements with sharding:
 ## Monitoring
 
 Track these metrics:
+
 - Total execution time per shard
 - Test distribution across shards
 - Failure rates by shard

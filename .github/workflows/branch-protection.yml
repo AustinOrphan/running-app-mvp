@@ -15,15 +15,15 @@ jobs:
   configure-branch-protection:
     name: Configure Branch Protection
     runs-on: ubuntu-latest
-    
+
     permissions:
       contents: read
       administration: write
-    
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
-        
+
       - name: 🛡️ Configure branch protection for main
         uses: actions/github-script@v7
         with:
@@ -31,9 +31,9 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const branch = 'main';
-            
+
             console.log(`🔧 Configuring branch protection for ${owner}/${repo}:${branch}`);
-            
+
             try {
               const protection = {
                 required_status_checks: {
@@ -93,7 +93,7 @@ jobs:
               // Don't fail the workflow for permission issues during setup
               console.log('⚠️  Continuing workflow despite branch protection configuration error');
             }
-      
+
       - name: 📊 Verify branch protection status
         uses: actions/github-script@v7
         with:
@@ -101,7 +101,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const branch = 'main';
-            
+
             try {
               const protection = await github.rest.repos.getBranchProtection({
                 owner,
@@ -119,47 +119,47 @@ jobs:
                 console.log('❌ Error checking branch protection:', error.message);
               }
             }
-            
+
       - name: 📝 Create branch protection documentation
         run: |
           cat > BRANCH_PROTECTION.md << 'EOF'
           # Branch Protection Rules
-          
+
           ## Overview
-          
+
           This repository uses GitHub branch protection rules to ensure code quality and prevent accidental changes to the main branch.
-          
+
           ## Protection Rules for `main` Branch
-          
+
           ### Required Status Checks
           - **Lint and Type Check** (`ci-lint-and-typecheck`)
           - **Unit Tests** (`ci-unit-tests`) 
           - **Integration Tests** (`ci-integration-tests`)
           - **End-to-End Tests** (`ci-e2e-tests`)
-          
+
           All status checks must pass before merging is allowed.
-          
+
           ### Pull Request Reviews
           - **Minimum required approvals**: 1
           - **Dismiss stale reviews**: Yes (when new commits are pushed)
           - **Require review from code owners**: No
           - **Require approval of most recent push**: No
-          
+
           ### Additional Protections
           - **Force pushes**: Disabled
           - **Deletions**: Disabled  
           - **Conversation resolution**: Required before merging
           - **Up-to-date branches**: Required before merging
-          
+
           ## Workflow Integration
-          
+
           The branch protection rules are automatically configured by the `branch-protection.yml` workflow which runs:
           - When changes are made to the workflow file
           - Weekly on Mondays (to ensure rules remain in place)
           - Manually via workflow dispatch
-          
+
           ## Developer Workflow
-          
+
           1. **Create feature branch** from `main`
           2. **Make changes** and commit to feature branch
           3. **Create pull request** targeting `main`
@@ -167,39 +167,39 @@ jobs:
           5. **Request review** from team member
           6. **Address feedback** and resolve conversations
           7. **Merge** once approved and all checks pass
-          
+
           ## Troubleshooting
-          
+
           ### CI Checks Failing
           - Check the Actions tab for detailed error messages
           - Ensure all tests pass locally before pushing
           - Verify linting and type checking passes
-          
+
           ### Cannot Merge PR
           - Ensure all required status checks are green
           - Get approval from at least 1 reviewer
           - Resolve all conversations
           - Ensure branch is up-to-date with main
-          
+
           ### Force Push Blocked
           This is intentional - use regular pushes or create a new PR for changes.
-          
+
           ## Bypassing Protections
-          
+
           Repository administrators can temporarily bypass these protections if absolutely necessary, but this should be done sparingly and with good reason.
-          
+
           ## Configuration
-          
+
           Branch protection rules are managed via the GitHub API in `.github/workflows/branch-protection.yml`. 
-          
+
           To modify the rules:
           1. Update the protection configuration in the workflow file
           2. Commit and push to main
           3. The workflow will automatically apply the new rules
           EOF
-          
+
           echo "📄 Branch protection documentation created"
-          
+
       - name: 📈 Report configuration summary
         run: |
           echo "## 🛡️ Branch Protection Summary" >> $GITHUB_STEP_SUMMARY

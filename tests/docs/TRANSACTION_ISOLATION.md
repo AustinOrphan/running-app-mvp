@@ -7,12 +7,14 @@ Transaction-based test isolation ensures that each test runs in its own database
 ## Benefits
 
 ### Performance
+
 - **No cleanup needed**: Transactions are simply rolled back
 - **No reseeding required**: Base data remains unchanged
 - **Parallel-safe**: Each test has its own transaction context
 - **Fast execution**: Rollback is nearly instantaneous
 
 ### Isolation
+
 - **Complete isolation**: Tests cannot see each other's data
 - **No side effects**: All changes are automatically undone
 - **Predictable state**: Each test starts with the same database state
@@ -40,11 +42,11 @@ describe('My Test Suite', () => {
 
   test('should create user', async () => {
     const client = getTransactionClient();
-    
+
     const user = await client.user.create({
-      data: { email: 'test@example.com', password: 'hashed' }
+      data: { email: 'test@example.com', password: 'hashed' },
     });
-    
+
     expect(user.id).toBeDefined();
     // User will be automatically rolled back after test
   });
@@ -77,18 +79,18 @@ describe('My Test Suite', () => {
 import { runTestWithTransaction } from '../setup/transactionTestSetup';
 
 test('manual transaction control', async () => {
-  const result = await runTestWithTransaction(async (client) => {
+  const result = await runTestWithTransaction(async client => {
     const user = await client.user.create({
-      data: { email: 'test@example.com', password: 'hashed' }
+      data: { email: 'test@example.com', password: 'hashed' },
     });
-    
+
     const run = await client.run.create({
-      data: { userId: user.id, date: new Date(), distance: 5, duration: 1800 }
+      data: { userId: user.id, date: new Date(), distance: 5, duration: 1800 },
     });
-    
+
     return { user, run };
   }, 'my-test-name');
-  
+
   // Data is automatically rolled back after function completes
 });
 ```
@@ -101,16 +103,16 @@ test('manual transaction control', async () => {
 interface TransactionTestConfig {
   /** Whether to enable transaction isolation (default: true) */
   enableIsolation: boolean;
-  
+
   /** Transaction timeout in milliseconds (default: 30000) */
   timeout: number;
-  
+
   /** Whether to log transaction events (default: false) */
   enableLogging: boolean;
-  
+
   /** Test framework: 'jest' | 'vitest' | 'manual' (auto-detected) */
   framework: string;
-  
+
   /** Custom Prisma client (optional) */
   prismaClient?: PrismaClient;
 }
@@ -141,10 +143,10 @@ TEST_TRANSACTION_TIMEOUT=60000
 // Simplified flow
 async function testLifecycle() {
   // 1. Start transaction
-  const tx = await prisma.$transaction(async (txClient) => {
+  const tx = await prisma.$transaction(async txClient => {
     // 2. Test runs with txClient
     await runTest(txClient);
-    
+
     // 3. Intentionally throw to trigger rollback
     throw new Error('ROLLBACK');
   });
@@ -239,7 +241,7 @@ Transaction isolation supports nested transactions:
 ```typescript
 test('nested transactions', async () => {
   const client = getTransactionClient();
-  
+
   await client.$transaction(async (nestedTx) => {
     await nestedTx.user.create({ ... });
     // Still within main test transaction
@@ -256,7 +258,7 @@ import { getTransactionStats } from '../setup/transactionTestSetup';
 
 test('performance monitoring', async () => {
   const stats = getTransactionStats();
-  
+
   console.log(`Active transactions: ${stats.activeTransactions}`);
   console.log(`Average duration: ${stats.averageDuration}ms`);
 });
@@ -271,7 +273,7 @@ import { startManualTransaction, rollbackManualTransaction } from '../setup/tran
 
 test('manual control', async () => {
   const context = await startManualTransaction('custom-test');
-  
+
   try {
     await context.client.user.create({ ... });
     // Custom logic
@@ -285,42 +287,47 @@ test('manual control', async () => {
 
 ### vs Database Cleanup
 
-| Aspect | Transaction Rollback | Database Cleanup |
-|--------|---------------------|------------------|
-| Speed | Very fast (ms) | Slower (seconds) |
-| Isolation | Complete | Depends on cleanup |
-| Complexity | Low | Medium to High |
-| Parallel Safety | Yes | Requires care |
-| Resource Usage | Low | Higher |
+| Aspect          | Transaction Rollback | Database Cleanup   |
+| --------------- | -------------------- | ------------------ |
+| Speed           | Very fast (ms)       | Slower (seconds)   |
+| Isolation       | Complete             | Depends on cleanup |
+| Complexity      | Low                  | Medium to High     |
+| Parallel Safety | Yes                  | Requires care      |
+| Resource Usage  | Low                  | Higher             |
 
 ### vs In-Memory Database
 
-| Aspect | Transaction Rollback | In-Memory DB |
-|--------|---------------------|--------------|
-| Setup Speed | Instant | Fast |
-| Query Performance | Normal | Faster |
-| Data Persistence | Via rollback | None |
-| Memory Usage | Low | Higher |
-| Real DB Testing | Yes | Approximation |
+| Aspect            | Transaction Rollback | In-Memory DB  |
+| ----------------- | -------------------- | ------------- |
+| Setup Speed       | Instant              | Fast          |
+| Query Performance | Normal               | Faster        |
+| Data Persistence  | Via rollback         | None          |
+| Memory Usage      | Low                  | Higher        |
+| Real DB Testing   | Yes                  | Approximation |
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **"No active transaction" error**
+
    ```
    Error: No active transaction. Call startTransaction() first.
    ```
+
    **Solution**: Ensure test is using proper setup with transaction isolation enabled.
 
 2. **Transaction timeout**
+
    ```
    Transaction exceeded timeout of 30000ms
    ```
+
    **Solution**: Increase timeout or optimize test queries:
+
    ```typescript
    await setupTransactionTestingJest({
-     timeout: 60000 // 60 seconds
+     timeout: 60000, // 60 seconds
    });
    ```
 
@@ -359,6 +366,7 @@ TEST_TRANSACTION_LOGGING=true npm test 2>&1 | grep "Transaction"
 ### From Database Cleanup
 
 **Before:**
+
 ```typescript
 beforeEach(async () => {
   await prisma.user.deleteMany();
@@ -372,6 +380,7 @@ afterEach(async () => {
 ```
 
 **After:**
+
 ```typescript
 beforeAll(async () => {
   await setupTransactionTestingJest();
@@ -383,6 +392,7 @@ beforeAll(async () => {
 ### From In-Memory Database
 
 **Before:**
+
 ```typescript
 beforeAll(async () => {
   await setupInMemoryDb({
@@ -393,6 +403,7 @@ beforeAll(async () => {
 ```
 
 **After:**
+
 ```typescript
 beforeAll(async () => {
   await setupTransactionTestingJest();
@@ -405,12 +416,12 @@ beforeAll(async () => {
 
 Based on real-world testing:
 
-| Operation | Without Isolation | With Transaction Rollback |
-|-----------|------------------|--------------------------|
-| Test Setup | 500-1000ms | 5-10ms |
-| Test Cleanup | 300-800ms | 1-5ms |
-| Total Overhead | 800-1800ms | 6-15ms |
-| **Improvement** | Baseline | **98%+ faster** |
+| Operation       | Without Isolation | With Transaction Rollback |
+| --------------- | ----------------- | ------------------------- |
+| Test Setup      | 500-1000ms        | 5-10ms                    |
+| Test Cleanup    | 300-800ms         | 1-5ms                     |
+| Total Overhead  | 800-1800ms        | 6-15ms                    |
+| **Improvement** | Baseline          | **98%+ faster**           |
 
 ## Security Considerations
 

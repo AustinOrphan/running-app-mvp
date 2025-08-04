@@ -20,11 +20,13 @@ This comprehensive guide covers common issues encountered during development, te
 #### Jest/Vitest Memory Leaks
 
 **Symptoms:**
+
 - Tests pass individually but fail when run together
 - "EMFILE: too many open files" errors
 - Memory usage continuously increasing
 
 **Solutions:**
+
 ```bash
 # 1. Check for unclosed resources
 npm run test:memory
@@ -44,6 +46,7 @@ npm run test:setup
 **Common Error:** `ReferenceError: ResizeObserver is not defined`
 
 **Solution:**
+
 ```javascript
 // Add to test setup file
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
@@ -56,6 +59,7 @@ global.ResizeObserver = jest.fn().mockImplementation(() => ({
 **Common Error:** `TypeError: Cannot read properties of undefined (reading 'useContext')`
 
 **Solution:**
+
 ```javascript
 // Wrap component in proper providers
 import { render } from '@testing-library/react';
@@ -75,6 +79,7 @@ test('component renders correctly', () => {
 **Common Error:** Tests failing due to timezone differences
 
 **Solution:**
+
 ```javascript
 // Mock Date in tests
 beforeAll(() => {
@@ -92,11 +97,13 @@ afterAll(() => {
 #### Database Connection Issues
 
 **Symptoms:**
+
 - `P1001: Can't reach database server`
 - `ECONNREFUSED` errors
 - Timeout errors during database operations
 
 **Solutions:**
+
 ```bash
 # 1. Check database status
 npm run verify-db-setup
@@ -116,11 +123,13 @@ npx prisma generate
 #### Transaction Isolation Issues
 
 **Symptoms:**
+
 - Tests interfering with each other
 - Data persisting between tests
 - Race conditions in parallel tests
 
 **Solutions:**
+
 ```bash
 # 1. Run tests sequentially
 npm run test:sequential:db
@@ -137,6 +146,7 @@ npm run test:integration -- --runInBand
 **Common Error:** `401 Unauthorized` in tests
 
 **Solution:**
+
 ```javascript
 // Ensure proper test user setup
 beforeEach(async () => {
@@ -144,16 +154,14 @@ beforeEach(async () => {
   testUser = await testDb.user.create({
     data: {
       email: 'test@example.com',
-      password: await bcrypt.hash('password123', 10)
-    }
+      password: await bcrypt.hash('password123', 10),
+    },
   });
-  
+
   // Generate valid token
-  accessToken = jwt.sign(
-    { id: testUser.id, email: testUser.email },
-    process.env.JWT_SECRET,
-    { expiresIn: '15m' }
-  );
+  accessToken = jwt.sign({ id: testUser.id, email: testUser.email }, process.env.JWT_SECRET, {
+    expiresIn: '15m',
+  });
 });
 ```
 
@@ -164,6 +172,7 @@ beforeEach(async () => {
 **Common Error:** `Browser not found`
 
 **Solution:**
+
 ```bash
 # Install browsers
 npx playwright install
@@ -178,6 +187,7 @@ npx playwright install --dry-run
 **Common Error:** `Page crashed` or `Navigation timeout`
 
 **Solutions:**
+
 ```javascript
 // Increase timeouts in playwright.config.ts
 export default {
@@ -186,13 +196,14 @@ export default {
   use: {
     navigationTimeout: 30000,
     actionTimeout: 10000,
-  }
+  },
 };
 ```
 
 #### Element Not Found Errors
 
 **Solutions:**
+
 ```javascript
 // Use more robust selectors
 await page.waitForSelector('[data-testid="submit-button"]');
@@ -202,9 +213,7 @@ await page.click('[data-testid="submit-button"]');
 await page.waitForLoadState('networkidle');
 
 // Use explicit waits
-await page.waitForFunction(() => 
-  document.querySelector('.loading-spinner') === null
-);
+await page.waitForFunction(() => document.querySelector('.loading-spinner') === null);
 ```
 
 #### Test Environment Issues
@@ -212,6 +221,7 @@ await page.waitForFunction(() =>
 **Common Error:** Tests pass locally but fail in CI
 
 **Solutions:**
+
 ```bash
 # 1. Use headless mode consistently
 HEADLESS=true npm run test:e2e
@@ -230,11 +240,13 @@ DEBUG=pw:* npm run test:e2e
 #### Dependency Installation Issues
 
 **Symptoms:**
+
 - `npm install` failures
 - Package version conflicts
 - Network timeouts
 
 **Solutions:**
+
 ```yaml
 # In .github/workflows/
 - name: Setup Node.js
@@ -251,11 +263,13 @@ DEBUG=pw:* npm run test:e2e
 #### Test Failures in CI
 
 **Common Issues:**
+
 - Tests pass locally but fail in CI
 - Flaky tests causing build failures
 - Memory issues in CI environment
 
 **Solutions:**
+
 ```bash
 # 1. Use CI-optimized test commands
 npm run test:coverage:unit:ci
@@ -272,6 +286,7 @@ NODE_OPTIONS="--max-old-space-size=4096" npm run test:all:complete
 #### Performance Timeouts
 
 **Solutions:**
+
 ```yaml
 # Increase timeout for long-running jobs
 jobs:
@@ -288,11 +303,13 @@ jobs:
 #### Database Migration Failures
 
 **Symptoms:**
+
 - Migration stuck in pending state
 - Schema drift errors
 - Connection timeouts during migration
 
 **Solutions:**
+
 ```bash
 # 1. Check migration status
 npx prisma migrate status
@@ -310,6 +327,7 @@ npx prisma generate
 **Common Error:** `process.env.VARIABLE is undefined`
 
 **Solutions:**
+
 ```bash
 # 1. Check .env file exists and is loaded
 cp .env.example .env
@@ -331,6 +349,7 @@ const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
 **Error:** `EADDRINUSE: address already in use :::3001`
 
 **Solutions:**
+
 ```bash
 # 1. Find and kill process using port
 lsof -ti:3001 | xargs kill -9
@@ -345,11 +364,13 @@ killall node
 #### Environment Setup Issues
 
 **Symptoms:**
+
 - Missing environment variables
 - Database connection failures
 - Authentication not working
 
 **Solutions:**
+
 ```bash
 # 1. Complete setup
 npm run setup
@@ -370,6 +391,7 @@ npm run setup
 #### Hot Reload Not Working
 
 **Solutions:**
+
 ```bash
 # 1. Clear Vite cache
 rm -rf node_modules/.vite
@@ -387,6 +409,7 @@ sudo sysctl -p
 **Common Error:** `Cannot resolve module '@/components/...'`
 
 **Solutions:**
+
 ```typescript
 // Check tsconfig.json paths
 {
@@ -415,11 +438,13 @@ export default defineConfig({
 #### Dependency Conflicts
 
 **Symptoms:**
+
 - `npm install` warnings
 - Version conflicts
 - Peer dependency issues
 
 **Solutions:**
+
 ```bash
 # 1. Clean install
 rm -rf node_modules package-lock.json
@@ -440,6 +465,7 @@ npm audit fix
 **Common Error:** `Property 'xyz' does not exist on type`
 
 **Solutions:**
+
 ```bash
 # 1. Clear TypeScript cache
 npx tsc --build --clean
@@ -463,6 +489,7 @@ npm run typecheck
 **Error:** `Schema drift detected`
 
 **Solutions:**
+
 ```bash
 # 1. Reset database
 npx prisma db push --force-reset
@@ -477,11 +504,13 @@ npx prisma migrate deploy
 #### Connection Pool Issues
 
 **Symptoms:**
+
 - `P2034: Transaction failed due to a write conflict`
 - Connection timeout errors
 - Too many connections
 
 **Solutions:**
+
 ```javascript
 // In prisma/schema.prisma
 datasource db {
@@ -504,6 +533,7 @@ USE_IN_MEMORY_DB=true npm run test
 **Error:** `Foreign key constraint failed`
 
 **Solutions:**
+
 ```javascript
 // Check relationship definitions in schema
 model Goal {
@@ -516,6 +546,7 @@ model Goal {
 #### Unique Constraint Violations
 
 **Solutions:**
+
 ```javascript
 // Handle in application code
 try {
@@ -535,10 +566,12 @@ try {
 #### Token Expiration
 
 **Symptoms:**
+
 - Frequent 401 errors
 - Users logged out unexpectedly
 
 **Solutions:**
+
 ```javascript
 // Implement automatic token refresh
 const refreshToken = async () => {
@@ -546,9 +579,9 @@ const refreshToken = async () => {
     const response = await fetch('/api/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: localStorage.getItem('refreshToken') })
+      body: JSON.stringify({ refreshToken: localStorage.getItem('refreshToken') }),
     });
-    
+
     if (response.ok) {
       const { accessToken } = await response.json();
       localStorage.setItem('accessToken', accessToken);
@@ -566,6 +599,7 @@ const refreshToken = async () => {
 **Common Error:** `JsonWebTokenError: invalid signature`
 
 **Solutions:**
+
 ```bash
 # 1. Check JWT_SECRET is set
 echo $JWT_SECRET
@@ -582,17 +616,20 @@ localStorage.clear();
 **Error:** `CORS policy: credentials omitted`
 
 **Solutions:**
+
 ```javascript
 // In server CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true,
+  })
+);
 
 // In frontend requests
 fetch('/api/endpoint', {
   credentials: 'include',
-  headers: { 'Authorization': `Bearer ${token}` }
+  headers: { Authorization: `Bearer ${token}` },
 });
 ```
 
@@ -603,13 +640,14 @@ fetch('/api/endpoint', {
 #### Database Query Optimization
 
 **Solutions:**
+
 ```javascript
 // Add database indexes
 model Run {
   id     String   @id @default(cuid())
   userId String
   date   DateTime
-  
+
   @@index([userId, date])
   @@index([userId])
 }
@@ -626,7 +664,7 @@ const runs = await prisma.run.findMany({
     // Only select needed fields
   },
   orderBy: { date: 'desc' },
-  take: 50 // Limit results
+  take: 50, // Limit results
 });
 ```
 
@@ -635,13 +673,14 @@ const runs = await prisma.run.findMany({
 #### React Component Leaks
 
 **Solutions:**
+
 ```javascript
 // Clean up subscriptions
 useEffect(() => {
   const controller = new AbortController();
-  
+
   fetchData({ signal: controller.signal });
-  
+
   return () => {
     controller.abort();
   };
@@ -651,6 +690,7 @@ useEffect(() => {
 #### Test Memory Issues
 
 **Solutions:**
+
 ```bash
 # Monitor memory usage
 npm run test:memory
@@ -666,6 +706,7 @@ NODE_OPTIONS="--expose-gc" npm run test
 #### TypeScript Build Errors
 
 **Solutions:**
+
 ```bash
 # 1. Clean build
 rm -rf dist/
@@ -683,6 +724,7 @@ npm update
 **Common Error:** `Failed to resolve import`
 
 **Solutions:**
+
 ```javascript
 // Check import paths
 import Component from '@/components/Component'; // Correct
@@ -694,6 +736,7 @@ import Component from '../../../components/Component'; // Avoid
 #### Environment Configuration
 
 **Checklist:**
+
 ```bash
 # 1. Environment variables set
 - [ ] DATABASE_URL
@@ -714,6 +757,7 @@ npm run build
 #### Health Check Failures
 
 **Solutions:**
+
 ```javascript
 // Add health check endpoint
 app.get('/health', async (req, res) => {

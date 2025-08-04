@@ -2,7 +2,7 @@
 
 /**
  * Onboarding Time Checker
- * 
+ *
  * Measures and validates that developer onboarding takes <30 minutes.
  * Tracks each step and provides feedback on optimization opportunities.
  */
@@ -43,7 +43,7 @@ export class OnboardingChecker {
   startTracking(): void {
     this.startTime = new Date();
     this.saveCheckpoint('start', 'Onboarding started');
-    
+
     console.log('🏁 Onboarding tracking started');
     console.log(`⏱️  Target: <${this.targetTime} minutes`);
     console.log('');
@@ -56,14 +56,14 @@ export class OnboardingChecker {
    */
   saveCheckpoint(id: string, description: string): void {
     this.checkpoints.set(id, new Date());
-    
+
     const data = {
       startTime: this.startTime,
       checkpoints: Array.from(this.checkpoints.entries()).map(([key, value]) => ({
         id: key,
         timestamp: value,
-        description
-      }))
+        description,
+      })),
     };
 
     fs.writeFileSync(this.checkpointsFile, JSON.stringify(data, null, 2));
@@ -86,13 +86,13 @@ export class OnboardingChecker {
 
     // Define expected steps
     const steps = this.getOnboardingSteps();
-    
+
     // Calculate metrics
     const metrics = this.calculateMetrics(steps, data.checkpoints, elapsedMinutes);
-    
+
     // Print report
     this.printReport(steps, metrics, elapsedMinutes);
-    
+
     return metrics;
   }
 
@@ -106,22 +106,22 @@ export class OnboardingChecker {
       {
         name: 'Dependencies installed',
         check: () => fs.existsSync('node_modules'),
-        fix: 'Run: npm install'
+        fix: 'Run: npm install',
       },
       {
         name: 'Environment configured',
         check: () => fs.existsSync('.env'),
-        fix: 'Run: cp .env.example .env'
+        fix: 'Run: cp .env.example .env',
       },
       {
         name: 'Database ready',
         check: () => fs.existsSync('prisma/dev.db'),
-        fix: 'Run: npm run prisma:migrate'
+        fix: 'Run: npm run prisma:migrate',
       },
       {
         name: 'Git hooks installed',
         check: () => fs.existsSync('.husky/_/husky.sh'),
-        fix: 'Run: npm run prepare'
+        fix: 'Run: npm run prepare',
       },
       {
         name: 'Tests passing',
@@ -133,7 +133,7 @@ export class OnboardingChecker {
             return false;
           }
         },
-        fix: 'Fix failing tests'
+        fix: 'Fix failing tests',
       },
       {
         name: 'Build successful',
@@ -145,7 +145,7 @@ export class OnboardingChecker {
             return false;
           }
         },
-        fix: 'Fix build errors'
+        fix: 'Fix build errors',
       },
       {
         name: 'Dev server runs',
@@ -154,15 +154,15 @@ export class OnboardingChecker {
           const env = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
           return env.includes('PORT=') && env.includes('FRONTEND_PORT=');
         },
-        fix: 'Configure ports in .env'
-      }
+        fix: 'Configure ports in .env',
+      },
     ];
 
     let allPassed = true;
 
     for (const check of checks) {
       process.stdout.write(`📋 ${check.name}... `);
-      
+
       if (check.check()) {
         console.log('✅');
       } else {
@@ -181,7 +181,7 @@ export class OnboardingChecker {
    */
   generateReport(): void {
     const reportPath = 'onboarding-report.md';
-    
+
     const report = `# Developer Onboarding Report
 
 Generated: ${new Date().toLocaleString()}
@@ -192,12 +192,16 @@ Generated: ${new Date().toLocaleString()}
 
 ## Onboarding Steps
 
-${this.getOnboardingSteps().map(step => `
+${this.getOnboardingSteps()
+  .map(
+    step => `
 ### ${step.name}
 - **Description**: ${step.description}
 - **Expected Time**: ${step.requiredTime} minutes
 - **Purpose**: Ensures ${step.id} is properly configured
-`).join('\n')}
+`
+  )
+  .join('\n')}
 
 ## Metrics to Track
 
@@ -258,62 +262,62 @@ ${this.getOnboardingSteps().map(step => `
         id: 'clone',
         name: 'Clone Repository',
         description: 'Clone the repository and navigate to project',
-        requiredTime: 1
+        requiredTime: 1,
       },
       {
         id: 'requirements',
         name: 'Check Requirements',
         description: 'Verify Node.js, npm, and git versions',
-        requiredTime: 1
+        requiredTime: 1,
       },
       {
         id: 'install',
         name: 'Install Dependencies',
         description: 'Run npm install to get all packages',
-        requiredTime: 5
+        requiredTime: 5,
       },
       {
         id: 'environment',
         name: 'Configure Environment',
         description: 'Set up .env file with required variables',
-        requiredTime: 2
+        requiredTime: 2,
       },
       {
         id: 'database',
         name: 'Setup Database',
         description: 'Run migrations and seed data',
-        requiredTime: 3
+        requiredTime: 3,
       },
       {
         id: 'build',
         name: 'Build Project',
         description: 'Run initial build to verify setup',
-        requiredTime: 3
+        requiredTime: 3,
       },
       {
         id: 'tests',
         name: 'Run Tests',
         description: 'Verify all tests pass',
-        requiredTime: 5
+        requiredTime: 5,
       },
       {
         id: 'dev-server',
         name: 'Start Dev Server',
         description: 'Launch development environment',
-        requiredTime: 2
+        requiredTime: 2,
       },
       {
         id: 'explore',
         name: 'Explore Codebase',
         description: 'Understand project structure',
-        requiredTime: 5
+        requiredTime: 5,
       },
       {
         id: 'first-change',
         name: 'Make First Change',
         description: 'Make and test a small change',
-        requiredTime: 3
-      }
+        requiredTime: 3,
+      },
     ];
   }
 
@@ -331,7 +335,9 @@ ${this.getOnboardingSteps().map(step => `
       if (checkpoint) {
         const stepTime = this.getStepDuration(checkpoint, checkpoints);
         if (stepTime > step.requiredTime * 1.5) {
-          bottlenecks.push(`${step.name} took ${stepTime.toFixed(1)}min (expected ${step.requiredTime}min)`);
+          bottlenecks.push(
+            `${step.name} took ${stepTime.toFixed(1)}min (expected ${step.requiredTime}min)`
+          );
         }
       }
     }
@@ -357,7 +363,7 @@ ${this.getOnboardingSteps().map(step => `
       firstCommitTime: this.getPhaseTime(checkpoints, ['first-change']),
       bottlenecks,
       improvements,
-      targetMet: elapsedMinutes <= this.targetTime
+      targetMet: elapsedMinutes <= this.targetTime,
     };
   }
 
@@ -374,7 +380,7 @@ ${this.getOnboardingSteps().map(step => `
 
   private getPhaseTime(checkpoints: any[], phaseSteps: string[]): number {
     let totalTime = 0;
-    
+
     for (const stepId of phaseSteps) {
       const checkpoint = checkpoints.find(cp => cp.id === stepId);
       if (checkpoint) {
@@ -388,7 +394,7 @@ ${this.getOnboardingSteps().map(step => `
   private printReport(steps: OnboardingStep[], metrics: OnboardingMetrics, elapsed: number): void {
     console.log('\n📊 Onboarding Progress Report');
     console.log('='.repeat(50));
-    
+
     const targetEmoji = metrics.targetMet ? '✅' : '❌';
     console.log(`\n⏱️  Elapsed Time: ${elapsed.toFixed(1)} minutes`);
     console.log(`🎯 Target: ${this.targetTime} minutes`);
@@ -398,7 +404,7 @@ ${this.getOnboardingSteps().map(step => `
     const progress = Math.min(100, (elapsed / this.targetTime) * 100);
     const filledBars = Math.floor(progress / 5);
     const emptyBars = 20 - filledBars;
-    
+
     console.log('Progress:');
     console.log(`[${'█'.repeat(filledBars)}${'░'.repeat(emptyBars)}] ${progress.toFixed(0)}%\n`);
 
@@ -418,10 +424,10 @@ ${this.getOnboardingSteps().map(step => `
 
     // Next steps
     console.log('📝 Next Steps:');
-    const incompleteSteps = steps.filter(step => 
-      !metrics.bottlenecks.some(b => b.includes(step.name))
+    const incompleteSteps = steps.filter(
+      step => !metrics.bottlenecks.some(b => b.includes(step.name))
     );
-    
+
     incompleteSteps.slice(0, 3).forEach(step => {
       console.log(`   • ${step.name}: ${step.description}`);
     });

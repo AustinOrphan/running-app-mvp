@@ -188,12 +188,13 @@ ${colors.cyan}Examples:${colors.reset}
 
 function log(message, level = 'info') {
   const timestamp = new Date().toISOString();
-  const prefix = {
-    info: `${colors.blue}[INFO]${colors.reset}`,
-    success: `${colors.green}[SUCCESS]${colors.reset}`,
-    warning: `${colors.yellow}[WARNING]${colors.reset}`,
-    error: `${colors.red}[ERROR]${colors.reset}`,
-  }[level] || '[LOG]';
+  const prefix =
+    {
+      info: `${colors.blue}[INFO]${colors.reset}`,
+      success: `${colors.green}[SUCCESS]${colors.reset}`,
+      warning: `${colors.yellow}[WARNING]${colors.reset}`,
+      error: `${colors.red}[ERROR]${colors.reset}`,
+    }[level] || '[LOG]';
 
   const logEntry = {
     timestamp,
@@ -202,7 +203,7 @@ function log(message, level = 'info') {
   };
 
   output.push(logEntry);
-  
+
   if (!options.ci || options.verbose) {
     process.stdout.write(`${colors.dim}${timestamp}${colors.reset} ${prefix} ${message}\n`);
   }
@@ -233,18 +234,18 @@ async function runCommand(command, args, options = {}) {
     let stderr = '';
 
     if (!options.verbose) {
-      child.stdout?.on('data', (data) => {
+      child.stdout?.on('data', data => {
         stdout += data.toString();
         if (options.stream) process.stdout.write(data);
       });
 
-      child.stderr?.on('data', (data) => {
+      child.stderr?.on('data', data => {
         stderr += data.toString();
         if (options.stream) process.stderr.write(data);
       });
     }
 
-    child.on('close', (code) => {
+    child.on('close', code => {
       const duration = performance.now() - startTime;
       resolve({
         code,
@@ -255,7 +256,7 @@ async function runCommand(command, args, options = {}) {
       });
     });
 
-    child.on('error', (error) => {
+    child.on('error', error => {
       reject(error);
     });
   });
@@ -278,7 +279,7 @@ async function ensureDirectories() {
 
 async function checkEnvironment() {
   log('Checking test environment...', 'info');
-  
+
   // Check Node.js version
   const nodeVersion = process.version;
   const majorVersion = parseInt(nodeVersion.split('.')[0].substring(1));
@@ -314,7 +315,7 @@ async function checkEnvironment() {
 async function runTestSuite(suiteName, suiteConfig) {
   const startTime = performance.now();
   log(`Running ${suiteConfig.name}...`, 'info');
-  
+
   testResults.suites[suiteName] = {
     name: suiteConfig.name,
     status: 'running',
@@ -325,11 +326,10 @@ async function runTestSuite(suiteName, suiteConfig) {
   };
 
   try {
-    const result = await runCommand(
-      suiteConfig.command,
-      suiteConfig.args,
-      { verbose: options.verbose, stream: !options.parallel }
-    );
+    const result = await runCommand(suiteConfig.command, suiteConfig.args, {
+      verbose: options.verbose,
+      stream: !options.parallel,
+    });
 
     const duration = performance.now() - startTime;
     testResults.suites[suiteName].duration = duration;
@@ -345,7 +345,7 @@ async function runTestSuite(suiteName, suiteConfig) {
       testResults.suites[suiteName].error = result.stderr || result.stdout;
       testResults.failed++;
       log(`${suiteConfig.name} failed after ${formatDuration(duration)}`, 'error');
-      
+
       if (options.bail) {
         throw new Error(`Test suite ${suiteName} failed. Bailing out.`);
       }
@@ -355,13 +355,12 @@ async function runTestSuite(suiteName, suiteConfig) {
     if (suiteConfig.coverageDir) {
       await extractCoverageData(suiteName, suiteConfig.coverageDir);
     }
-
   } catch (error) {
     testResults.suites[suiteName].status = 'error';
     testResults.suites[suiteName].error = error.message;
     testResults.failed++;
     log(`${suiteConfig.name} encountered an error: ${error.message}`, 'error');
-    
+
     if (options.bail) {
       throw error;
     }
@@ -370,12 +369,12 @@ async function runTestSuite(suiteName, suiteConfig) {
 
 async function extractCoverageData(suiteName, coverageDir) {
   const coveragePath = join(projectRoot, coverageDir, 'coverage-summary.json');
-  
+
   if (existsSync(coveragePath)) {
     try {
       const coverageData = JSON.parse(readFileSync(coveragePath, 'utf8'));
       testResults.coverage[suiteName] = coverageData.total;
-      
+
       // Check coverage thresholds
       const metrics = ['lines', 'statements', 'functions', 'branches'];
       for (const metric of metrics) {
@@ -459,13 +458,15 @@ function generateConsoleReport() {
   reportLines.push(`  Completed: ${testResults.endTime}`);
   reportLines.push(`  ${colors.green}Passed: ${testResults.passed}${colors.reset}`);
   reportLines.push(`  ${colors.red}Failed: ${testResults.failed}${colors.reset}`);
-  
+
   // Suite details
   reportLines.push(`\n${colors.cyan}Test Suites:${colors.reset}`);
   for (const [name, suite] of Object.entries(testResults.suites)) {
     const icon = suite.status === 'passed' ? '✓' : '✗';
     const color = suite.status === 'passed' ? colors.green : colors.red;
-    reportLines.push(`  ${color}${icon} ${suite.name}${colors.reset} - ${formatDuration(suite.duration)}`);
+    reportLines.push(
+      `  ${color}${icon} ${suite.name}${colors.reset} - ${formatDuration(suite.duration)}`
+    );
   }
 
   // Coverage summary
@@ -505,10 +506,10 @@ function generateConsoleReport() {
   } else {
     reportLines.push(`${colors.red}${colors.bright}Tests failed!${colors.reset}`);
   }
-  
+
   // Write report to stdout
   process.stdout.write(reportLines.join('\n') + '\n');
-  
+
   return exitCode;
 }
 
@@ -682,21 +683,31 @@ async function generateHTMLReport() {
                 </div>
             </div>
 
-            ${Object.keys(testResults.coverage).length > 0 ? `
+            ${
+              Object.keys(testResults.coverage).length > 0
+                ? `
             <div class="card">
                 <h3>Coverage Overview</h3>
-                ${Object.entries(testResults.coverage).map(([suite, coverage]) => `
+                ${Object.entries(testResults.coverage)
+                  .map(
+                    ([suite, coverage]) => `
                     <div class="metric">
                         <span>${suite}:</span>
                         <span class="metric-value">${coverage.lines.pct}%</span>
                     </div>
-                `).join('')}
+                `
+                  )
+                  .join('')}
             </div>
-            ` : ''}
+            `
+                : ''
+            }
         </div>
 
         <h2>Suite Details</h2>
-        ${Object.entries(testResults.suites).map(([name, suite]) => `
+        ${Object.entries(testResults.suites)
+          .map(
+            ([name, suite]) => `
             <div class="suite-results">
                 <div class="suite-header">
                     <div>
@@ -712,10 +723,13 @@ async function generateHTMLReport() {
                     </div>
                 </div>
                 
-                ${testResults.coverage[name] ? `
+                ${
+                  testResults.coverage[name]
+                    ? `
                     <div class="coverage">
                         <h4>Coverage</h4>
-                        ${['lines', 'statements', 'functions', 'branches'].map(metric => {
+                        ${['lines', 'statements', 'functions', 'branches']
+                          .map(metric => {
                             const pct = testResults.coverage[name][metric].pct;
                             const level = pct >= 80 ? 'high' : pct >= 60 ? 'medium' : 'low';
                             return `
@@ -729,36 +743,61 @@ async function generateHTMLReport() {
                                     </div>
                                 </div>
                             `;
-                        }).join('')}
+                          })
+                          .join('')}
                     </div>
-                ` : ''}
+                `
+                    : ''
+                }
                 
-                ${suite.error ? `
+                ${
+                  suite.error
+                    ? `
                     <div class="error-output">
                         <h4>Error Output</h4>
                         <pre>${suite.error}</pre>
                     </div>
-                ` : ''}
+                `
+                    : ''
+                }
             </div>
-        `).join('')}
+        `
+          )
+          .join('')}
 
-        ${testResults.warnings.length > 0 ? `
+        ${
+          testResults.warnings.length > 0
+            ? `
             <div class="warnings">
                 <h2>Warnings</h2>
-                ${testResults.warnings.map(warning => `
+                ${testResults.warnings
+                  .map(
+                    warning => `
                     <div class="message warning">${warning}</div>
-                `).join('')}
+                `
+                  )
+                  .join('')}
             </div>
-        ` : ''}
+        `
+            : ''
+        }
 
-        ${testResults.errors.length > 0 ? `
+        ${
+          testResults.errors.length > 0
+            ? `
             <div class="errors">
                 <h2>Errors</h2>
-                ${testResults.errors.map(error => `
+                ${testResults.errors
+                  .map(
+                    error => `
                     <div class="message error">${error}</div>
-                `).join('')}
+                `
+                  )
+                  .join('')}
             </div>
-        ` : ''}
+        `
+            : ''
+        }
     </div>
 </body>
 </html>
@@ -772,7 +811,7 @@ async function generateHTMLReport() {
 async function generateCoverageReport() {
   // Merge coverage data from different test suites
   const mergedCoverage = {};
-  
+
   for (const [suite, coverage] of Object.entries(testResults.coverage)) {
     for (const metric of ['lines', 'statements', 'functions', 'branches']) {
       if (!mergedCoverage[metric]) {
@@ -790,7 +829,7 @@ async function generateCoverageReport() {
   // Calculate percentages
   for (const metric of Object.keys(mergedCoverage)) {
     const data = mergedCoverage[metric];
-    data.pct = data.total > 0 ? (data.covered / data.total * 100).toFixed(2) : 0;
+    data.pct = data.total > 0 ? ((data.covered / data.total) * 100).toFixed(2) : 0;
   }
 
   // Generate coverage summary
@@ -828,14 +867,16 @@ async function generateCoverageBadges(coverage) {
 // Main execution
 async function main() {
   try {
-    process.stdout.write(`${colors.bright}${colors.cyan}Running App MVP - Test Runner${colors.reset}\n`);
+    process.stdout.write(
+      `${colors.bright}${colors.cyan}Running App MVP - Test Runner${colors.reset}\n`
+    );
     process.stdout.write(`${colors.dim}Starting test execution...${colors.reset}\n\n`);
 
     // Ensure output directories exist
     await ensureDirectories();
 
     // Check environment
-    if (!await checkEnvironment()) {
+    if (!(await checkEnvironment())) {
       log('Environment check failed. Aborting.', 'error');
       process.exit(1);
     }
@@ -848,7 +889,7 @@ async function main() {
 
     // Determine exit code
     const exitCode = testResults.failed > 0 ? 1 : 0;
-    
+
     // CI-specific checks
     if (options.ci) {
       // Check coverage thresholds
@@ -863,7 +904,6 @@ async function main() {
     }
 
     process.exit(exitCode);
-
   } catch (error) {
     log(`Fatal error: ${error.message}`, 'error');
     process.stderr.write(error.stack + '\n');

@@ -9,6 +9,7 @@ Accepted
 ## Context
 
 We needed a frontend build tool that would:
+
 - Provide fast development experience with hot module replacement (HMR)
 - Support modern JavaScript/TypeScript
 - Handle CSS preprocessing and bundling
@@ -21,6 +22,7 @@ We needed a frontend build tool that would:
 We will use Vite as our frontend build tool and development server.
 
 Key configurations:
+
 - React plugin for JSX transformation
 - TypeScript support out of the box
 - Proxy configuration for API requests
@@ -30,6 +32,7 @@ Key configurations:
 ## Consequences
 
 ### Positive
+
 - Extremely fast cold starts (< 200ms)
 - Instant HMR (Hot Module Replacement)
 - No bundling in development (native ESM)
@@ -40,6 +43,7 @@ Key configurations:
 - Minimal configuration needed
 
 ### Negative
+
 - Relatively newer tool (less battle-tested than webpack)
 - Different dev/prod behavior could mask issues
 - Some older libraries may have compatibility issues
@@ -49,6 +53,7 @@ Key configurations:
 ## Implementation Details
 
 ### Configuration
+
 ```typescript
 // vite.config.ts
 export default defineConfig({
@@ -71,6 +76,7 @@ export default defineConfig({
 ```
 
 ### Performance Metrics
+
 - Development server start: ~150ms
 - HMR update: <50ms
 - Production build: ~10 seconds
@@ -111,8 +117,9 @@ export default defineConfig({
 ## Migration Considerations
 
 From Create React App:
+
 1. Move public assets to correct location
-2. Update environment variable prefix (VITE_ instead of REACT_APP_)
+2. Update environment variable prefix (VITE* instead of REACT_APP*)
 3. Configure proxy for API calls
 4. Update import aliases
 5. Adjust any webpack-specific code

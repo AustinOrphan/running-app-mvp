@@ -11,6 +11,7 @@ Before starting, ensure you have:
 - **VS Code** (recommended) ([Download](https://code.visualstudio.com/))
 
 Quick check:
+
 ```bash
 node --version  # Should be v20.0.0 or higher
 npm --version   # Should be 10.0.0 or higher
@@ -31,6 +32,7 @@ npm run setup:quick
 ```
 
 The script will:
+
 - ✅ Check system requirements
 - ✅ Install all dependencies
 - ✅ Set up your environment
@@ -45,6 +47,7 @@ The script will:
 If you prefer manual setup or the automated script has issues:
 
 ### 1. Clone and Install (3 minutes)
+
 ```bash
 git clone <repository-url>
 cd running-app-mvp
@@ -52,29 +55,34 @@ npm ci  # Faster than npm install
 ```
 
 ### 2. Environment Setup (1 minute)
+
 ```bash
 cp .env.example .env
 # Edit .env and set JWT_SECRET to a secure value
 ```
 
 ### 3. Database Setup (2 minutes)
+
 ```bash
 npm run prisma:migrate
 npm run prisma:generate
 ```
 
 ### 4. Verify Setup (2 minutes)
+
 ```bash
 npm run validate-test-env
 npm run build
 ```
 
 ### 5. Start Development (2 minutes)
+
 ```bash
 npm run dev:full
 ```
 
 Visit:
+
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:3001
 
@@ -117,6 +125,7 @@ npm test
 ## 🔍 Quick Command Reference
 
 ### Development
+
 ```bash
 npm run dev              # Backend only (port 3001)
 npm run dev:frontend     # Frontend only (port 3000)
@@ -124,6 +133,7 @@ npm run dev:full         # Both frontend and backend
 ```
 
 ### Testing
+
 ```bash
 npm test                 # Run unit tests
 npm run test:integration # Run integration tests
@@ -132,6 +142,7 @@ npm run test:coverage   # Check code coverage
 ```
 
 ### Code Quality
+
 ```bash
 npm run lint            # Check code style
 npm run lint:fix        # Auto-fix issues
@@ -139,6 +150,7 @@ npm run typecheck       # TypeScript checks
 ```
 
 ### Database
+
 ```bash
 npm run prisma:studio   # Visual database editor
 npm run prisma:migrate  # Run migrations
@@ -147,6 +159,7 @@ npm run prisma:migrate  # Run migrations
 ## 🆘 Troubleshooting
 
 ### Port Already in Use
+
 ```bash
 # Find process using port 3000
 lsof -i :3000
@@ -159,6 +172,7 @@ FRONTEND_PORT=3003
 ```
 
 ### Dependencies Won't Install
+
 ```bash
 # Clear npm cache
 npm cache clean --force
@@ -167,6 +181,7 @@ npm install
 ```
 
 ### Database Issues
+
 ```bash
 # Reset database
 rm prisma/*.db
@@ -174,6 +189,7 @@ npm run prisma:migrate
 ```
 
 ### Tests Failing
+
 ```bash
 # Setup test environment
 npm run test:setup

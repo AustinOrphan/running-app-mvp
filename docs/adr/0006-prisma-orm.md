@@ -9,6 +9,7 @@ Accepted
 ## Context
 
 We needed a database abstraction layer that would:
+
 - Provide type safety with TypeScript
 - Support multiple database backends
 - Handle migrations elegantly
@@ -21,6 +22,7 @@ We needed a database abstraction layer that would:
 We will use Prisma as our ORM (Object-Relational Mapping) tool.
 
 Key features we'll utilize:
+
 - Prisma Schema for model definition
 - Prisma Client for type-safe database access
 - Prisma Migrate for schema migrations
@@ -29,6 +31,7 @@ Key features we'll utilize:
 ## Consequences
 
 ### Positive
+
 - Excellent TypeScript support with generated types
 - Intuitive schema definition language
 - Automatic migration generation
@@ -39,6 +42,7 @@ Key features we'll utilize:
 - Protects against SQL injection by default
 
 ### Negative
+
 - Additional build step (generation)
 - Learning curve for Prisma-specific syntax
 - Less flexibility than raw SQL for complex queries
@@ -49,6 +53,7 @@ Key features we'll utilize:
 ## Implementation Details
 
 ### Schema Definition
+
 ```prisma
 model User {
   id        String   @id @default(cuid())
@@ -63,19 +68,21 @@ model User {
 ```
 
 ### Type-Safe Queries
+
 ```typescript
 const userWithGoals = await prisma.user.findUnique({
   where: { email: 'user@example.com' },
-  include: { 
+  include: {
     goals: {
-      where: { isActive: true }
-    }
-  }
+      where: { isActive: true },
+    },
+  },
 });
 // TypeScript knows the exact shape of userWithGoals
 ```
 
 ### Migration Workflow
+
 ```bash
 npx prisma migrate dev --name add_user_table
 npx prisma generate

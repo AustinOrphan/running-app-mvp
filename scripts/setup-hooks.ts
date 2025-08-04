@@ -52,10 +52,9 @@ try {
   console.log('   - Prettier (with auto-format)');
   console.log('   - Tests for affected files');
   console.log('   - TypeScript type checking');
-  
+
   console.log('\n💡 To skip hooks temporarily, use: git commit --no-verify');
   console.log('💡 To test hooks manually, run: npm run lint:check\n');
-
 } catch (error) {
   console.error('❌ Error setting up Git hooks:', error.message);
   process.exit(1);

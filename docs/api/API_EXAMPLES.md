@@ -17,6 +17,7 @@ This document provides comprehensive examples of API requests and responses for 
 ### Register New User
 
 **Request:**
+
 ```http
 POST /api/auth/register
 Content-Type: application/json
@@ -28,6 +29,7 @@ Content-Type: application/json
 ```
 
 **Response (201):**
+
 ```json
 {
   "message": "User created successfully",
@@ -41,6 +43,7 @@ Content-Type: application/json
 ```
 
 **Curl Example:**
+
 ```bash
 curl -X POST http://localhost:3001/api/auth/register \
   -H "Content-Type: application/json" \
@@ -53,6 +56,7 @@ curl -X POST http://localhost:3001/api/auth/register \
 ### User Login
 
 **Request:**
+
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -64,6 +68,7 @@ Content-Type: application/json
 ```
 
 **Response (200):**
+
 ```json
 {
   "message": "Login successful",
@@ -79,12 +84,14 @@ Content-Type: application/json
 ### Token Verification
 
 **Request:**
+
 ```http
 GET /api/auth/verify
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNsbTEyM2FiYzQ1NiIsImVtYWlsIjoicnVubmVyQGV4YW1wbGUuY29tIiwiaWF0IjoxNzA1MzE1MjAwLCJleHAiOjE3MDUzMTYxMDAsInR5cGUiOiJhY2Nlc3MifQ.example_signature
 ```
 
 **Response (200):**
+
 ```json
 {
   "user": {
@@ -97,6 +104,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNsbTEyM2FiY
 ### Token Refresh
 
 **Request:**
+
 ```http
 POST /api/auth/refresh
 Content-Type: application/json
@@ -107,6 +115,7 @@ Content-Type: application/json
 ```
 
 **Response (200):**
+
 ```json
 {
   "message": "Token refreshed successfully",
@@ -119,6 +128,7 @@ Content-Type: application/json
 ### Create Weekly Distance Goal
 
 **Request:**
+
 ```http
 POST /api/goals
 Authorization: Bearer <access_token>
@@ -134,6 +144,7 @@ Content-Type: application/json
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": "clm789def012",
@@ -154,6 +165,7 @@ Content-Type: application/json
 ### Create Monthly Frequency Goal
 
 **Request:**
+
 ```http
 POST /api/goals
 Authorization: Bearer <access_token>
@@ -169,6 +181,7 @@ Content-Type: application/json
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": "clm789def013",
@@ -189,12 +202,14 @@ Content-Type: application/json
 ### Get All Goals
 
 **Request:**
+
 ```http
 GET /api/goals
 Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 [
   {
@@ -231,6 +246,7 @@ Authorization: Bearer <access_token>
 ### Update Goal Progress
 
 **Request:**
+
 ```http
 PUT /api/goals/clm789def012
 Authorization: Bearer <access_token>
@@ -242,6 +258,7 @@ Content-Type: application/json
 ```
 
 **Response (200):**
+
 ```json
 {
   "id": "clm789def012",
@@ -264,6 +281,7 @@ Content-Type: application/json
 ### Log a Morning Run
 
 **Request:**
+
 ```http
 POST /api/runs
 Authorization: Bearer <access_token>
@@ -279,6 +297,7 @@ Content-Type: application/json
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": "clm456ghi789",
@@ -297,6 +316,7 @@ Content-Type: application/json
 ### Log a Tempo Run
 
 **Request:**
+
 ```http
 POST /api/runs
 Authorization: Bearer <access_token>
@@ -312,6 +332,7 @@ Content-Type: application/json
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": "clm456ghi790",
@@ -330,12 +351,14 @@ Content-Type: application/json
 ### Get All Runs
 
 **Request:**
+
 ```http
 GET /api/runs
 Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 [
   {
@@ -368,12 +391,14 @@ Authorization: Bearer <access_token>
 ### Get Simplified Run List
 
 **Request:**
+
 ```http
 GET /api/runs/simple-list
 Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 [
   {
@@ -396,6 +421,7 @@ Authorization: Bearer <access_token>
 ### Update Run Details
 
 **Request:**
+
 ```http
 PUT /api/runs/clm456ghi789
 Authorization: Bearer <access_token>
@@ -409,6 +435,7 @@ Content-Type: application/json
 ```
 
 **Response (200):**
+
 ```json
 {
   "id": "clm456ghi789",
@@ -429,6 +456,7 @@ Content-Type: application/json
 ### Register for Marathon
 
 **Request:**
+
 ```http
 POST /api/races
 Authorization: Bearer <access_token>
@@ -445,6 +473,7 @@ Content-Type: application/json
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": "clm321jkl654",
@@ -464,6 +493,7 @@ Content-Type: application/json
 ### Register for 10K Race
 
 **Request:**
+
 ```http
 POST /api/races
 Authorization: Bearer <access_token>
@@ -480,6 +510,7 @@ Content-Type: application/json
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": "clm321jkl655",
@@ -499,6 +530,7 @@ Content-Type: application/json
 ### Update Race Results
 
 **Request:**
+
 ```http
 PUT /api/races/clm321jkl655
 Authorization: Bearer <access_token>
@@ -511,6 +543,7 @@ Content-Type: application/json
 ```
 
 **Response (200):**
+
 ```json
 {
   "id": "clm321jkl655",
@@ -530,12 +563,14 @@ Content-Type: application/json
 ### Get All Races
 
 **Request:**
+
 ```http
 GET /api/races
 Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 [
   {
@@ -572,12 +607,14 @@ Authorization: Bearer <access_token>
 ### Weekly Insights Summary
 
 **Request:**
+
 ```http
 GET /api/stats/insights-summary
 Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 {
   "totalDistance": 32.5,
@@ -593,12 +630,14 @@ Authorization: Bearer <access_token>
 ### Run Type Breakdown
 
 **Request:**
+
 ```http
 GET /api/stats/type-breakdown
 Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 {
   "breakdown": [
@@ -635,12 +674,14 @@ Authorization: Bearer <access_token>
 ### Query Recent Audit Events
 
 **Request:**
+
 ```http
 GET /api/audit/events?limit=10&action=create
 Authorization: Bearer <admin_access_token>
 ```
 
 **Response (200):**
+
 ```json
 {
   "events": [
@@ -682,12 +723,14 @@ Authorization: Bearer <admin_access_token>
 ### Query Failed Authentication Events
 
 **Request:**
+
 ```http
 GET /api/audit/events?action=login&outcome=failure&startDate=2024-01-18T00:00:00Z
 Authorization: Bearer <admin_access_token>
 ```
 
 **Response (200):**
+
 ```json
 {
   "events": [
@@ -732,6 +775,7 @@ Authorization: Bearer <admin_access_token>
 ### Validation Error Example
 
 **Request:**
+
 ```http
 POST /api/runs
 Authorization: Bearer <access_token>
@@ -745,6 +789,7 @@ Content-Type: application/json
 ```
 
 **Response (400):**
+
 ```json
 {
   "error": "Validation failed",
@@ -761,12 +806,14 @@ Content-Type: application/json
 ### Authentication Error Example
 
 **Request:**
+
 ```http
 GET /api/goals
 Authorization: Bearer invalid_token_here
 ```
 
 **Response (401):**
+
 ```json
 {
   "error": "Unauthorized",
@@ -778,12 +825,14 @@ Authorization: Bearer invalid_token_here
 ### Not Found Error Example
 
 **Request:**
+
 ```http
 GET /api/runs/nonexistent_id
 Authorization: Bearer <access_token>
 ```
 
 **Response (404):**
+
 ```json
 {
   "error": "Not Found",
@@ -795,12 +844,14 @@ Authorization: Bearer <access_token>
 ### Forbidden Error Example
 
 **Request:**
+
 ```http
 GET /api/runs/clm456ghi789
 Authorization: Bearer <other_users_token>
 ```
 
 **Response (403):**
+
 ```json
 {
   "error": "Forbidden",
@@ -812,6 +863,7 @@ Authorization: Bearer <other_users_token>
 ### Rate Limit Error Example
 
 **Request:**
+
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -823,6 +875,7 @@ Content-Type: application/json
 ```
 
 **Response (429) - After 5 failed attempts:**
+
 ```json
 {
   "error": "Rate Limit Exceeded",

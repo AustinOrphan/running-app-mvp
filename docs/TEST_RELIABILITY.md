@@ -95,9 +95,10 @@ A test is considered flaky if:
 - It shows inconsistent behavior (passes and fails)
 
 Algorithm:
+
 ```typescript
-flakyRate = failures / totalRuns
-isFlaky = flakyRate > 0.01 && totalRuns >= 5
+flakyRate = failures / totalRuns;
+isFlaky = flakyRate > 0.01 && totalRuns >= 5;
 ```
 
 ### 3. Metrics Calculation
@@ -135,12 +136,14 @@ npm run test:reliability:flaky "MyComponent" 20
 #### Investigate Failures
 
 1. **Review the HTML report**:
+
    ```bash
    npm run test:reliability:report
    open test-data/reliability/reliability-report.html
    ```
 
 2. **Check specific test patterns**:
+
    ```bash
    # Run a test multiple times to confirm flakiness
    npm run test:reliability:flaky "should handle async operations" 15
@@ -156,15 +159,17 @@ npm run test:reliability:flaky "MyComponent" 20
 Common causes and solutions:
 
 1. **Timing Issues**:
+
    ```typescript
    // Bad: Fixed delays
    await new Promise(resolve => setTimeout(resolve, 1000));
-   
+
    // Good: Wait for conditions
    await waitFor(() => expect(element).toBeInTheDocument());
    ```
 
 2. **Test Isolation**:
+
    ```typescript
    // Ensure clean state between tests
    beforeEach(async () => {
@@ -174,11 +179,12 @@ Common causes and solutions:
    ```
 
 3. **Async Operations**:
+
    ```typescript
    // Bad: Not waiting for async operations
    component.click();
    expect(result).toBe(expected);
-   
+
    // Good: Properly await async operations
    await component.click();
    await waitFor(() => expect(result).toBe(expected));
@@ -223,8 +229,8 @@ Adjust flaky test detection sensitivity:
 ```typescript
 // scripts/test-reliability-tracker.ts
 // Change these values to adjust sensitivity
-const FLAKY_RATE_THRESHOLD = 0.01;  // 1%
-const MINIMUM_RUNS = 5;              // Min runs to consider
+const FLAKY_RATE_THRESHOLD = 0.01; // 1%
+const MINIMUM_RUNS = 5; // Min runs to consider
 ```
 
 ### Reporting Frequency
@@ -249,6 +255,7 @@ Error: No metrics data available. Run trackReliability() first.
 ```
 
 **Solution**: Run the tracker first:
+
 ```bash
 npm run test:reliability:track
 ```
@@ -256,11 +263,13 @@ npm run test:reliability:track
 #### High Flaky Test Rate
 
 **Symptoms**:
+
 - Many tests marked as flaky
 - Inconsistent CI results
 - Developer frustration
 
 **Solutions**:
+
 1. **Identify root causes**: Check error patterns in flaky tests
 2. **Improve test isolation**: Ensure tests don't affect each other
 3. **Add proper waits**: Replace fixed timeouts with condition waits
@@ -269,11 +278,13 @@ npm run test:reliability:track
 #### Performance Degradation
 
 **Symptoms**:
+
 - Increasing test execution times
 - Timeout failures
 - Resource exhaustion
 
 **Solutions**:
+
 1. **Profile slow tests**: Use performance tracking
 2. **Optimize database operations**: Use transactions, reduce queries
 3. **Parallel execution**: Ensure tests can run in parallel safely
@@ -358,13 +369,13 @@ Degrading: >+10%
 ```typescript
 class TestReliabilityTracker {
   // Track overall test reliability
-  async trackReliability(): Promise<ReliabilityMetrics>
-  
+  async trackReliability(): Promise<ReliabilityMetrics>;
+
   // Detect flakiness in specific tests
-  async detectFlakiness(testPattern: string, runs: number): Promise<FlakyTest[]>
-  
+  async detectFlakiness(testPattern: string, runs: number): Promise<FlakyTest[]>;
+
   // Generate HTML report
-  async generateHtmlReport(): Promise<string>
+  async generateHtmlReport(): Promise<string>;
 }
 ```
 
@@ -372,27 +383,27 @@ class TestReliabilityTracker {
 
 ```typescript
 interface ReliabilityMetrics {
-  overallPassRate: number;      // 0-1, overall test pass rate
-  flakyTestRate: number;        // 0-1, rate of flaky tests
-  totalTests: number;           // Total number of tests
-  flakyTests: FlakyTest[];      // List of detected flaky tests
+  overallPassRate: number; // 0-1, overall test pass rate
+  flakyTestRate: number; // 0-1, rate of flaky tests
+  totalTests: number; // Total number of tests
+  flakyTests: FlakyTest[]; // List of detected flaky tests
   trends: {
     passRateHistory: Array<{ date: Date; passRate: number }>;
-    avgDuration: number;        // Average test duration in ms
+    avgDuration: number; // Average test duration in ms
     durationTrend: 'improving' | 'stable' | 'degrading';
   };
   lastUpdated: Date;
 }
 
 interface FlakyTest {
-  name: string;                 // Test name
-  fullName: string;             // Full test path
-  file: string;                 // Test file location
-  totalRuns: number;            // Total executions tracked
-  failures: number;             // Number of failures
-  flakyRate: number;            // Failure rate (0-1)
-  lastFailure: Date;            // When last failure occurred
-  errorPatterns: string[];      // Common error messages
+  name: string; // Test name
+  fullName: string; // Full test path
+  file: string; // Test file location
+  totalRuns: number; // Total executions tracked
+  failures: number; // Number of failures
+  flakyRate: number; // Failure rate (0-1)
+  lastFailure: Date; // When last failure occurred
+  errorPatterns: string[]; // Common error messages
 }
 ```
 
@@ -437,12 +448,12 @@ npm run test:reliability:track
 node -e "
   const fs = require('fs');
   const metrics = JSON.parse(fs.readFileSync('test-data/reliability/metrics.json'));
-  
+
   if (metrics.overallPassRate < 1.0 || metrics.flakyTestRate > 0.01) {
     console.error('❌ Reliability requirements not met');
     process.exit(1);
   }
-  
+
   console.log('✅ Reliability requirements satisfied');
 "
 

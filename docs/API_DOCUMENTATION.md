@@ -33,6 +33,7 @@ Different rate limits apply to different endpoint categories:
 - **General API**: 100 requests per 15 minutes per IP
 
 Rate limit headers are included in responses:
+
 - `X-RateLimit-Limit`: Maximum requests allowed
 - `X-RateLimit-Remaining`: Requests remaining in current window
 - `X-RateLimit-Reset`: Time when rate limit resets
@@ -69,6 +70,7 @@ The API uses standard HTTP status codes and returns errors in a consistent JSON 
 ### Authentication
 
 #### Test Authentication Routes
+
 Test endpoint to verify authentication service is working.
 
 ```http
@@ -76,6 +78,7 @@ GET /api/auth/test
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Auth routes are working",
@@ -84,6 +87,7 @@ GET /api/auth/test
 ```
 
 #### User Registration
+
 Create a new user account.
 
 ```http
@@ -97,6 +101,7 @@ Content-Type: application/json
 ```
 
 **Response (201):**
+
 ```json
 {
   "message": "User created successfully",
@@ -110,10 +115,12 @@ Content-Type: application/json
 ```
 
 **Validation Rules:**
+
 - Email: Must be valid email format
 - Password: Minimum 8 characters, must contain letters and numbers
 
 #### User Login
+
 Authenticate with email and password.
 
 ```http
@@ -121,12 +128,13 @@ POST /api/auth/login
 Content-Type: application/json
 
 {
-  "email": "user@example.com", 
+  "email": "user@example.com",
   "password": "securePassword123"
 }
 ```
 
 **Response (200):**
+
 ```json
 {
   "message": "Login successful",
@@ -140,6 +148,7 @@ Content-Type: application/json
 ```
 
 #### Verify Token
+
 Verify current JWT token and get user information.
 
 ```http
@@ -148,6 +157,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 {
   "user": {
@@ -158,6 +168,7 @@ Authorization: Bearer <access_token>
 ```
 
 #### Refresh Token
+
 Get a new access token using refresh token.
 
 ```http
@@ -170,6 +181,7 @@ Content-Type: application/json
 ```
 
 **Response (200):**
+
 ```json
 {
   "message": "Token refreshed successfully",
@@ -178,6 +190,7 @@ Content-Type: application/json
 ```
 
 #### Logout
+
 Logout user and blacklist tokens.
 
 ```http
@@ -191,6 +204,7 @@ Content-Type: application/json
 ```
 
 **Response (200):**
+
 ```json
 {
   "message": "Logged out successfully"
@@ -200,6 +214,7 @@ Content-Type: application/json
 ### Goals Management
 
 #### Get All Goals
+
 Retrieve all active goals for the authenticated user.
 
 ```http
@@ -208,6 +223,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 [
   {
@@ -228,6 +244,7 @@ Authorization: Bearer <access_token>
 ```
 
 #### Create Goal
+
 Create a new running goal.
 
 ```http
@@ -237,7 +254,7 @@ Content-Type: application/json
 
 {
   "type": "distance",
-  "period": "weekly", 
+  "period": "weekly",
   "targetValue": 50.0,
   "startDate": "2024-01-01T00:00:00Z",
   "endDate": "2024-12-31T23:59:59Z"
@@ -245,22 +262,25 @@ Content-Type: application/json
 ```
 
 **Goal Types:**
+
 - `distance` - Distance-based goal (kilometers)
 - `time` - Time-based goal (minutes)
 - `frequency` - Frequency goal (number of runs)
 - `pace` - Pace goal (minutes per kilometer)
 
 **Periods:**
+
 - `daily` - Daily goal
-- `weekly` - Weekly goal  
+- `weekly` - Weekly goal
 - `monthly` - Monthly goal
 - `yearly` - Yearly goal
 
 **Response (201):**
+
 ```json
 {
   "id": "clm123abc456",
-  "userId": "clm123abc456", 
+  "userId": "clm123abc456",
   "type": "distance",
   "period": "weekly",
   "targetValue": 50.0,
@@ -275,6 +295,7 @@ Content-Type: application/json
 ```
 
 #### Get Specific Goal
+
 Retrieve details of a specific goal.
 
 ```http
@@ -283,6 +304,7 @@ Authorization: Bearer <access_token>
 ```
 
 #### Update Goal
+
 Update an existing goal.
 
 ```http
@@ -297,6 +319,7 @@ Content-Type: application/json
 ```
 
 #### Delete Goal
+
 Soft delete a goal (marks as inactive).
 
 ```http
@@ -305,6 +328,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 {
   "message": "Goal deleted successfully"
@@ -314,6 +338,7 @@ Authorization: Bearer <access_token>
 ### Runs Management
 
 #### Get All Runs
+
 Retrieve all runs for the authenticated user.
 
 ```http
@@ -322,6 +347,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 [
   {
@@ -340,6 +366,7 @@ Authorization: Bearer <access_token>
 ```
 
 #### Get Simplified Run List
+
 Get a simplified list with basic run information.
 
 ```http
@@ -348,6 +375,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 [
   {
@@ -361,6 +389,7 @@ Authorization: Bearer <access_token>
 ```
 
 #### Create Run
+
 Create a new running activity.
 
 ```http
@@ -378,6 +407,7 @@ Content-Type: application/json
 ```
 
 **Run Types (examples):**
+
 - `easy` - Easy/recovery run
 - `tempo` - Tempo run
 - `intervals` - Interval training
@@ -385,6 +415,7 @@ Content-Type: application/json
 - `race` - Race
 
 **Response (201):**
+
 ```json
 {
   "id": "clm123abc456",
@@ -393,7 +424,7 @@ Content-Type: application/json
   "distance": 5.2,
   "duration": 1800,
   "pace": 5.77,
-  "runType": "easy", 
+  "runType": "easy",
   "notes": "Great morning run",
   "createdAt": "2024-01-15T12:00:00Z",
   "updatedAt": "2024-01-15T12:00:00Z"
@@ -401,6 +432,7 @@ Content-Type: application/json
 ```
 
 #### Get Specific Run
+
 Retrieve details of a specific run.
 
 ```http
@@ -409,6 +441,7 @@ Authorization: Bearer <access_token>
 ```
 
 #### Update Run
+
 Update an existing run.
 
 ```http
@@ -424,6 +457,7 @@ Content-Type: application/json
 ```
 
 #### Delete Run
+
 Delete a run permanently.
 
 ```http
@@ -434,6 +468,7 @@ Authorization: Bearer <access_token>
 ### Races Management
 
 #### Get All Races
+
 Retrieve all races for the authenticated user.
 
 ```http
@@ -442,6 +477,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 [
   {
@@ -461,6 +497,7 @@ Authorization: Bearer <access_token>
 ```
 
 #### Create Race
+
 Create a new race event.
 
 ```http
@@ -471,7 +508,7 @@ Content-Type: application/json
 {
   "name": "Boston Marathon",
   "distance": 42.195,
-  "raceDate": "2024-04-15T09:00:00Z", 
+  "raceDate": "2024-04-15T09:00:00Z",
   "targetTime": 10800,
   "location": "Boston, MA",
   "notes": "Training for PR"
@@ -479,6 +516,7 @@ Content-Type: application/json
 ```
 
 **Response (201):**
+
 ```json
 {
   "id": "clm123abc456",
@@ -488,7 +526,7 @@ Content-Type: application/json
   "raceDate": "2024-04-15T09:00:00Z",
   "targetTime": 10800,
   "actualTime": null,
-  "location": "Boston, MA", 
+  "location": "Boston, MA",
   "notes": "Training for PR",
   "createdAt": "2024-01-15T12:00:00Z",
   "updatedAt": "2024-01-15T12:00:00Z"
@@ -496,6 +534,7 @@ Content-Type: application/json
 ```
 
 #### Get Specific Race
+
 Retrieve details of a specific race.
 
 ```http
@@ -504,6 +543,7 @@ Authorization: Bearer <access_token>
 ```
 
 #### Update Race
+
 Update an existing race.
 
 ```http
@@ -518,6 +558,7 @@ Content-Type: application/json
 ```
 
 #### Delete Race
+
 Delete a race permanently.
 
 ```http
@@ -528,6 +569,7 @@ Authorization: Bearer <access_token>
 ### Statistics
 
 #### Get Weekly Insights Summary
+
 Retrieve weekly running statistics and insights.
 
 ```http
@@ -536,6 +578,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 {
   "totalDistance": 25.5,
@@ -549,6 +592,7 @@ Authorization: Bearer <access_token>
 ```
 
 #### Get Run Type Breakdown
+
 Retrieve statistics broken down by run type.
 
 ```http
@@ -557,6 +601,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 {
   "breakdown": [
@@ -567,7 +612,7 @@ Authorization: Bearer <access_token>
       "averagePace": 5.25
     },
     {
-      "runType": "tempo", 
+      "runType": "tempo",
       "count": 3,
       "totalDistance": 15.0,
       "averagePace": 4.15
@@ -579,6 +624,7 @@ Authorization: Bearer <access_token>
 ### Audit (Admin Only)
 
 #### Query Audit Events
+
 Query audit events with filters. Requires admin access.
 
 ```http
@@ -587,6 +633,7 @@ Authorization: Bearer <admin_access_token>
 ```
 
 **Query Parameters:**
+
 - `action` - Filter by action type (create, update, delete, etc.)
 - `entityType` - Filter by entity type (user, run, goal, race)
 - `startDate` - Filter events after this date (ISO 8601)
@@ -595,6 +642,7 @@ Authorization: Bearer <admin_access_token>
 - `offset` - Number of events to skip (default: 0)
 
 **Response (200):**
+
 ```json
 {
   "events": [
@@ -623,18 +671,21 @@ Authorization: Bearer <admin_access_token>
 ## Data Types and Validation
 
 ### Goal Types
+
 - **distance**: Target distance in kilometers (decimal)
 - **time**: Target time in minutes (integer)
 - **frequency**: Target number of runs (integer)
 - **pace**: Target pace in minutes per kilometer (decimal)
 
 ### Goal Periods
+
 - **daily**: Resets every day at midnight
 - **weekly**: Resets every Monday at midnight
 - **monthly**: Resets on the 1st of each month
 - **yearly**: Resets on January 1st
 
 ### Run Data
+
 - **distance**: Distance in kilometers (minimum 0.1)
 - **duration**: Duration in seconds (minimum 1)
 - **pace**: Automatically calculated as duration/distance
@@ -642,6 +693,7 @@ Authorization: Bearer <admin_access_token>
 - **runType**: String identifier for run category
 
 ### Race Data
+
 - **distance**: Race distance in kilometers
 - **targetTime**: Target completion time in seconds
 - **actualTime**: Actual completion time in seconds (optional)
@@ -650,25 +702,30 @@ Authorization: Bearer <admin_access_token>
 ## Security Features
 
 ### Input Validation
+
 - All inputs are sanitized to prevent XSS attacks
 - Request validation using Zod schemas
 - SQL injection prevention via Prisma ORM
 
 ### Rate Limiting
+
 - Different limits for different endpoint types
 - IP-based limiting for public endpoints
 - User-based limiting for authenticated endpoints
 
 ### Audit Logging
+
 - All API actions are logged for security monitoring
 - Includes user ID, action type, and request details
 - Failed authentication attempts are tracked
 
 ### CORS Configuration
+
 - Configured for specific origins in production
 - Credentials support for cookie-based authentication
 
 ### Security Headers
+
 - Helmet.js for standard security headers
 - Content Security Policy (CSP)
 - HTTP Strict Transport Security (HSTS)
@@ -678,6 +735,7 @@ Authorization: Bearer <admin_access_token>
 ### Complete User Flow Example
 
 1. **Register a new user:**
+
 ```bash
 curl -X POST http://localhost:3001/api/auth/register \
   -H "Content-Type: application/json" \
@@ -685,6 +743,7 @@ curl -X POST http://localhost:3001/api/auth/register \
 ```
 
 2. **Create a running goal:**
+
 ```bash
 curl -X POST http://localhost:3001/api/goals \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
@@ -699,6 +758,7 @@ curl -X POST http://localhost:3001/api/goals \
 ```
 
 3. **Log a new run:**
+
 ```bash
 curl -X POST http://localhost:3001/api/runs \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
@@ -713,6 +773,7 @@ curl -X POST http://localhost:3001/api/runs \
 ```
 
 4. **Get weekly statistics:**
+
 ```bash
 curl -X GET http://localhost:3001/api/stats/insights-summary \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
@@ -721,6 +782,7 @@ curl -X GET http://localhost:3001/api/stats/insights-summary \
 ### Error Response Examples
 
 **Validation Error (400):**
+
 ```json
 {
   "error": "Validation failed",
@@ -734,15 +796,17 @@ curl -X GET http://localhost:3001/api/stats/insights-summary \
 ```
 
 **Authentication Error (401):**
+
 ```json
 {
-  "error": "Unauthorized", 
+  "error": "Unauthorized",
   "message": "Invalid or expired token",
   "timestamp": "2024-01-15T12:00:00Z"
 }
 ```
 
 **Not Found Error (404):**
+
 ```json
 {
   "error": "Not Found",
@@ -752,6 +816,7 @@ curl -X GET http://localhost:3001/api/stats/insights-summary \
 ```
 
 **Rate Limit Error (429):**
+
 ```json
 {
   "error": "Rate Limit Exceeded",
@@ -767,12 +832,15 @@ A complete OpenAPI 3.0 specification is available at `/docs/api/openapi.yaml`. T
 ## Testing
 
 ### Using curl
+
 All examples in this documentation can be tested using curl. Replace `YOUR_ACCESS_TOKEN` with actual tokens obtained from authentication endpoints.
 
 ### Using Postman
+
 Import the OpenAPI specification into Postman for a complete interactive API collection.
 
 ### Integration Tests
+
 The API includes comprehensive integration tests covering all endpoints. Run tests with:
 
 ```bash
@@ -782,6 +850,7 @@ npm run test:integration
 ## Support
 
 For API support or questions:
+
 - **Email**: support@runningapp.com
 - **Documentation**: See `/docs` directory
 - **Issues**: GitHub repository issues

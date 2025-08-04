@@ -7,6 +7,7 @@ This document summarizes the comprehensive middleware testing requirements for t
 ## Middleware Components to Test
 
 ### 1. Authentication Middleware (`requireAuth.ts`)
+
 <<<<<<< Updated upstream
 
 Located at: `/middleware/requireAuth.ts`
@@ -17,7 +18,9 @@ Located at: `/middleware/requireAuth.ts`
 Located at: `/middleware/requireAuth.ts`
 
 **Key Testing Areas:**
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - JWT token validation and parsing
 - Bearer token format verification
 - Expired token handling
@@ -30,12 +33,15 @@ Located at: `/middleware/requireAuth.ts`
 <<<<<<< Updated upstream
 
 =======
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - Token manipulation attempts
 - Timing attacks
 - Information disclosure in errors
 
 ### 2. Validation Middleware (`validation.ts`)
+
 <<<<<<< Updated upstream
 
 Located at: `/middleware/validation.ts`
@@ -46,7 +52,9 @@ Located at: `/middleware/validation.ts`
 Located at: `/middleware/validation.ts`
 
 **Key Testing Areas:**
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - Zod schema validation for all endpoints
 - Input sanitization (XSS prevention)
 - Field length and format validation
@@ -59,7 +67,9 @@ Located at: `/middleware/validation.ts`
 <<<<<<< Updated upstream
 
 =======
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - `registerSchema` - Email format, password complexity
 - `loginSchema` - Basic authentication validation
 - `createRunSchema` - Numeric validation, date formats
@@ -72,6 +82,7 @@ Located at: `/middleware/validation.ts`
 - `statsQuerySchema` - Query parameter validation
 
 ### 3. Rate Limiting Middleware (`rateLimiting.ts`)
+
 <<<<<<< Updated upstream
 
 Located at: `/middleware/rateLimiting.ts`
@@ -82,7 +93,9 @@ Located at: `/middleware/rateLimiting.ts`
 Located at: `/middleware/rateLimiting.ts`
 
 **Key Testing Areas:**
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - Request counting per time window
 - Different limits for different endpoint types:
   - Auth endpoints: 5 requests per 15 minutes
@@ -91,16 +104,16 @@ Located at: `/middleware/rateLimiting.ts`
   - Read endpoints: 200 requests per 15 minutes
   - Sensitive operations: 3 requests per hour
   - Global limit: 1000 requests per hour
-<<<<<<< Updated upstream
+    <<<<<<< Updated upstream
+- # Rate limit headers (X-RateLimit-\*)
 - Rate limit headers (X-RateLimit-\*)
-=======
-- Rate limit headers (X-RateLimit-*)
->>>>>>> Stashed changes
+  > > > > > > > Stashed changes
 - 429 status responses
 - Environment-based configuration
 - Custom key generation with user ID
 
 ### 4. Error Handler Middleware (`errorHandler.ts`)
+
 <<<<<<< Updated upstream
 
 Located at: `/middleware/errorHandler.ts`
@@ -111,7 +124,9 @@ Located at: `/middleware/errorHandler.ts`
 Located at: `/middleware/errorHandler.ts`
 
 **Key Testing Areas:**
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - Error response formatting
 - Status code mapping
 - Error categorization (client_error, server_error)
@@ -121,6 +136,7 @@ Located at: `/middleware/errorHandler.ts`
 - Custom error types (validation, not found, unauthorized, etc.)
 
 ### 5. Async Handler Middleware (`asyncHandler.ts`)
+
 <<<<<<< Updated upstream
 
 Located at: `/middleware/asyncHandler.ts`
@@ -131,7 +147,9 @@ Located at: `/middleware/asyncHandler.ts`
 Located at: `/middleware/asyncHandler.ts`
 
 **Key Testing Areas:**
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - Promise rejection handling
 - Error forwarding to next()
 - Context preservation
@@ -140,6 +158,7 @@ Located at: `/middleware/asyncHandler.ts`
 - Performance overhead
 
 ### 6. ValidateBody Middleware (`validateBody.ts`)
+
 <<<<<<< Updated upstream
 
 Located at: `/middleware/validateBody.ts`
@@ -150,7 +169,9 @@ Located at: `/middleware/validateBody.ts`
 Located at: `/middleware/validateBody.ts`
 
 **Key Testing Areas:**
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - Basic validation rules
 - Type checking (string, number, boolean, date)
 - Min/max constraints
@@ -179,7 +200,7 @@ describe('MiddlewareName', () => {
 <<<<<<< Updated upstream
 
 =======
-    
+
 >>>>>>> Stashed changes
     // Initialize mocks
     mockReq = {
@@ -191,7 +212,7 @@ describe('MiddlewareName', () => {
 <<<<<<< Updated upstream
 
 =======
-    
+
 >>>>>>> Stashed changes
     mockRes = {
       status: vi.fn().mockReturnThis(),
@@ -201,7 +222,7 @@ describe('MiddlewareName', () => {
 <<<<<<< Updated upstream
 
 =======
-    
+
 >>>>>>> Stashed changes
     mockNext = vi.fn();
   });
@@ -273,7 +294,9 @@ Use the test database utilities from `/tests/fixtures/testDatabase.ts`:
 <<<<<<< Updated upstream
 
 =======
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - `createTestUser()` - Creates test users
 - `generateTestToken()` - Generates valid JWT tokens
 - `cleanupDatabase()` - Cleans test data
@@ -284,7 +307,9 @@ Required environment variables for tests:
 <<<<<<< Updated upstream
 
 =======
->>>>>>> Stashed changes
+
+> > > > > > > Stashed changes
+
 - `NODE_ENV=test`
 - `JWT_SECRET` (use test value)
 - `DATABASE_URL` (test database)
@@ -317,8 +342,7 @@ npm run test:coverage -- tests/integration/middleware
 - Use realistic test data that matches production patterns
 - Test both success and failure paths thoroughly
 - Consider edge cases and boundary conditions
-<<<<<<< Updated upstream
+  <<<<<<< Updated upstream
+- # Ensure tests are deterministic and don't depend on timing
 - Ensure tests are deterministic and don't depend on timing
-=======
-- Ensure tests are deterministic and don't depend on timing
->>>>>>> Stashed changes
+  > > > > > > > Stashed changes

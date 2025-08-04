@@ -2,7 +2,7 @@
 
 /**
  * CI Performance Monitor
- * 
+ *
  * Monitors and optimizes CI/CD pipeline performance to achieve <5 minute runtime for PRs.
  * Tracks build times, test execution, and provides optimization recommendations.
  */
@@ -113,14 +113,14 @@ export class CIPerformanceMonitor {
         runner: 'local',
         nodeVersion: process.version,
         cacheHits: 0,
-        cacheMisses: 0
+        cacheMisses: 0,
       },
       metrics: {
         installTime: 0,
         lintTime: 0,
         testTime: 0,
-        buildTime: 0
-      }
+        buildTime: 0,
+      },
     };
 
     try {
@@ -146,13 +146,10 @@ export class CIPerformanceMonitor {
       // Step 4: Run tests
       await this.measureStep(run, 'test', 'Run Tests', async () => {
         const startTime = Date.now();
-        
+
         // Run tests in parallel where possible
-        const testCommands = [
-          'npm run test:run',
-          'npm run test:integration'
-        ];
-        
+        const testCommands = ['npm run test:run', 'npm run test:integration'];
+
         // For actual parallel execution, we'd use Promise.all
         // but for measurement, we'll run sequentially
         for (const cmd of testCommands) {
@@ -162,7 +159,7 @@ export class CIPerformanceMonitor {
             console.log(`⚠️  Test command failed: ${cmd}`);
           }
         }
-        
+
         run.metrics.testTime = Date.now() - startTime;
       });
 
@@ -179,11 +176,12 @@ export class CIPerformanceMonitor {
       console.log('\n📊 Performance Measurement Complete');
       console.log(`⏱️  Total Runtime: ${(run.totalDuration / 1000).toFixed(1)}s`);
       console.log(`🎯 Target: ${this.targetRuntime}s`);
-      console.log(`${run.totalDuration <= this.targetRuntime * 1000 ? '✅' : '❌'} Target ${run.totalDuration <= this.targetRuntime * 1000 ? 'MET' : 'MISSED'}\n`);
+      console.log(
+        `${run.totalDuration <= this.targetRuntime * 1000 ? '✅' : '❌'} Target ${run.totalDuration <= this.targetRuntime * 1000 ? 'MET' : 'MISSED'}\n`
+      );
 
       await this.saveRun(run);
       return run;
-
     } catch (error) {
       run.endTime = new Date();
       run.totalDuration = run.endTime.getTime() - run.startTime.getTime();
@@ -193,16 +191,16 @@ export class CIPerformanceMonitor {
   }
 
   private async measureStep(
-    run: WorkflowRun, 
-    id: string, 
-    name: string, 
+    run: WorkflowRun,
+    id: string,
+    name: string,
     action: () => Promise<void>
   ): Promise<void> {
     const step: WorkflowStep = {
       id,
       name,
       startTime: new Date(),
-      status: 'running'
+      status: 'running',
     };
 
     run.steps.push(step);
@@ -230,15 +228,13 @@ export class CIPerformanceMonitor {
     console.log('📊 Analyzing CI performance data...\n');
 
     const runs = this.loadRecentRuns(50);
-    
+
     if (runs.length === 0) {
       console.log('⚠️  No performance data available. Run measurePerformance() first.');
       return this.getEmptyMetrics();
     }
 
-    const runtimes = runs
-      .filter(run => run.totalDuration)
-      .map(run => run.totalDuration! / 1000);
+    const runtimes = runs.filter(run => run.totalDuration).map(run => run.totalDuration! / 1000);
 
     const metrics: PerformanceMetrics = {
       averageRuntime: this.average(runtimes),
@@ -251,7 +247,7 @@ export class CIPerformanceMonitor {
       cacheEfficiency: this.calculateCacheEfficiency(runs),
       parallelizationScore: this.calculateParallelizationScore(runs),
       targetMet: this.average(runtimes) <= this.targetRuntime,
-      lastUpdated: new Date()
+      lastUpdated: new Date(),
     };
 
     await this.saveMetrics(metrics);
@@ -266,7 +262,7 @@ export class CIPerformanceMonitor {
   async generateRecommendations(): Promise<OptimizationRecommendation[]> {
     const metrics = await this.analyzePerformance();
     const runs = this.loadRecentRuns(20);
-    
+
     const recommendations: OptimizationRecommendation[] = [];
 
     // Analyze bottlenecks and generate recommendations
@@ -287,12 +283,12 @@ export class CIPerformanceMonitor {
           'Review cache keys in GitHub Actions',
           'Implement more granular caching for node_modules',
           'Add cache warming for frequently used dependencies',
-          'Use action-specific caches (eslint, typescript, etc.)'
+          'Use action-specific caches (eslint, typescript, etc.)',
         ],
         examples: [
-          'cache: npm-${{ hashFiles(\'**/package-lock.json\') }}',
-          'cache-dependency-path: package-lock.json'
-        ]
+          "cache: npm-${{ hashFiles('**/package-lock.json') }}",
+          'cache-dependency-path: package-lock.json',
+        ],
       });
     }
 
@@ -308,8 +304,8 @@ export class CIPerformanceMonitor {
           'Split test suites into parallel jobs',
           'Use Jest/Vitest worker configuration',
           'Implement test sharding for E2E tests',
-          'Run linting and testing in parallel'
-        ]
+          'Run linting and testing in parallel',
+        ],
       });
     }
 
@@ -325,8 +321,8 @@ export class CIPerformanceMonitor {
           'Enable Vite build caching',
           'Use esbuild for faster TypeScript compilation',
           'Implement incremental builds',
-          'Split build and test stages'
-        ]
+          'Split build and test stages',
+        ],
       });
     }
 
@@ -340,14 +336,14 @@ export class CIPerformanceMonitor {
     console.log('🚀 Starting CI pipeline optimization...\n');
 
     const recommendations = await this.generateRecommendations();
-    
+
     console.log('📋 Optimization Recommendations:');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
 
     for (const [index, rec] of recommendations.entries()) {
-      const priorityEmoji = rec.priority === 'high' ? '🔴' : 
-                           rec.priority === 'medium' ? '🟡' : '🟢';
-      
+      const priorityEmoji =
+        rec.priority === 'high' ? '🔴' : rec.priority === 'medium' ? '🟡' : '🟢';
+
       console.log(`${index + 1}. ${priorityEmoji} ${rec.title}`);
       console.log(`   Impact: ${rec.impact}s savings | Effort: ${rec.effort}`);
       console.log(`   ${rec.description}\n`);
@@ -360,7 +356,7 @@ export class CIPerformanceMonitor {
 
     if (autoOptimizations.length > 0) {
       console.log('🔧 Applying automatic optimizations...\n');
-      
+
       for (const opt of autoOptimizations) {
         await this.applyOptimization(opt);
       }
@@ -372,7 +368,7 @@ export class CIPerformanceMonitor {
 
   private async applyOptimization(recommendation: OptimizationRecommendation): Promise<void> {
     console.log(`⚙️  Applying: ${recommendation.title}`);
-    
+
     switch (recommendation.category) {
       case 'caching':
         await this.optimizeCaching();
@@ -390,7 +386,7 @@ export class CIPerformanceMonitor {
         await this.optimizeTesting();
         break;
     }
-    
+
     console.log('✅ Applied successfully\n');
   }
 
@@ -429,9 +425,11 @@ export class CIPerformanceMonitor {
     console.log('   - Improved test isolation');
   }
 
-  private async generateOptimizedWorkflow(recommendations: OptimizationRecommendation[]): Promise<void> {
+  private async generateOptimizedWorkflow(
+    recommendations: OptimizationRecommendation[]
+  ): Promise<void> {
     const workflowPath = '.github/workflows/optimized-ci.yml';
-    
+
     const workflow = `name: Optimized CI Pipeline
 
 on:
@@ -592,11 +590,12 @@ jobs:
 
   private loadRecentRuns(count: number): WorkflowRun[] {
     try {
-      const files = fs.readdirSync(this.runsDir)
+      const files = fs
+        .readdirSync(this.runsDir)
         .filter(f => f.endsWith('.json'))
         .sort()
         .slice(-count);
-      
+
       return files.map(file => {
         const filepath = path.join(this.runsDir, file);
         const content = fs.readFileSync(filepath, 'utf8');
@@ -623,7 +622,7 @@ jobs:
       cacheEfficiency: 0,
       parallelizationScore: 0,
       targetMet: false,
-      lastUpdated: new Date()
+      lastUpdated: new Date(),
     };
   }
 
@@ -647,17 +646,17 @@ jobs:
 
   private calculateTrend(runs: WorkflowRun[]): 'improving' | 'stable' | 'degrading' {
     if (runs.length < 6) return 'stable';
-    
+
     const recent = runs.slice(-3).map(r => r.totalDuration || 0);
     const older = runs.slice(-6, -3).map(r => r.totalDuration || 0);
-    
+
     const recentAvg = this.average(recent);
     const olderAvg = this.average(older);
-    
+
     if (olderAvg === 0) return 'stable';
-    
+
     const change = (recentAvg - olderAvg) / olderAvg;
-    
+
     if (change < -0.1) return 'improving';
     if (change > 0.1) return 'degrading';
     return 'stable';
@@ -670,7 +669,7 @@ jobs:
     recommendations: string[];
   }> {
     const stepStats = new Map<string, number[]>();
-    
+
     for (const run of runs) {
       if (run.totalDuration) {
         // Add step durations
@@ -680,24 +679,25 @@ jobs:
         stepStats.set('build', [...(stepStats.get('build') || []), run.metrics.buildTime]);
       }
     }
-    
+
     const bottlenecks = [];
     const totalAvg = this.average(runs.map(r => r.totalDuration || 0));
-    
+
     for (const [step, durations] of stepStats) {
       const avgDuration = this.average(durations) / 1000;
       const percentage = (avgDuration / totalAvg) * 100;
-      
-      if (percentage > 20) { // Steps taking more than 20% of total time
+
+      if (percentage > 20) {
+        // Steps taking more than 20% of total time
         bottlenecks.push({
           step,
           avgDuration,
           percentage,
-          recommendations: this.getStepRecommendations(step, avgDuration)
+          recommendations: this.getStepRecommendations(step, avgDuration),
         });
       }
     }
-    
+
     return bottlenecks.sort((a, b) => b.percentage - a.percentage);
   }
 
@@ -706,25 +706,25 @@ jobs:
       install: [
         'Use npm ci --prefer-offline',
         'Implement better caching for node_modules',
-        'Consider using pnpm for faster installs'
+        'Consider using pnpm for faster installs',
       ],
       lint: [
         'Use ESLint cache',
         'Run linting only on changed files',
-        'Parallelize linting with type checking'
+        'Parallelize linting with type checking',
       ],
       test: [
         'Increase test parallelization',
         'Use in-memory database for tests',
-        'Implement test sharding'
+        'Implement test sharding',
       ],
       build: [
         'Enable build caching',
         'Use esbuild for faster compilation',
-        'Implement incremental builds'
-      ]
+        'Implement incremental builds',
+      ],
     };
-    
+
     return recommendations[step] || ['Optimize this step'];
   }
 
@@ -732,10 +732,10 @@ jobs:
     // Simplified calculation based on install times
     const installTimes = runs.map(r => r.metrics.installTime);
     if (installTimes.length < 2) return 0.5;
-    
+
     const avgInstallTime = this.average(installTimes);
     const minInstallTime = Math.min(...installTimes);
-    
+
     // Cache efficiency based on how close we are to the minimum install time
     return minInstallTime / avgInstallTime;
   }
@@ -746,35 +746,43 @@ jobs:
       if (!r.totalDuration) return 0;
       return r.metrics.testTime / r.totalDuration;
     });
-    
+
     const avgRatio = this.average(testTimeRatios);
-    
+
     // If tests take less than 40% of total time, parallelization is good
-    return Math.max(0, 1 - (avgRatio / 0.4));
+    return Math.max(0, 1 - avgRatio / 0.4);
   }
 
   private getRecommendationsForBottleneck(bottleneck: any): OptimizationRecommendation[] {
     // Convert bottleneck analysis to specific recommendations
-    return [{
-      category: 'testing',
-      priority: 'high',
-      impact: bottleneck.avgDuration * 0.3, // Assume 30% improvement possible
-      effort: 'medium',
-      title: `Optimize ${bottleneck.step} step`,
-      description: `${bottleneck.step} takes ${bottleneck.percentage.toFixed(1)}% of total runtime`,
-      implementation: bottleneck.recommendations
-    }];
+    return [
+      {
+        category: 'testing',
+        priority: 'high',
+        impact: bottleneck.avgDuration * 0.3, // Assume 30% improvement possible
+        effort: 'medium',
+        title: `Optimize ${bottleneck.step} step`,
+        description: `${bottleneck.step} takes ${bottleneck.percentage.toFixed(1)}% of total runtime`,
+        implementation: bottleneck.recommendations,
+      },
+    ];
   }
 
   private reportMetrics(metrics: PerformanceMetrics): void {
     console.log('\n📊 CI Performance Analysis');
-    console.log('=' .repeat(50));
-    
+    console.log('='.repeat(50));
+
     const targetEmoji = metrics.targetMet ? '✅' : '❌';
-    const trendEmoji = metrics.recentTrend === 'improving' ? '📈' : 
-                      metrics.recentTrend === 'degrading' ? '📉' : '➡️';
-    
-    console.log(`${targetEmoji} Target Status: ${metrics.targetMet ? 'MET' : 'MISSED'} (<${this.targetRuntime}s)`);
+    const trendEmoji =
+      metrics.recentTrend === 'improving'
+        ? '📈'
+        : metrics.recentTrend === 'degrading'
+          ? '📉'
+          : '➡️';
+
+    console.log(
+      `${targetEmoji} Target Status: ${metrics.targetMet ? 'MET' : 'MISSED'} (<${this.targetRuntime}s)`
+    );
     console.log(`⏱️  Average Runtime: ${metrics.averageRuntime.toFixed(1)}s`);
     console.log(`📊 Median Runtime: ${metrics.medianRuntime.toFixed(1)}s`);
     console.log(`📈 95th Percentile: ${metrics.p95Runtime.toFixed(1)}s`);
@@ -783,14 +791,16 @@ jobs:
     console.log(`${trendEmoji} Trend: ${metrics.recentTrend}`);
     console.log(`📦 Cache Efficiency: ${(metrics.cacheEfficiency * 100).toFixed(1)}%`);
     console.log(`⚡ Parallelization Score: ${(metrics.parallelizationScore * 100).toFixed(1)}%`);
-    
+
     if (metrics.bottlenecks.length > 0) {
       console.log('\n🔍 Performance Bottlenecks:');
       for (const bottleneck of metrics.bottlenecks.slice(0, 3)) {
-        console.log(`  • ${bottleneck.step}: ${bottleneck.avgDuration.toFixed(1)}s (${bottleneck.percentage.toFixed(1)}%)`);
+        console.log(
+          `  • ${bottleneck.step}: ${bottleneck.avgDuration.toFixed(1)}s (${bottleneck.percentage.toFixed(1)}%)`
+        );
       }
     }
-    
+
     console.log(`\n📅 Last Updated: ${metrics.lastUpdated.toISOString()}\n`);
   }
 }
@@ -798,31 +808,34 @@ jobs:
 // CLI interface
 if (import.meta.url === `file://${process.argv[1]}`) {
   const monitor = new CIPerformanceMonitor();
-  
+
   const command = process.argv[2];
-  
+
   switch (command) {
     case 'measure':
       monitor.measurePerformance().catch(console.error);
       break;
-      
+
     case 'analyze':
       monitor.analyzePerformance().catch(console.error);
       break;
-      
+
     case 'recommend':
-      monitor.generateRecommendations().then(recommendations => {
-        console.log('🎯 Optimization Recommendations:');
-        recommendations.forEach((rec, i) => {
-          console.log(`${i + 1}. ${rec.title} (${rec.impact}s savings)`);
-        });
-      }).catch(console.error);
+      monitor
+        .generateRecommendations()
+        .then(recommendations => {
+          console.log('🎯 Optimization Recommendations:');
+          recommendations.forEach((rec, i) => {
+            console.log(`${i + 1}. ${rec.title} (${rec.impact}s savings)`);
+          });
+        })
+        .catch(console.error);
       break;
-      
+
     case 'optimize':
       monitor.optimizePipeline().catch(console.error);
       break;
-      
+
     default:
       console.log('CI Performance Monitor');
       console.log('');

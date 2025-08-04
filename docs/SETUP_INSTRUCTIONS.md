@@ -5,12 +5,14 @@ This document provides step-by-step instructions for setting up the Running App 
 ## System Requirements
 
 ### Minimum Requirements
+
 - **CPU**: 2 cores
 - **RAM**: 4GB
 - **Storage**: 2GB free space
 - **OS**: macOS 10.15+, Windows 10+, or Ubuntu 18.04+
 
 ### Recommended Requirements
+
 - **CPU**: 4+ cores
 - **RAM**: 8GB+
 - **Storage**: 10GB free space
@@ -23,6 +25,7 @@ This document provides step-by-step instructions for setting up the Running App 
 #### Option A: Using Node Version Manager (Recommended)
 
 **macOS/Linux:**
+
 ```bash
 # Install nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
@@ -41,6 +44,7 @@ npm --version   # Should show 10.x.x
 ```
 
 **Windows:**
+
 1. Download nvm-windows from [github.com/coreybutler/nvm-windows](https://github.com/coreybutler/nvm-windows)
 2. Run the installer
 3. Open Command Prompt as Administrator
@@ -64,6 +68,7 @@ npm --version   # Should show 10.x.x
 ### Step 2: Install Git
 
 **macOS:**
+
 ```bash
 # Git comes with Xcode Command Line Tools
 xcode-select --install
@@ -73,11 +78,13 @@ brew install git
 ```
 
 **Windows:**
+
 1. Download from [git-scm.com](https://git-scm.com/download/win)
 2. Run the installer
 3. Use recommended settings
 
 **Linux:**
+
 ```bash
 # Debian/Ubuntu
 sudo apt-get update
@@ -139,6 +146,7 @@ cp .env.example .env
 ```
 
 Required environment variables:
+
 ```env
 # Server Configuration
 PORT=3001
@@ -216,6 +224,7 @@ npm run dev:full
 ```
 
 Visit:
+
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:3001/api/health
 
@@ -224,36 +233,43 @@ Visit:
 ### macOS
 
 #### Install Xcode Command Line Tools
+
 ```bash
 xcode-select --install
 ```
 
 #### Install Homebrew (if needed)
+
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
 #### Common Issues
+
 - If you get "xcrun: error", reinstall Xcode Command Line Tools
 - For M1/M2 Macs, ensure you're using native Node.js builds
 
 ### Windows
 
 #### Enable Developer Mode
+
 1. Settings → Update & Security → For Developers
 2. Enable "Developer Mode"
 
 #### Install Windows Build Tools
+
 ```bash
 # Run as Administrator
 npm install -g windows-build-tools
 ```
 
 #### Use PowerShell or Git Bash
+
 - Command Prompt may have issues with some scripts
 - PowerShell or Git Bash recommended
 
 #### Common Issues
+
 - Long path issues: Enable long paths in Windows
 - Permission errors: Run terminal as Administrator
 - Line ending issues: Configure Git to use LF endings
@@ -261,6 +277,7 @@ npm install -g windows-build-tools
 ### Linux
 
 #### Install Build Dependencies
+
 ```bash
 # Debian/Ubuntu
 sudo apt-get update
@@ -274,6 +291,7 @@ sudo pacman -S base-devel
 ```
 
 #### Common Issues
+
 - Permission errors: Don't use sudo with npm
 - Missing libraries: Install python3 and make
 
@@ -297,6 +315,7 @@ docker-compose logs -f
 ### VS Code Settings
 
 Create `.vscode/settings.json`:
+
 ```json
 {
   "editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -305,12 +324,7 @@ Create `.vscode/settings.json`:
     "source.fixAll.eslint": true
   },
   "typescript.tsdk": "node_modules/typescript/lib",
-  "eslint.validate": [
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact"
-  ]
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"]
 }
 ```
 

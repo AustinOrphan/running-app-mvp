@@ -30,11 +30,13 @@ This project implements comprehensive coverage trend tracking and reporting acro
 ### 📊 Coverage Metrics Collection
 
 #### Multi-Suite Support
+
 - **Unit Tests** (Vitest): Component and utility function coverage
 - **Integration Tests** (Jest): API and database interaction coverage
 - **Combined Coverage**: Aggregated metrics across all test suites
 
 #### Metric Types
+
 - **Statements**: Percentage of executed statements
 - **Branches**: Percentage of executed conditional branches
 - **Functions**: Percentage of called functions
@@ -43,11 +45,13 @@ This project implements comprehensive coverage trend tracking and reporting acro
 ### 📈 Trend Analysis
 
 #### Historical Tracking
+
 - Maintains up to 90 days of coverage history
 - Tracks coverage changes per commit/branch
 - Identifies patterns and trends over time
 
 #### Trend Calculation
+
 - Linear regression analysis for trend direction
 - Daily/weekly/monthly trend comparisons
 - Automatic detection of coverage degradation
@@ -55,11 +59,13 @@ This project implements comprehensive coverage trend tracking and reporting acro
 ### 🎯 Threshold Enforcement
 
 #### Configurable Thresholds
+
 - Global thresholds for all metrics
 - Per-suite threshold customization
 - Warning vs failure thresholds
 
 #### Enforcement Modes
+
 - **Strict Mode**: Fail CI on threshold violation
 - **Warning Mode**: Alert without failing builds
 - **Report Only**: Track without enforcement
@@ -92,11 +98,13 @@ This project implements comprehensive coverage trend tracking and reporting acro
 ### 🚨 Alerting System
 
 #### Automatic Alerts
+
 - GitHub issue creation for coverage drops
 - Threshold violation notifications
 - Trend degradation warnings
 
 #### Alert Conditions
+
 - Coverage below configured thresholds
 - Significant drops (>5% in any metric)
 - Declining trend detection
@@ -107,6 +115,7 @@ This project implements comprehensive coverage trend tracking and reporting acro
 ### Command Line Interface
 
 #### Basic Commands
+
 ```bash
 # Track coverage and generate all reports
 npm run coverage:track
@@ -125,6 +134,7 @@ npm run coverage:check
 ```
 
 #### Advanced Usage
+
 ```bash
 # Custom thresholds
 COVERAGE_THRESHOLD_STATEMENTS=90 npm run coverage:track
@@ -139,6 +149,7 @@ COVERAGE_OUTPUT_DIR=./custom-reports npm run coverage:track
 ### Configuration
 
 #### Environment Variables
+
 ```bash
 # Coverage thresholds (default: 80%)
 COVERAGE_THRESHOLD_STATEMENTS=80
@@ -154,6 +165,7 @@ COVERAGE_OUTPUT_DIR=./reports/coverage-trends
 ```
 
 #### Configuration File (.coveragerc.json)
+
 ```json
 {
   "thresholds": {
@@ -165,9 +177,9 @@ COVERAGE_OUTPUT_DIR=./reports/coverage-trends
     }
   },
   "trends": {
-    "historyLength": 90,      // Days of history to keep
-    "alertThreshold": 5,      // Percentage drop to trigger alert
-    "trendWindow": 30         // Days to analyze for trends
+    "historyLength": 90, // Days of history to keep
+    "alertThreshold": 5, // Percentage drop to trigger alert
+    "trendWindow": 30 // Days to analyze for trends
   }
 }
 ```
@@ -175,12 +187,15 @@ COVERAGE_OUTPUT_DIR=./reports/coverage-trends
 ### CI/CD Integration
 
 #### GitHub Actions Workflow
+
 The coverage tracking workflow runs automatically:
+
 - **Daily**: 6:00 AM UTC for continuous monitoring
 - **Post-CI**: After main CI pipeline completion
 - **Manual**: On-demand via workflow dispatch
 
 #### Workflow Features
+
 ```yaml
 # Manual trigger with options
 workflow_dispatch:
@@ -197,6 +212,7 @@ workflow_dispatch:
 ```
 
 #### PR Integration
+
 - Automatic coverage comments on pull requests
 - Threshold status in PR checks
 - Coverage change comparisons
@@ -204,18 +220,22 @@ workflow_dispatch:
 ### Report Interpretation
 
 #### Dashboard Overview
+
 The HTML dashboard provides:
+
 - **Current Coverage**: Real-time metrics for all categories
 - **Trend Charts**: 30-day coverage trends with interactive tooltips
 - **Threshold Status**: Visual indicators for pass/fail/warning
 - **Recommendations**: AI-generated improvement suggestions
 
 #### Trend Analysis
+
 - **Improving** (↑): Positive slope >0.1% per day
 - **Stable** (→): Slope between -0.1% and 0.1% per day
 - **Declining** (↓): Negative slope <-0.1% per day
 
 #### Alert Priorities
+
 - **Critical**: Coverage below threshold
 - **High**: Drop >5% in any metric
 - **Medium**: Declining trend over 7+ days
@@ -226,12 +246,14 @@ The HTML dashboard provides:
 ### Setting Appropriate Thresholds
 
 #### Initial Setup
+
 1. **Baseline**: Run coverage analysis on current codebase
 2. **Set Realistic Goals**: Start with achievable thresholds
 3. **Gradual Improvement**: Increase thresholds over time
 4. **Team Agreement**: Ensure team buy-in on targets
 
 #### Recommended Thresholds
+
 ```json
 {
   "new-projects": {
@@ -258,12 +280,14 @@ The HTML dashboard provides:
 ### Improving Coverage
 
 #### Quick Wins
+
 1. **Test Utilities**: Add tests for utility functions
 2. **Error Paths**: Cover error handling branches
 3. **Edge Cases**: Test boundary conditions
 4. **Default Values**: Test default parameter handling
 
 #### Strategic Improvements
+
 1. **Focus on Critical Paths**: Prioritize business-critical code
 2. **Refactor for Testability**: Break down complex functions
 3. **Mock External Dependencies**: Isolate code for testing
@@ -272,12 +296,14 @@ The HTML dashboard provides:
 ### Maintaining Coverage
 
 #### Regular Reviews
+
 - **Weekly**: Review coverage trends
 - **Sprint**: Address coverage in planning
 - **Monthly**: Adjust thresholds if needed
 - **Quarterly**: Strategic coverage goals
 
 #### Team Practices
+
 - **Pre-commit Hooks**: Check coverage locally
 - **PR Requirements**: Enforce coverage in reviews
 - **Coverage Champions**: Assign ownership
@@ -288,6 +314,7 @@ The HTML dashboard provides:
 ### Common Issues
 
 #### Coverage Not Collected
+
 ```bash
 # Check test execution
 npm run test:coverage
@@ -302,6 +329,7 @@ chmod +x scripts/coverage-trend-tracker.js
 ```
 
 #### Threshold Failures
+
 ```bash
 # View current coverage
 npm run coverage:collect
@@ -314,6 +342,7 @@ FAIL_ON_COVERAGE_THRESHOLD=false npm run coverage:track
 ```
 
 #### Missing Historical Data
+
 ```bash
 # Check history file
 ls reports/coverage-trends/coverage-history.json
@@ -326,6 +355,7 @@ npm run coverage:track
 ### Debug Mode
 
 #### Verbose Output
+
 ```bash
 # Enable debug logging
 DEBUG=coverage-tracker npm run coverage:track
@@ -336,6 +366,7 @@ npm run test:coverage:integration -- --verbose
 ```
 
 #### Manual Analysis
+
 ```bash
 # Analyze specific coverage files
 node -e "console.log(JSON.stringify(require('./coverage/coverage-summary.json'), null, 2))"
@@ -347,6 +378,7 @@ diff coverage/coverage-summary.json coverage-integration/coverage-summary.json
 ## Integration Examples
 
 ### Custom Reporters
+
 ```javascript
 // Custom coverage reporter
 const CoverageTrendTracker = require('./scripts/coverage-trend-tracker');
@@ -354,7 +386,7 @@ const CoverageTrendTracker = require('./scripts/coverage-trend-tracker');
 class CustomReporter extends CoverageTrendTracker {
   async generateReports() {
     await super.generateReports();
-    
+
     // Add custom reporting logic
     await this.sendSlackNotification();
     await this.updateJiraTicket();
@@ -363,6 +395,7 @@ class CustomReporter extends CoverageTrendTracker {
 ```
 
 ### API Integration
+
 ```javascript
 // Expose coverage data via API
 app.get('/api/coverage/current', async (req, res) => {
@@ -381,22 +414,23 @@ app.get('/api/coverage/trends', async (req, res) => {
 ```
 
 ### Dashboard Embedding
+
 ```html
 <!-- Embed coverage dashboard in internal docs -->
-<iframe 
+<iframe
   src="/reports/coverage-trends/coverage-trend-dashboard.html"
   width="100%"
   height="800px"
-  frameborder="0">
+  frameborder="0"
+>
 </iframe>
 
 <!-- Embed SVG chart -->
-<img src="/reports/coverage-trends/coverage-trend-chart.svg" 
-     alt="Coverage Trends"
-     width="800">
+<img src="/reports/coverage-trends/coverage-trend-chart.svg" alt="Coverage Trends" width="800" />
 ```
 
 ### CI/CD Pipeline Integration
+
 ```yaml
 # Jenkins pipeline example
 stage('Coverage Check') {
@@ -428,18 +462,20 @@ coverage:
 ## Advanced Features
 
 ### Multi-Project Support
+
 ```javascript
 // Track coverage across multiple projects
 const tracker = new CoverageTrendTracker({
   projects: [
     { name: 'frontend', path: './packages/frontend' },
     { name: 'backend', path: './packages/backend' },
-    { name: 'shared', path: './packages/shared' }
-  ]
+    { name: 'shared', path: './packages/shared' },
+  ],
 });
 ```
 
 ### Custom Metrics
+
 ```javascript
 // Add custom coverage metrics
 tracker.addMetric('complexity', {
@@ -447,20 +483,21 @@ tracker.addMetric('complexity', {
     // Custom metric collection logic
     return { total: 100, covered: 85, percentage: 85 };
   },
-  threshold: 80
+  threshold: 80,
 });
 ```
 
 ### Webhook Notifications
+
 ```javascript
 // Send coverage updates to webhooks
-tracker.on('thresholdViolation', async (data) => {
+tracker.on('thresholdViolation', async data => {
   await fetch(process.env.WEBHOOK_URL, {
     method: 'POST',
     body: JSON.stringify({
       event: 'coverage_threshold_violation',
-      data
-    })
+      data,
+    }),
   });
 });
 ```

@@ -9,6 +9,7 @@ Accepted
 ## Context
 
 We need to record the architectural decisions made on this project to:
+
 - Provide context for future developers
 - Document the reasoning behind key technical choices
 - Track alternatives that were considered
@@ -19,6 +20,7 @@ We need to record the architectural decisions made on this project to:
 We will use Architecture Decision Records (ADRs), as described by Michael Nygard in his article about documenting architecture decisions.
 
 ADRs will:
+
 - Be stored in `docs/adr/`
 - Be numbered sequentially (0001, 0002, etc.)
 - Follow a standard template
@@ -28,12 +30,14 @@ ADRs will:
 ## Consequences
 
 ### Positive
+
 - Future developers can understand the context behind architectural decisions
 - Provides a historical record of how the architecture evolved
 - Helps avoid revisiting the same decisions repeatedly
 - Improves onboarding for new team members
 
 ### Negative
+
 - Requires discipline to maintain
 - May become outdated if not actively maintained
 - Adds documentation overhead to the development process

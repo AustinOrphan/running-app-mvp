@@ -2,7 +2,7 @@
 
 /**
  * Validate CI Workflows
- * 
+ *
  * This script validates all GitHub Actions workflows in the repository to ensure they are:
  * 1. Valid YAML syntax
  * 2. Have required fields
@@ -43,7 +43,7 @@ class CIWorkflowValidator {
     'test:a11y:ci',
     'build',
     'ci-db-setup',
-    'ci-db-teardown'
+    'ci-db-teardown',
   ];
 
   constructor() {
@@ -60,7 +60,8 @@ class CIWorkflowValidator {
     }
 
     // Get all workflow files
-    const files = fs.readdirSync(this.workflowsDir)
+    const files = fs
+      .readdirSync(this.workflowsDir)
       .filter(file => file.endsWith('.yml') || file.endsWith('.yaml'))
       .filter(file => !file.endsWith('.disabled'));
 
@@ -87,7 +88,7 @@ class CIWorkflowValidator {
       workflow: filename,
       valid: true,
       errors: [],
-      warnings: []
+      warnings: [],
     };
 
     try {
@@ -126,7 +127,6 @@ class CIWorkflowValidator {
         // Check for deprecated actions
         this.checkDeprecatedActions(content, result);
       }
-
     } catch (error) {
       result.errors.push(`Failed to parse YAML: ${error.message}`);
       result.valid = false;
@@ -207,7 +207,7 @@ class CIWorkflowValidator {
       { pattern: /actions\/checkout@v[12]/, replacement: 'actions/checkout@v4' },
       { pattern: /actions\/setup-node@v[12]/, replacement: 'actions/setup-node@v4' },
       { pattern: /actions\/upload-artifact@v[12]/, replacement: 'actions/upload-artifact@v4' },
-      { pattern: /codecov\/codecov-action@v[12]/, replacement: 'codecov/codecov-action@v4' }
+      { pattern: /codecov\/codecov-action@v[12]/, replacement: 'codecov/codecov-action@v4' },
     ];
 
     deprecatedActions.forEach(({ pattern, replacement }) => {
@@ -225,7 +225,7 @@ class CIWorkflowValidator {
       const scripts = packageJson.scripts || {};
 
       const missingScripts = this.requiredScripts.filter(script => !scripts[script]);
-      
+
       if (missingScripts.length > 0) {
         console.log('⚠️  Missing required scripts in package.json:');
         missingScripts.forEach(script => console.log(`   - ${script}`));
@@ -236,7 +236,6 @@ class CIWorkflowValidator {
       // Check for CI-specific script configurations
       const ciScripts = Object.keys(scripts).filter(key => key.includes(':ci'));
       console.log(`\n📋 Found ${ciScripts.length} CI-specific scripts`);
-
     } catch (error) {
       console.error('❌ Failed to read package.json:', error.message);
     }

@@ -55,6 +55,7 @@ curl -X POST http://localhost:3001/api/goals \
 ### 3. Test currentValue Updates
 
 #### Update currentValue to 25km
+
 ```bash
 curl -X PUT http://localhost:3001/api/goals/GOAL_ID \
   -H "Content-Type: application/json" \
@@ -65,6 +66,7 @@ curl -X PUT http://localhost:3001/api/goals/GOAL_ID \
 ```
 
 #### Update currentValue to 75km
+
 ```bash
 curl -X PUT http://localhost:3001/api/goals/GOAL_ID \
   -H "Content-Type: application/json" \
@@ -75,6 +77,7 @@ curl -X PUT http://localhost:3001/api/goals/GOAL_ID \
 ```
 
 #### Update currentValue to reach target (should auto-complete goal)
+
 ```bash
 curl -X PUT http://localhost:3001/api/goals/GOAL_ID \
   -H "Content-Type: application/json" \
@@ -87,6 +90,7 @@ curl -X PUT http://localhost:3001/api/goals/GOAL_ID \
 ### 4. Test Validation (Should Return 400 Errors)
 
 #### Try to set negative currentValue
+
 ```bash
 curl -X PUT http://localhost:3001/api/goals/GOAL_ID \
   -H "Content-Type: application/json" \
@@ -97,6 +101,7 @@ curl -X PUT http://localhost:3001/api/goals/GOAL_ID \
 ```
 
 ### 5. Combined Updates
+
 You can also update currentValue along with other fields:
 
 ```bash
@@ -113,6 +118,7 @@ curl -X PUT http://localhost:3001/api/goals/GOAL_ID \
 ## Expected Responses
 
 ### Successful currentValue Update
+
 ```json
 {
   "id": "goal-uuid",
@@ -135,6 +141,7 @@ curl -X PUT http://localhost:3001/api/goals/GOAL_ID \
 ```
 
 ### Goal Auto-Completion (when currentValue >= targetValue)
+
 ```json
 {
   "id": "goal-uuid",
@@ -157,6 +164,7 @@ curl -X PUT http://localhost:3001/api/goals/GOAL_ID \
 ```
 
 ### Validation Error (negative currentValue)
+
 ```json
 {
   "error": true,

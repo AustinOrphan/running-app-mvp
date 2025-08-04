@@ -2,13 +2,13 @@
 
 /**
  * Configure Branch Protection Rules
- * 
+ *
  * This script configures GitHub branch protection rules for the repository.
  * It can be run manually for setup or testing purposes.
- * 
+ *
  * Usage:
  *   node scripts/configure-branch-protection.js
- * 
+ *
  * Environment Variables:
  *   GITHUB_TOKEN - Personal access token with repo permissions
  *   GITHUB_REPOSITORY - Repository in format "owner/repo" (optional)
@@ -22,20 +22,20 @@ const REQUIRED_STATUS_CHECKS = [
   'ci-lint-and-typecheck',
   'ci-unit-tests',
   'ci-integration-tests',
-  'ci-e2e-tests'
+  'ci-e2e-tests',
 ];
 
 const PROTECTION_CONFIG = {
   required_status_checks: {
     strict: true,
-    contexts: REQUIRED_STATUS_CHECKS
+    contexts: REQUIRED_STATUS_CHECKS,
   },
   enforce_admins: false,
   required_pull_request_reviews: {
     required_approving_review_count: 1,
     dismiss_stale_reviews: true,
     require_code_owner_reviews: false,
-    require_last_push_approval: false
+    require_last_push_approval: false,
   },
   restrictions: null,
   allow_force_pushes: false,
@@ -43,7 +43,7 @@ const PROTECTION_CONFIG = {
   block_creations: false,
   required_conversation_resolution: true,
   lock_branch: false,
-  allow_fork_syncing: true
+  allow_fork_syncing: true,
 };
 
 /**
@@ -62,11 +62,11 @@ function githubRequest(path, method = 'GET', data = null) {
       path,
       method,
       headers: {
-        'Authorization': `token ${token}`,
+        Authorization: `token ${token}`,
         'User-Agent': 'branch-protection-script',
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      }
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
     };
 
     if (data) {
@@ -74,17 +74,17 @@ function githubRequest(path, method = 'GET', data = null) {
       options.headers['Content-Length'] = Buffer.byteLength(jsonData);
     }
 
-    const req = https.request(options, (res) => {
+    const req = https.request(options, res => {
       let responseData = '';
-      
-      res.on('data', (chunk) => {
+
+      res.on('data', chunk => {
         responseData += chunk;
       });
-      
+
       res.on('end', () => {
         try {
           const result = responseData ? JSON.parse(responseData) : null;
-          
+
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve(result);
           } else {
@@ -96,14 +96,14 @@ function githubRequest(path, method = 'GET', data = null) {
       });
     });
 
-    req.on('error', (error) => {
+    req.on('error', error => {
       reject(error);
     });
 
     if (data) {
       req.write(JSON.stringify(data));
     }
-    
+
     req.end();
   });
 }
@@ -121,7 +121,7 @@ function getRepository() {
   try {
     const { execSync } = require('child_process');
     const remote = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
-    
+
     // Parse GitHub URL
     const match = remote.match(/github\.com[:/]([^/]+\/[^/.]+)/);
     if (match) {
@@ -143,7 +143,7 @@ async function configureBranchProtection() {
 
     const repository = getRepository();
     const [owner, repo] = repository.split('/');
-    
+
     console.log(`📁 Repository: ${repository}`);
     console.log(`🌿 Branch: ${BRANCH}\n`);
 
@@ -168,11 +168,13 @@ async function configureBranchProtection() {
       console.log('✅ Branch protection configured successfully\n');
     } catch (error) {
       console.error('❌ Failed to configure branch protection:', error.message);
-      
+
       if (error.message.includes('403')) {
-        console.log('💡 Note: This requires admin permissions or a personal access token with repo scope');
+        console.log(
+          '💡 Note: This requires admin permissions or a personal access token with repo scope'
+        );
       }
-      
+
       process.exit(1);
     }
 
@@ -180,23 +182,30 @@ async function configureBranchProtection() {
     console.log('🔍 Verifying protection rules...');
     try {
       const protection = await githubRequest(`/repos/${repository}/branches/${BRANCH}/protection`);
-      
+
       console.log('✅ Protection rules verified:\n');
       console.log('📋 Current configuration:');
-      console.log(`   - Required status checks: ${protection.required_status_checks?.contexts?.length || 0}`);
-      console.log(`   - Required reviews: ${protection.required_pull_request_reviews?.required_approving_review_count || 0}`);
-      console.log(`   - Dismiss stale reviews: ${protection.required_pull_request_reviews?.dismiss_stale_reviews || false}`);
+      console.log(
+        `   - Required status checks: ${protection.required_status_checks?.contexts?.length || 0}`
+      );
+      console.log(
+        `   - Required reviews: ${protection.required_pull_request_reviews?.required_approving_review_count || 0}`
+      );
+      console.log(
+        `   - Dismiss stale reviews: ${protection.required_pull_request_reviews?.dismiss_stale_reviews || false}`
+      );
       console.log(`   - Force pushes allowed: ${protection.allow_force_pushes?.enabled || false}`);
       console.log(`   - Deletions allowed: ${protection.allow_deletions?.enabled || false}`);
-      console.log(`   - Conversation resolution required: ${protection.required_conversation_resolution?.enabled || false}`);
-      
+      console.log(
+        `   - Conversation resolution required: ${protection.required_conversation_resolution?.enabled || false}`
+      );
+
       if (protection.required_status_checks?.contexts?.length > 0) {
         console.log('\n📊 Required status checks:');
         protection.required_status_checks.contexts.forEach(check => {
           console.log(`   - ${check}`);
         });
       }
-      
     } catch (error) {
       console.log('⚠️  Could not verify protection rules:', error.message);
     }
@@ -206,7 +215,6 @@ async function configureBranchProtection() {
     console.log('   1. Ensure your CI workflows use the correct job names');
     console.log('   2. Test the protection by creating a pull request');
     console.log('   3. Review the documentation in docs/BRANCH_PROTECTION.md');
-
   } catch (error) {
     console.error('💥 Unexpected error:', error.message);
     process.exit(1);

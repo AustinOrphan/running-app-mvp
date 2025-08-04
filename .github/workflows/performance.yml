@@ -60,7 +60,6 @@ jobs:
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN || github.token }}
 
-
   bundle-analysis:
     name: 📦 Bundle Analysis
     runs-on: ubuntu-latest

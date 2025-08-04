@@ -4,7 +4,7 @@ This directory contains Architecture Decision Records (ADRs) for the Running App
 
 ## What is an ADR?
 
-An Architecture Decision Record captures an important architectural decision made along with its context and consequences. ADRs help future developers understand not just *what* decisions were made, but *why* they were made and what alternatives were considered.
+An Architecture Decision Record captures an important architectural decision made along with its context and consequences. ADRs help future developers understand not just _what_ decisions were made, but _why_ they were made and what alternatives were considered.
 
 ## Index of ADRs
 
@@ -41,10 +41,12 @@ Date: YYYY-MM-DD
 ## Consequences
 
 ### Positive
+
 - [Positive consequence 1]
 - [Positive consequence 2]
 
 ### Negative
+
 - [Negative consequence 1]
 - [Negative consequence 2]
 
@@ -86,6 +88,7 @@ Date: YYYY-MM-DD
 ## When to Write an ADR
 
 Write an ADR when:
+
 - Choosing between significant architectural options
 - Making decisions that will be hard to reverse
 - Selecting key technologies or frameworks
@@ -95,6 +98,7 @@ Write an ADR when:
 ## When NOT to Write an ADR
 
 Don't write an ADR for:
+
 - Minor implementation details
 - Easily reversible decisions
 - Standard practices that follow established patterns

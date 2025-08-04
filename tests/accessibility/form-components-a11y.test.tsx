@@ -124,7 +124,7 @@ describe('Form Components Accessibility', () => {
 
       const emailInput = screen.getByLabelText('Email');
       const passwordInput = screen.getByLabelText('Password');
-      const loginButton = screen.getByRole('button', { name: 'Login' });
+      screen.getByRole('button', { name: 'Login' }); // loginButton
 
       // Fill form fields
       fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
@@ -508,7 +508,7 @@ describe('Form Components Accessibility', () => {
         />
       );
 
-      const tagSelect = screen.getByLabelText('Tag (optional)');
+      screen.getByLabelText('Tag (optional)'); // tagSelect
 
       // Check that select has proper options
       const options = screen.getAllByRole('option');

@@ -274,25 +274,25 @@
   - [x] Update mock implementations
   - [x] Fix response status codes
   - [x] Handle edge cases
-- [X] Handle async operations
-  - [X] Add proper await usage
-  - [X] Fix promise rejections
-  - [X] Handle timeouts
+- [x] Handle async operations
+  - [x] Add proper await usage
+  - [x] Fix promise rejections
+  - [x] Handle timeouts
 
 ### Improve test isolation
 
-- [X] Clean database between tests
-  - [X] Implement afterEach cleanup
-  - [X] Reset sequences
-  - [X] Clear all tables
-- [X] Reset application state
-  - [X] Clear in-memory caches
-  - [X] Reset global variables
-  - [X] Clean up side effects
-- [X] Fix test order dependencies
-  - [X] Make tests independent
-  - [X] Remove shared state
-  - [X] Fix data assumptions
+- [x] Clean database between tests
+  - [x] Implement afterEach cleanup
+  - [x] Reset sequences
+  - [x] Clear all tables
+- [x] Reset application state
+  - [x] Clear in-memory caches
+  - [x] Reset global variables
+  - [x] Clean up side effects
+- [x] Fix test order dependencies
+  - [x] Make tests independent
+  - [x] Remove shared state
+  - [x] Fix data assumptions
 
 ---
 
@@ -302,24 +302,24 @@
 
 ### Fix workflow configuration
 
-- [X] Review Security Summary job
-  - [X] Check job dependencies
-  - [X] Verify input requirements
-- [X] Fix job dependencies
-  - [X] Add needs declarations
-  - [X] Handle job ordering
+- [x] Review Security Summary job
+  - [x] Check job dependencies
+  - [x] Verify input requirements
+- [x] Fix job dependencies
+  - [x] Add needs declarations
+  - [x] Handle job ordering
 - [x] Handle empty scan results
   - [x] Add null checks
   - [x] Provide default values
 
 ### Update security policies
 
-- [X] Configure allowed vulnerabilities
-  - [X] Set severity thresholds
-  - [X] Add exceptions list
-- [X] Set proper severity thresholds
-  - [X] Configure high/critical only
-  - [X] Update reporting levels
+- [x] Configure allowed vulnerabilities
+  - [x] Set severity thresholds
+  - [x] Add exceptions list
+- [x] Set proper severity thresholds
+  - [x] Configure high/critical only
+  - [x] Update reporting levels
 
 ---
 
@@ -329,51 +329,51 @@
 
 ### Verify all fixes
 
-- [X] Run full test suite locally
-  - [X] Run all unit tests (1265 passed | 100 failed - 91% pass rate, canvas/accessibility issues identified)
-  - [X] Run all integration tests (Failed: Database locked, migration conflicts)
-  - [X] Run all E2E tests (235 tests run - multiple accessibility/timeout failures)
-- [X] Check CI status
-  - [X] Monitor all workflow runs
-  - [X] Verify 100% pass rate
-- [X] Monitor for flaky tests
-  - [X] Run tests multiple times
-  - [X] Check for intermittent failures
+- [x] Run full test suite locally
+  - [x] Run all unit tests (1265 passed | 100 failed - 91% pass rate, canvas/accessibility issues identified)
+  - [x] Run all integration tests (Failed: Database locked, migration conflicts)
+  - [x] Run all E2E tests (235 tests run - multiple accessibility/timeout failures)
+- [x] Check CI status
+  - [x] Monitor all workflow runs
+  - [x] Verify 100% pass rate
+- [x] Monitor for flaky tests
+  - [x] Run tests multiple times
+  - [x] Check for intermittent failures
 
 ### Documentation
 
-- [X] Update CLAUDE.md with fixes
-  - [X] Document new test commands
-  - [X] Add troubleshooting section
+- [x] Update CLAUDE.md with fixes
+  - [x] Document new test commands
+  - [x] Add troubleshooting section
 - [x] Document test patterns
   - [x] Create test best practices
-  - [X] Add example tests
-- [X] Add troubleshooting guide
-  - [X] Common failure scenarios
-  - [X] Debug commands
-  - [X] Fix procedures
+  - [x] Add example tests
+- [x] Add troubleshooting guide
+  - [x] Common failure scenarios
+  - [x] Debug commands
+  - [x] Fix procedures
 
 ### Performance optimization
 
-- [X] Enable test caching
-  - [X] Configure Jest cache
-  - [X] Set up Playwright cache
-  - [X] Implement result caching
-- [X] Parallelize where possible
-  - [X] Enable Jest workers
-  - [X] Configure Playwright shards
-  - [X] Optimize test grouping
-- [X] Optimize CI runtime
-  - [X] Review workflow efficiency
-  - [X] Remove redundant steps
-  - [X] Implement smart caching
+- [x] Enable test caching
+  - [x] Configure Jest cache
+  - [x] Set up Playwright cache
+  - [x] Implement result caching
+- [x] Parallelize where possible
+  - [x] Enable Jest workers
+  - [x] Configure Playwright shards
+  - [x] Optimize test grouping
+- [x] Optimize CI runtime
+  - [x] Review workflow efficiency
+  - [x] Remove redundant steps
+  - [x] Implement smart caching
 
 ---
 
 ## Quick Wins (Do First)
 
-- [X] Check if E2E test files actually exist
-- [X] Add missing test files with basic smoke tests
+- [x] Check if E2E test files actually exist
+- [x] Add missing test files with basic smoke tests
 - [ ] Fix obvious configuration issues
 - [ ] Standardize test patterns across all test types
 

@@ -2,7 +2,7 @@
 
 /**
  * Playwright Sharding Test Script
- * 
+ *
  * This script tests Playwright sharding configuration and demonstrates
  * how to run E2E tests in parallel across multiple shards.
  */
@@ -23,7 +23,7 @@ interface ShardResult {
 const runPlaywrightShard = (shardSpec: string, projectName?: string): Promise<ShardResult> => {
   return new Promise((resolve, reject) => {
     console.log(`🚀 Starting shard ${shardSpec}${projectName ? ` for ${projectName}` : ''}...`);
-    
+
     const startTime = Date.now();
     const env = {
       ...process.env,
@@ -44,18 +44,18 @@ const runPlaywrightShard = (shardSpec: string, projectName?: string): Promise<Sh
     let stdout = '';
     let stderr = '';
 
-    testProcess.stdout.on('data', (data) => {
+    testProcess.stdout.on('data', data => {
       const output = data.toString();
       stdout += output;
       // Log real-time output for this shard
       process.stdout.write(`[Shard ${shardSpec}] ${output}`);
     });
 
-    testProcess.stderr.on('data', (data) => {
+    testProcess.stderr.on('data', data => {
       stderr += data.toString();
     });
 
-    testProcess.on('close', (code) => {
+    testProcess.on('close', code => {
       const endTime = Date.now();
       const duration = endTime - startTime;
 
@@ -77,7 +77,7 @@ const runPlaywrightShard = (shardSpec: string, projectName?: string): Promise<Sh
       resolve(result);
     });
 
-    testProcess.on('error', (error) => {
+    testProcess.on('error', error => {
       console.error(`❌ Failed to start shard ${shardSpec}:`, error);
       reject(error);
     });
@@ -90,13 +90,13 @@ const testShardingConfiguration = async () => {
   // Test 1: Run without sharding (baseline)
   console.log('📊 Baseline Test (No Sharding)');
   console.log('================================');
-  
+
   const baselineStart = Date.now();
   try {
     // Run baseline without sharding by not setting PLAYWRIGHT_SHARD
     const baselineResult = await new Promise<ShardResult>((resolve, reject) => {
       console.log('🚀 Starting baseline test for chromium...');
-      
+
       const startTime = Date.now();
       const env = {
         ...process.env,
@@ -113,17 +113,17 @@ const testShardingConfiguration = async () => {
       let stdout = '';
       let stderr = '';
 
-      testProcess.stdout.on('data', (data) => {
+      testProcess.stdout.on('data', data => {
         const output = data.toString();
         stdout += output;
         process.stdout.write(`[Baseline] ${output}`);
       });
 
-      testProcess.stderr.on('data', (data) => {
+      testProcess.stderr.on('data', data => {
         stderr += data.toString();
       });
 
-      testProcess.on('close', (code) => {
+      testProcess.on('close', code => {
         const endTime = Date.now();
         const duration = endTime - startTime;
 
@@ -144,13 +144,13 @@ const testShardingConfiguration = async () => {
         resolve(result);
       });
 
-      testProcess.on('error', (error) => {
+      testProcess.on('error', error => {
         console.error(`❌ Failed to start baseline test:`, error);
         reject(error);
       });
     });
     const baselineEnd = Date.now();
-    
+
     console.log(`\n📈 Baseline Results:`);
     console.log(`Duration: ${baselineResult.duration}ms`);
     console.log(`Tests: ${baselineResult.testCount}`);
@@ -159,7 +159,7 @@ const testShardingConfiguration = async () => {
     // Test 2: Run with 2 shards
     console.log('🔀 Sharded Test (2 Shards)');
     console.log('===========================');
-    
+
     const shardStart = Date.now();
     const shardPromises = [
       runPlaywrightShard('1/2', 'chromium'),
@@ -171,7 +171,9 @@ const testShardingConfiguration = async () => {
 
     console.log(`\n📈 Sharded Results:`);
     shardResults.forEach(result => {
-      console.log(`Shard ${result.shard}: ${result.duration}ms, ${result.testCount} tests, ${result.status}`);
+      console.log(
+        `Shard ${result.shard}: ${result.duration}ms, ${result.testCount} tests, ${result.status}`
+      );
     });
 
     const totalShardTime = shardEnd - shardStart;
@@ -200,7 +202,6 @@ const testShardingConfiguration = async () => {
       shards: shardResults,
       improvement: improvementPercent,
     };
-
   } catch (error) {
     console.error('❌ Sharding test failed:', error);
     throw error;
@@ -209,20 +210,20 @@ const testShardingConfiguration = async () => {
 
 const demonstrateShardDistribution = async () => {
   console.log('\n🎯 Shard Distribution Examples\n');
-  
+
   console.log('Example 1: 2 Shards');
   console.log('PLAYWRIGHT_SHARD=1/2 npm run test:e2e');
   console.log('PLAYWRIGHT_SHARD=2/2 npm run test:e2e');
-  
+
   console.log('\nExample 2: 3 Shards');
   console.log('PLAYWRIGHT_SHARD=1/3 npm run test:e2e');
   console.log('PLAYWRIGHT_SHARD=2/3 npm run test:e2e');
   console.log('PLAYWRIGHT_SHARD=3/3 npm run test:e2e');
-  
+
   console.log('\nExample 3: Browser-specific sharding');
   console.log('PLAYWRIGHT_SHARD=1/2 npm run test:e2e -- --project chromium');
   console.log('PLAYWRIGHT_SHARD=2/2 npm run test:e2e -- --project chromium');
-  
+
   console.log('\nCI Environment Variables:');
   console.log('export PLAYWRIGHT_SHARD=1/2');
   console.log('export CI=true');
@@ -318,11 +319,8 @@ Track these metrics:
 - Resource utilization
 `;
 
-  await fs.writeFile(
-    path.join(process.cwd(), 'tests/docs/PLAYWRIGHT_SHARDING.md'),
-    docContent
-  );
-  
+  await fs.writeFile(path.join(process.cwd(), 'tests/docs/PLAYWRIGHT_SHARDING.md'), docContent);
+
   console.log('📝 Created documentation: tests/docs/PLAYWRIGHT_SHARDING.md');
 };
 
@@ -330,23 +328,22 @@ Track these metrics:
 async function main() {
   try {
     console.log('🎭 Playwright Sharding Configuration Test\n');
-    
+
     // Test the sharding configuration
     const results = await testShardingConfiguration();
-    
+
     // Show distribution examples
     demonstrateShardDistribution();
-    
+
     // Create documentation
     await createShardingDocumentation();
-    
+
     console.log('\n✅ Playwright sharding configuration completed successfully!');
     console.log('\n💡 Next Steps:');
     console.log('- Update CI/CD pipeline to use PLAYWRIGHT_SHARD environment variable');
     console.log('- Test with different shard counts (2, 3, 4) to find optimal performance');
     console.log('- Monitor resource usage and adjust worker count as needed');
     console.log('- Consider browser-specific sharding for large test suites');
-    
   } catch (error) {
     console.error('❌ Sharding configuration test failed:', error);
     process.exit(1);

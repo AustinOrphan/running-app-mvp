@@ -41,13 +41,7 @@ Add to `.vscode/launch.json`:
       "name": "Debug Single Vitest Test",
       "skipFiles": ["<node_internals>/**"],
       "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
-      "args": [
-        "run",
-        "${relativeFile}",
-        "-t",
-        "${selectedText}",
-        "--no-coverage"
-      ],
+      "args": ["run", "${relativeFile}", "-t", "${selectedText}", "--no-coverage"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
@@ -234,6 +228,7 @@ For debugging the entire application stack:
 ### Setting Up Chrome DevTools
 
 1. **Enable DevTools in Playwright**:
+
    ```typescript
    // playwright.config.ts
    export default defineConfig({
@@ -310,10 +305,10 @@ test('debug console output', async ({ page }) => {
 // Pause and inspect elements
 test('debug element selection', async ({ page }) => {
   await page.goto('/form');
-  
+
   // Pause execution to inspect elements
   await page.pause();
-  
+
   // Use DevTools Elements panel to:
   // - Inspect DOM structure
   // - Test selectors in Console
@@ -330,18 +325,18 @@ test('debug element selection', async ({ page }) => {
 test('profile page performance', async ({ page, browser }) => {
   const context = await browser.newContext();
   const cdp = await context.newCDPSession(page);
-  
+
   // Start profiling
   await cdp.send('Profiler.enable');
   await cdp.send('Profiler.start');
-  
+
   // Perform actions
   await page.goto('/dashboard');
   await page.click('[data-testid="load-data"]');
-  
+
   // Stop profiling
   const { profile } = await cdp.send('Profiler.stop');
-  
+
   // Analyze profile
   console.log('Profile data:', profile);
 });
@@ -354,18 +349,18 @@ test('debug memory leaks', async ({ page }) => {
   // Take heap snapshot
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('HeapProfiler.enable');
-  
+
   // Take initial snapshot
   await cdp.send('HeapProfiler.takeHeapSnapshot');
-  
+
   // Perform actions that might leak memory
   for (let i = 0; i < 10; i++) {
     await page.click('[data-testid="create-item"]');
   }
-  
+
   // Take final snapshot
   await cdp.send('HeapProfiler.takeHeapSnapshot');
-  
+
   // Compare snapshots in DevTools Memory panel
 });
 ```
@@ -391,17 +386,17 @@ export class TransactionalTestContext {
   async start() {
     // Start a transaction
     await this.prisma.$executeRaw`BEGIN`;
-    
+
     // Create a savepoint
     await this.prisma.$executeRaw`SAVEPOINT test_isolation`;
-    
+
     return this.prisma;
   }
 
   async rollback() {
     // Rollback to savepoint
     await this.prisma.$executeRaw`ROLLBACK TO SAVEPOINT test_isolation`;
-    
+
     // End transaction
     await this.prisma.$executeRaw`ROLLBACK`;
   }
@@ -428,9 +423,9 @@ describe('Isolated Database Tests', () => {
 
   test('creates data in isolation', async () => {
     const user = await prisma.user.create({
-      data: { email: 'test@example.com', password: 'hash' }
+      data: { email: 'test@example.com', password: 'hash' },
     });
-    
+
     expect(user).toBeDefined();
     // Data will be rolled back after test
   });
@@ -446,13 +441,13 @@ import { randomUUID } from 'crypto';
 export function createIsolatedTestDb() {
   const testId = randomUUID();
   const dbUrl = `file:./test-${testId}.db`;
-  
+
   return {
     url: dbUrl,
     cleanup: async () => {
       // Remove test database file
       await fs.unlink(dbUrl.replace('file:', ''));
-    }
+    },
   };
 }
 
@@ -460,9 +455,9 @@ export function createIsolatedTestDb() {
 test.concurrent('parallel test 1', async () => {
   const db = createIsolatedTestDb();
   process.env.DATABASE_URL = db.url;
-  
+
   // Run test with isolated database
-  
+
   await db.cleanup();
 });
 ```
@@ -494,7 +489,7 @@ test('handles API error', async () => {
       return res(ctx.status(500), ctx.json({ error: 'Server error' }));
     })
   );
-  
+
   // Test error handling
 });
 ```
@@ -518,10 +513,10 @@ export async function createIsolatedContext(
 
   // Clear all cookies
   await context.clearCookies();
-  
+
   // Clear all permissions
   await context.clearPermissions();
-  
+
   return context;
 }
 
@@ -529,9 +524,9 @@ export async function createIsolatedContext(
 test('isolated browser test', async ({ browser }) => {
   const context = await createIsolatedContext(browser);
   const page = await context.newPage();
-  
+
   // Test in complete isolation
-  
+
   await context.close();
 });
 ```
@@ -544,26 +539,26 @@ import { faker } from '@faker-js/faker';
 
 export class IsolatedDataFactory {
   private testId: string;
-  
+
   constructor() {
     this.testId = faker.datatype.uuid();
   }
-  
+
   createUser(overrides?: Partial<User>) {
     return {
       email: `test-${this.testId}@example.com`,
       name: `Test User ${this.testId}`,
-      ...overrides
+      ...overrides,
     };
   }
-  
+
   createGoal(userId: string, overrides?: Partial<Goal>) {
     return {
       id: `goal-${this.testId}`,
       userId,
       type: 'distance',
       targetValue: 25,
-      ...overrides
+      ...overrides,
     };
   }
 }
@@ -572,7 +567,7 @@ export class IsolatedDataFactory {
 test('isolated data test', async () => {
   const factory = new IsolatedDataFactory();
   const user = factory.createUser();
-  
+
   // Guaranteed unique email even in parallel tests
 });
 ```
@@ -587,24 +582,27 @@ test('isolated data test', async () => {
 // Add custom timeout and logging
 test('debug async timing', async () => {
   console.log('Test started at:', new Date().toISOString());
-  
+
   // Add explicit waits with logging
-  await waitFor(async () => {
-    console.log('Waiting for condition...');
-    const element = screen.queryByText('Loading...');
-    
-    if (element) {
-      console.log('Still loading at:', new Date().toISOString());
+  await waitFor(
+    async () => {
+      console.log('Waiting for condition...');
+      const element = screen.queryByText('Loading...');
+
+      if (element) {
+        console.log('Still loading at:', new Date().toISOString());
+      }
+
+      expect(element).not.toBeInTheDocument();
+    },
+    {
+      timeout: 5000,
+      onTimeout: () => {
+        console.error('Timeout reached!');
+        console.log('Current DOM:', screen.debug());
+      },
     }
-    
-    expect(element).not.toBeInTheDocument();
-  }, {
-    timeout: 5000,
-    onTimeout: () => {
-      console.error('Timeout reached!');
-      console.log('Current DOM:', screen.debug());
-    }
-  });
+  );
 });
 ```
 
@@ -614,7 +612,7 @@ test('debug async timing', async () => {
 // Use deterministic promises
 test('debug race condition', async () => {
   const results: string[] = [];
-  
+
   // Control promise resolution order
   const promise1 = new Promise(resolve => {
     setTimeout(() => {
@@ -622,18 +620,18 @@ test('debug race condition', async () => {
       resolve('first');
     }, 100);
   });
-  
+
   const promise2 = new Promise(resolve => {
     setTimeout(() => {
       results.push('second');
       resolve('second');
     }, 50);
   });
-  
+
   // Force sequential execution
   await promise1;
   await promise2;
-  
+
   console.log('Execution order:', results);
   expect(results).toEqual(['first', 'second']);
 });
@@ -652,23 +650,23 @@ describe('Memory Leak Detection', () => {
 
   test('detect component memory leak', async () => {
     const initialMemory = process.memoryUsage().heapUsed;
-    
+
     // Render and unmount component multiple times
     for (let i = 0; i < 100; i++) {
       const { unmount } = render(<HeavyComponent />);
       unmount();
     }
-    
+
     // Force garbage collection
     if (global.gc) {
       global.gc();
     }
-    
+
     const finalMemory = process.memoryUsage().heapUsed;
     const memoryIncrease = finalMemory - initialMemory;
-    
+
     console.log(`Memory increase: ${memoryIncrease / 1024 / 1024} MB`);
-    
+
     // Should not increase significantly
     expect(memoryIncrease).toBeLessThan(10 * 1024 * 1024); // 10MB
   });
@@ -681,13 +679,13 @@ describe('Memory Leak Detection', () => {
 // tests/debug/flakyTestDebugger.ts
 export class FlakyTestDebugger {
   private results: boolean[] = [];
-  
+
   async runMultipleTimes(
     testFn: () => Promise<void>,
     times: number = 10
   ) {
     console.log(`Running test ${times} times to detect flakiness...`);
-    
+
     for (let i = 0; i < times; i++) {
       try {
         await testFn();
@@ -698,10 +696,10 @@ export class FlakyTestDebugger {
         console.log(`Run ${i + 1}: ❌ FAILED - ${error.message}`);
       }
     }
-    
+
     const failureRate = this.results.filter(r => !r).length / times;
     console.log(`\nFailure rate: ${failureRate * 100}%`);
-    
+
     return {
       failureRate,
       results: this.results
@@ -712,13 +710,13 @@ export class FlakyTestDebugger {
 // Use in test
 test('debug flaky test', async () => {
   const debugger = new FlakyTestDebugger();
-  
+
   const { failureRate } = await debugger.runMultipleTimes(async () => {
     // Your potentially flaky test code
     const result = await fetchDataWithTimeout();
     expect(result).toBeDefined();
   });
-  
+
   expect(failureRate).toBe(0); // Should never fail
 });
 ```
@@ -731,22 +729,19 @@ test('debug flaky test', async () => {
 // tests/debug/performanceProfiler.ts
 export class TestPerformanceProfiler {
   private timings: Map<string, number[]> = new Map();
-  
-  async measure<T>(
-    name: string,
-    fn: () => Promise<T>
-  ): Promise<T> {
+
+  async measure<T>(name: string, fn: () => Promise<T>): Promise<T> {
     const start = performance.now();
-    
+
     try {
       const result = await fn();
       const duration = performance.now() - start;
-      
+
       if (!this.timings.has(name)) {
         this.timings.set(name, []);
       }
       this.timings.get(name)!.push(duration);
-      
+
       return result;
     } catch (error) {
       const duration = performance.now() - start;
@@ -754,15 +749,15 @@ export class TestPerformanceProfiler {
       throw error;
     }
   }
-  
+
   report() {
     console.log('\n=== Performance Report ===');
-    
+
     for (const [name, durations] of this.timings) {
       const avg = durations.reduce((a, b) => a + b) / durations.length;
       const max = Math.max(...durations);
       const min = Math.min(...durations);
-      
+
       console.log(`${name}:`);
       console.log(`  Average: ${avg.toFixed(2)}ms`);
       console.log(`  Min: ${min.toFixed(2)}ms`);
@@ -778,11 +773,11 @@ test('performance test', async () => {
   await profiler.measure('database-query', async () => {
     return await prisma.user.findMany();
   });
-  
+
   await profiler.measure('api-call', async () => {
     return await fetch('/api/data');
   });
-  
+
   profiler.report();
 });
 ```
@@ -800,10 +795,10 @@ const prisma = new PrismaClient({
   ],
 });
 
-prisma.$on('query', (e) => {
+prisma.$on('query', e => {
   console.log('Query:', e.query);
   console.log('Duration:', e.duration, 'ms');
-  
+
   if (e.duration > 100) {
     console.warn('⚠️ Slow query detected!');
   }
@@ -889,17 +884,15 @@ console.log('Path mappings:', compilerOptions.paths);
 test('potentially hanging test', async () => {
   // Set aggressive timeout
   jest.setTimeout(5000);
-  
+
   // Add progress logging
   console.log('Starting async operation...');
-  
+
   const result = await Promise.race([
     performOperation(),
-    new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Operation timeout')), 4000)
-    )
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Operation timeout')), 4000)),
   ]);
-  
+
   console.log('Operation completed');
 });
 ```
@@ -912,10 +905,10 @@ beforeEach(() => {
   // Mock timers
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2024-01-15'));
-  
+
   // Mock random
   vi.spyOn(Math, 'random').mockReturnValue(0.5);
-  
+
   // Clear all caches
   vi.clearAllMocks();
 });
@@ -935,25 +928,25 @@ export const debugHelpers = {
   log: (message: string, data?: any) => {
     console.log(`[${new Date().toISOString()}] ${message}`, data || '');
   },
-  
+
   // Log current DOM state
   logDOM: () => {
     console.log('Current DOM:', document.body.innerHTML);
   },
-  
+
   // Log all event listeners
   logEventListeners: (element: HTMLElement) => {
     const events = getEventListeners(element);
     console.log('Event listeners:', events);
   },
-  
+
   // Take screenshot in E2E
   screenshot: async (page: Page, name: string) => {
-    await page.screenshot({ 
+    await page.screenshot({
       path: `debug-screenshots/${name}-${Date.now()}.png`,
-      fullPage: true 
+      fullPage: true,
     });
-  }
+  },
 };
 ```
 

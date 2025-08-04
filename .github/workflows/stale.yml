@@ -157,7 +157,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           # Status with null handling and default values
           stale_result="${{ needs.stale.result || 'not_run' }}"
-          
+
           if [ "$stale_result" = "success" ]; then
             echo "✅ **Status:** Completed successfully" >> $GITHUB_STEP_SUMMARY
           elif [ "$stale_result" = "failure" ]; then

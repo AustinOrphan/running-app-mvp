@@ -34,11 +34,13 @@ This project implements comprehensive deployment pipelines for staging and produ
 **Purpose**: Automated staging deployment for testing and validation
 
 **Triggers**:
+
 - Push to `main` branch
 - Manual workflow dispatch
 - Rollback scenarios
 
 **Features**:
+
 - Pre-deployment validation (tests, security, build)
 - Automated deployment with health checks
 - Post-deployment testing and monitoring
@@ -48,6 +50,7 @@ This project implements comprehensive deployment pipelines for staging and produ
 **Pipeline Stages**:
 
 #### Pre-deployment Checks
+
 ```yaml
 - Security scanning (quick scan)
 - Test suite execution (unit + integration)
@@ -57,6 +60,7 @@ This project implements comprehensive deployment pipelines for staging and produ
 ```
 
 #### Staging Deployment
+
 ```yaml
 - Database migration execution
 - Application deployment
@@ -65,6 +69,7 @@ This project implements comprehensive deployment pipelines for staging and produ
 ```
 
 #### Post-deployment Testing
+
 ```yaml
 - Smoke tests against staging
 - Integration test subset
@@ -72,6 +77,7 @@ This project implements comprehensive deployment pipelines for staging and produ
 ```
 
 **Configuration**:
+
 ```yaml
 # Staging environment settings
 environment:
@@ -88,10 +94,12 @@ NODE_VERSION: '20'
 **Purpose**: Controlled production deployment with extensive validation
 
 **Triggers**:
+
 - Manual workflow dispatch only
 - Requires staging deployment ID for promotion
 
 **Features**:
+
 - Production approval gates
 - Blue-green deployment strategy
 - Comprehensive pre-production validation
@@ -102,6 +110,7 @@ NODE_VERSION: '20'
 **Pipeline Stages**:
 
 #### Production Approval
+
 ```yaml
 - Manual approval requirement
 - Deployment request validation
@@ -109,6 +118,7 @@ NODE_VERSION: '20'
 ```
 
 #### Pre-production Validation
+
 ```yaml
 - Staging deployment verification
 - Enhanced security scanning
@@ -117,6 +127,7 @@ NODE_VERSION: '20'
 ```
 
 #### Production Deployment
+
 ```yaml
 - Maintenance mode activation (optional)
 - Database backup creation
@@ -127,6 +138,7 @@ NODE_VERSION: '20'
 ```
 
 #### Production Validation
+
 ```yaml
 - Critical path smoke tests
 - Performance monitoring
@@ -135,6 +147,7 @@ NODE_VERSION: '20'
 ```
 
 **Configuration**:
+
 ```yaml
 # Production environment settings
 environment:
@@ -151,10 +164,12 @@ HEALTH_CHECK_TIMEOUT: '300' # 5 minutes
 **Purpose**: Emergency rollback capabilities for both staging and production
 
 **Triggers**:
+
 - Manual workflow dispatch only
 - Emergency escalation procedures
 
 **Features**:
+
 - Multi-environment support (staging/production)
 - Version validation and compatibility checking
 - Database rollback options
@@ -164,6 +179,7 @@ HEALTH_CHECK_TIMEOUT: '300' # 5 minutes
 **Rollback Types**:
 
 #### Standard Rollback
+
 ```yaml
 - Full validation and approval
 - Database compatibility checking
@@ -172,6 +188,7 @@ HEALTH_CHECK_TIMEOUT: '300' # 5 minutes
 ```
 
 #### Emergency Rollback
+
 ```yaml
 - Reduced validation for speed
 - Critical path testing only
@@ -180,6 +197,7 @@ HEALTH_CHECK_TIMEOUT: '300' # 5 minutes
 ```
 
 **Configuration**:
+
 ```yaml
 # Rollback timeout settings
 ROLLBACK_TIMEOUT: '900' # 15 minutes
@@ -201,6 +219,7 @@ options:
 **Implementation**: Used for production deployments to minimize downtime
 
 **Process**:
+
 1. **Blue Environment**: Current production (live traffic)
 2. **Green Environment**: New version deployment
 3. **Validation**: Test green environment thoroughly
@@ -208,6 +227,7 @@ options:
 5. **Cleanup**: Remove blue environment after validation
 
 **Benefits**:
+
 - Zero-downtime deployments
 - Instant rollback capability
 - Full environment testing before traffic switch
@@ -218,6 +238,7 @@ options:
 **Implementation**: Used for staging environments and gradual updates
 
 **Process**:
+
 1. **Staged Updates**: Update instances incrementally
 2. **Health Validation**: Check each instance before proceeding
 3. **Traffic Balancing**: Maintain service availability
@@ -228,6 +249,7 @@ options:
 **Implementation**: Available for production risk mitigation
 
 **Process**:
+
 1. **Canary Release**: Deploy to small subset of infrastructure
 2. **Traffic Routing**: Direct small percentage of traffic to canary
 3. **Monitoring**: Watch metrics and user feedback
@@ -238,12 +260,14 @@ options:
 ### Migration Execution
 
 #### Staging Migrations
+
 ```bash
 # Automatic execution during staging deployment
 npx prisma migrate deploy
 ```
 
 #### Production Migrations
+
 ```bash
 # Manual approval required for production
 # Backup creation before migration
@@ -254,12 +278,14 @@ npx prisma migrate deploy --preview-feature
 ### Migration Safety
 
 #### Forward Migrations
+
 - **Validation**: Dry-run execution in staging
 - **Backup**: Full database backup before execution
 - **Monitoring**: Real-time migration progress tracking
 - **Rollback**: Prepared rollback scripts for emergency scenarios
 
 #### Rollback Migrations
+
 - **Compatibility**: Ensure data compatibility across versions
 - **Testing**: Extensive testing of rollback procedures
 - **Automation**: Automated rollback execution where possible
@@ -311,12 +337,14 @@ HEALTH_CHECK_INTERVAL: 15s
 ### Security Validations
 
 #### Pre-deployment Security
+
 - **Dependency Scanning**: Check for vulnerable dependencies
 - **Secret Detection**: Scan for exposed credentials
 - **Code Analysis**: Static security analysis
 - **Configuration Review**: Validate security configurations
 
 #### Runtime Security
+
 - **Network Policies**: Restrict inter-service communication
 - **Resource Limits**: Prevent resource exhaustion attacks
 - **Access Controls**: Implement proper authentication/authorization
@@ -325,6 +353,7 @@ HEALTH_CHECK_INTERVAL: 15s
 ### Secrets Management
 
 #### Environment Variables
+
 ```yaml
 # Staging secrets
 STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
@@ -342,6 +371,7 @@ PRODUCTION_API_KEYS: ${{ secrets.PRODUCTION_API_KEYS }}
 ### Deployment Monitoring
 
 #### Key Metrics
+
 - **Deployment Success Rate**: Percentage of successful deployments
 - **Deployment Duration**: Time from start to completion
 - **Rollback Frequency**: Number of rollbacks per deployment
@@ -350,14 +380,16 @@ PRODUCTION_API_KEYS: ${{ secrets.PRODUCTION_API_KEYS }}
 #### Health Checks
 
 #### Application Health
+
 ```javascript
 // Health check endpoints
-GET /health/liveness  // Basic application responsiveness
-GET /health/readiness // Ready to handle traffic
-GET /health/startup   // Startup completion status
+GET / health / liveness; // Basic application responsiveness
+GET / health / readiness; // Ready to handle traffic
+GET / health / startup; // Startup completion status
 ```
 
 #### Infrastructure Health
+
 ```yaml
 # Monitoring checks
 - Database connectivity
@@ -370,12 +402,14 @@ GET /health/startup   // Startup completion status
 ### Alerting Strategy
 
 #### Critical Alerts
+
 - **Deployment Failures**: Immediate notification for failed deployments
 - **Health Check Failures**: Alert when health checks fail
 - **Performance Degradation**: Monitor response time increases
 - **Error Rate Spikes**: Track application error increases
 
 #### Alert Channels
+
 ```yaml
 # Notification targets
 - Slack: #alerts-deployment
@@ -389,6 +423,7 @@ GET /health/startup   // Startup completion status
 ### GitHub Actions Integration
 
 #### Workflow Dependencies
+
 ```yaml
 # Staging deployment triggers
 on:
@@ -405,6 +440,7 @@ environment: production-approval
 ```
 
 #### Artifact Management
+
 ```yaml
 # Build artifacts
 - name: Upload build artifacts
@@ -420,6 +456,7 @@ environment: production-approval
 ### Deployment Scripts
 
 #### Local Development Scripts
+
 ```bash
 # Package.json scripts
 "deploy:staging": "npm run build && npm run deploy:staging:run",
@@ -433,11 +470,13 @@ environment: production-approval
 ### Backup Strategy
 
 #### Automated Backups
+
 - **Database**: Daily automated backups with 30-day retention
 - **Application State**: Configuration and deployment artifacts
 - **Secrets**: Encrypted backup of environment variables
 
 #### Recovery Procedures
+
 ```yaml
 # Recovery time objectives
 RTO (Recovery Time Objective): 15 minutes
@@ -455,6 +494,7 @@ RPO (Recovery Point Objective): 1 hour
 ### Business Continuity
 
 #### Service Level Objectives (SLOs)
+
 - **Availability**: 99.9% uptime per month
 - **Response Time**: 95% of requests under 500ms
 - **Error Rate**: Less than 0.1% error rate
@@ -465,6 +505,7 @@ RPO (Recovery Point Objective): 1 hour
 ### Common Deployment Issues
 
 #### Build Failures
+
 ```bash
 # Symptom: Build process fails
 # Diagnosis:
@@ -480,6 +521,7 @@ npm run typecheck
 ```
 
 #### Health Check Failures
+
 ```bash
 # Symptom: Application fails health checks
 # Diagnosis:
@@ -494,6 +536,7 @@ kubectl logs deployment/running-app-staging
 ```
 
 #### Database Migration Failures
+
 ```bash
 # Symptom: Migration fails during deployment
 # Diagnosis:
@@ -510,6 +553,7 @@ npx prisma migrate diff
 ### Emergency Procedures
 
 #### Production Incident Response
+
 1. **Assessment**: Determine severity and impact
 2. **Notification**: Alert stakeholder and on-call team
 3. **Mitigation**: Execute rollback if necessary
@@ -518,8 +562,10 @@ npx prisma migrate diff
 6. **Documentation**: Create incident report
 
 #### Communication Templates
+
 ```markdown
 # Incident Notification Template
+
 Subject: [INCIDENT] Production Deployment Issue - ${SEVERITY}
 
 Impact: ${USER_IMPACT}
@@ -535,12 +581,14 @@ Updates will be provided every 15 minutes.
 ### Deployment Performance
 
 #### Build Optimization
+
 - **Parallel Builds**: Utilize multiple workers
 - **Caching**: Implement aggressive caching strategies
 - **Dependency Optimization**: Minimize bundle sizes
 - **Asset Optimization**: Compress and optimize static assets
 
 #### Deployment Speed
+
 - **Container Optimization**: Multi-stage builds and layer caching
 - **Parallel Deployment**: Deploy multiple services simultaneously
 - **Health Check Tuning**: Optimize health check intervals
@@ -549,6 +597,7 @@ Updates will be provided every 15 minutes.
 ### Monitoring Performance
 
 #### Deployment Metrics Dashboard
+
 ```yaml
 # Key performance indicators
 - Average deployment time: < 10 minutes
@@ -562,6 +611,7 @@ Updates will be provided every 15 minutes.
 ### Deployment Auditing
 
 #### Audit Trail Requirements
+
 - **Who**: User who initiated deployment
 - **What**: Changes being deployed
 - **When**: Deployment timestamp
@@ -569,6 +619,7 @@ Updates will be provided every 15 minutes.
 - **Why**: Deployment reason/ticket reference
 
 #### Compliance Standards
+
 - **SOX Compliance**: Financial controls and approval workflows
 - **GDPR Compliance**: Data protection during deployments
 - **SOC 2**: Security and availability controls
@@ -577,8 +628,10 @@ Updates will be provided every 15 minutes.
 ### Documentation Requirements
 
 #### Change Management
+
 ```markdown
 # Deployment Change Record
+
 - Change ID: ${CHANGE_ID}
 - Risk Assessment: ${RISK_LEVEL}
 - Approval: ${APPROVER}
@@ -592,12 +645,14 @@ Updates will be provided every 15 minutes.
 ### Planned Improvements
 
 #### Advanced Deployment Strategies
+
 - **Progressive Delivery**: Feature flags and gradual rollouts
 - **A/B Testing**: Built-in experimentation capabilities
 - **Multi-region Deployment**: Geographic distribution
 - **Edge Deployment**: CDN and edge computing integration
 
 #### Enhanced Monitoring
+
 - **Predictive Analytics**: AI-powered deployment success prediction
 - **Automated Rollback**: Intelligent rollback based on metrics
 - **Performance Regression Detection**: Automated performance validation

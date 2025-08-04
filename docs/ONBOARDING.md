@@ -44,6 +44,7 @@ Before you begin, ensure you have the following installed:
 ### Installing Prerequisites
 
 #### macOS
+
 ```bash
 # Install Homebrew if not already installed
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -57,11 +58,13 @@ npm --version
 ```
 
 #### Windows
+
 1. Download and install Node.js from [nodejs.org](https://nodejs.org/)
 2. Choose the LTS version (20.x)
 3. The installer includes npm
 
 #### Linux
+
 ```bash
 # Using NodeSource repository
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -85,6 +88,7 @@ npm run setup
 ```
 
 This command will:
+
 - Install npm dependencies
 - Initialize the SQLite database
 - Run initial migrations
@@ -168,6 +172,7 @@ running-app-mvp/
 ### Technology Stack
 
 #### Frontend
+
 - **React 18**: UI library
 - **TypeScript**: Type safety
 - **Vite**: Build tool and dev server
@@ -176,6 +181,7 @@ running-app-mvp/
 - **Axios**: HTTP client
 
 #### Backend
+
 - **Express.js**: Web framework
 - **TypeScript**: Type safety
 - **Prisma ORM**: Database access
@@ -184,12 +190,14 @@ running-app-mvp/
 - **bcrypt**: Password hashing
 
 #### Testing
+
 - **Vitest**: Unit testing
 - **Jest**: Integration testing
 - **Playwright**: E2E testing
 - **Testing Library**: React component testing
 
 #### DevOps
+
 - **GitHub Actions**: CI/CD
 - **Husky**: Git hooks
 - **ESLint**: Linting
@@ -271,6 +279,7 @@ npm run dev:full
 ### Making Code Changes
 
 1. **Create a feature branch**:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -278,22 +287,24 @@ npm run dev:full
 2. **Make your changes**
 
 3. **Run tests locally**:
+
    ```bash
    # Unit tests
    npm run test:run
-   
+
    # Integration tests
    npm run test:integration
-   
+
    # Specific test file
    npm run test -- path/to/test.spec.ts
    ```
 
 4. **Check code quality**:
+
    ```bash
    # Run all checks
    npm run lint:check
-   
+
    # Auto-fix issues
    npm run lint:fix
    ```
@@ -330,6 +341,7 @@ npm run prisma:generate
 5. **Document the endpoint** in API documentation
 
 Example route structure:
+
 ```typescript
 // server/routes/example.ts
 import express from 'express';
@@ -360,6 +372,7 @@ export default router;
 5. **Use TypeScript** for all new code
 
 Example component structure:
+
 ```typescript
 // src/components/ExampleComponent.tsx
 import React from 'react';
@@ -369,9 +382,9 @@ interface ExampleComponentProps {
   onAction: () => void;
 }
 
-export const ExampleComponent: React.FC<ExampleComponentProps> = ({ 
-  title, 
-  onAction 
+export const ExampleComponent: React.FC<ExampleComponentProps> = ({
+  title,
+  onAction
 }) => {
   return (
     <div className="p-4">
@@ -406,6 +419,7 @@ npm run test:watch
 ### Writing Tests
 
 #### Unit Tests (Vitest)
+
 ```typescript
 // src/utils/calculations.test.ts
 import { describe, it, expect } from 'vitest';
@@ -419,6 +433,7 @@ describe('calculatePace', () => {
 ```
 
 #### Integration Tests (Jest)
+
 ```typescript
 // tests/integration/api/runs.test.ts
 describe('Runs API', () => {
@@ -427,7 +442,7 @@ describe('Runs API', () => {
       .post('/api/runs')
       .set('Authorization', `Bearer ${token}`)
       .send({ distance: 5, duration: 1800 });
-      
+
     expect(response.status).toBe(201);
     expect(response.body).toHaveProperty('id');
   });
@@ -435,6 +450,7 @@ describe('Runs API', () => {
 ```
 
 #### E2E Tests (Playwright)
+
 ```typescript
 // tests/e2e/auth-flow.test.ts
 import { test, expect } from '@playwright/test';
@@ -444,7 +460,7 @@ test('user can log in', async ({ page }) => {
   await page.fill('[name="email"]', 'test@example.com');
   await page.fill('[name="password"]', 'password');
   await page.click('button[type="submit"]');
-  
+
   await expect(page).toHaveURL('/dashboard');
 });
 ```
@@ -472,10 +488,10 @@ test('user can log in', async ({ page }) => {
 
 ```typescript
 // Use structured logging
-console.log('API Request:', { 
-  method: req.method, 
-  path: req.path, 
-  body: req.body 
+console.log('API Request:', {
+  method: req.method,
+  path: req.path,
+  body: req.body,
 });
 
 // Use debug namespaces
@@ -496,6 +512,7 @@ log('Processing run creation', { userId, distance });
 ### Common Issues and Solutions
 
 #### npm install fails
+
 ```bash
 # Clear npm cache
 npm cache clean --force
@@ -506,6 +523,7 @@ npm install
 ```
 
 #### Database errors
+
 ```bash
 # Reset database
 rm prisma/dev.db
@@ -516,6 +534,7 @@ ls -la prisma/
 ```
 
 #### Port already in use
+
 ```bash
 # Find process using port 3001
 lsof -i :3001
@@ -528,6 +547,7 @@ PORT=3002 npm run dev
 ```
 
 #### TypeScript errors
+
 ```bash
 # Regenerate types
 npm run prisma:generate
@@ -540,6 +560,7 @@ rm -rf node_modules/.cache
 ```
 
 #### Test failures
+
 ```bash
 # Run tests in debug mode
 npm run test -- --reporter=verbose
@@ -560,10 +581,11 @@ npm run test -- -u
    - [Architecture Decision Records](./adr/)
 
 2. **Search for similar issues**:
+
    ```bash
    # Search codebase
    grep -r "search term" .
-   
+
    # Search git history
    git log --grep="search term"
    ```
@@ -576,12 +598,14 @@ npm run test -- -u
 ## Additional Resources
 
 ### Project Documentation
+
 - [CLAUDE.md](../CLAUDE.md) - AI assistant instructions
 - [API_ERRORS.md](../API_ERRORS.md) - Error handling conventions
 - [PRE_COMMIT_HOOKS.md](./PRE_COMMIT_HOOKS.md) - Git hooks guide
 - [TEST_DEBUGGING_GUIDE.md](./TEST_DEBUGGING_GUIDE.md) - Debugging tests
 
 ### External Resources
+
 - [React Documentation](https://react.dev/)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
 - [Prisma Documentation](https://www.prisma.io/docs)
@@ -591,7 +615,7 @@ npm run test -- -u
 
 ### Learning Path
 
-1. **Week 1**: 
+1. **Week 1**:
    - Complete this onboarding
    - Run the application locally
    - Explore the codebase structure

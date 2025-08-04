@@ -6,11 +6,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-    
+
   # Weekly comprehensive security scan
   schedule:
-    - cron: '0 02:00 * * 1'  # 2 AM ET every Monday
-    
+    - cron: '0 02:00 * * 1' # 2 AM ET every Monday
+
   # Manual trigger for immediate security assessment
   workflow_dispatch:
     inputs:
@@ -36,32 +36,32 @@ jobs:
     name: 🔍 Static Code Analysis
     runs-on: ubuntu-latest
     if: github.event.inputs.scan_type != 'dependencies-only'
-    
+
     permissions:
       contents: read
       security-events: write
-      
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: 🔧 Install dependencies
         run: npm ci
-        
+
       # ESLint security analysis
       - name: 🔍 ESLint Security Scan
         run: |
           # Install security-focused ESLint plugins
           npm install --no-save eslint-plugin-security eslint-plugin-no-secrets
-          
+
           # Create temporary ESLint config for security scanning
           cat > .eslintrc.security.js << 'EOF'
           module.exports = {
@@ -93,10 +93,10 @@ jobs:
             }
           };
           EOF
-          
+
           # Run security-focused linting
           npx eslint --config .eslintrc.security.js --ext .js,.ts,.tsx src/ server/ --format json --output-file eslint-security-results.json || true
-          
+
           # Generate security report
           if [ -f eslint-security-results.json ]; then
             issues_count=$(jq 'map(.messages | length) | add // 0' eslint-security-results.json)
@@ -104,7 +104,7 @@ jobs:
           else
             echo "ESLINT_SECURITY_ISSUES=0" >> $GITHUB_ENV
           fi
-          
+
       # Semgrep security analysis
       - name: 🔍 Semgrep Security Scan
         uses: returntocorp/semgrep-action@v1
@@ -118,7 +118,7 @@ jobs:
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         continue-on-error: true
-        
+
       # Upload security scan results
       - name: 📤 Upload security results
         if: always()
@@ -135,27 +135,27 @@ jobs:
     name: 📦 Dependency Security Analysis
     runs-on: ubuntu-latest
     if: github.event.inputs.scan_type != 'sast-only'
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: 🔧 Install dependencies
         run: npm ci
-        
+
       # Comprehensive npm audit
       - name: 🔍 NPM Security Audit
         id: npm-audit
         run: |
           # Run audit with detailed output
           npm audit --json > npm-audit-results.json 2>/dev/null || true
-          
+
           # Extract vulnerability counts
           if [ -f npm-audit-results.json ]; then
             total=$(jq -r '.metadata.vulnerabilities.total // 0' npm-audit-results.json)
@@ -170,7 +170,7 @@ jobs:
             echo "moderate_vulns=$moderate" >> $GITHUB_OUTPUT
             echo "low_vulns=$low" >> $GITHUB_OUTPUT
           fi
-          
+
       # Snyk vulnerability scanning
       - name: 🔍 Snyk Security Scan
         uses: snyk/actions/node@master
@@ -179,7 +179,7 @@ jobs:
         with:
           args: --severity-threshold=medium --json-file-output=snyk-results.json
         continue-on-error: true
-        
+
       # OWASP dependency check
       - name: 🔍 OWASP Dependency Check
         uses: dependency-check/Dependency-Check_Action@main
@@ -194,14 +194,14 @@ jobs:
             --nodeAuditSkipDevDependencies
             --nodePackageSkipDevDependencies
         continue-on-error: true
-        
+
       # Generate vulnerability summary
       - name: 📊 Generate Vulnerability Summary
         if: always()
         run: |
           echo "## 📦 Dependency Security Analysis Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # NPM Audit Results
           echo "### NPM Audit Results" >> $GITHUB_STEP_SUMMARY
           echo "- **Total vulnerabilities**: ${{ steps.npm-audit.outputs.total_vulns }}" >> $GITHUB_STEP_SUMMARY
@@ -210,11 +210,11 @@ jobs:
           echo "- **Moderate**: ${{ steps.npm-audit.outputs.moderate_vulns }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Low**: ${{ steps.npm-audit.outputs.low_vulns }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Check if any critical/high vulnerabilities
           critical="${{ steps.npm-audit.outputs.critical_vulns }}"
           high="${{ steps.npm-audit.outputs.high_vulns }}"
-          
+
           if [ "$critical" -gt 0 ] || [ "$high" -gt 0 ]; then
             echo "⚠️ **Action Required**: Critical or high severity vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -225,10 +225,10 @@ jobs:
           else
             echo "✅ **No critical or high severity vulnerabilities found**" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Scan Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
-          
+
       # Upload dependency scan results
       - name: 📤 Upload dependency scan results
         if: always()
@@ -240,7 +240,7 @@ jobs:
             snyk-results.json
             dependency-check-reports/
           retention-days: 30
-          
+
       # Install yq for YAML parsing
       - name: 🔧 Install yq for policy parsing
         run: |
@@ -341,7 +341,7 @@ jobs:
               echo "POLICY_VIOLATIONS=" >> $GITHUB_ENV
             fi
           fi
-          
+
       # Fail build based on security policy evaluation
       - name: ❌ Enforce Security Policy
         if: env.SECURITY_POLICY_VIOLATION == 'true'
@@ -382,11 +382,11 @@ jobs:
     name: 🐳 Container Security Scan
     runs-on: ubuntu-latest
     if: github.event.inputs.scan_type == 'comprehensive'
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        
+
       # Check if Dockerfile exists
       - name: 🔍 Check for Docker files
         id: docker-check
@@ -396,7 +396,7 @@ jobs:
           else
             echo "has_docker=false" >> $GITHUB_OUTPUT
           fi
-          
+
       # Build Docker image if Dockerfile exists
       - name: 🏗️ Build Docker image
         if: steps.docker-check.outputs.has_docker == 'true'
@@ -404,7 +404,7 @@ jobs:
           if [ -f "Dockerfile" ]; then
             docker build -t running-app:security-scan .
           fi
-          
+
       # Trivy container vulnerability scan
       - name: 🔍 Trivy Container Scan
         if: steps.docker-check.outputs.has_docker == 'true'
@@ -413,7 +413,7 @@ jobs:
           image-ref: 'running-app:security-scan'
           format: 'sarif'
           output: 'trivy-results.sarif'
-          
+
       # Upload Trivy results to GitHub Security tab
       - name: 📤 Upload Trivy results
         if: steps.docker-check.outputs.has_docker == 'true'
@@ -425,17 +425,17 @@ jobs:
   security-config-review:
     name: ⚙️ Security Configuration Review
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        
+
       # Check for security-related configuration files
       - name: 🔍 Security Configuration Analysis
         run: |
           echo "## ⚙️ Security Configuration Review" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Check for important security files
           config_files=(
             ".github/dependabot.yml:Automated dependency updates"
@@ -446,9 +446,9 @@ jobs:
             ".gitignore:Prevents committing sensitive files"
             ".env.example:Environment variable template"
           )
-          
+
           echo "### Security Configuration Files" >> $GITHUB_STEP_SUMMARY
-          
+
           for config in "${config_files[@]}"; do
             file=$(echo "$config" | cut -d: -f1)
             desc=$(echo "$config" | cut -d: -f2-)
@@ -459,9 +459,9 @@ jobs:
               echo "❌ **$file**: Missing - $desc" >> $GITHUB_STEP_SUMMARY
             fi
           done
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Check for potential security issues in package.json
           if [ -f "package.json" ]; then
             echo "### Package.json Security Review" >> $GITHUB_STEP_SUMMARY
@@ -483,17 +483,17 @@ jobs:
             echo "✅ **Package.json security review completed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Check for environment variable security
           echo "### Environment Security" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ -f ".env" ]; then
             echo "⚠️ **Warning**: .env file found in repository" >> $GITHUB_STEP_SUMMARY
             echo "Ensure it's included in .gitignore and doesn't contain production secrets" >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ **No .env file in repository**" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ -f ".env.example" ]; then
             echo "✅ **Environment template provided**" >> $GITHUB_STEP_SUMMARY
           else
@@ -506,7 +506,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [sast-scan, dependency-security, container-security, security-config-review]
     if: always()
-    
+
     steps:
       - name: 📊 Generate comprehensive security summary
         run: |
@@ -518,12 +518,12 @@ jobs:
           echo "**Scan Type**: ${{ github.event.inputs.scan_type || 'comprehensive' }}" >> $GITHUB_STEP_SUMMARY
           echo "**Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Job status summary based on scan type with proper null handling
           echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
-          
+
           scan_type="${{ github.event.inputs.scan_type || 'comprehensive' }}"
-          
+
           # Helper function to get job result with null checks and default values
           get_job_result() {
             local result="$1"
@@ -535,13 +535,13 @@ jobs:
               echo "$result"
             fi
           }
-          
+
           # Get job results with null checks
           sast_result=$(get_job_result "${{ needs.sast-scan.result || '' }}" "skipped")
           deps_result=$(get_job_result "${{ needs.dependency-security.result || '' }}" "skipped")
           container_result=$(get_job_result "${{ needs.container-security.result || '' }}" "skipped")
           config_result=$(get_job_result "${{ needs.security-config-review.result || '' }}" "unknown")
-          
+
           # SAST scan status - only check if it should run
           if [ "$scan_type" != "dependencies-only" ]; then
             if [ "$sast_result" = "success" ]; then
@@ -558,7 +558,7 @@ jobs:
           else
             echo "⏭️ **Static Analysis (SAST)**: Skipped (dependencies-only scan)" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Dependency security status - only check if it should run
           if [ "$scan_type" != "sast-only" ]; then
             if [ "$deps_result" = "success" ]; then
@@ -575,7 +575,7 @@ jobs:
           else
             echo "⏭️ **Dependency Security**: Skipped (sast-only scan)" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Container security status - only for comprehensive scans
           if [ "$scan_type" = "comprehensive" ]; then
             if [ "$container_result" = "success" ]; then
@@ -592,7 +592,7 @@ jobs:
           else
             echo "⏭️ **Container Security**: Skipped (not comprehensive scan)" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Security config review status - always runs with comprehensive null handling
           if [ "$config_result" = "success" ]; then
             echo "✅ **Configuration Review**: Completed successfully" >> $GITHUB_STEP_SUMMARY
@@ -605,39 +605,39 @@ jobs:
           else
             echo "❓ **Configuration Review**: Status unknown ($config_result)" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Overall status with comprehensive null checks and proper handling of empty scan results
           failed_jobs=()
           unknown_jobs=()
           successful_jobs=()
-          
+
           # Categorize job results
           case "$sast_result" in
             "success") successful_jobs+=("SAST") ;;
             "failure") failed_jobs+=("SAST") ;;
             "unknown"|""|"null") unknown_jobs+=("SAST") ;;
           esac
-          
+
           case "$deps_result" in
             "success") successful_jobs+=("Dependency Security") ;;
             "failure") failed_jobs+=("Dependency Security") ;;
             "unknown"|""|"null") unknown_jobs+=("Dependency Security") ;;
           esac
-          
+
           case "$container_result" in
             "success") successful_jobs+=("Container Security") ;;
             "failure") failed_jobs+=("Container Security") ;;
             "unknown"|""|"null") unknown_jobs+=("Container Security") ;;
           esac
-          
+
           case "$config_result" in
             "success") successful_jobs+=("Configuration Review") ;;
             "failure") failed_jobs+=("Configuration Review") ;;
             "unknown"|""|"null"|"undefined") unknown_jobs+=("Configuration Review") ;;
           esac
-          
+
           # Generate overall status based on job results
           if [ ${#failed_jobs[@]} -gt 0 ]; then
             echo "## ❌ Action Required - Scan Failures Detected" >> $GITHUB_STEP_SUMMARY
@@ -681,6 +681,6 @@ jobs:
             fi
             echo "**Note**: Even successful scans may contain findings. Check individual job outputs for detailed security reports." >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "For detailed results, review individual job outputs and the Security tab." >> $GITHUB_STEP_SUMMARY

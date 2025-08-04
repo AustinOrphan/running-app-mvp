@@ -2,7 +2,7 @@
 
 /**
  * Coverage Trend Tracker
- * 
+ *
  * Tracks test coverage over time, generates trend visualizations,
  * and enforces coverage thresholds across all test suites.
  */
@@ -23,13 +23,13 @@ class CoverageTrendTracker {
         statements: 80,
         branches: 80,
         functions: 80,
-        lines: 80
+        lines: 80,
       },
       maxHistoryLength: options.maxHistoryLength || 90, // 90 days of history
       failOnThreshold: options.failOnThreshold !== false,
-      ...options
+      ...options,
     };
-    
+
     this.coverageHistory = [];
     this.currentCoverage = null;
   }
@@ -76,12 +76,12 @@ class CoverageTrendTracker {
   async saveHistory() {
     try {
       const historyPath = path.join(this.options.outputDir, this.options.historyFile);
-      
+
       // Trim history to max length
       if (this.coverageHistory.length > this.options.maxHistoryLength) {
         this.coverageHistory = this.coverageHistory.slice(-this.options.maxHistoryLength);
       }
-      
+
       await fs.writeFile(historyPath, JSON.stringify(this.coverageHistory, null, 2));
       console.log('💾 Coverage history saved');
     } catch (error) {
@@ -94,7 +94,7 @@ class CoverageTrendTracker {
    */
   async collectCoverage() {
     console.log('🔍 Collecting coverage data from all test suites...\n');
-    
+
     const coverage = {
       timestamp: new Date().toISOString(),
       date: new Date().toLocaleDateString(),
@@ -105,8 +105,8 @@ class CoverageTrendTracker {
         statements: { total: 0, covered: 0, percentage: 0 },
         branches: { total: 0, covered: 0, percentage: 0 },
         functions: { total: 0, covered: 0, percentage: 0 },
-        lines: { total: 0, covered: 0, percentage: 0 }
-      }
+        lines: { total: 0, covered: 0, percentage: 0 },
+      },
     };
 
     // Collect unit test coverage (Vitest)
@@ -126,8 +126,10 @@ class CoverageTrendTracker {
     // Calculate overall percentages
     for (const metric of ['statements', 'branches', 'functions', 'lines']) {
       if (coverage.overall[metric].total > 0) {
-        coverage.overall[metric].percentage = 
-          (coverage.overall[metric].covered / coverage.overall[metric].total * 100).toFixed(2);
+        coverage.overall[metric].percentage = (
+          (coverage.overall[metric].covered / coverage.overall[metric].total) *
+          100
+        ).toFixed(2);
       }
     }
 
@@ -141,25 +143,24 @@ class CoverageTrendTracker {
   async collectUnitCoverage() {
     try {
       console.log('📦 Collecting unit test coverage...');
-      
+
       // Run unit tests with coverage
       await execAsync('npm run test:coverage', { maxBuffer: 1024 * 1024 * 10 });
-      
+
       // Read coverage summary
       const summaryPath = path.join(process.cwd(), 'coverage/coverage-summary.json');
       const summaryData = await fs.readFile(summaryPath, 'utf8');
       const summary = JSON.parse(summaryData);
-      
+
       const coverage = {
         statements: this.extractMetric(summary.total.statements),
         branches: this.extractMetric(summary.total.branches),
         functions: this.extractMetric(summary.total.functions),
-        lines: this.extractMetric(summary.total.lines)
+        lines: this.extractMetric(summary.total.lines),
       };
-      
+
       console.log(`✅ Unit test coverage collected`);
       return coverage;
-      
     } catch (error) {
       console.error('❌ Failed to collect unit test coverage:', error.message);
       return null;
@@ -172,25 +173,24 @@ class CoverageTrendTracker {
   async collectIntegrationCoverage() {
     try {
       console.log('🔗 Collecting integration test coverage...');
-      
+
       // Run integration tests with coverage
       await execAsync('npm run test:coverage:integration', { maxBuffer: 1024 * 1024 * 10 });
-      
+
       // Read coverage summary
       const summaryPath = path.join(process.cwd(), 'coverage-integration/coverage-summary.json');
       const summaryData = await fs.readFile(summaryPath, 'utf8');
       const summary = JSON.parse(summaryData);
-      
+
       const coverage = {
         statements: this.extractMetric(summary.total.statements),
         branches: this.extractMetric(summary.total.branches),
         functions: this.extractMetric(summary.total.functions),
-        lines: this.extractMetric(summary.total.lines)
+        lines: this.extractMetric(summary.total.lines),
       };
-      
+
       console.log(`✅ Integration test coverage collected`);
       return coverage;
-      
     } catch (error) {
       console.error('❌ Failed to collect integration test coverage:', error.message);
       return null;
@@ -204,7 +204,7 @@ class CoverageTrendTracker {
     return {
       total: metric.total || 0,
       covered: metric.covered || 0,
-      percentage: metric.pct || 0
+      percentage: metric.pct || 0,
     };
   }
 
@@ -249,7 +249,7 @@ class CoverageTrendTracker {
     if (this.coverageHistory.length < 2) {
       return {
         hasEnoughData: false,
-        message: 'Not enough historical data for trend analysis'
+        message: 'Not enough historical data for trend analysis',
       };
     }
 
@@ -258,7 +258,7 @@ class CoverageTrendTracker {
       statements: this.calculateTrend(recent, 'statements'),
       branches: this.calculateTrend(recent, 'branches'),
       functions: this.calculateTrend(recent, 'functions'),
-      lines: this.calculateTrend(recent, 'lines')
+      lines: this.calculateTrend(recent, 'lines'),
     };
 
     // Calculate overall trend
@@ -269,7 +269,7 @@ class CoverageTrendTracker {
       trends,
       overallTrend,
       direction: overallTrend > 0.1 ? 'improving' : overallTrend < -0.1 ? 'declining' : 'stable',
-      recommendation: this.getTrendRecommendation(trends, overallTrend)
+      recommendation: this.getTrendRecommendation(trends, overallTrend),
     };
   }
 
@@ -278,29 +278,29 @@ class CoverageTrendTracker {
    */
   calculateTrend(data, metric) {
     const values = data.map(d => parseFloat(d.overall[metric].percentage));
-    
+
     // Simple linear regression
     const n = values.length;
-    const sumX = n * (n - 1) / 2;
+    const sumX = (n * (n - 1)) / 2;
     const sumY = values.reduce((sum, val) => sum + val, 0);
     const sumXY = values.reduce((sum, val, i) => sum + val * i, 0);
-    const sumX2 = n * (n - 1) * (2 * n - 1) / 6;
-    
+    const sumX2 = (n * (n - 1) * (2 * n - 1)) / 6;
+
     const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
     const intercept = (sumY - slope * sumX) / n;
-    
+
     const current = values[values.length - 1];
     const previous = values[values.length - 2];
     const change = current - previous;
-    
+
     return {
       current,
       previous,
       change,
-      changePercent: previous > 0 ? (change / previous * 100) : 0,
+      changePercent: previous > 0 ? (change / previous) * 100 : 0,
       slope,
       intercept,
-      direction: slope > 0.1 ? 'up' : slope < -0.1 ? 'down' : 'stable'
+      direction: slope > 0.1 ? 'up' : slope < -0.1 ? 'down' : 'stable',
     };
   }
 
@@ -309,27 +309,31 @@ class CoverageTrendTracker {
    */
   getTrendRecommendation(trends, overallTrend) {
     const recommendations = [];
-    
+
     if (overallTrend < -0.5) {
       recommendations.push('⚠️ Coverage is declining significantly. Review recent changes.');
     } else if (overallTrend > 0.5) {
       recommendations.push('✅ Coverage is improving! Keep up the good work.');
     }
-    
+
     // Check individual metrics
     for (const [metric, trend] of Object.entries(trends)) {
       if (trend.current < this.options.thresholds[metric]) {
-        recommendations.push(`📉 ${metric} coverage (${trend.current}%) is below threshold (${this.options.thresholds[metric]}%)`);
+        recommendations.push(
+          `📉 ${metric} coverage (${trend.current}%) is below threshold (${this.options.thresholds[metric]}%)`
+        );
       }
       if (trend.change < -5) {
-        recommendations.push(`⚠️ ${metric} coverage dropped by ${Math.abs(trend.change).toFixed(1)}%`);
+        recommendations.push(
+          `⚠️ ${metric} coverage dropped by ${Math.abs(trend.change).toFixed(1)}%`
+        );
       }
     }
-    
+
     if (recommendations.length === 0) {
       recommendations.push('✅ Coverage is stable and meeting all thresholds');
     }
-    
+
     return recommendations;
   }
 
@@ -340,36 +344,36 @@ class CoverageTrendTracker {
     const results = {
       passed: true,
       failures: [],
-      warnings: []
+      warnings: [],
     };
-    
+
     if (!this.currentCoverage) {
       results.passed = false;
       results.failures.push('No coverage data available');
       return results;
     }
-    
+
     for (const [metric, threshold] of Object.entries(this.options.thresholds)) {
       const current = parseFloat(this.currentCoverage.overall[metric].percentage);
-      
+
       if (current < threshold) {
         results.passed = false;
         results.failures.push({
           metric,
           current,
           threshold,
-          diff: (current - threshold).toFixed(2)
+          diff: (current - threshold).toFixed(2),
         });
       } else if (current < threshold + 5) {
         results.warnings.push({
           metric,
           current,
           threshold,
-          margin: (current - threshold).toFixed(2)
+          margin: (current - threshold).toFixed(2),
         });
       }
     }
-    
+
     return results;
   }
 
@@ -378,25 +382,25 @@ class CoverageTrendTracker {
    */
   async generateReports() {
     console.log('\n📝 Generating coverage trend reports...');
-    
+
     // Add current coverage to history
     if (this.currentCoverage) {
       this.coverageHistory.push(this.currentCoverage);
       await this.saveHistory();
     }
-    
+
     // Generate JSON report
     await this.generateJsonReport();
-    
+
     // Generate HTML dashboard
     await this.generateHtmlDashboard();
-    
+
     // Generate trend chart
     await this.generateTrendChart();
-    
+
     // Generate markdown summary
     await this.generateMarkdownSummary();
-    
+
     console.log(`📊 Coverage reports generated in ${this.options.outputDir}`);
   }
 
@@ -406,7 +410,7 @@ class CoverageTrendTracker {
   async generateJsonReport() {
     const analysis = this.analyzeTrends();
     const thresholdResults = this.checkThresholds();
-    
+
     const report = {
       timestamp: new Date().toISOString(),
       current: this.currentCoverage,
@@ -414,16 +418,16 @@ class CoverageTrendTracker {
         entries: this.coverageHistory.length,
         dateRange: {
           start: this.coverageHistory[0]?.date,
-          end: this.coverageHistory[this.coverageHistory.length - 1]?.date
-        }
+          end: this.coverageHistory[this.coverageHistory.length - 1]?.date,
+        },
       },
       analysis,
       thresholds: {
         configured: this.options.thresholds,
-        results: thresholdResults
-      }
+        results: thresholdResults,
+      },
     };
-    
+
     const reportPath = path.join(this.options.outputDir, 'coverage-trend-report.json');
     await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
   }
@@ -434,7 +438,7 @@ class CoverageTrendTracker {
   async generateHtmlDashboard() {
     const analysis = this.analyzeTrends();
     const thresholdResults = this.checkThresholds();
-    
+
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -476,29 +480,40 @@ class CoverageTrendTracker {
         <div class="header">
             <h1>📊 Coverage Trend Dashboard</h1>
             <p>Generated on ${new Date().toLocaleString()}</p>
-            ${this.currentCoverage ? `
+            ${
+              this.currentCoverage
+                ? `
             <p>Branch: <strong>${this.currentCoverage.branch}</strong> | Commit: <code>${this.currentCoverage.commit}</code></p>
-            ` : ''}
+            `
+                : ''
+            }
         </div>
         
-        ${this.currentCoverage ? `
+        ${
+          this.currentCoverage
+            ? `
         <div class="stats">
-            ${['statements', 'branches', 'functions', 'lines'].map(metric => {
+            ${['statements', 'branches', 'functions', 'lines']
+              .map(metric => {
                 const current = this.currentCoverage.overall[metric];
                 const trend = analysis.hasEnoughData ? analysis.trends[metric] : null;
                 const threshold = this.options.thresholds[metric];
                 const status = current.percentage >= threshold ? 'passed' : 'failed';
-                
+
                 return `
                 <div class="stat-card">
                     <div class="metric-name">${metric}</div>
                     <div class="stat-value ${status === 'passed' ? 'positive' : 'negative'}">
                         ${current.percentage}<span class="percentage">%</span>
-                        ${trend ? `
+                        ${
+                          trend
+                            ? `
                         <span class="change ${trend.change > 0 ? 'positive' : trend.change < 0 ? 'negative' : 'neutral'}">
                             ${trend.change > 0 ? '↑' : trend.change < 0 ? '↓' : '→'} ${Math.abs(trend.change).toFixed(1)}%
                         </span>
-                        ` : ''}
+                        `
+                            : ''
+                        }
                     </div>
                     <div>${current.covered} / ${current.total} covered</div>
                     <div class="threshold-status ${status}">
@@ -506,16 +521,21 @@ class CoverageTrendTracker {
                     </div>
                 </div>
                 `;
-            }).join('')}
+              })
+              .join('')}
         </div>
-        ` : '<p>No current coverage data available</p>'}
+        `
+            : '<p>No current coverage data available</p>'
+        }
         
         <div class="chart-container">
             <div class="chart-title">Coverage Trends (Last 30 Days)</div>
             <canvas id="trendChart" height="100"></canvas>
         </div>
         
-        ${thresholdResults.failures.length > 0 || thresholdResults.warnings.length > 0 ? `
+        ${
+          thresholdResults.failures.length > 0 || thresholdResults.warnings.length > 0
+            ? `
         <div class="chart-container">
             <div class="chart-title">Threshold Status</div>
             <table class="threshold-table">
@@ -529,7 +549,9 @@ class CoverageTrendTracker {
                     </tr>
                 </thead>
                 <tbody>
-                    ${thresholdResults.failures.map(f => `
+                    ${thresholdResults.failures
+                      .map(
+                        f => `
                     <tr>
                         <td>${f.metric}</td>
                         <td class="negative">${f.current}%</td>
@@ -537,8 +559,12 @@ class CoverageTrendTracker {
                         <td><span class="threshold-status failed">Failed</span></td>
                         <td class="negative">${f.diff}%</td>
                     </tr>
-                    `).join('')}
-                    ${thresholdResults.warnings.map(w => `
+                    `
+                      )
+                      .join('')}
+                    ${thresholdResults.warnings
+                      .map(
+                        w => `
                     <tr>
                         <td>${w.metric}</td>
                         <td class="neutral">${w.current}%</td>
@@ -546,18 +572,26 @@ class CoverageTrendTracker {
                         <td><span class="threshold-status warning">Warning</span></td>
                         <td class="neutral">+${w.margin}%</td>
                     </tr>
-                    `).join('')}
+                    `
+                      )
+                      .join('')}
                 </tbody>
             </table>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
         
-        ${analysis.hasEnoughData && analysis.recommendation.length > 0 ? `
+        ${
+          analysis.hasEnoughData && analysis.recommendation.length > 0
+            ? `
         <div class="recommendations">
             <h3>📋 Recommendations</h3>
             ${analysis.recommendation.map(rec => `<p>${rec}</p>`).join('')}
         </div>
-        ` : ''}
+        `
+            : ''
+        }
         
         <div class="footer">
             <p>Coverage data collected from ${this.coverageHistory.length} test runs</p>
@@ -634,7 +668,7 @@ class CoverageTrendTracker {
 </body>
 </html>
     `;
-    
+
     const dashboardPath = path.join(this.options.outputDir, 'coverage-trend-dashboard.html');
     await fs.writeFile(dashboardPath, html);
   }
@@ -644,13 +678,13 @@ class CoverageTrendTracker {
    */
   prepareChartData() {
     const recent = this.coverageHistory.slice(-30);
-    
+
     return {
       labels: recent.map(d => d.date),
       statements: recent.map(d => parseFloat(d.overall.statements.percentage)),
       branches: recent.map(d => parseFloat(d.overall.branches.percentage)),
       functions: recent.map(d => parseFloat(d.overall.functions.percentage)),
-      lines: recent.map(d => parseFloat(d.overall.lines.percentage))
+      lines: recent.map(d => parseFloat(d.overall.lines.percentage)),
     };
   }
 
@@ -659,37 +693,41 @@ class CoverageTrendTracker {
    */
   async generateTrendChart() {
     const chartData = this.prepareChartData();
-    
+
     // Simple SVG chart generation
     const width = 800;
     const height = 400;
     const padding = 40;
     const chartWidth = width - 2 * padding;
     const chartHeight = height - 2 * padding;
-    
+
     const maxY = 100;
     const xStep = chartWidth / (chartData.labels.length - 1);
-    
+
     const createPath = (data, color) => {
-      const points = data.map((value, index) => {
-        const x = padding + index * xStep;
-        const y = padding + (1 - value / maxY) * chartHeight;
-        return `${x},${y}`;
-      }).join(' ');
-      
+      const points = data
+        .map((value, index) => {
+          const x = padding + index * xStep;
+          const y = padding + (1 - value / maxY) * chartHeight;
+          return `${x},${y}`;
+        })
+        .join(' ');
+
       return `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="2"/>`;
     };
-    
+
     const svg = `
 <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
   <!-- Grid -->
-  ${[0, 25, 50, 75, 100].map(y => {
-    const yPos = padding + (1 - y / maxY) * chartHeight;
-    return `
+  ${[0, 25, 50, 75, 100]
+    .map(y => {
+      const yPos = padding + (1 - y / maxY) * chartHeight;
+      return `
       <line x1="${padding}" y1="${yPos}" x2="${width - padding}" y2="${yPos}" stroke="#eee" stroke-width="1"/>
       <text x="${padding - 5}" y="${yPos + 5}" text-anchor="end" font-size="12" fill="#666">${y}%</text>
     `;
-  }).join('')}
+    })
+    .join('')}
   
   <!-- Data lines -->
   ${createPath(chartData.statements, '#4caf50')}
@@ -711,7 +749,7 @@ class CoverageTrendTracker {
   <text x="${width - 130}" y="82" font-size="12" fill="#666">Lines</text>
 </svg>
     `;
-    
+
     const chartPath = path.join(this.options.outputDir, 'coverage-trend-chart.svg');
     await fs.writeFile(chartPath, svg);
   }
@@ -722,59 +760,83 @@ class CoverageTrendTracker {
   async generateMarkdownSummary() {
     const analysis = this.analyzeTrends();
     const thresholdResults = this.checkThresholds();
-    
+
     const summary = `# Coverage Trend Report
 
 **Generated:** ${new Date().toLocaleString()}
-${this.currentCoverage ? `
+${
+  this.currentCoverage
+    ? `
 **Branch:** ${this.currentCoverage.branch}  
 **Commit:** ${this.currentCoverage.commit}
-` : ''}
+`
+    : ''
+}
 
 ## 📊 Current Coverage
 
-${this.currentCoverage ? `
+${
+  this.currentCoverage
+    ? `
 | Metric | Coverage | Threshold | Status |
 |--------|----------|-----------|---------|
 | Statements | ${this.currentCoverage.overall.statements.percentage}% | ${this.options.thresholds.statements}% | ${this.currentCoverage.overall.statements.percentage >= this.options.thresholds.statements ? '✅' : '❌'} |
 | Branches | ${this.currentCoverage.overall.branches.percentage}% | ${this.options.thresholds.branches}% | ${this.currentCoverage.overall.branches.percentage >= this.options.thresholds.branches ? '✅' : '❌'} |
 | Functions | ${this.currentCoverage.overall.functions.percentage}% | ${this.options.thresholds.functions}% | ${this.currentCoverage.overall.functions.percentage >= this.options.thresholds.functions ? '✅' : '❌'} |
 | Lines | ${this.currentCoverage.overall.lines.percentage}% | ${this.options.thresholds.lines}% | ${this.currentCoverage.overall.lines.percentage >= this.options.thresholds.lines ? '✅' : '❌'} |
-` : 'No current coverage data available'}
+`
+    : 'No current coverage data available'
+}
 
 ## 📈 Coverage Trends
 
-${analysis.hasEnoughData ? `
+${
+  analysis.hasEnoughData
+    ? `
 **Overall Trend:** ${analysis.direction} (${analysis.overallTrend > 0 ? '+' : ''}${analysis.overallTrend.toFixed(2)}% per day)
 
 ### Metric Trends
 | Metric | Current | Previous | Change | Trend |
 |--------|---------|----------|--------|-------|
-${['statements', 'branches', 'functions', 'lines'].map(metric => {
-  const trend = analysis.trends[metric];
-  return `| ${metric} | ${trend.current}% | ${trend.previous}% | ${trend.change > 0 ? '+' : ''}${trend.change.toFixed(1)}% | ${trend.direction === 'up' ? '📈' : trend.direction === 'down' ? '📉' : '➡️'} |`;
-}).join('\n')}
-` : 'Not enough historical data for trend analysis'}
+${['statements', 'branches', 'functions', 'lines']
+  .map(metric => {
+    const trend = analysis.trends[metric];
+    return `| ${metric} | ${trend.current}% | ${trend.previous}% | ${trend.change > 0 ? '+' : ''}${trend.change.toFixed(1)}% | ${trend.direction === 'up' ? '📈' : trend.direction === 'down' ? '📉' : '➡️'} |`;
+  })
+  .join('\n')}
+`
+    : 'Not enough historical data for trend analysis'
+}
 
 ## 🎯 Threshold Results
 
 ${thresholdResults.passed ? '✅ **All coverage thresholds met!**' : '❌ **Coverage below configured thresholds**'}
 
-${thresholdResults.failures.length > 0 ? `
+${
+  thresholdResults.failures.length > 0
+    ? `
 ### Failed Thresholds
 ${thresholdResults.failures.map(f => `- **${f.metric}**: ${f.current}% (threshold: ${f.threshold}%, difference: ${f.diff}%)`).join('\n')}
-` : ''}
+`
+    : ''
+}
 
-${thresholdResults.warnings.length > 0 ? `
+${
+  thresholdResults.warnings.length > 0
+    ? `
 ### Warning - Close to Threshold
 ${thresholdResults.warnings.map(w => `- **${w.metric}**: ${w.current}% (threshold: ${w.threshold}%, margin: +${w.margin}%)`).join('\n')}
-` : ''}
+`
+    : ''
+}
 
 ## 📋 Recommendations
 
-${analysis.hasEnoughData && analysis.recommendation.length > 0 ? 
-  analysis.recommendation.map(rec => `- ${rec}`).join('\n') : 
-  '- ✅ Coverage is stable and meeting all thresholds'}
+${
+  analysis.hasEnoughData && analysis.recommendation.length > 0
+    ? analysis.recommendation.map(rec => `- ${rec}`).join('\n')
+    : '- ✅ Coverage is stable and meeting all thresholds'
+}
 
 ## 📊 Historical Data
 
@@ -784,7 +846,7 @@ ${analysis.hasEnoughData && analysis.recommendation.length > 0 ?
 ---
 *Generated by Coverage Trend Tracker*
 `;
-    
+
     const summaryPath = path.join(this.options.outputDir, 'coverage-trend-summary.md');
     await fs.writeFile(summaryPath, summary);
   }
@@ -794,7 +856,7 @@ ${analysis.hasEnoughData && analysis.recommendation.length > 0 ?
    */
   async enforceThresholds() {
     const results = this.checkThresholds();
-    
+
     if (!results.passed && this.options.failOnThreshold) {
       console.error('\n❌ Coverage thresholds not met:');
       results.failures.forEach(f => {
@@ -802,14 +864,16 @@ ${analysis.hasEnoughData && analysis.recommendation.length > 0 ?
       });
       process.exit(1);
     }
-    
+
     if (results.warnings.length > 0) {
       console.warn('\n⚠️ Coverage warnings:');
       results.warnings.forEach(w => {
-        console.warn(`   - ${w.metric}: ${w.current}% is close to threshold ${w.threshold}% (margin: +${w.margin}%)`);
+        console.warn(
+          `   - ${w.metric}: ${w.current}% is close to threshold ${w.threshold}% (margin: +${w.margin}%)`
+        );
       });
     }
-    
+
     if (results.passed) {
       console.log('\n✅ All coverage thresholds met!');
     }
@@ -820,21 +884,21 @@ ${analysis.hasEnoughData && analysis.recommendation.length > 0 ?
 async function main() {
   const args = process.argv.slice(2);
   const command = args[0] || 'track';
-  
+
   const tracker = new CoverageTrendTracker({
     outputDir: process.env.COVERAGE_OUTPUT_DIR || './reports/coverage-trends',
     thresholds: {
       statements: parseInt(process.env.COVERAGE_THRESHOLD_STATEMENTS || '80'),
       branches: parseInt(process.env.COVERAGE_THRESHOLD_BRANCHES || '80'),
       functions: parseInt(process.env.COVERAGE_THRESHOLD_FUNCTIONS || '80'),
-      lines: parseInt(process.env.COVERAGE_THRESHOLD_LINES || '80')
+      lines: parseInt(process.env.COVERAGE_THRESHOLD_LINES || '80'),
     },
-    failOnThreshold: process.env.FAIL_ON_COVERAGE_THRESHOLD !== 'false'
+    failOnThreshold: process.env.FAIL_ON_COVERAGE_THRESHOLD !== 'false',
   });
-  
+
   try {
     await tracker.initialize();
-    
+
     switch (command) {
       case 'track':
         console.log('🔍 Starting coverage trend tracking...');
@@ -842,7 +906,7 @@ async function main() {
         await tracker.generateReports();
         await tracker.enforceThresholds();
         break;
-        
+
       case 'collect':
         console.log('📊 Collecting coverage data...');
         const coverage = await tracker.collectCoverage();
@@ -852,24 +916,24 @@ async function main() {
         console.log(`  Functions: ${coverage.overall.functions.percentage}%`);
         console.log(`  Lines: ${coverage.overall.lines.percentage}%`);
         break;
-        
+
       case 'report':
         console.log('📝 Generating coverage reports...');
         await tracker.generateReports();
         break;
-        
+
       case 'analyze':
         console.log('📈 Analyzing coverage trends...');
         const analysis = tracker.analyzeTrends();
         console.log(JSON.stringify(analysis, null, 2));
         break;
-        
+
       case 'check':
         console.log('🎯 Checking coverage thresholds...');
         await tracker.collectCoverage();
         await tracker.enforceThresholds();
         break;
-        
+
       default:
         console.log('Usage: node coverage-trend-tracker.js [track|collect|report|analyze|check]');
         console.log('  track   - Collect coverage and generate reports (default)');
@@ -879,9 +943,8 @@ async function main() {
         console.log('  check   - Check coverage against thresholds');
         process.exit(1);
     }
-    
+
     console.log('\n✅ Coverage trend tracking complete');
-    
   } catch (error) {
     console.error('❌ Coverage trend tracking failed:', error);
     process.exit(1);

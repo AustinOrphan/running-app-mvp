@@ -1,13 +1,16 @@
 #!/usr/bin/env tsx
 /**
  * Test Database Cleanup Implementation
- * 
+ *
  * This script tests the database cleanup functionality to ensure
  * proper isolation between tests.
  */
 
 import { testDb } from '../tests/integration/utils/testDbSetup.js';
-import { DatabaseCleanupManager, initializeCleanupManager } from '../tests/utils/databaseCleanupManager.js';
+import {
+  DatabaseCleanupManager,
+  initializeCleanupManager,
+} from '../tests/utils/databaseCleanupManager.js';
 import { TransactionIsolationManager } from '../tests/utils/transactionIsolation.js';
 
 async function testDatabaseCleanup() {
@@ -18,7 +21,7 @@ async function testDatabaseCleanup() {
     // Initialize database
     console.log('📋 Initializing test database...');
     await testDb.initialize();
-    
+
     // Ensure foreign keys are enabled
     if (process.env.DATABASE_URL?.includes('file:')) {
       await testDb.prisma.$executeRaw`PRAGMA foreign_keys = ON`;
@@ -42,7 +45,7 @@ async function testDatabaseCleanup() {
     console.log('📝 Creating test data...');
     const user1 = await testDb.createUser({ email: 'test1@example.com' });
     const user2 = await testDb.createUser({ email: 'test2@example.com' });
-    
+
     // Create some related data
     await testDb.prisma.goal.create({
       data: {
@@ -81,7 +84,7 @@ async function testDatabaseCleanup() {
     // Test 1: Basic cleanup
     console.log('\n🧹 Test 1: Basic cleanup');
     await testDb.clean();
-    
+
     counts = {
       users: await testDb.prisma.user.count(),
       goals: await testDb.prisma.goal.count(),
@@ -97,7 +100,7 @@ async function testDatabaseCleanup() {
 
     // Test 2: Optimized cleanup
     console.log('\n🧹 Test 2: Optimized cleanup');
-    
+
     // Create test data again
     const user3 = await testDb.createUser({ email: 'test3@example.com' });
     await testDb.prisma.goal.create({
@@ -121,7 +124,7 @@ async function testDatabaseCleanup() {
     console.log('📊 Data before optimized cleanup:', counts);
 
     await testDb.cleanOptimized();
-    
+
     counts = {
       users: await testDb.prisma.user.count(),
       goals: await testDb.prisma.goal.count(),
@@ -137,7 +140,7 @@ async function testDatabaseCleanup() {
 
     // Test 3: Comprehensive cleanup manager
     console.log('\n🧹 Test 3: Comprehensive cleanup manager');
-    
+
     // Initialize cleanup manager
     const transactionManager = new TransactionIsolationManager(testDb.prisma);
     const cleanupManager = initializeCleanupManager(testDb.prisma, transactionManager);
@@ -212,7 +215,6 @@ async function testDatabaseCleanup() {
     }
 
     console.log('✅ All database cleanup tests passed!');
-    
   } catch (error) {
     console.error('❌ Database cleanup test failed:', error);
     process.exit(1);

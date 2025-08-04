@@ -2,10 +2,10 @@
 
 /**
  * Ensure Migrations Script
- * 
+ *
  * This script ensures database migrations run properly before tests by:
  * 1. Verifying schema exists
- * 2. Running migrations with proper error handling  
+ * 2. Running migrations with proper error handling
  * 3. Verifying the database is ready for tests
  * 4. Providing comprehensive error diagnostics
  */
@@ -79,7 +79,7 @@ class MigrationEnsurer {
    */
   private async ensurePrismaClient(): Promise<void> {
     this.log('🔧 Ensuring Prisma client is generated...');
-    
+
     try {
       execSync('npx prisma generate', {
         stdio: this.verbose ? 'inherit' : 'pipe',
@@ -137,7 +137,9 @@ class MigrationEnsurer {
         });
         this.log('✅ Fallback schema push successful');
       } catch (fallbackError) {
-        throw new Error(`Both migration deploy and schema push failed: ${error}. Fallback error: ${fallbackError}`);
+        throw new Error(
+          `Both migration deploy and schema push failed: ${error}. Fallback error: ${fallbackError}`
+        );
       }
     }
   }
@@ -150,7 +152,7 @@ class MigrationEnsurer {
 
     try {
       const { PrismaClient } = await import('@prisma/client');
-      
+
       const prisma = new PrismaClient({
         datasources: {
           db: {
@@ -170,7 +172,9 @@ class MigrationEnsurer {
         const runCount = await prisma.run.count();
         const goalCount = await prisma.goal.count();
 
-        this.log(`✅ All tables accessible: users=${userCount}, runs=${runCount}, goals=${goalCount}`);
+        this.log(
+          `✅ All tables accessible: users=${userCount}, runs=${runCount}, goals=${goalCount}`
+        );
       } finally {
         await prisma.$disconnect();
       }
@@ -237,13 +241,12 @@ class MigrationEnsurer {
         message: 'All migrations completed successfully',
         details: status,
       };
-
     } catch (error) {
       this.logError('❌ Migration ensure failed:', error);
-      
+
       // Get diagnostic information
       const status = await this.getMigrationStatus();
-      
+
       return {
         success: false,
         message: 'Migration setup failed',

@@ -172,7 +172,7 @@ COVERAGE_THRESHOLD=80 node scripts/test-runner.js
 ```yaml
 - name: Run all tests
   run: node scripts/test-runner.js --ci --reporter all --bail
-  
+
 - name: Upload test reports
   uses: actions/upload-artifact@v3
   if: always()
