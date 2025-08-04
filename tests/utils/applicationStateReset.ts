@@ -376,6 +376,23 @@ export function trackEventListener(
 }
 
 /**
+ * Initialize application state tracking
+ * Called during test suite setup to prepare state tracking
+ */
+export const initializeApplicationStateTracking = (): void => {
+  // Initialize the application state reset system
+  try {
+    applicationStateReset.captureInitialState();
+
+    if (process.env.DEBUG_TESTS) {
+      console.log('✅ Application state tracking initialized');
+    }
+  } catch (error) {
+    console.warn('Warning during application state tracking initialization:', error);
+  }
+};
+
+/**
  * Cleanup function for application state tracking
  * Called during test suite teardown to clean up any persistent tracking state
  */
@@ -384,13 +401,56 @@ export const cleanupApplicationStateTracking = (): void => {
   try {
     // Reset all application state one final time
     applicationStateReset.resetApplicationState();
-    
+
     if (process.env.DEBUG_TESTS) {
       console.log('✅ Application state tracking cleanup completed');
     }
   } catch (error) {
     console.warn('Warning during application state tracking cleanup:', error);
   }
+};
+
+// Export convenience functions that match expected interface
+export const resetApplicationState = async (): Promise<void> => {
+  await applicationStateReset.resetApplicationState();
+};
+
+export const validateApplicationStateReset = async (): Promise<{
+  isClean: boolean;
+  issues: string[];
+}> => {
+  // Basic validation - check if major state sources are clean
+  const issues: string[] = [];
+
+  try {
+    // Check security metrics
+    const { getSecurityMetrics } = await import('../../server/utils/securityLogger.js');
+    const metrics = getSecurityMetrics();
+    if (Object.keys(metrics).length > 0) {
+      issues.push(`Security metrics not clean: ${Object.keys(metrics).length} metrics remaining`);
+    }
+  } catch (error) {
+    issues.push(`Could not validate security metrics: ${error}`);
+  }
+
+  try {
+    // Check audit storage
+    const { auditLogger } = await import('../../server/utils/auditLogger.js');
+    const storage = auditLogger.getStorageForTesting();
+    if (storage && typeof (storage as any).events !== 'undefined') {
+      const eventCount = (storage as any).events?.length || 0;
+      if (eventCount > 0) {
+        issues.push(`Audit storage not clean: ${eventCount} events remaining`);
+      }
+    }
+  } catch (error) {
+    issues.push(`Could not validate audit storage: ${error}`);
+  }
+
+  return {
+    isClean: issues.length === 0,
+    issues,
+  };
 };
 
 export default applicationStateReset;

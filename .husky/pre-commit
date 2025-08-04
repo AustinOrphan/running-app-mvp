@@ -1,0 +1,26 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🚀 Running pre-commit hooks..."
+
+# Run lint-staged to check and fix staged files
+echo "📝 Running lint-staged (ESLint, Prettier, and tests for affected files)..."
+npx lint-staged
+
+# Check if lint-staged succeeded
+if [ $? -ne 0 ]; then
+  echo "❌ Lint-staged failed. Please fix the issues and try again."
+  exit 1
+fi
+
+# Run type checking on the entire project
+echo "🔍 Running TypeScript type checking..."
+npm run typecheck
+
+# Check if type checking succeeded
+if [ $? -ne 0 ]; then
+  echo "❌ TypeScript type checking failed. Please fix the type errors and try again."
+  exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"

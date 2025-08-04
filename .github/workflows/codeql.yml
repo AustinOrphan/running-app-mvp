@@ -1,0 +1,154 @@
+name: '🔒 CodeQL Security Analysis'
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run weekly on Monday at 2 AM UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22.x'
+
+jobs:
+  analyze:
+    name: 🔍 Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['typescript']
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🔧 Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Override language selection by uncommenting this and choosing your languages
+          # languages: javascript, typescript
+
+          # If you want to specify custom queries, you can do so here or in a config file.
+          # By default, queries listed here will override any specified in a config file.
+          # Prefix the list here with "+" to use these queries and those in the config file.
+          # queries: +security-and-quality
+
+      - name: 🏗️ Autobuild
+        uses: github/codeql-action/autobuild@v3
+        # ℹ️ Command-line programs to run using the OS shell.
+        # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
+
+      # ✏️ If the Autobuild fails above, remove it and uncomment the following three lines
+      #    and modify them (or add more) to build your code if your project, please refer to the EXAMPLE below for guidance.
+
+      # - run: |
+      #   echo "Run, Build Application using script"
+      #   ./location_of_script_within_repo/buildscript.sh
+
+      - name: 🔍 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{matrix.language}}'
+
+  # Summary job
+  security-summary:
+    name: 📋 Security Summary
+    runs-on: ubuntu-latest
+    needs: [analyze]
+    if: always()
+
+    steps:
+      - name: 📊 Generate security summary
+        run: |
+          echo "## 🔒 Security Analysis Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository**: ${{ github.repository || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch**: ${{ github.ref_name || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger**: ${{ github.event_name || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check analysis job result with comprehensive null handling
+          analyze_result="${{ needs.analyze.result || 'not_run' }}"
+          analyze_outputs="${{ toJson(needs.analyze.outputs) || '{}' }}"
+          
+          # Handle empty or null outputs gracefully  
+          if [ -z "$analyze_result" ] || [ "$analyze_result" = "null" ]; then
+            analyze_result="not_run"
+          fi
+          
+          echo "### 📋 Analysis Details:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Languages:** TypeScript" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** " >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$analyze_result" = "success" ]; then
+            echo "  ✅ **CodeQL Analysis**: Completed successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "$analyze_result" = "failure" ]; then
+            echo "  ❌ **CodeQL Analysis**: Failed" >> $GITHUB_STEP_SUMMARY
+          elif [ "$analyze_result" = "skipped" ]; then
+            echo "  ⏭️ **CodeQL Analysis**: Skipped" >> $GITHUB_STEP_SUMMARY
+          elif [ "$analyze_result" = "cancelled" ]; then
+            echo "  🚫 **CodeQL Analysis**: Cancelled" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "  ⚪ **CodeQL Analysis**: Not run or unknown status" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Generate appropriate summary with enhanced error handling
+          if [ "$analyze_result" = "success" ]; then
+            echo "### ✅ Analysis Successful" >> $GITHUB_STEP_SUMMARY
+            echo "Security findings (if any) will be available in the Security tab of your repository." >> $GITHUB_STEP_SUMMARY
+            
+            # Check if there are any scan results available
+            if [ "$analyze_outputs" != "{}" ] && [ "$analyze_outputs" != "null" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Additional scan data is available in the workflow outputs." >> $GITHUB_STEP_SUMMARY
+            fi
+          elif [ "$analyze_result" = "failure" ]; then
+            echo "### ❌ Analysis Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Please check the job logs for details and retry the analysis." >> $GITHUB_STEP_SUMMARY
+          elif [ "$analyze_result" = "cancelled" ]; then
+            echo "### 🚫 Analysis Cancelled" >> $GITHUB_STEP_SUMMARY
+            echo "The analysis was cancelled during execution. You may need to retry the workflow." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ℹ️ Analysis Not Executed" >> $GITHUB_STEP_SUMMARY
+            echo "CodeQL analysis was skipped or not run due to workflow conditions." >> $GITHUB_STEP_SUMMARY
+            
+            # Provide helpful context for empty scan results
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "This may occur when the PR doesn't contain code changes that require security analysis." >> $GITHUB_STEP_SUMMARY
+            elif [ "${{ github.event_name }}" = "schedule" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Scheduled scans may be skipped if there are no recent code changes." >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📚 [Learn more about CodeQL](https://docs.github.com/en/code-security/code-scanning)"

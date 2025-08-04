@@ -1,0 +1,122 @@
+# Security Policy Configuration
+# This file defines security scanning thresholds and exceptions for the repository
+
+# Dependency vulnerability thresholds (used by security-scanning.yml workflow)
+# These define how many vulnerabilities of each severity level are acceptable
+dependencies:
+  thresholds:
+    critical: 0      # No critical vulnerabilities allowed
+    high: 2          # Up to 2 high severity vulnerabilities allowed
+    moderate: 10     # Up to 10 moderate vulnerabilities allowed
+    low: 50          # Up to 50 low severity vulnerabilities allowed (warning only)
+
+# Legacy format (kept for compatibility)
+vulnerability_thresholds:
+  critical: 0      # No critical vulnerabilities allowed
+  high: 2          # Up to 2 high severity vulnerabilities allowed
+  moderate: 10     # Up to 10 moderate vulnerabilities allowed
+  low: 50          # Up to 50 low severity vulnerabilities allowed (warning only)
+  info: 100        # Up to 100 informational vulnerabilities allowed (informational only)
+
+# Allowed vulnerability exceptions
+# List specific vulnerability IDs that should be ignored despite their severity
+# Format: advisory ID from npm audit (e.g., "GHSA-xxxx-xxxx-xxxx" or npm advisory IDs)
+allowed_vulnerabilities:
+  # Currently no exceptions are configured - add entries as needed
+  # Format examples:
+  # - id: "GHSA-7fh5-64p2-3v2j"
+  #   reason: "Path traversal vulnerability in dev dependency only"
+  #   expires: "2025-12-31"
+  #   approved_by: "security-team"
+  # - id: "1004074"
+  #   reason: "Prototype pollution in test dependency, not exposed in production"
+  #   expires: "2025-09-01"
+  #   approved_by: "dev-team"
+
+# Exception list (simple format for compatibility)
+exceptions:
+  # Add specific vulnerability IDs here when exceptions are needed
+  # Each entry should include a comment explaining why it's allowed
+  
+# Reporting configuration
+reporting:
+  # Whether to fail the build on policy violations
+  fail_on_violation: true
+  
+  # Whether to create GitHub issues for new vulnerabilities
+  create_issues: false
+  
+  # Severity levels that should create alerts
+  alert_severities:
+    - critical
+    - high
+  
+  # Notification settings
+  notifications:
+    # Whether to notify on new vulnerabilities
+    enabled: false
+    # Channels to notify (when implemented)
+    channels: []
+
+# Scan configuration
+scan_settings:
+  # Whether to include dev dependencies in vulnerability scans
+  include_dev_dependencies: true
+  
+  # Whether to scan for outdated packages
+  check_outdated: true
+  
+  # License compliance settings
+  license_compliance:
+    # Licenses that are not allowed
+    prohibited_licenses:
+      - "GPL-3.0"
+      - "AGPL-3.0"
+      - "LGPL-3.0"
+    
+    # Licenses that require manual review
+    review_required:
+      - "GPL-2.0"
+      - "LGPL-2.1"
+      - "MPL-2.0"
+
+# Update policy
+update_policy:
+  # How often this policy should be reviewed (in days)
+  review_interval: 90
+  
+  # Last updated timestamp
+  last_updated: "2024-08-03"
+  
+  # Version of this policy
+  version: "1.0.0"
+
+# Documentation
+documentation:
+  description: |
+    This file defines the security policy for vulnerability scanning and management.
+    
+    **Vulnerability Thresholds:**
+    - Critical: No tolerance - builds will fail immediately
+    - High: Limited tolerance (2) - requires justification for exceptions
+    - Moderate: Reasonable tolerance (10) - warnings only
+    - Low/Info: High tolerance - informational purposes
+    
+    **Exception Process:**
+    1. Identify the vulnerability advisory ID from npm audit output
+    2. Assess the risk and business impact  
+    3. Add the ID to allowed_vulnerabilities with justification comment
+    4. Document mitigation measures in code/configuration
+    5. Set reminder to review during next policy review cycle
+    
+    **Policy Review:**
+    This policy should be reviewed every 90 days to ensure thresholds remain appropriate
+    and exceptions are still valid.
+  
+  links:
+    - name: "npm audit documentation"
+      url: "https://docs.npmjs.com/cli/v8/commands/npm-audit"
+    - name: "GitHub Security Advisories"
+      url: "https://github.com/advisories"
+    - name: "OWASP Vulnerability Management Guide"
+      url: "https://owasp.org/www-community/Vulnerability_Management_Cheat_Sheet"

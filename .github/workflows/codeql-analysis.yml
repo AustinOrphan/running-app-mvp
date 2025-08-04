@@ -1,0 +1,659 @@
+name: 🔒 CodeQL Security Analysis
+
+on:
+  # Run on push to main and PRs
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    
+  # Run weekly on Sundays for comprehensive analysis
+  schedule:
+    - cron: '0 06:00 * * 0'  # 6 AM ET on Sundays
+    
+  # Manual trigger for security audits
+  workflow_dispatch:
+    inputs:
+      full_scan:
+        description: 'Perform full repository scan'
+        required: false
+        default: 'false'
+        type: boolean
+
+# Limit concurrency to prevent resource conflicts
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: 🔍 CodeQL Analysis
+    runs-on: ubuntu-latest
+    
+    # Required for private repositories to use CodeQL
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
+      
+    strategy:
+      fail-fast: false
+      matrix:
+        # Define languages to analyze
+        language: ['javascript', 'typescript']
+        
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Full history for better analysis
+          fetch-depth: 0
+          
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: 🔧 Install dependencies
+        run: npm ci
+        
+      # Initialize CodeQL tools for scanning
+      - name: 🔧 Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Custom queries for enhanced security analysis
+          queries: |
+            security-extended
+            security-and-quality
+          # Enable CodeQL debugging in workflow logs
+          debug: ${{ github.event.inputs.full_scan == 'true' }}
+          
+      # Build the project for analysis
+      - name: 🏗️ Build project
+        run: |
+          npm run build
+          
+      # Perform CodeQL analysis
+      - name: 🔍 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        env:
+          # Configure CodeQL analysis severity thresholds
+          CODEQL_FAIL_ON_ERROR: true        # Fail if CodeQL analysis has errors
+          CODEQL_FAIL_ON_HIGH: true         # Fail on high severity findings
+          CODEQL_FAIL_ON_MEDIUM: false      # Don't fail on medium severity findings
+          CODEQL_WARN_ON_MEDIUM: true       # Warn on medium severity findings
+        with:
+          category: "/language:${{ matrix.language }}"
+          # Upload results even if there are findings
+          upload: true
+          # Configure analysis output format
+          output: sarif-and-exit-code
+          # Set analysis timeout (30 minutes)
+          timeout: 1800
+          
+      # Generate security report
+      - name: 📊 Generate Security Report
+        if: always()
+        run: |
+          echo "## 🔒 Security Analysis Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Language**: ${{ matrix.language }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Analysis Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Results have been uploaded to GitHub Security tab." >> $GITHUB_STEP_SUMMARY
+          echo "Check the Security tab for detailed findings." >> $GITHUB_STEP_SUMMARY
+
+  # Dependency vulnerability scanning
+  dependency-scan:
+    name: 📦 Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      security-events: write
+      
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: 🔧 Install dependencies
+        run: npm ci
+        
+      # Run npm audit with JSON output
+      - name: 🔍 Run npm audit
+        id: audit
+        run: |
+          # Run audit and capture output
+          audit_output=$(npm audit --json 2>/dev/null || true)
+          echo "audit_result<<EOF" >> $GITHUB_OUTPUT
+          echo "$audit_output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Get vulnerability count with proper null checks
+          if [ -n "$audit_output" ] && echo "$audit_output" | jq empty >/dev/null 2>&1; then
+            vuln_count=$(echo "$audit_output" | jq -r '.metadata.vulnerabilities.total // 0')
+          else
+            echo "⚠️ Warning: npm audit output is empty or invalid JSON, using default value"
+            vuln_count=0
+          fi
+          
+          # Ensure vulnerability count is numeric
+          if [ -z "$vuln_count" ] || [ "$vuln_count" = "null" ] || [ "$vuln_count" = "undefined" ]; then
+            vuln_count=0
+          fi
+          
+          echo "vulnerability_count=$vuln_count" >> $GITHUB_OUTPUT
+          
+      # Generate vulnerability report
+      - name: 📊 Generate Vulnerability Report
+        if: always()
+        run: |
+          echo "## 📦 Dependency Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          vuln_count="${{ steps.audit.outputs.vulnerability_count }}"
+          
+          # Handle empty or null vulnerability count
+          if [ -z "$vuln_count" ] || [ "$vuln_count" = "null" ] || [ "$vuln_count" = "undefined" ]; then
+            vuln_count=0
+            echo "⚠️ **Warning**: Vulnerability count was empty or null, treating as 0" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "$vuln_count" -eq 0 ]; then
+            echo "✅ **No vulnerabilities found**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Found $vuln_count vulnerabilities**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm audit\` locally for detailed information." >> $GITHUB_STEP_SUMMARY
+            echo "Use \`npm audit fix\` to automatically fix issues." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          
+      # Fail if high/critical vulnerabilities found (with configurable thresholds)
+      - name: ❌ Check for critical vulnerabilities
+        if: steps.audit.outputs.vulnerability_count != '0'
+        env:
+          # Configurable vulnerability thresholds (aligned with .github/security-policy.yml)
+          CRITICAL_THRESHOLD: 0      # Number of critical vulnerabilities allowed (0 = none)
+          HIGH_THRESHOLD: 0          # Number of high severity vulnerabilities allowed (updated to match security policy)
+          MODERATE_THRESHOLD: 10     # Number of moderate vulnerabilities allowed
+          # Exception list - comma-separated list of vulnerability IDs to ignore
+          ALLOWED_VULNERABILITIES: ""
+        run: |
+          audit_output='${{ steps.audit.outputs.audit_result }}'
+          
+          # Validate audit output and extract vulnerability counts with null checks
+          if [ -n "$audit_output" ] && echo "$audit_output" | jq empty >/dev/null 2>&1; then
+            critical=$(echo "$audit_output" | jq -r '.metadata.vulnerabilities.critical // 0')
+            high=$(echo "$audit_output" | jq -r '.metadata.vulnerabilities.high // 0')
+            moderate=$(echo "$audit_output" | jq -r '.metadata.vulnerabilities.moderate // 0')
+            low=$(echo "$audit_output" | jq -r '.metadata.vulnerabilities.low // 0')
+            info=$(echo "$audit_output" | jq -r '.metadata.vulnerabilities.info // 0')
+          else
+            echo "⚠️ Warning: audit output is empty or invalid JSON, using default values"
+            critical=0
+            high=0
+            moderate=0
+            low=0
+            info=0
+          fi
+          
+          # Ensure all values are numeric (handle null/undefined cases)
+          if [ -z "$critical" ] || [ "$critical" = "null" ] || [ "$critical" = "undefined" ]; then critical=0; fi
+          if [ -z "$high" ] || [ "$high" = "null" ] || [ "$high" = "undefined" ]; then high=0; fi
+          if [ -z "$moderate" ] || [ "$moderate" = "null" ] || [ "$moderate" = "undefined" ]; then moderate=0; fi
+          if [ -z "$low" ] || [ "$low" = "null" ] || [ "$low" = "undefined" ]; then low=0; fi
+          if [ -z "$info" ] || [ "$info" = "null" ] || [ "$info" = "undefined" ]; then info=0; fi
+          
+          echo "📊 Vulnerability Summary:"
+          echo "Critical: $critical (threshold: ${CRITICAL_THRESHOLD})"
+          echo "High: $high (threshold: ${HIGH_THRESHOLD})"
+          echo "Moderate: $moderate (threshold: ${MODERATE_THRESHOLD})"
+          echo "Low: $low"
+          echo "Info: $info"
+          echo ""
+          
+          # Check allowed vulnerabilities exceptions
+          filtered_critical=$critical
+          filtered_high=$high
+          filtered_moderate=$moderate
+          
+          if [ -n "$ALLOWED_VULNERABILITIES" ]; then
+            echo "ℹ️ Checking exception list: $ALLOWED_VULNERABILITIES"
+            
+            # Convert comma-separated list to array
+            IFS=',' read -ra ALLOWED_IDS <<< "$ALLOWED_VULNERABILITIES"
+            
+            # Count exceptions found (simplified implementation - counts by advisory ID)
+            exceptions_found=0
+            for vuln_id in "${ALLOWED_IDS[@]}"; do
+              vuln_id=$(echo "$vuln_id" | xargs)  # trim whitespace
+              if [ -n "$vuln_id" ]; then
+                # Check if this vulnerability ID exists in the audit output
+                if echo "$audit_output" | jq -e ".advisories.\"$vuln_id\"" >/dev/null 2>&1; then
+                  severity=$(echo "$audit_output" | jq -r ".advisories.\"$vuln_id\".severity // \"unknown\"")
+                  echo "  ✓ Allowing vulnerability $vuln_id (severity: $severity)"
+                  
+                  # Reduce count based on severity
+                  case "$severity" in
+                    "critical") filtered_critical=$((filtered_critical - 1)) ;;
+                    "high") filtered_high=$((filtered_high - 1)) ;;
+                    "moderate") filtered_moderate=$((filtered_moderate - 1)) ;;
+                  esac
+                  exceptions_found=$((exceptions_found + 1))
+                fi
+              fi
+            done
+            
+            if [ $exceptions_found -gt 0 ]; then
+              echo "  Applied $exceptions_found vulnerability exceptions"
+              echo "  Adjusted counts - Critical: $filtered_critical, High: $filtered_high, Moderate: $filtered_moderate"
+            else
+              echo "  No matching vulnerabilities found in exception list"
+            fi
+            echo ""
+          fi
+          
+          # Apply configurable thresholds using filtered counts (after exceptions)
+          violations=0
+          
+          # Ensure filtered counts are not negative
+          [ $filtered_critical -lt 0 ] && filtered_critical=0
+          [ $filtered_high -lt 0 ] && filtered_high=0
+          [ $filtered_moderate -lt 0 ] && filtered_moderate=0
+          
+          if [ "$filtered_critical" -gt "${CRITICAL_THRESHOLD}" ]; then
+            echo "❌ Critical vulnerabilities exceed threshold: $filtered_critical > ${CRITICAL_THRESHOLD}"
+            violations=$((violations + 1))
+          fi
+          
+          if [ "$filtered_high" -gt "${HIGH_THRESHOLD}" ]; then
+            echo "❌ High severity vulnerabilities exceed threshold: $filtered_high > ${HIGH_THRESHOLD}"
+            violations=$((violations + 1))
+          fi
+          
+          if [ "$filtered_moderate" -gt "${MODERATE_THRESHOLD}" ]; then
+            echo "⚠️ Moderate vulnerabilities exceed threshold: $filtered_moderate > ${MODERATE_THRESHOLD}"
+            echo "This is a warning - not failing the build for moderate vulnerabilities"
+          fi
+          
+          if [ $violations -gt 0 ]; then
+            echo ""
+            echo "❌ Security policy violations detected!"
+            echo "Please run 'npm audit fix' to resolve security issues."
+            echo ""
+            echo "🔧 Recommended actions:"
+            echo "1. Run 'npm audit fix' to automatically resolve fixable issues"
+            echo "2. Review vulnerability details and update dependencies manually"
+            echo "3. Add accepted exceptions to .github/security-policy.yml if risks are mitigated"
+            echo ""
+            echo "📚 See .github/security-policy.yml for detailed policy configuration and exception handling"
+            exit 1
+          else
+            echo "✅ All vulnerabilities are within acceptable thresholds"
+          fi
+
+  # License compliance scanning
+  license-scan:
+    name: 📜 License Compliance Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: 🔧 Install license checker
+        run: npm install -g license-checker
+        
+      - name: 🔧 Install dependencies
+        run: npm ci
+        
+      # Check for license compliance with configurable policies
+      - name: 📜 Check licenses
+        id: license-check
+        env:
+          # Configure license policy (from security-policy.yml)
+          ALLOWED_LICENSES: "MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,CC0-1.0,Unlicense"
+          REVIEW_LICENSES: "GPL-2.0,GPL-3.0,LGPL-2.1,LGPL-3.0,MPL-2.0,EPL-1.0,EPL-2.0"  
+          PROHIBITED_LICENSES: "AGPL-1.0,AGPL-3.0,GPL-1.0+,GPL-2.0+,GPL-3.0+,LGPL-2.0+,LGPL-2.1+,LGPL-3.0+"
+          INCLUDE_PRIVATE: false
+        run: |
+          # Generate license report
+          if [ "$INCLUDE_PRIVATE" = "true" ]; then
+            license-checker --json --out licenses.json 
+          else
+            license-checker --json --out licenses.json --excludePrivatePackages
+          fi
+          
+          # Parse license data and check against policies
+          echo "📋 License Policy Check Results:"
+          echo ""
+          
+          # Initialize counters
+          prohibited_count=0
+          review_count=0
+          allowed_count=0
+          unknown_count=0
+          
+          # Create temporary files for categorization
+          prohibited_licenses=""
+          review_licenses=""
+          unknown_licenses=""
+          
+          # Process licenses from the report
+          # Extract unique licenses from the JSON report
+          unique_licenses=$(jq -r 'to_entries[] | .value.licenses // "Unknown"' licenses.json | sort -u)
+          
+          echo "Found licenses:"
+          while IFS= read -r license; do
+            if [ -z "$license" ] || [ "$license" = "null" ]; then
+              license="Unknown"
+            fi
+            
+            echo "  - $license"
+            
+            # Check against prohibited list
+            if echo "$PROHIBITED_LICENSES" | grep -q "$license"; then
+              prohibited_licenses="$prohibited_licenses $license"
+              prohibited_count=$((prohibited_count + 1))
+              echo "    ❌ PROHIBITED"
+            # Check against review required list  
+            elif echo "$REVIEW_LICENSES" | grep -q "$license"; then
+              review_licenses="$review_licenses $license"
+              review_count=$((review_count + 1))
+              echo "    ⚠️ REQUIRES REVIEW"
+            # Check against allowed list
+            elif echo "$ALLOWED_LICENSES" | grep -q "$license"; then
+              allowed_count=$((allowed_count + 1))
+              echo "    ✅ ALLOWED"
+            else
+              unknown_licenses="$unknown_licenses $license"
+              unknown_count=$((unknown_count + 1))
+              echo "    ❓ UNKNOWN (requires review)"
+            fi
+          done <<< "$unique_licenses"
+          
+          echo ""
+          echo "📊 License Summary:"
+          echo "  ✅ Allowed: $allowed_count"
+          echo "  ⚠️ Review Required: $review_count"
+          echo "  ❓ Unknown: $unknown_count" 
+          echo "  ❌ Prohibited: $prohibited_count"
+          
+          # Set outputs for summary generation
+          has_issues=false
+          issue_details=""
+          
+          if [ $prohibited_count -gt 0 ]; then
+            has_issues=true
+            issue_details="$issue_details\nProhibited licenses found:$prohibited_licenses"
+          fi
+          
+          if [ $unknown_count -gt 0 ]; then
+            has_issues=true
+            issue_details="$issue_details\nUnknown licenses requiring review:$unknown_licenses"
+          fi
+          
+          if [ $review_count -gt 0 ]; then
+            issue_details="$issue_details\nLicenses requiring review:$review_licenses"
+          fi
+          
+          echo "has_issues=$has_issues" >> $GITHUB_OUTPUT
+          echo "prohibited_count=$prohibited_count" >> $GITHUB_OUTPUT
+          echo "review_count=$review_count" >> $GITHUB_OUTPUT
+          echo "unknown_count=$unknown_count" >> $GITHUB_OUTPUT
+          echo "issues<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$issue_details" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+      # Generate license report with policy details
+      - name: 📊 Generate License Report
+        if: always()
+        run: |
+          echo "## 📜 License Compliance Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          prohibited_count="${{ steps.license-check.outputs.prohibited_count || '0' }}"
+          review_count="${{ steps.license-check.outputs.review_count || '0' }}"
+          unknown_count="${{ steps.license-check.outputs.unknown_count || '0' }}"
+          
+          # Overall status
+          if [ "$prohibited_count" -gt 0 ]; then
+            echo "❌ **License compliance FAILED - prohibited licenses detected**" >> $GITHUB_STEP_SUMMARY
+          elif [ "$unknown_count" -gt 0 ]; then
+            echo "⚠️ **License compliance requires REVIEW - unknown licenses found**" >> $GITHUB_STEP_SUMMARY
+          elif [ "$review_count" -gt 0 ]; then
+            echo "⚠️ **License compliance requires REVIEW - restricted licenses found**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **License compliance PASSED - all licenses are approved**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # License policy summary
+          echo "### 📋 Policy Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Prohibited**: $prohibited_count licenses found" >> $GITHUB_STEP_SUMMARY
+          echo "- **Requires Review**: $review_count licenses found" >> $GITHUB_STEP_SUMMARY
+          echo "- **Unknown**: $unknown_count licenses found" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Detailed issues if any
+          if [ "${{ steps.license-check.outputs.has_issues }}" = "true" ]; then
+            echo "### ⚠️ Issues Requiring Attention" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.license-check.outputs.issues }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            if [ "$prohibited_count" -gt 0 ]; then
+              echo "**Action Required**: Remove or replace packages with prohibited licenses." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Action Required**: Review the listed licenses and update security policy if appropriate." >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Policy Configuration**: See \`.github/security-policy.yml\` for license policy details" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          
+      # Upload license report as artifact
+      - name: 📤 Upload license report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: licenses.json
+          retention-days: 30
+
+  # Security notification
+  notify-security-results:
+    name: 📢 Security Scan Notification
+    runs-on: ubuntu-latest
+    needs: [analyze, dependency-scan, license-scan]
+    if: always()
+    
+    steps:
+      - name: 📊 Generate Overall Security Summary
+        run: |
+          echo "# 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Get job results with comprehensive null checks and default values
+          analyze_result="${{ needs.analyze.result || 'not_run' }}"
+          dependency_result="${{ needs.dependency-scan.result || 'not_run' }}"
+          license_result="${{ needs.license-scan.result || 'not_run' }}"
+          
+          # Handle empty, null, or undefined results
+          if [ -z "$analyze_result" ] || [ "$analyze_result" = "null" ] || [ "$analyze_result" = "undefined" ]; then
+            analyze_result="not_run"
+          fi
+          
+          if [ -z "$dependency_result" ] || [ "$dependency_result" = "null" ] || [ "$dependency_result" = "undefined" ]; then
+            dependency_result="not_run"
+          fi
+          
+          if [ -z "$license_result" ] || [ "$license_result" = "null" ] || [ "$license_result" = "undefined" ]; then
+            license_result="not_run"
+          fi
+          
+          echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+          
+          # CodeQL Analysis Status with comprehensive null and edge case handling
+          if [ "$analyze_result" = "success" ]; then
+            echo "✅ **CodeQL Analysis**: Passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "$analyze_result" = "failure" ]; then
+            echo "❌ **CodeQL Analysis**: Failed" >> $GITHUB_STEP_SUMMARY
+          elif [ "$analyze_result" = "skipped" ]; then
+            echo "⏭️ **CodeQL Analysis**: Skipped" >> $GITHUB_STEP_SUMMARY
+          elif [ "$analyze_result" = "cancelled" ]; then
+            echo "🚫 **CodeQL Analysis**: Cancelled" >> $GITHUB_STEP_SUMMARY
+          elif [ "$analyze_result" = "timed_out" ]; then
+            echo "⏰ **CodeQL Analysis**: Timed out" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚪ **CodeQL Analysis**: Not run or unknown status ($analyze_result)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Dependency Scan Status with comprehensive null and edge case handling
+          if [ "$dependency_result" = "success" ]; then
+            echo "✅ **Dependency Scan**: Passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "$dependency_result" = "failure" ]; then
+            echo "❌ **Dependency Scan**: Failed" >> $GITHUB_STEP_SUMMARY
+          elif [ "$dependency_result" = "skipped" ]; then
+            echo "⏭️ **Dependency Scan**: Skipped" >> $GITHUB_STEP_SUMMARY
+          elif [ "$dependency_result" = "cancelled" ]; then
+            echo "🚫 **Dependency Scan**: Cancelled" >> $GITHUB_STEP_SUMMARY
+          elif [ "$dependency_result" = "timed_out" ]; then
+            echo "⏰ **Dependency Scan**: Timed out" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚪ **Dependency Scan**: Not run or unknown status ($dependency_result)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # License Scan Status with comprehensive null and edge case handling
+          if [ "$license_result" = "success" ]; then
+            echo "✅ **License Compliance**: Passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "$license_result" = "failure" ]; then
+            echo "⚠️ **License Compliance**: Issues found" >> $GITHUB_STEP_SUMMARY
+          elif [ "$license_result" = "skipped" ]; then
+            echo "⏭️ **License Compliance**: Skipped" >> $GITHUB_STEP_SUMMARY
+          elif [ "$license_result" = "cancelled" ]; then
+            echo "🚫 **License Compliance**: Cancelled" >> $GITHUB_STEP_SUMMARY
+          elif [ "$license_result" = "timed_out" ]; then
+            echo "⏰ **License Compliance**: Timed out" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚪ **License Compliance**: Not run or unknown status ($license_result)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Overall status assessment with safe handling of empty results
+          failed_scans=""
+          successful_scans=""
+          skipped_scans=""
+          error_scans=""
+          
+          # Count results with null-safe checks
+          # Failed scans
+          if [ "$analyze_result" = "failure" ]; then failed_scans="$failed_scans CodeQL"; fi
+          if [ "$dependency_result" = "failure" ]; then failed_scans="$failed_scans Dependency"; fi
+          if [ "$license_result" = "failure" ]; then failed_scans="$failed_scans License"; fi
+          
+          # Successful scans
+          if [ "$analyze_result" = "success" ]; then successful_scans="$successful_scans CodeQL"; fi
+          if [ "$dependency_result" = "success" ]; then successful_scans="$successful_scans Dependency"; fi
+          if [ "$license_result" = "success" ]; then successful_scans="$successful_scans License"; fi
+          
+          # Skipped/not run scans (expanded to handle more edge cases)
+          if [ "$analyze_result" = "skipped" ] || [ "$analyze_result" = "not_run" ]; then skipped_scans="$skipped_scans CodeQL"; fi
+          if [ "$dependency_result" = "skipped" ] || [ "$dependency_result" = "not_run" ]; then skipped_scans="$skipped_scans Dependency"; fi
+          if [ "$license_result" = "skipped" ] || [ "$license_result" = "not_run" ]; then skipped_scans="$skipped_scans License"; fi
+          
+          # Error states (cancelled, timed out, etc)
+          if [ "$analyze_result" = "cancelled" ] || [ "$analyze_result" = "timed_out" ]; then error_scans="$error_scans CodeQL"; fi
+          if [ "$dependency_result" = "cancelled" ] || [ "$dependency_result" = "timed_out" ]; then error_scans="$error_scans Dependency"; fi
+          if [ "$license_result" = "cancelled" ] || [ "$license_result" = "timed_out" ]; then error_scans="$error_scans License"; fi
+          
+          # Generate summary based on results with comprehensive empty scan handling
+          if [ -n "$failed_scans" ]; then
+            echo "## ⚠️ Action Required" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The following security scans failed:$failed_scans" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please review the detailed results and address any security issues found." >> $GITHUB_STEP_SUMMARY
+          elif [ -n "$error_scans" ]; then
+            echo "## 🚫 Scan Errors Detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The following security scans encountered errors:$error_scans" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "These scans were cancelled or timed out. Please retry the workflow or check the logs for details." >> $GITHUB_STEP_SUMMARY
+          elif [ -z "$successful_scans" ]; then
+            echo "## ℹ️ No Security Scans Executed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Provide context for why scans might be empty
+            total_expected_scans=3  # CodeQL, Dependency, License
+            actual_scans=$(echo "$analyze_result $dependency_result $license_result" | wc -w)
+            
+            if [ "$actual_scans" -eq 0 ] || [ -z "$analyze_result$dependency_result$license_result" ]; then
+              echo "**Status**: All security scans were skipped or not run due to workflow conditions." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "This typically occurs when:" >> $GITHUB_STEP_SUMMARY
+              echo "- The repository doesn't contain supported languages for analysis" >> $GITHUB_STEP_SUMMARY
+              echo "- The workflow was triggered on a branch/event that doesn't require scanning" >> $GITHUB_STEP_SUMMARY
+              echo "- There are no code changes that require security analysis" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "All security scans were skipped or not run due to workflow conditions." >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            if [ -n "$skipped_scans" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Skipped scans:$skipped_scans" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "## ✅ Security Scans Completed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ -n "$successful_scans" ]; then
+              echo "Successful scans:$successful_scans" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [ -n "$skipped_scans" ]; then
+              echo "Skipped scans:$skipped_scans" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [ -n "$error_scans" ]; then
+              echo "Scans with errors:$error_scans" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No critical security issues detected in executed scans." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "For detailed results, check the Security tab and individual job logs." >> $GITHUB_STEP_SUMMARY

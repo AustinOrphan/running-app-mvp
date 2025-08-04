@@ -1,0 +1,31 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "@types/jest", "@testing-library/jest-dom"]
+  },
+  "include": [
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
+    "server.ts",
+    "server/**/*.ts",
+    "server/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "middleware/**/*.ts",
+    "middleware/**/*.tsx",
+    "routes/**/*.ts",
+    "routes/**/*.tsx",
+    "types/**/*.ts",
+    "types/**/*.tsx",
+    "utils/**/*.ts",
+    "utils/**/*.tsx",
+    "**/*.config.ts",
+    "**/*.config.js",
+    "scripts/**/*.ts",
+    "*.ts",
+    "*.tsx"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

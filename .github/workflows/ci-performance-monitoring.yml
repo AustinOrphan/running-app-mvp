@@ -1,0 +1,408 @@
+name: CI Performance Monitoring
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+  schedule:
+    # Run daily at 7 AM UTC
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      full_analysis:
+        description: 'Run full performance analysis'
+        type: boolean
+        default: false
+
+jobs:
+  # Optimized CI pipeline with performance tracking
+  fast-ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
+    
+    outputs:
+      runtime: ${{ steps.timing.outputs.runtime }}
+      target-met: ${{ steps.timing.outputs.target-met }}
+    
+    steps:
+      - name: Start timing
+        id: start
+        run: echo "start-time=$(date +%s)" >> $GITHUB_OUTPUT
+      
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          # Optimized installation
+          npm ci --prefer-offline --no-audit --progress=false
+      
+      - name: Cache build artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            .next/cache
+            dist/
+            node_modules/.cache
+          key: build-cache-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx') }}
+          restore-keys: |
+            build-cache-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-
+            build-cache-${{ runner.os }}-
+      
+      # Parallel execution of fast checks
+      - name: Fast feedback (parallel)
+        run: |
+          # Run linting and type checking in parallel
+          npm run lint &
+          npm run typecheck &
+          wait
+      
+      # Parallel test execution
+      - name: Setup test environment
+        run: |
+          # Ensure database directory exists
+          mkdir -p prisma
+          # Deploy migrations and generate client
+          npm run ci-db-setup
+          npm run prisma:generate
+      
+      - name: Run unit tests
+        run: npm run test:coverage:unit:ci
+      
+      - name: Run integration tests
+        run: npm run test:coverage:integration:ci
+      
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+      
+      - name: Calculate runtime
+        id: timing
+        run: |
+          start_time=${{ steps.start.outputs.start-time }}
+          end_time=$(date +%s)
+          runtime=$((end_time - start_time))
+          target_met=$([[ $runtime -le 300 ]] && echo "true" || echo "false")
+          
+          echo "runtime=$runtime" >> $GITHUB_OUTPUT
+          echo "target-met=$target_met" >> $GITHUB_OUTPUT
+          
+          echo "⏱️ Pipeline Runtime: ${runtime}s"
+          echo "🎯 Target: 300s (5 minutes)"
+          echo "Status: $([[ $target_met == "true" ]] && echo "✅ TARGET MET" || echo "❌ TARGET MISSED")"
+
+  # Performance analysis and reporting
+  performance-analysis:
+    runs-on: ubuntu-latest
+    needs: fast-ci
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+      
+      - name: Cache performance data
+        uses: actions/cache@v3
+        with:
+          path: ci-data/performance
+          key: performance-data-${{ github.sha }}
+          restore-keys: |
+            performance-data-${{ github.ref_name }}-
+            performance-data-
+      
+      - name: Record performance metrics
+        run: |
+          mkdir -p ci-data/performance/runs
+          
+          # Create performance record
+          cat > ci-data/performance/runs/run-${{ github.run_number }}.json << EOF
+          {
+            "id": "run-${{ github.run_number }}",
+            "workflowName": "CI Performance",
+            "branch": "${{ github.ref_name }}",
+            "commit": "${{ github.sha }}",
+            "trigger": "${{ github.event_name }}",
+            "startTime": "$(date -d '@${{ needs.fast-ci.outputs.start-time || 0 }}' -Iseconds)",
+            "totalDuration": ${{ needs.fast-ci.outputs.runtime || 0 }}000,
+            "targetMet": ${{ needs.fast-ci.outputs.target-met || false }},
+            "environment": {
+              "runner": "ubuntu-latest",
+              "nodeVersion": "$(node --version)",
+              "cacheHit": true
+            }
+          }
+          EOF
+      
+      - name: Analyze performance
+        run: |
+          # Run performance analysis if we have enough data
+          if [ -d "ci-data/performance/runs" ] && [ "$(ls -1 ci-data/performance/runs/*.json 2>/dev/null | wc -l)" -gt 3 ]; then
+            npm run ci:performance:analyze
+          else
+            echo "⚠️ Not enough performance data for analysis yet"
+          fi
+      
+      - name: Comment PR with performance metrics
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const runtime = ${{ needs.fast-ci.outputs.runtime || 0 }};
+            const targetMet = ${{ needs.fast-ci.outputs.target-met || false }};
+            const target = 300; // 5 minutes
+            
+            const emoji = targetMet ? '✅' : '❌';
+            const status = targetMet ? 'TARGET MET' : 'TARGET MISSED';
+            const minutes = Math.floor(runtime / 60);
+            const seconds = runtime % 60;
+            const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+            
+            const body = `## ⏱️ CI Performance Report
+            
+            | Metric | Value | Status |
+            |--------|-------|--------|
+            | **Runtime** | ${timeStr} | ${emoji} |
+            | **Target** | 5m 0s | 🎯 |
+            | **Difference** | ${runtime > target ? '+' : ''}${runtime - target}s | ${runtime <= target ? '✅' : '⚠️'} |
+            
+            ### 📊 Performance Analysis
+            
+            ${targetMet 
+              ? '🎉 **Great job!** This PR meets our 5-minute CI runtime target.'
+              : `⚠️ **Performance Impact**: This PR exceeds our 5-minute target by ${runtime - target} seconds.`
+            }
+            
+            ${runtime > target ? `
+            ### 🔧 Potential Optimizations
+            - Review test execution time
+            - Check for unnecessary dependencies
+            - Consider test parallelization improvements
+            - Verify build caching is working effectively
+            ` : ''}
+            
+            ### 📈 Trend Analysis
+            - Current run: ${timeStr}
+            - Target: 5m 0s
+            - Status: ${status}
+            
+            _Performance tracking helps us maintain fast development cycles. Target: <5min CI runtime for PRs._`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+      
+      - name: Create performance issue
+        if: needs.fast-ci.outputs.target-met == 'false' && github.event_name == 'schedule'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const runtime = ${{ needs.fast-ci.outputs.runtime || 0 }};
+            const target = 300;
+            const overage = runtime - target;
+            
+            // Check if there's already an open performance issue
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'performance,ci,automated',
+              state: 'open'
+            });
+            
+            if (issues.length > 0) {
+              console.log('ℹ️ Performance issue already exists');
+              return;
+            }
+            
+            const minutes = Math.floor(runtime / 60);
+            const seconds = runtime % 60;
+            const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+            
+            const body = `## ⚠️ CI Performance Issue Detected
+            
+            Our CI pipeline is exceeding the 5-minute target runtime.
+            
+            ### 📊 Current Metrics
+            - **Current Runtime**: ${timeStr}
+            - **Target Runtime**: 5m 0s
+            - **Overage**: +${overage}s
+            
+            ### 🔍 Impact
+            - Slower feedback cycles for developers
+            - Increased CI costs
+            - Reduced development velocity
+            - Developer frustration with long wait times
+            
+            ### 🔧 Recommended Actions
+            
+            1. **Immediate Investigation**:
+               - Review recent changes that may have impacted performance
+               - Check for new dependencies or test additions
+               - Verify caching is working correctly
+            
+            2. **Performance Analysis**:
+               - Run \`npm run ci:performance:analyze\` locally
+               - Identify bottlenecks in the pipeline
+               - Review test execution times
+            
+            3. **Optimization Opportunities**:
+               - Implement better test parallelization
+               - Optimize dependency installation
+               - Improve build caching
+               - Review and remove unnecessary steps
+            
+            ### 📈 Monitoring
+            
+            This issue was automatically created by our performance monitoring system.
+            It will be closed when the CI runtime returns to under 5 minutes.
+            
+            ### 🛠️ Tools Available
+            
+            - \`npm run ci:performance:measure\` - Measure current performance
+            - \`npm run ci:performance:analyze\` - Analyze trends
+            - \`npm run ci:performance:recommend\` - Get optimization suggestions
+            - \`npm run ci:performance:optimize\` - Apply automatic optimizations
+            
+            _Detected on ${new Date().toISOString()}_`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 CI Performance Issue - Runtime ${timeStr} (target: 5m)`,
+              body: body,
+              labels: ['performance', 'ci', 'automated', 'needs-investigation']
+            });
+            
+            console.log('📋 Created performance issue');
+      
+      - name: Upload performance data
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-performance-${{ github.run_number }}
+          path: ci-data/performance/
+          retention-days: 30
+
+  # Advanced performance analysis (runs on schedule or manual trigger)
+  advanced-analysis:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.full_analysis == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+      
+      - name: Restore performance data
+        uses: actions/cache@v3
+        with:
+          path: ci-data/performance
+          key: performance-data-${{ github.sha }}
+          restore-keys: |
+            performance-data-${{ github.ref_name }}-
+            performance-data-
+      
+      - name: Run comprehensive performance analysis
+        run: |
+          echo "🔍 Running comprehensive CI performance analysis..."
+          npm run ci:performance:measure
+          npm run ci:performance:analyze
+          npm run ci:performance:recommend
+      
+      - name: Generate optimization recommendations
+        run: |
+          echo "🚀 Generating optimization recommendations..."
+          npm run ci:performance:optimize
+      
+      - name: Create performance summary
+        run: |
+          echo "## 📊 CI Performance Summary" > performance-summary.md
+          echo "" >> performance-summary.md
+          echo "Comprehensive performance analysis completed on $(date)" >> performance-summary.md
+          echo "" >> performance-summary.md
+          
+          if [ -f "ci-data/performance/metrics.json" ]; then
+            echo "### Key Metrics" >> performance-summary.md
+            echo '```json' >> performance-summary.md
+            cat ci-data/performance/metrics.json >> performance-summary.md
+            echo '```' >> performance-summary.md
+          fi
+      
+      - name: Upload comprehensive analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-analysis-${{ github.run_number }}
+          path: |
+            ci-data/performance/
+            performance-summary.md
+            .github/workflows/optimized-ci.yml
+          retention-days: 90
+
+  # Close resolved performance issues
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: fast-ci
+    if: needs.fast-ci.outputs.target-met == 'true' && github.event_name == 'schedule'
+    
+    steps:
+      - name: Close resolved performance issues
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'performance,ci,automated',
+              state: 'open'
+            });
+            
+            for (const issue of issues) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: '✅ **Performance Issue Resolved**\n\nCI runtime has returned to under 5 minutes. Closing this automated issue.\n\n_Resolved on ' + new Date().toISOString() + '_'
+              });
+              
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                labels: [...issue.labels.map(l => l.name), 'resolved']
+              });
+            }
+            
+            console.log(`Closed ${issues.length} resolved performance issues`);

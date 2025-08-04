@@ -1,0 +1,39 @@
+{
+  "timestamp": "2025-08-02T14:44:32.663Z",
+  "bundleSizes": {
+    "main": 1211299,
+    "vendor": 0,
+    "other": 0,
+    "css": 138161,
+    "totalJs": 1211299,
+    "total": 1349460
+  },
+  "files": {
+    "js": 1,
+    "css": 1,
+    "total": 2
+  },
+  "thresholds": {
+    "main": {
+      "max": 1300000,
+      "warning": 1100000
+    },
+    "vendor": {
+      "max": 1000000,
+      "warning": 750000
+    },
+    "total": {
+      "max": 1800000,
+      "warning": 1500000
+    }
+  },
+  "violations": [
+    {
+      "type": "warning",
+      "bundle": "main",
+      "actual": 1211299,
+      "threshold": 1100000,
+      "message": "main bundle size (1182.91KB) exceeds warning threshold (1074.22KB)"
+    }
+  ]
+}

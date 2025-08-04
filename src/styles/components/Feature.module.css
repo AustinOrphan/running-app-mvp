@@ -1,0 +1,196 @@
+/* Feature Preview and Coming Soon Styles */
+
+/* Main feature preview container */
+.featurePreview {
+  width: 100%;
+  max-width: none;
+  margin: 100px auto;
+  padding: 60px 40px;
+  background: var(--surface-color);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+  height: auto;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+/* Decorative gradient line at top */
+.featurePreview::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #10b981, #f59e0b);
+}
+
+/* Feature icon */
+.featureIcon {
+  font-size: 64px;
+  margin-bottom: 24px;
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Feature preview heading */
+.featurePreview h2 {
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  font-size: 28px;
+}
+
+/* Feature preview description */
+.featurePreview p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+/* Coming soon badge */
+.comingSoonBadge {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: pulse 2s infinite;
+}
+
+/* Float animation for icon */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Pulse animation for badge */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .featurePreview {
+    margin: 60px auto;
+    padding: 40px 30px;
+    min-height: 350px;
+  }
+
+  .featureIcon {
+    font-size: 48px;
+  }
+
+  .featurePreview h2 {
+    font-size: 24px;
+  }
+
+  .featurePreview p {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 600px) {
+  .featurePreview {
+    margin: 40px auto;
+    padding: 30px 20px;
+    min-height: 300px;
+  }
+
+  .featureIcon {
+    font-size: 40px;
+    margin-bottom: 20px;
+  }
+
+  .featurePreview h2 {
+    font-size: 22px;
+    margin-bottom: 12px;
+  }
+
+  .featurePreview p {
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .comingSoonBadge {
+    font-size: 12px;
+    padding: 6px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .featurePreview {
+    margin: 30px auto;
+    padding: 25px 15px;
+    min-height: 280px;
+    border-radius: 8px;
+  }
+
+  .featureIcon {
+    font-size: 36px;
+  }
+
+  .featurePreview h2 {
+    font-size: 20px;
+  }
+
+  .featurePreview p {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+}
+
+@media (max-width: 320px) {
+  .featurePreview {
+    margin: 20px auto;
+    padding: 20px 12px;
+    min-height: 250px;
+  }
+
+  .featureIcon {
+    font-size: 32px;
+    margin-bottom: 16px;
+  }
+
+  .featurePreview h2 {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+
+  .featurePreview p {
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+
+  .comingSoonBadge {
+    font-size: 11px;
+    padding: 5px 14px;
+    letter-spacing: 0.3px;
+  }
+}

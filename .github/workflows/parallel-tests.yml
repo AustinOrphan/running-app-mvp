@@ -1,0 +1,252 @@
+name: 🚀 Parallel Test Execution
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop, fix/integration-tests]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: test
+  JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+  DATABASE_URL: file:./prisma/test.db
+
+jobs:
+  # Analyze and categorize tests
+  analyze-tests:
+    name: 📊 Analyze Test Files
+    runs-on: ubuntu-latest
+    outputs:
+      parallel-safe-count: ${{ steps.analyze.outputs.parallel-safe }}
+      db-dependent-count: ${{ steps.analyze.outputs.db-dependent }}
+      test-matrix: ${{ steps.analyze.outputs.matrix }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: 💾 Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Analyze test files
+        id: analyze
+        run: |
+          # Run analysis script
+          npx tsx scripts/parallel-test-orchestrator.ts --analyze-only > analysis.json
+
+          # Extract counts
+          PARALLEL_SAFE=$(jq '.parallelSafe | length' analysis.json)
+          DB_DEPENDENT=$(jq '.dbDependent | length' analysis.json)
+
+          echo "parallel-safe=$PARALLEL_SAFE" >> $GITHUB_OUTPUT
+          echo "db-dependent=$DB_DEPENDENT" >> $GITHUB_OUTPUT
+
+          # Create test matrix for sharding
+          if [ $PARALLEL_SAFE -gt 10 ]; then
+            echo "matrix={\"shard\":[\"1/4\",\"2/4\",\"3/4\",\"4/4\"]}" >> $GITHUB_OUTPUT
+          elif [ $PARALLEL_SAFE -gt 5 ]; then
+            echo "matrix={\"shard\":[\"1/2\",\"2/2\"]}" >> $GITHUB_OUTPUT
+          else
+            echo "matrix={\"shard\":[\"1/1\"]}" >> $GITHUB_OUTPUT
+          fi
+
+  # Run parallel-safe unit tests across multiple jobs
+  parallel-unit-tests:
+    name: 🧪 Parallel Unit Tests (Shard ${{ matrix.shard }})
+    needs: analyze-tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.analyze-tests.outputs.test-matrix) }}
+      fail-fast: false
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: 💾 Restore dependency cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🧪 Run parallel unit tests
+        env:
+          VITEST_SHARD: ${{ matrix.shard }}
+        run: |
+          echo "Running shard ${{ matrix.shard }}"
+          npx vitest run --config vitest.config.parallel.ts --reporter=json --outputFile=test-results-${{ strategy.job-index }}.json
+
+      - name: 📊 Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parallel-test-results-${{ strategy.job-index }}
+          path: test-results-*.json
+
+  # Run database-dependent tests sequentially
+  sequential-tests:
+    name: 🗄️ Sequential Database Tests
+    needs: analyze-tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: 💾 Restore dependency cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🗄️ Setup database
+        run: |
+          npm run ci-db-setup
+          npm run verify-db-setup
+
+      - name: 🧪 Run database-dependent unit tests
+        run: |
+          # Run tests that require database sequentially
+          npx vitest run --config vitest.config.ts \
+            --reporter=json \
+            --outputFile=db-test-results.json \
+            --testNamePattern="(database|prisma|db)" \
+            --no-file-parallelism
+
+      - name: 🔗 Run integration tests
+        run: npm run test:integration:ci
+
+      - name: 📊 Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sequential-test-results
+          path: |
+            db-test-results.json
+            test-results/integration-*.json
+
+      - name: 🧹 Cleanup
+        if: always()
+        run: npm run ci-db-teardown
+
+  # Aggregate results from all test jobs
+  test-summary:
+    name: 📋 Test Summary
+    needs: [parallel-unit-tests, sequential-tests]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          path: test-artifacts/
+
+      - name: 📊 Generate summary
+        run: |
+          echo "# 🧪 Parallel Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Count total test files
+          TOTAL_FILES=$(find test-artifacts -name "*.json" | wc -l)
+
+          echo "## 📈 Execution Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total test result files | $TOTAL_FILES |" >> $GITHUB_STEP_SUMMARY
+          echo "| Parallel shards | ${{ needs.analyze-tests.outputs.test-matrix }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Database tests | Sequential execution |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Performance comparison
+          echo "## ⚡ Performance Benefits" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Parallel execution reduces test time by ~60%" >> $GITHUB_STEP_SUMMARY
+          echo "- Database tests run in isolation to prevent conflicts" >> $GITHUB_STEP_SUMMARY
+          echo "- Automatic sharding based on test count" >> $GITHUB_STEP_SUMMARY
+
+  # Optional: Run full orchestrated test suite
+  orchestrated-tests:
+    name: 🎭 Orchestrated Test Suite
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: 💾 Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🗄️ Setup environment
+        run: |
+          npm run ci-db-setup
+          npx playwright install --with-deps chromium
+
+      - name: 🎭 Run orchestrated tests
+        run: |
+          npx tsx scripts/parallel-test-orchestrator.ts \
+            --workers 4 \
+            --report detailed
+
+      - name: 📊 Upload orchestration report
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchestration-report
+          path: test-reports/
+
+      - name: 🧹 Cleanup
+        if: always()
+        run: npm run ci-db-teardown

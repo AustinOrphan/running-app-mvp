@@ -1,0 +1,234 @@
+name: Developer Onboarding Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      developer_name:
+        description: 'New developer name'
+        required: true
+        type: string
+  schedule:
+    # Run weekly to ensure onboarding stays under 30 minutes
+    - cron: '0 9 * * 1'
+
+jobs:
+  validate-onboarding:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35  # 30 min target + 5 min buffer
+    
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
+    
+    steps:
+      - name: Start timer
+        id: start
+        run: |
+          echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+          echo "🏁 Starting onboarding validation at $(date)"
+      
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: System requirements check
+        run: |
+          echo "📋 Checking system requirements..."
+          node --version
+          npm --version
+          git --version
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        id: install
+        run: |
+          start=$(date +%s)
+          npm ci
+          end=$(date +%s)
+          echo "duration=$((end - start))" >> $GITHUB_OUTPUT
+          echo "✅ Dependencies installed in $((end - start)) seconds"
+      
+      - name: Environment setup
+        run: |
+          echo "🔧 Setting up environment..."
+          cp .env.example .env
+          # Generate secure secrets
+          sed -i 's/CHANGE-THIS-TO-SECURE-256-BIT-SECRET-BEFORE-PRODUCTION/'"$(openssl rand -base64 32)"'/g' .env
+          sed -i 's/CHANGE-THIS-TO-SECURE-RANDOM-STRING-FOR-PRODUCTION/'"$(openssl rand -base64 16)"'/g' .env
+      
+      - name: Database setup
+        id: database
+        run: |
+          start=$(date +%s)
+          npm run prisma:migrate
+          npm run prisma:generate
+          end=$(date +%s)
+          echo "duration=$((end - start))" >> $GITHUB_OUTPUT
+          echo "✅ Database setup in $((end - start)) seconds"
+      
+      - name: Build project
+        id: build
+        run: |
+          start=$(date +%s)
+          npm run build
+          end=$(date +%s)
+          echo "duration=$((end - start))" >> $GITHUB_OUTPUT
+          echo "✅ Build completed in $((end - start)) seconds"
+      
+      - name: Run tests
+        id: tests
+        run: |
+          start=$(date +%s)
+          npm run test:run
+          npm run test:integration
+          end=$(date +%s)
+          echo "duration=$((end - start))" >> $GITHUB_OUTPUT
+          echo "✅ Tests passed in $((end - start)) seconds"
+      
+      - name: Validate setup
+        run: |
+          npm run validate-test-env
+          npm run onboarding:validate
+      
+      - name: Calculate total time
+        id: total
+        run: |
+          end_time=$(date +%s)
+          start_time=${{ steps.start.outputs.start_time }}
+          total_seconds=$((end_time - start_time))
+          total_minutes=$((total_seconds / 60))
+          
+          echo "total_seconds=$total_seconds" >> $GITHUB_OUTPUT
+          echo "total_minutes=$total_minutes" >> $GITHUB_OUTPUT
+          
+          echo "⏱️ Total onboarding time: ${total_minutes} minutes ${total_seconds % 60} seconds"
+          
+          if [ $total_minutes -lt 30 ]; then
+            echo "✅ SUCCESS: Onboarding completed in under 30 minutes!"
+          else
+            echo "❌ FAILED: Onboarding took longer than 30 minutes"
+            exit 1
+          fi
+      
+      - name: Generate report
+        if: always()
+        run: |
+          cat > onboarding-report.json << EOF
+          {
+            "timestamp": "$(date -Iseconds)",
+            "developer": "${{ github.event.inputs.developer_name || 'automated-test' }}",
+            "total_minutes": ${{ steps.total.outputs.total_minutes || 0 }},
+            "total_seconds": ${{ steps.total.outputs.total_seconds || 0 }},
+            "target_met": ${{ steps.total.outputs.total_minutes < 30 && 'true' || 'false' }},
+            "breakdown": {
+              "install": ${{ steps.install.outputs.duration || 0 }},
+              "database": ${{ steps.database.outputs.duration || 0 }},
+              "build": ${{ steps.build.outputs.duration || 0 }},
+              "tests": ${{ steps.tests.outputs.duration || 0 }}
+            }
+          }
+          EOF
+          
+          cat onboarding-report.json
+      
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: onboarding-report-${{ github.run_number }}
+          path: onboarding-report.json
+          retention-days: 90
+
+  test-quick-setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Test quick setup script
+        run: |
+          # Run in non-interactive mode for CI
+          echo "y" | npm run setup:quick || true
+          
+          # Validate results
+          test -f .env || exit 1
+          test -d node_modules || exit 1
+          test -f prisma/dev.db || exit 1
+      
+      - name: Verify development environment
+        run: |
+          # Check that everything is properly configured
+          npm run validate-test-env
+          npm run typecheck
+          npm run lint
+
+  create-onboarding-issue:
+    runs-on: ubuntu-latest
+    needs: [validate-onboarding, test-quick-setup]
+    if: failure() && github.event_name == 'schedule'
+    
+    steps:
+      - name: Create issue for failed onboarding
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'onboarding,automated',
+              state: 'open'
+            });
+            
+            if (issues.length > 0) {
+              console.log('Onboarding issue already exists');
+              return;
+            }
+            
+            const body = `## ⚠️ Developer Onboarding Exceeds 30 Minutes
+            
+            The automated onboarding validation has detected that the setup process is taking longer than our 30-minute target.
+            
+            ### 📊 Latest Results
+            - **Date**: ${new Date().toISOString()}
+            - **Workflow**: [Run #${context.runNumber}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            
+            ### 🔍 Common Bottlenecks
+            
+            1. **Dependency Installation**: Check for slow npm registry or large packages
+            2. **Database Setup**: Ensure migrations are optimized
+            3. **Build Process**: Look for unnecessary compilation steps
+            4. **Test Suite**: Consider parallelization opportunities
+            
+            ### 🛠️ Action Items
+            
+            - [ ] Review the workflow logs to identify slow steps
+            - [ ] Update quick setup script for better performance
+            - [ ] Consider caching strategies for dependencies
+            - [ ] Optimize build and test configurations
+            - [ ] Update documentation with faster alternatives
+            
+            ### 📈 Goal
+            
+            Ensure new developers can go from zero to productive in <30 minutes.
+            
+            _This issue was automatically created by the onboarding validation workflow._`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Developer Onboarding Takes >30 Minutes',
+              body: body,
+              labels: ['onboarding', 'automated', 'developer-experience', 'performance']
+            });

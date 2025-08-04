@@ -1,0 +1,222 @@
+# Auto-labeler configuration for GitHub Actions labeler@v5
+# Uses existing repository labels
+
+# Dependencies
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'package.json'
+          - 'package-lock.json'
+          - '.github/dependabot.yml'
+
+# Frontend changes
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/**/*'
+          - 'public/**/*'
+          - 'index.html'
+          - 'vite.config.ts'
+          - '*.html'
+
+# Backend changes
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'routes/**/*'
+          - 'middleware/**/*'
+          - 'server.ts'
+          - 'server/**/*'
+
+# Testing
+testing:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'tests/**/*'
+          - '**/*.test.ts'
+          - '**/*.test.tsx'
+          - '**/*.spec.ts'
+          - '**/*.spec.tsx'
+          - 'jest.config.js'
+          - 'playwright.config.ts'
+          - 'vitest.config.ts'
+
+# Database
+database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'prisma/**/*'
+          - 'prisma.schema'
+          - '**/*migration*'
+          - '**/*schema*'
+
+# Authentication
+auth:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'middleware/auth*'
+          - 'server/middleware/auth*'
+          - 'routes/auth*'
+          - 'server/routes/auth*'
+          - 'middleware/requireAuth*'
+          - 'server/middleware/requireAuth*'
+          - 'src/components/Auth/**/*'
+          - 'src/hooks/useAuth*'
+          - 'src/pages/Login*'
+          - 'src/pages/Register*'
+
+# UI/UX
+UI/UX:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/components/**/*'
+          - 'src/styles/**/*'
+          - '**/*.css'
+          - '**/*.scss'
+          - '**/*.sass'
+          - '**/*.less'
+          - 'tailwind.config.js'
+          - 'postcss.config.js'
+
+# Security
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'middleware/security*'
+          - 'server/middleware/security*'
+          - '**/*security*'
+          - '**/*vulnerability*'
+          - '**/*cors*'
+          - '**/*helmet*'
+
+# Performance
+performance:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*performance*'
+          - '**/*optimization*'
+          - '**/*lazy*'
+          - '**/*memo*'
+          - '**/*cache*'
+
+# Accessibility
+accessibility:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*a11y*'
+          - '**/*accessibility*'
+          - '**/*axe*'
+          - 'tests/unit/accessibility/**/*'
+          - 'tests/e2e/accessibility*'
+
+# Mobile
+mobile:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*mobile*'
+          - '**/*responsive*'
+          - '**/*touch*'
+          - '**/*swipe*'
+          - 'src/styles/mobile*'
+
+# Technical debt
+technical-debt:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'refactor/**/*'
+          - 'cleanup/**/*'
+          - 'legacy/**/*'
+          - 'deprecated/**/*'
+
+# Tooling
+tooling:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/**/*'
+          - 'scripts/**/*'
+          - 'tools/**/*'
+          - '.github/actions/**/*'
+
+# Observability
+observability:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*logger*'
+          - '**/*logging*'
+          - '**/*monitoring*'
+          - '**/*analytics*'
+          - '**/*error*'
+          - '**/*telemetry*'
+
+# Documentation
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '*.md'
+          - 'docs/**/*'
+          - 'README*'
+          - 'CHANGELOG*'
+          - 'CONTRIBUTING*'
+          - 'LICENSE*'
+
+# API changes
+api-change:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'routes/**/*'
+          - 'server/routes/**/*'
+          - 'src/api/**/*'
+          - 'middleware/**/*'
+          - 'server/middleware/**/*'
+          - '**/*endpoint*'
+          - '**/*route*'
+
+# Migration
+migration:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'prisma/migrations/**/*'
+          - 'prisma/schema.prisma'
+          - '**/*migration*'
+          - '**/*schema*'
+
+# Configuration
+config:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.env*'
+          - '*.config.ts'
+          - '*.config.js'
+          - 'tsconfig.json'
+          - '.eslintrc*'
+          - '.prettierrc*'
+          - 'vite.config.ts'
+          - 'webpack.config.js'
+          - 'rollup.config.js'
+
+# Hotfix
+hotfix:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*hotfix*'
+          - '**/*urgent*'
+          - '**/*emergency*'
+
+# Breaking changes
+breaking-change:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*breaking*'
+          - 'BREAKING*'
+          - 'CHANGELOG*'
+# Size labels (will be applied by workflow logic, not file patterns)
+# size-small, size-medium, size-large
+
+# Status labels (will be applied by workflow logic, not file patterns)
+# work-in-progress, needs-review, needs-reproduction
+
+# Community contributions (applied by workflow logic based on author)
+# community
+
+# Stale (applied by stale workflow)
+# stale

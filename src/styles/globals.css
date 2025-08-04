@@ -1,0 +1,89 @@
+/* CSS Variables for consistent theming */
+:root {
+  --primary-bg: #242424;
+  --card-bg: #1a1a1a;
+  --secondary-bg: #2a2a2a;
+  --border-color: #404040;
+  --surface-color: #1a1a1a;
+  --surface-color-hover: #2a2a2a;
+  --text-primary: rgba(255, 255, 255, 0.87);
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --records-table-th-bg: var(--secondary-bg);
+  --hover-bg: rgba(255, 255, 255, 0.05);
+
+  /* Color palette for buttons and UI elements */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-primary-dark: #1e40af;
+  --color-secondary: #2a2a2a;
+  --color-secondary-hover: #3a3a3a;
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-focus: #0066cc;
+  --color-info: #3b82f6;
+  --border-hover: #505050;
+  --card-bg-highlight: rgba(59, 130, 246, 0.05);
+}
+
+/* Global reset and base styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--primary-bg);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Global typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+/* Global link styles */
+a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Global focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Global scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--secondary-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

@@ -1,0 +1,414 @@
+name: 🚀 Test Result Caching
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'server/**'
+      - 'package*.json'
+      - '*.config.*'
+
+env:
+  # Cache versions - increment to invalidate caches
+  CACHE_VERSION: v1
+  TEST_RESULTS_CACHE_VERSION: v1
+  
+jobs:
+  # Generate cache keys based on file changes
+  cache-keys:
+    name: 🔑 Generate Cache Keys
+    runs-on: ubuntu-latest
+    outputs:
+      unit-test-key: ${{ steps.keys.outputs.unit-test-key }}
+      integration-test-key: ${{ steps.keys.outputs.integration-test-key }}
+      e2e-test-key: ${{ steps.keys.outputs.e2e-test-key }}
+      npm-cache-key: ${{ steps.keys.outputs.npm-cache-key }}
+      should-skip-unit: ${{ steps.keys.outputs.should-skip-unit }}
+      should-skip-integration: ${{ steps.keys.outputs.should-skip-integration }}
+      should-skip-e2e: ${{ steps.keys.outputs.should-skip-e2e }}
+      
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Need full history for proper file change detection
+          
+      - name: 🔑 Generate cache keys and detect changes
+        id: keys
+        run: |
+          # Get changed files
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1...HEAD)
+          fi
+          
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          
+          # Determine which test suites need to run
+          SKIP_UNIT="true"
+          SKIP_INTEGRATION="true"
+          SKIP_E2E="true"
+          
+          for file in $CHANGED_FILES; do
+            # Unit tests: src/ and tests/unit/
+            if [[ $file == src/* ]] || [[ $file == tests/unit/* ]]; then
+              SKIP_UNIT="false"
+            fi
+            
+            # Integration tests: server/ and tests/integration/
+            if [[ $file == server/* ]] || [[ $file == tests/integration/* ]]; then
+              SKIP_INTEGRATION="false"
+            fi
+            
+            # E2E tests: any UI changes or E2E test changes
+            if [[ $file == src/* ]] || [[ $file == tests/e2e/* ]] || [[ $file == playwright.config.ts ]]; then
+              SKIP_E2E="false"
+            fi
+            
+            # Config changes affect all tests
+            if [[ $file == package*.json ]] || [[ $file == *.config.* ]]; then
+              SKIP_UNIT="false"
+              SKIP_INTEGRATION="false"
+              SKIP_E2E="false"
+            fi
+          done
+          
+          # Generate file hashes for different test types
+          UNIT_HASH=$(find src tests/unit -type f -name "*.ts" -o -name "*.tsx" -o -name "*.js" 2>/dev/null | sort | xargs sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1)
+          INTEGRATION_HASH=$(find server tests/integration -type f -name "*.ts" -o -name "*.js" 2>/dev/null | sort | xargs sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1)
+          E2E_HASH=$(find tests/e2e -type f -name "*.ts" 2>/dev/null | sort | xargs sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1)
+          CONFIG_HASH=$(sha256sum package.json package-lock.json vite.config.ts tsconfig.json 2>/dev/null | sha256sum | cut -d' ' -f1)
+          
+          # Create cache keys with version and hashes
+          echo "unit-test-key=unit-tests-${{ env.TEST_RESULTS_CACHE_VERSION }}-${UNIT_HASH}-${CONFIG_HASH}" >> $GITHUB_OUTPUT
+          echo "integration-test-key=integration-tests-${{ env.TEST_RESULTS_CACHE_VERSION }}-${INTEGRATION_HASH}-${CONFIG_HASH}" >> $GITHUB_OUTPUT
+          echo "e2e-test-key=e2e-tests-${{ env.TEST_RESULTS_CACHE_VERSION }}-${E2E_HASH}-${CONFIG_HASH}" >> $GITHUB_OUTPUT
+          echo "npm-cache-key=npm-${{ env.CACHE_VERSION }}-${{ hashFiles('package-lock.json') }}" >> $GITHUB_OUTPUT
+          
+          # Output skip flags
+          echo "should-skip-unit=${SKIP_UNIT}" >> $GITHUB_OUTPUT
+          echo "should-skip-integration=${SKIP_INTEGRATION}" >> $GITHUB_OUTPUT
+          echo "should-skip-e2e=${SKIP_E2E}" >> $GITHUB_OUTPUT
+          
+          # Log decisions
+          echo ""
+          echo "Test suite decisions:"
+          echo "- Skip unit tests: ${SKIP_UNIT}"
+          echo "- Skip integration tests: ${SKIP_INTEGRATION}"
+          echo "- Skip E2E tests: ${SKIP_E2E}"
+
+  # Unit tests with intelligent caching
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    needs: cache-keys
+    if: needs.cache-keys.outputs.should-skip-unit == 'false'
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
+    outputs:
+      cache-hit: ${{ steps.test-cache.outputs.cache-hit }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: 💾 Restore npm cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ needs.cache-keys.outputs.npm-cache-key }}
+          restore-keys: |
+            npm-${{ env.CACHE_VERSION }}-
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 💾 Check test result cache
+        id: test-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .test-results/unit
+            coverage/
+          key: ${{ needs.cache-keys.outputs.unit-test-key }}
+
+      - name: 📊 Use cached test results
+        if: steps.test-cache.outputs.cache-hit == 'true'
+        run: |
+          echo "✅ Using cached unit test results"
+          if [ -f .test-results/unit/timestamp ]; then
+            echo "Cache created at: $(cat .test-results/unit/timestamp | xargs -I {} date -d @{} 2>/dev/null || echo 'Unknown')"
+          fi
+          if [ -f .test-results/unit/summary.json ]; then
+            echo "Test summary:"
+            cat .test-results/unit/summary.json
+          fi
+
+      - name: 🗄️ Setup database
+        if: steps.test-cache.outputs.cache-hit != 'true'
+        run: npm run ci-db-setup
+
+      - name: 🧪 Run unit tests with coverage
+        if: steps.test-cache.outputs.cache-hit != 'true'
+        run: |
+          # Create test results directory
+          mkdir -p .test-results/unit
+          
+          # Run tests and capture results
+          npm run test:coverage:unit:ci 2>&1 | tee .test-results/unit/output.log
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+          
+          # Extract test summary from output
+          echo "{" > .test-results/unit/summary.json
+          echo "  \"timestamp\": \"$(date +%s)\"," >> .test-results/unit/summary.json
+          echo "  \"exitCode\": $TEST_EXIT_CODE," >> .test-results/unit/summary.json
+          grep -E "(Test Files|Tests|Time)" .test-results/unit/output.log | sed 's/^/  "/' | sed 's/$/",/' >> .test-results/unit/summary.json || true
+          echo "  \"cached\": false" >> .test-results/unit/summary.json
+          echo "}" >> .test-results/unit/summary.json
+          
+          # Generate timestamp for cache validation
+          date +%s > .test-results/unit/timestamp
+          
+          # Exit with test exit code
+          exit $TEST_EXIT_CODE
+
+      - name: 🧹 Cleanup database
+        if: always() && steps.test-cache.outputs.cache-hit != 'true'
+        run: npm run ci-db-teardown
+
+      - name: 📊 Upload coverage
+        if: steps.test-cache.outputs.cache-hit != 'true'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/lcov.info
+          flags: unit
+          name: unit-tests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # Integration tests with intelligent caching
+  integration-tests:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    needs: cache-keys
+    if: needs.cache-keys.outputs.should-skip-integration == 'false'
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+      NODE_ENV: test
+    outputs:
+      cache-hit: ${{ steps.test-cache.outputs.cache-hit }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: 💾 Restore npm cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ needs.cache-keys.outputs.npm-cache-key }}
+          restore-keys: |
+            npm-${{ env.CACHE_VERSION }}-
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 💾 Check test result cache
+        id: test-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .test-results/integration
+            coverage-integration/
+          key: ${{ needs.cache-keys.outputs.integration-test-key }}
+
+      - name: 📊 Use cached test results
+        if: steps.test-cache.outputs.cache-hit == 'true'
+        run: |
+          echo "✅ Using cached integration test results"
+          if [ -f .test-results/integration/timestamp ]; then
+            echo "Cache created at: $(cat .test-results/integration/timestamp | xargs -I {} date -d @{} 2>/dev/null || echo 'Unknown')"
+          fi
+          if [ -f .test-results/integration/summary.json ]; then
+            echo "Test summary:"
+            cat .test-results/integration/summary.json
+          fi
+
+      - name: 🗄️ Setup database
+        if: steps.test-cache.outputs.cache-hit != 'true'
+        run: npm run ci-integration-db-setup setup --verbose
+
+      - name: 🔗 Run integration tests
+        if: steps.test-cache.outputs.cache-hit != 'true'
+        run: |
+          # Create test results directory
+          mkdir -p .test-results/integration
+          
+          # Run tests and capture results
+          npm run test:coverage:integration:ci 2>&1 | tee .test-results/integration/output.log
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+          
+          # Extract test summary
+          echo "{" > .test-results/integration/summary.json
+          echo "  \"timestamp\": \"$(date +%s)\"," >> .test-results/integration/summary.json
+          echo "  \"exitCode\": $TEST_EXIT_CODE," >> .test-results/integration/summary.json
+          grep -E "(Test Suites|Tests|Time)" .test-results/integration/output.log | sed 's/^/  "/' | sed 's/$/",/' >> .test-results/integration/summary.json || true
+          echo "  \"cached\": false" >> .test-results/integration/summary.json
+          echo "}" >> .test-results/integration/summary.json
+          
+          # Generate timestamp
+          date +%s > .test-results/integration/timestamp
+          
+          # Exit with test exit code
+          exit $TEST_EXIT_CODE
+
+      - name: 🧹 Cleanup database
+        if: always() && steps.test-cache.outputs.cache-hit != 'true'
+        run: npm run ci-integration-db-teardown
+
+      - name: 📊 Upload coverage
+        if: steps.test-cache.outputs.cache-hit != 'true'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage-integration/lcov.info
+          flags: integration
+          name: integration-tests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # Cache performance report
+  cache-report:
+    name: 📊 Cache Performance Report
+    runs-on: ubuntu-latest
+    needs: [cache-keys, unit-tests, integration-tests]
+    if: always()
+    
+    steps:
+      - name: 📊 Generate cache report
+        run: |
+          echo "## 📊 Test Cache Performance Report"
+          echo ""
+          echo "### Test Execution Summary:"
+          
+          # Unit tests
+          if [ "${{ needs.cache-keys.outputs.should-skip-unit }}" == "true" ]; then
+            echo "- 🧪 Unit Tests: ⏭️ SKIPPED (no relevant changes)"
+          elif [ "${{ needs.unit-tests.outputs.cache-hit }}" == "true" ]; then
+            echo "- 🧪 Unit Tests: ✅ CACHED (saved ~2-3 minutes)"
+          else
+            echo "- 🧪 Unit Tests: 🏃 RAN (cache miss or new changes)"
+          fi
+          
+          # Integration tests
+          if [ "${{ needs.cache-keys.outputs.should-skip-integration }}" == "true" ]; then
+            echo "- 🔗 Integration Tests: ⏭️ SKIPPED (no relevant changes)"
+          elif [ "${{ needs.integration-tests.outputs.cache-hit }}" == "true" ]; then
+            echo "- 🔗 Integration Tests: ✅ CACHED (saved ~3-4 minutes)"
+          else
+            echo "- 🔗 Integration Tests: 🏃 RAN (cache miss or new changes)"
+          fi
+          
+          echo ""
+          echo "### Cache Efficiency:"
+          
+          # Calculate efficiency
+          TOTAL_SUITES=2
+          SKIPPED_COUNT=0
+          CACHED_COUNT=0
+          
+          if [ "${{ needs.cache-keys.outputs.should-skip-unit }}" == "true" ]; then
+            SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+          elif [ "${{ needs.unit-tests.outputs.cache-hit }}" == "true" ]; then
+            CACHED_COUNT=$((CACHED_COUNT + 1))
+          fi
+          
+          if [ "${{ needs.cache-keys.outputs.should-skip-integration }}" == "true" ]; then
+            SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+          elif [ "${{ needs.integration-tests.outputs.cache-hit }}" == "true" ]; then
+            CACHED_COUNT=$((CACHED_COUNT + 1))
+          fi
+          
+          EFFICIENCY=$((SKIPPED_COUNT + CACHED_COUNT))
+          PERCENTAGE=$((EFFICIENCY * 100 / TOTAL_SUITES))
+          
+          echo "- Cache Hit Rate: ${CACHED_COUNT}/${TOTAL_SUITES} test suites"
+          echo "- Skip Rate: ${SKIPPED_COUNT}/${TOTAL_SUITES} test suites"
+          echo "- Overall Efficiency: ${PERCENTAGE}%"
+          
+          if [ $EFFICIENCY -gt 0 ]; then
+            echo ""
+            echo "### ⏱️ Estimated Time Saved: ~$((EFFICIENCY * 3)) minutes"
+          fi
+          
+          echo ""
+          echo "### Cache Key Information:"
+          echo "\`\`\`"
+          echo "Version: ${{ env.TEST_RESULTS_CACHE_VERSION }}"
+          echo "Generated: $(date)"
+          echo "\`\`\`"
+          
+      - name: 💬 Comment on PR
+        if: github.event_name == 'pull_request' && (needs.unit-tests.outputs.cache-hit == 'true' || needs.integration-tests.outputs.cache-hit == 'true' || needs.cache-keys.outputs.should-skip-unit == 'true' || needs.cache-keys.outputs.should-skip-integration == 'true')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const skipUnit = '${{ needs.cache-keys.outputs.should-skip-unit }}' === 'true';
+            const skipIntegration = '${{ needs.cache-keys.outputs.should-skip-integration }}' === 'true';
+            const unitCached = '${{ needs.unit-tests.outputs.cache-hit }}' === 'true';
+            const integrationCached = '${{ needs.integration-tests.outputs.cache-hit }}' === 'true';
+            
+            let timeSaved = 0;
+            let message = '### 🚀 Test Caching Report\n\n';
+            
+            if (skipUnit) {
+              message += '- 🧪 Unit Tests: **Skipped** (no changes detected)\n';
+              timeSaved += 3;
+            } else if (unitCached) {
+              message += '- 🧪 Unit Tests: **Cached** ✅\n';
+              timeSaved += 2;
+            }
+            
+            if (skipIntegration) {
+              message += '- 🔗 Integration Tests: **Skipped** (no changes detected)\n';
+              timeSaved += 4;
+            } else if (integrationCached) {
+              message += '- 🔗 Integration Tests: **Cached** ✅\n';
+              timeSaved += 3;
+            }
+            
+            if (timeSaved > 0) {
+              message += `\n⏱️ **Estimated time saved: ~${timeSaved} minutes**`;
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });

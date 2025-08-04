@@ -14,7 +14,6 @@ import { retryDatabaseOperation, RetryStats } from '../utils/retryUtils';
 import {
   connectionPool,
   setupTestDatabase,
-  teardownTestDatabase,
   forceCleanupAllConnections,
 } from '../utils/connectionPoolManager.js';
 import {
@@ -108,6 +107,9 @@ beforeAll(async () => {
     // Initialize comprehensive cleanup manager
     cleanupManager = initializeCleanupManager(testDb.prisma, transactionManager);
 
+    // Initialize application state tracking for tests
+    initializeApplicationStateTracking();
+
     if (process.env.DEBUG_TESTS) {
       console.log(
         '✅ Test infrastructure initialized with connection pooling, comprehensive cleanup manager, and application state reset'
@@ -137,7 +139,7 @@ beforeEach(async () => {
       maxAttempts: 2,
       delayMs: 500,
       description: 'database transaction start',
-      shouldRetry: (error: unknown, attempt: number) => {
+      shouldRetry: (error: unknown, _attempt: number) => {
         // Retry on connection issues but not on transaction errors
         if (error instanceof Error) {
           const message = error.message.toLowerCase();

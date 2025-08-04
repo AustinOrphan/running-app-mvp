@@ -1,0 +1,435 @@
+name: 🔄 Flaky Test Monitoring
+
+on:
+  # Run after main CI workflows complete
+  workflow_run:
+    workflows: ["CI Pipeline", "CI with Monitoring", "CI Optimized", "Fast CI"]
+    types: [completed]
+    
+  # Manual trigger for immediate flaky test analysis
+  workflow_dispatch:
+    inputs:
+      test_runs:
+        description: 'Number of test runs to execute'
+        required: false
+        default: '5'
+        type: string
+      test_type:
+        description: 'Type of tests to monitor'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'unit'
+          - 'integration'
+          - 'e2e'
+          - 'accessibility'
+      
+  # Scheduled monitoring (daily at 2 AM)
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+
+# Limit concurrency to prevent resource conflicts
+concurrency:
+  group: flaky-test-monitoring
+  cancel-in-progress: false  # Don't cancel - we want complete data
+
+jobs:
+  flaky-test-analysis:
+    name: 🔍 Flaky Test Detection
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure'
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        test_run: [1, 2, 3, 4, 5]  # Run tests 5 times to detect flakiness
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: 🔧 Install dependencies
+        run: npm ci
+        
+      - name: 📊 Initialize test tracking
+        run: |
+          mkdir -p test-results/run-${{ matrix.test_run }}
+          echo "Test run ${{ matrix.test_run }} started at $(date)" > test-results/run-${{ matrix.test_run }}/info.txt
+          
+      # Run different test types based on input
+      - name: 🧪 Run Unit Tests (Attempt ${{ matrix.test_run }})
+        if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'unit'
+        run: |
+          echo "Running unit tests - attempt ${{ matrix.test_run }}"
+          npm run test:run -- --reporter=json --outputFile=test-results/run-${{ matrix.test_run }}/unit-results.json || true
+          npm run test:run -- --reporter=verbose 2>&1 | tee test-results/run-${{ matrix.test_run }}/unit-output.log || true
+          
+      - name: 🧪 Run Integration Tests (Attempt ${{ matrix.test_run }})
+        if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'integration'
+        run: |
+          echo "Running integration tests - attempt ${{ matrix.test_run }}"
+          npm run test:integration -- --verbose --json --outputFile=test-results/run-${{ matrix.test_run }}/integration-results.json || true
+          npm run test:integration 2>&1 | tee test-results/run-${{ matrix.test_run }}/integration-output.log || true
+          
+      - name: 🧪 Run E2E Tests (Attempt ${{ matrix.test_run }})
+        if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'e2e'
+        run: |
+          echo "Running E2E tests - attempt ${{ matrix.test_run }}"
+          npm run test:e2e -- --reporter=json --output=test-results/run-${{ matrix.test_run }}/e2e-results.json || true
+          npm run test:e2e 2>&1 | tee test-results/run-${{ matrix.test_run }}/e2e-output.log || true
+          
+      - name: 🧪 Run Accessibility Tests (Attempt ${{ matrix.test_run }})
+        if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'accessibility'
+        run: |
+          echo "Running accessibility tests - attempt ${{ matrix.test_run }}"
+          npm run test:a11y -- --reporter=json --outputFile=test-results/run-${{ matrix.test_run }}/a11y-results.json || true
+          npm run test:a11y 2>&1 | tee test-results/run-${{ matrix.test_run }}/a11y-output.log || true
+          
+      # Store individual run results
+      - name: 📤 Upload test results for run ${{ matrix.test_run }}
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-run-${{ matrix.test_run }}
+          path: test-results/run-${{ matrix.test_run }}/
+          retention-days: 7
+
+  analyze-flakiness:
+    name: 📊 Flaky Test Analysis
+    runs-on: ubuntu-latest
+    needs: flaky-test-analysis
+    if: always()
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: 📥 Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-run-*
+          path: all-test-results/
+          merge-multiple: true
+          
+      - name: 🔧 Install analysis tools
+        run: |
+          npm install -g jq
+          pip install pandas matplotlib seaborn || sudo apt-get install python3-pandas python3-matplotlib python3-seaborn
+          
+      - name: 📊 Analyze test flakiness
+        run: |
+          # Create flakiness analysis script
+          cat > analyze_flakiness.py << 'EOF'
+          import json
+          import os
+          import sys
+          from collections import defaultdict, Counter
+          import datetime
+          
+          def analyze_test_results():
+              results_dir = "all-test-results"
+              test_results = defaultdict(list)  # test_name -> [results]
+              
+              # Process each test run
+              for run_dir in os.listdir(results_dir):
+                  if not run_dir.startswith("run-"):
+                      continue
+                      
+                  run_path = os.path.join(results_dir, run_dir)
+                  
+                  # Process different test types
+                  for result_file in os.listdir(run_path):
+                      if result_file.endswith('-results.json'):
+                          try:
+                              with open(os.path.join(run_path, result_file), 'r') as f:
+                                  data = json.load(f)
+                                  
+                                  # Extract test results based on format
+                                  if 'tests' in data:  # Vitest format
+                                      for test in data.get('tests', []):
+                                          test_name = f"{test.get('file', 'unknown')}::{test.get('name', 'unknown')}"
+                                          status = 'pass' if test.get('state') == 'pass' else 'fail'
+                                          test_results[test_name].append(status)
+                                          
+                                  elif 'testResults' in data:  # Jest format
+                                      for test_result in data.get('testResults', []):
+                                          for test in test_result.get('assertionResults', []):
+                                              test_name = f"{test_result.get('name', 'unknown')}::{test.get('title', 'unknown')}"
+                                              status = 'pass' if test.get('status') == 'passed' else 'fail'
+                                              test_results[test_name].append(status)
+                                              
+                                  elif 'suites' in data:  # Playwright format
+                                      def process_playwright_tests(suite):
+                                          for test in suite.get('tests', []):
+                                              test_name = f"{suite.get('title', 'unknown')}::{test.get('title', 'unknown')}"
+                                              status = 'pass' if test.get('outcome') == 'passed' else 'fail'
+                                              test_results[test_name].append(status)
+                                          for subsuite in suite.get('suites', []):
+                                              process_playwright_tests(subsuite)
+                                      
+                                      for suite in data.get('suites', []):
+                                          process_playwright_tests(suite)
+                                          
+                          except (json.JSONDecodeError, FileNotFoundError, KeyError) as e:
+                              print(f"Warning: Could not process {result_file}: {e}")
+                              continue
+              
+              # Analyze flakiness
+              flaky_tests = {}
+              stable_tests = {}
+              total_runs = 5  # Expected number of runs
+              
+              for test_name, results in test_results.items():
+                  if len(results) < 2:  # Need at least 2 runs to detect flakiness
+                      continue
+                      
+                  pass_count = results.count('pass')
+                  fail_count = results.count('fail')
+                  total_count = len(results)
+                  
+                  # Calculate flakiness metrics
+                  pass_rate = pass_count / total_count
+                  is_flaky = 0 < pass_rate < 1  # Flaky if it both passes and fails
+                  
+                  if is_flaky:
+                      flaky_tests[test_name] = {
+                          'pass_count': pass_count,
+                          'fail_count': fail_count,
+                          'total_runs': total_count,
+                          'pass_rate': pass_rate,
+                          'flakiness_score': min(pass_rate, 1 - pass_rate) * 2  # 0-1 scale, higher = more flaky
+                      }
+                  else:
+                      stable_tests[test_name] = {
+                          'pass_count': pass_count,
+                          'fail_count': fail_count,
+                          'total_runs': total_count,
+                          'pass_rate': pass_rate
+                      }
+              
+              return flaky_tests, stable_tests, test_results
+          
+          def generate_report(flaky_tests, stable_tests, all_results):
+              print("# 🔄 Flaky Test Analysis Report")
+              print(f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+              print()
+              
+              total_tests = len(all_results)
+              flaky_count = len(flaky_tests)
+              stable_count = len(stable_tests)
+              
+              print(f"## 📊 Summary")
+              print(f"- **Total tests analyzed**: {total_tests}")
+              print(f"- **Stable tests**: {stable_count} ({stable_count/total_tests*100:.1f}%)")
+              print(f"- **Flaky tests**: {flaky_count} ({flaky_count/total_tests*100:.1f}%)")
+              print()
+              
+              if flaky_tests:
+                  print("## ⚠️ Flaky Tests Detected")
+                  print()
+                  
+                  # Sort by flakiness score (most flaky first)
+                  sorted_flaky = sorted(flaky_tests.items(), key=lambda x: x[1]['flakiness_score'], reverse=True)
+                  
+                  for test_name, data in sorted_flaky:
+                      print(f"### {test_name}")
+                      print(f"- **Pass rate**: {data['pass_rate']:.1%}")
+                      print(f"- **Passes**: {data['pass_count']}/{data['total_runs']}")
+                      print(f"- **Flakiness score**: {data['flakiness_score']:.2f}")
+                      print()
+                      
+                  print("## 🛠️ Recommended Actions")
+                  print()
+                  
+                  high_flaky = [name for name, data in flaky_tests.items() if data['flakiness_score'] > 0.6]
+                  medium_flaky = [name for name, data in flaky_tests.items() if 0.3 <= data['flakiness_score'] <= 0.6]
+                  low_flaky = [name for name, data in flaky_tests.items() if data['flakiness_score'] < 0.3]
+                  
+                  if high_flaky:
+                      print(f"**High Priority** ({len(high_flaky)} tests): Immediate attention required")
+                      for test in high_flaky[:3]:  # Show top 3
+                          print(f"- {test}")
+                      print()
+                      
+                  if medium_flaky:
+                      print(f"**Medium Priority** ({len(medium_flaky)} tests): Review and fix when possible")
+                      print()
+                      
+                  if low_flaky:
+                      print(f"**Low Priority** ({len(low_flaky)} tests): Monitor for patterns")
+                      print()
+                      
+              else:
+                  print("## ✅ No Flaky Tests Detected")
+                  print("All tests showed consistent results across multiple runs.")
+                  print()
+                  
+              # Performance analysis
+              slow_tests = []
+              for test_name, results in all_results.items():
+                  if len(results) >= 3 and results.count('fail') > len(results) * 0.8:
+                      slow_tests.append(test_name)
+                      
+              if slow_tests:
+                  print("## 🐌 Consistently Failing Tests")
+                  print("These tests fail consistently and may indicate real issues:")
+                  print()
+                  for test in slow_tests[:5]:  # Show top 5
+                      print(f"- {test}")
+                  print()
+          
+          if __name__ == "__main__":
+              flaky_tests, stable_tests, all_results = analyze_test_results()
+              generate_report(flaky_tests, stable_tests, all_results)
+              
+              # Set outputs for GitHub Actions
+              flaky_count = len(flaky_tests)
+              print(f"FLAKY_TEST_COUNT={flaky_count}", file=open(os.environ.get('GITHUB_ENV', '/dev/null'), 'a'))
+              
+              if flaky_count > 0:
+                  high_priority = sum(1 for data in flaky_tests.values() if data['flakiness_score'] > 0.6)
+                  print(f"HIGH_PRIORITY_FLAKY={high_priority}", file=open(os.environ.get('GITHUB_ENV', '/dev/null'), 'a'))
+                  
+                  # Create issue content
+                  with open('flaky_test_issue.md', 'w') as f:
+                      f.write(f"# 🔄 Flaky Tests Detected - {datetime.datetime.now().strftime('%Y-%m-%d')}\n\n")
+                      f.write(f"Found {flaky_count} flaky tests during automated monitoring.\n\n")
+                      f.write("## Flaky Tests\n\n")
+                      for test_name, data in sorted(flaky_tests.items(), key=lambda x: x[1]['flakiness_score'], reverse=True):
+                          f.write(f"- **{test_name}**: {data['pass_rate']:.1%} pass rate ({data['pass_count']}/{data['total_runs']} passes)\n")
+                      f.write("\n## Action Required\n\n")
+                      f.write("Please investigate and fix these flaky tests to improve CI reliability.\n")
+          EOF
+          
+          python3 analyze_flakiness.py 2>&1 | tee flaky-test-analysis.md
+          
+      - name: 📊 Generate flakiness summary for GitHub
+        if: always()
+        run: |
+          echo "## 🔄 Flaky Test Monitoring Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Analysis Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Runs**: ${{ github.event.inputs.test_runs || '5' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Type**: ${{ github.event.inputs.test_type || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "flaky-test-analysis.md" ]; then
+            cat flaky-test-analysis.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No flakiness analysis results generated." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: 📤 Upload flakiness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flaky-test-report
+          path: |
+            flaky-test-analysis.md
+            flaky_test_issue.md
+          retention-days: 30
+          
+      - name: 🐛 Create issue for flaky tests
+        if: env.FLAKY_TEST_COUNT > 0 && github.event_name != 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            if (fs.existsSync('flaky_test_issue.md')) {
+              const issueBody = fs.readFileSync('flaky_test_issue.md', 'utf8');
+              
+              // Check if there's already an open flaky test issue
+              const issues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: 'flaky-tests'
+              });
+              
+              const existingIssue = issues.data.find(issue => 
+                issue.title.includes('Flaky Tests Detected')
+              );
+              
+              if (existingIssue) {
+                // Update existing issue
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existingIssue.number,
+                  body: `## 🔄 Updated Flaky Test Report\n\n${issueBody}`
+                });
+                console.log(`Updated existing issue #${existingIssue.number}`);
+              } else {
+                // Create new issue
+                const issue = await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: `🔄 Flaky Tests Detected - ${new Date().toISOString().split('T')[0]}`,
+                  body: issueBody,
+                  labels: ['flaky-tests', 'bug', 'testing']
+                });
+                console.log(`Created new issue #${issue.data.number}`);
+              }
+            }
+            
+      - name: ❌ Fail if high-priority flaky tests found
+        if: env.HIGH_PRIORITY_FLAKY > 0
+        run: |
+          echo "❌ Found $HIGH_PRIORITY_FLAKY high-priority flaky tests!"
+          echo "These tests are highly unreliable and need immediate attention."
+          echo "Check the flaky test report for details."
+          exit 1
+
+  # Cleanup old artifacts to prevent storage bloat
+  cleanup:
+    name: 🧹 Cleanup Old Test Results
+    runs-on: ubuntu-latest
+    needs: analyze-flakiness
+    if: always()
+    
+    steps:
+      - name: 🗑️ Clean up old test artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - 7); // Keep artifacts for 7 days
+            
+            let deletedCount = 0;
+            for (const artifact of artifacts.data.artifacts) {
+              if (artifact.name.startsWith('test-results-run-') && 
+                  new Date(artifact.created_at) < cutoffDate) {
+                try {
+                  await github.rest.actions.deleteArtifact({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    artifact_id: artifact.id
+                  });
+                  deletedCount++;
+                } catch (error) {
+                  console.log(`Failed to delete artifact ${artifact.name}: ${error.message}`);
+                }
+              }
+            }
+            
+            console.log(`Cleaned up ${deletedCount} old test result artifacts`);
