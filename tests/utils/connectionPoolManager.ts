@@ -137,7 +137,7 @@ class ConnectionPoolManager {
             setTimeout(() => reject(new Error('Disconnect timeout')), 5000)
           ),
         ]);
-      } catch (error) {
+      } catch {
         if (this.config.enableQueryLogging) {
           console.warn('⚠️ Forced connection cleanup due to timeout');
         }

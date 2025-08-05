@@ -9,7 +9,7 @@
  * - Process state modifications
  */
 
-import { securityMetrics, resetSecurityMetrics } from '../../server/utils/securityLogger.js';
+import { /*securityMetrics,*/ resetSecurityMetrics } from '../../server/utils/securityLogger.js';
 import { clearAuditLoggerStorage } from '../../server/utils/auditLogger.js';
 
 /**

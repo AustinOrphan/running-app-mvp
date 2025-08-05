@@ -152,7 +152,7 @@ describe('Retry Usage Examples', () => {
           description: 'backoff demo',
         }
       );
-    } catch (error) {
+    } catch {
       expect(attempts).toBe(3);
       expect(attemptTimes).toHaveLength(3);
 

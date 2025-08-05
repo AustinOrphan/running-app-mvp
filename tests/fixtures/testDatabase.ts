@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+// PrismaClient type not needed - using getTestPrismaClient()
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';

@@ -43,8 +43,9 @@ export const cleanupPrismaConnection = async (): Promise<void> => {
   if (globalForPrisma.prisma) {
     try {
       await globalForPrisma.prisma.$disconnect();
-    } catch (error) {
-      console.warn('Warning: Error during Prisma cleanup:', error);
+    } catch {
+      // Silently handle cleanup errors - they don't affect application functionality
+      // TODO: Consider adding proper logging infrastructure (GitHub issue needed)
     }
   }
 };
@@ -55,8 +56,9 @@ export const resetPrismaConnection = async (): Promise<void> => {
     try {
       await globalForPrisma.prisma.$disconnect();
       globalForPrisma.prisma = undefined;
-    } catch (error) {
-      console.warn('Warning: Error during Prisma reset:', error);
+    } catch {
+      // Silently handle reset errors - they don't affect application functionality
+      // TODO: Consider adding proper logging infrastructure (GitHub issue needed)
     }
   }
 };

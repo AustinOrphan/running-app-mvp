@@ -239,7 +239,7 @@ export const getFalsePositiveRules = (
   const falsePositiveRules = RULE_SEVERITY_CONFIG.falsePositiveProne || {};
 
   return Object.entries(falsePositiveRules)
-    .filter(([ruleId, config]) => {
+    .filter(([ruleId, _config]) => {
       // Context-specific filtering logic
       if (context === 'e2e') {
         // In E2E tests, only disable rules that truly don't work in browsers

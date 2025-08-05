@@ -80,7 +80,7 @@ if (typeof window !== 'undefined') {
 setupDateMocking();
 
 // Enforce UTC dates for consistent timezone behavior
-const cleanupUTC = enforceUTCDates();
+enforceUTCDates();
 
 // Validate test environment before running tests
 beforeAll(async () => {

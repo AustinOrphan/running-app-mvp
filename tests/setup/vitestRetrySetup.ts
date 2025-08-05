@@ -224,7 +224,6 @@ beforeEach(() => {
 
 afterEach(() => {
   // Track test duration for flaky test analysis
-  const duration = Date.now() - (globalThis.testStartTime || Date.now());
 
   // Generate retry report if enabled
   if (process.env.DEBUG_TESTS && RetryStats.getStats().size > 0) {

@@ -138,7 +138,7 @@ export const SPECIFIC_TEST_TIMEOUTS: Record<string, { local: number; ci: number 
 export function isSlowTest(testFilePath: string): boolean {
   const filename = testFilePath.split('/').pop() || '';
 
-  for (const [testType, files] of Object.entries(SLOW_TESTS_CONFIG)) {
+  for (const [, files] of Object.entries(SLOW_TESTS_CONFIG)) {
     if (files.includes(filename)) {
       return true;
     }
@@ -289,7 +289,7 @@ export function applyTestTimeout(testFileName: string, testName?: string): void 
         testTimeout: timeout,
         hookTimeout: Math.floor(timeout * 0.8),
       });
-    } catch (error) {
+    } catch {
       // Config might not be mutable
     }
   }

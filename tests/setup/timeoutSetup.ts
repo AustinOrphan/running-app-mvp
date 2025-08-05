@@ -18,7 +18,6 @@ export function configureTestTimeouts(): void {
   // Determine if we're in a specific test framework
   const isJest = typeof jest !== 'undefined';
   const isVitest = typeof vi !== 'undefined';
-  const isPlaywright = typeof expect !== 'undefined' && 'toHaveURL' in expect;
 
   // Apply global timeout configurations
   if (isJest) {
@@ -96,7 +95,7 @@ export function setTimeoutForFile(testFilePath: string): void {
         testTimeout: timeout,
         hookTimeout: Math.floor(timeout * 0.8),
       });
-    } catch (error) {
+    } catch {
       // Ignore config errors
     }
   }
@@ -126,7 +125,7 @@ export function setTimeoutForTest(testFilePath: string, testName?: string): void
         testTimeout: timeout,
         hookTimeout: Math.floor(timeout * 0.8),
       });
-    } catch (error) {
+    } catch {
       // Ignore config errors
     }
   }
@@ -207,7 +206,7 @@ export function createTimeoutHelper(baseTimeoutMs: number = 30000) {
           if (result) {
             return;
           }
-        } catch (error) {
+        } catch {
           // Ignore errors during condition checking, continue polling
         }
 
@@ -311,7 +310,7 @@ export function autoApplyTimeout(): void {
         testTimeout: adjustedTimeout,
         hookTimeout: Math.floor(adjustedTimeout * 0.8),
       });
-    } catch (error) {
+    } catch {
       // Ignore config errors
     }
   }

@@ -270,10 +270,7 @@ describe('Enhanced Async Operations Examples', () => {
     });
 
     it('performs database operations with connection management', async () => {
-      let cleanupCalled = false;
-
       const cleanup = async () => {
-        cleanupCalled = true;
         console.log('Database cleanup executed');
       };
 

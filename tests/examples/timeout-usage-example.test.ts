@@ -5,7 +5,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { setTimeoutForFile, setTimeoutForTest, autoApplyTimeout } from '../setup/timeoutSetup';
+import {
+  /* setTimeoutForFile, */ setTimeoutForTest,
+  autoApplyTimeout,
+} from '../setup/timeoutSetup';
 
 // Example 1: Auto-apply timeout based on file name detection
 // This will automatically detect this is a test file and apply appropriate timeout

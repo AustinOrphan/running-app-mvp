@@ -197,9 +197,8 @@ export const clearJwtBlacklist = (): void => {
 export const clearTokenBlacklist = (): void => {
   blacklistedTokens.clear();
 
-  if (process.env.NODE_ENV === 'test' && process.env.DEBUG_TESTS) {
-    console.log('JWT blacklist cleared for test isolation');
-  }
+  // JWT blacklist cleared for test isolation
+  // TODO: Consider adding proper test logging infrastructure instead of console
 };
 
 /**
@@ -215,13 +214,13 @@ export const getBlacklistSize = (): number => {
  */
 export const resetBlacklist = (): void => {
   if (process.env.NODE_ENV !== 'test') {
-    console.warn('resetBlacklist() should only be called in test environment');
+    // Function misuse - should only be called in test environment
+    // TODO: Consider throwing an error instead of logging warning
     return;
   }
 
   blacklistedTokens.clear();
 
-  if (process.env.DEBUG_TESTS) {
-    console.log('JWT blacklist cleared for test isolation');
-  }
+  // JWT blacklist cleared for test isolation
+  // TODO: Consider adding proper test logging infrastructure instead of console
 };

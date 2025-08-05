@@ -72,8 +72,8 @@ describe('Database Connection Pooling', () => {
   });
 
   it('should properly clean up connections after operations', async () => {
-    // Perform some database operations
-    const user = await testDb.createUser({
+    // Perform some database operations to test connection cleanup
+    await testDb.createUser({
       email: testDataUtils.generateUniqueEmail('cleanup-test'),
       name: 'Cleanup Test User',
     });

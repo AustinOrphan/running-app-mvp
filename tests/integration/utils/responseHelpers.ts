@@ -598,7 +598,7 @@ export const validateComplexResponse = {
     expect(response.body.length).toBeGreaterThanOrEqual(minItems);
 
     if (response.body.length > 0) {
-      response.body.forEach((item: any, index: number) => {
+      response.body.forEach((item: any, _index: number) => {
         Object.entries(itemSchema).forEach(([key, expectedType]) => {
           expect(item).toHaveProperty(key);
           expect(typeof item[key]).toBe(expectedType);

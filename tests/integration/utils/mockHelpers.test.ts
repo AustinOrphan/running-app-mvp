@@ -2,16 +2,16 @@ import { jest } from '@jest/globals';
 import {
   createMockRequest,
   createMockResponse,
-  createMockNext,
+  // createMockNext,
   assertResponse,
-  assertResponseHeaders,
-  assertResponseSent,
-  assertResponseRedirect,
+  // assertResponseHeaders,
+  // assertResponseSent,
+  // assertResponseRedirect,
   assertErrorResponse,
   mockPrismaOperation,
   mockPrismaError,
   createMockPrismaClient,
-  resetMockPrismaClient,
+  // resetMockPrismaClient,
 } from './mockHelpers.js';
 
 import {
@@ -157,7 +157,7 @@ describe('Mock Helpers', () => {
     it('handles transaction function correctly', async () => {
       const mockPrisma = createMockPrismaClient();
 
-      const result = await mockPrisma.$transaction(async prisma => {
+      const result = await mockPrisma.$transaction(async _prisma => {
         return 'transaction result';
       });
 

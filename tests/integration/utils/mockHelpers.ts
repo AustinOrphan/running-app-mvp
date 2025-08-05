@@ -66,7 +66,7 @@ export function createMockResponse(): Partial<Response> {
     // Validate JSON-serializable content
     try {
       JSON.stringify(body);
-    } catch (error) {
+    } catch {
       throw new Error('Response body is not JSON serializable');
     }
     return res;

@@ -252,7 +252,7 @@ export async function checkTestIndependence(
   issues: string[];
 }> {
   const issues: string[] = [];
-  const { runTwice = true, checkGlobalState = true, checkDatabaseState = true } = options;
+  const { runTwice = true, checkGlobalState = true } = options;
 
   // Capture initial state
   const initialGlobalKeys = checkGlobalState ? Object.keys(global) : [];

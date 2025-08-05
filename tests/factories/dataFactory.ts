@@ -650,7 +650,7 @@ export class DataFactory {
       { month: 11, distance: 10, name: 'Turkey Trot 10K' },
     ];
 
-    return raceSchedule.map((race, index) => {
+    return raceSchedule.map((race, _index) => {
       const raceDate = new Date(year, race.month - 1, faker.number.int({ min: 1, max: 28 }));
       const isPast = raceDate < new Date();
 

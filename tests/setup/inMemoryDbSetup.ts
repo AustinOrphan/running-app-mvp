@@ -9,20 +9,20 @@
 let beforeAll: any, afterAll: any, afterEach: any;
 
 // Initialize test framework hooks dynamically
-async function initializeTestFramework() {
-  try {
-    // Try Vitest first (dynamic import for ES modules)
-    const vitest = await import('vitest');
-    beforeAll = vitest.beforeAll;
-    afterAll = vitest.afterAll;
-    afterEach = vitest.afterEach;
-  } catch {
-    // Fallback to Jest globals
-    beforeAll = (global as any).beforeAll;
-    afterAll = (global as any).afterAll;
-    afterEach = (global as any).afterEach;
-  }
-}
+// async function _initializeTestFramework() {
+//   try {
+//     // Try Vitest first (dynamic import for ES modules)
+//     const vitest = await import('vitest');
+//     beforeAll = vitest.beforeAll;
+//     afterAll = vitest.afterAll;
+//     afterEach = vitest.afterEach;
+//   } catch {
+//     // Fallback to Jest globals
+//     beforeAll = (global as any).beforeAll;
+//     afterAll = (global as any).afterAll;
+//     afterEach = (global as any).afterEach;
+//   }
+// }
 
 // Initialize immediately if in a test environment
 if (typeof beforeAll === 'undefined') {

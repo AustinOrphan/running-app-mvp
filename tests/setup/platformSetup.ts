@@ -33,8 +33,6 @@ export async function setupPlatformSpecificTests(): Promise<void> {
  * Apply timeout adjustments based on platform and CI environment
  */
 function applyTimeoutAdjustments(): void {
-  const platform = platformUtils.getPlatformInfo();
-
   // Vitest timeout adjustments
   if (typeof globalThis !== 'undefined' && globalThis.vi) {
     const baseTimeout = 10000;
@@ -49,7 +47,7 @@ function applyTimeoutAdjustments(): void {
           testTimeout: adjustedTimeout,
           hookTimeout: adjustedTimeout,
         });
-      } catch (error) {
+      } catch {
         // Config might not be mutable, that's okay
       }
     }

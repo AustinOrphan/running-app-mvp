@@ -37,7 +37,8 @@ export class MockDate extends Date {
     } else if (args.length === 1) {
       super(args[0]);
     } else {
-      // @ts-ignore - TypeScript doesn't like spread with constructor
+      // @ts-expect-error TypeScript cannot properly type-check spread arguments in constructor calls
+      // The Date constructor accepts multiple overloads but spread syntax confuses the type checker
       super(...args);
     }
   }
@@ -129,7 +130,8 @@ export function withMockDate(date: Date | string): () => void {
       } else if (args.length === 1) {
         super(args[0]);
       } else {
-        // @ts-ignore
+        // @ts-expect-error TypeScript cannot infer correct overload for Date constructor with spread arguments
+        // This is safe as we're passing the same arguments that Date constructor expects
         super(...args);
       }
     }

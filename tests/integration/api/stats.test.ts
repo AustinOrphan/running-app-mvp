@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { createTestApp } from '../utils/testApp.js';
 import { testDb } from '../utils/testDbSetup.js';
-import { testDataUtils } from '../../utils/testDataIsolationManager.js';
+// testDataUtils not used in this test file
 import { mockRuns } from '../../fixtures/mockData.js';
 
 // Helper function to create test runs using batch insert

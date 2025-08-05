@@ -5,7 +5,7 @@
  * and ensure consistent behavior across different environments.
  */
 
-import { vi } from 'vitest';
+// import { vi } from 'vitest';
 
 /**
  * Common timezones for testing
@@ -44,7 +44,7 @@ export function mockTimezone(timezone: string): () => void {
       }
     };
 
-    // @ts-ignore
+    // @ts-expect-error - Intentionally overriding global Intl for testing
     global.Intl.DateTimeFormat = MockedDateTimeFormat;
   }
 
@@ -79,12 +79,13 @@ export function formatDateUTC(
   const { includeTime = false, format = 'iso' } = options;
 
   switch (format) {
-    case 'input':
+    case 'input': {
       // HTML date input format (YYYY-MM-DD)
       const year = date.getUTCFullYear();
       const month = String(date.getUTCMonth() + 1).padStart(2, '0');
       const day = String(date.getUTCDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
+    }
 
     case 'display':
       // Human-readable format
@@ -286,15 +287,15 @@ export function enforceUTCDates(): () => void {
   };
 
   // Override methods to use UTC
-  Date.prototype.toLocaleDateString = function (locale?: string, options?: any) {
+  Date.prototype.toLocaleDateString = function (_locale?: string, _options?: any) {
     return this.toISOString().split('T')[0];
   };
 
-  Date.prototype.toLocaleTimeString = function (locale?: string, options?: any) {
+  Date.prototype.toLocaleTimeString = function (_locale?: string, _options?: any) {
     return this.toISOString().split('T')[1].split('.')[0];
   };
 
-  Date.prototype.toLocaleString = function (locale?: string, options?: any) {
+  Date.prototype.toLocaleString = function (_locale?: string, _options?: any) {
     return this.toISOString().replace('T', ' ').split('.')[0];
   };
 

@@ -710,7 +710,7 @@ describe('Input Component System Accessibility', () => {
       });
 
       // Test specific keyboard interactions
-      const searchInput = screen.getByLabelText('Search Users');
+      screen.getByLabelText('Search Users'); // searchInput
       const clearButton = screen.getByRole('button', { name: /clear search/i });
       const passwordToggle = screen.getByRole('button', { name: /show password/i });
 

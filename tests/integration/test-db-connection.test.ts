@@ -1,7 +1,7 @@
 import {
   getTestPrismaClient,
   setupTestDatabase,
-  teardownTestDatabase,
+  // teardownTestDatabase,
   connectionPool,
 } from '../utils/connectionPoolManager.js';
 import { testDb } from './utils/testDbSetup.js';

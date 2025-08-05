@@ -3,12 +3,12 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import {
-  TestDataIsolationManager,
+  // TestDataIsolationManager,
   createTestDataIsolationManager,
   testDataUtils,
 } from '../../utils/testDataIsolationManager.js';
 import {
-  FixtureLoader,
+  // FixtureLoader,
   createFixtureLoader,
   FixtureLoadingUtils,
 } from '../../fixtures/fixtureLoader.js';
@@ -69,7 +69,7 @@ export const getTestPrisma = () => {
     process.on('exit', cleanup);
 
     // Handle unhandled promise rejections that could leave connections open
-    process.on('unhandledRejection', (reason, promise) => {
+    process.on('unhandledRejection', (reason, _promise) => {
       if (process.env.DEBUG_TESTS) {
         console.warn('Unhandled rejection detected, ensuring database cleanup:', reason);
       }
@@ -162,7 +162,7 @@ export const cleanTestDatabase = async () => {
     if (process.env.DATABASE_URL?.includes('file:')) {
       try {
         await prisma.$executeRaw`DELETE FROM sqlite_sequence WHERE name IN ('User', 'Run', 'Goal', 'Race')`;
-      } catch (error) {
+      } catch {
         // Ignore errors - sqlite_sequence may not exist or contain these tables
         if (process.env.DEBUG_TESTS) {
           console.log('Note: Could not reset sequences (this is normal for UUID primary keys)');
@@ -233,8 +233,6 @@ const selectOptimalCleanupStrategy = async (): Promise<'fast-empty' | 'truncate'
  * Truncate all tables (not supported by SQLite, fallback to DELETE)
  */
 const truncateAllTables = async () => {
-  const prisma = getTestPrisma();
-
   // SQLite doesn't support TRUNCATE, this is a placeholder for other databases
   // For now, fallback to DELETE operations
   await deleteAllTablesInOrder();
@@ -288,7 +286,6 @@ export const optimizedCleanTestDatabase = async (
   } = {}
 ) => {
   const { skipVerification = false, maxRetries = 3 } = options;
-  const prisma = getTestPrisma();
 
   let attempt = 0;
   while (attempt < maxRetries) {

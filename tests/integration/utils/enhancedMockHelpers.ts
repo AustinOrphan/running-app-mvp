@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response } from 'express';
 
 /**
  * Enhanced request/response mocking utilities for integration tests
@@ -56,8 +56,6 @@ export function createEnhancedMockRequest(options: {
  */
 export function createEnhancedMockResponse(): Partial<Response> {
   let statusCode = 200;
-  let sentData: any = null;
-  let jsonData: any = null;
   const headers: Record<string, string> = {};
   let headersSent = false;
 
@@ -120,7 +118,7 @@ export function createEnhancedMockResponse(): Partial<Response> {
     cookie: jest.fn().mockReturnThis(),
     clearCookie: jest.fn().mockReturnThis(),
 
-    redirect: jest.fn().mockImplementation((urlOrStatus?: string | number, url?: string) => {
+    redirect: jest.fn().mockImplementation((urlOrStatus?: string | number, _url?: string) => {
       if (typeof urlOrStatus === 'number') {
         statusCode = urlOrStatus;
         res.statusCode = urlOrStatus;

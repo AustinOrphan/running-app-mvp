@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+// import { jest } from '@jest/globals';
 
 /**
  * Standard API response validation utilities
@@ -233,7 +233,7 @@ export function createResponseAssertion(testName: string) {
     expectStatus: (response: any, expectedStatus: number) => {
       try {
         expect(response.status).toBe(expectedStatus);
-      } catch (error) {
+      } catch {
         throw new Error(
           `${testName}: Expected status ${expectedStatus} but got ${response.status}. ` +
             `Response body: ${JSON.stringify(response.body, null, 2)}`

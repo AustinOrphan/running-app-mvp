@@ -6,7 +6,7 @@
  */
 
 import { CIIntegrationDBManager } from '../../scripts/ci-integration-db-setup.js';
-import { forceCleanupAllConnections, connectionPool } from '../utils/connectionPoolManager';
+import { forceCleanupAllConnections } from '../utils/connectionPoolManager';
 import { cleanupPrismaConnection, resetPrismaConnection } from '../../lib/prisma.js';
 
 export default async function globalTeardown() {

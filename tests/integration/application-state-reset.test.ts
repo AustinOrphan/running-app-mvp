@@ -6,7 +6,7 @@
  * and other stateful components are cleared.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, test, expect } from '@jest/globals';
 import {
   resetApplicationState,
   validateApplicationStateReset,

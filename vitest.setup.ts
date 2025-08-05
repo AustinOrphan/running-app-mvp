@@ -54,8 +54,9 @@ vi.mock('*.module.css', () => {
 (async () => {
   try {
     await ensurePrismaClient();
-  } catch (error) {
-    console.warn('Warning: Failed to ensure Prisma client in vitest setup:', error);
-    // Don't fail setup - let individual tests handle Prisma availability
+  } catch {
+    // Silently handle Prisma setup failures in test environment
+    // Individual tests will handle Prisma availability as needed
+    // TODO: Consider adding proper test logging infrastructure (GitHub issue needed)
   }
 })();

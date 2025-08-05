@@ -199,7 +199,6 @@ export function getEnvVar(name: string, defaultValue?: string): string | undefin
  * Create a cross-platform database URL
  */
 export function createDatabaseUrl(filename: string, baseDir?: string): string {
-  const platform = getPlatformInfo();
   const dir = baseDir || process.cwd();
   const dbPath = path.join(dir, 'prisma', filename);
 
@@ -228,7 +227,7 @@ export async function getFileStats(filepath: string): Promise<{
       size: stats.size,
       mtime: stats.mtime,
     };
-  } catch (error) {
+  } catch {
     return {
       exists: false,
       isFile: false,
@@ -277,7 +276,7 @@ export async function compareFileContents(
     }
 
     return content1 === content2;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

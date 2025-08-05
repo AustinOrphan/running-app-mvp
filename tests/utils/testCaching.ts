@@ -92,7 +92,7 @@ export class TestCache {
       hasher.update(process.version); // Node version
       hasher.update(process.platform); // Platform
       hasher.update(TestCache.CACHE_VERSION); // Cache version
-    } catch (error) {
+    } catch {
       // If file reading fails, use file stats
       try {
         const stats = await fs.stat(testPath);
@@ -139,7 +139,7 @@ export class TestCache {
 
       // Find result for this specific test
       return entry.results.find(result => result.testPath === testPath) || null;
-    } catch (error) {
+    } catch {
       // Cache miss or invalid cache
       return null;
     }
@@ -207,7 +207,7 @@ export class TestCache {
   async clearCache(): Promise<void> {
     try {
       await fs.rm(this.cacheDir, { recursive: true, force: true });
-    } catch (error) {
+    } catch {
       // Directory might not exist, which is fine
     }
   }
@@ -403,7 +403,7 @@ export async function runCacheCommand(command: string): Promise<void> {
       console.log('Expired cache entries cleaned.');
       break;
 
-    case 'stats':
+    case 'stats': {
       console.log('Gathering cache statistics...');
       const stats = await CacheManager.getAllCacheStats();
 
@@ -424,6 +424,7 @@ export async function runCacheCommand(command: string): Promise<void> {
         }
       }
       break;
+    }
 
     default:
       console.log('Available commands: clear, clean, stats');

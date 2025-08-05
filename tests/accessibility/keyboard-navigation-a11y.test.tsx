@@ -3,11 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router';
-import {
-  expectAccessible,
-  testAccessibilityCompliance,
-  accessibilityScenarios,
-} from '../utils/accessibilityTestUtils';
+// import {
+//   expectAccessible,
+//   testAccessibilityCompliance,
+//   accessibilityScenarios,
+// } from '../utils/accessibilityTestUtils';
 import { Button } from '../../src/components/UI/Button';
 import { Modal } from '../../src/components/UI/Modal';
 import { Input } from '../../src/components/UI/Input';
@@ -16,14 +16,14 @@ import { TabNavigation } from '../../src/components/Navigation/TabNavigation';
 expect.extend(toHaveNoViolations);
 
 // Mock keyboard event for testing keyboard shortcuts
-const createKeyboardEvent = (key: string, options: any = {}) => {
-  return new KeyboardEvent('keydown', {
-    key,
-    code: key === ' ' ? 'Space' : key,
-    bubbles: true,
-    ...options,
-  });
-};
+// const createKeyboardEvent = (key: string, options: any = {}) => {
+//   return new KeyboardEvent('keydown', {
+//     key,
+//     code: key === ' ' ? 'Space' : key,
+//     bubbles: true,
+//     ...options,
+//   });
+// };
 
 describe('Keyboard Navigation Accessibility Tests', () => {
   beforeEach(() => {
@@ -308,9 +308,9 @@ describe('Keyboard Navigation Accessibility Tests', () => {
 
       render(<RemovalTest />);
 
-      const beforeButton = screen.getByRole('button', { name: 'Before Button' });
+      screen.getByRole('button', { name: 'Before Button' }); // beforeButton
       const removeButton = screen.getByRole('button', { name: 'Remove Me' });
-      const afterButton = screen.getByRole('button', { name: 'After Button' });
+      screen.getByRole('button', { name: 'After Button' }); // afterButton
 
       // Focus the button that will be removed
       removeButton.focus();
@@ -423,7 +423,7 @@ describe('Keyboard Navigation Accessibility Tests', () => {
 
       const skipLink = screen.getByRole('link', { name: 'Skip to main content' });
       const mainContent = screen.getByRole('main');
-      const firstMainButton = screen.getByRole('button', { name: 'First Main Button' });
+      screen.getByRole('button', { name: 'First Main Button' }); // firstMainButton
 
       // Skip link should be focusable
       skipLink.focus();
@@ -789,24 +789,24 @@ describe('Keyboard Navigation Accessibility Tests', () => {
 
         return (
           <ul role='tree'>
-            <li role='treeitem' aria-expanded={expanded.has('folder1')}>
+            <li role='treeitem' aria-expanded={expanded.has('folder1')} aria-selected='false'>
               <button onClick={() => toggleExpanded('folder1')}>📁 Folder 1</button>
               {expanded.has('folder1') && (
                 <ul role='group'>
-                  <li role='treeitem'>
+                  <li role='treeitem' aria-selected='false'>
                     <button>📄 File 1.1</button>
                   </li>
-                  <li role='treeitem'>
+                  <li role='treeitem' aria-selected='false'>
                     <button>📄 File 1.2</button>
                   </li>
                 </ul>
               )}
             </li>
-            <li role='treeitem' aria-expanded={expanded.has('folder2')}>
+            <li role='treeitem' aria-expanded={expanded.has('folder2')} aria-selected='false'>
               <button onClick={() => toggleExpanded('folder2')}>📁 Folder 2</button>
               {expanded.has('folder2') && (
                 <ul role='group'>
-                  <li role='treeitem'>
+                  <li role='treeitem' aria-selected='false'>
                     <button>📄 File 2.1</button>
                   </li>
                 </ul>
@@ -819,7 +819,7 @@ describe('Keyboard Navigation Accessibility Tests', () => {
       render(<TreeTest />);
 
       const folder1Button = screen.getByRole('button', { name: '📁 Folder 1' });
-      const folder2Button = screen.getByRole('button', { name: '📁 Folder 2' });
+      screen.getByRole('button', { name: '📁 Folder 2' }); // folder2Button
 
       // Test keyboard expansion
       folder1Button.focus();
