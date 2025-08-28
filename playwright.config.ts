@@ -1,158 +1,178 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// require('dotenv').config();
-
-/**
- * See https://playwright.dev/docs/test-configuration.
+ * Consolidated Playwright configuration
+ * Environment-aware configuration for local development, CI, and distributed testing
+ * Replaces all variant configs with single source of truth
  */
 export default defineConfig({
+  // Test directory and patterns
   testDir: './tests/e2e',
   testMatch: '**/*.test.ts',
-  /* Run tests in files in parallel */
-  fullyParallel: true,
-  /* Global setup and teardown */
+
+  // Global setup and teardown
   globalSetup: './tests/e2e/global-setup.ts',
   globalTeardown: './tests/e2e/global-teardown.ts',
-  /* Cache browser installations and test results */
-  outputDir: 'test-results/playwright',
-  /* Metadata configuration for improved caching */
-  metadata: {
-    'playwright-version': require('@playwright/test/package.json').version,
-    'cache-enabled': true,
-  },
-  /* Caching configuration - improved cache directories */
-  outputDir: 'playwright-results',
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
+
+  // Parallel execution - environment aware
+  fullyParallel: true,
+
+  // Output directory - environment aware
+  outputDir: process.env.CI
+    ? 'playwright-results-ci'
+    : 'playwright-results',
+
+  // Fail build if test.only is left in CI
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only - MAXIMUM 3 attempts total (2 retries + 1 original) */
-  retries: process.env.CI ? 2 : 0, // 0-2 retries in CI, 0 locally (max 3 total attempts)
-  /* Configure workers for parallel/sharded execution - optimized per platform */
+
+  // Environment-aware retry configuration
+  retries: process.env.CI ? 2 : 0,
+
+  // Environment-aware worker configuration
   workers: (() => {
-    // Allow environment override
+    // Allow manual override
     if (process.env.PLAYWRIGHT_WORKERS) {
       return parseInt(process.env.PLAYWRIGHT_WORKERS, 10);
     }
 
-    const os = require('os');
-    const cpuCount = os.cpus().length;
-
     if (process.env.CI) {
-      // In CI with sharding: use 2-3 workers per shard
+      // CI with sharding: 2 workers per shard
       if (process.env.PLAYWRIGHT_SHARD) {
-        return Math.min(3, Math.max(2, Math.floor(cpuCount / 2)));
+        return 2;
       }
-      // In CI without sharding: use conservative worker count
-      return Math.max(1, Math.min(4, Math.floor(cpuCount / 3)));
-    } else {
-      // Locally: use 50% of available cores for better performance
-      return Math.max(2, Math.min(8, Math.floor(cpuCount / 2)));
+      // CI without sharding: single worker for stability
+      return 1;
     }
+
+    // Local development: use system cores / 2
+    return undefined; // Let Playwright decide based on system
   })(),
 
-  /* Sharding configuration for distributed test execution */
+  // Sharding support for distributed testing
   ...(process.env.PLAYWRIGHT_SHARD && {
     shard: {
       current: parseInt(process.env.PLAYWRIGHT_SHARD.split('/')[0], 10),
       total: parseInt(process.env.PLAYWRIGHT_SHARD.split('/')[1], 10),
     },
   }),
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: process.env.CI
-    ? [
-        ['html', { outputFolder: 'playwright-report' }],
-        ['junit', { outputFile: 'test-results/e2e-junit.xml' }],
-        ['./tests/reporters/accessibility-reporter.ts'],
-      ]
-    : 'html',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
+
+  // Environment-aware reporter configuration
+  reporter: process.env.CI ? [
+    ['html', {
+      outputFolder: 'playwright-report',
+      open: 'never'
+    }],
+    ['json', {
+      outputFile: 'test-results/playwright-results.json'
+    }],
+    ['junit', {
+      outputFile: 'test-results/playwright-junit.xml'
+    }],
+    ['github'], // GitHub Actions integration
+  ] : [
+    ['html', {
+      outputFolder: 'playwright-report',
+      open: 'on-failure'
+    }],
+    ['list'],
+  ],
+
+  // Global test configuration
   use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:3000',
+    // Base URL for tests
+    baseURL: process.env.BASE_URL || 'http://localhost:3000',
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    // Browser context options
+    viewport: { width: 1280, height: 720 },
 
-    /* CI-aware timeout configuration - increased for slower CI runners */
-    actionTimeout: process.env.CI ? 20000 : 10000, // 20s in CI, 10s locally
-    navigationTimeout: process.env.CI ? 60000 : 30000, // 60s in CI, 30s locally
+    // Action timeouts
+    actionTimeout: process.env.CI ? 15000 : 10000,
+    navigationTimeout: process.env.CI ? 45000 : 30000,
+
+    // Screenshots and videos - environment aware
+    screenshot: process.env.CI ? 'only-on-failure' : 'on-first-retry',
+    video: process.env.CI ? 'retain-on-failure' : 'on-first-retry',
+    trace: process.env.CI ? 'retain-on-failure' : 'on-first-retry',
+
+    // User agent
+    userAgent: 'PlaywrightTests/1.0',
+
+    // Browser launch options - environment aware
+    launchOptions: {
+      headless: process.env.HEADED ? false : true,
+      slowMo: process.env.SLOWMO ? parseInt(process.env.SLOWMO) : 0,
+      args: process.env.CI ? [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
+      ] : [],
+    },
   },
 
-  /* Test timeout configuration - extended for CI environment */
-  timeout: process.env.CI ? 90000 : 30000, // 90s in CI, 30s locally
+  // Test timeout configuration
+  timeout: process.env.CI ? 60000 : 30000,
+  expect: {
+    timeout: process.env.CI ? 10000 : 5000,
+  },
 
-  /* Configure projects for major browsers */
+  // Projects for different browsers and configurations
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
 
-    {
+    // Run Firefox only if explicitly requested or in comprehensive test mode
+    ...(process.env.TEST_ALL_BROWSERS || process.env.PLAYWRIGHT_FIREFOX ? [{
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-    },
+    }] : []),
 
-    {
+    // Run WebKit only if explicitly requested or in comprehensive test mode
+    ...(process.env.TEST_ALL_BROWSERS || process.env.PLAYWRIGHT_WEBKIT ? [{
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-    },
+    }] : []),
 
-    /* Test against mobile viewports. */
-    {
-      name: 'Mobile Safari',
-      use: {
-        ...devices['iPhone 13'],
-        viewport: { width: 390, height: 844 },
-        hasTouch: true,
-        isMobile: true,
+    // Mobile testing - only when explicitly enabled
+    ...(process.env.TEST_MOBILE ? [
+      {
+        name: 'Mobile Chrome',
+        use: { ...devices['Pixel 5'] },
       },
-      testMatch: [
-        '**/accessibility.test.ts',
-        '**/navigation-swipe.test.ts',
-        '**/mobile-responsiveness.test.ts',
-      ],
-    },
-    {
-      name: 'iPad',
-      use: {
-        ...devices['iPad Pro 11'],
-        viewport: { width: 1024, height: 1366 },
-        hasTouch: true,
-        isMobile: false,
+      {
+        name: 'Mobile Safari',
+        use: { ...devices['iPhone 12'] },
       },
-      testMatch: ['**/navigation-swipe.test.ts', '**/mobile-responsiveness.test.ts'],
-    },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
+    ] : []),
   ],
 
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'npm run dev:full',
+  // Web server configuration for tests
+  webServer: process.env.CI || process.env.START_SERVER ? {
+    command: process.env.CI
+      ? 'npm run build && npm run start'
+      : 'npm run dev:full',
     url: 'http://localhost:3000',
+    timeout: process.env.CI ? 180000 : 120000, // 3 minutes in CI, 2 minutes locally
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
-
-  /* Expect configuration for assertions - extended for CI */
-  expect: {
-    timeout: process.env.CI ? 45000 : 15000,
-    toHaveScreenshot: {
-      threshold: 0.2,
-      maxDiffPixels: 100,
-      animations: 'disabled',
+    stdout: 'pipe',
+    stderr: 'pipe',
+    env: {
+      NODE_ENV: 'test',
+      PORT: '3001',
+      DATABASE_URL: process.env.E2E_DATABASE_URL || 'file:./prisma/e2e-test.db',
+      JWT_SECRET: 'test-secret-for-e2e-tests-must-be-longer-than-32-characters',
     },
+  } : undefined,
+
+  // Metadata for improved caching and debugging
+  metadata: {
+    'playwright-version': require('@playwright/test/package.json').version,
+    'node-version': process.version,
+    'os': process.platform,
+    'ci': !!process.env.CI,
+    'shard': process.env.PLAYWRIGHT_SHARD || 'none',
   },
-});
+};
