@@ -1,0 +1,25 @@
+# Source files
+src/
+*.ts
+!dist/**/*.d.ts
+
+# Config files
+tsconfig.json
+vite.config.ts
+.gitignore
+
+# Development
+node_modules/
+coverage/
+*.log
+.DS_Store
+
+# Environment
+.env
+.env.local
+
+# Examples and docs
+examples/
+docs/
+*.md
+!README.md

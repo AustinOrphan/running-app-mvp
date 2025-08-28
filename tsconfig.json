@@ -24,10 +24,14 @@
     "downlevelIteration": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./src/*"],
+      "@server/*": ["./src/server/*"],
+      "@client/*": ["./src/client/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@tests/*": ["./tests/*"]
     },
     "types": ["vitest/globals", "@testing-library/jest-dom", "jest-axe"]
   },
-  "include": ["server.ts", "server/**/*.ts", "server/**/*.tsx", "src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"],
   "exclude": ["node_modules", "dist", "tests/**/*", "**/*.test.ts", "**/*.test.tsx"]
 }
