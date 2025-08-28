@@ -1,514 +1,723 @@
 # Comprehensive Testing Guide
 
-This document provides a complete overview of the testing infrastructure for the Running App MVP project, including the comprehensive test runner and performance monitoring system.
+## Overview
+
+This is the complete testing guide for the Running App MVP project. All testing-related information has been consolidated into this single document to provide a clear, comprehensive resource for developers.
+
+## Table of Contents
+
+1. [Quick Start](#quick-start)
+2. [Testing Architecture](#testing-architecture)
+3. [Test Types and Frameworks](#test-types-and-frameworks)
+4. [Testing Commands](#testing-commands)
+5. [Test Configuration](#test-configuration)
+6. [Coverage and Metrics](#coverage-and-metrics)
+7. [Testing Best Practices](#testing-best-practices)
+8. [CI/CD Integration](#cicd-integration)
+9. [Performance Monitoring](#performance-monitoring)
+10. [Troubleshooting](#troubleshooting)
+11. [Test Patterns and Examples](#test-patterns-and-examples)
 
 ## Quick Start
 
-```bash
-# Run all tests with the comprehensive test runner
-npm run test:runner
-
-# Run tests in CI mode with all reports
-npm run test:runner:ci
-
-# Generate performance report
-npm run test:runner:monitor
-```
-
-## Test Architecture
-
-### Test Types
-
-1. **Unit Tests** (Vitest + jsdom)
-   - Location: `tests/unit/`, `src/**/*.test.{js,ts,tsx}`
-   - Framework: Vitest
-   - Environment: jsdom for React components
-   - Coverage: Yes
-   - Command: `npm run test` or `npm run test:coverage`
-
-2. **Integration Tests** (Jest + Node.js)
-   - Location: `tests/integration/`
-   - Framework: Jest with ts-jest
-   - Environment: Node.js
-   - Coverage: Yes
-   - Command: `npm run test:integration`
-
-3. **End-to-End Tests** (Playwright)
-   - Location: `tests/e2e/`
-   - Framework: Playwright
-   - Browsers: Chromium, Firefox, WebKit
-   - Command: `npm run test:e2e`
-
-4. **Accessibility Tests**
-   - Unit Level: `tests/accessibility/` (Vitest + @axe-core/react)
-   - E2E Level: `tests/e2e/accessibility.test.ts` (Playwright + @axe-core/playwright)
-   - Command: `npm run test:a11y:all`
-
-5. **Visual Regression Tests**
-   - Location: `tests/e2e/visual-regression.test.ts`
-   - Framework: Playwright with screenshot comparison
-   - Command: `npm run test:visual`
-
-6. **Performance Tests**
-   - Location: `tests/performance/`
-   - Custom benchmarking scripts
-   - Command: `npm run test:performance`
-
-7. **Memory Tests**
-   - Location: `tests/memory/`
-   - Memory leak detection
-   - Command: `npm run test:memory`
-
-## Comprehensive Test Runner
-
-The test runner (`scripts/test-runner.js`) provides unified execution of all test suites with detailed reporting.
-
-### Features
-
-- **Unified Execution**: Run all or specific test suites from one command
-- **Parallel Processing**: Execute multiple test suites simultaneously
-- **Multiple Reporters**: Console, JSON, and HTML output formats
-- **Coverage Aggregation**: Combine coverage from all test suites
-- **CI/CD Integration**: Special CI mode with strict thresholds
-- **Performance Tracking**: Integration with performance monitoring
-- **Quality Gates**: Configurable thresholds for coverage and performance
-
-### Usage Examples
+### Essential Commands
 
 ```bash
-# Run all tests (default)
-npm run test:runner
+# Run all tests
+npm run test:all
 
-# Run specific test suite
-npm run test:runner:unit
-npm run test:runner:integration
-npm run test:runner:e2e
+# Run tests with coverage
+npm run test:coverage
 
-# Parallel execution
-npm run test:runner:parallel
+# Run specific test types
+npm run test              # Unit tests (Vitest)
+npm run test:integration  # Integration tests (Jest)
+npm run test:e2e          # End-to-end tests (Playwright)
 
-# CI mode with strict thresholds
-npm run test:runner:ci
-
-# Generate HTML report
-npm run test:runner:report
-
-# Custom options
-node scripts/test-runner.js --suite unit --reporter json --output ./my-reports
-node scripts/test-runner.js --parallel --verbose --bail
+# Development workflow
+npm run test:ui           # Interactive test runner
+npm run test:coverage     # Coverage report
 ```
 
-### Command Line Options
-
-<<<<<<< Updated upstream
-| Option | Description | Default |
-| ------------------- | ---------------------------------------------------------------------------------- | ------------ |
-| `--suite <name>` | Test suite to run (unit, integration, e2e, a11y, visual, performance, memory, all) | all |
-| `--parallel` | Run tests in parallel where possible | false |
-| `--reporter <type>` | Reporter type (console, json, html, all) | console |
-| `--output <dir>` | Output directory for reports | test-reports |
-| `--ci` | Run in CI mode with strict thresholds | false |
-| `--verbose` | Verbose output for debugging | false |
-| `--bail` | Stop on first test failure | false |
-| `--watch` | Run in watch mode (where supported) | false |
-=======
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--suite <name>` | Test suite to run (unit, integration, e2e, a11y, visual, performance, memory, all) | all |
-| `--parallel` | Run tests in parallel where possible | false |
-| `--reporter <type>` | Reporter type (console, json, html, all) | console |
-| `--output <dir>` | Output directory for reports | test-reports |
-| `--ci` | Run in CI mode with strict thresholds | false |
-| `--verbose` | Verbose output for debugging | false |
-| `--bail` | Stop on first test failure | false |
-| `--watch` | Run in watch mode (where supported) | false |
-
-> > > > > > > Stashed changes
-
-## Performance Monitoring
-
-The performance monitor (`scripts/test-performance-monitor.js`) tracks test execution performance over time.
-
-### Features
-
-- **Historical Tracking**: Stores performance data for up to 100 test runs
-- **Trend Analysis**: Identifies improving, stable, or deteriorating performance
-- **Regression Detection**: Automatically detects significant performance degradations
-- **Recommendations**: Provides actionable suggestions for optimization
-- **Suite-Level Analysis**: Individual performance tracking per test suite
-
-### Usage
+### First Time Setup
 
 ```bash
-# Generate performance report
-npm run test:runner:monitor
+# Install dependencies and setup database
+npm run setup
 
-# Record test results (usually called by test runner)
-node scripts/test-performance-monitor.js record test-reports/test-results.json
+# Install Playwright browsers
+npx playwright install
+
+# Verify test environment
+npm run validate-test-env
 ```
 
-## Test Configuration Files
+## Testing Architecture
 
-### Vitest Configuration
+### Testing Pyramid Strategy
 
-<<<<<<< Updated upstream
+```
+    ┌─────────────────┐
+    │   E2E Tests     │  10% - Critical user journeys
+    │   (Playwright)  │
+    ├─────────────────┤
+    │ Integration     │  20% - API and database tests
+    │ Tests (Jest)    │
+    ├─────────────────┤
+    │   Unit Tests    │  70% - Components and utilities
+    │   (Vitest)      │
+    └─────────────────┘
+```
 
-=======
+### Test Distribution
 
-> > > > > > > Stashed changes
+| Test Type | Framework | Target % | Current Status |
+|-----------|-----------|----------|----------------|
+| Unit Tests | Vitest | 70% | ✅ Well covered |
+| Integration Tests | Jest | 20% | 🔶 Needs work |
+| E2E Tests | Playwright | 10% | ✅ Good coverage |
 
-- File: `vite.config.ts` (test section)
-- Environment: jsdom
-- Setup: `vitest.setup.ts`, `tests/setup/testSetup.ts`
-- Coverage: v8 provider
+## Test Types and Frameworks
 
-### Jest Configuration
+### 1. Unit Tests (Vitest)
 
-<<<<<<< Updated upstream
+**Purpose**: Test individual components, functions, and utilities in isolation.
 
-=======
+**Location**: 
+- `src/**/*.test.{ts,tsx,js}`
+- `tests/unit/`
 
-> > > > > > > Stashed changes
+**Features**:
+- Hot module replacement
+- Native TypeScript support
+- JSdom environment for React components
+- Fast execution with Vite
+- Built-in coverage reporting
 
-- File: `jest.config.js`
-- Environment: Node.js
-- Setup: `tests/setup/globalSetup.ts`, `tests/setup/jestSetup.ts`
-- Coverage: Default Jest coverage
+**Configuration**: `vitest.config.ts`
 
-### Playwright Configuration
+**Example**:
+```typescript
+import { render, screen } from '@testing-library/react';
+import { Button } from './Button';
 
-<<<<<<< Updated upstream
+describe('Button Component', () => {
+  it('should render with correct text', () => {
+    render(<Button>Click me</Button>);
+    expect(screen.getByText('Click me')).toBeInTheDocument();
+  });
+});
+```
 
-=======
+### 2. Integration Tests (Jest)
 
-> > > > > > > Stashed changes
+**Purpose**: Test API endpoints, database operations, and service integration.
 
-- File: `playwright.config.ts`
-- Browsers: Chromium, Firefox, WebKit
-- Base URL: http://localhost:3000
-- Web Server: Automatically starts `npm run dev:full`
+**Location**: `tests/integration/`
 
-## Coverage Requirements
+**Features**:
+- Real database interactions
+- HTTP request testing
+- Authentication testing
+- Error handling validation
 
-### Default Thresholds
+**Configuration**: `jest.config.js`
 
-<<<<<<< Updated upstream
+**Example**:
+```typescript
+import request from 'supertest';
+import { app } from '../src/server/app';
 
-=======
+describe('POST /api/runs', () => {
+  it('should create a new run', async () => {
+    const response = await request(app)
+      .post('/api/runs')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        distance: 5.0,
+        duration: 1800,
+        startTime: new Date().toISOString()
+      })
+      .expect(201);
+    
+    expect(response.body).toHaveProperty('id');
+  });
+});
+```
 
-> > > > > > > Stashed changes
+### 3. End-to-End Tests (Playwright)
 
-- Lines: 70%
-- Statements: 70%
-- Functions: 70%
-- Branches: 70%
+**Purpose**: Test complete user workflows across browsers.
 
-### Coverage Collection
+**Location**: `tests/e2e/`
 
-<<<<<<< Updated upstream
+**Features**:
+- Multi-browser testing (Chromium, Firefox, WebKit)
+- Parallel execution with sharding
+- Visual regression testing
+- Mobile device emulation
+- Network interception
 
-=======
+**Configuration**: `playwright.config.ts`
 
-> > > > > > > Stashed changes
+**Example**:
+```typescript
+import { test, expect } from '@playwright/test';
 
-- **Unit Tests**: Frontend React components, utilities
-- **Integration Tests**: Backend routes, middleware, database operations
-- **Combined Reports**: Merged coverage data from all test suites
+test('user can create a new run', async ({ page }) => {
+  await page.goto('/runs');
+  await page.click('[data-testid="new-run-button"]');
+  await page.fill('[data-testid="distance-input"]', '5.0');
+  await page.fill('[data-testid="time-input"]', '30:00');
+  await page.click('[data-testid="save-run-button"]');
+  
+  await expect(page.getByText('Run saved successfully')).toBeVisible();
+});
+```
+
+### 4. Accessibility Tests
+
+**Unit Level** (`tests/accessibility/`):
+```typescript
+import { render } from '@testing-library/react';
+import { axe } from 'jest-axe';
+import { Button } from './Button';
+
+test('Button should be accessible', async () => {
+  const { container } = render(<Button>Submit</Button>);
+  const results = await axe(container);
+  expect(results).toHaveNoViolations();
+});
+```
+
+**E2E Level** (`tests/e2e/accessibility.test.ts`):
+```typescript
+import { test, expect } from '@playwright/test';
+import { injectAxe, checkA11y } from 'axe-playwright';
+
+test('homepage should be accessible', async ({ page }) => {
+  await page.goto('/');
+  await injectAxe(page);
+  await checkA11y(page);
+});
+```
+
+### 5. Visual Regression Tests
+
+**Purpose**: Ensure UI consistency across changes.
+
+**Location**: `tests/e2e/visual-regression.test.ts`
+
+```typescript
+test('homepage visual regression', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveScreenshot('homepage.png');
+});
+```
+
+### 6. Performance Tests
+
+**Purpose**: Monitor application performance and test execution times.
+
+```bash
+# Run performance benchmarks
+npm run test:performance
+
+# Monitor test execution performance
+npm run test:performance:track
+```
+
+## Testing Commands
+
+### Core Commands (Simplified from 100+ scripts)
+
+```bash
+# Basic Testing
+npm run test                    # Unit tests
+npm run test:ui                 # Interactive test runner
+npm run test:coverage           # Unit tests with coverage
+npm run test:integration        # Integration tests
+npm run test:e2e                # End-to-end tests
+npm run test:all                # Run all test types
+
+# Specialized Testing
+npm run test:a11y               # Accessibility tests
+npm run test:visual             # Visual regression tests
+npm run test:performance        # Performance benchmarks
+
+# CI/CD Commands
+npm run test:coverage:ci        # CI unit tests with coverage
+npm run test:integration:ci     # CI integration tests
+npm run test:e2e:ci             # CI E2E tests
+
+# Development Commands
+npm run test:watch              # Watch mode
+npm run test:debug              # Debug mode
+npm run validate-test-env       # Validate test environment
+```
+
+### Database Commands
+
+```bash
+# Database setup for testing
+npm run ci-db-setup             # Setup test database
+npm run verify-db-setup         # Verify database connectivity
+npm run ci-db-teardown          # Clean up test database
+```
+
+## Test Configuration
+
+### Environment Variables
+
+```bash
+# Core test environment
+NODE_ENV=test
+DATABASE_URL=file:./prisma/test.db
+JWT_SECRET=test-secret-key-for-development-only-min-32-chars
+
+# Specialized test databases
+E2E_DATABASE_URL=file:./prisma/e2e-test.db
+A11Y_DATABASE_URL=file:./prisma/a11y-test.db
+
+# CI-specific settings
+CI=true
+VITEST_SHARD=1/3
+```
+
+### Configuration Files
+
+| File | Purpose | Framework |
+|------|---------|-----------|
+| `vitest.config.ts` | Unit test configuration | Vitest |
+| `jest.config.js` | Integration test configuration | Jest |
+| `playwright.config.ts` | E2E test configuration | Playwright |
+
+### Vitest Configuration Highlights
+
+```typescript
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './tests/setup/vitest.setup.ts',
+    coverage: {
+      reporter: ['text', 'html', 'lcov'],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80
+      }
+    }
+  }
+});
+```
+
+### Jest Configuration Highlights
+
+```javascript
+module.exports = {
+  testEnvironment: 'node',
+  setupFilesAfterEnv: ['./tests/setup/jest.setup.ts'],
+  testTimeout: 30000,
+  maxWorkers: 1, // Sequential for database tests
+  coverage: {
+    threshold: {
+      global: {
+        lines: 70,
+        functions: 70,
+        branches: 70,
+        statements: 70
+      }
+    }
+  }
+};
+```
+
+### Playwright Configuration Highlights
+
+```typescript
+export default defineConfig({
+  testDir: './tests/e2e',
+  timeout: 30000,
+  use: {
+    baseURL: 'http://localhost:3000',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure'
+  },
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } }
+  ]
+});
+```
+
+## Coverage and Metrics
+
+### Current Coverage Status
+
+| Area | Coverage | Target | Status |
+|------|----------|--------|--------|
+| Overall | 80.98% | 80% | ✅ Met |
+| Frontend Components | 90%+ | 80% | ✅ Excellent |
+| Backend Routes | 75% | 80% | 🔶 Needs improvement |
+| Middleware | 85% | 80% | ✅ Good |
+| Utilities | 95% | 80% | ✅ Excellent |
+
+### Coverage Commands
+
+```bash
+# Generate coverage reports
+npm run test:coverage           # Unit test coverage
+npm run test:coverage:integration # Integration test coverage
+npm run test:coverage:all       # Combined coverage
+
+# View coverage reports
+npm run test:coverage:open      # Open HTML report
+npm run coverage:report         # Generate detailed report
+```
+
+### Coverage Thresholds
+
+- **Minimum**: 70% (will fail CI below this)
+- **Target**: 80% (project goal)
+- **CI Requirement**: 75% (stricter than local)
+
+## Testing Best Practices
+
+### General Principles
+
+1. **Test Behavior, Not Implementation**
+   - Focus on what the code should do, not how it does it
+   - Test user interactions and expected outcomes
+
+2. **Arrange-Act-Assert Pattern**
+   ```typescript
+   test('should calculate total price', () => {
+     // Arrange
+     const items = [{ price: 10 }, { price: 20 }];
+     
+     // Act
+     const total = calculateTotal(items);
+     
+     // Assert
+     expect(total).toBe(30);
+   });
+   ```
+
+3. **Use Descriptive Test Names**
+   ```typescript
+   // ❌ Bad
+   test('user test', () => {});
+   
+   // ✅ Good
+   test('should display validation error when email is invalid', () => {});
+   ```
+
+### Component Testing Patterns
+
+```typescript
+// Use data-testid for stable selectors
+<button data-testid="submit-button">Submit</button>
+
+// Test user interactions
+fireEvent.click(screen.getByTestId('submit-button'));
+
+// Test accessibility
+expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument();
+```
+
+### API Testing Patterns
+
+```typescript
+// Test successful scenarios
+test('should create user with valid data', async () => {
+  const userData = { name: 'John', email: 'john@example.com' };
+  const response = await request(app)
+    .post('/api/users')
+    .send(userData)
+    .expect(201);
+  
+  expect(response.body).toMatchObject(userData);
+});
+
+// Test error scenarios
+test('should return 400 for invalid email', async () => {
+  await request(app)
+    .post('/api/users')
+    .send({ name: 'John', email: 'invalid' })
+    .expect(400);
+});
+```
+
+### E2E Testing Patterns
+
+```typescript
+// Use Page Object Model for complex workflows
+class LoginPage {
+  constructor(private page: Page) {}
+  
+  async login(email: string, password: string) {
+    await this.page.fill('[data-testid="email"]', email);
+    await this.page.fill('[data-testid="password"]', password);
+    await this.page.click('[data-testid="login-button"]');
+  }
+}
+
+// Wait for specific conditions, not timeouts
+await page.waitForSelector('[data-testid="dashboard"]');
+await page.waitForLoadState('networkidle');
+```
 
 ## CI/CD Integration
 
 ### GitHub Actions Workflow
 
-```yaml
-name: Comprehensive Test Suite
-on: [push, pull_request]
+The testing pipeline runs on every push and pull request:
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-<<<<<<< Updated upstream
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run test:runner:ci
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-reports
-          path: test-reports/
+1. **Setup**: Install dependencies, setup database
+2. **Unit Tests**: Fast feedback with Vitest
+3. **Integration Tests**: API and database testing
+4. **E2E Tests**: Cross-browser testing with Playwright
+5. **Quality Checks**: Coverage validation and reporting
+
+### Parallel Execution
+
+- **Unit Tests**: Run in parallel with multiple workers
+- **Integration Tests**: Run sequentially (database conflicts)
+- **E2E Tests**: Sharded across multiple runners
+
+### Test Sharding
+
+```bash
+# E2E tests are automatically sharded in CI
+# Shard 1/3: Authentication and onboarding tests
+# Shard 2/3: Core functionality tests  
+# Shard 3/3: Advanced features and edge cases
 ```
 
-### Environment Variables
+## Performance Monitoring
 
-======= - uses: actions/checkout@v4 - uses: actions/setup-node@v4
-with:
-node-version: '20.x'
-cache: 'npm' - run: npm ci - run: npm run test:runner:ci - uses: actions/upload-artifact@v4
-if: always()
-with:
-name: test-reports
-path: test-reports/
+### Test Execution Tracking
 
+The project includes automated performance monitoring:
+
+```bash
+# Track test performance over time
+npm run test:performance:track
+
+# Identify slow tests
+npm run analyze-test-performance
+
+# Generate performance dashboard
+npm run test:performance:dashboard
 ```
 
-### Environment Variables
->>>>>>> Stashed changes
-- `CI=true`: Enables CI mode
-- `COVERAGE_THRESHOLD=80`: Custom coverage threshold
-- `DATABASE_URL`: Test database connection
-- `JWT_SECRET`: Test JWT secret
+### Performance Metrics
 
-### Exit Codes
-<<<<<<< Updated upstream
+- **Test Execution Time**: Tracked per test suite
+- **Success Rate**: Historical pass/fail trends  
+- **Flaky Test Detection**: Automatic identification of unreliable tests
+- **Resource Usage**: Memory and CPU monitoring during tests
 
-=======
->>>>>>> Stashed changes
-- `0`: All tests passed
-- `1`: Test failures or coverage below threshold
+### Performance Alerts
 
-## Test Data Management
-
-### Test Database
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
-- SQLite database for integration tests
-- Setup: `npm run test:setup:db`
-- Validation: `npm run validate-test-env`
-- Cleanup: Automatic after each test
-
-### Test User Creation
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
-- Command: `npm run create-test-user`
-- Creates test users for authentication testing
-
-## Best Practices
-
-### Writing Tests
-
-1. **Unit Tests**
-   - Test components in isolation
-   - Mock external dependencies
-   - Focus on business logic
-   - Use React Testing Library for UI components
-
-2. **Integration Tests**
-   - Test API endpoints end-to-end
-   - Include database operations
-   - Verify error handling
-   - Test authentication flows
-
-3. **E2E Tests**
-   - Test complete user workflows
-   - Focus on critical paths
-   - Keep tests independent
-   - Use Page Object Model pattern
-
-### Test Organization
-
-```
-
-tests/
-├── unit/ # Unit tests
-│ ├── components/ # React component tests
-│ ├── hooks/ # Custom hook tests
-│ └── utils/ # Utility function tests
-├── integration/ # Integration tests
-│ ├── api/ # API endpoint tests
-│ └── auth/ # Authentication tests
-├── e2e/ # End-to-end tests
-│ ├── auth/ # Authentication workflows
-│ ├── dashboard/ # Dashboard functionality
-│ └── runs/ # Running data features
-├── accessibility/ # Accessibility tests
-├── performance/ # Performance benchmarks
-├── memory/ # Memory leak tests
-└── setup/ # Test setup and utilities
-
-````
-
-### Performance Optimization
-
-1. **Parallel Execution**
-   - Use `npm run test:runner:parallel` for faster feedback
-   - Ensure tests are independent
-   - Monitor resource usage
-
-2. **Test Sharding**
-   - Split tests across CI workers
-   - Use Playwright's built-in sharding
-   - Balance test distribution
-
-3. **Selective Testing**
-   - Run specific suites during development
-   - Use watch mode for active development
-   - Full suite for CI/CD
+- Automatic GitHub issues created for >5% performance regression
+- Slow test identification (>5 seconds execution time)
+- Success rate alerts for <95% pass rate
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Database Connection Errors**
-<<<<<<< Updated upstream
-
-   ```bash
-   # Reset test database
-   npm run test:setup:db
-
-=======
-   ```bash
-   # Reset test database
-   npm run test:setup:db
-
->>>>>>> Stashed changes
-   # Verify environment
-   npm run validate-test-env
-````
-
-2. **Port Conflicts**
-   - Frontend: 3000
-   - Backend: 3001
-   - Ensure ports are available
-
-3. **Browser Issues (E2E)**
-   <<<<<<< Updated upstream
-
-   ```bash
-   # Install browsers
-   npx playwright install
-   ```
-
-=======
+#### Unit Test Failures
 
 ```bash
-# Install browsers
-npx playwright install
+# Check for missing dependencies
+npm ci
 
->>>>>>> Stashed changes
-# Run with headed mode for debugging
-npm run test:e2e:headed
+# Verify test environment
+npm run validate-test-env
+
+# Run with verbose output
+npm run test -- --reporter=verbose
 ```
 
-4. **Coverage Issues**
-   - Check file inclusion patterns
-   - Verify source maps are generated
-   - Review coverage thresholds
-
-### Debug Mode
+#### Integration Test Failures
 
 ```bash
-# Verbose output
-node scripts/test-runner.js --verbose
+# Database connectivity issues
+npm run verify-db-setup
+npm run ci-db-setup
 
-# Single suite debugging
-npm run test:runner:unit --verbose
+# Port conflicts
+lsof -ti:3001 | xargs kill -9
 
-# Performance analysis
-npm run test:runner:monitor
+# Jest worker issues
+npm run verify-jest-workers
 ```
 
-## Reporting and Analytics
+#### E2E Test Failures
 
-### Report Types
+```bash
+# Browser installation issues
+npx playwright install --with-deps
 
-1. **Console Report**
-   - Real-time colored output
-   - Summary statistics
-   - Error details
-   - Coverage overview
+# Server startup issues
+npm run wait-for-server
 
-2. **JSON Report**
-   - Machine-readable format
-   - Complete test results
-   - Performance metrics
-   - Coverage data
+# Debugging with UI
+npm run test:e2e -- --headed --debug
+```
 
-3. **HTML Report**
-   - Interactive web interface
-   - Visual coverage bars
-   - Detailed error information
-   - Historical comparisons
+### Debug Commands
 
-### Metrics Tracked
+```bash
+# Run tests with debugging
+npm run test:debug
+npm run test:integration -- --detectOpenHandles
+npm run test:e2e -- --headed --slowMo=1000
 
-- Test execution times
-- Coverage percentages
-- Failure rates
-- Performance trends
-- Memory usage
-- Flaky test detection
+# Analyze test performance
+npm run analyze-test-performance
+npm run test:memory
 
-## Future Enhancements
+# Validate environment
+npm run validate-test-env
+```
 
-### Planned Improvements
+### Common Error Solutions
 
-1. **Advanced Monitoring**
-   - Real-time dashboards
-   - Alert notifications
-   - Historical trend analysis
-   - Performance budgets
+1. **"Cannot find module"**: Run `npm ci` to reinstall dependencies
+2. **"Port already in use"**: Kill existing processes on test ports
+3. **"Database locked"**: Ensure proper test cleanup and isolation
+4. **"Timeout"**: Increase timeout values in CI configurations
+5. **"Browser not found"**: Run `npx playwright install`
 
-2. **Test Intelligence**
-   - Flaky test detection
-   - Test impact analysis
-   - Smart test selection
-   - Predictive insights
+## Test Patterns and Examples
 
-3. **Enhanced CI/CD**
-   - Multi-environment testing
-   - Canary deployments
-   - Automated rollbacks
-   - Quality gates
+### Testing Hooks
 
-4. **Developer Experience**
-   - IDE integrations
-   - Visual test debugging
-   - Interactive reports
-   - Test recommendations
+```typescript
+import { renderHook, act } from '@testing-library/react';
+import { useAuth } from './useAuth';
 
-## Support and Maintenance
+test('useAuth should login user', async () => {
+  const { result } = renderHook(() => useAuth());
+  
+  await act(async () => {
+    await result.current.login('test@example.com', 'password');
+  });
+  
+  expect(result.current.user).toBeTruthy();
+  expect(result.current.isAuthenticated).toBe(true);
+});
+```
 
-### Regular Maintenance Tasks
+### Testing Context Providers
 
-1. **Weekly**
-   - Review performance trends
-   - Update test data
-   - Check flaky tests
-   - Monitor coverage
+```typescript
+const TestWrapper = ({ children }) => (
+  <AuthProvider>
+    <ThemeProvider>
+      {children}
+    </ThemeProvider>
+  </AuthProvider>
+);
 
-2. **Monthly**
-   - Update dependencies
-   - Review test suite performance
-   - Optimize slow tests
-   - Archive old reports
+test('component uses auth context', () => {
+  render(<MyComponent />, { wrapper: TestWrapper });
+  // Test component behavior
+});
+```
 
-3. **Quarterly**
-   - Evaluate testing strategy
-   - Update test infrastructure
-   - Review coverage targets
-   - Plan improvements
+### Testing Async Operations
 
-### Getting Help
+```typescript
+test('should handle async data loading', async () => {
+  const mockFetch = vi.fn().mockResolvedValue({
+    json: () => Promise.resolve({ data: 'test' })
+  });
+  global.fetch = mockFetch;
+  
+  render(<DataComponent />);
+  
+  await waitFor(() => {
+    expect(screen.getByText('test')).toBeInTheDocument();
+  });
+});
+```
 
-1. Check the test runner documentation: `scripts/TEST-RUNNER.md`
-2. Review individual test configuration files
-3. Use verbose mode for debugging
-4. Check performance reports for optimization opportunities
-5. Contact the development team for infrastructure issues
+### Testing Error Boundaries
+
+```typescript
+test('should display error message when child throws', () => {
+  const ThrowError = () => {
+    throw new Error('Test error');
+  };
+  
+  render(
+    <ErrorBoundary>
+      <ThrowError />
+    </ErrorBoundary>
+  );
+  
+  expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+});
+```
+
+### Database Test Patterns
+
+```typescript
+describe('User API', () => {
+  beforeEach(async () => {
+    await db.user.deleteMany();
+  });
+  
+  afterEach(async () => {
+    await db.user.deleteMany();
+  });
+  
+  test('should create user', async () => {
+    const userData = { email: 'test@example.com', name: 'Test User' };
+    const user = await createUser(userData);
+    
+    expect(user).toMatchObject(userData);
+    expect(user.id).toBeDefined();
+  });
+});
+```
+
+## Migration from Legacy Testing
+
+### Completed Improvements
+
+✅ **Reduced test scripts from 100+ to essential commands**
+✅ **Consolidated test configurations**
+✅ **Implemented performance monitoring**
+✅ **Added comprehensive coverage reporting**
+✅ **Established clear testing patterns**
+
+### Framework Decisions
+
+- **Unit Tests**: Vitest (replacing some Jest usage)
+- **Integration Tests**: Jest (for Node.js environment)
+- **E2E Tests**: Playwright (established and working well)
+- **Coverage**: V8 coverage provider for accuracy
 
 ---
 
-<<<<<<< Updated upstream
-This comprehensive testing infrastructure provides a robust foundation for maintaining code quality, catching regressions early, and ensuring the Running App MVP meets all functional and non-functional requirements.
-=======
-This comprehensive testing infrastructure provides a robust foundation for maintaining code quality, catching regressions early, and ensuring the Running App MVP meets all functional and non-functional requirements.
+**Last Updated**: December 28, 2024  
+**Maintained By**: Development Team  
+**Version**: 2.0 (Consolidated from multiple documents)
 
-> > > > > > > Stashed changes
+This document replaces the following legacy files:
+- TESTING.md
+- TESTING_STRATEGY.md
+- TESTING_INFRASTRUCTURE_SUMMARY.md
+- TEST_IMPROVEMENT_PLAN.md
+- TEST_VALIDATION_REPORT.md
+- TEST_VALIDATION_SUMMARY.md
+- COMPREHENSIVE_TEST_COVERAGE_REPORT.md
+- INTEGRATION_TEST_FIX_STRATEGY.md

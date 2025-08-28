@@ -44,7 +44,25 @@ npx prisma generate
 npm run dev:full  # Starts both frontend and backend
 ```
 
-**Need help?** See [QUICKSTART.md](QUICKSTART.md) for detailed instructions.
+**Need help?** See [SETUP.md](SETUP.md) for detailed instructions.
+
+## 📚 Documentation
+
+This project now features **consolidated, single-source-of-truth documentation**:
+
+- **[SETUP.md](SETUP.md)** - Complete setup and onboarding guide
+- **[TESTING.md](TESTING.md)** - Comprehensive testing guide  
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment and production guide
+- **[CI.md](CI.md)** - CI/CD pipeline documentation
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
+- **[CLAUDE.md](CLAUDE.md)** - AI development assistant guide
+
+### Architecture & Development
+- **[/docs/ARCHITECTURE_OVERVIEW.md](docs/ARCHITECTURE_OVERVIEW.md)** - System architecture
+- **[/docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)** - API reference
+- **[/docs/archive/](docs/archive/)** - Archived planning documents
+
+*Note: This documentation structure was recently consolidated from 30+ scattered files into clear, focused guides.*
 
 ## 📊 Project Status
 
