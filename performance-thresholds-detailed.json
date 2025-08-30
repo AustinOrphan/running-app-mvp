@@ -1,0 +1,137 @@
+{
+  "responseTime": {
+    "api": {
+      "auth": {
+        "login": { "max": 500, "warning": 300, "unit": "ms" },
+        "register": { "max": 800, "warning": 500, "unit": "ms" },
+        "refresh": { "max": 200, "warning": 100, "unit": "ms" },
+        "logout": { "max": 100, "warning": 50, "unit": "ms" }
+      },
+      "runs": {
+        "create": { "max": 300, "warning": 200, "unit": "ms" },
+        "update": { "max": 300, "warning": 200, "unit": "ms" },
+        "delete": { "max": 200, "warning": 100, "unit": "ms" },
+        "list": { "max": 500, "warning": 300, "unit": "ms" },
+        "get": { "max": 200, "warning": 100, "unit": "ms" }
+      },
+      "goals": {
+        "create": { "max": 300, "warning": 200, "unit": "ms" },
+        "update": { "max": 300, "warning": 200, "unit": "ms" },
+        "delete": { "max": 200, "warning": 100, "unit": "ms" },
+        "list": { "max": 400, "warning": 250, "unit": "ms" },
+        "progress": { "max": 600, "warning": 400, "unit": "ms" }
+      },
+      "stats": {
+        "overview": { "max": 800, "warning": 500, "unit": "ms" },
+        "detailed": { "max": 1000, "warning": 700, "unit": "ms" },
+        "charts": { "max": 600, "warning": 400, "unit": "ms" }
+      },
+      "races": {
+        "create": { "max": 300, "warning": 200, "unit": "ms" },
+        "update": { "max": 300, "warning": 200, "unit": "ms" },
+        "delete": { "max": 200, "warning": 100, "unit": "ms" },
+        "list": { "max": 400, "warning": 250, "unit": "ms" }
+      }
+    },
+    "page": {
+      "initialLoad": { "max": 3000, "warning": 2000, "unit": "ms" },
+      "navigation": { "max": 1000, "warning": 600, "unit": "ms" },
+      "interaction": { "max": 100, "warning": 50, "unit": "ms" }
+    },
+    "database": {
+      "query": {
+        "simple": { "max": 50, "warning": 30, "unit": "ms" },
+        "complex": { "max": 200, "warning": 100, "unit": "ms" },
+        "aggregation": { "max": 500, "warning": 300, "unit": "ms" }
+      },
+      "write": {
+        "single": { "max": 100, "warning": 50, "unit": "ms" },
+        "batch": { "max": 500, "warning": 300, "unit": "ms" },
+        "transaction": { "max": 1000, "warning": 700, "unit": "ms" }
+      }
+    }
+  },
+  "bundleSize": {
+    "javascript": {
+      "main": {
+        "uncompressed": { "max": 500, "warning": 400, "unit": "KB" },
+        "gzipped": { "max": 150, "warning": 120, "unit": "KB" },
+        "brotli": { "max": 130, "warning": 100, "unit": "KB" }
+      },
+      "vendor": {
+        "uncompressed": { "max": 800, "warning": 600, "unit": "KB" },
+        "gzipped": { "max": 250, "warning": 200, "unit": "KB" },
+        "brotli": { "max": 220, "warning": 180, "unit": "KB" }
+      },
+      "chunks": {
+        "maxSize": { "max": 200, "warning": 150, "unit": "KB" },
+        "maxCount": { "max": 10, "warning": 8, "unit": "count" }
+      }
+    },
+    "css": {
+      "main": {
+        "uncompressed": { "max": 100, "warning": 80, "unit": "KB" },
+        "gzipped": { "max": 30, "warning": 25, "unit": "KB" },
+        "brotli": { "max": 25, "warning": 20, "unit": "KB" }
+      },
+      "critical": {
+        "inline": { "max": 15, "warning": 10, "unit": "KB" }
+      }
+    },
+    "images": {
+      "total": { "max": 2000, "warning": 1500, "unit": "KB" },
+      "perImage": { "max": 200, "warning": 150, "unit": "KB" },
+      "hero": { "max": 300, "warning": 200, "unit": "KB" }
+    },
+    "fonts": {
+      "total": { "max": 300, "warning": 200, "unit": "KB" },
+      "perFont": { "max": 100, "warning": 80, "unit": "KB" }
+    },
+    "total": {
+      "initialBundle": { "max": 1500, "warning": 1200, "unit": "KB" },
+      "lazyLoaded": { "max": 3000, "warning": 2500, "unit": "KB" },
+      "allAssets": { "max": 5000, "warning": 4000, "unit": "KB" }
+    }
+  },
+  "performance": {
+    "lighthouse": {
+      "performance": { "max": 100, "warning": 90, "unit": "score" },
+      "accessibility": { "max": 100, "warning": 95, "unit": "score" },
+      "bestPractices": { "max": 100, "warning": 95, "unit": "score" },
+      "seo": { "max": 100, "warning": 90, "unit": "score" }
+    },
+    "webVitals": {
+      "LCP": { "max": 2500, "warning": 2000, "unit": "ms" },
+      "FID": { "max": 100, "warning": 75, "unit": "ms" },
+      "CLS": { "max": 0.1, "warning": 0.05, "unit": "score" },
+      "FCP": { "max": 1800, "warning": 1500, "unit": "ms" },
+      "TTFB": { "max": 800, "warning": 600, "unit": "ms" },
+      "INP": { "max": 200, "warning": 150, "unit": "ms" }
+    },
+    "runtime": {
+      "memoryLeak": { "max": 10, "warning": 5, "unit": "MB/min" },
+      "cpuUsage": { "max": 80, "warning": 60, "unit": "percent" },
+      "mainThreadBlocking": { "max": 50, "warning": 30, "unit": "ms" }
+    }
+  },
+  "buildMetrics": {
+    "time": {
+      "dev": { "max": 5000, "warning": 3000, "unit": "ms" },
+      "production": { "max": 60000, "warning": 45000, "unit": "ms" },
+      "incremental": { "max": 1000, "warning": 500, "unit": "ms" }
+    },
+    "memory": {
+      "peak": { "max": 2048, "warning": 1536, "unit": "MB" },
+      "average": { "max": 1024, "warning": 768, "unit": "MB" }
+    }
+  },
+  "ciSpecific": {
+    "multiplier": 1.5,
+    "comment": "CI environments typically have different performance characteristics",
+    "overrides": {
+      "responseTime": { "multiplier": 2 },
+      "buildTime": { "multiplier": 1.5 },
+      "testExecution": { "multiplier": 2 }
+    }
+  }
+}

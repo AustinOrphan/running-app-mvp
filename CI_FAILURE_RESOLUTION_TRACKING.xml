@@ -1,0 +1,434 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ci-failure-resolution-plan>
+    <metadata>
+        <pr-number>298</pr-number>
+        <pr-title>Comprehensive CI/CD Test Infrastructure with 150+ Improvements</pr-title>
+        <branch>feat/comprehensive-ci-cd-infrastructure</branch>
+        <created-date>2025-07-29</created-date>
+        <estimated-time>6-8 hours</estimated-time>
+        <status>in-progress</status>
+        <priority>high</priority>
+    </metadata>
+
+    <pr-overview>
+        <changes>
+            <additions>147118</additions>
+            <deletions>4752</deletions>
+            <files-changed>139</files-changed>
+        </changes>
+        <scope>Enterprise-grade CI/CD infrastructure overhaul</scope>
+        <impact>150+ improvements across testing, documentation, monitoring</impact>
+    </pr-overview>
+
+    <ci-status>
+        <total-checks>50</total-checks>
+        <passing-checks>15</passing-checks>
+        <failing-checks>35</failing-checks>
+        <overall-status>multiple-critical-failures</overall-status>
+    </ci-status>
+
+    <critical-failures>
+        <failure id="unit-tests">
+            <name>Unit Tests</name>
+            <status>failing</status>
+            <platforms>multiple</platforms>
+            <severity>high</severity>
+        </failure>
+        <failure id="integration-tests">
+            <name>Integration Tests</name>
+            <status>failing</status>
+            <issue>database-issues</issue>
+            <severity>high</severity>
+        </failure>
+        <failure id="e2e-tests">
+            <name>E2E Tests</name>
+            <status>failing</status>
+            <issue>all-shards-failing</issue>
+            <severity>high</severity>
+        </failure>
+        <failure id="build-verification">
+            <name>Build Verification</name>
+            <status>failing</status>
+            <issue>configuration-issues</issue>
+            <severity>high</severity>
+        </failure>
+        <failure id="code-quality">
+            <name>Code Quality</name>
+            <status>failing</status>
+            <issue>linting-formatting</issue>
+            <severity>medium</severity>
+        </failure>
+        <failure id="test-coverage">
+            <name>Test Coverage</name>
+            <status>failing</status>
+            <issue>reporting-failures</issue>
+            <severity>medium</severity>
+        </failure>
+    </critical-failures>
+
+    <passing-checks>
+        <check id="security-scan">
+            <name>Security Scan</name>
+            <type>CodeQL, dependency review</type>
+            <status>passing</status>
+        </check>
+        <check id="license-compliance">
+            <name>License Compliance</name>
+            <status>passing</status>
+        </check>
+        <check id="infrastructure-tests">
+            <name>Infrastructure Tests</name>
+            <status>passing</status>
+        </check>
+        <check id="auto-labeling">
+            <name>Auto-labeling</name>
+            <status>passing</status>
+        </check>
+        <check id="performance-benchmarks">
+            <name>Performance Benchmarks</name>
+            <status>passing</status>
+        </check>
+    </passing-checks>
+
+    <resolution-phases>
+        <phase id="1" priority="high">
+            <name>Critical Test Failures</name>
+            <estimated-time>5-6 hours</estimated-time>
+            <tasks>
+                <task id="fix-unit-tests">
+                    <name>Fix Failing Unit Tests</name>
+                    <priority>high</priority>
+                    <estimated-time>2-3 hours</estimated-time>
+                    <status>pending</status>
+                    <root-causes>
+                        <cause>Vitest configuration conflicts with Jest setup</cause>
+                        <cause>Import path mismatches due to restructured files</cause>
+                        <cause>Missing test setup files or dependencies</cause>
+                        <cause>TypeScript configuration issues</cause>
+                    </root-causes>
+                    <action-plan>
+                        <step>Run npm run test:run locally to diagnose</step>
+                        <step>Update vitest.config.ts path resolution</step>
+                        <step>Fix test setup file loading</step>
+                        <step>Resolve circular dependencies</step>
+                        <step>Update TypeScript imports</step>
+                    </action-plan>
+                    <success-criteria>
+                        <criterion>All unit tests pass locally</criterion>
+                        <criterion>Test configuration conflicts resolved</criterion>
+                        <criterion>Import/export issues fixed</criterion>
+                        <criterion>CI unit test jobs succeed</criterion>
+                    </success-criteria>
+                </task>
+
+                <task id="fix-integration-tests">
+                    <name>Resolve Integration Test Failures</name>
+                    <priority>high</priority>
+                    <estimated-time>2-3 hours</estimated-time>
+                    <status>pending</status>
+                    <root-causes>
+                        <cause>Database connection/setup issues in CI</cause>
+                        <cause>Jest CI configuration causing timeouts</cause>
+                        <cause>Missing or incorrect environment variables</cause>
+                        <cause>Transaction isolation problems</cause>
+                    </root-causes>
+                    <action-plan>
+                        <step>Run npm run test:integration locally</step>
+                        <step>Update jest.config.ci.js database setup</step>
+                        <step>Fix ci-db-setup script for CI environment</step>
+                        <step>Verify DATABASE_URL for CI</step>
+                        <step>Fix SQLite file permissions</step>
+                    </action-plan>
+                    <success-criteria>
+                        <criterion>Database setup works in CI</criterion>
+                        <criterion>Integration tests pass locally and CI</criterion>
+                        <criterion>Test isolation problems resolved</criterion>
+                        <criterion>Timeout issues fixed</criterion>
+                    </success-criteria>
+                </task>
+
+                <task id="fix-e2e-tests">
+                    <name>Fix E2E Test Configuration</name>
+                    <priority>high</priority>
+                    <estimated-time>1-2 hours</estimated-time>
+                    <status>pending</status>
+                    <root-causes>
+                        <cause>Playwright CI configuration issues</cause>
+                        <cause>Browser installation/dependency problems</cause>
+                        <cause>Test sharding configuration errors</cause>
+                        <cause>Headless mode setup issues</cause>
+                    </root-causes>
+                    <action-plan>
+                        <step>Run npm run test:e2e:ci locally</step>
+                        <step>Fix browser installation in workflows</step>
+                        <step>Update playwright.config.ci.ts</step>
+                        <step>Verify headless mode configuration</step>
+                        <step>Fix shard distribution logic</step>
+                    </action-plan>
+                    <success-criteria>
+                        <criterion>Playwright browsers install correctly in CI</criterion>
+                        <criterion>All E2E test shards pass</criterion>
+                        <criterion>Headless mode works properly</criterion>
+                        <criterion>Test artifacts collected successfully</criterion>
+                    </success-criteria>
+                </task>
+            </tasks>
+        </phase>
+
+        <phase id="2" priority="high">
+            <name>Build and Configuration Issues</name>
+            <estimated-time>1-2 hours</estimated-time>
+            <tasks>
+                <task id="fix-build-config">
+                    <name>Resolve Build Configuration Issues</name>
+                    <priority>high</priority>
+                    <estimated-time>1-2 hours</estimated-time>
+                    <status>pending</status>
+                    <root-causes>
+                        <cause>Vite configuration conflicts</cause>
+                        <cause>TypeScript compilation errors</cause>
+                        <cause>Missing build dependencies</cause>
+                        <cause>Output directory conflicts</cause>
+                    </root-causes>
+                    <action-plan>
+                        <step>Run npm run build locally</step>
+                        <step>Resolve vite.config.ts conflicts</step>
+                        <step>Fix TypeScript configuration</step>
+                        <step>Update build dependencies</step>
+                        <step>Fix output directory issues</step>
+                    </action-plan>
+                    <success-criteria>
+                        <criterion>Build completes successfully locally</criterion>
+                        <criterion>CI build verification passes</criterion>
+                        <criterion>TypeScript compilation clean</criterion>
+                        <criterion>Build artifacts generated correctly</criterion>
+                    </success-criteria>
+                </task>
+            </tasks>
+        </phase>
+
+        <phase id="3" priority="medium">
+            <name>Code Quality Issues</name>
+            <estimated-time>1.5 hours</estimated-time>
+            <tasks>
+                <task id="fix-linting">
+                    <name>Address Linting and Formatting Problems</name>
+                    <priority>medium</priority>
+                    <estimated-time>1 hour</estimated-time>
+                    <status>pending</status>
+                    <root-causes>
+                        <cause>New ESLint configuration too strict</cause>
+                        <cause>Prettier formatting conflicts</cause>
+                        <cause>TypeScript strict mode issues</cause>
+                        <cause>Unused variable warnings</cause>
+                    </root-causes>
+                    <action-plan>
+                        <step>Run npm run lint:fix and npm run format</step>
+                        <step>Adjust ESLint rules if too strict</step>
+                        <step>Resolve Prettier conflicts</step>
+                        <step>Fix TypeScript strict mode issues</step>
+                        <step>Remove unused variables</step>
+                    </action-plan>
+                    <success-criteria>
+                        <criterion>All linting checks pass</criterion>
+                        <criterion>Code formatting consistent</criterion>
+                        <criterion>TypeScript errors resolved</criterion>
+                        <criterion>Code quality standards met</criterion>
+                    </success-criteria>
+                </task>
+
+                <task id="update-ci-env">
+                    <name>Update CI Environment Variables and Secrets</name>
+                    <priority>medium</priority>
+                    <estimated-time>30 minutes</estimated-time>
+                    <status>pending</status>
+                    <required-secrets>
+                        <secret>DATABASE_URL</secret>
+                        <secret>JWT_SECRET</secret>
+                        <secret>CODECOV_TOKEN</secret>
+                        <secret>GITHUB_TOKEN</secret>
+                    </required-secrets>
+                    <action-plan>
+                        <step>Check repository secrets in GitHub UI</step>
+                        <step>Ensure all required secrets are set</step>
+                        <step>Verify secret names match workflow usage</step>
+                        <step>Fix environment variable references</step>
+                        <step>Update secret usage in workflows</step>
+                    </action-plan>
+                    <success-criteria>
+                        <criterion>All required secrets configured</criterion>
+                        <criterion>Environment variables accessible</criterion>
+                        <criterion>Workflow permissions correct</criterion>
+                        <criterion>Secret-dependent jobs pass</criterion>
+                    </success-criteria>
+                </task>
+            </tasks>
+        </phase>
+
+        <phase id="4" priority="low">
+            <name>Monitoring and Verification</name>
+            <estimated-time>1 hour</estimated-time>
+            <tasks>
+                <task id="fix-coverage">
+                    <name>Fix Test Coverage Reporting</name>
+                    <priority>medium</priority>
+                    <estimated-time>30 minutes</estimated-time>
+                    <status>pending</status>
+                    <action-plan>
+                        <step>Fix vitest.config.ts coverage settings</step>
+                        <step>Update coverage thresholds to realistic levels</step>
+                        <step>Verify Codecov token and integration</step>
+                        <step>Test coverage report generation locally</step>
+                    </action-plan>
+                    <success-criteria>
+                        <criterion>Coverage reports generated</criterion>
+                        <criterion>Codecov integration working</criterion>
+                        <criterion>Coverage thresholds achievable</criterion>
+                        <criterion>Coverage checks pass</criterion>
+                    </success-criteria>
+                </task>
+
+                <task id="verify-workflows">
+                    <name>Verify All Workflows Pass</name>
+                    <priority>low</priority>
+                    <estimated-time>30 minutes</estimated-time>
+                    <status>pending</status>
+                    <action-plan>
+                        <step>Monitor all workflow runs</step>
+                        <step>Address remaining workflow-specific issues</step>
+                        <step>Ensure proper cleanup and artifact handling</step>
+                        <step>Verify end-to-end pipeline success</step>
+                    </action-plan>
+                    <success-criteria>
+                        <criterion>All critical workflows pass</criterion>
+                        <criterion>Artifacts properly generated and stored</criterion>
+                        <criterion>Cleanup jobs execute successfully</criterion>
+                        <criterion>Overall CI status is green</criterion>
+                    </success-criteria>
+                </task>
+            </tasks>
+        </phase>
+    </resolution-phases>
+
+    <execution-timeline>
+        <immediate-actions duration="1 hour">
+            <action>Fix linting/formatting issues (quick wins)</action>
+            <action>Address unit test configuration</action>
+            <action>Resolve build configuration problems</action>
+        </immediate-actions>
+        <short-term duration="2-4 hours">
+            <action>Fix database and API test issues</action>
+            <action>Resolve browser and sharding problems</action>
+            <action>Update CI secrets and variables</action>
+        </short-term>
+        <validation duration="30 minutes">
+            <action>Verify all fixes work locally</action>
+            <action>Push incremental commits</action>
+            <action>Monitor CI for progressive improvements</action>
+        </validation>
+    </execution-timeline>
+
+    <success-criteria>
+        <critical-requirements>
+            <requirement id="unit-tests" status="pending">All unit tests passing on all platforms</requirement>
+            <requirement id="integration-tests" status="pending">Database and API tests passing</requirement>
+            <requirement id="e2e-tests" status="pending">All browser shards executing successfully</requirement>
+            <requirement id="build" status="pending">Clean build without errors</requirement>
+            <requirement id="code-quality" status="pending">Linting and formatting passing</requirement>
+        </critical-requirements>
+        <quality-requirements>
+            <requirement id="coverage" status="pending">Test coverage meets 80%+ threshold</requirement>
+            <requirement id="security" status="passing">All security checks passing</requirement>
+            <requirement id="performance" status="pending">Benchmarks within acceptable ranges</requirement>
+        </quality-requirements>
+        <final-validation>
+            <requirement id="all-workflows" status="pending">Every workflow completes successfully</requirement>
+            <requirement id="artifacts" status="pending">All build and test artifacts generated</requirement>
+            <requirement id="documentation" status="pending">All docs validate and generate correctly</requirement>
+        </final-validation>
+    </success-criteria>
+
+    <risk-assessment>
+        <high-risk>
+            <risk>Database Integration: Complex transaction isolation setup</risk>
+            <risk>E2E Test Sharding: Parallel execution complexity</risk>
+            <risk>Configuration Conflicts: Multiple test framework integration</risk>
+        </high-risk>
+        <medium-risk>
+            <risk>Build Configuration: Vite/TypeScript integration</risk>
+            <risk>Environment Variables: CI secret management</risk>
+            <risk>Coverage Reporting: Multi-framework coverage aggregation</risk>
+        </medium-risk>
+        <low-risk>
+            <risk>Linting/Formatting: Mostly automated fixes</risk>
+            <risk>Security Scans: Already passing</risk>
+            <risk>Documentation: Static validation</risk>
+        </low-risk>
+    </risk-assessment>
+
+    <progress-tracking>
+        <phase-progress>
+            <phase id="1" completed="0" total="3" percentage="0">Critical Test Failures</phase>
+            <phase id="2" completed="0" total="1" percentage="0">Build and Configuration</phase>
+            <phase id="3" completed="0" total="2" percentage="0">Code Quality</phase>
+            <phase id="4" completed="0" total="2" percentage="0">Monitoring and Verification</phase>
+        </phase-progress>
+        <overall-progress completed="0" total="8" percentage="0" />
+    </progress-tracking>
+
+    <tools-and-resources>
+        <local-testing-commands>
+            <command category="unit">npm run test:run</command>
+            <command category="unit">npm run test:coverage</command>
+            <command category="integration">npm run test:integration</command>
+            <command category="integration">npm run test:integration:ci</command>
+            <command category="e2e">npm run test:e2e</command>
+            <command category="e2e">npm run test:e2e:ci</command>
+            <command category="build">npm run build</command>
+            <command category="quality">npm run lint</command>
+            <command category="quality">npm run lint:fix</command>
+            <command category="quality">npm run typecheck</command>
+        </local-testing-commands>
+        <ci-monitoring>
+            <tool>GitHub Actions: https://github.com/AustinOrphan/running-app-mvp/actions</tool>
+            <command>gh pr checks 298</command>
+            <command>gh run view &lt;run-id&gt;</command>
+            <command>gh run list --limit 10</command>
+        </ci-monitoring>
+        <documentation>
+            <doc>Test Patterns: ./docs/TEST_PATTERNS.md</doc>
+            <doc>Troubleshooting: ./docs/TROUBLESHOOTING.md</doc>
+            <doc>CI Performance: ./docs/CI_PERFORMANCE.md</doc>
+            <doc>Quick Start: ./QUICKSTART.md</doc>
+        </documentation>
+    </tools-and-resources>
+
+    <notes>
+        <expected-challenges>
+            <challenge>Configuration Complexity: Multiple testing frameworks need careful coordination</challenge>
+            <challenge>CI Environment Differences: Local vs CI environment discrepancies</challenge>
+            <challenge>Dependency Conflicts: New packages may conflict with existing setup</challenge>
+            <challenge>Performance Impact: Comprehensive testing may slow CI pipeline</challenge>
+        </expected-challenges>
+        <mitigation-strategies>
+            <strategy>Incremental Fixes: Small, focused commits for easier debugging</strategy>
+            <strategy>Local Validation: Test every fix locally before pushing</strategy>
+            <strategy>Fallback Plans: Keep simpler configurations as backup</strategy>
+            <strategy>Documentation: Document all configuration decisions</strategy>
+        </mitigation-strategies>
+        <success-indicators>
+            <indicator>Green CI Status: All critical checks passing</indicator>
+            <indicator>Performance Maintained: CI runtime under 10 minutes</indicator>
+            <indicator>Coverage Improved: Test coverage above 80%</indicator>
+            <indicator>Developer Experience: Easy local setup and testing</indicator>
+        </success-indicators>
+    </notes>
+
+    <status-log>
+        <entry timestamp="2025-07-29T09:42:00Z">
+            <status>created</status>
+            <description>Initial plan created with 8 tasks across 4 phases</description>
+            <author>Development Team</author>
+        </entry>
+    </status-log>
+</ci-failure-resolution-plan>

@@ -1,0 +1,341 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: running-app-config-prod
+  namespace: running-app-prod
+data:
+  NODE_ENV: 'production'
+  PORT: '3001'
+  LOG_LEVEL: 'info'
+  DEPLOYMENT_MODE: 'production'
+  FRONTEND_URL: 'https://running-app.example.com'
+  API_URL: 'https://api.running-app.example.com'
+  CACHE_TTL: '3600'
+  RATE_LIMIT_WINDOW: '900000'
+  RATE_LIMIT_MAX: '100'
+  CORS_ORIGINS: 'https://running-app.example.com'
+  ENABLE_MONITORING: 'true'
+  ENABLE_TRACING: 'true'
+  ENABLE_METRICS: 'true'
+  ENABLE_PROFILING: 'true'
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: running-app-secrets-prod
+  namespace: running-app-prod
+type: Opaque
+stringData:
+  DATABASE_URL: 'postgresql://produser:${PROD_DB_PASSWORD}@postgres-prod-primary:5432/running_app_prod?schema=public&sslmode=require&connection_limit=20'
+  DATABASE_REPLICA_URL: 'postgresql://produser:${PROD_DB_PASSWORD}@postgres-prod-replica:5432/running_app_prod?schema=public&sslmode=require'
+  REDIS_URL: 'redis://:${PROD_REDIS_PASSWORD}@redis-prod:6379'
+  REDIS_CLUSTER_URLS: '${PROD_REDIS_CLUSTER_URLS}'
+  JWT_SECRET: '${PROD_JWT_SECRET}'
+  JWT_REFRESH_SECRET: '${PROD_JWT_REFRESH_SECRET}'
+  LOG_SALT: '${PROD_LOG_SALT}'
+  ENCRYPTION_KEY: '${PROD_ENCRYPTION_KEY}'
+  SENTRY_DSN: '${PROD_SENTRY_DSN}'
+  SLACK_WEBHOOK_URL: '${PROD_SLACK_WEBHOOK}'
+  NEW_RELIC_LICENSE_KEY: '${PROD_NEW_RELIC_KEY}'
+  DATADOG_API_KEY: '${PROD_DATADOG_API_KEY}'
+  AWS_ACCESS_KEY_ID: '${PROD_AWS_ACCESS_KEY_ID}'
+  AWS_SECRET_ACCESS_KEY: '${PROD_AWS_SECRET_ACCESS_KEY}'
+  S3_BUCKET_NAME: '${PROD_S3_BUCKET_NAME}'
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: running-app-uploads-prod
+  namespace: running-app-prod
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs-sc
+  resources:
+    requests:
+      storage: 100Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: running-app-logs-prod
+  namespace: running-app-prod
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs-sc
+  resources:
+    requests:
+      storage: 50Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: running-app-backend-prod
+  namespace: running-app-prod
+  labels:
+    app: running-app
+    component: backend
+    environment: production
+spec:
+  replicas: 6
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: running-app
+      component: backend
+      environment: production
+  template:
+    metadata:
+      labels:
+        app: running-app
+        component: backend
+        environment: production
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '3001'
+        prometheus.io/path: '/metrics'
+    spec:
+      serviceAccountName: running-app-backend
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - running-app
+              topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                      - compute-optimized
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: running-app
+              component: backend
+      containers:
+        - name: backend
+          image: ghcr.io/yourusername/running-app:${IMAGE_TAG}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3001
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: running-app-config-prod
+            - secretRef:
+                name: running-app-secrets-prod
+          resources:
+            requests:
+              memory: '1Gi'
+              cpu: '1000m'
+            limits:
+              memory: '2Gi'
+              cpu: '2000m'
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+              httpHeaders:
+                - name: X-Health-Check
+                  value: liveness
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /api/health/ready
+              port: 3001
+              httpHeaders:
+                - name: X-Health-Check
+                  value: readiness
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+              httpHeaders:
+                - name: X-Health-Check
+                  value: startup
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+            successThreshold: 1
+          lifecycle:
+            preStop:
+              exec:
+                command: ['/bin/sh', '-c', 'sleep 15']
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+            - name: uploads
+              mountPath: /app/uploads
+            - name: cache
+              mountPath: /app/cache
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: logs
+          persistentVolumeClaim:
+            claimName: running-app-logs-prod
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: running-app-uploads-prod
+        - name: cache
+          emptyDir:
+            sizeLimit: 2Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+      imagePullSecrets:
+        - name: ghcr-secret
+      priorityClassName: high-priority
+      terminationGracePeriodSeconds: 60
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: running-app-backend-prod
+  namespace: running-app-prod
+  labels:
+    app: running-app
+    component: backend
+    environment: production
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: 'nlb'
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: 'true'
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled: 'true'
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout: '60'
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  ports:
+    - port: 443
+      targetPort: 3001
+      protocol: TCP
+      name: https
+  selector:
+    app: running-app
+    component: backend
+    environment: production
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: running-app-backend-hpa-prod
+  namespace: running-app-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: running-app-backend-prod
+  minReplicas: 6
+  maxReplicas: 50
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: '50'
+    - type: External
+      external:
+        metric:
+          name: queue_depth
+          selector:
+            matchLabels:
+              queue: job-queue
+        target:
+          type: AverageValue
+          averageValue: '30'
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Percent
+          value: 5
+          periodSeconds: 60
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 5
+          periodSeconds: 30
+      selectPolicy: Max
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: running-app-backend-pdb-prod
+  namespace: running-app-prod
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      app: running-app
+      component: backend
+      environment: production
+  unhealthyPodEvictionPolicy: AlwaysAllow

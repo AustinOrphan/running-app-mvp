@@ -1,0 +1,52 @@
+{
+  "name": "@yourusername/markdown-docs-viewer",
+  "version": "1.0.0",
+  "description": "A generic, themeable markdown documentation viewer",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.es.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "themes"
+  ],
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build && tsc",
+    "preview": "vite preview",
+    "prepublishOnly": "npm run build",
+    "test": "vitest"
+  },
+  "keywords": [
+    "markdown",
+    "documentation",
+    "viewer",
+    "docs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "marked": ">=12.0.0",
+    "highlight.js": ">=11.0.0"
+  },
+  "devDependencies": {
+    "@types/marked": "^6.0.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "dependencies": {
+    "marked": "^12.0.0",
+    "marked-highlight": "^2.1.0",
+    "highlight.js": "^11.9.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/markdown-docs-viewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/markdown-docs-viewer/issues"
+  },
+  "homepage": "https://github.com/yourusername/markdown-docs-viewer#readme"
+}

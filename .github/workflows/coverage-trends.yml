@@ -1,0 +1,337 @@
+name: 📊 Coverage Trends Tracking
+
+on:
+  workflow_run:
+    workflows: ['🧪 CI Pipeline', '📈 Coverage Check']
+    types: [completed]
+  schedule:
+    # Run coverage tracking daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false # Don't cancel coverage tracking
+
+env:
+  NODE_ENV: test
+  JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+  DATABASE_URL: file:./prisma/coverage-test.db
+
+jobs:
+  track-coverage-trends:
+    name: 📈 Track Coverage Trends
+    runs-on: ubuntu-latest
+    if: always() # Run even if triggering workflow failed
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50 # Get more history for trend analysis
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: 💾 Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            deps-${{ runner.os }}-
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🗄️ Setup test database
+        run: |
+          mkdir -p prisma
+          rm -f prisma/coverage-test.db*
+          npx prisma migrate dev --name init || npx prisma migrate deploy
+          npx prisma generate
+
+      - name: 💾 Restore coverage trends data
+        uses: actions/cache@v4
+        with:
+          path: coverage-trends/
+          key: coverage-trends-${{ github.sha }}
+          restore-keys: |
+            coverage-trends-
+
+      - name: 📊 Track unit test coverage
+        continue-on-error: true
+        run: |
+          echo "🧪 Tracking unit test coverage..."
+          tsx scripts/coverage-trend-tracker.ts track unit
+
+      - name: 📊 Track integration test coverage
+        continue-on-error: true
+        run: |
+          echo "🔗 Tracking integration test coverage..."
+          tsx scripts/coverage-trend-tracker.ts track integration
+
+      - name: 📊 Track combined coverage
+        continue-on-error: true
+        run: |
+          echo "📋 Tracking combined test coverage..."
+          tsx scripts/coverage-trend-tracker.ts track combined
+
+      - name: 📈 Analyze coverage trends
+        run: |
+          echo "📊 Analyzing coverage trends..."
+          tsx scripts/coverage-trend-tracker.ts trends > coverage-trends-analysis.json
+
+      - name: 🎯 Update coverage goals
+        run: |
+          echo "🎯 Setting coverage goals..."
+          tsx scripts/coverage-trend-tracker.ts goals
+
+      - name: 📋 Generate coverage report
+        run: |
+          echo "📋 Generating coverage trends report..."
+          tsx scripts/coverage-trend-tracker.ts report
+
+      - name: 💾 Save coverage trends data
+        uses: actions/cache@v4
+        with:
+          path: coverage-trends/
+          key: coverage-trends-${{ github.sha }}
+
+      - name: 📤 Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-trends-report
+          path: |
+            coverage-trends/
+            coverage/
+            coverage-integration/
+            coverage-trends-analysis.json
+          retention-days: 30
+
+      - name: 📊 Coverage Trends Summary
+        if: always()
+        run: |
+          echo "# 📊 Coverage Trends Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "coverage-trends/coverage-history.json" ]; then
+            echo "## 📈 Latest Coverage Metrics" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Get latest coverage data
+            LATEST_COVERAGE=$(jq -r '.[-1] | "Lines: \(.coverage.lines)% | Functions: \(.coverage.functions)% | Branches: \(.coverage.branches)% | Statements: \(.coverage.statements)%"' coverage-trends/coverage-history.json 2>/dev/null || echo "Coverage data not available")
+            
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Latest Coverage | $LATEST_COVERAGE |" >> $GITHUB_STEP_SUMMARY
+            echo "| Tracking Date | $(date) |" >> $GITHUB_STEP_SUMMARY
+            echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "## 📊 Trends Analysis" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            if [ -f "coverage-trends-analysis.json" ]; then
+              echo "```json" >> $GITHUB_STEP_SUMMARY
+              cat coverage-trends-analysis.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Trends analysis not available"
+              echo "```" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## 🎯 Coverage Goals" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            if [ -f "coverage-trends/coverage-goals.json" ]; then
+              echo "Coverage goals have been updated based on current metrics." >> $GITHUB_STEP_SUMMARY
+              echo "View detailed goals in the uploaded artifacts." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "Coverage goals will be set after sufficient data collection." >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## 📋 Full Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+            tsx scripts/coverage-trend-tracker.ts report 2>/dev/null | head -30 >> $GITHUB_STEP_SUMMARY || echo "Report generation completed"
+            echo "```" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Coverage trends data not generated" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This may be the first run or there was an issue with data collection." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 🧹 Cleanup
+        if: always()
+        run: |
+          rm -f prisma/coverage-test.db*
+          echo "🧹 Cleanup completed"
+
+  # Job to analyze coverage trends and create issues for declining coverage
+  analyze-coverage-health:
+    name: 🏥 Analyze Coverage Health
+    needs: track-coverage-trends
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: 💾 Restore coverage trends data
+        uses: actions/cache@v4
+        with:
+          path: coverage-trends/
+          key: coverage-trends-${{ github.sha }}
+          restore-keys: |
+            coverage-trends-
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 📊 Analyze coverage health
+        id: health
+        run: |
+          echo "📊 Analyzing coverage health..."
+
+          if [ -f "coverage-trends/coverage-history.json" ]; then
+            # Generate trends analysis
+            tsx scripts/coverage-trend-tracker.ts trends > coverage-health.json
+            
+            # Check for significant declines (simplified check)
+            if grep -q '"trend": "declining"' coverage-health.json; then
+              echo "decline=true" >> $GITHUB_OUTPUT
+              echo "⚠️ Coverage decline detected!"
+              
+              # Check if decline is significant (>5%)
+              SIGNIFICANT_DECLINE=$(jq -r '.[] | select(.trend == "declining" and (.changePercent < -5))' coverage-health.json)
+              if [ -n "$SIGNIFICANT_DECLINE" ]; then
+                echo "significant=true" >> $GITHUB_OUTPUT
+                echo "🚨 Significant coverage decline detected!"
+              else
+                echo "significant=false" >> $GITHUB_OUTPUT
+              fi
+            else
+              echo "decline=false" >> $GITHUB_OUTPUT
+              echo "significant=false" >> $GITHUB_OUTPUT
+              echo "✅ No significant coverage decline detected"
+            fi
+            
+            # Check for unmet goals
+            if [ -f "coverage-trends/coverage-goals.json" ]; then
+              UNMET_GOALS=$(jq -r '.goals[] | select(.status == "below")' coverage-trends/coverage-goals.json)
+              if [ -n "$UNMET_GOALS" ]; then
+                echo "goals_unmet=true" >> $GITHUB_OUTPUT
+                echo "🎯 Some coverage goals are not met"
+              else
+                echo "goals_unmet=false" >> $GITHUB_OUTPUT
+                echo "✅ All coverage goals are met"
+              fi
+            else
+              echo "goals_unmet=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "decline=false" >> $GITHUB_OUTPUT
+            echo "significant=false" >> $GITHUB_OUTPUT
+            echo "goals_unmet=false" >> $GITHUB_OUTPUT
+            echo "❌ No coverage data available for health analysis"
+          fi
+
+      - name: 🚨 Create coverage decline issue
+        if: steps.health.outputs.significant == 'true' && github.event_name != 'workflow_dispatch'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read health data
+            let healthData = [];
+            try {
+              if (fs.existsSync('coverage-health.json')) {
+                healthData = JSON.parse(fs.readFileSync('coverage-health.json', 'utf8'));
+              }
+            } catch (error) {
+              console.log('Could not read coverage health data:', error);
+            }
+
+            // Find declining metrics
+            const decliningMetrics = healthData.filter(trend => 
+              trend.trend === 'declining' && trend.changePercent < -5
+            );
+
+            if (decliningMetrics.length > 0) {
+              const issueBody = `# 📉 Coverage Decline Detected
+
+            **Detected:** ${new Date().toISOString()}
+            **Commit:** ${context.sha}
+            **Branch:** ${context.ref}
+
+            ## 🚨 Declining Coverage Metrics
+
+            ${decliningMetrics.map(metric => 
+              `- **${metric.metric}**: ${metric.changePercent.toFixed(1)}% decline (${metric.currentValue.toFixed(1)}% → ${metric.previousValue.toFixed(1)}%)`
+            ).join('\n')}
+
+            ## 📊 Impact Analysis
+
+            Significant coverage decline may indicate:
+            - New code without adequate tests
+            - Deleted tests without removing corresponding code
+            - Changes to test configuration
+            - Code refactoring that removed covered code paths
+
+            ## 🔍 Investigation Steps
+
+            1. Review recent commits for test changes
+            2. Check if new code lacks test coverage
+            3. Verify test configurations are correct
+            4. Run coverage analysis locally
+            5. Add tests for uncovered code paths
+
+            ## 📈 Recovery Plan
+
+            - [ ] Identify files with reduced coverage
+            - [ ] Add tests for uncovered code paths
+            - [ ] Verify test configurations
+            - [ ] Update coverage goals if appropriate
+            - [ ] Monitor next coverage report
+
+            ---
+
+            *This issue was automatically created by the Coverage Trends Tracking workflow.*`;
+
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Coverage Decline Alert - ${new Date().toLocaleDateString()}`,
+                body: issueBody,
+                labels: ['coverage', 'decline', 'automated', 'needs-investigation']
+              });
+              
+              console.log('Created coverage decline issue');
+            }
+
+      - name: 💬 Coverage goals comment
+        if: steps.health.outputs.goals_unmet == 'true' && github.event_name == 'workflow_run'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // This would add a comment about unmet coverage goals
+            // For now, just log the information
+            console.log('Coverage goals analysis completed');
+
+            const fs = require('fs');
+            if (fs.existsSync('coverage-trends/coverage-goals.json')) {
+              const goals = JSON.parse(fs.readFileSync('coverage-trends/coverage-goals.json', 'utf8'));
+              console.log('Coverage goals status:', JSON.stringify(goals.goals, null, 2));
+            }

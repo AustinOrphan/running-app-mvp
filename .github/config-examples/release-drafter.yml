@@ -1,0 +1,176 @@
+# Release Drafter Configuration for Running Tracker MVP
+
+name-template: 'v$RESOLVED_VERSION 🏃‍♂️'
+tag-template: 'v$RESOLVED_VERSION'
+
+categories:
+  - title: '🚀 New Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+      - 'feat'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+  - title: '🏃‍♂️ Running Features'
+    labels:
+      - 'running'
+      - 'tracking'
+      - 'goals'
+      - 'race'
+  - title: '🎨 UI/UX Improvements'
+    labels:
+      - 'ui'
+      - 'ux'
+      - 'design'
+      - 'frontend'
+  - title: '⚡ Performance Improvements'
+    labels:
+      - 'performance'
+      - 'optimization'
+      - 'perf'
+  - title: '🔒 Security'
+    labels:
+      - 'security'
+      - 'vulnerability'
+  - title: '📱 API Changes'
+    labels:
+      - 'api'
+      - 'backend'
+      - 'routes'
+  - title: '🗄️ Database'
+    labels:
+      - 'database'
+      - 'prisma'
+      - 'migration'
+  - title: '🧪 Testing'
+    labels:
+      - 'test'
+      - 'testing'
+      - 'e2e'
+      - 'unit'
+  - title: '📚 Documentation'
+    labels:
+      - 'documentation'
+      - 'docs'
+  - title: '🔧 Maintenance'
+    labels:
+      - 'maintenance'
+      - 'chore'
+      - 'refactor'
+      - 'cleanup'
+  - title: '📦 Dependencies'
+    labels:
+      - 'dependencies'
+      - 'deps'
+
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+
+version-resolver:
+  major:
+    labels:
+      - 'major'
+      - 'breaking'
+      - 'breaking-change'
+  minor:
+    labels:
+      - 'minor'
+      - 'feature'
+      - 'enhancement'
+  patch:
+    labels:
+      - 'patch'
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+      - 'documentation'
+      - 'chore'
+      - 'maintenance'
+  default: patch
+
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  ## 📊 Statistics
+
+  - **Contributors**: $CONTRIBUTORS
+  - **Commits**: This release includes commits from $CONTRIBUTORS
+  - **Files Changed**: Multiple files updated
+
+  ## 🚀 Running Tracker Features
+
+  This release enhances the running tracking experience with new features, bug fixes, and performance improvements.
+
+  ## 📱 Compatibility
+
+  - **Node.js**: >= 18.0.0
+  - **React**: 18.x
+  - **TypeScript**: 5.x
+  - **Database**: SQLite with Prisma ORM
+
+  ## 🔧 Installation
+
+  ```bash
+  npm install
+  npx prisma migrate dev
+  npm run dev
+  ```
+
+  ## 🆙 Upgrade Notes
+
+  $PREVIOUS_TAG...$RESOLVED_VERSION
+
+  For detailed upgrade instructions, see the [migration guide](docs/migrations.md).
+
+  ## 🙏 Contributors
+
+  Thanks to all contributors who made this release possible!
+
+  $CONTRIBUTORS
+
+  **Full Changelog**: https://github.com/AustinOrphan/running-app-mvp/compare/$PREVIOUS_TAG...$RESOLVED_VERSION
+
+exclude-labels:
+  - 'skip-changelog'
+  - 'duplicate'
+  - 'invalid'
+  - 'wontfix'
+  - 'question'
+
+autolabeler:
+  - label: 'documentation'
+    files:
+      - '*.md'
+      - 'docs/**/*'
+  - label: 'frontend'
+    files:
+      - 'src/**/*'
+      - 'src/**/*.tsx'
+      - 'src/**/*.ts'
+      - 'vite.config.ts'
+      - 'index.html'
+  - label: 'backend'
+    files:
+      - 'routes/**/*'
+      - 'middleware/**/*'
+      - 'server.ts'
+  - label: 'database'
+    files:
+      - 'prisma/**/*'
+  - label: 'test'
+    files:
+      - 'tests/**/*'
+      - '*.test.*'
+      - '*.spec.*'
+  - label: 'ci'
+    files:
+      - '.github/**/*'
+  - label: 'dependencies'
+    files:
+      - 'package.json'
+      - 'package-lock.json'

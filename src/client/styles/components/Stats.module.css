@@ -1,0 +1,583 @@
+/**
+ * Statistics Component Styles - CSS Module
+ * 
+ * Extracted from App.css as part of CSS architecture migration.
+ * Uses CSS variables from globals.css for consistent theming.
+ * Includes InsightsCard, TrendsChart, PersonalRecords, and other stats components.
+ */
+
+/* Insights Card */
+.insightsCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.insightsCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.insightsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.insightsHeader h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.insightsPeriod {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.insightsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.insightItem {
+  text-align: center;
+  padding: 16px;
+  background: var(--secondary-bg);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-color);
+}
+
+.insightItem:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.insightValue {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.insightLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.insightComparison {
+  font-size: 11px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.insightComparison.positive {
+  color: #10b981;
+}
+
+.insightComparison.negative {
+  color: #ef4444;
+}
+
+/* Insights Footer */
+.insightsFooter {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.insightStat {
+  font-size: 14px;
+}
+
+.statLabel {
+  color: var(--text-secondary);
+}
+
+.statValue {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Trends Chart Card */
+.trendsChartCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.trendsChartCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.trendsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.trendsHeader h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.trendsControls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.metricSelector {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface-color);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.metricSelector:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.chartContainer {
+  width: 100%;
+  height: 300px;
+}
+
+.chartLoading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+}
+
+.skeletonChart {
+  width: 100%;
+  max-width: 400px;
+}
+
+.skeletonLineChart {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  height: 200px;
+}
+
+.emptyChart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: var(--text-secondary);
+}
+
+.emptyChart .emptyIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.emptyChart p {
+  margin: 8px 0 4px 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.emptyChart span {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.trendsSummary {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.trendStat {
+  text-align: center;
+}
+
+.trendStat .statLabel {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.trendStat .statValue {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Chart Tooltip */
+.chartTooltip {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tooltipLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.tooltipItem {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 4px 0;
+}
+
+.tooltipValue {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Personal Records Table */
+.recordsTableCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.recordsTableCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.recordsTableCard h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.recordsTableContainer {
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.recordsTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 500px;
+}
+
+.recordsTable th {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.recordsTable th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+.recordsTable th.sortable:hover {
+  color: var(--text-primary);
+}
+
+.recordsTable th.sortable.active {
+  color: var(--color-primary);
+}
+
+.recordsTable td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.recordsTable tr:last-child td {
+  border-bottom: none;
+}
+
+.recordsTable tr:hover {
+  background: var(--hover-bg);
+}
+
+.recordRow {
+  transition: background-color 0.2s;
+}
+
+.distanceCell,
+.timeCell,
+.paceCell,
+.dateCell {
+  white-space: nowrap;
+}
+
+.distanceValue {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.timeValue {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.paceValue {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.dateValue {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Records Loading States */
+.recordsLoading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.tableSkeleton {
+  width: 100%;
+  max-width: 600px;
+}
+
+.skeletonRow {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  justify-content: space-between;
+}
+
+.headerSkeleton {
+  margin-bottom: 20px;
+}
+
+.headerSkeleton .skeletonLine {
+  height: 16px;
+}
+
+/* Empty Records State */
+.emptyRecords {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-secondary);
+}
+
+.emptyRecords .emptyIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.emptyRecords p {
+  margin: 8px 0 4px 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.emptyRecords span {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* Records Summary */
+.recordsSummary {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.recordStat {
+  text-align: center;
+}
+
+.recordStat .statLabel {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.recordStat .statValue {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Run Type Breakdown */
+.runTypeBreakdown {
+  margin-top: 20px;
+}
+
+.breakdownChart {
+  height: 200px;
+  margin-top: 16px;
+}
+
+/* Stats Page Layout */
+.statsContainer {
+  display: grid;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.statsRow {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 24px;
+}
+
+.statsFullWidth {
+  grid-column: 1 / -1;
+}
+
+/* Loading States */
+.skeletonLine {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-shine) 50%,
+    var(--skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* Empty States */
+.emptyState {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-secondary);
+}
+
+.emptyState p {
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .statsRow {
+    grid-template-columns: 1fr;
+  }
+
+  .insightsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .insightItem {
+    padding: 12px;
+  }
+
+  .insightValue {
+    font-size: 20px;
+  }
+
+  .insightsCard,
+  .trendsChartCard,
+  .recordsTableCard {
+    padding: 16px;
+  }
+
+  .chartContainer {
+    height: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .insightsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .insightItem {
+    padding: 8px;
+  }
+
+  .insightValue {
+    font-size: 18px;
+  }
+
+  .insightsCard,
+  .trendsChartCard,
+  .recordsTableCard {
+    padding: 12px;
+  }
+
+  .insightsCard h3,
+  .trendsChartCard h3,
+  .recordsTableCard h3 {
+    font-size: 14px;
+  }
+
+  .recordsTable {
+    font-size: 14px;
+  }
+
+  .recordsTable th,
+  .recordsTable td {
+    padding: 8px;
+  }
+}

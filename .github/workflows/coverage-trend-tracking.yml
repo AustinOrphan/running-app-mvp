@@ -1,0 +1,482 @@
+name: 📊 Coverage Trend Tracking
+
+on:
+  # Run after main CI pipeline
+  workflow_run:
+    workflows: ['🚀 CI Pipeline']
+    types: [completed]
+    branches: [main]
+    
+  # Manual trigger for on-demand analysis
+  workflow_dispatch:
+    inputs:
+      collect_only:
+        description: 'Only collect coverage data (no enforcement)'
+        required: false
+        default: false
+        type: boolean
+      generate_reports:
+        description: 'Generate trend reports'
+        required: false
+        default: true
+        type: boolean
+      enforce_thresholds:
+        description: 'Enforce coverage thresholds'
+        required: false
+        default: true
+        type: boolean
+
+  # Scheduled daily tracking
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+
+# Prevent multiple coverage tracking runs
+concurrency:
+  group: coverage-trend-tracking
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20'
+  # Coverage thresholds
+  COVERAGE_THRESHOLD_STATEMENTS: '80'
+  COVERAGE_THRESHOLD_BRANCHES: '80'
+  COVERAGE_THRESHOLD_FUNCTIONS: '80'
+  COVERAGE_THRESHOLD_LINES: '80'
+  # Fail CI if coverage drops below threshold
+  FAIL_ON_COVERAGE_THRESHOLD: 'true'
+
+jobs:
+  # Track coverage trends
+  track-coverage:
+    name: 📊 Track Coverage Trends
+    runs-on: ubuntu-latest
+    outputs:
+      coverage-collected: ${{ steps.collect.outputs.collected }}
+      threshold-passed: ${{ steps.check.outputs.passed }}
+      statements-coverage: ${{ steps.collect.outputs.statements }}
+      branches-coverage: ${{ steps.collect.outputs.branches }}
+      functions-coverage: ${{ steps.collect.outputs.functions }}
+      lines-coverage: ${{ steps.collect.outputs.lines }}
+      
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for git info
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: 🔧 Install dependencies
+        run: npm ci
+        
+      # Create reports directory
+      - name: 📁 Create reports directory
+        run: mkdir -p reports/coverage-trends
+        
+      # Download previous coverage history
+      - name: 📥 Download coverage history
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-history
+          path: reports/coverage-trends
+        continue-on-error: true
+        
+      # Setup test database
+      - name: 🗄️ Setup test database
+        run: |
+          npx prisma generate
+          npx prisma migrate dev --name init
+        env:
+          DATABASE_URL: "file:./test.db"
+          
+      # Collect coverage data
+      - name: 📊 Collect coverage data
+        id: collect
+        if: github.event.inputs.collect_only != 'false' || github.event_name != 'workflow_dispatch'
+        run: |
+          echo "📊 Collecting coverage data..."
+          
+          # Run coverage collection
+          node scripts/coverage-trend-tracker.js collect > coverage-output.txt 2>&1
+          
+          # Extract coverage percentages from output
+          if grep -q "Coverage collected:" coverage-output.txt; then
+            echo "collected=true" >> $GITHUB_OUTPUT
+            
+            STATEMENTS=$(grep "Statements:" coverage-output.txt | grep -oE '[0-9]+\.[0-9]+' | head -1)
+            BRANCHES=$(grep "Branches:" coverage-output.txt | grep -oE '[0-9]+\.[0-9]+' | head -1)
+            FUNCTIONS=$(grep "Functions:" coverage-output.txt | grep -oE '[0-9]+\.[0-9]+' | head -1)
+            LINES=$(grep "Lines:" coverage-output.txt | grep -oE '[0-9]+\.[0-9]+' | head -1)
+            
+            echo "statements=$STATEMENTS" >> $GITHUB_OUTPUT
+            echo "branches=$BRANCHES" >> $GITHUB_OUTPUT
+            echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+            echo "lines=$LINES" >> $GITHUB_OUTPUT
+            
+            echo "✅ Coverage data collected successfully"
+            echo "   Statements: $STATEMENTS%"
+            echo "   Branches: $BRANCHES%"
+            echo "   Functions: $FUNCTIONS%"
+            echo "   Lines: $LINES%"
+          else
+            echo "collected=false" >> $GITHUB_OUTPUT
+            echo "❌ Failed to collect coverage data"
+            cat coverage-output.txt
+          fi
+          
+      # Generate trend reports
+      - name: 📝 Generate trend reports
+        if: (steps.collect.outputs.collected == 'true' || github.event_name == 'schedule') && github.event.inputs.generate_reports != 'false'
+        run: |
+          echo "📝 Generating coverage trend reports..."
+          
+          # Generate all reports
+          node scripts/coverage-trend-tracker.js report
+          
+          echo "✅ Coverage reports generated"
+          
+      # Check coverage thresholds
+      - name: 🎯 Check coverage thresholds
+        id: check
+        if: steps.collect.outputs.collected == 'true' && github.event.inputs.enforce_thresholds != 'false'
+        run: |
+          echo "🎯 Checking coverage thresholds..."
+          
+          # Set environment for threshold checking
+          export FAIL_ON_COVERAGE_THRESHOLD=${{ env.FAIL_ON_COVERAGE_THRESHOLD }}
+          
+          # Check thresholds
+          if node scripts/coverage-trend-tracker.js check; then
+            echo "passed=true" >> $GITHUB_OUTPUT
+            echo "✅ All coverage thresholds met"
+          else
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "❌ Coverage thresholds not met"
+            
+            # Don't fail the job here, let the workflow decide
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.enforce_thresholds }}" = "false" ]; then
+              echo "⚠️ Threshold enforcement disabled for this run"
+            fi
+          fi
+          
+      # Upload coverage history
+      - name: 📤 Upload coverage history
+        if: steps.collect.outputs.collected == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-history
+          path: reports/coverage-trends/coverage-history.json
+          retention-days: 90
+          
+      # Upload coverage reports
+      - name: 📤 Upload coverage reports
+        if: steps.collect.outputs.collected == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            reports/coverage-trends/coverage-trend-report.json
+            reports/coverage-trends/coverage-trend-dashboard.html
+            reports/coverage-trends/coverage-trend-summary.md
+            reports/coverage-trends/coverage-trend-chart.svg
+          retention-days: 30
+          
+      # Upload raw coverage data
+      - name: 📤 Upload raw coverage data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data
+          path: |
+            coverage/
+            coverage-integration/
+          retention-days: 7
+
+  # Analyze coverage trends
+  analyze-trends:
+    name: 📈 Analyze Coverage Trends
+    runs-on: ubuntu-latest
+    needs: [track-coverage]
+    if: needs.track-coverage.outputs.coverage-collected == 'true'
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: 🔧 Install dependencies
+        run: npm ci
+        
+      # Download coverage reports
+      - name: 📥 Download coverage reports
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-reports
+          path: reports/coverage-trends
+          
+      # Analyze trends and create issue if needed
+      - name: 📈 Analyze trends and create alerts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            try {
+              // Read the coverage trend report
+              const reportPath = 'reports/coverage-trends/coverage-trend-report.json';
+              if (!fs.existsSync(reportPath)) {
+                console.log('No coverage report found');
+                return;
+              }
+              
+              const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+              const { current, analysis, thresholds } = report;
+              
+              // Check for significant coverage drops
+              let shouldCreateIssue = false;
+              const alerts = [];
+              
+              if (thresholds.results && !thresholds.results.passed) {
+                shouldCreateIssue = true;
+                alerts.push('❌ Coverage below configured thresholds');
+                
+                thresholds.results.failures.forEach(f => {
+                  alerts.push(`- **${f.metric}**: ${f.current}% < ${f.threshold}% (${f.diff}%)`);
+                });
+              }
+              
+              if (analysis.hasEnoughData && analysis.direction === 'declining') {
+                shouldCreateIssue = true;
+                alerts.push('📉 Coverage trend is declining');
+              }
+              
+              // Check for major drops (>5% in any metric)
+              if (analysis.hasEnoughData) {
+                Object.entries(analysis.trends).forEach(([metric, trend]) => {
+                  if (trend.change < -5) {
+                    shouldCreateIssue = true;
+                    alerts.push(`⚠️ Major drop in ${metric} coverage: ${trend.change.toFixed(1)}%`);
+                  }
+                });
+              }
+              
+              if (!shouldCreateIssue) {
+                console.log('✅ Coverage is healthy, no alerts needed');
+                return;
+              }
+              
+              // Check for existing coverage issues
+              const existingIssues = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'coverage,automated',
+                state: 'open'
+              });
+              
+              const recentIssue = existingIssues.data.find(issue => 
+                issue.title.includes('Coverage Alert') &&
+                Date.now() - new Date(issue.created_at).getTime() < 24 * 60 * 60 * 1000 // Less than 24 hours old
+              );
+              
+              if (recentIssue) {
+                console.log(`Recent coverage issue already exists: #${recentIssue.number}`);
+                
+                // Add comment to existing issue
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: recentIssue.number,
+                  body: `## 🔄 Updated Coverage Report - ${new Date().toLocaleDateString()}
+
+                  ### Current Coverage
+                  - **Statements**: ${current.overall.statements.percentage}%
+                  - **Branches**: ${current.overall.branches.percentage}%
+                  - **Functions**: ${current.overall.functions.percentage}%
+                  - **Lines**: ${current.overall.lines.percentage}%
+
+### Alerts
+${alerts.join('\n')}
+
+[View Full Report](${context.payload.repository.html_url}/actions/runs/${context.runId})`
+                });
+                
+                return;
+              }
+              
+              // Create new issue
+              const issueBody = `# 🚨 Coverage Alert
+              
+**Date**: ${new Date().toLocaleDateString()}
+**Workflow**: [View Details](${context.payload.repository.html_url}/actions/runs/${context.runId})
+**Branch**: ${current.branch}
+**Commit**: ${current.commit}
+
+## 📊 Current Coverage
+
+| Metric | Coverage | Threshold | Status |
+|--------|----------|-----------|---------|
+| Statements | ${current.overall.statements.percentage}% | ${thresholds.configured.statements}% | ${current.overall.statements.percentage >= thresholds.configured.statements ? '✅' : '❌'} |
+| Branches | ${current.overall.branches.percentage}% | ${thresholds.configured.branches}% | ${current.overall.branches.percentage >= thresholds.configured.branches ? '✅' : '❌'} |
+| Functions | ${current.overall.functions.percentage}% | ${thresholds.configured.functions}% | ${current.overall.functions.percentage >= thresholds.configured.functions ? '✅' : '❌'} |
+| Lines | ${current.overall.lines.percentage}% | ${thresholds.configured.lines}% | ${current.overall.lines.percentage >= thresholds.configured.lines ? '✅' : '❌'} |
+
+## 🚨 Alerts
+
+${alerts.join('\n')}
+
+${analysis.hasEnoughData ? `
+## 📈 Coverage Trends
+
+**Overall Trend**: ${analysis.direction} (${analysis.overallTrend > 0 ? '+' : ''}${analysis.overallTrend.toFixed(2)}% per day)
+
+| Metric | Current | Previous | Change |
+|--------|---------|----------|--------|
+${Object.entries(analysis.trends).map(([metric, trend]) => 
+  `| ${metric} | ${trend.current}% | ${trend.previous}% | ${trend.change > 0 ? '+' : ''}${trend.change.toFixed(1)}% |`
+).join('\n')}
+` : ''}
+
+## 🔧 Recommended Actions
+
+1. **Review Recent Changes**: Check for untested code in recent commits
+2. **Add Missing Tests**: Focus on areas with low coverage
+3. **Update Thresholds**: If coverage drops are intentional, update thresholds
+4. **Monitor Trends**: Keep an eye on coverage trends in upcoming builds
+
+## 📊 Resources
+
+- [Coverage Dashboard](${context.payload.repository.html_url}/actions/artifacts)
+- [Full Coverage Report](${context.payload.repository.html_url}/actions/runs/${context.runId})
+- [Coverage Trend Chart](${context.payload.repository.html_url}/actions/artifacts)
+
+---
+*This issue was automatically created by the Coverage Trend Tracking workflow.*`;
+
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Coverage Alert - ${new Date().toLocaleDateString()}`,
+                body: issueBody,
+                labels: ['coverage', 'automated', 'quality']
+              });
+              
+              console.log('📋 Created coverage alert issue');
+              
+            } catch (error) {
+              console.error('Error analyzing coverage trends:', error);
+            }
+
+  # Update PR status
+  update-pr-status:
+    name: 💬 Update PR Status
+    runs-on: ubuntu-latest
+    needs: [track-coverage]
+    if: github.event_name == 'pull_request' && needs.track-coverage.outputs.coverage-collected == 'true'
+    
+    steps:
+      - name: 💬 Post coverage comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const statements = '${{ needs.track-coverage.outputs.statements-coverage }}';
+            const branches = '${{ needs.track-coverage.outputs.branches-coverage }}';
+            const functions = '${{ needs.track-coverage.outputs.functions-coverage }}';
+            const lines = '${{ needs.track-coverage.outputs.lines-coverage }}';
+            const passed = '${{ needs.track-coverage.outputs.threshold-passed }}' === 'true';
+            
+            const comment = `## 📊 Coverage Report
+            
+| Metric | Coverage | Threshold | Status |
+|--------|----------|-----------|---------|
+| Statements | ${statements}% | ${{ env.COVERAGE_THRESHOLD_STATEMENTS }}% | ${parseFloat(statements) >= parseFloat('${{ env.COVERAGE_THRESHOLD_STATEMENTS }}') ? '✅' : '❌'} |
+| Branches | ${branches}% | ${{ env.COVERAGE_THRESHOLD_BRANCHES }}% | ${parseFloat(branches) >= parseFloat('${{ env.COVERAGE_THRESHOLD_BRANCHES }}') ? '✅' : '❌'} |
+| Functions | ${functions}% | ${{ env.COVERAGE_THRESHOLD_FUNCTIONS }}% | ${parseFloat(functions) >= parseFloat('${{ env.COVERAGE_THRESHOLD_FUNCTIONS }}') ? '✅' : '❌'} |
+| Lines | ${lines}% | ${{ env.COVERAGE_THRESHOLD_LINES }}% | ${parseFloat(lines) >= parseFloat('${{ env.COVERAGE_THRESHOLD_LINES }}') ? '✅' : '❌'} |
+
+**Overall Status**: ${passed ? '✅ All thresholds met' : '❌ Coverage below thresholds'}
+
+[View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Workflow summary
+  coverage-summary:
+    name: 📋 Coverage Summary
+    runs-on: ubuntu-latest
+    needs: [track-coverage, analyze-trends]
+    if: always()
+    
+    steps:
+      - name: 📊 Generate workflow summary
+        run: |
+          echo "# 📊 Coverage Trend Tracking Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow**: Coverage Trend Tracking" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Coverage collection status
+          if [ "${{ needs.track-coverage.result }}" = "success" ]; then
+            if [ "${{ needs.track-coverage.outputs.coverage-collected }}" = "true" ]; then
+              echo "✅ **Coverage Collection**: Completed" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### 📊 Coverage Results" >> $GITHUB_STEP_SUMMARY
+              echo "| Metric | Coverage |" >> $GITHUB_STEP_SUMMARY
+              echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
+              echo "| Statements | ${{ needs.track-coverage.outputs.statements-coverage }}% |" >> $GITHUB_STEP_SUMMARY
+              echo "| Branches | ${{ needs.track-coverage.outputs.branches-coverage }}% |" >> $GITHUB_STEP_SUMMARY
+              echo "| Functions | ${{ needs.track-coverage.outputs.functions-coverage }}% |" >> $GITHUB_STEP_SUMMARY
+              echo "| Lines | ${{ needs.track-coverage.outputs.lines-coverage }}% |" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              
+              if [ "${{ needs.track-coverage.outputs.threshold-passed }}" = "true" ]; then
+                echo "✅ **Threshold Check**: All thresholds met" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "❌ **Threshold Check**: Coverage below configured thresholds" >> $GITHUB_STEP_SUMMARY
+              fi
+            else
+              echo "❌ **Coverage Collection**: Failed" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "❌ **Coverage Collection**: Job failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Trend analysis status
+          if [ "${{ needs.analyze-trends.result }}" = "success" ]; then
+            echo "✅ **Trend Analysis**: Completed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.analyze-trends.result }}" = "failure" ]; then
+            echo "❌ **Trend Analysis**: Failed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ **Trend Analysis**: Skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Resources" >> $GITHUB_STEP_SUMMARY
+          echo "- [Coverage Reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Coverage History](https://github.com/${{ github.repository }}/actions/artifacts)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Coverage Dashboard](https://github.com/${{ github.repository }}/actions/artifacts)" >> $GITHUB_STEP_SUMMARY
+          
+      # Fail the workflow if thresholds not met
+      - name: 🎯 Enforce coverage thresholds
+        if: needs.track-coverage.outputs.coverage-collected == 'true' && needs.track-coverage.outputs.threshold-passed == 'false' && env.FAIL_ON_COVERAGE_THRESHOLD == 'true'
+        run: |
+          echo "❌ Coverage is below configured thresholds"
+          exit 1

@@ -1,0 +1,542 @@
+name: 🔍 PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  actions: read
+  checks: write
+
+env:
+  NODE_VERSION: '22.x'
+
+# Cancel previous runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # PR Information
+  pr-info:
+    name: 📋 PR Information
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    outputs:
+      changed-files: ${{ steps.changed-files.outputs.all_changed_files }}
+      has-tests: ${{ steps.check-tests.outputs.has-tests }}
+      has-docs: ${{ steps.check-docs.outputs.has-docs }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📁 Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v46
+        with:
+          files: |
+            src/**
+            tests/**
+            *.json
+            *.js
+            *.ts
+            *.tsx
+
+      - name: 🧪 Check if tests were added/modified
+        id: check-tests
+        run: |
+          echo "Changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
+          if echo "${{ steps.changed-files.outputs.all_changed_files }}" | grep -E "(test|spec)" > /dev/null; then
+            echo "has-tests=true" >> $GITHUB_OUTPUT
+            echo "✅ Tests were modified"
+          else
+            echo "has-tests=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No test files were modified"
+          fi
+
+      - name: 📚 Check if documentation was updated
+        id: check-docs
+        run: |
+          if echo "${{ steps.changed-files.outputs.all_changed_files }}" | grep -E "(README|\.md)" > /dev/null; then
+            echo "has-docs=true" >> $GITHUB_OUTPUT
+            echo "✅ Documentation was updated"
+          else
+            echo "has-docs=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No documentation files were updated"
+          fi
+
+  # Fast Quality Checks
+  quick-checks:
+    name: ⚡ Quick Checks
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Lint check
+        run: npm run lint --if-present
+
+      - name: 🔧 Type check
+        run: npm run typecheck --if-present
+
+      - name: 🏗️ Build check
+        run: npm run build
+
+  # Security Validation
+  security-validation:
+    name: 🔒 Security Validation
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🔒 Security audit
+        run: npm audit --audit-level moderate
+
+      - name: 🔍 Dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+
+      - name: 🔍 Scan for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+  # Test Validation
+  test-validation:
+    name: 🧪 Test Validation
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🗄️ Setup database
+        run: |
+          npx prisma migrate deploy
+          npx prisma generate
+
+      - name: 🧪 Run unit tests with coverage
+        run: npm run test:coverage
+
+      - name: 🔧 Run integration tests with coverage
+        run: npm run test:coverage:integration
+
+      - name: ✅ Check coverage thresholds
+        run: npm run test:coverage:check
+
+      - name: 📊 Generate PR coverage report
+        run: npm run test:coverage:report
+
+      - name: 📊 Upload PR test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-test-results-${{ github.event.pull_request.number }}
+          path: |
+            coverage/
+            coverage-integration/
+          retention-days: 7
+
+  # E2E Test Validation (Lightweight)
+  e2e-validation:
+    name: 🎭 E2E Validation
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    env:
+      DATABASE_URL: file:./prisma/e2e.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🎭 Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: 🗄️ Setup database
+        run: |
+          npx prisma migrate deploy
+          npx prisma generate
+
+      - name: 🏗️ Build application
+        run: npm run build
+
+      - name: 🎭 Run critical E2E tests only
+        run: npx playwright test --grep="@critical"
+
+      - name: 📊 Upload E2E artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: pr-e2e-results-${{ github.event.pull_request.number }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  # Performance Impact Check
+  performance-check:
+    name: ⚡ Performance Impact
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build PR version
+        run: npm run build
+
+      - name: ✅ Verify build output exists
+        run: |
+          echo "🔍 Verifying build output..."
+
+          # Check if dist directory exists
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed: dist directory not found"
+            exit 1
+          fi
+
+          # Check if index.html exists
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ Build failed: index.html not found in dist/"
+            exit 1
+          fi
+
+          # Check if assets directory exists
+          if [ ! -d "dist/assets" ]; then
+            echo "❌ Build failed: assets directory not found"
+            exit 1
+          fi
+
+          # Check if at least one JS file exists
+          if ! ls dist/assets/*.js 1> /dev/null 2>&1; then
+            echo "❌ Build failed: no JavaScript files found in dist/assets/"
+            exit 1
+          fi
+
+          # Check if at least one CSS file exists
+          if ! ls dist/assets/*.css 1> /dev/null 2>&1; then
+            echo "❌ Build failed: no CSS files found in dist/assets/"
+            exit 1
+          fi
+
+          echo "✅ Build output verification passed"
+          echo "📁 Build contents:"
+          ls -la dist/
+          echo "📦 Assets:"
+          ls -la dist/assets/ | head -10
+
+      - name: 📊 Analyze bundle size
+        run: |
+          echo "📊 Analyzing PR bundle impact..."
+
+          # Get current bundle sizes
+          if [ -f "dist/assets/index-*.js" ]; then
+            CURRENT_MAIN_SIZE=$(stat -f%z dist/assets/index-*.js 2>/dev/null || echo "0")
+          else
+            CURRENT_MAIN_SIZE=0
+          fi
+
+          if [ -f "dist/assets/index-*.css" ]; then
+            CURRENT_CSS_SIZE=$(stat -f%z dist/assets/index-*.css 2>/dev/null || echo "0")
+          else
+            CURRENT_CSS_SIZE=0
+          fi
+
+          # Convert to KB
+          CURRENT_MAIN_KB=$((CURRENT_MAIN_SIZE / 1024))
+          CURRENT_CSS_KB=$((CURRENT_CSS_SIZE / 1024))
+
+          echo "PR Bundle Sizes:"
+          echo "Main bundle: ${CURRENT_MAIN_KB}KB"
+          echo "CSS bundle: ${CURRENT_CSS_KB}KB"
+
+          # Save for comment
+          echo "BUNDLE_MAIN_KB=$CURRENT_MAIN_KB" >> $GITHUB_ENV
+          echo "BUNDLE_CSS_KB=$CURRENT_CSS_KB" >> $GITHUB_ENV
+
+          # Check if bundle size is concerning (> 500KB for main)
+          if [ "$CURRENT_MAIN_KB" -gt 500 ]; then
+            echo "⚠️ Large bundle size detected"
+            echo "LARGE_BUNDLE=true" >> $GITHUB_ENV
+          else
+            echo "LARGE_BUNDLE=false" >> $GITHUB_ENV
+          fi
+
+  # Code Quality Analysis
+  code-quality:
+    name: 📊 Code Quality
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    env:
+      DATABASE_URL: file:./prisma/test.db
+      JWT_SECRET: test-secret-key-for-ci-environment-must-be-longer-than-32-characters
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 📊 Run code quality analysis
+        run: |
+          echo "📊 Analyzing code quality..."
+
+          # Count lines of code changes
+          ADDED_LINES=$(git diff --numstat ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | awk '{sum+=$1} END {print sum+0}')
+          REMOVED_LINES=$(git diff --numstat ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | awk '{sum+=$2} END {print sum+0}')
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | wc -l)
+
+          echo "Code changes:"
+          echo "Added lines: $ADDED_LINES"
+          echo "Removed lines: $REMOVED_LINES"
+          echo "Changed files: $CHANGED_FILES"
+
+          echo "ADDED_LINES=$ADDED_LINES" >> $GITHUB_ENV
+          echo "REMOVED_LINES=$REMOVED_LINES" >> $GITHUB_ENV
+          echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
+
+          # Check for large PR
+          if [ "$CHANGED_FILES" -gt 20 ] || [ "$ADDED_LINES" -gt 500 ]; then
+            echo "⚠️ Large PR detected"
+            echo "LARGE_PR=true" >> $GITHUB_ENV
+          else
+            echo "LARGE_PR=false" >> $GITHUB_ENV
+          fi
+
+  # PR Feedback
+  pr-feedback:
+    name: 💬 PR Feedback
+    runs-on: ubuntu-latest
+    needs: [pr-info, quick-checks, test-validation, performance-check, code-quality]
+    if: always() && github.event.pull_request.draft == false
+    steps:
+      - name: 💬 Create PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { 
+              BUNDLE_MAIN_KB = '0', 
+              BUNDLE_CSS_KB = '0', 
+              LARGE_BUNDLE = 'false',
+              ADDED_LINES = '0',
+              REMOVED_LINES = '0', 
+              CHANGED_FILES = '0',
+              LARGE_PR = 'false'
+            } = process.env;
+
+            const hasTests = '${{ needs.pr-info.outputs.has-tests }}' === 'true';
+            const quickChecksStatus = '${{ needs.quick-checks.result }}';
+            const testValidationStatus = '${{ needs.test-validation.result }}';
+            const performanceStatus = '${{ needs.performance-check.result }}';
+
+            const getStatusEmoji = (status) => {
+              switch(status) {
+                case 'success': return '✅';
+                case 'failure': return '❌';
+                case 'cancelled': return '⏸️';
+                default: return '⏳';
+              }
+            };
+
+            const feedback = `
+            ## 🔍 PR Validation Results
+
+            ### 📋 Summary
+            | Check | Status |
+            |-------|--------|
+            | Quick Checks | ${getStatusEmoji(quickChecksStatus)} ${quickChecksStatus} |
+            | Test Validation | ${getStatusEmoji(testValidationStatus)} ${testValidationStatus} |
+            | Performance Check | ${getStatusEmoji(performanceStatus)} ${performanceStatus} |
+
+            ### 📊 Code Analysis
+            - **Files changed:** ${CHANGED_FILES}
+            - **Lines added:** +${ADDED_LINES}
+            - **Lines removed:** -${REMOVED_LINES}
+            - **Tests included:** ${hasTests ? '✅ Yes' : '⚠️ No test changes detected'}
+
+            ### ⚡ Bundle Impact
+            - **Main bundle:** ${BUNDLE_MAIN_KB}KB ${LARGE_BUNDLE === 'true' ? '⚠️ Large' : '✅'}
+            - **CSS bundle:** ${BUNDLE_CSS_KB}KB
+
+            ### 🎯 Recommendations
+            ${LARGE_PR === 'true' ? '- ⚠️ **Large PR:** Consider breaking into smaller, focused changes\n' : ''}
+            ${!hasTests ? '- 🧪 **Tests:** Consider adding tests for new functionality\n' : ''}
+            ${LARGE_BUNDLE === 'true' ? '- 📦 **Bundle Size:** Consider code splitting or dependency optimization\n' : ''}
+
+            ### 📈 Coverage Report
+            Detailed coverage reports are available in the workflow artifacts.
+
+            ---
+            *Automated feedback from [PR Validation Workflow](${context.payload.repository.html_url}/actions/runs/${context.runId})*
+            `;
+
+            // Find existing comment
+            let existingComment = null;
+            try {
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+
+              if (comments && comments.data && Array.isArray(comments.data)) {
+                existingComment = comments.data.find(comment => 
+                  comment && comment.user && comment.user.login === 'github-actions[bot]' && 
+                  comment.body && comment.body.includes('PR Validation Results')
+                );
+              }
+            } catch (error) {
+              console.log('Failed to fetch comments:', error.message);
+            }
+
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: feedback
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: feedback
+              });
+            }
+
+  # Auto-assign reviewers based on changed files
+  auto-assign:
+    name: 👥 Auto-assign Reviewers
+    runs-on: ubuntu-latest
+    needs: [pr-info]
+    if: github.event.action == 'opened' && github.event.pull_request.draft == false
+    steps:
+      - name: 👥 Auto-assign reviewers
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const changedFiles = '${{ needs.pr-info.outputs.changed-files }}';
+
+            // Only attempt assignment if not from a fork
+            if (context.payload.pull_request.head.repo.full_name !== context.payload.repository.full_name) {
+              console.log('Skipping reviewer assignment for fork PR');
+              return;
+            }
+
+            let reviewers = [];
+
+            // Assign based on changed files (replace with actual usernames)
+            if (changedFiles.includes('src/hooks/') || changedFiles.includes('src/components/')) {
+              // reviewers.push('frontend-reviewer'); // Add actual usernames
+            }
+
+            if (changedFiles.includes('routes/') || changedFiles.includes('middleware/')) {
+              // reviewers.push('backend-reviewer'); // Add actual usernames
+            }
+
+            if (changedFiles.includes('tests/') || changedFiles.includes('.test.')) {
+              // reviewers.push('qa-reviewer'); // Add actual usernames
+            }
+
+            // Remove duplicates and filter out empty values
+            reviewers = [...new Set(reviewers)].filter(Boolean);
+
+            if (reviewers.length > 0) {
+              try {
+                await github.rest.pulls.requestReviewers({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number,
+                  reviewers: reviewers
+                });
+                console.log(`Assigned reviewers: ${reviewers.join(', ')}`);
+              } catch (error) {
+                console.log(`Failed to assign reviewers: ${error.message}`);
+              }
+            } else {
+              console.log('No reviewers to assign based on changed files');
+            }

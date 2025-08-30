@@ -1,0 +1,37 @@
+{
+  "scripts": {
+    "dev": "concurrently \"npm:dev:*\"",
+    "dev:frontend": "vite",
+    "dev:backend": "tsx watch src/server/index.ts",
+    "build": "vite build",
+    "start": "node dist/server/index.js",
+    "preview": "vite preview",
+
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:performance": "lhci autorun",
+    "test:all": "npm run test:coverage && npm run test:e2e",
+    "test:debug": "vitest --inspect-brk",
+
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
+
+    "setup": "npm install && npm run db:migrate && npm run db:generate",
+    "clean": "rm -rf node_modules dist coverage .cache",
+    "fresh": "npm run clean && npm run setup",
+
+    "quality": "npm run lint && npm run typecheck && npm run format",
+    "ci": "npm run quality && npm run test:coverage && npm run test:e2e",
+    "prepare": "husky"
+  }
+}

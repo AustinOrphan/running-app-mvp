@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String @id @default(uuid())
+  email    String @unique
+  password String
+  name     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  runs  Run[]
+  goals Goal[]
+  races Race[]
+}
+
+model Run {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime
+  distance  Float
+  duration  Int
+  tag       String?
+  notes     String?
+  routeGeoJson String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([date])
+}
+
+model Goal {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  description String?
+  
+  // Goal type and target configuration
+  type        String   // "DISTANCE", "TIME", "FREQUENCY", "PACE", "LONGEST_RUN"
+  period      String   // "WEEKLY", "MONTHLY", "YEARLY", "CUSTOM"
+  targetValue Float
+  targetUnit  String   // "km", "minutes", "runs", "min/km"
+  
+  // Time period
+  startDate   DateTime
+  endDate     DateTime
+  
+  // Progress tracking
+  currentValue Float    @default(0)
+  isCompleted  Boolean  @default(false)
+  completedAt  DateTime?
+  
+  // Metadata
+  color       String?  // Hex color for UI visualization
+  icon        String?  // Icon identifier
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([type])
+  @@index([period])
+  @@index([isActive])
+}
+
+// Goal types as constants (SQLite doesn't support enums)
+// DISTANCE: Total distance goal (e.g., "Run 100km")
+// TIME: Total time goal (e.g., "Run for 10 hours") 
+// FREQUENCY: Frequency goal (e.g., "Run 4 times per week")
+// PACE: Average pace goal (e.g., "Maintain 5:00 min/km pace")
+// LONGEST_RUN: Longest single run goal (e.g., "Run 21km in one session")
+
+// Goal periods as constants
+// WEEKLY, MONTHLY, YEARLY, CUSTOM
+
+model Race {
+  id       String @id @default(uuid())
+  userId   String
+  name     String
+  raceDate DateTime
+  distance Float
+  targetTime Int?
+  actualTime Int?
+  notes    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([raceDate])
+}

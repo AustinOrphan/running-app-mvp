@@ -1,0 +1,58 @@
+{
+  "testExecutionTime": {
+    "unit": {
+      "max": 30000,
+      "warning": 20000
+    },
+    "integration": {
+      "max": 60000,
+      "warning": 45000
+    },
+    "e2e": {
+      "max": 120000,
+      "warning": 90000
+    },
+    "total": {
+      "max": 300000,
+      "warning": 240000
+    }
+  },
+  "bundleSize": {
+    "main": {
+      "max": 1300000,
+      "warning": 1100000
+    },
+    "vendor": {
+      "max": 1000000,
+      "warning": 750000
+    },
+    "total": {
+      "max": 1800000,
+      "warning": 1500000
+    }
+  },
+  "buildTime": {
+    "frontend": {
+      "max": 60000,
+      "warning": 45000
+    },
+    "backend": {
+      "max": 30000,
+      "warning": 20000
+    },
+    "total": {
+      "max": 90000,
+      "warning": 65000
+    }
+  },
+  "memoryUsage": {
+    "heapUsed": {
+      "max": 536870912,
+      "warning": 402653184
+    },
+    "rss": {
+      "max": 1073741824,
+      "warning": 805306368
+    }
+  }
+}

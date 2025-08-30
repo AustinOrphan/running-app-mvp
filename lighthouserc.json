@@ -1,0 +1,68 @@
+{
+  "ci": {
+    "collect": {
+      "url": ["http://localhost:3000"],
+      "startServerCommand": "npm run preview -- --port 3000 --host",
+      "startServerReadyPattern": "Server readiness check completed successfully|Lighthouse CI can now begin testing|ready in|localhost:3000|server running on|compiled successfully",
+      "startServerReadyTimeout": 120000,
+      "numberOfRuns": 3,
+      "settings": {
+        "chromeFlags": "--headless --no-sandbox --disable-dev-shm-usage --disable-gpu --disable-extensions --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding",
+        "formFactor": "desktop",
+        "screenEmulation": {
+          "mobile": false,
+          "width": 1280,
+          "height": 720,
+          "deviceScaleFactor": 1,
+          "disabled": false
+        },
+        "emulatedUserAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Lighthouse",
+        "onlyAudits": null,
+        "skipAudits": ["uses-http2"],
+        "waitUntil": "networkidle2",
+        "timeout": 120000,
+        "pauseAfterLoadMs": 2000,
+        "networkQuietThresholdMs": 2000,
+        "extraHeaders": {
+          "User-Agent": "LighthouseCI/Performance"
+        }
+      }
+    },
+    "assert": {
+      "preset": "lighthouse:recommended",
+      "assertions": {
+        "categories:performance": ["warn", { "minScore": 0.7 }],
+        "categories:accessibility": ["error", { "minScore": 0.9 }],
+        "categories:best-practices": ["warn", { "minScore": 0.8 }],
+        "categories:seo": ["warn", { "minScore": 0.75 }],
+        "categories:pwa": "off",
+
+        "first-contentful-paint": ["warn", { "maxNumericValue": 2100 }],
+        "largest-contentful-paint": ["warn", { "maxNumericValue": 3200 }],
+        "cumulative-layout-shift": ["warn", { "maxNumericValue": 0.1 }],
+        "total-blocking-time": ["warn", { "maxNumericValue": 400 }],
+        "speed-index": ["warn", { "maxNumericValue": 4000 }],
+        "interactive": ["warn", { "maxNumericValue": 4000 }],
+
+        "color-contrast": ["error", { "minScore": 1 }],
+        "tap-targets": ["warn", { "minScore": 0.9 }],
+        "viewport": ["error", { "minScore": 1 }],
+
+        "unused-css-rules": ["warn", { "maxLength": 10 }],
+        "unused-javascript": ["warn", { "maxLength": 10 }],
+        "render-blocking-resources": ["warn", { "maxLength": 5 }]
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage",
+      "githubAppToken": null
+    },
+    "server": {
+      "port": 9001,
+      "storage": {
+        "storageMethod": "filesystem",
+        "storagePath": "./lighthouse-results"
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "thresholds": {
+    "global": {
+      "statements": 80,
+      "branches": 80,
+      "functions": 80,
+      "lines": 80
+    },
+    "unit": {
+      "statements": 85,
+      "branches": 85,
+      "functions": 85,
+      "lines": 85
+    },
+    "integration": {
+      "statements": 75,
+      "branches": 75,
+      "functions": 75,
+      "lines": 75
+    }
+  },
+  "reporting": {
+    "reporters": ["text", "json", "html", "lcov"],
+    "outputDirectory": "./coverage",
+    "excludePatterns": [
+      "**/node_modules/**",
+      "**/tests/**",
+      "**/coverage/**",
+      "**/dist/**",
+      "**/*.config.js",
+      "**/*.config.ts",
+      "**/migrations/**"
+    ]
+  },
+  "trends": {
+    "historyLength": 90,
+    "alertThreshold": 5,
+    "trendWindow": 30
+  }
+}

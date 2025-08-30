@@ -1,0 +1,50 @@
+{
+  "name": "@austinorphan/training-plan-generator",
+  "version": "1.0.0",
+  "description": "Advanced scientific training plan generation for running",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "running",
+    "training",
+    "vdot",
+    "fitness",
+    "workout",
+    "plan"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "dependencies": {
+    "date-fns": "^3.0.0"
+  },
+  "peerDependencies": {
+    "date-fns": ">=2.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AustinOrphan/training-plan-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AustinOrphan/training-plan-generator/issues"
+  },
+  "homepage": "https://github.com/AustinOrphan/training-plan-generator#readme"
+}
