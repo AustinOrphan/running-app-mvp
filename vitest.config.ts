@@ -8,6 +8,9 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
 
+  // Cache directory for Vite/Vitest
+  cacheDir: 'node_modules/.cache/vitest',
+
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -63,10 +66,6 @@ export default defineConfig({
       },
     },
 
-    // Cache configuration
-    cache: {
-      dir: 'node_modules/.cache/vitest',
-    },
 
     // Watch mode - disabled in CI
     watch: !process.env.CI,

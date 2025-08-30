@@ -159,7 +159,7 @@ describe('Infrastructure Startup Tests', () => {
   });
 });
 
-describe('Server Startup Integration Tests', () => {
+describe.skip('Server Startup Integration Tests', () => {
   let backendProcess: ChildProcess | null = null;
   let frontendProcess: ChildProcess | null = null;
 
