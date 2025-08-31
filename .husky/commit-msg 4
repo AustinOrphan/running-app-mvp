@@ -1,0 +1,7 @@
+#!/bin/sh
+# Validate commit message format
+# Accepts:
+# - Standard types: feat, fix, docs, style, refactor, test, chore
+# - Angular-style: feat(scope): description
+# - Conventional commits
+npx --no -- commitlint --edit $1

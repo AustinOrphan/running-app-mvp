@@ -66,7 +66,6 @@ export default defineConfig({
       },
     },
 
-
     // Watch mode - disabled in CI
     watch: !process.env.CI,
 

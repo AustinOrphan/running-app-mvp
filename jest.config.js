@@ -82,6 +82,10 @@ export default {
   testTimeout: 30000, // 30s global baseline timeout (further adjusted by platform utils in setup)
   verbose: true,
   // Jest workers configuration - use environment variable or reasonable default
-  maxWorkers: process.env.JEST_WORKERS ? parseInt(process.env.JEST_WORKERS, 10) : (process.env.CI ? 2 : 4),
+  maxWorkers: process.env.JEST_WORKERS
+    ? parseInt(process.env.JEST_WORKERS, 10)
+    : process.env.CI
+      ? 2
+      : 4,
   // Connection handling is managed by the original globalTeardown above
 };

@@ -34,5 +34,5 @@
     "types": ["vitest/globals", "@testing-library/jest-dom", "jest-axe"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"],
-  "exclude": ["node_modules", "dist", "tests/**/*", "**/*.test.ts", "**/*.test.tsx"]
+  "exclude": ["node_modules", "dist"]
 }
