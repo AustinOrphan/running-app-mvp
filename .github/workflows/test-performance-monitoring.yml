@@ -6,7 +6,7 @@ on:
     workflows: ['🚀 CI Pipeline']
     types: [completed]
     branches: [main]
-    
+
   # Manual trigger for performance analysis
   workflow_dispatch:
     inputs:
@@ -33,9 +33,9 @@ concurrency:
 
 env:
   NODE_VERSION: '20'
-  PERFORMANCE_THRESHOLD_UNIT: 30000      # 30 seconds
-  PERFORMANCE_THRESHOLD_INTEGRATION: 120000  # 2 minutes
-  PERFORMANCE_THRESHOLD_E2E: 300000     # 5 minutes
+  PERFORMANCE_THRESHOLD_UNIT: 30000 # 30 seconds
+  PERFORMANCE_THRESHOLD_INTEGRATION: 120000 # 2 minutes
+  PERFORMANCE_THRESHOLD_E2E: 300000 # 5 minutes
 
 jobs:
   # Collect performance metrics
@@ -46,24 +46,24 @@ jobs:
     outputs:
       metrics-collected: ${{ steps.collect.outputs.collected }}
       performance-summary: ${{ steps.collect.outputs.summary }}
-      
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          
+
       - name: 🔧 Install dependencies
         run: npm ci
-        
+
       # Create reports directory
       - name: 📁 Create reports directory
         run: mkdir -p reports/performance
-        
+
       # Download previous metrics if available
       - name: 📥 Download previous metrics
         uses: actions/download-artifact@v4
@@ -71,16 +71,16 @@ jobs:
           name: performance-metrics
           path: reports/performance
         continue-on-error: true
-        
+
       # Run performance collection
       - name: 📊 Collect test performance metrics
         id: collect
         run: |
           echo "🚀 Starting performance metrics collection..."
-          
+
           # Run the performance dashboard script to collect metrics
           node scripts/test-performance-dashboard.js --collect --output ./reports/performance
-          
+
           # Check if metrics were collected successfully
           if [ -f "reports/performance/metrics.json" ]; then
             echo "collected=true" >> $GITHUB_OUTPUT
@@ -97,7 +97,7 @@ jobs:
             echo "collected=false" >> $GITHUB_OUTPUT
             echo "❌ Failed to collect performance metrics"
           fi
-          
+
       # Upload metrics as artifact
       - name: 📤 Upload performance metrics
         if: steps.collect.outputs.collected == 'true'
@@ -116,23 +116,23 @@ jobs:
     outputs:
       trends-analyzed: ${{ steps.trends.outputs.analyzed }}
       degradation-detected: ${{ steps.trends.outputs.degradation }}
-      
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          
+
       - name: 🔧 Install dependencies
         run: npm ci
-        
+
       - name: 📁 Create reports directory
         run: mkdir -p reports/performance
-        
+
       # Download metrics for analysis
       - name: 📥 Download performance metrics
         uses: actions/download-artifact@v4
@@ -140,16 +140,16 @@ jobs:
           name: performance-metrics
           path: reports/performance
         continue-on-error: true
-        
+
       # Analyze trends
       - name: 📈 Analyze performance trends
         id: trends
         run: |
           echo "📈 Analyzing performance trends..."
-          
+
           # Run trend analysis
           node scripts/test-performance-dashboard.js --analyze --output ./reports/performance
-          
+
           if [ -f "reports/performance/trends.json" ]; then
             echo "analyzed=true" >> $GITHUB_OUTPUT
             
@@ -162,7 +162,7 @@ jobs:
             echo "analyzed=false" >> $GITHUB_OUTPUT
             echo "❌ Trend analysis failed"
           fi
-          
+
       # Upload trends
       - name: 📤 Upload trend analysis
         if: steps.trends.outputs.analyzed == 'true'
@@ -181,23 +181,23 @@ jobs:
     outputs:
       alerts-found: ${{ steps.alerts.outputs.found }}
       critical-alerts: ${{ steps.alerts.outputs.critical }}
-      
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          
+
       - name: 🔧 Install dependencies
         run: npm ci
-        
+
       - name: 📁 Create reports directory
         run: mkdir -p reports/performance
-        
+
       # Download metrics and trends
       - name: 📥 Download performance data
         uses: actions/download-artifact@v4
@@ -205,23 +205,23 @@ jobs:
           name: performance-metrics
           path: reports/performance
         continue-on-error: true
-        
+
       - name: 📥 Download trend data
         uses: actions/download-artifact@v4
         with:
           name: performance-trends
           path: reports/performance
         continue-on-error: true
-        
+
       # Check for alerts
       - name: 🚨 Check performance alerts
         id: alerts
         run: |
           echo "🚨 Checking for performance alerts..."
-          
+
           # Run alert checking
           node scripts/test-performance-dashboard.js --alert --output ./reports/performance
-          
+
           if [ -f "reports/performance/alerts.json" ]; then
             ALERT_COUNT=$(jq 'length' reports/performance/alerts.json)
             CRITICAL_COUNT=$(jq '[.[] | select(.severity == "high")] | length' reports/performance/alerts.json)
@@ -238,58 +238,48 @@ jobs:
             echo "found=0" >> $GITHUB_OUTPUT
             echo "critical=0" >> $GITHUB_OUTPUT
           fi
-          
+
       # Create GitHub issue for critical alerts
-      - name: 🎫 Create alert issue
+      - name: 📋 Generate performance alert issue body
+        id: generate_alert_body
         if: steps.alerts.outputs.critical > 0
+        env:
+          GITHUB_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
+        run: |
+          # Filter critical alerts from alerts.json
+          if [ -f "reports/performance/alerts.json" ]; then
+            CRITICAL_ALERTS=$(jq '[.[] | select(.severity == "high")]' reports/performance/alerts.json)
+            export CRITICAL_ALERTS
+            
+            # Generate issue body using external script
+            ISSUE_BODY=$(node .github/scripts/performance-monitor.js)
+            
+            # Save to output for use in next step
+            echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+            echo "$ISSUE_BODY" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "No alerts file found"
+            exit 1
+          fi
+
+      - name: 🎫 Create alert issue
+        if: steps.alerts.outputs.critical > 0 && steps.generate_alert_body.outputs.issue_body
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            
-            if (fs.existsSync('reports/performance/alerts.json')) {
-              const alerts = JSON.parse(fs.readFileSync('reports/performance/alerts.json', 'utf8'));
-              const criticalAlerts = alerts.filter(alert => alert.severity === 'high');
-              
-              if (criticalAlerts.length > 0) {
-                const body = `## 🚨 Critical Performance Alerts Detected
+            const issueBody = `${{ steps.generate_alert_body.outputs.issue_body }}`;
 
-                **Alert Count**: ${criticalAlerts.length}
-                **Detection Time**: ${new Date().toISOString()}
-                **Workflow**: [${context.workflow}](${context.payload.repository.html_url}/actions/runs/${context.runId})
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Critical Test Performance Alerts - ${new Date().toLocaleDateString()}`,
+              body: issueBody,
+              labels: ['performance', 'alert', 'critical', 'testing']
+            });
 
-### Critical Alerts:
-
-${criticalAlerts.map(alert => `
-- **${alert.message}**
-  - Suite: ${alert.suite}
-  - Type: ${alert.type}
-  ${alert.actual ? `- Actual: ${alert.actual}` : ''}
-  ${alert.threshold ? `- Threshold: ${alert.threshold}` : ''}
-  ${alert.changePercent ? `- Change: ${alert.changePercent > 0 ? '+' : ''}${alert.changePercent.toFixed(1)}%` : ''}
-`).join('')}
-
-### Recommended Actions:
-1. Review test performance metrics in the dashboard
-2. Investigate slow or failing tests
-3. Check for recent changes that might impact performance
-4. Consider optimizing test setup or infrastructure
-
-### Dashboard Links:
-- [Performance Dashboard](${context.payload.repository.html_url}/actions/artifacts)
-- [Workflow Run](${context.payload.repository.html_url}/actions/runs/${context.runId})
-`;
-
-                await github.rest.issues.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: `🚨 Critical Test Performance Alerts - ${new Date().toLocaleDateString()}`,
-                  body: body,
-                  labels: ['performance', 'alert', 'critical', 'testing']
-                });
-              }
-            }
-            
       # Upload alerts
       - name: 📤 Upload alerts
         uses: actions/upload-artifact@v4
@@ -304,23 +294,23 @@ ${criticalAlerts.map(alert => `
     runs-on: ubuntu-latest
     needs: [collect-metrics, analyze-trends, check-alerts]
     if: always() && (github.event.inputs.generate_dashboard == 'true' || github.event.inputs.generate_dashboard == '')
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        
+
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          
+
       - name: 🔧 Install dependencies
         run: npm ci
-        
+
       - name: 📁 Create reports directory
         run: mkdir -p reports/performance
-        
+
       # Download all performance data
       - name: 📥 Download performance metrics
         uses: actions/download-artifact@v4
@@ -328,36 +318,36 @@ ${criticalAlerts.map(alert => `
           name: performance-metrics
           path: reports/performance
         continue-on-error: true
-        
+
       - name: 📥 Download trend analysis
         uses: actions/download-artifact@v4
         with:
           name: performance-trends
           path: reports/performance
         continue-on-error: true
-        
+
       - name: 📥 Download alerts
         uses: actions/download-artifact@v4
         with:
           name: performance-alerts
           path: reports/performance
         continue-on-error: true
-        
+
       # Generate dashboard
       - name: 🎨 Generate performance dashboard
         run: |
           echo "🎨 Generating performance dashboard..."
-          
+
           # Generate the HTML dashboard
           node scripts/test-performance-dashboard.js --generate --output ./reports/performance
-          
+
           if [ -f "reports/performance/dashboard.html" ]; then
             echo "✅ Dashboard generated successfully"
           else
             echo "❌ Dashboard generation failed"
             exit 1
           fi
-          
+
       # Upload dashboard
       - name: 📤 Upload performance dashboard
         uses: actions/upload-artifact@v4
@@ -365,7 +355,7 @@ ${criticalAlerts.map(alert => `
           name: performance-dashboard
           path: reports/performance/dashboard.html
           retention-days: 30
-          
+
       # Deploy dashboard to GitHub Pages (optional)
       - name: 🚀 Deploy to GitHub Pages
         if: github.ref == 'refs/heads/main'
@@ -382,7 +372,7 @@ ${criticalAlerts.map(alert => `
     runs-on: ubuntu-latest
     needs: [collect-metrics, analyze-trends, check-alerts, generate-dashboard]
     if: always()
-    
+
     steps:
       - name: 📊 Generate monitoring summary
         run: |
@@ -393,7 +383,7 @@ ${criticalAlerts.map(alert => `
           echo "**Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Date**: $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Metrics collection status
           if [ "${{ needs.collect-metrics.result }}" = "success" ]; then
             echo "✅ **Metrics Collection**: Completed" >> $GITHUB_STEP_SUMMARY
@@ -403,7 +393,7 @@ ${criticalAlerts.map(alert => `
           else
             echo "⏭️ **Metrics Collection**: Skipped" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Trend analysis status
           if [ "${{ needs.analyze-trends.result }}" = "success" ]; then
             echo "✅ **Trend Analysis**: Completed" >> $GITHUB_STEP_SUMMARY
@@ -417,7 +407,7 @@ ${criticalAlerts.map(alert => `
           else
             echo "⏭️ **Trend Analysis**: Skipped" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Alert checking status
           if [ "${{ needs.check-alerts.result }}" = "success" ]; then
             echo "✅ **Alert Checking**: Completed" >> $GITHUB_STEP_SUMMARY
@@ -436,7 +426,7 @@ ${criticalAlerts.map(alert => `
           else
             echo "⏭️ **Alert Checking**: Skipped" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Dashboard generation status
           if [ "${{ needs.generate-dashboard.result }}" = "success" ]; then
             echo "✅ **Dashboard Generation**: Completed" >> $GITHUB_STEP_SUMMARY
@@ -446,12 +436,12 @@ ${criticalAlerts.map(alert => `
           else
             echo "⏭️ **Dashboard Generation**: Skipped" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Overall status and recommendations
           CRITICAL_ALERTS="${{ needs.check-alerts.outputs.critical-alerts }}"
-          
+
           if [ "$CRITICAL_ALERTS" -gt 0 ]; then
             echo "## 🚨 Action Required" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -466,7 +456,7 @@ ${criticalAlerts.map(alert => `
             echo "All performance metrics are within acceptable thresholds." >> $GITHUB_STEP_SUMMARY
             echo "Continue monitoring for any degradation trends." >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 Resources" >> $GITHUB_STEP_SUMMARY
           echo "- [Performance Dashboard Artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
