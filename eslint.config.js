@@ -6,6 +6,13 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import prettier from 'eslint-plugin-prettier';
 import prettierConfig from 'eslint-config-prettier';
+import unicorn from 'eslint-plugin-unicorn';
+import security from 'eslint-plugin-security';
+import sonarjs from 'eslint-plugin-sonarjs';
+import complexity from 'eslint-plugin-complexity';
+import noLoops from 'eslint-plugin-no-loops';
+import preferArrow from 'eslint-plugin-prefer-arrow';
+import promise from 'eslint-plugin-promise';
 
 export default [
   // Ignore patterns
@@ -79,6 +86,13 @@ export default [
       'react-hooks': reactHooks,
       'jsx-a11y': jsxA11y,
       prettier: prettier,
+      unicorn: unicorn,
+      security: security,
+      sonarjs: sonarjs,
+      complexity: complexity,
+      'no-loops': noLoops,
+      'prefer-arrow': preferArrow,
+      promise: promise,
     },
     settings: {
       react: {
@@ -107,6 +121,79 @@ export default [
       'no-console': 'warn',
       'no-debugger': 'error',
       'prefer-const': 'error',
+
+      // Enhanced quality rules
+      // Unicorn rules for modern JavaScript (validated rules)
+      'unicorn/better-regex': 'error',
+      'unicorn/catch-error-name': 'error',
+      'unicorn/consistent-destructuring': 'warn',
+      'unicorn/explicit-length-check': 'error',
+      'unicorn/filename-case': ['error', { case: 'camelCase' }],
+      'unicorn/no-console-spaces': 'error',
+      'unicorn/no-for-loop': 'warn',
+      'unicorn/prefer-array-some': 'error',
+      'unicorn/prefer-includes': 'error',
+      'unicorn/prefer-string-starts-ends-with': 'error',
+      'unicorn/throw-new-error': 'error',
+
+      // Security rules
+      'security/detect-object-injection': 'warn',
+      'security/detect-non-literal-regexp': 'warn',
+      'security/detect-unsafe-regex': 'error',
+      'security/detect-buffer-noassert': 'error',
+      'security/detect-child-process': 'warn',
+      'security/detect-disable-mustache-escape': 'error',
+      'security/detect-eval-with-expression': 'error',
+      'security/detect-no-csrf-before-method-override': 'error',
+      'security/detect-pseudoRandomBytes': 'warn',
+
+      // SonarJS complexity and bug detection
+      'sonarjs/cognitive-complexity': ['error', 15],
+      'sonarjs/max-switch-cases': ['error', 10],
+      'sonarjs/no-all-duplicated-branches': 'error',
+      'sonarjs/no-collapsible-if': 'error',
+      'sonarjs/no-collection-size-mischeck': 'error',
+      'sonarjs/no-duplicate-string': ['error', { threshold: 5 }],
+      'sonarjs/no-duplicated-branches': 'error',
+      'sonarjs/no-identical-conditions': 'error',
+      'sonarjs/no-identical-expressions': 'error',
+      'sonarjs/no-inverted-boolean-check': 'error',
+      'sonarjs/no-redundant-boolean': 'error',
+      'sonarjs/no-redundant-jump': 'error',
+      'sonarjs/no-same-line-conditional': 'error',
+      'sonarjs/no-small-switch': 'error',
+      'sonarjs/no-unused-collection': 'error',
+      'sonarjs/no-useless-catch': 'error',
+      'sonarjs/prefer-immediate-return': 'error',
+      'sonarjs/prefer-object-literal': 'error',
+      'sonarjs/prefer-single-boolean-return': 'error',
+
+      // Complexity rules
+      complexity: ['error', 10],
+      'max-depth': ['error', 4],
+      'max-nested-callbacks': ['error', 3],
+      'max-params': ['error', 4],
+
+      // Modern JavaScript patterns
+      'no-loops/no-loops': 'warn',
+      'prefer-arrow/prefer-arrow-functions': [
+        'warn',
+        {
+          disallowPrototype: true,
+          singleReturnOnly: false,
+          classPropertiesAllowed: false,
+        },
+      ],
+
+      // Promise rules
+      'promise/always-return': 'error',
+      'promise/no-return-wrap': 'error',
+      'promise/param-names': 'error',
+      'promise/catch-or-return': 'error',
+      'promise/no-nesting': 'warn',
+      'promise/no-promise-in-callback': 'warn',
+      'promise/no-callback-in-promise': 'warn',
+      'promise/avoid-new': 'warn',
     },
   },
 
@@ -135,6 +222,13 @@ export default [
       'react-hooks': reactHooks,
       'jsx-a11y': jsxA11y,
       prettier: prettier,
+      unicorn: unicorn,
+      security: security,
+      sonarjs: sonarjs,
+      complexity: complexity,
+      'no-loops': noLoops,
+      'prefer-arrow': preferArrow,
+      promise: promise,
     },
     settings: {
       react: {
@@ -168,6 +262,74 @@ export default [
       'no-debugger': 'error',
       'prefer-const': 'error',
       'no-case-declarations': 'error',
+
+      // Enhanced TypeScript-specific quality rules
+      // Unicorn rules (TypeScript compatible, validated)
+      'unicorn/better-regex': 'error',
+      'unicorn/catch-error-name': 'error',
+      'unicorn/consistent-destructuring': 'warn',
+      'unicorn/explicit-length-check': 'error',
+      'unicorn/no-console-spaces': 'error',
+      'unicorn/no-for-loop': 'warn',
+      'unicorn/prefer-array-some': 'error',
+      'unicorn/prefer-includes': 'error',
+      'unicorn/prefer-string-starts-ends-with': 'error',
+      'unicorn/throw-new-error': 'error',
+
+      // Security rules for TypeScript
+      'security/detect-object-injection': 'warn',
+      'security/detect-non-literal-regexp': 'warn',
+      'security/detect-unsafe-regex': 'error',
+      'security/detect-buffer-noassert': 'error',
+      'security/detect-child-process': 'warn',
+      'security/detect-eval-with-expression': 'error',
+
+      // SonarJS complexity and bug detection (TypeScript optimized)
+      'sonarjs/cognitive-complexity': ['error', 12], // Stricter for TS
+      'sonarjs/max-switch-cases': ['error', 8],
+      'sonarjs/no-all-duplicated-branches': 'error',
+      'sonarjs/no-collapsible-if': 'error',
+      'sonarjs/no-collection-size-mischeck': 'error',
+      'sonarjs/no-duplicate-string': ['error', { threshold: 3 }], // Stricter for TS
+      'sonarjs/no-duplicated-branches': 'error',
+      'sonarjs/no-identical-conditions': 'error',
+      'sonarjs/no-identical-expressions': 'error',
+      'sonarjs/no-inverted-boolean-check': 'error',
+      'sonarjs/no-redundant-boolean': 'error',
+      'sonarjs/no-redundant-jump': 'error',
+      'sonarjs/no-same-line-conditional': 'error',
+      'sonarjs/no-small-switch': 'error',
+      'sonarjs/no-unused-collection': 'error',
+      'sonarjs/no-useless-catch': 'error',
+      'sonarjs/prefer-immediate-return': 'error',
+      'sonarjs/prefer-object-literal': 'error',
+      'sonarjs/prefer-single-boolean-return': 'error',
+
+      // Complexity rules (stricter for TypeScript)
+      complexity: ['error', 8], // Lower for TS due to better type safety
+      'max-depth': ['error', 3],
+      'max-nested-callbacks': ['error', 3],
+      'max-params': ['error', 3], // Stricter for TS, encourage object params
+
+      // Modern patterns (TypeScript specific)
+      'no-loops/no-loops': 'warn',
+      'prefer-arrow/prefer-arrow-functions': [
+        'warn',
+        {
+          disallowPrototype: true,
+          singleReturnOnly: false,
+          classPropertiesAllowed: false,
+        },
+      ],
+
+      // Promise rules (TypeScript optimized)
+      'promise/always-return': 'error',
+      'promise/no-return-wrap': 'error',
+      'promise/param-names': 'error',
+      'promise/catch-or-return': 'error',
+      'promise/no-nesting': 'error', // Stricter for TS
+      'promise/no-promise-in-callback': 'error',
+      'promise/no-callback-in-promise': 'error',
     },
   },
 
