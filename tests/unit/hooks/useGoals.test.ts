@@ -628,6 +628,377 @@ describe('useGoals', () => {
     });
   });
 
+  describe('Concurrent Operations', () => {
+    it('handles concurrent createGoal and fetchGoals operations', async () => {
+      const newGoal = createMockGoal({ id: 'concurrent-goal-1' });
+
+      // Mock initial goals fetch (returns empty initially)
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
+      });
+
+      // Mock create goal
+      mockApiPost.mockResolvedValueOnce({
+        data: newGoal,
+        status: 201,
+        headers: new Headers(),
+      });
+
+      // Mock progress refresh calls
+      mockApiGet.mockResolvedValue({
+        data: [],
+        status: 200,
+        headers: new Headers(),
+      });
+
+      const { result } = renderHook(() => useGoals(mockToken));
+
+      // Wait for initial load
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Create a goal
+      await act(async () => {
+        await result.current.createGoal(mockCreateGoalData);
+      });
+
+      // Should have the newly created goal in state
+      expect(result.current.goals).toHaveLength(1);
+      expect(result.current.goals).toContainEqual(newGoal);
+
+      // Now simulate a concurrent operation - refetch while we have local state
+      mockApiGet.mockResolvedValueOnce({
+        data: [mockGoals[0]], // Server returns a different goal
+        status: 200,
+        headers: new Headers(),
+      });
+
+      await act(async () => {
+        await result.current.fetchGoals();
+      });
+
+      // After refetch, should have the server data (replaces local state)
+      expect(result.current.goals).toHaveLength(1);
+      expect(result.current.goals).toContainEqual(mockGoals[0]);
+    });
+
+    it('handles rapid successive updateGoal calls', async () => {
+      const existingGoal = mockGoals[0];
+      const update1 = { title: 'Update 1' };
+      const update2 = { title: 'Update 2' };
+
+      // Mock initial goals fetch
+      mockApiGet.mockResolvedValueOnce({
+        data: [existingGoal],
+        status: 200,
+        headers: new Headers(),
+      });
+
+      // Mock progress fetch
+      mockApiGet.mockResolvedValue({
+        data: [],
+        status: 200,
+        headers: new Headers(),
+      });
+
+      // Mock update calls
+      mockApiPut.mockImplementation((url, data) => {
+        return Promise.resolve({
+          data: { ...existingGoal, ...data },
+          status: 200,
+          headers: new Headers(),
+        });
+      });
+
+      const { result } = renderHook(() => useGoals(mockToken));
+
+      await waitFor(() => {
+        expect(result.current.goals).toContain(existingGoal);
+      });
+
+      // Perform rapid successive updates
+      await act(async () => {
+        const promise1 = result.current.updateGoal(existingGoal.id, update1);
+        const promise2 = result.current.updateGoal(existingGoal.id, update2);
+        await Promise.all([promise1, promise2]);
+      });
+
+      // Final state should reflect the last update
+      const updatedGoal = result.current.goals.find(g => g.id === existingGoal.id);
+      expect(updatedGoal?.title).toBe('Update 2');
+    });
+
+    it('handles create followed immediately by delete', async () => {
+      const newGoal = createMockGoal({ id: 'temp-goal' });
+
+      // Mock initial goals fetch
+      mockApiGet.mockResolvedValueOnce({
+        data: [],
+        status: 200,
+        headers: new Headers(),
+      });
+
+      // Mock create goal
+      mockApiPost.mockResolvedValueOnce({
+        data: newGoal,
+        status: 201,
+        headers: new Headers(),
+      });
+
+      // Mock delete goal
+      mockApiDelete.mockResolvedValueOnce({
+        data: {},
+        status: 200,
+        headers: new Headers(),
+      });
+
+      // Mock progress refresh
+      mockApiGet.mockResolvedValue({
+        data: [],
+        status: 200,
+        headers: new Headers(),
+      });
+
+      const { result } = renderHook(() => useGoals(mockToken));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.createGoal(mockCreateGoalData);
+        await result.current.deleteGoal(newGoal.id);
+      });
+
+      expect(result.current.goals).not.toContain(newGoal);
+    });
+  });
+
+  describe('Token Expiration Scenarios', () => {
+    it('handles token expiration during API call with retry', async () => {
+      let callCount = 0;
+      
+      // Mock first call to fail with 401, second to succeed
+      mockApiGet.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          const error = new Error('Authentication failed. Please log in again.');
+          (error as any).status = 401;
+          return Promise.reject(error);
+        }
+        return Promise.resolve({
+          data: mockGoals,
+          status: 200,
+          headers: new Headers(),
+        });
+      });
+
+      const { result } = renderHook(() => useGoals(mockToken));
+
+      // Should initially fail and show error
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+      
+      expect(result.current.error).toBe('Authentication failed. Please log in again.');
+      expect(result.current.goals).toEqual([]);
+
+      // Retry should succeed
+      await act(async () => {
+        await result.current.fetchGoals();
+      });
+
+      expect(result.current.error).toBe(null);
+      expect(result.current.goals).toEqual(mockGoals);
+    });
+  });
+
+  describe('Complex Error Scenarios', () => {
+    it('handles partial success - fetchGoals succeeds but refreshProgress fails', async () => {
+      // Mock fetchGoals success
+      mockApiGet.mockResolvedValueOnce({
+        data: mockGoals,
+        status: 200,
+        headers: new Headers(),
+      });
+
+      // Mock refreshProgress failure
+      mockApiGet.mockRejectedValueOnce(new Error('Progress fetch failed'));
+
+      const { result } = renderHook(() => useGoals(mockToken));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Goals should be loaded successfully
+      expect(result.current.goals).toEqual(mockGoals);
+      expect(result.current.error).toBe(null); // Progress errors don't set error state
+      expect(result.current.goalProgress).toEqual([]); // Progress remains empty
+    });
+
+    it('handles malformed API data gracefully', async () => {
+      // Mock API returning malformed data
+      mockApiGet.mockResolvedValueOnce({
+        data: null, // Malformed data
+        status: 200,
+        headers: new Headers(),
+      });
+
+      const { result } = renderHook(() => useGoals(mockToken));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Should handle null data gracefully
+      expect(result.current.goals).toEqual([]);
+      expect(result.current.error).toBe(null);
+    });
+
+    it('handles network interruption simulation', async () => {
+      let callCount = 0;
+      
+      // Simulate network failure then recovery
+      mockApiGet.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.reject(new Error('Network error: Failed to fetch'));
+        }
+        return Promise.resolve({
+          data: mockGoals,
+          status: 200,
+          headers: new Headers(),
+        });
+      });
+
+      const { result } = renderHook(() => useGoals(mockToken));
+
+      // Wait for initial failure
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+      
+      expect(result.current.error).toBe('Network error: Failed to fetch');
+
+      // Retry after 'network recovery'
+      await act(async () => {
+        await result.current.fetchGoals();
+      });
+
+      expect(result.current.error).toBe(null);
+      expect(result.current.goals).toEqual(mockGoals);
+    });
+  });
+
+  describe('State Transition Edge Cases', () => {
+    it('handles completing an already completed goal idempotently', async () => {
+      const completedGoal = { ...mockGoals[0], isCompleted: true };
+
+      // Mock initial goals fetch
+      mockApiGet.mockResolvedValueOnce({
+        data: [completedGoal],
+        status: 200,
+        headers: new Headers(),
+      });
+
+      // Mock progress fetch
+      mockApiGet.mockResolvedValue({
+        data: [],
+        status: 200,
+        headers: new Headers(),
+      });
+
+      // Mock complete goal - should handle already completed goal
+      mockApiPost.mockResolvedValueOnce({
+        data: completedGoal,
+        status: 200,
+        headers: new Headers(),
+      });
+
+      const { result } = renderHook(() => useGoals(mockToken));
+
+      await waitFor(() => {
+        expect(result.current.goals).toContain(completedGoal);
+      });
+
+      // Complete already completed goal - should not throw
+      let resultGoal;
+      await act(async () => {
+        resultGoal = await result.current.completeGoal(completedGoal.id);
+      });
+
+      expect(resultGoal).toEqual(completedGoal);
+      expect(result.current.goals.find(g => g.id === completedGoal.id)?.isCompleted).toBe(true);
+    });
+
+    it('handles markAchievementSeen with non-existent goal ID', async () => {
+      const { result } = renderHook(() => useGoals(mockToken));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Should not crash when marking non-existent achievement as seen
+      expect(() => {
+        act(() => {
+          result.current.markAchievementSeen('non-existent-goal-id');
+        });
+      }).not.toThrow();
+    });
+
+    it('handles update followed immediately by delete', async () => {
+      const existingGoal = mockGoals[0];
+      const updatedGoal = { ...existingGoal, title: 'Updated Title' };
+
+      // Mock initial goals fetch
+      mockApiGet.mockResolvedValueOnce({
+        data: [existingGoal],
+        status: 200,
+        headers: new Headers(),
+      });
+
+      // Mock progress fetch
+      mockApiGet.mockResolvedValue({
+        data: [],
+        status: 200,
+        headers: new Headers(),
+      });
+
+      // Mock update goal
+      mockApiPut.mockResolvedValueOnce({
+        data: updatedGoal,
+        status: 200,
+        headers: new Headers(),
+      });
+
+      // Mock delete goal
+      mockApiDelete.mockResolvedValueOnce({
+        data: {},
+        status: 200,
+        headers: new Headers(),
+      });
+
+      const { result } = renderHook(() => useGoals(mockToken));
+
+      await waitFor(() => {
+        expect(result.current.goals).toContain(existingGoal);
+      });
+
+      // Update then immediately delete
+      await act(async () => {
+        await result.current.updateGoal(existingGoal.id, { title: 'Updated Title' });
+        await result.current.deleteGoal(existingGoal.id);
+      });
+
+      expect(result.current.goals).not.toContain(existingGoal);
+      expect(result.current.goals).not.toContain(updatedGoal);
+    });
+  });
+
   describe('Error Handling', () => {
     it('handles missing authentication token', async () => {
       // Clear localStorage to simulate no token available

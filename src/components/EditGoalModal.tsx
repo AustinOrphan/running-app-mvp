@@ -55,16 +55,18 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
         targetUnit: goal.targetUnit,
         startDate: new Date(goal.startDate).toISOString().split('T')[0],
         endDate: new Date(goal.endDate).toISOString().split('T')[0],
-        color: goal.color || GOAL_TYPE_CONFIGS[goal.type].color,
-        icon: goal.icon || GOAL_TYPE_CONFIGS[goal.type].icon,
+        color: goal.color || GOAL_TYPE_CONFIGS[goal.type as keyof typeof GOAL_TYPE_CONFIGS].color,
+        icon: goal.icon || GOAL_TYPE_CONFIGS[goal.type as keyof typeof GOAL_TYPE_CONFIGS].icon,
       });
     }
   }, [goal]);
 
   // Calculate default end date based on period
   const calculateEndDate = (startDate: string, period: GoalPeriod): string => {
+    if (!startDate) return '';
     const start = new Date(startDate);
-    const periodConfig = GOAL_PERIOD_CONFIGS[period];
+    if (Number.isNaN(start.getTime())) return '';
+    const periodConfig = GOAL_PERIOD_CONFIGS[period as keyof typeof GOAL_PERIOD_CONFIGS];
 
     if (periodConfig.duration) {
       const end = new Date(start);
@@ -80,7 +82,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
 
   // Update form data when goal type changes
   const handleTypeChange = (type: GoalType) => {
-    const config = GOAL_TYPE_CONFIGS[type];
+    const config = GOAL_TYPE_CONFIGS[type as keyof typeof GOAL_TYPE_CONFIGS];
     setFormData(prev => ({
       ...prev,
       type,
@@ -125,32 +127,31 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
     }
   };
 
+  const validateTitleAndTarget = (errors: Record<string, string>): void => {
+    if (!formData.title.trim()) {
+      errors.title = 'Goal title is required';
+    }
+    if (!formData.targetValue || Number.parseFloat(formData.targetValue) <= 0) {
+      errors.targetValue = 'Target value must be a positive number';
+    }
+  };
+
+  const validateDates = (errors: Record<string, string>): void => {
+    if (!formData.startDate) {
+      errors.startDate = 'Start date is required';
+    }
+    if (!formData.endDate) {
+      errors.endDate = 'End date is required';
+    }
+    if (formData.startDate && formData.endDate && formData.startDate >= formData.endDate) {
+      errors.endDate = 'End date must be after start date';
+    }
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
-    if (!formData.title.trim()) {
-      newErrors.title = 'Goal title is required';
-    }
-
-    if (!formData.targetValue || Number.parseFloat(formData.targetValue) <= 0) {
-      newErrors.targetValue = 'Target value must be a positive number';
-    }
-
-    if (!formData.startDate) {
-      newErrors.startDate = 'Start date is required';
-    }
-
-    if (!formData.endDate) {
-      newErrors.endDate = 'End date is required';
-    }
-
-    if (formData.startDate && formData.endDate && formData.startDate >= formData.endDate) {
-      newErrors.endDate = 'End date must be after start date';
-    }
-
-    // Allow historical start dates for goal editing
-    // Users may need to adjust goal periods or correct initial dates
-
+    validateTitleAndTarget(newErrors);
+    validateDates(newErrors);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -195,7 +196,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
 
   if (!isOpen || !goal) return null;
 
-  const selectedConfig = GOAL_TYPE_CONFIGS[formData.type];
+  const selectedConfig = GOAL_TYPE_CONFIGS[formData.type as keyof typeof GOAL_TYPE_CONFIGS];
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title='Edit Goal' size='large'>
@@ -237,7 +238,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
             disabled={goal.isCompleted} // Prevent changing type of completed goals
           >
             {Object.values(GOAL_TYPES).map(type => {
-              const config = GOAL_TYPE_CONFIGS[type];
+              const config = GOAL_TYPE_CONFIGS[type as keyof typeof GOAL_TYPE_CONFIGS];
               return (
                 <option key={type} value={type}>
                   {config.icon} {config.label}
@@ -298,7 +299,7 @@ export const EditGoalModal: React.FC<EditGoalModalProps> = ({
             onChange={e => handlePeriodChange(e.target.value as GoalPeriod)}
           >
             {Object.values(GOAL_PERIODS).map(period => {
-              const config = GOAL_PERIOD_CONFIGS[period];
+              const config = GOAL_PERIOD_CONFIGS[period as keyof typeof GOAL_PERIOD_CONFIGS];
               return (
                 <option key={period} value={period}>
                   {config.label}
