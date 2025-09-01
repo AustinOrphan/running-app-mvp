@@ -9,8 +9,105 @@ import {
 } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
+import { verifyGoalOwnership, ResourceAuthRequest } from '../middleware/ownershipMiddleware.js';
 import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../../src/types/goals.js';
+import { calculateGoalProgress, calculateGoalProgressData } from '../utils/goalUtils.js';
 
+// Validation utilities for goal operations
+interface GoalUpdateData {
+  title?: string;
+  description?: string | null;
+  type?: string;
+  period?: string;
+  targetValue?: number;
+  targetUnit?: string;
+  startDate?: Date;
+  endDate?: Date;
+  color?: string;
+  icon?: string;
+  isActive?: boolean;
+  currentValue?: number;
+}
+
+const validateGoalUpdateData = (data: GoalUpdateData): void => {
+  const { type, period, startDate, endDate, targetValue, currentValue } = data;
+
+  // Validate type if provided
+  if (type && !Object.values(GOAL_TYPES).includes(type as GoalType)) {
+    throw createValidationError('Invalid goal type', 'type');
+  }
+
+  if (period && !Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
+    throw createValidationError('Invalid goal period', 'period');
+  }
+
+  // Validate dates if both are provided
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (start >= end) {
+      throw createValidationError('End date must be after start date', 'endDate');
+    }
+  }
+
+  if (targetValue !== undefined && targetValue <= 0) {
+    throw createValidationError('Target value must be positive', 'targetValue');
+  }
+
+  if (currentValue !== undefined && currentValue < 0) {
+    throw createValidationError('Current value cannot be negative', 'currentValue');
+  }
+};
+
+const buildGoalUpdateData = (requestBody: any): Record<string, unknown> => {
+  const {
+    title,
+    description,
+    type,
+    period,
+    targetValue,
+    targetUnit,
+    startDate,
+    endDate,
+    color,
+    icon,
+    isActive,
+    currentValue,
+  } = requestBody;
+
+  return {
+    ...(title && { title: title.trim() }),
+    ...(description !== undefined && { description: description?.trim() }),
+    ...(type && { type }),
+    ...(period && { period }),
+    ...(targetValue !== undefined && { targetValue: Number.parseFloat(targetValue) }),
+    ...(targetUnit && { targetUnit }),
+    ...(startDate && { startDate: new Date(startDate) }),
+    ...(endDate && { endDate: new Date(endDate) }),
+    ...(color !== undefined && { color }),
+    ...(icon !== undefined && { icon }),
+    ...(isActive !== undefined && { isActive }),
+    ...(currentValue !== undefined && { currentValue: Number.parseFloat(currentValue) }),
+  };
+};
+
+const handleGoalAutoCompletion = (
+  updateData: Record<string, unknown>,
+  currentValue: number | undefined,
+  targetValue: number | undefined,
+  existingGoal: any
+): void => {
+  if (currentValue !== undefined) {
+    const newCurrentValue = Number.parseFloat(currentValue.toString());
+    const goalTargetValue =
+      targetValue !== undefined ? Number.parseFloat(targetValue.toString()) : existingGoal.targetValue;
+
+    if (newCurrentValue >= goalTargetValue && !existingGoal.isCompleted) {
+      updateData.isCompleted = true;
+      updateData.completedAt = new Date();
+    }
+  }
+};
 const router = express.Router();
 
 // Apply input sanitization to all goals routes
@@ -40,21 +137,10 @@ router.get(
 router.get(
   '/:id',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Check if goal exists AND belongs to user (combined for security)
-    const goal = await prisma.goal.findUnique({
-      where: { id: req.params.id },
-    });
-
-    if (!goal) {
-      throw createNotFoundError('Goal');
-    }
-
-    if (goal.userId !== req.user!.id) {
-      throw createForbiddenError('You do not have permission to access this goal');
-    }
-
-    res.json(goal);
+  verifyGoalOwnership,
+  asyncAuthHandler(async (req: ResourceAuthRequest, res) => {
+    // Resource is already verified by middleware
+    res.json(req.resource);
   })
 );
 
@@ -136,7 +222,8 @@ router.post(
 router.put(
   '/:id',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res) => {
+  verifyGoalOwnership,
+  asyncAuthHandler(async (req: ResourceAuthRequest, res) => {
     const goalId = req.params.id;
     const {
       title,
@@ -153,84 +240,27 @@ router.put(
       currentValue,
     } = req.body;
 
+    const existingGoal = req.resource; // Already verified by middleware
+
+    // Prevent editing completed goals
+    if (existingGoal.isCompleted) {
+      throw createValidationError('Cannot edit completed goals', 'isCompleted');
+    }
+
+    // Validate input data using extracted utility
+    validateGoalUpdateData(req.body);
+
     // Use transaction to ensure atomic updates
     const updatedGoal = await prisma.$transaction(async tx => {
-      // Check if goal exists first
-      const existingGoal = await tx.goal.findUnique({
-        where: { id: req.params.id },
-      });
+      // Build update data using extracted utility
+      const updateData = buildGoalUpdateData(req.body);
 
-      if (!existingGoal) {
-        throw createNotFoundError('Goal');
-      }
-
-      // Then check authorization
-      if (existingGoal.userId !== req.user!.id) {
-        throw createForbiddenError('You do not have permission to update this goal');
-      }
-
-      // Prevent editing completed goals
-      if (existingGoal.isCompleted) {
-        throw createValidationError('Cannot edit completed goals', 'isCompleted');
-      }
-
-      // Validate type if provided
-      if (type && !Object.values(GOAL_TYPES).includes(type as GoalType)) {
-        throw createValidationError('Invalid goal type', 'type');
-      }
-
-      if (period && !Object.values(GOAL_PERIODS).includes(period as GoalPeriod)) {
-        throw createValidationError('Invalid goal period', 'period');
-      }
-
-      // Validate dates if both are provided
-      if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        if (start >= end) {
-          throw createValidationError('End date must be after start date', 'endDate');
-        }
-      }
-
-      if (targetValue !== undefined && targetValue <= 0) {
-        throw createValidationError('Target value must be positive', 'targetValue');
-      }
-
-      if (currentValue !== undefined && currentValue < 0) {
-        throw createValidationError('Current value cannot be negative', 'currentValue');
-      }
-
-      // Prepare update data
-      const updateData: Record<string, unknown> = {
-        ...(title && { title: title.trim() }),
-        ...(description !== undefined && { description: description?.trim() }),
-        ...(type && { type }),
-        ...(period && { period }),
-        ...(targetValue !== undefined && { targetValue: Number.parseFloat(targetValue) }),
-        ...(targetUnit && { targetUnit }),
-        ...(startDate && { startDate: new Date(startDate) }),
-        ...(endDate && { endDate: new Date(endDate) }),
-        ...(color !== undefined && { color }),
-        ...(icon !== undefined && { icon }),
-        ...(isActive !== undefined && { isActive }),
-        ...(currentValue !== undefined && { currentValue: Number.parseFloat(currentValue) }),
-      };
-
-      // Auto-complete goal if currentValue reaches or exceeds targetValue
-      if (currentValue !== undefined) {
-        const newCurrentValue = Number.parseFloat(currentValue);
-        const goalTargetValue =
-          targetValue !== undefined ? Number.parseFloat(targetValue) : existingGoal.targetValue;
-
-        if (newCurrentValue >= goalTargetValue && !existingGoal.isCompleted) {
-          updateData.isCompleted = true;
-          updateData.completedAt = new Date();
-        }
-      }
+      // Handle auto-completion using extracted utility
+      handleGoalAutoCompletion(updateData, currentValue, targetValue, existingGoal);
 
       // Update goal within transaction
       return await tx.goal.update({
-        where: { id: goalId },
+        where: { id: existingGoal.id },
         data: updateData,
       });
     });
@@ -243,23 +273,12 @@ router.put(
 router.delete(
   '/:id',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res) => {
+  verifyGoalOwnership,
+  asyncAuthHandler(async (req: ResourceAuthRequest, res) => {
+    const goal = req.resource; // Already verified by middleware
+
     // Use transaction for atomic soft delete
     await prisma.$transaction(async tx => {
-      // Check if goal exists first
-      const goal = await tx.goal.findUnique({
-        where: { id: req.params.id },
-      });
-
-      if (!goal) {
-        throw createNotFoundError('Goal');
-      }
-
-      // Then check authorization
-      if (goal.userId !== req.user!.id) {
-        throw createForbiddenError('You do not have permission to delete this goal');
-      }
-
       // Soft delete by setting isActive to false
       await tx.goal.update({
         where: { id: goal.id },
@@ -275,32 +294,21 @@ router.delete(
 router.post(
   '/:id/complete',
   requireAuth,
-  asyncAuthHandler(async (req: AuthRequest, res) => {
+  verifyGoalOwnership,
+  asyncAuthHandler(async (req: ResourceAuthRequest, res) => {
+    const goal = req.resource; // Already verified by middleware
+
+    // Check if goal is active
+    if (!goal.isActive) {
+      throw createNotFoundError('Goal');
+    }
+
+    if (goal.isCompleted) {
+      throw createValidationError('Goal is already completed', 'isCompleted');
+    }
+
     // Use transaction for atomic completion
     const completedGoal = await prisma.$transaction(async tx => {
-      // Check if goal exists first
-      const goal = await tx.goal.findUnique({
-        where: { id: req.params.id },
-      });
-
-      if (!goal) {
-        throw createNotFoundError('Goal');
-      }
-
-      // Then check authorization
-      if (goal.userId !== req.user!.id) {
-        throw createForbiddenError('You do not have permission to complete this goal');
-      }
-
-      // Check if goal is active
-      if (!goal.isActive) {
-        throw createNotFoundError('Goal');
-      }
-
-      if (goal.isCompleted) {
-        throw createValidationError('Goal is already completed', 'isCompleted');
-      }
-
       // Mark as completed
       return await tx.goal.update({
         where: { id: goal.id },
@@ -329,93 +337,14 @@ router.get(
       },
     });
 
-    // Calculate progress for each goal
+    // Calculate progress for each goal using utility
     const progressData = await Promise.all(
-      goals.map(async goal => {
-        const currentValue = await calculateGoalProgress(goal, req.user!.id);
-        const progressPercentage = Math.min((currentValue / goal.targetValue) * 100, 100);
-        const remainingValue = Math.max(goal.targetValue - currentValue, 0);
-
-        const now = new Date();
-        const daysRemaining = Math.max(
-          Math.ceil((goal.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
-          0
-        );
-
-        return {
-          goalId: goal.id,
-          currentValue,
-          progressPercentage,
-          isCompleted: currentValue >= goal.targetValue,
-          remainingValue,
-          daysRemaining,
-          goal,
-        };
-      })
+      goals.map(goal => calculateGoalProgressData(goal, req.user!.id))
     );
 
     res.json(progressData);
   })
 );
 
-// Helper function to calculate current progress for a goal
-async function calculateGoalProgress(
-  goal: {
-    id: string;
-    type: string;
-    title: string;
-    description?: string | null;
-    targetValue: number;
-    targetUnit: string;
-    startDate: Date;
-    endDate: Date;
-    isCompleted: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-    userId: string;
-  },
-  userId: string
-): Promise<number> {
-  const runs = await prisma.run.findMany({
-    where: {
-      userId,
-      date: {
-        gte: goal.startDate,
-        lte: goal.endDate,
-      },
-    },
-  });
-
-  switch (goal.type) {
-    case GOAL_TYPES.DISTANCE:
-      return runs.reduce((total, run) => total + run.distance, 0);
-
-    case GOAL_TYPES.TIME: {
-      const totalMinutes = runs.reduce((total, run) => total + run.duration, 0);
-      return goal.targetUnit === 'hours' ? totalMinutes / 60 : totalMinutes;
-    }
-
-    case GOAL_TYPES.FREQUENCY:
-      return runs.length;
-
-    case GOAL_TYPES.PACE: {
-      if (runs.length === 0) {
-        return 0;
-      }
-      return (
-        runs.reduce((total, run) => {
-          const pace = run.distance > 0 ? run.duration / run.distance : 0;
-          return total + pace;
-        }, 0) / runs.length
-      );
-    }
-
-    case GOAL_TYPES.LONGEST_RUN:
-      return runs.length > 0 ? Math.max(...runs.map(run => run.distance)) : 0;
-
-    default:
-      return 0;
-  }
-}
 
 export default router;

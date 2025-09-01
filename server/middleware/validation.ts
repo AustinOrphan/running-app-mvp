@@ -118,10 +118,10 @@ export const createGoalSchema = z
       .optional()
       .nullable(),
     type: z.enum(['DISTANCE', 'TIME', 'FREQUENCY', 'PACE', 'LONGEST_RUN'], {
-      errorMap: () => ({ message: 'Invalid goal type' }),
+      error: 'Invalid goal type',
     }),
     period: z.enum(['WEEKLY', 'MONTHLY', 'YEARLY', 'CUSTOM'], {
-      errorMap: () => ({ message: 'Invalid goal period' }),
+      error: 'Invalid goal period',
     }),
     targetValue: positiveNumberSchema,
     targetUnit: z
@@ -159,12 +159,12 @@ export const updateGoalSchema = z
       .nullable(),
     type: z
       .enum(['DISTANCE', 'TIME', 'FREQUENCY', 'PACE', 'LONGEST_RUN'], {
-        errorMap: () => ({ message: 'Invalid goal type' }),
+        error: 'Invalid goal type',
       })
       .optional(),
     period: z
       .enum(['WEEKLY', 'MONTHLY', 'YEARLY', 'CUSTOM'], {
-        errorMap: () => ({ message: 'Invalid goal period' }),
+        error: 'Invalid goal period',
       })
       .optional(),
     targetValue: positiveNumberSchema.optional(),
