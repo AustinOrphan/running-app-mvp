@@ -1,0 +1,72 @@
+=== UNTRACKED DUPLICATE FILE ANALYSIS ===
+
+Analyzing retryUtils:
+  EXACT: retryUtils 2.ts
+  EXACT: retryUtils 3.ts
+  EXACT: retryUtils 4.ts
+
+Analyzing platformUtils:
+  EXACT: platformUtils 2.ts
+  EXACT: platformUtils 3.ts
+
+Analyzing testDataIsolationManager:
+  EXACT: testDataIsolationManager 2.ts
+  EXACT: testDataIsolationManager 3.ts
+  EXACT: testDataIsolationManager 4.ts
+
+Analyzing databaseIsolation:
+  DIFFERENT: databaseIsolation 2.ts
+  EXACT: databaseIsolation 3.ts
+  EXACT: databaseIsolation 4.ts
+
+=== REMAINING UNTRACKED DUPLICATES ===
+
+Analyzing inMemoryDb:
+  DIFFERENT: inMemoryDb 2.ts
+  EXACT: inMemoryDb 3.ts
+  EXACT: inMemoryDb 4.ts
+
+Analyzing validateRetryLimits:
+  EXACT: validateRetryLimits 2.ts
+  EXACT: validateRetryLimits 3.ts
+
+Analyzing transactionIsolation:
+  EXACT: transactionIsolation 2.ts
+  EXACT: transactionIsolation 3.ts
+
+Analyzing mockApiUtils:
+  EXACT: mockApiUtils 2.ts
+  EXACT: mockApiUtils 3.ts
+
+Analyzing dateTestUtils:
+  EXACT: dateTestUtils 2.ts
+  EXACT: dateTestUtils 3.ts
+  EXACT: dateTestUtils 4.ts
+
+Analyzing databaseCleanupManager:
+  EXACT: databaseCleanupManager 2.ts
+  EXACT: databaseCleanupManager 3.ts
+
+Analyzing applicationStateReset:
+  EXACT: applicationStateReset 2.ts
+  EXACT: applicationStateReset 3.ts
+
+Analyzing accessibilityTestUtils:
+  EXACT: accessibilityTestUtils 2.ts
+  EXACT: accessibilityTestUtils 3.ts
+
+Analyzing testCaching:
+  EXACT: testCaching 2.ts
+  EXACT: testCaching 3.ts
+  EXACT: testCaching 4.ts
+
+Analyzing connectionPoolManager:
+  EXACT: connectionPoolManager 2.ts
+  EXACT: connectionPoolManager 3.ts
+  EXACT: connectionPoolManager 4.ts
+
+Analyzing applicationStateManager:
+  EXACT: applicationStateManager 2.ts
+  EXACT: applicationStateManager 3.ts
+  EXACT: applicationStateManager 4.ts
+
