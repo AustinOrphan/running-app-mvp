@@ -1,17 +1,14 @@
-import express from 'express';
+import express, { NextFunction } from 'express';
 
-import { prisma } from '../../lib/prisma.js';
-import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import {
-  createNotFoundError,
-  createValidationError,
-  createForbiddenError,
-} from '../middleware/errorHandler.js';
+import prisma from '../prisma';
+import { Prisma } from '@prisma/client';
+import { asyncAuthHandler } from '../middleware/asyncHandler';
+import { createNotFoundError, createValidationError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { sanitizeInput } from '../middleware/validation.js';
 import { verifyGoalOwnership, ResourceAuthRequest } from '../middleware/ownershipMiddleware.js';
 import { GOAL_TYPES, GOAL_PERIODS, type GoalType, type GoalPeriod } from '../../src/types/goals.js';
-import { calculateGoalProgress, calculateGoalProgressData } from '../utils/goalUtils.js';
+import { calculateGoalProgressData } from '../utils/goalUtils';
 
 // Validation utilities for goal operations
 interface GoalUpdateData {
@@ -91,16 +88,19 @@ const buildGoalUpdateData = (requestBody: any): Record<string, unknown> => {
   };
 };
 
+interface ExistingGoal {
+  targetValue: number;
+  isCompleted: boolean;
+}
+
 const handleGoalAutoCompletion = (
   updateData: Record<string, unknown>,
   currentValue: number | undefined,
-  targetValue: number | undefined,
-  existingGoal: any
+  existingGoal: ExistingGoal
 ): void => {
   if (currentValue !== undefined) {
     const newCurrentValue = Number.parseFloat(currentValue.toString());
-    const goalTargetValue =
-      targetValue !== undefined ? Number.parseFloat(targetValue.toString()) : existingGoal.targetValue;
+    const goalTargetValue = existingGoal.targetValue;
 
     if (newCurrentValue >= goalTargetValue && !existingGoal.isCompleted) {
       updateData.isCompleted = true;
@@ -138,9 +138,10 @@ router.get(
   '/:id',
   requireAuth,
   verifyGoalOwnership,
-  asyncAuthHandler(async (req: ResourceAuthRequest, res) => {
-    // Resource is already verified by middleware
-    res.json(req.resource);
+  asyncAuthHandler(async (req: AuthRequest, res) => {
+    // Resource is already verified by middleware, cast req to ResourceAuthRequest
+    const resourceReq = req as ResourceAuthRequest;
+    res.json(resourceReq.resource);
   })
 );
 
@@ -193,7 +194,7 @@ router.post(
     }
 
     // Use transaction for atomic creation
-    const goal = await prisma.$transaction(async tx => {
+    const goal = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       return await tx.goal.create({
         data: {
           userId: req.user!.id,
@@ -223,24 +224,11 @@ router.put(
   '/:id',
   requireAuth,
   verifyGoalOwnership,
-  asyncAuthHandler(async (req: ResourceAuthRequest, res) => {
-    const goalId = req.params.id;
-    const {
-      title,
-      description,
-      type,
-      period,
-      targetValue,
-      targetUnit,
-      startDate,
-      endDate,
-      color,
-      icon,
-      isActive,
-      currentValue,
-    } = req.body;
+  asyncAuthHandler(async (req: AuthRequest, res) => {
+    const resourceReq = req as ResourceAuthRequest; // Cast to ResourceAuthRequest after ownership middleware
+    const { currentValue } = resourceReq.body;
 
-    const existingGoal = req.resource; // Already verified by middleware
+    const existingGoal = resourceReq.resource; // Already verified by middleware
 
     // Prevent editing completed goals
     if (existingGoal.isCompleted) {
@@ -248,15 +236,15 @@ router.put(
     }
 
     // Validate input data using extracted utility
-    validateGoalUpdateData(req.body);
+    validateGoalUpdateData(resourceReq.body);
 
     // Use transaction to ensure atomic updates
     const updatedGoal = await prisma.$transaction(async tx => {
       // Build update data using extracted utility
-      const updateData = buildGoalUpdateData(req.body);
+      const updateData = buildGoalUpdateData(resourceReq.body);
 
       // Handle auto-completion using extracted utility
-      handleGoalAutoCompletion(updateData, currentValue, targetValue, existingGoal);
+      handleGoalAutoCompletion(updateData, currentValue, existingGoal);
 
       // Update goal within transaction
       return await tx.goal.update({
@@ -274,8 +262,9 @@ router.delete(
   '/:id',
   requireAuth,
   verifyGoalOwnership,
-  asyncAuthHandler(async (req: ResourceAuthRequest, res) => {
-    const goal = req.resource; // Already verified by middleware
+  asyncAuthHandler(async (req: AuthRequest, res) => {
+    const resourceReq = req as ResourceAuthRequest; // Cast to ResourceAuthRequest after ownership middleware
+    const goal = resourceReq.resource; // Already verified by middleware
 
     // Use transaction for atomic soft delete
     await prisma.$transaction(async tx => {
@@ -295,8 +284,9 @@ router.post(
   '/:id/complete',
   requireAuth,
   verifyGoalOwnership,
-  asyncAuthHandler(async (req: ResourceAuthRequest, res) => {
-    const goal = req.resource; // Already verified by middleware
+  asyncAuthHandler(async (req: AuthRequest, res) => {
+    const resourceReq = req as ResourceAuthRequest; // Cast to ResourceAuthRequest after ownership middleware
+    const goal = resourceReq.resource; // Already verified by middleware
 
     // Check if goal is active
     if (!goal.isActive) {
@@ -345,6 +335,5 @@ router.get(
     res.json(progressData);
   })
 );
-
 
 export default router;

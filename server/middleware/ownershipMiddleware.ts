@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../lib/prisma.js';
+import { Response, NextFunction } from 'express';
+import prisma from '../prisma';
 import { createNotFoundError, createForbiddenError } from './errorHandler.js';
 import { AuthRequest } from './requireAuth.js';
 
@@ -18,55 +18,56 @@ interface OwnershipOptions {
  * Middleware to verify resource ownership
  * Attaches the resource to req.resource for use in route handlers
  */
+interface Resource {
+  id: string;
+  userId: string;
+  isActive?: boolean;
+  isCompleted?: boolean;
+  targetValue?: number;
+  [key: string]: any;
+}
+
+const fetchResource = async (
+  resourceType: OwnershipOptions['resourceType'],
+  resourceId: string
+): Promise<Resource | null> => {
+  switch (resourceType) {
+    case 'goal':
+      return (await prisma.goal.findUnique({ where: { id: resourceId } })) as Resource | null;
+    case 'run':
+      return (await prisma.run.findUnique({ where: { id: resourceId } })) as Resource | null;
+    case 'race':
+      return (await prisma.race.findUnique({ where: { id: resourceId } })) as Resource | null;
+    default:
+      throw new Error(`Unsupported resource type: ${resourceType}`);
+  }
+};
+
 export const verifyOwnership = (options: OwnershipOptions) => {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+  return async (req: AuthRequest, _res: Response, next: NextFunction) => {
     try {
       const { resourceType, paramName = 'id', allowOwnerOnly = true } = options;
       const resourceId = req.params[paramName];
       const userId = req.user!.id;
 
-      let resource;
-
-      // Fetch the resource based on type
-      switch (resourceType) {
-        case 'goal':
-          resource = await prisma.goal.findUnique({
-            where: { id: resourceId },
-          });
-          break;
-
-        case 'run':
-          resource = await prisma.run.findUnique({
-            where: { id: resourceId },
-          });
-          break;
-
-        case 'race':
-          resource = await prisma.race.findUnique({
-            where: { id: resourceId },
-          });
-          break;
-
-        default:
-          throw new Error(`Unsupported resource type: ${resourceType}`);
+      if (typeof resourceId !== 'string') {
+        throw new Error('Invalid resource ID provided.');
       }
+
+      const resource = await fetchResource(resourceType, resourceId);
 
       // Check if resource exists
       if (!resource) {
-        throw createNotFoundError(
-          resourceType.charAt(0).toUpperCase() + resourceType.slice(1)
-        );
+        throw createNotFoundError(resourceType.charAt(0).toUpperCase() + resourceType.slice(1));
       }
 
       // Check ownership if required
       if (allowOwnerOnly && resource.userId !== userId) {
-        throw createForbiddenError(
-          `You do not have permission to access this ${resourceType}`
-        );
+        throw createForbiddenError(`You do not have permission to access this ${resourceType}`);
       }
 
       // Attach resource to request for use in route handler
-      (req as any).resource = resource;
+      (req as ResourceAuthRequest).resource = resource;
       next();
     } catch (error) {
       next(error);
@@ -93,9 +94,5 @@ export const verifyRaceOwnership = verifyOwnership({ resourceType: 'race' });
  * Extended AuthRequest interface that includes the verified resource
  */
 export interface ResourceAuthRequest extends AuthRequest {
-  resource: {
-    id: string;
-    userId: string;
-    [key: string]: any;
-  };
+  resource: Resource;
 }

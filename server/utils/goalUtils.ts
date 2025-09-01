@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma.js';
+import prisma from '../prisma';
 import { GOAL_TYPES } from '../../src/types/goals.js';
 
 /**
@@ -27,7 +27,7 @@ interface Goal {
  * @param userId - The user ID to filter runs by
  * @returns Promise<number> - Current progress value
  */
-export async function calculateGoalProgress(goal: Goal, userId: string): Promise<number> {
+export const calculateGoalProgress = async (goal: Goal, userId: string): Promise<number> => {
   const runs = await prisma.run.findMany({
     where: {
       userId,
@@ -40,10 +40,10 @@ export async function calculateGoalProgress(goal: Goal, userId: string): Promise
 
   switch (goal.type) {
     case GOAL_TYPES.DISTANCE:
-      return runs.reduce((total, run) => total + run.distance, 0);
+      return runs.reduce((total: number, run) => total + run.distance, 0);
 
     case GOAL_TYPES.TIME: {
-      const totalMinutes = runs.reduce((total, run) => total + run.duration, 0);
+      const totalMinutes = runs.reduce((total: number, run) => total + run.duration, 0);
       return goal.targetUnit === 'hours' ? totalMinutes / 60 : totalMinutes;
     }
 
@@ -55,7 +55,7 @@ export async function calculateGoalProgress(goal: Goal, userId: string): Promise
         return 0;
       }
       return (
-        runs.reduce((total, run) => {
+        runs.reduce((total: number, run) => {
           const pace = run.distance > 0 ? run.duration / run.distance : 0;
           return total + pace;
         }, 0) / runs.length
@@ -68,7 +68,7 @@ export async function calculateGoalProgress(goal: Goal, userId: string): Promise
     default:
       return 0;
   }
-}
+};
 
 /**
  * Calculate goal progress percentage
@@ -76,7 +76,7 @@ export async function calculateGoalProgress(goal: Goal, userId: string): Promise
  * @param userId - The user ID to filter runs by
  * @returns Promise<{ currentValue: number, progressPercentage: number, isCompleted: boolean }>
  */
-export async function calculateGoalProgressData(goal: Goal, userId: string) {
+export const calculateGoalProgressData = async (goal: Goal, userId: string) => {
   const currentValue = await calculateGoalProgress(goal, userId);
   const progressPercentage = Math.min((currentValue / goal.targetValue) * 100, 100);
   const isCompleted = currentValue >= goal.targetValue;
@@ -97,4 +97,4 @@ export async function calculateGoalProgressData(goal: Goal, userId: string) {
     daysRemaining,
     goal,
   };
-}
+};
