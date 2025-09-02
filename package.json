@@ -36,11 +36,17 @@
     "test:e2e:debug": "playwright test --debug",
     "test:all": "npm run test:coverage && npm run test:e2e",
     "quality": "npm run lint:fix && npm run format && npm run typecheck",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "lint:server": "eslint src/server --ext .ts",
-    "lint:client": "eslint src/client --ext .ts,.tsx",
-    "lint:shared": "eslint src/shared --ext .ts",
+    "quality:fast": "npm run lint:fix:parallel && npm run format && npm run typecheck",
+    "quality:ci": "npm run lint && npm run format --check && npm run typecheck",
+    "lint:perf": "eslint . --config .eslintrc.performance.js --cache --cache-location .eslintcache",
+    "lint:timing": "TIMING=1 eslint . --cache --cache-location .eslintcache",
+    "lint": "eslint . --cache --cache-location .eslintcache --max-warnings 0",
+    "lint:fix": "eslint . --fix --cache --cache-location .eslintcache --max-warnings 0",
+    "lint:parallel": "eslint . --cache --cache-location .eslintcache --max-warnings 0",
+    "lint:fix:parallel": "eslint . --fix --cache --cache-location .eslintcache --max-warnings 0",
+    "lint:server": "eslint src/server --ext .ts --cache",
+    "lint:client": "eslint src/client --ext .ts,.tsx --cache",
+    "lint:shared": "eslint src/shared --ext .ts --cache",
     "lint:staged": "lint-staged",
     "lint:watch": "eslint . --ext .ts,.tsx --watch",
     "lint:quiet": "eslint . --quiet",
@@ -163,9 +169,8 @@
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
-      "eslint --fix",
-      "prettier --write",
-      "vitest related --run"
+      "eslint --fix --cache --cache-location .eslintcache --max-warnings 0",
+      "prettier --write"
     ],
     "*.{json,md,yml,yaml}": [
       "prettier --write"
