@@ -37,6 +37,7 @@ Based on the 15 innovative ideas generated through design-thinking methodology, 
 ## 🔍 Plan Structure Analysis
 
 ### Strengths ✅
+
 - **Realistic Timeline**: 14 hours over 2 days is achievable
 - **Focus Areas**: Targeting complex hooks, auth, and error handling is sound
 - **Pragmatic Approach**: Abandoning theoretical analysis for actionable improvements
@@ -45,22 +46,28 @@ Based on the 15 innovative ideas generated through design-thinking methodology, 
 ### Areas for Improvement 🎯
 
 #### 1. **Prioritization Clarity**
+
 **Issue**: Phase 1 spends equal time on all analysis areas  
-**Recommendation**: 
+**Recommendation**:
+
 - Spend more time (3 hours) on error path analysis using "scavenger hunt" approach
 - Reduce complexity analysis to 1 hour (use existing ESLint complexity rules)
 - Use remaining time for targeted pattern analysis
 
 #### 2. **Success Metrics Refinement**
+
 **Issue**: "5% coverage improvement" is vague  
 **Recommendation**:
+
 - Target specific modules: `src/hooks/useGoals.ts` (from ~60% to >80%)
 - Auth routes: `src/server/routes/auth.ts` (from current to >90%)
 - Error handling: 15+ specific error scenarios vs. generic "10+"
 
 #### 3. **Integration Test Strategy**
+
 **Issue**: Generic "integration testing" approach  
 **Recommendation**: Apply brainstorm insights:
+
 - **User Journey Permutations**: Create reusable Playwright functions
 - **Database Seeding Profiles**: Multiple distinct test data states
 - **Mock-Free Critical Path**: One high-fidelity end-to-end test
@@ -70,11 +77,13 @@ Based on the 15 innovative ideas generated through design-thinking methodology, 
 ### MCP Tool Usage Assessment
 
 #### Currently Planned ✅
+
 - **`mcp__gemini-cli__ask-gemini`**: Realistic for coverage analysis
 - **`mcp__serena__`**: Good for symbol analysis and pattern searching
 - **`mcp__filesystem__`**: Standard for test file creation
 
 #### Missing Opportunities 🎯
+
 - **`mcp__gemini-cli__brainstorm`**: Use for Phase 1 gap analysis
 - **Complexity tools**: ESLint complexity rules more effective than manual analysis
 - **Coverage diff tools**: JSON comparison scripts for before/after analysis
@@ -86,7 +95,7 @@ Based on the 15 innovative ideas generated through design-thinking methodology, 
 scripts/
 ├── error-code-extractor.js     # HIGH PRIORITY: Extract all error constants
 ├── coverage-diff-analyzer.js   # HIGH PRIORITY: Before/after comparison
-├── hook-complexity-finder.js   # MEDIUM: Focus on React hooks specifically  
+├── hook-complexity-finder.js   # MEDIUM: Focus on React hooks specifically
 └── test-pattern-validator.js   # LOW: Ensure new tests follow conventions
 ```
 
@@ -95,22 +104,28 @@ scripts/
 ### Major Risks Identified
 
 #### 1. **Time Allocation Risk**
+
 **Issue**: Day 1 analysis could expand beyond 6 hours  
-**Mitigation**: 
+**Mitigation**:
+
 - Time-box each analysis task strictly
 - Use automated tools vs. manual analysis where possible
 - Focus on actionable insights vs. comprehensive coverage
 
 #### 2. **Tool Learning Curve**
+
 **Issue**: MCP tools may require learning time not accounted for  
 **Mitigation**:
+
 - Start with simple tool usage patterns
 - Have fallback manual approaches ready
 - Document tool usage patterns for future use
 
 #### 3. **Test Quality vs. Speed Trade-off**
+
 **Issue**: Pressure to complete in 2 days may compromise test quality  
 **Mitigation**:
+
 - Prioritize fewer, higher-quality tests over quantity
 - Use existing test patterns as templates
 - Focus on high-impact areas only
@@ -120,6 +135,7 @@ scripts/
 ### Phase 1 Enhancements
 
 #### Replace Generic Analysis with Targeted Approaches:
+
 - **Error Analysis**: Use automated error code extraction script
 - **Complexity Analysis**: Focus only on React hooks >50 lines
 - **Coverage Analysis**: Target specific modules vs. broad coverage
@@ -127,6 +143,7 @@ scripts/
 ### Phase 2 Enhancements
 
 #### Apply Brainstorm Insights:
+
 - **Auth Testing**: Add anomaly simulation tests (token expiration, role changes)
 - **Hook Testing**: Use fake timers for time-based logic testing
 - **Integration Testing**: Create modular, reusable test functions
@@ -134,6 +151,7 @@ scripts/
 ### Helper Scripts Prioritization
 
 #### Immediate Value Scripts:
+
 1. **Error Code Extractor**: Scan for all error constants, ensure coverage
 2. **Coverage Diff Tool**: Compare before/after with specific metrics
 3. **Hook Pattern Analyzer**: Find React hooks with specific complexity patterns
@@ -141,7 +159,9 @@ scripts/
 ## 💡 Alternative Approaches to Consider
 
 ### 1. **Mutation Testing Integration**
+
 Instead of just coverage percentage, add basic mutation testing to validate test quality:
+
 ```bash
 # Add to Phase 2.3
 npm install --save-dev stryker-js
@@ -149,16 +169,22 @@ npm install --save-dev stryker-js
 ```
 
 ### 2. **Property-Based Testing for Complex Logic**
+
 For the 285-line `useGoals` hook, consider property-based testing:
+
 ```javascript
 // Use fast-check or similar for hook state invariants
-fc.assert(fc.property(fc.array(fc.goal()), (goals) => {
-  // Assert hook maintains state invariants regardless of input
-}))
+fc.assert(
+  fc.property(fc.array(fc.goal()), goals => {
+    // Assert hook maintains state invariants regardless of input
+  })
+);
 ```
 
 ### 3. **Visual Regression for Error States**
+
 Extend existing Playwright tests to capture error state screenshots:
+
 ```javascript
 // Capture error modals, validation messages, loading states
 await page.screenshot({ path: 'error-states/auth-failure.png' });
@@ -167,17 +193,20 @@ await page.screenshot({ path: 'error-states/auth-failure.png' });
 ## 🎯 Final Recommendations
 
 ### High-Priority Changes:
+
 1. **Integrate error code extraction** into Phase 1 analysis
 2. **Add auth anomaly simulation** to Phase 2 testing
 3. **Create modular test functions** for integration testing
 4. **Use fake timers** for hook testing with time-based logic
 
 ### Medium-Priority Enhancements:
+
 1. **Add rate limiter stress testing** to integration phase
 2. **Create multiple database seeding profiles** for varied test contexts
 3. **Implement visual regression** for UI error states
 
 ### Success Metric Refinements:
+
 - **Specific targets**: `useGoals` hook 60% → 85%, auth routes 75% → 95%
 - **Error scenarios**: 15 specific error conditions with test coverage
 - **Integration reliability**: 3 complete user journey tests with error handling
@@ -186,6 +215,6 @@ await page.screenshot({ path: 'error-states/auth-failure.png' });
 
 **Plan Feasibility**: 85% (High) - Realistic timeline with focused approach  
 **Success Probability**: 80% (High) - Clear targets and proven testing infrastructure  
-**Risk Level**: 25% (Low) - Well-mitigated risks with fallback strategies  
+**Risk Level**: 25% (Low) - Well-mitigated risks with fallback strategies
 
 **Overall Assessment**: The revised plan is sound and executable. The integration of brainstorm insights and tactical improvements will significantly enhance its effectiveness.

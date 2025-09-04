@@ -108,7 +108,7 @@ describe('useGoals - Time-based Testing', () => {
 
     // Fast-forward to day 3 and simulate progress update
     vi.setSystemTime(new Date('2024-01-03T10:00:00Z'));
-    
+
     const midWeekProgress = createMockGoalProgress({
       goalId: timeBasedGoal.id,
       progressPercentage: 67, // 2/3 = 67%
@@ -134,7 +134,7 @@ describe('useGoals - Time-based Testing', () => {
 
     // Fast-forward to day 5 and complete the goal
     vi.setSystemTime(new Date('2024-01-05T10:00:00Z'));
-    
+
     const completedProgress = createMockGoalProgress({
       goalId: timeBasedGoal.id,
       progressPercentage: 100, // 3/3 = 100%
@@ -246,7 +246,7 @@ describe('useGoals - Time-based Testing', () => {
 
   it('handles debounced API calls with rapid state changes', async () => {
     const goal = createMockGoal({ id: 'debounce-test-goal' });
-    
+
     // Mock API responses
     mockApiGet
       .mockResolvedValueOnce({
@@ -277,17 +277,17 @@ describe('useGoals - Time-based Testing', () => {
     // Perform rapid successive updates within a short timeframe
     await act(async () => {
       result.current.updateGoal(goal.id, { title: 'Update 1' });
-      
+
       // Advance time slightly
       vi.advanceTimersByTime(50);
-      
+
       result.current.updateGoal(goal.id, { title: 'Update 2' });
-      
+
       // Advance time slightly
       vi.advanceTimersByTime(50);
-      
+
       result.current.updateGoal(goal.id, { title: 'Final Update' });
-      
+
       // Let any debounced operations complete
       vi.advanceTimersByTime(1000);
     });
@@ -299,10 +299,10 @@ describe('useGoals - Time-based Testing', () => {
 
   it('handles timeout scenarios in API calls', async () => {
     const goal = createMockGoal({ id: 'timeout-goal' });
-    
+
     // Mock API call that takes a long time
     mockApiGet.mockImplementationOnce(() => {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         setTimeout(() => {
           resolve({
             data: [goal],
@@ -321,7 +321,7 @@ describe('useGoals - Time-based Testing', () => {
 
     // Fast-forward 2.5 seconds (halfway through the API call)
     vi.advanceTimersByTime(2500);
-    
+
     // Should still be loading
     expect(result.current.loading).toBe(true);
     expect(result.current.goals).toEqual([]);
@@ -338,7 +338,7 @@ describe('useGoals - Time-based Testing', () => {
   it('handles periodic auto-refresh with time intervals', async () => {
     const goal = createMockGoal({ id: 'refresh-goal' });
     let refreshCount = 0;
-    
+
     // Mock API to track refresh calls
     mockApiGet.mockImplementation(() => {
       refreshCount++;
@@ -374,7 +374,7 @@ describe('useGoals - Time-based Testing', () => {
 
   it('handles time-based caching and cache invalidation', async () => {
     const goal = createMockGoal({ id: 'cache-goal' });
-    
+
     // Mock API responses
     mockApiGet
       .mockResolvedValueOnce({

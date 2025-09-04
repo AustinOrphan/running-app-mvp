@@ -12,11 +12,17 @@ import { reportUIError } from '../../../src/utils/errorReporting';
 const mockReportUIError = reportUIError as ReturnType<typeof vi.fn>;
 
 // Test component that can throw errors on command
-const ThrowErrorComponent = ({ shouldThrow, errorMessage }: { shouldThrow: boolean; errorMessage?: string }) => {
+const ThrowErrorComponent = ({
+  shouldThrow,
+  errorMessage,
+}: {
+  shouldThrow: boolean;
+  errorMessage?: string;
+}) => {
   if (shouldThrow) {
     throw new Error(errorMessage || 'Test error');
   }
-  return <div data-testid="success-component">Component rendered successfully</div>;
+  return <div data-testid='success-component'>Component rendered successfully</div>;
 };
 
 // Component that throws error during render
@@ -42,7 +48,7 @@ describe('ErrorBoundary', () => {
     it('renders children when no error occurs', () => {
       render(
         <ErrorBoundary>
-          <div data-testid="child">Child component</div>
+          <div data-testid='child'>Child component</div>
         </ErrorBoundary>
       );
 
@@ -53,8 +59,8 @@ describe('ErrorBoundary', () => {
     it('renders multiple children correctly', () => {
       render(
         <ErrorBoundary>
-          <div data-testid="child1">First child</div>
-          <div data-testid="child2">Second child</div>
+          <div data-testid='child1'>First child</div>
+          <div data-testid='child2'>Second child</div>
         </ErrorBoundary>
       );
 
@@ -72,13 +78,15 @@ describe('ErrorBoundary', () => {
       );
 
       expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-      expect(screen.getByText('We\'re sorry, but something unexpected happened.')).toBeInTheDocument();
+      expect(
+        screen.getByText("We're sorry, but something unexpected happened.")
+      ).toBeInTheDocument();
       expect(screen.getByText('Error details')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     });
 
     it('displays custom fallback UI when provided', () => {
-      const customFallback = <div data-testid="custom-fallback">Custom error message</div>;
+      const customFallback = <div data-testid='custom-fallback'>Custom error message</div>;
 
       render(
         <ErrorBoundary fallback={customFallback}>
@@ -94,12 +102,12 @@ describe('ErrorBoundary', () => {
     it('shows error details in the fallback UI', () => {
       render(
         <ErrorBoundary>
-          <ThrowErrorComponent shouldThrow={true} errorMessage="Specific error message" />
+          <ThrowErrorComponent shouldThrow={true} errorMessage='Specific error message' />
         </ErrorBoundary>
       );
 
       expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-      
+
       // Click to expand error details
       const detailsElement = screen.getByText('Error details');
       fireEvent.click(detailsElement);
@@ -111,7 +119,7 @@ describe('ErrorBoundary', () => {
     it('calls reportUIError when an error occurs', () => {
       render(
         <ErrorBoundary>
-          <ThrowErrorComponent shouldThrow={true} errorMessage="Test error for reporting" />
+          <ThrowErrorComponent shouldThrow={true} errorMessage='Test error for reporting' />
         </ErrorBoundary>
       );
 
@@ -131,7 +139,7 @@ describe('ErrorBoundary', () => {
 
       render(
         <ErrorBoundary onError={mockOnError}>
-          <ThrowErrorComponent shouldThrow={true} errorMessage="Custom handler test" />
+          <ThrowErrorComponent shouldThrow={true} errorMessage='Custom handler test' />
         </ErrorBoundary>
       );
 
@@ -196,7 +204,7 @@ describe('ErrorBoundary', () => {
 
       // Click reset button
       const resetButton = screen.getByRole('button', { name: 'Try again' });
-      
+
       // Should not throw when clicking reset
       expect(() => {
         fireEvent.click(resetButton);
@@ -209,7 +217,7 @@ describe('ErrorBoundary', () => {
 
     it('can recover when component tree changes with key prop', () => {
       let errorKey = 'error-key-1';
-      
+
       const { rerender } = render(
         <ErrorBoundary key={errorKey}>
           <BrokenComponent />
@@ -310,7 +318,7 @@ describe('ErrorBoundary', () => {
       // This test ensures our error boundary works correctly in that environment
       render(
         <ErrorBoundary>
-          <ThrowErrorComponent shouldThrow={true} errorMessage="Strict mode test" />
+          <ThrowErrorComponent shouldThrow={true} errorMessage='Strict mode test' />
         </ErrorBoundary>
       );
 
@@ -350,7 +358,7 @@ describe('ErrorBoundary', () => {
       );
 
       const button = screen.getByRole('button', { name: 'Try again' });
-      
+
       // Button should be focusable
       button.focus();
       expect(document.activeElement).toBe(button);
@@ -381,9 +389,9 @@ describe('ErrorBoundary', () => {
     it('maintains component tree structure when no errors occur', () => {
       render(
         <ErrorBoundary>
-          <div data-testid="parent">
-            <div data-testid="child1">Child 1</div>
-            <div data-testid="child2">Child 2</div>
+          <div data-testid='parent'>
+            <div data-testid='child1'>Child 1</div>
+            <div data-testid='child2'>Child 2</div>
           </div>
         </ErrorBoundary>
       );

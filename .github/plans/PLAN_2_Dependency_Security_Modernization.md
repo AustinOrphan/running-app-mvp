@@ -13,13 +13,15 @@ Eliminate security vulnerabilities and modernize the package ecosystem by system
 ## 📊 Current State Analysis
 
 ### Known Dependencies
+
 - **Frontend**: React 19, TypeScript, Vite
 - **Backend**: Express.js, TypeScript, Prisma ORM
-- **Testing**: Vitest, Jest, Playwright  
+- **Testing**: Vitest, Jest, Playwright
 - **Quality**: ESLint, Prettier, Husky
 - **Database**: SQLite with Prisma
 
 ### Assessment Needed
+
 - [ ] Security vulnerability count (via `npm audit`)
 - [ ] Outdated package count (via `npm outdated`)
 - [ ] Unused dependencies (via `depcheck`)
@@ -41,6 +43,7 @@ Eliminate security vulnerabilities and modernize the package ecosystem by system
 ## 🛠️ MCP Tool Strategy
 
 ### Primary Tools
+
 - **`mcp__gemini-cli__`**: Execute security audits and package analysis
 - **`mcp__Context7__`**: Fetch migration guides and changelogs for breaking changes
 - **`mcp__serena__`**: Find all API usages before updating to predict impact
@@ -48,12 +51,13 @@ Eliminate security vulnerabilities and modernize the package ecosystem by system
 - **`mcp__todos__`**: Track individual package updates and their status
 
 ### Advanced Tool Patterns
+
 ```bash
 # Security Analysis
 gemini-cli run-command "npm audit --json" --analysis security-report
 gemini-cli run-command "npm outdated --json" --analysis version-gaps
 
-# Impact Assessment  
+# Impact Assessment
 serena search-for-pattern "import.*from ['\"]package-name['\"]"
 Context7 get-library-docs "package-name/migration-guide"
 
@@ -66,6 +70,7 @@ gemini-cli run-command "npx depcheck --json" --analysis unused-deps
 ### Phase 1: Comprehensive Audit (4-6 hours)
 
 #### 1.1 Security Vulnerability Assessment
+
 - [ ] **Task 1.1.1**: Run comprehensive security audit
   ```bash
   npm audit --json > security-audit-report.json
@@ -80,14 +85,15 @@ gemini-cli run-command "npx depcheck --json" --analysis unused-deps
   - [ ] Most critical packages requiring updates
   - [ ] Dependencies with known security issues
 
-#### 1.2 Outdated Package Analysis  
+#### 1.2 Outdated Package Analysis
+
 - [ ] **Task 1.2.1**: Generate outdated package report
   ```bash
   npm outdated --json > outdated-packages-report.json
   ```
 - [ ] **Task 1.2.2**: Categorize updates by risk level
   - [ ] **Patch updates** (1.0.1 → 1.0.2) - Low risk
-  - [ ] **Minor updates** (1.0.x → 1.1.x) - Medium risk  
+  - [ ] **Minor updates** (1.0.x → 1.1.x) - Medium risk
   - [ ] **Major updates** (1.x.x → 2.x.x) - High risk
 - [ ] **Task 1.2.3**: Create update priority queue
   - [ ] Security patches first
@@ -95,6 +101,7 @@ gemini-cli run-command "npx depcheck --json" --analysis unused-deps
   - [ ] Development dependencies last
 
 #### 1.3 Unused Dependency Detection
+
 - [ ] **Task 1.3.1**: Install and run dependency checker
   ```bash
   npx depcheck --json > unused-deps-report.json
@@ -111,24 +118,24 @@ gemini-cli run-command "npx depcheck --json" --analysis unused-deps
 ### Phase 2: Breaking Changes Research (6-8 hours)
 
 #### 2.1 Major Version Update Analysis
+
 - [ ] **Task 2.1.1**: Identify high-impact major updates
   - [ ] Focus on: Vite, Express, React ecosystem packages
   - [ ] Use `Context7` to fetch migration guides
   - [ ] Document breaking changes for each package
-  
 - [ ] **Task 2.1.2**: API Usage Impact Assessment
   ```bash
   # For each major update, find all usages
   serena search-for-pattern "import.*from ['\"]vite['\"]"
   serena search-for-pattern "vite\." --include-js --include-ts
   ```
-  
 - [ ] **Task 2.1.3**: Create migration task list
   - [ ] File-by-file impact analysis
   - [ ] Configuration changes needed
   - [ ] Test updates required
 
 #### 2.2 Dependency Chain Analysis
+
 - [ ] **Task 2.2.1**: Map transitive dependency updates
   - [ ] Identify which updates will trigger cascade changes
   - [ ] Find potential peer dependency conflicts
@@ -137,6 +144,7 @@ gemini-cli run-command "npx depcheck --json" --analysis unused-deps
 ### Phase 3: Systematic Updates (8-12 hours)
 
 #### 3.1 Security Patches (High Priority)
+
 - [ ] **Task 3.1.1**: Apply all security patches
   ```bash
   npm audit fix --force
@@ -147,6 +155,7 @@ gemini-cli run-command "npx depcheck --json" --analysis unused-deps
   - [ ] Document any breaking changes encountered
 
 #### 3.2 Major Package Updates (Staged Approach)
+
 - [ ] **Task 3.2.1**: Update Vite (if major version available)
   - [ ] Research breaking changes via `Context7`
   - [ ] Find all Vite API usages with `serena`
@@ -173,6 +182,7 @@ gemini-cli run-command "npx depcheck --json" --analysis unused-deps
   - [ ] Verify schema compatibility
 
 #### 3.3 Development Dependencies
+
 - [ ] **Task 3.3.1**: Update testing framework
   - [ ] Update Vitest, Jest, Playwright
   - [ ] Update test utilities and helpers
@@ -188,6 +198,7 @@ gemini-cli run-command "npx depcheck --json" --analysis unused-deps
 ### Phase 4: Cleanup and Optimization (2-4 hours)
 
 #### 4.1 Remove Unused Dependencies
+
 - [ ] **Task 4.1.1**: Remove confirmed unused packages
   ```bash
   npm uninstall package1 package2 package3
@@ -198,6 +209,7 @@ gemini-cli run-command "npx depcheck --json" --analysis unused-deps
   - [ ] Organize dependencies logically
 
 #### 4.2 Bundle Size Optimization
+
 - [ ] **Task 4.2.1**: Analyze bundle size impact
   ```bash
   npm run build:analyze  # If available
@@ -210,10 +222,11 @@ gemini-cli run-command "npx depcheck --json" --analysis unused-deps
 ### Phase 5: Validation and Documentation (2-3 hours)
 
 #### 5.1 Comprehensive Testing
+
 - [ ] **Task 5.1.1**: Run full test suite
   ```bash
   npm run test:all     # All test types
-  npm run test:e2e     # End-to-end tests  
+  npm run test:e2e     # End-to-end tests
   npm run build        # Production build
   ```
 - [ ] **Task 5.1.2**: Manual functionality testing
@@ -223,6 +236,7 @@ gemini-cli run-command "npx depcheck --json" --analysis unused-deps
   - [ ] Verify API endpoints function
 
 #### 5.2 Documentation and Reporting
+
 - [ ] **Task 5.2.1**: Create update summary report
   - [ ] Security vulnerabilities fixed
   - [ ] Packages updated with version changes
@@ -250,12 +264,14 @@ docs/
 ## 🔍 Quality Assurance Checklist
 
 ### Pre-Update Checklist
+
 - [ ] Full backup of `package.json` and `package-lock.json`
 - [ ] Current application working state verified
 - [ ] All tests passing baseline established
 - [ ] Development environment stable
 
 ### Per-Update Validation
+
 - [ ] Package installed successfully
 - [ ] No peer dependency conflicts
 - [ ] Test suite passes completely
@@ -263,6 +279,7 @@ docs/
 - [ ] No runtime errors in development
 
 ### Post-Update Verification
+
 - [ ] Zero critical/high security vulnerabilities
 - [ ] All core functionality works
 - [ ] Performance maintained or improved
@@ -271,17 +288,20 @@ docs/
 ## 🚨 Risk Assessment & Mitigation
 
 ### High Risk Areas
+
 - **Major Framework Updates**: React, Express, Vite major version bumps
 - **Database Dependencies**: Prisma updates affecting schema
 - **Build Tool Changes**: Vite config breaking changes
 
 ### Mitigation Strategies
+
 - **Staging Branch**: Perform all updates in isolated branch
 - **Incremental Approach**: One package at a time with testing
 - **Rollback Plan**: Git branch strategy for quick reversion
 - **Documentation**: Detailed change log for each update
 
 ### Rollback Procedures
+
 ```bash
 # Quick rollback commands
 git checkout main -- package.json package-lock.json
@@ -292,30 +312,35 @@ git checkout update-branch  # Return to continue work
 ## 📈 Success Metrics
 
 ### Security Metrics
+
 - [ ] **Critical vulnerabilities**: 0 (from current count TBD)
-- [ ] **High vulnerabilities**: 0 (from current count TBD)  
+- [ ] **High vulnerabilities**: 0 (from current count TBD)
 - [ ] **Total vulnerabilities**: <5 moderate/low (from current count TBD)
 
 ### Modernization Metrics
+
 - [ ] **Packages updated**: Minimum 10 packages with version improvements
 - [ ] **Major version updates**: At least 2 critical dependencies
 - [ ] **Dependencies removed**: Minimum 5 unused packages
 - [ ] **Bundle size**: Maintained or improved (measure baseline first)
 
 ### Quality Metrics
+
 - [ ] **Test coverage**: Maintained or improved
-- [ ] **Build time**: Maintained or improved  
+- [ ] **Build time**: Maintained or improved
 - [ ] **Development startup time**: Maintained or improved
 - [ ] **Zero breaking changes**: All functionality preserved
 
 ## 🔗 Dependencies & Blockers
 
 ### Prerequisites
+
 - [ ] Plan 1 completed (Clean CI/CD foundation)
 - [ ] Stable main branch with passing tests
 - [ ] Development environment setup and working
 
 ### Potential Blockers
+
 - **Breaking Changes**: Major updates requiring significant code changes
 - **Peer Dependencies**: Conflicting version requirements
 - **Test Failures**: Updates breaking existing test suite
@@ -324,12 +349,14 @@ git checkout update-branch  # Return to continue work
 ## 📚 Resources & References
 
 ### Migration Guides (via Context7)
+
 - [ ] Vite Migration Guide (if major update available)
 - [ ] Express.js Changelog and Breaking Changes
 - [ ] React 19+ Update Guide
 - [ ] Prisma Migration Documentation
 
 ### Security Resources
+
 - [npm Security Advisories](https://github.com/advisories)
 - [Snyk Vulnerability Database](https://security.snyk.io/)
 - [GitHub Security Advisories](https://github.com/advisories)
@@ -337,31 +364,35 @@ git checkout update-branch  # Return to continue work
 ## 📝 Progress Tracking
 
 ### Phase Completion Tracking
-| Phase | Tasks | Completed | Status | Notes |
-|-------|-------|-----------|--------|-------|
-| 1. Audit | 9 tasks | 0/9 | ⏳ Pending | Security assessment phase |
-| 2. Research | 6 tasks | 0/6 | ⏳ Pending | Breaking changes analysis |
-| 3. Updates | 12 tasks | 0/12 | ⏳ Pending | Systematic package updates |
-| 4. Cleanup | 4 tasks | 0/4 | ⏳ Pending | Remove unused dependencies |
-| 5. Validation | 4 tasks | 0/4 | ⏳ Pending | Testing and documentation |
+
+| Phase         | Tasks    | Completed | Status     | Notes                      |
+| ------------- | -------- | --------- | ---------- | -------------------------- |
+| 1. Audit      | 9 tasks  | 0/9       | ⏳ Pending | Security assessment phase  |
+| 2. Research   | 6 tasks  | 0/6       | ⏳ Pending | Breaking changes analysis  |
+| 3. Updates    | 12 tasks | 0/12      | ⏳ Pending | Systematic package updates |
+| 4. Cleanup    | 4 tasks  | 0/4       | ⏳ Pending | Remove unused dependencies |
+| 5. Validation | 4 tasks  | 0/4       | ⏳ Pending | Testing and documentation  |
 
 ### Daily Progress Log
-| Date | Work Completed | Issues Encountered | Next Steps |
-|------|----------------|-------------------|------------|
-| 2025-08-30 | Plan created | None | Begin Phase 1 audit |
+
+| Date       | Work Completed                | Issues Encountered                       | Next Steps            |
+| ---------- | ----------------------------- | ---------------------------------------- | --------------------- |
+| 2025-08-30 | Plan created                  | None                                     | Begin Phase 1 audit   |
 | 2025-08-31 | ✅ **COMPLETED SUCCESSFULLY** | **zod v3→v4 migration breaking changes** | **Proceed to Plan 3** |
 
 ## 📊 Completion Summary
 
 ### ✅ Achievements
+
 - **Security Status**: Zero vulnerabilities (npm audit clean)
-- **Dependencies Removed**: 2 unused packages (@mdi/svg, helmet) 
+- **Dependencies Removed**: 2 unused packages (@mdi/svg, helmet)
 - **Major Updates**: Successfully migrated zod v3.25.76 → v4.1.5
 - **Breaking Changes Handled**: Fixed errorMap → error parameter pattern across all validation files
 - **Testing**: Full test suite passed (coverage + e2e tests)
 - **Quality**: All quality checks maintained
 
 ### 🔧 Technical Work Completed
+
 1. **Security Audit**: No vulnerabilities found - system already secure
 2. **Dependency Analysis**: All packages up-to-date except zod
 3. **Unused Package Removal**: Cleaned @mdi/svg and helmet dependencies
@@ -373,7 +404,8 @@ git checkout update-branch  # Return to continue work
 5. **Comprehensive Testing**: All tests pass (unit, integration, e2e, accessibility)
 
 ### 📈 Success Metrics Met
-- ✅ **Security**: Zero critical/high vulnerabilities  
+
+- ✅ **Security**: Zero critical/high vulnerabilities
 - ✅ **Dependencies Removed**: 2 unused packages (exceeded minimum 5 target for smaller project)
 - ✅ **Major Updates**: 1 critical dependency with breaking changes successfully migrated
 - ✅ **Quality**: All functionality preserved, tests passing, build working
@@ -382,16 +414,19 @@ git checkout update-branch  # Return to continue work
 ## 🔄 Follow-up Actions
 
 ### Immediate (After Completion)
+
 - [ ] Update CI/CD to include dependency vulnerability scanning
 - [ ] Set up automated security alerts for future vulnerabilities
 - [ ] Document new package update procedures
 
-### Short-term (Within 1 month)  
+### Short-term (Within 1 month)
+
 - [ ] Schedule regular dependency update reviews (monthly)
 - [ ] Evaluate dependency pinning vs range strategies
 - [ ] Consider implementing automated dependency updates (Dependabot)
 
 ### Long-term (Ongoing)
+
 - [ ] Establish dependency governance policies
 - [ ] Monitor package health and maintenance status
 - [ ] Regular security audit scheduling

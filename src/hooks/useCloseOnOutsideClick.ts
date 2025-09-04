@@ -31,10 +31,7 @@ export const useCloseOnOutsideClick = (
 /**
  * Custom hook for handling escape key to close
  */
-export const useCloseOnEscape = (
-  isExpanded: boolean,
-  onClose: () => void
-) => {
+export const useCloseOnEscape = (isExpanded: boolean, onClose: () => void) => {
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (isExpanded && event.key === 'Escape') {

@@ -83,17 +83,17 @@ export default [
       ...js.configs.recommended.rules,
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
-      
+
       // React essentials
       ...react.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
-      
+
       // Prettier integration
       ...prettierConfig.rules,
       'prettier/prettier': 'error',
-      
+
       // Core quality rules
       'no-console': 'warn',
       'no-debugger': 'error',

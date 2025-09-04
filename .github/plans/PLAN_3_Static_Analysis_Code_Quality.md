@@ -13,14 +13,16 @@ Implement comprehensive semantic code analysis to identify and refactor complex,
 ## 📊 Current State Assessment
 
 ### Known Code Quality Tools
+
 - **Linting**: ESLint (configuration may vary between client/server)
 - **Formatting**: Prettier (recently standardized for workflows)
 - **Type Checking**: TypeScript across frontend/backend
 - **Pre-commit**: Husky with lint-staged
 
 ### Quality Analysis Needed
+
 - [ ] Current ESLint configuration analysis
-- [ ] Code complexity hotspot identification  
+- [ ] Code complexity hotspot identification
 - [ ] Anti-pattern detection across codebase
 - [ ] Cyclomatic complexity measurement
 - [ ] Technical debt quantification
@@ -28,18 +30,21 @@ Implement comprehensive semantic code analysis to identify and refactor complex,
 ## 🎯 Success Criteria
 
 ### Configuration Unification
+
 - [ ] **Unified ESLint configuration** for client and server code
 - [ ] **Zero linting errors** across entire codebase with stricter rules
 - [ ] **Enhanced pre-commit hooks** with new quality checks
 - [ ] **Consistent code style** enforcement
 
-### Code Quality Improvements  
+### Code Quality Improvements
+
 - [ ] **Minimum 3 high-complexity functions** refactored for maintainability
 - [ ] **Anti-patterns eliminated**: Promise chains, deep nesting, etc.
 - [ ] **Cyclomatic complexity reduced** in identified hotspots
 - [ ] **Code duplication reduced** through intelligent refactoring
 
 ### Process Enhancement
+
 - [ ] **Automated quality checks** integrated into CI/CD
 - [ ] **Quality metrics dashboard** or reporting
 - [ ] **Developer experience improved** with better tooling
@@ -47,6 +52,7 @@ Implement comprehensive semantic code analysis to identify and refactor complex,
 ## 🛠️ MCP Tool Strategy
 
 ### Primary Tools
+
 - **`mcp__serena__`**: Advanced semantic analysis for code complexity and patterns
 - **`mcp__gemini-cli__`**: ESLint configuration analysis and refactoring suggestions
 - **`mcp__Context7__`**: Research modern linting rules and best practices
@@ -54,6 +60,7 @@ Implement comprehensive semantic code analysis to identify and refactor complex,
 - **`mcp__filesystem__`**: Read/write configuration files and source code
 
 ### Advanced Analysis Patterns
+
 ```bash
 # Code Complexity Analysis
 serena find-symbol --complexity-above 10 --include-body
@@ -73,6 +80,7 @@ serena find-referencing-symbols --impact-analysis
 ### Phase 1: Configuration Audit & Unification (6-8 hours)
 
 #### 1.1 Current Configuration Analysis
+
 - [ ] **Task 1.1.1**: Inventory existing configurations
   ```bash
   # Find all ESLint configurations
@@ -84,18 +92,17 @@ serena find-referencing-symbols --impact-analysis
   - [ ] Use `filesystem` to read all config files
   - [ ] Use `gemini-cli` to identify inconsistencies and conflicts
   - [ ] Document current rule variations between client/server
-  
 - [ ] **Task 1.1.3**: Research modern best practices
   - [ ] Use `Context7` to fetch latest ESLint recommended practices
   - [ ] Query for popular plugin combinations (SonarJS, etc.)
   - [ ] Research TypeScript-specific linting improvements
 
 #### 1.2 Unified Configuration Design
+
 - [ ] **Task 1.2.1**: Design unified ESLint configuration
   - [ ] Create shared base configuration
   - [ ] Design environment-specific overrides (client/server)
   - [ ] Include modern security and performance rules
-  
 - [ ] **Task 1.2.2**: Select enhanced rule sets
   - [ ] Add complexity analysis rules
   - [ ] Include security vulnerability detection
@@ -107,7 +114,7 @@ serena find-referencing-symbols --impact-analysis
   eslint.config.js                 # Root unified config
   ├── configs/
   │   ├── base.js                  # Shared rules
-  │   ├── typescript.js            # TS-specific rules  
+  │   ├── typescript.js            # TS-specific rules
   │   ├── react.js                 # Frontend rules
   │   ├── node.js                  # Backend rules
   │   └── testing.js               # Test file rules
@@ -116,6 +123,7 @@ serena find-referencing-symbols --impact-analysis
 ### Phase 2: Deep Code Analysis (8-12 hours)
 
 #### 2.1 Complexity Hotspot Detection
+
 - [ ] **Task 2.1.1**: Find high-complexity functions
   ```bash
   serena find-symbol --include-kinds 12 --complexity-above 8
@@ -132,21 +140,23 @@ serena find-referencing-symbols --impact-analysis
   - [ ] Create refactoring priority matrix
 
 #### 2.2 Anti-Pattern Detection
+
 - [ ] **Task 2.2.1**: Search for common anti-patterns
+
   ```bash
   # Long promise chains
   serena search-for-pattern "\.then\(.*\.then\(.*\.then\(" --multiline
-  
+
   # Deep nesting
   serena search-for-pattern "if.*{[\s\S]*if.*{[\s\S]*if.*{" --multiline
-  
+
   # Large functions (>50 lines)
   serena find-symbol --body-line-count-above 50
-  
+
   # Repeated code patterns
   serena search-for-pattern --duplicate-detection
   ```
-  
+
 - [ ] **Task 2.2.2**: Categorize anti-pattern findings
   - [ ] Promise chain issues
   - [ ] Callback hell patterns
@@ -160,13 +170,13 @@ serena find-referencing-symbols --impact-analysis
   - [ ] Plan refactoring strategies
 
 #### 2.3 Dependency and Impact Analysis
+
 - [ ] **Task 2.3.1**: Build code dependency graph
   ```bash
   memory create-entities --type function --source codebase
   memory create-relations --type calls-function
   memory create-relations --type imports-from
   ```
-  
 - [ ] **Task 2.3.2**: Analyze refactoring impact
   - [ ] Use `serena find-referencing-symbols` for each refactor target
   - [ ] Map potential breaking change risks
@@ -175,6 +185,7 @@ serena find-referencing-symbols --impact-analysis
 ### Phase 3: Systematic Code Refactoring (12-16 hours)
 
 #### 3.1 High-Priority Complexity Reduction
+
 - [ ] **Task 3.1.1**: Refactor top complexity hotspot
   - [ ] Use `serena` to read target function with full context
   - [ ] Design refactoring strategy with `gemini-cli`
@@ -194,12 +205,12 @@ serena find-referencing-symbols --impact-analysis
   - [ ] Measure complexity reduction achieved
 
 #### 3.2 Anti-Pattern Elimination
+
 - [ ] **Task 3.2.1**: Convert promise chains to async/await
   ```javascript
   // Before: promise.then().then().then()
   // After: async function with proper error handling
   ```
-  
 - [ ] **Task 3.2.2**: Flatten nested conditional structures
   - [ ] Apply early return patterns
   - [ ] Extract validation functions
@@ -212,6 +223,7 @@ serena find-referencing-symbols --impact-analysis
   - [ ] Add comprehensive tests for utilities
 
 #### 3.3 Enhanced Error Handling
+
 - [ ] **Task 3.3.1**: Standardize error handling patterns
   - [ ] Implement consistent error types
   - [ ] Add proper error logging
@@ -225,12 +237,12 @@ serena find-referencing-symbols --impact-analysis
 ### Phase 4: Enhanced Linting Integration (4-6 hours)
 
 #### 4.1 Apply New Configuration
+
 - [ ] **Task 4.1.1**: Deploy unified ESLint configuration
   ```bash
   # Replace existing configs
   eslint --config eslint.config.js --fix .
   ```
-  
 - [ ] **Task 4.1.2**: Address new linting errors
   - [ ] Fix auto-fixable issues with `--fix`
   - [ ] Manually address remaining violations
@@ -242,6 +254,7 @@ serena find-referencing-symbols --impact-analysis
   - [ ] Test with various file types
 
 #### 4.2 CI/CD Integration
+
 - [ ] **Task 4.2.1**: Update pre-commit hooks
   ```javascript
   // .husky/pre-commit updates
@@ -249,7 +262,6 @@ serena find-referencing-symbols --impact-analysis
   npm run complexity-check
   npm run security-scan
   ```
-  
 - [ ] **Task 4.2.2**: Add GitHub Actions quality checks
   - [ ] Code complexity monitoring
   - [ ] Security vulnerability scanning
@@ -263,6 +275,7 @@ serena find-referencing-symbols --impact-analysis
 ### Phase 5: Validation & Documentation (2-4 hours)
 
 #### 5.1 Comprehensive Quality Validation
+
 - [ ] **Task 5.1.1**: Run complete test suite
   ```bash
   npm run test:all
@@ -270,7 +283,6 @@ serena find-referencing-symbols --impact-analysis
   npm run build
   npm run lint
   ```
-  
 - [ ] **Task 5.1.2**: Measure improvement metrics
   - [ ] Before/after complexity scores
   - [ ] Code duplication reduction
@@ -283,6 +295,7 @@ serena find-referencing-symbols --impact-analysis
   - [ ] Confirm reasonable performance impact
 
 #### 5.2 Documentation and Knowledge Transfer
+
 - [ ] **Task 5.2.1**: Create code quality documentation
   - [ ] Document new coding standards
   - [ ] Create refactoring guidelines
@@ -325,12 +338,14 @@ scripts/
 ## 🔍 Quality Assurance Framework
 
 ### Pre-Refactoring Validation
+
 - [ ] Complete backup of current codebase state
 - [ ] Full test suite passing baseline
 - [ ] Performance benchmark establishment
 - [ ] Complexity metrics baseline recording
 
 ### Per-Refactoring Checklist
+
 - [ ] Function behavior preserved (unit tests pass)
 - [ ] API compatibility maintained
 - [ ] Performance impact measured and acceptable
@@ -338,6 +353,7 @@ scripts/
 - [ ] No new linting errors introduced
 
 ### Post-Implementation Verification
+
 - [ ] All tests passing (unit, integration, e2e)
 - [ ] Build process successful
 - [ ] No runtime errors in development/production
@@ -347,18 +363,21 @@ scripts/
 ## 🚨 Risk Assessment & Mitigation
 
 ### High-Risk Refactoring Areas
+
 - **Core Business Logic**: Functions handling critical user workflows
 - **Authentication/Authorization**: Security-sensitive code paths
 - **Database Operations**: Data consistency and integrity concerns
 - **API Endpoints**: External interface stability requirements
 
 ### Mitigation Strategies
+
 - **Incremental Refactoring**: One function at a time with immediate testing
 - **Feature Branch Strategy**: Isolate all changes for safe experimentation
 - **Comprehensive Testing**: Unit tests for each refactored function
 - **Rollback Planning**: Git strategy for quick reversion if issues arise
 
 ### Change Management
+
 - **Code Reviews**: All refactoring changes require thorough review
 - **Documentation**: Each refactoring documented with rationale
 - **Performance Monitoring**: Track performance impact of changes
@@ -367,24 +386,28 @@ scripts/
 ## 📈 Success Metrics & KPIs
 
 ### Code Quality Metrics
-- [ ] **Cyclomatic Complexity**: Average reduction of 20% in targeted functions  
+
+- [ ] **Cyclomatic Complexity**: Average reduction of 20% in targeted functions
 - [ ] **Code Duplication**: Reduction of 15% in duplicate code blocks
 - [ ] **Function Length**: 90% of functions under 30 lines
 - [ ] **Parameter Count**: 95% of functions with <5 parameters
 
 ### Linting and Standards
+
 - [ ] **Linting Errors**: Zero errors with enhanced rule set
-- [ ] **Code Style Consistency**: 100% Prettier compliance  
+- [ ] **Code Style Consistency**: 100% Prettier compliance
 - [ ] **Type Safety**: Zero TypeScript strict mode violations
 - [ ] **Security Issues**: Zero high/critical security rule violations
 
 ### Process Metrics
+
 - [ ] **Pre-commit Success Rate**: >95% successful pre-commit hook runs
 - [ ] **Build Time Impact**: <10% increase in build time
 - [ ] **Developer Satisfaction**: Measured via team feedback
 - [ ] **Code Review Efficiency**: Reduced review time due to consistency
 
 ### Technical Debt Reduction
+
 - [ ] **Anti-patterns Eliminated**: 100% of identified critical anti-patterns
 - [ ] **Complexity Hotspots**: 75% of high-complexity functions refactored
 - [ ] **Maintainability Index**: Overall improvement of 15+%
@@ -393,18 +416,21 @@ scripts/
 ## 🔗 Dependencies & Prerequisites
 
 ### Prerequisites
+
 - [ ] Plan 1 completed (stable CI/CD foundation)
 - [ ] Plan 2 completed or in progress (updated dependencies)
 - [ ] Stable test suite with good coverage
 - [ ] Development environment setup and working
 
 ### Integration Dependencies
+
 - **Testing Framework**: Must integrate with Vitest/Jest/Playwright
 - **Build System**: Must work with Vite and TypeScript compiler
 - **CI/CD Pipeline**: Integration with existing GitHub Actions
 - **Development Tools**: VS Code extension compatibility
 
 ### Potential Blockers
+
 - **Large Codebase**: Extensive refactoring may require significant time
 - **Legacy Code**: Some patterns may be difficult to refactor safely
 - **Team Adoption**: New standards require team buy-in and training
@@ -413,18 +439,21 @@ scripts/
 ## 📚 Resources & Documentation
 
 ### Static Analysis Tools Research
+
 - [ ] ESLint ecosystem: plugins, configs, custom rules
 - [ ] SonarJS: comprehensive code quality analysis
 - [ ] TypeScript strict mode: advanced type checking
 - [ ] Code complexity tools: metrics and measurement
 
 ### Best Practices References
+
 - [Clean Code JavaScript](https://github.com/ryanmcdermott/clean-code-javascript)
 - [Refactoring Guru](https://refactoring.guru/) - Refactoring patterns
 - [ESLint Rules Reference](https://eslint.org/docs/rules/)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
 
 ### Tool Documentation (via Context7)
+
 - ESLint configuration and plugin development
 - SonarJS rule explanations and examples
 - JavaScript/TypeScript refactoring patterns
@@ -433,49 +462,56 @@ scripts/
 ## 📝 Progress Tracking Dashboard
 
 ### Phase Progress Overview
-| Phase | Estimated Hours | Tasks | Completed | Status | Blockers |
-|-------|----------------|-------|-----------|---------|-----------|
-| 1. Config Audit | 6-8 | 6 tasks | 0/6 | ⏳ Pending | None |
-| 2. Code Analysis | 8-12 | 9 tasks | 0/9 | ⏳ Pending | Depends on Phase 1 |
-| 3. Refactoring | 12-16 | 12 tasks | 0/12 | ⏳ Pending | Depends on Phase 2 |
-| 4. Integration | 4-6 | 6 tasks | 0/6 | ⏳ Pending | Depends on Phase 3 |
-| 5. Validation | 2-4 | 6 tasks | 0/6 | ⏳ Pending | Depends on Phase 4 |
+
+| Phase            | Estimated Hours | Tasks    | Completed | Status     | Blockers           |
+| ---------------- | --------------- | -------- | --------- | ---------- | ------------------ |
+| 1. Config Audit  | 6-8             | 6 tasks  | 0/6       | ⏳ Pending | None               |
+| 2. Code Analysis | 8-12            | 9 tasks  | 0/9       | ⏳ Pending | Depends on Phase 1 |
+| 3. Refactoring   | 12-16           | 12 tasks | 0/12      | ⏳ Pending | Depends on Phase 2 |
+| 4. Integration   | 4-6             | 6 tasks  | 0/6       | ⏳ Pending | Depends on Phase 3 |
+| 5. Validation    | 2-4             | 6 tasks  | 0/6       | ⏳ Pending | Depends on Phase 4 |
 
 ### Refactoring Target Tracking
-| Function/Module | Complexity Score | Priority | Status | Assigned | Notes |
-|----------------|------------------|----------|---------|----------|--------|
-| TBD | TBD | High | Identified | - | Awaiting analysis |
-| | | | | | |
+
+| Function/Module | Complexity Score | Priority | Status     | Assigned | Notes             |
+| --------------- | ---------------- | -------- | ---------- | -------- | ----------------- |
+| TBD             | TBD              | High     | Identified | -        | Awaiting analysis |
+|                 |                  |          |            |          |                   |
 
 ### Quality Metrics Tracking
-| Metric | Baseline | Current | Target | Status |
-|---------|----------|---------|---------|--------|
-| Avg Complexity | TBD | TBD | <6 | 🔍 Measuring |
-| Code Duplication | TBD | TBD | <5% | 🔍 Measuring |
-| Linting Errors | TBD | TBD | 0 | 🔍 Measuring |
-| Functions >30 lines | TBD | TBD | <10% | 🔍 Measuring |
+
+| Metric              | Baseline | Current | Target | Status       |
+| ------------------- | -------- | ------- | ------ | ------------ |
+| Avg Complexity      | TBD      | TBD     | <6     | 🔍 Measuring |
+| Code Duplication    | TBD      | TBD     | <5%    | 🔍 Measuring |
+| Linting Errors      | TBD      | TBD     | 0      | 🔍 Measuring |
+| Functions >30 lines | TBD      | TBD     | <10%   | 🔍 Measuring |
 
 ### Daily Progress Log
-| Date | Phase | Work Completed | Issues Encountered | Metrics Improved | Next Steps |
-|------|-------|----------------|-------------------|------------------|------------|
-| 2025-01-31 | Planning | Comprehensive plan created | None | N/A | Begin Phase 1 |
-| | | | | | |
+
+| Date       | Phase    | Work Completed             | Issues Encountered | Metrics Improved | Next Steps    |
+| ---------- | -------- | -------------------------- | ------------------ | ---------------- | ------------- |
+| 2025-01-31 | Planning | Comprehensive plan created | None               | N/A              | Begin Phase 1 |
+|            |          |                            |                    |                  |               |
 
 ## 🔄 Continuous Improvement & Follow-up
 
 ### Immediate Follow-up (After Completion)
+
 - [ ] **Monitor Quality Metrics**: Track improvements over time
-- [ ] **Team Training**: Educate team on new standards and tools  
+- [ ] **Team Training**: Educate team on new standards and tools
 - [ ] **Documentation Updates**: Keep quality guides current
 - [ ] **Process Refinement**: Adjust rules based on practical experience
 
 ### Short-term Enhancements (1-3 months)
+
 - [ ] **Custom ESLint Rules**: Develop project-specific quality rules
 - [ ] **Automated Refactoring**: Script common refactoring patterns
 - [ ] **Quality Dashboards**: Visual tracking of code quality trends
 - [ ] **Performance Monitoring**: Track impact on development velocity
 
 ### Long-term Strategy (6+ months)
+
 - [ ] **Quality Culture**: Embed quality-first mindset in team practices
 - [ ] **Tool Evolution**: Stay current with static analysis advancements
 - [ ] **Continuous Refactoring**: Regular technical debt reduction cycles

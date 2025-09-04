@@ -25,39 +25,39 @@ vi.mock('../../../src/utils/env', () => ({
 describe('ConnectivityFooter - Basic Tests', () => {
   it('renders basic structure', () => {
     render(<ConnectivityFooter />);
-    
+
     expect(screen.getByRole('button', { name: /Footer: Connected/ })).toBeInTheDocument();
   });
 
   it('displays status information', () => {
     render(<ConnectivityFooter />);
-    
+
     expect(screen.getByText('Connection')).toBeInTheDocument();
     expect(screen.getByText('Connected')).toBeInTheDocument();
   });
 
   it('displays app information', () => {
     render(<ConnectivityFooter />);
-    
+
     expect(screen.getByText('App Info')).toBeInTheDocument();
     expect(screen.getByText('1.0.0')).toBeInTheDocument();
   });
 
   it('responds to status line clicks', () => {
     render(<ConnectivityFooter />);
-    
+
     const statusLine = screen.getByRole('button', { name: /Footer: Connected/ });
-    
+
     // Should not throw error when clicked
     expect(() => fireEvent.click(statusLine)).not.toThrow();
-    
+
     // Footer should have expanded class after click
     expect(document.querySelector('.connectivity-footer')).toHaveClass('expanded');
   });
 
   it('applies custom className', () => {
-    render(<ConnectivityFooter className="test-class" />);
-    
+    render(<ConnectivityFooter className='test-class' />);
+
     expect(document.querySelector('.connectivity-footer')).toHaveClass('test-class');
   });
 });

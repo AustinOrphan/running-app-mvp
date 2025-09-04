@@ -11,11 +11,13 @@ Analysis of 6 remaining duplicate files in the running-app-mvp codebase reveals 
 ### 1. tests/setup/globalTeardown.ts vs globalTeardown 2.ts
 
 **Main file characteristics:**
+
 - **Size**: 66 lines with comprehensive cleanup logic
 - **Features**: Connection pool management, validation, statistics reporting
 - **Architecture**: Integrates with `connectionPoolManager` and multiple cleanup strategies
 
 **Duplicate file characteristics:**
+
 - **Size**: 22 lines with basic functionality
 - **Features**: Minimal teardown, basic error handling
 - **Architecture**: Simple manager instantiation and teardown
@@ -29,11 +31,13 @@ Analysis of 6 remaining duplicate files in the running-app-mvp codebase reveals 
 ### 2. tests/setup/jestSetup.ts vs jestSetup 2.ts
 
 **Main file characteristics:**
+
 - **Size**: 269 lines of comprehensive test infrastructure
 - **Features**: Connection pooling, transaction isolation, application state tracking, retry logic
 - **Architecture**: Advanced test setup with multiple isolation strategies
 
 **Duplicate file characteristics:**
+
 - **Size**: 39 lines of basic setup
 - **Features**: Minimal configuration, basic error handling
 - **Architecture**: Simple setup without advanced features
@@ -47,11 +51,13 @@ Analysis of 6 remaining duplicate files in the running-app-mvp codebase reveals 
 ### 3. tests/utils/databaseIsolation.ts vs databaseIsolation 2.ts
 
 **Main file characteristics:**
+
 - **Architecture**: Uses connection pool manager pattern
 - **Resource Management**: Shared connection pooling approach
 - **Integration**: Aligns with modern test infrastructure
 
 **Duplicate file characteristics:**
+
 - **Architecture**: Singleton pattern with manual Prisma client creation
 - **Resource Management**: Individual client instances
 - **Integration**: Legacy approach, not integrated with pool manager
@@ -65,11 +71,13 @@ Analysis of 6 remaining duplicate files in the running-app-mvp codebase reveals 
 ### 4. tests/utils/inMemoryDb.ts vs inMemoryDb 2.ts
 
 **Main file characteristics:**
+
 - **Cross-platform**: Uses `platformUtils.toUnixPath()` for compatibility
 - **Path Handling**: Consistent with project utilities
 - **Maintainability**: Follows established patterns
 
 **Duplicate file characteristics:**
+
 - **Platform-specific**: Uses direct Node.js path operations
 - **Path Handling**: Manual path manipulation
 - **Maintainability**: Inconsistent with project patterns
@@ -83,11 +91,13 @@ Analysis of 6 remaining duplicate files in the running-app-mvp codebase reveals 
 ### 5. tests/unit/hooks/useGoals.test.ts vs useGoals.test 2.ts
 
 **Main file characteristics:**
+
 - **Size**: 1,033 lines of comprehensive test coverage
 - **Test Scenarios**: Concurrent operations, complex error handling, state transitions
 - **Coverage**: Edge cases, network interruption simulation, token expiration
 
 **Duplicate file characteristics:**
+
 - **Size**: 662 lines of basic test coverage
 - **Test Scenarios**: Basic functionality testing
 - **Coverage**: Standard happy path and simple error cases
@@ -103,6 +113,7 @@ Analysis of 6 remaining duplicate files in the running-app-mvp codebase reveals 
 **Main file characteristics:** [Same as above - 1,033 lines comprehensive coverage]
 
 **Duplicate file characteristics:**
+
 - **Size**: 662 lines (identical to useGoals.test 2.ts)
 - **Content**: Appears to be exact duplicate of the "2" version
 
@@ -115,12 +126,14 @@ Analysis of 6 remaining duplicate files in the running-app-mvp codebase reveals 
 ## Pattern Analysis
 
 ### Common Themes Identified by Gemini:
+
 1. **Evolutionary Development**: Duplicates represent earlier development iterations
 2. **Infrastructure Maturation**: Main files show progression to sophisticated patterns
 3. **Architecture Consistency**: Main files align with current project architecture
 4. **Feature Completeness**: Main files consistently have more comprehensive functionality
 
 ### Risk Assessment:
+
 - **Low Risk**: All duplicates appear to be legacy versions
 - **No Dependencies**: No imports found referencing numbered duplicates
 - **Safe Deletion**: Main files provide superior functionality in all cases
@@ -178,6 +191,7 @@ Gemini analysis confirms that all 6 duplicate files can be safely removed. The m
    - This dramatic size difference pattern reinforces the evolutionary development theory
 
 2. **Import Dependency Verification**: Gemini mentioned checking for imports but could have been more specific about verification methods:
+
    ```bash
    # More comprehensive import checking
    find . -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | xargs grep -l "from.*2\.ts" || echo "Safe"
@@ -208,6 +222,7 @@ Gemini analysis confirms that all 6 duplicate files can be safely removed. The m
 ### ⚠️ **Critical Oversight:**
 
 1. **Validation Before Deletion**: Gemini's analysis assumes the main files are currently being used, but didn't verify:
+
    ```bash
    # Should verify which files are actually imported/used
    grep -r "from.*globalTeardown" . --include="*.ts" --include="*.js"
@@ -233,4 +248,5 @@ Gemini analysis confirms that all 6 duplicate files can be safely removed. The m
 4. **Documentation**: Update any developer documentation that might reference old file patterns
 
 ### **Final Claude Assessment:**
+
 Gemini's analysis is **fundamentally sound and actionable**, with the core recommendation being correct. The critique highlights **validation gaps** rather than analytical errors. The duplicates should indeed be deleted, but with more systematic verification steps.

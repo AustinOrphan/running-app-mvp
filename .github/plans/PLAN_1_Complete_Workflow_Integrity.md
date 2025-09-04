@@ -29,18 +29,20 @@ Achieve 100% GitHub workflow formatting compliance by resolving the 2 remaining 
 ## 🛠️ MCP Tool Strategy
 
 ### Primary Tools
+
 - **`mcp__serena__`**: Read and analyze problematic JavaScript template strings
-- **`mcp__gemini-cli__`**: Design refactoring strategy for extracting inline scripts  
+- **`mcp__gemini-cli__`**: Design refactoring strategy for extracting inline scripts
 - **`mcp__filesystem__`**: Create new external script files in `.github/scripts/`
 - **`mcp__todos__`**: Track progress on each file fix
 
 ### Tool Usage Patterns
+
 ```bash
 # Analysis
 serena read-file .github/workflows/coverage-trend-tracking.yml
 gemini-cli analyze-javascript-extraction --file coverage-trend-tracking.yml
 
-# File Operations  
+# File Operations
 filesystem create-directory .github/scripts
 filesystem write-file .github/scripts/coverage-trend-calculator.js
 
@@ -52,15 +54,17 @@ todos mark-complete <todo-id>
 ## 📋 Execution Plan
 
 ### Phase 1: Setup and Analysis (30 min)
+
 - [ ] **Task 1.1**: Create project structure
   - [ ] Create `.github/scripts/` directory
   - [ ] Create progress tracking todos
 - [ ] **Task 1.2**: Analyze problematic files
-  - [ ] Use `serena` to read `coverage-trend-tracking.yml` 
+  - [ ] Use `serena` to read `coverage-trend-tracking.yml`
   - [ ] Use `serena` to read `test-performance-monitoring.yml`
   - [ ] Document exact syntax error locations
 
 ### Phase 2: coverage-trend-tracking.yml Refactor (60 min)
+
 - [ ] **Task 2.1**: Extract JavaScript logic
   - [ ] Use `gemini-cli` to analyze embedded JavaScript at line 318
   - [ ] Design clean extraction strategy
@@ -74,6 +78,7 @@ todos mark-complete <todo-id>
   - [ ] Test Prettier formatting
 
 ### Phase 3: test-performance-monitoring.yml Refactor (60 min)
+
 - [ ] **Task 3.1**: Extract JavaScript logic
   - [ ] Use `gemini-cli` to analyze complex multiline JS
   - [ ] Design modular extraction approach
@@ -87,6 +92,7 @@ todos mark-complete <todo-id>
   - [ ] Test Prettier formatting
 
 ### Phase 4: Validation and Testing (30 min)
+
 - [ ] **Task 4.1**: Comprehensive validation
   - [ ] Run Prettier check on both files
   - [ ] Run YAML lint validation
@@ -117,12 +123,14 @@ todos mark-complete <todo-id>
 ## 🔍 Quality Assurance
 
 ### Pre-Refactor Checklist
+
 - [ ] Backup current workflow files
 - [ ] Document current JavaScript logic functionality
 - [ ] Identify all environment variables and inputs used
 - [ ] Note any GitHub Actions context dependencies
 
 ### Post-Refactor Validation
+
 - [ ] External scripts have proper error handling
 - [ ] All environment variables properly passed
 - [ ] Script outputs match original behavior
@@ -131,10 +139,12 @@ todos mark-complete <todo-id>
 ## 🚨 Risk Assessment
 
 ### Low Risks
+
 - **JavaScript Extraction**: Well-defined problem with clear solution
 - **YAML Refactoring**: Simple replacement of inline scripts
 
 ### Mitigation Strategies
+
 - **Backup Strategy**: Keep original files as `.backup` during development
 - **Incremental Testing**: Test each file refactor independently
 - **Rollback Plan**: Can quickly revert to original inline scripts if needed
@@ -142,12 +152,14 @@ todos mark-complete <todo-id>
 ## 📈 Success Metrics
 
 ### Quantitative
+
 - [ ] Prettier check passes: `npx prettier --check .github/workflows/*.yml`
 - [ ] YAML lint passes: `yamllint .github/workflows/`
 - [ ] Workflow success rate: 100% execution success in test runs
 - [ ] File count: 44 out of 44 workflows properly formatted
 
-### Qualitative  
+### Qualitative
+
 - [ ] Code maintainability improved (JavaScript in testable files)
 - [ ] Workflow readability enhanced (clean YAML structure)
 - [ ] Future JavaScript changes easier to implement and test
@@ -155,29 +167,33 @@ todos mark-complete <todo-id>
 ## 🔗 Dependencies
 
 ### Prerequisites
+
 - Completed workflow formatting project (✅ Done)
 - Access to repository with write permissions
 - Understanding of existing workflow functionality
 
 ### Blockers
+
 - None identified (self-contained refactoring)
 
 ## 📚 Resources
 
 ### Documentation
+
 - [GitHub Actions YAML Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions)
 - [JavaScript Template Literals Best Practices](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals)
 
 ### Related Files
+
 - `.github/WORKFLOW_FORMATTING_STATUS.md` - Current status documentation
 - `.github/workflows/code-coverage.yml` - Successfully refactored example
 
 ## 📝 Progress Log
 
-| Date | Task | Status | Notes |
-|------|------|--------|-------|
+| Date       | Task         | Status      | Notes                                  |
+| ---------- | ------------ | ----------- | -------------------------------------- |
 | 2025-01-31 | Plan Created | ✅ Complete | Initial comprehensive plan established |
-| | | | |
+|            |              |             |                                        |
 
 ## 🔄 Next Steps After Completion
 

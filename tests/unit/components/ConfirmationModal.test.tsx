@@ -82,13 +82,7 @@ describe('ConfirmationModal', () => {
     });
 
     it('renders custom button text', () => {
-      render(
-        <ConfirmationModal
-          {...defaultProps}
-          confirmText="Delete"
-          cancelText="Keep"
-        />
-      );
+      render(<ConfirmationModal {...defaultProps} confirmText='Delete' cancelText='Keep' />);
 
       expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Keep' })).toBeInTheDocument();
@@ -97,31 +91,31 @@ describe('ConfirmationModal', () => {
 
   describe('Types and Icons', () => {
     it('renders info type with default icon', () => {
-      render(<ConfirmationModal {...defaultProps} type="info" />);
+      render(<ConfirmationModal {...defaultProps} type='info' />);
 
       expect(screen.getByText('ℹ️')).toBeInTheDocument();
     });
 
     it('renders warning type with default icon', () => {
-      render(<ConfirmationModal {...defaultProps} type="warning" />);
+      render(<ConfirmationModal {...defaultProps} type='warning' />);
 
       expect(screen.getByText('⚠️')).toBeInTheDocument();
     });
 
     it('renders danger type with default icon', () => {
-      render(<ConfirmationModal {...defaultProps} type="danger" />);
+      render(<ConfirmationModal {...defaultProps} type='danger' />);
 
       expect(screen.getByText('🗑️')).toBeInTheDocument();
     });
 
     it('renders success type with default icon', () => {
-      render(<ConfirmationModal {...defaultProps} type="success" />);
+      render(<ConfirmationModal {...defaultProps} type='success' />);
 
       expect(screen.getByText('✅')).toBeInTheDocument();
     });
 
     it('renders custom icon', () => {
-      const customIcon = <span data-testid="custom-icon">🎯</span>;
+      const customIcon = <span data-testid='custom-icon'>🎯</span>;
       render(<ConfirmationModal {...defaultProps} icon={customIcon} />);
 
       expect(screen.getByTestId('custom-icon')).toBeInTheDocument();
@@ -129,7 +123,7 @@ describe('ConfirmationModal', () => {
     });
 
     it('uses correct button variant for danger type', () => {
-      render(<ConfirmationModal {...defaultProps} type="danger" />);
+      render(<ConfirmationModal {...defaultProps} type='danger' />);
 
       // The confirm button should have danger variant (visually different styling)
       const confirmButton = screen.getByRole('button', { name: 'Confirm' });
@@ -137,13 +131,7 @@ describe('ConfirmationModal', () => {
     });
 
     it('uses custom confirm variant when provided', () => {
-      render(
-        <ConfirmationModal
-          {...defaultProps}
-          type="info"
-          confirmVariant="warning"
-        />
-      );
+      render(<ConfirmationModal {...defaultProps} type='info' confirmVariant='warning' />);
 
       const confirmButton = screen.getByRole('button', { name: 'Confirm' });
       expect(confirmButton).toBeInTheDocument();
@@ -159,7 +147,7 @@ describe('ConfirmationModal', () => {
       fireEvent.click(confirmButton);
 
       expect(onConfirm).toHaveBeenCalledTimes(1);
-      
+
       // Wait for async handling
       await waitFor(() => {
         expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
@@ -187,10 +175,10 @@ describe('ConfirmationModal', () => {
     });
 
     it('handles async onConfirm functions', async () => {
-      const asyncOnConfirm = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(resolve, 100))
-      );
-      
+      const asyncOnConfirm = vi
+        .fn()
+        .mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+
       render(<ConfirmationModal {...defaultProps} onConfirm={asyncOnConfirm} />);
 
       const confirmButton = screen.getByRole('button', { name: 'Confirm' });
@@ -208,7 +196,7 @@ describe('ConfirmationModal', () => {
     it('handles onConfirm errors gracefully', async () => {
       const errorOnConfirm = vi.fn().mockRejectedValue(new Error('Test error'));
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       render(<ConfirmationModal {...defaultProps} onConfirm={errorOnConfirm} />);
 
       const confirmButton = screen.getByRole('button', { name: 'Confirm' });
@@ -220,7 +208,7 @@ describe('ConfirmationModal', () => {
 
       // Should not close modal on error
       expect(defaultProps.onClose).not.toHaveBeenCalled();
-      
+
       // Button should be re-enabled after error
       await waitFor(() => {
         expect(confirmButton).not.toBeDisabled();
@@ -244,9 +232,12 @@ describe('ConfirmationModal', () => {
     it('shows loading state during async confirm action', async () => {
       let resolveConfirm: () => void;
       const asyncOnConfirm = vi.fn().mockImplementation(
-        () => new Promise(resolve => { resolveConfirm = resolve; })
+        () =>
+          new Promise(resolve => {
+            resolveConfirm = resolve;
+          })
       );
-      
+
       render(<ConfirmationModal {...defaultProps} onConfirm={asyncOnConfirm} />);
 
       const confirmButton = screen.getByRole('button', { name: 'Confirm' });
@@ -258,7 +249,7 @@ describe('ConfirmationModal', () => {
 
       // Resolve the promise
       resolveConfirm!();
-      
+
       await waitFor(() => {
         expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
       });
@@ -267,19 +258,16 @@ describe('ConfirmationModal', () => {
     it('maintains loading state when both loading prop and internal loading are active', async () => {
       let resolveConfirm: () => void;
       const asyncOnConfirm = vi.fn().mockImplementation(
-        () => new Promise(resolve => { resolveConfirm = resolve; })
-      );
-      
-      render(
-        <ConfirmationModal
-          {...defaultProps}
-          loading={true}
-          onConfirm={asyncOnConfirm}
-        />
+        () =>
+          new Promise(resolve => {
+            resolveConfirm = resolve;
+          })
       );
 
+      render(<ConfirmationModal {...defaultProps} loading={true} onConfirm={asyncOnConfirm} />);
+
       const confirmButton = screen.getByRole('button', { name: 'Confirm' });
-      
+
       // Should be disabled due to loading prop
       expect(confirmButton).toBeDisabled();
 
@@ -289,7 +277,7 @@ describe('ConfirmationModal', () => {
       expect(confirmButton).toBeDisabled();
 
       resolveConfirm!();
-      
+
       await waitFor(() => {
         expect(asyncOnConfirm).toHaveBeenCalledTimes(1);
       });
@@ -301,8 +289,8 @@ describe('ConfirmationModal', () => {
       render(
         <ConfirmationModal
           {...defaultProps}
-          aria-label="Confirmation dialog"
-          aria-describedby="confirmation-message"
+          aria-label='Confirmation dialog'
+          aria-describedby='confirmation-message'
         />
       );
 
@@ -323,7 +311,7 @@ describe('ConfirmationModal', () => {
 
       const modal = screen.getByRole('dialog');
       expect(modal).toBeInTheDocument();
-      
+
       // The modal should be keyboard accessible
       const confirmButton = screen.getByRole('button', { name: 'Confirm' });
       confirmButton.focus();
@@ -339,7 +327,7 @@ describe('ConfirmationModal', () => {
           closeOnBackdrop={false}
           closeOnEsc={false}
           showCloseButton={false}
-          size="large"
+          size='large'
         />
       );
 
@@ -359,7 +347,7 @@ describe('ConfirmationModal', () => {
 
   describe('Edge Cases', () => {
     it('handles empty message gracefully', () => {
-      render(<ConfirmationModal {...defaultProps} message="" />);
+      render(<ConfirmationModal {...defaultProps} message='' />);
 
       expect(screen.getByText('Test Title')).toBeInTheDocument();
       // Empty message should still render the container
@@ -378,7 +366,7 @@ describe('ConfirmationModal', () => {
       render(<ConfirmationModal {...defaultProps} onConfirm={onConfirm} />);
 
       const confirmButton = screen.getByRole('button', { name: 'Confirm' });
-      
+
       // Click multiple times rapidly
       fireEvent.click(confirmButton);
       fireEvent.click(confirmButton);
@@ -394,7 +382,7 @@ describe('ConfirmationModal', () => {
       const neverResolveConfirm = vi.fn().mockImplementation(
         () => new Promise(() => {}) // Never resolves
       );
-      
+
       const { unmount } = render(
         <ConfirmationModal {...defaultProps} onConfirm={neverResolveConfirm} />
       );
@@ -465,13 +453,7 @@ describe('LegacyConfirmationModal', () => {
   });
 
   it('uses custom button text', () => {
-    render(
-      <LegacyConfirmationModal
-        {...legacyProps}
-        confirmText="Yes"
-        cancelText="No"
-      />
-    );
+    render(<LegacyConfirmationModal {...legacyProps} confirmText='Yes' cancelText='No' />);
 
     expect(screen.getByRole('button', { name: 'Yes' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'No' })).toBeInTheDocument();
@@ -484,7 +466,7 @@ describe('LegacyConfirmationModal', () => {
   });
 
   it('supports different types', () => {
-    render(<LegacyConfirmationModal {...legacyProps} type="warning" />);
+    render(<LegacyConfirmationModal {...legacyProps} type='warning' />);
 
     expect(screen.getByText('⚠️')).toBeInTheDocument();
   });

@@ -80,7 +80,7 @@ describe('useGoals - Notification Integration', () => {
     // Mock API responses
     const { apiGet } = await import('../../../src/utils/apiFetch');
     const mockApiGet = apiGet as ReturnType<typeof vi.fn>;
-    
+
     const goalWithProgress = createMockGoal({ id: 'milestone-goal' });
     const progressWithMilestone = createMockGoalProgress({
       goalId: goalWithProgress.id,
@@ -149,12 +149,12 @@ describe('useGoals - Notification Integration', () => {
     // Mock API responses
     const { apiGet } = await import('../../../src/utils/apiFetch');
     const mockApiGet = apiGet as ReturnType<typeof vi.fn>;
-    
+
     const goalWithDeadline = createMockGoal({
       id: 'deadline-goal',
       targetDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
     });
-    
+
     const progressData = createMockGoalProgress({
       goalId: goalWithDeadline.id,
       progressPercentage: 50,
@@ -191,10 +191,7 @@ describe('useGoals - Notification Integration', () => {
     });
 
     await waitFor(() => {
-      expect(mockShowDeadlineNotification).toHaveBeenCalledWith(
-        goalWithDeadline,
-        progressData
-      );
+      expect(mockShowDeadlineNotification).toHaveBeenCalledWith(goalWithDeadline, progressData);
     });
   });
 
@@ -215,7 +212,7 @@ describe('useGoals - Notification Integration', () => {
     // Mock API responses
     const { apiGet } = await import('../../../src/utils/apiFetch');
     const mockApiGet = apiGet as ReturnType<typeof vi.fn>;
-    
+
     const goal = createMockGoal({ id: 'no-notification-goal' });
     const progress = createMockGoalProgress({
       goalId: goal.id,
@@ -275,7 +272,7 @@ describe('useGoals - Notification Integration', () => {
     // Mock API responses
     const { apiGet } = await import('../../../src/utils/apiFetch');
     const mockApiGet = apiGet as ReturnType<typeof vi.fn>;
-    
+
     const goal = createMockGoal({ id: 'error-goal' });
     const progress = createMockGoalProgress({
       goalId: goal.id,
@@ -331,19 +328,21 @@ describe('useGoals - Notification Integration', () => {
     let checkCount = 0;
     mockMilestoneDetector.checkMilestones.mockImplementation(() => {
       checkCount++;
-      return checkCount === 1 ? {
-        hasNewMilestones: true,
-        newMilestones: [{ percentage: 75, type: 'percentage' }],
-      } : {
-        hasNewMilestones: false,
-        newMilestones: [],
-      };
+      return checkCount === 1
+        ? {
+            hasNewMilestones: true,
+            newMilestones: [{ percentage: 75, type: 'percentage' }],
+          }
+        : {
+            hasNewMilestones: false,
+            newMilestones: [],
+          };
     });
 
     // Mock API responses
     const { apiGet } = await import('../../../src/utils/apiFetch');
     const mockApiGet = apiGet as ReturnType<typeof vi.fn>;
-    
+
     const goal = createMockGoal({ id: 'progress-tracking-goal' });
     const progress = createMockGoalProgress({
       goalId: goal.id,

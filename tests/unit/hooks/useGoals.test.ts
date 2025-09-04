@@ -780,7 +780,7 @@ describe('useGoals', () => {
   describe('Token Expiration Scenarios', () => {
     it('handles token expiration during API call with retry', async () => {
       let callCount = 0;
-      
+
       // Mock first call to fail with 401, second to succeed
       mockApiGet.mockImplementation(() => {
         callCount++;
@@ -802,7 +802,7 @@ describe('useGoals', () => {
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
-      
+
       expect(result.current.error).toBe('Authentication failed. Please log in again.');
       expect(result.current.goals).toEqual([]);
 
@@ -861,7 +861,7 @@ describe('useGoals', () => {
 
     it('handles network interruption simulation', async () => {
       let callCount = 0;
-      
+
       // Simulate network failure then recovery
       mockApiGet.mockImplementation(() => {
         callCount++;
@@ -881,7 +881,7 @@ describe('useGoals', () => {
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
-      
+
       expect(result.current.error).toBe('Network error: Failed to fetch');
 
       // Retry after 'network recovery'

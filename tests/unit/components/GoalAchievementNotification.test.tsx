@@ -550,7 +550,7 @@ describe('GoalAchievementNotification', () => {
       const newGoal1 = { ...baseGoal, id: 'goal-1', title: 'Goal 1' };
       const newGoal2 = { ...baseGoal, id: 'goal-2', title: 'Goal 2' };
       const newGoal3 = { ...baseGoal, id: 'goal-3', title: 'Goal 3' };
-      
+
       rerender(<GoalAchievementNotification achievedGoal={newGoal1} onClose={mockOnClose} />);
       rerender(<GoalAchievementNotification achievedGoal={newGoal2} onClose={mockOnClose} />);
       rerender(<GoalAchievementNotification achievedGoal={newGoal3} onClose={mockOnClose} />);
