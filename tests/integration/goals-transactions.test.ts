@@ -77,7 +77,7 @@ describe('Goals API - Transaction Rollback Scenarios', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send(invalidGoalData);
 
-      expectErrorResponse(response, 400, /Invalid goal type/i);
+      expectErrorResponse(response, 400, /invalid goal type/i);
 
       // Verify no goal was created
       const goals = await prisma.goal.findMany({ where: { userId } });
@@ -131,7 +131,7 @@ describe('Goals API - Transaction Rollback Scenarios', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ title: 'Updated Title' });
 
-      expectErrorResponse(response, 404, /Goal not found/i);
+      expectErrorResponse(response, 404, /goal not found/i);
     });
 
     it('should rollback when validation fails during update', async () => {
@@ -156,7 +156,7 @@ describe('Goals API - Transaction Rollback Scenarios', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ targetValue: -10 }); // Invalid negative value
 
-      expectErrorResponse(response, 400, /Target value must be positive/i);
+      expectErrorResponse(response, 400, /target value must be positive/i);
 
       // Verify goal was not updated
       const unchangedGoal = await prisma.goal.findUnique({ where: { id: goal.id } });
@@ -253,7 +253,7 @@ describe('Goals API - Transaction Rollback Scenarios', () => {
         .post(`/api/goals/${goal.id}/complete`)
         .set('Authorization', `Bearer ${authToken}`);
 
-      expectErrorResponse(response, 400, /Goal is already completed/i);
+      expectErrorResponse(response, 400, /goal is already completed/i);
     });
   });
 

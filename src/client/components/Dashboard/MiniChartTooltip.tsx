@@ -18,7 +18,7 @@ interface MiniChartTooltipProps {
 }
 
 export const MiniChartTooltip: React.FC<MiniChartTooltipProps> = ({ active, payload, type }) => {
-  if (!active || !payload || !payload.length) {
+  if (!active || !payload || payload.length === 0) {
     return null;
   }
 

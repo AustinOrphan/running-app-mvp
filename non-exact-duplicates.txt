@@ -1,6 +1,0 @@
-=== NON-EXACT DUPLICATES FOR ANALYSIS ===
-
-1. tests/utils/databaseIsolation 2.ts - differs from tests/utils/databaseIsolation.ts
-2. tests/utils/inMemoryDb 2.ts - differs from tests/utils/inMemoryDb.ts
-
-Checking tests/setup for duplicates...

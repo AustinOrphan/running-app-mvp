@@ -70,10 +70,10 @@ describe('PersonalRecordsTable', () => {
       expect(screen.getByRole('table')).toBeInTheDocument();
 
       // Check headers
-      expect(screen.getByRole('columnheader', { name: /Distance/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /Time/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /Pace/i })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /Date/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /distance/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /time/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /pace/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /date/i })).toBeInTheDocument();
     });
 
     it('displays all record data correctly', () => {
@@ -123,7 +123,7 @@ describe('PersonalRecordsTable', () => {
     it('sorts by distance when distance header is clicked', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      const distanceHeader = screen.getByRole('columnheader', { name: /Distance/i });
+      const distanceHeader = screen.getByRole('columnheader', { name: /distance/i });
       fireEvent.click(distanceHeader);
 
       // Check that header has active styling by checking for active class (CSS modules or regular)
@@ -134,7 +134,7 @@ describe('PersonalRecordsTable', () => {
     it('toggles sort direction when same header is clicked twice', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      const distanceHeader = screen.getByRole('columnheader', { name: /Distance/i });
+      const distanceHeader = screen.getByRole('columnheader', { name: /distance/i });
 
       // First click - should set to descending (actual behavior)
       fireEvent.click(distanceHeader);
@@ -153,15 +153,15 @@ describe('PersonalRecordsTable', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
       // Initially, non-active columns should show neutral icon
-      expect(screen.getByRole('columnheader', { name: /Time/i })).toHaveTextContent(/Time ↕️/);
-      expect(screen.getByRole('columnheader', { name: /Pace/i })).toHaveTextContent(/Pace ↕️/);
-      expect(screen.getByRole('columnheader', { name: /Date/i })).toHaveTextContent(/Date ↕️/);
+      expect(screen.getByRole('columnheader', { name: /time/i })).toHaveTextContent(/Time ↕️/);
+      expect(screen.getByRole('columnheader', { name: /pace/i })).toHaveTextContent(/Pace ↕️/);
+      expect(screen.getByRole('columnheader', { name: /date/i })).toHaveTextContent(/Date ↕️/);
     });
 
     it('sorts by time when time header is clicked', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      const timeHeader = screen.getByRole('columnheader', { name: /Time/i });
+      const timeHeader = screen.getByRole('columnheader', { name: /time/i });
       fireEvent.click(timeHeader);
 
       // Check that header has active styling by checking for active class (CSS modules or regular)
@@ -173,7 +173,7 @@ describe('PersonalRecordsTable', () => {
     it('sorts by pace when pace header is clicked', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      const paceHeader = screen.getByRole('columnheader', { name: /Pace/i });
+      const paceHeader = screen.getByRole('columnheader', { name: /pace/i });
       fireEvent.click(paceHeader);
 
       // Check that header has active styling by checking for active class (CSS modules or regular)
@@ -184,7 +184,7 @@ describe('PersonalRecordsTable', () => {
     it('sorts by date when date header is clicked', () => {
       render(<PersonalRecordsTable records={mockPersonalRecords} loading={false} />);
 
-      const dateHeader = screen.getByRole('columnheader', { name: /Date/i });
+      const dateHeader = screen.getByRole('columnheader', { name: /date/i });
       fireEvent.click(dateHeader);
 
       // Check that header has active styling by checking for active class (CSS modules or regular)

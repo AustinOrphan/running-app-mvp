@@ -86,7 +86,7 @@ export const expectSuccessResponse = (
  * Helper to assert JWT token format
  */
 export const expectValidJWT = (token: string) => {
-  expect(token).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
+  expect(token).toMatch(/^(?:[\w-]+\.){2}[\w-]+$/);
 };
 
 /**
@@ -304,7 +304,7 @@ export const responseValidators = {
    * Validates JWT token format
    */
   isValidJWT: (token: string): boolean => {
-    return /^[\w-]+\.[\w-]+\.[\w-]+$/.test(token);
+    return /^(?:[\w-]+\.){2}[\w-]+$/.test(token);
   },
 
   /**

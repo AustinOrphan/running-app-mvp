@@ -58,7 +58,7 @@ export const validatePassword = (password: string): { isValid: boolean; errors: 
     errors.push('Password must contain at least one number');
   }
 
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+  if (!/[!"#$%&()*,.:<>?@^{|}]/.test(password)) {
     errors.push('Password must contain at least one special character');
   }
 
@@ -90,13 +90,13 @@ export const getPasswordStrength = (password: string): { score: number; feedback
   if (/\d/.test(password)) score += 1;
   else feedback.push('Add numbers');
 
-  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score += 1;
+  if (/[!"#$%&()*,.:<>?@^{|}]/.test(password)) score += 1;
   else feedback.push('Add special characters');
 
   const strengthLevels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
   return {
     score,
-    feedback: `${strengthLevels[score] || 'Very Weak'}${feedback.length ? ': ' + feedback.join(', ') : ''}`,
+    feedback: `${strengthLevels[score] || 'Very Weak'}${feedback.length > 0 ? ': ' + feedback.join(', ') : ''}`,
   };
 };
 
@@ -284,7 +284,7 @@ const PATH_TRAVERSAL_PATTERNS = [
  * Command injection patterns
  */
 const COMMAND_INJECTION_PATTERNS = [
-  /[;&|`$(){}[\]]/,
+  /[$&();[\]`{|}]/,
   /\b(cat|ls|pwd|whoami|id|uname|ps|netstat|ifconfig|ping|wget|curl|nc|telnet|ssh|rm|mv|cp|chmod|chown)\b/gi,
 ];
 
@@ -353,7 +353,7 @@ export const sanitizeString = (input: string): string => {
       // Normalize unicode
       .normalize('NFKC')
       // Remove potentially dangerous HTML entities
-      .replace(/&[#\w]+;/g, '')
+      .replace(/&[\w#]+;/g, '')
       // Remove script tags and event handlers
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
       .replace(/on\w+\s*=/gi, '')

@@ -485,12 +485,12 @@ describe('CreateGoalModal', () => {
 
       // The button text changes to "Creating..." during submission
       await waitFor(() => {
-        const submitBtn = screen.getByRole('button', { name: /Creating.../i });
+        const submitBtn = screen.getByRole('button', { name: /creating.../i });
         expect(submitBtn).toBeInTheDocument();
         expect(submitBtn).toBeDisabled();
       });
 
-      const cancelButton = screen.getByRole('button', { name: /Cancel/i });
+      const cancelButton = screen.getByRole('button', { name: /cancel/i });
       expect(cancelButton).toBeDisabled();
 
       resolveSubmit!(undefined);
@@ -583,7 +583,7 @@ describe('CreateGoalModal', () => {
       expect(screen.getByText('Creating...')).toBeInTheDocument();
 
       // Now check that the cancel button is disabled
-      const cancelButton = screen.getByRole('button', { name: /Cancel/i });
+      const cancelButton = screen.getByRole('button', { name: /cancel/i });
       expect(cancelButton).toBeDisabled();
     });
   });

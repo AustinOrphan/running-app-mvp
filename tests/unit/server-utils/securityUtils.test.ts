@@ -96,13 +96,13 @@ describe('Security Utilities', () => {
   describe('Token Generation', () => {
     it('generates secure tokens', () => {
       const token = generateSecureToken();
-      expect(token).toMatch(/^[a-f0-9]{64}$/);
+      expect(token).toMatch(/^[\da-f]{64}$/);
       expect(token).toHaveLength(64);
     });
 
     it('generates tokens of specified length', () => {
       const token = generateSecureToken(16);
-      expect(token).toMatch(/^[a-f0-9]{32}$/);
+      expect(token).toMatch(/^[\da-f]{32}$/);
       expect(token).toHaveLength(32);
     });
   });
@@ -200,7 +200,7 @@ describe('Security Utilities', () => {
   describe('CSRF Token Management', () => {
     it('generates CSRF tokens', () => {
       const token = generateCSRFToken();
-      expect(token).toMatch(/^[a-f0-9]{64}$/);
+      expect(token).toMatch(/^[\da-f]{64}$/);
     });
 
     it('validates matching CSRF tokens', () => {
@@ -280,7 +280,7 @@ describe('Security Utilities', () => {
       const encrypted = encryptSensitiveData(data);
 
       // Check that encrypted string has the expected format: iv:authTag:data
-      expect(encrypted).toMatch(/^[a-f0-9]+:[a-f0-9]+:[a-f0-9]+$/);
+      expect(encrypted).toMatch(/^(?:[\da-f]+:){2}[\da-f]+$/);
       const parts = encrypted.split(':');
       expect(parts).toHaveLength(3);
 

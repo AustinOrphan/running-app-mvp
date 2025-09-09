@@ -87,12 +87,12 @@ export async function waitForA11yElements(
       const formControls = container.querySelectorAll('input, select, textarea');
       const labelsReady = Array.from(formControls).every(control => {
         const htmlControl = control as HTMLElement;
-        const hasLabel =
+        return (
           htmlControl.hasAttribute('aria-label') ||
           htmlControl.hasAttribute('aria-labelledby') ||
           htmlControl.closest('label') ||
-          document.querySelector(`label[for="${htmlControl.id}"]`);
-        return hasLabel;
+          document.querySelector(`label[for="${htmlControl.id}"]`)
+        );
       });
 
       if (!labelsReady) allReady = false;

@@ -27,7 +27,7 @@ export const createMockServer = () => {
 
   global.fetch = mockFetch;
 
-  const mockAPI = {
+  return {
     // Auth endpoints
     mockLogin: (response: any, status = 200) => {
       mockFetch.mockResolvedValueOnce({
@@ -117,8 +117,6 @@ export const createMockServer = () => {
       mockFetch.mockClear();
     },
   };
-
-  return mockAPI;
 };
 
 export type MockAPI = ReturnType<typeof createMockServer>;

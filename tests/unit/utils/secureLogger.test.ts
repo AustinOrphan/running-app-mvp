@@ -180,8 +180,8 @@ describe('SecureLogger IP Privacy Enhancements', () => {
       const secondLog = mockConsoleError.mock.calls[1][1];
 
       // Extract IP hash from both logs
-      const firstIpMatch = (firstLog as string).match(/"ip":"(ip_[a-f0-9]{16})"/);
-      const secondIpMatch = (secondLog as string).match(/"ip":"(ip_[a-f0-9]{16})"/);
+      const firstIpMatch = (firstLog as string).match(/"ip":"(ip_[\da-f]{16})"/);
+      const secondIpMatch = (secondLog as string).match(/"ip":"(ip_[\da-f]{16})"/);
 
       expect(firstIpMatch).not.toBeNull();
       expect(secondIpMatch).not.toBeNull();
@@ -216,8 +216,8 @@ describe('SecureLogger IP Privacy Enhancements', () => {
       const secondLog = mockConsoleError.mock.calls[1][1];
 
       // Extract IP hash from both logs
-      const firstIpMatch = (firstLog as string).match(/"ip":"(ip_[a-f0-9]{16})"/);
-      const secondIpMatch = (secondLog as string).match(/"ip":"(ip_[a-f0-9]{16})"/);
+      const firstIpMatch = (firstLog as string).match(/"ip":"(ip_[\da-f]{16})"/);
+      const secondIpMatch = (secondLog as string).match(/"ip":"(ip_[\da-f]{16})"/);
 
       expect(firstIpMatch).not.toBeNull();
       expect(secondIpMatch).not.toBeNull();

@@ -1,4 +1,13 @@
-// Enhanced ESLint configuration for code quality
+/**
+ * QUALITY ESLINT CONFIG
+ *
+ * Purpose: Enhanced quality checks with additional security and style rules
+ * Usage: npm run quality
+ * Extension: Imports and extends base eslint.config.js (line 2)
+ *
+ * Adds: Security rules, unicorn rules, enhanced quality checks
+ * Note: This EXTENDS the base config, does not duplicate it
+ */
 import baseConfig from './eslint.config.js';
 import security from 'eslint-plugin-security';
 import unicorn from 'eslint-plugin-unicorn';

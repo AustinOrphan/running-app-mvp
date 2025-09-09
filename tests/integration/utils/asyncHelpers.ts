@@ -80,8 +80,7 @@ export async function runParallel<T, R>(
   const results: R[] = [];
   const executing: Promise<void>[] = [];
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  for (const [i, item] of items.entries()) {
     const promise = operation(item, i).then(result => {
       results[i] = result;
     });
@@ -276,8 +275,7 @@ export async function withDatabaseSafety<T>(
   rollback?: () => Promise<void>
 ): Promise<T> {
   try {
-    const result = await operation();
-    return result;
+    return await operation();
   } catch (error) {
     if (rollback) {
       try {

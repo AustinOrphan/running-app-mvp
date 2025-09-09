@@ -156,14 +156,12 @@ class TestStateManager {
     warn: jest.SpyInstance;
     info: jest.SpyInstance;
   } {
-    const mocks = {
+    return {
       log: jest.spyOn(console, 'log').mockImplementation(),
       error: jest.spyOn(console, 'error').mockImplementation(),
       warn: jest.spyOn(console, 'warn').mockImplementation(),
       info: jest.spyOn(console, 'info').mockImplementation(),
     };
-
-    return mocks;
   }
 
   /**

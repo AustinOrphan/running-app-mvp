@@ -109,12 +109,11 @@ describe('Simple Transaction Isolation Demo', () => {
       testFn: (tx: PrismaClient) => Promise<T>
     ): Promise<T | undefined> {
       try {
-        const result = await prisma.$transaction(async tx => {
+        return await prisma.$transaction(async tx => {
           const testResult = await testFn(tx as any);
           // Always rollback by throwing
           throw { rollback: true, result: testResult };
         });
-        return result;
       } catch (error: any) {
         if (error.rollback) {
           return error.result;

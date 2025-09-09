@@ -60,8 +60,8 @@ export function expectAuthResponse(responseBody: any) {
   expect(responseBody.user).not.toHaveProperty('password');
 
   // Validate JWT format
-  expect(responseBody.accessToken).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
-  expect(responseBody.refreshToken).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
+  expect(responseBody.accessToken).toMatch(/^(?:[\w-]+\.){2}[\w-]+$/);
+  expect(responseBody.refreshToken).toMatch(/^(?:[\w-]+\.){2}[\w-]+$/);
 }
 
 /**

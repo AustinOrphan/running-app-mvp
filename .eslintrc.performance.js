@@ -1,5 +1,13 @@
-// Performance-optimized ESLint configuration for large codebases
-// This config prioritizes speed over comprehensive linting for development
+/**
+ * PERFORMANCE ESLINT CONFIG
+ *
+ * Purpose: Fast linting for CI performance jobs and large codebase development
+ * Usage: npm run lint:perf
+ * Key difference: TypeScript project parsing DISABLED for speed (line 61)
+ *
+ * DO NOT merge with main eslint.config.js - breaks performance strategy
+ * This config prioritizes speed over comprehensive linting
+ */
 
 import js from '@eslint/js';
 import typescript from '@typescript-eslint/eslint-plugin';

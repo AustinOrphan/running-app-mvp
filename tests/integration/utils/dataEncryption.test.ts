@@ -96,8 +96,8 @@ describe('Data Encryption Utilities', () => {
         expect(encrypted).toHaveProperty('encrypted', true);
 
         expect(encrypted.data).not.toBe(plaintext);
-        expect(encrypted.iv).toMatch(/^[0-9a-f]{32}$/);
-        expect(encrypted.tag).toMatch(/^[0-9a-f]{32}$/);
+        expect(encrypted.iv).toMatch(/^[\da-f]{32}$/);
+        expect(encrypted.tag).toMatch(/^[\da-f]{32}$/);
 
         const decrypted = encryption.decrypt(encrypted);
         expect(decrypted).toBe(plaintext);
@@ -295,7 +295,7 @@ describe('Data Encryption Utilities', () => {
 
         expect(key).toHaveProperty('hex');
         expect(key).toHaveProperty('base64');
-        expect(key.hex).toMatch(/^[0-9a-f]{64}$/);
+        expect(key.hex).toMatch(/^[\da-f]{64}$/);
         expect(Buffer.from(key.hex, 'hex').length).toBe(32);
         expect(Buffer.from(key.base64, 'base64').length).toBe(32);
       });

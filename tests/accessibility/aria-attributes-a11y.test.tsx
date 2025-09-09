@@ -1055,7 +1055,7 @@ describe('ARIA Attributes Verification', () => {
       expect(exportButton).toHaveAttribute('aria-label', 'Export data as CSV file');
 
       // Verify icons are properly hidden from screen readers
-      const icons = screen.getAllByText(/[🗑️✏️📤💾]/);
+      const icons = screen.getAllByText(/[✏💾️�]/);
       icons.forEach(icon => {
         expect(icon).toHaveAttribute('aria-hidden', 'true');
       });

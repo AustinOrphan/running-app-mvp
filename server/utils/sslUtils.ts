@@ -225,7 +225,7 @@ export const checkCertificateExpiry = (
 
     // Parse certificate to get expiry date
     // This is a simplified check - in production, use a proper X.509 parser
-    const certRegex = /-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/;
+    const certRegex = /-{5}BEGIN CERTIFICATE-{5}[\S\s]*?-{5}END CERTIFICATE-{5}/;
     const match = certContent.match(certRegex);
 
     if (!match) {

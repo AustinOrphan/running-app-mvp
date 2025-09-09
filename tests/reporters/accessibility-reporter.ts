@@ -49,7 +49,7 @@ export default class AccessibilityReporter implements Reporter {
 
       // Extract accessibility violations from error messages
       const errorMessage = result.error?.message || '';
-      const violationMatch = errorMessage.match(/violations:\s*(\[[\s\S]*?\])/);
+      const violationMatch = errorMessage.match(/violations:\s*(\[[\S\s]*?])/);
 
       if (violationMatch) {
         try {

@@ -62,6 +62,7 @@ export class TransactionIsolationManager {
   /**
    * Start a new transaction for test isolation
    */
+  // eslint-disable-next-line complexity -- Complex error handling needed for test utility
   async startTransaction(testName?: string): Promise<TransactionContext> {
     if (!this.config.enabled) {
       throw new Error('Transaction isolation is disabled');
@@ -147,6 +148,7 @@ export class TransactionIsolationManager {
   /**
    * Rollback the current transaction
    */
+  // eslint-disable-next-line complexity -- Complex error handling needed for test utility
   async rollbackTransaction(transactionId?: string): Promise<void> {
     const targetId = transactionId || this.currentTransaction?.id;
 
@@ -415,8 +417,7 @@ export async function runInTransaction<T>(
   const context = await manager.startTransaction(testName);
 
   try {
-    const result = await testFn(context.client);
-    return result;
+    return await testFn(context.client);
   } finally {
     await manager.rollbackTransaction(context.id);
   }

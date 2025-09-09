@@ -339,8 +339,8 @@ describe('Factory Usage Examples', () => {
       expect(password).toHaveLength(16);
       expect(password).toMatch(/[A-Z]/); // Contains uppercase
       expect(password).toMatch(/[a-z]/); // Contains lowercase
-      expect(password).toMatch(/[0-9]/); // Contains number
-      expect(password).toMatch(/[!@#$%^&*]/); // Contains special char
+      expect(password).toMatch(/\d/); // Contains number
+      expect(password).toMatch(/[!#$%&*@^]/); // Contains special char
     });
 
     test('date generation', () => {

@@ -108,10 +108,10 @@ describe('ClientLogger', () => {
       const logCall = mockConsole.info.mock.calls[0][1];
       const logEntry = JSON.parse(logCall);
 
-      expect(logEntry.metadata.password).toMatch(/[^*]*\*\*\*[^*]*/);
-      expect(logEntry.metadata.email).toMatch(/[^*]*\*\*\*[^*]*/);
-      expect(logEntry.metadata.token).toMatch(/[^*]*\*\*\*[^*]*/);
-      expect(logEntry.metadata.secret).toMatch(/[^*]*\*\*\*[^*]*/);
+      expect(logEntry.metadata.password).toMatch(/[^*]*\*{3}[^*]*/);
+      expect(logEntry.metadata.email).toMatch(/[^*]*\*{3}[^*]*/);
+      expect(logEntry.metadata.token).toMatch(/[^*]*\*{3}[^*]*/);
+      expect(logEntry.metadata.secret).toMatch(/[^*]*\*{3}[^*]*/);
       expect(logEntry.metadata.normalField).toBe('safe data');
     });
 
@@ -175,8 +175,8 @@ describe('ClientLogger', () => {
       const logCall = mockConsole.info.mock.calls[0][1];
       const logEntry = JSON.parse(logCall);
 
-      expect(logEntry.metadata.user.profile.email).toMatch(/[^*]*\*\*\*[^*]*/);
-      expect(logEntry.metadata.user.profile.password).toMatch(/[^*]*\*\*\*[^*]*/);
+      expect(logEntry.metadata.user.profile.email).toMatch(/[^*]*\*{3}[^*]*/);
+      expect(logEntry.metadata.user.profile.password).toMatch(/[^*]*\*{3}[^*]*/);
       expect(logEntry.metadata.user.settings.theme).toBe('dark');
     });
 
@@ -193,8 +193,8 @@ describe('ClientLogger', () => {
       const logCall = mockConsole.info.mock.calls[0][1];
       const logEntry = JSON.parse(logCall);
 
-      expect(logEntry.metadata.users[0].email).toMatch(/[^*]*\*\*\*[^*]*/);
-      expect(logEntry.metadata.users[1].email).toMatch(/[^*]*\*\*\*[^*]*/);
+      expect(logEntry.metadata.users[0].email).toMatch(/[^*]*\*{3}[^*]*/);
+      expect(logEntry.metadata.users[1].email).toMatch(/[^*]*\*{3}[^*]*/);
       expect(logEntry.metadata.users[0].name).toBe('John');
       expect(logEntry.metadata.users[1].name).toBe('Jane');
     });

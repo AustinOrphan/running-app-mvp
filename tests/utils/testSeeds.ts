@@ -8,6 +8,9 @@
 import type { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
+// Constants for duplicate strings
+const TEST_START_DATE = '2024-01-01T00:00:00Z';
+
 /**
  * Basic user data for testing
  */
@@ -78,7 +81,7 @@ export const TEST_GOALS = [
     period: 'MONTHLY',
     targetValue: 100,
     targetUnit: 'km',
-    startDate: new Date('2024-01-01T00:00:00Z'),
+    startDate: new Date(TEST_START_DATE),
     endDate: new Date('2024-01-31T23:59:59Z'),
     currentValue: 25.5,
     isCompleted: false,
@@ -302,7 +305,7 @@ export async function seedEdgeCaseTestData(client: PrismaClient): Promise<void> 
         period: 'WEEKLY',
         targetValue: 50,
         targetUnit: 'km',
-        startDate: new Date('2024-01-01T00:00:00Z'),
+        startDate: new Date(TEST_START_DATE),
         endDate: new Date('2024-01-07T23:59:59Z'),
         currentValue: 0, // Zero progress
         isCompleted: false,
@@ -317,7 +320,7 @@ export async function seedEdgeCaseTestData(client: PrismaClient): Promise<void> 
         period: 'MONTHLY',
         targetValue: 600,
         targetUnit: 'minutes',
-        startDate: new Date('2024-01-01T00:00:00Z'),
+        startDate: new Date(TEST_START_DATE),
         endDate: new Date('2024-01-31T23:59:59Z'),
         currentValue: 750, // Exceeded target
         isCompleted: true,

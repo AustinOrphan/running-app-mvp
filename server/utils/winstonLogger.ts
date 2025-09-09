@@ -80,7 +80,7 @@ const consoleFormat = winston.format.combine(
   winston.format.colorize(),
   winston.format.printf(
     ({ timestamp, level, message, ...meta }: winston.Logform.TransformableInfo) => {
-      const metaString = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
+      const metaString = Object.keys(meta).length > 0 ? JSON.stringify(meta, null, 2) : '';
       return `${timestamp} [${level}]: ${message} ${metaString}`;
     }
   )

@@ -98,8 +98,8 @@ export function estimateRunningEconomy(runs: RunData[]): number {
 export function calculateLactateThreshold(vdot: number): number {
   // Threshold is typically run at 88% of VO2max
   // This is a simplified calculation
-  const thresholdVelocity = (vdot * 0.88) / 3.5; // km/h
-  return thresholdVelocity;
+  // km/h
+  return (vdot * 0.88) / 3.5;
 }
 
 /**

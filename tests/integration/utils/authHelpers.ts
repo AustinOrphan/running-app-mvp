@@ -115,6 +115,6 @@ export function assertAuthSuccess(response: request.Response) {
   expect(response.body.user).not.toHaveProperty('password');
 
   // Verify tokens are valid JWTs
-  expect(response.body.accessToken).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
-  expect(response.body.refreshToken).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
+  expect(response.body.accessToken).toMatch(/^(?:[\w-]+\.){2}[\w-]+$/);
+  expect(response.body.refreshToken).toMatch(/^(?:[\w-]+\.){2}[\w-]+$/);
 }

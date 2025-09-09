@@ -151,7 +151,7 @@ describe('Auth API Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message', 'Token refreshed successfully');
       expect(response.body).toHaveProperty('accessToken');
-      expect(response.body.accessToken).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
+      expect(response.body.accessToken).toMatch(/^(?:[\w-]+\.){2}[\w-]+$/);
       expect(response.body.accessToken).not.toBe(refreshToken);
     });
 

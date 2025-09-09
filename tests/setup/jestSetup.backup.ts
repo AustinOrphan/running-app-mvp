@@ -14,8 +14,8 @@ if (!process.env.CI) {
     try {
       execSync('npx prisma generate', { stdio: 'ignore' });
       execSync('npx prisma migrate deploy', { stdio: 'ignore' });
-    } catch (e) {
-      console.error('Error setting up test database:', e);
+    } catch (error) {
+      console.error('Error setting up test database:', error);
     }
   }
 }

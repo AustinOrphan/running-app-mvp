@@ -49,7 +49,7 @@ export const createTestRuns = async (userId: string, runs = mockRuns) => {
 
   // Fetch the created runs to return them
   // This is still faster than creating one by one
-  const createdRuns = await prisma.run.findMany({
+  return await prisma.run.findMany({
     where: {
       userId: userId,
       date: {
@@ -60,8 +60,6 @@ export const createTestRuns = async (userId: string, runs = mockRuns) => {
       date: 'desc',
     },
   });
-
-  return createdRuns;
 };
 
 // Test goals creation utility - optimized with batch insert
@@ -89,7 +87,7 @@ export const createTestGoals = async (userId: string, goals = mockGoals) => {
     data: goalData,
   });
 
-  const createdGoals = await prisma.goal.findMany({
+  return await prisma.goal.findMany({
     where: {
       userId: userId,
       title: {
@@ -100,8 +98,6 @@ export const createTestGoals = async (userId: string, goals = mockGoals) => {
       createdAt: 'desc',
     },
   });
-
-  return createdGoals;
 };
 
 // Test races creation utility - optimized with batch insert
@@ -121,7 +117,7 @@ export const createTestRaces = async (userId: string, races = mockRaces) => {
     data: raceData,
   });
 
-  const createdRaces = await prisma.race.findMany({
+  return await prisma.race.findMany({
     where: {
       userId: userId,
       name: {
@@ -132,8 +128,6 @@ export const createTestRaces = async (userId: string, races = mockRaces) => {
       raceDate: 'desc',
     },
   });
-
-  return createdRaces;
 };
 
 // Generate test JWT token

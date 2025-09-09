@@ -41,7 +41,7 @@ const createMockResponse = (
   status = 200,
   contentType = 'application/json'
 ): Response => {
-  const response = {
+  return {
     ok: status >= 200 && status < 300,
     status,
     statusText: status === 200 ? 'OK' : 'Error',
@@ -51,8 +51,6 @@ const createMockResponse = (
     json: vi.fn().mockResolvedValue(data),
     text: vi.fn().mockResolvedValue(typeof data === 'string' ? data : JSON.stringify(data)),
   } as unknown as Response;
-
-  return response;
 };
 
 describe('ApiFetchError', () => {

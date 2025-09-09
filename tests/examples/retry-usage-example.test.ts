@@ -40,8 +40,7 @@ describe('Retry Usage Examples', () => {
       async () => {
         dbAttempts++;
         if (dbAttempts < 2) {
-          const error = new Error('Connection timeout');
-          throw error;
+          throw new Error('Connection timeout');
         }
         return { id: 1, name: 'test' };
       },
@@ -63,8 +62,7 @@ describe('Retry Usage Examples', () => {
       async () => {
         networkAttempts++;
         if (networkAttempts < 2) {
-          const error = new Error('ECONNRESET: Connection reset');
-          throw error;
+          throw new Error('ECONNRESET: Connection reset');
         }
         return { status: 200, data: 'response' };
       },

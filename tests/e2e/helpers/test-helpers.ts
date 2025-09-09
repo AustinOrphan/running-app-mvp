@@ -129,7 +129,7 @@ export class TestHelpers {
    * Take screenshot with automatic naming
    */
   async takeDebugScreenshot(name: string) {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = new Date().toISOString().replace(/[.:]/g, '-');
     const fileName = `${name}-${timestamp}.png`;
     await this.page.screenshot({
       path: `test-results/screenshots/${fileName}`,

@@ -245,8 +245,7 @@ export async function runTestWithTransaction<T>(
 
   const context = await manager.startTransaction(testName);
   try {
-    const result = await testFn(context.client as PrismaClient);
-    return result;
+    return await testFn(context.client as PrismaClient);
   } finally {
     await manager.rollbackTransaction(context.id);
   }

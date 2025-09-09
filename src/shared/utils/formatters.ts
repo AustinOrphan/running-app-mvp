@@ -184,7 +184,7 @@ export const safeAverage = (total: number, count: number): number => {
 export const calculateAveragePace = (
   runs: Array<{ distance: number; duration: number }>
 ): number => {
-  if (!runs.length) return 0;
+  if (runs.length === 0) return 0;
 
   const totalDistance = runs.reduce((sum, run) => sum + run.distance, 0);
   const totalDuration = runs.reduce((sum, run) => sum + run.duration, 0);

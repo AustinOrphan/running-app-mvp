@@ -35,9 +35,9 @@ async function runTestsInOrder(order) {
     await runCommand(cmd);
     console.log(`✅ Order ${order.join(' → ')} - PASSED`);
     return true;
-  } catch (err) {
+  } catch (error) {
     console.log(`❌ Order ${order.join(' → ')} - FAILED`);
-    console.log('Error:', err.stderr || err.stdout || err.error.message);
+    console.log('Error:', error.stderr || error.stdout || error.error.message);
     return false;
   }
 }
@@ -58,8 +58,8 @@ async function validateTestOrderIndependence() {
   let passCount = 0;
   const totalRuns = testOrders.length;
 
-  for (let i = 0; i < testOrders.length; i++) {
-    const success = await runTestsInOrder(testOrders[i]);
+  for (const testOrder of testOrders) {
+    const success = await runTestsInOrder(testOrder);
     if (success) passCount++;
 
     // Small delay between test runs
@@ -83,7 +83,7 @@ async function validateTestOrderIndependence() {
 }
 
 // Run validation
-validateTestOrderIndependence().catch(err => {
-  console.error('Validation script error:', err);
+validateTestOrderIndependence().catch(error => {
+  console.error('Validation script error:', error);
   process.exit(1);
 });
