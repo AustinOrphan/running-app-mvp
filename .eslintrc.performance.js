@@ -3,7 +3,7 @@
  *
  * Purpose: Fast linting for CI performance jobs and large codebase development
  * Usage: npm run lint:perf
- * Key difference: TypeScript project parsing DISABLED for speed (line 61)
+ * Key difference: TypeScript project parsing DISABLED for speed (line 69)
  *
  * DO NOT merge with main eslint.config.js - breaks performance strategy
  * This config prioritizes speed over comprehensive linting

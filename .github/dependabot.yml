@@ -10,10 +10,7 @@ updates:
       timezone: 'America/New_York'
     open-pull-requests-limit: 15
     target-branch: 'main'
-    reviewers:
-      - 'austinorphan'
-    assignees:
-      - 'austinorphan'
+    # Use CODEOWNERS for automatic assignment
     commit-message:
       prefix: 'deps'
       prefix-development: 'deps(dev)'
@@ -176,10 +173,7 @@ updates:
       timezone: 'America/New_York'
     open-pull-requests-limit: 5
     target-branch: 'main'
-    reviewers:
-      - 'austinorphan'
-    assignees:
-      - 'austinorphan'
+    # Use CODEOWNERS for automatic assignment
     commit-message:
       prefix: 'security'
       include: 'scope'
@@ -202,10 +196,7 @@ updates:
       timezone: 'America/New_York'
     open-pull-requests-limit: 5
     target-branch: 'main'
-    reviewers:
-      - 'austinorphan'
-    assignees:
-      - 'austinorphan'
+    # Use CODEOWNERS for automatic assignment
     commit-message:
       prefix: 'ci'
       include: 'scope'
@@ -245,10 +236,7 @@ updates:
       timezone: 'America/New_York'
     open-pull-requests-limit: 3
     target-branch: 'main'
-    reviewers:
-      - 'austinorphan'
-    assignees:
-      - 'austinorphan'
+    # Use CODEOWNERS for automatic assignment
     commit-message:
       prefix: 'docker'
       include: 'scope'

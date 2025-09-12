@@ -243,9 +243,7 @@ jobs:
 
       # Install yq for YAML parsing
       - name: 🔧 Install yq for policy parsing
-        run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
+        uses: mikefarah/yq@master
 
       # Apply security policy thresholds for vulnerability assessment
       - name: 📋 Apply Security Policy Thresholds
