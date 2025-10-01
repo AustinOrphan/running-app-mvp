@@ -26,7 +26,7 @@ jobs:
           sync-labels: true
 
       - name: 📊 Analyze PR for additional labels
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { data: files } = await github.rest.pulls.listFiles({
@@ -264,7 +264,7 @@ jobs:
             console.log(`Applied labels: ${labels.join(', ')}`);
 
       - name: 📝 Add PR size comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { data: files } = await github.rest.pulls.listFiles({

@@ -94,7 +94,7 @@ jobs:
 
       - name: 🚨 Create security issue
         if: env.CRITICAL_VULN_COUNT > 0
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { CRITICAL_VULN_COUNT, HIGH_VULN_COUNT, VULN_COUNT } = process.env;
@@ -228,7 +228,7 @@ jobs:
 
       - name: 🚨 Create test failure issue
         if: env.TEST_FAILED == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { FAILED_TESTS } = process.env;
@@ -352,7 +352,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 🧹 Delete old workflow artifacts
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
