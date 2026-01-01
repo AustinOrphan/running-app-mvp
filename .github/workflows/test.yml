@@ -55,7 +55,7 @@ jobs:
         run: npm run test:infrastructure
 
       - name: 📊 Upload infrastructure test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: infrastructure-test-results
@@ -92,7 +92,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: 📊 Upload unit test coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: unit-coverage-report
           path: coverage/
@@ -151,7 +151,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: 📊 Upload integration test coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: integration-coverage-report
           path: coverage-integration/
@@ -208,7 +208,7 @@ jobs:
         run: npm run test:e2e
 
       - name: 📊 Upload E2E test artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: e2e-test-results
@@ -260,7 +260,7 @@ jobs:
         run: npm run test:coverage:badges
 
       - name: 📊 Upload combined coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: combined-coverage-report
           path: |
@@ -323,7 +323,7 @@ jobs:
         run: npm run test:a11y:e2e
 
       - name: 📊 Upload accessibility test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: accessibility-test-results
@@ -392,7 +392,7 @@ jobs:
         run: npm run build
 
       - name: 📦 Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-artifacts
           path: dist/
