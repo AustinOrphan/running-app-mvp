@@ -35,11 +35,14 @@ const CustomTooltip = ({
 }) => {
   if (active && payload?.length) {
     const data = payload[0].payload as TrendsTooltipPayload;
-    const date = new Date(label || '').toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    const dateObj = new Date(label || '');
+    const date = isNaN(dateObj.getTime())
+      ? 'N/A'
+      : dateObj.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
 
     return (
       <div className={styles.chartTooltip}>
@@ -111,14 +114,20 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, loading }) => {
     );
   }
 
-  // Format data for display
-  const chartData = data.map(point => ({
-    ...point,
-    displayDate: new Date(point.date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    }),
-  }));
+  const chartData = data.map(point => {
+    const dateObj = new Date(point.date);
+    const displayDate = isNaN(dateObj.getTime())
+      ? 'N/A'
+      : dateObj.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        });
+
+    return {
+      ...point,
+      displayDate,
+    };
+  });
 
   const getYAxisLabel = () => {
     return selectedMetric === 'distance' ? 'Distance (km)' : 'Pace (min/km)';

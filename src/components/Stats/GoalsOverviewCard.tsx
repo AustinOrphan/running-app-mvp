@@ -171,7 +171,12 @@ export const GoalsOverviewCard: React.FC<GoalsOverviewCardProps> = ({
                         <span className={styles.achievementTitle}>{goal.title}</span>
                         <span className={styles.achievementDate}>
                           {goal.completedAt
-                            ? new Date(goal.completedAt).toLocaleDateString()
+                            ? (() => {
+                                const date = new Date(goal.completedAt);
+                                return isNaN(date.getTime())
+                                  ? 'Recently completed'
+                                  : date.toLocaleDateString();
+                              })()
                             : 'Recently completed'}
                         </span>
                       </div>

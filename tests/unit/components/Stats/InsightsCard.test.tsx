@@ -98,9 +98,9 @@ describe('InsightsCard', () => {
     it('displays week period correctly', () => {
       render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
-      // Should format dates - CI and local may show different results due to timezone
-      // Try to find either Jun 8 - Jun 15 or Jun 9 - Jun 15
-      const dateRangeElement = screen.getByText(/Jun \d+ - Jun 15/);
+      // In test environment, toLocaleDateString is mocked to return ISO format (YYYY-MM-DD)
+      // due to enforceUTCDates() in test setup. In browser, it will show formatted dates.
+      const dateRangeElement = screen.getByText('2024-06-09 - 2024-06-15');
       expect(dateRangeElement).toBeInTheDocument();
     });
 

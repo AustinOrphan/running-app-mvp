@@ -50,14 +50,17 @@ export const InsightsCard: React.FC<InsightsCardProps> = ({ insights, loading })
     );
   }
 
-  const weekStart = new Date(insights.weekStart).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
-  const weekEnd = new Date(insights.weekEnd).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
+  const formatWeekDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const weekStart = formatWeekDate(insights.weekStart);
+  const weekEnd = formatWeekDate(insights.weekEnd);
 
   return (
     <div className={styles.insightsCard}>
