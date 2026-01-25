@@ -107,7 +107,6 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     // State for password visibility toggle
     const [showPassword, setShowPassword] = useState(false);
 
-    // Determine the actual input type (handle password visibility)
     const actualType = type === 'password' && showPassword ? 'text' : type;
 
     // Handle password toggle
@@ -125,7 +124,6 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       }
     }, [onChange]);
 
-    // Determine trailing icon based on input type
     const getTrailingIcon = () => {
       if (type === 'password' && !trailingIcon) {
         return <span aria-hidden='true'>{showPassword ? '👁️‍🗨️' : '👁️'}</span>;
@@ -136,7 +134,6 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       return trailingIcon;
     };
 
-    // Determine trailing icon click handler
     const getTrailingIconClick = () => {
       if (trailingIcon) {
         return onTrailingIconClick;
@@ -150,10 +147,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       return onTrailingIconClick;
     };
 
+    const getTrailingIconAriaLabel = () => {
+      if (type === 'password') return showPassword ? 'Hide password' : 'Show password';
+      if (type === 'search' && value) return 'Clear search';
+      if (onTrailingIconClick) return 'Activate button';
+      return undefined;
+    };
+
     const effectiveTrailingIcon = getTrailingIcon();
     const effectiveTrailingIconClick = getTrailingIconClick();
 
-    // Determine input classes
     const inputClasses = [styles.formGroup, fullWidth && styles.fullWidth, className]
       .filter(Boolean)
       .join(' ');
@@ -167,10 +170,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       .filter(Boolean)
       .join(' ');
 
-    // Calculate character count
     const charCount = typeof value === 'string' ? value.length : 0;
 
-    // Determine which message to show
     const message =
       error && errorMessage
         ? errorMessage
@@ -231,21 +232,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               disabled={disabled}
               tabIndex={effectiveTrailingIconClick ? 0 : -1}
               aria-hidden={!effectiveTrailingIconClick}
-              aria-label={
-                trailingIcon
-                  ? onTrailingIconClick
-                    ? 'Activate button'
-                    : undefined
-                  : type === 'password'
-                    ? showPassword
-                      ? 'Hide password'
-                      : 'Show password'
-                    : type === 'search' && value
-                      ? 'Clear search'
-                      : onTrailingIconClick
-                        ? 'Activate button'
-                        : undefined
-              }
+              aria-label={getTrailingIconAriaLabel()}
             >
               {effectiveTrailingIcon}
             </button>

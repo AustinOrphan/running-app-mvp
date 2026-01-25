@@ -53,6 +53,33 @@ npm run dev:full  # Starts both frontend and backend
 - ✅ **Code Coverage**: >80% maintained automatically
 - ✅ **Developer Experience**: <30 min onboarding
 
+## 📚 Documentation
+
+### Quick Reference Guides
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Get started in <30 minutes
+- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Production deployment guide
+- **[TESTING.md](TESTING.md)** - Testing strategy and patterns
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
+
+### Detailed Documentation
+
+The `docs/` directory contains comprehensive guides:
+
+- **Architecture**: [API Documentation](docs/API_DOCUMENTATION.md), [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)
+- **Development**: [Developer Onboarding](docs/DEVELOPER_ONBOARDING.md), [Common Workflows](docs/COMMON_WORKFLOWS.md), [CSS Modules](docs/CSS_MODULES.md)
+- **Testing**: [Test Patterns](docs/TEST_PATTERNS.md), [Test Debugging](docs/TEST_DEBUGGING_GUIDE.md), [Test Reliability](docs/TEST_RELIABILITY.md)
+- **CI/CD**: [CI Performance](docs/CI_PERFORMANCE.md), [Branch Protection](docs/BRANCH_PROTECTION.md), [Deployment Pipelines](docs/DEPLOYMENT_PIPELINES.md)
+- **Security**: [Security Configuration](docs/SECURITY_CONFIGURATION.md), [Security Scanning](docs/SECURITY_SCANNING.md)
+
+### Scripts & Automation
+
+Utility scripts are available in the `scripts/` directory:
+
+- **GitHub Automation**: Project board setup, milestone creation, issue organization
+- **Deployment**: Automated deployment scripts for various environments
+- **Testing**: Test runners, performance monitoring, cache management
+
 ## 📱 Usage
 
 1. Open your browser to `http://localhost:3000`
@@ -397,11 +424,13 @@ For detailed security configuration, see the [Security Documentation](./SECURITY
 ## 🤝 Contributing
 
 1. Check our [QUICKSTART.md](QUICKSTART.md) guide (<30 min setup)
-2. Read [CLAUDE.md](CLAUDE.md) for development standards
-3. Pick a task from [tasks.md](tasks.md)
+2. Read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines
+3. Review [CLAUDE.md](CLAUDE.md) for development standards and commands
 4. Create a feature branch
 5. Make your changes with tests
 6. Submit a pull request
+
+See our [Documentation](#-documentation) section for detailed guides on architecture, testing, and workflows.
 
 ### Branch Protection
 

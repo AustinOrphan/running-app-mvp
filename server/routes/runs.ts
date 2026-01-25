@@ -126,7 +126,6 @@ router.put(
   asyncAuthHandler(async (req: AuthRequest, res) => {
     const { date, distance, duration, tag, notes, routeGeoJson } = req.body;
 
-    // Check if run exists first
     const existingRun = await prisma.run.findUnique({
       where: { id: req.params.id },
     });
@@ -135,7 +134,6 @@ router.put(
       throw createNotFoundError('Run');
     }
 
-    // Then check authorization
     if (existingRun.userId !== req.user!.id) {
       throw createForbiddenError('You do not have permission to update this run');
     }
@@ -182,7 +180,6 @@ router.delete(
   validateIdParam,
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Check if run exists first
     const existingRun = await prisma.run.findUnique({
       where: { id: req.params.id },
     });
@@ -191,7 +188,6 @@ router.delete(
       throw createNotFoundError('Run');
     }
 
-    // Then check authorization
     if (existingRun.userId !== req.user!.id) {
       throw createForbiddenError('You do not have permission to delete this run');
     }

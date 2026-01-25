@@ -160,7 +160,7 @@ function AppContent() {
                 onClick={handleDevBypass}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: '#2563eb', // Darker blue for better contrast (4.5:1 with white)
+                  backgroundColor: '#2563eb',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',

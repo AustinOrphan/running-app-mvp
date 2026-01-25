@@ -41,7 +41,6 @@ router.get(
   '/:id',
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Check if goal exists AND belongs to user (combined for security)
     const goal = await prisma.goal.findUnique({
       where: { id: req.params.id },
     });
@@ -153,9 +152,7 @@ router.put(
       currentValue,
     } = req.body;
 
-    // Use transaction to ensure atomic updates
     const updatedGoal = await prisma.$transaction(async tx => {
-      // Check if goal exists first
       const existingGoal = await tx.goal.findUnique({
         where: { id: req.params.id },
       });
@@ -164,12 +161,10 @@ router.put(
         throw createNotFoundError('Goal');
       }
 
-      // Then check authorization
       if (existingGoal.userId !== req.user!.id) {
         throw createForbiddenError('You do not have permission to update this goal');
       }
 
-      // Prevent editing completed goals
       if (existingGoal.isCompleted) {
         throw createValidationError('Cannot edit completed goals', 'isCompleted');
       }
@@ -244,9 +239,7 @@ router.delete(
   '/:id',
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Use transaction for atomic soft delete
     await prisma.$transaction(async tx => {
-      // Check if goal exists first
       const goal = await tx.goal.findUnique({
         where: { id: req.params.id },
       });
@@ -255,7 +248,6 @@ router.delete(
         throw createNotFoundError('Goal');
       }
 
-      // Then check authorization
       if (goal.userId !== req.user!.id) {
         throw createForbiddenError('You do not have permission to delete this goal');
       }
@@ -276,9 +268,7 @@ router.post(
   '/:id/complete',
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Use transaction for atomic completion
     const completedGoal = await prisma.$transaction(async tx => {
-      // Check if goal exists first
       const goal = await tx.goal.findUnique({
         where: { id: req.params.id },
       });
@@ -287,12 +277,10 @@ router.post(
         throw createNotFoundError('Goal');
       }
 
-      // Then check authorization
       if (goal.userId !== req.user!.id) {
         throw createForbiddenError('You do not have permission to complete this goal');
       }
 
-      // Check if goal is active
       if (!goal.isActive) {
         throw createNotFoundError('Goal');
       }
@@ -301,7 +289,6 @@ router.post(
         throw createValidationError('Goal is already completed', 'isCompleted');
       }
 
-      // Mark as completed
       return await tx.goal.update({
         where: { id: goal.id },
         data: {

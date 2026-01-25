@@ -116,6 +116,7 @@ prisma/migrations/*/migration.sql
 
 # Testing
 coverage/
+coverage-integration/
 test-results/
 playwright-report/
 
@@ -148,9 +149,23 @@ node_modules.bak/
 
 .claude/
 .serena/
-* 2.*
-* 3.*
-* 4.*
 
 # Cleanup candidates - temporary files
 cleanup-candidates/
+
+# Backup and temporary files
+*.bak
+*.backup
+*.tmp
+*.orig
+*.old
+*.copy
+
+# Agent coordination and temporary planning
+AGENT_COORDINATION/
+
+# Generated reports and artifacts
+bundle-size-report.json
+license-report.json
+licenses.json
+performance-baseline.json

@@ -36,7 +36,6 @@ router.get(
   requireAuth,
   validateIdParam,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Check if race exists first
     const race = await prisma.race.findUnique({
       where: { id: req.params.id },
     });
@@ -45,7 +44,6 @@ router.get(
       throw createNotFoundError('Race');
     }
 
-    // Then check authorization
     if (race.userId !== req.user!.id) {
       throw createForbiddenError('You do not have permission to access this race');
     }
@@ -85,7 +83,6 @@ router.put(
   validateIdParam,
   validateUpdateRace,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Check if race exists first
     const existingRace = await prisma.race.findUnique({
       where: { id: req.params.id },
     });
@@ -94,7 +91,6 @@ router.put(
       throw createNotFoundError('Race');
     }
 
-    // Then check authorization
     if (existingRace.userId !== req.user!.id) {
       throw createForbiddenError('You do not have permission to update this race');
     }
@@ -130,7 +126,6 @@ router.delete(
   requireAuth,
   validateIdParam,
   asyncAuthHandler(async (req: AuthRequest, res) => {
-    // Check if race exists first
     const existingRace = await prisma.race.findUnique({
       where: { id: req.params.id },
     });
@@ -139,7 +134,6 @@ router.delete(
       throw createNotFoundError('Race');
     }
 
-    // Then check authorization
     if (existingRace.userId !== req.user!.id) {
       throw createForbiddenError('You do not have permission to delete this race');
     }
