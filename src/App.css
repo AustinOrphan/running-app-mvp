@@ -1,5 +1,29 @@
 /* Layout styles moved to Layout.module.css */
 
+/* CSS Variables for consistent theming */
+:root {
+  --primary-bg: #242424;
+  --card-bg: #1a1a1a;
+  --secondary-bg: #2a2a2a;
+  --border-color: #404040;
+  --text-primary: rgba(255, 255, 255, 0.87);
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --records-table-th-bg: var(--secondary-bg);
+  --hover-bg: rgba(255, 255, 255, 0.05);
+}
+
+/* Responsive design improvements */
+@media (max-width: 768px) {
+  .app {
+    padding: 16px;
+  }
+
+  .tab-panel {
+    padding: 16px;
+    background: var(--primary-bg);
+  }
+}
+
 .auth-form {
   max-width: 400px;
   margin: 20px auto;
