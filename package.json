@@ -208,6 +208,8 @@
   "dependencies": {
     "@mdi/svg": "^7.4.47",
     "@prisma/client": "^6.13.0",
+    "@turf/turf": "^7.3.2",
+    "@types/geojson": "^7946.0.16",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
