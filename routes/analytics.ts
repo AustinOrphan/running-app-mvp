@@ -60,9 +60,10 @@ router.get(
     }
 
     const statistics = await AnalyticsService.calculateStatistics(userId, start, end);
+    const validPeriod = period === 'daily' ? 'weekly' : (period as 'weekly' | 'monthly' | 'yearly');
     const trends = await AnalyticsService.generateTrends(
       userId,
-      (period as 'daily' | 'weekly' | 'monthly' | 'yearly') || 'monthly',
+      validPeriod,
       Number(lookback) || 12
     );
     const insights = await AnalyticsService.generateInsights(userId);

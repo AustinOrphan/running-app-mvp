@@ -90,7 +90,8 @@ type WorkoutType =
   | 'time_trial';
 
 export class AdvancedTrainingPlanService {
-  // Training zones based on physiological markers
+  // Training zones based on physiological markers (for future use in zone calculations)
+  // @ts-expect-error - Training zones reserved for future zone calculations
   private static readonly TRAINING_ZONES: TrainingZone[] = [
     { name: 'Recovery', rpe: 1, heartRateRange: { min: 50, max: 60 } },
     { name: 'Easy', rpe: 2, heartRateRange: { min: 60, max: 70 } },
@@ -702,7 +703,7 @@ export class AdvancedTrainingPlanService {
     phase: string,
     weeklyLoad: number,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fitnessProfile: any,
+    _fitnessProfile: any,
     preferences?: TrainingPreferences
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): any {
@@ -1056,8 +1057,7 @@ export class AdvancedTrainingPlanService {
     return 'stable';
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private static getPhaseFocus(phase: string, goal: string): string[] {
+  private static getPhaseFocus(phase: string, _goal: string): string[] {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const focusMap: any = {
       base: ['Aerobic capacity', 'Running economy', 'Injury prevention'],
@@ -1069,8 +1069,7 @@ export class AdvancedTrainingPlanService {
     return focusMap[phase] || focusMap.base;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private static getSecondaryFocus(phase: string, goal: string): string[] {
+  private static getSecondaryFocus(phase: string, _goal: string): string[] {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const focusMap: any = {
       base: ['Strength building', 'Form improvement', 'Flexibility'],
@@ -1086,8 +1085,8 @@ export class AdvancedTrainingPlanService {
     return phase === 'build' || phase === 'peak' ? 'undulating' : 'linear';
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-  private static getKeyWorkouts(phase: string, goal: string, profile: any): string[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static getKeyWorkouts(_phase: string, _goal: string, _profile: any): string[] {
     // Would return specific workout types based on phase, goal, and athlete profile
     return ['threshold', 'vo2max', 'long_run'];
   }
@@ -1111,6 +1110,7 @@ export class AdvancedTrainingPlanService {
     }
   }
 
+  // @ts-expect-error - Adaptation targets reserved for future use
   private static getAdaptationTargets(goal: string): string[] {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const targets: any = {
@@ -1125,8 +1125,8 @@ export class AdvancedTrainingPlanService {
     return targets[goal] || targets.GENERAL_FITNESS;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-  private static selectEasyWorkout(remainingLoad: number, phase: string): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static selectEasyWorkout(remainingLoad: number, _phase: string): any {
     if (remainingLoad < 30) {
       return this.ADVANCED_WORKOUTS.RECOVERY_JOG;
     }
