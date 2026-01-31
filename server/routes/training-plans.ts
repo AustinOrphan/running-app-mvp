@@ -247,12 +247,6 @@ router.get(
                 date: true,
                 distance: true,
                 duration: true,
-                detail: {
-                  select: {
-                    avgHeartRate: true,
-                    effortLevel: true,
-                  },
-                },
               },
             },
           },
@@ -434,12 +428,6 @@ router.get(
             date: true,
             distance: true,
             duration: true,
-            detail: {
-              select: {
-                avgHeartRate: true,
-                effortLevel: true,
-              },
-            },
           },
         },
       },
@@ -513,15 +501,28 @@ router.post(
       },
     });
 
-    // Update run detail with effort level if provided
+    // Calculate average pace from recent runs if effort level provided
     if (effortLevel) {
-      await prisma.runDetail.upsert({
-        where: { runId },
-        update: { effortLevel },
-        create: {
-          runId,
-          effortLevel,
+      const threeMonthsAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+      const recentRuns = await prisma.run.findMany({
+        where: {
+          userId,
+          date: { gte: threeMonthsAgo },
         },
+        orderBy: { date: 'desc' },
+        take: 50,
+      });
+
+      const avgPace =
+        recentRuns.length > 0
+          ? recentRuns.reduce((sum, r) => sum + r.duration / 60 / r.distance, 0) / recentRuns.length
+          : null;
+
+      res.json({
+        message: 'Workout marked as completed',
+        workout: updatedWorkout,
+        avgPace,
+        recentRunsCount: recentRuns.length,
       });
       return;
     }
@@ -591,11 +592,7 @@ router.get(
       include: {
         workouts: {
           include: {
-            completedRun: {
-              include: {
-                detail: true,
-              },
-            },
+            completedRun: true,
           },
         },
       },
