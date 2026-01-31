@@ -1,16 +1,15 @@
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../setup/jestSetup.js';
 
-import { mockRuns, mockTestUser, mockGoals, mockRaces } from './mockData.js';
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.TEST_DATABASE_URL || 'file:./test.db',
-    },
-  },
-});
+import {
+  mockRuns,
+  mockTestUser,
+  mockGoals,
+  mockRaces,
+  mockTrainingPlans,
+  mockWorkoutTemplates,
+} from './mockData.js';
 
 // Test user creation utility
 export const createTestUser = async (userData?: { email?: string; password?: string }) => {
@@ -106,8 +105,69 @@ export const generateTestToken = (userId: string) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET || 'test-secret', { expiresIn: '1h' });
 };
 
+// Test training plans creation utility
+export const createTestTrainingPlans = async (userId: string, plans = mockTrainingPlans) => {
+  const createdPlans = [];
+
+  for (const plan of plans) {
+    const createdPlan = await prisma.trainingPlan.create({
+      data: {
+        name: plan.name,
+        description: plan.description,
+        goal: plan.goal,
+        targetRaceId: plan.targetRaceId,
+        startDate: new Date(plan.startDate),
+        endDate: new Date(plan.endDate),
+        isActive: plan.isActive,
+        difficulty: plan.difficulty,
+        weeklyMileageStart: plan.weeklyMileageStart,
+        weeklyMileageTarget: plan.weeklyMileageTarget,
+        userId: userId,
+      },
+    });
+    createdPlans.push(createdPlan);
+  }
+
+  return createdPlans;
+};
+
+// Test workout templates creation utility
+export const createTestWorkouts = async (
+  trainingPlanId: string,
+  workouts = mockWorkoutTemplates
+) => {
+  const createdWorkouts = [];
+
+  for (const workout of workouts) {
+    if (workout.trainingPlanId === 'plan-1' || workout.trainingPlanId === 'plan-2') {
+      const createdWorkout = await prisma.workoutTemplate.create({
+        data: {
+          trainingPlanId,
+          weekNumber: workout.weekNumber,
+          dayOfWeek: workout.dayOfWeek,
+          type: workout.type,
+          name: workout.name,
+          description: workout.description,
+          targetDistance: workout.targetDistance,
+          targetDuration: workout.targetDuration,
+          targetPace: workout.targetPace,
+          intensity: workout.intensity,
+          notes: workout.notes,
+          isCompleted: workout.isCompleted,
+          completedRunId: workout.completedRunId,
+        },
+      });
+      createdWorkouts.push(createdWorkout);
+    }
+  }
+
+  return createdWorkouts;
+};
+
 // Clean up database utility
 export const cleanupDatabase = async () => {
+  await prisma.workoutTemplate.deleteMany();
+  await prisma.trainingPlan.deleteMany();
   await prisma.race.deleteMany();
   await prisma.goal.deleteMany();
   await prisma.run.deleteMany();
@@ -142,6 +202,8 @@ export const testDb = {
   createTestRuns,
   createTestGoals,
   createTestRaces,
+  createTestTrainingPlans,
+  createTestWorkouts,
   generateTestToken,
   cleanupDatabase,
   seedTestDatabase,

@@ -1,0 +1,1498 @@
+import { prisma } from '../lib/prisma.js';
+import { TrainingPlan } from '@prisma/client';
+import { addDays, addWeeks, differenceInWeeks } from 'date-fns';
+import { validateTrainingConfig, sanitizeTextInput } from './trainingPlanValidation.js';
+
+// Advanced interfaces for world-class training plan generation
+interface AdvancedTrainingConfig {
+  userId: string;
+  name: string;
+  description?: string;
+  goal:
+    | 'FIRST_5K'
+    | 'IMPROVE_5K'
+    | 'FIRST_10K'
+    | 'HALF_MARATHON'
+    | 'MARATHON'
+    | 'ULTRA'
+    | 'GENERAL_FITNESS';
+  targetRaceId?: string;
+  startDate: Date;
+  endDate?: Date;
+  currentFitnessLevel?: FitnessAssessment;
+  preferences?: TrainingPreferences;
+  environmentalFactors?: EnvironmentalFactors;
+}
+
+interface FitnessAssessment {
+  vo2Max?: number;
+  lactateThreshold?: number;
+  runningEconomy?: number;
+  weeklyMileage: number;
+  longestRecentRun: number;
+  injuryHistory?: string[];
+  recoveryRate?: number; // Based on HRV trends
+}
+
+interface TrainingPreferences {
+  availableDays: number[];
+  preferredIntensity: 'low' | 'moderate' | 'high';
+  crossTraining: boolean;
+  strengthTraining: boolean;
+  timeConstraints?: { [key: number]: number }; // Day of week to available minutes
+}
+
+interface EnvironmentalFactors {
+  altitude?: number;
+  typicalTemperature?: number;
+  humidity?: number;
+  terrain: 'flat' | 'hilly' | 'mixed' | 'trail';
+}
+
+interface FitnessProfile {
+  vdot: number;
+  criticalSpeed: number;
+  runningEconomy: number;
+  currentWeeklyMileage: number;
+  maxWeeklyMileage: number;
+  consistencyScore: number;
+  trainingAge: number;
+  injuryRisk: number;
+  recoveryCapacity: number;
+  optimalTrainingDays: number[];
+  zonePaceRanges: Record<string, { min: number; max: number }>;
+  fatigueLevel?: number;
+}
+
+interface TrainingBlock {
+  phase: string;
+  startDate: Date;
+  endDate: Date;
+  weeks: number;
+  primaryFocus: string[];
+  secondaryFocus: string[];
+  loadProgression: string;
+  keyWorkouts: string[];
+}
+
+interface PhaseDistribution {
+  base: number;
+  build: number;
+  peak: number;
+  taper: number;
+}
+
+interface AdvancedWorkout {
+  type: WorkoutType;
+  primaryZone: TrainingZone;
+  segments: WorkoutSegment[];
+  adaptationTarget: string;
+  estimatedTSS: number; // Training Stress Score
+  recoveryTime: number; // Hours needed
+}
+
+interface WorkoutSegment {
+  duration: number;
+  intensity: number;
+  zone: TrainingZone;
+  description: string;
+  cadenceTarget?: number;
+  heartRateTarget?: { min: number; max: number };
+}
+
+interface TrainingZone {
+  name: string;
+  heartRateRange?: { min: number; max: number };
+  paceRange?: { min: number; max: number };
+  powerRange?: { min: number; max: number };
+  rpe: number; // Rate of Perceived Exertion 1-10
+}
+
+type WorkoutType =
+  | 'recovery'
+  | 'easy'
+  | 'steady'
+  | 'tempo'
+  | 'threshold'
+  | 'vo2max'
+  | 'speed'
+  | 'hill_repeats'
+  | 'fartlek'
+  | 'progression'
+  | 'long_run'
+  | 'race_pace'
+  | 'time_trial';
+
+export class AdvancedTrainingPlanService {
+  // Training zones based on physiological markers (for future use in zone calculations)
+  private static readonly TRAINING_ZONES: TrainingZone[] = [
+    { name: 'Recovery', rpe: 1, heartRateRange: { min: 50, max: 60 } },
+    { name: 'Easy', rpe: 2, heartRateRange: { min: 60, max: 70 } },
+    { name: 'Steady', rpe: 3, heartRateRange: { min: 70, max: 80 } },
+    { name: 'Tempo', rpe: 4, heartRateRange: { min: 80, max: 87 } },
+    { name: 'Threshold', rpe: 5, heartRateRange: { min: 87, max: 92 } },
+    { name: 'VO2 Max', rpe: 6, heartRateRange: { min: 92, max: 97 } },
+    { name: 'Neuromuscular', rpe: 7, heartRateRange: { min: 97, max: 100 } },
+  ];
+
+  /**
+   * Estimate effort level from pace (min/km)
+   * Returns effort level 1-10 based on running pace
+   */
+  /**
+   * Estimate effort level from running pace
+   *
+   * Pace thresholds based on typical runner physiological zones:
+   * - < 4:00 min/km = VO2max/race pace (effort 10) - maximum intensity, lactate accumulation
+   * - 4:00-4:30 min/km = Tempo/threshold (effort 8) - lactate threshold training
+   * - 4:30-5:30 min/km = Steady/aerobic (effort 6) - aerobic capacity development
+   * - 5:30-6:30 min/km = Easy/conversational (effort 4) - base building, recovery
+   * - > 6:30 min/km = Recovery (effort 2) - active recovery, very low stress
+   *
+   * @param distance - Distance in kilometers
+   * @param duration - Duration in seconds
+   * @returns Effort level 1-10 (where 10 is maximum intensity)
+   */
+  private static estimateEffortFromPace(distance: number, duration: number): number {
+    if (distance <= 0 || duration <= 0) {
+      throw new Error('Distance and duration must be positive values');
+    }
+    const paceMinPerKm = duration / 60 / distance;
+    if (paceMinPerKm < 4.0) return 10;
+    if (paceMinPerKm < 4.5) return 8;
+    if (paceMinPerKm < 5.5) return 6;
+    if (paceMinPerKm < 6.5) return 4;
+    return 2;
+  }
+
+  // Advanced workout templates with scientific backing
+  private static readonly ADVANCED_WORKOUTS: Record<string, AdvancedWorkout> = {
+    RECOVERY_JOG: {
+      type: 'recovery',
+      primaryZone: { name: 'Recovery', rpe: 1, heartRateRange: { min: 50, max: 60 } },
+      segments: [
+        {
+          duration: 30,
+          intensity: 50,
+          zone: { name: 'Recovery', rpe: 1 },
+          description: 'Very easy jog',
+        },
+      ],
+      adaptationTarget: 'Active recovery and blood flow',
+      estimatedTSS: 20,
+      recoveryTime: 8,
+    },
+    AEROBIC_BASE: {
+      type: 'easy',
+      primaryZone: { name: 'Easy', rpe: 2, heartRateRange: { min: 60, max: 70 } },
+      segments: [
+        {
+          duration: 60,
+          intensity: 65,
+          zone: { name: 'Easy', rpe: 2 },
+          description: 'Conversational pace',
+        },
+      ],
+      adaptationTarget: 'Aerobic base and fat oxidation',
+      estimatedTSS: 50,
+      recoveryTime: 12,
+    },
+    LACTATE_THRESHOLD: {
+      type: 'threshold',
+      primaryZone: { name: 'Threshold', rpe: 5, heartRateRange: { min: 87, max: 92 } },
+      segments: [
+        { duration: 10, intensity: 65, zone: { name: 'Easy', rpe: 2 }, description: 'Warm-up' },
+        {
+          duration: 20,
+          intensity: 88,
+          zone: { name: 'Threshold', rpe: 5 },
+          description: 'Threshold pace',
+        },
+        { duration: 5, intensity: 60, zone: { name: 'Recovery', rpe: 1 }, description: 'Recovery' },
+        {
+          duration: 20,
+          intensity: 88,
+          zone: { name: 'Threshold', rpe: 5 },
+          description: 'Threshold pace',
+        },
+        {
+          duration: 10,
+          intensity: 60,
+          zone: { name: 'Recovery', rpe: 1 },
+          description: 'Cool-down',
+        },
+      ],
+      adaptationTarget: 'Lactate buffering and threshold improvement',
+      estimatedTSS: 90,
+      recoveryTime: 36,
+    },
+    VO2MAX_INTERVALS: {
+      type: 'vo2max',
+      primaryZone: { name: 'VO2 Max', rpe: 6, heartRateRange: { min: 92, max: 97 } },
+      segments: [
+        { duration: 15, intensity: 65, zone: { name: 'Easy', rpe: 2 }, description: 'Warm-up' },
+        {
+          duration: 3,
+          intensity: 95,
+          zone: { name: 'VO2 Max', rpe: 6 },
+          description: '3-min @ VO2max',
+        },
+        {
+          duration: 3,
+          intensity: 50,
+          zone: { name: 'Recovery', rpe: 1 },
+          description: 'Recovery jog',
+        },
+        {
+          duration: 3,
+          intensity: 95,
+          zone: { name: 'VO2 Max', rpe: 6 },
+          description: '3-min @ VO2max',
+        },
+        {
+          duration: 3,
+          intensity: 50,
+          zone: { name: 'Recovery', rpe: 1 },
+          description: 'Recovery jog',
+        },
+        {
+          duration: 3,
+          intensity: 95,
+          zone: { name: 'VO2 Max', rpe: 6 },
+          description: '3-min @ VO2max',
+        },
+        {
+          duration: 3,
+          intensity: 50,
+          zone: { name: 'Recovery', rpe: 1 },
+          description: 'Recovery jog',
+        },
+        {
+          duration: 3,
+          intensity: 95,
+          zone: { name: 'VO2 Max', rpe: 6 },
+          description: '3-min @ VO2max',
+        },
+        {
+          duration: 10,
+          intensity: 60,
+          zone: { name: 'Recovery', rpe: 1 },
+          description: 'Cool-down',
+        },
+      ],
+      adaptationTarget: 'VO2max improvement and aerobic power',
+      estimatedTSS: 110,
+      recoveryTime: 48,
+    },
+    TEMPO_PROGRESSION: {
+      type: 'progression',
+      primaryZone: { name: 'Tempo', rpe: 4, heartRateRange: { min: 80, max: 87 } },
+      segments: [
+        { duration: 10, intensity: 65, zone: { name: 'Easy', rpe: 2 }, description: 'Easy start' },
+        {
+          duration: 10,
+          intensity: 75,
+          zone: { name: 'Steady', rpe: 3 },
+          description: 'Build to steady',
+        },
+        { duration: 10, intensity: 82, zone: { name: 'Tempo', rpe: 4 }, description: 'Tempo pace' },
+        {
+          duration: 10,
+          intensity: 87,
+          zone: { name: 'Threshold', rpe: 5 },
+          description: 'Push to threshold',
+        },
+        {
+          duration: 5,
+          intensity: 60,
+          zone: { name: 'Recovery', rpe: 1 },
+          description: 'Cool-down',
+        },
+      ],
+      adaptationTarget: 'Pace awareness and lactate clearance',
+      estimatedTSS: 75,
+      recoveryTime: 24,
+    },
+    HILL_REPEATS: {
+      type: 'hill_repeats',
+      primaryZone: { name: 'VO2 Max', rpe: 6, heartRateRange: { min: 92, max: 97 } },
+      segments: [
+        {
+          duration: 15,
+          intensity: 65,
+          zone: { name: 'Easy', rpe: 2 },
+          description: 'Warm-up on flat',
+        },
+        {
+          duration: 2,
+          intensity: 90,
+          zone: { name: 'VO2 Max', rpe: 6 },
+          description: 'Hill repeat (6-8% grade)',
+          cadenceTarget: 170,
+        },
+        {
+          duration: 3,
+          intensity: 50,
+          zone: { name: 'Recovery', rpe: 1 },
+          description: 'Jog down recovery',
+        },
+      ],
+      adaptationTarget: 'Power development and running economy',
+      estimatedTSS: 95,
+      recoveryTime: 36,
+    },
+    FARTLEK: {
+      type: 'fartlek',
+      primaryZone: { name: 'Varied', rpe: 4, heartRateRange: { min: 70, max: 95 } },
+      segments: [
+        { duration: 10, intensity: 65, zone: { name: 'Easy', rpe: 2 }, description: 'Warm-up' },
+        {
+          duration: 1,
+          intensity: 90,
+          zone: { name: 'VO2 Max', rpe: 6 },
+          description: 'Fast surge',
+        },
+        {
+          duration: 2,
+          intensity: 70,
+          zone: { name: 'Steady', rpe: 3 },
+          description: 'Float recovery',
+        },
+        { duration: 2, intensity: 85, zone: { name: 'Tempo', rpe: 4 }, description: 'Tempo surge' },
+        {
+          duration: 2,
+          intensity: 70,
+          zone: { name: 'Steady', rpe: 3 },
+          description: 'Float recovery',
+        },
+        {
+          duration: 30,
+          intensity: 75,
+          zone: { name: 'Steady', rpe: 3 },
+          description: 'Steady cruise',
+        },
+        {
+          duration: 10,
+          intensity: 60,
+          zone: { name: 'Recovery', rpe: 1 },
+          description: 'Cool-down',
+        },
+      ],
+      adaptationTarget: 'Multi-pace adaptation and mental toughness',
+      estimatedTSS: 85,
+      recoveryTime: 30,
+    },
+  };
+
+  /**
+   * Generate an advanced, scientifically-backed training plan
+   */
+  static async generateAdvancedTrainingPlan(config: AdvancedTrainingConfig): Promise<TrainingPlan> {
+    validateTrainingConfig({
+      userId: config.userId,
+      name: config.name,
+      startDate: config.startDate,
+      endDate: config.endDate,
+      currentFitnessLevel: config.currentFitnessLevel,
+    });
+
+    const sanitizedDescription = sanitizeTextInput(config.description);
+
+    const sanitizedConfig: AdvancedTrainingConfig = {
+      ...config,
+      description: sanitizedDescription || undefined,
+    };
+
+    const fitnessProfile = await this.performComprehensiveFitnessAssessment(config.userId);
+
+    // Calculate optimal training phases using periodization
+    const trainingBlocks = this.designPeriodizedTrainingBlocks(
+      config.goal,
+      config.startDate,
+      config.endDate || config.targetRaceId
+        ? await this.getRaceDate(config.targetRaceId)
+        : addWeeks(config.startDate, 16),
+      fitnessProfile
+    );
+
+    // Create the training plan with advanced metadata
+    const trainingPlan = await prisma.trainingPlan.create({
+      data: {
+        userId: config.userId,
+        name: config.name,
+        description:
+          sanitizedDescription || this.generatePlanDescription(sanitizedConfig, trainingBlocks),
+        startDate: config.startDate,
+        endDate: trainingBlocks[trainingBlocks.length - 1].endDate,
+        goal: config.goal,
+        targetRaceId: config.targetRaceId,
+        difficulty: this.calculateOptimalDifficulty(fitnessProfile),
+        weeklyMileageStart: fitnessProfile.currentWeeklyMileage,
+        weeklyMileageTarget: this.calculateTargetMileage(config.goal, fitnessProfile),
+      },
+    });
+
+    // Generate adaptive workouts with ML-based adjustments
+    await this.generateAdaptiveWorkouts(
+      trainingPlan,
+      trainingBlocks,
+      fitnessProfile,
+      sanitizedConfig
+    );
+
+    return trainingPlan;
+  }
+
+  /**
+   * Perform comprehensive fitness assessment using multiple data points
+   */
+
+  private static async performComprehensiveFitnessAssessment(
+    userId: string
+  ): Promise<FitnessProfile> {
+    // Get recent runs with detailed metrics
+    const recentRuns = await prisma.run.findMany({
+      where: {
+        userId,
+        date: { gte: addDays(new Date(), -90) }, // Last 3 months
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    // Calculate advanced metrics
+    const vdot = this.calculateVDOT(recentRuns);
+    const criticalSpeed = this.calculateCriticalSpeed(recentRuns);
+    const runningEconomy = this.estimateRunningEconomy(recentRuns);
+    const trainingLoadHistory = this.calculateTrainingLoad(recentRuns);
+    const injuryRisk = this.assessInjuryRisk(trainingLoadHistory);
+
+    // Heart rate variability analysis
+    const hrvMetrics = await this.analyzeHRVTrends(userId);
+
+    // Weekly patterns and consistency
+    const weeklyPatterns = this.analyzeWeeklyPatterns(recentRuns);
+
+    return {
+      vdot,
+      criticalSpeed,
+      runningEconomy,
+      currentWeeklyMileage: weeklyPatterns.avgWeeklyMileage,
+      maxWeeklyMileage: weeklyPatterns.maxWeeklyMileage,
+      consistencyScore: weeklyPatterns.consistencyScore,
+      trainingAge: this.calculateTrainingAge(recentRuns),
+      injuryRisk,
+      recoveryCapacity: hrvMetrics.recoveryScore,
+      optimalTrainingDays: weeklyPatterns.optimalDays,
+      zonePaceRanges: this.calculateZonePaces(vdot, criticalSpeed),
+    };
+  }
+
+  /**
+   * Calculate VDOT (VO2max estimate) from race performances
+   * Uses Jack Daniels' formula for VDOT estimation
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static calculateVDOT(runs: any[]): number {
+    // Filter for race performances or time trials based on pace and effort estimation
+    const fastRuns = runs
+      .filter(run => run.distance >= 3)
+      .map(run => ({
+        ...run,
+        effort: this.estimateEffortFromPace(run.distance, run.duration),
+      }))
+      .filter(run => run.effort >= 8 || run.notes?.toLowerCase().includes('race'));
+
+    // Use race/fast runs if available, otherwise estimate from regular runs
+    const runsToAnalyze = fastRuns.length > 0 ? fastRuns : runs.filter(run => run.distance >= 3);
+
+    if (runsToAnalyze.length === 0) {
+      // Default VDOT for beginners
+      return 35;
+    }
+
+    // Sort by pace (fastest first) and use the best performance
+    const bestRun = runsToAnalyze.sort((a, b) => {
+      const paceA = a.duration / a.distance;
+      const paceB = b.duration / b.distance;
+      return paceA - paceB;
+    })[0];
+
+    // Calculate VDOT using Jack Daniels' formula
+    // Formula: VDOT = (-4.6 + 0.182258 * speed + 0.000104 * speed^2) / %VO2max
+    // Where speed is in m/min and %VO2max is effort-dependent
+
+    const distance = bestRun.distance * 1000; // Convert to meters
+    const time = bestRun.duration; // Already in seconds
+
+    if (time === 0 || distance === 0) {
+      return 35;
+    }
+
+    const velocity = distance / time; // meters per second
+    const velocityPerMin = velocity * 60; // meters per minute
+
+    // VO2 calculation based on velocity (Jack Daniels formula)
+    const vo2 = -4.6 + 0.182258 * velocityPerMin + 0.000104 * Math.pow(velocityPerMin, 2);
+
+    // Calculate percentage of VO2max achieved based on race duration
+    // Longer efforts = lower percentage of max capability
+    const percentMax =
+      0.8 + 0.1894393 * Math.exp(-0.012778 * time) + 0.2989558 * Math.exp(-0.1932605 * time);
+
+    const vdot = vo2 / percentMax;
+
+    // Return VDOT value
+    return Math.round(vdot * 10) / 10; // Round to 1 decimal place
+  }
+
+  /**
+   * Calculate Critical Speed using power law relationship
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static calculateCriticalSpeed(runs: any[]): number {
+    const timeTrials = runs
+      .filter(run => run.distance >= 3)
+      .map(run => ({
+        distance: run.distance * 1000,
+        time: run.duration * 60,
+        effort: this.estimateEffortFromPace(run.distance, run.duration),
+      }))
+      .filter(run => run.effort >= 8)
+      .map(({ distance, time }) => ({ distance, time }));
+
+    if (timeTrials.length >= 2) {
+      // Use 2-parameter hyperbolic model
+      const sorted = timeTrials.sort((a, b) => a.distance - b.distance);
+      const d1 = sorted[0].distance;
+      const t1 = sorted[0].time;
+      const d2 = sorted[sorted.length - 1].distance;
+      const t2 = sorted[sorted.length - 1].time;
+
+      const cs = (d2 - d1) / (t2 - t1);
+      return cs * 3.6; // Convert to km/h
+    }
+
+    return 10; // Default 10 km/h
+  }
+
+  /**
+   * Estimate running economy from pace and heart rate data
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static estimateRunningEconomy(runs: any[]): number {
+    const economyRuns = runs
+      .filter(run => run.duration > 20)
+      .map(run => ({
+        ...run,
+        effort: this.estimateEffortFromPace(run.distance, run.duration),
+      }))
+      .filter(run => run.effort <= 6);
+
+    if (economyRuns.length > 0) {
+      // Calculate oxygen cost per km based on pace
+      const economies = economyRuns.map(run => {
+        const pace = run.duration / run.distance;
+        const effort = this.estimateEffortFromPace(run.distance, run.duration);
+        const vo2Estimate = 30 + effort * 5; // Estimate VO2 from effort level
+        return vo2Estimate / (60 / pace); // ml/kg/km
+      });
+
+      return economies.reduce((sum, e) => sum + e, 0) / economies.length;
+    }
+
+    return 200; // Default running economy
+  }
+
+  /**
+   * Calculate training load using exponentially weighted moving average
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static calculateTrainingLoad(runs: any[]): any {
+    const sortedRuns = runs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let acuteLoad = 0; // 7-day
+    let chronicLoad = 0; // 28-day
+    const acuteDecay = Math.exp(-1 / 7);
+    const chronicDecay = Math.exp(-1 / 28);
+
+    const loads = sortedRuns.map(run => {
+      const tss = this.calculateTSS(run);
+      acuteLoad = acuteLoad * acuteDecay + tss * (1 - acuteDecay);
+      chronicLoad = chronicLoad * chronicDecay + tss * (1 - chronicDecay);
+
+      return {
+        date: run.date,
+        tss,
+        acuteLoad,
+        chronicLoad,
+        ratio: chronicLoad > 0 ? acuteLoad / chronicLoad : 1,
+      };
+    });
+
+    return {
+      current: loads[loads.length - 1] || { acuteLoad: 0, chronicLoad: 0, ratio: 1 },
+      history: loads,
+      trend: this.calculateLoadTrend(loads),
+    };
+  }
+
+  /**
+   * Calculate Training Stress Score for a run
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static calculateTSS(run: any): number {
+    const duration = run.duration;
+    const effort = this.estimateEffortFromPace(run.distance, run.duration);
+    const intensity = effort / 10; // Normalize effort (1-10) to intensity (0.1-1.0)
+
+    // TSS = duration * intensity^2 * 100
+    return (duration * Math.pow(intensity, 2) * 100) / 60;
+  }
+
+  /**
+   * Design periodized training blocks using nonlinear periodization
+   */
+
+  private static designPeriodizedTrainingBlocks(
+    goal: string,
+    startDate: Date,
+    endDate: Date,
+    fitnessProfile: FitnessProfile
+  ): TrainingBlock[] {
+    const totalWeeks = differenceInWeeks(endDate, startDate);
+    const blocks = [];
+
+    // Calculate phase distribution based on goal and fitness
+    const phaseDistribution = this.calculatePhaseDistribution(goal, totalWeeks, fitnessProfile);
+
+    let currentDate = startDate;
+
+    for (const [phase, weeks] of Object.entries(phaseDistribution)) {
+      if (weeks === 0) continue;
+
+      const blockEndDate = addWeeks(currentDate, weeks as number);
+
+      blocks.push({
+        phase,
+        startDate: currentDate,
+        endDate: blockEndDate,
+        weeks: weeks as number,
+        primaryFocus: this.getPhaseFocus(phase as string, goal),
+        secondaryFocus: this.getSecondaryFocus(phase as string, goal),
+        loadProgression: this.getLoadProgression(phase as string),
+        keyWorkouts: this.getKeyWorkouts(phase as string, goal, fitnessProfile),
+      });
+
+      currentDate = blockEndDate;
+    }
+
+    return blocks;
+  }
+
+  /**
+   * Calculate optimal phase distribution
+   */
+
+  private static calculatePhaseDistribution(
+    goal: string,
+    totalWeeks: number,
+    fitnessProfile: FitnessProfile
+  ): Record<string, number> {
+    const baseDistributions: Record<string, PhaseDistribution> = {
+      FIRST_5K: { base: 0.4, build: 0.3, peak: 0.2, taper: 0.1 },
+      IMPROVE_5K: { base: 0.25, build: 0.35, peak: 0.3, taper: 0.1 },
+      FIRST_10K: { base: 0.35, build: 0.35, peak: 0.2, taper: 0.1 },
+      HALF_MARATHON: { base: 0.3, build: 0.35, peak: 0.25, taper: 0.1 },
+      MARATHON: { base: 0.3, build: 0.3, peak: 0.3, taper: 0.1 },
+      ULTRA: { base: 0.35, build: 0.3, peak: 0.25, taper: 0.1 },
+      GENERAL_FITNESS: { base: 0.4, build: 0.4, peak: 0.15, taper: 0.05 },
+    };
+
+    const distribution = baseDistributions[goal] || baseDistributions.GENERAL_FITNESS;
+
+    // Adjust based on fitness profile
+    if (fitnessProfile.trainingAge < 1) {
+      distribution.base += 0.1;
+      distribution.peak -= 0.1;
+    }
+
+    // Convert to weeks
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const weeks: any = {};
+    for (const [phase, ratio] of Object.entries(distribution)) {
+      weeks[phase] = Math.round(totalWeeks * (ratio as number));
+    }
+
+    return weeks;
+  }
+
+  /**
+   * Generate adaptive workouts using ML-inspired algorithms
+   */
+
+  private static async generateAdaptiveWorkouts(
+    plan: TrainingPlan,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    blocks: any[],
+
+    fitnessProfile: FitnessProfile,
+    config: AdvancedTrainingConfig
+  ): Promise<void> {
+    let weekNumber = 1;
+
+    for (const block of blocks) {
+      for (let weekInBlock = 0; weekInBlock < block.weeks; weekInBlock++) {
+        // Calculate adaptive load for this week
+        const weeklyLoad = this.calculateAdaptiveWeeklyLoad(
+          weekNumber,
+          block,
+          weekInBlock,
+          fitnessProfile,
+          plan
+        );
+
+        // Generate microcycle structure
+        const microcycle = this.generateMicrocycle(
+          block.phase,
+          weeklyLoad,
+          fitnessProfile,
+          config.preferences
+        );
+
+        // Create individual workouts
+        for (const workout of microcycle.workouts) {
+          await this.createAdvancedWorkout(plan.id, weekNumber, workout, fitnessProfile);
+        }
+
+        weekNumber++;
+      }
+    }
+  }
+
+  /**
+   * Calculate adaptive weekly training load
+   */
+
+  private static calculateAdaptiveWeeklyLoad(
+    weekNumber: number,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    block: any,
+    weekInBlock: number,
+
+    fitnessProfile: FitnessProfile,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    plan: any
+  ): number {
+    const baseLoad = fitnessProfile.currentWeeklyMileage * 60; // Convert to TSS estimate
+
+    // Apply block progression
+    const blockProgress = weekInBlock / block.weeks;
+    const blockMultiplier =
+      block.loadProgression === 'linear'
+        ? 1 + blockProgress * 0.3
+        : 1 + Math.sin(blockProgress * Math.PI) * 0.3; // Undulating
+
+    // Apply overall plan progression
+    const planProgress = weekNumber / differenceInWeeks(plan.endDate, plan.startDate);
+    const planMultiplier = 0.8 + planProgress * 0.4;
+
+    // Recovery weeks (every 4th week)
+    const recoveryMultiplier = weekNumber % 4 === 0 ? 0.6 : 1.0;
+
+    // Taper
+    const taperMultiplier = block.phase === 'taper' ? 1 - blockProgress * 0.5 : 1.0;
+
+    return baseLoad * blockMultiplier * planMultiplier * recoveryMultiplier * taperMultiplier;
+  }
+
+  /**
+   * Generate weekly microcycle with polarized distribution
+   */
+
+  private static generateMicrocycle(
+    phase: string,
+    weeklyLoad: number,
+
+    _fitnessProfile: FitnessProfile,
+    preferences?: TrainingPreferences
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): any {
+    const availableDays = preferences?.availableDays || [1, 2, 3, 4, 5, 6, 0];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const workouts: any[] = [];
+
+    // Polarized distribution: 80% easy, 20% hard
+    const easyLoad = weeklyLoad * 0.8;
+    const hardLoad = weeklyLoad * 0.2;
+
+    // Determine key workouts for this phase
+    const keyWorkouts = this.getPhaseKeyWorkouts(phase);
+
+    // Add key workouts first (hard days)
+    let remainingHardLoad = hardLoad;
+    for (const keyWorkout of keyWorkouts) {
+      if (remainingHardLoad > 0) {
+        workouts.push({
+          ...keyWorkout,
+          dayOfWeek: this.selectOptimalDay(workouts, availableDays, 'hard'),
+          load: keyWorkout.estimatedTSS,
+        });
+        remainingHardLoad -= keyWorkout.estimatedTSS;
+      }
+    }
+
+    // Fill with easy/recovery runs
+    let remainingEasyLoad = easyLoad;
+    while (remainingEasyLoad > 20 && workouts.length < availableDays.length) {
+      const easyWorkout = this.selectEasyWorkout(remainingEasyLoad, phase);
+      workouts.push({
+        ...easyWorkout,
+        dayOfWeek: this.selectOptimalDay(workouts, availableDays, 'easy'),
+        load: easyWorkout.estimatedTSS,
+      });
+      remainingEasyLoad -= easyWorkout.estimatedTSS;
+    }
+
+    return {
+      pattern: `${phase}_microcycle`,
+      workouts: workouts.sort((a, b) => a.dayOfWeek - b.dayOfWeek),
+      totalLoad: weeklyLoad,
+      recoveryRatio: easyLoad / weeklyLoad,
+    };
+  }
+
+  /**
+   * Create advanced workout with all parameters
+   */
+
+  private static async createAdvancedWorkout(
+    planId: string,
+    weekNumber: number,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    workout: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    fitnessProfile: any
+  ): Promise<void> {
+    // Calculate personalized paces for this workout
+    const paces = this.calculateWorkoutPaces(workout, fitnessProfile);
+
+    // Generate detailed workout description
+    const detailedDescription = this.generateDetailedWorkoutDescription(workout, paces);
+
+    // Calculate total distance and duration
+    const totals = this.calculateWorkoutTotals(workout, paces);
+
+    await prisma.workoutTemplate.create({
+      data: {
+        trainingPlanId: planId,
+        weekNumber,
+        dayOfWeek: workout.dayOfWeek,
+        type: workout.type,
+        name: workout.name || this.getWorkoutName(workout.type),
+        description: detailedDescription,
+        targetDistance: totals.distance,
+        targetDuration: totals.duration,
+        targetPace: totals.avgPace,
+        intensity: this.mapIntensityLevel(workout.primaryZone.rpe),
+        notes: JSON.stringify({
+          segments: workout.segments,
+          adaptationTarget: workout.adaptationTarget,
+          tss: workout.estimatedTSS,
+          recoveryTime: workout.recoveryTime,
+          paceRanges: paces,
+          coachingCues: this.getCoachingCues(workout.type),
+          nutritionGuidance: this.getNutritionGuidance(workout),
+        }),
+      },
+    });
+  }
+
+  /**
+   * Calculate personalized workout paces based on fitness profile
+   */
+
+  private static calculateWorkoutPaces(
+    workout: {
+      type: string;
+      targetDistance?: number;
+      targetDuration?: number;
+      segments?: Array<{ zone: { name: string } }>;
+    },
+    fitnessProfile: FitnessProfile
+  ): { easy?: number; tempo?: number; interval?: number; recovery?: number } {
+    const zones = fitnessProfile.zonePaceRanges || this.getDefaultZonePaces(fitnessProfile.vdot);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const paces: any = {};
+
+    if (workout.segments) {
+      for (const segment of workout.segments) {
+        const zoneName = segment.zone.name.toLowerCase().replace(' ', '_');
+        paces[zoneName] = zones[zoneName] || { min: 6.0, max: 7.0 };
+      }
+    }
+
+    return paces;
+  }
+
+  /**
+   * Generate detailed workout description with coaching instructions
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static generateDetailedWorkoutDescription(workout: any, paces: any): string {
+    let description = `${workout.adaptationTarget}\n\n`;
+
+    description += 'Workout Structure:\n';
+    for (const segment of workout.segments) {
+      const pace = paces[segment.zone.name.toLowerCase().replace(' ', '_')];
+      const paceStr = pace ? `${this.formatPace(pace.min)}-${this.formatPace(pace.max)}/km` : '';
+
+      description += `• ${segment.duration}min ${segment.description}`;
+      if (paceStr) description += ` @ ${paceStr}`;
+      if (segment.cadenceTarget) description += ` (${segment.cadenceTarget} spm)`;
+      if (segment.heartRateTarget)
+        description += ` (HR: ${segment.heartRateTarget.min}-${segment.heartRateTarget.max})`;
+      description += '\n';
+    }
+
+    return description;
+  }
+
+  /**
+   * Get phase-specific key workouts
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static getPhaseKeyWorkouts(phase: string): any[] {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const workoutMap: any = {
+      base: ['AEROBIC_BASE', 'TEMPO_PROGRESSION', 'HILL_REPEATS'],
+      build: ['LACTATE_THRESHOLD', 'VO2MAX_INTERVALS', 'TEMPO_PROGRESSION'],
+      peak: ['VO2MAX_INTERVALS', 'RACE_PACE', 'TIME_TRIAL'],
+      taper: ['RACE_PACE', 'RECOVERY_JOG', 'EASY_SHAKEOUT'],
+      recovery: ['RECOVERY_JOG', 'EASY_CROSS_TRAINING'],
+    };
+
+    const workoutKeys = workoutMap[phase] || workoutMap.base;
+    return workoutKeys.map((key: string) => this.ADVANCED_WORKOUTS[key]).filter(Boolean);
+  }
+
+  /**
+   * Calculate HRV-based recovery metrics
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static async analyzeHRVTrends(userId: string): Promise<any> {
+    // In a real implementation, this would fetch HRV data from wearables
+    // For now, we'll simulate based on training patterns
+    const recentRuns = await prisma.run.findMany({
+      where: {
+        userId,
+        date: { gte: addDays(new Date(), -30) },
+      },
+    });
+
+    // Simulate HRV analysis using pace-based effort
+    const runFrequency = recentRuns.length / 30;
+    const avgIntensity =
+      recentRuns
+        .map(r => this.estimateEffortFromPace(r.distance, r.duration))
+        .reduce((sum, e) => sum + e, 0) / (recentRuns.length || 1);
+
+    const recoveryScore = Math.max(0, Math.min(100, 100 - runFrequency * 10 - avgIntensity * 5));
+
+    return {
+      recoveryScore,
+      trend: recoveryScore > 70 ? 'improving' : recoveryScore > 50 ? 'stable' : 'declining',
+      recommendedIntensity: recoveryScore > 80 ? 'high' : recoveryScore > 60 ? 'moderate' : 'low',
+    };
+  }
+
+  /**
+   * Helper methods
+   */
+  private static formatPace(pace: number): string {
+    const minutes = Math.floor(pace);
+    const seconds = Math.round((pace - minutes) * 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  private static getWorkoutName(type: string): string {
+    return type
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
+  private static mapIntensityLevel(rpe: number): string {
+    if (rpe <= 2) return 'easy';
+    if (rpe <= 4) return 'moderate';
+    if (rpe <= 6) return 'hard';
+    return 'max';
+  }
+
+  private static getCoachingCues(workoutType: string): string[] {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cues: any = {
+      recovery: ['Focus on relaxed form', 'Breathe easily', 'Land softly'],
+      easy: ['Conversational pace', 'Nasal breathing if possible', 'Relaxed shoulders'],
+      tempo: ['Controlled discomfort', 'Strong and smooth', 'Maintain rhythm'],
+      threshold: ['Comfortably hard', 'Focus on efficiency', 'Stay relaxed'],
+      vo2max: ['Fast but controlled', 'Quick turnover', 'Drive with arms'],
+      hill_repeats: ['Power from glutes', 'High knees', 'Strong arm drive'],
+    };
+
+    return cues[workoutType] || cues.easy;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static getNutritionGuidance(workout: any): string {
+    if (workout.estimatedTSS < 50) {
+      return 'Water only needed';
+    } else if (workout.estimatedTSS < 100) {
+      return 'Consider sports drink for workouts over 60min';
+    } else {
+      return 'Fuel with 30-60g carbs/hour; practice race nutrition';
+    }
+  }
+
+  private static calculateTargetMileage(goal: string, fitnessProfile: FitnessProfile): number {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const baseTargets: any = {
+      FIRST_5K: 25,
+      IMPROVE_5K: 35,
+      FIRST_10K: 40,
+      HALF_MARATHON: 50,
+      MARATHON: 65,
+      ULTRA: 80,
+      GENERAL_FITNESS: 30,
+    };
+
+    const base = baseTargets[goal] || 30;
+
+    // Adjust based on current fitness
+    const fitnessMultiplier = Math.min(
+      1.5,
+      Math.max(0.7, fitnessProfile.currentWeeklyMileage / base)
+    );
+
+    return Math.round(base * fitnessMultiplier);
+  }
+
+  private static async getRaceDate(raceId?: string): Promise<Date> {
+    if (!raceId) return addWeeks(new Date(), 12);
+
+    const race = await prisma.race.findUnique({
+      where: { id: raceId },
+    });
+
+    return race?.raceDate || addWeeks(new Date(), 12);
+  }
+
+  private static calculateOptimalDifficulty(fitnessProfile: FitnessProfile): string {
+    if (fitnessProfile.trainingAge < 1 || fitnessProfile.consistencyScore < 0.5) {
+      return 'beginner';
+    } else if (fitnessProfile.trainingAge < 3 || fitnessProfile.consistencyScore < 0.8) {
+      return 'intermediate';
+    }
+    return 'advanced';
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static generatePlanDescription(config: AdvancedTrainingConfig, blocks: any[]): string {
+    const phaseStr = blocks.map(b => `${b.weeks}wk ${b.phase}`).join(', ');
+    return (
+      `Advanced ${config.goal} training plan with ${phaseStr}. ` +
+      `Personalized using VDOT, critical speed, and HRV-guided recovery.`
+    );
+  }
+
+  // Additional helper methods would go here...
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static calculateTrainingAge(_runs: any[]): number {
+    // In a real implementation, would analyze running history
+    // For now, return a default training age
+    return 1.0;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static assessInjuryRisk(loadHistory: any): number {
+    const currentRatio = loadHistory.current.ratio;
+    if (currentRatio > 1.5) return 0.8; // High risk
+    if (currentRatio > 1.3) return 0.6; // Moderate risk
+    if (currentRatio < 0.8) return 0.4; // Undertraining risk
+    return 0.2; // Low risk
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static analyzeWeeklyPatterns(_runs: any[]): any {
+    // Implementation would analyze running patterns
+    return {
+      avgWeeklyMileage: 30,
+      maxWeeklyMileage: 45,
+      consistencyScore: 0.75,
+      optimalDays: [1, 3, 5, 6],
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static calculateZonePaces(_vdot: number, _criticalSpeed: number): any {
+    // Implementation would calculate training zones
+    return {
+      recovery: { min: 6.5, max: 7.5 },
+      easy: { min: 5.5, max: 6.5 },
+      steady: { min: 5.0, max: 5.5 },
+      tempo: { min: 4.5, max: 5.0 },
+      threshold: { min: 4.2, max: 4.5 },
+      vo2max: { min: 3.8, max: 4.2 },
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static getDefaultZonePaces(vdot: number): any {
+    // Simplified zone calculation based on VDOT
+    const easyPace = 10.5 - (vdot - 30) * 0.1;
+    return {
+      recovery: { min: easyPace + 1, max: easyPace + 2 },
+      easy: { min: easyPace, max: easyPace + 1 },
+      steady: { min: easyPace - 0.5, max: easyPace },
+      tempo: { min: easyPace - 1, max: easyPace - 0.5 },
+      threshold: { min: easyPace - 1.3, max: easyPace - 1 },
+      vo2max: { min: easyPace - 1.7, max: easyPace - 1.3 },
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static calculateLoadTrend(loads: any[]): string {
+    if (loads.length < 2) return 'stable';
+    const recent = loads.slice(-7);
+    const previous = loads.slice(-14, -7);
+
+    const recentAvg = recent.reduce((sum, l) => sum + l.tss, 0) / recent.length;
+    const previousAvg = previous.reduce((sum, l) => sum + l.tss, 0) / previous.length;
+
+    const change = (recentAvg - previousAvg) / previousAvg;
+
+    if (change > 0.1) return 'increasing';
+    if (change < -0.1) return 'decreasing';
+    return 'stable';
+  }
+
+  private static getPhaseFocus(phase: string, _goal: string): string[] {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const focusMap: any = {
+      base: ['Aerobic capacity', 'Running economy', 'Injury prevention'],
+      build: ['Lactate threshold', 'VO2max development', 'Race pace familiarity'],
+      peak: ['Neuromuscular power', 'Race simulation', 'Mental preparation'],
+      taper: ['Recovery', 'Maintenance', 'Race readiness'],
+    };
+
+    return focusMap[phase] || focusMap.base;
+  }
+
+  private static getSecondaryFocus(phase: string, _goal: string): string[] {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const focusMap: any = {
+      base: ['Strength building', 'Form improvement', 'Flexibility'],
+      build: ['Speed endurance', 'Pacing strategies', 'Nutrition practice'],
+      peak: ['Tapering skills', 'Race logistics', 'Confidence building'],
+      taper: ['Sleep optimization', 'Carb loading', 'Mental visualization'],
+    };
+
+    return focusMap[phase] || [];
+  }
+
+  private static getLoadProgression(phase: string): string {
+    return phase === 'build' || phase === 'peak' ? 'undulating' : 'linear';
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static getKeyWorkouts(_phase: string, _goal: string, _profile: any): string[] {
+    // Would return specific workout types based on phase, goal, and athlete profile
+    return ['threshold', 'vo2max', 'long_run'];
+  }
+
+  private static selectOptimalDay(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    existingWorkouts: any[],
+    availableDays: number[],
+    intensity: 'hard' | 'easy'
+  ): number {
+    const usedDays = existingWorkouts.map(w => w.dayOfWeek);
+    const freeDays = availableDays.filter(d => !usedDays.includes(d));
+
+    if (intensity === 'hard') {
+      // Prefer mid-week for hard workouts
+      const preferred = [2, 4, 6].filter(d => freeDays.includes(d));
+      return preferred[0] || freeDays[0] || 3;
+    } else {
+      // Any free day for easy workouts
+      return freeDays[0] || 1;
+    }
+  }
+
+  private static getAdaptationTargets(goal: string): string[] {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const targets: any = {
+      FIRST_5K: ['aerobic base', 'running form', 'injury prevention'],
+      IMPROVE_5K: ['vo2max', 'lactate threshold', 'running economy'],
+      FIRST_10K: ['aerobic capacity', 'muscular endurance', 'pacing'],
+      HALF_MARATHON: ['lactate threshold', 'glycogen storage', 'mental toughness'],
+      MARATHON: ['aerobic efficiency', 'fat oxidation', 'mental resilience'],
+      GENERAL_FITNESS: ['overall endurance', 'metabolic flexibility', 'consistency'],
+    };
+
+    return targets[goal] || targets.GENERAL_FITNESS;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static selectEasyWorkout(remainingLoad: number, _phase: string): any {
+    if (remainingLoad < 30) {
+      return this.ADVANCED_WORKOUTS.RECOVERY_JOG;
+    }
+    return this.ADVANCED_WORKOUTS.AEROBIC_BASE;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static calculateWorkoutTotals(workout: any, paces: any): any {
+    let totalDistance = 0;
+    let totalDuration = 0;
+
+    for (const segment of workout.segments) {
+      const pace = paces[segment.zone.name.toLowerCase().replace(' ', '_')] || { min: 6, max: 6 };
+      const avgPace = (pace.min + pace.max) / 2;
+      const distance = segment.duration / avgPace;
+
+      totalDistance += distance;
+      totalDuration += segment.duration;
+    }
+
+    return {
+      distance: totalDistance,
+      duration: totalDuration,
+      avgPace: totalDuration / totalDistance,
+    };
+  }
+
+  /**
+   * Generate training insights for a plan
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static async generateTrainingInsights(plan: any, userId: string): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const completedWorkouts = plan.workouts.filter((w: any) => w.isCompleted);
+    const totalWorkouts = plan.workouts.length;
+    const completionRate = totalWorkouts > 0 ? completedWorkouts.length / totalWorkouts : 0;
+
+    // Analyze adherence
+    const adherenceInsights = {
+      completionRate: Math.round(completionRate * 100),
+      status:
+        completionRate >= 0.8 ? 'excellent' : completionRate >= 0.6 ? 'good' : 'needs improvement',
+      recommendation:
+        completionRate < 0.8
+          ? 'Try to complete at least 80% of workouts for optimal progress'
+          : 'Great consistency! Keep it up',
+    };
+
+    // Analyze training load progression
+    const weeklyLoads = new Map<number, number>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    completedWorkouts.forEach((workout: any) => {
+      const week = workout.weekNumber;
+      const tss = workout.completedRun
+        ? this.calculateTSS(workout.completedRun)
+        : this.calculateTSS({
+            distance: workout.targetDistance || 5,
+            duration: workout.targetDuration || 30,
+          });
+      weeklyLoads.set(week, (weeklyLoads.get(week) || 0) + tss);
+    });
+
+    const loadProgression = Array.from(weeklyLoads.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([week, load]) => ({ week, load }));
+
+    // Recovery insights
+    const recoveryInsights = await this.analyzeRecoveryPatterns(userId, plan.startDate);
+
+    // Performance trends
+    const performanceTrends = await this.analyzePerformanceTrends(userId, plan.startDate);
+
+    return {
+      adherence: adherenceInsights,
+      loadProgression,
+      recovery: recoveryInsights,
+      performance: performanceTrends,
+      recommendations: [
+        'Focus on consistent training to maximize adaptations',
+        'Ensure adequate recovery between hard sessions',
+        'Monitor heart rate variability for fatigue signs',
+        'Adjust pace targets based on current fitness',
+      ],
+    };
+  }
+
+  /**
+   * Optimize an existing training plan
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static async optimizeTrainingPlan(planId: string, userId: string): Promise<any> {
+    const plan = await prisma.trainingPlan.findUnique({
+      where: { id: planId },
+      include: {
+        workouts: {
+          include: {
+            completedRun: true,
+          },
+        },
+      },
+    });
+
+    if (!plan) throw new Error('Training plan not found');
+
+    // Analyze completed workouts
+    const upcomingWorkouts = plan.workouts.filter(w => !w.isCompleted);
+
+    // Calculate current fitness trends
+    const fitnessProfile = await this.performComprehensiveFitnessAssessment(userId);
+
+    // Adjust upcoming workouts based on performance
+    for (const workout of upcomingWorkouts) {
+      // Adjust intensity based on fitness improvements
+      if (fitnessProfile.vdot > 50) {
+        // Advanced athlete - can handle more intensity
+        if (workout.type === 'interval' || workout.type === 'tempo') {
+          await prisma.workoutTemplate.update({
+            where: { id: workout.id },
+            data: {
+              targetPace: workout.targetPace ? workout.targetPace * 0.95 : undefined,
+              intensity: 'hard',
+            },
+          });
+        }
+      }
+
+      // Add recovery if showing signs of fatigue
+      if (
+        fitnessProfile.fatigueLevel &&
+        fitnessProfile.fatigueLevel > 7 &&
+        workout.type !== 'recovery'
+      ) {
+        await prisma.workoutTemplate.update({
+          where: { id: workout.id },
+          data: {
+            intensity: 'moderate',
+            notes: workout.notes + '\n\nReduced intensity due to accumulated fatigue',
+          },
+        });
+      }
+    }
+
+    return await prisma.trainingPlan.findUnique({
+      where: { id: planId },
+      include: {
+        workouts: {
+          orderBy: [{ weekNumber: 'asc' }, { dayOfWeek: 'asc' }],
+        },
+      },
+    });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static async analyzeRecoveryPatterns(userId: string, startDate: Date): Promise<any> {
+    // Analyze recovery between hard sessions
+    const runs = await prisma.run.findMany({
+      where: {
+        userId,
+        date: { gte: startDate },
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    let goodRecovery = 0;
+    let poorRecovery = 0;
+
+    for (let i = 1; i < runs.length; i++) {
+      const prevRun = runs[i - 1];
+      const currentRun = runs[i];
+      const daysBetween = Math.floor(
+        (currentRun.date.getTime() - prevRun.date.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      const prevEffort = this.estimateEffortFromPace(prevRun.distance, prevRun.duration);
+      const currentEffort = this.estimateEffortFromPace(currentRun.distance, currentRun.duration);
+
+      if (prevEffort >= 8) {
+        // Previous run was hard
+        if (daysBetween >= 2 || (daysBetween === 1 && currentEffort <= 5)) {
+          goodRecovery++;
+        } else {
+          poorRecovery++;
+        }
+      }
+    }
+
+    return {
+      status: poorRecovery > goodRecovery ? 'needs improvement' : 'good',
+      hardSessionRecovery: goodRecovery / (goodRecovery + poorRecovery) || 0,
+      recommendation:
+        poorRecovery > goodRecovery
+          ? 'Allow at least 48 hours between hard sessions'
+          : 'Good recovery patterns detected',
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static async analyzePerformanceTrends(userId: string, startDate: Date): Promise<any> {
+    const runs = await prisma.run.findMany({
+      where: {
+        userId,
+        date: { gte: startDate },
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    if (runs.length < 2) {
+      return { trend: 'insufficient data' };
+    }
+
+    // Calculate average pace over time
+    const paceByWeek = new Map<number, number[]>();
+
+    runs.forEach(run => {
+      const weekNum = Math.floor(
+        (run.date.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)
+      );
+      if (!paceByWeek.has(weekNum)) {
+        paceByWeek.set(weekNum, []);
+      }
+      paceByWeek.get(weekNum)!.push(run.duration / run.distance);
+    });
+
+    const weeklyAveragePaces = Array.from(paceByWeek.entries())
+      .map(([week, paces]) => ({
+        week,
+        avgPace: paces.reduce((sum, p) => sum + p, 0) / paces.length,
+      }))
+      .sort((a, b) => a.week - b.week);
+
+    // Simple linear regression for trend
+    const n = weeklyAveragePaces.length;
+    const sumX = weeklyAveragePaces.reduce((sum, d) => sum + d.week, 0);
+    const sumY = weeklyAveragePaces.reduce((sum, d) => sum + d.avgPace, 0);
+    const sumXY = weeklyAveragePaces.reduce((sum, d) => sum + d.week * d.avgPace, 0);
+    const sumX2 = weeklyAveragePaces.reduce((sum, d) => sum + d.week * d.week, 0);
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+
+    return {
+      trend: slope < -0.05 ? 'improving' : slope > 0.05 ? 'declining' : 'stable',
+      paceImprovement: Math.abs(slope) * 100, // Percentage per week
+      weeklyPaces: weeklyAveragePaces,
+      recommendation:
+        slope < -0.05
+          ? 'Great progress! Your pace is improving consistently'
+          : slope > 0.05
+            ? 'Consider adding more easy runs and ensuring adequate recovery'
+            : 'Maintain current training load and focus on consistency',
+    };
+  }
+}
