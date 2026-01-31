@@ -106,6 +106,9 @@ export class AdvancedTrainingPlanService {
    * Returns effort level 1-10 based on running pace
    */
   private static estimateEffortFromPace(distance: number, duration: number): number {
+    if (distance <= 0 || duration <= 0) {
+      throw new Error('Distance and duration must be positive values');
+    }
     const paceMinPerKm = duration / 60 / distance;
     if (paceMinPerKm < 4.0) return 10;
     if (paceMinPerKm < 4.5) return 8;
@@ -1205,8 +1208,8 @@ export class AdvancedTrainingPlanService {
       const tss = workout.completedRun
         ? this.calculateTSS(workout.completedRun)
         : this.calculateTSS({
+            distance: workout.targetDistance || 5,
             duration: workout.targetDuration || 30,
-            detail: { avgHeartRate: 150 },
           });
       weeklyLoads.set(week, (weeklyLoads.get(week) || 0) + tss);
     });
