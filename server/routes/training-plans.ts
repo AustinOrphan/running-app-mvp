@@ -140,6 +140,23 @@ router.post(
 
     let trainingPlan;
 
+    // Validate race ownership if targetRaceId is provided
+    if (req.body.targetRaceId) {
+      const race = await prisma.race.findFirst({
+        where: {
+          id: req.body.targetRaceId,
+          userId,
+        },
+      });
+
+      if (!race) {
+        res.status(400).json({
+          error: 'Invalid race selection. Race not found or does not belong to user.',
+        });
+        return;
+      }
+    }
+
     // Use advanced service if explicitly requested or user has sufficient history
     if (useAdvanced === 'true' || recentRuns >= 10) {
       const advancedConfig = {

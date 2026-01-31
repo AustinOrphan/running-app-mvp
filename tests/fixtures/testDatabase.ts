@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../setup/jestSetup.js';
 
 import {
   mockRuns,
@@ -10,14 +10,6 @@ import {
   mockTrainingPlans,
   mockWorkoutTemplates,
 } from './mockData.js';
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.TEST_DATABASE_URL || 'file:./test.db',
-    },
-  },
-});
 
 // Test user creation utility
 export const createTestUser = async (userData?: { email?: string; password?: string }) => {

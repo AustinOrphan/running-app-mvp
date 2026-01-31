@@ -49,6 +49,39 @@ interface EnvironmentalFactors {
   terrain: 'flat' | 'hilly' | 'mixed' | 'trail';
 }
 
+interface FitnessProfile {
+  vdot: number;
+  criticalSpeed: number;
+  runningEconomy: number;
+  currentWeeklyMileage: number;
+  maxWeeklyMileage: number;
+  consistencyScore: number;
+  trainingAge: number;
+  injuryRisk: number;
+  recoveryCapacity: number;
+  optimalTrainingDays: number[];
+  zonePaceRanges: Record<string, { min: number; max: number }>;
+  fatigueLevel?: number;
+}
+
+interface TrainingBlock {
+  phase: string;
+  startDate: Date;
+  endDate: Date;
+  weeks: number;
+  primaryFocus: string[];
+  secondaryFocus: string[];
+  loadProgression: string;
+  keyWorkouts: string[];
+}
+
+interface PhaseDistribution {
+  base: number;
+  build: number;
+  peak: number;
+  taper: number;
+}
+
 interface AdvancedWorkout {
   type: WorkoutType;
   primaryZone: TrainingZone;
@@ -105,6 +138,20 @@ export class AdvancedTrainingPlanService {
   /**
    * Estimate effort level from pace (min/km)
    * Returns effort level 1-10 based on running pace
+   */
+  /**
+   * Estimate effort level from running pace
+   *
+   * Pace thresholds based on typical runner physiological zones:
+   * - < 4:00 min/km = VO2max/race pace (effort 10) - maximum intensity, lactate accumulation
+   * - 4:00-4:30 min/km = Tempo/threshold (effort 8) - lactate threshold training
+   * - 4:30-5:30 min/km = Steady/aerobic (effort 6) - aerobic capacity development
+   * - 5:30-6:30 min/km = Easy/conversational (effort 4) - base building, recovery
+   * - > 6:30 min/km = Recovery (effort 2) - active recovery, very low stress
+   *
+   * @param distance - Distance in kilometers
+   * @param duration - Duration in seconds
+   * @returns Effort level 1-10 (where 10 is maximum intensity)
    */
   private static estimateEffortFromPace(distance: number, duration: number): number {
     if (distance <= 0 || duration <= 0) {
@@ -399,8 +446,10 @@ export class AdvancedTrainingPlanService {
   /**
    * Perform comprehensive fitness assessment using multiple data points
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private static async performComprehensiveFitnessAssessment(userId: string): Promise<any> {
+
+  private static async performComprehensiveFitnessAssessment(
+    userId: string
+  ): Promise<FitnessProfile> {
     // Get recent runs with detailed metrics
     const recentRuns = await prisma.run.findMany({
       where: {
@@ -608,10 +657,8 @@ export class AdvancedTrainingPlanService {
     goal: string,
     startDate: Date,
     endDate: Date,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fitnessProfile: any
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): any[] {
+    fitnessProfile: FitnessProfile
+  ): TrainingBlock[] {
     const totalWeeks = differenceInWeeks(endDate, startDate);
     const blocks = [];
 
@@ -649,12 +696,9 @@ export class AdvancedTrainingPlanService {
   private static calculatePhaseDistribution(
     goal: string,
     totalWeeks: number,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fitnessProfile: any
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): any {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const baseDistributions: any = {
+    fitnessProfile: FitnessProfile
+  ): Record<string, number> {
+    const baseDistributions: Record<string, PhaseDistribution> = {
       FIRST_5K: { base: 0.4, build: 0.3, peak: 0.2, taper: 0.1 },
       IMPROVE_5K: { base: 0.25, build: 0.35, peak: 0.3, taper: 0.1 },
       FIRST_10K: { base: 0.35, build: 0.35, peak: 0.2, taper: 0.1 },
@@ -690,8 +734,8 @@ export class AdvancedTrainingPlanService {
     plan: TrainingPlan,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     blocks: any[],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fitnessProfile: any,
+
+    fitnessProfile: FitnessProfile,
     config: AdvancedTrainingConfig
   ): Promise<void> {
     let weekNumber = 1;
@@ -734,8 +778,8 @@ export class AdvancedTrainingPlanService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     block: any,
     weekInBlock: number,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fitnessProfile: any,
+
+    fitnessProfile: FitnessProfile,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plan: any
   ): number {
@@ -768,8 +812,8 @@ export class AdvancedTrainingPlanService {
   private static generateMicrocycle(
     phase: string,
     weeklyLoad: number,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    _fitnessProfile: any,
+
+    _fitnessProfile: FitnessProfile,
     preferences?: TrainingPreferences
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): any {
@@ -866,15 +910,25 @@ export class AdvancedTrainingPlanService {
   /**
    * Calculate personalized workout paces based on fitness profile
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private static calculateWorkoutPaces(workout: any, fitnessProfile: any): any {
+
+  private static calculateWorkoutPaces(
+    workout: {
+      type: string;
+      targetDistance?: number;
+      targetDuration?: number;
+      segments?: Array<{ zone: { name: string } }>;
+    },
+    fitnessProfile: FitnessProfile
+  ): { easy?: number; tempo?: number; interval?: number; recovery?: number } {
     const zones = fitnessProfile.zonePaceRanges || this.getDefaultZonePaces(fitnessProfile.vdot);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const paces: any = {};
 
-    for (const segment of workout.segments) {
-      const zoneName = segment.zone.name.toLowerCase().replace(' ', '_');
-      paces[zoneName] = zones[zoneName] || { min: 6.0, max: 7.0 };
+    if (workout.segments) {
+      for (const segment of workout.segments) {
+        const zoneName = segment.zone.name.toLowerCase().replace(' ', '_');
+        paces[zoneName] = zones[zoneName] || { min: 6.0, max: 7.0 };
+      }
     }
 
     return paces;
@@ -999,8 +1053,7 @@ export class AdvancedTrainingPlanService {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private static calculateTargetMileage(goal: string, fitnessProfile: any): number {
+  private static calculateTargetMileage(goal: string, fitnessProfile: FitnessProfile): number {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const baseTargets: any = {
       FIRST_5K: 25,
@@ -1033,8 +1086,7 @@ export class AdvancedTrainingPlanService {
     return race?.raceDate || addWeeks(new Date(), 12);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private static calculateOptimalDifficulty(fitnessProfile: any): string {
+  private static calculateOptimalDifficulty(fitnessProfile: FitnessProfile): string {
     if (fitnessProfile.trainingAge < 1 || fitnessProfile.consistencyScore < 0.5) {
       return 'beginner';
     } else if (fitnessProfile.trainingAge < 3 || fitnessProfile.consistencyScore < 0.8) {
@@ -1319,7 +1371,11 @@ export class AdvancedTrainingPlanService {
       }
 
       // Add recovery if showing signs of fatigue
-      if (fitnessProfile.fatigueLevel > 7 && workout.type !== 'recovery') {
+      if (
+        fitnessProfile.fatigueLevel &&
+        fitnessProfile.fatigueLevel > 7 &&
+        workout.type !== 'recovery'
+      ) {
         await prisma.workoutTemplate.update({
           where: { id: workout.id },
           data: {
