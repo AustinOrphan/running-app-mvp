@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma.js';
 import { TrainingPlan } from '@prisma/client';
 import { addDays, addWeeks, differenceInWeeks } from 'date-fns';
+import { validateTrainingConfig, sanitizeTextInput } from './trainingPlanValidation.js';
 
 // Advanced interfaces for world-class training plan generation
 interface AdvancedTrainingConfig {
@@ -340,7 +341,21 @@ export class AdvancedTrainingPlanService {
    * Generate an advanced, scientifically-backed training plan
    */
   static async generateAdvancedTrainingPlan(config: AdvancedTrainingConfig): Promise<TrainingPlan> {
-    // Comprehensive fitness assessment
+    validateTrainingConfig({
+      userId: config.userId,
+      name: config.name,
+      startDate: config.startDate,
+      endDate: config.endDate,
+      currentFitnessLevel: config.currentFitnessLevel,
+    });
+
+    const sanitizedDescription = sanitizeTextInput(config.description);
+
+    const sanitizedConfig: AdvancedTrainingConfig = {
+      ...config,
+      description: sanitizedDescription || undefined,
+    };
+
     const fitnessProfile = await this.performComprehensiveFitnessAssessment(config.userId);
 
     // Calculate optimal training phases using periodization
@@ -358,7 +373,8 @@ export class AdvancedTrainingPlanService {
       data: {
         userId: config.userId,
         name: config.name,
-        description: config.description || this.generatePlanDescription(config, trainingBlocks),
+        description:
+          sanitizedDescription || this.generatePlanDescription(sanitizedConfig, trainingBlocks),
         startDate: config.startDate,
         endDate: trainingBlocks[trainingBlocks.length - 1].endDate,
         goal: config.goal,
@@ -370,7 +386,12 @@ export class AdvancedTrainingPlanService {
     });
 
     // Generate adaptive workouts with ML-based adjustments
-    await this.generateAdaptiveWorkouts(trainingPlan, trainingBlocks, fitnessProfile, config);
+    await this.generateAdaptiveWorkouts(
+      trainingPlan,
+      trainingBlocks,
+      fitnessProfile,
+      sanitizedConfig
+    );
 
     return trainingPlan;
   }
@@ -551,7 +572,7 @@ export class AdvancedTrainingPlanService {
    * Calculate Training Stress Score for a run
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private static calculateTSS(run: any): number {
+  static calculateTSS(run: any): number {
     const duration = run.duration;
     const effort = this.estimateEffortFromPace(run.distance, run.duration);
     const intensity = effort / 10; // Normalize effort (1-10) to intensity (0.1-1.0)
