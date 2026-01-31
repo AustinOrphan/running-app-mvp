@@ -27,6 +27,7 @@ import runsRoutes from './server/routes/runs.js';
 import goalsRoutes from './server/routes/goals.js';
 import statsRoutes from './server/routes/stats.js';
 import racesRoutes from './server/routes/races.js';
+import trainingPlansRoutes from './server/routes/training-plans.js';
 
 // Create Express app
 const app = express();
@@ -58,6 +59,7 @@ app.use('/api/runs', runsRoutes);
 app.use('/api/goals', goalsRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/races', racesRoutes);
+app.use('/api/training-plans', trainingPlansRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
