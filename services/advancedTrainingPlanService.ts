@@ -440,6 +440,7 @@ export class AdvancedTrainingPlanService {
 
   /**
    * Calculate VDOT (VO2max estimate) from race performances
+   * Uses Jack Daniels' formula for VDOT estimation
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private static calculateVDOT(runs: any[]): number {
@@ -452,29 +453,47 @@ export class AdvancedTrainingPlanService {
       }))
       .filter(run => run.effort >= 8 || run.notes?.toLowerCase().includes('race'));
 
-    if (fastRuns.length === 0) {
-      // Estimate from regular runs using Jack Daniels' formula
-      const sortedRuns = runs
-        .filter(run => run.distance >= 3)
-        .sort((a, b) => a.duration / a.distance - b.duration / b.distance)
-        .slice(0, 3);
+    // Use race/fast runs if available, otherwise estimate from regular runs
+    const runsToAnalyze = fastRuns.length > 0 ? fastRuns : runs.filter(run => run.distance >= 3);
 
-      if (sortedRuns.length > 0) {
-        const distance = sortedRuns[0].distance * 1000; // Convert to meters
-        const time = sortedRuns[0].duration * 60; // Convert to seconds
-
-        // Simplified VDOT calculation
-        const velocity = distance / time;
-        const vo2 = -4.6 + 0.182258 * velocity * 60 + 0.000104 * Math.pow(velocity * 60, 2);
-        const percentMax =
-          0.8 + 0.1894393 * Math.exp(-0.012778 * time) + 0.2989558 * Math.exp(-0.1932605 * time);
-
-        return vo2 / percentMax;
-      }
+    if (runsToAnalyze.length === 0) {
+      // Default VDOT for beginners
+      return 35;
     }
 
-    // Default VDOT for beginners
-    return 35;
+    // Sort by pace (fastest first) and use the best performance
+    const bestRun = runsToAnalyze.sort((a, b) => {
+      const paceA = a.duration / a.distance;
+      const paceB = b.duration / b.distance;
+      return paceA - paceB;
+    })[0];
+
+    // Calculate VDOT using Jack Daniels' formula
+    // Formula: VDOT = (-4.6 + 0.182258 * speed + 0.000104 * speed^2) / %VO2max
+    // Where speed is in m/min and %VO2max is effort-dependent
+
+    const distance = bestRun.distance * 1000; // Convert to meters
+    const time = bestRun.duration; // Already in seconds
+
+    if (time === 0 || distance === 0) {
+      return 35;
+    }
+
+    const velocity = distance / time; // meters per second
+    const velocityPerMin = velocity * 60; // meters per minute
+
+    // VO2 calculation based on velocity (Jack Daniels formula)
+    const vo2 = -4.6 + 0.182258 * velocityPerMin + 0.000104 * Math.pow(velocityPerMin, 2);
+
+    // Calculate percentage of VO2max achieved based on race duration
+    // Longer efforts = lower percentage of max capability
+    const percentMax =
+      0.8 + 0.1894393 * Math.exp(-0.012778 * time) + 0.2989558 * Math.exp(-0.1932605 * time);
+
+    const vdot = vo2 / percentMax;
+
+    // Return VDOT value
+    return Math.round(vdot * 10) / 10; // Round to 1 decimal place
   }
 
   /**
