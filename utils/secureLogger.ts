@@ -236,6 +236,7 @@ class SecureLogger {
    * Legacy method - masks IP address for privacy compliance
    * @deprecated Use hashIpAddress() for enhanced privacy compliance
    */
+  // @ts-expect-error - Deprecated method kept for potential backward compatibility
   private maskIpAddress(ip?: string): string {
     if (!ip) return '[UNKNOWN]';
 
