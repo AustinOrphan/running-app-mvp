@@ -76,13 +76,13 @@ npm run create-test-user
 Add `data-testid` attributes to key interactive elements:
 
 ```html
-<button data-testid="login-button">Login</button>
-<input data-testid="email-input" type="email" />
+<button data-testid="login-button">Login</button> <input data-testid="email-input" type="email" />
 ```
 
 ## Browser Support
 
 Tests run across:
+
 - Chromium (Desktop Chrome)
 - Firefox (Desktop Firefox)
 - WebKit (Desktop Safari)
@@ -92,6 +92,7 @@ Tests run across:
 ## CI Integration
 
 Tests are configured for CI with:
+
 - Retry on failure (2 retries in CI)
 - HTML reporter for results
 - Screenshots on failure
@@ -134,6 +135,7 @@ This repo already has extensive E2E coverage:
 ## Shared E2E Core
 
 This project uses `@austinorphan/e2e-core` for:
+
 - Standardized Playwright configuration
 - Cross-browser test matrix
 - CI optimization (reduced browsers for PRs)
@@ -145,6 +147,7 @@ This project uses `@austinorphan/e2e-core` for:
 ### Tests failing with connection errors
 
 Ensure both servers are running:
+
 ```bash
 npm run dev:full
 ```
@@ -152,6 +155,7 @@ npm run dev:full
 ### Database-related failures
 
 Clean and reset test database:
+
 ```bash
 npm run prisma:migrate
 npm run create-test-user
@@ -160,6 +164,7 @@ npm run create-test-user
 ### Browser not installed
 
 Install Playwright browsers:
+
 ```bash
 npx playwright install
 ```
@@ -171,6 +176,7 @@ Check that ports 3000 (frontend) and 3001 (backend) are available.
 ## Visual Regression Testing
 
 Update visual baselines when UI intentionally changes:
+
 ```bash
 npm run test:visual:update
 ```
@@ -178,6 +184,7 @@ npm run test:visual:update
 ## Accessibility Testing
 
 Run accessibility-specific tests:
+
 ```bash
 npm run test:a11y:all
 ```
