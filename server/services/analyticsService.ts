@@ -19,6 +19,16 @@ export interface AggregatedStats {
   maxHeartRate?: number;
 }
 
+export interface TrendAnalysis {
+  period: string;
+  dataPoints: number;
+  paceTrend: 'improving' | 'stable' | 'declining';
+  volumeTrend: 'increasing' | 'stable' | 'decreasing';
+  paceChangePercent: number;
+  volumeChangePercent: number;
+  consistencyScore: number; // 0-1
+}
+
 export class AnalyticsService {
   /**
    * Set the Prisma instance (for testing)
@@ -144,6 +154,127 @@ export class AnalyticsService {
       totalElevation,
       avgHeartRate,
       maxHeartRate,
+    };
+  }
+
+  /**
+   * Analyze trends over multiple time periods
+   */
+  static async getTrends(
+    userId: string,
+    period: 'weekly' | 'monthly',
+    dataPoints: number
+  ): Promise<TrendAnalysis> {
+    if (dataPoints < 2 || dataPoints > 52) {
+      throw new Error('dataPoints must be between 2 and 52');
+    }
+
+    const now = new Date();
+    const periodStats: Array<{ startDate: Date; distance: number; pace: number; runs: number }> =
+      [];
+
+    // Collect statistics for each period
+    for (let i = 0; i < dataPoints; i++) {
+      let periodStart: Date;
+      let periodEnd: Date;
+
+      if (period === 'weekly') {
+        const weeksAgo = dataPoints - 1 - i;
+        periodStart = startOfWeek(new Date(now.getTime() - weeksAgo * 7 * 24 * 60 * 60 * 1000), {
+          weekStartsOn: 1,
+        });
+        periodEnd = endOfWeek(new Date(now.getTime() - weeksAgo * 7 * 24 * 60 * 60 * 1000), {
+          weekStartsOn: 1,
+        });
+      } else {
+        // monthly
+        const monthsAgo = dataPoints - 1 - i;
+        periodStart = startOfMonth(new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1));
+        periodEnd = endOfMonth(new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1));
+      }
+
+      // Get runs for this period
+      const runs = await prismaInstance.run.findMany({
+        where: {
+          userId,
+          date: {
+            gte: periodStart,
+            lte: periodEnd,
+          },
+        },
+      });
+
+      if (runs.length > 0) {
+        const totalDistance = runs.reduce((sum, run) => sum + run.distance, 0);
+        const totalDuration = runs.reduce((sum, run) => sum + run.duration, 0);
+        const avgPace = totalDistance > 0 ? totalDuration / 60 / totalDistance : 0;
+
+        periodStats.push({
+          startDate: periodStart,
+          distance: totalDistance,
+          pace: avgPace,
+          runs: runs.length,
+        });
+      } else {
+        periodStats.push({
+          startDate: periodStart,
+          distance: 0,
+          pace: 0,
+          runs: 0,
+        });
+      }
+    }
+
+    // Calculate trends (compare first half to second half)
+    const midpoint = Math.floor(periodStats.length / 2);
+    const firstHalf = periodStats.slice(0, midpoint);
+    const secondHalf = periodStats.slice(midpoint);
+
+    // Average pace for each half (only count periods with runs)
+    const firstHalfWithRuns = firstHalf.filter(p => p.runs > 0);
+    const secondHalfWithRuns = secondHalf.filter(p => p.runs > 0);
+
+    const firstHalfPace =
+      firstHalfWithRuns.length > 0
+        ? firstHalfWithRuns.reduce((sum, p) => sum + p.pace, 0) / firstHalfWithRuns.length
+        : 0;
+
+    const secondHalfPace =
+      secondHalfWithRuns.length > 0
+        ? secondHalfWithRuns.reduce((sum, p) => sum + p.pace, 0) / secondHalfWithRuns.length
+        : 0;
+
+    // Average volume for each half
+    const firstHalfVolume = firstHalf.reduce((sum, p) => sum + p.distance, 0) / firstHalf.length;
+    const secondHalfVolume = secondHalf.reduce((sum, p) => sum + p.distance, 0) / secondHalf.length;
+
+    // Calculate percent changes
+    const paceChangePercent =
+      firstHalfPace > 0 ? ((secondHalfPace - firstHalfPace) / firstHalfPace) * 100 : 0;
+
+    const volumeChangePercent =
+      firstHalfVolume > 0 ? ((secondHalfVolume - firstHalfVolume) / firstHalfVolume) * 100 : 0;
+
+    // Determine trends (threshold: 5%)
+    const paceTrend =
+      paceChangePercent < -5 ? 'improving' : paceChangePercent > 5 ? 'declining' : 'stable';
+
+    const volumeTrend =
+      volumeChangePercent > 5 ? 'increasing' : volumeChangePercent < -5 ? 'decreasing' : 'stable';
+
+    // Calculate consistency score (0-1)
+    // Based on: how many periods had at least one run
+    const periodsWithRuns = periodStats.filter(p => p.runs > 0).length;
+    const consistencyScore = periodsWithRuns / periodStats.length;
+
+    return {
+      period,
+      dataPoints: periodStats.length,
+      paceTrend,
+      volumeTrend,
+      paceChangePercent,
+      volumeChangePercent,
+      consistencyScore,
     };
   }
 }

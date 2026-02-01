@@ -250,4 +250,222 @@ describe('AnalyticsService', () => {
       expect(stats.totalElevation).toBe(350); // Sum of elevation gain
     });
   });
+
+  describe('getTrends', () => {
+    it('should calculate improving pace trend', async () => {
+      const now = new Date();
+
+      // Create runs with improving pace (getting faster)
+      await createTestRuns(userId, [
+        {
+          date: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1800, // 6 min/km
+          tag: 'easy',
+          notes: 'Week 3',
+        },
+        {
+          date: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1650, // 5.5 min/km
+          tag: 'easy',
+          notes: 'Week 2',
+        },
+        {
+          date: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500, // 5 min/km
+          tag: 'easy',
+          notes: 'Week 1',
+        },
+      ]);
+
+      const trends = await AnalyticsService.getTrends(userId, 'weekly', 3);
+
+      expect(trends).toBeDefined();
+      expect(trends.period).toBe('weekly');
+      expect(trends.dataPoints).toBe(3);
+      expect(trends.paceTrend).toBe('improving');
+      expect(trends.paceChangePercent).toBeLessThan(0); // Negative = faster
+      expect(trends.consistencyScore).toBeGreaterThan(0);
+    });
+
+    it('should calculate declining pace trend', async () => {
+      const now = new Date();
+
+      // Create runs with declining pace (getting slower)
+      await createTestRuns(userId, [
+        {
+          date: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500, // 5 min/km
+          tag: 'easy',
+          notes: 'Week 3',
+        },
+        {
+          date: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1650, // 5.5 min/km
+          tag: 'easy',
+          notes: 'Week 2',
+        },
+        {
+          date: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1800, // 6 min/km
+          tag: 'easy',
+          notes: 'Week 1',
+        },
+      ]);
+
+      const trends = await AnalyticsService.getTrends(userId, 'weekly', 3);
+
+      expect(trends.paceTrend).toBe('declining');
+      expect(trends.paceChangePercent).toBeGreaterThan(0); // Positive = slower
+    });
+
+    it('should calculate increasing volume trend', async () => {
+      const now = new Date();
+
+      // Create runs with increasing weekly mileage
+      // Use specific Wednesday dates to ensure they're in different calendar weeks
+      await createTestRuns(userId, [
+        {
+          date: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Week 2',
+        },
+        {
+          date: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 10.0,
+          duration: 3000,
+          tag: 'long',
+          notes: 'Week 1',
+        },
+        {
+          date: now.toISOString(),
+          distance: 15.0,
+          duration: 4500,
+          tag: 'long',
+          notes: 'This week',
+        },
+      ]);
+
+      const trends = await AnalyticsService.getTrends(userId, 'weekly', 3);
+
+      // Volume should be increasing: 5 → (10 + 15)/2 = 5 → 12.5
+      expect(trends.volumeTrend).toBe('increasing');
+      expect(trends.volumeChangePercent).toBeGreaterThan(0);
+    });
+
+    it('should calculate consistency score', async () => {
+      const now = new Date();
+
+      // Create consistent runs (one per week)
+      await createTestRuns(userId, [
+        {
+          date: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Week 3',
+        },
+        {
+          date: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Week 2',
+        },
+        {
+          date: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Week 1',
+        },
+      ]);
+
+      const trends = await AnalyticsService.getTrends(userId, 'weekly', 3);
+
+      expect(trends.consistencyScore).toBeGreaterThan(0);
+      expect(trends.consistencyScore).toBeLessThanOrEqual(1);
+    });
+
+    it('should handle stable trends', async () => {
+      const now = new Date();
+
+      // Create runs with stable pace and volume
+      // Use specific dates to ensure they're in different calendar weeks
+      await createTestRuns(userId, [
+        {
+          date: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Week 2',
+        },
+        {
+          date: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Week 1',
+        },
+        {
+          date: now.toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'This week',
+        },
+      ]);
+
+      const trends = await AnalyticsService.getTrends(userId, 'weekly', 3);
+
+      expect(trends.paceTrend).toBe('stable');
+      expect(trends.volumeTrend).toBe('stable');
+      expect(Math.abs(trends.paceChangePercent)).toBeLessThan(5);
+      expect(Math.abs(trends.volumeChangePercent)).toBeLessThan(5);
+    });
+
+    it('should handle monthly trends', async () => {
+      const now = new Date();
+      const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 15);
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, 15);
+      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 15);
+
+      await createTestRuns(userId, [
+        {
+          date: twoMonthsAgo.toISOString(),
+          distance: 20.0,
+          duration: 6000,
+          tag: 'long',
+          notes: 'Month 1',
+        },
+        {
+          date: oneMonthAgo.toISOString(),
+          distance: 25.0,
+          duration: 7500,
+          tag: 'long',
+          notes: 'Month 2',
+        },
+        {
+          date: thisMonth.toISOString(),
+          distance: 30.0,
+          duration: 9000,
+          tag: 'long',
+          notes: 'Month 3',
+        },
+      ]);
+
+      const trends = await AnalyticsService.getTrends(userId, 'monthly', 3);
+
+      expect(trends.period).toBe('monthly');
+      expect(trends.dataPoints).toBe(3);
+      expect(trends.volumeTrend).toBe('increasing');
+    });
+  });
 });
