@@ -19,6 +19,9 @@ model User {
   goals Goal[]
   races Race[]
   trainingPlans TrainingPlan[]
+  runAnalytics RunAnalytics[]
+  locationHeatmap LocationHeatmap[]
+  runTendency RunTendency?
 }
 
 model Run {
@@ -35,9 +38,50 @@ model Run {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   completedWorkouts WorkoutTemplate[]
+  detail RunDetail?
 
   @@index([userId])
   @@index([date])
+}
+
+model RunDetail {
+  id        String   @id @default(uuid())
+  runId     String   @unique
+
+  // Heart Rate Data
+  avgHeartRate     Int?
+  maxHeartRate     Int?
+  hrZoneDistribution String?
+
+  // GPS & Elevation
+  routeGeoJson     String?
+  elevationGain    Float?
+  elevationLoss    Float?
+  elevationProfile String?
+
+  // Environmental
+  temperature      Float?
+  humidity         Float?
+  windSpeed        Float?
+  weatherCondition String?
+
+  // Cadence & Form
+  avgCadence       Int?
+  maxCadence       Int?
+  strideLength     Float?
+  verticalOscillation Float?
+  groundContactTime   Int?
+
+  // Performance Metrics
+  trainingLoad     Float?
+  perceivedEffort  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
 }
 
 model Goal {
@@ -153,4 +197,85 @@ model WorkoutTemplate {
 
   @@index([trainingPlanId])
   @@index([weekNumber])
+}
+
+model RunAnalytics {
+  id        String   @id @default(uuid())
+  userId    String
+  period    String   // 'daily', 'weekly', 'monthly', 'yearly'
+  startDate DateTime
+  endDate   DateTime
+
+  totalRuns      Int
+  totalDistance  Float
+  totalDuration  Int
+  totalElevation Float?
+  avgPace        Float
+  fastestPace    Float
+  longestRun     Float
+  avgHeartRate   Int?
+  maxHeartRate   Int?
+  totalTrainingLoad Float?
+  avgTrainingLoad   Float?
+  runsPerWeek    Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period, startDate])
+  @@index([userId])
+  @@index([period])
+  @@index([startDate])
+}
+
+model LocationHeatmap {
+  id        String   @id @default(uuid())
+  userId    String
+  gridSize  Float
+  heatmapData String  // JSON
+  popularRoutes String?
+  minLat    Float
+  maxLat    Float
+  minLng    Float
+  maxLng    Float
+  totalRuns Int
+  lastUpdated DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gridSize])
+  @@index([userId])
+}
+
+model RunTendency {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+
+  preferredDaysOfWeek String
+  preferredTimeOfDay  String?
+  avgRunsPerWeek      Float
+  preferredDistances  String
+  avgRunDistance      Float
+  longestRunEver      Float
+  avgEasyPace         Float
+  avgTempoPace        Float?
+  avgIntervalPace     Float?
+  homeBaseLocation    String?
+  explorationScore    Float?
+  currentStreak       Int
+  longestStreak       Int
+  avgRestDaysBetween  Float
+  lastAnalyzed DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
