@@ -468,4 +468,226 @@ describe('AnalyticsService', () => {
       expect(trends.volumeTrend).toBe('increasing');
     });
   });
+
+  describe('generateInsights', () => {
+    it('should generate consistency insight for good adherence', async () => {
+      const now = new Date();
+
+      // Create consistent runs (4 runs this week)
+      await createTestRuns(userId, [
+        {
+          date: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Run 1',
+        },
+        {
+          date: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Run 2',
+        },
+        {
+          date: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Run 3',
+        },
+        {
+          date: now.toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Run 4',
+        },
+      ]);
+
+      const insights = await AnalyticsService.generateInsights(userId);
+
+      expect(insights).toBeDefined();
+      expect(Array.isArray(insights)).toBe(true);
+
+      // Should have at least one consistency insight
+      const consistencyInsights = insights.filter(i => i.type === 'consistency');
+      expect(consistencyInsights.length).toBeGreaterThan(0);
+      expect(consistencyInsights[0].priority).toBe('high');
+    });
+
+    it('should generate recovery warning for overtraining', async () => {
+      const now = new Date();
+
+      // Create runs every day (no rest days)
+      const runs = [];
+      for (let i = 0; i < 7; i++) {
+        runs.push({
+          date: new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: `Day ${i + 1}`,
+        });
+      }
+
+      await createTestRuns(userId, runs);
+
+      const insights = await AnalyticsService.generateInsights(userId);
+
+      // Should have a recovery warning
+      const recoveryInsights = insights.filter(i => i.type === 'recovery');
+      expect(recoveryInsights.length).toBeGreaterThan(0);
+      expect(recoveryInsights[0].priority).toBe('high');
+      expect(recoveryInsights[0].message).toContain('rest');
+    });
+
+    it('should generate performance insight for pace improvement', async () => {
+      const now = new Date();
+
+      // Create runs showing pace improvement over 3 months
+      // Need at least 6 runs for performance insights
+      const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 15);
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, 15);
+      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 15);
+
+      await createTestRuns(userId, [
+        // Month 1: slower pace (6 min/km)
+        {
+          date: new Date(twoMonthsAgo.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1800,
+          tag: 'easy',
+          notes: 'Month 1 run 1',
+        },
+        {
+          date: twoMonthsAgo.toISOString(),
+          distance: 5.0,
+          duration: 1800,
+          tag: 'easy',
+          notes: 'Month 1 run 2',
+        },
+        // Month 2: moderate pace (5.5 min/km)
+        {
+          date: new Date(oneMonthAgo.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1650,
+          tag: 'easy',
+          notes: 'Month 2 run 1',
+        },
+        {
+          date: oneMonthAgo.toISOString(),
+          distance: 5.0,
+          duration: 1650,
+          tag: 'easy',
+          notes: 'Month 2 run 2',
+        },
+        // Month 3: fast pace (5 min/km)
+        {
+          date: new Date(thisMonth.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Month 3 run 1',
+        },
+        {
+          date: thisMonth.toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Month 3 run 2',
+        },
+      ]);
+
+      const insights = await AnalyticsService.generateInsights(userId);
+
+      // Should have a performance insight
+      const performanceInsights = insights.filter(i => i.type === 'performance');
+      expect(performanceInsights.length).toBeGreaterThan(0);
+      expect(performanceInsights[0].message).toContain('improved');
+    });
+
+    it('should generate volume warning for sudden increase', async () => {
+      const now = new Date();
+
+      // Sudden increase from 10km/week to 30km/week
+      await createTestRuns(userId, [
+        // Two weeks ago: 10km total
+        {
+          date: new Date(now.getTime() - 13 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 10.0,
+          duration: 3000,
+          tag: 'long',
+          notes: 'Normal week',
+        },
+        // This week: 30km total (3x increase)
+        {
+          date: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 15.0,
+          duration: 4500,
+          tag: 'long',
+          notes: 'Big week 1',
+        },
+        {
+          date: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 15.0,
+          duration: 4500,
+          tag: 'long',
+          notes: 'Big week 2',
+        },
+      ]);
+
+      const insights = await AnalyticsService.generateInsights(userId);
+
+      // Should warn about volume increase
+      const volumeInsights = insights.filter(i => i.type === 'volume');
+      expect(volumeInsights.length).toBeGreaterThan(0);
+      expect(volumeInsights[0].priority).toBe('high');
+    });
+
+    it('should return empty array when no runs exist', async () => {
+      const insights = await AnalyticsService.generateInsights(userId);
+
+      expect(insights).toBeDefined();
+      expect(Array.isArray(insights)).toBe(true);
+      expect(insights.length).toBe(0);
+    });
+
+    it('should sort insights by priority', async () => {
+      const now = new Date();
+
+      // Create runs that will trigger multiple insights
+      await createTestRuns(userId, [
+        {
+          date: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Run 1',
+        },
+        {
+          date: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+          distance: 5.0,
+          duration: 1500,
+          tag: 'easy',
+          notes: 'Run 2',
+        },
+      ]);
+
+      const insights = await AnalyticsService.generateInsights(userId);
+
+      // High priority insights should come first
+      const priorities = insights.map(i => i.priority);
+      const highCount = priorities.filter(p => p === 'high').length;
+      const mediumCount = priorities.filter(p => p === 'medium').length;
+      const lowCount = priorities.filter(p => p === 'low').length;
+
+      // Verify high priority comes before medium/low
+      if (highCount > 0 && (mediumCount > 0 || lowCount > 0)) {
+        const firstMediumOrLow = priorities.findIndex(p => p === 'medium' || p === 'low');
+        const lastHigh = priorities.lastIndexOf('high');
+        expect(lastHigh).toBeLessThan(firstMediumOrLow);
+      }
+    });
+  });
 });

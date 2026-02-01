@@ -29,6 +29,13 @@ export interface TrendAnalysis {
   consistencyScore: number; // 0-1
 }
 
+export interface Insight {
+  type: 'consistency' | 'volume' | 'recovery' | 'performance' | 'goal';
+  priority: 'high' | 'medium' | 'low';
+  message: string;
+  actionable?: string;
+}
+
 export class AnalyticsService {
   /**
    * Set the Prisma instance (for testing)
@@ -276,5 +283,156 @@ export class AnalyticsService {
       volumeChangePercent,
       consistencyScore,
     };
+  }
+
+  /**
+   * Generate rule-based algorithmic insights about running performance
+   */
+  static async generateInsights(userId: string): Promise<Insight[]> {
+    const insights: Insight[] = [];
+    const now = new Date();
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+    // Fetch runs from last 90 days
+    const runs = await prismaInstance.run.findMany({
+      where: {
+        userId,
+        date: {
+          gte: ninetyDaysAgo,
+        },
+      },
+      orderBy: {
+        date: 'desc',
+      },
+    });
+
+    // Return empty if no runs
+    if (runs.length === 0) {
+      return [];
+    }
+
+    // 1. Consistency insights
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const runsThisWeek = runs.filter(run => run.date >= sevenDaysAgo).length;
+    const targetRunsPerWeek = 3; // Configurable threshold
+
+    if (runsThisWeek >= targetRunsPerWeek) {
+      insights.push({
+        type: 'consistency',
+        priority: 'high',
+        message: `Great consistency! You've completed ${runsThisWeek} runs this week.`,
+        actionable: 'Keep up this pace to maintain your progress.',
+      });
+    } else if (runsThisWeek > 0 && runsThisWeek < targetRunsPerWeek) {
+      insights.push({
+        type: 'consistency',
+        priority: 'medium',
+        message: `You've run ${runsThisWeek} time${runsThisWeek > 1 ? 's' : ''} this week.`,
+        actionable: `Aim for ${targetRunsPerWeek} runs per week for consistent progress.`,
+      });
+    }
+
+    // 2. Recovery insights (check for rest days)
+    if (runs.length >= 7) {
+      const last7Runs = runs.slice(0, 7);
+      const dates = last7Runs.map(r => r.date.getTime());
+      const restDays: number[] = [];
+
+      for (let i = 0; i < dates.length - 1; i++) {
+        const daysBetween = Math.floor((dates[i] - dates[i + 1]) / (24 * 60 * 60 * 1000));
+        restDays.push(daysBetween - 1); // Subtract 1 because consecutive days = 0 rest days
+      }
+
+      const avgRestDays = restDays.reduce((sum, d) => sum + d, 0) / restDays.length;
+
+      if (avgRestDays < 1.0) {
+        insights.push({
+          type: 'recovery',
+          priority: 'high',
+          message: 'You may be overtraining with insufficient rest days.',
+          actionable: 'Consider adding 1-2 rest days per week to prevent injury.',
+        });
+      } else if (avgRestDays >= 2.0) {
+        insights.push({
+          type: 'recovery',
+          priority: 'low',
+          message: 'You have good recovery time between runs.',
+          actionable: 'If ready, consider adding one more run per week.',
+        });
+      }
+    }
+
+    // 3. Performance insights (pace trends over 3 months)
+    const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const runsLast3Months = runs.filter(run => run.date >= threeMonthsAgo);
+
+    if (runsLast3Months.length >= 6) {
+      const midpoint = Math.floor(runsLast3Months.length / 2);
+      const firstHalf = runsLast3Months.slice(midpoint);
+      const secondHalf = runsLast3Months.slice(0, midpoint);
+
+      const avgPaceFirst =
+        firstHalf.reduce((sum, r) => sum + r.duration / 60 / r.distance, 0) / firstHalf.length;
+      const avgPaceSecond =
+        secondHalf.reduce((sum, r) => sum + r.duration / 60 / r.distance, 0) / secondHalf.length;
+
+      const paceChange = ((avgPaceSecond - avgPaceFirst) / avgPaceFirst) * 100;
+
+      if (paceChange < -5) {
+        // Getting faster (negative = improvement)
+        insights.push({
+          type: 'performance',
+          priority: 'medium',
+          message: `Your pace improved ${Math.abs(paceChange).toFixed(1)}% over the last 3 months.`,
+          actionable: 'Consider setting a new time goal for your next race.',
+        });
+      } else if (paceChange > 10) {
+        // Getting slower
+        insights.push({
+          type: 'performance',
+          priority: 'low',
+          message: `Your pace has slowed ${paceChange.toFixed(1)}% recently.`,
+          actionable: 'Review your training load and recovery to get back on track.',
+        });
+      }
+    }
+
+    // 4. Volume insights (sudden increases)
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const runsThisWeekForVolume = runs.filter(r => r.date >= sevenDaysAgo);
+    const runsLastWeek = runs.filter(r => r.date >= twoWeeksAgo && r.date < sevenDaysAgo);
+
+    if (runsLastWeek.length > 0 && runsThisWeekForVolume.length > 0) {
+      const volumeThisWeek = runsThisWeekForVolume.reduce((sum, r) => sum + r.distance, 0);
+      const volumeLastWeek = runsLastWeek.reduce((sum, r) => sum + r.distance, 0);
+
+      const volumeIncrease = ((volumeThisWeek - volumeLastWeek) / volumeLastWeek) * 100;
+
+      if (volumeIncrease > 50) {
+        // More than 50% increase
+        insights.push({
+          type: 'volume',
+          priority: 'high',
+          message: `Your weekly mileage increased ${volumeIncrease.toFixed(0)}% this week.`,
+          actionable:
+            'Sudden increases can lead to injury. Consider the 10% rule: increase weekly mileage by no more than 10%.',
+        });
+      } else if (volumeIncrease < -30) {
+        // Significant decrease
+        insights.push({
+          type: 'volume',
+          priority: 'medium',
+          message: `Your weekly mileage decreased ${Math.abs(volumeIncrease).toFixed(0)}% this week.`,
+          actionable:
+            'If this was intentional recovery, great! Otherwise, try to maintain consistency.',
+        });
+      }
+    }
+
+    // Sort by priority (high > medium > low)
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    insights.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+    return insights;
   }
 }
