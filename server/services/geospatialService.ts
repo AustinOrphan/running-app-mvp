@@ -1,11 +1,15 @@
 import * as turf from '@turf/turf';
-import type { LineString, Position } from 'geojson';
+import type { LineString, Position, FeatureCollection, Feature, Polygon } from 'geojson';
 
 export interface RouteCluster {
   routes: string[]; // Array of run IDs
   representative: string; // ID of the representative route
   centroid?: Position;
   count: number;
+}
+
+export interface Heatmap extends FeatureCollection<Polygon> {
+  bbox?: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
 }
 
 export class GeospatialService {
@@ -134,5 +138,87 @@ export class GeospatialService {
     }
 
     return samples;
+  }
+
+  /**
+   * Generate grid-based heatmap from GPS points
+   * @param points Array of GPS coordinates [lng, lat]
+   * @param gridSizeKm Grid cell size in kilometers
+   * @returns GeoJSON FeatureCollection with density information
+   */
+  static generateHeatmap(points: Position[], gridSizeKm: number): Heatmap {
+    if (points.length === 0) {
+      return {
+        type: 'FeatureCollection',
+        features: [],
+      };
+    }
+
+    // Calculate bounding box
+    const lngs = points.map(p => p[0]);
+    const lats = points.map(p => p[1]);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+
+    // Calculate grid dimensions
+    // Approximate: 1 degree latitude ≈ 111km
+    // 1 degree longitude ≈ 111km * cos(latitude)
+    const avgLat = (minLat + maxLat) / 2;
+    const latDegPerKm = 1 / 111;
+    const lngDegPerKm = 1 / (111 * Math.cos((avgLat * Math.PI) / 180));
+
+    const gridLatSize = gridSizeKm * latDegPerKm;
+    const gridLngSize = gridSizeKm * lngDegPerKm;
+
+    // Create grid cells and count points in each
+    const grid = new Map<string, number>();
+
+    for (const point of points) {
+      const [lng, lat] = point;
+      const cellLng = Math.floor((lng - minLng) / gridLngSize);
+      const cellLat = Math.floor((lat - minLat) / gridLatSize);
+      const cellKey = `${cellLng},${cellLat}`;
+
+      grid.set(cellKey, (grid.get(cellKey) || 0) + 1);
+    }
+
+    // Convert grid to GeoJSON features
+    const features: Feature<Polygon>[] = [];
+
+    for (const [cellKey, density] of grid.entries()) {
+      const [cellLng, cellLat] = cellKey.split(',').map(Number);
+
+      const cellMinLng = minLng + cellLng * gridLngSize;
+      const cellMaxLng = cellMinLng + gridLngSize;
+      const cellMinLat = minLat + cellLat * gridLatSize;
+      const cellMaxLat = cellMinLat + gridLatSize;
+
+      features.push({
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [cellMinLng, cellMinLat],
+              [cellMaxLng, cellMinLat],
+              [cellMaxLng, cellMaxLat],
+              [cellMinLng, cellMaxLat],
+              [cellMinLng, cellMinLat], // Close polygon
+            ],
+          ],
+        },
+        properties: {
+          density,
+        },
+      });
+    }
+
+    return {
+      type: 'FeatureCollection',
+      features,
+      bbox: [minLng, minLat, maxLng, maxLat],
+    };
   }
 }
