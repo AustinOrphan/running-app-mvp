@@ -153,6 +153,9 @@ export class AdvancedTrainingPlanService {
    * @param duration - Duration in seconds
    * @returns Effort level 1-10 (where 10 is maximum intensity)
    */
+  /**
+   * @deprecated Use estimateEffortFromRun() instead for heart rate support
+   */
   private static estimateEffortFromPace(distance: number, duration: number): number {
     if (distance <= 0 || duration <= 0) {
       throw new Error('Distance and duration must be positive values');
@@ -163,6 +166,43 @@ export class AdvancedTrainingPlanService {
     if (paceMinPerKm < 5.5) return 6;
     if (paceMinPerKm < 6.5) return 4;
     return 2;
+  }
+
+  /**
+   * Estimate effort level from running data
+   * Prefers heart rate data when available (from RunDetail), falls back to pace
+   *
+   * Heart rate zones (% of max HR):
+   * - 180+ bpm = Max effort (effort 10)
+   * - 170-180 bpm = VO2max (effort 9)
+   * - 160-170 bpm = Threshold (effort 8)
+   * - 150-160 bpm = Tempo (effort 7)
+   * - 140-150 bpm = Moderate (effort 6)
+   * - 130-140 bpm = Easy (effort 5)
+   * - < 130 bpm = Recovery (effort 3)
+   *
+   * @param run - Run data with optional heart rate detail
+   * @returns Effort level 1-10 (where 10 is maximum intensity)
+   */
+  private static estimateEffortFromRun(run: {
+    distance: number;
+    duration: number;
+    detail?: { avgHeartRate: number | null } | null;
+  }): number {
+    // Use heart rate if available (more accurate)
+    if (run.detail?.avgHeartRate) {
+      const hr = run.detail.avgHeartRate;
+      if (hr > 180) return 10; // Max effort
+      if (hr > 170) return 9; // VO2max
+      if (hr > 160) return 8; // Threshold
+      if (hr > 150) return 7; // Tempo
+      if (hr > 140) return 6; // Moderate
+      if (hr > 130) return 5; // Easy
+      return 3; // Recovery
+    }
+
+    // Fallback to pace-based estimation
+    return this.estimateEffortFromPace(run.distance, run.duration);
   }
 
   // Advanced workout templates with scientific backing
@@ -456,6 +496,9 @@ export class AdvancedTrainingPlanService {
         userId,
         date: { gte: addDays(new Date(), -90) }, // Last 3 months
       },
+      include: {
+        detail: true,
+      },
       orderBy: { date: 'desc' },
     });
 
@@ -498,7 +541,7 @@ export class AdvancedTrainingPlanService {
       .filter(run => run.distance >= 3)
       .map(run => ({
         ...run,
-        effort: this.estimateEffortFromPace(run.distance, run.duration),
+        effort: this.estimateEffortFromRun(run),
       }))
       .filter(run => run.effort >= 8 || run.notes?.toLowerCase().includes('race'));
 
@@ -555,7 +598,7 @@ export class AdvancedTrainingPlanService {
       .map(run => ({
         distance: run.distance * 1000,
         time: run.duration * 60,
-        effort: this.estimateEffortFromPace(run.distance, run.duration),
+        effort: this.estimateEffortFromRun(run),
       }))
       .filter(run => run.effort >= 8)
       .map(({ distance, time }) => ({ distance, time }));
@@ -584,7 +627,7 @@ export class AdvancedTrainingPlanService {
       .filter(run => run.duration > 20)
       .map(run => ({
         ...run,
-        effort: this.estimateEffortFromPace(run.distance, run.duration),
+        effort: this.estimateEffortFromRun(run),
       }))
       .filter(run => run.effort <= 6);
 
@@ -592,7 +635,7 @@ export class AdvancedTrainingPlanService {
       // Calculate oxygen cost per km based on pace
       const economies = economyRuns.map(run => {
         const pace = run.duration / run.distance;
-        const effort = this.estimateEffortFromPace(run.distance, run.duration);
+        const effort = this.estimateEffortFromRun(run);
         const vo2Estimate = 30 + effort * 5; // Estimate VO2 from effort level
         return vo2Estimate / (60 / pace); // ml/kg/km
       });
@@ -642,7 +685,7 @@ export class AdvancedTrainingPlanService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static calculateTSS(run: any): number {
     const duration = run.duration;
-    const effort = this.estimateEffortFromPace(run.distance, run.duration);
+    const effort = this.estimateEffortFromRun(run);
     const intensity = effort / 10; // Normalize effort (1-10) to intensity (0.1-1.0)
 
     // TSS = duration * intensity^2 * 100
@@ -987,14 +1030,16 @@ export class AdvancedTrainingPlanService {
         userId,
         date: { gte: addDays(new Date(), -30) },
       },
+      include: {
+        detail: true,
+      },
     });
 
     // Simulate HRV analysis using pace-based effort
     const runFrequency = recentRuns.length / 30;
     const avgIntensity =
-      recentRuns
-        .map(r => this.estimateEffortFromPace(r.distance, r.duration))
-        .reduce((sum, e) => sum + e, 0) / (recentRuns.length || 1);
+      recentRuns.map(r => this.estimateEffortFromRun(r)).reduce((sum, e) => sum + e, 0) /
+      (recentRuns.length || 1);
 
     const recoveryScore = Math.max(0, Math.min(100, 100 - runFrequency * 10 - avgIntensity * 5));
 
@@ -1404,6 +1449,9 @@ export class AdvancedTrainingPlanService {
         userId,
         date: { gte: startDate },
       },
+      include: {
+        detail: true,
+      },
       orderBy: { date: 'asc' },
     });
 
@@ -1417,8 +1465,8 @@ export class AdvancedTrainingPlanService {
         (currentRun.date.getTime() - prevRun.date.getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      const prevEffort = this.estimateEffortFromPace(prevRun.distance, prevRun.duration);
-      const currentEffort = this.estimateEffortFromPace(currentRun.distance, currentRun.duration);
+      const prevEffort = this.estimateEffortFromRun(prevRun);
+      const currentEffort = this.estimateEffortFromRun(currentRun);
 
       if (prevEffort >= 8) {
         // Previous run was hard
@@ -1446,6 +1494,9 @@ export class AdvancedTrainingPlanService {
       where: {
         userId,
         date: { gte: startDate },
+      },
+      include: {
+        detail: true,
       },
       orderBy: { date: 'asc' },
     });
