@@ -74,6 +74,9 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@AustinOrphan/config": "file:../../AustinOrphan-backend-libs-node/packages/config",
+    "@AustinOrphan/errors": "file:../../AustinOrphan-backend-libs-node/packages/errors",
+    "@AustinOrphan/logger": "file:../../AustinOrphan-backend-libs-node/packages/logger",
     "@mdi/svg": "^7.4.47",
     "@prisma/client": "^6.11.1",
     "@turf/turf": "^7.3.3",

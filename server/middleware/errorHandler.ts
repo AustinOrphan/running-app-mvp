@@ -1,177 +1,102 @@
+/**
+ * Error Handler Middleware
+ *
+ * Now powered by @AustinOrphan/errors for standardized error handling.
+ * Maintains backward compatibility with existing error factory functions.
+ */
+
 import { Request, Response, NextFunction } from 'express';
-import { logError } from '../utils/logger.js';
+import {
+  errorToResponse,
+  StandardError,
+  NotFoundError,
+  ValidationError,
+  AuthenticationError,
+  AuthorizationError,
+  ConflictError,
+  DatabaseError,
+  createNotFoundError as sharedCreateNotFoundError,
+  createAuthError,
+  createForbiddenError as sharedCreateForbiddenError,
+  createConflictError as sharedCreateConflictError,
+} from '@AustinOrphan/errors';
 
-export interface AppError extends Error {
-  statusCode?: number;
-  isOperational?: boolean;
-  errorCode?: string;
-  details?: Record<string, unknown>;
-  field?: string;
-}
+// Re-export StandardError types for backward compatibility
+export type AppError = StandardError;
 
-export interface ErrorResponse {
-  error: boolean;
-  message: string;
-  statusCode: number;
-  category: string;
-  timestamp: string;
-  path: string;
-  method: string;
-  errorCode?: string;
-  field?: string;
-  details?: Record<string, unknown>;
-  stack?: string;
-}
-
+// Use shared error response formatter
 export const errorHandler = (
-  err: AppError,
+  err: Error,
   req: Request,
   res: Response,
   _next: NextFunction
 ): void => {
-  const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const requestId = (req.headers['x-request-id'] as string) || crypto.randomUUID();
 
-  // Determine error category for better client handling
-  const errorCategory = getErrorCategory(statusCode);
+  const errorResponse = errorToResponse(
+    err,
+    requestId,
+    req.path,
+    req.method,
+    isDevelopment,
+    isDevelopment
+  );
 
-  // Use enhanced structured logging with error categorization
-  logError('middleware', 'error-handler', err, req, {
-    statusCode,
-    isOperational: err.isOperational || false,
-    category: errorCategory,
-    field: err.field,
-  });
-
-  // Build comprehensive error response
-  const errorResponse: ErrorResponse = {
-    error: true,
-    message,
-    statusCode,
-    category: errorCategory,
-    timestamp: new Date().toISOString(),
-    path: req.originalUrl,
-    method: req.method,
-  };
-
-  // Add optional fields if present
-  if (err.errorCode) {
-    errorResponse.errorCode = err.errorCode;
-  }
-  if (err.field) {
-    errorResponse.field = err.field;
-  }
-  if (err.details && process.env.NODE_ENV === 'development') {
-    errorResponse.details = err.details;
-  }
-
-  // Add stack trace in development
-  if (process.env.NODE_ENV === 'development') {
-    errorResponse.stack = err.stack;
-  }
-
-  res.status(statusCode).json(errorResponse);
+  res.status(errorResponse.statusCode).json(errorResponse);
 };
 
-/**
- * Helper function to categorize errors by status code
- */
-const getErrorCategory = (statusCode: number): string => {
-  if (statusCode >= 400 && statusCode < 500) {
-    return 'client_error';
-  }
-  if (statusCode >= 500) {
-    return 'server_error';
-  }
-  return 'unknown';
+// Re-export factory functions for backward compatibility
+export const createError = (message: string, statusCode: number = 500): StandardError => {
+  return new StandardError(message, `ERROR_${statusCode}`, statusCode);
 };
 
-/**
- * Creates a standard application error
- */
-export const createError = (message: string, statusCode: number = 500): AppError => {
-  const error = new Error(message) as AppError;
-  error.statusCode = statusCode;
-  error.isOperational = true;
-  return error;
+export const createNotFoundError = (resource: string = 'Resource'): NotFoundError => {
+  return sharedCreateNotFoundError(resource, '');
 };
 
-/**
- * Creates a validation error with field information
- */
 export const createValidationError = (
   message: string,
   field?: string,
   details?: Record<string, unknown>
-): AppError => {
-  const error = new Error(message) as AppError;
-  error.statusCode = 400;
-  error.isOperational = true;
-  error.errorCode = 'VALIDATION_ERROR';
-  error.field = field;
-  error.details = details;
-  return error;
+): ValidationError => {
+  return new ValidationError(message, field, details);
 };
 
-/**
- * Creates a not found error
- */
-export const createNotFoundError = (resource: string = 'Resource'): AppError => {
-  const error = new Error(`${resource} not found`) as AppError;
-  error.statusCode = 404;
-  error.isOperational = true;
-  error.errorCode = 'NOT_FOUND';
-  return error;
+export const createUnauthorizedError = (message: string = 'Unauthorized'): AuthenticationError => {
+  return createAuthError(message);
 };
 
-/**
- * Creates an unauthorized error
- */
-export const createUnauthorizedError = (message: string = 'Unauthorized'): AppError => {
-  const error = new Error(message) as AppError;
-  error.statusCode = 401;
-  error.isOperational = true;
-  error.errorCode = 'UNAUTHORIZED';
-  return error;
+export const createForbiddenError = (message: string = 'Forbidden'): AuthorizationError => {
+  return sharedCreateForbiddenError(message);
 };
 
-/**
- * Creates a forbidden error
- */
-export const createForbiddenError = (message: string = 'Forbidden'): AppError => {
-  const error = new Error(message) as AppError;
-  error.statusCode = 403;
-  error.isOperational = true;
-  error.errorCode = 'FORBIDDEN';
-  return error;
-};
-
-/**
- * Creates a conflict error
- */
 export const createConflictError = (
   message: string,
   details?: Record<string, unknown>
-): AppError => {
-  const error = new Error(message) as AppError;
-  error.statusCode = 409;
-  error.isOperational = true;
-  error.errorCode = 'CONFLICT';
-  error.details = details;
-  return error;
+): ConflictError => {
+  // Parse message to extract resource and identifier if needed
+  const match = message.match(/^(.+?)\s+'([^']+)'\s+already exists$/);
+  if (match) {
+    return sharedCreateConflictError(match[1], match[2]);
+  }
+  return new ConflictError(message, details);
 };
 
-/**
- * Creates a database error
- */
 export const createDatabaseError = (
   message: string = 'Database operation failed',
   details?: Record<string, unknown>
-): AppError => {
-  const error = new Error(message) as AppError;
-  error.statusCode = 500;
-  error.isOperational = true;
-  error.errorCode = 'DATABASE_ERROR';
-  error.details = details;
-  return error;
+): DatabaseError => {
+  return new DatabaseError(message, details);
+};
+
+// Re-export error classes for direct instantiation
+export {
+  StandardError,
+  NotFoundError,
+  ValidationError,
+  AuthenticationError,
+  AuthorizationError,
+  ConflictError,
+  DatabaseError,
 };

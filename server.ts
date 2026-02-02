@@ -1,16 +1,17 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { initializeConfig } from './server/config.js';
 
 // ES modules compatibility
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables
-dotenv.config();
+// Initialize configuration (this loads .env and validates)
+const config = await initializeConfig();
+export { config };
 
 // Initialize Prisma
 export const prisma = new PrismaClient();
@@ -32,16 +33,16 @@ import analyticsRoutes from './server/routes/analytics.js';
 
 // Create Express app
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = config.server.port;
 
 // Middleware
 app.use(
   cors({
     origin:
-      process.env.NODE_ENV === 'production'
-        ? process.env.FRONTEND_URL
+      config.server.env === 'production'
+        ? config.cors.allowedOrigins?.split(',') || []
         : ['http://localhost:3000', 'http://localhost:5173'],
-    credentials: true,
+    credentials: config.cors.credentials,
   })
 );
 app.use(express.json());
@@ -64,7 +65,7 @@ app.use('/api/training-plans', trainingPlansRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
 // Serve static files in production
-if (process.env.NODE_ENV === 'production') {
+if (config.server.env === 'production') {
   app.use(express.static(path.join(__dirname, 'dist')));
 
   app.get('*', (req, res) => {
@@ -78,7 +79,7 @@ app.use(errorHandler);
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📊 Environment: ${config.server.env}`);
 });
 
 // Graceful shutdown
