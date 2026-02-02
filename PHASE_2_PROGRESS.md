@@ -83,14 +83,50 @@ throw createValidationError('Invalid email', 'email');
 - ✅ No breaking changes to existing code
 - ✅ Express middleware types compatible
 
+### 5. Logger Integration ✅
+
+**File:** `server/utils/winstonLogger.ts` (UPDATED)
+
+- ✅ Integrated `@AustinOrphan/logger` with winston backend
+- ✅ Used `createWinstonBackend` with existing winston instance
+- ✅ Maintained backward compatibility with all existing exports
+- ✅ Updated log helper functions to use shared logger interface
+- ✅ Added correlation ID middleware from shared package to `server.ts`
+- ✅ TypeScript compilation passes with no errors
+- ✅ No new linting issues introduced
+
+**Changes:**
+
+```typescript
+// Before: Direct winston usage
+export const winstonLogger = winston.createLogger({...});
+
+// After: Shared logger with winston backend
+const winstonBackend = createWinstonBackend({ winston, logger: winstonInstance });
+const sharedLogger = createLogger({
+  service: 'running-app-mvp',
+  env: process.env.NODE_ENV || 'development',
+  backend: winstonBackend,
+  level: (process.env.LOG_LEVEL || 'info') as LogLevel,
+  redactPII: process.env.PII_HASHING_ENABLED === 'true',
+});
+```
+
+**Benefits:**
+
+- ✅ Standardized ILogger interface across codebase
+- ✅ Built-in PII redaction support (opt-in)
+- ✅ Request correlation via X-Request-ID header
+- ✅ All existing log functions work identically
+- ✅ Ready for future multi-backend support
+
 ## In Progress 🚧
 
 ### Next Steps:
 
-1. **Logger Integration** - Update winston logger to use `@AustinOrphan/logger`
-2. **Contract Tests** - Add tests to verify contract compliance
-3. **Existing Tests** - Run full test suite to ensure no regressions
-4. **Documentation** - Update README with new dependencies
+1. **Contract Tests** - Add tests to verify contract compliance
+2. **Existing Tests** - Run full test suite to ensure no regressions
+3. **Documentation** - Update README with new dependencies
 
 ## Integration Strategy
 
@@ -105,9 +141,10 @@ We're following the "wrapper pattern" to minimize changes:
 ### Files Modified So Far:
 
 - `package.json` - Added 3 dependencies
-- `server.ts` - Updated config loading (12 lines changed)
+- `server.ts` - Updated config loading, added correlation middleware
 - `server/config.ts` - NEW (220 lines)
 - `server/middleware/errorHandler.ts` - Refactored to use shared package (92 lines)
+- `server/utils/winstonLogger.ts` - Integrated shared logger with winston backend
 
 ### Files NOT Modified:
 
@@ -138,7 +175,7 @@ Will verify:
 2. ⬜ Add contract validation tests
 3. ⬜ Run full test suite
 4. ⬜ Fix any test failures
-5. ⬜ Commit changes with message
+5. ⬜ Merge to main (after verification)
 6. ⬜ Move to Phase 3 (neoClone integration)
 
 ## Rollback Plan
