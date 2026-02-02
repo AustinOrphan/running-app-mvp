@@ -1,11 +1,12 @@
 /**
  * Winston-based Structured Logger Implementation - Issue #178
  *
- * Implements comprehensive structured logging using Winston as specified in Issue #178.
- * This complements the existing secureLogger while providing Winston-specific features.
+ * Now integrated with @AustinOrphan/logger shared package.
+ * Maintains backward compatibility with existing interfaces.
  */
 
 import winston from 'winston';
+import { createLogger, createWinstonBackend } from '@AustinOrphan/logger';
 
 export interface LogEntry {
   level: string;
@@ -45,7 +46,7 @@ export enum LogOperation {
   PROCESS = 'process',
 }
 
-// Environment-specific configuration
+// Environment-specific configuration (kept for backward compatibility)
 export const loggerConfig = {
   development: {
     level: 'debug',
@@ -86,8 +87,8 @@ const consoleFormat = winston.format.combine(
   )
 );
 
-// Create Winston logger instance
-export const winstonLogger = winston.createLogger({
+// Create underlying Winston instance
+const winstonInstance = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
   defaultMeta: {
@@ -115,7 +116,23 @@ export const winstonLogger = winston.createLogger({
   ],
 });
 
-// Logging helper functions as specified in Issue #178
+// Create shared logger with winston backend
+const winstonBackend = createWinstonBackend({
+  winston: winston,
+  logger: winstonInstance,
+});
+const sharedLogger = createLogger({
+  service: 'running-app-mvp',
+  env: process.env.NODE_ENV || 'development',
+  backend: winstonBackend,
+  level: (process.env.LOG_LEVEL || 'info') as 'error' | 'warn' | 'info' | 'debug',
+  redactPII: process.env.PII_HASHING_ENABLED === 'true',
+});
+
+// Export winston instance wrapped with shared logger interface
+export const winstonLogger = winstonInstance;
+
+// Logging helper functions - now using shared logger with backward compatibility
 export const logError = (
   message: string,
   error: Error,
@@ -127,13 +144,20 @@ export const logError = (
     metadata?: Record<string, unknown>;
   }
 ) => {
-  winstonLogger.error(message, {
-    error: {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
+  // Build error message with details
+  const errorMessage = `${message}: ${error.message}`;
+
+  sharedLogger.error(errorMessage, {
+    requestId: context?.requestId,
+    userId: context?.userId,
+    component: context?.component || 'unknown',
+    operation: context?.operation || 'unknown',
+    context: {
+      errorType: error.name,
+      errorCode: (error as Error & { code?: string }).code,
+      errorStack: error.stack,
+      ...context?.metadata,
     },
-    ...context,
   });
 };
 
@@ -147,7 +171,13 @@ export const logInfo = (
     metadata?: Record<string, unknown>;
   }
 ) => {
-  winstonLogger.info(message, context);
+  sharedLogger.info(message, {
+    requestId: context?.requestId,
+    userId: context?.userId,
+    component: context?.component || 'unknown',
+    operation: context?.operation || 'unknown',
+    context: context?.metadata,
+  });
 };
 
 export const logWarn = (
@@ -160,7 +190,13 @@ export const logWarn = (
     metadata?: Record<string, unknown>;
   }
 ) => {
-  winstonLogger.warn(message, context);
+  sharedLogger.warn(message, {
+    requestId: context?.requestId,
+    userId: context?.userId,
+    component: context?.component || 'unknown',
+    operation: context?.operation || 'unknown',
+    context: context?.metadata,
+  });
 };
 
 export const logDebug = (
@@ -173,7 +209,13 @@ export const logDebug = (
     metadata?: Record<string, unknown>;
   }
 ) => {
-  winstonLogger.debug(message, context);
+  sharedLogger.debug(message, {
+    requestId: context?.requestId,
+    userId: context?.userId,
+    component: context?.component || 'unknown',
+    operation: context?.operation || 'unknown',
+    context: context?.metadata,
+  });
 };
 
 // Category-specific logging functions
@@ -245,5 +287,5 @@ export const logPerformance = (
   });
 };
 
-// Export the winston logger instance for direct use
+// Export the winston logger instance for direct use (backward compatibility)
 export { winstonLogger as logger };

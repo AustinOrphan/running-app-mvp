@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type RequestHandler } from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import path from 'path';
@@ -21,6 +21,7 @@ import { errorHandler } from './server/middleware/errorHandler.js';
 import { globalRateLimit } from './server/middleware/rateLimiting.js';
 import { securityHeaders } from './server/middleware/validation.js';
 import { requestLogger } from './server/middleware/requestLogger.js';
+import { correlationId } from '@AustinOrphan/logger';
 
 // Import routes
 import authRoutes from './server/routes/auth.js';
@@ -47,6 +48,8 @@ app.use(
 );
 app.use(express.json());
 app.use(securityHeaders);
+// Add correlation ID middleware from shared logger
+app.use(correlationId() as RequestHandler);
 app.use(requestLogger);
 app.use(globalRateLimit);
 
