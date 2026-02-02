@@ -410,6 +410,64 @@ When analytics merges, HR-based calculations will **enhance** (not replace) pace
    - Re-enable HR-based calculations
    - Add geospatial features
 
+## Analytics Integration
+
+With the analytics feature now available, training plans have been enhanced:
+
+### Heart Rate-Based Effort Estimation
+
+Training plans now prefer heart rate data when available via the `RunDetail` model:
+
+- **With HR data**: Uses 7-zone HR classification for precise effort levels
+  - 180+ bpm = Max effort (10)
+  - 170-180 bpm = VO2max (9)
+  - 160-170 bpm = Threshold (8)
+  - 150-160 bpm = Tempo (7)
+  - 140-150 bpm = Moderate (6)
+  - 130-140 bpm = Easy (5)
+  - <130 bpm = Recovery (3)
+- **Without HR data**: Falls back to pace-based estimation
+- **Hybrid approach**: Gracefully handles incomplete data
+
+Implementation:
+
+```typescript
+// services/advancedTrainingPlanService.ts
+private static estimateEffortFromRun(run: {
+  distance: number;
+  duration: number;
+  detail?: { avgHeartRate: number | null } | null;
+}): number {
+  // Prefers HR data, falls back to pace
+  if (run.detail?.avgHeartRate) {
+    const hr = run.detail.avgHeartRate;
+    if (hr > 180) return 10;
+    if (hr > 170) return 9;
+    // ... zone-based calculation
+  }
+  return this.estimateEffortFromPace(run.distance, run.duration);
+}
+```
+
+### Enhanced Metrics
+
+RunDetail provides additional metrics for better plan personalization:
+
+- **Elevation data**: Terrain-specific training adaptations
+- **Cadence metrics**: Form optimization recommendations
+- **Weather conditions**: Environmental adaptation suggestions
+- **Training load (TSS)**: More accurate recovery planning based on actual physiological stress
+
+All Prisma queries now include `detail: true` to leverage heart rate data when available:
+
+```typescript
+const recentRuns = await prisma.run.findMany({
+  where: { userId, date: { gte: startDate } },
+  include: { detail: true }, // ← Now includes HR and other metrics
+  orderBy: { date: 'desc' },
+});
+```
+
 ## Conclusion
 
 The training plans feature is **production-ready** and **independently deployable**. All blockers have been resolved, comprehensive tests are in place, and the code is clean and maintainable.
