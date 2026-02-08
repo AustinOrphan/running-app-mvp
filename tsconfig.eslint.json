@@ -8,6 +8,7 @@
     "src/**/*.tsx",
     "tests/**/*.ts",
     "tests/**/*.tsx",
+    "e2e/**/*.ts",
     "middleware/**/*.ts",
     "middleware/**/*.tsx",
     "routes/**/*.ts",
