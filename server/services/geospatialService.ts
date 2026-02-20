@@ -1,5 +1,5 @@
 import * as turf from '@turf/turf';
-import type { LineString, Position, FeatureCollection, Feature, Polygon } from 'geojson';
+import type { LineString, Position, Feature, Polygon } from 'geojson';
 
 export interface RouteCluster {
   routes: string[]; // Array of run IDs
@@ -8,8 +8,10 @@ export interface RouteCluster {
   count: number;
 }
 
-export interface Heatmap extends FeatureCollection<Polygon> {
-  bbox?: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
+export interface Heatmap {
+  type: 'FeatureCollection';
+  features: Feature<Polygon>[];
+  bbox?: [number, number, number, number] | null; // [minLng, minLat, maxLng, maxLat] or null when empty
 }
 
 export class GeospatialService {
@@ -151,6 +153,7 @@ export class GeospatialService {
       return {
         type: 'FeatureCollection',
         features: [],
+        bbox: null,
       };
     }
 
