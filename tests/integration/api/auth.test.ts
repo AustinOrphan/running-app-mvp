@@ -46,7 +46,7 @@ describe('Auth API Integration Tests', () => {
     it('successfully registers a new user', async () => {
       const newUser = {
         email: 'newuser@test.com',
-        password: 'securepassword123',
+        password: 'Secure@password123',
       };
 
       const response = await request(app).post('/api/auth/register').send(newUser).expect(201);
@@ -70,7 +70,7 @@ describe('Auth API Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/register')
         .send({
-          password: 'securepassword123',
+          password: 'Secure@password123',
         })
         .expect(400);
 
@@ -95,7 +95,7 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/register')
         .send({
           email: 'invalid-email',
-          password: 'securepassword123',
+          password: 'Secure@password123',
         })
         .expect(400);
 
@@ -129,7 +129,7 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/register')
         .send({
           email: userEmail,
-          password: 'differentpassword123',
+          password: 'Different@password123',
         })
         .expect(409);
 
@@ -162,7 +162,7 @@ describe('Auth API Integration Tests', () => {
       // Create test user for login tests
       testUser = await testDb.createTestUser({
         email: 'logintest@test.com',
-        password: 'testpassword123',
+        password: 'Test@password123',
       });
     });
 
@@ -171,7 +171,7 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/login')
         .send({
           email: assertTestUser(testUser).email,
-          password: 'testpassword123',
+          password: 'Test@password123',
         })
         .expect(200);
 
@@ -187,7 +187,7 @@ describe('Auth API Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          password: 'testpassword123',
+          password: 'Test@password123',
         })
         .expect(400);
 
@@ -210,7 +210,7 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/login')
         .send({
           email: 'nonexistent@test.com',
-          password: 'testpassword123',
+          password: 'Test@password123',
         })
         .expect(401);
 
@@ -236,7 +236,7 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/login')
         .send({
           email: assertTestUser(testUser).email,
-          password: 'testpassword123',
+          password: 'Test@password123',
         })
         .expect(200);
 
@@ -258,7 +258,7 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/login')
         .send({
           email: assertTestUser(testUser).email.toUpperCase(),
-          password: 'testpassword123',
+          password: 'Test@password123',
         })
         .expect(200);
 
@@ -273,7 +273,7 @@ describe('Auth API Integration Tests', () => {
     beforeEach(async () => {
       testUser = await testDb.createTestUser({
         email: 'verify@test.com',
-        password: 'testpassword123',
+        password: 'Test@password123',
       });
 
       validToken = testDb.generateTestToken(assertTestUser(testUser).id);
@@ -361,7 +361,7 @@ describe('Auth API Integration Tests', () => {
           .post('/api/auth/register')
           .send({
             email: `ratelimit${i}@test.com`,
-            password: 'testpassword123',
+            password: 'Test@password123',
           });
         responses.push(response);
       }
@@ -374,7 +374,7 @@ describe('Auth API Integration Tests', () => {
       // 6th request should trigger rate limit
       const rateLimitedResponse = await request(app).post('/api/auth/register').send({
         email: 'ratelimited@test.com',
-        password: 'testpassword123',
+        password: 'Test@password123',
       });
 
       // Verify rate limit was triggered
@@ -453,7 +453,7 @@ describe('Auth API Integration Tests', () => {
       // Verify that a single request works before hitting the limit
       const singleResponse = await request(app).post('/api/auth/register').send({
         email: 'single@test.com',
-        password: 'testpassword123',
+        password: 'Test@password123',
       });
 
       // Should succeed (201) or fail for business reasons (400), but not be rate limited (429)
@@ -472,7 +472,7 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/register')
         .send({
           email: 'error@test.com',
-          password: 'testpassword123',
+          password: 'Test@password123',
         })
         .expect(500);
 
@@ -507,7 +507,7 @@ describe('Auth API Integration Tests', () => {
     beforeEach(async () => {
       testUser = await testDb.createTestUser({
         email: 'refresh@test.com',
-        password: 'testpassword123',
+        password: 'Test@password123',
       });
 
       // Login to get initial tokens
@@ -515,7 +515,7 @@ describe('Auth API Integration Tests', () => {
         .post('/api/auth/login')
         .send({
           email: assertTestUser(testUser).email,
-          password: 'testpassword123',
+          password: 'Test@password123',
         })
         .expect(200);
 
@@ -671,7 +671,7 @@ describe('Auth API Integration Tests', () => {
     it('does not return password in any response', async () => {
       const userData = {
         email: 'security@test.com',
-        password: 'securepassword123',
+        password: 'Secure@password123',
       };
 
       // Register
@@ -681,13 +681,13 @@ describe('Auth API Integration Tests', () => {
         .expect(201);
 
       expect(JSON.stringify(registerResponse.body)).not.toContain('password');
-      expect(JSON.stringify(registerResponse.body)).not.toContain('securepassword123');
+      expect(JSON.stringify(registerResponse.body)).not.toContain('Secure@password123');
 
       // Login
       const loginResponse = await request(app).post('/api/auth/login').send(userData).expect(200);
 
       expect(JSON.stringify(loginResponse.body)).not.toContain('password');
-      expect(JSON.stringify(loginResponse.body)).not.toContain('securepassword123');
+      expect(JSON.stringify(loginResponse.body)).not.toContain('Secure@password123');
 
       // Verify
       const accessToken = loginResponse.body.accessToken;
@@ -697,7 +697,7 @@ describe('Auth API Integration Tests', () => {
         .expect(200);
 
       expect(JSON.stringify(verifyResponse.body)).not.toContain('password');
-      expect(JSON.stringify(verifyResponse.body)).not.toContain('securepassword123');
+      expect(JSON.stringify(verifyResponse.body)).not.toContain('Secure@password123');
     });
 
     it('sanitizes user input to prevent injection attacks', async () => {
