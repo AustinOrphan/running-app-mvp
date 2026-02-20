@@ -72,7 +72,10 @@ describe('Training Plans API Integration Tests', () => {
     it('returns all training plans for authenticated user', async () => {
       void (await testDb.createTestTrainingPlans(
         assertTestUser(testUser).id,
-        mockTrainingPlans.slice(0, 2)
+        mockTrainingPlans.slice(0, 2).map(plan => ({
+          ...plan,
+          targetRaceId: null, // Don't use the hardcoded 'race-1' ID
+        }))
       ));
 
       const response = await request(app)
@@ -102,10 +105,12 @@ describe('Training Plans API Integration Tests', () => {
       await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
         {
           ...mockTrainingPlans[0],
+          targetRaceId: null,
           isActive: true,
         },
         {
           ...mockTrainingPlans[1],
+          targetRaceId: null,
           isActive: false,
         },
       ]);
@@ -121,11 +126,11 @@ describe('Training Plans API Integration Tests', () => {
 
     it('returns plans sorted by creation date descending', async () => {
       const plan1 = await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
-        mockTrainingPlans[0],
+        { ...mockTrainingPlans[0], targetRaceId: null },
       ]);
       await new Promise(resolve => setTimeout(resolve, 100));
       const plan2 = await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
-        mockTrainingPlans[1],
+        { ...mockTrainingPlans[1], targetRaceId: null },
       ]);
 
       const response = await request(app)
@@ -140,7 +145,7 @@ describe('Training Plans API Integration Tests', () => {
 
     it('returns plans with included workouts', async () => {
       const plans = await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
-        mockTrainingPlans[0],
+        { ...mockTrainingPlans[0], targetRaceId: null },
       ]);
       const planId = plans[0].id;
 
@@ -166,8 +171,12 @@ describe('Training Plans API Integration Tests', () => {
         password: 'password',
       });
 
-      await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [mockTrainingPlans[0]]);
-      await testDb.createTestTrainingPlans(otherUser.id, [mockTrainingPlans[1]]);
+      await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
+        { ...mockTrainingPlans[0], targetRaceId: null },
+      ]);
+      await testDb.createTestTrainingPlans(otherUser.id, [
+        { ...mockTrainingPlans[1], targetRaceId: null },
+      ]);
 
       const response = await request(app)
         .get('/api/training-plans')
@@ -195,7 +204,7 @@ describe('Training Plans API Integration Tests', () => {
 
     beforeEach(async () => {
       const plans = await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
-        mockTrainingPlans[0],
+        { ...mockTrainingPlans[0], targetRaceId: null },
       ]);
       testPlan = plans[0];
 
@@ -257,7 +266,9 @@ describe('Training Plans API Integration Tests', () => {
         email: 'other@test.com',
         password: 'password',
       });
-      const otherPlans = await testDb.createTestTrainingPlans(otherUser.id, [mockTrainingPlans[1]]);
+      const otherPlans = await testDb.createTestTrainingPlans(otherUser.id, [
+        { ...mockTrainingPlans[1], targetRaceId: null },
+      ]);
       const otherPlan = otherPlans[0];
 
       await request(app)
@@ -477,7 +488,7 @@ describe('Training Plans API Integration Tests', () => {
 
     beforeEach(async () => {
       const plans = await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
-        mockTrainingPlans[0],
+        { ...mockTrainingPlans[0], targetRaceId: null },
       ]);
       testPlan = plans[0];
     });
@@ -531,7 +542,9 @@ describe('Training Plans API Integration Tests', () => {
         email: 'other@test.com',
         password: 'password',
       });
-      const otherPlans = await testDb.createTestTrainingPlans(otherUser.id, [mockTrainingPlans[1]]);
+      const otherPlans = await testDb.createTestTrainingPlans(otherUser.id, [
+        { ...mockTrainingPlans[1], targetRaceId: null },
+      ]);
       const otherPlan = otherPlans[0];
 
       await request(app)
@@ -568,7 +581,7 @@ describe('Training Plans API Integration Tests', () => {
 
     beforeEach(async () => {
       const plans = await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
-        mockTrainingPlans[0],
+        { ...mockTrainingPlans[0], targetRaceId: null },
       ]);
       testPlan = plans[0];
     });
@@ -599,7 +612,9 @@ describe('Training Plans API Integration Tests', () => {
         email: 'other@test.com',
         password: 'password',
       });
-      const otherPlans = await testDb.createTestTrainingPlans(otherUser.id, [mockTrainingPlans[1]]);
+      const otherPlans = await testDb.createTestTrainingPlans(otherUser.id, [
+        { ...mockTrainingPlans[1], targetRaceId: null },
+      ]);
       const otherPlan = otherPlans[0];
 
       await request(app)
@@ -643,7 +658,7 @@ describe('Training Plans API Integration Tests', () => {
 
     beforeEach(async () => {
       const plans = await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
-        mockTrainingPlans[0],
+        { ...mockTrainingPlans[0], targetRaceId: null },
       ]);
       testPlan = plans[0];
 
@@ -706,7 +721,7 @@ describe('Training Plans API Integration Tests', () => {
 
     beforeEach(async () => {
       const plans = await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
-        mockTrainingPlans[0],
+        { ...mockTrainingPlans[0], targetRaceId: null },
       ]);
       testPlan = plans[0];
 
@@ -796,7 +811,7 @@ describe('Training Plans API Integration Tests', () => {
 
     beforeEach(async () => {
       const plans = await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
-        mockTrainingPlans[0],
+        { ...mockTrainingPlans[0], targetRaceId: null },
       ]);
       testPlan = plans[0];
     });
@@ -865,7 +880,7 @@ describe('Training Plans API Integration Tests', () => {
 
     beforeEach(async () => {
       const plans = await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
-        mockTrainingPlans[0],
+        { ...mockTrainingPlans[0], targetRaceId: null },
       ]);
       testPlan = plans[0];
 
@@ -905,7 +920,7 @@ describe('Training Plans API Integration Tests', () => {
 
     beforeEach(async () => {
       const plans = await testDb.createTestTrainingPlans(assertTestUser(testUser).id, [
-        mockTrainingPlans[0],
+        { ...mockTrainingPlans[0], targetRaceId: null },
       ]);
       testPlan = plans[0];
     });

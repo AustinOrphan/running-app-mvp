@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import request from 'supertest';
+import { jest } from '@jest/globals';
 
 import authRoutes from '../../server/routes/auth.js';
 import runsRoutes from '../../server/routes/runs.js';
