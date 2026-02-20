@@ -6,6 +6,7 @@ import { assertTestUser } from '../../e2e/types/index.js';
 
 import analyticsRoutes from '../../../server/routes/analytics.js';
 import { AnalyticsService } from '../../../server/services/analyticsService.js';
+import { errorHandler } from '../../../server/middleware/errorHandler.js';
 import { testDb } from '../../fixtures/testDatabase.js';
 import {
   consistentRunPattern,
@@ -25,6 +26,10 @@ const createTestApp = () => {
   app.use(cors());
   app.use(express.json());
   app.use('/api/analytics', analyticsRoutes);
+
+  // Error handling middleware must be last
+  app.use(errorHandler);
+
   return app;
 };
 

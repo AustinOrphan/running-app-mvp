@@ -7,12 +7,17 @@ import { assertTestUser } from '../../e2e/types/index.js';
 import { mockRaces } from '../../fixtures/mockData.js';
 import { testDb } from '../../fixtures/testDatabase.js';
 import racesRoutes from '../../../server/routes/races.js';
+import { errorHandler } from '../../../server/middleware/errorHandler.js';
 
 const createTestApp = () => {
   const app = express();
   app.use(cors());
   app.use(express.json());
   app.use('/api/races', racesRoutes);
+
+  // Error handling middleware must be last
+  app.use(errorHandler);
+
   return app;
 };
 
