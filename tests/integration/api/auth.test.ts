@@ -5,6 +5,7 @@ import type { TestUser } from '../../e2e/types';
 import { assertTestUser } from '../../e2e/types/index.js';
 
 import authRoutes from '../../../server/routes/auth.js';
+import { errorHandler } from '../../../server/middleware/errorHandler.js';
 import { testDb } from '../../fixtures/testDatabase.js';
 
 // Create test app
@@ -13,6 +14,10 @@ const createTestApp = () => {
   app.use(cors());
   app.use(express.json());
   app.use('/api/auth', authRoutes);
+
+  // Error handling middleware must be last
+  app.use(errorHandler);
+
   return app;
 };
 
