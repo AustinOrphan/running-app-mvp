@@ -1,6 +1,55 @@
-import { createConfig } from '@austinorphan/e2e-core/playwright.config.base';
+import { defineConfig, devices } from '@playwright/test';
 
-export default createConfig('running-app-mvp', {
-  baseURL: process.env.BASE_URL || 'http://localhost:3000',
+/**
+ * Playwright configuration for E2E tests
+ * @see https://playwright.dev/docs/test-configuration
+ */
+export default defineConfig({
+  testDir: './tests/e2e',
+  testMatch: /\.spec\.ts$/,
+  /* Run tests in files in parallel */
+  fullyParallel: false,
+  /* Fail the build on CI if you accidentally left test.only in the source code. */
+  forbidOnly: !!process.env.CI,
+  /* Retry on CI only */
+  retries: process.env.CI ? 2 : 0,
+  /* Opt out of parallel tests on CI. */
+  workers: process.env.CI ? 1 : 1,
+  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
+  reporter: 'list',
+  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
+  use: {
+    /* Base URL to use in actions like `await page.goto('/')`. */
+    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+
+    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
+    trace: 'on-first-retry',
+
+    /* Screenshot on failure */
+    screenshot: 'only-on-failure',
+  },
+
+  /* Configure projects for major browsers */
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
+
+  /* Run your local dev server before starting the tests */
+  webServer: {
+    command: 'npm run dev:full',
+    url: 'http://localhost:3000',
+    reuseExistingServer: false,
+    timeout: 120 * 1000,
+    env: {
+      DATABASE_URL: 'file:./prisma/test.db',
+      TEST_DATABASE_URL: 'file:./prisma/test.db',
+      NODE_ENV: 'test',
+      RATE_LIMITING_ENABLED: 'false',
+    },
+  },
+
   outputDir: './test-results',
 });

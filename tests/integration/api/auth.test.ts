@@ -138,7 +138,7 @@ describe('Auth API Integration Tests', () => {
     });
 
     it('hashes password before storing in database', async () => {
-      const plainPassword = 'mysecretpassword';
+      const plainPassword = 'MySecret@password123';
       const newUser = {
         email: 'hashtest@test.com',
         password: plainPassword,

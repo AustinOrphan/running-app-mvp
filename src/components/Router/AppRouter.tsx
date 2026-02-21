@@ -1,12 +1,23 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router';
 
-// Components
-import { ComingSoonPage } from '../Pages/ComingSoonPage';
+// Eagerly-loaded components (critical path — default landing pages)
 import { RunsPage } from '../Pages/RunsPage';
-import { GoalsPage } from '../../pages/GoalsPage';
-import { StatsPage } from '../../pages/StatsPage';
 import { DashboardPage } from '../../pages/DashboardPage';
+
+// Lazily-loaded components (code-split — not on the initial render path)
+const ComingSoonPage = lazy(() =>
+  import('../Pages/ComingSoonPage').then(m => ({ default: m.ComingSoonPage }))
+);
+const GoalsPage = lazy(() =>
+  import('../../pages/GoalsPage').then(m => ({ default: m.GoalsPage }))
+);
+const StatsPage = lazy(() =>
+  import('../../pages/StatsPage').then(m => ({ default: m.StatsPage }))
+);
+const AnalyticsPage = lazy(() =>
+  import('../../pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage }))
+);
 
 // Types and constants
 import { ROUTES } from '../../constants/navigation';
@@ -94,6 +105,15 @@ export const AppRouter: React.FC<AppRouterProps> = ({
           element={
             <ProtectedRoute isLoggedIn={isLoggedIn}>
               <GoalsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path={ROUTES.analytics.path}
+          element={
+            <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <AnalyticsPage />
             </ProtectedRoute>
           }
         />

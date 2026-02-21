@@ -162,7 +162,7 @@ router.post(
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
-      throw createUnauthorizedError('Refresh token is required');
+      throw createBadRequestError('Refresh token is required');
     }
 
     try {
@@ -179,8 +179,8 @@ router.post(
         throw createUnauthorizedError('User not found');
       }
 
-      // Generate new access token (keep the same refresh token)
-      const { accessToken } = generateTokens(user);
+      // Generate new tokens (token rotation for security)
+      const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
 
       logUserAction('Token refresh', req, { userId: user.id });
       await auditAuth.refresh(req, user.id, 'success');
@@ -188,6 +188,7 @@ router.post(
       res.json({
         message: 'Token refreshed successfully',
         accessToken,
+        refreshToken: newRefreshToken,
       });
     } catch {
       await auditAuth.refresh(req, 'unknown', 'failure');

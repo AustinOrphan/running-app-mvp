@@ -225,10 +225,15 @@ Sequential implementation plan covering 5 major initiatives following the analyt
    - Hook tests (data fetching, transformations)
    - Utility function tests
 
-2. **Integration Tests**
-   - Full page rendering
-   - API mock scenarios (success/error/loading)
-   - User interaction flows
+2. **E2E Browser Tests** (using Playwright + e2e-core)
+   - Analytics dashboard rendering (`tests/e2e/analytics.spec.ts`)
+   - Tab navigation (Overview / Trends / Insights / Map)
+   - Period selector interactions
+   - Chart rendering verification
+   - Heatmap visualization
+   - Authentication flows
+   - Mobile responsiveness
+   - **Uses:** `@austinorphan/e2e-core` library for shared fixtures and helpers
 
 3. **Visual Regression Tests**
    - Screenshot tests for key states
@@ -250,6 +255,7 @@ Sequential implementation plan covering 5 major initiatives following the analyt
 **Acceptance Criteria:**
 
 - [ ] 80%+ test coverage for analytics components
+- [ ] E2E tests cover critical user workflows
 - [ ] All accessibility tests pass
 - [ ] Lighthouse score > 90
 - [ ] Bundle size increase < 100 kB gzipped
@@ -258,38 +264,46 @@ Sequential implementation plan covering 5 major initiatives following the analyt
 
 ## Phase 2: Integration Tests for Analytics 🧪
 
-**Goal:** Add comprehensive API integration tests for analytics endpoints
+**Goal:** Add comprehensive API integration tests for analytics endpoints using Jest + Supertest
 
 **Priority:** MEDIUM-HIGH - Completes test coverage for analytics system
 
 **Estimated Effort:** 3-4 days
 
+**Testing Approach:** This phase uses **Jest + Supertest** for REST API integration tests (not e2e-core). E2E browser tests using Playwright + e2e-core are covered in Phase 1.6. See `docs/plans/e2e-core-integration-analysis.md` for detailed rationale.
+
 ### Epic 2.1: Setup Integration Test Infrastructure
 
 **Tasks:**
 
-1. **Create Test Database Helper** (`tests/integration/helpers/analyticsTestDb.ts`)
-   - Seed runs with RunDetail data
-   - Seed GPS coordinates for heatmap
-   - Create test users with realistic data
-   - Helper functions for teardown
+1. **Extend Test Database Helpers** (`tests/fixtures/testDatabase.ts`)
+   - Add `createRunsWithDetails()` - Create runs with RunDetail data (heart rate, elevation, GPS)
+   - Add `createRunsWithGPS()` - Create runs with GPS coordinates for heatmap tests
+   - Add `seedAnalyticsScenario()` - Seed complete test scenario (consistent runner, improving pace, etc.)
+   - Reuse existing: `createTestUser()`, `generateTestToken()`, `cleanupDatabase()`
 
-2. **Create Analytics Test Fixtures** (`tests/integration/fixtures/analyticsData.ts`)
-   - 90 days of run data (varied paces, distances)
-   - Heart rate data samples
-   - GPS routes for multiple locations
-   - Edge cases (no runs, single run, etc.)
+2. **Create Analytics Test Fixtures** (`tests/fixtures/analyticsData.ts`)
+   - 90 days of run data patterns:
+     - `consistentRunPattern` - 3-4 runs/week for consistency insights
+     - `improvingPacePattern` - Pace improvement over time
+     - `decliningPacePattern` - Performance decline scenario
+     - `volumeSpikePattern` - Sudden mileage increase for volume insights
+   - Heart rate data samples (zones 2-5)
+   - GPS routes for multiple locations (Boston, NYC, SF)
+   - Edge cases (no runs, single run, gaps in data)
+   - **Shareable:** These fixtures can be used by both integration and E2E tests
 
-3. **Setup Test Authentication**
-   - Generate test JWT tokens
-   - Helper for authenticated requests
-   - Multiple user scenarios
+3. **Create Test App Setup** (`tests/integration/api/analytics.test.ts`)
+   - Use existing `createTestApp()` pattern (see `auth.test.ts`)
+   - Mount analytics routes: `app.use('/api/analytics', analyticsRoutes)`
+   - Leverage existing authentication helpers
 
 **Acceptance Criteria:**
 
-- [ ] Test database seeding working
-- [ ] Fixtures cover all edge cases
-- [ ] Authentication helper functional
+- [ ] Test database helpers extended with analytics-specific functions
+- [ ] Fixtures cover all edge cases and insight scenarios
+- [ ] Authentication working via existing `generateTestToken()` helper
+- [ ] Test app setup follows existing integration test patterns
 
 ---
 

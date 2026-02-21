@@ -87,3 +87,36 @@ export interface Race {
   createdAt: string;
   updatedAt: string;
 }
+
+// Analytics Types
+export interface AggregatedStats {
+  period: 'weekly' | 'monthly' | 'yearly';
+  startDate: string;
+  endDate: string;
+  totalRuns: number;
+  totalDistance: number;
+  totalDuration: number;
+  avgPace: number;
+  fastestPace: number;
+  longestRun: number;
+  totalElevation?: number;
+  avgHeartRate?: number;
+  maxHeartRate?: number;
+}
+
+export interface TrendAnalysis {
+  period: string;
+  dataPoints: number;
+  paceTrend: 'improving' | 'stable' | 'declining';
+  volumeTrend: 'increasing' | 'stable' | 'decreasing';
+  paceChangePercent: number;
+  volumeChangePercent: number;
+  consistencyScore: number;
+}
+
+export interface Insight {
+  type: 'consistency' | 'volume' | 'recovery' | 'performance' | 'goal';
+  priority: 'high' | 'medium' | 'low';
+  message: string;
+  actionable?: string;
+}

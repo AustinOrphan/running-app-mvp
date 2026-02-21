@@ -1,14 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
-
-// Test database setup
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.TEST_DATABASE_URL || 'file:./test.db',
-    },
-  },
-});
+import { prisma } from './prismaClient.js';
 
 // Ensure migrations are applied before running tests
 beforeAll(async () => {

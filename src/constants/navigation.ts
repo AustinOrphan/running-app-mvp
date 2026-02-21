@@ -1,13 +1,13 @@
 export const TAB_CONFIG = [
   { id: 'dashboard', label: '🏠 Dashboard' },
-  { id: 'runs', label: '📊 Runs' },
+  { id: 'runs', label: '🏃‍♂️ Runs' },
   { id: 'goals', label: '🎯 Goals' },
-  { id: 'races', label: '🏆 Races' },
+  { id: 'analytics', label: '📊 Analytics' },
   { id: 'stats', label: '📈 Stats' },
 ] as const;
 
 // Route and navigation types
-export type RouteKey = 'dashboard' | 'runs' | 'goals' | 'races' | 'stats';
+export type RouteKey = 'dashboard' | 'runs' | 'goals' | 'analytics' | 'races' | 'stats';
 
 export interface RouteConfig {
   key: RouteKey;
@@ -40,6 +40,13 @@ export const ROUTES: Record<RouteKey, RouteConfig> = {
     icon: '🎯',
     component: 'GoalsPage',
   },
+  analytics: {
+    key: 'analytics',
+    path: '/analytics',
+    label: 'Analytics',
+    icon: '📊',
+    component: 'AnalyticsPage',
+  },
   races: {
     key: 'races',
     path: '/races',
@@ -51,7 +58,7 @@ export const ROUTES: Record<RouteKey, RouteConfig> = {
     key: 'stats',
     path: '/stats',
     label: 'Stats',
-    icon: '📊',
+    icon: '📈',
     component: 'StatsPage',
   },
 } as const;
@@ -80,7 +87,7 @@ export const getActiveTabFromPath = (pathname: string): RouteKey => {
   return TAB_IDS.includes(firstSegment) ? firstSegment : 'runs';
 };
 
-export const TAB_IDS = ['dashboard', 'runs', 'goals', 'races', 'stats'] as const;
+export const TAB_IDS = ['dashboard', 'runs', 'goals', 'analytics', 'races', 'stats'] as const;
 
 export const SWIPE_CONFIG = {
   minDistance: 50,
