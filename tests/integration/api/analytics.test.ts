@@ -15,6 +15,7 @@ import {
   getCurrentWeekConsistentRuns,
   getCurrentMonthConsistentRuns,
   getCurrentMonthImprovingPace,
+  getPast12WeeksImprovingPace,
   getCurrentYearConsistentRuns,
   getCurrentMonthVolumeSpike,
   getCurrentMonthVariedLocations,
@@ -267,10 +268,10 @@ describe('Analytics API Integration Tests', () => {
 
   describe('GET /api/analytics/trends', () => {
     beforeEach(async () => {
-      // Seed improving pace pattern for current month trend analysis
+      // Seed improving pace pattern for past 12 weeks for weekly trend analysis
       await testDb.seedAnalyticsScenario(
         assertTestUser(testUser).id,
-        getCurrentMonthImprovingPace()
+        getPast12WeeksImprovingPace()
       );
     });
 

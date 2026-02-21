@@ -7,6 +7,7 @@ import {
   createError,
   createConflictError,
   createUnauthorizedError,
+  createValidationError,
 } from '../middleware/errorHandler.js';
 import {
   validateRegister,
@@ -162,7 +163,7 @@ router.post(
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
-      throw createBadRequestError('Refresh token is required');
+      throw createValidationError('Refresh token is required', 'refreshToken');
     }
 
     try {

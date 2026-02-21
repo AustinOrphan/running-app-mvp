@@ -384,6 +384,52 @@ export const getCurrentMonthImprovingPace = () => {
 };
 
 /**
+ * Generate improving pace pattern for past 12 weeks
+ * Good for weekly trend analysis tests
+ */
+export const getPast12WeeksImprovingPace = () => {
+  const runs: Array<{
+    date: string;
+    distance: number;
+    duration: number;
+    tag: string;
+    notes: string;
+    routeGeoJson: string;
+  }> = [];
+
+  // Generate 3-4 runs per week for 12 weeks = ~40 runs
+  // Start from week 11 (oldest) and go to week 0 (most recent)
+  for (let week = 11; week >= 0; week--) {
+    const runsThisWeek = week % 2 === 0 ? 3 : 4; // Vary runs per week
+
+    for (let run = 0; run < runsThisWeek; run++) {
+      const daysBack = week * 7 + run * 2; // Spread runs across the week
+      const date = daysAgo(daysBack);
+      const distance = 5.0 + Math.random() * 2.0;
+
+      // Pace improves from 360 to 300 sec/km over 12 weeks
+      // runs.length increases as we add runs, so earlier (slower) runs get higher pace
+      const totalRuns = runs.length;
+      const pacePerKm = 360 - (totalRuns / 40) * 60;
+      const duration = Math.floor(distance * pacePerKm);
+
+      runs.push({
+        date,
+        distance,
+        duration,
+        tag: 'tempo',
+        notes: `Training run - week ${12 - week}, pace improving`,
+        routeGeoJson: JSON.stringify(
+          generateGPSRoute(GPS_LOCATIONS.nyc.lat, GPS_LOCATIONS.nyc.lng, distance)
+        ),
+      });
+    }
+  }
+
+  return runs;
+};
+
+/**
  * Generate runs for current year
  * Good for yearly statistics tests
  */
