@@ -448,28 +448,60 @@ export const getCurrentYearConsistentRuns = () => {
 };
 
 /**
- * Generate volume spike in current month (last 2 weeks)
+ * Generate volume spike in last 7 days vs 7-14 days ago
  * Good for insights tests about injury risk
+ * Creates >50% volume increase to trigger volume spike insight
  */
 export const getCurrentMonthVolumeSpike = () => {
-  const dates = currentMonthDates(16); // ~16 runs this month
-  return dates.map((date, i) => {
-    // Recent half of runs: higher volume
-    const isRecent = i >= dates.length / 2;
-    const distance = isRecent ? 8.0 + Math.random() * 4.0 : 5.0 + Math.random() * 2.0;
+  const runs: Array<{
+    date: string;
+    distance: number;
+    duration: number;
+    tag: string;
+    notes: string;
+    routeGeoJson: string;
+  }> = [];
+
+  // Last week (7-14 days ago): Lower volume - 3 runs at 5km each = 15km total
+  for (let i = 0; i < 3; i++) {
+    const daysBack = 14 - i * 2; // Days 14, 12, 10
+    const date = daysAgo(daysBack);
+    const distance = 5.0;
     const duration = Math.floor(distance * 330);
 
-    return {
+    runs.push({
       date,
       distance,
       duration,
-      tag: isRecent ? 'long run' : 'easy',
-      notes: isRecent ? 'Building mileage' : 'Regular run',
+      tag: 'easy',
+      notes: 'Regular easy run',
       routeGeoJson: JSON.stringify(
         generateGPSRoute(GPS_LOCATIONS.boston.lat, GPS_LOCATIONS.boston.lng, distance)
       ),
-    };
-  });
+    });
+  }
+
+  // This week (last 7 days): Higher volume - 4 runs at 6.5km each = 26km total
+  // This is 73% increase from last week (26 vs 15) - triggers >50% threshold
+  for (let i = 0; i < 4; i++) {
+    const daysBack = 6 - i * 2; // Days 6, 4, 2, 0
+    const date = daysAgo(daysBack);
+    const distance = 6.5;
+    const duration = Math.floor(distance * 330);
+
+    runs.push({
+      date,
+      distance,
+      duration,
+      tag: 'long run',
+      notes: 'Building mileage quickly',
+      routeGeoJson: JSON.stringify(
+        generateGPSRoute(GPS_LOCATIONS.boston.lat, GPS_LOCATIONS.boston.lng, distance)
+      ),
+    });
+  }
+
+  return runs;
 };
 
 /**
