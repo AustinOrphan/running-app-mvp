@@ -34,6 +34,21 @@ export const errorHandler = (
   const isDevelopment = process.env.NODE_ENV === 'development';
   const requestId = (req.headers['x-request-id'] as string) || crypto.randomUUID();
 
+  // Handle JSON parsing errors from express.json()
+  if (err instanceof SyntaxError && 'body' in err) {
+    const validationError = createValidationError('Invalid JSON in request body', 'body');
+    const errorResponse = errorToResponse(
+      validationError,
+      requestId,
+      req.path,
+      req.method,
+      isDevelopment,
+      isDevelopment
+    );
+    res.status(errorResponse.statusCode).json(errorResponse);
+    return;
+  }
+
   const errorResponse = errorToResponse(
     err,
     requestId,
