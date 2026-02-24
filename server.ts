@@ -46,7 +46,16 @@ app.use(
     credentials: config.cors.credentials,
   })
 );
+// Configure express.json() with error handling
 app.use(express.json());
+// Catch JSON parsing errors immediately
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err instanceof SyntaxError && 'body' in err) {
+    res.status(400).json({ message: 'Invalid JSON in request body' });
+    return;
+  }
+  next(err);
+});
 app.use(securityHeaders);
 // Add correlation ID middleware from shared logger
 app.use(correlationId() as RequestHandler);

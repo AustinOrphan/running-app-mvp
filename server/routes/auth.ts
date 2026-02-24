@@ -190,6 +190,10 @@ router.post(
         message: 'Token refreshed successfully',
         accessToken,
         refreshToken: newRefreshToken,
+        user: {
+          id: user.id,
+          email: user.email,
+        },
       });
     } catch {
       await auditAuth.refresh(req, 'unknown', 'failure');
