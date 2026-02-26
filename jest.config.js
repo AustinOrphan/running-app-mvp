@@ -3,6 +3,7 @@ export default {
   testEnvironment: 'node',
   setupFilesAfterEnv: ['<rootDir>/tests/setup/jestSetup.ts'],
   testMatch: ['**/tests/integration/**/*.test.ts'],
+  maxWorkers: 1, // Force serial execution to prevent database race conditions
   collectCoverageFrom: [
     'routes/**/*.ts',
     'middleware/**/*.ts',
