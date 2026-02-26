@@ -14,8 +14,13 @@ describe('Error Handling Integration Tests', () => {
   let app: express.Application;
   let mockConsoleError: jest.SpyInstance;
   let headersSentDetector: jest.SpyInstance;
+  let originalRateLimitEnv: string | undefined;
 
   beforeEach(() => {
+    // Disable rate limiting for error handling tests
+    originalRateLimitEnv = process.env.RATE_LIMITING_ENABLED;
+    process.env.RATE_LIMITING_ENABLED = 'false';
+
     app = express();
     app.use(cors());
     app.use(express.json());
@@ -46,6 +51,12 @@ describe('Error Handling Integration Tests', () => {
   afterEach(() => {
     mockConsoleError.mockRestore();
     headersSentDetector.mockRestore();
+    // Restore rate limiting environment variable
+    if (originalRateLimitEnv === undefined) {
+      delete process.env.RATE_LIMITING_ENABLED;
+    } else {
+      process.env.RATE_LIMITING_ENABLED = originalRateLimitEnv;
+    }
   });
 
   describe('Auth Route Error Handling', () => {
@@ -265,6 +276,8 @@ describe('Error Handling Integration Tests', () => {
     });
 
     it('should handle extremely large concurrent error load', async () => {
+      // Test that concurrent error handling doesn't crash the server
+      // Rate limiting is disabled via RATE_LIMITING_ENABLED=false in beforeEach
       const promises = Array.from(
         { length: 50 },
         () =>
