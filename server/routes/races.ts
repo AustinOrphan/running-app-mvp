@@ -2,13 +2,13 @@ import express from 'express';
 
 import { prisma } from '../../lib/prisma.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
-import { createNotFoundError } from '../middleware/errorHandler.js';
+import { createNotFoundError, createError } from '../middleware/errorHandler.js';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import {
   sanitizeInput,
   validateCreateRace,
-  validateUpdateRace,
   validateIdParam,
+  updateRaceSchema,
 } from '../middleware/validation.js';
 
 const router = express.Router();
@@ -73,12 +73,12 @@ router.post(
 );
 
 // PUT /api/races/:id - Update race
+// Note: Validation moved inside handler to ensure 404 is returned before 400 for non-existent resources
 router.put(
   '/:id',
   requireAuth,
-  validateIdParam,
-  validateUpdateRace,
   asyncAuthHandler(async (req: AuthRequest, res) => {
+    // Check existence first (404 before validation errors)
     const existingRace = await prisma.race.findFirst({
       where: { id: req.params.id, userId: req.user!.id },
     });
@@ -87,7 +87,17 @@ router.put(
       throw createNotFoundError('Race');
     }
 
-    const { name, raceDate, distance, targetTime, actualTime, notes } = req.body;
+    // Now validate the request body
+    const validation = updateRaceSchema.safeParse(req.body);
+    if (!validation.success) {
+      const errorMessages = validation.error.issues.map(issue => {
+        const path = issue.path.length > 0 ? issue.path.join('.') : 'field';
+        return `${path}: ${issue.message}`;
+      });
+      throw createError(`Validation failed: ${errorMessages.join(', ')}`, 400);
+    }
+
+    const { name, raceDate, distance, targetTime, actualTime, notes } = validation.data;
     const data: Partial<{
       name: string;
       raceDate: Date;
