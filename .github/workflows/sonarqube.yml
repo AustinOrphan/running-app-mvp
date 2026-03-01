@@ -54,7 +54,7 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: 📊 Upload SonarQube results to GitHub
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: sonarqube-results
@@ -173,7 +173,7 @@ jobs:
           echo "Generated on: $(date)" >> reports/metrics-summary.md
 
       - name: 📊 Upload code metrics
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: code-metrics
           path: reports/

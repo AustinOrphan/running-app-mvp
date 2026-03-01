@@ -130,7 +130,7 @@ jobs:
           cat rollback-plan.md
 
       - name: 📊 Upload rollback plan
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rollback-plan-${{ env.ROLLBACK_ID }}
           path: rollback-plan.md
@@ -320,7 +320,7 @@ jobs:
           fi
 
       - name: 📊 Upload incident report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: incident-report-${{ env.ROLLBACK_ID }}
           path: incident-report.md
