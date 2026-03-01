@@ -236,13 +236,13 @@ jobs:
         run: npm ci
 
       - name: 📥 Download unit coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: unit-coverage-report
           path: coverage/
 
       - name: 📥 Download integration coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: integration-coverage-report
           path: coverage-integration/
