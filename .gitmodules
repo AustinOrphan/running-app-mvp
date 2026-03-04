@@ -1,0 +1,3 @@
+[submodule "AustinOrphan-backend-libs-node"]
+	path = AustinOrphan-backend-libs-node
+	url = git@github.com:AustinOrphan/AustinOrphan-backend-libs-node.git
