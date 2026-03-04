@@ -180,7 +180,7 @@ jobs:
         run: npm run test:coverage:report
 
       - name: 📊 Upload PR test artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-test-results-${{ github.event.pull_request.number }}
           path: |
@@ -240,7 +240,7 @@ jobs:
         run: npx playwright test --grep="@critical"
 
       - name: 📊 Upload E2E artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: pr-e2e-results-${{ github.event.pull_request.number }}

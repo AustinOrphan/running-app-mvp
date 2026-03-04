@@ -147,7 +147,7 @@ jobs:
           CI: true
 
       - name: 📸 Upload Playwright report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report
@@ -187,7 +187,7 @@ jobs:
         run: npm run test:a11y:ci
 
       - name: 📸 Upload accessibility report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: accessibility-report
@@ -224,7 +224,7 @@ jobs:
         run: npm run build
 
       - name: 📦 Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-artifacts
           path: dist/
