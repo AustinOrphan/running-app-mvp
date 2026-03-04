@@ -41,17 +41,24 @@ export const InsightsFeed: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="insights-feed">
-        <div className="insights-feed-header">
+      <div className='insights-feed'>
+        <div className='insights-feed-header'>
           <h3>Insights & Recommendations</h3>
-          <button className="refresh-button" disabled aria-label="Loading insights" aria-busy="true">
-            <span className="refresh-icon spinning" aria-hidden="true">🔄</span>
+          <button
+            className='refresh-button'
+            disabled
+            aria-label='Loading insights'
+            aria-busy='true'
+          >
+            <span className='refresh-icon spinning' aria-hidden='true'>
+              🔄
+            </span>
           </button>
         </div>
-        <div className="insights-list">
+        <div className='insights-list'>
           {[1, 2, 3].map(i => (
-            <div key={i} className="insight-skeleton">
-              <div className="skeleton-line" style={{ width: '100%', height: '120px' }}></div>
+            <div key={i} className='insight-skeleton'>
+              <div className='skeleton-line' style={{ width: '100%', height: '120px' }}></div>
             </div>
           ))}
         </div>
@@ -62,17 +69,19 @@ export const InsightsFeed: React.FC = () => {
 
   if (error) {
     return (
-      <div className="insights-feed">
-        <div className="insights-feed-header">
+      <div className='insights-feed'>
+        <div className='insights-feed-header'>
           <h3>Insights & Recommendations</h3>
-          <button className="refresh-button" onClick={handleRefresh} aria-label="Refresh insights">
-            <span className="refresh-icon" aria-hidden="true">🔄</span>
+          <button className='refresh-button' onClick={handleRefresh} aria-label='Refresh insights'>
+            <span className='refresh-icon' aria-hidden='true'>
+              🔄
+            </span>
           </button>
         </div>
-        <div className="insights-error">
-          <div className="error-icon">⚠️</div>
-          <div className="error-message">{error}</div>
-          <button className="retry-button" onClick={handleRefresh}>
+        <div className='insights-error'>
+          <div className='error-icon'>⚠️</div>
+          <div className='error-message'>{error}</div>
+          <button className='retry-button' onClick={handleRefresh}>
             Try Again
           </button>
         </div>
@@ -98,83 +107,73 @@ export const InsightsFeed: React.FC = () => {
   const totalDismissed = dismissedInsights.size;
 
   return (
-    <div className="insights-feed">
-      <div className="insights-feed-header">
-        <div className="header-content">
+    <div className='insights-feed'>
+      <div className='insights-feed-header'>
+        <div className='header-content'>
           <h3>Insights & Recommendations</h3>
           {hasInsights && (
-            <span className="insight-count">
+            <span className='insight-count'>
               {visibleInsights.length} active
-              {totalDismissed > 0 && <span className="dismissed-count"> · {totalDismissed} dismissed</span>}
+              {totalDismissed > 0 && (
+                <span className='dismissed-count'> · {totalDismissed} dismissed</span>
+              )}
             </span>
           )}
         </div>
-        <button className="refresh-button" onClick={handleRefresh} title="Refresh insights">
-          <span className="refresh-icon">🔄</span>
+        <button className='refresh-button' onClick={handleRefresh} title='Refresh insights'>
+          <span className='refresh-icon'>🔄</span>
         </button>
       </div>
 
       {!hasInsights ? (
-        <div className="insights-empty">
-          <div className="empty-icon">✨</div>
-          <div className="empty-message">
+        <div className='insights-empty'>
+          <div className='empty-icon'>✨</div>
+          <div className='empty-message'>
             {insights.length === 0 ? 'Keep running to get insights!' : 'All insights dismissed'}
           </div>
-          <div className="empty-hint">
+          <div className='empty-hint'>
             {insights.length === 0
               ? 'We analyze your runs to provide personalized recommendations'
               : 'Click refresh to see your insights again'}
           </div>
         </div>
       ) : (
-        <div className="insights-list">
+        <div className='insights-list'>
           {groupedInsights.high.length > 0 && (
-            <div className="insights-group">
-              <div className="group-header">
-                <span className="group-icon">🔴</span>
-                <h4 className="group-title">High Priority</h4>
-                <span className="group-count">{groupedInsights.high.length}</span>
+            <div className='insights-group'>
+              <div className='group-header'>
+                <span className='group-icon'>🔴</span>
+                <h4 className='group-title'>High Priority</h4>
+                <span className='group-count'>{groupedInsights.high.length}</span>
               </div>
               {groupedInsights.high.map((insight, index) => (
-                <InsightCard
-                  key={`high-${index}`}
-                  insight={insight}
-                  onDismiss={handleDismiss}
-                />
+                <InsightCard key={`high-${index}`} insight={insight} onDismiss={handleDismiss} />
               ))}
             </div>
           )}
 
           {groupedInsights.medium.length > 0 && (
-            <div className="insights-group">
-              <div className="group-header">
-                <span className="group-icon">🟡</span>
-                <h4 className="group-title">Medium Priority</h4>
-                <span className="group-count">{groupedInsights.medium.length}</span>
+            <div className='insights-group'>
+              <div className='group-header'>
+                <span className='group-icon'>🟡</span>
+                <h4 className='group-title'>Medium Priority</h4>
+                <span className='group-count'>{groupedInsights.medium.length}</span>
               </div>
               {groupedInsights.medium.map((insight, index) => (
-                <InsightCard
-                  key={`medium-${index}`}
-                  insight={insight}
-                  onDismiss={handleDismiss}
-                />
+                <InsightCard key={`medium-${index}`} insight={insight} onDismiss={handleDismiss} />
               ))}
             </div>
           )}
 
           {groupedInsights.low.length > 0 && (
-            <div className="insights-group">
-              <div className="group-header">
-                <span className="group-icon">🔵</span>
-                <h4 className="group-title">Low Priority</h4>
-                <span className="group-count">{groupedInsights.low.length}</span>
+            <div className='insights-group'>
+              <div className='group-header'>
+                <span className='group-icon'>🔵</span>
+                <h4 className='group-title'>Low Priority</h4>
+                <span className='group-count'>{groupedInsights.low.length}</span>
               </div>
               {groupedInsights.low.map((insight, index) => (
-                <InsightCard
-                  key={`low-${index}`}
-                  insight={insight}
-                  onDismiss={handleDismiss}
-                />
+                <InsightCard key={`low-${index}`} insight={insight} onDismiss={handleDismiss} />
               ))}
             </div>
           )}

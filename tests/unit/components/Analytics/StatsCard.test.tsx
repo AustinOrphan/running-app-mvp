@@ -7,8 +7,9 @@ import { StatsCard } from '../../../../src/components/Analytics/StatsCard';
 // Mock InteractiveCard component
 vi.mock('../../../../src/components/Interactive/InteractiveCard', () => ({
   InteractiveCard: ({ children, className, style, onClick, ...props }: any) => (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
-      data-testid="interactive-card"
+      data-testid='interactive-card'
       className={className}
       style={style}
       onClick={onClick}
@@ -42,7 +43,7 @@ describe('StatsCard', () => {
     });
 
     it('renders with string value', () => {
-      render(<StatsCard {...defaultProps} value="10.5 km" />);
+      render(<StatsCard {...defaultProps} value='10.5 km' />);
 
       expect(screen.getByText('10.5 km')).toBeInTheDocument();
     });
@@ -56,7 +57,7 @@ describe('StatsCard', () => {
 
   describe('SubValue and Trends', () => {
     it('renders subValue when provided', () => {
-      render(<StatsCard {...defaultProps} subValue="+5 from last week" />);
+      render(<StatsCard {...defaultProps} subValue='+5 from last week' />);
 
       expect(screen.getByText(/\+5 from last week/)).toBeInTheDocument();
     });
@@ -68,21 +69,21 @@ describe('StatsCard', () => {
     });
 
     it('renders up trend with correct icon', () => {
-      render(<StatsCard {...defaultProps} subValue="+10%" trend="up" />);
+      render(<StatsCard {...defaultProps} subValue='+10%' trend='up' />);
 
       const subValue = screen.getByText(/\+10%/);
       expect(subValue.textContent).toContain('↗');
     });
 
     it('renders down trend with correct icon', () => {
-      render(<StatsCard {...defaultProps} subValue="-5%" trend="down" />);
+      render(<StatsCard {...defaultProps} subValue='-5%' trend='down' />);
 
       const subValue = screen.getByText(/-5%/);
       expect(subValue.textContent).toContain('↘');
     });
 
     it('renders neutral trend without icon', () => {
-      render(<StatsCard {...defaultProps} subValue="Same as last week" trend="neutral" />);
+      render(<StatsCard {...defaultProps} subValue='Same as last week' trend='neutral' />);
 
       const subValue = screen.getByText(/Same as last week/);
       expect(subValue.textContent).not.toContain('↗');
@@ -90,21 +91,21 @@ describe('StatsCard', () => {
     });
 
     it('applies success color to up trend', () => {
-      render(<StatsCard {...defaultProps} subValue="+10%" trend="up" />);
+      render(<StatsCard {...defaultProps} subValue='+10%' trend='up' />);
 
       const subValue = screen.getByText(/\+10%/);
       expect(subValue).toHaveStyle({ color: 'var(--color-success)' });
     });
 
     it('applies warning color to down trend', () => {
-      render(<StatsCard {...defaultProps} subValue="-5%" trend="down" />);
+      render(<StatsCard {...defaultProps} subValue='-5%' trend='down' />);
 
       const subValue = screen.getByText(/-5%/);
       expect(subValue).toHaveStyle({ color: 'var(--color-warning)' });
     });
 
     it('applies secondary color to neutral trend', () => {
-      render(<StatsCard {...defaultProps} subValue="Same" trend="neutral" />);
+      render(<StatsCard {...defaultProps} subValue='Same' trend='neutral' />);
 
       const subValue = screen.getByText(/Same/);
       expect(subValue).toHaveStyle({ color: 'var(--color-text-secondary)' });
@@ -145,7 +146,7 @@ describe('StatsCard', () => {
     });
 
     it('applies custom color when specified', () => {
-      const { container } = render(<StatsCard {...defaultProps} color="#ff5733" />);
+      const { container } = render(<StatsCard {...defaultProps} color='#ff5733' />);
 
       const card = container.querySelector('.stats-card');
       expect(card).toHaveStyle({ '--accent-color': '#ff5733' });
@@ -183,7 +184,9 @@ describe('StatsCard', () => {
     it('does not render InteractiveCard when loading', () => {
       const mockOnClick = vi.fn();
 
-      const { container } = render(<StatsCard {...defaultProps} loading={true} onClick={mockOnClick} />);
+      const { container } = render(
+        <StatsCard {...defaultProps} loading={true} onClick={mockOnClick} />
+      );
 
       const loadingCard = container.querySelector('.stats-card-loading');
       expect(loadingCard).toBeInTheDocument();
@@ -224,20 +227,19 @@ describe('StatsCard', () => {
     });
 
     it('handles empty string value', () => {
-      render(<StatsCard {...defaultProps} value="" />);
+      render(<StatsCard {...defaultProps} value='' />);
 
       expect(screen.getByText('Total Runs')).toBeInTheDocument();
     });
 
     it('handles very long labels', () => {
       render(
-        <StatsCard
-          {...defaultProps}
-          label="This is a very long label that might need to wrap"
-        />
+        <StatsCard {...defaultProps} label='This is a very long label that might need to wrap' />
       );
 
-      expect(screen.getByText('This is a very long label that might need to wrap')).toBeInTheDocument();
+      expect(
+        screen.getByText('This is a very long label that might need to wrap')
+      ).toBeInTheDocument();
     });
 
     it('handles very large numeric values', () => {
@@ -247,7 +249,7 @@ describe('StatsCard', () => {
     });
 
     it('handles special characters in label', () => {
-      render(<StatsCard {...defaultProps} label="Distance (km/mi)" />);
+      render(<StatsCard {...defaultProps} label='Distance (km/mi)' />);
 
       expect(screen.getByText('Distance (km/mi)')).toBeInTheDocument();
     });

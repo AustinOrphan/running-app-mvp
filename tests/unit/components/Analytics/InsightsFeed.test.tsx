@@ -17,9 +17,9 @@ vi.mock('../../../../src/hooks/useAnalyticsInsights', () => ({
 // Mock InsightCard component
 vi.mock('../../../../src/components/Analytics/InsightCard', () => ({
   InsightCard: ({ insight, onDismiss }: any) => (
-    <div data-testid="insight-card" data-priority={insight.priority}>
-      <div data-testid="insight-message">{insight.message}</div>
-      <button data-testid="dismiss-button" onClick={() => onDismiss(insight)}>
+    <div data-testid='insight-card' data-priority={insight.priority}>
+      <div data-testid='insight-message'>{insight.message}</div>
+      <button data-testid='dismiss-button' onClick={() => onDismiss(insight)}>
         Dismiss
       </button>
     </div>

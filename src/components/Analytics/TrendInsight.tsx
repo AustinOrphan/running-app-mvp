@@ -9,14 +9,14 @@ interface TrendInsightProps {
 export const TrendInsight: React.FC<TrendInsightProps> = ({ trends, loading = false }) => {
   if (loading) {
     return (
-      <div className="trend-insight trend-insight-loading">
-        <div className="trend-header">
-          <div className="skeleton-line" style={{ width: '150px', height: '20px' }}></div>
+      <div className='trend-insight trend-insight-loading'>
+        <div className='trend-header'>
+          <div className='skeleton-line' style={{ width: '150px', height: '20px' }}></div>
         </div>
-        <div className="trend-indicators">
+        <div className='trend-indicators'>
           {[1, 2, 3].map(i => (
-            <div key={i} className="trend-indicator">
-              <div className="skeleton-line" style={{ width: '100%', height: '80px' }}></div>
+            <div key={i} className='trend-indicator'>
+              <div className='skeleton-line' style={{ width: '100%', height: '80px' }}></div>
             </div>
           ))}
         </div>
@@ -27,9 +27,9 @@ export const TrendInsight: React.FC<TrendInsightProps> = ({ trends, loading = fa
 
   if (!trends) {
     return (
-      <div className="trend-insight">
-        <div className="trend-empty">
-          <div className="empty-icon">📊</div>
+      <div className='trend-insight'>
+        <div className='trend-empty'>
+          <div className='empty-icon'>📊</div>
           <p>Not enough data for trends</p>
           <span>Add more runs to see your progress trends</span>
         </div>
@@ -95,34 +95,33 @@ export const TrendInsight: React.FC<TrendInsightProps> = ({ trends, loading = fa
   };
 
   const paceTrendLabel = trends.paceTrend.charAt(0).toUpperCase() + trends.paceTrend.slice(1);
-  const volumeTrendLabel =
-    trends.volumeTrend.charAt(0).toUpperCase() + trends.volumeTrend.slice(1);
+  const volumeTrendLabel = trends.volumeTrend.charAt(0).toUpperCase() + trends.volumeTrend.slice(1);
   const consistency = getConsistencyLevel(trends.consistencyScore);
 
   return (
-    <div className="trend-insight">
-      <div className="trend-header">
+    <div className='trend-insight'>
+      <div className='trend-header'>
         <h3>Performance Trends</h3>
-        <span className="trend-period">
+        <span className='trend-period'>
           Last {trends.dataPoints} {trends.period === 'weekly' ? 'weeks' : 'months'}
         </span>
       </div>
 
-      <div className="trend-indicators">
+      <div className='trend-indicators'>
         {/* Pace Trend */}
         <div
-          className="trend-indicator"
+          className='trend-indicator'
           style={{ '--trend-color': getTrendColor(trends.paceTrend) } as React.CSSProperties}
         >
-          <div className="trend-icon">{getTrendIcon(trends.paceTrend)}</div>
-          <div className="trend-content">
-            <div className="trend-label">Pace</div>
-            <div className="trend-value">{paceTrendLabel}</div>
-            <div className="trend-change">{formatPercentChange(trends.paceChangePercent)}</div>
+          <div className='trend-icon'>{getTrendIcon(trends.paceTrend)}</div>
+          <div className='trend-content'>
+            <div className='trend-label'>Pace</div>
+            <div className='trend-value'>{paceTrendLabel}</div>
+            <div className='trend-change'>{formatPercentChange(trends.paceChangePercent)}</div>
           </div>
-          <div className="trend-bar">
+          <div className='trend-bar'>
             <div
-              className="trend-bar-fill"
+              className='trend-bar-fill'
               style={{
                 width: `${Math.min(Math.abs(trends.paceChangePercent), 100)}%`,
               }}
@@ -132,20 +131,20 @@ export const TrendInsight: React.FC<TrendInsightProps> = ({ trends, loading = fa
 
         {/* Volume Trend */}
         <div
-          className="trend-indicator"
+          className='trend-indicator'
           style={
             { '--trend-color': getVolumeTrendColor(trends.volumeTrend) } as React.CSSProperties
           }
         >
-          <div className="trend-icon">{getVolumeTrendIcon(trends.volumeTrend)}</div>
-          <div className="trend-content">
-            <div className="trend-label">Volume</div>
-            <div className="trend-value">{volumeTrendLabel}</div>
-            <div className="trend-change">{formatPercentChange(trends.volumeChangePercent)}</div>
+          <div className='trend-icon'>{getVolumeTrendIcon(trends.volumeTrend)}</div>
+          <div className='trend-content'>
+            <div className='trend-label'>Volume</div>
+            <div className='trend-value'>{volumeTrendLabel}</div>
+            <div className='trend-change'>{formatPercentChange(trends.volumeChangePercent)}</div>
           </div>
-          <div className="trend-bar">
+          <div className='trend-bar'>
             <div
-              className="trend-bar-fill"
+              className='trend-bar-fill'
               style={{
                 width: `${Math.min(Math.abs(trends.volumeChangePercent), 100)}%`,
               }}
@@ -155,18 +154,18 @@ export const TrendInsight: React.FC<TrendInsightProps> = ({ trends, loading = fa
 
         {/* Consistency */}
         <div
-          className="trend-indicator"
+          className='trend-indicator'
           style={{ '--trend-color': consistency.color } as React.CSSProperties}
         >
-          <div className="trend-icon">🎯</div>
-          <div className="trend-content">
-            <div className="trend-label">Consistency</div>
-            <div className="trend-value">{consistency.label}</div>
-            <div className="trend-change">{(trends.consistencyScore * 100).toFixed(0)}%</div>
+          <div className='trend-icon'>🎯</div>
+          <div className='trend-content'>
+            <div className='trend-label'>Consistency</div>
+            <div className='trend-value'>{consistency.label}</div>
+            <div className='trend-change'>{(trends.consistencyScore * 100).toFixed(0)}%</div>
           </div>
-          <div className="trend-bar">
+          <div className='trend-bar'>
             <div
-              className="trend-bar-fill"
+              className='trend-bar-fill'
               style={{
                 width: `${trends.consistencyScore * 100}%`,
               }}

@@ -228,9 +228,12 @@ describe('useAnalyticsInsights', () => {
       let hookResult: any;
 
       await act(async () => {
-        hookResult = renderHook((props: { token: string | null }) => useAnalyticsInsights(props.token), {
-          initialProps: { token: 'valid-token' as string | null },
-        });
+        hookResult = renderHook(
+          (props: { token: string | null }) => useAnalyticsInsights(props.token),
+          {
+            initialProps: { token: 'valid-token' as string | null },
+          }
+        );
       });
 
       const { rerender } = hookResult!;

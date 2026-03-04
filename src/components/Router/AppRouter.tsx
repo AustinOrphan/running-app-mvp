@@ -9,12 +9,8 @@ import { DashboardPage } from '../../pages/DashboardPage';
 const ComingSoonPage = lazy(() =>
   import('../Pages/ComingSoonPage').then(m => ({ default: m.ComingSoonPage }))
 );
-const GoalsPage = lazy(() =>
-  import('../../pages/GoalsPage').then(m => ({ default: m.GoalsPage }))
-);
-const StatsPage = lazy(() =>
-  import('../../pages/StatsPage').then(m => ({ default: m.StatsPage }))
-);
+const GoalsPage = lazy(() => import('../../pages/GoalsPage').then(m => ({ default: m.GoalsPage })));
+const StatsPage = lazy(() => import('../../pages/StatsPage').then(m => ({ default: m.StatsPage })));
 const AnalyticsPage = lazy(() =>
   import('../../pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage }))
 );

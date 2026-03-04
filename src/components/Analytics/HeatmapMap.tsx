@@ -75,13 +75,13 @@ export const HeatmapMap: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="heatmap-container">
-        <div className="heatmap-header">
+      <div className='heatmap-container'>
+        <div className='heatmap-header'>
           <h3>GPS Heatmap</h3>
-          <div className="skeleton-line" style={{ width: '200px', height: '36px' }}></div>
+          <div className='skeleton-line' style={{ width: '200px', height: '36px' }}></div>
         </div>
-        <div className="heatmap-loading">
-          <div className="loading-spinner">🗺️</div>
+        <div className='heatmap-loading'>
+          <div className='loading-spinner'>🗺️</div>
           <p>Loading heatmap...</p>
         </div>
         <style>{styles}</style>
@@ -91,13 +91,13 @@ export const HeatmapMap: React.FC = () => {
 
   if (error) {
     return (
-      <div className="heatmap-container">
-        <div className="heatmap-header">
+      <div className='heatmap-container'>
+        <div className='heatmap-header'>
           <h3>GPS Heatmap</h3>
         </div>
-        <div className="heatmap-error">
-          <div className="error-icon">⚠️</div>
-          <div className="error-message">{error}</div>
+        <div className='heatmap-error'>
+          <div className='error-icon'>⚠️</div>
+          <div className='error-message'>{error}</div>
         </div>
         <style>{styles}</style>
       </div>
@@ -106,14 +106,14 @@ export const HeatmapMap: React.FC = () => {
 
   if (!heatmap || heatmap.features.length === 0) {
     return (
-      <div className="heatmap-container">
-        <div className="heatmap-header">
+      <div className='heatmap-container'>
+        <div className='heatmap-header'>
           <h3>GPS Heatmap</h3>
         </div>
-        <div className="heatmap-empty">
-          <div className="empty-icon">🗺️</div>
-          <div className="empty-message">No GPS data available</div>
-          <div className="empty-hint">
+        <div className='heatmap-empty'>
+          <div className='empty-icon'>🗺️</div>
+          <div className='empty-message'>No GPS data available</div>
+          <div className='empty-hint'>
             Record runs with GPS tracking to see your activity heatmap
           </div>
         </div>
@@ -126,23 +126,23 @@ export const HeatmapMap: React.FC = () => {
   const totalCells = heatmap.features.length;
 
   return (
-    <div className="heatmap-container">
-      <div className="heatmap-header">
-        <div className="header-content">
+    <div className='heatmap-container'>
+      <div className='heatmap-header'>
+        <div className='header-content'>
           <h3>GPS Heatmap</h3>
-          <p className="heatmap-stats">
+          <p className='heatmap-stats'>
             {totalCells} grid cells · Max density: {maxDensity} points
           </p>
         </div>
-        <div className="heatmap-controls">
-          <label htmlFor="grid-size" className="control-label">
+        <div className='heatmap-controls'>
+          <label htmlFor='grid-size' className='control-label'>
             Grid Size:
           </label>
           <select
-            id="grid-size"
+            id='grid-size'
             value={gridSize}
             onChange={e => handleGridSizeChange(Number(e.target.value))}
-            className="grid-size-selector"
+            className='grid-size-selector'
           >
             <option value={0.1}>0.1 km (Fine)</option>
             <option value={0.5}>0.5 km (Medium)</option>
@@ -152,36 +152,32 @@ export const HeatmapMap: React.FC = () => {
         </div>
       </div>
 
-      <div className="heatmap-canvas-wrapper">
+      <div className='heatmap-canvas-wrapper'>
         <canvas
           ref={canvasRef}
-          className="heatmap-canvas"
-          role="img"
+          className='heatmap-canvas'
+          role='img'
           aria-label={`GPS activity heatmap showing ${totalCells} grid cells`}
         ></canvas>
       </div>
 
-      <div className="heatmap-legend">
-        <div className="legend-label">Activity Density</div>
-        <div className="legend-gradient"></div>
-        <div className="legend-labels">
+      <div className='heatmap-legend'>
+        <div className='legend-label'>Activity Density</div>
+        <div className='legend-gradient'></div>
+        <div className='legend-labels'>
           <span>Low</span>
           <span>High</span>
         </div>
       </div>
 
-      <div className="heatmap-info">
-        <div className="info-item">
-          <span className="info-icon">📍</span>
-          <span className="info-text">
-            Showing {totalCells} areas where you've run
-          </span>
+      <div className='heatmap-info'>
+        <div className='info-item'>
+          <span className='info-icon'>📍</span>
+          <span className='info-text'>Showing {totalCells} areas where you have run</span>
         </div>
-        <div className="info-item">
-          <span className="info-icon">🔥</span>
-          <span className="info-text">
-            Brighter colors indicate higher activity
-          </span>
+        <div className='info-item'>
+          <span className='info-icon'>🔥</span>
+          <span className='info-text'>Brighter colors indicate higher activity</span>
         </div>
       </div>
 

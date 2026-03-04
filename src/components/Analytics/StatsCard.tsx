@@ -24,10 +24,10 @@ const StatsCardInner: React.FC<StatsCardProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className="stats-card stats-card-loading">
-        <div className="stats-card-icon skeleton-line"></div>
-        <div className="stats-card-value skeleton-line"></div>
-        <div className="stats-card-label skeleton-line"></div>
+      <div className='stats-card stats-card-loading'>
+        <div className='stats-card-icon skeleton-line'></div>
+        <div className='stats-card-value skeleton-line'></div>
+        <div className='stats-card-label skeleton-line'></div>
         <style>{styles}</style>
       </div>
     );
@@ -43,18 +43,18 @@ const StatsCardInner: React.FC<StatsCardProps> = ({
 
   return (
     <InteractiveCard
-      className="stats-card"
+      className='stats-card'
       style={{ '--accent-color': color } as React.CSSProperties}
       elevation={1}
       interactive={!!onClick}
       onClick={onClick}
       tilt={true}
     >
-      <div className="stats-card-icon">{icon}</div>
-      <div className="stats-card-value">{value}</div>
-      <div className="stats-card-label">{label}</div>
+      <div className='stats-card-icon'>{icon}</div>
+      <div className='stats-card-value'>{value}</div>
+      <div className='stats-card-label'>{label}</div>
       {subValue && (
-        <div className="stats-card-subvalue" style={{ color: trendColor }}>
+        <div className='stats-card-subvalue' style={{ color: trendColor }}>
           {trendIcon} {subValue}
         </div>
       )}
