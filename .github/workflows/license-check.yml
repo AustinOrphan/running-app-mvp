@@ -43,7 +43,7 @@ jobs:
       - name: 📄 Check allowed licenses
         run: |
           echo "🔍 Checking license compliance..."
-          license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense;0BSD;BlueOak-1.0.0;CC0-1.0;Python-2.0;Zlib;MPL-2.0;EDL-1.0;EPL-1.0;EPL-2.0;(MIT OR Apache-2.0);(EPL-1.0 OR BSD-3-Clause);Custom: https://github.com/bjornharrtell/jsts' --excludePrivatePackages --summary
+          license-checker --onlyAllow 'MIT;Apache-2.0;BSD;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense;0BSD;BlueOak-1.0.0;CC0-1.0;Python-2.0;Zlib;MPL-2.0;EDL-1.0;EPL-1.0;EPL-2.0;(MIT OR Apache-2.0);(EPL-1.0 OR BSD-3-Clause);Custom: https://github.com/bjornharrtell/jsts' --excludePrivatePackages --summary
 
       - name: 📊 Generate detailed license report
         run: |
@@ -128,7 +128,7 @@ jobs:
             ### 📋 Allowed Licenses
             - MIT
             - Apache-2.0
-            - BSD-2-Clause / BSD-3-Clause
+            - BSD / BSD-2-Clause / BSD-3-Clause
             - ISC
             - Unlicense
             - 0BSD
