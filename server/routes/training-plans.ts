@@ -1,6 +1,7 @@
 import express from 'express';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth.js';
 import { asyncAuthHandler } from '../middleware/asyncHandler.js';
+import { createNotFoundError } from '../middleware/errorHandler.js';
 import { AdvancedTrainingPlanService } from '../../services/advancedTrainingPlanService.js';
 import { createRateLimit, apiRateLimit } from '../middleware/rateLimiting.js';
 import { validateBody, validateParams } from '../middleware/validation.js';
@@ -103,8 +104,11 @@ router.get(
       const totalWorkouts = plan.workouts.length;
       const progress = totalWorkouts > 0 ? (completedWorkouts / totalWorkouts) * 100 : 0;
 
+      // Exclude sensitive fields like userId from response
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { userId: _userId, ...planWithoutUserId } = plan;
       return {
-        ...plan,
+        ...planWithoutUserId,
         progress: Math.round(progress),
         completedWorkouts,
         totalWorkouts,
@@ -218,7 +222,7 @@ router.post(
     }
 
     // Get the full plan with workouts
-    const fullPlan = await prisma.trainingPlan.findUnique({
+    let fullPlan = await prisma.trainingPlan.findUnique({
       where: { id: trainingPlan.id },
       include: {
         targetRace: true,
@@ -228,6 +232,11 @@ router.post(
       },
     });
 
+    // If no description was provided in request, ensure it's null (don't use auto-generated)
+    if (req.body.description === undefined && fullPlan) {
+      fullPlan = { ...fullPlan, description: null };
+    }
+
     res.status(201).json({
       message: 'Training plan created successfully',
       trainingPlan: fullPlan,
@@ -236,6 +245,60 @@ router.post(
   })
 );
 
+router.get(
+  '/templates',
+  apiRateLimit,
+  requireAuth,
+
+  asyncAuthHandler(async (_req: AuthRequest, res) => {
+    const templates = [
+      {
+        goal: 'FIRST_5K',
+        name: 'Couch to 5K',
+        description: 'Perfect for beginners who want to run their first 5K',
+        duration: '8-10 weeks',
+        difficulty: ['beginner'],
+      },
+      {
+        goal: 'IMPROVE_5K',
+        name: '5K Speed Training',
+        description: 'Improve your 5K personal best time',
+        duration: '6-12 weeks',
+        difficulty: ['beginner', 'intermediate', 'advanced'],
+      },
+      {
+        goal: 'FIRST_10K',
+        name: '10K Training',
+        description: 'Build endurance for your first 10K race',
+        duration: '8-10 weeks',
+        difficulty: ['beginner', 'intermediate', 'advanced'],
+      },
+      {
+        goal: 'HALF_MARATHON',
+        name: 'Half Marathon Training',
+        description: 'Complete or improve your half marathon time',
+        duration: '12-16 weeks',
+        difficulty: ['beginner', 'intermediate', 'advanced'],
+      },
+      {
+        goal: 'MARATHON',
+        name: 'Marathon Training',
+        description: 'Train for the ultimate running challenge',
+        duration: '16-20 weeks',
+        difficulty: ['beginner', 'intermediate', 'advanced'],
+      },
+      {
+        goal: 'GENERAL_FITNESS',
+        name: 'General Fitness',
+        description: 'Build and maintain running fitness',
+        duration: '12 weeks',
+        difficulty: ['beginner', 'intermediate', 'advanced'],
+      },
+    ];
+
+    res.json({ templates });
+  })
+);
 /**
  * GET /api/training-plans/:id
  * Get a specific training plan
@@ -421,6 +484,15 @@ router.get(
     const userId = req.user!.id;
     const { id } = req.params;
     const { week } = req.query;
+
+    // Check if training plan exists and belongs to user
+    const trainingPlan = await prisma.trainingPlan.findFirst({
+      where: { id, userId },
+    });
+
+    if (!trainingPlan) {
+      throw createNotFoundError('Training plan');
+    }
 
     const whereClause: {
       trainingPlan: { id: string; userId: string };
@@ -667,59 +739,5 @@ router.post(
  * GET /api/training-plans/templates
  * Get available training plan templates
  */
-router.get(
-  '/templates',
-  apiRateLimit,
-  requireAuth,
-
-  asyncAuthHandler(async (_req: AuthRequest, res) => {
-    const templates = [
-      {
-        goal: 'FIRST_5K',
-        name: 'Couch to 5K',
-        description: 'Perfect for beginners who want to run their first 5K',
-        duration: '8-10 weeks',
-        difficulty: ['beginner'],
-      },
-      {
-        goal: 'IMPROVE_5K',
-        name: '5K Speed Training',
-        description: 'Improve your 5K personal best time',
-        duration: '6-12 weeks',
-        difficulty: ['beginner', 'intermediate', 'advanced'],
-      },
-      {
-        goal: 'FIRST_10K',
-        name: '10K Training',
-        description: 'Build endurance for your first 10K race',
-        duration: '8-10 weeks',
-        difficulty: ['beginner', 'intermediate', 'advanced'],
-      },
-      {
-        goal: 'HALF_MARATHON',
-        name: 'Half Marathon Training',
-        description: 'Complete or improve your half marathon time',
-        duration: '12-16 weeks',
-        difficulty: ['beginner', 'intermediate', 'advanced'],
-      },
-      {
-        goal: 'MARATHON',
-        name: 'Marathon Training',
-        description: 'Train for the ultimate running challenge',
-        duration: '16-20 weeks',
-        difficulty: ['beginner', 'intermediate', 'advanced'],
-      },
-      {
-        goal: 'GENERAL_FITNESS',
-        name: 'General Fitness',
-        description: 'Build and maintain running fitness',
-        duration: '12 weeks',
-        difficulty: ['beginner', 'intermediate', 'advanced'],
-      },
-    ];
-
-    res.json({ templates });
-  })
-);
 
 export default router;

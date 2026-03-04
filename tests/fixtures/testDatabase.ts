@@ -180,7 +180,13 @@ export class TestDatabase {
     const createdWorkouts = [];
 
     for (const workout of workouts) {
-      if (workout.trainingPlanId === 'plan-1' || workout.trainingPlanId === 'plan-2') {
+      // Only create workouts that match the default mock training plan IDs
+      // or if the workout has been modified to use the provided trainingPlanId
+      if (
+        workout.trainingPlanId === 'plan-1' ||
+        workout.trainingPlanId === 'plan-2' ||
+        workout.trainingPlanId === trainingPlanId
+      ) {
         const createdWorkout = await this.prisma.workoutTemplate.create({
           data: {
             trainingPlanId,
@@ -194,8 +200,9 @@ export class TestDatabase {
             targetPace: workout.targetPace,
             intensity: workout.intensity,
             notes: workout.notes,
-            isCompleted: workout.isCompleted,
-            completedRunId: workout.completedRunId,
+            isCompleted: workout.isCompleted || false,
+            // Don't include completedRunId from mock data as it may reference non-existent runs
+            completedRunId: null,
           },
         });
         createdWorkouts.push(createdWorkout);

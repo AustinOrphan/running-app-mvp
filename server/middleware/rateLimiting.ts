@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { MemoryStore } from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
 import { logInfo } from '../utils/secureLogger.js';
 
@@ -6,6 +6,16 @@ import { logInfo } from '../utils/secureLogger.js';
  * Rate limiting middleware configurations
  * Implements different rate limits for various endpoint types
  */
+
+// Store instances for rate limiters (allows resetting for tests)
+const rateLimitStores = {
+  auth: new MemoryStore(),
+  api: new MemoryStore(),
+  create: new MemoryStore(),
+  read: new MemoryStore(),
+  sensitive: new MemoryStore(),
+  global: new MemoryStore(),
+};
 
 // Custom error handler for rate limit violations
 const rateLimitErrorHandler = (
@@ -47,7 +57,12 @@ const generateKey = (req: Request): string => {
 /**
  * Factory function to create rate limit configurations with common options
  */
-function createRateLimitConfig(options: { windowMs: number; max: number; message: string }) {
+function createRateLimitConfig(options: {
+  windowMs: number;
+  max: number;
+  message: string;
+  store: MemoryStore;
+}) {
   return rateLimit({
     windowMs: options.windowMs,
     max: options.max,
@@ -60,6 +75,7 @@ function createRateLimitConfig(options: { windowMs: number; max: number; message
     legacyHeaders: false,
     keyGenerator: generateKey,
     handler: rateLimitErrorHandler,
+    store: options.store,
     skip: (_req: Request) => {
       const isTestEnvironment = process.env.NODE_ENV === 'test';
       const rateLimitingEnabled = process.env.RATE_LIMITING_ENABLED?.toLowerCase();
@@ -83,6 +99,7 @@ export const authRateLimit = createRateLimitConfig({
   windowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW || '15', 10) * 60 * 1000,
   max: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '5', 10),
   message: 'Too many authentication attempts from this IP, please try again after 15 minutes',
+  store: rateLimitStores.auth,
 });
 
 /**
@@ -93,6 +110,7 @@ export const apiRateLimit = createRateLimitConfig({
   windowMs: parseInt(process.env.API_RATE_LIMIT_WINDOW || '15', 10) * 60 * 1000,
   max: parseInt(process.env.API_RATE_LIMIT_MAX || '100', 10),
   message: 'Too many requests from this IP, please try again later',
+  store: rateLimitStores.api,
 });
 
 /**
@@ -103,6 +121,7 @@ export const createRateLimit = createRateLimitConfig({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 50,
   message: 'Too many creation requests from this IP, please try again later',
+  store: rateLimitStores.create,
 });
 
 /**
@@ -113,6 +132,7 @@ export const readRateLimit = createRateLimitConfig({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200,
   message: 'Too many requests from this IP, please try again later',
+  store: rateLimitStores.read,
 });
 
 /**
@@ -123,6 +143,7 @@ export const sensitiveRateLimit = createRateLimitConfig({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 3,
   message: 'Too many sensitive operation attempts from this IP, please try again after 1 hour',
+  store: rateLimitStores.sensitive,
 });
 
 /**
@@ -133,6 +154,7 @@ export const globalRateLimit = createRateLimitConfig({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 1000,
   message: 'Global rate limit exceeded, please try again later',
+  store: rateLimitStores.global,
 });
 
 /**
@@ -163,4 +185,21 @@ export const rateLimitConfig = {
  */
 export const getRateLimitMiddleware = (type: keyof typeof rateLimitConfig) => {
   return rateLimitConfig[type];
+};
+
+/**
+ * Reset all rate limit stores (test-only utility)
+ * Clears accumulated rate limit counters for fresh test isolation
+ */
+export const resetRateLimitStores = () => {
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error('resetRateLimitStores can only be called in test environment');
+  }
+
+  // Directly reset all stores from the rateLimitStores object
+  Object.values(rateLimitStores).forEach(store => {
+    if (store && typeof store.resetAll === 'function') {
+      store.resetAll();
+    }
+  });
 };
