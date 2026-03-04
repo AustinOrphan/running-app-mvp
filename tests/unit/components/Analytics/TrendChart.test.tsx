@@ -16,31 +16,27 @@ vi.mock('../../../../src/hooks/useStats', () => ({
 // Mock Recharts components
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: any) => (
-    <div data-testid="responsive-container">{children}</div>
+    <div data-testid='responsive-container'>{children}</div>
   ),
   LineChart: ({ children, data }: any) => (
-    <div data-testid="line-chart" data-chart-data={JSON.stringify(data)}>
+    <div data-testid='line-chart' data-chart-data={JSON.stringify(data)}>
       {children}
     </div>
   ),
   AreaChart: ({ children, data }: any) => (
-    <div data-testid="area-chart" data-chart-data={JSON.stringify(data)}>
+    <div data-testid='area-chart' data-chart-data={JSON.stringify(data)}>
       {children}
     </div>
   ),
-  Line: ({ dataKey, name }: any) => (
-    <div data-testid={`line-${dataKey}`} data-name={name} />
-  ),
-  Area: ({ dataKey, name }: any) => (
-    <div data-testid={`area-${dataKey}`} data-name={name} />
-  ),
-  XAxis: () => <div data-testid="x-axis" />,
+  Line: ({ dataKey, name }: any) => <div data-testid={`line-${dataKey}`} data-name={name} />,
+  Area: ({ dataKey, name }: any) => <div data-testid={`area-${dataKey}`} data-name={name} />,
+  XAxis: () => <div data-testid='x-axis' />,
   YAxis: ({ yAxisId, orientation }: any) => (
     <div data-testid={`y-axis-${yAxisId || 'default'}`} data-orientation={orientation} />
   ),
-  CartesianGrid: () => <div data-testid="cartesian-grid" />,
-  Tooltip: ({ content }: any) => <div data-testid="tooltip">{content}</div>,
-  Legend: () => <div data-testid="legend" />,
+  CartesianGrid: () => <div data-testid='cartesian-grid' />,
+  Tooltip: ({ content }: any) => <div data-testid='tooltip'>{content}</div>,
+  Legend: () => <div data-testid='legend' />,
 }));
 
 // Import mocked functions
@@ -467,7 +463,7 @@ describe('TrendChart', () => {
         loading: false,
       });
 
-      render(<TrendChart period="1y" />);
+      render(<TrendChart period='1y' />);
 
       expect(mockUseStats).toHaveBeenCalledWith('test-token', '1y');
     });
@@ -478,13 +474,13 @@ describe('TrendChart', () => {
         loading: false,
       });
 
-      const { rerender } = render(<TrendChart period="3m" />);
+      const { rerender } = render(<TrendChart period='3m' />);
       expect(mockUseStats).toHaveBeenCalledWith('test-token', '3m');
 
-      rerender(<TrendChart period="6m" />);
+      rerender(<TrendChart period='6m' />);
       expect(mockUseStats).toHaveBeenCalledWith('test-token', '6m');
 
-      rerender(<TrendChart period="1y" />);
+      rerender(<TrendChart period='1y' />);
       expect(mockUseStats).toHaveBeenCalledWith('test-token', '1y');
     });
   });
@@ -498,14 +494,14 @@ describe('TrendChart', () => {
     });
 
     it('uses default height of 300', () => {
-      const { container } = render(<TrendChart />);
+      render(<TrendChart />);
 
       // Default height is passed to ResponsiveContainer
       expect(screen.getByTestId('responsive-container')).toBeInTheDocument();
     });
 
     it('uses custom height when provided', () => {
-      const { container } = render(<TrendChart height={400} />);
+      render(<TrendChart height={400} />);
 
       expect(screen.getByTestId('responsive-container')).toBeInTheDocument();
     });
@@ -623,7 +619,6 @@ describe('TrendChart', () => {
     });
 
     it('metric selector is keyboard accessible', async () => {
-      const user = userEvent.setup();
       render(<TrendChart />);
 
       const metricSelector = screen.getByLabelText('Metric selector');
@@ -633,7 +628,6 @@ describe('TrendChart', () => {
     });
 
     it('chart type selector is keyboard accessible', async () => {
-      const user = userEvent.setup();
       render(<TrendChart />);
 
       const chartTypeSelector = screen.getByLabelText('Chart type selector');

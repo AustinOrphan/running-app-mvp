@@ -1,7 +1,11 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { useAnalyticsHeatmap, Heatmap, HeatmapFeature } from '../../../src/hooks/useAnalyticsHeatmap';
+import {
+  useAnalyticsHeatmap,
+  Heatmap,
+  HeatmapFeature,
+} from '../../../src/hooks/useAnalyticsHeatmap';
 import { createApiResponse, MockApiError } from '../../utils/mockApiUtils';
 
 // Mock apiFetch utilities
@@ -263,9 +267,12 @@ describe('useAnalyticsHeatmap', () => {
       let hookResult: any;
 
       await act(async () => {
-        hookResult = renderHook((props: { token: string | null }) => useAnalyticsHeatmap(props.token), {
-          initialProps: { token: 'valid-token' as string | null },
-        });
+        hookResult = renderHook(
+          (props: { token: string | null }) => useAnalyticsHeatmap(props.token),
+          {
+            initialProps: { token: 'valid-token' as string | null },
+          }
+        );
       });
 
       const { rerender } = hookResult!;

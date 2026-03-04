@@ -17,11 +17,11 @@ vi.mock('../../../../src/hooks/useAnalyticsStatistics', () => ({
 // Mock StatsCard component
 vi.mock('../../../../src/components/Analytics/StatsCard', () => ({
   StatsCard: ({ icon, label, value, subValue, loading }: any) => (
-    <div data-testid="stats-card" data-loading={loading}>
-      <div data-testid="stats-icon">{icon}</div>
-      <div data-testid="stats-label">{label}</div>
-      <div data-testid="stats-value">{value}</div>
-      {subValue && <div data-testid="stats-subvalue">{subValue}</div>}
+    <div data-testid='stats-card' data-loading={loading}>
+      <div data-testid='stats-icon'>{icon}</div>
+      <div data-testid='stats-label'>{label}</div>
+      <div data-testid='stats-value'>{value}</div>
+      {subValue && <div data-testid='stats-subvalue'>{subValue}</div>}
     </div>
   ),
 }));
@@ -29,7 +29,8 @@ vi.mock('../../../../src/components/Analytics/StatsCard', () => ({
 // Mock formatters
 vi.mock('../../../../src/utils/formatters', () => ({
   formatDistance: (value: number) => `${value.toFixed(1)} km`,
-  formatPace: (value: number) => `${Math.floor(value / 60)}:${(value % 60).toString().padStart(2, '0')}`,
+  formatPace: (value: number) =>
+    `${Math.floor(value / 60)}:${(value % 60).toString().padStart(2, '0')}`,
   formatDuration: (value: number) => {
     const hours = Math.floor(value / 3600);
     const minutes = Math.floor((value % 3600) / 60);
@@ -85,9 +86,9 @@ describe('StatsDashboard', () => {
 
       render(<StatsDashboard />);
 
-      const loadingCards = screen.getAllByTestId('stats-card').filter(card =>
-        card.getAttribute('data-loading') === 'true'
-      );
+      const loadingCards = screen
+        .getAllByTestId('stats-card')
+        .filter(card => card.getAttribute('data-loading') === 'true');
       expect(loadingCards).toHaveLength(6);
     });
 
@@ -256,8 +257,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const totalRunsCard = cards.find(card =>
-        within(card).getByTestId('stats-label').textContent === 'Total Runs'
+      const totalRunsCard = cards.find(
+        card => within(card).getByTestId('stats-label').textContent === 'Total Runs'
       );
 
       expect(totalRunsCard).toBeDefined();
@@ -269,8 +270,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const distanceCard = cards.find(card =>
-        within(card).getByTestId('stats-label').textContent === 'Total Distance'
+      const distanceCard = cards.find(
+        card => within(card).getByTestId('stats-label').textContent === 'Total Distance'
       );
 
       expect(distanceCard).toBeDefined();
@@ -282,8 +283,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const timeCard = cards.find(card =>
-        within(card).getByTestId('stats-label').textContent === 'Total Time'
+      const timeCard = cards.find(
+        card => within(card).getByTestId('stats-label').textContent === 'Total Time'
       );
 
       expect(timeCard).toBeDefined();
@@ -294,8 +295,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const paceCard = cards.find(card =>
-        within(card).getByTestId('stats-label').textContent === 'Avg Pace'
+      const paceCard = cards.find(
+        card => within(card).getByTestId('stats-label').textContent === 'Avg Pace'
       );
 
       expect(paceCard).toBeDefined();
@@ -307,8 +308,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const longestCard = cards.find(card =>
-        within(card).getByTestId('stats-label').textContent === 'Longest Run'
+      const longestCard = cards.find(
+        card => within(card).getByTestId('stats-label').textContent === 'Longest Run'
       );
 
       expect(longestCard).toBeDefined();
@@ -328,8 +329,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const elevationCard = cards.find(card =>
-        within(card).getByTestId('stats-label').textContent === 'Total Elevation'
+      const elevationCard = cards.find(
+        card => within(card).getByTestId('stats-label').textContent === 'Total Elevation'
       );
 
       expect(elevationCard).toBeDefined();
@@ -348,8 +349,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const elevationCard = cards.find(card =>
-        within(card).queryByTestId('stats-label')?.textContent === 'Total Elevation'
+      const elevationCard = cards.find(
+        card => within(card).queryByTestId('stats-label')?.textContent === 'Total Elevation'
       );
 
       expect(elevationCard).toBeUndefined();
@@ -366,8 +367,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const elevationCard = cards.find(card =>
-        within(card).queryByTestId('stats-label')?.textContent === 'Total Elevation'
+      const elevationCard = cards.find(
+        card => within(card).queryByTestId('stats-label')?.textContent === 'Total Elevation'
       );
 
       expect(elevationCard).toBeUndefined();
@@ -384,8 +385,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const hrCard = cards.find(card =>
-        within(card).getByTestId('stats-label').textContent === 'Avg Heart Rate'
+      const hrCard = cards.find(
+        card => within(card).getByTestId('stats-label').textContent === 'Avg Heart Rate'
       );
 
       expect(hrCard).toBeDefined();
@@ -404,8 +405,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const hrCard = cards.find(card =>
-        within(card).queryByTestId('stats-label')?.textContent === 'Avg Heart Rate'
+      const hrCard = cards.find(
+        card => within(card).queryByTestId('stats-label')?.textContent === 'Avg Heart Rate'
       );
 
       expect(hrCard).toBeUndefined();
@@ -422,8 +423,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const hrCard = cards.find(card =>
-        within(card).getByTestId('stats-label').textContent === 'Avg Heart Rate'
+      const hrCard = cards.find(
+        card => within(card).getByTestId('stats-label').textContent === 'Avg Heart Rate'
       );
 
       expect(hrCard).toBeDefined();
@@ -472,8 +473,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const paceCard = cards.find(card =>
-        within(card).getByTestId('stats-label').textContent === 'Avg Pace'
+      const paceCard = cards.find(
+        card => within(card).getByTestId('stats-label').textContent === 'Avg Pace'
       );
 
       expect(within(paceCard!).getByTestId('stats-value')).toHaveTextContent('--');
@@ -490,8 +491,8 @@ describe('StatsDashboard', () => {
       render(<StatsDashboard />);
 
       const cards = screen.getAllByTestId('stats-card');
-      const paceCard = cards.find(card =>
-        within(card).getByTestId('stats-label').textContent === 'Avg Pace'
+      const paceCard = cards.find(
+        card => within(card).getByTestId('stats-label').textContent === 'Avg Pace'
       );
 
       expect(within(paceCard!).queryByTestId('stats-subvalue')).not.toBeInTheDocument();

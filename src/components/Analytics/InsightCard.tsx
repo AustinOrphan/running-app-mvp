@@ -65,33 +65,33 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, onDismiss }) 
 
   return (
     <div
-      className="insight-card"
+      className='insight-card'
       style={{ '--priority-color': getPriorityColor(insight.priority) } as React.CSSProperties}
     >
-      <div className="insight-card-header">
-        <div className="insight-icon">{getInsightIcon(insight.type)}</div>
-        <div className="insight-meta">
-          <span className="insight-type">{getTypeLabel(insight.type)}</span>
-          <span className="insight-priority">{getPriorityLabel(insight.priority)}</span>
+      <div className='insight-card-header'>
+        <div className='insight-icon'>{getInsightIcon(insight.type)}</div>
+        <div className='insight-meta'>
+          <span className='insight-type'>{getTypeLabel(insight.type)}</span>
+          <span className='insight-priority'>{getPriorityLabel(insight.priority)}</span>
         </div>
         {onDismiss && (
           <button
-            className="insight-dismiss"
+            className='insight-dismiss'
             onClick={() => onDismiss(insight)}
-            aria-label="Dismiss insight"
-            title="Dismiss"
+            aria-label='Dismiss insight'
+            title='Dismiss'
           >
             ×
           </button>
         )}
       </div>
 
-      <div className="insight-card-body">
-        <p className="insight-message">{insight.message}</p>
+      <div className='insight-card-body'>
+        <p className='insight-message'>{insight.message}</p>
         {insight.actionable && (
-          <div className="insight-action">
-            <span className="action-icon">💡</span>
-            <span className="action-text">{insight.actionable}</span>
+          <div className='insight-action'>
+            <span className='action-icon'>💡</span>
+            <span className='action-text'>{insight.actionable}</span>
           </div>
         )}
       </div>

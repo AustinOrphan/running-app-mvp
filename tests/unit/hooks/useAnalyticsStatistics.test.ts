@@ -251,9 +251,12 @@ describe('useAnalyticsStatistics', () => {
       let hookResult: any;
 
       await act(async () => {
-        hookResult = renderHook((props: { token: string | null }) => useAnalyticsStatistics(props.token), {
-          initialProps: { token: 'valid-token' as string | null },
-        });
+        hookResult = renderHook(
+          (props: { token: string | null }) => useAnalyticsStatistics(props.token),
+          {
+            initialProps: { token: 'valid-token' as string | null },
+          }
+        );
       });
 
       const { rerender } = hookResult!;

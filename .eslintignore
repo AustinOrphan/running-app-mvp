@@ -1,0 +1,14 @@
+# Build outputs
+dist/
+build/
+coverage/
+
+# Node modules
+node_modules/
+
+# Git submodules
+AustinOrphan-backend-libs-node/
+
+# Generated files
+*.min.js
+*.bundle.js

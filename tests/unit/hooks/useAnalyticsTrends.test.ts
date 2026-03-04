@@ -107,7 +107,9 @@ describe('useAnalyticsTrends', () => {
       });
 
       await waitFor(() => {
-        expect(mockApiGet).toHaveBeenCalledWith('/api/analytics/trends?period=weekly&dataPoints=12');
+        expect(mockApiGet).toHaveBeenCalledWith(
+          '/api/analytics/trends?period=weekly&dataPoints=12'
+        );
       });
     });
 
@@ -120,7 +122,9 @@ describe('useAnalyticsTrends', () => {
       });
 
       await waitFor(() => {
-        expect(mockApiGet).toHaveBeenCalledWith('/api/analytics/trends?period=monthly&dataPoints=6');
+        expect(mockApiGet).toHaveBeenCalledWith(
+          '/api/analytics/trends?period=monthly&dataPoints=6'
+        );
       });
     });
   });
@@ -240,9 +244,12 @@ describe('useAnalyticsTrends', () => {
       let hookResult: any;
 
       await act(async () => {
-        hookResult = renderHook((props: { token: string | null }) => useAnalyticsTrends(props.token), {
-          initialProps: { token: 'valid-token' as string | null },
-        });
+        hookResult = renderHook(
+          (props: { token: string | null }) => useAnalyticsTrends(props.token),
+          {
+            initialProps: { token: 'valid-token' as string | null },
+          }
+        );
       });
 
       const { rerender } = hookResult!;

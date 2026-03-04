@@ -14,7 +14,7 @@ const HeatmapMap = lazy(() =>
 );
 
 const MapTabLoader: React.FC = () => (
-  <div className="map-tab-loader" role="status" aria-label="Loading map">
+  <div className='map-tab-loader' role='status' aria-label='Loading map'>
     <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-secondary)' }}>
       <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🗺️</div>
       <div>Loading map...</div>
@@ -43,44 +43,47 @@ export const AnalyticsPage: React.FC = () => {
   const { trends, loading: trendsLoading } = useAnalyticsTrends(getToken(), 'weekly', 12);
 
   return (
-    <div className="analytics-page">
-      <header className="analytics-header">
-        <div className="header-content">
-          <h1 className="analytics-title">Analytics</h1>
-          <p className="analytics-subtitle">Track your performance and get personalized insights</p>
+    <div className='analytics-page'>
+      <header className='analytics-header'>
+        <div className='header-content'>
+          <h1 className='analytics-title'>Analytics</h1>
+          <p className='analytics-subtitle'>Track your performance and get personalized insights</p>
         </div>
       </header>
 
       {/* Tab Navigation */}
-      <nav className="analytics-tabs" role="tablist" aria-label="Analytics sections">
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role */}
+      <nav className='analytics-tabs' role='tablist' aria-label='Analytics sections'>
         {TABS.map(tab => (
           <button
             key={tab.id}
             id={`tab-${tab.id}`}
-            role="tab"
+            role='tab'
             aria-selected={activeTab === tab.id}
             aria-controls={`panel-${tab.id}`}
             className={`analytics-tab ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
             tabIndex={activeTab === tab.id ? 0 : -1}
           >
-            <span className="tab-icon" aria-hidden="true">{tab.icon}</span>
-            <span className="tab-label">{tab.label}</span>
+            <span className='tab-icon' aria-hidden='true'>
+              {tab.icon}
+            </span>
+            <span className='tab-label'>{tab.label}</span>
           </button>
         ))}
       </nav>
 
       {/* Tab Content */}
-      <div className="analytics-content">
+      <div className='analytics-content'>
         {activeTab === 'overview' && (
           <div
-            id="panel-overview"
-            role="tabpanel"
-            aria-labelledby="tab-overview"
-            className="tab-panel fade-in"
+            id='panel-overview'
+            role='tabpanel'
+            aria-labelledby='tab-overview'
+            className='tab-panel fade-in'
             tabIndex={0}
           >
-            <section className="analytics-section">
+            <section className='analytics-section'>
               <StatsDashboard />
             </section>
           </div>
@@ -88,30 +91,30 @@ export const AnalyticsPage: React.FC = () => {
 
         {activeTab === 'trends' && (
           <div
-            id="panel-trends"
-            role="tabpanel"
-            aria-labelledby="tab-trends"
-            className="tab-panel fade-in"
+            id='panel-trends'
+            role='tabpanel'
+            aria-labelledby='tab-trends'
+            className='tab-panel fade-in'
             tabIndex={0}
           >
-            <section className="analytics-section">
+            <section className='analytics-section'>
               <TrendInsight trends={trends} loading={trendsLoading} />
             </section>
-            <section className="analytics-section">
-              <TrendChart period="3m" height={350} />
+            <section className='analytics-section'>
+              <TrendChart period='3m' height={350} />
             </section>
           </div>
         )}
 
         {activeTab === 'insights' && (
           <div
-            id="panel-insights"
-            role="tabpanel"
-            aria-labelledby="tab-insights"
-            className="tab-panel fade-in"
+            id='panel-insights'
+            role='tabpanel'
+            aria-labelledby='tab-insights'
+            className='tab-panel fade-in'
             tabIndex={0}
           >
-            <section className="analytics-section">
+            <section className='analytics-section'>
               <InsightsFeed />
             </section>
           </div>
@@ -119,13 +122,13 @@ export const AnalyticsPage: React.FC = () => {
 
         {activeTab === 'map' && (
           <div
-            id="panel-map"
-            role="tabpanel"
-            aria-labelledby="tab-map"
-            className="tab-panel fade-in"
+            id='panel-map'
+            role='tabpanel'
+            aria-labelledby='tab-map'
+            className='tab-panel fade-in'
             tabIndex={0}
           >
-            <section className="analytics-section">
+            <section className='analytics-section'>
               <Suspense fallback={<MapTabLoader />}>
                 <HeatmapMap />
               </Suspense>

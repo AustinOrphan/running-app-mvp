@@ -204,7 +204,9 @@ test.describe('Analytics Page E2E Tests', () => {
       await page.click('button.analytics-tab:has-text("Overview")');
 
       // Should have period selector of some form
-      const periodSelector = page.locator('select, button:has-text("Weekly"), button:has-text("Monthly"), .period-selector');
+      const periodSelector = page.locator(
+        'select, button:has-text("Weekly"), button:has-text("Monthly"), .period-selector'
+      );
       await expect(periodSelector.first()).toBeVisible();
     });
 
@@ -216,7 +218,7 @@ test.describe('Analytics Page E2E Tests', () => {
 
       // Find period selector and change it
       const periodSelector = page.locator('select').first();
-      const hasSelect = await periodSelector.count() > 0;
+      const hasSelect = (await periodSelector.count()) > 0;
       if (hasSelect) {
         await periodSelector.selectOption('monthly');
       }
@@ -235,7 +237,7 @@ test.describe('Analytics Page E2E Tests', () => {
       await page.click('button.analytics-tab:has-text("Overview")');
 
       const periodSelector = page.locator('select').first();
-      const hasSelect = await periodSelector.count() > 0;
+      const hasSelect = (await periodSelector.count()) > 0;
       if (hasSelect) {
         await periodSelector.selectOption('yearly');
       }
@@ -291,7 +293,9 @@ test.describe('Analytics Page E2E Tests', () => {
     test('should display subtitle', async ({ page }) => {
       await page.goto('/analytics');
 
-      await expect(page.locator('text=Track your performance and get personalized insights')).toBeVisible();
+      await expect(
+        page.locator('text=Track your performance and get personalized insights')
+      ).toBeVisible();
     });
 
     test('should have gradient title styling', async ({ page }) => {
@@ -439,7 +443,9 @@ test.describe('Analytics Page E2E Tests', () => {
     });
 
     test('should display chart type selector', async ({ page }) => {
-      const chartTypeSelector = page.locator('.chart-type-selector, select[aria-label="Chart type selector"]');
+      const chartTypeSelector = page.locator(
+        '.chart-type-selector, select[aria-label="Chart type selector"]'
+      );
       await expect(chartTypeSelector.first()).toBeVisible();
     });
 
@@ -544,8 +550,8 @@ test.describe('Analytics Page E2E Tests', () => {
       const insightCards = page.locator('.insight-card');
       const emptyState = page.locator('.insights-empty');
 
-      const hasInsights = await insightCards.count() > 0;
-      const hasEmptyState = await emptyState.count() > 0;
+      const hasInsights = (await insightCards.count()) > 0;
+      const hasEmptyState = (await emptyState.count()) > 0;
 
       expect(hasInsights || hasEmptyState).toBeTruthy();
     });
@@ -561,7 +567,9 @@ test.describe('Analytics Page E2E Tests', () => {
 
       if (initialCount > 0) {
         // Click dismiss button on first insight
-        const dismissButton = page.locator('button[aria-label="Dismiss insight"], button[title="Dismiss"]').first();
+        const dismissButton = page
+          .locator('button[aria-label="Dismiss insight"], button[title="Dismiss"]')
+          .first();
         const dismissCount = await dismissButton.count();
         if (dismissCount > 0) {
           await dismissButton.click();

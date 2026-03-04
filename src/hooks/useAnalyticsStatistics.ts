@@ -19,9 +19,7 @@ export const useAnalyticsStatistics = (
     setError(null);
 
     try {
-      const response = await apiGet<AggregatedStats>(
-        `/api/analytics/statistics?period=${period}`
-      );
+      const response = await apiGet<AggregatedStats>(`/api/analytics/statistics?period=${period}`);
       setStatistics(response.data);
     } catch (error) {
       logError(

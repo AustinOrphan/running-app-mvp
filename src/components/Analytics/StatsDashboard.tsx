@@ -34,18 +34,18 @@ export const StatsDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="stats-dashboard-error">
-        <div className="error-icon">⚠️</div>
-        <div className="error-message">{error}</div>
+      <div className='stats-dashboard-error'>
+        <div className='error-icon'>⚠️</div>
+        <div className='error-message'>{error}</div>
         <style>{styles}</style>
       </div>
     );
   }
 
   return (
-    <div className="stats-dashboard">
-      <div className="stats-dashboard-header">
-        <div className="period-selector" role="group" aria-label="Statistics time period">
+    <div className='stats-dashboard'>
+      <div className='stats-dashboard-header'>
+        <div className='period-selector' role='group' aria-label='Statistics time period'>
           {periods.map(period => (
             <button
               key={period.value}
@@ -54,61 +54,55 @@ export const StatsDashboard: React.FC = () => {
               disabled={loading}
               aria-pressed={selectedPeriod === period.value}
             >
-              <span className="period-icon" aria-hidden="true">{period.icon}</span>
-              <span className="period-label">{period.label}</span>
+              <span className='period-icon' aria-hidden='true'>
+                {period.icon}
+              </span>
+              <span className='period-label'>{period.label}</span>
             </button>
           ))}
         </div>
-        {statistics && (
-          <div className="period-date">{formatPeriodDate()}</div>
-        )}
+        {statistics && <div className='period-date'>{formatPeriodDate()}</div>}
       </div>
 
       {loading || !statistics ? (
-        <div className="stats-grid" aria-busy="true" aria-label="Loading statistics">
+        <div className='stats-grid' aria-busy='true' aria-label='Loading statistics'>
           {Array.from({ length: 6 }).map((_, i) => (
-            <StatsCard
-              key={i}
-              icon="📊"
-              label="Loading..."
-              value="--"
-              loading={true}
-            />
+            <StatsCard key={i} icon='📊' label='Loading...' value='--' loading={true} />
           ))}
         </div>
       ) : statistics.totalRuns === 0 ? (
-        <div className="stats-empty">
-          <div className="empty-icon">🏃‍♂️</div>
-          <div className="empty-message">No runs in this period</div>
-          <div className="empty-hint">Start logging runs to see your stats!</div>
+        <div className='stats-empty'>
+          <div className='empty-icon'>🏃‍♂️</div>
+          <div className='empty-message'>No runs in this period</div>
+          <div className='empty-hint'>Start logging runs to see your stats!</div>
         </div>
       ) : (
-        <div className="stats-grid">
+        <div className='stats-grid'>
           <StatsCard
-            icon="🏃‍♂️"
-            label="Total Runs"
+            icon='🏃‍♂️'
+            label='Total Runs'
             value={statistics.totalRuns}
-            color="var(--color-primary)"
+            color='var(--color-primary)'
           />
 
           <StatsCard
-            icon="📏"
-            label="Total Distance"
+            icon='📏'
+            label='Total Distance'
             value={formatDistance(statistics.totalDistance)}
             subValue={`${formatDistance(statistics.totalDistance / statistics.totalRuns)} avg`}
-            color="var(--color-success)"
+            color='var(--color-success)'
           />
 
           <StatsCard
-            icon="⏱️"
-            label="Total Time"
+            icon='⏱️'
+            label='Total Time'
             value={formatDuration(statistics.totalDuration)}
-            color="var(--color-info)"
+            color='var(--color-info)'
           />
 
           <StatsCard
-            icon="⚡"
-            label="Avg Pace"
+            icon='⚡'
+            label='Avg Pace'
             value={statistics.avgPace > 0 ? formatPace(statistics.avgPace) : '--'}
             subValue={
               statistics.fastestPace > 0 && statistics.fastestPace !== Infinity
@@ -120,35 +114,33 @@ export const StatsDashboard: React.FC = () => {
                 ? 'up'
                 : 'neutral'
             }
-            color="var(--color-warning)"
+            color='var(--color-warning)'
           />
 
           <StatsCard
-            icon="🔝"
-            label="Longest Run"
+            icon='🔝'
+            label='Longest Run'
             value={formatDistance(statistics.longestRun)}
-            color="var(--color-primary)"
+            color='var(--color-primary)'
           />
 
           {statistics.totalElevation !== undefined && statistics.totalElevation > 0 && (
             <StatsCard
-              icon="⛰️"
-              label="Total Elevation"
+              icon='⛰️'
+              label='Total Elevation'
               value={`${Math.round(statistics.totalElevation)}m`}
               subValue={`${Math.round(statistics.totalElevation / statistics.totalRuns)}m avg`}
-              color="var(--color-success)"
+              color='var(--color-success)'
             />
           )}
 
           {statistics.avgHeartRate !== undefined && statistics.avgHeartRate > 0 && (
             <StatsCard
-              icon="❤️"
-              label="Avg Heart Rate"
+              icon='❤️'
+              label='Avg Heart Rate'
               value={`${statistics.avgHeartRate} bpm`}
-              subValue={
-                statistics.maxHeartRate ? `${statistics.maxHeartRate} max` : undefined
-              }
-              color="var(--color-danger, #ef4444)"
+              subValue={statistics.maxHeartRate ? `${statistics.maxHeartRate} max` : undefined}
+              color='var(--color-danger, #ef4444)'
             />
           )}
         </div>

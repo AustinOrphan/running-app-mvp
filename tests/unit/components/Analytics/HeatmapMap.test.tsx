@@ -520,7 +520,7 @@ describe('HeatmapMap', () => {
     it('displays info about number of areas', () => {
       render(<HeatmapMap />);
 
-      expect(screen.getByText('Showing 2 areas where you\'ve run')).toBeInTheDocument();
+      expect(screen.getByText("Showing 2 areas where you've run")).toBeInTheDocument();
       expect(screen.getByText('📍')).toBeInTheDocument();
     });
 
@@ -545,7 +545,7 @@ describe('HeatmapMap', () => {
 
       render(<HeatmapMap />);
 
-      expect(screen.getByText('Showing 1 areas where you\'ve run')).toBeInTheDocument();
+      expect(screen.getByText("Showing 1 areas where you've run")).toBeInTheDocument();
     });
   });
 
@@ -659,9 +659,7 @@ describe('HeatmapMap', () => {
     it('handles very large density values', () => {
       const largeData: HeatmapData = {
         ...mockHeatmapData,
-        features: [
-          { ...mockHeatmapData.features[0], properties: { density: 999999 } },
-        ],
+        features: [{ ...mockHeatmapData.features[0], properties: { density: 999999 } }],
       };
 
       mockUseAnalyticsHeatmap.mockReturnValue({

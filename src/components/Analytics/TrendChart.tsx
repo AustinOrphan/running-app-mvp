@@ -31,17 +31,17 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
 
   if (loading) {
     return (
-      <div className="trend-chart trend-chart-loading">
-        <div className="trend-chart-header">
-          <div className="skeleton-line" style={{ width: '150px', height: '20px' }}></div>
-          <div className="skeleton-line" style={{ width: '200px', height: '36px' }}></div>
+      <div className='trend-chart trend-chart-loading'>
+        <div className='trend-chart-header'>
+          <div className='skeleton-line' style={{ width: '150px', height: '20px' }}></div>
+          <div className='skeleton-line' style={{ width: '200px', height: '36px' }}></div>
         </div>
-        <div className="skeleton-chart" style={{ height: `${height}px` }}>
-          <div className="skeleton-chart-content">
+        <div className='skeleton-chart' style={{ height: `${height}px` }}>
+          <div className='skeleton-chart-content'>
             {[1, 2, 3, 4, 5].map(i => (
               <div
                 key={i}
-                className="skeleton-line"
+                className='skeleton-line'
                 style={{
                   width: '100%',
                   height: `${20 + Math.random() * 40}px`,
@@ -58,12 +58,12 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
 
   if (!trendsData || trendsData.length === 0) {
     return (
-      <div className="trend-chart">
-        <div className="trend-chart-header">
+      <div className='trend-chart'>
+        <div className='trend-chart-header'>
           <h3>Running Trends</h3>
         </div>
-        <div className="trend-chart-empty">
-          <div className="empty-icon">📈</div>
+        <div className='trend-chart-empty'>
+          <div className='empty-icon'>📈</div>
           <p>Not enough data for trends</p>
           <span>Add more runs to see your progress over time</span>
         </div>
@@ -100,8 +100,8 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
     if (active && payload && payload.length) {
       const dataPoint = payload[0]?.payload;
       return (
-        <div className="trend-chart-tooltip">
-          <p className="tooltip-label">{dataPoint?.displayDate || ''}</p>
+        <div className='trend-chart-tooltip'>
+          <p className='tooltip-label'>{dataPoint?.displayDate || ''}</p>
           {payload.map((entry, index) => {
             const value =
               entry.dataKey === 'pace' && entry.value
@@ -111,9 +111,9 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
                   : entry.value;
 
             return (
-              <p key={index} className="tooltip-item" style={{ color: entry.color }}>
-                <span className="tooltip-name">{entry.name}: </span>
-                <span className="tooltip-value">{value}</span>
+              <p key={index} className='tooltip-item' style={{ color: entry.color }}>
+                <span className='tooltip-name'>{entry.name}: </span>
+                <span className='tooltip-value'>{value}</span>
               </p>
             );
           })}
@@ -146,20 +146,20 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
       return (
         <AreaChart {...commonProps}>
           <defs>
-            <linearGradient id="colorDistance" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.8} />
-              <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0.1} />
+            <linearGradient id='colorDistance' x1='0' y1='0' x2='0' y2='1'>
+              <stop offset='5%' stopColor='var(--color-primary)' stopOpacity={0.8} />
+              <stop offset='95%' stopColor='var(--color-primary)' stopOpacity={0.1} />
             </linearGradient>
-            <linearGradient id="colorPace" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--color-success)" stopOpacity={0.8} />
-              <stop offset="95%" stopColor="var(--color-success)" stopOpacity={0.1} />
+            <linearGradient id='colorPace' x1='0' y1='0' x2='0' y2='1'>
+              <stop offset='5%' stopColor='var(--color-success)' stopOpacity={0.8} />
+              <stop offset='95%' stopColor='var(--color-success)' stopOpacity={0.1} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
+          <CartesianGrid strokeDasharray='3 3' stroke='var(--color-border)' opacity={0.3} />
           <XAxis {...xAxisProps} />
           <YAxis
             {...yAxisProps}
-            yAxisId="left"
+            yAxisId='left'
             label={{
               value: 'Distance (km)',
               angle: -90,
@@ -170,8 +170,8 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
           {(selectedMetric === 'pace' || selectedMetric === 'both') && (
             <YAxis
               {...yAxisProps}
-              yAxisId="right"
-              orientation="right"
+              yAxisId='right'
+              orientation='right'
               tickFormatter={(value: number) => {
                 if (!value || value <= 0) return '0';
                 const minutes = Math.floor(value / 60);
@@ -195,27 +195,27 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
 
           {(selectedMetric === 'distance' || selectedMetric === 'both') && (
             <Area
-              yAxisId="left"
-              type="monotone"
-              dataKey="distance"
-              name="Distance"
-              stroke="var(--color-primary)"
+              yAxisId='left'
+              type='monotone'
+              dataKey='distance'
+              name='Distance'
+              stroke='var(--color-primary)'
               strokeWidth={2}
               fillOpacity={1}
-              fill="url(#colorDistance)"
+              fill='url(#colorDistance)'
             />
           )}
 
           {(selectedMetric === 'pace' || selectedMetric === 'both') && (
             <Area
               yAxisId={selectedMetric === 'both' ? 'right' : 'left'}
-              type="monotone"
-              dataKey="pace"
-              name="Pace"
-              stroke="var(--color-success)"
+              type='monotone'
+              dataKey='pace'
+              name='Pace'
+              stroke='var(--color-success)'
               strokeWidth={2}
               fillOpacity={1}
-              fill="url(#colorPace)"
+              fill='url(#colorPace)'
             />
           )}
         </AreaChart>
@@ -225,11 +225,11 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
     // Line chart
     return (
       <LineChart {...commonProps}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
+        <CartesianGrid strokeDasharray='3 3' stroke='var(--color-border)' opacity={0.3} />
         <XAxis {...xAxisProps} />
         <YAxis
           {...yAxisProps}
-          yAxisId="left"
+          yAxisId='left'
           label={{
             value: 'Distance (km)',
             angle: -90,
@@ -240,8 +240,8 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
         {(selectedMetric === 'pace' || selectedMetric === 'both') && (
           <YAxis
             {...yAxisProps}
-            yAxisId="right"
-            orientation="right"
+            yAxisId='right'
+            orientation='right'
             tickFormatter={(value: number) => {
               if (!value || value <= 0) return '0';
               const minutes = Math.floor(value / 60);
@@ -261,11 +261,11 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
 
         {(selectedMetric === 'distance' || selectedMetric === 'both') && (
           <Line
-            yAxisId="left"
-            type="monotone"
-            dataKey="distance"
-            name="Distance"
-            stroke="var(--color-primary)"
+            yAxisId='left'
+            type='monotone'
+            dataKey='distance'
+            name='Distance'
+            stroke='var(--color-primary)'
             strokeWidth={2}
             dot={{ fill: 'var(--color-primary)', strokeWidth: 2, r: 4 }}
             activeDot={{ r: 6 }}
@@ -275,10 +275,10 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
         {(selectedMetric === 'pace' || selectedMetric === 'both') && (
           <Line
             yAxisId={selectedMetric === 'both' ? 'right' : 'left'}
-            type="monotone"
-            dataKey="pace"
-            name="Pace"
-            stroke="var(--color-success)"
+            type='monotone'
+            dataKey='pace'
+            name='Pace'
+            stroke='var(--color-success)'
             strokeWidth={2}
             dot={{ fill: 'var(--color-success)', strokeWidth: 2, r: 4 }}
             activeDot={{ r: 6 }}
@@ -289,35 +289,35 @@ export const TrendChart: React.FC<TrendChartProps> = ({ period = '3m', height = 
   };
 
   return (
-    <div className="trend-chart">
-      <div className="trend-chart-header">
+    <div className='trend-chart'>
+      <div className='trend-chart-header'>
         <h3>Running Trends</h3>
-        <div className="trend-chart-controls">
+        <div className='trend-chart-controls'>
           <select
             value={selectedMetric}
             onChange={e => setSelectedMetric(e.target.value as MetricType)}
-            className="metric-selector"
-            aria-label="Metric selector"
+            className='metric-selector'
+            aria-label='Metric selector'
           >
-            <option value="distance">Distance</option>
-            <option value="pace">Pace</option>
-            <option value="both">Both</option>
+            <option value='distance'>Distance</option>
+            <option value='pace'>Pace</option>
+            <option value='both'>Both</option>
           </select>
 
           <select
             value={chartType}
             onChange={e => setChartType(e.target.value as ChartType)}
-            className="chart-type-selector"
-            aria-label="Chart type selector"
+            className='chart-type-selector'
+            aria-label='Chart type selector'
           >
-            <option value="line">Line</option>
-            <option value="area">Area</option>
+            <option value='line'>Line</option>
+            <option value='area'>Area</option>
           </select>
         </div>
       </div>
 
-      <div className="trend-chart-container">
-        <ResponsiveContainer width="100%" height={height}>
+      <div className='trend-chart-container'>
+        <ResponsiveContainer width='100%' height={height}>
           {renderChart()}
         </ResponsiveContainer>
       </div>
