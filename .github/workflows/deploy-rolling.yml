@@ -24,7 +24,7 @@ on:
         type: string
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '20'
   DOCKER_REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   DEPLOYMENT_TIMEOUT: 600
