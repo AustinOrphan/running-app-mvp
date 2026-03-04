@@ -233,8 +233,8 @@ async function main(): Promise<void> {
   }
 }
 
-// Execute main function if script is run directly
-if (require.main === module) {
+// Execute main function if script is run directly (ES module pattern)
+if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(error => {
     console.error('Fatal error:', error);
     process.exit(1);
