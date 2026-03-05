@@ -9,6 +9,7 @@
     "npm": ">=10.0.0"
   },
   "scripts": {
+    "postinstall": "if [ -d AustinOrphan-backend-libs-node ]; then cd AustinOrphan-backend-libs-node/packages/config && npm install && npm run build && cd ../errors && npm install && npm run build && cd ../logger && npm install && npm run build; fi || true",
     "dev": "tsx watch server.ts",
     "dev:frontend": "vite",
     "dev:full": "concurrently \"npm run dev\" \"npm run dev:frontend\"",
