@@ -8,6 +8,7 @@ node_modules/
 
 # Git submodules
 AustinOrphan-backend-libs-node/
+**/AustinOrphan-backend-libs-node/**
 
 # Generated files
 *.min.js
