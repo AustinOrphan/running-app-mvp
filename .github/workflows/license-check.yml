@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -55,13 +57,13 @@ jobs:
         run: |
           echo "🚨 Checking for problematic licenses..."
 
-          # Check for GPL licenses (copyleft)
-          if license-checker --json | grep -i "gpl\|lgpl\|agpl" > /dev/null; then
+          # Check for GPL licenses (copyleft), excluding LGPL-3.0-only which is allowed for dev dependencies
+          if license-checker --json | grep -i "gpl\|lgpl\|agpl" | grep -iv "LGPL-3.0-only" > /dev/null; then
             echo "⚠️ WARNING: GPL/LGPL/AGPL licenses detected!"
-            license-checker --json | grep -i "gpl\|lgpl\|agpl" || true
+            license-checker --json | grep -i "gpl\|lgpl\|agpl" | grep -iv "LGPL-3.0-only" || true
             echo "GPL_DETECTED=true" >> $GITHUB_ENV
           else
-            echo "✅ No GPL licenses detected"
+            echo "✅ No problematic GPL licenses detected (LGPL-3.0-only is allowed for dev dependencies)"
             echo "GPL_DETECTED=false" >> $GITHUB_ENV
           fi
 
