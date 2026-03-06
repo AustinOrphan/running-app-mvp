@@ -66,9 +66,16 @@ jobs:
         run: |
           npx prisma migrate deploy
           npx prisma generate
+        env:
+          DATABASE_URL: file:./prisma/test-infra.db
 
       - name: 🏗️ Run infrastructure startup tests
         run: npm run test:infrastructure
+        env:
+          DATABASE_URL: file:./prisma/test-infra.db
+          JWT_SECRET: test-secret-key-infrastructure
+          SESSION_SECRET: test-session-secret-infrastructure
+          LOG_SALT: test-log-salt-infrastructure
 
       - name: 📊 Upload infrastructure test results
         uses: actions/upload-artifact@v4
