@@ -40,6 +40,13 @@ jobs:
   infrastructure-tests:
     name: 🏗️ Infrastructure Tests
     runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: file:./prisma/test-infra.db
+      JWT_SECRET: test-secret-key-infrastructure
+      SESSION_SECRET: test-session-secret-infrastructure
+      LOG_SALT: test-log-salt-infrastructure
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -109,23 +116,11 @@ jobs:
     name: 🔧 Integration Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_test
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/test-integration.db
+      JWT_SECRET: test-secret-key-integration
+      SESSION_SECRET: test-session-secret-integration
+      LOG_SALT: test-log-salt-integration
 
     steps:
       - name: 📥 Checkout code
@@ -170,23 +165,11 @@ jobs:
     name: 🎭 E2E Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_e2e
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_e2e
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/test-e2e.db
+      JWT_SECRET: test-secret-key-e2e
+      SESSION_SECRET: test-session-secret-e2e
+      LOG_SALT: test-log-salt-e2e
 
     steps:
       - name: 📥 Checkout code
@@ -286,23 +269,11 @@ jobs:
     name: ♿ Accessibility Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_a11y_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_a11y_test
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/test-a11y.db
+      JWT_SECRET: test-secret-key-a11y
+      SESSION_SECRET: test-session-secret-a11y
+      LOG_SALT: test-log-salt-a11y
 
     steps:
       - name: 📥 Checkout code
