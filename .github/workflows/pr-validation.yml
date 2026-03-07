@@ -136,7 +136,7 @@ jobs:
 
     env:
       DATABASE_URL: file:./prisma/test-pr.db
-      JWT_SECRET: test-secret-key-pr
+      JWT_SECRET: test-secret-key-pr-for-testing-32c
       SESSION_SECRET: test-session-secret-pr
       LOG_SALT: test-log-salt-pr
 
@@ -189,7 +189,7 @@ jobs:
 
     env:
       DATABASE_URL: file:./prisma/test-e2e-pr.db
-      JWT_SECRET: test-secret-key-e2e-pr
+      JWT_SECRET: test-secret-key-e2e-pr-testing-32c
       SESSION_SECRET: test-session-secret-e2e-pr
       LOG_SALT: test-log-salt-e2e-pr
 

@@ -43,7 +43,7 @@ jobs:
 
     env:
       DATABASE_URL: file:./prisma/test-infra.db
-      JWT_SECRET: test-secret-key-infrastructure
+      JWT_SECRET: test-secret-key-infrastructure-32c
       SESSION_SECRET: test-session-secret-infrastructure
       LOG_SALT: test-log-salt-infrastructure
 
@@ -73,7 +73,7 @@ jobs:
         run: npm run test:infrastructure
         env:
           DATABASE_URL: file:./prisma/test-infra.db
-          JWT_SECRET: test-secret-key-infrastructure
+          JWT_SECRET: test-secret-key-infrastructure-32c
           SESSION_SECRET: test-session-secret-infrastructure
           LOG_SALT: test-log-salt-infrastructure
 
@@ -130,7 +130,7 @@ jobs:
 
     env:
       DATABASE_URL: file:./prisma/test-integration.db
-      JWT_SECRET: test-secret-key-integration
+      JWT_SECRET: test-secret-key-integration-32c
       SESSION_SECRET: test-session-secret-integration
       LOG_SALT: test-log-salt-integration
 
@@ -179,7 +179,7 @@ jobs:
 
     env:
       DATABASE_URL: file:./prisma/test-e2e.db
-      JWT_SECRET: test-secret-key-e2e
+      JWT_SECRET: test-secret-key-e2e-testing-32c
       SESSION_SECRET: test-session-secret-e2e
       LOG_SALT: test-log-salt-e2e
 
@@ -283,7 +283,7 @@ jobs:
 
     env:
       DATABASE_URL: file:./prisma/test-a11y.db
-      JWT_SECRET: test-secret-key-a11y
+      JWT_SECRET: test-secret-key-a11y-testing-32c
       SESSION_SECRET: test-session-secret-a11y
       LOG_SALT: test-log-salt-a11y
 

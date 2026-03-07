@@ -42,7 +42,7 @@ jobs:
           npm run create-test-user
         env:
           DATABASE_URL: file:./test.db
-          JWT_SECRET: test-secret-for-ci
+          JWT_SECRET: test-secret-for-ci-testing-32chars
           SESSION_SECRET: test-session-secret-e2e
           LOG_SALT: test-salt
 
@@ -58,7 +58,7 @@ jobs:
         env:
           NODE_ENV: test
           DATABASE_URL: file:./test.db
-          JWT_SECRET: test-secret-for-ci
+          JWT_SECRET: test-secret-for-ci-testing-32chars
           SESSION_SECRET: test-session-secret-e2e
           LOG_SALT: test-salt
 
