@@ -99,6 +99,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       interactive = false,
       loading = false,
       className = '',
+      onClick,
       ...props
     },
     ref
@@ -122,12 +123,21 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         .join(' ');
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (interactive && onClick && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        onClick(e as unknown as React.MouseEvent<HTMLDivElement>);
+      }
+    };
+
     return (
       <div
         ref={ref}
         className={getCardClasses()}
         role={interactive ? 'button' : undefined}
         tabIndex={interactive ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={handleKeyDown}
         {...props}
       >
         {children}
