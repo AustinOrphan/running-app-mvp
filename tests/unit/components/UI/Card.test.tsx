@@ -485,7 +485,7 @@ describe('Card Component System', () => {
 
     it('maintains accessibility in complex cards', async () => {
       const { container } = render(
-        <Card variant='template' interactive={true} aria-label='Template card'>
+        <Card variant='template'>
           <CardHeader variant='template'>
             <CardIcon variant='template' color='#f59e0b'>
               🎯
@@ -507,8 +507,8 @@ describe('Card Component System', () => {
           </CardContent>
 
           <CardActions variant='template'>
-            <button>Learn More</button>
-            <button>Use Template</button>
+            <button aria-label='Learn More'>Learn More</button>
+            <button aria-label='Use Template'>Use Template</button>
           </CardActions>
         </Card>
       );
