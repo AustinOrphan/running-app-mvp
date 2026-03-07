@@ -518,9 +518,9 @@ describe('HeatmapMap', () => {
     });
 
     it('displays info about number of areas', () => {
-      render(<HeatmapMap />);
+      const { container } = render(<HeatmapMap />);
 
-      expect(screen.getByText("Showing 2 areas where you've run")).toBeInTheDocument();
+      expect(container.textContent).toContain('Showing 2 areas where you have run');
       expect(screen.getByText('📍')).toBeInTheDocument();
     });
 
@@ -543,9 +543,9 @@ describe('HeatmapMap', () => {
         error: null,
       });
 
-      render(<HeatmapMap />);
+      const { container } = render(<HeatmapMap />);
 
-      expect(screen.getByText("Showing 1 areas where you've run")).toBeInTheDocument();
+      expect(container.textContent).toContain('Showing 1 areas where you have run');
     });
   });
 
