@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { CreateGoalModal } from '../../../src/components/CreateGoalModal';
 import { GOAL_TYPES, GOAL_PERIODS, GOAL_TYPE_CONFIGS } from '../../../src/types/goals';
+import styles from '../../../src/styles/components/Modal.module.css';
 
 // Mock the clientLogger
 vi.mock('../../../src/utils/clientLogger', () => ({
@@ -47,7 +48,7 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const overlay = document.querySelector('.modal-overlay');
+      const overlay = document.querySelector(`.${styles.modalOverlay}`);
       await user.click(overlay!);
 
       expect(mockOnClose).toHaveBeenCalled();
@@ -57,7 +58,7 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const closeButton = screen.getByRole('button', { name: '✕' });
+      const closeButton = screen.getByRole('button', { name: 'Close modal' });
       await user.click(closeButton);
 
       expect(mockOnClose).toHaveBeenCalled();
@@ -67,7 +68,7 @@ describe('CreateGoalModal', () => {
       const user = userEvent.setup();
       render(<CreateGoalModal {...defaultProps} />);
 
-      const modal = document.querySelector('.modal');
+      const modal = document.querySelector(`.${styles.modal}`);
       await user.click(modal!);
 
       expect(mockOnClose).not.toHaveBeenCalled();
