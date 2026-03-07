@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { PersonalRecordsTable } from '../../../../src/components/Stats/PersonalRecordsTable';
 import { mockPersonalRecords } from '../../../fixtures/mockData.js';
+import styles from '../../../../src/styles/components/Stats.module.css';
 
 // Mock the formatters utility
 vi.mock('../../../../src/utils/formatters', () => ({
@@ -45,8 +46,8 @@ describe('PersonalRecordsTable', () => {
     it('displays table skeleton with correct structure', () => {
       const { container } = render(<PersonalRecordsTable records={[]} loading={true} />);
 
-      expect(container.querySelector('.table-skeleton')).toBeInTheDocument();
-      expect(container.querySelector('.header-skeleton')).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.tableSkeleton}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.headerSkeleton}`)).toBeInTheDocument();
     });
   });
 
@@ -126,7 +127,7 @@ describe('PersonalRecordsTable', () => {
       fireEvent.click(distanceHeader);
 
       // Check that header has active class
-      expect(distanceHeader.closest('th')).toHaveClass('active');
+      expect(distanceHeader.closest('th')).toHaveClass(styles.active);
     });
 
     it('toggles sort direction when same header is clicked twice', () => {
@@ -162,7 +163,7 @@ describe('PersonalRecordsTable', () => {
       const timeHeader = screen.getByRole('columnheader', { name: /Time/i });
       fireEvent.click(timeHeader);
 
-      expect(timeHeader.closest('th')).toHaveClass('active');
+      expect(timeHeader.closest('th')).toHaveClass(styles.active);
       expect(screen.getByText('Time ↑')).toBeInTheDocument();
     });
 
@@ -172,7 +173,7 @@ describe('PersonalRecordsTable', () => {
       const paceHeader = screen.getByRole('columnheader', { name: /Pace/i });
       fireEvent.click(paceHeader);
 
-      expect(paceHeader.closest('th')).toHaveClass('active');
+      expect(paceHeader.closest('th')).toHaveClass(styles.active);
     });
 
     it('sorts by date when date header is clicked', () => {
@@ -181,7 +182,7 @@ describe('PersonalRecordsTable', () => {
       const dateHeader = screen.getByRole('columnheader', { name: /Date/i });
       fireEvent.click(dateHeader);
 
-      expect(dateHeader.closest('th')).toHaveClass('active');
+      expect(dateHeader.closest('th')).toHaveClass(styles.active);
     });
   });
 
@@ -235,10 +236,10 @@ describe('PersonalRecordsTable', () => {
         <PersonalRecordsTable records={mockPersonalRecords} loading={false} />
       );
 
-      expect(container.querySelector('.records-table-card')).toBeInTheDocument();
-      expect(container.querySelector('.records-table-container')).toBeInTheDocument();
-      expect(container.querySelector('.records-table')).toBeInTheDocument();
-      expect(container.querySelector('.records-summary')).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.recordsTableCard}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.recordsTableContainer}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.recordsTable}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.recordsSummary}`)).toBeInTheDocument();
     });
 
     it('applies correct styling classes to cells', () => {
@@ -246,10 +247,10 @@ describe('PersonalRecordsTable', () => {
         <PersonalRecordsTable records={mockPersonalRecords} loading={false} />
       );
 
-      expect(container.querySelector('.distance-value')).toBeInTheDocument();
-      expect(container.querySelector('.time-value')).toBeInTheDocument();
-      expect(container.querySelector('.pace-value')).toBeInTheDocument();
-      expect(container.querySelector('.date-value')).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.distanceValue}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.timeValue}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.paceValue}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.dateValue}`)).toBeInTheDocument();
     });
   });
 
