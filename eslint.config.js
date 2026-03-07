@@ -27,6 +27,7 @@ export default [
       '*.temp',
       '*.log',
       'debug-eslint.*',
+      'AustinOrphan-backend-libs-node/**',
     ],
   },
 
