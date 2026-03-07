@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { InsightsCard } from '../../../../src/components/Stats/InsightsCard';
 import { mockWeeklyInsights, mockEmptyWeeklyInsights } from '../../../fixtures/mockData.js';
+import styles from '../../../../src/styles/components/Stats.module.css';
 
 // Mock the formatters utility
 vi.mock('../../../../src/utils/formatters', () => ({
@@ -29,6 +30,12 @@ vi.mock('../../../../src/utils/formatters', () => ({
       timeZone: 'UTC',
     });
   }),
+  safeAverage: vi.fn((total: number, count: number) => {
+    if (!isFinite(total) || !isFinite(count) || count === 0) {
+      return 0;
+    }
+    return total / count;
+  }),
 }));
 
 describe('InsightsCard', () => {
@@ -37,13 +44,13 @@ describe('InsightsCard', () => {
       const { container } = render(<InsightsCard insights={null} loading={true} />);
 
       expect(screen.getByText('Weekly Summary')).toBeInTheDocument();
-      expect(container.querySelectorAll('.skeleton-line')).toHaveLength(9); // 1 period + 8 item skeletons
+      expect(container.querySelectorAll(`.${styles.skeletonLine}`)).toHaveLength(9); // 1 period + 8 item skeletons
     });
 
     it('displays skeleton lines with correct styling', () => {
       const { container } = render(<InsightsCard insights={null} loading={true} />);
 
-      const skeletonLines = container.querySelectorAll('.skeleton-line');
+      const skeletonLines = container.querySelectorAll(`.${styles.skeletonLine}`);
       expect(skeletonLines.length).toBeGreaterThan(0);
     });
   });
@@ -128,21 +135,21 @@ describe('InsightsCard', () => {
     it('has correct CSS classes for styling', () => {
       const { container } = render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
-      expect(container.querySelector('.insights-card')).toBeInTheDocument();
-      expect(container.querySelector('.insights-header')).toBeInTheDocument();
-      expect(container.querySelector('.insights-grid')).toBeInTheDocument();
-      expect(container.querySelector('.insights-footer')).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.insightsCard}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.insightsHeader}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.insightsGrid}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.insightsFooter}`)).toBeInTheDocument();
     });
 
     it('renders all insight items with correct structure', () => {
       const { container } = render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
-      const insightItems = container.querySelectorAll('.insight-item');
+      const insightItems = container.querySelectorAll(`.${styles.insightItem}`);
       expect(insightItems).toHaveLength(4); // Runs, Distance, Time, Avg Pace
 
       insightItems.forEach(item => {
-        expect(item.querySelector('.insight-value')).toBeInTheDocument();
-        expect(item.querySelector('.insight-label')).toBeInTheDocument();
+        expect(item.querySelector(`.${styles.insightValue}`)).toBeInTheDocument();
+        expect(item.querySelector(`.${styles.insightLabel}`)).toBeInTheDocument();
       });
     });
   });
