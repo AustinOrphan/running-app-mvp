@@ -27,7 +27,15 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   const offset = circumference - (clamped / 100) * circumference;
 
   return (
-    <div className={`circular-progress ${className}`} style={{ width: size, height: size }}>
+    <div
+      className={`circular-progress ${className}`}
+      style={{ width: size, height: size }}
+      role='progressbar'
+      aria-valuenow={Math.round(clamped)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={`Progress: ${Math.round(clamped)}%`}
+    >
       <svg width={size} height={size} className='circular-progress-svg'>
         {/* Background circle */}
         <circle
