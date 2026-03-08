@@ -44,6 +44,18 @@ const mockLocalStorage = (() => {
   };
 })();
 
+// Helper function to create complete fetch response mocks
+const createMockResponse = (data: unknown) => ({
+  ok: true,
+  status: 200,
+  statusText: 'OK',
+  headers: new Headers({
+    'content-type': 'application/json',
+  }),
+  json: async () => data,
+  text: async () => JSON.stringify(data),
+});
+
 describe('useGoals', () => {
   const mockToken = 'mock-jwt-token-123';
 
@@ -120,11 +132,10 @@ describe('useGoals', () => {
     it('successfully fetches and sets goals', async () => {
       // Clear and set up specific mock for this test
       mockFetch.mockClear();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockGoals,
-      });
+      // Mock both API calls: /api/goals and /api/goals/progress/all
+      mockFetch
+        .mockResolvedValueOnce(createMockResponse(mockGoals))
+        .mockResolvedValueOnce(createMockResponse(mockGoalProgress));
 
       let hookResult: any;
 
@@ -143,12 +154,16 @@ describe('useGoals', () => {
 
       expect(result.current.goals).toEqual(mockGoals);
       expect(result.current.error).toBe(null);
-      expect(mockFetch).toHaveBeenCalledWith('/api/goals', {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${mockToken}`,
-        },
-      });
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/goals',
+        expect.objectContaining({
+          method: 'GET',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${mockToken}`,
+          }),
+        })
+      );
     }, 10000);
 
     it('handles fetch goals error correctly', async () => {
