@@ -172,7 +172,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({ isOpen, onClos
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title='Create New Goal' size='large'>
-      <form data-testid='create-goal-form' onSubmit={handleSubmit}>
+      <form data-testid='create-goal-form' onSubmit={handleSubmit} noValidate>
         {/* Goal Title */}
         <Input
           id='title'
