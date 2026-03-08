@@ -252,7 +252,12 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      expect(container.textContent).toContain('Goal title is required');
+      // Validation should prevent submission
+      expect(mockOnSubmit).not.toHaveBeenCalled();
+
+      await waitFor(() => {
+        expect(container.textContent).toContain('Goal title is required');
+      });
     });
 
     it('shows error when target value is empty', async () => {
@@ -265,7 +270,9 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      expect(container.textContent).toContain('Target value must be a positive number');
+      await waitFor(() => {
+        expect(container.textContent).toContain('Target value must be a positive number');
+      });
     });
 
     it('shows error when target value is negative', async () => {
@@ -303,7 +310,9 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      expect(container.textContent).toContain('End date must be after start date');
+      await waitFor(() => {
+        expect(container.textContent).toContain('End date must be after start date');
+      });
     });
 
     it('applies error class to invalid fields', async () => {
@@ -316,8 +325,10 @@ describe('CreateGoalModal', () => {
       const titleInput = screen.getByLabelText('Goal Title');
       const targetValueInput = screen.getByLabelText('Target Value');
 
-      expect(titleInput).toHaveAttribute('aria-invalid', 'true');
-      expect(targetValueInput).toHaveAttribute('aria-invalid', 'true');
+      await waitFor(() => {
+        expect(titleInput).toHaveAttribute('aria-invalid', 'true');
+        expect(targetValueInput).toHaveAttribute('aria-invalid', 'true');
+      });
     });
   });
 
@@ -489,8 +500,10 @@ describe('CreateGoalModal', () => {
 
       const titleInput = screen.getByLabelText('Goal Title');
 
-      expect(titleInput).toHaveAttribute('aria-invalid', 'true');
-      expect(container.textContent).toContain('Goal title is required');
+      await waitFor(() => {
+        expect(titleInput).toHaveAttribute('aria-invalid', 'true');
+        expect(container.textContent).toContain('Goal title is required');
+      });
     });
 
     it('has proper form structure', () => {
