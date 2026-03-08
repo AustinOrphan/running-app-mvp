@@ -58,18 +58,14 @@ describe('useGoals', () => {
     vi.stubGlobal('localStorage', mockLocalStorage);
 
     // Provide default mock responses to prevent undefined errors
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve([]),
-      text: () => Promise.resolve(''),
-    });
-
-    // Also ensure progress endpoint returns empty array by default
     mockFetch.mockImplementation(_url => {
       return Promise.resolve({
         ok: true,
         status: 200,
+        statusText: 'OK',
+        headers: new Headers({
+          'content-type': 'application/json',
+        }),
         json: () => Promise.resolve([]),
         text: () => Promise.resolve(''),
       });
