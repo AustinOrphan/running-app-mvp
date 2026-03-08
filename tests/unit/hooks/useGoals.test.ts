@@ -27,6 +27,23 @@ vi.mock('../../../src/hooks/useNotifications', () => ({
 // Mock fetch globally
 const mockFetch = vi.fn();
 
+// Mock localStorage
+const mockLocalStorage = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] || null,
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
+  };
+})();
+
 describe('useGoals', () => {
   const mockToken = 'mock-jwt-token-123';
 
@@ -34,6 +51,11 @@ describe('useGoals', () => {
     // Reset and set up fresh mock for each test
     mockFetch.mockReset();
     global.fetch = mockFetch;
+
+    // Mock localStorage and set the token
+    mockLocalStorage.clear();
+    mockLocalStorage.setItem('accessToken', mockToken);
+    vi.stubGlobal('localStorage', mockLocalStorage);
 
     // Provide default mock responses to prevent undefined errors
     mockFetch.mockResolvedValue({
@@ -56,6 +78,8 @@ describe('useGoals', () => {
 
   afterEach(() => {
     mockFetch.mockReset();
+    vi.unstubAllGlobals();
+    mockLocalStorage.clear();
   });
 
   describe('Initial State', () => {

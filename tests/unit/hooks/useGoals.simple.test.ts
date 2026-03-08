@@ -8,15 +8,39 @@ import { mockGoals, createMockGoal } from '../../fixtures/mockData.js';
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
+// Mock localStorage
+const mockLocalStorage = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] || null,
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
+  };
+})();
+
 describe('useGoals - Basic Functionality', () => {
   const mockToken = 'mock-jwt-token-123';
 
   beforeEach(() => {
     mockFetch.mockClear();
+
+    // Mock localStorage and set the token
+    mockLocalStorage.clear();
+    mockLocalStorage.setItem('accessToken', mockToken);
+    vi.stubGlobal('localStorage', mockLocalStorage);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
+    mockLocalStorage.clear();
   });
 
   describe('Initial State', () => {
