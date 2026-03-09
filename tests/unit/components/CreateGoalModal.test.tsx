@@ -247,7 +247,7 @@ describe('CreateGoalModal', () => {
   describe('Form Validation', () => {
     it('shows error when title is empty', async () => {
       const user = userEvent.setup();
-      const { container } = render(<CreateGoalModal {...defaultProps} />);
+      render(<CreateGoalModal {...defaultProps} />);
 
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
@@ -255,14 +255,13 @@ describe('CreateGoalModal', () => {
       // Validation should prevent submission
       expect(mockOnSubmit).not.toHaveBeenCalled();
 
-      await waitFor(() => {
-        expect(container.textContent).toContain('Goal title is required');
-      });
+      // Error message should appear (don't need waitFor since validation is synchronous)
+      expect(screen.getByText('Goal title is required')).toBeInTheDocument();
     });
 
     it('shows error when target value is empty', async () => {
       const user = userEvent.setup();
-      const { container } = render(<CreateGoalModal {...defaultProps} />);
+      render(<CreateGoalModal {...defaultProps} />);
 
       const titleInput = screen.getByLabelText('Goal Title');
       await user.type(titleInput, 'Test Goal');
@@ -270,9 +269,8 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      await waitFor(() => {
-        expect(container.textContent).toContain('Target value must be a positive number');
-      });
+      // Error message should appear
+      expect(screen.getByText('Target value must be a positive number')).toBeInTheDocument();
     });
 
     it('shows error when target value is negative', async () => {
@@ -293,7 +291,7 @@ describe('CreateGoalModal', () => {
 
     it('shows error when end date is before start date', async () => {
       const user = userEvent.setup();
-      const { container } = render(<CreateGoalModal {...defaultProps} />);
+      render(<CreateGoalModal {...defaultProps} />);
 
       const titleInput = screen.getByLabelText('Goal Title');
       const targetValueInput = screen.getByLabelText('Target Value');
@@ -310,9 +308,8 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      await waitFor(() => {
-        expect(container.textContent).toContain('End date must be after start date');
-      });
+      // Error message should appear
+      expect(screen.getByText('End date must be after start date')).toBeInTheDocument();
     });
 
     it('applies error class to invalid fields', async () => {
@@ -388,7 +385,7 @@ describe('CreateGoalModal', () => {
         })
       );
 
-      const { container } = render(<CreateGoalModal {...defaultProps} />);
+      render(<CreateGoalModal {...defaultProps} />);
 
       await user.type(screen.getByLabelText('Goal Title'), 'Test Goal');
       await user.type(screen.getByLabelText('Target Value'), '10');
@@ -396,14 +393,15 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      expect(container.textContent).toContain('Creating...');
+      // Check loading state
+      expect(screen.getByText('Creating...')).toBeInTheDocument();
       expect(submitButton).toBeDisabled();
       expect(screen.getByText('Cancel')).toBeDisabled();
 
       resolveSubmit!(undefined);
 
       await waitFor(() => {
-        expect(container.textContent).toContain('Create Goal');
+        expect(screen.getByText('Create Goal')).toBeInTheDocument();
       });
     });
 
@@ -493,17 +491,16 @@ describe('CreateGoalModal', () => {
 
     it('associates error messages with form fields', async () => {
       const user = userEvent.setup();
-      const { container } = render(<CreateGoalModal {...defaultProps} />);
+      render(<CreateGoalModal {...defaultProps} />);
 
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
       const titleInput = screen.getByLabelText('Goal Title');
 
-      await waitFor(() => {
-        expect(titleInput).toHaveAttribute('aria-invalid', 'true');
-        expect(container.textContent).toContain('Goal title is required');
-      });
+      // Check aria-invalid attribute and error message
+      expect(titleInput).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByText('Goal title is required')).toBeInTheDocument();
     });
 
     it('has proper form structure', () => {
