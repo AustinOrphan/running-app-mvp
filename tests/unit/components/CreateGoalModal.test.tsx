@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -300,15 +300,16 @@ describe('CreateGoalModal', () => {
 
       await user.type(titleInput, 'Test Goal');
       await user.type(targetValueInput, '10');
-      await user.clear(startDateInput);
-      await user.type(startDateInput, '2024-07-15');
-      await user.clear(endDateInput);
-      await user.type(endDateInput, '2024-07-10');
+
+      // Use fireEvent for date inputs instead of user.type
+      fireEvent.change(startDateInput, { target: { value: '2024-07-15' } });
+      fireEvent.change(endDateInput, { target: { value: '2024-07-10' } });
 
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      // Error message should appear
+      // Check error via aria-invalid and error text
+      expect(endDateInput).toHaveAttribute('aria-invalid', 'true');
       expect(screen.getByText('End date must be after start date')).toBeInTheDocument();
     });
 
@@ -393,10 +394,13 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      // Check loading state
+      // Check loading state - query for buttons by role instead of text
       expect(screen.getByText('Creating...')).toBeInTheDocument();
-      expect(submitButton).toBeDisabled();
-      expect(screen.getByText('Cancel')).toBeDisabled();
+      const buttons = screen.getAllByRole('button');
+      const submitBtn = buttons.find(btn => btn.textContent?.includes('Creating...'));
+      const cancelBtn = buttons.find(btn => btn.textContent?.includes('Cancel'));
+      expect(submitBtn).toBeDisabled();
+      expect(cancelBtn).toBeDisabled();
 
       resolveSubmit!(undefined);
 
@@ -470,7 +474,9 @@ describe('CreateGoalModal', () => {
       const submitButton = screen.getByText('Create Goal');
       await user.click(submitButton);
 
-      const cancelButton = screen.getByText('Cancel');
+      // Query for cancel button by role instead of text
+      const buttons = screen.getAllByRole('button');
+      const cancelButton = buttons.find(btn => btn.textContent?.includes('Cancel'));
       expect(cancelButton).toBeDisabled();
     });
   });
