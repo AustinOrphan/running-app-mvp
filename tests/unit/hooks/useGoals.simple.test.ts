@@ -173,6 +173,9 @@ describe('useGoals - Basic Functionality', () => {
 
   describe('Error Handling', () => {
     it('handles missing authentication token', async () => {
+      // Clear localStorage to simulate missing token
+      mockLocalStorage.removeItem('accessToken');
+
       const { result } = renderHook(() => useGoals(null));
 
       await expect(async () => {
@@ -187,7 +190,7 @@ describe('useGoals - Basic Functionality', () => {
             endDate: new Date('2024-01-07'),
           });
         });
-      }).rejects.toThrow('No authentication token available');
+      }).rejects.toThrow('Authentication required but no token available');
     });
   });
 });

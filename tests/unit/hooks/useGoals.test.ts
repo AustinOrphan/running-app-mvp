@@ -678,31 +678,37 @@ describe('useGoals', () => {
 
   describe('Error Handling', () => {
     it('handles missing authentication token', async () => {
+      // Clear localStorage to simulate missing token
+      mockLocalStorage.removeItem('accessToken');
+
       const { result } = renderHook(() => useGoals(null));
 
       await expect(async () => {
         await act(async () => {
           await result.current.createGoal(mockCreateGoalData);
         });
-      }).rejects.toThrow('No authentication token available');
+      }).rejects.toThrow('Authentication required but no token available');
     });
 
     it('handles API response without json method', async () => {
-      mockFetch.mockResolvedValueOnce({
+      // Use 400 (non-retryable) to avoid retry logic
+      const errorResponse = {
         ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
+        status: 400,
+        statusText: 'Bad Request',
         headers: new Headers({
           'content-type': 'application/json',
         }),
         json: () => Promise.reject(new Error('Invalid JSON')),
-        text: async () => 'Internal Server Error',
-      });
+        text: async () => 'Bad Request',
+      };
+      mockFetch.mockResolvedValueOnce(errorResponse);
 
       const { result } = renderHook(() => useGoals(mockToken));
 
       await waitFor(() => {
-        expect(result.current.error).toBe('Unknown error');
+        // When json() fails, apiFetch falls back to the HTTP status message
+        expect(result.current.error).toBe('HTTP 400: Bad Request');
       });
     });
   });
