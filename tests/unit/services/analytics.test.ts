@@ -18,26 +18,26 @@ describe('AnalyticsService', () => {
 
   describe('getStatistics', () => {
     it('should aggregate weekly statistics correctly', async () => {
-      // Create test runs for the past week
+      // Create test runs for the current week (to ensure they fall within startOfWeek to endOfWeek)
       const now = new Date();
 
       await createTestRuns(userId, [
         {
-          date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          date: now.toISOString(), // Today
           distance: 5.0,
           duration: 1500,
           tag: 'easy',
           notes: 'Morning run',
         },
         {
-          date: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+          date: new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
           distance: 10.0,
           duration: 3000,
           tag: 'long',
           notes: 'Weekend long run',
         },
         {
-          date: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          date: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(), // Day after tomorrow
           distance: 8.0,
           duration: 2400,
           tag: 'tempo',
@@ -95,14 +95,14 @@ describe('AnalyticsService', () => {
 
       await createTestRuns(userId, [
         {
-          date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          date: now.toISOString(), // Today
           distance: 5.0,
           duration: 1500, // 5 min/km
           tag: 'tempo',
           notes: 'Fast run',
         },
         {
-          date: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          date: new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
           distance: 10.0,
           duration: 3600, // 6 min/km
           tag: 'easy',
@@ -213,14 +213,14 @@ describe('AnalyticsService', () => {
 
       const runs = await createTestRuns(userId, [
         {
-          date: now.toISOString(),
+          date: now.toISOString(), // Today
           distance: 5.0,
           duration: 1500,
           tag: 'trail',
           notes: 'Hilly run',
         },
         {
-          date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          date: new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
           distance: 10.0,
           duration: 3000,
           tag: 'trail',
