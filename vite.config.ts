@@ -40,5 +40,10 @@ export default defineConfig({
       'tests/security.test.js', // Security tests need server
       'e2e/**', // Additional E2E directory
     ],
+    // Improve test isolation to prevent race conditions
+    isolate: true,
+    // Limit concurrency to reduce race conditions in userEvent typing
+    maxConcurrency: 5,
+    fileParallelism: false,
   },
 });
