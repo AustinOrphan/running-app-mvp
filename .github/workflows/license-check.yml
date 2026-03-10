@@ -57,13 +57,13 @@ jobs:
         run: |
           echo "🚨 Checking for problematic licenses..."
 
-          # Check for GPL licenses (copyleft), excluding LGPL-3.0-only which is allowed for dev dependencies
-          if license-checker --json | grep -i "gpl\|lgpl\|agpl" | grep -iv "LGPL-3.0-only" > /dev/null; then
+          # Check for GPL licenses (copyleft), excluding allowed LGPL variants and dual licenses with GPL as alternative
+          if license-checker --json | grep -i "gpl\|lgpl\|agpl" | grep -iv "LGPL-3.0-only" | grep -iv "LGPL-3.0\*" | grep -iv "OR GPL" > /dev/null; then
             echo "⚠️ WARNING: GPL/LGPL/AGPL licenses detected!"
-            license-checker --json | grep -i "gpl\|lgpl\|agpl" | grep -iv "LGPL-3.0-only" || true
+            license-checker --json | grep -i "gpl\|lgpl\|agpl" | grep -iv "LGPL-3.0-only" | grep -iv "LGPL-3.0\*" | grep -iv "OR GPL" || true
             echo "GPL_DETECTED=true" >> $GITHUB_ENV
           else
-            echo "✅ No problematic GPL licenses detected (LGPL-3.0-only is allowed for dev dependencies)"
+            echo "✅ No problematic GPL licenses detected (LGPL-3.0-only/LGPL-3.0* allowed for dev dependencies, dual licenses with GPL alternative are acceptable)"
             echo "GPL_DETECTED=false" >> $GITHUB_ENV
           fi
 
