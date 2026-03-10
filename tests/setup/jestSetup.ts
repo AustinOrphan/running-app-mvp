@@ -6,7 +6,7 @@ beforeAll(async () => {
   try {
     // Apply migrations to test database
     execSync('npx prisma migrate deploy', {
-      env: { ...process.env, DATABASE_URL: process.env.TEST_DATABASE_URL || 'file:./test.db' },
+      env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL || 'file:./prisma/test.db' },
       stdio: 'pipe',
     });
   } catch (error) {
