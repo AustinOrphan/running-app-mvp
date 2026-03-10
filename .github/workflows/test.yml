@@ -90,6 +90,13 @@ jobs:
   unit-tests:
     name: 🧪 Unit Tests
     runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: file:./prisma/test-unit.db
+      JWT_SECRET: test-secret-key-unit-32c
+      SESSION_SECRET: test-session-secret-unit
+      LOG_SALT: test-log-salt-unit
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -104,6 +111,11 @@ jobs:
 
       - name: 📥 Install dependencies
         run: npm ci
+
+      - name: 🗄️ Setup database
+        run: |
+          npx prisma migrate deploy
+          npx prisma generate
 
       - name: 🧪 Run unit tests with coverage
         run: npm run test:coverage
