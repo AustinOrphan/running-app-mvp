@@ -1,4 +1,4 @@
-import { test, expect } from '@austinorphan/e2e-core';
+import { test, expect } from '@playwright/test';
 
 test.describe('Running App MVP Smoke Tests', () => {
   test('homepage loads successfully', async ({ page }) => {
