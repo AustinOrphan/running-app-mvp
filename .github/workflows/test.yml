@@ -193,7 +193,7 @@ jobs:
       DATABASE_URL: file:./prisma/test-e2e.db
       TEST_DATABASE_URL: file:./prisma/test-e2e.db
       JWT_SECRET: test-secret-key-e2e-testing-32c
-      SESSION_SECRET: test-session-secret-e2e
+      SESSION_SECRET: test-session-secret-e2e-32chars-min
       LOG_SALT: test-log-salt-e2e
 
     steps:
