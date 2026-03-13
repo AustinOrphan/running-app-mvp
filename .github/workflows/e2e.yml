@@ -42,9 +42,10 @@ jobs:
           npm run create-test-user
         env:
           DATABASE_URL: file:./test.db
+          TEST_DATABASE_URL: file:./test.db
           JWT_SECRET: test-secret-for-ci-testing-32chars
-          SESSION_SECRET: test-session-secret-e2e
-          LOG_SALT: test-salt
+          SESSION_SECRET: test-session-secret-e2e-32chars-min
+          LOG_SALT: test-salt-16chars
 
       - name: Build application
         run: npm run build
@@ -58,14 +59,18 @@ jobs:
         env:
           NODE_ENV: test
           DATABASE_URL: file:./test.db
+          TEST_DATABASE_URL: file:./test.db
           JWT_SECRET: test-secret-for-ci-testing-32chars
-          SESSION_SECRET: test-session-secret-e2e
-          LOG_SALT: test-salt
+          SESSION_SECRET: test-session-secret-e2e-32chars-min
+          LOG_SALT: test-salt-16chars
+          RATE_LIMITING_ENABLED: 'false'
 
       - name: Run Playwright tests
         run: npx playwright test --project=${{ matrix.browser }}
         env:
           CI: true
+          DATABASE_URL: file:./test.db
+          TEST_DATABASE_URL: file:./test.db
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
