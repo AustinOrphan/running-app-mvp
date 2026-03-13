@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll } from '@jest/globals';
 import { AnalyticsService } from '../../../server/services/analyticsService.js';
 import { prisma } from '../../setup/jestSetup.js';
 import { createTestUser, createTestRuns } from '../../fixtures/testDatabase.js';
