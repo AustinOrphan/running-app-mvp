@@ -28,7 +28,6 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
 
       - name: 📁 Get changed files
         id: changed-files
@@ -73,6 +72,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -100,6 +101,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -131,27 +134,17 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_pr_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_pr_test
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/test-pr.db
+      JWT_SECRET: test-secret-key-pr-for-testing-32c
+      SESSION_SECRET: test-session-secret-pr
+      LOG_SALT: test-log-salt-pr
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -194,27 +187,17 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_e2e_pr
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_e2e_pr
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/test-e2e-pr.db
+      JWT_SECRET: test-secret-key-e2e-pr-testing-32c
+      SESSION_SECRET: test-session-secret-e2e-pr
+      LOG_SALT: test-log-salt-e2e-pr
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -257,6 +240,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -316,7 +301,6 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4

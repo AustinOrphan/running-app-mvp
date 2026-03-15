@@ -55,6 +55,14 @@ router.post(
   '/',
   requireAuth,
   asyncAuthHandler(async (req: AuthRequest, res) => {
+    // Handle missing or invalid request body
+    if (!req.body || typeof req.body !== 'object') {
+      throw createValidationError(
+        'Invalid request body. Content-Type must be application/json',
+        'body'
+      );
+    }
+
     const {
       title,
       description,
@@ -286,13 +294,24 @@ router.get(
           0
         );
 
+        // Calculate if user is on track
+        const totalDays = Math.ceil(
+          (goal.endDate.getTime() - goal.startDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        const daysElapsed = Math.max(totalDays - daysRemaining, 0);
+        const expectedProgress = totalDays > 0 ? (daysElapsed / totalDays) * 100 : 0;
+        const isOnTrack = progressPercentage >= expectedProgress;
+
         return {
           goalId: goal.id,
           currentValue,
+          targetValue: goal.targetValue,
           progressPercentage,
           isCompleted: currentValue >= goal.targetValue,
           remainingValue,
           daysRemaining,
+          isOnTrack,
+          lastUpdated: goal.updatedAt,
           goal,
         };
       })

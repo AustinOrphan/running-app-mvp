@@ -178,7 +178,7 @@ describe('Goals API Integration Tests', () => {
         .expect(404);
     });
 
-    it('returns 403 for goal belonging to different user', async () => {
+    it('returns 404 for goal belonging to different user', async () => {
       // Create another user with a goal
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
@@ -187,10 +187,11 @@ describe('Goals API Integration Tests', () => {
       const otherGoals = await testDb.createTestGoals(otherUser.id, [mockGoals[1]]);
       const otherGoal = otherGoals[0];
 
+      // Security: Returns 404 instead of 403 to avoid leaking resource existence
       await request(app)
         .get(`/api/goals/${otherGoal.id}`)
         .set('Authorization', `Bearer ${authToken}`)
-        .expect(403);
+        .expect(404);
     });
 
     it('returns 401 without authentication', async () => {
@@ -411,7 +412,7 @@ describe('Goals API Integration Tests', () => {
         .expect(404);
     });
 
-    it('returns 403 for goal belonging to different user', async () => {
+    it('returns 404 for goal belonging to different user', async () => {
       // Create another user with a goal
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
@@ -420,11 +421,12 @@ describe('Goals API Integration Tests', () => {
       const otherGoals = await testDb.createTestGoals(otherUser.id, [mockGoals[1]]);
       const otherGoal = otherGoals[0];
 
+      // Security: Returns 404 instead of 403 to avoid leaking resource existence
       await request(app)
         .put(`/api/goals/${otherGoal.id}`)
         .set('Authorization', `Bearer ${authToken}`)
         .send(updateData)
-        .expect(403);
+        .expect(404);
     });
 
     it('returns 400 for invalid update data', async () => {
@@ -497,7 +499,7 @@ describe('Goals API Integration Tests', () => {
         .expect(404);
     });
 
-    it('returns 403 for goal belonging to different user', async () => {
+    it('returns 404 for goal belonging to different user', async () => {
       // Create another user with a goal
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
@@ -506,10 +508,11 @@ describe('Goals API Integration Tests', () => {
       const otherGoals = await testDb.createTestGoals(otherUser.id, [mockGoals[1]]);
       const otherGoal = otherGoals[0];
 
+      // Security: Returns 404 instead of 403 to avoid leaking resource existence
       await request(app)
         .delete(`/api/goals/${otherGoal.id}`)
         .set('Authorization', `Bearer ${authToken}`)
-        .expect(403);
+        .expect(404);
 
       // Verify goal was not deleted
       const stillExists = await testDb.prisma.goal.findUnique({
@@ -575,7 +578,7 @@ describe('Goals API Integration Tests', () => {
         .expect(404);
     });
 
-    it('returns 403 for goal belonging to different user', async () => {
+    it('returns 404 for goal belonging to different user', async () => {
       // Create another user with a goal
       const otherUser = await testDb.createTestUser({
         email: 'other@test.com',
@@ -584,10 +587,11 @@ describe('Goals API Integration Tests', () => {
       const otherGoals = await testDb.createTestGoals(otherUser.id, [createMockGoal()]);
       const otherGoal = otherGoals[0];
 
+      // Security: Returns 404 instead of 403 to avoid leaking resource existence
       await request(app)
         .post(`/api/goals/${otherGoal.id}/complete`)
         .set('Authorization', `Bearer ${authToken}`)
-        .expect(403);
+        .expect(404);
     });
 
     it('returns 401 without authentication', async () => {

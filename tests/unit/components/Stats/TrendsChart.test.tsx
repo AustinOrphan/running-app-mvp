@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { TrendsChart } from '../../../../src/components/Stats/TrendsChart';
 import { mockTrendsData, createMockTrendsData } from '../../../fixtures/mockData.js';
+import styles from '../../../../src/styles/components/Stats.module.css';
 
 // Mock recharts components
 vi.mock('recharts', () => ({
@@ -29,8 +30,8 @@ describe('TrendsChart', () => {
     it('displays skeleton chart with correct structure', () => {
       const { container } = render(<TrendsChart data={[]} loading={true} />);
 
-      expect(container.querySelector('.skeleton-chart')).toBeInTheDocument();
-      expect(container.querySelector('.skeleton-line-chart')).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.skeletonChart}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.skeletonLineChart}`)).toBeInTheDocument();
     });
   });
 
@@ -132,11 +133,11 @@ describe('TrendsChart', () => {
     it('has correct CSS classes for styling', () => {
       const { container } = render(<TrendsChart data={mockTrendsData} loading={false} />);
 
-      expect(container.querySelector('.trends-chart-card')).toBeInTheDocument();
-      expect(container.querySelector('.trends-header')).toBeInTheDocument();
-      expect(container.querySelector('.trends-controls')).toBeInTheDocument();
-      expect(container.querySelector('.chart-container')).toBeInTheDocument();
-      expect(container.querySelector('.trends-summary')).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.trendsChartCard}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.trendsHeader}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.trendsControls}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.chartContainer}`)).toBeInTheDocument();
+      expect(container.querySelector(`.${styles.trendsSummary}`)).toBeInTheDocument();
     });
   });
 
@@ -144,7 +145,7 @@ describe('TrendsChart', () => {
     it('has correct styling classes', () => {
       const { container } = render(<TrendsChart data={mockTrendsData} loading={false} />);
 
-      const selector = container.querySelector('.metric-selector');
+      const selector = container.querySelector(`.${styles.metricSelector}`);
       expect(selector).toBeInTheDocument();
     });
 

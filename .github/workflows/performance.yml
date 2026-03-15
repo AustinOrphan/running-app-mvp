@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -48,7 +50,9 @@ jobs:
         env:
           NODE_ENV: production
           DATABASE_URL: file:./dev.db
-          JWT_SECRET: test-secret-for-ci
+          JWT_SECRET: test-secret-for-ci-testing-32chars
+          SESSION_SECRET: test-session-secret-perf
+          LOG_SALT: test-log-salt-perf
 
       - name: 🔍 Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
@@ -67,6 +71,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -102,6 +108,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -137,6 +145,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -174,6 +184,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📥 Download all artifacts
         uses: actions/download-artifact@v4

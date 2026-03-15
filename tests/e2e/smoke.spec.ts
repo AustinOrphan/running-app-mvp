@@ -1,4 +1,4 @@
-import { test, expect } from '@austinorphan/e2e-core';
+import { test, expect } from '@playwright/test';
 
 test.describe('Running App MVP Smoke Tests', () => {
   test('homepage loads successfully', async ({ page }) => {
@@ -8,16 +8,38 @@ test.describe('Running App MVP Smoke Tests', () => {
     await expect(page.locator('body')).toBeVisible();
 
     // Check for authentication elements (login/signup or dashboard)
-    const authElement = page.locator('text=Sign In, text=Sign Up, text=Dashboard').first();
-    await expect(authElement).toBeVisible({ timeout: 10000 });
+    // Try to find any of these auth-related elements
+    const hasSignIn = await page
+      .getByText('Sign In')
+      .isVisible()
+      .catch(() => false);
+    const hasSignUp = await page
+      .getByText('Sign Up')
+      .isVisible()
+      .catch(() => false);
+    const hasDashboard = await page
+      .getByText('Dashboard')
+      .isVisible()
+      .catch(() => false);
+
+    expect(hasSignIn || hasSignUp || hasDashboard).toBeTruthy();
   });
 
   test('navigation is functional', async ({ page }) => {
     await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check for navigation elements
-    const nav = page.locator('nav, header').first();
-    await expect(nav).toBeVisible();
+    const hasNav = await page
+      .locator('nav')
+      .isVisible()
+      .catch(() => false);
+    const hasHeader = await page
+      .locator('header')
+      .isVisible()
+      .catch(() => false);
+
+    expect(hasNav || hasHeader).toBeTruthy();
   });
 
   test('application responds to user interaction', async ({ page }) => {

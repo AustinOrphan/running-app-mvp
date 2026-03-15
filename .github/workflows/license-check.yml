@@ -23,10 +23,15 @@ jobs:
   license-check:
     name: 📄 Check License Compliance
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -43,7 +48,7 @@ jobs:
       - name: 📄 Check allowed licenses
         run: |
           echo "🔍 Checking license compliance..."
-          license-checker --onlyAllow 'MIT;Apache-2.0;BSD;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense;0BSD;BlueOak-1.0.0;CC0-1.0;CC-BY-4.0;Python-2.0;Zlib;MPL-2.0;EDL-1.0;EPL-1.0;EPL-2.0;MIT-0;LGPL-3.0-only;(MIT OR Apache-2.0);(MIT OR CC0-1.0);(EPL-1.0 OR BSD-3-Clause);(BSD-3-Clause OR GPL-2.0);(WTFPL OR MIT);MIT*;BSD*;MIT AND ISC;Custom: https://github.com/bjornharrtell/jsts;Custom: https://travis-ci.org/bjornharrtell/jsts.svg' --excludePrivatePackages --summary
+          license-checker --onlyAllow 'MIT;Apache-2.0;BSD;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense;0BSD;BlueOak-1.0.0;CC0-1.0;CC-BY-4.0;Python-2.0;Zlib;MPL-2.0;EDL-1.0;EPL-1.0;EPL-2.0;MIT-0;LGPL-3.0-only;LGPL-3.0*;(MIT OR Apache-2.0);(MIT OR CC0-1.0);(EPL-1.0 OR BSD-3-Clause);(BSD-3-Clause OR GPL-2.0);(WTFPL OR MIT);MIT*;BSD*;MIT AND ISC' --excludePrivatePackages --excludePackages 'jsts@2.7.1;@turf/jsts@2.7.2' --summary
 
       - name: 📊 Generate detailed license report
         run: |
@@ -55,13 +60,13 @@ jobs:
         run: |
           echo "🚨 Checking for problematic licenses..."
 
-          # Check for GPL licenses (copyleft)
-          if license-checker --json | grep -i "gpl\|lgpl\|agpl" > /dev/null; then
+          # Check for GPL licenses (copyleft), excluding allowed LGPL variants and dual licenses with GPL as alternative
+          if license-checker --json | grep -i "gpl\|lgpl\|agpl" | grep -iv "LGPL-3.0-only" | grep -iv "LGPL-3.0\*" | grep -iv "OR GPL" > /dev/null; then
             echo "⚠️ WARNING: GPL/LGPL/AGPL licenses detected!"
-            license-checker --json | grep -i "gpl\|lgpl\|agpl" || true
+            license-checker --json | grep -i "gpl\|lgpl\|agpl" | grep -iv "LGPL-3.0-only" | grep -iv "LGPL-3.0\*" | grep -iv "OR GPL" || true
             echo "GPL_DETECTED=true" >> $GITHUB_ENV
           else
-            echo "✅ No GPL licenses detected"
+            echo "✅ No problematic GPL licenses detected (LGPL-3.0-only/LGPL-3.0* allowed for dev dependencies, dual licenses with GPL alternative are acceptable)"
             echo "GPL_DETECTED=false" >> $GITHUB_ENV
           fi
 

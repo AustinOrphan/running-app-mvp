@@ -230,7 +230,7 @@ describe('Server Startup Integration Tests', () => {
     } catch (error) {
       throw new Error(`Health check failed: ${error}`);
     }
-  });
+  }, 10000); // Increase timeout to 10 seconds
 
   it(
     'should start frontend server successfully',

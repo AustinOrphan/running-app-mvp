@@ -99,6 +99,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       interactive = false,
       loading = false,
       className = '',
+      onClick,
       ...props
     },
     ref
@@ -122,12 +123,21 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         .join(' ');
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (interactive && onClick && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        onClick(e as unknown as React.MouseEvent<HTMLDivElement>);
+      }
+    };
+
     return (
       <div
         ref={ref}
         className={getCardClasses()}
         role={interactive ? 'button' : undefined}
         tabIndex={interactive ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={handleKeyDown}
         {...props}
       >
         {children}
@@ -337,7 +347,14 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   if (completed) fillClasses.push(styles.progressFillCompleted);
 
   return (
-    <div className={`${styles.progressBar} ${className}`}>
+    <div
+      className={`${styles.progressBar} ${className}`}
+      role='progressbar'
+      aria-valuenow={Math.round(Math.min(percentage, 100))}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={`Progress: ${Math.round(Math.min(percentage, 100))}%`}
+    >
       <div
         className={fillClasses.join(' ')}
         style={{

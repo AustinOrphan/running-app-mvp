@@ -44,8 +44,9 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120 * 1000,
     env: {
-      DATABASE_URL: 'file:./prisma/test.db',
-      TEST_DATABASE_URL: 'file:./prisma/test.db',
+      // Use DATABASE_URL from environment if available (CI), otherwise default to test-e2e.db
+      DATABASE_URL: process.env.DATABASE_URL || 'file:./prisma/test-e2e.db',
+      TEST_DATABASE_URL: process.env.DATABASE_URL || 'file:./prisma/test-e2e.db',
       NODE_ENV: 'test',
       RATE_LIMITING_ENABLED: 'false',
     },

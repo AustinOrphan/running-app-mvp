@@ -28,5 +28,22 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./tests/setup/testSetup.ts'],
+    // Only include unit tests and accessibility tests
+    // Exclude: E2E tests (Playwright), Jest integration tests, infrastructure tests (separate config)
+    include: ['tests/unit/**/*.test.{ts,tsx}', 'tests/accessibility/**/*.test.{ts,tsx}'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'tests/e2e/**', // Playwright E2E tests
+      'tests/integration/**', // Jest integration tests
+      'tests/infrastructure/**', // Infrastructure tests (separate config)
+      'tests/security.test.js', // Security tests need server
+      'e2e/**', // Additional E2E directory
+    ],
+    // Improve test isolation to prevent race conditions
+    isolate: true,
+    // Limit concurrency to reduce race conditions in userEvent typing
+    maxConcurrency: 5,
+    fileParallelism: false,
   },
 });

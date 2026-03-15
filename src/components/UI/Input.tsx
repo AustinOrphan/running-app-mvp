@@ -128,16 +128,23 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     // Determine trailing icon based on input type
     const getTrailingIcon = () => {
       if (type === 'password' && !trailingIcon) {
-        return (
-          <span aria-label={showPassword ? 'Hide password' : 'Show password'}>
-            {showPassword ? '👁️‍🗨️' : '👁️'}
-          </span>
-        );
+        return <span>{showPassword ? '👁️‍🗨️' : '👁️'}</span>;
       }
       if (type === 'search' && value && !trailingIcon) {
-        return <span aria-label='Clear search'>✕</span>;
+        return <span>✕</span>;
       }
       return trailingIcon;
+    };
+
+    // Determine aria-label for trailing icon button
+    const getTrailingIconAriaLabel = () => {
+      if (type === 'password' && !trailingIcon) {
+        return showPassword ? 'Hide password' : 'Show password';
+      }
+      if (type === 'search' && value && !trailingIcon) {
+        return 'Clear search';
+      }
+      return undefined;
     };
 
     // Determine trailing icon click handler
@@ -153,6 +160,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
     const effectiveTrailingIcon = getTrailingIcon();
     const effectiveTrailingIconClick = getTrailingIconClick();
+    const effectiveTrailingIconAriaLabel = getTrailingIconAriaLabel();
 
     // Determine input classes
     const inputClasses = [styles.formGroup, fullWidth && styles.fullWidth, className]
@@ -224,6 +232,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               onClick={effectiveTrailingIconClick}
               disabled={disabled}
               tabIndex={effectiveTrailingIconClick ? 0 : -1}
+              aria-label={effectiveTrailingIconAriaLabel}
               aria-hidden={!effectiveTrailingIconClick}
             >
               {effectiveTrailingIcon}
@@ -469,6 +478,15 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
         ? styles.successMessage
         : styles.fieldDescription;
 
+    // Build aria-describedby to include both message and character count
+    const ariaDescribedby =
+      [
+        message ? `${textareaId}-message` : null,
+        showCharCount && maxLength ? `${textareaId}-charcount` : null,
+      ]
+        .filter(Boolean)
+        .join(' ') || undefined;
+
     return (
       <div className={textareaClasses}>
         {label && (
@@ -485,7 +503,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           readOnly={readOnly}
           required={required}
           aria-invalid={error}
-          aria-describedby={message ? `${textareaId}-message` : undefined}
+          aria-describedby={ariaDescribedby}
           aria-required={required}
           value={value}
           onChange={onChange}
@@ -504,7 +522,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
             )}
 
             {showCharCount && maxLength && (
-              <span className={styles.charCount}>
+              <span id={`${textareaId}-charcount`} className={styles.charCount}>
                 {charCount}/{maxLength}
               </span>
             )}

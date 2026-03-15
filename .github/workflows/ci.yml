@@ -99,9 +99,13 @@ jobs:
         run: |
           npx prisma migrate deploy
           npx prisma generate
+        env:
+          DATABASE_URL: file:./prisma/test.db
 
       - name: 🔗 Run integration tests with coverage
         run: npm run test:coverage:integration
+        env:
+          DATABASE_URL: file:./prisma/test.db
 
       - name: 📊 Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -140,11 +144,14 @@ jobs:
         run: |
           npx prisma migrate deploy
           npx prisma generate
+        env:
+          DATABASE_URL: file:./prisma/test.db
 
       - name: 🎭 Run E2E tests
         run: npm run test:e2e
         env:
           CI: true
+          DATABASE_URL: file:./prisma/test.db
 
       - name: 📸 Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -182,9 +189,13 @@ jobs:
         run: |
           npx prisma migrate deploy
           npx prisma generate
+        env:
+          DATABASE_URL: file:./prisma/test.db
 
       - name: ♿ Run accessibility tests
         run: npm run test:a11y:ci
+        env:
+          DATABASE_URL: file:./prisma/test.db
 
       - name: 📸 Upload accessibility report
         uses: actions/upload-artifact@v4
@@ -219,9 +230,13 @@ jobs:
         run: |
           npx prisma migrate deploy
           npx prisma generate
+        env:
+          DATABASE_URL: file:./prisma/test.db
 
       - name: 🏗️ Build application
         run: npm run build
+        env:
+          DATABASE_URL: file:./prisma/test.db
 
       - name: 📦 Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -293,9 +308,13 @@ jobs:
         run: |
           npx prisma migrate deploy
           npx prisma generate
+        env:
+          DATABASE_URL: file:./prisma/test.db
 
       - name: 📊 Generate combined coverage report
         run: npm run test:coverage:ci
+        env:
+          DATABASE_URL: file:./prisma/test.db
 
       - name: 📊 Upload combined coverage to Codecov
         uses: codecov/codecov-action@v4

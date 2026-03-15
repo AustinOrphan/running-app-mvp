@@ -12,6 +12,7 @@ import {
   mockRunTypeBreakdown,
 } from '../../fixtures/mockData.js';
 import { axe, expectNoAccessibilityViolations } from '../../setup/axeSetup.js';
+import styles from '../../../src/styles/components/Stats.module.css';
 
 describe('Accessibility Tests - Statistics Components', () => {
   describe('InsightsCard Accessibility', () => {
@@ -44,7 +45,9 @@ describe('Accessibility Tests - Statistics Components', () => {
       const { container } = render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
       // Check for aria-labels or descriptive text
-      const stats = container.querySelectorAll('[aria-label], .stat-value, .stat-label');
+      const stats = container.querySelectorAll(
+        `[aria-label], .${styles.statValue}, .${styles.statLabel}`
+      );
       expect(stats.length).toBeGreaterThan(0);
     });
 
@@ -53,7 +56,7 @@ describe('Accessibility Tests - Statistics Components', () => {
 
       // Should have loading indicators that are accessible
       const loadingElements = container.querySelectorAll(
-        '.skeleton-line, [aria-label*="loading"], [role="status"]'
+        `.${styles.skeletonLine}, [aria-label*="loading"], [role="status"]`
       );
       expect(loadingElements.length).toBeGreaterThan(0);
     });

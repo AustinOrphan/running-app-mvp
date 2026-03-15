@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -38,9 +40,18 @@ jobs:
   infrastructure-tests:
     name: 🏗️ Infrastructure Tests
     runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: file:./prisma/test-infra.db
+      JWT_SECRET: test-secret-key-infrastructure-32c
+      SESSION_SECRET: test-session-secret-infrastructure
+      LOG_SALT: test-log-salt-infrastructure
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -51,8 +62,20 @@ jobs:
       - name: 📥 Install dependencies
         run: npm ci
 
+      - name: 🗄️ Setup database
+        run: |
+          npx prisma migrate deploy
+          npx prisma generate
+        env:
+          DATABASE_URL: file:./prisma/test-infra.db
+
       - name: 🏗️ Run infrastructure startup tests
         run: npm run test:infrastructure
+        env:
+          DATABASE_URL: file:./prisma/test-infra.db
+          JWT_SECRET: test-secret-key-infrastructure-32c
+          SESSION_SECRET: test-session-secret-infrastructure
+          LOG_SALT: test-log-salt-infrastructure
 
       - name: 📊 Upload infrastructure test results
         uses: actions/upload-artifact@v4
@@ -67,9 +90,18 @@ jobs:
   unit-tests:
     name: 🧪 Unit Tests
     runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: file:./prisma/test-unit.db
+      JWT_SECRET: test-secret-key-unit-32c
+      SESSION_SECRET: test-session-secret-unit
+      LOG_SALT: test-log-salt-unit
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -79,6 +111,11 @@ jobs:
 
       - name: 📥 Install dependencies
         run: npm ci
+
+      - name: 🗄️ Setup database
+        run: |
+          npx prisma migrate deploy
+          npx prisma generate
 
       - name: 🧪 Run unit tests with coverage
         run: npm run test:coverage
@@ -103,27 +140,17 @@ jobs:
     name: 🔧 Integration Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_test
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/test-integration.db
+      JWT_SECRET: test-secret-key-integration-32c
+      SESSION_SECRET: test-session-secret-integration
+      LOG_SALT: test-log-salt-integration
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -162,27 +189,18 @@ jobs:
     name: 🎭 E2E Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_e2e
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_e2e
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/test-e2e.db
+      TEST_DATABASE_URL: file:./prisma/test-e2e.db
+      JWT_SECRET: test-secret-key-e2e-testing-32c
+      SESSION_SECRET: test-session-secret-e2e-32chars-min
+      LOG_SALT: test-log-salt-e2e
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -225,6 +243,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -274,27 +294,17 @@ jobs:
     name: ♿ Accessibility Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: running_app_a11y_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/running_app_a11y_test
-      JWT_SECRET: test-secret-key
+      DATABASE_URL: file:./prisma/test-a11y.db
+      JWT_SECRET: test-secret-key-a11y-testing-32c
+      SESSION_SECRET: test-session-secret-a11y
+      LOG_SALT: test-log-salt-a11y
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -358,6 +368,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -378,6 +390,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -416,6 +430,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -440,6 +456,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -468,6 +486,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 🔍 Review dependencies
         uses: actions/dependency-review-action@v4
@@ -494,6 +514,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: 📊 Generate test summary
         run: |
