@@ -142,9 +142,10 @@ jobs:
 
     env:
       DATABASE_URL: file:./prisma/test-integration.db
+      TEST_DATABASE_URL: file:./prisma/test-integration.db
       JWT_SECRET: test-secret-key-integration-32c
-      SESSION_SECRET: test-session-secret-integration
-      LOG_SALT: test-log-salt-integration
+      SESSION_SECRET: test-session-secret-integration-32
+      LOG_SALT: test-log-salt-integration-16ch
 
     steps:
       - name: 📥 Checkout code
