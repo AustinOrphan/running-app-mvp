@@ -118,13 +118,12 @@ describe('CreateGoalModal', () => {
       render(<CreateGoalModal {...defaultProps} />);
 
       const descriptionInput = screen.getByLabelText('Description');
-      await user.clear(descriptionInput);
-      await user.type(descriptionInput, 'Monthly running goal');
 
-      // Wait for the typing to complete
-      await waitFor(() => {
-        expect(descriptionInput).toHaveValue('Monthly running goal');
-      });
+      // Use paste instead of type for reliable value setting in CI
+      await user.click(descriptionInput);
+      await user.paste('Monthly running goal');
+
+      expect(descriptionInput).toHaveValue('Monthly running goal');
     });
   });
 
