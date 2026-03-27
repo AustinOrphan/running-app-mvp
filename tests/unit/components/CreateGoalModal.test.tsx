@@ -118,9 +118,13 @@ describe('CreateGoalModal', () => {
       render(<CreateGoalModal {...defaultProps} />);
 
       const descriptionInput = screen.getByLabelText('Description');
+      await user.clear(descriptionInput);
       await user.type(descriptionInput, 'Monthly running goal');
 
-      expect(descriptionInput).toHaveValue('Monthly running goal');
+      // Wait for the typing to complete
+      await waitFor(() => {
+        expect(descriptionInput).toHaveValue('Monthly running goal');
+      });
     });
   });
 
