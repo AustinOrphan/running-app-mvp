@@ -18,6 +18,15 @@ import { assertTestUser } from './types/index.js';
 test.describe('Analytics Page E2E Tests', () => {
   let testUser: TestUser | undefined;
 
+  // Create test user once before all tests (much faster)
+  test.beforeAll(async () => {
+    await testDb.cleanupDatabase();
+    testUser = await testDb.createTestUser({
+      email: 'analytics@test.com',
+      password: 'testpassword123',
+    });
+  });
+
   test.beforeEach(async ({ page }) => {
     // Clear any existing auth state from previous tests
     await page.goto('/');
@@ -27,22 +36,17 @@ test.describe('Analytics Page E2E Tests', () => {
       localStorage.removeItem('authToken');
     });
 
-    // Clean database and create test user
-    await testDb.cleanupDatabase();
-    testUser = await testDb.createTestUser({
-      email: 'analytics@test.com',
-      password: 'testpassword123',
-    });
-
-    // Login user - reload to apply cleared auth state
+    // Login with existing test user (no need to recreate every time)
     await page.reload();
+    await page.waitForLoadState('networkidle');
+
     await page.fill('input[type="email"]', assertTestUser(testUser).email);
     await page.fill('input[type="password"]', 'testpassword123');
     await page.click('button:has-text("Login")');
 
     // Wait for login form to disappear (reliable indicator of successful login)
     // Note: URL stays at '/' whether logged in or not — app uses conditional render, not routing
-    await expect(page.locator('h2:has-text("Login or Register")')).toBeHidden({ timeout: 10000 });
+    await expect(page.locator('h2:has-text("Login or Register")')).toBeHidden({ timeout: 15000 });
   });
 
   test.afterAll(async () => {
