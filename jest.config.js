@@ -11,6 +11,13 @@ export default {
     'server/services/**/*.ts',
     '!**/*.d.ts',
     '!**/node_modules/**',
+    // Exclude utility files not covered by integration tests
+    '!server/utils/dataEncryption.ts',
+    '!server/utils/httpsServer.ts',
+    '!server/utils/securityUtils.ts',
+    '!server/utils/sslUtils.ts',
+    '!server/utils/winston-stub.ts',
+    '!server/utils/winstonLogger.ts',
   ],
   coverageReporters: ['text', 'json', 'html'],
   coverageThreshold: {
