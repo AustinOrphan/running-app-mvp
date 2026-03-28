@@ -40,7 +40,9 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: {
     command: 'npm run dev:full',
-    url: 'http://localhost:3000',
+    // Wait for backend API to be ready (more critical than frontend)
+    // Frontend will be ready shortly after backend starts
+    url: 'http://localhost:3001/api/health',
     reuseExistingServer: false,
     timeout: 120 * 1000,
     env: {
