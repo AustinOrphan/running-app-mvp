@@ -4,6 +4,7 @@ import { asyncAuthHandler } from '../middleware/asyncHandler.js';
 import { createUnauthorizedError, createError } from '../middleware/errorHandler.js';
 import { auditLogger, type AuditQueryFilters } from '../utils/auditLogger.js';
 import { auditSecurity } from '../utils/auditLogger.js';
+import { logError } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -87,7 +88,7 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to query audit events:', error);
+      logError('audit', 'query', error, req);
       throw createError('Failed to query audit events', 500);
     }
   })
@@ -119,7 +120,7 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to get audit statistics:', error);
+      logError('audit', 'statistics', error, req);
       throw createError('Failed to get audit statistics', 500);
     }
   })
@@ -170,7 +171,7 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to get security events:', error);
+      logError('audit', 'security-events', error, req);
       throw createError('Failed to get security events', 500);
     }
   })
@@ -210,7 +211,7 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Failed to get user audit events:', error);
+      logError('audit', 'user-events', error, req);
       throw createError('Failed to get user audit events', 500);
     }
   })
@@ -237,7 +238,7 @@ if (process.env.NODE_ENV === 'development') {
           timestamp: new Date().toISOString(),
         });
       } catch (error) {
-        console.error('Failed to log test audit event:', error);
+        logError('audit', 'test-event', error, req);
         throw createError('Failed to log test audit event', 500);
       }
     })

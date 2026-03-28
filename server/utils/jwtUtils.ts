@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { createError } from '../middleware/errorHandler.js';
+import { logWarn } from './logger.js';
 
 export interface JWTPayload {
   id: string;
@@ -30,7 +31,8 @@ export const generateTokens = (user: { id: string; email: string }) => {
   };
 
   // Generate access token
-  const accessToken = (jwt as any).sign(accessPayload, secret, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- jwt library types don't match actual API
+  const accessToken = (jwt.sign as any)(accessPayload, secret, {
     expiresIn: process.env.JWT_ACCESS_EXPIRY || '1h',
     issuer: 'running-app',
     audience: 'running-app-users',
@@ -45,7 +47,8 @@ export const generateTokens = (user: { id: string; email: string }) => {
   };
 
   // Generate refresh token
-  const refreshToken = (jwt as any).sign(refreshPayload, secret, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- jwt library types don't match actual API
+  const refreshToken = (jwt.sign as any)(refreshPayload, secret, {
     expiresIn: process.env.JWT_REFRESH_EXPIRY || '7d',
     issuer: 'running-app',
     audience: 'running-app-users',
@@ -140,7 +143,13 @@ const blacklistedTokens = new Set<string>();
 
 // Development-only warning
 if (process.env.NODE_ENV === 'production') {
-  console.warn('WARNING: Using in-memory token blacklist in production. This is not recommended!');
+  logWarn(
+    'auth',
+    'jwt-init',
+    'Using in-memory token blacklist in production. This is not recommended!',
+    undefined,
+    { blacklistType: 'in-memory' }
+  );
 }
 
 export const blacklistToken = (jti: string, expiresAt: number) => {

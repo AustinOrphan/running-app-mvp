@@ -36,7 +36,7 @@ export const winston = {
     // eslint-disable-next-line no-console
     debug: (message: string, meta?: unknown) => console.log('DEBUG:', message, meta),
   }),
-  Logform: undefined as any, // Added missing Logform property
+  Logform: undefined as unknown, // Added missing Logform property (stub)
 };
 
 export default winston;

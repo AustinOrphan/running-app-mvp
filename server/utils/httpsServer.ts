@@ -76,7 +76,7 @@ export const createHTTPSServer = (
       logInfo('server', 'ssl-connection', 'Secure connection established', undefined, {
         protocol: tlsSocket.getProtocol(),
         cipher: tlsSocket.getCipher(),
-        serverName: (tlsSocket as any).servername,
+        serverName: (tlsSocket as unknown as { servername?: string }).servername,
       });
     });
 

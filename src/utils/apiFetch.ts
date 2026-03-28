@@ -120,6 +120,7 @@ const refreshAccessToken = async (): Promise<boolean> => {
 
       return true;
     } catch (error) {
+      // eslint-disable-next-line no-console -- Frontend error logging for authentication failures
       console.error('Token refresh failed:', error);
       clearTokens();
       authEvents.dispatchEvent(
