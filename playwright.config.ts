@@ -51,6 +51,10 @@ export default defineConfig({
       TEST_DATABASE_URL: process.env.TEST_DATABASE_URL || 'file:./prisma/test-e2e.db',
       NODE_ENV: 'test',
       RATE_LIMITING_ENABLED: 'false',
+      // Server secrets (required for server to start)
+      JWT_SECRET: process.env.JWT_SECRET || 'test-secret-for-local-e2e-testing-32chars',
+      SESSION_SECRET: process.env.SESSION_SECRET || 'test-session-secret-local-e2e-32chars',
+      LOG_SALT: process.env.LOG_SALT || 'test-salt-16chars',
     },
   },
 
