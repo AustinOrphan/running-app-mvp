@@ -54,7 +54,7 @@ jobs:
         run: |
           npm run dev &
           npm run dev:frontend &
-          npx wait-on http://localhost:3001 -t 60000
+          npx wait-on http://localhost:3001/api/health -t 60000
           npx wait-on http://localhost:3000 -t 60000
         env:
           NODE_ENV: test
