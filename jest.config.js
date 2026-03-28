@@ -5,9 +5,10 @@ export default {
   testMatch: ['**/tests/integration/**/*.test.ts'],
   maxWorkers: 1, // Force serial execution to prevent database race conditions
   collectCoverageFrom: [
-    'routes/**/*.ts',
-    'middleware/**/*.ts',
-    'utils/**/*.ts',
+    'server/routes/**/*.ts',
+    'server/middleware/**/*.ts',
+    'server/utils/**/*.ts',
+    'server/services/**/*.ts',
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
