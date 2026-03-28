@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, beforeAll } from '@jest/globals';
+import { startOfWeek } from 'date-fns';
 import { AnalyticsService } from '../../../server/services/analyticsService.js';
 import { prisma } from '../../setup/jestSetup.js';
 import { createTestUser, createTestRuns } from '../../fixtures/testDatabase.js';
@@ -19,25 +20,27 @@ describe('AnalyticsService', () => {
   describe('getStatistics', () => {
     it('should aggregate weekly statistics correctly', async () => {
       // Create test runs for the current week (to ensure they fall within startOfWeek to endOfWeek)
+      // Use dates early in the week to guarantee they don't cross week boundaries
       const now = new Date();
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
 
       await createTestRuns(userId, [
         {
-          date: now.toISOString(), // Today
+          date: new Date(weekStart.getTime() + 0 * 24 * 60 * 60 * 1000).toISOString(), // Monday
           distance: 5.0,
           duration: 1500,
           tag: 'easy',
           notes: 'Morning run',
         },
         {
-          date: new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
+          date: new Date(weekStart.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString(), // Tuesday
           distance: 10.0,
           duration: 3000,
           tag: 'long',
           notes: 'Weekend long run',
         },
         {
-          date: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(), // Day after tomorrow
+          date: new Date(weekStart.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(), // Wednesday
           distance: 8.0,
           duration: 2400,
           tag: 'tempo',
