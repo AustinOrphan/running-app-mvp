@@ -383,8 +383,11 @@ test.describe('Analytics Page E2E Tests', () => {
     test('should have accessible tab buttons', async ({ page }) => {
       await page.goto('/analytics');
 
-      // All tabs should be buttons
+      // Wait for tabs to load
       const tabs = page.locator('.analytics-tab');
+      await expect(tabs.first()).toBeVisible();
+
+      // All tabs should be buttons
       const tabCount = await tabs.count();
       expect(tabCount).toBe(4);
 
