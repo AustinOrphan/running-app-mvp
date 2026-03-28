@@ -340,7 +340,11 @@ describe('CreateGoalModal', () => {
 
       // Fill in valid form data
       await user.type(screen.getByLabelText('Goal Title'), 'Run 50km');
-      await user.type(screen.getByLabelText('Description'), 'Monthly goal');
+
+      const descriptionInput = screen.getByLabelText('Description');
+      await user.click(descriptionInput);
+      await user.paste('Monthly goal');
+
       await user.type(screen.getByLabelText('Target Value'), '50');
 
       const submitButton = screen.getByText('Create Goal');
