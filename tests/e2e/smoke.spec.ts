@@ -4,25 +4,28 @@ test.describe('Running App MVP Smoke Tests', () => {
   test('homepage loads successfully', async ({ page }) => {
     await page.goto('/');
 
+    // Wait for page to be fully loaded
+    await page.waitForLoadState('networkidle');
+
     // Check that the page loads
     await expect(page.locator('body')).toBeVisible();
 
-    // Check for authentication elements (login/register or dashboard)
-    // Try to find any of these auth-related elements
-    const hasLogin = await page
-      .getByText('Login', { exact: false })
+    // Check for authentication elements (login/register button or dashboard)
+    // The page should have either auth buttons or be logged in with dashboard
+    const hasLoginButton = await page
+      .locator('button:has-text("Login")')
       .isVisible()
       .catch(() => false);
-    const hasRegister = await page
-      .getByText('Register')
+    const hasRegisterButton = await page
+      .locator('button:has-text("Register")')
       .isVisible()
       .catch(() => false);
-    const hasDashboard = await page
-      .getByText('Dashboard')
+    const hasLoginHeading = await page
+      .locator('h2:has-text("Login or Register")')
       .isVisible()
       .catch(() => false);
 
-    expect(hasLogin || hasRegister || hasDashboard).toBeTruthy();
+    expect(hasLoginButton || hasRegisterButton || hasLoginHeading).toBeTruthy();
   });
 
   test('navigation is functional', async ({ page }) => {
