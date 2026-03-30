@@ -13,6 +13,7 @@
     "dev": "tsx watch server.ts",
     "dev:frontend": "vite",
     "dev:full": "concurrently \"npm run dev\" \"npm run dev:frontend\"",
+    "dev:e2e": "cross-env DATABASE_URL=${TEST_DATABASE_URL:-file:./prisma/test-e2e.db} NODE_ENV=test RATE_LIMITING_ENABLED=false JWT_SECRET=${JWT_SECRET:-test-secret-for-local-e2e-testing-32chars} SESSION_SECRET=${SESSION_SECRET:-test-session-secret-local-e2e-32chars} LOG_SALT=${LOG_SALT:-test-salt-16chars} tsx watch server.ts",
     "setup": "npm install && npx prisma migrate dev --name init && npx prisma generate",
     "build": "tsc && vite build",
     "start": "node dist/server.js",
