@@ -39,11 +39,10 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run dev:full',
-    // Wait for backend API to be ready (more critical than frontend)
-    // Frontend will be ready shortly after backend starts
+    command: 'npm run dev',
+    // Wait for backend API to be ready
     url: 'http://localhost:3001/api/health',
-    reuseExistingServer: false,
+    reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
     env: {
       // Use TEST_DATABASE_URL from environment if available (CI), otherwise default to test-e2e.db
