@@ -154,7 +154,7 @@ jobs:
           NODE_ENV: production
 
       - name: 🔐 Log in to container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.DOCKER_REGISTRY }}
           username: ${{ github.actor }}
