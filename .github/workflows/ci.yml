@@ -66,7 +66,7 @@ jobs:
         run: npm run test:coverage
 
       - name: 📊 Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           file: ./coverage/lcov.info
           flags: unit
@@ -104,7 +104,7 @@ jobs:
         run: npm run test:coverage:integration
 
       - name: 📊 Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           file: ./coverage/lcov.info
           flags: integration
@@ -298,7 +298,7 @@ jobs:
         run: npm run test:coverage:ci
 
       - name: 📊 Upload combined coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           file: ./coverage/lcov.info
           flags: combined
