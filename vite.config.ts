@@ -1,5 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
@@ -28,5 +29,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./tests/setup/testSetup.ts'],
+    // Vendored backend-libs under packages/ have their own vitest configs;
+    // keep them out of the app's jsdom test run.
+    exclude: [...configDefaults.exclude, 'packages/**'],
   },
 });

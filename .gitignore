@@ -142,3 +142,7 @@ node_modules.bak/
 * 2.*
 * 3.*
 * 4.*
+
+# Vendored backend-libs build artifacts
+packages/*/dist/
+packages/*/node_modules/

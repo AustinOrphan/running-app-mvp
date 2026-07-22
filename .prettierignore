@@ -17,6 +17,7 @@ coverage/
 
 # Prisma generated files
 prisma/generated/
+packages/
 
 # Package files
 package.json
