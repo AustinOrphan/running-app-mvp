@@ -1,76 +1,72 @@
-# Frontend Dockerfile for Running App
-# Stage 1: Dependencies
-FROM node:18-alpine AS deps
+# syntax=docker/dockerfile:1
+#
+# Frontend image for the Running App: build the SPA with vite, serve with nginx.
+#
+# NOTE (unverified in-container): reasoned draft; no Docker daemon in the
+# authoring env. The frontend (src/) does NOT import the vendored
+# @AustinOrphan/* packages, so this image neither builds nor ships them:
+#  * `npm ci --ignore-scripts` skips the root postinstall (which would build
+#    the backend packages) — modern vite/rollup/esbuild ship their platform
+#    binaries via optionalDependencies, not install scripts, so the build is
+#    unaffected.
+#  * packages/ is still COPY'd because the lockfile's `file:` links reference
+#    packages/*/package.json; `npm ci` reads them to link, and errors if absent.
+#  * We run `vite build` directly rather than `npm run build`, because the
+#    latter's `tsc` step type-checks the whole repo (incl. the backend, whose
+#    @AustinOrphan type declarations we intentionally did not build here).
+#  * engines requires Node >=20 (the old image pinned 18).
+
+# ---------- Stage 1: build ----------
+FROM node:20-alpine AS builder
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy dependency files
 COPY package*.json ./
+COPY packages ./packages
 
-# Install dependencies
-RUN npm ci
+RUN npm ci --ignore-scripts
 
-# Stage 2: Builder
-FROM node:18-alpine AS builder
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-COPY package*.json ./
-
-# Copy source code
 COPY . .
 
-# Build arguments
 ARG NODE_ENV=production
 ARG VITE_API_URL
 ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION
-
-# Set build-time environment variables
 ENV NODE_ENV=${NODE_ENV}
 ENV VITE_API_URL=${VITE_API_URL}
 
-# Build the frontend application
-RUN npm run build
+# Frontend-only build (see note above on why not `npm run build`).
+RUN npx vite build
 
-# Stage 3: Production
+# ---------- Stage 2: serve ----------
 FROM nginx:alpine AS runner
+RUN apk add --no-cache curl jq bash
 
-# Install required packages
-RUN apk add --no-cache \
-    curl \
-    jq \
-    bash
-
-# Remove default nginx config
+# Custom nginx config (defines /, /api proxy, and /health used below).
 RUN rm -rf /etc/nginx/conf.d/*
-
-# Copy custom nginx configuration
 COPY nginx/default.conf /etc/nginx/conf.d/
 
-# Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy environment variable injection script
-COPY scripts/inject-env-vars.sh /docker-entrypoint.d/20-inject-env-vars.sh
-RUN chmod +x /docker-entrypoint.d/20-inject-env-vars.sh
+# TODO(deploy): runtime env-var injection. The previous image referenced
+# scripts/inject-env-vars.sh, which does not exist in the repo, so the build
+# always failed here. It is commented out rather than reinvented, because the
+# placeholder scheme (which VITE_* vars, what token format) is unknown. Today
+# VITE_API_URL is baked at build time via the ARG above; restore this hook only
+# if you need per-deploy runtime overrides, and add the script alongside it.
+# COPY scripts/inject-env-vars.sh /docker-entrypoint.d/20-inject-env-vars.sh
+# RUN chmod +x /docker-entrypoint.d/20-inject-env-vars.sh
 
-# Add metadata labels
 LABEL org.opencontainers.image.title="Running App Frontend" \
       org.opencontainers.image.description="Frontend for Running App" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}"
 
-# Expose port
 EXPOSE 80
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost/health || exit 1
 
-# Start nginx
 CMD ["nginx", "-g", "daemon off;"]

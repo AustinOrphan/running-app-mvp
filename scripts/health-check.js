@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const http = require('http');
+import http from 'node:http';
 
 const options = {
   hostname: 'localhost',
@@ -22,8 +22,11 @@ const req = http.request(options, res => {
       try {
         const health = JSON.parse(data);
 
-        // Check if all critical services are healthy
-        if (health.status === 'ok' && health.database?.status === 'connected') {
+        // The /api/health contract is { status: 'ok', timestamp }. If a
+        // database field is ever added, honor it too; otherwise `status: ok`
+        // (i.e. the server is up and serving) is the health signal.
+        const dbOk = health.database ? health.database.status === 'connected' : true;
+        if (health.status === 'ok' && dbOk) {
           console.log('✅ Health check passed');
           process.exit(0);
         } else {

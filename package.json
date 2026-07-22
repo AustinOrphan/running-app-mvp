@@ -15,7 +15,7 @@
     "dev:full": "concurrently \"npm run dev\" \"npm run dev:frontend\"",
     "setup": "npm install && npx prisma migrate dev --name init && npx prisma generate",
     "build": "tsc && vite build",
-    "start": "node dist/server.js",
+    "start": "tsx server.ts",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",

@@ -80,7 +80,9 @@ app.use('/api/analytics', analyticsRoutes);
 if (config.server.env === 'production') {
   app.use(express.static(path.join(__dirname, 'dist')));
 
-  app.get('*', (req, res) => {
+  // Express 5 (path-to-regexp v8) rejects the bare '*' wildcard; use a
+  // named splat so the SPA fallback route parses.
+  app.get('/*splat', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
   });
 }
