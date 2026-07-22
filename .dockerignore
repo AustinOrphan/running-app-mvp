@@ -1,0 +1,46 @@
+# Keep the Docker build context small and deterministic. Anything the image
+# needs is either installed (npm ci) or built (postinstall / vite build)
+# inside the image, so we exclude host-generated trees to avoid shipping
+# stale artifacts or clobbering in-image installs via `COPY . .`.
+
+# Installed dependencies (reinstalled in-image; carrying host symlinks would
+# break the @AustinOrphan/* file: links which resolve to ../../packages/*).
+node_modules
+packages/*/node_modules
+
+# Build outputs (rebuilt in-image).
+dist
+build
+packages/*/dist
+coverage
+playwright-report
+test-results
+
+# VCS / CI / editor.
+.git
+.github
+.gitignore
+.vscode
+.idea
+
+# Local env & secrets — never bake into an image.
+.env
+.env.*
+!.env.example
+
+# Tests & docs not needed at build/runtime.
+tests
+e2e
+docs
+*.md
+!README.md
+
+# Tooling caches / logs.
+.remember
+*.log
+.DS_Store
+
+# The Dockerfiles themselves.
+Dockerfile*
+.dockerignore
+docker-compose*.yml

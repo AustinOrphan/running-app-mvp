@@ -69,6 +69,10 @@ case "${DEPLOYMENT_MODE:-production}" in
     ;;
 esac
 
-# Start the application
+# Start the application.
+# The backend is not compiled to JS (tsconfig has noEmit: true — `tsc` only
+# type-checks; `vite build` emits the frontend into dist/). So we run the
+# TypeScript entrypoint directly with tsx, exactly as `npm run dev` does but
+# without --watch. tsx is a devDependency, so the image must carry devDeps.
 echo "🚀 Starting server on port ${PORT:-3001}..."
-exec node server.js
+exec npx tsx server.ts
