@@ -82,17 +82,17 @@ describe('Runs API', () => {
 ```typescript
 // e2e-core exports (from ~/src/e2e-core/)
 export {
-  test,                    // Playwright test fixture
-  expect,                  // Playwright expect
-  performLogin,            // Auth fixture for browser login
-  saveAuthState,           // Save browser auth state
+  test, // Playwright test fixture
+  expect, // Playwright expect
+  performLogin, // Auth fixture for browser login
+  saveAuthState, // Save browser auth state
 } from './fixtures/index.js';
 
 export {
-  apiRequest,              // REST API helper using Playwright APIRequestContext
-  waitForAPI,              // Wait for API readiness
-  waitForElement,          // Browser element waits
-  waitForNetworkIdle,      // Browser network waits
+  apiRequest, // REST API helper using Playwright APIRequestContext
+  waitForAPI, // Wait for API readiness
+  waitForElement, // Browser element waits
+  waitForNetworkIdle, // Browser network waits
 } from './helpers/index.js';
 
 export { BasePage } from './pages/BasePage.js';
@@ -105,7 +105,7 @@ E2E-core includes `apiRequest()` for making REST API calls:
 ```typescript
 // From ~/src/e2e-core/src/helpers/api.ts
 export async function apiRequest<T = any>(
-  request: APIRequestContext,  // Playwright's request context
+  request: APIRequestContext, // Playwright's request context
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   url: string,
   options: APIRequestOptions = {}
@@ -126,15 +126,15 @@ export async function apiRequest<T = any>(
 
 ### Architectural Differences
 
-| Aspect | Jest + Supertest | Playwright + e2e-core |
-|--------|------------------|------------------------|
-| **Purpose** | API integration tests | E2E browser tests |
-| **Server** | In-process (no server) | Requires running server |
-| **HTTP Layer** | Supertest (in-memory) | Playwright APIRequestContext (network) |
-| **Test Runner** | Jest | Playwright Test |
-| **Speed** | Very fast (~50ms/test) | Slower (~200-500ms/test) |
-| **Focus** | API logic & data flow | User workflows & browser behavior |
-| **Auth** | JWT tokens in headers | Browser cookies & storage |
+| Aspect          | Jest + Supertest       | Playwright + e2e-core                  |
+| --------------- | ---------------------- | -------------------------------------- |
+| **Purpose**     | API integration tests  | E2E browser tests                      |
+| **Server**      | In-process (no server) | Requires running server                |
+| **HTTP Layer**  | Supertest (in-memory)  | Playwright APIRequestContext (network) |
+| **Test Runner** | Jest                   | Playwright Test                        |
+| **Speed**       | Very fast (~50ms/test) | Slower (~200-500ms/test)               |
+| **Focus**       | API logic & data flow  | User workflows & browser behavior      |
+| **Auth**        | JWT tokens in headers  | Browser cookies & storage              |
 
 ---
 
@@ -259,6 +259,7 @@ describe('Analytics API', () => {
 ```
 
 **Tests:**
+
 - ✅ Statistics aggregation logic
 - ✅ Trend detection accuracy
 - ✅ Insight generation rules
@@ -284,12 +285,10 @@ test.describe('Analytics Dashboard', () => {
 
   test('displays weekly statistics with correct values', async ({ page }) => {
     // Wait for stats to load
-    await expect(page.locator('[data-testid="stats-card-total-runs"]'))
-      .toContainText('3 runs');
+    await expect(page.locator('[data-testid="stats-card-total-runs"]')).toContainText('3 runs');
 
     // Verify chart renders
-    await expect(page.locator('[data-testid="pace-trend-chart"]'))
-      .toBeVisible();
+    await expect(page.locator('[data-testid="pace-trend-chart"]')).toBeVisible();
   });
 
   test('switches between time periods', async ({ page }) => {
@@ -297,8 +296,7 @@ test.describe('Analytics Dashboard', () => {
     await page.click('[data-testid="period-selector-monthly"]');
 
     // Verify stats update
-    await expect(page.locator('[data-testid="stats-period"]'))
-      .toContainText('Monthly');
+    await expect(page.locator('[data-testid="stats-period"]')).toContainText('Monthly');
   });
 
   test('displays heatmap with user run locations', async ({ page }) => {
@@ -313,6 +311,7 @@ test.describe('Analytics Dashboard', () => {
 ```
 
 **Tests:**
+
 - ✅ UI rendering and layout
 - ✅ User interactions (clicks, filters, navigation)
 - ✅ Chart visualization
@@ -337,7 +336,7 @@ export const consistentRunPattern = [
 
 export const improvingPacePattern = [
   { date: '2026-01-01', distance: 5.0, duration: 2000, pace: 6.67 }, // Slower
-  { date: '2026-01-15', distance: 5.0, duration: 1800, pace: 6.0 },  // Faster
+  { date: '2026-01-15', distance: 5.0, duration: 1800, pace: 6.0 }, // Faster
   // ...
 ];
 ```
@@ -455,7 +454,7 @@ test.describe('User API', () => {
 
   test('creates user successfully', async () => {
     const response = await apiRequest(apiContext, 'POST', '/api/users', {
-      data: { name: 'Test User' }
+      data: { name: 'Test User' },
     });
 
     expect(response.status).toBe(201);

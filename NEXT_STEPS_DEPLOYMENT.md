@@ -44,6 +44,7 @@ This guide outlines the essential steps to fully implement and activate your CI/
    # Navigate to your repository settings
    https://github.com/yourusername/running-app/settings
    ```
+
    - Go to **Settings > General**
    - Enable "Automatically delete head branches" ✅
    - Enable "Allow auto-merge" ✅

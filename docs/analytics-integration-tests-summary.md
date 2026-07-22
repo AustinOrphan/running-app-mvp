@@ -10,6 +10,7 @@ Created comprehensive integration tests for the 4 analytics API endpoints using 
 ## Files Created/Modified
 
 ### New Files
+
 1. **`tests/fixtures/analyticsData.ts`** - 90-day run patterns for analytics testing
    - Consistent runner pattern (3-4 runs/week)
    - Improving pace pattern (6:00/km → 5:00/km over 90 days)
@@ -26,6 +27,7 @@ Created comprehensive integration tests for the 4 analytics API endpoints using 
    - `GET /api/analytics/heatmap` (10 tests)
 
 ### Modified Files
+
 1. **`tests/fixtures/testDatabase.ts`** - Extended with analytics helpers:
    - `createTestRunsWithGPS()` - Create runs with GPS routes
    - `createTestRunsWithDetails()` - Create runs with RunDetail (HR, elevation)
@@ -35,6 +37,7 @@ Created comprehensive integration tests for the 4 analytics API endpoints using 
 ## Test Coverage
 
 ### Passing Tests (31/43)
+
 - ✅ Authentication/authorization checks (all endpoints)
 - ✅ Input validation (period, dataPoints, gridSize)
 - ✅ Default parameter handling
@@ -43,6 +46,7 @@ Created comprehensive integration tests for the 4 analytics API endpoints using 
 - ✅ GeoJSON structure validation
 
 ### Failing Tests (12/43)
+
 - ❌ Specific aggregation calculations
 - ❌ Data-dependent assertions (trend detection, insights generation, heatmap features)
 
@@ -51,26 +55,33 @@ Created comprehensive integration tests for the 4 analytics API endpoints using 
 ## Key Improvements
 
 ### JWT Token Format Fix
+
 **Problem:** Integration tests were failing with 401 "Unauthorized" errors.
 
 **Cause:** Test helper `generateTestToken()` was using old format:
+
 ```typescript
-jwt.sign({ userId }, secret, { expiresIn: '1h' })
+jwt.sign({ userId }, secret, { expiresIn: '1h' });
 ```
 
 **Fix:** Updated to match production format:
+
 ```typescript
-jwt.sign({
-  id: userId,
-  email,
-  iat: Math.floor(Date.now() / 1000),
-  jti: crypto.randomUUID(),
-  type: 'access',
-}, secret, {
-  expiresIn: '1h',
-  issuer: 'running-app',
-  audience: 'running-app-users',
-})
+jwt.sign(
+  {
+    id: userId,
+    email,
+    iat: Math.floor(Date.now() / 1000),
+    jti: crypto.randomUUID(),
+    type: 'access',
+  },
+  secret,
+  {
+    expiresIn: '1h',
+    issuer: 'running-app',
+    audience: 'running-app-users',
+  }
+);
 ```
 
 This fix applies to **all** integration tests (not just analytics).

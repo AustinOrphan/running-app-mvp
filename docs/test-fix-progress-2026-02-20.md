@@ -60,6 +60,7 @@ Tests:       12 failed, 31 passed, 43 total
 ```
 
 **Failing Tests:**
+
 1. `calculates correct aggregations` (weekly) - totalRuns = 0
 2. `returns statistics for the current month` - totalRuns = 0
 3. `returns statistics for the current year` - totalRuns = 0
@@ -69,7 +70,7 @@ Tests:       12 failed, 31 passed, 43 total
 7. `detects pace improvements` - no performance insight found
 8. `returns GeoJSON FeatureCollection` - missing bbox property
 9. `calculates bounding box correctly` - bbox validation fails
-10-12. Additional heatmap edge case failures
+   10-12. Additional heatmap edge case failures
 
 ### Root Cause Analysis
 
@@ -83,8 +84,8 @@ const runs = await prisma.run.findMany({
   where: {
     userId,
     date: {
-      gte: startOfMonth(now),  // date-fns function
-      lte: endOfMonth(now),    // date-fns function
+      gte: startOfMonth(now), // date-fns function
+      lte: endOfMonth(now), // date-fns function
     },
   },
 });
@@ -139,6 +140,7 @@ Even when data exists, the analytics algorithms don't detect the expected patter
 4. **Fix or Simplify Approach**
 
    **Option A:** Fix date helpers to use Date objects
+
    ```typescript
    const currentWeekDates = (count: number): Date[] => {
      // Return Date objects instead of strings
@@ -146,15 +148,17 @@ Even when data exists, the analytics algorithms don't detect the expected patter
    ```
 
    **Option B:** Use date-fns in fixtures to match service
+
    ```typescript
    import { startOfWeek, addDays } from 'date-fns';
 
-   const dates = Array.from({length: 4}, (_, i) =>
-     addDays(startOfWeek(new Date(), {weekStartsOn: 1}), i)
+   const dates = Array.from({ length: 4 }, (_, i) =>
+     addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), i)
    );
    ```
 
    **Option C:** Simplify by creating dates relative to "now" in each test
+
    ```typescript
    const today = new Date();
    const runs = [
