@@ -109,7 +109,9 @@ ehthumbs.db
 Thumbs.db
 
 # Prisma
-prisma/migrations/*/migration.sql
+# NOTE: migration SQL must be tracked — it is the migration history that
+# `prisma migrate deploy` replays in CI/production. (Ignoring it previously
+# meant new migrations were silently never committed.)
 
 # Local development
 *.local
