@@ -66,6 +66,11 @@ COPY --from=builder --chown=nodejs:nodejs /app /app
 # Ensure the entrypoint is executable.
 RUN chmod +x ./scripts/docker-entrypoint.sh
 
+# Writable dir for the SQLite database file. Created (and chowned) in the image
+# so the compose named volume mounted here inherits nodejs ownership on first
+# use; otherwise the volume is root-owned and the non-root process can't write.
+RUN mkdir -p /app/data && chown nodejs:nodejs /app/data
+
 ENV NODE_ENV=production
 ENV PORT=3001
 
