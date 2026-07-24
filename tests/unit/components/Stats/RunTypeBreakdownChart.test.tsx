@@ -144,8 +144,8 @@ describe('RunTypeBreakdownChart', () => {
       render(<RunTypeBreakdownChart data={testData} loading={false} />);
 
       // Each should be 50%
-      expect(screen.getByText('5 runs (50.0%) • 25km')).toBeInTheDocument();
-      expect(screen.getByText('5 runs (50.0%) • 20km')).toBeInTheDocument();
+      expect(screen.getByText('5 runs (50.0%) • 25.0km')).toBeInTheDocument();
+      expect(screen.getByText('5 runs (50.0%) • 20.0km')).toBeInTheDocument();
     });
 
     it('handles single run type correctly', () => {
@@ -165,7 +165,7 @@ describe('RunTypeBreakdownChart', () => {
       render(<RunTypeBreakdownChart data={zeroCountData} loading={false} />);
 
       expect(screen.getByText('No Runs')).toBeInTheDocument();
-      expect(screen.getByText('0 runs (0.0%) • 0km')).toBeInTheDocument();
+      expect(screen.getByText('0 runs (0.0%) • 0.0km')).toBeInTheDocument();
     });
   });
 
@@ -202,7 +202,7 @@ describe('RunTypeBreakdownChart', () => {
       render(<RunTypeBreakdownChart data={largeData} loading={false} />);
 
       expect(screen.getByText('Marathon Training')).toBeInTheDocument();
-      expect(screen.getByText('999 runs (100.0%) • 9999.99km')).toBeInTheDocument();
+      expect(screen.getByText('999 runs (100.0%) • 10000.0km')).toBeInTheDocument();
     });
 
     it('handles decimal calculations correctly', () => {

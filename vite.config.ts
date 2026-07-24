@@ -29,8 +29,23 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./tests/setup/testSetup.ts'],
-    // Vendored backend-libs under packages/ have their own vitest configs;
-    // keep them out of the app's jsdom test run.
-    exclude: [...configDefaults.exclude, 'packages/**'],
+    // Vitest runs the unit/component suite only. Everything that needs a real
+    // database, a live server, or a different runner is kept out and run via
+    // its own npm script:
+    //  - packages/**: vendored backend-libs have their own vitest configs
+    //  - tests/integration/**: Jest + provisioned SQLite DB (`test:integration`)
+    //  - tests/e2e/** and e2e/**: Playwright suites (`test:e2e`)
+    //  - tests/security.test.js: supertest API suite; needs config env + DB
+    //  - tests/infrastructure/**: smoke tests needing live servers; run via
+    //    `npm run test:infrastructure` (which sets VITEST_INCLUDE_INFRA=true)
+    exclude: [
+      ...configDefaults.exclude,
+      'packages/**',
+      'tests/integration/**',
+      'tests/e2e/**',
+      'e2e/**',
+      'tests/security.test.js',
+      ...(process.env.VITEST_INCLUDE_INFRA === 'true' ? [] : ['tests/infrastructure/**']),
+    ],
   },
 });

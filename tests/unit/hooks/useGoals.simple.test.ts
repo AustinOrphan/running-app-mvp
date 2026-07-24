@@ -3,16 +3,56 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { useGoals } from '../../../src/hooks/useGoals';
 import { mockGoals, createMockGoal } from '../../fixtures/mockData.js';
+import { createApiResponse, MockApiError } from '../../utils/mockApiUtils';
 
-// Mock fetch globally
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+// Mock useNotifications so the hook renders without pulling in toast/browser
+// notification side effects.
+vi.mock('../../../src/hooks/useNotifications', () => ({
+  useNotifications: () => ({
+    showMilestoneNotification: vi.fn(),
+    showDeadlineNotification: vi.fn(),
+    showStreakNotification: vi.fn(),
+    preferences: {
+      enableMilestoneNotifications: false,
+      enableDeadlineReminders: false,
+      deadlineReminderDays: 3,
+    },
+  }),
+}));
+
+// The hook talks to the API through the apiFetch helpers, so mock that module
+// (same strategy as useGoals.test.ts).
+vi.mock('../../../src/utils/apiFetch', () => ({
+  apiGet: vi.fn(),
+  apiPost: vi.fn(),
+  apiPut: vi.fn(),
+  apiDelete: vi.fn(),
+}));
+
+vi.mock('../../../src/utils/clientLogger', () => ({
+  logError: vi.fn(),
+  logWarn: vi.fn(),
+  logInfo: vi.fn(),
+  logDebug: vi.fn(),
+}));
+
+import { apiGet, apiPost, apiPut, apiDelete } from '../../../src/utils/apiFetch';
 
 describe('useGoals - Basic Functionality', () => {
   const mockToken = 'mock-jwt-token-123';
 
+  const mockApiGet = vi.mocked(apiGet);
+  const mockApiPost = vi.mocked(apiPost);
+  const mockApiPut = vi.mocked(apiPut);
+  const mockApiDelete = vi.mocked(apiDelete);
+
   beforeEach(() => {
-    mockFetch.mockClear();
+    vi.clearAllMocks();
+
+    mockApiGet.mockResolvedValue(createApiResponse([]));
+    mockApiPost.mockResolvedValue(createApiResponse({}));
+    mockApiPut.mockResolvedValue(createApiResponse({}));
+    mockApiDelete.mockResolvedValue(createApiResponse({}));
   });
 
   afterEach(() => {
@@ -36,32 +76,19 @@ describe('useGoals - Basic Functionality', () => {
       const { result } = renderHook(() => useGoals(null));
 
       expect(result.current.loading).toBe(false);
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockApiGet).not.toHaveBeenCalled();
     });
   });
 
   describe('Basic API Calls', () => {
-    it('makes correct API call for fetching goals', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      });
-
+    it('makes correct API call for fetching goals', () => {
       renderHook(() => useGoals(mockToken));
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/goals', {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${mockToken}`,
-        },
-      });
+      expect(mockApiGet).toHaveBeenCalledWith('/api/goals');
     });
 
     it('handles fetch success', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGoals,
-      });
+      mockApiGet.mockResolvedValueOnce(createApiResponse(mockGoals));
 
       const { result } = renderHook(() => useGoals(mockToken));
 
@@ -77,7 +104,7 @@ describe('useGoals - Basic Functionality', () => {
     });
 
     it('handles fetch error', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      mockApiGet.mockRejectedValueOnce(new Error('Network error'));
 
       const { result } = renderHook(() => useGoals(mockToken));
 
@@ -99,10 +126,7 @@ describe('useGoals - Basic Functionality', () => {
       const completedGoal = createMockGoal({ id: '2', isCompleted: true });
       const goals = [activeGoal, completedGoal];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => goals,
-      });
+      mockApiGet.mockResolvedValueOnce(createApiResponse(goals));
 
       const { result } = renderHook(() => useGoals(mockToken));
 
@@ -120,10 +144,7 @@ describe('useGoals - Basic Functionality', () => {
 
   describe('Helper Functions', () => {
     it('getGoalProgress returns undefined for non-existing goal', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      });
+      mockApiGet.mockResolvedValueOnce(createApiResponse([]));
 
       const { result } = renderHook(() => useGoals(mockToken));
 
@@ -141,6 +162,11 @@ describe('useGoals - Basic Functionality', () => {
 
   describe('Error Handling', () => {
     it('handles missing authentication token', async () => {
+      // apiFetch throws when no token is available; createGoal propagates it.
+      mockApiPost.mockRejectedValue(
+        new MockApiError('Authentication required but no token available', 401)
+      );
+
       const { result } = renderHook(() => useGoals(null));
 
       await expect(async () => {
@@ -153,7 +179,7 @@ describe('useGoals - Basic Functionality', () => {
           startDate: new Date('2024-01-01'),
           endDate: new Date('2024-01-07'),
         });
-      }).rejects.toThrow('No authentication token available');
+      }).rejects.toThrow('Authentication required but no token available');
     });
   });
 });

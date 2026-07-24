@@ -3,17 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
-import { GoalCard } from '../../src/components/GoalCard';
-import { RunCard } from '../../src/components/Runs/RunCard';
-import { GoalTemplateBrowser } from '../../src/components/Goals/GoalTemplateBrowser';
-import { LoadingSpinner } from '../../src/components/Common/LoadingSpinner';
+import { GoalCard } from '../../../src/components/GoalCard';
+import { RunCard } from '../../../src/components/Runs/RunCard';
+import { GoalTemplateBrowser } from '../../../src/components/Goals/GoalTemplateBrowser';
+import { LoadingSpinner } from '../../../src/components/Common/LoadingSpinner';
 
-import { createMockGoal, createMockGoalProgress, createMockRun } from '../fixtures/mockData.js';
+import { createMockGoal, createMockGoalProgress, createMockRun } from '../../fixtures/mockData.js';
 
 expect.extend(toHaveNoViolations);
 
 // Mock visualization components
-vi.mock('../../src/components/Goals/CircularProgress', () => ({
+vi.mock('../../../src/components/Goals/CircularProgress', () => ({
   CircularProgress: ({ children, percentage }: any) => (
     <div data-testid='circular-progress' data-percentage={percentage}>
       {children}
@@ -21,7 +21,7 @@ vi.mock('../../src/components/Goals/CircularProgress', () => ({
   ),
 }));
 
-vi.mock('../../src/components/Goals/GoalProgressChart', () => ({
+vi.mock('../../../src/components/Goals/GoalProgressChart', () => ({
   GoalProgressChart: ({ goal, progress }: any) => (
     <div
       data-testid='goal-progress-chart'
@@ -34,7 +34,7 @@ vi.mock('../../src/components/Goals/GoalProgressChart', () => ({
 }));
 
 // Mock template data
-vi.mock('../../src/data/goalTemplates', () => ({
+vi.mock('../../../src/data/goalTemplates', () => ({
   GOAL_TEMPLATE_COLLECTIONS: [
     {
       title: 'Beginner Goals',
@@ -67,7 +67,7 @@ vi.mock('../../src/data/goalTemplates', () => ({
 }));
 
 // Mock utilities
-vi.mock('../../src/utils/formatters', () => ({
+vi.mock('../../../src/utils/formatters', () => ({
   formatDate: (date: string) => new Date(date).toLocaleDateString(),
   formatDuration: (duration: number) =>
     `${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}`,
@@ -118,7 +118,8 @@ describe('Card Variants Integration Tests', () => {
       expect(screen.getByRole('heading', { level: 4 })).toHaveTextContent('Weekly Running Goal');
       expect(screen.getByText('Run 25 kilometers this week')).toBeInTheDocument();
       expect(screen.getByText('60%')).toBeInTheDocument();
-      expect(screen.getByText('3 days left')).toBeInTheDocument();
+      // Rendered as "⏰ 3 days left" in a single element, so match on substring.
+      expect(screen.getByText(/\b3 days left\b/)).toBeInTheDocument();
 
       // Check Card system is being used (verify new structure)
       const cardElement = screen.getByRole('heading').closest('[class*="card"]');
@@ -243,7 +244,12 @@ describe('Card Variants Integration Tests', () => {
       render(<RunCard run={mockRun} onEdit={vi.fn()} onDelete={vi.fn()} />);
 
       // Check run content
-      expect(screen.getByText('1/15/2024')).toBeInTheDocument(); // Formatted date
+      // Derive the expected string rather than hardcoding "1/15/2024": the date
+      // is parsed as UTC midnight and rendered via toLocaleDateString(), so a
+      // literal only holds in UTC-or-later zones (it renders 1/14/2024 in the
+      // Americas). Asserting the formatted date is still checked here.
+      const expectedDate = new Date(mockRun.date).toLocaleDateString();
+      expect(screen.getByText(expectedDate)).toBeInTheDocument(); // Formatted date
       expect(screen.getByText('5.2km')).toBeInTheDocument();
       expect(screen.getByText('28:45')).toBeInTheDocument();
       expect(screen.getByText('Great weather today')).toBeInTheDocument();
@@ -336,7 +342,8 @@ describe('Card Variants Integration Tests', () => {
       ],
     };
 
-    it('renders template browser with new Card system', () => {
+    it('renders template browser with new Card system', async () => {
+      const user = userEvent.setup();
       render(<GoalTemplateBrowser isOpen={true} onClose={vi.fn()} onSelectTemplate={vi.fn()} />);
 
       // Check template browser is rendered
@@ -345,10 +352,18 @@ describe('Card Variants Integration Tests', () => {
         screen.getByText('Choose from proven running goals to jumpstart your training')
       ).toBeInTheDocument();
 
+      // Template categories are collapsible and start collapsed, so expand the
+      // collection before asserting on its template cards.
+      await user.click(screen.getByText('Beginner Goals'));
+
       // Check template card content
       expect(screen.getByText('5K Training')).toBeInTheDocument();
       expect(screen.getByText('Complete your first 5K')).toBeInTheDocument();
-      expect(screen.getByText('Beginner')).toBeInTheDocument();
+      // Scope to the card's DifficultyBadge: "Beginner" also appears as an
+      // <option> in the difficulty filter, so a bare getByText is ambiguous.
+      expect(
+        screen.getByText('Beginner', { selector: 'span[class*="difficultyBadge"]' })
+      ).toBeInTheDocument();
     });
 
     it('handles template selection', async () => {
@@ -364,6 +379,9 @@ describe('Card Variants Integration Tests', () => {
         />
       );
 
+      // Categories start collapsed; expand before reaching the template card.
+      await user.click(screen.getByText('Beginner Goals'));
+
       // Click "Use This Template" button
       const selectButton = screen.getByText('Use This Template');
       await user.click(selectButton);
@@ -376,6 +394,9 @@ describe('Card Variants Integration Tests', () => {
       const user = userEvent.setup();
 
       render(<GoalTemplateBrowser isOpen={true} onClose={vi.fn()} onSelectTemplate={vi.fn()} />);
+
+      // Categories start collapsed; expand before reaching the template card.
+      await user.click(screen.getByText('Beginner Goals'));
 
       // Expand template details
       const expandButton = screen.getByText('Learn More ↓');
@@ -502,7 +523,10 @@ describe('Card Variants Integration Tests', () => {
       ];
 
       const { container } = render(
-        <div className='goals-grid' role='grid'>
+        // Mirrors GoalsPage: a plain CSS-grid container, NOT role="grid".
+        // role="grid" is a data-grid widget requiring row/gridcell children,
+        // which a list of cards does not have (axe: aria-required-children).
+        <div className='goals-grid'>
           {goals.map(goal => (
             <GoalCard
               key={goal.id}

@@ -125,20 +125,29 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       }
     }, [onChange]);
 
-    // Determine trailing icon based on input type
+    // Determine trailing icon based on input type. The glyph is decorative
+    // (aria-hidden); the accessible name is placed on the wrapping button so
+    // the interactive control itself is discernible to assistive technology.
     const getTrailingIcon = () => {
       if (type === 'password' && !trailingIcon) {
-        return (
-          <span aria-label={showPassword ? 'Hide password' : 'Show password'}>
-            {showPassword ? '👁️‍🗨️' : '👁️'}
-          </span>
-        );
+        return <span aria-hidden='true'>{showPassword ? '👁️‍🗨️' : '👁️'}</span>;
       }
       if (type === 'search' && value && !trailingIcon) {
-        return <span aria-label='Clear search'>✕</span>;
+        return <span aria-hidden='true'>✕</span>;
       }
       return trailingIcon;
     };
+
+    // Accessible label for the built-in trailing icon actions. Custom trailing
+    // icons must provide their own accessible name via the icon content.
+    const builtInTrailingIconLabel =
+      type === 'password' && !trailingIcon
+        ? showPassword
+          ? 'Hide password'
+          : 'Show password'
+        : type === 'search' && value && !trailingIcon
+          ? 'Clear search'
+          : undefined;
 
     // Determine trailing icon click handler
     const getTrailingIconClick = () => {
@@ -225,6 +234,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               disabled={disabled}
               tabIndex={effectiveTrailingIconClick ? 0 : -1}
               aria-hidden={!effectiveTrailingIconClick}
+              aria-label={builtInTrailingIconLabel}
             >
               {effectiveTrailingIcon}
             </button>
@@ -469,6 +479,14 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
         ? styles.successMessage
         : styles.fieldDescription;
 
+    // Programmatically associate both the message and the live character count
+    // with the textarea so screen readers announce them.
+    const hasCharCount = showCharCount && Boolean(maxLength);
+    const describedBy =
+      [message ? `${textareaId}-message` : null, hasCharCount ? `${textareaId}-count` : null]
+        .filter(Boolean)
+        .join(' ') || undefined;
+
     return (
       <div className={textareaClasses}>
         {label && (
@@ -485,7 +503,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           readOnly={readOnly}
           required={required}
           aria-invalid={error}
-          aria-describedby={message ? `${textareaId}-message` : undefined}
+          aria-describedby={describedBy}
           aria-required={required}
           value={value}
           onChange={onChange}
@@ -495,7 +513,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           {...props}
         />
 
-        {(message || (showCharCount && maxLength)) && (
+        {(message || hasCharCount) && (
           <div className={styles.inputFooter}>
             {message && (
               <span id={`${textareaId}-message`} className={messageClass}>
@@ -503,8 +521,8 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
               </span>
             )}
 
-            {showCharCount && maxLength && (
-              <span className={styles.charCount}>
+            {hasCharCount && (
+              <span id={`${textareaId}-count`} className={styles.charCount} aria-live='polite'>
                 {charCount}/{maxLength}
               </span>
             )}

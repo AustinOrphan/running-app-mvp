@@ -43,17 +43,21 @@ describe('Accessibility Tests - Statistics Components', () => {
     it('should have descriptive text for screen readers', () => {
       const { container } = render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
-      // Check for aria-labels or descriptive text
-      const stats = container.querySelectorAll('[aria-label], .stat-value, .stat-label');
+      // Check for aria-labels or descriptive text. Class names are hashed by
+      // CSS Modules, so match on the stable class-name substrings.
+      const stats = container.querySelectorAll(
+        '[aria-label], [class*="statValue"], [class*="statLabel"], [class*="insightValue"], [class*="insightLabel"]'
+      );
       expect(stats.length).toBeGreaterThan(0);
     });
 
     it('should handle loading state accessibly', () => {
       const { container } = render(<InsightsCard insights={null} loading={true} />);
 
-      // Should have loading indicators that are accessible
+      // Should have loading indicators that are accessible. Class names are
+      // hashed by CSS Modules, so match on the stable class-name substring.
       const loadingElements = container.querySelectorAll(
-        '.skeleton-line, [aria-label*="loading"], [role="status"]'
+        '[class*="skeletonLine"], [aria-label*="loading"], [role="status"]'
       );
       expect(loadingElements.length).toBeGreaterThan(0);
     });

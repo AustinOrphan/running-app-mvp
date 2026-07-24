@@ -29,6 +29,12 @@ vi.mock('../../../../src/utils/formatters', () => ({
       timeZone: 'UTC',
     });
   }),
+  safeAverage: vi.fn((total: number, count: number) => {
+    if (!isFinite(total) || !isFinite(count) || count === 0) {
+      return 0;
+    }
+    return total / count;
+  }),
 }));
 
 describe('InsightsCard', () => {
@@ -37,13 +43,13 @@ describe('InsightsCard', () => {
       const { container } = render(<InsightsCard insights={null} loading={true} />);
 
       expect(screen.getByText('Weekly Summary')).toBeInTheDocument();
-      expect(container.querySelectorAll('.skeleton-line')).toHaveLength(9); // 1 period + 8 item skeletons
+      expect(container.querySelectorAll('[class*="skeletonLine"]')).toHaveLength(9); // 1 period + 8 item skeletons
     });
 
     it('displays skeleton lines with correct styling', () => {
       const { container } = render(<InsightsCard insights={null} loading={true} />);
 
-      const skeletonLines = container.querySelectorAll('.skeleton-line');
+      const skeletonLines = container.querySelectorAll('[class*="skeletonLine"]');
       expect(skeletonLines.length).toBeGreaterThan(0);
     });
   });
@@ -128,21 +134,21 @@ describe('InsightsCard', () => {
     it('has correct CSS classes for styling', () => {
       const { container } = render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
-      expect(container.querySelector('.insights-card')).toBeInTheDocument();
-      expect(container.querySelector('.insights-header')).toBeInTheDocument();
-      expect(container.querySelector('.insights-grid')).toBeInTheDocument();
-      expect(container.querySelector('.insights-footer')).toBeInTheDocument();
+      expect(container.querySelector('[class*="insightsCard"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="insightsHeader"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="insightsGrid"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="insightsFooter"]')).toBeInTheDocument();
     });
 
     it('renders all insight items with correct structure', () => {
       const { container } = render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
-      const insightItems = container.querySelectorAll('.insight-item');
+      const insightItems = container.querySelectorAll('[class*="insightItem"]');
       expect(insightItems).toHaveLength(4); // Runs, Distance, Time, Avg Pace
 
       insightItems.forEach(item => {
-        expect(item.querySelector('.insight-value')).toBeInTheDocument();
-        expect(item.querySelector('.insight-label')).toBeInTheDocument();
+        expect(item.querySelector('[class*="insightValue"]')).toBeInTheDocument();
+        expect(item.querySelector('[class*="insightLabel"]')).toBeInTheDocument();
       });
     });
   });

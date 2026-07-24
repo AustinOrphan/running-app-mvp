@@ -55,10 +55,10 @@ describe('Enhanced Input Features', () => {
       render(<Input type='password' label='Password' value='secretpassword' onChange={vi.fn()} />);
 
       const toggleButton = screen.getByRole('button');
-      expect(toggleButton).toHaveAttribute(
-        'aria-label',
-        expect.stringMatching(/show password|hide password/i)
-      );
+      // The button's accessible name is derived from its child span's
+      // aria-label ("Show password"/"Hide password"), not a direct
+      // aria-label attribute on the button element itself.
+      expect(toggleButton).toHaveAccessibleName(/show password|hide password/i);
     });
   });
 
@@ -167,9 +167,9 @@ describe('Enhanced Input Features', () => {
 
     it('updates character count as user types', async () => {
       const user = userEvent.setup();
-      const [value, setValue] = React.useState('');
 
       function TestComponent() {
+        const [value, setValue] = React.useState('');
         return (
           <Input
             label='Bio'

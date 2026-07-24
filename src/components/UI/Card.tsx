@@ -122,6 +122,25 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         .join(' ');
     };
 
+    // When the card is interactive it renders as role="button" on a <div>,
+    // which (unlike a native <button>) does not synthesize a click on
+    // Enter/Space. Add WAI-ARIA button keyboard semantics so keyboard users
+    // can activate it. Dispatching a real click via currentTarget.click()
+    // fires the onClick passed through props without a type mismatch.
+    //
+    // A consumer's own onKeyDown runs first and wins: if it already handled
+    // the key (calling preventDefault), we must not synthesize a second
+    // activation, or an onClick would fire twice for one keypress.
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+      props.onKeyDown?.(event);
+      if (event.defaultPrevented) return;
+
+      if (interactive && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        event.currentTarget.click();
+      }
+    };
+
     return (
       <div
         ref={ref}
@@ -129,6 +148,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         role={interactive ? 'button' : undefined}
         tabIndex={interactive ? 0 : undefined}
         {...props}
+        onKeyDown={handleKeyDown}
       >
         {children}
       </div>

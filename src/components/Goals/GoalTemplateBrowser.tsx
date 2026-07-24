@@ -247,19 +247,13 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
   };
 
   return (
-    <div
-      className='template-browser-overlay'
-      role='button'
-      tabIndex={0}
-      aria-label='Close modal'
-      onClick={onClose}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
-          e.preventDefault();
-          onClose();
-        }
-      }}
-    >
+    // The overlay is a presentational click-to-dismiss backdrop. It must NOT be
+    // role="button"/tabbable: it wraps the dialog, so exposing it as a button
+    // makes it a control with focusable descendants (axe: nested-interactive)
+    // and puts a confusing "Close modal" stop in the tab order. Keyboard users
+    // dismiss via Escape (document listener above) or the header close button.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+    <div className='template-browser-overlay' onClick={onClose}>
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className='template-browser'
@@ -296,6 +290,7 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
               value={selectedDifficulty}
               onChange={e => setSelectedDifficulty(e.target.value)}
               className='filter-select'
+              aria-label='Filter by difficulty'
             >
               <option value=''>All Difficulties</option>
               <option value='beginner'>Beginner</option>
@@ -309,6 +304,7 @@ export const GoalTemplateBrowser: React.FC<GoalTemplateBrowserProps> = ({
               value={selectedCategory}
               onChange={e => setSelectedCategory(e.target.value)}
               className='filter-select'
+              aria-label='Filter by category'
             >
               <option value=''>All Categories</option>
               <option value='distance'>Distance</option>

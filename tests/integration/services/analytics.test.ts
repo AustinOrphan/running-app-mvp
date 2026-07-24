@@ -1,7 +1,19 @@
-import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
+import { startOfWeek } from 'date-fns';
 import { AnalyticsService } from '../../../server/services/analyticsService.js';
 import { prisma } from '../../setup/jestSetup.js';
 import { createTestUser, createTestRuns } from '../../fixtures/testDatabase.js';
+
+// The service defines a "weekly" period as the current calendar week starting on
+// Monday (date-fns startOfWeek with weekStartsOn: 1), not a rolling 7-day window.
+// Anchor weekly-window test runs to that Monday + N days so they reliably fall
+// within [startOfWeek, endOfWeek] regardless of which weekday the test runs on.
+const weekStart = () => startOfWeek(new Date(), { weekStartsOn: 1 });
+const daysIntoThisWeek = (n: number): string => {
+  const d = weekStart();
+  d.setDate(d.getDate() + n);
+  d.setHours(12, 0, 0, 0);
+  return d.toISOString();
+};
 
 describe('AnalyticsService', () => {
   let userId: string;
@@ -18,26 +30,24 @@ describe('AnalyticsService', () => {
 
   describe('getStatistics', () => {
     it('should aggregate weekly statistics correctly', async () => {
-      // Create test runs for the past week
-      const now = new Date();
-
+      // Create test runs within the current calendar week (Monday-anchored)
       await createTestRuns(userId, [
         {
-          date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          date: daysIntoThisWeek(0),
           distance: 5.0,
           duration: 1500,
           tag: 'easy',
           notes: 'Morning run',
         },
         {
-          date: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+          date: daysIntoThisWeek(1),
           distance: 10.0,
           duration: 3000,
           tag: 'long',
           notes: 'Weekend long run',
         },
         {
-          date: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          date: daysIntoThisWeek(2),
           distance: 8.0,
           duration: 2400,
           tag: 'tempo',
@@ -91,18 +101,17 @@ describe('AnalyticsService', () => {
     });
 
     it('should calculate fastest pace correctly', async () => {
-      const now = new Date();
-
+      // Anchor to the current calendar week so both runs fall in the weekly window
       await createTestRuns(userId, [
         {
-          date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          date: daysIntoThisWeek(0),
           distance: 5.0,
           duration: 1500, // 5 min/km
           tag: 'tempo',
           notes: 'Fast run',
         },
         {
-          date: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          date: daysIntoThisWeek(1),
           distance: 10.0,
           duration: 3600, // 6 min/km
           tag: 'easy',
@@ -209,18 +218,16 @@ describe('AnalyticsService', () => {
     });
 
     it('should handle runs with elevation data', async () => {
-      const now = new Date();
-
       const runs = await createTestRuns(userId, [
         {
-          date: now.toISOString(),
+          date: daysIntoThisWeek(0),
           distance: 5.0,
           duration: 1500,
           tag: 'trail',
           notes: 'Hilly run',
         },
         {
-          date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          date: daysIntoThisWeek(1),
           distance: 10.0,
           duration: 3000,
           tag: 'trail',

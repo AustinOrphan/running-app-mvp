@@ -45,8 +45,8 @@ describe('PersonalRecordsTable', () => {
     it('displays table skeleton with correct structure', () => {
       const { container } = render(<PersonalRecordsTable records={[]} loading={true} />);
 
-      expect(container.querySelector('.table-skeleton')).toBeInTheDocument();
-      expect(container.querySelector('.header-skeleton')).toBeInTheDocument();
+      expect(container.querySelector('[class*="tableSkeleton"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="headerSkeleton"]')).toBeInTheDocument();
     });
   });
 
@@ -125,8 +125,8 @@ describe('PersonalRecordsTable', () => {
       const distanceHeader = screen.getByRole('columnheader', { name: /Distance/i });
       fireEvent.click(distanceHeader);
 
-      // Check that header has active class
-      expect(distanceHeader.closest('th')).toHaveClass('active');
+      // Check that header has active class (CSS module scoped, e.g. _active_hash)
+      expect(distanceHeader.closest('th')?.className).toMatch(/active/);
     });
 
     it('toggles sort direction when same header is clicked twice', () => {
@@ -162,7 +162,7 @@ describe('PersonalRecordsTable', () => {
       const timeHeader = screen.getByRole('columnheader', { name: /Time/i });
       fireEvent.click(timeHeader);
 
-      expect(timeHeader.closest('th')).toHaveClass('active');
+      expect(timeHeader.closest('th')?.className).toMatch(/active/);
       expect(screen.getByText('Time ↑')).toBeInTheDocument();
     });
 
@@ -172,7 +172,7 @@ describe('PersonalRecordsTable', () => {
       const paceHeader = screen.getByRole('columnheader', { name: /Pace/i });
       fireEvent.click(paceHeader);
 
-      expect(paceHeader.closest('th')).toHaveClass('active');
+      expect(paceHeader.closest('th')?.className).toMatch(/active/);
     });
 
     it('sorts by date when date header is clicked', () => {
@@ -181,7 +181,7 @@ describe('PersonalRecordsTable', () => {
       const dateHeader = screen.getByRole('columnheader', { name: /Date/i });
       fireEvent.click(dateHeader);
 
-      expect(dateHeader.closest('th')).toHaveClass('active');
+      expect(dateHeader.closest('th')?.className).toMatch(/active/);
     });
   });
 
@@ -235,10 +235,10 @@ describe('PersonalRecordsTable', () => {
         <PersonalRecordsTable records={mockPersonalRecords} loading={false} />
       );
 
-      expect(container.querySelector('.records-table-card')).toBeInTheDocument();
-      expect(container.querySelector('.records-table-container')).toBeInTheDocument();
-      expect(container.querySelector('.records-table')).toBeInTheDocument();
-      expect(container.querySelector('.records-summary')).toBeInTheDocument();
+      expect(container.querySelector('[class*="recordsTableCard"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="recordsTableContainer"]')).toBeInTheDocument();
+      expect(container.querySelector('table[class*="recordsTable"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="recordsSummary"]')).toBeInTheDocument();
     });
 
     it('applies correct styling classes to cells', () => {
@@ -246,10 +246,10 @@ describe('PersonalRecordsTable', () => {
         <PersonalRecordsTable records={mockPersonalRecords} loading={false} />
       );
 
-      expect(container.querySelector('.distance-value')).toBeInTheDocument();
-      expect(container.querySelector('.time-value')).toBeInTheDocument();
-      expect(container.querySelector('.pace-value')).toBeInTheDocument();
-      expect(container.querySelector('.date-value')).toBeInTheDocument();
+      expect(container.querySelector('[class*="distanceValue"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="timeValue"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="paceValue"]')).toBeInTheDocument();
+      expect(container.querySelector('[class*="dateValue"]')).toBeInTheDocument();
     });
   });
 

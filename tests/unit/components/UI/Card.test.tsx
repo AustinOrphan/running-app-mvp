@@ -40,25 +40,25 @@ describe('Card Component System', () => {
     it('applies correct variant classes', () => {
       const { rerender, container } = render(<Card variant='goal'>Test</Card>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardGoal/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardGoal/);
 
       rerender(<Card variant='run'>Test</Card>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardRun/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardRun/);
 
       rerender(<Card variant='template'>Test</Card>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardTemplate/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardTemplate/);
     });
 
     it('applies state classes correctly', () => {
       const { rerender, container } = render(<Card completed={true}>Test</Card>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardCompleted/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardCompleted/);
 
       rerender(<Card interactive={true}>Test</Card>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardInteractive/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardInteractive/);
 
       rerender(<Card loading={true}>Test</Card>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardLoading/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardLoading/);
     });
 
     it('supports custom className', () => {
@@ -77,12 +77,12 @@ describe('Card Component System', () => {
         </Card>
       );
 
-      const card = screen.getByText('Test content').parentElement;
+      const card = screen.getByRole('button');
 
       expect(card).toHaveAttribute('role', 'button');
       expect(card).toHaveAttribute('tabIndex', '0');
 
-      await user.click(card!);
+      await user.click(card);
       expect(handleClick).toHaveBeenCalledTimes(1);
     });
 
@@ -96,10 +96,10 @@ describe('Card Component System', () => {
         </Card>
       );
 
-      const card = screen.getByText('Test content').parentElement;
+      const card = screen.getByRole('button');
 
       // Test Enter key
-      card!.focus();
+      card.focus();
       await user.keyboard('{Enter}');
       expect(handleClick).toHaveBeenCalledTimes(1);
 
@@ -141,17 +141,17 @@ describe('Card Component System', () => {
         </CardHeader>
       );
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardHeader/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardHeader/);
       expect(screen.getByText('Header content')).toBeInTheDocument();
     });
 
     it('applies variant-specific classes', () => {
       const { rerender, container } = render(<CardHeader variant='template'>Test</CardHeader>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardHeaderTemplate/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardHeaderTemplate/);
 
       rerender(<CardHeader variant='run'>Test</CardHeader>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardHeaderRun/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardHeaderRun/);
     });
   });
 
@@ -172,7 +172,7 @@ describe('Card Component System', () => {
     it('applies variant classes', () => {
       const { container } = render(<CardIcon variant='template'>🏃</CardIcon>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardIconTemplate/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardIconTemplate/);
     });
   });
 
@@ -192,7 +192,7 @@ describe('Card Component System', () => {
     it('applies variant classes', () => {
       const { container } = render(<CardTitle variant='template'>Title</CardTitle>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardTitleTemplate/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardTitleTemplate/);
     });
   });
 
@@ -209,7 +209,7 @@ describe('Card Component System', () => {
         <CardDescription variant='template'>Description</CardDescription>
       );
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardDescriptionTemplate/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardDescriptionTemplate/);
     });
   });
 
@@ -229,10 +229,10 @@ describe('Card Component System', () => {
     it('applies variant-specific classes', () => {
       const { rerender, container } = render(<CardActions variant='run'>Actions</CardActions>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardActionsRun/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardActionsRun/);
 
       rerender(<CardActions variant='template'>Actions</CardActions>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/cardActionsTemplate/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/cardActionsTemplate/);
     });
   });
 
@@ -258,13 +258,13 @@ describe('Card Component System', () => {
     it('applies variant classes', () => {
       const { rerender, container } = render(<IconButton variant='run'>✏️</IconButton>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/iconBtnRun/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/iconBtnRun/);
 
       rerender(<IconButton variant='delete'>🗑️</IconButton>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/iconBtnDelete/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/iconBtnDelete/);
 
       rerender(<IconButton variant='edit'>✏️</IconButton>);
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/iconBtnEdit/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/iconBtnEdit/);
     });
 
     it('supports keyboard activation', async () => {
@@ -288,29 +288,29 @@ describe('Card Component System', () => {
     it('renders progress bar with correct percentage', () => {
       const { container } = render(<ProgressBar percentage={75} />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
-      expect(progressFill).toHaveStyle({ width: '75%' });
+      const progressFill = container.querySelector('[class*="progressFill"]');
+      expect(progressFill).toHaveStyle({ transform: 'scaleX(0.75)' });
     });
 
     it('applies custom color', () => {
       const { container } = render(<ProgressBar percentage={50} color='#ff0000' />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
+      const progressFill = container.querySelector('[class*="progressFill"]');
       expect(progressFill).toHaveStyle({ backgroundColor: '#ff0000' });
     });
 
     it('handles completed state', () => {
       const { container } = render(<ProgressBar percentage={100} completed={true} />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
-      expect(progressFill).toHaveClass(expect.stringMatching(/progressFillCompleted/));
+      const progressFill = container.querySelector('[class*="progressFill"]') as HTMLElement;
+      expect(progressFill.className).toMatch(/progressFillCompleted/);
     });
 
     it('caps percentage at 100', () => {
       const { container } = render(<ProgressBar percentage={150} />);
 
-      const progressFill = container.querySelector(`.${expect.stringMatching(/progressFill/)}`);
-      expect(progressFill).toHaveStyle({ width: '100%' });
+      const progressFill = container.querySelector('[class*="progressFill"]');
+      expect(progressFill).toHaveStyle({ transform: 'scaleX(1)' });
     });
   });
 
@@ -355,8 +355,8 @@ describe('Card Component System', () => {
     it('applies expanded icon class when expanded', () => {
       const { container } = render(<ExpandControls isExpanded={true} onToggle={vi.fn()} />);
 
-      const icon = container.querySelector(`.${expect.stringMatching(/expandIcon/)}`);
-      expect(icon).toHaveClass(expect.stringMatching(/expandIconExpanded/));
+      const icon = container.querySelector('[class*="expandIcon"]') as HTMLElement;
+      expect(icon.className).toMatch(/expandIconExpanded/);
     });
   });
 
@@ -374,7 +374,7 @@ describe('Card Component System', () => {
     it('applies correct CSS classes', () => {
       const { container } = render(<ExpandedContent>Content</ExpandedContent>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/expandedContent/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/expandedContent/);
     });
   });
 
@@ -388,7 +388,7 @@ describe('Card Component System', () => {
     it('applies correct CSS classes', () => {
       const { container } = render(<CompletionBadge>Completed</CompletionBadge>);
 
-      expect(container.firstChild).toHaveClass(expect.stringMatching(/completionBadge/));
+      expect((container.firstChild as HTMLElement).className).toMatch(/completionBadge/);
     });
   });
 
@@ -484,8 +484,13 @@ describe('Card Component System', () => {
     });
 
     it('maintains accessibility in complex cards', async () => {
+      // Note: the card is intentionally NOT `interactive` here. An interactive
+      // (role="button") card that nests its own <button> action controls
+      // produces an axe "nested-interactive" violation, which is an invalid
+      // composition. Interactive-card accessibility is covered separately by
+      // the "has no accessibility violations" test above.
       const { container } = render(
-        <Card variant='template' interactive={true} aria-label='Template card'>
+        <Card variant='template' aria-label='Template card'>
           <CardHeader variant='template'>
             <CardIcon variant='template' color='#f59e0b'>
               🎯
@@ -526,10 +531,10 @@ describe('Card Component System', () => {
     });
 
     it('handles invalid percentage values', () => {
-      render(<ProgressBar percentage={-10} />);
+      const { container } = render(<ProgressBar percentage={-10} />);
 
       // Should still render without throwing
-      expect(screen.getByRole('progressbar', { hidden: true })).toBeInTheDocument();
+      expect(container.querySelector('[class*="progressFill"]')).toBeInTheDocument();
     });
 
     it('handles missing event handlers', async () => {

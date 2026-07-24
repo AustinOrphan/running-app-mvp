@@ -44,8 +44,8 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120 * 1000,
     env: {
-      DATABASE_URL: 'file:./prisma/test.db',
-      TEST_DATABASE_URL: 'file:./prisma/test.db',
+      DATABASE_URL: 'file:./test.db',
+      TEST_DATABASE_URL: 'file:./test.db',
       NODE_ENV: 'test',
       RATE_LIMITING_ENABLED: 'false',
     },

@@ -17,7 +17,9 @@ import {
  * This ensures each suite has its own isolated database to prevent race conditions
  */
 export function getTestDatabaseUrl(suiteName: string): string {
-  return `file:./prisma/test-${suiteName}.db`;
+  // Relative SQLite paths resolve against the schema dir (prisma/), so no
+  // `prisma/` prefix here — otherwise it double-nests to prisma/prisma/.
+  return `file:./test-${suiteName}.db`;
 }
 
 /**
@@ -33,7 +35,7 @@ export class TestDatabase {
   private readonly databaseUrl: string;
 
   constructor(databaseUrl?: string) {
-    this.databaseUrl = databaseUrl || process.env.TEST_DATABASE_URL || 'file:./prisma/test.db';
+    this.databaseUrl = databaseUrl || process.env.TEST_DATABASE_URL || 'file:./test.db';
     this.prisma = new PrismaClient({
       datasources: {
         db: {

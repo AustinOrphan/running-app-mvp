@@ -156,7 +156,7 @@ describe('apiFetch', () => {
 
   describe('authentication', () => {
     it('should include auth token when available', async () => {
-      localStorage.setItem('authToken', 'test-token');
+      localStorage.setItem('accessToken', 'test-token');
       mockFetch.mockResolvedValueOnce(createMockResponse({}));
 
       await apiFetch('/api/test');
@@ -178,7 +178,7 @@ describe('apiFetch', () => {
     });
 
     it('should skip auth when skipAuth is true', async () => {
-      localStorage.setItem('authToken', 'test-token');
+      localStorage.setItem('accessToken', 'test-token');
       mockFetch.mockResolvedValueOnce(createMockResponse({}));
 
       await apiFetch('/api/test', { skipAuth: true });
@@ -268,7 +268,10 @@ describe('apiFetch', () => {
       const errorData = { message: 'Not found' };
       mockFetch.mockResolvedValueOnce(createMockResponse(errorData, 404));
 
-      await expect(apiFetch('/api/test', { requiresAuth: false })).rejects.toThrow('Not found');
+      // apiFetch overrides the server message for 404 with a user-friendly one
+      await expect(apiFetch('/api/test', { requiresAuth: false })).rejects.toThrow(
+        'The requested resource was not found.'
+      );
     });
 
     it('should handle HTTP error with error field', async () => {
@@ -283,8 +286,9 @@ describe('apiFetch', () => {
     it('should handle HTTP error with default message', async () => {
       mockFetch.mockResolvedValueOnce(createMockResponse({}, 500));
 
+      // apiFetch overrides 5xx errors with a user-friendly message
       await expect(apiFetch('/api/test', { requiresAuth: false, retries: 0 })).rejects.toThrow(
-        'HTTP 500: Error'
+        'Server error. Please try again later.'
       );
     });
 
@@ -292,8 +296,9 @@ describe('apiFetch', () => {
       const response = createMockResponse('Internal Server Error', 500, 'text/plain');
       mockFetch.mockResolvedValueOnce(response);
 
+      // apiFetch overrides 5xx errors with a user-friendly message
       await expect(apiFetch('/api/test', { requiresAuth: false, retries: 0 })).rejects.toThrow(
-        'HTTP 500: Error'
+        'Server error. Please try again later.'
       );
     });
 
