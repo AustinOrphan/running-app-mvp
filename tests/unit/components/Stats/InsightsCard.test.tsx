@@ -95,8 +95,9 @@ describe('InsightsCard', () => {
     it('displays week period correctly', () => {
       render(<InsightsCard insights={mockWeeklyInsights} loading={false} />);
 
-      // Should format dates as "Jun 8 - Jun 15" (actual output based on component logic)
-      expect(screen.getByText(/Jun 8 - Jun 15/)).toBeInTheDocument();
+      // weekStart is 2024-06-09T00:00:00Z, weekEnd 2024-06-15T23:59:59Z.
+      // Rendered in UTC (pinned in vite.config test env) this is "Jun 9 - Jun 15".
+      expect(screen.getByText(/Jun 9 - Jun 15/)).toBeInTheDocument();
     });
 
     it('displays insights footer with calculated averages when runs > 0', () => {

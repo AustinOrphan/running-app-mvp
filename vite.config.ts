@@ -29,6 +29,13 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./tests/setup/testSetup.ts'],
+    // Pin the timezone so date-formatting assertions are deterministic across
+    // machines. Without this, components that render UTC timestamps via
+    // toLocaleDateString() produce different day labels locally (behind UTC)
+    // than in CI (UTC), causing spurious failures.
+    env: {
+      TZ: 'UTC',
+    },
     // Vitest runs the unit/component suite only. Everything that needs a real
     // database, a live server, or a different runner is kept out and run via
     // its own npm script:
