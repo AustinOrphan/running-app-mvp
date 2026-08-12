@@ -150,7 +150,7 @@
     "pixelmatch": "^7.1.0",
     "playwright": "^1.54.0",
     "pngjs": "^7.0.0",
-    "postcss": "^8.4.32",
+    "postcss": "^8.5.26",
     "prettier": "^3.6.2",
     "prisma": "^6.11.1",
     "rollup": "^4.45.0",
