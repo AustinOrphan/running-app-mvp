@@ -79,7 +79,7 @@
     "@AustinOrphan/errors": "file:./packages/errors",
     "@AustinOrphan/logger": "file:./packages/logger",
     "@mdi/svg": "^7.4.47",
-    "@prisma/client": "^6.11.1",
+    "@prisma/client": "^7.10.0",
     "@turf/turf": "^7.3.3",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
