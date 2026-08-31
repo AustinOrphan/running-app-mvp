@@ -164,7 +164,7 @@
     "vitest": "^3.2.4"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.45.0"
+    "@rollup/rollup-linux-x64-gnu": "^4.63.1"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
