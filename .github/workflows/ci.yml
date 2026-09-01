@@ -24,7 +24,7 @@ jobs:
           submodules: true
 
       - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -54,7 +54,7 @@ jobs:
           submodules: true
 
       - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -87,7 +87,7 @@ jobs:
           submodules: true
 
       - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -125,7 +125,7 @@ jobs:
           submodules: true
 
       - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -167,7 +167,7 @@ jobs:
           submodules: true
 
       - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -207,7 +207,7 @@ jobs:
           submodules: true
 
       - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -255,7 +255,7 @@ jobs:
         uses: github/codeql-action/analyze@v3
 
       - name: 📦 Setup Node.js for npm audit
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -281,7 +281,7 @@ jobs:
           submodules: true
 
       - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
