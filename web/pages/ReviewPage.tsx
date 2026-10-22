@@ -41,7 +41,7 @@ import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
-import { formatShortDate, formatWeekday, phaseLabel } from '../components/format.ts'
+import { formatShortDate, formatWeekday, weekPhaseLabel } from '../components/format.ts'
 import { describeChange } from '../components/planChanges.ts'
 import { PROPOSAL_LABELS, proposalValueText } from '../components/zoneFormat.ts'
 import styles from './ReviewPage.module.css'
@@ -280,7 +280,7 @@ function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }:
     <div className={styles.page}>
       <PageHeader
         title="Review"
-        context={planWeek ? phaseLabel(planWeek.phase) : outsidePlanContext(plan, selected)}
+        context={planWeek ? weekPhaseLabel(planWeek) : outsidePlanContext(plan, selected)}
       />
 
       <div className={styles.picker}>
