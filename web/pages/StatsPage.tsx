@@ -150,111 +150,141 @@ export function StatsPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <table className={styles.table}>
-          <caption className="visually-hidden">Monthly totals</caption>
-          <thead>
-            <tr>
-              <th scope="col">Month</th>
-              <th scope="col">Run hours</th>
-              <th scope="col">Runs</th>
-              <th scope="col">Distance</th>
-              <th scope="col">Longest run</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...monthly].reverse().map((m) => (
-              <tr key={m.month}>
-                <th scope="row">{monthLabel(m.month)}</th>
-                <td>{minutesToHours1(m.runMin)}</td>
-                <td>{String(m.runs)}</td>
-                <td>{distanceOrDash(m.runM, units)}</td>
-                <td>{`${String(m.longestRunMin)} min`}</td>
+        <div
+          className={styles.tableWrap}
+          tabIndex={0}
+          role="region"
+          aria-label="Monthly totals table"
+        >
+          <table className={styles.table}>
+            <caption className="visually-hidden">Monthly totals</caption>
+            <thead>
+              <tr>
+                <th scope="col">Month</th>
+                <th scope="col">Run hours</th>
+                <th scope="col">Runs</th>
+                <th scope="col">Distance</th>
+                <th scope="col">Longest run</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {[...monthly].reverse().map((m) => (
+                <tr key={m.month}>
+                  <th scope="row">{monthLabel(m.month)}</th>
+                  <td>{minutesToHours1(m.runMin)}</td>
+                  <td>{String(m.runs)}</td>
+                  <td>{distanceOrDash(m.runM, units)}</td>
+                  <td>{`${String(m.longestRunMin)} min`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className={styles.section}>
         <h2 className={styles.heading}>Yearly totals</h2>
-        <table className={styles.table}>
-          <caption className="visually-hidden">Yearly totals</caption>
-          <thead>
-            <tr>
-              <th scope="col">Year</th>
-              <th scope="col">Run hours</th>
-              <th scope="col">Runs</th>
-              <th scope="col">Distance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...yearly].reverse().map((y) => (
-              <tr key={y.year}>
-                <th scope="row">{y.year}</th>
-                <td>{minutesToHours1(y.runMin)}</td>
-                <td>{String(y.runs)}</td>
-                <td>{distanceOrDash(y.runM, units)}</td>
+        <div
+          className={styles.tableWrap}
+          tabIndex={0}
+          role="region"
+          aria-label="Yearly totals table"
+        >
+          <table className={styles.table}>
+            <caption className="visually-hidden">Yearly totals</caption>
+            <thead>
+              <tr>
+                <th scope="col">Year</th>
+                <th scope="col">Run hours</th>
+                <th scope="col">Runs</th>
+                <th scope="col">Distance</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {[...yearly].reverse().map((y) => (
+                <tr key={y.year}>
+                  <th scope="row">{y.year}</th>
+                  <td>{minutesToHours1(y.runMin)}</td>
+                  <td>{String(y.runs)}</td>
+                  <td>{distanceOrDash(y.runM, units)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className={styles.section}>
         <h2 className={styles.heading}>Longest runs</h2>
-        <table className={styles.table}>
-          <caption className="visually-hidden">Longest runs</caption>
-          <thead>
-            <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Time</th>
-              <th scope="col">Distance</th>
-              <th scope="col">Pace</th>
-            </tr>
-          </thead>
-          <tbody>
-            {longest.map((run) => (
-              <tr key={run.id}>
-                <th scope="row">{dateWithYear(run.date)}</th>
-                <td>{formatDuration(run.durationSec)}</td>
-                <td>{run.distanceM === null ? NO_VALUE : formatDistance(run.distanceM, units)}</td>
-                <td>
-                  {run.distanceM === null
-                    ? NO_VALUE
-                    : formatPace(run.durationSec, run.distanceM, units)}
-                </td>
+        <div
+          className={styles.tableWrap}
+          tabIndex={0}
+          role="region"
+          aria-label="Longest runs table"
+        >
+          <table className={styles.table}>
+            <caption className="visually-hidden">Longest runs</caption>
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Time</th>
+                <th scope="col">Distance</th>
+                <th scope="col">Pace</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {longest.map((run) => (
+                <tr key={run.id}>
+                  <th scope="row">{dateWithYear(run.date)}</th>
+                  <td>{formatDuration(run.durationSec)}</td>
+                  <td>
+                    {run.distanceM === null ? NO_VALUE : formatDistance(run.distanceM, units)}
+                  </td>
+                  <td>
+                    {run.distanceM === null
+                      ? NO_VALUE
+                      : formatPace(run.durationSec, run.distanceM, units)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className={styles.section}>
         <h2 className={styles.heading}>Fastest efforts</h2>
         {efforts.length > 0 ? (
-          <table className={styles.table}>
-            <caption className="visually-hidden">Fastest efforts</caption>
-            <thead>
-              <tr>
-                <th scope="col">Distance</th>
-                <th scope="col">Time</th>
-                <th scope="col">Pace</th>
-                <th scope="col">Run distance</th>
-                <th scope="col">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {efforts.map((effort) => (
-                <tr key={effort.label}>
-                  <th scope="row">{effort.label}</th>
-                  <td>{formatDuration(effort.durationSec)}</td>
-                  <td>{formatPace(effort.durationSec, effort.distanceM, units)}</td>
-                  <td>{formatDistance(effort.distanceM, units)}</td>
-                  <td>{dateWithYear(effort.date)}</td>
+          <div
+            className={styles.tableWrap}
+            tabIndex={0}
+            role="region"
+            aria-label="Fastest efforts table"
+          >
+            <table className={styles.table}>
+              <caption className="visually-hidden">Fastest efforts</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Distance</th>
+                  <th scope="col">Time</th>
+                  <th scope="col">Pace</th>
+                  <th scope="col">Run distance</th>
+                  <th scope="col">Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {efforts.map((effort) => (
+                  <tr key={effort.label}>
+                    <th scope="row">{effort.label}</th>
+                    <td>{formatDuration(effort.durationSec)}</td>
+                    <td>{formatPace(effort.durationSec, effort.distanceM, units)}</td>
+                    <td>{formatDistance(effort.distanceM, units)}</td>
+                    <td>{dateWithYear(effort.date)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : null}
         {missing.length > 0 ? (
           <p className={styles.note}>{`No qualifying run yet for ${missing.join(', ')}.`}</p>
@@ -266,33 +296,40 @@ export function StatsPage() {
 
       <section className={styles.section}>
         <h2 className={styles.heading}>Weekly history</h2>
-        <table className={styles.table}>
-          <caption className="visually-hidden">Weekly history, last 26 weeks</caption>
-          <thead>
-            <tr>
-              <th scope="col">Week of</th>
-              <th scope="col">Run hours</th>
-              <th scope="col">Runs</th>
-              <th scope="col">Run days</th>
-              <th scope="col">Long-run share</th>
-            </tr>
-          </thead>
-          <tbody>
-            {history.map((week) => (
-              <tr key={week.weekStart}>
-                <th scope="row">{formatShortDate(week.weekStart)}</th>
-                <td>{minutesToHours1(week.runMin)}</td>
-                <td>{String(week.runSessions)}</td>
-                <td>{String(week.runDays)}</td>
-                <td>
-                  {week.longRunShare === null
-                    ? NO_VALUE
-                    : `${String(Math.round(week.longRunShare * 100))}%`}
-                </td>
+        <div
+          className={styles.tableWrap}
+          tabIndex={0}
+          role="region"
+          aria-label="Weekly history table"
+        >
+          <table className={styles.table}>
+            <caption className="visually-hidden">Weekly history, last 26 weeks</caption>
+            <thead>
+              <tr>
+                <th scope="col">Week of</th>
+                <th scope="col">Run hours</th>
+                <th scope="col">Runs</th>
+                <th scope="col">Run days</th>
+                <th scope="col">Long-run share</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {history.map((week) => (
+                <tr key={week.weekStart}>
+                  <th scope="row">{formatShortDate(week.weekStart)}</th>
+                  <td>{minutesToHours1(week.runMin)}</td>
+                  <td>{String(week.runSessions)}</td>
+                  <td>{String(week.runDays)}</td>
+                  <td>
+                    {week.longRunShare === null
+                      ? NO_VALUE
+                      : `${String(Math.round(week.longRunShare * 100))}%`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </>
   )
