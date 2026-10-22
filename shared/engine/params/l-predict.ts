@@ -42,6 +42,10 @@ export const lPredict = {
         note: 'Validated extrapolation reaches 60 min.',
       },
     ),
+    sameDistanceTolerancePct: param('l1.sameDistanceTolerancePct', 5, 'D', 'L1', [], {
+      unit: '% of target distance',
+      note: 'Default: a race within this much of the target distance anchors it directly at any distance, including a marathon or an ultra (L4 anchors on the marathon PB and prior ultra results).',
+    }),
     refitWindowWeeks: param<[number, number]>(
       'l1.refitWindowWeeks',
       [8, 12],
@@ -134,6 +138,28 @@ export const lPredict = {
       {
         unit: 'fraction of CS',
         note: 'Target pace prior at a duration of 360 min.',
+      },
+    ),
+    csFractionShortMin: param(
+      'l2.csFractionShortMin',
+      150,
+      'C',
+      'L2',
+      ['smyth-2020-cs-training-data'],
+      {
+        unit: 'min',
+        note: 'Duration at which the target pace prior is the 150 min fraction.',
+      },
+    ),
+    csFractionLongMin: param(
+      'l2.csFractionLongMin',
+      360,
+      'C',
+      'L2',
+      ['smyth-2020-cs-training-data'],
+      {
+        unit: 'min',
+        note: 'Duration at which the target pace prior is the 360 min fraction.',
       },
     ),
     csFractionLowDecoupling: param(

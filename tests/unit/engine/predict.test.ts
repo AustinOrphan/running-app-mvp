@@ -97,6 +97,27 @@ describe('predictFromState: model hierarchy [L1]', () => {
     expect(predictFromState(state, road(50000))).toBeNull()
   })
 
+  it('anchors a marathon or an ultra on a single race at about the same distance [L4]', () => {
+    const marathon = predictFromState(
+      makeState({ races: [race('2026-09-01', 42400, 13000)] }),
+      road(MARATHON),
+    )
+    expect(marathon?.method).toBe('same-distance')
+    expect(marathon?.predictedSec).toBe(Math.round(13000 * Math.pow(MARATHON / 42400, RIEGEL)))
+    expect(marathon?.rules).toEqual(expect.arrayContaining(['L1', 'L2']))
+    const ultra = predictFromState(
+      makeState({ races: [race('2026-06-01', 50000, 18000)] }),
+      road(50000),
+    )
+    expect(ultra?.method).toBe('same-distance')
+    expect(ultra?.predictedSec).toBe(18000)
+    expect(ultra?.rules).toContain('L4')
+    // Outside the tolerance the single anchor still gives no ultra prediction.
+    expect(
+      predictFromState(makeState({ races: [race('2026-06-01', MARATHON, 13000)] }), road(50000)),
+    ).toBeNull()
+  })
+
   it('prefers the personal exponent when two or more race distances exist', () => {
     const state = makeState({
       exponent: 1.07,

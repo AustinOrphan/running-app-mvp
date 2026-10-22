@@ -97,6 +97,19 @@ function raceEstimate(state: AthleteState, target: PredictTarget): Estimate | nu
       conditions: [`Riegel exponent ${P.l1.riegelExponent.value} from ${anchorText}.`],
     }
   }
+  // L1, L4: a race at the target distance anchors it directly, marathons and ultras included.
+  if (
+    Math.abs(Math.log(anchor.distanceM / dEff)) <=
+    Math.log(1 + P.l1.sameDistanceTolerancePct.value / 100)
+  ) {
+    const ultra = target.distanceM > P.d1.ultraAboveM.value
+    return {
+      method: 'same-distance',
+      sec: scaled(P.l1.riegelExponent.value),
+      rules: ['L1', ultra ? 'L4' : 'L2'],
+      conditions: [`A race at about the target distance: ${anchorText}.`],
+    }
+  }
   if (
     target.distanceM <= P.d1.ultraAboveM.value &&
     anchor.distanceM <= P.l2.singleAnchorMaxM.value
@@ -117,9 +130,9 @@ function raceEstimate(state: AthleteState, target: PredictTarget): Estimate | nu
 /** Fraction of CS sustainable for a duration in minutes [L2, L4]: a prior, not a fit. */
 export function csFractionAtMin(minutes: number): number {
   const points: Array<[number, number]> = [
-    [SEC_PER_MIN, P.l2.csFractionAt60Min.value],
-    [150, P.l2.csFractionAt150Min.value],
-    [360, P.l2.csFractionAt360Min.value],
+    [P.l1.csExtrapolationMaxMin.value, P.l2.csFractionAt60Min.value],
+    [P.l2.csFractionShortMin.value, P.l2.csFractionAt150Min.value],
+    [P.l2.csFractionLongMin.value, P.l2.csFractionAt360Min.value],
   ]
   const [t0, f0] = points[0] as [number, number]
   if (minutes <= t0) return f0
