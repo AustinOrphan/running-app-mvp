@@ -108,7 +108,10 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
   const [presetM, setPresetM] = useState<number | null>(
     presetFor(goal?.distanceM ?? null)?.distanceM ?? null,
   )
-  const [custom, setCustom] = useState(distanceText(goal?.distanceM ?? null, units))
+  // The stored distance, shown rounded. Untouched text keeps the stored metres: re-parsing the
+  // rounded text would drift them on every save.
+  const initialCustom = distanceText(goal?.distanceM ?? null, units)
+  const [custom, setCustom] = useState(initialCustom)
   const [location, setLocation] = useState(goal?.location ?? '')
   const [criteria, setCriteria] = useState(goal?.successCriteria ?? '')
   const [notes, setNotes] = useState(goal?.notes ?? '')
@@ -123,7 +126,10 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
     if (targetDate === '') local.targetDate = 'Pick the race date, even a rough one.'
     let distanceM: number | null = presetM
     if (presetM === null && custom.trim() !== '') {
-      distanceM = parseDistance(custom, units)
+      distanceM =
+        goal?.distanceM != null && custom === initialCustom
+          ? goal.distanceM
+          : parseDistance(custom, units)
       if (distanceM === null) local.distanceM = `Enter a distance in ${units}, like 13.1.`
     }
     setErrors(local)
