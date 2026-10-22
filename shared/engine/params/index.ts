@@ -15,6 +15,7 @@ import { jAdapt } from './j-adapt.ts'
 import { kTaper } from './k-taper.ts'
 import { lPredict } from './l-predict.ts'
 import { mExecution } from './m-execution.ts'
+import { nChecklist } from './n-checklist.ts'
 
 /** Bump when any parameter value, grade or rule changes; stored with every generated plan. */
 export const PARAMS_VERSION = '2026-10-22.1'
@@ -34,6 +35,7 @@ export const PARAM_SECTIONS = {
   'k-taper': kTaper,
   'l-predict': lPredict,
   'm-execution': mExecution,
+  'n-checklist': nChecklist,
 } as const
 
 export const P = {
@@ -50,6 +52,7 @@ export const P = {
   ...kTaper,
   ...lPredict,
   ...mExecution,
+  ...nChecklist,
 } as const
 
 /** Every parameter of one section, in declaration order. */

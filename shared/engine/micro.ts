@@ -79,6 +79,7 @@ export function placeWeek(
   const slots = slotsOf(week, ctx.profile)
   const before = ctx.prevSessions.filter((s) => s.date < week.weekStart)
   const runs = planRuns(week, ctx, slots, before)
+  capIntensity(runs, week, ctx.zones)
   const strength = planStrength(week, ctx.profile, slots, runs)
 
   const sessions: SessionSpec[] = []
@@ -102,6 +103,52 @@ export function placeWeek(
     sessions.push({ ...spec, date: slots[day]!.date, order: hasRun ? 1 : 0 })
   }
   return sessions.sort((a, b) => (a.date === b.date ? a.order - b.order : a.date < b.date ? -1 : 1))
+}
+
+// ---- intensity cap [rules F2] ----
+
+/** Minutes of work steps outside zone 1 (threshold, intervals, race pace, hills, strides). */
+export function intensityMinutes(session: SessionSpec): number {
+  return session.structure.reduce(
+    (sum, step) =>
+      step.kind === 'work' && step.zone !== 'z1'
+        ? sum + ((step.durationSec ?? 0) * step.reps) / 60
+        : sum,
+    0,
+  )
+}
+
+/** Sessions that give up their intensity first, and what they become. */
+const DEMOTED_TO: Partial<Record<SessionKind, SessionKind>> = {
+  threshold: 'easy',
+  intervals: 'easy',
+  'race-pace': 'easy',
+  hills: 'easy',
+  'long-fast-finish': 'long',
+}
+
+/**
+ * Zone 2 and zone 3 together never take more than the cap of the week's running time [F2]. While
+ * the planned sessions pass it, the quality session with the most work becomes an easy run (a
+ * fast-finish long run becomes a plain one); on a tie the later day gives way.
+ */
+function capIntensity(runs: RunPlan[], week: WeekDraft, zones: ZoneSet): void {
+  const cap = P.f2.z2z3ShareMax.value / 100
+  const counted = (r: RunPlan) => r.kind !== 'hike' && r.kind !== 'race'
+  for (;;) {
+    const total = runs.filter(counted).reduce((sum, r) => sum + r.minutes, 0)
+    const entries = runs.map((run) => ({
+      run,
+      hard: counted(run) ? intensityMinutes(prescribe(run.kind, run.minutes, zones, week)) : 0,
+    }))
+    const hard = entries.reduce((sum, e) => sum + e.hard, 0)
+    if (total <= 0 || hard <= cap * total + 1e-9) return
+    const worst = entries
+      .filter((e) => e.hard > 0 && DEMOTED_TO[e.run.kind] !== undefined)
+      .sort((a, b) => b.hard - a.hard || b.run.day - a.run.day)[0]
+    if (worst === undefined) return
+    worst.run.kind = DEMOTED_TO[worst.run.kind]!
+  }
 }
 
 // ---- runs ----

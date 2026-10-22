@@ -195,6 +195,7 @@ function planPhases(
   weeksBeforeTaper: number,
   taperWeeks: number,
   workPerCycle: number,
+  openingRecovery: boolean,
 ): PhasePlan[] {
   const specificMin = P.e2.specificWeeksMin.value
   const specific =
@@ -206,10 +207,14 @@ function planPhases(
   const out: PhasePlan[] = []
   for (let i = 0; i < weeksBeforeTaper; i++) {
     const phase: PhaseV2 = i < base ? 'base' : i < base + build ? 'build' : 'specific'
-    // counted back from the last pre-taper week, which is always a work week (the peak); the
-    // plan never opens with a recovery week, so its first cycle may run one work week longer
+    // counted back from the last pre-taper week, which is always a work week (the peak); a new
+    // plan never opens with a recovery week, so its first cycle may run one work week longer. A
+    // re-plan keeps the first week a recovery week when the plan it replaces had it so.
     const fromEnd = weeksBeforeTaper - 1 - i
-    out.push({ phase, isRecovery: i > 0 && fromEnd % cycle === cycle - 1 })
+    out.push({
+      phase,
+      isRecovery: (i > 0 || openingRecovery) && fromEnd % cycle === cycle - 1,
+    })
   }
   for (let i = 0; i < taperWeeks; i++) {
     out.push({ phase: i === taperWeeks - 1 ? 'race' : 'taper', isRecovery: false })
@@ -262,7 +267,9 @@ export function macroPlan(
   // Phases
   const taperCount = Math.min(Math.ceil(taperDays(goal, state) / 7), total)
   const preCount = total - taperCount
-  const phases = planPhases(preCount, taperCount, cycleWorkWeeks(input, state))
+  const openingRecovery =
+    input.existing?.weeks.find((w) => w.weekStart === firstMonday)?.isRecovery === true
+  const phases = planPhases(preCount, taperCount, cycleWorkWeeks(input, state), openingRecovery)
   const raceIdx = total - 1
 
   // Run days: novices keep the three-day rhythm, others follow the minutes, never above six
