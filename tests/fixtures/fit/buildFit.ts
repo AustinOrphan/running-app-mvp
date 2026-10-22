@@ -35,6 +35,8 @@ export interface FitSessionInput {
   startUnix: number
   durationSec: number
   timerSec?: number
+  /** Written as `session.total_moving_time` when given. */
+  movingSec?: number
   distanceM?: number
   ascentM?: number
   descentM?: number
@@ -184,6 +186,7 @@ export function buildFit(options: BuildFitOptions): Uint8Array {
       f.push(s32(3, semicircles(s.lat)), s32(4, semicircles(s.lng)))
     }
     if (s.distanceM !== undefined) f.push(u32(9, s.distanceM * 100))
+    if (s.movingSec !== undefined) f.push(u32(59, s.movingSec * 1000))
     if (s.avgHr !== undefined) f.push(u8(16, s.avgHr))
     if (s.maxHr !== undefined) f.push(u8(17, s.maxHr))
     if (s.avgCadence !== undefined) f.push(u8(18, s.avgCadence))

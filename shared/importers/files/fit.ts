@@ -168,7 +168,9 @@ export function parseFit(bytes: Uint8Array, opts: { timezone: string }): ParsedA
 
     const elapsed = num(session, 'total_elapsed_time') ?? num(session, 'total_timer_time')
     const lastT = samples.t[samples.t.length - 1] ?? 0
-    const timer = num(session, 'total_timer_time')
+    // Timer time includes stops unless auto-pause was on, so only a recorded moving time counts;
+    // without one, summarize derives it from speed.
+    const moving = num(session, 'total_moving_time')
     const lastDistance = samples.d ? samples.d[samples.d.length - 1]! : null
     const distance = num(session, 'total_distance') ?? lastDistance
 
@@ -210,7 +212,7 @@ export function parseFit(bytes: Uint8Array, opts: { timezone: string }): ParsedA
       type: sport.type,
       subtype: sport.subtype,
       elapsedSec: Math.round(elapsed ?? lastT),
-      movingSec: timer === null ? null : Math.round(timer),
+      movingSec: moving === null ? null : Math.round(moving),
       distanceM: distance === null ? null : Math.round(distance),
       elevationGainM: ascent ?? change?.gain ?? null,
       elevationLossM: descent ?? change?.loss ?? null,

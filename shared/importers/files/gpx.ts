@@ -186,7 +186,7 @@ export function parseGpx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
       elevationGainM: change?.gain ?? null,
       elevationLossM: change?.loss ?? null,
       avgHr: avgHr === null ? null : Math.round(avgHr),
-      maxHr: samples.hr ? samples.hr.reduce((m, v) => Math.max(m, v), 0) : null,
+      maxHr: samples.hr ? Math.round(samples.hr.reduce((m, v) => Math.max(m, v), 0)) : null,
       avgCadence: avgCadence === null ? null : Math.round(avgCadence),
       avgPowerW: avgPower === null ? null : Math.round(avgPower),
       deviceName: creator,

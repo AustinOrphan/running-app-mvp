@@ -54,7 +54,7 @@ export function parseTcx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
   }
 
   const result: ParsedActivity[] = []
-  activitiesOf(root).forEach((activity, index) => {
+  for (const activity of activitiesOf(root)) {
     const sportName = textOf(activity['@_Sport'])
     const sport = classifySport(sportName ?? 'other')
     const foot = isFootActivity(sport.type, sport.subtype)
@@ -98,7 +98,7 @@ export function parseTcx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
       lapStarts.find((s): s is string => s !== null) ??
       toUtcIso(textOf(activity['Id'])) ??
       (trackpoints[0] ? msToUtcIso(trackpoints[0].ms) : null)
-    if (startIso === null) return
+    if (startIso === null) continue
     const startMs = Date.parse(startIso)
     for (const tp of trackpoints) tp.raw.t = Math.max(0, (tp.ms - startMs) / 1000)
     const samples = fillSamples(trackpoints.map((tp) => tp.raw))
@@ -107,7 +107,7 @@ export function parseTcx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
     const lapTimeSum = lapTotals.reduce<number>((sum, v) => sum + (v ?? 0), 0)
     const lastT = samples.t[samples.t.length - 1] ?? 0
     const elapsed = Math.max(lastT, lapTimeSum)
-    if (trackpoints.length === 0 && lapTimeSum <= 0) return
+    if (trackpoints.length === 0 && lapTimeSum <= 0) continue
 
     const lapDistances = laps.map((lap) => numberOf(lap['DistanceMeters']))
     const lapDistanceSum = lapDistances.reduce<number>((sum, v) => sum + (v ?? 0), 0)
@@ -140,7 +140,7 @@ export function parseTcx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
     const device = isNode(creator) ? textOf(creator['Name']) : null
 
     result.push({
-      providerKey: shaProviderKey(bytes, index),
+      providerKey: shaProviderKey(bytes, result.length),
       startUtc: startIso,
       utcOffsetMin: offsetMinFor(startIso, opts.timezone),
       type: sport.type,
@@ -151,7 +151,7 @@ export function parseTcx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
       elevationGainM: change?.gain ?? null,
       elevationLossM: change?.loss ?? null,
       avgHr: avgHr === null ? null : Math.round(avgHr),
-      maxHr: samples.hr ? samples.hr.reduce((m, v) => Math.max(m, v), 0) : null,
+      maxHr: samples.hr ? Math.round(samples.hr.reduce((m, v) => Math.max(m, v), 0)) : null,
       avgCadence: avgCadence === null ? null : Math.round(avgCadence),
       avgPowerW: avgPower === null ? null : Math.round(avgPower),
       deviceName: device,
@@ -160,6 +160,6 @@ export function parseTcx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
       samples,
       laps: parsedLaps,
     })
-  })
+  }
   return result
 }

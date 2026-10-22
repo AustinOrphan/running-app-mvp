@@ -59,6 +59,7 @@ describe('parseFit', () => {
           startUnix: START,
           durationSec: 600,
           timerSec: 580,
+          movingSec: 560,
           distanceM: 1800,
           ascentM: 12,
           descentM: 7,
@@ -81,7 +82,7 @@ describe('parseFit', () => {
       type: 'run',
       subtype: 'trail',
       elapsedSec: 600,
-      movingSec: 580,
+      movingSec: 560,
       distanceM: 1800,
       elevationGainM: 12,
       elevationLossM: 7,
@@ -296,6 +297,12 @@ describe('summarize on a parsed FIT', () => {
   test('decoupling is the second-half HR per speed over the first half, minus 1', () => {
     const summary = summarize(hourRun())
     expect(summary.decouplingPct).toBeCloseTo(5.0, 1)
+  })
+
+  test('moving time comes from speed when the session records none', () => {
+    const a = hourRun()
+    expect(a.movingSec).toBeNull()
+    expect(summarize(a).movingSec).toBe(3599)
   })
 
   test('HR histogram has 1 bpm bins from 40 and sums to the elapsed seconds', () => {
