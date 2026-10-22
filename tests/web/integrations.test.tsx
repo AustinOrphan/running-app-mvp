@@ -460,6 +460,49 @@ describe('IntegrationsPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('access_denied')
   })
 
+  test('a failed run keeps Sync now and does not ask for the credentials again', async () => {
+    mockApi(
+      routes(
+        allStatuses({
+          intervals: { status: 'error', lastError: 'intervals.icu answered HTTP 500.' },
+        }),
+      ),
+    )
+    renderWithProviders(<IntegrationsPage />)
+
+    const intervals = await screen.findByRole('region', { name: 'intervals.icu' })
+    expect(within(intervals).getByText('intervals.icu answered HTTP 500.')).toBeInTheDocument()
+    expect(within(intervals).getByRole('button', { name: 'Sync now' })).toBeInTheDocument()
+    expect(within(intervals).queryByLabelText('API key')).not.toBeInTheDocument()
+  })
+
+  test('a field error for a field the form does not show goes in the alert', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(allStatuses(), {
+        'PUT /api/integrations/garmin': () => ({
+          status: 400,
+          body: {
+            error: {
+              code: 'validation',
+              message: 'Invalid input',
+              details: { issues: [{ path: 'clientId', message: 'Enter the client id.' }] },
+            },
+          },
+        }),
+      }),
+    )
+    renderWithProviders(<IntegrationsPage />)
+
+    const garmin = await screen.findByRole('region', { name: 'Garmin Connect' })
+    await user.type(within(garmin).getByLabelText('Username'), 'runner@example.com')
+    await user.type(within(garmin).getByLabelText('Password'), 'synthetic-password')
+    await user.click(within(garmin).getByLabelText(/I understand this is unofficial/))
+    await user.click(within(garmin).getByRole('button', { name: 'Connect' }))
+
+    expect(await within(garmin).findByRole('alert')).toHaveTextContent('Enter the client id.')
+  })
+
   test('says so when the list does not load', async () => {
     mockApi({ 'GET /api/integrations': () => ({ status: 500, body: undefined }) })
     renderWithProviders(<IntegrationsPage />)

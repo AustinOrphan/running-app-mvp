@@ -561,12 +561,23 @@ function SyncControls({ provider }: { provider: string }) {
   )
 }
 
-function failureMessage(error: unknown): string | undefined {
+/** The fields each connect form shows an error beside; any other field error goes in the alert. */
+const FORM_FIELDS: Record<string, string[]> = {
+  intervals: ['athleteId', 'apiKey'],
+  strava: ['clientId', 'clientSecret', 'publicBaseUrl'],
+  garmin: ['username', 'password', 'code', 'tokens', 'acknowledgeRisk'],
+  folder: ['path'],
+}
+
+function failureMessage(provider: string, error: unknown): string | undefined {
   if (error === null || error === undefined) return undefined
-  if (error instanceof ApiError && Object.keys(fieldErrors(error)).length > 0) return undefined
-  return error instanceof ApiError
-    ? error.message
-    : 'Not connected. The server did not respond; try again.'
+  if (!(error instanceof ApiError)) return 'Not connected. The server did not respond; try again.'
+  const errors = fieldErrors(error)
+  const keys = Object.keys(errors)
+  if (keys.length === 0) return error.message
+  const shown = FORM_FIELDS[provider] ?? []
+  const stray = keys.filter((key) => !shown.includes(key)).map((key) => errors[key])
+  return stray.length === 0 ? undefined : stray.join(' ')
 }
 
 function ProviderCard({ item }: { item: IntegrationStatus }) {
@@ -583,8 +594,9 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
   const isPush = channels.includes('push')
   const isFolder = channels.includes('folder')
   const hasConnection = item.status !== 'disconnected'
-  const showForm =
-    (isPull || isFolder) && (!hasConnection || item.status !== 'connected' || editing || mfaPending)
+  // `error` is a failed run with the credentials still in place: keep Sync now, not the form.
+  const usable = item.status === 'connected' || item.status === 'error'
+  const showForm = (isPull || isFolder) && (!usable || editing || mfaPending)
 
   function submit(input: unknown) {
     connect.mutate(
@@ -611,7 +623,7 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
     submit,
     pending: connect.isPending,
     errors: fieldErrors(connect.error),
-    failure: failureMessage(connect.error),
+    failure: failureMessage(provider, connect.error),
   }
 
   let form: ReactNode = null
@@ -670,14 +682,14 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
 
       {form}
 
-      {isPull && item.status === 'connected' ? <SyncControls provider={provider} /> : null}
+      {isPull && usable ? <SyncControls provider={provider} /> : null}
 
-      {isFolder && item.status === 'connected' ? (
+      {isFolder && usable ? (
         <p className={styles.note}>The folder is scanned every 5 minutes.</p>
       ) : null}
 
       <div className={styles.row}>
-        {item.status === 'connected' && (isPull || isFolder) && !editing && !mfaPending ? (
+        {usable && (isPull || isFolder) && !editing && !mfaPending ? (
           <Button
             variant="quiet"
             onClick={() => {
