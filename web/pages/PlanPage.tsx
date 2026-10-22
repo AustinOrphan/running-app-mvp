@@ -46,8 +46,16 @@ export function PhaseChip({ phase }: { phase: Phase }) {
   )
 }
 
+const NBSP = ' '
+
+/** Number and unit stay on one line in a narrow table cell. */
 function hours(min: number): string {
-  return `${minutesToHours1(min)} h`
+  return `${minutesToHours1(min)}${NBSP}h`
+}
+
+/** A race week has no long run (0 minutes); show a dash rather than "0 min". */
+function longRunText(min: number): string {
+  return min > 0 ? `${String(min)}${NBSP}min` : '—'
 }
 
 /** Goals a plan can be built for: not finished and not dropped. */
@@ -531,14 +539,14 @@ function PlanTable({ plan }: { plan: PlanWithWeeks }) {
                   {runMin === undefined ? '' : hours(runMin)}
                 </td>
                 <td className={styles.summary}>
-                  Long run {week.longRunMin} min, {week.runDays} run days, strength{' '}
+                  Long run {longRunText(week.longRunMin)}, {week.runDays} run days, strength{' '}
                   {week.strengthSessions}
                 </td>
                 <td className={styles.number} data-cell="long-run">
-                  {week.longRunMin} min
+                  {longRunText(week.longRunMin)}
                 </td>
                 <td className={styles.number} data-cell="day2">
-                  {week.day2Min === null ? '—' : `${week.day2Min} min`}
+                  {week.day2Min === null ? '—' : `${String(week.day2Min)}${NBSP}min`}
                 </td>
                 <td className={styles.number} data-cell="run-days">
                   {week.runDays}
