@@ -207,6 +207,19 @@ test(
     expect(unknownEmail.status).toBe(401)
     expect(unknownEmail.body).toEqual(expected)
     expect(wrongPassword.headers['set-cookie']).toBeUndefined()
+
+    // bcrypt reads only 72 bytes: the stored 72-byte password plus a suffix must not sign in.
+    const full = 'p'.repeat(72)
+    expect(await setPasswordByEmail(ctx.prisma, 'runner@example.com', full)).toBe(true)
+    const exact = await client(ctx)
+      .post('/api/auth/login')
+      .send({ email: 'runner@example.com', password: full })
+    expect(exact.status).toBe(200)
+    const extended = await client(ctx)
+      .post('/api/auth/login')
+      .send({ email: 'runner@example.com', password: `${full}-suffix` })
+    expect(extended.status).toBe(401)
+    expect(extended.body).toEqual(expected)
   },
   SLOW,
 )
@@ -352,7 +365,9 @@ test(
     expect(oldLogin.status).toBe(401)
 
     expect(await setPasswordByEmail(ctx.prisma, 'nobody@example.com', next)).toBe(false)
-    await expect(setPasswordByEmail(ctx.prisma, 'runner@example.com', 'short')).rejects.toThrow()
+    await expect(
+      setPasswordByEmail(ctx.prisma, 'runner@example.com', 'short'),
+    ).rejects.toMatchObject({ code: 'validation' })
   },
   SLOW,
 )

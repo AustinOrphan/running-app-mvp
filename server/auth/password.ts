@@ -28,8 +28,14 @@ export function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, BCRYPT_COST)
 }
 
-export function verifyPassword(plain: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(plain, hash)
+/**
+ * False for a password over the byte limit even when its first 72 bytes match: bcrypt ignores the
+ * rest, so the stored password plus any suffix would otherwise sign in. The compare still runs so
+ * the response takes the same time.
+ */
+export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
+  const matches = await bcrypt.compare(plain, hash)
+  return matches && Buffer.byteLength(plain, 'utf8') <= MAX_BYTES
 }
 
 /** Sets a new password for the account with this email. False when no such account exists. */
