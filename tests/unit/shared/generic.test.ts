@@ -84,6 +84,17 @@ describe('parseGenericCsv', () => {
     ])
   })
 
+  test('minutes that round to zero seconds are rejected, not stored as a 0 s run', () => {
+    const text = [
+      'date,type,minutes,miles',
+      '2026-03-02,run,0.004,5',
+      '2026-03-03,run,0.01,5',
+    ].join('\n')
+    const { rows, errors } = parseGenericCsv(text)
+    expect(errors).toEqual([{ line: 2, reason: 'minutes must be at least 0.01' }])
+    expect(rows.map((row) => row.durationSec)).toEqual([1])
+  })
+
   test('a missing required column gives no rows and one error', () => {
     expect(parseGenericCsv('date,type,miles\n2026-03-02,run,5\n')).toEqual({
       rows: [],
