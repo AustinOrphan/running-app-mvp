@@ -1,0 +1,144 @@
+/* web/styles/tokens.css */
+:root {
+  color-scheme: light dark;
+
+  /* type */
+  --font-serif: "Source Serif 4 Variable", "Source Serif 4", Charter, "Iowan Old Style", Georgia, serif;
+  --font-sans: "Libre Franklin Variable", "Libre Franklin", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --text-xs: 0.8125rem;   /* 13 / 18 */
+  --lh-xs: 1.125rem;
+  --text-sm: 0.9375rem;   /* 15 / 22 */
+  --lh-sm: 1.375rem;
+  --text-base: 1.0625rem; /* 17 / 26 */
+  --lh-base: 1.625rem;
+  --text-lg: 1.375rem;    /* 22 / 28 */
+  --lh-lg: 1.75rem;
+  --text-xl: 2rem;        /* 32 / 36 */
+  --lh-xl: 2.25rem;
+  --text-display: clamp(3.5rem, 2.2rem + 5.5vw, 5.5rem); /* 56 to 88 / 1 */
+  --lh-display: 1;
+
+  /* space: 4px base */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --gutter: var(--space-4);
+
+  /* shape: radii differ by role, not one value everywhere */
+  --radius-xs: 2px;    /* meter track */
+  --radius-sm: 4px;    /* chips */
+  --radius-md: 8px;    /* buttons, fields, toast */
+  --radius-lg: 20px;   /* sheet top corners */
+  --radius-pill: 999px;
+
+  /* layout */
+  --page-max: 72rem;
+  --prose-max: 68ch;
+  --rail-w: 13.75rem;
+  --tabbar-h: 3.5rem;
+  --control-h: 3rem;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-fast: 160ms;
+  --dur-sheet: 220ms;
+
+  /* colour, light */
+  --surface: #f6f6f9;
+  --surface-raised: #ffffff;
+  --surface-sunken: #ececf2;
+  --text: #17161d;
+  --text-muted: #5a5966;
+  --border: #dedee6;
+  --border-strong: #8a8996;
+  --accent: #3a36b5;
+  --accent-text: #ffffff;
+  --accent-soft: #e6e5f8;
+  --success: #1d6b3a;
+  --warning: #8a5300;
+  --danger: #b3261e;
+  --scrim: rgb(23 22 29 / 0.45);
+
+  --chart-1: #3a36b5; /* run (accent) */
+  --chart-2: #0c7c7c; /* strength */
+  --chart-3: #9a5f00; /* cross-training */
+  --chart-4: #a8326f; /* race */
+  --chart-planned: #8a8996;
+  --chart-actual: var(--accent);
+  --chart-grid: var(--border);
+
+  --shadow-sheet: 0 -8px 32px rgb(23 22 29 / 0.16);
+  --shadow-toast: 0 4px 16px rgb(23 22 29 / 0.18);
+  --focus-ring: 2px solid var(--accent);
+  --focus-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #121217;
+    --surface-raised: #1c1c25;
+    --surface-sunken: #0c0c10;
+    --text: #efeef5;
+    --text-muted: #a9a8b8;
+    --border: #2c2c38;
+    --border-strong: #7c7b8c;
+    --accent: #a5a2ff;
+    --accent-text: #121217;
+    --accent-soft: #26254a;
+    --success: #6fd08c;
+    --warning: #f0b45a;
+    --danger: #ff8a80;
+    --scrim: rgb(0 0 0 / 0.6);
+
+    --chart-1: #a5a2ff;
+    --chart-2: #4fc3c3;
+    --chart-3: #e0a040;
+    --chart-4: #f07cb5;
+    --chart-planned: #7c7b8c;
+
+    --shadow-sheet: 0 -8px 32px rgb(0 0 0 / 0.5);
+    --shadow-toast: 0 4px 16px rgb(0 0 0 / 0.5);
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface: #121217;
+  --surface-raised: #1c1c25;
+  --surface-sunken: #0c0c10;
+  --text: #efeef5;
+  --text-muted: #a9a8b8;
+  --border: #2c2c38;
+  --border-strong: #7c7b8c;
+  --accent: #a5a2ff;
+  --accent-text: #121217;
+  --accent-soft: #26254a;
+  --success: #6fd08c;
+  --warning: #f0b45a;
+  --danger: #ff8a80;
+  --scrim: rgb(0 0 0 / 0.6);
+
+  --chart-1: #a5a2ff;
+  --chart-2: #4fc3c3;
+  --chart-3: #e0a040;
+  --chart-4: #f07cb5;
+  --chart-planned: #7c7b8c;
+
+  --shadow-sheet: 0 -8px 32px rgb(0 0 0 / 0.5);
+  --shadow-toast: 0 4px 16px rgb(0 0 0 / 0.5);
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+@media (min-width: 900px) {
+  :root { --gutter: var(--space-6); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0.01ms; --dur-sheet: 0.01ms; }
+}
