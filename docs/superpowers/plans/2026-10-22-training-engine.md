@@ -418,3 +418,32 @@ their tests.
 `web/components/planChanges.ts`, `web/pages/{PlanPage,ReviewPage}.tsx`, `web/api/reviews.ts`,
 `shared/types.ts`, `server/services/{reviews,execution}.ts`, `server/routes/activities.ts`,
 their tests.
+
+### Task E19: Never schedule a spike; label after-race weeks; version-2 generate form
+
+Found by the E15 end-to-end work and its review:
+
+1. **The generator never schedules an override-band spike** [rules G-1: above 2.0× "the
+   generator never schedules it without an explicit override"]. Reproduction: generate on a
+   Saturday with 8 weeks of 40-minute runs on six days, one weekday closed (the day 3 days
+   ahead), a marathon 20 weeks out, birth year 1985, measured HR max 188 → 422 with
+   `spike-guard`: the current week's remaining minutes are packed into Saturday and Sunday.
+   Fix in the engine: `remainingOfCurrentWeek` and `applyGuards` shorten any generated run to
+   the warn band's upper limit (2.0× the 30-day reference on every dimension), preferring the
+   normal band (1.10×) for the current week, and drop leftover minutes rather than flag
+   `override-required` (owner edits keep their own rules). The never-make-up rule holds.
+   Add the reproduction as a test for every weekday, plus matrix assertions that no generated
+   session carries `override-required`.
+2. **After-race weeks** keep `phase 'race'` (no schema change) but every view labels a week
+   flagged `post-race` "After the race" instead of "Race week" (one helper used by the Plan
+   page, Today and the e2e spec 04, which then drops its `.first()`).
+3. **Generate form for version 2**: remove the ignored "Weekly run minutes" and "Plan start"
+   fields; offer the engine options instead (recovery cycle 3:1 or 2:1, strength sessions
+   0-2, polarized specific phase on or off for 5-10 km goals), sent as `options` in
+   `POST /api/plan/generate`; the route passes them through to `buildPlan`. Version-1 plans
+   are no longer generated, so their form path goes.
+
+**Files:** `shared/engine/{index,guards,micro}.ts`, `tests/unit/engine/*`,
+`server/routes/plan.ts`, `server/services/planEngine.ts`, `tests/api/{plan,engine}.test.ts`,
+`web/pages/{PlanPage,DashboardPage}.tsx`, `web/components/format.ts`, `tests/web/*plan*`,
+`tests/e2e/04-plan.spec.ts`.
