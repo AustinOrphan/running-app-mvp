@@ -4,7 +4,7 @@ import { useSetup, useSetupStatus } from '../api/auth.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { Button } from '../components/Button.tsx'
 import { Field, Input } from '../components/Field.tsx'
-import { PasswordInput } from './LoginPage.tsx'
+import { PasswordInput } from '../components/PasswordInput.tsx'
 import styles from './SetupPage.module.css'
 
 function setupMessage(error: unknown): string {

@@ -3,45 +3,9 @@ import { Navigate } from 'react-router-dom'
 import { useLogin } from '../api/auth.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { Button } from '../components/Button.tsx'
-import { Field, Input, type FieldControlProps } from '../components/Field.tsx'
+import { Field, Input } from '../components/Field.tsx'
+import { PasswordInput } from '../components/PasswordInput.tsx'
 import styles from './LoginPage.module.css'
-
-/** A password input with a show/hide toggle; `toggleLabel` completes "Show ..." and "Hide ...". */
-export function PasswordInput({
-  control,
-  visible,
-  onToggle,
-  toggleLabel,
-  value,
-  onChange,
-  autoComplete,
-}: {
-  control: FieldControlProps
-  visible: boolean
-  onToggle: () => void
-  toggleLabel: string
-  value: string
-  onChange: (value: string) => void
-  autoComplete: 'current-password' | 'new-password'
-}) {
-  return (
-    <div className={styles.passwordWrap}>
-      <Input
-        {...control}
-        type={visible ? 'text' : 'password'}
-        value={value}
-        autoComplete={autoComplete}
-        onChange={(event) => {
-          onChange(event.target.value)
-        }}
-        className={styles.passwordInput}
-      />
-      <button type="button" className={styles.toggle} onClick={onToggle}>
-        {visible ? `Hide ${toggleLabel}` : `Show ${toggleLabel}`}
-      </button>
-    </div>
-  )
-}
 
 /** "Try again in N minutes" from the limiter's retry time; falls back to the 15-minute window. */
 function retryMessage(error: ApiError): string {
