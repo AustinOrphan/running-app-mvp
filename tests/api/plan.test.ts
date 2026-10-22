@@ -1,0 +1,518 @@
+import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { distanceClassOf, generatePlan } from '../../shared/domain/plan.ts'
+import type { PlanWeek, PlanWithWeeks } from '../../shared/types.ts'
+import { computeBaselineRunMin } from '../../server/services/baseline.ts'
+import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+
+let ctx: TestCtx
+let user: TestUser
+let other: TestUser
+
+beforeAll(async () => {
+  ctx = await createTestCtx()
+  user = await seedUser(ctx)
+  other = await seedUser(ctx, { email: 'other@example.com' })
+})
+
+afterAll(async () => {
+  await ctx.close()
+})
+
+const today = todayIso()
+const thisMonday = mondayOf(today)
+
+async function seedGoal(
+  over: Partial<{
+    userId: string
+    name: string
+    targetDate: string
+    distanceM: number | null
+    status: string
+  }> = {},
+) {
+  return ctx.prisma.goal.create({
+    data: {
+      userId: over.userId ?? user.id,
+      name: over.name ?? 'Test Marathon',
+      priority: 'A',
+      status: over.status ?? 'target',
+      targetDate: over.targetDate ?? addDays(thisMonday, 7 * 20 + 6),
+      distanceM: over.distanceM === undefined ? 42_195 : over.distanceM,
+    },
+  })
+}
+
+async function generate(body: Record<string, unknown>, who = user) {
+  return client(ctx, who).post('/api/plan/generate').send(body)
+}
+
+describe('GET /api/plan', () => {
+  test('GET /plan is null before any plan', async () => {
+    const res = await client(ctx, user).get('/api/plan')
+    expect(res.status).toBe(200)
+    expect(res.body).toBeNull()
+  })
+})
+
+describe('computeBaselineRunMin', () => {
+  test('computeBaselineRunMin', async () => {
+    const fresh = await createTestCtx()
+    try {
+      const u = await seedUser(fresh, { email: 'baseline@example.com' })
+      const now = '2026-03-18' // Wednesday; the current week starts 2026-03-16
+      expect(await computeBaselineRunMin(fresh.prisma, u.id, now)).toBeNull()
+
+      const run = (date: string, min: number, duplicateStatus = 'none') =>
+        fresh.prisma.activity.create({
+          data: {
+            userId: u.id,
+            date,
+            type: 'run',
+            durationSec: min * 60,
+            distanceM: 1000,
+            source: 'manual',
+            duplicateStatus,
+          },
+        })
+
+      // The current partial week and a run 30 weeks back do not count.
+      await run('2026-03-16', 600)
+      await run('2025-08-20', 500)
+      expect(await computeBaselineRunMin(fresh.prisma, u.id, now)).toBeNull()
+
+      // Five completed weeks: only the latest four count.
+      await run('2026-02-10', 60)
+      await run('2026-02-17', 90)
+      await run('2026-02-24', 120)
+      await run('2026-03-03', 150)
+      await run('2026-03-10', 180)
+      await run('2026-03-11', 100, 'possible') // flagged duplicate, ignored
+      expect(await computeBaselineRunMin(fresh.prisma, u.id, now)).toBe(135)
+
+      // A strength session is not a run.
+      await fresh.prisma.activity.create({
+        data: {
+          userId: u.id,
+          date: '2026-03-04',
+          type: 'strength',
+          durationSec: 3000,
+          source: 'manual',
+        },
+      })
+      expect(await computeBaselineRunMin(fresh.prisma, u.id, now)).toBe(135)
+
+      // Another user's runs never leak in.
+      const v = await seedUser(fresh, { email: 'baseline-b@example.com' })
+      expect(await computeBaselineRunMin(fresh.prisma, v.id, now)).toBeNull()
+    } finally {
+      await fresh.close()
+    }
+  })
+
+  test('weeks with no run are skipped, not counted as zero; an odd count takes the middle', async () => {
+    const fresh = await createTestCtx()
+    try {
+      const u = await seedUser(fresh)
+      const now = '2026-03-18'
+      for (const [date, min] of [
+        ['2026-03-10', 100],
+        ['2026-02-24', 40], // 2026-03-03 has no run
+        ['2026-02-17', 70],
+      ] as const) {
+        await fresh.prisma.activity.create({
+          data: {
+            userId: u.id,
+            date,
+            type: 'run',
+            durationSec: min * 60,
+            distanceM: 1000,
+            source: 'manual',
+          },
+        })
+      }
+      expect(await computeBaselineRunMin(fresh.prisma, u.id, now)).toBe(70)
+    } finally {
+      await fresh.close()
+    }
+  })
+})
+
+describe('POST /api/plan/generate', () => {
+  test('generate: baseline from request wins, else from runs, else validation', async () => {
+    const fresh = await createTestCtx()
+    try {
+      const u = await seedUser(fresh)
+      const c = client(fresh, u)
+      const goal = await fresh.prisma.goal.create({
+        data: {
+          userId: u.id,
+          name: 'Baseline source',
+          priority: 'A',
+          targetDate: addDays(thisMonday, 7 * 20 + 6),
+          distanceM: 42_195,
+        },
+      })
+
+      const none = await c.post('/api/plan/generate').send({ goalId: goal.id })
+      expect(none.status).toBe(400)
+      const body = none.body as { error: { code: string; message: string } }
+      expect(body.error.code).toBe('validation')
+      expect(body.error.message).toMatch(/baseline/i)
+
+      // Four completed weeks of 120 minutes give a baseline of 120.
+      for (let w = 1; w <= 4; w += 1) {
+        await fresh.prisma.activity.create({
+          data: {
+            userId: u.id,
+            date: addDays(thisMonday, -7 * w + 1),
+            type: 'run',
+            durationSec: 120 * 60,
+            distanceM: 18_000,
+            source: 'manual',
+          },
+        })
+      }
+      const fromRuns = await c.post('/api/plan/generate').send({ goalId: goal.id })
+      expect(fromRuns.status).toBe(201)
+      const runsWeek = (fromRuns.body as PlanWithWeeks).weeks[0]
+      expect(runsWeek?.baselineRunMin).toBeGreaterThanOrEqual(120)
+      expect(runsWeek?.baselineRunMin).toBeLessThanOrEqual(138)
+
+      const explicit = await c
+        .post('/api/plan/generate')
+        .send({ goalId: goal.id, baselineRunMin: 200 })
+      expect(explicit.status).toBe(201)
+      const first = (explicit.body as PlanWithWeeks).weeks[0]
+      expect(first?.baselineRunMin).toBeGreaterThanOrEqual(200)
+      expect(first?.baselineRunMin).toBeLessThanOrEqual(230)
+    } finally {
+      await fresh.close()
+    }
+  })
+
+  test('generate persists weeks with targetRunMin = baselineRunMin and targetSource baseline', async () => {
+    const targetDate = addDays(thisMonday, 7 * 20 + 6)
+    const goal = await seedGoal({ name: 'Persisted Marathon', targetDate })
+    const startDate = addDays(thisMonday, 2) // a Wednesday
+    const res = await generate({ goalId: goal.id, baselineRunMin: 180, startDate })
+    expect(res.status).toBe(201)
+    const plan = res.body as PlanWithWeeks
+
+    expect(plan).toMatchObject({
+      userId: user.id,
+      goalId: goal.id,
+      name: 'Persisted Marathon',
+      status: 'active',
+      generatorVersion: 1,
+      startDate: thisMonday,
+      raceWeekStart: mondayOf(targetDate),
+    })
+    expect(plan.weeks.map((w) => w.index)).toEqual(plan.weeks.map((_, i) => i))
+    expect(plan.weeks[0]?.weekStart).toBe(thisMonday)
+    expect(plan.weeks.at(-1)?.weekStart).toBe(mondayOf(targetDate))
+    expect(plan.weeks.at(-1)?.phase).toBe('race')
+    for (const week of plan.weeks) {
+      expect(week.targetRunMin).toBe(week.baselineRunMin)
+      expect(week.targetSource).toBe('baseline')
+      expect(week.overrideNote).toBeNull()
+    }
+
+    const expected = generatePlan({
+      startDate: thisMonday,
+      raceDate: targetDate,
+      distanceClass: distanceClassOf(42_195),
+      baselineRunMin: 180,
+      strengthPreference: 2,
+    })
+    expect(
+      plan.weeks.map((w) => ({
+        weekStart: w.weekStart,
+        index: w.index,
+        phase: w.phase,
+        focus: w.focus,
+        baselineRunMin: w.baselineRunMin,
+        longRunMin: w.longRunMin,
+        day2Min: w.day2Min,
+        runDays: w.runDays,
+        strengthSessions: w.strengthSessions,
+      })),
+    ).toEqual(expected)
+
+    const stored = await client(ctx, user).get('/api/plan')
+    expect(stored.status).toBe(200)
+    expect((stored.body as PlanWithWeeks).id).toBe(plan.id)
+    expect((stored.body as PlanWithWeeks).weeks).toHaveLength(plan.weeks.length)
+
+    const lean = await generate({ goalId: goal.id, baselineRunMin: 180, strengthPreference: 0 })
+    expect((lean.body as PlanWithWeeks).weeks.every((w) => w.strengthSessions === 0)).toBe(true)
+  })
+
+  test('regenerating archives the old plan, keeps exactly one active plan and keeps reviews', async () => {
+    const fresh = await createTestCtx()
+    try {
+      const u = await seedUser(fresh)
+      const c = client(fresh, u)
+      const goal = await fresh.prisma.goal.create({
+        data: {
+          userId: u.id,
+          name: 'Regen',
+          priority: 'A',
+          targetDate: addDays(thisMonday, 7 * 12 + 5),
+          distanceM: 21_097,
+        },
+      })
+      await fresh.prisma.weeklyReview.create({
+        data: { userId: u.id, weekStart: thisMonday, dataStatus: 'complete', fatigue: 4 },
+      })
+
+      const firstRes = await c
+        .post('/api/plan/generate')
+        .send({ goalId: goal.id, baselineRunMin: 150 })
+      const first = firstRes.body as PlanWithWeeks
+      const week = first.weeks[1] as PlanWeek
+      const override = await c
+        .put(`/api/plan/weeks/${week.weekStart}`)
+        .send({ targetRunMin: week.baselineRunMin + 20, overrideNote: 'Visiting family' })
+      expect(override.status).toBe(200)
+
+      const secondRes = await c
+        .post('/api/plan/generate')
+        .send({ goalId: goal.id, baselineRunMin: 150 })
+      expect(secondRes.status).toBe(201)
+      const second = secondRes.body as PlanWithWeeks
+      expect(second.id).not.toBe(first.id)
+
+      const plans = await fresh.prisma.plan.findMany({ where: { userId: u.id } })
+      expect(plans.filter((p) => p.status === 'active').map((p) => p.id)).toEqual([second.id])
+      expect(plans.find((p) => p.id === first.id)?.status).toBe('archived')
+      expect(await fresh.prisma.weeklyReview.count({ where: { userId: u.id } })).toBe(1)
+
+      const current = (await c.get('/api/plan')).body as PlanWithWeeks
+      expect(current.id).toBe(second.id)
+      const again = current.weeks.find((w) => w.weekStart === week.weekStart)
+      expect(again?.targetSource).toBe('baseline')
+      expect(again?.overrideNote).toBeNull()
+      expect(again?.targetRunMin).toBe(again?.baselineRunMin)
+    } finally {
+      await fresh.close()
+    }
+  })
+
+  test('generate errors', async () => {
+    const goal = await seedGoal({ name: 'Errors ok' })
+    const foreign = await seedGoal({ name: 'Foreign', userId: other.id })
+    const noDistance = await seedGoal({ name: 'No distance', distanceM: null })
+    const done = await seedGoal({ name: 'Done', status: 'done' })
+    const dropped = await seedGoal({ name: 'Dropped', status: 'dropped' })
+    const past = await seedGoal({ name: 'Past', targetDate: addDays(today, -3) })
+    const far = await seedGoal({ name: 'Far', targetDate: addDays(thisMonday, 7 * 157) })
+    const farOk = await seedGoal({ name: 'Far ok', targetDate: addDays(thisMonday, 7 * 155 + 3) })
+    const near = await seedGoal({ name: 'Near', targetDate: addDays(today, 10) })
+
+    const cases: Array<[string, Record<string, unknown>, number]> = [
+      ['unknown goal', { goalId: 'nope', baselineRunMin: 120 }, 404],
+      ['another user goal', { goalId: foreign.id, baselineRunMin: 120 }, 404],
+      ['no distance', { goalId: noDistance.id, baselineRunMin: 120 }, 400],
+      ['done goal', { goalId: done.id, baselineRunMin: 120 }, 400],
+      ['dropped goal', { goalId: dropped.id, baselineRunMin: 120 }, 400],
+      ['past race', { goalId: past.id, baselineRunMin: 120 }, 400],
+      ['too many weeks', { goalId: far.id, baselineRunMin: 120 }, 400],
+      [
+        'start after race week',
+        { goalId: near.id, baselineRunMin: 120, startDate: addDays(thisMonday, 21) },
+        400,
+      ],
+      ['baseline 0', { goalId: goal.id, baselineRunMin: 0 }, 400],
+      ['baseline huge', { goalId: goal.id, baselineRunMin: 1_000_000 }, 400],
+      ['baseline fraction', { goalId: goal.id, baselineRunMin: 100.5 }, 400],
+      ['bad start date', { goalId: goal.id, baselineRunMin: 120, startDate: '2026-13-01' }, 400],
+      ['bad strength', { goalId: goal.id, baselineRunMin: 120, strengthPreference: 3 }, 400],
+      ['missing goalId', { baselineRunMin: 120 }, 400],
+    ]
+    for (const [label, body, status] of cases) {
+      const res = await generate(body)
+      expect(res.status, label).toBe(status)
+    }
+    expect((await generate({ goalId: farOk.id, baselineRunMin: 120 })).status).toBe(201)
+    expect(await ctx.prisma.plan.count({ where: { goalId: done.id } })).toBe(0)
+  })
+
+  test('race in the current week gives a one-week plan', async () => {
+    const goal = await seedGoal({ name: 'This week', targetDate: today })
+    const res = await generate({ goalId: goal.id, baselineRunMin: 120 })
+    expect(res.status).toBe(201)
+    const plan = res.body as PlanWithWeeks
+    expect(plan.weeks).toHaveLength(1)
+    expect(plan.weeks[0]).toMatchObject({ phase: 'race', weekStart: thisMonday, index: 0 })
+    expect(plan.raceWeekStart).toBe(thisMonday)
+  })
+
+  test('a past startDate creates past weeks and leaves activities untouched', async () => {
+    const fresh = await createTestCtx()
+    try {
+      const u = await seedUser(fresh)
+      const goal = await fresh.prisma.goal.create({
+        data: {
+          userId: u.id,
+          name: 'Late start',
+          priority: 'A',
+          targetDate: addDays(thisMonday, 7 * 10 + 6),
+          distanceM: 10_000,
+        },
+      })
+      const pastRun = await fresh.prisma.activity.create({
+        data: {
+          userId: u.id,
+          date: addDays(thisMonday, -14),
+          type: 'run',
+          durationSec: 3600,
+          distanceM: 9000,
+          source: 'manual',
+        },
+      })
+      const startDate = addDays(thisMonday, -21)
+      const res = await client(fresh, u)
+        .post('/api/plan/generate')
+        .send({ goalId: goal.id, baselineRunMin: 100, startDate })
+      expect(res.status).toBe(201)
+      const plan = res.body as PlanWithWeeks
+      expect(plan.weeks[0]?.weekStart).toBe(startDate)
+      expect(plan.weeks.some((w) => w.weekStart < thisMonday)).toBe(true)
+      const after = await fresh.prisma.activity.findMany({ where: { userId: u.id } })
+      expect(after).toHaveLength(1)
+      expect(after[0]).toEqual(pastRun)
+    } finally {
+      await fresh.close()
+    }
+  })
+})
+
+describe('PUT /api/plan/weeks/:weekStart', () => {
+  test('PUT week: override rules', async () => {
+    const fresh = await createTestCtx()
+    try {
+      const u = await seedUser(fresh)
+      const c = client(fresh, u)
+      const goal = await fresh.prisma.goal.create({
+        data: {
+          userId: u.id,
+          name: 'Override',
+          priority: 'A',
+          targetDate: addDays(thisMonday, 7 * 14 + 6),
+          distanceM: 21_097,
+        },
+      })
+      const generated = await c
+        .post('/api/plan/generate')
+        .send({ goalId: goal.id, baselineRunMin: 150 })
+      const plan = generated.body as PlanWithWeeks
+      const week = plan.weeks[2] as PlanWeek
+      const url = `/api/plan/weeks/${week.weekStart}`
+      const raised = week.baselineRunMin + 30
+
+      // A target different from the baseline needs a note.
+      expect((await c.put(url).send({ targetRunMin: raised })).status).toBe(400)
+      expect((await c.put(url).send({ targetRunMin: raised, overrideNote: '   ' })).status).toBe(
+        400,
+      )
+      const unchanged = (await c.get('/api/plan')).body as PlanWithWeeks
+      expect(unchanged.weeks[2]?.targetRunMin).toBe(week.baselineRunMin)
+
+      const ok = await c.put(url).send({ targetRunMin: raised, overrideNote: ' Holiday week ' })
+      expect(ok.status).toBe(200)
+      expect(ok.body).toMatchObject({
+        targetRunMin: raised,
+        targetSource: 'override',
+        overrideNote: 'Holiday week',
+        baselineRunMin: week.baselineRunMin,
+      })
+
+      // Editing other fields alone leaves the target and its source unchanged.
+      const edited = await c.put(url).send({
+        longRunMin: 55,
+        day2Min: 20,
+        runDays: 4,
+        strengthSessions: 1,
+        focus: 'Hills',
+      })
+      expect(edited.status).toBe(200)
+      expect(edited.body).toMatchObject({
+        targetRunMin: raised,
+        targetSource: 'override',
+        overrideNote: 'Holiday week',
+        longRunMin: 55,
+        day2Min: 20,
+        runDays: 4,
+        strengthSessions: 1,
+        focus: 'Hills',
+      })
+      const cleared = await c.put(url).send({ day2Min: null })
+      expect((cleared.body as PlanWeek).day2Min).toBeNull()
+
+      // A note alone is accepted while the source is override, but not blank.
+      const reworded = await c.put(url).send({ overrideNote: 'Race trip' })
+      expect(reworded.status).toBe(200)
+      expect((reworded.body as PlanWeek).overrideNote).toBe('Race trip')
+      expect((await c.put(url).send({ overrideNote: ' ' })).status).toBe(400)
+
+      // Back to the baseline value clears the note.
+      const reset = await c
+        .put(url)
+        .send({ targetRunMin: week.baselineRunMin, overrideNote: 'ignored' })
+      expect(reset.status).toBe(200)
+      expect(reset.body).toMatchObject({
+        targetRunMin: week.baselineRunMin,
+        targetSource: 'baseline',
+        overrideNote: null,
+      })
+
+      // A note without a target change is refused unless the source is override.
+      expect((await c.put(url).send({ overrideNote: 'stray' })).status).toBe(400)
+
+      // A week whose source is 'review' also resets when the target returns to the baseline.
+      await fresh.prisma.planWeek.update({
+        where: { id: week.id },
+        data: { targetRunMin: week.baselineRunMin - 10, targetSource: 'review' },
+      })
+      const fromReview = await c.put(url).send({ targetRunMin: week.baselineRunMin })
+      expect(fromReview.body).toMatchObject({ targetSource: 'baseline', overrideNote: null })
+
+      // Malformed, non-Monday and out-of-plan weeks.
+      expect((await c.put('/api/plan/weeks/not-a-date').send({ focus: 'x' })).status).toBe(400)
+      const notMonday = await c
+        .put(`/api/plan/weeks/${addDays(week.weekStart, 1)}`)
+        .send({ focus: 'x' })
+      expect(notMonday.status).toBe(400)
+      const outside = await c
+        .put(`/api/plan/weeks/${addDays(thisMonday, -70)}`)
+        .send({ focus: 'x' })
+      expect(outside.status).toBe(404)
+
+      // Ranges and unknown keys.
+      expect((await c.put(url).send({ runDays: 8 })).status).toBe(400)
+      expect((await c.put(url).send({ runDays: -1 })).status).toBe(400)
+      expect((await c.put(url).send({ strengthSessions: 8 })).status).toBe(400)
+      expect((await c.put(url).send({ targetRunMin: -5, overrideNote: 'x' })).status).toBe(400)
+      expect((await c.put(url).send({ longRunMin: 1.5 })).status).toBe(400)
+      expect((await c.put(url).send({ surprise: true })).status).toBe(400)
+      expect((await c.put(url).send({ runDays: 0 })).status).toBe(200)
+
+      // Archived plans are not editable.
+      await fresh.prisma.plan.updateMany({ where: { userId: u.id }, data: { status: 'archived' } })
+      expect((await c.put(url).send({ focus: 'late' })).status).toBe(404)
+    } finally {
+      await fresh.close()
+    }
+  })
+
+  test('another user cannot edit a week', async () => {
+    const goal = await seedGoal({ name: 'Mine', userId: user.id })
+    const generated = await generate({ goalId: goal.id, baselineRunMin: 150 })
+    const plan = generated.body as PlanWithWeeks
+    const res = await client(ctx, other)
+      .put(`/api/plan/weeks/${plan.weeks[0]?.weekStart}`)
+      .send({ focus: 'steal' })
+    expect(res.status).toBe(404)
+  })
+})
