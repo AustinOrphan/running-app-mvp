@@ -175,13 +175,16 @@ describe('intervals.icu fetchActivity', () => {
   it('prefers the original file, keeps it, and sets the provider key', async () => {
     const bytes = new Uint8Array([1, 2, 3])
     const calls: Array<{ name: string; size: number }> = []
+    const accepts: string[] = []
     const ctx = makeCtx(
       {
-        [`GET ${BASE}/activity/i7/file`]: () =>
-          new Response(bytes, {
+        [`GET ${BASE}/activity/i7/file`]: (req) => {
+          accepts.push(req.headers.get('accept') ?? '')
+          return new Response(bytes, {
             status: 200,
             headers: { 'content-disposition': 'attachment; filename="morning.fit"' },
-          }),
+          })
+        },
       },
       {
         parseFile: (name, data) => {
@@ -195,6 +198,7 @@ describe('intervals.icu fetchActivity', () => {
     expect(result?.parsed.providerKey).toBe('intervals:i7')
     expect(result?.parsed.distanceM).toBe(5000)
     expect(result?.file).toEqual({ name: 'morning.fit', format: 'fit', bytes })
+    expect(accepts).toEqual(['*/*'])
   })
 
   it('gunzips a .gz original before parsing', async () => {
@@ -300,6 +304,25 @@ describe('intervals.icu fetchActivity', () => {
     expect(result?.parsed.subtype).toBe('bike')
     expect(result?.parsed.samples.t).toEqual([0, 1])
     expect(result?.parsed.samples.hr).toBeNull()
+  })
+
+  it('fills sensor dropouts in the streams from the previous reading', async () => {
+    const ctx = makeCtx({
+      [`GET ${BASE}/activity/i7/file`]: () => json({}, 404),
+      [`GET ${BASE}/activity/i7/streams.json`]: () =>
+        json([
+          { type: 'time', data: [0, 1, 2, 3] },
+          { type: 'distance', data: [0, 3, null, 9] },
+          { type: 'heartrate', data: [null, 130, null, 150] },
+          { type: 'watts', data: [null, null, null, null] },
+        ]),
+      [`GET ${BASE}/activity/i7`]: () =>
+        json({ id: 'i7', type: 'Run', start_date: '2026-03-02T07:00:00Z', elapsed_time: 4 }),
+    })
+    const result = await intervalsProvider.fetchActivity(ref, ctx)
+    expect(result?.parsed.samples.d).toEqual([0, 3, 3, 9])
+    expect(result?.parsed.samples.hr).toEqual([130, 130, 130, 150])
+    expect(result?.parsed.samples.pwr).toBeNull()
   })
 
   it('maps weight training to strength and virtual runs to treadmill', async () => {

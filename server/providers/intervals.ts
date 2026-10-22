@@ -83,15 +83,24 @@ function authHeader(apiKey: string): string {
   return `Basic ${Buffer.from(`API_KEY:${apiKey}`).toString('base64')}`
 }
 
-function send(ctx: ProviderCtx, path: string, apiKey: string): Promise<Response> {
+function send(
+  ctx: ProviderCtx,
+  path: string,
+  apiKey: string,
+  accept = 'application/json',
+): Promise<Response> {
   return ctx.fetch(`${BASE_URL}${path}`, {
-    headers: { authorization: authHeader(apiKey), accept: 'application/json' },
+    headers: { authorization: authHeader(apiKey), accept },
   })
 }
 
 /** Sends an authenticated GET for a pull call; a 404 is returned, any other failure throws. */
-async function pullGet(ctx: ProviderCtx, path: string): Promise<Response> {
-  const response = await send(ctx, path, credentials(ctx).apiKey)
+async function pullGet(
+  ctx: ProviderCtx,
+  path: string,
+  accept = 'application/json',
+): Promise<Response> {
+  const response = await send(ctx, path, credentials(ctx).apiKey, accept)
   if (response.ok || response.status === 404) return response
   if (response.status === 429) {
     const retryAfter = Number(response.headers.get('retry-after'))
@@ -178,7 +187,8 @@ async function fromOriginalFile(
   parsed: ParsedActivity
   file?: { name: string; format: FileFormat; bytes: Uint8Array }
 } | null> {
-  const response = await pullGet(ctx, `/activity/${encodeURIComponent(ref.id)}/file`)
+  // The original is binary (FIT, or gzipped); asking only for JSON could get a 406.
+  const response = await pullGet(ctx, `/activity/${encodeURIComponent(ref.id)}/file`, '*/*')
   if (response.status === 404) return null
   let bytes = new Uint8Array(await response.arrayBuffer())
   let name = fileNameFrom(response, `${ref.id}.fit`)
@@ -196,6 +206,22 @@ async function fromOriginalFile(
     // An unreadable original is not fatal: the streams still describe the activity.
     return null
   }
+}
+
+/**
+ * Streams carry nulls where a sensor dropped out. Each gap takes the previous reading (leading
+ * gaps the first reading), so a dropout never reads as 0 bpm or a distance reset; a stream
+ * with no readings at all is null.
+ */
+function fillGaps(values: unknown[]): number[] | null {
+  const first = values.find((value): value is number => num(value) !== null)
+  if (first === undefined) return null
+  let last = first
+  return values.map((value) => {
+    const n = num(value)
+    if (n !== null) last = n
+    return last
+  })
 }
 
 function channel(streams: Map<string, number[]>, key: string, scale = 1): number[] | null {
@@ -221,10 +247,8 @@ async function fromStreams(
   if (Array.isArray(raw)) {
     for (const entry of raw as Array<{ type?: unknown; data?: unknown }>) {
       if (typeof entry.type === 'string' && Array.isArray(entry.data)) {
-        streams.set(
-          entry.type,
-          entry.data.map((value) => (typeof value === 'number' ? value : 0)),
-        )
+        const data = fillGaps(entry.data)
+        if (data) streams.set(entry.type, data)
       }
     }
   }
