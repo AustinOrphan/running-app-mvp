@@ -1,0 +1,157 @@
+{
+  "data": {
+    "metrics": [
+      {
+        "name": "resting_heart_rate",
+        "units": "count/min",
+        "data": [
+          { "date": "2026-03-03 00:00:00 -0500", "qty": 53, "source": "Synthetic Watch" },
+          { "date": "2026-03-04 00:00:00 -0500", "qty": 51.6, "source": "Synthetic Watch" }
+        ]
+      },
+      {
+        "name": "heart_rate_variability",
+        "units": "ms",
+        "data": [
+          { "date": "2026-03-04 03:00:00 -0500", "qty": 38 },
+          { "date": "2026-03-04 22:00:00 -0500", "qty": 45 }
+        ]
+      },
+      {
+        "name": "sleep_analysis",
+        "units": "hr",
+        "data": [
+          {
+            "date": "2026-03-04 00:00:00 -0500",
+            "asleep": 7.25,
+            "inBed": 8,
+            "sleepStart": "2026-03-03 23:00:00 -0500",
+            "sleepEnd": "2026-03-04 06:45:00 -0500",
+            "source": "Synthetic Watch"
+          }
+        ]
+      },
+      {
+        "name": "Weight & Body Mass",
+        "units": "lb",
+        "data": [{ "date": "2026-03-04 07:00:00 -0500", "qty": 183.4 }]
+      },
+      {
+        "name": "vo2_max",
+        "units": "ml/(kg·min)",
+        "data": [{ "date": "2026-03-04 08:00:00 -0500", "qty": 45.26 }]
+      },
+      {
+        "name": "step_count",
+        "units": "count",
+        "data": [
+          { "date": "2026-03-04 00:00:00 -0500", "qty": 8000 },
+          { "date": "2026-03-05 00:00:00 -0500", "qty": 9000 }
+        ]
+      }
+    ],
+    "workouts": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "name": "Outdoor Run",
+        "start": "2026-03-04 07:00:00 -0500",
+        "end": "2026-03-04 07:30:00 -0500",
+        "duration": 1795,
+        "location": "Outdoor",
+        "distance": { "qty": 3.1, "units": "mi" },
+        "elevationUp": { "qty": 164, "units": "ft" },
+        "avgHeartRate": { "qty": 149.4, "units": "count/min" },
+        "maxHeartRate": { "qty": 172, "units": "count/min" },
+        "temperature": { "qty": 8, "units": "degC" },
+        "humidity": { "qty": 70, "units": "%" },
+        "heartRateData": [
+          {
+            "date": "2026-03-04 06:59:50 -0500",
+            "Min": 88,
+            "Avg": 90,
+            "Max": 92,
+            "units": "count/min"
+          },
+          {
+            "date": "2026-03-04 07:00:10 -0500",
+            "Min": 118,
+            "Avg": 120,
+            "Max": 122,
+            "units": "count/min"
+          },
+          {
+            "date": "2026-03-04 07:10:00 -0500",
+            "Min": 148,
+            "Avg": 150,
+            "Max": 160,
+            "units": "count/min"
+          },
+          {
+            "date": "2026-03-04 07:29:50 -0500",
+            "Min": 160,
+            "Avg": 165,
+            "Max": 172,
+            "units": "count/min"
+          },
+          {
+            "date": "2026-03-04 07:31:00 -0500",
+            "Min": 108,
+            "Avg": 110,
+            "Max": 112,
+            "units": "count/min"
+          }
+        ],
+        "heartRateRecovery": [
+          {
+            "date": "2026-03-04 07:31:00 -0500",
+            "Min": 108,
+            "Avg": 110,
+            "Max": 112,
+            "units": "count/min"
+          },
+          {
+            "date": "2026-03-04 07:32:00 -0500",
+            "Min": 98,
+            "Avg": 100,
+            "Max": 102,
+            "units": "count/min"
+          }
+        ],
+        "route": [
+          {
+            "latitude": 0.0123,
+            "longitude": -0.0149,
+            "altitude": 10,
+            "timestamp": "2026-03-04 07:00:00 -0500"
+          },
+          {
+            "latitude": 0.0133,
+            "longitude": -0.0149,
+            "altitude": 14,
+            "timestamp": "2026-03-04 07:00:30 -0500"
+          },
+          {
+            "latitude": 0.0143,
+            "longitude": -0.0149,
+            "altitude": 20,
+            "timestamp": "2026-03-04 07:01:00 -0500"
+          },
+          {
+            "latitude": 0.0153,
+            "longitude": -0.0149,
+            "altitude": 21,
+            "timestamp": "2026-03-04 07:45:00 -0500"
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "name": "Traditional Strength Training",
+        "start": "2026-03-05 18:00:00 -0500",
+        "end": "2026-03-05 18:45:00 -0500",
+        "duration": 2700
+      },
+      { "id": "00000000-0000-4000-8000-000000000003", "name": "Broken", "start": "not a date" }
+    ]
+  }
+}
