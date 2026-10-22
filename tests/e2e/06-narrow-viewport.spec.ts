@@ -58,3 +58,28 @@ test('the Activities type filter needs no scrolling at 360 px', async ({ page, b
   const overflow = await group.evaluate((el) => el.scrollWidth - el.clientWidth)
   expect(overflow).toBeLessThanOrEqual(0)
 })
+
+test('the Stats page does not scroll sideways at 360 px; wide tables scroll inside', async ({
+  page,
+  baseURL,
+}) => {
+  const { lastWednesday } = relativeDates()
+  const api = await signedInApi(page, baseURL ?? '')
+  await resetData()
+  await api.post('/activities', {
+    date: lastWednesday,
+    type: 'run',
+    durationSec: 45 * 60,
+    distanceM: 8047,
+  })
+
+  await page.goto('/stats')
+  await expect(page.getByRole('heading', { name: 'Weekly history' })).toBeVisible()
+  const pageOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  )
+  expect(pageOverflow).toBeLessThanOrEqual(0)
+  const region = page.getByRole('region', { name: 'Weekly history table' })
+  const scrollable = await region.evaluate((el) => el.scrollWidth > el.clientWidth)
+  expect(scrollable).toBe(true)
+})
