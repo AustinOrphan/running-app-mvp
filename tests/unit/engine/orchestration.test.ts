@@ -40,9 +40,11 @@ describe('explain', () => {
     expect(g1!.papers).toEqual([...new Set(g1!.papers)].sort())
   })
 
-  it('matches ids without regard to case or hyphens and resolves a repeated id once', () => {
-    const out = explain(['g-1', 'G1', 'H4', 'g-1'])
+  it('matches ids without regard to case, keeps hyphens apart and resolves a repeated id once', () => {
+    const out = explain(['g-1', 'G-1', 'H4', 'g-1'])
     expect(out.map((e) => e.rule)).toEqual(['g-1', 'H4'])
+    // 'g-3' (tightened profiles) and 'G3' (priors, not optima) are different rules
+    expect(explain(['g-3', 'G3']).map((e) => e.rule)).toEqual(['g-3', 'G3'])
   })
 
   it('returns an empty entry, not an error, for a rule without parameters', () => {
