@@ -367,6 +367,7 @@ function WeekReview({
   const finished = isFinished(weekStart, today)
   const toast = useToast()
   const save = useSaveReview()
+  const units = useSettings().data?.units ?? 'mi'
   const headingId = useId()
   const noteId = useId()
   const changedId = useId()
@@ -644,7 +645,8 @@ function WeekReview({
                 <ul className={styles.signals}>
                   {replanned.revision.changes.map((change, index) => (
                     <li key={`${change.weekStart}-${change.field}-${String(index)}`}>
-                      Week of {formatShortDate(change.weekStart)}: {describeChange(change).text}
+                      Week of {formatShortDate(change.weekStart)}:{' '}
+                      {describeChange(change, units).text}
                     </li>
                   ))}
                 </ul>

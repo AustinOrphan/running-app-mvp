@@ -1,6 +1,7 @@
-import type { PlanChange } from '../../shared/engine/types.ts'
-import type { PlanPhase } from '../../shared/types.ts'
-import { phaseLabel } from './format.ts'
+import type { PlanChange, ZoneProposal } from '../../shared/engine/types.ts'
+import type { PlanPhase, Units } from '../../shared/types.ts'
+import { formatShortDate, isSessionKind, phaseLabel, sessionKindLabel } from './format.ts'
+import { PROPOSAL_LABELS, proposalValueText } from './zoneFormat.ts'
 
 /** A plan change in words: the label of the field and its two values with units. */
 export interface ChangeText {
@@ -51,6 +52,20 @@ const yesNo: Format = (value) => {
   return plain(value)
 }
 
+const isoDay = /^\d{4}-\d{2}-\d{2}$/
+/** A date as "19 Oct"; anything that is not a date as plain text. */
+const day: Format = (value) =>
+  typeof value === 'string' && isoDay.test(value) ? safeShortDate(value) : plain(value)
+function safeShortDate(iso: string): string {
+  try {
+    return formatShortDate(iso)
+  } catch {
+    return iso
+  }
+}
+/** A session kind as the Plan page names it; anything else as plain text. */
+const kind: Format = (value) => (isSessionKind(value) ? sessionKindLabel(value) : plain(value))
+
 /** Engine fields (see `replan` in `shared/engine/index.ts`) with the label and unit they show. */
 const FIELDS: Record<string, { label: string; format: Format }> = {
   targetRunMin: { label: 'Weekly running time', format: withUnit('min') },
@@ -62,21 +77,40 @@ const FIELDS: Record<string, { label: string; format: Format }> = {
   qualitySessions: { label: 'Quality sessions', format: plain },
   gainTargetM: { label: 'Gain target', format: withUnit('m') },
   plannedMin: { label: 'Planned minutes', format: withUnit('min') },
+  // Owner edits of single sessions (`PUT /api/plan/sessions/:id`).
+  'session.status': { label: 'Session status', format: plain },
+  'session.date': { label: 'Session date', format: day },
+  'session.kind': { label: 'Session type', format: kind },
+}
+
+const ZONE_FIELD = /^zones\.(.+)$/
+
+/** A zone change (`zones.<boundary>`, from an accepted proposal), in the runner's unit. */
+function zoneField(field: string, units: Units): { label: string; format: Format } | null {
+  const boundary = ZONE_FIELD.exec(field)?.[1]
+  if (boundary === undefined || !(boundary in PROPOSAL_LABELS)) return null
+  const key = boundary as ZoneProposal['boundary']
+  return {
+    label: PROPOSAL_LABELS[key],
+    format: (value) =>
+      typeof value === 'number' ? proposalValueText(key, value, units) : plain(value),
+  }
 }
 
 /**
  * One plan change as words, for the Plan and Review pages. A whole week that appears or goes
- * (field `week`, the values being its phase) reads as added or removed; a field the helper does
- * not know keeps its name and a plain value.
+ * (field `week`, the values being its phase) reads as added or removed; session and zone changes
+ * (`session.*`, `zones.*`) are named too, zone values in `units`; a field the helper does not know
+ * keeps its name and a plain value.
  */
-export function describeChange(change: PlanChange): ChangeText {
+export function describeChange(change: PlanChange, units: Units = 'km'): ChangeText {
   if (change.field === 'week') {
     const added = change.from === null || change.from === undefined
     const name = phase(added ? change.to : change.from)
     const text = `Week ${added ? 'added' : 'removed'}${name === NONE ? '' : ` (${name})`}`
     return { label: 'Week', from: phase(change.from), to: phase(change.to), text }
   }
-  const known = FIELDS[change.field]
+  const known = FIELDS[change.field] ?? zoneField(change.field, units)
   const label = known?.label ?? change.field
   const format = known?.format ?? plain
   const from = format(change.from)

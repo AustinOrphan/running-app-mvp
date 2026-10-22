@@ -19,31 +19,12 @@ import { Field, Input, Select } from './Field.tsx'
 import { Sheet } from './Sheet.tsx'
 import { useToast } from './Toast.tsx'
 import { WhyDrawer } from './WhyDrawer.tsx'
-import { formatLongDate, formatShortDate, formatWeekday } from './format.ts'
+import { formatLongDate, formatShortDate, formatWeekday, sessionKindLabel } from './format.ts'
 import styles from './SessionSheet.module.css'
 
 export interface SessionSheetProps {
   session: PlanSession
   onClose: () => void
-}
-
-const KIND_LABELS: Record<SessionKind, string> = {
-  easy: 'Easy run',
-  recovery: 'Recovery run',
-  long: 'Long run',
-  'long-fast-finish': 'Long run, fast finish',
-  threshold: 'Threshold',
-  intervals: 'Intervals',
-  'race-pace': 'Race pace',
-  strides: 'Strides',
-  hills: 'Hills',
-  hike: 'Hike',
-  b2b: 'Back-to-back',
-  strength: 'Strength',
-  mobility: 'Mobility',
-  rest: 'Rest',
-  race: 'Race',
-  cross: 'Cross-training',
 }
 
 const ZONE_LABELS: Record<ZoneKey, string> = {
@@ -433,7 +414,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
       <Sheet open onClose={onClose} title={session.title}>
         <div className={styles.body}>
           <p className={styles.context}>
-            {formatLongDate(session.date)}. {KIND_LABELS[session.kind]}.{' '}
+            {formatLongDate(session.date)}. {sessionKindLabel(session.kind)}.{' '}
             <span data-status={session.status}>{STATUS_LABELS[session.status]}</span>
           </p>
           {original !== null ? (

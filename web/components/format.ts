@@ -1,3 +1,4 @@
+import type { SessionKind } from '../../shared/engine/types.ts'
 import type { PlanPhase } from '../../shared/types.ts'
 
 const parts = new Intl.DateTimeFormat('en-GB', {
@@ -59,4 +60,33 @@ export function phaseLabel(phase: PlanPhase): string {
  */
 export function weekPhaseLabel(week: { phase: PlanPhase; flags?: readonly string[] }): string {
   return week.flags?.includes('post-race') === true ? 'After the race' : phaseLabel(week.phase)
+}
+
+const kindLabels: Record<SessionKind, string> = {
+  easy: 'Easy run',
+  recovery: 'Recovery run',
+  long: 'Long run',
+  'long-fast-finish': 'Long run, fast finish',
+  threshold: 'Threshold',
+  intervals: 'Intervals',
+  'race-pace': 'Race pace',
+  strides: 'Strides',
+  hills: 'Hills',
+  hike: 'Hike',
+  b2b: 'Back-to-back',
+  strength: 'Strength',
+  mobility: 'Mobility',
+  rest: 'Rest',
+  race: 'Race',
+  cross: 'Cross-training',
+}
+
+/** A session kind as the Plan page names it: "Long run, fast finish". */
+export function sessionKindLabel(kind: SessionKind): string {
+  return kindLabels[kind]
+}
+
+/** Whether a string names a session kind. */
+export function isSessionKind(value: unknown): value is SessionKind {
+  return typeof value === 'string' && value in kindLabels
 }

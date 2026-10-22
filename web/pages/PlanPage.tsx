@@ -573,7 +573,8 @@ function WhatChanged({
                 <ul className={styles.changes}>
                   {revision.changes.map((change, index) => (
                     <li key={`${change.weekStart}-${change.field}-${String(index)}`}>
-                      Week of {formatShortDate(change.weekStart)}: {describeChange(change).text}
+                      Week of {formatShortDate(change.weekStart)}:{' '}
+                      {describeChange(change, units).text}
                     </li>
                   ))}
                 </ul>
