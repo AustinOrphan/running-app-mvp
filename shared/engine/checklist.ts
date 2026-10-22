@@ -147,6 +147,12 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
     draft.weeks.filter((w) => w.isRecovery || w.isTaper).map((w) => w.weekStart),
   )
   const floorWeek = draft.weeks.find((w) => w.flags.includes('restart-floor'))
+  // A week under way with no running logged is only part of a week, so it is no baseline for the
+  // weeks after it (as in guards.ts).
+  const rampSkip: ReadonlySet<string> =
+    input.today > currentMonday && (volume.get(currentMonday) ?? 0) === 0
+      ? new Set([...lowWeeks, currentMonday])
+      : lowWeeks
   for (const weekStart of starts) {
     if (weekStart < currentMonday) continue
     // The current week holds what was already run plus the sessions still planned.
@@ -155,7 +161,7 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
     volume.set(weekStart, total)
     if (total <= 0) continue
     const base =
-      positive(highest(volume, weekStart, 1, baselineWeeks)) ??
+      positive(highest(volume, weekStart, 1, baselineWeeks, rampSkip)) ??
       (state.typicalWeekMin > 0 ? state.typicalWeekMin : null)
     if (base === null) continue
     const afterFloor =
@@ -167,7 +173,7 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
       weekStart,
       P.g2.ceilingWindowWeeks.value,
       baselineWeeks,
-      lowWeeks,
+      rampSkip,
       P.g2.ceilingLookbackWeeks.value,
     )
     const floorBase = afterFloor ? (volume.get(floorWeek.weekStart) ?? null) : null

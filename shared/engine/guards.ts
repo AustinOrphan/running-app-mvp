@@ -168,6 +168,11 @@ export function applyGuards(
   // Running already done in the current week counts toward its volume; the plan holds the rest.
   const currentMonday = mondayOf(asOf)
   const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
+  // A week that is under way with no running logged yet holds only the sessions still planned, so
+  // it is no baseline for the weeks after it; the earlier history (or the typical week) sets
+  // their limits instead. With running logged, done plus planned is the whole week.
+  const rampSkip: ReadonlySet<string> =
+    asOf > currentMonday && (doneRow?.runMin ?? 0) === 0 ? new Set([...low, currentMonday]) : low
   const doneThisWeek = (weekStart: string) =>
     weekStart === currentMonday && doneRow !== undefined ? doneRow.runMin : 0
   const weekMinutes = (weekStart: string, week: SessionSpec[]) =>
@@ -232,7 +237,7 @@ export function applyGuards(
     if (total <= 0) return
 
     const baselineWeeks = P.g2.baselineWeeks.value
-    const soft = highest(volume, weekStart, 1, baselineWeeks)
+    const soft = highest(volume, weekStart, 1, baselineWeeks, rampSkip)
     const typical = state.typicalWeekMin > 0 ? state.typicalWeekMin : null
     const base = positive(soft) ?? typical
     if (base === null) return
@@ -252,7 +257,7 @@ export function applyGuards(
             weekStart,
             P.g2.ceilingWindowWeeks.value,
             baselineWeeks,
-            low,
+            rampSkip,
             P.g2.ceilingLookbackWeeks.value,
           ),
           afterFloor ? floorMin : null,
