@@ -1,15 +1,25 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { relativeDates, resetData, signedInApi } from './helpers.ts'
 
 // A phone-width viewport: nothing may be clipped out of reach or push the page sideways.
-test.use({ viewport: { width: 360, height: 740 } })
+// One shared signed-in page keeps the specs within the login limiter's 10 attempts per window.
+test.describe.configure({ mode: 'serial' })
 
-test('every Fatigue rating sits inside its control at 360 px and can be chosen', async ({
-  page,
-  baseURL,
-}) => {
+let page: Page
+let api: Awaited<ReturnType<typeof signedInApi>>
+
+test.beforeAll(async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 360, height: 740 } })
+  page = await context.newPage()
+  api = await signedInApi(page, baseURL ?? '')
+})
+
+test.afterAll(async () => {
+  await page.context().close()
+})
+
+test('every Fatigue rating sits inside its control at 360 px and can be chosen', async () => {
   const { lastWednesday, planStart, raceDate } = relativeDates()
-  const api = await signedInApi(page, baseURL ?? '')
   await resetData()
   await api.post('/activities', {
     date: lastWednesday,
@@ -50,8 +60,14 @@ test('every Fatigue rating sits inside its control at 360 px and can be chosen',
   await expect(group.getByRole('radio', { name: '10', exact: true })).toBeChecked()
 })
 
-test('the Activities type filter needs no scrolling at 360 px', async ({ page, baseURL }) => {
-  await signedInApi(page, baseURL ?? '')
+test('the Activities type filter needs no scrolling at 360 px', async () => {
+  await resetData()
+  await api.post('/activities', {
+    date: relativeDates().lastWednesday,
+    type: 'run',
+    durationSec: 45 * 60,
+    distanceM: 8047,
+  })
   await page.goto('/activities')
   const group = page.getByRole('radiogroup', { name: /type/i })
   await expect(group).toBeVisible()
@@ -59,12 +75,8 @@ test('the Activities type filter needs no scrolling at 360 px', async ({ page, b
   expect(overflow).toBeLessThanOrEqual(0)
 })
 
-test('the Stats page does not scroll sideways at 360 px; wide tables scroll inside', async ({
-  page,
-  baseURL,
-}) => {
+test('the Stats page does not scroll sideways at 360 px; wide tables scroll inside', async () => {
   const { lastWednesday } = relativeDates()
-  const api = await signedInApi(page, baseURL ?? '')
   await resetData()
   await api.post('/activities', {
     date: lastWednesday,

@@ -33,13 +33,15 @@ export function useGeneratePlan() {
   return useMutation({
     mutationFn: (request: GeneratePlanRequest) =>
       api<PlanWithWeeks>('POST', '/plan/generate', request),
-    // Generating makes the plan's goal the active goal, so goals refresh too.
-    onSuccess: () =>
-      Promise.all(
-        [keys.plan, keys.reviews, keys.goals].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
-        ),
-      ),
+    onSuccess: () => {
+      // Generating makes the plan's goal the active goal, so goals refresh too. That refetch is
+      // not awaited: once the plan arrives the page swaps the form out, and the caller's success
+      // callback (the toast) only runs if this promise settles before that unmount.
+      void queryClient.invalidateQueries({ queryKey: [keys.goals] })
+      return Promise.all(
+        [keys.plan, keys.reviews].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+      )
+    },
   })
 }
 
