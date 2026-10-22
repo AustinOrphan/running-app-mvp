@@ -1,0 +1,212 @@
+.intro {
+  max-width: var(--prose-max);
+  margin: 0 0 var(--space-4);
+}
+
+.legend {
+  display: grid;
+  gap: var(--space-1);
+  max-width: var(--prose-max);
+  margin: 0 0 var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.legend div {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.legend dt {
+  min-width: 4.5rem;
+  font-weight: 600;
+}
+
+.legend dd {
+  margin: 0;
+}
+
+.filter {
+  margin-bottom: var(--space-5);
+  overflow-x: auto;
+}
+
+.topics {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: var(--prose-max);
+}
+
+.topicButton {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--control-h);
+  padding: var(--space-3) 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+li:last-child > .topicButton {
+  border-bottom: 1px solid var(--border);
+}
+
+.topicButton:focus-visible,
+.back:focus-visible,
+.cite:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.topicName {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+}
+
+.topicMeta {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.back {
+  min-height: var(--control-h);
+  margin-bottom: var(--space-3);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.topic {
+  max-width: var(--prose-max);
+}
+
+.topicTitle {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  line-height: var(--lh-xl);
+  font-weight: 500;
+}
+
+.sectionTitle {
+  margin: var(--space-6) 0 var(--space-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+}
+
+.prose h3,
+.prose h4 {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: 600;
+}
+
+.prose p,
+.prose li {
+  line-height: var(--lh-base);
+}
+
+.prose ul,
+.prose ol {
+  padding-left: var(--space-5);
+}
+
+.prose li {
+  margin-bottom: var(--space-2);
+}
+
+.cite {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+}
+
+.unresolved {
+  color: var(--text-muted);
+}
+
+.count {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.rule {
+  padding: var(--space-3) 0 var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.ruleHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.ruleId {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.statement {
+  margin: var(--space-2) 0;
+}
+
+.facts {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.facts div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.facts dt {
+  min-width: 5.5rem;
+  color: var(--text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.default {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
