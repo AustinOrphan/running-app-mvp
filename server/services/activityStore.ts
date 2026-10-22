@@ -2,7 +2,9 @@ import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 import type { Deps } from '../app.ts'
 import { loadProfile } from '../serialize.ts'
+import { createLogger } from '../logger.ts'
 import { markDuplicates } from './duplicates.ts'
+import { runExecutionForActivity } from './execution.ts'
 import { localDateTime, summarize } from '../../shared/importers/files/index.ts'
 import type { ParsedActivity, WellnessInput } from '../../shared/types.ts'
 
@@ -78,7 +80,7 @@ export async function storeParsed(
   const startLat = roundCoordinate(parsed.startLat)
   const startLng = roundCoordinate(parsed.startLng)
 
-  return prisma.$transaction(
+  const stored = await prisma.$transaction(
     async (tx) => {
       const existing = await tx.activity.findUnique({
         where: { userId_providerKey: { userId, providerKey: parsed.providerKey } },
@@ -178,6 +180,20 @@ export async function storeParsed(
     },
     { timeout: WRITE_TIMEOUT_MS },
   )
+
+  // A stored activity may fulfil a planned session. The activity is already saved, so a failure
+  // here is logged and never fails the import; the nightly sweep tries again.
+  if (stored.outcome !== 'duplicate') {
+    try {
+      await runExecutionForActivity(deps, { userId, activityId: stored.activityId })
+    } catch (error) {
+      createLogger(deps.config).warn(
+        { err: error },
+        'matching a stored activity to the plan failed',
+      )
+    }
+  }
+  return stored
 }
 
 const WELLNESS_FIELDS = [

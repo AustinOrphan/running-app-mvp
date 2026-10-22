@@ -1,15 +1,270 @@
-// Stub from the training-engine scaffold; Task E10 implements it.
+// Planned versus actual on the server: link stored activities to the sessions they fulfil, assess
+// each linked session against expectation, and trim the next quality session after a run that was
+// much harder than expected [design 4.1 to 4.3]. The engine decides; this module reads and writes.
+import { addDays, todayIso } from '../../shared/dates.ts'
+import { estimateState } from '../../shared/engine/athlete.ts'
+import { shouldTrimQuality, trimQuality } from '../../shared/engine/adapt.ts'
+import { assessExecution, fitHrModel, matchSessions } from '../../shared/engine/execution.ts'
+import { checkinOn, isQualityKind } from '../../shared/engine/readiness.ts'
+import type {
+  AthleteState,
+  EngineInput,
+  ExecutionAssessment,
+  ZoneSet,
+} from '../../shared/engine/types.ts'
+import { buildZones } from '../../shared/engine/zones.ts'
+import type { Activity, PlanSession } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
+import type { PlanSession as PlanSessionRow } from '../db.ts'
+import { notFound } from '../errors.ts'
+import { toPlanSession } from '../serialize.ts'
+import { gatherContextInput, sessionSpec } from './engineInput.ts'
 
-/** After an activity is stored: match it to a planned session and assess the execution. */
-export function runExecutionForActivity(
-  _deps: Deps,
-  _args: { userId: string; activityId: string },
-): Promise<void> {
-  return Promise.reject(new Error('Task E10: runExecutionForActivity is not implemented'))
+/** How far back the nightly sweep looks, in days. */
+const SWEEP_DAYS = 7
+/** A session can fulfil an activity one day either side of its date [design 4.1]. */
+const MATCH_SPREAD_DAYS = 1
+
+type HrModel = NonNullable<ReturnType<typeof fitHrModel>>
+
+interface Context {
+  input: EngineInput
+  state: AthleteState
+  zones: ZoneSet
+  hrModel: HrModel | null
 }
 
-/** Nightly sweep over the last 7 days of unlinked activities and planned sessions. */
-export function runNightlyMatching(_deps: Deps, _args: { today: string }): Promise<void> {
-  return Promise.reject(new Error('Task E10: runNightlyMatching is not implemented'))
+async function buildContext(
+  deps: Deps,
+  args: { userId: string; goalId: string; today: string },
+): Promise<Context> {
+  const input = await gatherContextInput(deps, args, { existing: true })
+  const state = estimateState(input)
+  return {
+    input,
+    state,
+    zones: buildZones(input.profile, state, args.today),
+    hrModel: fitHrModel(input.activities, args.today),
+  }
+}
+
+async function activePlan(deps: Deps, userId: string) {
+  return deps.prisma.plan.findFirst({
+    where: { userId, status: 'active', generatorVersion: { gte: 2 } },
+    orderBy: { createdAt: 'desc' },
+  })
+}
+
+function statusOf(assessment: ExecutionAssessment): 'completed' | 'partial' {
+  return assessment.completion === 'partial' ? 'partial' : 'completed'
+}
+
+/**
+ * After a quality session scored much harder than expected, with no pain, the next quality session
+ * is trimmed and marked downgraded with the reason; at most one trim per week [design 4.3].
+ */
+async function trimNextQuality(
+  deps: Deps,
+  row: PlanSessionRow,
+  assessment: ExecutionAssessment,
+): Promise<void> {
+  if (!isQualityKind(row.kind as PlanSession['kind'])) return
+  if (assessment.flags.includes('pain') || assessment.flags.includes('focal-bone-pain')) return
+  const { prisma } = deps
+  const done = (
+    await prisma.planSession.findMany({
+      where: { planId: row.planId, execution: { not: null }, date: { lte: row.date } },
+      orderBy: [{ date: 'asc' }, { order: 'asc' }],
+    })
+  )
+    .map(toPlanSession)
+    .filter(
+      (s) =>
+        isQualityKind(s.kind) &&
+        s.execution !== null &&
+        s.execution.effort.score !== null &&
+        !s.execution.flags.includes('pain') &&
+        !s.execution.flags.includes('focal-bone-pain'),
+    )
+  const scores = done.map((s) => s.execution!.effort.score as number)
+  const upcoming = (
+    await prisma.planSession.findMany({
+      where: { planId: row.planId, date: { gt: row.date }, status: 'planned' },
+      orderBy: [{ date: 'asc' }, { order: 'asc' }],
+    })
+  ).map(toPlanSession)
+  const next = upcoming.find((s) => isQualityKind(s.kind))
+  if (!next) return
+  const trimsThisWeek = await prisma.planSession.count({
+    where: { planId: row.planId, weekStart: next.weekStart, status: 'downgraded' },
+  })
+  if (!shouldTrimQuality(scores, trimsThisWeek)) return
+  const trimmed = trimQuality(
+    sessionSpec(next),
+    'The last quality session felt harder than expected, so this one is shorter.',
+  )
+  await prisma.planSession.update({
+    where: { id: next.id },
+    data: {
+      status: 'downgraded',
+      durationMin: trimmed.durationMin,
+      distanceM: trimmed.distanceM,
+      gainM: trimmed.gainM,
+      structure: JSON.stringify(trimmed.structure),
+      target: JSON.stringify(trimmed.target),
+      purpose: trimmed.purpose,
+      rules: JSON.stringify(trimmed.rules),
+      flags: JSON.stringify(trimmed.flags),
+      original: JSON.stringify(sessionSpec(next)),
+    },
+  })
+}
+
+/** Assesses a linked session and stores the result; the first assessment may trim the next session. */
+async function assessRow(
+  deps: Deps,
+  row: PlanSessionRow,
+  activity: Activity,
+  ctx: Context,
+): Promise<PlanSessionRow> {
+  const assessment = assessExecution(sessionSpec(toPlanSession(row)), activity, {
+    zones: ctx.zones,
+    state: ctx.state,
+    hrModel: ctx.hrModel,
+    checkin: checkinOn(ctx.input, activity.date),
+  })
+  const first = row.execution === null
+  const updated = await deps.prisma.planSession.update({
+    where: { id: row.id },
+    data: { execution: JSON.stringify(assessment), status: statusOf(assessment) },
+  })
+  if (first) await trimNextQuality(deps, updated, assessment)
+  return updated
+}
+
+/** Re-assesses one linked session, for example after the owner links an activity by hand. */
+export async function assessSessionById(
+  deps: Deps,
+  args: { userId: string; sessionId: string },
+): Promise<PlanSession> {
+  const row = await deps.prisma.planSession.findFirst({
+    where: { id: args.sessionId, plan: { userId: args.userId } },
+    include: { plan: true },
+  })
+  if (!row) throw notFound('Session not found.')
+  if (row.activityId === null) return toPlanSession(row)
+  const today = todayIso()
+  const ctx = await buildContext(deps, { userId: args.userId, goalId: row.plan.goalId, today })
+  const activity = ctx.input.activities.find((a) => a.id === row.activityId)
+  if (!activity) return toPlanSession(row)
+  return toPlanSession(await assessRow(deps, row, activity, ctx))
+}
+
+/**
+ * Matches the unlinked activities in `activities` to the plan's unlinked sessions, then assesses
+ * every linked session whose activity is in the set. Owner links are never changed.
+ */
+async function matchAndAssess(
+  deps: Deps,
+  args: { userId: string; planId: string; goalId: string; today: string },
+  select: (activity: Activity) => boolean,
+): Promise<void> {
+  const { prisma } = deps
+  const ctx = await buildContext(deps, args)
+  const activities = ctx.input.activities.filter(select)
+  if (activities.length === 0) return
+  const dates = activities.map((a) => a.date).sort()
+  const from = addDays(dates[0]!, -MATCH_SPREAD_DAYS)
+  const to = addDays(dates[dates.length - 1]!, MATCH_SPREAD_DAYS)
+  const rows = await prisma.planSession.findMany({
+    where: { planId: args.planId, date: { gte: from, lte: to } },
+  })
+  const matches = matchSessions(
+    rows.map((r) => ({
+      ...sessionSpec(toPlanSession(r)),
+      id: r.id,
+      activityId: r.activityId,
+      linkSource: r.linkSource,
+      status: r.status,
+    })),
+    activities,
+  )
+  const linked = new Map(rows.map((r) => [r.id, r]))
+  for (const match of matches) {
+    const row = linked.get(match.sessionId)
+    if (!row) continue
+    linked.set(
+      row.id,
+      await prisma.planSession.update({
+        where: { id: row.id },
+        data: { activityId: match.activityId, linkSource: 'auto' },
+      }),
+    )
+  }
+  const byId = new Map(activities.map((a) => [a.id, a]))
+  for (const row of linked.values()) {
+    const activity = row.activityId === null ? undefined : byId.get(row.activityId)
+    if (activity) await assessRow(deps, row, activity, ctx)
+  }
+}
+
+/** After an activity is stored: match it to a planned session and assess the execution. */
+export async function runExecutionForActivity(
+  deps: Deps,
+  args: { userId: string; activityId: string },
+): Promise<void> {
+  const { prisma } = deps
+  const today = todayIso()
+  const activity = await prisma.activity.findFirst({
+    where: { id: args.activityId, userId: args.userId },
+    select: { id: true, date: true },
+  })
+  // Imports of old history reach here too; only recent activities can fulfil a session.
+  if (
+    !activity ||
+    activity.date < addDays(today, -SWEEP_DAYS) ||
+    activity.date > addDays(today, 1)
+  ) {
+    return
+  }
+  const plan = await activePlan(deps, args.userId)
+  if (!plan) return
+  const near = await prisma.planSession.count({
+    where: {
+      planId: plan.id,
+      date: {
+        gte: addDays(activity.date, -MATCH_SPREAD_DAYS),
+        lte: addDays(activity.date, MATCH_SPREAD_DAYS),
+      },
+    },
+  })
+  if (near === 0) return
+  await matchAndAssess(
+    deps,
+    { userId: args.userId, planId: plan.id, goalId: plan.goalId, today },
+    (a) => a.id === activity.id,
+  )
+}
+
+/** Nightly sweep over the last 7 days of activities and sessions, for every user with a plan. */
+export async function runNightlyMatching(
+  deps: Deps,
+  args: { today: string; onError?: (error: unknown, userId: string) => void },
+): Promise<void> {
+  const plans = await deps.prisma.plan.findMany({
+    where: { status: 'active', generatorVersion: { gte: 2 } },
+  })
+  const from = addDays(args.today, -SWEEP_DAYS)
+  for (const plan of plans) {
+    try {
+      await matchAndAssess(
+        deps,
+        { userId: plan.userId, planId: plan.id, goalId: plan.goalId, today: args.today },
+        (a) => a.date >= from && a.date <= args.today,
+      )
+    } catch (error) {
+      // One user's failure must not stop the sweep for the others.
+      args.onError?.(error, plan.userId)
+    }
+  }
 }
