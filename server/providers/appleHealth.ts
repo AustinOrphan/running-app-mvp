@@ -101,13 +101,20 @@ function mapMetrics(
       if (name === 'sleep_analysis') {
         // The night belongs to the wake-up date: `sleepEnd` when given, else the point's date.
         const when = parseAppleDate(str(point['sleepEnd']) ?? str(point['date']), timezone)
-        const asleep = num(point['asleep']) ?? num(point['totalSleep'])
+        // With sleep stages, `asleep` holds only unspecified sleep (often 0) and `totalSleep` the
+        // night; older payloads carry the night in `asleep` alone.
+        const totalSleep = num(point['totalSleep'])
+        const asleep = num(point['asleep'])
         const stages = ['core', 'deep', 'rem'].map((k) => num(point[k]))
+        const stageSum = stages.every((v) => v === null)
+          ? null
+          : stages.reduce<number>((s, v) => s + (v ?? 0), 0)
         const total =
-          asleep ??
-          (stages.every((v) => v === null)
-            ? null
-            : stages.reduce<number>((s, v) => s + (v ?? 0), 0))
+          totalSleep !== null && totalSleep > 0
+            ? totalSleep
+            : asleep === null && stageSum === null
+              ? null
+              : Math.max(asleep ?? 0, stageSum ?? 0)
         const factor = HOURS_TO_SEC[units || 'hr']
         if (!when || total === null || factor === undefined || total <= 0) continue
         const acc = day(when.date)
@@ -243,7 +250,8 @@ function mapWorkout(raw: Json, timezone: string): ParsedActivity | null {
     avgHrStat?.qty ??
     (hrPoints.length > 0 ? hrPoints.reduce((s, p) => s + p.avg, 0) / hrPoints.length : null)
   const maxHr =
-    maxHrStat?.qty ?? (hrPoints.length > 0 ? Math.max(...hrPoints.map((p) => p.max)) : null)
+    maxHrStat?.qty ??
+    (hrPoints.length > 0 ? hrPoints.reduce((m, p) => Math.max(m, p.max), -Infinity) : null)
 
   const duration = num(raw['duration'])
   const samples = emptySamples()

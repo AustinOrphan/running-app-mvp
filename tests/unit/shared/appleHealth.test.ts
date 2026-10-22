@@ -138,6 +138,31 @@ describe('Apple Health export reducer, pass two', () => {
     expect(activities[1]).toMatchObject({ avgHr: 130, maxHr: 130 })
   })
 
+  it('gives the same result when pass two gets the workouts without their pass-one activity', () => {
+    const reducer = createAppleExportReducer({ timezone: 'UTC' })
+    feed(reducer, exportXml)
+    const keysOnly = reducer.passOneResult().workouts.map(({ providerKey, startUtc, endUtc }) => ({
+      providerKey,
+      startUtc,
+      endUtc,
+    }))
+    reducer.startPassTwo(keysOnly)
+    feed(reducer, exportXml)
+    expect(reducer.passTwoResult()).toEqual(activities)
+  })
+
+  it('throws when pass two gets a workout that pass one did not find', () => {
+    const reducer = createAppleExportReducer({ timezone: 'UTC' })
+    reducer.startPassTwo([
+      {
+        providerKey: 'apple:export:x',
+        startUtc: '2026-03-02T12:00:00.000Z',
+        endUtc: '2026-03-02T12:30:00.000Z',
+      },
+    ])
+    expect(() => reducer.passTwoResult()).toThrow(/not found in pass one/)
+  })
+
   it('returns one activity per workout and none when there is no workout', () => {
     expect(activities).toHaveLength(2)
     expect(runExport('<HealthData/>').activities).toEqual([])

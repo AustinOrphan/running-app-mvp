@@ -54,6 +54,30 @@ describe('appleHealthPush.parsePush: metrics', () => {
     ])
   })
 
+  it('reads a night with sleep stages, where asleep is 0, from totalSleep or the stages', () => {
+    const night = (point: Record<string, unknown>) =>
+      appleHealthPush.parsePush(
+        {
+          data: {
+            metrics: [
+              {
+                name: 'sleep_analysis',
+                units: 'hr',
+                data: [{ sleepEnd: '2026-03-04 06:45:00 -0500', asleep: 0, ...point }],
+              },
+            ],
+          },
+        },
+        ctx,
+      ).wellness[0]
+    expect(night({ core: 4, deep: 1, rem: 2, totalSleep: 7 })).toMatchObject({
+      date: '2026-03-04',
+      sleepSec: 7 * 3600,
+    })
+    expect(night({ core: 4, deep: 1, rem: 1.5 })?.sleepSec).toBe(6.5 * 3600)
+    expect(night({})).toBeUndefined()
+  })
+
   it('counts unknown metrics and unreadable workouts instead of failing', () => {
     expect(ignored).toEqual({ step_count: 2, 'workout:unreadable': 1 })
   })
@@ -124,6 +148,18 @@ describe('appleHealthPush.parsePush: workouts', () => {
   ])('maps the workout name %s to %s / %s', (name, type, subtype) => {
     const out = appleHealthPush.parsePush(workoutPayload(name), ctx)
     expect(out.activities[0]).toMatchObject({ type, subtype })
+  })
+
+  it('clips heart-rate points to [start, end] when there is no route', () => {
+    const heartRateData = [
+      ['06:59:50', 90],
+      ['07:00:10', 120],
+      ['07:29:50', 165],
+      ['07:31:00', 110],
+    ].map(([time, avg]) => ({ date: `2026-03-04 ${time} -0500`, Avg: avg, Max: avg }))
+    const out = appleHealthPush.parsePush(workoutPayload('Outdoor Run', { heartRateData }), ctx)
+    expect(out.activities[0]?.samples).toMatchObject({ t: [10, 1790], hr: [120, 165] })
+    expect(out.activities[0]).toMatchObject({ avgHr: 143, maxHr: 165 })
   })
 
   it('uses the location to find an indoor run', () => {

@@ -345,6 +345,8 @@ export function createAppleExportReducer(opts: { timezone: string }): AppleExpor
   let pass: 1 | 2 = 1
   let open: OpenWorkout | null = null
   const workouts: AppleWorkout[] = []
+  /** Pass-one activities by key, so pass two works when the caller passes back only the keys. */
+  const passOne = new Map<string, ParsedActivity>()
   const days = new Map<string, DayFields>()
   const sleep = new Map<string, Array<[number, number]>>()
 
@@ -444,7 +446,10 @@ export function createAppleExportReducer(opts: { timezone: string }): AppleExpor
       if (name !== 'Workout' || pass !== 1 || !open) return
       const workout = buildWorkout(open, timezone)
       open = null
-      if (workout) workouts.push(workout)
+      if (workout?.base) {
+        workouts.push(workout)
+        passOne.set(workout.providerKey, workout.base)
+      }
     },
 
     passOneResult() {
@@ -489,8 +494,10 @@ export function createAppleExportReducer(opts: { timezone: string }): AppleExpor
     passTwoResult() {
       const out: ParsedActivity[] = []
       for (const w of windows) {
-        const base = w.workout.base
-        if (!base) continue
+        const base = w.workout.base ?? passOne.get(w.workout.providerKey)
+        if (!base) {
+          throw new Error(`Workout ${w.workout.providerKey} was not found in pass one.`)
+        }
         const points = (heartRates[w.index] ?? []).sort((a, b) => a.t - b.t)
         if (points.length === 0) {
           out.push(base)
@@ -500,7 +507,7 @@ export function createAppleExportReducer(opts: { timezone: string }): AppleExpor
         out.push({
           ...base,
           avgHr: base.avgHr ?? Math.round(mean(hr)),
-          maxHr: base.maxHr ?? Math.max(...hr),
+          maxHr: base.maxHr ?? hr.reduce((m, v) => Math.max(m, v), -Infinity),
           samples: { ...emptySamples(), t: points.map((p) => p.t), hr },
         })
       }
@@ -512,7 +519,11 @@ export function createAppleExportReducer(opts: { timezone: string }): AppleExpor
 // ---------------------------------------------------------------------------------------------
 // Routes
 
-/** Adds the altitude, distance and start location of a `workout-routes/*.gpx` to an activity. */
+/**
+ * Adds the altitude, distance and start location of a `workout-routes/*.gpx` to an activity.
+ * A route file the GPX parser rejects (`RangeError`), or one with no points inside the workout,
+ * leaves the activity unchanged: the workout still imports without its route.
+ */
 export function attachRoute(activity: ParsedActivity, gpxText: string): ParsedActivity {
   let route: ParsedActivity | undefined
   try {
