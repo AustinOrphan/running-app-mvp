@@ -371,7 +371,9 @@ export function macroPlan(
     longRun.push(long)
     prevLong = long
 
-    prevDays = Math.max(prevDays, daysFor(t))
+    // the restart floor week holds its floor sessions [design-macro]
+    const floorDays = i === 0 && restart !== null ? P.restartFloor.sessions.value : 0
+    prevDays = Math.max(prevDays, daysFor(t), floorDays)
     runDays.push(prevDays)
 
     if (hasGain) {

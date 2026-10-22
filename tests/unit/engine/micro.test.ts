@@ -460,29 +460,27 @@ describe('placeWeek', () => {
   })
 
   describe('pairs and the 2-day total', () => {
-    it('shortens day 2, or drops the pair, to stay within 1.10x of the largest 2-day total (H3)', () => {
-      const b2bWeek = week({
-        phase: 'specific',
-        flags: ['b2b'],
-        targetRunMin: 480,
-        longRunMin: 180,
-        runDays: 5,
-      })
-      const history = [
-        session({ date: '2026-10-24', kind: 'long', durationMin: 120 }),
-        session({ date: '2026-10-25', kind: 'easy', durationMin: 60 }),
-      ]
-      const tight = place(b2bWeek, { prev: history })
-      const day1 = tight.find((s) => s.flags.includes('b2b-day1'))
-      const day2 = tight.find((s) => s.flags.includes('b2b-day2'))
-      if (day1 !== undefined && day2 !== undefined) {
-        expect(day1.durationMin + day2.durationMin).toBeLessThanOrEqual(
-          Math.floor(180 * P.h3.b2bTwoDayRatio.value),
-        )
-      } else {
-        expect(tight.some((s) => s.kind === 'long' || s.kind === 'long-fast-finish')).toBe(true)
-      }
-      expect(tight.filter(isRun).length).toBeGreaterThanOrEqual(2)
+    const b2bWeek = () =>
+      week({ phase: 'specific', flags: ['b2b'], targetRunMin: 480, longRunMin: 180, runDays: 5 })
+    const history = (day2: number) => [
+      session({ date: '2026-10-24', kind: 'long', durationMin: 150 }),
+      session({ date: '2026-10-25', kind: 'easy', durationMin: day2 }),
+    ]
+
+    it('shortens day 2 to stay within 1.10x of the largest 2-day total (H3)', () => {
+      const sessions = place(b2bWeek(), { prev: history(60) })
+      const day1 = sessions.find((s) => s.flags.includes('b2b-day1'))!
+      const day2 = sessions.find((s) => s.flags.includes('b2b-day2'))!
+      expect(day1.durationMin).toBe(180)
+      expect(day1.durationMin + day2.durationMin).toBe(Math.floor(210 * P.h3.b2bTwoDayRatio.value))
+      expect(day2.durationMin).toBeLessThan(Math.round(180 * P.fplace.b2bDay2Fraction.value))
+    })
+
+    it('drops the pair for a single long run when day 2 would fall under the minimum', () => {
+      const sessions = place(b2bWeek(), { prev: history(30) })
+      expect(sessions.some((s) => s.kind === 'b2b')).toBe(false)
+      expect(sessions.some((s) => s.kind === 'long' || s.kind === 'long-fast-finish')).toBe(true)
+      expect(sessions.filter(isRun).length).toBeGreaterThanOrEqual(2)
     })
   })
 })

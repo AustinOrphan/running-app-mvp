@@ -226,7 +226,7 @@ function planRuns(
     // week): look for the largest set of non-consecutive days instead.
     const days = spacedDays(runDays)
     if (days.length > order.length) {
-      const longDay = nearestTo(days, preferred)
+      const longDay = nearest(days, preferred)
       order.length = 0
       order.push(longDay, ...days.filter((d) => d !== longDay))
       fixed = longMin > 0 ? [longPlan(longDay)] : []
@@ -338,11 +338,6 @@ function planRuns(
       best = Math.max(best, state.longest30d.twoDaySec / 60)
     }
     return best
-  }
-
-  /** The day of `days` nearest to `to`; on a tie the later day wins. */
-  function nearestTo(days: number[], to: number): number {
-    return nearest(days, to)
   }
 
   /** The largest set (up to `want`) of usable, non-consecutive days; the best spread that holds the long day. */

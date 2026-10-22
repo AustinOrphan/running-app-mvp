@@ -131,8 +131,14 @@ describe.each(all)('plan matrix: $label', (a) => {
     // The restart floor week is exempt from G-2 and is the ceiling baseline of the week after it.
     const floor = plan.weeks.find((w) => w.flags.includes('restart-floor'))
     for (const w of planWeeks(plan)) {
-      if (floor !== undefined && w.weekStart === floor.weekStart) continue
       const total = at(w.weekStart, 0)
+      if (floor !== undefined && w.weekStart === floor.weekStart) {
+        // exempt from G-2 only up to the floor
+        if (total > floor.targetRunMin + 1) {
+          bad.push(`${w.weekStart}: floor week ${Math.round(total)} min > ${floor.targetRunMin}`)
+        }
+        continue
+      }
       const afterFloor = floor !== undefined && daysBetween(floor.weekStart, w.weekStart) === 7
       const ceilingBase = Math.max(
         at(w.weekStart, 2),
@@ -482,7 +488,7 @@ describe.each(all)('plan adequacy: $label', (a) => {
       if (runs.length !== expected) {
         bad.push(`${w.weekStart}: ${runs.length} runs, expected ${expected} (runDays ${w.runDays})`)
       }
-      if (strength.length > w.strengthSessions) {
+      if (strength.length !== w.strengthSessions) {
         bad.push(`${w.weekStart}: ${strength.length} strength sessions of ${w.strengthSessions}`)
       }
     }
@@ -575,7 +581,7 @@ describe('plan adequacy: sparse history, first 100-mile', () => {
     }
   })
 
-  it('grows to 6 h in the last specific week with a 3 h long run, or says it is not reachable', () => {
+  it('grows to 6 h in the last specific week with a 3 h long run, and labels feasibility', () => {
     const specific = planWeeks(plan).filter((w) => w.phase === 'specific' && !w.isRecovery)
     const last = specific.at(-1)!
     const volume = weeklyVolume(a, plan)
@@ -584,13 +590,12 @@ describe('plan adequacy: sparse history, first 100-mile', () => {
         .filter((s) => mondayOf(s.date) === last.weekStart && RUNNING.has(s.kind))
         .map((s) => s.durationMin),
     )
-    const reached = (volume.get(last.weekStart) ?? 0) >= 360 && long >= 180
-    if (!reached) {
-      expect(plan.feasibility.label).toBe('not-reachable')
-      expect(plan.warnings.some((w) => w.code === 'not-reachable')).toBe(true)
-    } else {
-      expect(reached).toBe(true)
-    }
+    // The label is not-reachable (goal.ts asks for more weeks than there are), and it says so;
+    // the plan still has to grow to the volume and the long run.
+    expect(plan.feasibility.label).toBe('not-reachable')
+    expect(plan.warnings.some((w) => w.code === 'not-reachable')).toBe(true)
+    expect(volume.get(last.weekStart) ?? 0).toBeGreaterThanOrEqual(360)
+    expect(long).toBeGreaterThanOrEqual(180)
   })
 
   it('does not collapse to one session a week after the opening weeks', () => {

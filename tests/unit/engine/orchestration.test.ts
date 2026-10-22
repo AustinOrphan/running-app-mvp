@@ -314,7 +314,7 @@ describe('a sparse history and the restart floor', () => {
     expect(ids).toEqual(expect.arrayContaining(['progression', 'break-restart']))
   })
 
-  it('keeps every week of a re-plan a week later at three or more runs, without collapsing', () => {
+  it('keeps every week of a re-plan a week later at two or more runs, without collapsing', () => {
     const later = addDays(TODAY, 7)
     const done = plan.sessions
       .filter((s) => s.date < later && s.kind !== 'strength')
