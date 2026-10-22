@@ -27,7 +27,10 @@ export interface TestUser {
 }
 
 /** An app wired to its own SQLite file, copied from the migrated template. */
-export async function createTestCtx(overrides: Partial<Config> = {}): Promise<TestCtx> {
+export async function createTestCtx(
+  overrides: Partial<Config> = {},
+  appOpts: { globalLimit?: number } = {},
+): Promise<TestCtx> {
   const dir = mkdtempSync(join(tmpdir(), 'rl-api-'))
   const dbPath = join(dir, 'test.db')
   copyFileSync(inject('templateDbPath'), dbPath)
@@ -43,7 +46,7 @@ export async function createTestCtx(overrides: Partial<Config> = {}): Promise<Te
   }
   const prisma = createPrisma(config.databaseUrl)
   await initSqlite(prisma)
-  const app = createApp({ prisma, config })
+  const app = createApp({ prisma, config }, appOpts)
 
   return {
     app,

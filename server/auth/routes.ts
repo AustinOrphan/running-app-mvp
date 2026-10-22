@@ -56,7 +56,7 @@ export function authRouter(deps: Deps): Router {
     res.json({ needsSetup: users === 0 })
   })
 
-  router.post('/setup', async (req, res) => {
+  router.post('/setup', loginLimiter, async (req, res) => {
     if ((await prisma.user.count()) > 0 && !config.allowRegistration) {
       throw conflict('Setup is closed because an account already exists.')
     }
