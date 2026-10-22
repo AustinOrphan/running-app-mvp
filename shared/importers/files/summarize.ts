@@ -438,8 +438,7 @@ function buildStream(s: Samples): ActivitySummary['stream'] {
   let maxT = 0
   for (let i = 0; i < n; i++) if (inRange(i)) maxT = Math.max(maxT, s.t[i]!)
   const sampleSec =
-    STREAM_SAMPLE_SEC *
-    Math.max(1, Math.ceil(maxT / (MAX_STREAM_BUCKETS - 1) / STREAM_SAMPLE_SEC))
+    STREAM_SAMPLE_SEC * Math.max(1, Math.ceil(maxT / (MAX_STREAM_BUCKETS - 1) / STREAM_SAMPLE_SEC))
   const buckets = Math.floor(maxT / sampleSec) + 1
   const bucketOf = (i: number): number => Math.max(0, Math.floor(s.t[i]! / sampleSec))
 

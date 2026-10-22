@@ -221,6 +221,39 @@ describe('assessExecution effort', () => {
     expect(none.confidence).toBe('low')
   })
 
+  it('caps a score with no subjective part at plus or minus 1 and rates it low confidence', () => {
+    // 10 km in 40 min = 240 s/km against a 350-390 band: far faster, which alone would be +2.
+    const fast = activity({ durationSec: 2400, distanceM: 10000, gapDistanceM: 10000 })
+    const guess = assessExecution(session(), fast, CTX).effort
+    expect(guess.parts.paceResidualPct).toBeGreaterThan(20)
+    expect(guess.parts.rpeDelta).toBeNull()
+    expect(guess.parts.feel).toBeNull()
+    expect(guess.score).toBe(1)
+    expect(guess.confidence).toBe('low')
+
+    const slow = activity({ durationSec: 6000, distanceM: 10000, gapDistanceM: 10000 })
+    expect(assessExecution(session(), slow, CTX).effort.score).toBe(-1)
+
+    // The same pace with a felt-effort rating keeps the full scale.
+    const felt = assessExecution(session(), { ...fast, rpe: 9, feel: 2 }, CTX).effort
+    expect(felt.score).toBe(2)
+  })
+
+  it('caps a heart-rate-only score the same way', () => {
+    const runs = Array.from({ length: 8 }, (_, i) => steadyRun(i, 130 + i * 2, 2.5 + i * 0.1))
+    const model = fitHrModel(runs, TODAY)
+    const target = session({
+      target: { zone: 'z2', rpe: [2, 3], hr: [130, 160], paceSecPerKm: null, heatNote: null },
+    })
+    const out = assessExecution(target, steadyRun(30, 190, 2.9, { date: TODAY }), {
+      ...CTX,
+      hrModel: model,
+    })
+    expect(out.effort.parts.hrResidualZ).toBeGreaterThan(3)
+    expect(out.effort.score).toBe(1)
+    expect(out.effort.confidence).toBe('low')
+  })
+
   it('uses the pace residual against the target band on a grade-adjusted pace', () => {
     // 10 km in 55 min = 330 s/km against a 350-390 band: faster, so harder.
     const out = assessExecution(

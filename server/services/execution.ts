@@ -4,7 +4,12 @@
 import { addDays, daysBetween, todayIso } from '../../shared/dates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { shouldTrimQuality, trimQuality } from '../../shared/engine/adapt.ts'
-import { assessExecution, fitHrModel, matchSessions } from '../../shared/engine/execution.ts'
+import {
+  assessExecution,
+  fitHrModel,
+  hasSubjectivePart,
+  matchSessions,
+} from '../../shared/engine/execution.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { checkinOn, isQualityKind } from '../../shared/engine/readiness.ts'
 import type {
@@ -72,8 +77,9 @@ async function trimNextQuality(
 ): Promise<void> {
   if (!isQualityKind(row.kind as PlanSession['kind'])) return
   if (assessment.flags.includes('pain') || assessment.flags.includes('focal-bone-pain')) return
-  // Only this session's own evidence can trigger a trim, never an older score.
-  if (assessment.effort.score === null) return
+  // Only this session's own evidence can trigger a trim, never an older score, and only a score
+  // that rests on the runner's own rating: heart rate or pace alone is a guess.
+  if (assessment.effort.score === null || !hasSubjectivePart(assessment.effort.parts)) return
   const { prisma } = deps
   const done = (
     await prisma.planSession.findMany({
@@ -87,6 +93,7 @@ async function trimNextQuality(
         isQualityKind(s.kind) &&
         s.execution !== null &&
         s.execution.effort.score !== null &&
+        hasSubjectivePart(s.execution.effort.parts) &&
         !s.execution.flags.includes('pain') &&
         !s.execution.flags.includes('focal-bone-pain'),
     )
@@ -126,11 +133,12 @@ async function trimNextQuality(
 }
 
 /**
- * How strongly an assessment calls for a trim of the next quality session: 0 for none (no score,
- * easier than expected, or pain), 1 for a harder-than-expected session, 2 for much harder.
+ * How strongly an assessment calls for a trim of the next quality session: 0 for none (no score, no rating
+ * from the runner, easier than expected, or pain), 1 for a harder-than-expected session, 2 for much harder.
  */
 function trimLevel(assessment: ExecutionAssessment | null): number {
   if (assessment === null || assessment.effort.score === null) return 0
+  if (!hasSubjectivePart(assessment.effort.parts)) return 0
   if (assessment.flags.includes('pain') || assessment.flags.includes('focal-bone-pain')) return 0
   return assessment.effort.score >= P.trim.triggerScore.value
     ? 2

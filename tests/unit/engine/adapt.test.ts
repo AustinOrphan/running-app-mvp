@@ -393,7 +393,7 @@ function assessment(
     effort: {
       score,
       confidence: 'high',
-      parts: { rpeDelta: null, feel: null, hrResidualZ: null, paceResidualPct: null },
+      parts: { rpeDelta: null, feel: score, hrResidualZ: null, paceResidualPct: null },
     },
     conditions: { wbgtC: null, heatAdjusted: false, gradeAdjusted: false },
     flags,
@@ -479,6 +479,57 @@ describe('zoneProposals (C8, design 4.3)', () => {
   it('makes no proposal without a threshold pace to move', () => {
     const i = quality([-2, -2, -2])
     expect(zoneProposals({ ...i, profile: profile({ thresholdPaceSecPerKm: null }) })).toEqual([])
+  })
+
+  it('ignores observations that rest on heart rate or pace alone', () => {
+    const i = quality([0, 0, 0])
+    const guess = (score: -2 | -1 | 0 | 1 | 2): ExecutionAssessment => {
+      const a = assessment(score)
+      return {
+        ...a,
+        effort: {
+          ...a.effort,
+          parts: { rpeDelta: null, feel: null, hrResidualZ: -2, paceResidualPct: null },
+        },
+      }
+    }
+    const executions = (make: (n: number) => ExecutionAssessment): ExecutionRecord[] =>
+      i.existing!.sessions.map((s, n) => ({ date: s.date, kind: s.kind, assessment: make(n) }))
+    expect(
+      zoneProposals(
+        i,
+        executions(() => guess(-1)),
+      ),
+    ).toEqual([])
+    // One guess among three rated sessions leaves only two observations.
+    const mixed = executions((n) => (n === 1 ? guess(-1) : assessment(-1)))
+    expect(zoneProposals(i, mixed)).toEqual([])
+    expect(
+      zoneProposals(
+        i,
+        executions(() => assessment(-1)),
+      ),
+    ).toHaveLength(1)
+  })
+
+  it('ignores observations on or before the last accepted change of the boundary', () => {
+    const i = quality([-2, -2, -2])
+    const dates = i.existing!.sessions.map((s) => s.date).sort()
+    expect(zoneProposals(i)).toHaveLength(1)
+    // The change came after the second observation: only one is left.
+    expect(zoneProposals({ ...i, zoneChanges: { thresholdPace: dates[1]! } })).toEqual([])
+    expect(zoneProposals({ ...i, zoneChanges: { thresholdPace: TODAY } })).toEqual([])
+    // A change before every observation, or of another boundary, leaves them all.
+    expect(
+      zoneProposals({ ...i, zoneChanges: { thresholdPace: addDays(dates[0]!, -1) } }),
+    ).toHaveLength(1)
+    expect(zoneProposals({ ...i, zoneChanges: { hrMax: TODAY } })).toHaveLength(1)
+    // Three new observations after the change propose again.
+    const later = quality([-2, -2, -2, -2, -2, -2])
+    const laterDates = later.existing!.sessions.map((s) => s.date).sort()
+    const out = zoneProposals({ ...later, zoneChanges: { thresholdPace: laterDates[2]! } })
+    expect(out).toHaveLength(1)
+    expect(out[0]!.observations).toBe(3)
   })
 
   it('prefers the execution assessments when they are passed', () => {

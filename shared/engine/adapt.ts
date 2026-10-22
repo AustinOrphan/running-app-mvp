@@ -7,6 +7,7 @@ import { addDays } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity } from '../types.ts'
 import { efficiencyIndex } from './athlete.ts'
+import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
 import { P } from './params/index.ts'
 import {
@@ -76,6 +77,8 @@ interface Observation {
   date: string
   kind: SessionKind
   score: number | null
+  /** The score rests on the runner's own rating (RPE or feel), not on heart rate or pace alone. */
+  subjective: boolean
   /** Heat, pain or a spike: such a session does not move a boundary [rules C8]. */
   excluded: boolean
 }
@@ -110,6 +113,7 @@ function observations(
       date: e.date,
       kind: e.kind,
       score: e.assessment.effort.score,
+      subjective: hasSubjectivePart(e.assessment.effort.parts),
       excluded: e.assessment.flags.some((f) => POOR_EFFORT_FLAGS.has(f)),
     }))
   }
@@ -123,6 +127,8 @@ function observations(
       date: s.date,
       kind: s.kind,
       score: feedbackScore(s.kind, activity),
+      // Built from RPE and feel only.
+      subjective: true,
       excluded: pain || s.flags.includes('heat'),
     })
   }
@@ -347,20 +353,26 @@ export function weeklyDecision(
 /**
  * Proposed zone updates after three concordant observations [rules C8, design 4.3]. Pass the
  * execution assessments when available; without them, effort comes from RPE and the feel
- * rating. A proposal never applies itself: the owner confirms it on the review page.
+ * rating. Only sessions the runner rated count (heart rate or pace alone is a guess), and, per
+ * boundary, only sessions after the last accepted change of it (`input.zoneChanges`), so one run of
+ * observations never moves a boundary twice. A proposal never applies itself: the owner confirms it
+ * on the review page.
  */
 export function zoneProposals(input: EngineInput, executions?: ExecutionRecord[]): ZoneProposal[] {
   const from = input.profile.thresholdPaceSecPerKm
   if (from === null) return []
   const windowStart = addDays(input.today, -P.zoneProposal.windowDays.value)
   const needed = P.c8.minObservations.value
+  const changedOn = input.zoneChanges?.thresholdPace ?? null
   const recent = observations(input, executions)
     .filter(
       (o) =>
         (o.kind === 'threshold' || o.kind === 'intervals') &&
         o.date >= windowStart &&
         o.date <= input.today &&
+        (changedOn === null || o.date > changedOn) &&
         !o.excluded &&
+        o.subjective &&
         o.score !== null,
     )
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
