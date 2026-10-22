@@ -309,3 +309,62 @@ manual override. PWA manifest and icon. The visual direction is decided by the
 2. Race date for the active goal is entered by the owner; the app never guesses it.
 3. Strength and cross sessions are counted but not programmed; a program builder is later.
 4. Km display exists but miles is the default and the tested path.
+
+## 7. Resolutions from the builder check **(all calls)**
+
+A fresh reader of sections 1–6 raised these; each answer refines the section named.
+
+1. **Short plans (4.5).** Weeks = Mondays from the start to the race week inclusive. Race
+   week = 1. Taper = 2 if weeks ≥ 24, 1 if weeks ≥ 8, else 0. The rest is split among
+   Restart, Base 1, Base 2, Endurance, Specific, Peak with shares 10:19:19:19:12:14 by
+   largest remainder. If the rest is ≥ 6 every phase gets at least 1 week; if it is 1–5, use
+   only Base 1 and Peak split evenly (Base 1 first); if it is 0, the plan is taper and race
+   only. Restart is skipped when the baseline already exceeds the Base 1 floor.
+2. **Duplicates (4.5).** The newer manual row is the duplicate: it gets `duplicateOfId`
+   pointing at the imported row and `duplicateStatus = 'possible'`; the imported row keeps
+   counting. Confirm → the manual row becomes `confirmed` and stays excluded; dismiss →
+   `dismissed`, counted. The near-duplicate pass runs on every import and on every manual
+   create or edit, comparing against same-date runs of a different source within 80 m. Rows
+   from the same import source are never duplicates of each other (the key handles that).
+3. **Data status (4.4, 4.5).** Set only by the owner on the review page: a "Data complete"
+   control with an alternative "Missing data". Never set automatically. A week confirmed
+   complete with zero runs is the "confirmed zero-run week". `missing` behaves like
+   `unconfirmed` for the working-target chain.
+4. **Working target (4.4, 4.5).** `PlanWeek.targetRunMin` _is_ the working target, stored,
+   with `baselineRunMin` kept beside it and a new field `targetSource:
+'baseline'|'review'|'override'`. A `PUT` on a week with a value ≠ baseline requires a
+   non-empty `overrideNote` and sets `targetSource = 'override'`; a `PUT` with the baseline
+   value clears the note and resets to `'baseline'`. Saving a review with `finalNextMin`
+   while the week is `complete` and gets `reviewedAt` writes the _next_ week's
+   `targetRunMin` with `targetSource = 'review'` unless that week is an override. Nothing is
+   computed at read time; the reason shown is the stored `targetSource`.
+5. **Regenerate (4.6).** `POST /api/plan/generate` archives the current active plan and
+   creates a new one. Reviews are keyed by user and week, so they survive; overrides do not
+   carry over. Activating a goal never generates a plan by itself; the plan page offers it.
+   One active plan per user.
+6. **Taper order (4.5).** The `suggestAction` list becomes: upcoming, in_progress,
+   await_data, review_duplicates, reduce, **then** taper/race → hold ("taper"), repeat,
+   needs_recovery_review, hold, progress. Next-week minutes are always capped at the next
+   week's baseline, so the week before taper lands on the taper baseline.
+7. **Smashrun CSV (4.5).** `Start Date` (local) is authoritative for the calendar date and
+   start time; accept `YY/MM/DD HH:MM`, `YYYY-MM-DD HH:MM[:SS]` and ISO 8601. A header row
+   is detected by a first cell matching `Run Id` (case-insensitive); with a header, columns
+   map by name; without one, the 26-column order is assumed and a 27th leading integer
+   column is dropped. Every Smashrun row is `type = 'run'`. The unit test fixture is a
+   synthetic three-row sample in the real layout.
+8. **Dedupe scope (4.5).** The 80 m rule is the owner's (0.05 mi); keep it. Generic CSV
+   rows get `source = 'csv'` and a `providerKey` of `csv:<sha1 of date|minutes|miles>` so
+   re-imports are idempotent; they take part in the near-duplicate pass like manual rows.
+9. **Distance class (4.5).** Derived from the goal's `distanceM`: ≤ 10 000 `short`;
+   ≤ 21 100 `half`; ≤ 42 195 `marathon`; ≤ 80 500 `ultra50`; else `ultra100`. Generating
+   for a goal without a distance returns a `validation` error.
+10. **Baseline fallback (4.5).** Baseline = median run minutes of the last 4 calendar weeks
+    that contain at least one run, ignoring `dataStatus`. If none exist the request must
+    carry `baselineRunMin`; when supplied it always wins.
+11. **Fastest efforts (4.5).** Whole-run pace; a run qualifies for a distance when its
+    distance is between the target and 2% above it. Races count; `possible` and `confirmed`
+    duplicates do not. No split detection in v1.
+12. **Auth details (4.2).** Email is the login identifier and is required at setup. Login is
+    rate-limited to 10 attempts per 15 minutes per IP (in memory). Password reset is a CLI
+    script `npm run reset-password -- <email>` that prompts for a new password. Rotating
+    `SESSION_SECRET` logs the owner out; documented in the README.
