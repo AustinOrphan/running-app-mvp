@@ -5,10 +5,13 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
 
 ## Commands
 
-- `npm run check`: lint, `prettier --check .`, typecheck, tests. Must pass before every commit.
+- `npm run check`: lint, `prettier --check .`, typecheck, `research:check`, tests. Must pass before
+  every commit.
 - `npm run build`: Vite build into `dist/web`, server compiled into `dist/server`.
 - `npm run test:e2e`: Playwright (chromium) against the production build, on a fresh SQLite file
   that the config's `webServer` creates and migrates. Run `npm run build` first.
+- `npm run research:check` (offline corpus and citation check) and `npm run research:verify`
+  (online, Crossref, by hand).
 - `npm run dev`, `npm run db:migrate`, `npm run format`, `npm run reset-password -- <email>`.
 - `npx prettier --check .` is the formatting gate in CI; run `npm run format` to fix it.
 
@@ -24,6 +27,8 @@ build runs `prisma migrate deploy` as a smoke test.
 - `server/` Express 5 API (`routes/` thin, `services/` logic, `auth/`), `shared/` pure domain code
   used by server and web, `web/` React SPA (`pages/`, `components/`, `api/` hooks), `prisma/`
   SQLite schema and committed migrations.
+- `shared/engine/` is the training engine: pure, deterministic, no I/O. `research/` is the paper
+  corpus and `engine-rules.md`; the project skill `research-update` covers changing either.
 - `tests/unit`, `tests/api`, `tests/web` (Vitest) and `tests/e2e` (Playwright).
 
 ## Providers
@@ -55,6 +60,9 @@ build runs `prisma migrate deploy` as a smoke test.
   `{ error: { code, message, details? } }`. Zod parses every body and query.
 - Server data hooks live in `web/api/<resource>.ts`; pages only consume them. Domain rules go in
   `shared/` as pure functions with unit tests.
+- Every number in `shared/engine/` is a `Param` from `shared/engine/params/`, with a grade, a rule
+  id and cited paper ids that exist in `research/papers/`. A grade D value carries a note that
+  says it is a default. A language model never chooses a session (ADR 0005).
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`

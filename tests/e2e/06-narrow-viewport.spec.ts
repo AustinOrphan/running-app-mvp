@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { addDays } from '../../shared/dates.ts'
 import { relativeDates, resetData, signedInApi } from './helpers.ts'
 
 // A phone-width viewport: nothing may be clipped out of reach or push the page sideways.
@@ -19,7 +20,7 @@ test.afterAll(async () => {
 })
 
 test('every Fatigue rating sits inside its control at 360 px and can be chosen', async () => {
-  const { lastWednesday, planStart, raceDate } = relativeDates()
+  const { lastWednesday, raceDate } = relativeDates()
   await resetData()
   await api.post('/activities', {
     date: lastWednesday,
@@ -36,8 +37,6 @@ test('every Fatigue rating sits inside its control at 360 px and can be chosen',
   await api.post(`/goals/${goal.id}/activate`)
   await api.post('/plan/generate', {
     goalId: goal.id,
-    baselineRunMin: 150,
-    startDate: planStart,
     strengthPreference: 2,
   })
 
@@ -112,11 +111,12 @@ for (const size of [
   const name = `${String(size.width)}x${String(size.height)}`
 
   test(`the fixed tab bar never covers the end of a long page or a sheet's Save at ${name}`, async () => {
-    const { lastWednesday, planStart, raceDate } = relativeDates()
+    const { lastWednesday, raceDate } = relativeDates()
     await resetData()
+    // One run a day for two weeks: a long list, and a history the engine can plan from.
     for (let i = 0; i < 14; i += 1) {
       await api.post('/activities', {
-        date: lastWednesday,
+        date: addDays(lastWednesday, -i),
         type: 'run',
         durationSec: (30 + i) * 60,
         distanceM: 5000 + i * 100,
@@ -131,8 +131,6 @@ for (const size of [
     await api.post(`/goals/${goal.id}/activate`)
     await api.post('/plan/generate', {
       goalId: goal.id,
-      baselineRunMin: 150,
-      startDate: planStart,
       strengthPreference: 2,
     })
     await page.setViewportSize(size)

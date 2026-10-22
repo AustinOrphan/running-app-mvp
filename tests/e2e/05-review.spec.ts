@@ -1,21 +1,32 @@
 import { expect, test } from '@playwright/test'
+import { addDays } from '../../shared/dates.ts'
 import { relativeDates, resetData, signedInApi, toast } from './helpers.ts'
 
 test('a weekly review of the finished week changes next week target on the plan page', async ({
   page,
   baseURL,
 }) => {
-  const { thisMonday, lastWednesday, planStart, raceDate } = relativeDates()
+  const { thisMonday, raceDate } = relativeDates()
   const api = await signedInApi(page, baseURL ?? '')
   await resetData()
 
-  // Preconditions through the API: a run last week and an active plan that covers it.
-  await api.post('/activities', {
-    date: lastWednesday,
-    type: 'run',
-    durationSec: 45 * 60,
-    distanceM: 8047,
-  })
+  // Preconditions through the API: four weeks of runs for the engine to plan from, then an active
+  // plan. A version-2 plan starts this week, so the week under review is the one before the plan.
+  for (let week = 1; week <= 4; week += 1) {
+    for (const [day, minutes] of [
+      [1, 40],
+      [3, 45],
+      [5, 35],
+      [6, 70],
+    ] as const) {
+      await api.post('/activities', {
+        date: addDays(thisMonday, -7 * week + day),
+        type: 'run',
+        durationSec: minutes * 60,
+        distanceM: minutes * 160,
+      })
+    }
+  }
   const goal = (await api.post('/goals', {
     name: 'Test marathon',
     priority: 'A',
@@ -23,12 +34,7 @@ test('a weekly review of the finished week changes next week target on the plan 
     distanceM: 42_195,
   })) as { id: string }
   await api.post(`/goals/${goal.id}/activate`)
-  await api.post('/plan/generate', {
-    goalId: goal.id,
-    baselineRunMin: 150,
-    startDate: planStart,
-    strengthPreference: 2,
-  })
+  await api.post('/plan/generate', { goalId: goal.id, strengthPreference: 2 })
 
   const currentTarget = page.locator(`tr[data-week="${thisMonday}"] [data-cell="target"]`)
   await page.goto('/plan')
@@ -51,9 +57,8 @@ test('a weekly review of the finished week changes next week target on the plan 
     .getByRole('radio', { name: 'None' })
     .click()
 
-  const suggestion = page.getByRole('region', { name: 'Suggested action' })
-  await expect(suggestion).toBeVisible()
-  await expect(suggestion.getByText(/Suggested next week: \d+ min/)).toBeVisible()
+  // The week before a version-2 plan has no weekly decision to suggest.
+  await expect(page.getByText('There is no plan for this week.')).toBeVisible()
 
   await page
     .getByRole('radiogroup', { name: 'Final decision' })
