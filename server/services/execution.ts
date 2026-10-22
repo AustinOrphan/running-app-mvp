@@ -180,6 +180,19 @@ async function matchAndAssess(
   const rows = await prisma.planSession.findMany({
     where: { planId: args.planId, date: { gte: from, lte: to } },
   })
+  // An activity fulfils one session in all (the link is unique across plans): one already linked
+  // to a session outside this window, in an archived plan for example, is not offered again.
+  const elsewhere = new Set(
+    (
+      await prisma.planSession.findMany({
+        where: {
+          activityId: { in: activities.map((a) => a.id) },
+          id: { notIn: rows.map((r) => r.id) },
+        },
+        select: { activityId: true },
+      })
+    ).map((r) => r.activityId),
+  )
   const matches = matchSessions(
     rows.map((r) => ({
       ...sessionSpec(toPlanSession(r)),
@@ -188,7 +201,7 @@ async function matchAndAssess(
       linkSource: r.linkSource,
       status: r.status,
     })),
-    activities,
+    activities.filter((a) => !elsewhere.has(a.id)),
   )
   const linked = new Map(rows.map((r) => [r.id, r]))
   for (const match of matches) {

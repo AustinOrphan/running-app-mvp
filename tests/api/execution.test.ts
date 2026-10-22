@@ -17,7 +17,7 @@ import {
 } from '../../server/jobs/scheduler.ts'
 import { storeParsed } from '../../server/services/activityStore.ts'
 import { resetClimateCache } from '../../server/services/engineInput.ts'
-import { runExecutionForActivity } from '../../server/services/execution.ts'
+import { runExecutionForActivity, runNightlyMatching } from '../../server/services/execution.ts'
 import { resetForecastCache } from '../../server/services/weather.ts'
 import { client, createTestCtx, seedUser, type TestCtx } from './helpers.ts'
 
@@ -332,6 +332,56 @@ describe('trimming the next quality session', () => {
     expect(
       (await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[1]!.id } })).status,
     ).toBe('planned')
+  })
+})
+
+describe('activities already linked elsewhere', () => {
+  test('the nightly sweep leaves an activity linked in an archived plan alone and does not throw', async () => {
+    const { u, goal, plan, rows } = await planWith('archived-link@example.com', [
+      { date: addDays(today, -2), kind: 'easy', min: 45 },
+    ])
+    const run = await addRun(u.id, addDays(today, -2), { durationSec: 45 * 60 })
+    await ctx.prisma.planSession.update({
+      where: { id: rows[0]!.id },
+      data: { activityId: run.id, linkSource: 'auto', status: 'completed' },
+    })
+    await ctx.prisma.plan.update({ where: { id: plan.id }, data: { status: 'archived' } })
+    const fresh = await ctx.prisma.plan.create({
+      data: {
+        userId: u.id,
+        goalId: goal.id,
+        name: goal.name,
+        startDate: thisMonday,
+        raceWeekStart: mondayOf(goal.targetDate),
+        generatorVersion: 2,
+        status: 'active',
+      },
+    })
+    const sibling = await ctx.prisma.planSession.create({
+      data: {
+        planId: fresh.id,
+        weekStart: thisMonday,
+        date: addDays(today, -2),
+        order: 0,
+        kind: 'easy',
+        title: 'easy run',
+        durationMin: 45,
+        structure: '[]',
+        target: TARGET,
+        purpose: 'Synthetic.',
+        status: 'planned',
+      },
+    })
+    const errors: unknown[] = []
+    await runNightlyMatching(
+      { prisma: ctx.prisma, config: ctx.config },
+      { today, onError: (error) => errors.push(error) },
+    )
+    expect(errors).toEqual([])
+    const kept = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
+    expect(kept.activityId).toBe(run.id)
+    const other = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: sibling.id } })
+    expect(other.activityId).toBeNull()
   })
 })
 
