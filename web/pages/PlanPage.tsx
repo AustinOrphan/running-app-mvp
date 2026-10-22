@@ -23,8 +23,14 @@ import { Sheet } from '../components/Sheet.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { WhyDrawer } from '../components/WhyDrawer.tsx'
-import { formatLongDate, formatShortDate, formatWeekday, phaseLabel } from '../components/format.ts'
+import {
+  formatLongDate,
+  formatShortDate,
+  formatWeekday,
+  weekPhaseLabel,
+} from '../components/format.ts'
 import { describeChange } from '../components/planChanges.ts'
+import { distanceClassOf } from '../../shared/engine/goal.ts'
 import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
@@ -49,7 +55,7 @@ export function phaseLevel(phase: PlanPhase): number | null {
   return position === -1 ? null : position + 1
 }
 
-export function PhaseChip({ phase }: { phase: PlanPhase }) {
+export function PhaseChip({ phase, flags }: { phase: PlanPhase; flags?: readonly string[] }) {
   const level = phaseLevel(phase)
   const style = level === null ? undefined : ({ '--phase-level': level } as CSSProperties)
   return (
@@ -59,7 +65,7 @@ export function PhaseChip({ phase }: { phase: PlanPhase }) {
       data-phase={phase}
       data-dashed={level === null ? 'true' : undefined}
     >
-      {phaseLabel(phase)}
+      {weekPhaseLabel({ phase, flags })}
     </span>
   )
 }
@@ -87,6 +93,16 @@ const STRENGTH_OPTIONS: Array<{ value: '0' | '1' | '2'; label: string }> = [
   { value: '2', label: '2' },
 ]
 
+const CYCLE_OPTIONS: Array<{ value: '3:1' | '2:1'; label: string }> = [
+  { value: '3:1', label: '3 up, 1 easy' },
+  { value: '2:1', label: '2 up, 1 easy' },
+]
+
+const POLARIZED_OPTIONS: Array<{ value: 'off' | 'on'; label: string }> = [
+  { value: 'off', label: 'Off' },
+  { value: 'on', label: 'On' },
+]
+
 interface GenerateFormProps {
   goals: Goal[]
   initialGoalId?: string
@@ -99,32 +115,28 @@ function GenerateForm({ goals, initialGoalId, onDone }: GenerateFormProps) {
   const preferred =
     goals.find((g) => g.id === initialGoalId) ?? goals.find((g) => g.isActive) ?? goals[0]
   const [goalId, setGoalId] = useState(preferred?.id ?? '')
-  const [baseline, setBaseline] = useState('')
-  const [startDate, setStartDate] = useState(mondayOf(todayIso()))
+  const [cycle, setCycle] = useState<'3:1' | '2:1'>('3:1')
   const [strength, setStrength] = useState<'0' | '1' | '2'>('2')
+  const [polarized, setPolarized] = useState<'off' | 'on'>('off')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const chosen = goals.find((g) => g.id === goalId)
+  // The polarized model is offered for 5 to 10 km goals only.
+  const shortGoal =
+    chosen?.distanceM != null && ['5k', '10k'].includes(distanceClassOf(chosen.distanceM))
 
   function submit(event: FormEvent) {
     event.preventDefault()
     const request: GeneratePlanRequest = {
       goalId,
-      strengthPreference: Number(strength) as 0 | 1 | 2,
+      options: {
+        recoveryCycle: cycle,
+        strengthSessions: Number(strength) as 0 | 1 | 2,
+        ...(shortGoal && polarized === 'on' ? { tidModel: 'polarized' as const } : {}),
+      },
     }
-    const local: Record<string, string> = {}
-    if (baseline.trim() !== '') {
-      const minutes = Number(baseline)
-      if (!Number.isInteger(minutes) || minutes <= 0) {
-        local.baselineRunMin = 'Enter whole minutes per week, like 180.'
-      } else {
-        request.baselineRunMin = minutes
-      }
-    }
-    if (startDate !== '') request.startDate = startDate
-    setErrors(local)
+    setErrors({})
     setFormError(null)
-    if (Object.keys(local).length > 0) return
 
     generate.mutate(request, {
       onSuccess: () => {
@@ -134,7 +146,7 @@ function GenerateForm({ goals, initialGoalId, onDone }: GenerateFormProps) {
       onError: (err) => {
         const fromServer = fieldErrors(err)
         setErrors(fromServer)
-        if (!['goalId', 'baselineRunMin', 'startDate'].some((k) => k in fromServer)) {
+        if (!('goalId' in fromServer)) {
           setFormError(err.message)
         }
       },
@@ -164,42 +176,26 @@ function GenerateForm({ goals, initialGoalId, onDone }: GenerateFormProps) {
           </Select>
         )}
       </Field>
-      <Field
-        label="Weekly run minutes"
-        error={errors.baselineRunMin}
-        hint="Leave blank to use the median of the last four weeks with a run."
-      >
-        {(a) => (
-          <Input
-            {...a}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            value={baseline}
-            onChange={(e) => {
-              setBaseline(e.target.value)
-            }}
-          />
-        )}
-      </Field>
-      <Field label="Plan start (Monday)" error={errors.startDate}>
-        {(a) => (
-          <Input
-            {...a}
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value)
-            }}
-          />
-        )}
-      </Field>
+      <Segmented<'3:1' | '2:1'>
+        label="Recovery cycle"
+        options={CYCLE_OPTIONS}
+        value={cycle}
+        onChange={setCycle}
+      />
       <Segmented<'0' | '1' | '2'>
         label="Strength sessions per week"
         options={STRENGTH_OPTIONS}
         value={strength}
         onChange={setStrength}
       />
+      {shortGoal ? (
+        <Segmented<'off' | 'on'>
+          label="Polarized specific phase"
+          options={POLARIZED_OPTIONS}
+          value={polarized}
+          onChange={setPolarized}
+        />
+      ) : null}
       {formError !== null ? (
         <p role="alert" className={styles.error}>
           {formError}
@@ -809,7 +805,7 @@ function PlanTable({
         <tbody>
           {plan.weeks.map((week) => {
             const cutback = isCutbackIndex(week.index, week.phase)
-            const race = week.phase === 'race'
+            const race = week.phase === 'race' && !week.flags.includes('post-race')
             const isCurrent = week.weekStart === currentMonday
             const runMin = week.weekStart <= currentMonday ? actual.get(week.weekStart) : undefined
             const short = formatShortDate(week.weekStart)
@@ -827,7 +823,7 @@ function PlanTable({
                 >
                   <td className={styles.week}>{short}</td>
                   <td className={styles.phase}>
-                    <PhaseChip phase={week.phase} />
+                    <PhaseChip phase={week.phase} flags={week.flags} />
                     {cutback ? <span className={styles.cutback}>cutback</span> : null}
                   </td>
                   <td className={styles.target} data-cell="target">

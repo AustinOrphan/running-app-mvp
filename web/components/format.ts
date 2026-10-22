@@ -52,3 +52,11 @@ const phaseLabels: Record<PlanPhase, string> = {
 export function phaseLabel(phase: PlanPhase): string {
   return phaseLabels[phase]
 }
+
+/**
+ * The label of a plan week. A week after the race keeps the phase 'race' (no schema change) and
+ * carries the 'post-race' flag; every view calls it "After the race", not "Race week".
+ */
+export function weekPhaseLabel(week: { phase: PlanPhase; flags?: readonly string[] }): string {
+  return week.flags?.includes('post-race') === true ? 'After the race' : phaseLabel(week.phase)
+}
