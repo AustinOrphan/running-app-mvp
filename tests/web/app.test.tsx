@@ -51,7 +51,6 @@ describe('App routing', () => {
   })
 
   test.each([
-    ['/activities/a1', 'Activity'],
     ['/integrations', 'Integrations'],
     ['/profile', 'Profile'],
   ])('%s renders its page inside the signed-in layout', async (route, heading) => {

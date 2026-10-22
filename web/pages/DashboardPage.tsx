@@ -1,26 +1,33 @@
+import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { addDays, daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
 import { remainingPlan } from '../../shared/domain/adaptation.ts'
-import type { Activity, WeekRow } from '../../shared/types.ts'
-import { formatDistance, minutesToHours1 } from '../../shared/units.ts'
-import { useActivities } from '../api/activities.ts'
+import type { Activity, Units, WeekRow } from '../../shared/types.ts'
+import { formatDistance, formatDuration, minutesToHours1 } from '../../shared/units.ts'
+import { useActivities, useSaveFeedback } from '../api/activities.ts'
+import { ApiError } from '../api/client.ts'
 import { useGoals } from '../api/goals.ts'
 import { usePlan } from '../api/plan.ts'
 import { useReviews } from '../api/reviews.ts'
 import { useSettings } from '../api/settings.ts'
 import { useWeeks } from '../api/weeks.ts'
+import { Button } from '../components/Button.tsx'
 import buttonStyles from '../components/Button.module.css'
 import { WeeklyHoursChart } from '../components/charts/WeeklyHoursChart.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
-import { formatLongDate, formatShortDate, phaseLabel } from '../components/format.ts'
+import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
+import { formatLongDate, formatShortDate, formatWeekday, phaseLabel } from '../components/format.ts'
 import { Meter } from '../components/Meter.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
+import { useToast } from '../components/Toast.tsx'
+import { TYPE_LABELS } from './ActivityForm.tsx'
 import styles from './DashboardPage.module.css'
 
 const STRIP_DAYS = 28
 const CHART_WEEKS = 12
 const ACTIVITY_DAYS = 90
+const FEEDBACK_DAYS = 7
 
 interface DayRun {
   date: string
@@ -44,6 +51,81 @@ function runMinutesPerDay(activities: Activity[], today: string, days: number): 
 
 function plural(count: number, one: string, many: string): string {
   return count === 1 ? one : many
+}
+
+/** Runs and races from the last week that have neither an RPE nor a feel, newest first. */
+function unratedRecent(activities: Activity[], today: string): Activity[] {
+  const first = addDays(today, 1 - FEEDBACK_DAYS)
+  return activities.filter(
+    (a) =>
+      (a.type === 'run' || a.type === 'race') &&
+      a.date >= first &&
+      a.date <= today &&
+      a.rpe === null &&
+      a.feel === null &&
+      a.duplicateStatus !== 'possible' &&
+      a.duplicateStatus !== 'confirmed',
+  )
+}
+
+function FeedbackItem({ activity, units }: { activity: Activity; units: Units }) {
+  const save = useSaveFeedback(activity.id)
+  const toast = useToast()
+  const [value, setValue] = useState<FeedbackValues>({ rpe: null, feel: null, pain: null })
+  const touched = value.rpe !== null || value.feel !== null || value.pain !== null
+  const figures = [
+    formatDuration(activity.durationSec),
+    ...(activity.distanceM === null ? [] : [formatDistance(activity.distanceM, units)]),
+  ].join(', ')
+
+  return (
+    <li className={styles.feedbackItem}>
+      <p className={styles.feedbackTitle}>
+        <span className={styles.feedbackType}>{TYPE_LABELS[activity.type]}</span>
+        {` ${formatWeekday(activity.date)} ${formatShortDate(activity.date)}, ${figures}`}
+      </p>
+      <FeedbackFields value={value} onChange={setValue} />
+      <div className={styles.feedbackActions}>
+        <Button
+          variant="primary"
+          disabled={!touched}
+          loading={save.isPending}
+          onClick={() => {
+            save.mutate(value, {
+              onSuccess: () => {
+                toast.show('Feedback saved')
+              },
+            })
+          }}
+        >
+          Save
+        </Button>
+      </div>
+      {save.isError ? (
+        <p role="alert" className={styles.feedbackError}>
+          {`Feedback not saved. ${save.error instanceof ApiError ? save.error.message : 'Something went wrong.'} Try again.`}
+        </p>
+      ) : null}
+    </li>
+  )
+}
+
+function FeedbackCard({ activities, units }: { activities: Activity[]; units: Units }) {
+  const headingId = useId()
+  if (activities.length === 0) return null
+  return (
+    <section aria-labelledby={headingId} className={styles.section}>
+      <h2 id={headingId} className={styles.heading}>
+        How did it go?
+      </h2>
+      <p className={styles.caption}>Recent runs without a rating. Rate any or all of it.</p>
+      <ul className={styles.feedbackList}>
+        {activities.map((activity) => (
+          <FeedbackItem key={activity.id} activity={activity} units={units} />
+        ))}
+      </ul>
+    </section>
+  )
 }
 
 export function DashboardPage() {
@@ -188,6 +270,8 @@ export function DashboardPage() {
           <p className={styles.muted}>No runs this week yet. Log one when you&apos;re out.</p>
         ) : null}
       </section>
+
+      <FeedbackCard activities={unratedRecent(activities.data, today)} units={units} />
 
       {showRace || perDay !== null ? (
         <section aria-label="Race and week ahead" className={styles.figures}>
