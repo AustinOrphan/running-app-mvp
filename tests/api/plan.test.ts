@@ -355,6 +355,35 @@ describe('POST /api/plan/generate', () => {
     }
   })
 
+  test('generating makes the plan goal the only active goal', async () => {
+    const fresh = await createTestCtx()
+    try {
+      const u = await seedUser(fresh)
+      const make = (name: string, isActive: boolean) =>
+        fresh.prisma.goal.create({
+          data: {
+            userId: u.id,
+            name,
+            priority: 'A',
+            isActive,
+            targetDate: addDays(thisMonday, 7 * 12 + 5),
+            distanceM: 21_097,
+          },
+        })
+      const a = await make('Goal A', true)
+      const b = await make('Goal B', false)
+      const res = await client(fresh, u)
+        .post('/api/plan/generate')
+        .send({ goalId: b.id, baselineRunMin: 150 })
+      expect(res.status).toBe(201)
+      const goals = await fresh.prisma.goal.findMany({ where: { userId: u.id } })
+      expect(goals.filter((g) => g.isActive).map((g) => g.id)).toEqual([b.id])
+      expect(goals.find((g) => g.id === a.id)?.isActive).toBe(false)
+    } finally {
+      await fresh.close()
+    }
+  })
+
   test('generate errors', async () => {
     const goal = await seedGoal({ name: 'Errors ok' })
     const foreign = await seedGoal({ name: 'Foreign', userId: other.id })

@@ -33,9 +33,12 @@ export function useGeneratePlan() {
   return useMutation({
     mutationFn: (request: GeneratePlanRequest) =>
       api<PlanWithWeeks>('POST', '/plan/generate', request),
+    // Generating makes the plan's goal the active goal, so goals refresh too.
     onSuccess: () =>
       Promise.all(
-        [keys.plan, keys.reviews].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+        [keys.plan, keys.reviews, keys.goals].map((key) =>
+          queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
       ),
   })
 }
