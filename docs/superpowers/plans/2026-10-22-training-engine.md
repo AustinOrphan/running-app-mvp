@@ -486,3 +486,71 @@ light and dark):
 item 1), `tests/unit/engine/*`, `web/pages/{PlanPage,ActivityDetailPage,DashboardPage,ReviewPage,GoalsPage,ProfilePage}.tsx`
 and their CSS modules, `web/components/{WhyDrawer,SessionSheet,FeelPicker,charts/StreamChart}.tsx`
 and CSS, new `web/components/{ScalePicker,engineText,ruleTitles}.ts(x)`, `tests/web/*`.
+
+### Task E21: Progression consistent by construction
+
+The whole-branch review and the local validation show the macrocycle and the guards
+disagreeing: the macro grows long runs faster than 1.10× of the projected 30-day maximum (the
+long-run share rises across phases), so the guards shorten nearly every generated long run,
+the shortened weeks then read as a lower base, and the next week raises `ramp-soft`; a part
+current week with any logged running still acts as a ramp baseline (a week three weeks out
+was held to 40 minutes). A plan for a sparse 100-mile history carried about 50 warnings.
+
+1. **Generated plans satisfy the guards by construction.** One set of limit helpers (the 30-day
+   reference on duration, distance, gain and descent over completed plus projected runs; the
+   soft and 2-week ceilings over the highest non-recovery, non-taper weeks; G-3 profiles; H2
+   and H3) is used by both `macroPlan`/`placeWeek` while planning and `applyGuards` while
+   checking. The macro plans each week's target and long run already inside those limits
+   (long run at most 1.10× the projected 30-day maximum, weekly target at most the soft step
+   over the highest of the previous two loading weeks), so `applyGuards` is a no-op for a
+   generated plan. Guard shortening remains for owner edits and as a safety net.
+2. **The part current week is never a ramp baseline** when `today` is after its Monday,
+   whatever has been logged: the baseline comes from completed full weeks and
+   `typicalWeekMin`. Revisit the e9 regression that relied on the opposite.
+3. **A re-plan keeps owner edits** of the next 14 days (moved, kind-swapped and skipped
+   sessions, and trims marked `design-4.3`) and plans the rest of those weeks around them,
+   as it does for finished sessions of the current week.
+4. **Focal bone pain** (active per `focalBoneActive`) makes `buildPlan` and `replan` hold
+   progression (no growth in weekly targets, long runs or gain while active) with a `hold`
+   red-flag warning and a clinician prompt [rules §n.1]; Today already advises rest.
+5. **Hold and reduce decisions reach the sessions** [rules J5]: a hold trims the next quality
+   session of the following week (marked like a `design-4.3` trim); a week capped by a reduce
+   decision is marked `isRecovery`.
+6. **Tests:** for every matrix athlete and every weekday as `today`, a generated plan has no
+   `spike-shortened`, `spike-warn`, `ramp-ceiling`, `ramp-soft`, `ramp-run-dropped` or
+   `gain-ramp` warning other than the restart floor's own info, and still meets every
+   adequacy assertion (sparse 100-mile: ≥ 6 h in the last specific week, a run ≥ 180 min);
+   weekly re-plans across 12 Mondays keep progressing and keep the specific phase; owner
+   edits survive a re-plan; focal bone pain holds; a hold trims the next quality session.
+
+**Files:** `shared/engine/{macro,guards,micro,index,checklist,readiness}.ts`, new
+`shared/engine/limits.ts`, `shared/engine/params/{e-macro,f-micro,g-limits}.ts`,
+`server/services/planEngine.ts`, `tests/unit/engine/*`, `tests/api/{engine,feedbackLoop}.test.ts`.
+
+### Task E22: Remaining review findings outside progression
+
+1. **Bone pain stays reported until cleared:** the Today check-in prefills "point
+   tenderness on a bone" from the active state and clears it only when the runner unticks it;
+   the server stores an explicit `false` only from such an action.
+2. **Multi-day activities:** the parse cap becomes 240 hours (200-mile races take up to about
+   100 hours), with the stream buckets bounded accordingly.
+3. **No trims or proposals from guesses:** an effort score with no subjective part (no RPE,
+   no feel) is capped at ±1 with low confidence, and quality trims require a subjective part.
+4. **Zone proposals use fresh evidence only:** observations before the last accepted change
+   of a boundary are ignored (the server supplies the dates).
+5. **Weather** is not attached to treadmill, virtual or indoor activities.
+6. **Fresh data:** profile saves invalidate zones, plan, today and zone proposals; week edits
+   invalidate plan revisions and today; zone accept and decline invalidate plan revisions;
+   the Integrations card refetches while a sync runs until it finishes.
+7. **Readable changes:** `describeChange` names session and zone changes too.
+8. **Activity detail feedback** resyncs when the stored values change.
+9. **Ingest** reports per-activity failures in its response and marks the integration
+   `error` when every pushed activity failed.
+10. **Heart rate gaps:** samples are not forward-filled across gaps over 10 seconds.
+11. **E2E independence:** `resetData()` clears every user-owned table.
+12. **Session sheet:** climb in the units setting; skipping asks for confirmation and a
+    skipped session can be restored.
+
+**Files:** `web/**` (not `web/api/plan.ts` beyond invalidations), `shared/engine/{execution,adapt,types}.ts`
+(the optional input field only), `shared/importers/files/*`, `server/services/{execution,weather,engineInput}.ts`,
+`server/routes/{ingest,checkins}.ts`, `tests/e2e/helpers.ts`, their tests. Not E21's files.
