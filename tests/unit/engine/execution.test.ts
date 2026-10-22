@@ -87,7 +87,9 @@ const ZONES = {
   hr: { z1: [110, 130], z2: [130, 145], z3: [145, 160] },
   pace: { z1: [420, 390], z2: [390, 350], z3: [350, 320] },
 } as unknown as ZoneSet
-const STATE = {} as AthleteState
+const STATE = {
+  longest30d: { distanceM: 0, durationSec: 0, gainM: 0, lossM: 0, twoDaySec: 0 },
+} as AthleteState
 const CTX: ExecutionContext = { zones: ZONES, state: STATE }
 
 describe('matchSessions', () => {
@@ -166,9 +168,13 @@ describe('matchSessions', () => {
     ])
   })
 
-  it('skips confirmed duplicates', () => {
+  it('skips possible and confirmed duplicates but matches dismissed ones', () => {
     const dup = activity({ id: 'dup', duplicateStatus: 'confirmed', duplicateOfId: 'a9' })
     expect(matchSessions([linked('s1')], [dup])).toEqual([])
+    const maybe = activity({ id: 'maybe', duplicateStatus: 'possible', duplicateOfId: 'a9' })
+    expect(matchSessions([linked('s1')], [maybe])).toEqual([])
+    const kept = activity({ id: 'kept', duplicateStatus: 'dismissed', duplicateOfId: 'a9' })
+    expect(matchSessions([linked('s1')], [kept])).toEqual([{ sessionId: 's1', activityId: 'kept' }])
   })
 })
 
@@ -374,6 +380,11 @@ describe('assessExecution conditions and flags', () => {
     })
     expect(focal.flags).toContain('focal-bone-pain')
     expect(focal.lines.join(' ')).toMatch(/pain/i)
+    const both = assessExecution(session(), activity({ pain: 6 }), {
+      ...CTX,
+      checkin: { painScore: 6, painFocalBone: true },
+    })
+    expect(both.flags).toEqual(expect.arrayContaining(['pain', 'focal-bone-pain']))
   })
 
   it('flags a run longer than the 30-day longest by more than the spike ratio', () => {
@@ -387,6 +398,14 @@ describe('assessExecution conditions and flags', () => {
     expect(
       assessExecution(session(), activity({ distanceM: 10500, durationSec: 3700 }), ctx).flags,
     ).not.toContain('spike')
+    // gain against a flat month: the 100 m minimum step (H4) applies
+    const climb = (gain: number) =>
+      assessExecution(session(), activity({ distanceM: 10000, elevationGainM: gain }), ctx).flags
+    expect(climb(90)).not.toContain('spike')
+    expect(climb(150)).toContain('spike')
+    // only runs are compared with the longest run
+    const long = activity({ type: 'strength', distanceM: null, durationSec: 7200 })
+    expect(assessExecution(session(), long, ctx).flags).not.toContain('spike')
   })
 
   it('writes plain lines without deficit wording', () => {

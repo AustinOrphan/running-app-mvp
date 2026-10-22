@@ -67,6 +67,14 @@ const HR_UNSUITED_KINDS: ReadonlySet<SessionKind> = new Set([
   'cross',
 ])
 
+/**
+ * Whether an activity counts: `possible` and `confirmed` duplicates do not, while `dismissed` rows
+ * (owner said not a duplicate, `duplicateOfId` kept) do, as in shared/domain/stats.ts.
+ */
+function counts(activity: Activity): boolean {
+  return activity.duplicateStatus === 'none' || activity.duplicateStatus === 'dismissed'
+}
+
 /** Whether an activity can fulfil a session of this kind. */
 function compatible(kind: SessionKind, activity: Activity): boolean {
   const subtype = (activity.subtype ?? '').toLowerCase()
@@ -105,10 +113,7 @@ export function matchSessions(
   const freeSessions = sessions.filter(
     (s) => s.activityId === null && s.linkSource !== 'owner' && s.kind !== 'rest',
   )
-  const freeActivities = activities.filter(
-    (a) =>
-      !linkedActivities.has(a.id) && a.duplicateOfId === null && a.duplicateStatus !== 'confirmed',
-  )
+  const freeActivities = activities.filter((a) => !linkedActivities.has(a.id) && counts(a))
 
   const takenSessions = new Set<string>()
   const takenActivities = new Set<string>()
@@ -296,7 +301,7 @@ export function fitHrModel(activities: Activity[], today: string): HrModel | nul
   const windowDays = P.hrModel.windowWeeks.value * 7
   const points: Array<{ v: number; h: number; hr: number }> = []
   for (const a of activities) {
-    if (a.type !== 'run' || a.duplicateStatus === 'confirmed' || a.avgHr === null) continue
+    if (a.type !== 'run' || !counts(a) || a.avgHr === null) continue
     const age = daysBetween(a.date, today)
     if (age < 0 || age >= windowDays) continue
     if (a.durationSec < P.hrModel.minDurationMin.value * SEC_PER_MIN) continue
@@ -415,10 +420,12 @@ function intensityOf(
   return 'on'
 }
 
+/** G-1 against the 30-day longest completed run; gain and descent with the H4 minimum step. */
 function spikeOf(activity: Activity, state: AthleteState): boolean {
-  const longest = state.longest30d as AthleteState['longest30d'] | undefined
-  if (longest === undefined) return false
+  if (activity.type !== 'run' && activity.type !== 'race') return false
+  const longest = state.longest30d
   const ratio = P.g1.spikeRatioWarn.value
+  const climbLimit = (max: number) => Math.max(max * ratio, max + P.h4.minStepGainM.value)
   if (longest.distanceM > 0 && activity.distanceM !== null) {
     const limit = Math.max(
       longest.distanceM * ratio,
@@ -427,8 +434,8 @@ function spikeOf(activity: Activity, state: AthleteState): boolean {
     if (activity.distanceM > limit) return true
   }
   if (longest.durationSec > 0 && activity.durationSec > longest.durationSec * ratio) return true
-  if (longest.gainM > 0 && (activity.elevationGainM ?? 0) > longest.gainM * ratio) return true
-  if (longest.lossM > 0 && (activity.elevationLossM ?? 0) > longest.lossM * ratio) return true
+  if ((activity.elevationGainM ?? 0) > climbLimit(longest.gainM)) return true
+  if ((activity.elevationLossM ?? 0) > climbLimit(longest.lossM)) return true
   return false
 }
 
@@ -515,7 +522,7 @@ export function assessExecution(
   const pain = Math.max(activity.pain ?? 0, ctx.checkin?.painScore ?? 0)
   const focalBone = ctx.checkin?.painFocalBone === true
   const flags: ExecutionAssessment['flags'] = []
-  if (pain >= P.pain.flagScore.value && !focalBone) flags.push('pain')
+  if (pain >= P.pain.flagScore.value) flags.push('pain')
   if (focalBone) flags.push('focal-bone-pain')
   if (heatAdjusted) flags.push('heat')
   if (hrPresent && !hrQualified) flags.push('hr-unqualified')
