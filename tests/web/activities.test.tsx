@@ -397,6 +397,64 @@ describe('Activities page', () => {
     expect(screen.queryByText('2 activities')).not.toBeInTheDocument()
   })
 
+  test('?duplicates=1 lists confirmed duplicates under "Marked as duplicates" and Restore dismisses the flag', async () => {
+    const user = userEvent.setup()
+    const confirmed = makeActivity({
+      id: 'dup3',
+      durationSec: 2400,
+      distanceM: 6000,
+      duplicateStatus: 'confirmed',
+      duplicateOfId: 'imp1',
+    })
+    const api = renderPage({
+      route: '/activities?duplicates=1',
+      activities: [
+        makeActivity({ id: 'ok2', durationSec: 3600, distanceM: 10000 }),
+        makeActivity({
+          id: 'dup4',
+          durationSec: 1800,
+          distanceM: 5000,
+          duplicateStatus: 'possible',
+        }),
+        confirmed,
+      ],
+      routes: {
+        'POST /api/activities/dup3/duplicate': () => ({
+          ...confirmed,
+          duplicateStatus: 'dismissed',
+        }),
+      },
+    })
+    expect(await screen.findByText('Possible duplicate')).toBeInTheDocument()
+    // The primary list and its count stay on the possible rows.
+    expect(screen.getByText('1 activity')).toBeInTheDocument()
+    expect(screen.queryByText('1:00:00')).not.toBeInTheDocument()
+
+    const section = screen.getByRole('region', { name: 'Marked as duplicates' })
+    expect(within(section).getByText('40:00')).toBeInTheDocument()
+    expect(within(section).queryByText('30:00')).not.toBeInTheDocument()
+    await user.click(within(section).getByRole('button', { name: 'Restore' }))
+    await waitFor(() => {
+      expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1)
+    })
+    expect(api.calls.find((c) => c.method === 'POST')?.url).toBe('/api/activities/dup3/duplicate')
+    expect(api.calls.find((c) => c.method === 'POST')?.body).toEqual({ status: 'dismissed' })
+  })
+
+  test('the Marked as duplicates section shows even when no possible duplicate is left, and is absent outside ?duplicates=1', async () => {
+    const confirmed = makeActivity({ id: 'dup5', duplicateStatus: 'confirmed' })
+    renderPage({ route: '/activities?duplicates=1', activities: [confirmed] })
+    expect(await screen.findByText('No possible duplicates.')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Marked as duplicates' })).toBeInTheDocument()
+  })
+
+  test('without ?duplicates=1 there is no Marked as duplicates section or Restore button', async () => {
+    renderPage({ activities: [makeActivity({ id: 'dup6', duplicateStatus: 'confirmed' })] })
+    expect(await screen.findByText('Duplicate, not counted')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Marked as duplicates' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Restore' })).not.toBeInTheDocument()
+  })
+
   test('a From date after To explains the range and sends no request for it', async () => {
     const api = renderPage({ activities: [makeActivity()] })
     await screen.findByText('30:00')
