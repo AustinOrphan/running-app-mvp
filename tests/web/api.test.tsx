@@ -19,7 +19,12 @@ import {
   useUpdateGoal,
 } from '../../web/api/goals.ts'
 import { useImportFile, useImports } from '../../web/api/imports.ts'
-import { useGeneratePlan, usePlan, useUpdatePlanWeek } from '../../web/api/plan.ts'
+import {
+  useGeneratePlan,
+  usePlan,
+  usePlanRevisions,
+  useUpdatePlanWeek,
+} from '../../web/api/plan.ts'
 import { useReviews, useSaveReview } from '../../web/api/reviews.ts'
 import { useSettings, useUpdateSettings } from '../../web/api/settings.ts'
 import { useWeeks } from '../../web/api/weeks.ts'
@@ -349,6 +354,31 @@ describe('invalidation', () => {
     expect(
       await run((r) => r.review.mutateAsync({ weekStart: '2026-03-02', patch: { fatigue: 3 } })),
     ).toEqual(['plan', 'reviews'])
+  })
+
+  test('a review save also refetches the plan revisions, so What changed is fresh', async () => {
+    const { calls } = mockApi(
+      allRoutes({
+        'GET /api/plan/revisions': () => [],
+        'PUT /api/reviews/2026-03-02': () => ({ revision: null }),
+      }),
+    )
+    const { wrapper } = setup()
+    const { result } = renderHook(
+      () => ({ revisions: usePlanRevisions(), review: useSaveReview() }),
+      { wrapper },
+    )
+    await waitFor(() => {
+      expect(result.current.revisions.isSuccess).toBe(true)
+    })
+    const count = () => calls.filter((c) => c.url === '/api/plan/revisions').length
+    const before = count()
+    await act(() =>
+      result.current.review.mutateAsync({ weekStart: '2026-03-02', patch: { fatigue: 3 } }),
+    )
+    await waitFor(() => {
+      expect(count()).toBe(before + 1)
+    })
   })
 
   test('settings refetch settings and me', async () => {

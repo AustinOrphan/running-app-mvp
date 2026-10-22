@@ -24,6 +24,7 @@ import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { WhyDrawer } from '../components/WhyDrawer.tsx'
 import { formatLongDate, formatShortDate, formatWeekday, phaseLabel } from '../components/format.ts'
+import { describeChange } from '../components/planChanges.ts'
 import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
@@ -537,13 +538,6 @@ function WhyButton({
   )
 }
 
-function changeValue(value: unknown): string {
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return String(value)
-  }
-  return JSON.stringify(value)
-}
-
 function WhatChanged({
   revisions,
   onWhy,
@@ -580,8 +574,7 @@ function WhatChanged({
                 <ul className={styles.changes}>
                   {revision.changes.map((change, index) => (
                     <li key={`${change.weekStart}-${change.field}-${String(index)}`}>
-                      Week of {formatShortDate(change.weekStart)}: {change.field}{' '}
-                      {changeValue(change.from)} to {changeValue(change.to)}
+                      Week of {formatShortDate(change.weekStart)}: {describeChange(change).text}
                     </li>
                   ))}
                 </ul>

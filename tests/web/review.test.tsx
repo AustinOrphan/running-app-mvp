@@ -652,7 +652,8 @@ describe('ReviewPage', () => {
       ).toBeInTheDocument()
       const changes = within(region).getAllByRole('listitem')
       expect(changes).toHaveLength(2)
-      expect(changes[0]).toHaveTextContent('Week of 19 Oct: targetRunMin 320 to 280')
+      expect(changes[0]).toHaveTextContent('Week of 19 Oct: Weekly running time 320 min to 280 min')
+      expect(changes[1]).toHaveTextContent('Week of 19 Oct: Long run 90 min to 80 min')
     })
 
     test('a re-plan that could not run is said plainly and the review stays saved', async () => {
