@@ -460,3 +460,132 @@ describe('applyGuards: ultra caps (H2, H3)', () => {
     expect(result.warnings).toEqual([])
   })
 })
+
+describe('applyGuards: cuts keep the session minimum (G-2)', () => {
+  const easy = (date: string, durationMin: number, over: Partial<SessionSpec> = {}) =>
+    session({ date, durationMin, ...over })
+
+  it('scales the runs of a cut week down in proportion, never below the session minimum', () => {
+    const st = withWeeks([120, 120, 120])
+    const plan = [
+      easy('2026-11-03', 60),
+      easy('2026-11-05', 60),
+      easy('2026-11-07', 60),
+      easy('2026-11-08', 60),
+    ]
+    const result = applyGuards(plan, st, [])
+    expect(result.sessions).toHaveLength(4)
+    expect(weekMinutes(result.sessions, '2026-11-02')).toBeLessThanOrEqual(156)
+    expect(weekMinutes(result.sessions, '2026-11-02')).toBeGreaterThan(145)
+    for (const s of result.sessions) {
+      expect(s.durationMin).toBeGreaterThanOrEqual(P.fplace.easyRunMinMin.value)
+    }
+  })
+
+  it('removes the shortest easy run when the minimums do not fit, and never the long run', () => {
+    const st = withWeeks([30, 30, 30])
+    const plan = [
+      easy('2026-11-03', 25),
+      easy('2026-11-05', 30),
+      easy('2026-11-07', 24, { kind: 'long' }),
+    ]
+    const result = applyGuards(plan, st, [])
+    expect(result.sessions.some((s) => s.kind === 'long')).toBe(true)
+    expect(result.sessions.length).toBeLessThan(3)
+    expect(weekMinutes(result.sessions, '2026-11-02')).toBeLessThanOrEqual(39 + 1e-6)
+    for (const s of result.sessions) {
+      expect(s.durationMin).toBeGreaterThanOrEqual(P.fplace.easyRunMinMin.value)
+    }
+    expect(result.warnings.map((w) => w.code)).toEqual(
+      expect.arrayContaining(['ramp-ceiling', 'ramp-run-dropped']),
+    )
+  })
+
+  it('keeps run-walk runs down to the run day minimum', () => {
+    const st = withWeeks([30, 30, 30], { experience: 'novice' })
+    const plan = [
+      easy('2026-11-03', 20, { flags: ['run-walk'] }),
+      easy('2026-11-05', 20, { flags: ['run-walk'] }),
+      easy('2026-11-07', 20, { flags: ['run-walk'] }),
+    ]
+    const result = applyGuards(plan, st, [])
+    expect(weekMinutes(result.sessions, '2026-11-02')).toBeLessThanOrEqual(40)
+    for (const s of result.sessions) {
+      expect(s.durationMin).toBeGreaterThanOrEqual(P.fplace.minRunDayMin.value)
+    }
+  })
+})
+
+describe('applyGuards: baselines of the 2-week ceiling', () => {
+  it('lets a recovery week hold nothing down: the week after returns to the pre-recovery level', () => {
+    const st = withWeeks([200, 200, 200])
+    const plan = [
+      ...planWeek('2026-11-02', 220),
+      ...planWeek('2026-11-09', 240),
+      ...planWeek('2026-11-16', 160),
+      ...planWeek('2026-11-23', 120),
+      ...planWeek('2026-11-30', 260),
+    ]
+    const low = ['2026-11-16', '2026-11-23']
+    const result = applyGuards(plan, st, [], { lowWeeks: low })
+    // lag 2 and 3 of 11-30 are 11-16 (recovery) and 11-09 (240): 1.3 x 240 = 312
+    expect(weekMinutes(result.sessions, '2026-11-30')).toBe(weekMinutes(plan, '2026-11-30'))
+    expect(result.warnings.some((w) => w.code === 'ramp-ceiling')).toBe(false)
+  })
+
+  it('moves the window back to the last loading week when every week of it is a recovery or taper week', () => {
+    const st = withWeeks([200, 200, 200])
+    const plan = [
+      ...planWeek('2026-11-02', 220),
+      ...planWeek('2026-11-09', 120),
+      ...planWeek('2026-11-16', 100),
+      ...planWeek('2026-11-23', 80),
+      ...planWeek('2026-11-30', 200),
+    ]
+    const low = ['2026-11-09', '2026-11-16', '2026-11-23']
+    const result = applyGuards(plan, st, [], { lowWeeks: low })
+    // lag 2 and 3 of 11-30 are 11-16 and 11-09, both low: the window finds 11-02 (220) instead
+    expect(weekMinutes(result.sessions, '2026-11-30')).toBe(weekMinutes(plan, '2026-11-30'))
+    expect(result.warnings.some((w) => w.code === 'ramp-ceiling')).toBe(false)
+    // without the low weeks the same plan is held to the weeks it follows
+    const held = applyGuards(plan, st, [])
+    expect(weekMinutes(held.sessions, '2026-11-30')).toBeLessThanOrEqual(1.3 * 120 + 1)
+  })
+})
+
+describe('applyGuards: restart floor', () => {
+  const FLOOR = { weekStart: '2026-11-02', minutes: 60 }
+  const sparse = () => withWeeks([0, 30, 28], { typicalWeekMin: 27 })
+  const floorPlan = () => [
+    ...planWeek('2026-11-02', 60),
+    ...planWeek('2026-11-09', 66),
+    ...planWeek('2026-11-16', 72),
+  ]
+
+  it('exempts the floor week from G-2, says so, and holds the weeks after it to the ramp', () => {
+    const plan = floorPlan()
+    const result = applyGuards(plan, sparse(), [], { restartFloor: FLOOR })
+    expect(weekMinutes(result.sessions, '2026-11-02')).toBe(weekMinutes(plan, '2026-11-02'))
+    expect(result.warnings.find((w) => w.code === 'restart-floor')?.severity).toBe('info')
+    // the floor week is the ceiling baseline of the week after it
+    expect(weekMinutes(result.sessions, '2026-11-09')).toBe(weekMinutes(plan, '2026-11-09'))
+    expect(weekMinutes(result.sessions, '2026-11-16')).toBe(weekMinutes(plan, '2026-11-16'))
+    expect(result.warnings.some((w) => w.code === 'ramp-ceiling')).toBe(false)
+  })
+
+  it('does not exempt the floor week without the option, nor anything above the floor', () => {
+    const plain = applyGuards(floorPlan(), sparse(), [])
+    expect(weekMinutes(plain.sessions, '2026-11-02')).toBeLessThanOrEqual(39)
+    const above = applyGuards(planWeek('2026-11-02', 100), sparse(), [], { restartFloor: FLOOR })
+    expect(weekMinutes(above.sessions, '2026-11-02')).toBeLessThanOrEqual(60)
+  })
+
+  it('still applies the session spike guard (G-1) in the floor week', () => {
+    const history = [run('2026-10-28', 35)]
+    const plan = [session({ date: '2026-11-03', kind: 'long', durationMin: 80 })]
+    const result = applyGuards(plan, sparse(), history, {
+      restartFloor: { weekStart: '2026-11-02', minutes: 80 },
+    })
+    expect(result.sessions[0]!.flags).toContain('override-required')
+  })
+})

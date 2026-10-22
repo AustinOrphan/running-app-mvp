@@ -61,6 +61,10 @@ export const gLimits = {
       unit: 'weeks',
       note: 'The 30% ceiling spans 2 weeks: a week is compared with the highest of the weeks that ended this many weeks earlier (stricter than a per-week 30%).',
     }),
+    ceilingLookbackWeeks: param('g2.ceilingLookbackWeeks', 6, 'D', 'g-2', RAMP, {
+      unit: 'weeks',
+      note: 'Default: the 2-week ceiling ignores recovery and taper weeks; when every week of its window is one, the window moves back up to this many weeks to the last loading week (for example the week after a race).',
+    }),
     noviceMinStepMin: param('g2.noviceMinStepMin', 1, 'D', 'g-2', ['buist-2008-graded-training'], {
       unit: 'min of running per week',
       note: 'Default: novices progress by time with a minimum step of +1 min of running per week.',

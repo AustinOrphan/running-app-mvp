@@ -9,7 +9,7 @@ import type {
   GoalModel,
   WeekDraft,
 } from '../../../shared/engine/types.ts'
-import type { AthleteProfile } from '../../../shared/types.ts'
+import type { Activity, AthleteProfile } from '../../../shared/types.ts'
 
 const TODAY = '2026-01-05' // a Monday
 
@@ -661,6 +661,73 @@ describe('macroPlan: vertical gain and post-race', () => {
   it('uses no word of blame in its focus lines', () => {
     for (const w of plan(goal('marathon', 24))) {
       expect(w.focus).not.toMatch(/behind|missed|streak|\bred\b/i)
+    }
+  })
+})
+
+describe('macroPlan: restart floor and run days', () => {
+  const FLOOR = P.restartFloor.sessions.value * P.restartFloor.sessionMin.value
+  const recentRun = (minutes: number, daysAgo = 20): Activity =>
+    ({
+      id: `r-${minutes}-${daysAgo}`,
+      date: addDays(TODAY, -daysAgo),
+      type: 'run',
+      durationSec: minutes * 60,
+      duplicateOfId: null,
+      duplicateStatus: 'none',
+    }) as unknown as Activity
+  const floorPlan = (st: AthleteState, activities: Activity[]) => {
+    const g = goal('ultra100mi', 30)
+    return macroPlan({ ...input(g), activities }, st, g, FEASIBLE)
+  }
+
+  it('starts at 3 sessions of 20 min when the typical week is below that, and grows from it', () => {
+    const weeks = floorPlan(state({ typicalWeekMin: 27 }), [recentRun(30)])
+    expect(FLOOR).toBe(60)
+    expect(weeks[0]!.targetRunMin).toBe(FLOOR)
+    expect(weeks[0]!.runDays).toBe(P.restartFloor.sessions.value)
+    expect(weeks[0]!.flags).toContain('restart-floor')
+    expect(weeks[0]!.flags).not.toContain('run-walk')
+    expect(weeks[1]!.targetRunMin).toBeLessThanOrEqual(Math.floor(FLOOR * 1.1 + 1e-9))
+    expect(weeks.slice(1).some((w) => w.flags.includes('restart-floor'))).toBe(false)
+  })
+
+  it('makes the floor sessions run-walk when no run of 20 min was completed in 90 days', () => {
+    const none = floorPlan(state({ typicalWeekMin: 27 }), [recentRun(15), recentRun(30, 120)])
+    expect(none[0]!.flags).toEqual(expect.arrayContaining(['restart-floor', 'run-walk']))
+  })
+
+  it('leaves a typical week at or above the floor, no recent running, and tightened profiles alone', () => {
+    expect(floorPlan(state({ typicalWeekMin: FLOOR }), [recentRun(30)])[0]!.flags).not.toContain(
+      'restart-floor',
+    )
+    expect(floorPlan(state({ typicalWeekMin: 0 }), [])[0]!.targetRunMin).toBe(
+      P.macroDesign.startFloorWeekMin.value,
+    )
+    const tight = state({
+      typicalWeekMin: 27,
+      risk: { recentInjury: false, priorBsi: true, bsiFactors: 0, redsFlags: 0, noviceFlags: [] },
+    })
+    const weeks = floorPlan(tight, [recentRun(30)])
+    expect(weeks[0]!.flags).not.toContain('restart-floor')
+    expect(weeks[0]!.targetRunMin).toBe(27)
+  })
+
+  it('plans at least 4 run days from 3 h, 5 from 5 h and 6 from 7 h of weekly running', () => {
+    const weeks = plan(goal('ultra100mi', 40), state({ typicalWeekMin: 100 })).filter(
+      (w) => !w.isTaper && !w.flags.includes('post-race') && !w.isRecovery,
+    )
+    for (const w of weeks) {
+      if (w.targetRunMin >= 420) expect(w.runDays).toBeGreaterThanOrEqual(6)
+      else if (w.targetRunMin >= 300) expect(w.runDays).toBeGreaterThanOrEqual(5)
+      else if (w.targetRunMin >= 180) expect(w.runDays).toBeGreaterThanOrEqual(4)
+    }
+    expect(Math.max(...weeks.map((w) => w.targetRunMin))).toBeGreaterThanOrEqual(420)
+  })
+
+  it('lists each week flag once', () => {
+    for (const w of plan(goal('ultra100mi', 40))) {
+      expect(new Set(w.flags).size).toBe(w.flags.length)
     }
   })
 })

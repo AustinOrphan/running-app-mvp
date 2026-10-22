@@ -373,5 +373,52 @@ export function athletes(): MatrixAthlete[] {
       }),
       { wbgtC: 27, source: 'climatology' },
     ),
+    build(
+      'sparse-100-mile',
+      'sparse history, first 100-mile',
+      baseProfile({
+        birthYear: 1985,
+        longRunDay: 'sat',
+        terrain: { trail: true, hills: true, treadmill: false, track: false },
+      }),
+      sparseHistory(),
+      goalOf({
+        name: 'Synthetic far 100 miles',
+        targetDate: '2027-06-05',
+        distanceM: 160_934,
+        gainM: 4500,
+        lossM: 4500,
+        surface: 'trail',
+        goalType: 'finish',
+        startTime: '06:00',
+      }),
+    ),
+  ]
+}
+
+/**
+ * A sparse recent history: one run of about 30 minutes in most weeks, a single 84-minute run seven
+ * weeks back, and a 10-day gap before today (the last run was Sunday 2026-10-11).
+ */
+function sparseHistory(): History[] {
+  const week = (w: number, dow: number, min: number): History => ({
+    fromWeek: w,
+    toWeek: w,
+    runs: [{ dow, min }],
+    paceSecPerKm: 360,
+  })
+  return [
+    week(2, 6, 30),
+    week(3, 5, 28),
+    week(4, 2, 30),
+    week(5, 5, 32),
+    week(6, 3, 30),
+    week(7, 5, 84),
+    week(8, 1, 30),
+    week(9, 5, 28),
+    week(11, 2, 30),
+    week(12, 5, 30),
+    week(14, 3, 30),
+    week(15, 5, 33),
   ]
 }

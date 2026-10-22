@@ -261,6 +261,18 @@ export const fMicro = {
       unit: 'days per week',
       note: 'Default: novices run 3 non-consecutive days per week; the rule gives no grade.',
     }),
+    fourDaysFromWeeklyMin: param('f5.fourDaysFromWeeklyMin', 180, 'D', 'F5', [], {
+      unit: 'min per week',
+      note: 'Default: from 3 h of weekly running at least 4 run days when the days are available.',
+    }),
+    fiveDaysFromWeeklyMin: param('f5.fiveDaysFromWeeklyMin', 300, 'D', 'F5', [], {
+      unit: 'min per week',
+      note: 'Default: from 5 h of weekly running at least 5 run days when the days are available.',
+    }),
+    sixDaysFromWeeklyMin: param('f5.sixDaysFromWeeklyMin', 420, 'D', 'F5', [], {
+      unit: 'min per week',
+      note: 'Default: from 7 h of weekly running at least 6 run days when the days are available.',
+    }),
     mastersMinAge: param('f5.mastersMinAge', 40, 'D', 'F5', ['mckean-2006-masters-injury'], {
       unit: 'years',
       note: 'Default: the run-day cap applies from this age.',
@@ -271,6 +283,21 @@ export const fMicro = {
     }),
   },
   fplace: {
+    easyRunMinMin: param(
+      'fplace.easyRunMinMin',
+      20,
+      'D',
+      'F5',
+      ['kluitenberg-2015-nlstart2run', 'buist-2008-graded-training'],
+      {
+        unit: 'min',
+        note: "Default: easy and recovery runs last at least this long (novice and return programmes start at 20-30 minute sessions); run-walk sessions are exempt and keep the minimum run day. The long run is never shorter than this or than the week's other runs.",
+      },
+    ),
+    minRunsPerWeek: param('fplace.minRunsPerWeek', 2, 'D', 'F5', [], {
+      unit: 'runs per week',
+      note: 'Default: outside taper, race and recovery weeks a week holds at least this many runs; when its minutes cannot fit the planned run days at the minimum, fewer runs are placed rather than shorter ones.',
+    }),
     minRunDayMin: param('fplace.minRunDayMin', 15, 'D', 'F5', [], {
       unit: 'min',
       note: 'Default: a run day shorter than this is dropped and its minutes stay unplaced (never made up elsewhere); no study sets a minimum run length.',

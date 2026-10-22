@@ -17,6 +17,17 @@ import type {
 export interface GuardOptions {
   /** Expected race duration for an ultra goal; the H2 caps apply only when this is set. */
   ultraRaceDurationSec?: number | null
+  /**
+   * Mondays of the planned recovery and taper weeks. Such a week never sets the baseline of the
+   * 2-week ceiling, so a planned easy week cannot hold the weeks after it down [rules g-2].
+   */
+  lowWeeks?: Iterable<string>
+  /**
+   * The restart floor [design-macro]: the first week of a plan for a runner whose recent weeks are
+   * below it. That one week is exempt from G-2 up to `minutes`, and counts as the baseline of the
+   * 2-week ceiling for the week after it. Every session still obeys G-1.
+   */
+  restartFloor?: { weekStart: string; minutes: number } | null
 }
 
 /** Run sessions the guards may shorten. Hikes and races are never rewritten. */
@@ -139,6 +150,8 @@ export function applyGuards(
     .sort()
 
   const ultraCapMin = ultraCap(options)
+  const low = new Set(options.lowWeeks ?? [])
+  const floor = options.restartFloor ?? null
   const pairStarts: string[] = items
     .filter((s): s is SessionSpec => s !== null && s.date < asOf && s.flags.includes('b2b-day1'))
     .map((s) => s.date)
@@ -215,8 +228,28 @@ export function applyGuards(
     const typical = state.typicalWeekMin > 0 ? state.typicalWeekMin : null
     const base = positive(soft) ?? typical
     if (base === null) return
+    // A recovery or taper week never sets the ceiling baseline; the restart floor week does for
+    // the week right after it, which would otherwise be held to 130% of the weeks before the floor.
+    const floorMin = floor === null ? null : (volume.get(floor.weekStart) ?? null)
+    const afterFloor =
+      floor !== null &&
+      floorMin !== null &&
+      weekStart > floor.weekStart &&
+      daysBetween(floor.weekStart, weekStart) <= 7 * (P.g2.ceilingWindowWeeks.value - 1)
     const ceilingBase =
-      positive(highest(volume, weekStart, P.g2.ceilingWindowWeeks.value, baselineWeeks)) ?? base
+      positive(
+        maxOf(
+          highest(
+            volume,
+            weekStart,
+            P.g2.ceilingWindowWeeks.value,
+            baselineWeeks,
+            low,
+            P.g2.ceilingLookbackWeeks.value,
+          ),
+          afterFloor ? floorMin : null,
+        ),
+      ) ?? base
 
     const minStep = state.experience === 'novice' ? P.g2.noviceMinStepMin.value : 0
     const limitOf = (from: number, ramp: number) => from + Math.max(from * ramp, minStep)
@@ -224,8 +257,18 @@ export function applyGuards(
     const ceilingLimit = limitOf(ceilingBase, P.g2.rampCeilingTwoWeeks.value)
     const tight = tightRamp()
     const tightLimit = tight === null ? Infinity : limitOf(base, tight)
-    const allowed = Math.min(ceilingLimit, tightLimit)
-
+    let allowed = Math.min(ceilingLimit, tightLimit)
+    const isFloorWeek = floor !== null && weekStart === floor.weekStart
+    if (floor !== null && isFloorWeek) {
+      // The floor week is exempt from G-2 up to the floor; it is not exempt from anything else.
+      allowed = Math.max(allowed, floor.minutes)
+      warn(`floor|${weekStart}`, {
+        code: 'restart-floor',
+        severity: 'info',
+        message: `The week of ${weekStart} restarts at ${floor.minutes} min, ${P.restartFloor.sessions.value} sessions of at least ${P.restartFloor.sessionMin.value} min, above the usual weekly step. Growth from it follows the weekly ramp.`,
+        rules: ['g-2'],
+      })
+    }
     if (total > allowed + 1e-6) {
       // Runs before the plan starts are already in `doneThisWeek`.
       const fixed =
@@ -234,13 +277,7 @@ export function applyGuards(
           : week
               .filter((s) => VOLUME_KINDS.has(s.kind) && !modifiable(s))
               .reduce((sum, s) => sum + s.durationMin, 0)
-      const movable = week.filter((s) => modifiable(s)).reduce((sum, s) => sum + s.durationMin, 0)
-      const factor =
-        movable > 0 ? Math.max(0, allowed - fixed - doneThisWeek(weekStart)) / movable : 0
-      for (const i of indices) {
-        const s = items[i]!
-        if (modifiable(s)) items[i] = scaleSession(s, factor)
-      }
+      shortenWeek(indices, Math.max(0, allowed - fixed - doneThisWeek(weekStart)), weekStart)
       const tightened = tightLimit <= ceilingLimit
       warn(`ramp|${weekStart}`, {
         code: tightened ? 'ramp-tightened' : 'ramp-ceiling',
@@ -250,11 +287,69 @@ export function applyGuards(
           : `Running time in the week of ${weekStart} is held to ${Math.round(allowed)} min, ${Math.round(P.g2.rampCeilingTwoWeeks.value * 100)}% above the week ${P.g2.ceilingWindowWeeks.value} weeks earlier.`,
         rules: tightened ? ['g-2', 'g-3'] : ['g-2'],
       })
-    } else if (total > softLimit + 1e-6) {
+    } else if (!isFloorWeek && total > softLimit + 1e-6) {
       warn(`ramp|${weekStart}`, {
         code: 'ramp-soft',
         severity: 'warn',
         message: `Running time in the week of ${weekStart} is ${Math.round(total)} min, above a ${Math.round(P.g2.rampSoft.value * 100)}% step on the highest of the previous ${baselineWeeks} weeks (${Math.round(base)} min). Keep it if it feels right.`,
+        rules: ['g-2'],
+      })
+    }
+  }
+
+  /**
+   * Brings the movable runs of a week down to `budget` minutes. Runs shrink in proportion but not
+   * below the session minimum; when even the minimums do not fit, the shortest easy run goes first,
+   * then the shortest other run. A long run (or either day of a pair) is scaled, never removed
+   * unless the budget is under the shortest run a day can hold.
+   */
+  function shortenWeek(indices: number[], budget: number, weekStart: string): void {
+    const isAnchor = (s: SessionSpec) =>
+      s.kind === 'long' ||
+      s.kind === 'long-fast-finish' ||
+      s.flags.includes('b2b-day1') ||
+      s.flags.includes('b2b-day2')
+    const isEasy = (s: SessionSpec) =>
+      s.kind === 'easy' || s.kind === 'recovery' || s.kind === 'strides'
+    const dropOrder = (a: number, b: number) => {
+      const x = items[a]!
+      const y = items[b]!
+      return x.durationMin - y.durationMin || (x.date < y.date ? 1 : -1)
+    }
+    for (;;) {
+      const ids = indices.filter((i) => items[i] !== null && modifiable(items[i]!))
+      if (ids.length === 0) return
+      const sizes = ids.map((i) => items[i]!.durationMin)
+      const mins = ids.map((i, k) => Math.min(sizes[k]!, minSize(items[i]!)))
+      const total = sizes.reduce((a, b) => a + b, 0)
+      if (total <= budget + EPS) return
+      const minTotal = mins.reduce((a, b) => a + b, 0)
+      if (minTotal <= budget + EPS) {
+        const extra = budget - minTotal
+        const above = total - minTotal
+        ids.forEach((i, k) => {
+          const keep = mins[k]! + Math.floor((extra * (sizes[k]! - mins[k]!)) / above + EPS)
+          items[i] = scaleSession(items[i]!, keep / sizes[k]!, 0)
+        })
+        return
+      }
+      const drop =
+        [...ids].filter((i) => !isAnchor(items[i]!) && isEasy(items[i]!)).sort(dropOrder)[0] ??
+        [...ids].filter((i) => !isAnchor(items[i]!)).sort(dropOrder)[0]
+      if (drop === undefined) {
+        // Only long runs are left: scale them to the budget, and drop one only when the budget is
+        // under the shortest run a day can hold.
+        for (const i of ids) {
+          items[i] = scaleSession(items[i]!, budget / total, P.fplace.minRunDayMin.value)
+        }
+        return
+      }
+      const gone = items[drop]!
+      items[drop] = null
+      warn(`drop|${gone.date}|${gone.kind}`, {
+        code: 'ramp-run-dropped',
+        severity: 'info',
+        message: `The ${gone.kind} run of ${gone.durationMin} min on ${gone.date} is left out so the week of ${weekStart} stays within its weekly ramp.`,
         rules: ['g-2'],
       })
     }
@@ -561,20 +656,33 @@ function weeklyMinutes(week: SessionSpec[]): number {
   return week.reduce((sum, s) => sum + (VOLUME_KINDS.has(s.kind) ? s.durationMin : 0), 0)
 }
 
-/** Highest value among `count` weeks that end `lag` weeks before `weekStart`; null if none is known. */
+/**
+ * Highest value among `count` weeks that end `lag` weeks before `weekStart`; null if none is known.
+ * Weeks in `skip` (planned recovery and taper weeks) are left out; when all of them are, the window
+ * moves back, at most to `lookback` weeks, to the first week that is not.
+ */
 function highest(
   values: Map<string, number>,
   weekStart: string,
   lag: number,
   count: number,
+  skip?: ReadonlySet<string>,
+  lookback = count,
 ): number | null {
   let best: number | null = null
-  for (let k = 0; k < count; k += 1) {
-    const v = values.get(addDays(weekStart, -7 * (lag + k)))
+  for (let k = 0; k < Math.max(count, lookback); k += 1) {
+    const week = addDays(weekStart, -7 * (lag + k))
+    // past the window, only a window that found nothing keeps looking
+    if (k >= count && best !== null) break
+    if (skip?.has(week)) continue
+    const v = values.get(week)
     if (v !== undefined) best = best === null ? v : Math.max(best, v)
   }
   return best
 }
+
+const maxOf = (a: number | null, b: number | null): number | null =>
+  a === null ? b : b === null ? a : Math.max(a, b)
 
 const positive = (value: number | null): number | null =>
   value !== null && value > 0 ? value : null
@@ -583,12 +691,25 @@ function cloneSession(s: SessionSpec): SessionSpec {
   return structuredClone(s)
 }
 
-/** Shortens a session to `factor` of its size, rounding down; null when it falls under the minimum run. */
-function scaleSession(s: SessionSpec, factor: number): SessionSpec | null {
+/** The shortest a run may be made by a cut: the session minimum, or the run day minimum for run-walk. */
+function runMinimum(s: SessionSpec): number {
+  return s.flags.includes('run-walk') ? P.fplace.minRunDayMin.value : P.fplace.easyRunMinMin.value
+}
+
+/** The smallest size a guard cuts a run to; a run already under the session minimum may go to the run day minimum. */
+function minSize(s: SessionSpec): number {
+  return s.durationMin >= runMinimum(s) ? runMinimum(s) : P.fplace.minRunDayMin.value
+}
+
+/**
+ * Shortens a session to `factor` of its size, rounding down; null when it falls under `minMin`
+ * (by default the session minimum of the run, or the run day minimum for a run already under it).
+ */
+function scaleSession(s: SessionSpec, factor: number, minMin?: number): SessionSpec | null {
   if (factor >= 1) return s
   const down = (v: number) => Math.floor(Math.max(0, v) * factor + EPS)
   const durationMin = down(s.durationMin)
-  if (durationMin < P.fplace.minRunDayMin.value) return null
+  if (durationMin < (minMin ?? minSize(s))) return null
   const structure: Step[] = s.structure.map((step) => ({
     ...step,
     durationSec: step.durationSec === null ? null : down(step.durationSec),

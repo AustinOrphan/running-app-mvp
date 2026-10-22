@@ -160,9 +160,14 @@ function planRuns(
   before: SessionSpec[],
 ): RunPlan[] {
   const { profile, state } = ctx
-  const minRun = P.fplace.minRunDayMin.value
   const novice = state.experience === 'novice'
-  const runWalk = novice && week.index < P.flib.runWalkWeeks.value
+  const floorWeek = week.flags.includes('restart-floor')
+  const runWalk =
+    (novice && week.index < P.flib.runWalkWeeks.value) || week.flags.includes('run-walk')
+  // Shortest run of the week: the session minimum, or the run day minimum for run-walk [F5].
+  const minRun = runWalk ? P.fplace.minRunDayMin.value : P.fplace.easyRunMinMin.value
+  // Novices and the restart floor week run on non-consecutive days.
+  const spaced = novice || floorWeek
 
   let runDays = Math.max(0, Math.min(7, Math.floor(week.runDays)))
   if (state.age !== null && state.age >= P.f5.mastersMinAge.value) {
@@ -182,28 +187,32 @@ function planRuns(
   const heat = /heat/i.test(flagText)
   const preferred = WEEKDAYS.indexOf(profile.longRunDay)
   const usable = (day: number) => slots[day]!.open && slots[day]!.capMin >= minRun
+  // A taper, race or recovery week may hold a single run; any other week at least two [F5].
+  const light = week.isTaper || week.isRecovery || week.phase === 'taper' || week.phase === 'race'
+  const fewest = light ? 1 : P.fplace.minRunsPerWeek.value
 
-  // The long day (or the pair of days) comes first.
+  // The long day (or the pair of days) comes first. The long run is never shorter than the
+  // session minimum, and a week of several runs keeps the others at the minimum too.
   const target = week.targetRunMin
-  const longMin = Math.max(0, Math.min(week.longRunMin, target))
-  const fixed: RunPlan[] = []
+  const longMin = Math.max(
+    0,
+    Math.min(Math.max(week.longRunMin, week.longRunMin > 0 ? minRun : 0), target),
+  )
+  let fixed: RunPlan[] = []
   const pair = !novice && runDays >= 2 && wantsPair ? choosePair() : null
+  const longPlan = (day: number): RunPlan => ({
+    day,
+    kind: fastFinishAllowed() ? 'long-fast-finish' : 'long',
+    minutes: Math.min(longMin, slots[day]!.capMin),
+    flags: [],
+  })
   if (pair !== null) {
     fixed.push(...pair)
   } else if (longMin > 0) {
     const day = chooseLongDay(longMin)
-    if (day !== null) {
-      const minutes = Math.min(longMin, slots[day]!.capMin)
-      const kind = fastFinishAllowed() ? 'long-fast-finish' : 'long'
-      fixed.push({ day, kind, minutes, flags: [] })
-    }
+    if (day !== null) fixed.push(longPlan(day))
   }
-  const longDays = fixed.map((r) => r.day)
-  if (fixed.length > 0) {
-    const first = fixed[0]!
-    if (fuel) first.flags.push('fuel-practice')
-    if (night) first.flags.push('night')
-  }
+  let longDays = fixed.map((r) => r.day)
 
   // Run days, in the order they are chosen; a prefix of the list is the plan for fewer days.
   const order = [...longDays]
@@ -212,17 +221,58 @@ function planRuns(
     if (next === null || order.length >= runDays) break
     order.push(next)
   }
+  if (spaced && pair === null && order.length < runDays) {
+    // A greedy pick can leave no room for the last run (a long day in the middle of a short
+    // week): look for the largest set of non-consecutive days instead.
+    const days = spacedDays(runDays)
+    if (days.length > order.length) {
+      const longDay = nearestTo(days, preferred)
+      order.length = 0
+      order.push(longDay, ...days.filter((d) => d !== longDay))
+      fixed = longMin > 0 ? [longPlan(longDay)] : []
+      longDays = fixed.map((r) => r.day)
+    }
+  }
+  if (fixed.length > 0) {
+    const first = fixed[0]!
+    if (fuel) first.flags.push('fuel-practice')
+    if (night) first.flags.push('night')
+  }
 
-  const cap0 = fixed[0]?.minutes ?? Infinity
-  const fixedMin = fixed.reduce((sum, r) => sum + r.minutes, 0)
-  let count = Math.min(runDays, order.length)
+  // Fewer runs rather than runs under the minimum [F5].
+  const fit = Math.max(fewest, Math.floor(target / minRun))
+  let count = Math.max(
+    Math.min(runDays, order.length, fit),
+    Math.min(longDays.length, order.length),
+  )
   let others = order.slice(longDays.length, count)
-  while (others.length > 0 && (target - fixedMin) / others.length < minRun) {
+  let fixedMin = fixed.reduce((sum, r) => sum + r.minutes, 0)
+  if (fixed.length === 1 && others.length > 0) {
+    // the long run gives up minutes before a run drops below the minimum
+    const room = target - others.length * minRun
+    if (room >= minRun && room < fixedMin) {
+      fixed[0]!.minutes = room
+      fixedMin = room
+    }
+  }
+  // A week outside taper, race and recovery keeps two runs even when its minutes do not fit them
+  // at the minimum; the guards cut such a week back if its limit is lower.
+  const forced = Math.min(Math.max(fewest, longDays.length), order.length)
+  while (others.length > 0 && count > forced && (target - fixedMin) / others.length < minRun) {
     count -= 1
     others = order.slice(longDays.length, count)
   }
+  if (fixed.length === 1 && others.length > 0 && count < runDays) {
+    // fewer runs than planned: the long run takes its share of the runs left out, so it stays the
+    // longest of the week
+    const share = Math.ceil(target / (others.length + 1))
+    const raised = Math.min(Math.max(fixed[0]!.minutes, share), slots[fixed[0]!.day]!.capMin)
+    fixed[0]!.minutes = raised
+    fixedMin = raised
+  }
+  const cap0 = fixed[0]?.minutes ?? Infinity
   const minutes = distribute(
-    Math.max(0, target - fixedMin),
+    Math.max(0, target - fixedMin, others.length * minRun),
     others.map((d) => Math.min(slots[d]!.capMin, cap0)),
   )
 
@@ -268,6 +318,51 @@ function planRuns(
     return [...days].sort((a, b) => Math.abs(a - to) - Math.abs(b - to) || b - a)[0]!
   }
 
+  /** Largest total of two consecutive days of running in the 30 days before `date` [H3]. */
+  function twoDayReference(date: string): number {
+    const window = P.g1.windowDays.value
+    const perDay = new Map<string, number>()
+    for (const s of before) {
+      if (s.kind === 'hike' || !RUN_KINDS.has(s.kind) || s.kind === 'race') continue
+      const ago = daysBetween(s.date, date)
+      if (ago >= 1 && ago <= window) perDay.set(s.date, (perDay.get(s.date) ?? 0) + s.durationMin)
+    }
+    let best = 0
+    for (let ago = window; ago >= 2; ago -= 1) {
+      const first = addDays(date, -ago)
+      best = Math.max(best, (perDay.get(first) ?? 0) + (perDay.get(addDays(first, 1)) ?? 0))
+    }
+    // completed running, as the state holds it, while it is still inside the window
+    const sinceToday = daysBetween(state.asOf, date)
+    if (sinceToday >= 1 && sinceToday <= window) {
+      best = Math.max(best, state.longest30d.twoDaySec / 60)
+    }
+    return best
+  }
+
+  /** The day of `days` nearest to `to`; on a tie the later day wins. */
+  function nearestTo(days: number[], to: number): number {
+    return nearest(days, to)
+  }
+
+  /** The largest set (up to `want`) of usable, non-consecutive days; the best spread that holds the long day. */
+  function spacedDays(want: number): number[] {
+    const days = slots.map((s) => s.day).filter((d) => usable(d) && !(d === 0 && prevRunYesterday))
+    for (let k = Math.min(want, days.length); k > 0; k -= 1) {
+      let best: { key: number[]; combo: number[] } | null = null
+      for (const combo of combinations(days, k)) {
+        if (combo.some((d, i) => i > 0 && d - combo[i - 1]! < 2)) continue
+        let minGap = 7
+        for (let i = 1; i < combo.length; i += 1)
+          minGap = Math.min(minGap, combo[i]! - combo[i - 1]!)
+        const key = [Math.min(...combo.map((d) => Math.abs(d - preferred))), -minGap, ...combo]
+        if (best === null || compareKeys(key, best.key) < 0) best = { key, combo }
+      }
+      if (best !== null) return best.combo
+    }
+    return []
+  }
+
   /** A back-to-back pair when the phase, the spacing and the days allow it; otherwise null. */
   function choosePair(): RunPlan[] | null {
     if (week.phase !== 'build' && week.phase !== 'specific') return null
@@ -282,11 +377,16 @@ function planRuns(
       .sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred) || a - b)
     for (const day1 of starts) {
       const first = Math.min(longMin, slots[day1]!.capMin)
+      // The pair stays within H3 of the largest 2-day total the guards will see; day 2 takes the rest.
+      const reference = twoDayReference(slots[day1]!.date)
+      const room =
+        reference > 0 ? Math.floor(reference * P.h3.b2bTwoDayRatio.value + 1e-9) - first : Infinity
       const second = Math.min(
         Math.round(first * P.fplace.b2bDay2Fraction.value),
         Math.floor(first * P.h3.b2bDay2MaxRatioOfDay1.value),
         slots[day1 + 1]!.capMin,
         target - first,
+        room,
       )
       if (first < minRun || second < minRun) continue
       return [
@@ -316,7 +416,7 @@ function planRuns(
     for (const slot of slots) {
       const d = slot.day
       if (!usable(d) || chosenDays.includes(d)) continue
-      if (novice) {
+      if (spaced) {
         if (chosenDays.some((c) => Math.abs(c - d) < 2)) continue
         if (d === 0 && prevRunYesterday) continue
       }

@@ -286,6 +286,78 @@ describe('replan', () => {
   })
 })
 
+describe('a sparse history and the restart floor', () => {
+  const sparse = athlete('sparse-100-mile')
+  const plan = buildPlan(sparse.input)
+  const monday = mondayOf(TODAY)
+  const runsIn = (list: SessionSpec[], weekStart: string) =>
+    list.filter((s) => mondayOf(s.date) === weekStart && s.kind !== 'strength' && s.kind !== 'race')
+
+  it('opens with the floor week: three runs of at least 20 min, an info warning, a clean checklist', () => {
+    const first = runsIn(plan.sessions, monday)
+    expect(first).toHaveLength(3)
+    expect(Math.min(...first.map((s) => s.durationMin))).toBeGreaterThanOrEqual(20)
+    expect(plan.weeks[0]!.flags).toContain('restart-floor')
+    expect(plan.warnings.find((w) => w.code === 'restart-floor')?.severity).toBe('info')
+    expect(failed(plan.checklist)).toEqual([])
+  })
+
+  it('exempts only the flagged week: the checklist still fails a week above the ramp after it', () => {
+    const copy = structuredClone(plan)
+    const second = addDays(monday, 14)
+    for (const s of copy.sessions) if (mondayOf(s.date) === second) s.durationMin *= 3
+    expect(failed(runChecklist(copy, sparse.input))).toContain('progression')
+
+    const unflagged = structuredClone(plan)
+    unflagged.weeks[0]!.flags = unflagged.weeks[0]!.flags.filter((f) => f !== 'restart-floor')
+    const ids = failed(runChecklist(unflagged, sparse.input))
+    expect(ids).toEqual(expect.arrayContaining(['progression', 'break-restart']))
+  })
+
+  it('keeps every week of a re-plan a week later at three or more runs, without collapsing', () => {
+    const later = addDays(TODAY, 7)
+    const done = plan.sessions
+      .filter((s) => s.date < later && s.kind !== 'strength')
+      .map((s) =>
+        activity(s.date, {
+          id: `done-${s.date}`,
+          durationSec: s.durationMin * 60,
+          distanceM: s.distanceM ?? s.durationMin * 170,
+        }),
+      )
+    const out = replan({
+      ...sparse.input,
+      today: later,
+      activities: [...sparse.input.activities, ...done],
+      existing: {
+        weeks: plan.weeks,
+        sessions: asExisting(plan).sessions.map((s) =>
+          s.date < later ? { ...s, status: 'completed' } : s,
+        ),
+      },
+    })
+    expect(failed(out.draft.checklist)).toEqual([])
+    const weeks = out.draft.weeks.filter(
+      (w) => w.weekStart > mondayOf(later) && w.targetRunMin > 0 && !w.flags.includes('race-week'),
+    )
+    for (const w of weeks.filter((x) => !x.isTaper && !x.flags.includes('post-race'))) {
+      expect(runsIn(out.draft.sessions, w.weekStart).length, w.weekStart).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('says so once when fewer run days are open than planned', () => {
+    const closed = structuredClone(sparse.input)
+    for (const day of ['mon', 'tue', 'thu', 'fri'] as const) {
+      closed.profile.availability[day] = { available: false, maxMin: null }
+    }
+    const out = buildPlan(closed)
+    const notes = out.warnings.filter((w) => w.code === 'availability-limits-runs')
+    expect(notes).toHaveLength(1)
+    expect(notes[0]!.rules).toContain('F5')
+    expect(failed(out.checklist)).toEqual([])
+  })
+})
+
 describe('the checklist fails on a plan that breaks its rule', () => {
   const clone = (plan: PlanDraft): PlanDraft => structuredClone(plan)
   const failedIds = (plan: PlanDraft, input: EngineInput) => failed(runChecklist(plan, input))
