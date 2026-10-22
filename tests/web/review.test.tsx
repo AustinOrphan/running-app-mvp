@@ -266,6 +266,30 @@ describe('ReviewPage', () => {
     expect(screen.queryByText('Week of 12 Oct saved')).not.toBeInTheDocument()
   })
 
+  test('a validation issue without an inline field is stated in the alert', async () => {
+    const user = userEvent.setup()
+    renderReview(
+      { weeks: { [W]: fullWeek } },
+      {
+        [`PUT /api/reviews/${W}`]: () => ({
+          status: 400,
+          body: {
+            error: {
+              code: 'validation',
+              message: 'A decision can be recorded once the week has finished.',
+              details: { issues: [{ path: 'finalDecision', message: 'Week not finished.' }] },
+            },
+          },
+        }),
+      },
+    )
+    await ready()
+    await user.click(screen.getByRole('button', { name: 'Save review' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Review not saved. Week not finished.',
+    )
+  })
+
   test('a current or upcoming week shows its reason, disables Final decision and says it becomes available once the week is finished', async () => {
     const user = userEvent.setup()
     renderReview({ weeks: { [CURRENT]: { runMin: 120, runDays: 2 } } })

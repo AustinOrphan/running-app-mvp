@@ -69,6 +69,9 @@ const ACTION_NAMES: Record<SuggestedAction, string> = {
   progress: 'Progress',
 }
 
+/** Fields that show their own inline error message. */
+const MARKED_FIELDS = new Set(['finalNextMin', 'notes'])
+
 function isDecision(value: string | null | undefined): value is Decision {
   return DECISION_OPTIONS.some((option) => option.value === value)
 }
@@ -383,12 +386,18 @@ function WeekReview({
     } catch (err) {
       const issues = fieldErrors(err)
       setErrors(issues)
+      // Only these fields show an inline error; any other issue is stated in the alert.
+      const unmarked = Object.entries(issues)
+        .filter(([path]) => !MARKED_FIELDS.has(path))
+        .map(([, message]) => message)
       setFailure(
-        Object.keys(issues).length > 0
-          ? 'Review not saved. Fix the marked fields and try again.'
-          : `Review not saved. ${
-              err instanceof ApiError ? err.message : 'The server did not respond.'
-            } Your entries are still in the form; try again.`,
+        unmarked.length > 0
+          ? `Review not saved. ${unmarked.join(' ')}`
+          : Object.keys(issues).length > 0
+            ? 'Review not saved. Fix the marked fields and try again.'
+            : `Review not saved. ${
+                err instanceof ApiError ? err.message : 'The server did not respond.'
+              } Your entries are still in the form; try again.`,
       )
     }
   }
@@ -465,7 +474,11 @@ function WeekReview({
       </section>
 
       <section className={styles.section}>
-        <fieldset className={styles.decision} disabled={!finished}>
+        <fieldset
+          className={styles.decision}
+          disabled={!finished}
+          aria-describedby={finished ? undefined : noteId}
+        >
           <Group label="Final decision">
             <Segmented<Decision | ''>
               label="Final decision"
