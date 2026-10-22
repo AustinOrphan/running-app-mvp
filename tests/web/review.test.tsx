@@ -218,17 +218,32 @@ async function ready(label = 'Week of 12 Oct') {
 }
 
 describe('ReviewPage', () => {
-  test('default week is the latest finished week without reviewedAt, else the latest finished week', async () => {
+  test('opens on the last finished week even when it was reviewed already', async () => {
     renderReview({
       reviews: { [W]: { reviewedAt: '2026-10-20T00:00:00.000Z', finalDecision: 'hold' } },
     })
     expect(await screen.findByRole('heading', { name: 'Review' })).toBeInTheDocument()
-    expect(await screen.findByText('Week of 5 Oct')).toBeInTheDocument()
+    expect(await screen.findByText('Week of 12 Oct')).toBeInTheDocument()
   })
 
-  test('falls back to the latest finished week when every week is reviewed', async () => {
+  test('opens on the last finished week when every week is reviewed', async () => {
     renderReview({ allReviewed: true })
     expect(await screen.findByText('Week of 12 Oct')).toBeInTheDocument()
+  })
+
+  test.each([
+    ['Monday', '2026-10-19T08:00:00', 'Week of 12 Oct'],
+    ['Tuesday', '2026-10-20T08:00:00', 'Week of 12 Oct'],
+    ['Wednesday', '2026-10-21T08:00:00', 'Week of 12 Oct'],
+    ['Thursday', '2026-10-22T08:00:00', 'Week of 12 Oct'],
+    ['Friday', '2026-10-23T08:00:00', 'Week of 12 Oct'],
+    ['Saturday', '2026-10-24T23:30:00', 'Week of 12 Oct'],
+    ['Sunday', '2026-10-25T23:30:00', 'Week of 12 Oct'],
+    ['the next Monday', '2026-10-26T00:30:00', 'Week of 19 Oct'],
+  ])('on %s the last finished week is the Monday before this week', async (_day, now, label) => {
+    vi.setSystemTime(new Date(now))
+    renderReview()
+    expect(await screen.findByText(label)).toBeInTheDocument()
   })
 
   test('shows the week summary: run time against target with Meter, run days against target, longest run share, strength sessions', async () => {

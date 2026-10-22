@@ -156,18 +156,12 @@ function emptyWeek(weekStart: string): WeekRow {
   }
 }
 
-/** The latest finished week without a completed review, else the latest finished week. */
-function defaultWeek(
-  pickerWeeks: string[],
-  reviews: Map<string, WeeklyReview>,
-  today: string,
-): string {
-  const finished = pickerWeeks.filter((week) => isFinished(week, today))
-  for (let i = finished.length - 1; i >= 0; i -= 1) {
-    const week = finished[i]
-    if (week !== undefined && !reviews.get(week)?.reviewedAt) return week
-  }
-  return finished[finished.length - 1] ?? pickerWeeks[pickerWeeks.length - 1] ?? mondayOf(today)
+/**
+ * The review opens on the last finished week: the Monday before this week's Monday, whatever the
+ * weekday and whether or not it was reviewed already. Earlier weeks are one tap away in the picker.
+ */
+function defaultWeek(today: string): string {
+  return addDays(mondayOf(today), -7)
 }
 
 /** The subtitle for a week that has no plan week: why there are no suggestions. */
@@ -236,7 +230,7 @@ function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }:
   const pickerWeeks = weekStartsBetween(from, thisWeek)
   const reviewByWeek = new Map(reviews.map((review) => [review.weekStart, review]))
   // Chosen once: saving a review must not move the page to another week.
-  const [selected, setSelected] = useState(() => defaultWeek(pickerWeeks, reviewByWeek, today))
+  const [selected, setSelected] = useState(() => defaultWeek(today))
 
   const reviewed = reviews
     .filter((review) => review.reviewedAt !== null)
