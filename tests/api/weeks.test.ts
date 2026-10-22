@@ -110,6 +110,7 @@ describe('GET /api/weeks', () => {
 
   test('range: from after to -> 400; more than 260 weeks -> 400; malformed date -> 400', async () => {
     expect((await get('?from=2026-03-09&to=2026-03-02')).status).toBe(400)
+    expect((await get('?from=2026-03-08&to=2026-03-02')).status).toBe(400)
     const same = await get('?from=2026-03-02&to=2026-03-08')
     expect(same.status).toBe(200)
     expect(same.body).toHaveLength(1)

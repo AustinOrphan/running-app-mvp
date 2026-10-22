@@ -18,6 +18,9 @@ const rangeQuery = z.object({ from: isoDate.optional(), to: isoDate.optional() }
  */
 export function parseWeekRange(query: unknown): string[] {
   const { from, to } = parse(rangeQuery, query)
+  if (from !== undefined && to !== undefined && from > to) {
+    throw validationError('`from` must not be after `to`.')
+  }
   const last = mondayOf(to ?? todayIso())
   const first = mondayOf(from ?? addDays(last, -7 * (DEFAULT_WEEKS - 1)))
   if (first > last) throw validationError('`from` must not be after `to`.')

@@ -329,6 +329,8 @@ describe('PUT /api/reviews/:weekStart', () => {
     expect((await put(W, { dataStatus: 'done' })).status).toBe(400)
     expect((await put(W, { finalNextMin: -1 })).status).toBe(400)
     expect((await put(W, { finalDecision: 'x'.repeat(41) })).status).toBe(400)
+    expect((await put(W, { dataStatus: 'complete', finalDecision: '' })).status).toBe(400)
+    expect((await put(W, { dataStatus: 'complete', finalDecision: '  ' })).status).toBe(400)
     expect((await put(W, { recoveryConstrained: null })).status).toBe(400)
     const unknown = await put(W, { fatigue: 3, suggestedAction: 'progress' })
     expect(unknown.status).toBe(400)

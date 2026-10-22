@@ -17,7 +17,7 @@ const reviewBody = z.strictObject({
   fatigue: z.number().int().min(1).max(10).nullable().optional(),
   symptoms: z.enum(['none', 'mild', 'persistent']).nullable().optional(),
   recoveryConstrained: z.boolean().optional(),
-  finalDecision: z.string().max(40).nullable().optional(),
+  finalDecision: z.string().trim().min(1).max(40).nullable().optional(),
   finalNextMin: z.number().int().min(0).max(100_000).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
 })
