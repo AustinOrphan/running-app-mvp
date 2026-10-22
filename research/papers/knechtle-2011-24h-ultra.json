@@ -1,0 +1,33 @@
+{
+  "id": "knechtle-2011-24h-ultra",
+  "title": "Personal best marathon time and longest training run, not anthropometry, predict performance in recreational 24-hour ultrarunners",
+  "authors": "Knechtle B, Knechtle P, Rosemann T",
+  "year": 2011,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0b013e3181f6b0c7",
+  "pmid": "21642857",
+  "url": "https://doi.org/10.1519/jsc.0b013e3181f6b0c7",
+  "design": "cross-sectional",
+  "population": "63 male recreational ultrarunners in a 24-hour run (mean 146.1 km)",
+  "sampleSize": 63,
+  "evidenceLevel": "C",
+  "topics": ["performance-prediction"],
+  "findings": [
+    "Bivariate: longest training session r = 0.56, personal best marathon time r = -0.58, weekly km r = 0.31 with 24-h distance; anthropometric correlations weaker (r about -0.25 to -0.34).",
+    "Stepwise regression retained the longest training session and the marathon personal best.",
+    "Reported equation: distance (km) = 234.7 + 0.481 x longest training session (km) - 0.594 x marathon PB (min), r2 = 0.46."
+  ],
+  "limitations": "Small, male-only, 24-hour format (not point-to-point); in-sample equation with no validation; r2 = 0.46 leaves most variance unexplained.",
+  "implications": [
+    "Marathon PB and the longest training run are the best simple covariates for fixed-time ultra distance; use them as sanity-check inputs, not a production formula.",
+    "Do not code the published equation for anything beyond a plausibility check."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref (J Strength Cond Res, 2011-08, Knechtle/Knechtle/Rosemann) and Europe PMC abstract re-fetched; numbers match.",
+    "checkedAt": "2026-10-22"
+  }
+}

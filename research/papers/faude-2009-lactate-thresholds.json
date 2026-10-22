@@ -1,0 +1,34 @@
+{
+  "id": "faude-2009-lactate-thresholds",
+  "title": "Lactate threshold concepts: how valid are they?",
+  "authors": "Faude O, Kindermann W, Meyer T",
+  "year": 2009,
+  "journal": "Sports Medicine",
+  "doi": "10.2165/00007256-200939060-00003",
+  "pmid": "19453206",
+  "url": "https://doi.org/10.2165/00007256-200939060-00003",
+  "design": "narrative-review",
+  "population": "Review of 25 lactate-threshold concepts and 32 studies relating thresholds to endurance performance",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "25 different lactate-threshold concepts were located and divided into three categories: fixed blood-lactate values, first rise above baseline, and breakpoint or MLSS-seeking methods.",
+    "32 studies related lactate thresholds to performance in (partly simulated) endurance events; the overwhelming majority reported strong linear correlations, particularly for running events.",
+    "There is evidence that some thresholds can estimate the maximal lactate steady state (MLSS), but the variability of individual differences between a threshold and MLSS is rarely reported.",
+    "The aerobic-anaerobic transition framework consists of two typical breakpoints: where blood lactate begins to rise above baseline, and the MLSS."
+  ],
+  "limitations": "Published 2009; narrative synthesis; validity judged by correlation with performance and MLSS, with individual-level error rarely available; MLSS has since been questioned as the upper boundary (see Nixon 2021).",
+  "implications": [
+    "Use a two-breakpoint model (LT1: first sustained lactate rise; upper breakpoint) for zone structure rather than a single universal fixed-lactate value.",
+    "Because individual threshold-to-MLSS error is unreported, carry an uncertainty band on each threshold and avoid false precision in zone boundaries."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title 'Lactate Threshold Concepts', vol 39 pp 469-490, matches. Abstract confirms all numbers.",
+    "checkedAt": "2026-10-22"
+  }
+}

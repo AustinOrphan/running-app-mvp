@@ -1,0 +1,33 @@
+{
+  "id": "busso-2023-impulse-response-validity",
+  "title": "Validity and accuracy of impulse-response models for modeling and predicting training effects on performance of swimmers",
+  "authors": "Busso T, Chalencon S",
+  "year": 2023,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000003139",
+  "pmid": "36791017",
+  "url": "https://doi.org/10.1249/mss.0000000000003139",
+  "design": "prospective-cohort",
+  "population": "11 swimmers followed for 61 weeks across two competitive seasons; daily load from pool kilometres and dry-land equivalents weighted by intensity; performance from 50-m trials twice weekly",
+  "sampleSize": 11,
+  "evidenceLevel": "C",
+  "topics": ["load-response-models"],
+  "findings": [
+    "Six impulse-response models, including Banister (Ba), variable dose-response (Bu) and indirect-response models, were ranked by Akaike information criterion; Ba and Bu had the greatest Akaike weights (0.339 +/- 0.254 and 0.360 +/- 0.296).",
+    "Trained on the first 20 weeks, mean absolute percentage error was 2.02 +/- 0.65% (Ba) and 2.17 +/- 0.65% (Bu) on the next 8 weeks, and 2.69 +/- 1.23% (Ba) and 2.56 +/- 0.79% (Bu) on the following season.",
+    "The authors concluded that, although the top two models approximated the training-performance relationship, their ability to predict future performance from past data was not satisfactory for individual training planning."
+  ],
+  "limitations": "Swimming, 11 athletes, short sprint performance. The comparison of the 2-3% error with the size of meaningful performance changes is the verifier's interpretation, not stated in the abstract.",
+  "implications": [
+    "Treat model forecasts as uncertain: expose prediction error bands (order of 2-3% MAPE in this dataset) and never present a point forecast of race time as reliable from this model alone.",
+    "Select among Banister variants by information criterion plus a held-out forward test; do not rely on in-sample R2. Banister and variable dose-response performed about equally."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, MSSE, 2023-02-07. All numbers match Europe PMC abstract. Removed an unsupported claim from limitations (relation of 2-3% to meaningful performance change) and flagged it as interpretation.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "schutz-2019-tefr-prerace",
+  "title": "Pre-race determinants influencing performance and finishing of a transcontinental 4486-km ultramarathon",
+  "authors": "Schutz UH, Ehrhardt M, Beer M, Schmidt-Trucksass A, Billich C",
+  "year": 2019,
+  "journal": "The Journal of Sports Medicine and Physical Fitness",
+  "doi": "10.23736/s0022-4707.19.09840-2",
+  "pmid": "31311242",
+  "url": "https://doi.org/10.23736/s0022-4707.19.09840-2",
+  "design": "prospective-cohort",
+  "population": "Participants of the TransEurope FootRace 2009 (4,486 km in 64 stages, average 70.1 km/day)",
+  "sampleSize": 44,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "71% of the 44 analysed participants finished; mean running speed was 8.25 km/h; mean pre-race training volume exceeded 5,500 km (the abstract says the mean volume 'extends 5500 km', stated for the last year).",
+    "Finishers and non-finishers did not differ significantly in any tested pre-race determinant.",
+    "There was no association between years of regular running, number of finished marathons, ultramarathons or multistage ultramarathons and race performance.",
+    "Pre-race training intensity (km/h) correlated very strongly and positively with race performance; training volume correlated with a medium effect size.",
+    "Pre-race records in 6-hour, 50-km and 100-km races correlated highly with race performance; ultra performance correlated inversely with age."
+  ],
+  "limitations": "Only 44 runners in one extreme multi-stage event; low power to detect finisher vs non-finisher differences; self-reported training; not generalisable to 200-mile single-stage races.",
+  "implications": [
+    "For multi-day and stage events, estimate goal pace from recent 50 to 100 km race performance and last-year training speed, not volume alone.",
+    "Do not promise that high pre-race volume prevents dropout in multi-stage events: no pre-race variable separated finishers from non-finishers, so in-event management should carry risk guidance.",
+    "No numeric volume target for multi-stage events is justified; show 5,500 km/year only as a descriptive reference for an experienced field."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2019-11, first author Schutz with umlaut) and Europe PMC abstract re-fetched. Added the stated null associations for running history that the researcher omitted.",
+    "checkedAt": "2026-10-22"
+  }
+}

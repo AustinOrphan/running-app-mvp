@@ -1,0 +1,34 @@
+{
+  "id": "gordon-2017-recreational-marathon-characteristics",
+  "title": "Physiological and training characteristics of recreational marathon runners",
+  "authors": "Gordon D, Wightman S, Basevitch I, Johnstone J, Espejo-Sanchez C, Beckford C, et al.",
+  "year": 2017,
+  "journal": "Open Access Journal of Sports Medicine",
+  "doi": "10.2147/oajsm.s141657",
+  "pmid": "29200895",
+  "url": "https://doi.org/10.2147/oajsm.s141657",
+  "design": "cross-sectional",
+  "population": "97 recreational marathon runners (63 male, 34 female; age 42.4 +/- 9.9 y; marathon time 229.1 +/- 48.7 min)",
+  "sampleSize": 97,
+  "evidenceLevel": "C",
+  "topics": ["volume-performance"],
+  "findings": [
+    "Runners were grouped by finish time (2.5-3, 3-3.5, 3.5-4, 4-4.5 and >4.5 h) and completed treadmill tests (LT1, LT2, economy, VO2max) plus a training questionnaire.",
+    "Training frequency was greater in the 2.5-3 h group than the 3.5-4 h (P<0.001) and >4.5 h groups (P=0.004).",
+    "Distance per session was 16.1 +/- 4.2 km (2.5-3 h) vs 15.5 +/- 5.2 km (3.5-4 h; P=0.01) and 10.3 +/- 2.6 km (>4.5 h; P=0.001).",
+    "Race speed correlated with LT1 (r=0.791), LT2 (r=0.721) and distance per session (r=0.563); discriminating training variables were frequency and absolute training speed."
+  ],
+  "limitations": "Small convenience sample, self-reported training, unadjusted for age and sex, no weekly volume per band in the abstract. The reported P values for 2.5-3 h vs 3.5-4 h distance (16.1 vs 15.5 km, P=0.01) look odd and should be checked in the full text.",
+  "implications": [
+    "Use session length and frequency as bands that rise with goal time: about 16 km per session near 3 h, about 15 km sub-4 h, about 10 km for finishers over 4.5 h.",
+    "Link training speed to lactate-threshold zones; estimate thresholds from heart-rate and pace data when no lab test exists."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title, journal, first author, 2017-11 match; abstract re-fetched, numbers match. Full text not read.",
+    "checkedAt": "2026-10-22"
+  }
+}

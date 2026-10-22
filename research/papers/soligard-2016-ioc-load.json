@@ -1,0 +1,42 @@
+{
+  "id": "soligard-2016-ioc-load",
+  "title": "How much is too much? (Part 1) International Olympic Committee consensus statement on load in sport and risk of injury",
+  "authors": "Soligard T, Schwellnus M, Alonso JM, Bahr R, Clarsen B, Dijkstra HP, et al.",
+  "year": 2016,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2016-096581",
+  "pmid": "27535989",
+  "url": "https://doi.org/10.1136/bjsports-2016-096581",
+  "design": "consensus-statement",
+  "population": "Elite and competitive athletes across sports (expert group, 18 authors)",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["injury-load", "periodization-recovery", "volume-performance"],
+  "findings": [
+    "Emerging evidence indicates poor load management is a major risk factor for injury.",
+    "Load is defined broadly: rapid changes in training and competition load, competition calendar congestion, psychological load and travel.",
+    "The statement gives guidelines for prescription of training and competition load and for monitoring of training, competition and psychological load, athlete well-being and injury.",
+    "Research priorities were identified.",
+    "Load is defined broadly (rapid changes in training and competition load, calendar congestion, psychological load, travel).",
+    "The statement gives guidelines for prescription of training and competition load and for monitoring of training, competition and psychological load, athlete well-being and injury, and identifies research priorities.",
+    "Load is defined broadly to include rapid changes in training and competition load, calendar congestion, psychological load and travel.",
+    "The statement gives guidelines for prescribing and for monitoring training load, athlete well-being and injury."
+  ],
+  "limitations": "Abstract is qualitative and provides no numeric thresholds. Multi-sport elite focus; its ACWR guidance is the target of later critiques (Impellizzeri 2020, Wang 2020).",
+  "implications": [
+    "Supports monitoring load changes alongside well-being and non-training stress (sleep, illness, travel) as modifiers of risk; a well-being input to adaptive rules is reasonable but unquantified.",
+    "No numeric parameter can be taken from this paper.",
+    "Supports pairing a monitored, gradual load ramp with well-being monitoring rather than relying on a single threshold.",
+    "Provides authority for including psychological and life-load inputs (for example, travel or illness) as reasons to reduce load; no numeric parameters follow from it.",
+    "Support a gradual-progression rule and monitoring of rapid load changes, without a specific number.",
+    "Pair any ratio guard (see Toresdahl 2023) with athlete-reported well-being and let the athlete adjust the plan."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: BJSM 50:1030-1041 (Aug 2016). Abstract matched. Grade set to B (not A) because content is qualitative and the ACWR parts were later criticised.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "casado-2022-elite-runners-review",
+  "title": "Training Periodization, Methods, Intensity Distribution, and Volume in Highly Trained and Elite Distance Runners: A Systematic Review",
+  "authors": "Casado A, Gonzalez-Mohino F, Gonzalez-Rave JM, Foster C",
+  "year": 2022,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2021-0435",
+  "pmid": "35418513",
+  "url": "https://doi.org/10.1123/ijspp.2021-0435",
+  "design": "systematic-review",
+  "population": "Highly trained and elite middle- and long-distance runners; 10 articles",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["intensity-distribution", "periodization-recovery"],
+  "findings": [
+    "Highly trained/elite distance runners typically follow a pyramidal TID, with volume decreasing from zone 1 (at or below vLT1) to zone 2 (between vLT1 and vLT2) to zone 3 (above vLT2).",
+    "Continuous tempo or interval work at vLT2 (zone 2) and zone 3 sessions were each used at least once a week by elite runners, and the number of vLT2 or zone 3 sessions was increased to tilt toward a pyramidal or a polarized approach respectively.",
+    "Marathoners used more pyramidal and 1500 m runners more polarized approaches.",
+    "Authors encourage a hard-day/easy-day pattern and a shift from pyramidal in preparatory and pre-competitive periods to polarized in the competitive period.",
+    "Ten articles met inclusion criteria.",
+    "Highly trained and elite distance runners typically follow a pyramidal intensity distribution: decreasing volume from zone 1 (at or below first ventilatory/lactate threshold) to zone 2 to zone 3.",
+    "Continuous-tempo or interval sessions at vLT2 (zone 2) and zone 3 sessions were each used at least once per week in elite runners, to adopt a more pyramidal or polarized approach respectively; marathoners used more pyramidal and 1500 m runners more polarized approaches.",
+    "Conclusion: runners are encouraged to adopt a traditional periodization pattern on a hard day-easy day basis, shifting from pyramidal TID in the preparatory and pre-competitive periods toward polarized TID in the competitive period."
+  ],
+  "limitations": "Ten articles, mostly observational, heterogeneous zone definitions, elite and male-dominated. The periodization recommendation is the authors' synthesis and has not been tested by RCT. Level lowered from A to B because it synthesises descriptive data.",
+  "implications": [
+    "Default distance-runner template is pyramidal (zone 1 > zone 2 > zone 3) with about one threshold-zone session and one zone 3 session per week in build phases (elite practice; scale down for lower-volume runners).",
+    "Tilt by event: marathon and longer more pyramidal; shorter events may move toward polarized in the competitive phase.",
+    "Hard/easy alternation is an elite-runner recommendation; extending it to recreational runners is a conservative inference.",
+    "Default structure: traditional periodization with hard day-easy day (quality sessions separated by at least one easy or rest day); 1-2 quality sessions per week for recreational runners is an extrapolation (grade D).",
+    "Pyramidal intensity distribution in base/build; allow a polarized shift in the final specific phase for 5-10 km goals; keep marathon and longer pyramidal (extrapolated beyond marathon)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches IJSPP 2022-06-01. Claims confirmed in abstract. Researcher's 'no consecutive hard days for recreational athletes' reworded as inference.",
+    "checkedAt": "2026-10-22"
+  }
+}

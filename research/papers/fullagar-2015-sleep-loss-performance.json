@@ -1,0 +1,36 @@
+{
+  "id": "fullagar-2015-sleep-loss-performance",
+  "title": "Sleep and Athletic Performance: The Effects of Sleep Loss on Exercise Performance, and Physiological and Cognitive Responses to Exercise",
+  "authors": "Fullagar HH, Skorski S, Duffield R, Hammes D, Coutts AJ, Meyer T",
+  "year": 2015,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-014-0260-0",
+  "pmid": "25315456",
+  "url": "https://doi.org/10.1007/s40279-014-0260-0",
+  "design": "narrative-review",
+  "population": "Athletes and exercising adults (review of sleep restriction and deprivation studies)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "Most previous research reports that exercise performance is negatively affected after sleep loss, but conflicting findings leave the extent and mechanisms uncertain; some maximal physical efforts and gross motor performances can be maintained.",
+    "The few studies in athletes report a reduction in sport-specific performance after sleep loss.",
+    "Reduced sleep quality and quantity could produce an autonomic nervous system imbalance simulating symptoms of overtraining syndrome, and increased pro-inflammatory cytokines could promote immune dysfunction.",
+    "Studies of sleep loss and cognitive function report slower and less accurate cognitive performance.",
+    "The authors call the evidence equivocal and say further research is required."
+  ],
+  "limitations": "Narrative review of heterogeneous, mostly laboratory sleep-loss studies; no quantitative thresholds; mixed populations.",
+  "implications": [
+    "Sleep loss can confound HRV/resting HR flags (autonomic imbalance), so interpret a low HRV day together with logged sleep before attributing it to training.",
+    "Evidence for a performance cost of modest sleep loss is equivocal, so sleep should raise a caution, not trigger automatic load cuts.",
+    "Supports warning copy on cognitive/coordination risk after a very short night."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier because Fullagar 2015 is named in the topic scope and was missing. Crossref: title, Sports Medicine, first author Fullagar; online 15 Oct 2014, print 2015 (year recorded as 2015, the volume year). Findings from Europe PMC abstract (PMID 25315456).",
+    "checkedAt": "2026-10-22"
+  }
+}

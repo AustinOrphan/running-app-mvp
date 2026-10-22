@@ -1,0 +1,35 @@
+{
+  "id": "bosquet-2007-taper-meta-analysis",
+  "title": "Effects of tapering on performance: a meta-analysis",
+  "authors": "Bosquet L, Montpetit J, Arvisais D, Mujika I",
+  "year": 2007,
+  "journal": "Medicine and Science in Sports and Exercise",
+  "doi": "10.1249/mss.0b013e31806010e0",
+  "pmid": "17762369",
+  "url": "https://doi.org/10.1249/mss.0b013e31806010e0",
+  "design": "meta-analysis",
+  "population": "Competitive athletes in taper interventions with field or competition performance outcomes (27 studies)",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["taper"],
+  "findings": [
+    "27 of 182 potential studies met inclusion criteria; six databases searched; outcome was pre-post standardized mean difference in performance.",
+    "Optimal taper duration was 2 weeks (overall effect = 0.59 +/- 0.33, P < 0.001).",
+    "Exponentially decreasing training volume by 41-60% gave the largest effect (overall effect = 0.72 +/- 0.36, P < 0.001).",
+    "Training intensity left unmodified (overall effect = 0.33 +/- 0.14, P < 0.001) and training frequency left unmodified (overall effect = 0.35 +/- 0.17, P < 0.001) were associated with performance gains."
+  ],
+  "limitations": "Pooled across sports and competitive levels; the abstract gives no ultra-distance or recreational-runner subgroup and no participant total; pre-post effects weighted by within-group heterogeneity; components of the taper (duration, volume, pattern) were analysed as separate independent variables so their effects may be confounded (inference).",
+  "implications": [
+    "Default taper for 5 km to marathon: 14 days, with average weekly volume reduced 41-60% relative to pre-taper volume.",
+    "Use a progressive/exponential decay rather than a single step; the exact weekly split is an engine design choice not stated in the abstract.",
+    "Keep intensity (pace of quality sessions) and run frequency unchanged during the taper; reduce volume by shortening runs rather than dropping sessions or lowering pace."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: 'Effects of Tapering on Performance', MSSE Aug 2007, Bosquet first author. All numbers re-checked in Europe PMC abstract (PMID 17762369). Researcher's population details (swimming, running, cycling, triathlon) and 'mostly trained to elite' are not in the abstract and were removed.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "hoffman-2009-western-states-trends",
+  "title": "The Western States 100-Mile Endurance Run: participation and performance trends",
+  "authors": "Hoffman MD, Wegelin JA",
+  "year": 2009,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0b013e3181a8d553",
+  "pmid": "19915499",
+  "url": "https://doi.org/10.1249/mss.0b013e3181a8d553",
+  "design": "retrospective-cohort",
+  "population": "Starters and finishers of the Western States 100-Mile Endurance Run, 1974-2007",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["age-masters"],
+  "findings": [
+    "Mean age of participants increased to around 45 years (P < 0.001), men being an average of 3 years older than women; the increase was accounted for by growth in participation among women aged 40+ and men 50+.",
+    "The average age of the top performers increased (P <= 0.002) since 1990 to the upper 30s for both sexes.",
+    "Fastest times among men were comparable across the 30-39 and 40-49 year age groups.",
+    "The authors conclude the fastest WSER runners are older than the ages at which the fastest marathons are run."
+  ],
+  "limitations": "Race-level descriptive trends, finishers/participants only, no training or physiological data, 100-mile event in one mountainous course; no sample size in abstract.",
+  "implications": [
+    "For 100-mile goals, men aged 40-49 ran comparably to those aged 30-39 at the front of this race, so no age-based target penalty before about 50 for ultra goals is a reasonable default (low confidence, cross-sectional).",
+    "Supports a later age-of-best-performance for 100-mile than marathon in this dataset; do not copy marathon age curves to 100-mile goals."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref gives title 'The Western States 100-Mile Endurance Run' with subtitle 'Participation and Performance Trends'; authors, year, journal match. Abstract numbers copied.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "hawkins-2003-vo2max-decline",
+  "title": "Rate and mechanism of maximal oxygen consumption decline with aging: implications for exercise training",
+  "authors": "Hawkins S, Wiswell R",
+  "year": 2003,
+  "journal": "Sports Medicine",
+  "doi": "10.2165/00007256-200333120-00002",
+  "pmid": "12974656",
+  "url": "https://doi.org/10.2165/00007256-200333120-00002",
+  "design": "narrative-review",
+  "population": "Review of cross-sectional and longitudinal studies of VO2max decline in sedentary and athletic men and women",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["age-masters"],
+  "findings": [
+    "Current evidence supports a 10% per decade decline in VO2max in men and women regardless of activity level.",
+    "High-intensity exercise may reduce the loss by up to 50% in young and middle-aged men, but not older men, if maintained long term; middle-aged and older women do not appear able to reduce loss below 10% per decade (possibly related to estrogen status).",
+    "Maintaining high-intensity training seems limited to approximately one decade at best and to a select few; training maintenance becomes more difficult with advancing age.",
+    "VO2max loss is non-linear, associated with declines in physical activity (athletes show a non-linear decline on reducing or ceasing training; also non-linear after 70).",
+    "The decline is due to central and peripheral changes, primarily reductions in HRmax and lean body mass; training does not influence the HRmax decline while lean mass can be partly maintained, so strength training is recommended."
+  ],
+  "limitations": "Narrative review; the 10% per decade figure mixes cross-sectional and limited longitudinal data and is challenged by later longitudinal data (Letnes 2020 reports much lower decline in the 20s-40s and higher after 70).",
+  "implications": [
+    "Use about 10% per decade (about 1% per year) only as an upper-range long-term VO2max/threshold-speed decline assumption for multi-year projection, not a within-block adjustment.",
+    "Strength training for masters to preserve lean mass is recommended by the review; the specific frequency (1-2 sessions per week) is an engine default, not a figure from the paper.",
+    "Do not assume a runner can sustain high-intensity density indefinitely; monitor tolerance over multi-year plans rather than hard-coding a deload schedule."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC abstract match. Added the non-linear-decline and estrogen statements; removed the researcher's invented '1-2 sessions' and 'deload' attributions.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "shookster-2020-hrmax-accuracy",
+  "title": "Accuracy of Commonly Used Age-Predicted Maximal Heart Rate Equations",
+  "authors": "Shookster D, Lindsey B, Cortes N, Martin JR",
+  "year": 2020,
+  "journal": "International Journal of Exercise Science",
+  "doi": "10.70252/xfsj6815",
+  "pmid": "33042384",
+  "url": "https://doi.org/10.70252/xfsj6815",
+  "design": "cross-sectional",
+  "population": "Adults in a general population completing treadmill graded exercise tests to volitional fatigue with RER > 1.10",
+  "sampleSize": 99,
+  "evidenceLevel": "C",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "Age-predicted HRmax equations (Fox, Gellish, Gulati, Tanaka, Arena, Astrand, Nes, Fairbarn; the abstract refers to nine equations in total) were compared with HRmax from 99 treadmill graded exercise tests.",
+    "Significant differences from measured HRmax were found for the Gulati, Astrand, Nes and Fairbarn (male) equations (p < 0.05); Tanaka and Gellish were not among the significantly different equations.",
+    "Bland-Altman plots showed wide limits of agreement for all nine equations, i.e. poor agreement at the individual level.",
+    "Proportional bias: equations under-estimated HRmax in people with low measured HRmax and over-estimated it in people with high measured HRmax, except Fox.",
+    "The authors suggest the Fox (220 - age) equation may be the best option for a general population because it is less likely to under- or over-estimate by individual HRmax, and advise using graded-test data to determine HRmax when available."
+  ],
+  "limitations": "Small convenience sample (n = 99), general population rather than runners; abstract does not give numeric limits of agreement or RMSE; the authors' Fox preference conflicts with the much larger Tanaka and Nes datasets for people older than about 30 and rests on a proportional-bias argument in a small sample.",
+  "implications": [
+    "Do not treat any age-based HRmax as an individual truth: prefer an observed maximum from the athlete's own hard efforts or a field test, and use the equation only as a flagged fallback.",
+    "Because of proportional bias, an equation-based HRmax is least reliable for athletes with unusually high or low true maxima; avoid it for setting high-end zones when observed data exist."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref returns same DOI/journal/year/vol 13 but a different title ('Accuracy of 5 Common Age-Predicted Maximal Heart Rate Equations') and no authors; Europe PMC/PubMed (PMID 33042384) carry the title and authors used here and the abstract. The researcher omitted that the abstract recommends Fox; added. Kept (real paper, DOI resolves, central claim supported).",
+    "checkedAt": "2026-10-22"
+  }
+}

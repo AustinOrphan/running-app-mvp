@@ -1,0 +1,34 @@
+{
+  "id": "feely-2020-cbr-marathon-plans",
+  "title": "Using Case-Based Reasoning to Predict Marathon Performance and Recommend Tailored Training Plans",
+  "authors": "Feely C, Caulfield B, Lawlor A, Smyth B",
+  "year": 2020,
+  "journal": "Case-Based Reasoning Research and Development (ICCBR 2020), Lecture Notes in Computer Science",
+  "doi": "10.1007/978-3-030-58342-2_5",
+  "pmid": null,
+  "url": "https://doi.org/10.1007/978-3-030-58342-2_5",
+  "design": "modelling",
+  "population": "Marathon runners' training/workout and race histories (>21,000 runners, 1.5 million sessions)",
+  "sampleSize": 21000,
+  "evidenceLevel": "C",
+  "topics": ["ai-coaching"],
+  "findings": [
+    "A case-based reasoning system uses a case base of training/workouts and race histories to predict future marathon times for a target runner throughout training, to calibrate progress and plan race-day pacing.",
+    "It recommends tailored training plans adapted to the runner's current goal-time target, based on the plans of similar runners who achieved that time.",
+    "Evaluated on a dataset of more than 21,000 unique runners and 1.5 million training sessions; the abstract states no accuracy numbers."
+  ],
+  "limitations": "Observational app data; no randomized or injury outcomes; imitation of similar runners is not causal proof; no quantitative results in the abstract; conference chapter not in PubMed.",
+  "implications": [
+    "Similar-runner retrieval (recent volume, fitness, goal time) can seed typical weekly volumes and long-run progressions but must sit under explicit safety caps.",
+    "Re-predict goal time as new training data arrive and adjust the plan.",
+    "Use cohort distributions as priors, not targets to exceed."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Crossref: title, LNCS ICCBR 2020, pp 67-81, authors Feely, Caulfield, Lawlor, Smyth match. Abstract read from the Springer chapter page. Not in Europe PMC.",
+    "checkedAt": "2026-10-22"
+  }
+}

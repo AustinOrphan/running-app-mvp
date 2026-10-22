@@ -1,0 +1,34 @@
+{
+  "id": "toyomura-2018-downhill-training",
+  "title": "Efficacy of downhill running training for improving muscular and aerobic performances",
+  "authors": "Toyomura J, Mori H, Tayashiki K, Yamamoto M, Kanehisa H, Maeo S",
+  "year": 2018,
+  "journal": "Applied Physiology, Nutrition, and Metabolism",
+  "doi": "10.1139/apnm-2017-0538",
+  "pmid": "29182895",
+  "url": "https://doi.org/10.1139/apnm-2017-0538",
+  "design": "controlled-trial",
+  "population": "18 healthy young males; -10% downhill (n=10) vs level (n=8) running, 20 min x 3 sessions per week for 5 weeks at the heart rate associated with lactate threshold",
+  "sampleSize": 18,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "At similar heart rate (77.7% vs 76.4% HRmax) the downhill group ran faster (14.5 vs 12.0 km/h).",
+    "Downhill training raised knee extension torque by 9-24% at all angular velocities and improved change-of-direction time by 2-3%, with no change in other parameters.",
+    "Level training raised VO2max by 5%, improved energy cost at lactate threshold by 3% and raised velocity at VO2max by 7%, with no change in other parameters.",
+    "The authors conclude that downhill training has little effect on aerobic capacity compared with heart-rate-matched level training."
+  ],
+  "limitations": "18 young males, 5 weeks, unequal group sizes. The abstract does not say participants were randomised, so the design is treated as a small controlled trial. Aerobic tests were on level ground; no trail-race outcome.",
+  "implications": [
+    "Use downhill running (about -10%) as a strength-specific stimulus for knee extensors, not a substitute for aerobic work; keep level or uphill running for aerobic development.",
+    "The studied dose was 20 min x 3 per week for 5 weeks at lactate-threshold heart rate in young men. Treat it as a research dose, not a prescription for unaccustomed runners; introduce it gradually (see the repeated bout effect papers)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: Appl Physiol Nutr Metab 43(4):403-410, 2018, six authors match. PubMed PMID 29182895 abstract supports all numbers. Downgraded B to C and design to controlled-trial: abstract does not mention randomisation and n=18. Removed unsupported 'rest day' advice.",
+    "checkedAt": "2026-10-22"
+  }
+}

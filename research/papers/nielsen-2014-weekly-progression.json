@@ -1,0 +1,48 @@
+{
+  "id": "nielsen-2014-weekly-progression",
+  "title": "Excessive progression in weekly running distance and risk of running-related injuries: an association which varies according to type of injury",
+  "authors": "Nielsen RO, Parner ET, Nohr EA, Sorensen H, Lind M, Rasmussen S",
+  "year": 2014,
+  "journal": "Journal of Orthopaedic & Sports Physical Therapy",
+  "doi": "10.2519/jospt.2014.5164",
+  "pmid": "25155475",
+  "url": "https://doi.org/10.2519/jospt.2014.5164",
+  "design": "prospective-cohort",
+  "population": "Healthy novice runners starting a self-structured running regimen, GPS watch tracked, 1-year follow-up",
+  "sampleSize": 874,
+  "evidenceLevel": "C",
+  "topics": ["beginners-return", "injury-load", "periodization-recovery"],
+  "findings": [
+    "202 of 874 runners sustained a running-related injury.",
+    "Cox regression found no statistically significant difference in injury rates across weekly-distance progression groups (<10% or regression, 10-30%, >30%).",
+    "For distance-related injuries (patellofemoral pain, ITB syndrome, medial tibial stress syndrome, gluteus medius injury, greater trochanteric bursitis, TFL injury, patellar tendinopathy), progression >30% vs <10% gave HR 1.59 (95% CI 0.96-2.66, P = .07).",
+    "Authors conclude novice runners progressing distance by more than 30% over a 2-week period seem more vulnerable to distance-related injuries, call the study exploratory, and say RCTs are needed; they suggest novices may be well advised to progress weekly distance by less than 30% (per week, over a 2-week period).",
+    "874 novice runners were categorized after each session by weekly distance progression: under 10% or regression, 10-30%, or over 30%; 202 sustained a running-related injury.",
+    "Cox regression found no statistically significant differences in overall injury rates across the 3 exposure groups.",
+    "Distance-related injuries (e.g. patellofemoral pain, iliotibial band syndrome, medial tibial stress syndrome, patellar tendinopathy) were more frequent with progression over 30% than under 10% (HR 1.59, 95% CI 0.96 to 2.66, P=0.07), not statistically significant.",
+    "Authors conclude novices may be well advised to progress weekly distance by less than 30% per week over a 2-week period, and that RCTs are needed.",
+    "202 of 874 novice runners sustained a running-related injury.",
+    "Sessions were categorised by progression of weekly running distance: less than 10% or regression, 10% to 30%, or more than 30%.",
+    "An increased rate of distance-related injuries (patellofemoral pain, ITB syndrome, medial tibial stress syndrome, gluteus medius injury, greater trochanteric bursitis, tensor fasciae latae injury, patellar tendinopathy) existed with progression over 30% vs under 10%: HR 1.59 (95% CI 0.96-2.66; P = .07), not statistically significant.",
+    "Authors called the study explorative, said RCTs are needed, and suggested novices may be well advised to progress weekly distance by less than 30% per week over a 2-week period (the abstract's wording is ambiguous about the exact window)."
+  ],
+  "limitations": "Exploratory design; the key association is not statistically significant (P = .07) and was a subgroup of injury types. Novice runners only; coarse exposure categories; the abstract's wording of the 30% advice is ambiguous about the time base.",
+  "implications": [
+    "Use <=10% weekly as the conservative default and treat about 30% as an outer bound for distance-related-injury risk in novices, not a validated safe limit.",
+    "Do not hard-block a 10-30% weekly increase: overall injury rates did not differ.",
+    "Weekly progression rules should carry a weaker evidence label than the session-spike rule.",
+    "Cap week-to-week distance increases; below 30% is the most the data would tolerate for novices, so a lower default cap of about 10% in non-recovery weeks is a conservative design choice (grade D).",
+    "Do not claim injury prevention from any ramp cap; the evidence is exploratory.",
+    "Use under 30% distance growth over any 2-week window as a soft ceiling for novices; it rests on a non-significant exploratory signal, so label it a conservative default (grade C/D).",
+    "Do not present the '10% rule' as proven; the same cohort showed no overall injury difference between progression groups.",
+    "Flag weeks where GPS distance rose more than 30% above the prior 2-week level; the signal concerns distance-related overuse injuries only."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: JOSPT 44:739-747 (Oct 2014). Abstract matched. Evidence grade lowered from B to C because the headline result is exploratory and non-significant. Fixed the 30% wording to reflect the abstract's ambiguous time base.",
+    "checkedAt": "2026-10-22"
+  }
+}

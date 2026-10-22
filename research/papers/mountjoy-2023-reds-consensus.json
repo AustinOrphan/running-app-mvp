@@ -1,0 +1,35 @@
+{
+  "id": "mountjoy-2023-reds-consensus",
+  "title": "2023 International Olympic Committee's (IOC) consensus statement on Relative Energy Deficiency in Sport (REDs)",
+  "authors": "Mountjoy M, Ackerman KE, Bailey DM, Burke LM, Constantini N, Hackney AC, et al.",
+  "year": 2023,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2023-106994",
+  "pmid": "37752011",
+  "url": "https://doi.org/10.1136/bjsports-2023-106994",
+  "design": "consensus-statement",
+  "population": "Female and male athletes exposed to low energy availability (LEA); IOC expert panel consensus",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "More than 170 original research publications have appeared since the 2018 REDs consensus, including emerging data on the growing role of low carbohydrate availability, the interplay with mental health, and the impact of LEA in males.",
+    "Updated Health and Performance Conceptual Models and a novel Physiological Model are presented, framing problematic or adaptable LEA exposure plus individual moderating factors as leading to health and performance outcomes.",
+    "A new REDs Clinical Assessment Tool-Version 2 (REDs CAT2) is introduced to support detection and clinical diagnosis of REDs based on accumulated severity and risk stratification, with associated training and competition recommendations.",
+    "Guidelines for safe body composition assessment, prevention and treatment principles, and methodological best practices for REDs research are outlined."
+  ],
+  "limitations": "Consensus statement, not a quantitative synthesis; the abstract gives no numeric energy-availability thresholds or screening accuracy. Built for clinicians with access to labs and DXA, not for self-tracking recreational athletes. The colour-coded structure of CAT2 is not described in the abstract and was not verified.",
+  "implications": [
+    "Treat REDs as a risk-flagging domain, not a computed diagnosis: collect a short non-diagnostic REDs-risk screen (unintended weight loss, menstrual dysfunction in females, recurrent bone stress injury, recurrent illness, persistent fatigue or underperformance, GI symptoms, disordered eating) and prompt a clinician visit when flags accumulate.",
+    "When flags are present, hold progression (no week-on-week volume increase, no added high-intensity sessions) until the user clears the flag. The statement ties training recommendations to risk stratification; the specific hold rule and the 2-flag threshold are design choices, not values from the abstract.",
+    "Include carbohydrate and fuelling guidance in long-race (50 km to 100 mile) plan output, since low carbohydrate availability is highlighted; never prescribe a calorie target from wearable data alone."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (title, BJSM, 2023-09, first author Mountjoy) matches. Europe PMC abstract (PMID 37752011) supports all findings. Removed the researcher's 'traffic-light' wording as unsupported by the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

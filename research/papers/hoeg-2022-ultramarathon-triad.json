@@ -1,0 +1,35 @@
+{
+  "id": "hoeg-2022-ultramarathon-triad",
+  "title": "Prevalence of Female and Male Athlete Triad Risk Factors in Ultramarathon Runners",
+  "authors": "Hoeg TB, Olson EM, Skaggs K, Sainani K, Fredericson M, Roche M, Kraus E",
+  "year": 2022,
+  "journal": "Clinical Journal of Sport Medicine",
+  "doi": "10.1097/jsm.0000000000000956",
+  "pmid": "34232162",
+  "url": "https://doi.org/10.1097/jsm.0000000000000956",
+  "design": "cross-sectional",
+  "population": "123 runners (83 male, 40 female; mean ages 46.2 and 41.8) recruited at a 100-mile ultramarathon in 2018 and 2019",
+  "sampleSize": 123,
+  "evidenceLevel": "C",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "Elevated disordered-eating risk in 62.5% of women and 44.5% of men.",
+    "History of BSI in 37.5% of women and 20.5% of men; BMD Z-score below -1.0 in 16.7% of women and 30.1% of men.",
+    "Low BMI (below 18.5 kg/m2) in 15% of women and no men.",
+    "Triad Cumulative Risk Assessment: moderate risk in 61.1% of women and 29.2% of men; high risk in 5.6% of both. Disordered-eating risk was not associated with low BMD or low BMI."
+  ],
+  "limitations": "Cross-sectional volunteers at one race; only 40 women; self-reported BSI history; ferritin and vitamin D collected in 2019 only.",
+  "implications": [
+    "Do not assume recreational ultra runners are low risk: include the REDs/triad screen and bone stress history question for both sexes in 100-mile plans.",
+    "Low BMD was more common in men here, so the bone-health prompt must not be limited to women.",
+    "Do not use BMI alone as a gate; disordered-eating risk was not associated with low BMI or BMD."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Clin J Sport Med; online 2021-07, issue year 2022; first author Hoeg). Percentages confirmed in Europe PMC abstract (PMID 34232162).",
+    "checkedAt": "2026-10-22"
+  }
+}

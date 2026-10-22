@@ -1,0 +1,35 @@
+{
+  "id": "mujika-2004-taper-physiology",
+  "title": "Physiological changes associated with the pre-event taper in athletes",
+  "authors": "Mujika I, Padilla S, Pyne D, Busso T",
+  "year": 2004,
+  "journal": "Sports Medicine",
+  "doi": "10.2165/00007256-200434130-00003",
+  "pmid": "15487904",
+  "url": "https://doi.org/10.2165/00007256-200434130-00003",
+  "design": "narrative-review",
+  "population": "Athletes across sports (review of physiological taper studies)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["taper"],
+  "findings": [
+    "Maximal oxygen uptake may increase but is not a necessary prerequisite for taper-induced performance gains; resting, maximal and submaximal heart rates do not change unless athletes show clear signs of overreaching before the taper.",
+    "Possible haematological changes include increased blood and red cell volume, haemoglobin, haematocrit and reticulocytes; muscle glycogen concentration increases progressively; reduced blood creatine kinase suggests recovery from muscle damage.",
+    "Neuromuscular strength and power usually increase markedly; psychological changes include reduced total mood disturbance, reduced perception of effort and improved sleep quality.",
+    "Mathematical models indicate taper effects result from restoration of impaired capacities (fatigue and adaptation model) and the capacity to respond to training during the taper (variable dose-response model)."
+  ],
+  "limitations": "Narrative review; heterogeneous populations and designs; physiological changes are correlated with, not shown to cause, performance gains.",
+  "implications": [
+    "Resting HR is not expected to change in healthy tapering athletes, so a rise in resting HR is worth a caution flag (engine inference, not a stated finding).",
+    "Subjective readiness, mood and sleep are expected to improve across the taper; absence of improvement is a reasonable check item (inference).",
+    "No numeric taper parameter is justified from this review alone."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Sports Med 2004). The abstract does not mention HRV; the researcher's HRV-fall flag was an inference and is contradicted in nuance by hug-2014 (post-exercise RMSSD fell during taper), so HRV wording was removed.",
+    "checkedAt": "2026-10-22"
+  }
+}

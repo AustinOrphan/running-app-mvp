@@ -1,0 +1,34 @@
+{
+  "id": "knechtle-2010-100km-predictors",
+  "title": "Predictor variables for a 100-km race time in male ultra-marathoners",
+  "authors": "Knechtle B, Knechtle P, Rosemann T, Senn O",
+  "year": 2010,
+  "journal": "Perceptual and Motor Skills",
+  "doi": "10.2466/05.25.pms.111.6.681-693",
+  "pmid": "21319608",
+  "url": "https://doi.org/10.2466/05.25.pms.111.6.681-693",
+  "design": "cross-sectional",
+  "population": "169 male 100-km ultra-marathoners",
+  "sampleSize": 169,
+  "evidenceLevel": "C",
+  "topics": ["volume-performance"],
+  "findings": [
+    "Bivariate correlations with 100-km race time: mean weekly running km r = -.43, mean training speed r = -.56, mean weekly running hours r = -.21, personal best marathon time r = .65, percent body fat r = .45, personal best 100-km time r = .72.",
+    "Stepwise regression: training speed, weekly running kilometres and age were the best predictors (all p<.0001); r2 = .43.",
+    "Reported equation: 100-km time (min) = 1085.60 - 36.26 x training speed (km/h) - 1.43 x training volume (km/wk) + 2.50 x age (yr).",
+    "Authors suggest training intensity may matter more than anthropometry for a successful 100-km outcome."
+  ],
+  "limitations": "Self-reported, male only, cross-sectional, r2 only .43, collinearity of speed with ability; equation not validated here. Author list beyond the first author taken from memory of the paper and not re-checked; only the first author was verified in Crossref.",
+  "implications": [
+    "For 100 km goals include both weekly distance and training speed (and marathon PB) as predictors; do not assume volume alone drives ultra performance.",
+    "Do not use the equation for individual prescription; it is a population association with r2 .43."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "ADDED. Crossref title, journal, first author Knechtle, 2010-12 match; abstract re-fetched and numbers quoted from it. Co-author names not re-verified (only first author checked).",
+    "checkedAt": "2026-10-22"
+  }
+}

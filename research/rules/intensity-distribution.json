@@ -1,0 +1,208 @@
+[
+  {
+    "id": "tid-low-intensity-floor",
+    "statement": "Keep at least 80% of weekly running time in zone 1 (at or below LT1/VT1) as the default, and never plan below 70%.",
+    "parameter": "zone1_time_share_min",
+    "value": "default 80; hard floor 70",
+    "unit": "% of weekly running time",
+    "appliesTo": "All distance runners, 5 km to marathon; also the default for ultra",
+    "grade": "B",
+    "confidence": "high",
+    "evidence": [
+      "haugen-2022-world-class-runners",
+      "sperlich-2023-tid-phases",
+      "campos-2022-tid-runners-review",
+      "kenneally-2021-race-pace-vs-physiological",
+      "esteve-lanao-2007-tid-runners"
+    ]
+  },
+  {
+    "id": "tid-default-shape-pyramidal",
+    "statement": "Default shape is pyramidal (zone 1 > zone 2 > zone 3). Prior of about 80/12/8 time in zone 1/2/3 with a tolerance of +/-5 percentage points on each zone; treat as a prior, not an optimum.",
+    "parameter": "default_tid_time_in_zone",
+    "value": "80/12/8",
+    "unit": "% time in zone 1/2/3",
+    "appliesTo": "Recreational and sub-elite runners in base and build phases",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "esteve-lanao-2007-tid-runners",
+      "casado-2022-elite-runners-review",
+      "kenneally-2021-race-pace-vs-physiological",
+      "sperlich-2023-tid-phases",
+      "rosenblat-2025-tid-ipd-nma"
+    ]
+  },
+  {
+    "id": "tid-no-threshold-dominant",
+    "statement": "Never plan a threshold-dominant week or block (zone 2 time greater than zone 1 time); cap zone 2 at about 12% of time in base phases and at about 25% in any phase. Threshold sessions remain allowed inside these caps.",
+    "parameter": "zone2_time_share_max",
+    "value": "base 12; any phase 25",
+    "unit": "% of running time",
+    "appliesTo": "All runners",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "rosenblat-2019-pol-vs-thr",
+      "esteve-lanao-2007-tid-runners",
+      "kenneally-2018-periodization-tid-review",
+      "munoz-2014-polarized-recreational"
+    ]
+  },
+  {
+    "id": "tid-zone3-minimum",
+    "statement": "For goals up to the marathon, keep zone 3 at roughly 5-10% of time in build and specific phases (about 8% default); do not remove high-intensity work entirely. Exact optimum is unknown.",
+    "parameter": "zone3_time_share",
+    "value": "5-10 (default 8)",
+    "unit": "% of running time",
+    "appliesTo": "Runners training for 5 km to marathon who tolerate high-intensity work",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "esteve-lanao-2007-tid-runners",
+      "kenneally-2021-race-pace-vs-physiological",
+      "casado-2022-elite-runners-review"
+    ]
+  },
+  {
+    "id": "tid-type-by-athlete-level",
+    "statement": "Choose TID type by athlete level: recreational runners get pyramidal; polarized is permitted only for competitive athletes, in blocks shorter than 12 weeks aimed at VO2max or short-event performance. Treat polarized and pyramidal as equivalent for time-trial performance.",
+    "parameter": "polarized_block_max_length",
+    "value": "12",
+    "unit": "weeks",
+    "appliesTo": "Competitive vs recreational runners",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "rosenblat-2025-tid-ipd-nma",
+      "oliveira-2024-pol-meta",
+      "munoz-2014-polarized-recreational",
+      "stoggl-2014-polarized-rct"
+    ]
+  },
+  {
+    "id": "tid-phase-shift-short-events",
+    "statement": "For 5-10 km goals in well-trained runners, run pyramidal in the base/early build and shift to polarized in the later specific block, holding total load constant across the switch. Reference design: 8 weeks pyramidal then 8 weeks polarized.",
+    "parameter": "phase_shift_pyr_to_pol",
+    "value": "8 weeks pyramidal then 8 weeks polarized",
+    "unit": "weeks",
+    "appliesTo": "Well-trained (competitive) runners with 5-10 km goal; not validated for marathon or ultra",
+    "grade": "B",
+    "confidence": "low",
+    "evidence": [
+      "filipas-2022-pyr-pol-periodization",
+      "casado-2022-elite-runners-review",
+      "sperlich-2023-tid-phases"
+    ]
+  },
+  {
+    "id": "tid-event-tilt-long",
+    "statement": "For marathon and longer goals keep the pyramidal shape through the specific phase and let race-pace work rise as the race approaches (race-pace share grows, total low-intensity share stays at or above the floor).",
+    "parameter": "tid_shape_marathon_plus",
+    "value": "pyramidal throughout",
+    "unit": null,
+    "appliesTo": "Marathon and half-marathon goals",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "casado-2022-elite-runners-review",
+      "kenneally-2021-race-pace-vs-physiological",
+      "haugen-2022-world-class-runners"
+    ]
+  },
+  {
+    "id": "tid-ultra-default",
+    "statement": "No TID trial exists for ultra or 100-mile runners. Use a conservative default of at least 85% zone 1 time, zone 3 kept small (about 5% or less), and long time-on-feet sessions; set race-day pacing below LT1/VT1 for most of the event.",
+    "parameter": "ultra_zone1_time_share_min",
+    "value": "85",
+    "unit": "% of running time",
+    "appliesTo": "Ultra and 100-mile goals",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["fornasiero-2018-ultra-intensity", "haugen-2022-world-class-runners"]
+  },
+  {
+    "id": "tid-count-both-methods",
+    "statement": "Compute and store TID by time-in-zone and by session goal; label every displayed percentage with its method. Session-count and time-based percentages are not interchangeable (skier conversion: factor 0.9 for zone 1 and 3.0 for zones 2-3 from time to session goal; not validated for runners).",
+    "parameter": "tid_counting_methods",
+    "value": "time_in_zone and session_goal",
+    "unit": null,
+    "appliesTo": "All plans and all TID displays",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "sylta-2014-tid-quantification",
+      "campos-2022-tid-runners-review",
+      "seiler-2006-tid-quantification"
+    ]
+  },
+  {
+    "id": "tid-report-both-anchors",
+    "statement": "Report TID against both physiological anchors (LT1/LT2 or HR/pace proxies) and goal-race-pace anchors, and name the anchor whenever the plan is labelled pyramidal or polarized.",
+    "parameter": "tid_anchor_reporting",
+    "value": "physiological and race-pace",
+    "unit": null,
+    "appliesTo": "All plans; race-specific sessions defined by goal pace",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "kenneally-2021-race-pace-vs-physiological",
+      "kenneally-2018-periodization-tid-review"
+    ]
+  },
+  {
+    "id": "tid-srpe-fallback",
+    "statement": "When HR or pace data are missing, derive session intensity zone from session RPE and use it to count TID; use more than one method when both are available.",
+    "parameter": "tid_fallback_method",
+    "value": "session RPE",
+    "unit": null,
+    "appliesTo": "Athletes without usable HR or pace data",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["seiler-2006-tid-quantification", "campos-2022-tid-runners-review"]
+  },
+  {
+    "id": "tid-planned-vs-executed",
+    "statement": "Show executed versus planned TID to the athlete and flag easy runs executed above zone 1. The 5 percentage point flag threshold has no direct evidence and is a conservative engine default.",
+    "parameter": "executed_vs_planned_zone_gap_flag",
+    "value": "5",
+    "unit": "percentage points of time",
+    "appliesTo": "Recreational runners with HR or pace data",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["munoz-2014-polarized-recreational"]
+  },
+  {
+    "id": "tid-hard-easy-spacing",
+    "statement": "Separate hard days with easy days; no consecutive hard days by default. The recommendation is from elite-runner reviews; applying it to recreational runners is a conservative inference.",
+    "parameter": "min_easy_days_between_hard",
+    "value": "1",
+    "unit": "days",
+    "appliesTo": "All runners; evidence is from highly trained and elite runners",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["casado-2022-elite-runners-review"]
+  },
+  {
+    "id": "tid-low-frequency-time-based",
+    "statement": "For runners with few sessions per week, plan the TID budget in minutes, not sessions: compute the weekly zone 2+3 time allowance (about 20% of time, no more than 25%) and size quality sessions to fit. An 80/20 split by session count overstates hard time share.",
+    "parameter": "quality_time_budget",
+    "value": "20 (max 25)",
+    "unit": "% of weekly running time",
+    "appliesTo": "Recreational runners with 3-5 runs per week",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["sylta-2014-tid-quantification", "esteve-lanao-2007-tid-runners"]
+  },
+  {
+    "id": "tid-prior-not-optimum",
+    "statement": "Treat all TID targets as priors with an uncertainty band and expose the plan's TID type as a descriptive output, not an optimization objective; do not present polarized or pyramidal as proven superior.",
+    "parameter": null,
+    "value": null,
+    "unit": null,
+    "appliesTo": "Plan generator design and user-facing copy",
+    "grade": "B",
+    "confidence": "high",
+    "evidence": ["sperlich-2023-tid-phases", "oliveira-2024-pol-meta", "rosenblat-2025-tid-ipd-nma"]
+  }
+]

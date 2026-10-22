@@ -1,0 +1,34 @@
+{
+  "id": "acsm-2007-fluid-replacement",
+  "title": "American College of Sports Medicine position stand. Exercise and fluid replacement",
+  "authors": "Sawka MN, Burke LM, Eichner ER, Maughan RJ, Montain SJ, Stachenfeld NS",
+  "year": 2007,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0b013e31802ca597",
+  "pmid": "17277604",
+  "url": "https://doi.org/10.1249/mss.0b013e31802ca597",
+  "design": "consensus-statement",
+  "population": "Individuals performing physical activity; general (not ultra-specific) fluid replacement guidance",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "Goal of drinking during exercise is to prevent excessive (> 2% body weight loss from water deficit) dehydration and excessive electrolyte changes.",
+    "Because sweat rates and sweat electrolyte content vary widely between individuals, customised fluid replacement programs are recommended.",
+    "Individual sweat rates can be estimated by measuring body weight before and after exercise.",
+    "During exercise, beverages containing electrolytes and carbohydrates can provide benefits over water alone under certain circumstances."
+  ],
+  "limitations": "Pre-dates the 2015 EAH consensus; the 2% body-weight-loss limit is a performance heuristic that later ultramarathon data (Hoffman 2013) and the EAH consensus challenge; not specific to ultra-duration events; the author group is cited in Crossref only as ACSM, so authors taken from PubMed.",
+  "implications": [
+    "Use only for sweat-rate estimation (weigh before/after long runs to individualise fluid planning) and as the contested counterpoint to thirst-based drinking.",
+    "Do not enforce a 2% weight-loss limit in the engine; for ultras the thirst-based rule takes precedence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title/year/journal (no author list there); PubMed abstract and author list checked. Added by verifier to represent the pre-EAH-consensus hydration position.",
+    "checkedAt": "2026-10-22"
+  }
+}

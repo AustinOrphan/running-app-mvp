@@ -1,0 +1,35 @@
+{
+  "id": "nuuttila-2021-intensity-vs-volume-monitoring",
+  "title": "Monitoring Training and Recovery during a Period of Increased Intensity or Volume in Recreational Endurance Athletes",
+  "authors": "Nuuttila OP, Nummela A, Häkkinen K, Seipäjärvi S, Kyröläinen H",
+  "year": 2021,
+  "journal": "International Journal of Environmental Research and Public Health",
+  "doi": "10.3390/ijerph18052401",
+  "pmid": "33804541",
+  "url": "https://doi.org/10.3390/ijerph18052401",
+  "design": "other",
+  "population": "Recreationally trained participants: 10-week control period then 10 weeks of increased intensity (INT, n=13) or volume (VOL, n=17)",
+  "sampleSize": 30,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Thirty recreationally trained participants did a 10-week control period of regular training and then a 10-week period of increased intensity (INT, n=13) or volume (VOL, n=17).",
+    "Both groups improved maximal treadmill speed (INT 3.4 +/- 3.2%, p<0.001; VOL 2.1 +/- 1.8%, p=0.006), to a similar extent.",
+    "The only between-group difference in monitoring variables was nocturnal HR (p=0.013), which decreased in INT (p=0.016); perceived recovery decreased in VOL (p=0.021) and tended to decrease in INT (p=0.056).",
+    "Countermovement jump and HRV remained unaffected despite a slight decrease in perceived recovery.",
+    "The increase in the heart rate-running speed index at the end of the period was greater in responders than low-responders (p=0.005); authors say long-term HR-RS monitoring may help predict positive adaptation, while other recovery markers need individualized interpretation."
+  ],
+  "limitations": "Small sample; allocation method is not stated in the abstract; recreational athletes, 10 weeks; not a test of recovery-week frequency; few effect sizes reported.",
+  "implications": [
+    "Progressive intensity or progressive volume yield similar treadmill-speed gains (about 2-3%) over 10 weeks in recreational athletes, so the generator may choose the lever that fits the athlete's time.",
+    "Track an HR-to-speed efficiency index across weeks as a positive-adaptation indicator and use perceived recovery as a cue; do not use resting HRV or jump tests as decision signals."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed match (IJERPH 2021;18(5):2401). Removed the researcher's 'non-randomized' (not stated in abstract) and corrected the nocturnal HR p-values.",
+    "checkedAt": "2026-10-22"
+  }
+}

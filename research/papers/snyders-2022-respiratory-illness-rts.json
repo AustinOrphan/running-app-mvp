@@ -1,0 +1,36 @@
+{
+  "id": "snyders-2022-respiratory-illness-rts",
+  "title": "Acute respiratory illness and return to sport: a systematic review and meta-analysis by a subgroup of the IOC consensus on 'acute respiratory illness in the athlete'",
+  "authors": "Snyders C, Pyne DB, Sewry N, Hull JH, Kaulback K, Schwellnus M",
+  "year": 2022,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2021-104719",
+  "pmid": "34789459",
+  "url": "https://doi.org/10.1136/bjsports-2021-104719",
+  "design": "meta-analysis",
+  "population": "Athletes and military recruits aged 15-65 with symptoms or diagnosis of acute respiratory illness (54 studies)",
+  "sampleSize": 31065,
+  "evidenceLevel": "A",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "767 articles identified; 54 included (n = 31,065 athletes); PubMed, EBSCOhost and Web of Science searched January 1990 to July 2020.",
+    "Only 4 studies reported days until return to sport (range 0 to 8.5 days).",
+    "Frequency of time loss >1 day after acute respiratory illness was 20.4% (95% CI 15.3% to 25.4%); in 80% of illnesses no days were lost from training/competition.",
+    "Mean symptom duration was 7.1 days (95% CI 6.2 to 8.0), similar across pathological and anatomical classifications and diagnostic methods.",
+    "Authors state current data are limited and standardised definitions are needed to inform return to sport."
+  ],
+  "limitations": "Return-to-sport days from only 4 studies; no symptom-severity stratification or graded return protocol in the abstract; mixed athlete and military populations.",
+  "implications": [
+    "Plan for about a week of symptoms when a respiratory illness is logged (mean 7.1 days); offer a short ease/skip option rather than a long plan reset.",
+    "A graded re-introduction (easy runs first, intensity only after symptom-free days) is an engine safety convention, not a finding of this paper, and must be labelled as such.",
+    "Do not let HRV or resting HR alone declare illness; use a logged symptom flag to suspend intensity."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, BJSM, first author Snyders, online 17 Nov 2021 (print 2022). Numbers verified in Europe PMC abstract (PMID 34789459).",
+    "checkedAt": "2026-10-22"
+  }
+}

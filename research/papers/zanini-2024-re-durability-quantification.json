@@ -1,0 +1,34 @@
+{
+  "id": "zanini-2024-re-durability-quantification",
+  "title": "Durability of Running Economy: Differences between Quantification Methods and Performance Status in Male Runners",
+  "authors": "Zanini M, Folland JP, Blagrove RC",
+  "year": 2024,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000003499",
+  "pmid": "38857519",
+  "url": "https://doi.org/10.1249/mss.0000000000003499",
+  "design": "cross-sectional",
+  "population": "Well-trained male runners (VO2max 62.4 mL/kg/min; 10 km 35:50 +/- 4:40); subgroups of high (10 km 31:20) and low (10 km 41:50) performers",
+  "sampleSize": 44,
+  "evidenceLevel": "C",
+  "topics": ["durability-drift"],
+  "findings": [
+    "During a 90-min run at LT1, RE deterioration was only fractionally larger as oxygen cost than energy cost (0.1% greater from 30-90 min, P<0.001).",
+    "After 90 min, RE worsened less in the high-performance group than the low-performance group: energy cost +2.3% vs +4.3% (P<0.01) and oxygen cost +2.4% vs +4.5% (P<0.01).",
+    "At standardised distances the difference held, for example at 16.7 km: +1.0 vs +3.2% energy cost (P<0.01).",
+    "Authors conclude RE deterioration depends on performance level, with high performers showing superior RE durability."
+  ],
+  "limitations": "Male runners only; laboratory 90-min run at LT1; subgroup comparison, not randomised; RE only, not threshold or HR.",
+  "implications": [
+    "Expect faster (better-trained) runners to decay less in economy over 90 min; use performance level as a covariate in any durability prior, with the default decay larger for slower or less-trained runners.",
+    "Use a standardised duration or distance when comparing durability across runs, because magnitudes differ by time versus distance reference."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref (online 2024-06-10, print 2024 Nov) and PubMed (Med Sci Sports Exerc 2024 Nov 1;56(11):2230-2240) match; numbers from abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

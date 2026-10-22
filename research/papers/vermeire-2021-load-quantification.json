@@ -1,0 +1,34 @@
+{
+  "id": "vermeire-2021-load-quantification",
+  "title": "The influence of different training load quantification methods on the fitness-fatigue model",
+  "authors": "Vermeire KM, Van de Casteele F, Gosseries M, Bourgois JG, Ghijs M, Boone J",
+  "year": 2021,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2020-0662",
+  "pmid": "33691278",
+  "url": "https://doi.org/10.1123/ijspp.2020-0662",
+  "design": "other",
+  "population": "Nine subjects: 8 weeks of 3 interval sessions/week on a cycle ergometer with weekly 3-km time trials, then 3 weeks without training with weekly time trials",
+  "sampleSize": 9,
+  "evidenceLevel": "C",
+  "topics": ["load-response-models"],
+  "findings": [
+    "Banister TRIMP, Lucia TRIMP, Edwards TRIMP, training stress score and session RPE were calculated for every session and each was used to fit the fitness-fatigue model.",
+    "The error relating load to performance was similar for all methods (Banister TRIMP 618 [422], Lucia TRIMP 625 [436], Edwards TRIMP 643 [465], TSS 639 [448], session RPE 558 [395], kilojoules 596 [505]).",
+    "The methods evolved differently over time, which changed the day before performance on which training has the biggest positive influence by a range of 19.6 days.",
+    "The authors concluded that load methods cannot be used interchangeably because they evolve differently."
+  ],
+  "limitations": "Nine subjects, cycling, 11-week window; no running data. Single-group intervention (re-classified from experimental-crossover to other). Error units and bracket meaning are not defined in the abstract.",
+  "implications": [
+    "Fix a single load metric per athlete (for example an HR-based TRIMP or session RPE with a consistent fallback) and refit model parameters if the metric or its calibration changes; do not mix metrics within one fit.",
+    "Store the load-metric identifier with each fitted parameter set so stale fits are invalidated on change."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, IJSPP, 2021. Numbers match Europe PMC abstract. Design corrected; kilojoules appears in the abstract results but not in its methods list.",
+    "checkedAt": "2026-10-22"
+  }
+}

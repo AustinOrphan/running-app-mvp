@@ -1,0 +1,36 @@
+{
+  "id": "llanoslagos-2024-economy-speeds",
+  "title": "Effect of Strength Training Programs in Middle- and Long-Distance Runners' Economy at Different Running Speeds: A Systematic Review with Meta-analysis",
+  "authors": "Llanos-Lagos C, Ramirez-Campillo R, Moran J, Saez de Villarreal E",
+  "year": 2024,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-023-01978-y",
+  "pmid": "38165636",
+  "url": "https://doi.org/10.1007/s40279-023-01978-y",
+  "design": "meta-analysis",
+  "population": "Middle- and long-distance runners of any sex and level (195 moderately trained, 272 well trained, 185 highly trained athletes); randomized and non-randomized controlled studies of 3 weeks or more; programs of 6-24 weeks with 1-4 sessions per week",
+  "sampleSize": 652,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Search through November 2022; GRADE certainty moderate for high-load, submaximal-load, plyometric and isometric methods, and low for combined methods.",
+    "High-load training (80% 1RM or more) gave a small improvement in running economy (ES -0.266, p = 0.039) at speeds of 8.64-17.85 km/h; combined methods gave a moderate improvement (ES -0.426, p = 0.018) at 10.00-14.45 km/h.",
+    "Plyometric training improved economy at speeds of 12.00 km/h or slower (small effect, ES -0.307, p = 0.028).",
+    "Submaximal-load (40-79% 1RM) and isometric training did not improve running economy versus control (all p > 0.131).",
+    "Running speed (beta -0.117, p = 0.027) and VO2max (beta -0.040, p = 0.020) moderated the effect of high-load training: larger gains at higher speeds and in athletes with higher VO2max."
+  ],
+  "limitations": "Mixed randomized and non-randomized designs; running economy measured at varied speeds and protocols; combined-methods evidence is low certainty; effect sizes are small to moderate. Sample size is the sum of the three athlete-level counts in the abstract.",
+  "implications": [
+    "Make high-load work (80% 1RM or more, low reps) the primary economy stimulus, especially for moderate to fast paces and higher-VO2max runners; use submaximal circuits and isometrics only as support or tissue conditioning.",
+    "Add plyometrics when the target pace is 12 km/h or slower (ultra, long-run pace); a combined heavy plus plyometric block is the best-supported option.",
+    "Plan for small to moderate economy effects (ES about 0.27-0.43), not large ones."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC re-fetched. Added the explicit 3-week minimum intervention length and combined-methods speed range from the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

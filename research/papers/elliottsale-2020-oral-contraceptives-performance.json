@@ -1,0 +1,34 @@
+{
+  "id": "elliottsale-2020-oral-contraceptives-performance",
+  "title": "The Effects of Oral Contraceptives on Exercise Performance in Women: A Systematic Review and Meta-analysis",
+  "authors": "Elliott-Sale KJ, McNulty KL, Ansdell P, Goodall S, Hicks KM, Thomas K, Swinton PA, Dolan E",
+  "year": 2020,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-020-01317-5",
+  "pmid": "32666247",
+  "url": "https://doi.org/10.1007/s40279-020-01317-5",
+  "design": "meta-analysis",
+  "population": "Women using oral contraceptives compared with naturally menstruating women or with OCP withdrawal; 42 studies, 590 participants",
+  "sampleSize": 590,
+  "evidenceLevel": "B",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "42 studies and 590 participants included; 83% of studies were graded moderate, low or very low quality and 17% high quality.",
+    "Between-group: probability of a small effect (d >= 0.2) favouring OCP users was effectively zero (p < 0.001); probability favouring naturally menstruating women was 0.40 (OCP withdrawal vs early follicular) and 0.19 (OCP consumption vs non-early-follicular phases).",
+    "Within-group: almost zero probability of a small effect in either direction when comparing OCP consumption with withdrawal (p <= 0.001); performance was consistent across the OCP cycle.",
+    "Authors conclude OCP use might result in slightly inferior performance on average but any group-level effect is most likely trivial; current evidence does not warrant general guidance and an individualised approach is suggested."
+  ],
+  "limitations": "Mostly low-quality studies, large between-study variance, oral contraceptives only (not other hormonal methods).",
+  "implications": [
+    "Apply no performance or load adjustment for oral contraceptive use; treat contraceptive status as an optional annotation.",
+    "Pair with HRV findings: contraceptive users have lower HRV baselines, so use individual baselines, not population norms."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref (Sports Med, 2020-07, first author Elliott-Sale) matches; Europe PMC abstract (PMID 32666247) supports all numbers.",
+    "checkedAt": "2026-10-22"
+  }
+}

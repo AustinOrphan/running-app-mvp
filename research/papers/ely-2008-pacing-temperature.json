@@ -1,0 +1,36 @@
+{
+  "id": "ely-2008-pacing-temperature",
+  "title": "Effect of ambient temperature on marathon pacing is dependent on runner ability",
+  "authors": "Ely MR, Martin DE, Cheuvront SN, Montain SJ",
+  "year": 2008,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0b013e3181788da9",
+  "pmid": "18685522",
+  "url": "https://doi.org/10.1249/mss.0b013e3181788da9",
+  "design": "retrospective-cohort",
+  "population": "Three Japanese women's championship marathons, 62 race-year outcomes: winner and 25th, 50th, 100th place finishers with 5 km splits",
+  "sampleSize": 62,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Winners ran even pace; lesser-ability runners slowed as the race progressed, particularly after 20-25 km.",
+    "Pace differential (last 5 km minus first 5 km) for 100th place was the same in cool (5-10 C) and warm (15.1-21 C): 199 +/- 45 s vs 198 +/- 40 s.",
+    "For the 50th place it tended to increase with warmth (115 +/- 16 vs 163 +/- 27 s) but was not significant.",
+    "Warmer weather significantly slowed pace (P < 0.05) for the 25th place (90 +/- 25 vs 191 +/- 20 s) and winners (-22 +/- 14 vs 24 +/- 13 s).",
+    "Conclusion: warm air slows pace more in faster runners (winner, 25th) than slower ones (50th, 100th); slower runners' larger finishing-time loss comes from a slower velocity from start to finish rather than a greater late deceleration."
+  ],
+  "limitations": "Women's elite to sub-elite only, air temperature 5-21 C, 5 km splits, small groups, one country, air temperature rather than WBGT.",
+  "implications": [
+    "For slower runners, apply the heat penalty as a uniformly slower target pace from the start, not as a planned fade.",
+    "For fast runners (roughly top quartile of a field), expect a heat-driven late-race deceleration; use a more conservative first half in warm weather instead of the cool-weather even-pace target.",
+    "Keep the within-race pacing adjustment a tunable parameter; evidence stops near 21 C air temperature."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref (MSSE 2008-09, Ely) and PubMed abstract re-fetched; every number matches (the 163 s value appears as '16 3' in the source text). The 25th-place cool/warm values look odd but are as published. Ely 2007 vs Ely 2008 is a difference of outcome (finishing time vs within-race deceleration), not a contradiction.",
+    "checkedAt": "2026-10-22"
+  }
+}

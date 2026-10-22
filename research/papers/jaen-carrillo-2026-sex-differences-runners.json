@@ -1,0 +1,34 @@
+{
+  "id": "jaen-carrillo-2026-sex-differences-runners",
+  "title": "Highly Trained Female Runners Show Greater Durability and Physiological Resilience Than Performance-Matched Male Counterparts",
+  "authors": "Jaen-Carrillo D, Bruce CD, Lawley JS, Zanini M",
+  "year": 2026,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.70299",
+  "pmid": "42104864",
+  "url": "https://doi.org/10.1111/sms.70299",
+  "design": "cross-sectional",
+  "population": "Highly trained runners matched for performance: 11 female, 11 male",
+  "sampleSize": 22,
+  "evidenceLevel": "C",
+  "topics": ["durability-drift"],
+  "findings": [
+    "A 180-min treadmill run at standardised moderate intensity with 12-min uphill time trials every 60 min (total 36 +/- 3 km females, 42 +/- 3 km males).",
+    "After 3 h, time-trial speed declined less in females than males (-1% vs -10%, p<0.01), with smaller reductions in carbohydrate oxidation and RER.",
+    "Females showed greater resilience for maximal isometric knee-extensor force, HR and perceived exertion (p<0.05); peak HR and VO2 were unchanged in both sexes.",
+    "Running economy deteriorated similarly between sexes."
+  ],
+  "limitations": "22 runners, laboratory treadmill, distance not matched between sexes (males ran farther), single protocol; authors say distance-matched conditions need study.",
+  "implications": [
+    "Do not apply a single sex-agnostic durability or decoupling prior: allow a sex term (Smyth 2022 also found larger and earlier decoupling in males) but keep it weak and let athlete data override it.",
+    "Fuelling in long runs may need sex-specific attention; this paper gives no fuelling prescription, so no change to nutrition rules is justified."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed match (Scand J Med Sci Sports 2026 May;36(5):e70299). Design recorded as cross-sectional (between-sex comparison of matched groups) instead of crossover.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "hunter-2025-durability-methods",
+  "title": "Durability as an index of endurance exercise performance: Methodological considerations",
+  "authors": "Hunter B, Maunder E, Jones AM, Gallo G, Muniz-Pumares D",
+  "year": 2025,
+  "journal": "Experimental Physiology",
+  "doi": "10.1113/ep092120",
+  "pmid": "40150840",
+  "url": "https://doi.org/10.1113/ep092120",
+  "design": "narrative-review",
+  "population": "Endurance athletes (review of durability assessment protocols)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["durability-drift"],
+  "findings": [
+    "Durability is defined as resilience to deterioration of physiological variables and performance during or following prolonged exercise.",
+    "The construction of the fatiguing protocol affects durability profiles: greater relative intensity and duration produce more marked deterioration of baseline measures.",
+    "Assessment design should control factors such as nutrition and environmental characteristics so outcomes are repeatable and comparable between athletes or over time within one athlete.",
+    "Protocol parameters should follow the research question or applied context and the athlete's training status."
+  ],
+  "limitations": "Narrative methods review; gives no thresholds or benchmark values in the abstract.",
+  "implications": [
+    "When tracking durability from free-living data, compare only sessions with similar duration, relative intensity, temperature and fuelling; tag each long run with these covariates and exclude or adjust non-comparable sessions.",
+    "Do not compare a drift or decoupling value from a hot or unfuelled run against one from a cool, fuelled run without correction."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref (online 2025-03-27) and PubMed (Exp Physiol 2025 Nov;110(11):1612-1624) agree; first author Hunter.",
+    "checkedAt": "2026-10-22"
+  }
+}

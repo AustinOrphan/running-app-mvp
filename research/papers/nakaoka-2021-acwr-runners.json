@@ -1,0 +1,34 @@
+{
+  "id": "nakaoka-2021-acwr-runners",
+  "title": "The association between the acute:chronic workload ratio and running-related injuries in Dutch runners: a prospective cohort study",
+  "authors": "Nakaoka G, Barboza SD, Verhagen E, van Mechelen W, Hespanhol L",
+  "year": 2021,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-021-01483-0",
+  "pmid": "34052983",
+  "url": "https://doi.org/10.1007/s40279-021-01483-0",
+  "design": "prospective-cohort",
+  "population": "435 runners; secondary analysis of three studies with the same running-related injury (RRI) surveillance system; biweekly exposure and RRI over 18-65 weeks; ACWR = last 2 weeks over the mean of the last 4-12 weeks, by uncoupled, coupled and EWMA methods",
+  "sampleSize": 435,
+  "evidenceLevel": "B",
+  "topics": ["load-response-models"],
+  "findings": [
+    "Runners with ACWR under 0.70 had about 10% predicted probability of RRI (9.6%; 95% CrI 7.5-12.4) versus about 1% (1.3%; 95% CrI 0.7-1.7) for ACWR above 1.38.",
+    "The association was significant, small to moderate (1-10%), and inverse: the higher the ACWR, the lower the RRI risk, following a smooth L-shaped second-order polynomial decay curve.",
+    "Hours or kilometres gave similar results; coupled and uncoupled methods were similar and the uncoupled method best discriminated strata.",
+    "The EWMA method yielded sparse and non-significant results."
+  ],
+  "limitations": "Secondary analysis of three cohorts; association not causation; a low ACWR may reflect detraining or return from rest, which the abstract does not test. Self-report and population type (recreational) are not stated in the abstract.",
+  "implications": [
+    "For runners, do not impose spike-based ACWR limits; this study shows no increase in injury risk with high ACWR and more injury at low ACWR.",
+    "Use an ACWR-like value at most as a descriptive detraining or return-from-break flag (below about 0.7 in this study), not as a prescriptive cap."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, Sports Med, 2021-05-30. Numbers match Europe PMC abstract. Removed 'self-reported' and 'recreational' as abstract-unsupported wording.",
+    "checkedAt": "2026-10-22"
+  }
+}

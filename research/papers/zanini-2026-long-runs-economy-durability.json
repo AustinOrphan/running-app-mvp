@@ -1,0 +1,34 @@
+{
+  "id": "zanini-2026-long-runs-economy-durability",
+  "title": "Regular Long Runs and Higher Training Volumes Are Associated with Better Running Economy Durability in Performance Matched Well-Trained Male Runners",
+  "authors": "Zanini M, Folland JP, Blagrove RC",
+  "year": 2026,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000003840",
+  "pmid": "40878015",
+  "url": "https://doi.org/10.1249/mss.0000000000003840",
+  "design": "cross-sectional",
+  "population": "Well-trained male runners matched on 10 km time (39:10 vs 39:00): 13 with regular long runs of 90 min or more vs 13 with all runs under 70 min",
+  "sampleSize": 26,
+  "evidenceLevel": "C",
+  "topics": ["durability-drift"],
+  "findings": [
+    "During a 90-min run at lactate threshold, running economy worsened earlier and more in the short-run group: +6.0% vs +3.1% at 90 min (P<0.001).",
+    "Isometric squat force fell 19.4% vs 12.2% (P=0.002) and countermovement jump mean power changed -6.6% vs +2.2% (P=0.011), short vs long group.",
+    "The neuromuscular changes were not correlated with RE durability, whereas RE durability correlated with weekly longest run (r=-0.67, P<0.001) and training volume (r=-0.48, P=0.038).",
+    "Authors state intervention studies are needed to confirm these cross-sectional findings."
+  ],
+  "limitations": "Cross-sectional, men only, 13 per group; association not causation (self-selection of runners who do long runs). Online 2025-08-29, print MSSE 2026 Jan;58(1):162-173; the print year 2026 is recorded, consistent with the other entries.",
+  "implications": [
+    "Include a long run of at least 90 min as a weekly or fortnightly staple for athletes targeting half marathon and longer; supported by association only.",
+    "Use longest-run duration and weekly volume as covariates when predicting how much economy and pace will decay late in a race."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Year corrected from 2025 to 2026 to match print issue (PubMed 2026 Jan 1); id retains 2026. Numbers match PubMed abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "id": "bontemps-2020-downhill-review",
+  "title": "Downhill Running: What Are The Effects and How Can We Adapt? A Narrative Review",
+  "authors": "Bontemps B, Vercruyssen F, Gruet M, Louis J",
+  "year": 2020,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-020-01355-z",
+  "pmid": "33037592",
+  "url": "https://doi.org/10.1007/s40279-020-01355-z",
+  "design": "narrative-review",
+  "population": "Studies of downhill running protocols; populations and protocols differ between studies",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "Downhill running can reduce performance by exercise-induced muscle damage, mostly measured by isometric MVC, creatine kinase and soreness.",
+    "Slope, duration and speed are the main influencing factors; the median protocol used was -12% slope (Q1-Q3 -15% to -10%), 40 min (30-45 min) and 11.3 km/h (9.8-12.9 km/h).",
+    "People least accustomed to downhill running generally showed the most muscle damage.",
+    "Prior downhill exposure is the most effective preventive strategy found.",
+    "Compression garments and special footwear were unconfirmed.",
+    "Protocols and outcome measures varied widely between studies, preventing firm conclusions on moderators."
+  ],
+  "limitations": "Narrative review with no quantitative synthesis. The abstract states that discrepancies in assessing damage, protocols and populations prevent firm conclusions.",
+  "implications": [
+    "Introduce downhill running progressively and place the first exposure well ahead of a race with large descents, since prior exposure is the best-supported preventive strategy and the least accustomed show the most damage.",
+    "Treat an unaccustomed downhill session near the typical research protocol (median -12% slope, 40 min, 11.3 km/h; Q1-Q3 -15% to -10%, 30-45 min, 9.8-12.9 km/h) as high-damage load. A specific recovery window is not given in the abstract.",
+    "Do not rely on compression garments or special footwear as a plan element; their effectiveness is unconfirmed."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Sports Medicine 50(12):2083-2110, 2020, four authors match. Europe PMC PMID 33037592 abstract supports all numbers. Removed the unsupported 'mostly young adults' claim and the 48-72 h recovery number.",
+    "checkedAt": "2026-10-22"
+  }
+}

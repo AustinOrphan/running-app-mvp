@@ -1,0 +1,34 @@
+{
+  "id": "imbach-2022-generalisation",
+  "title": "Training load responses modelling and model generalisation in elite sports",
+  "authors": "Imbach F, Perrey S, Chailan R, Meline T, Candau R",
+  "year": 2022,
+  "journal": "Scientific Reports",
+  "doi": "10.1038/s41598-022-05392-8",
+  "pmid": "35091649",
+  "url": "https://doi.org/10.1038/s41598-022-05392-8",
+  "design": "prospective-cohort",
+  "population": "Seven elite short-track speed skaters over a three-month training period",
+  "sampleSize": 7,
+  "evidenceLevel": "C",
+  "topics": ["load-response-models"],
+  "findings": [
+    "Cumulative responses to training were modelled by impulse, serial and bi-exponential response functions and fed to elastic net (ENET), principal component regression (PCR) and random forest (RF) models, fitted individually or on the whole group, and compared with the variable dose-response (DR) model using time-series cross-validation and RMSE.",
+    "ENET and PCR models had significantly greater generalisation ability than the DR model.",
+    "Only some ENET/PCR variants were significantly more accurate in prediction than DR; the authors conclude ENET achieved greater generalisation and predictive accuracy.",
+    "The authors conclude that building and evaluating models within a generalisation-enhancing procedure is a prerequisite for any predictive modelling."
+  ],
+  "limitations": "Seven athletes, one sport, three months. The abstract's p-values and model labels were stripped to placeholders, so no p-values are quoted and the exact variants that won are not recoverable from it. The same seven skaters are the 2019 dataset in marchal-2025-ffm-statistical-flaws.",
+  "implications": [
+    "Evaluate any performance predictor with forward-chaining (time-series) cross-validation, never random k-fold.",
+    "Use regularised linear models (elastic net) on exponentially filtered load features as the benchmark any mechanistic model must beat before it is shown to the athlete."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, Sci Rep, 2022-01-28. Added the RF/individual-versus-group detail from the abstract. Formula placeholders in the abstract mean significance details are unverified.",
+    "checkedAt": "2026-10-22"
+  }
+}

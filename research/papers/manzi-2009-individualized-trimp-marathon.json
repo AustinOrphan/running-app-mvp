@@ -1,0 +1,35 @@
+{
+  "id": "manzi-2009-individualized-trimp-marathon",
+  "title": "Dose-response relationship of autonomic nervous system responses to individualized training impulse in marathon runners",
+  "authors": "Manzi V, Castagna C, Padua E, Lombardo M, D'Ottavio S, Massaro M, Volterrani M, Iellamo F",
+  "year": 2009,
+  "journal": "American Journal of Physiology-Heart and Circulatory Physiology",
+  "doi": "10.1152/ajpheart.00054.2009",
+  "pmid": "19329770",
+  "url": "https://doi.org/10.1152/ajpheart.00054.2009",
+  "design": "prospective-cohort",
+  "population": "Eight recreational long-distance athletes followed for 6 months of training culminating in a marathon",
+  "sampleSize": 8,
+  "evidenceLevel": "C",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Individualized load was monitored with a modified TRIMP (TRIMPi) built from each athlete's own HR and lactate profile from a treadmill test; monthly TRIMPi steadily increased over the training period.",
+    "All autonomic parameters (HRV spectral measures, baroreflex sensitivity) were significantly related to dose by a second-order regression model (r2 0.90 to 0.99; P < 0.001), bell-shaped or U-shaped with the extreme at the highest TRIMPi.",
+    "The LF component of HRV at the last recording session was significantly and inversely correlated with the time needed to complete the marathon.",
+    "Authors interpret a progressive shift toward sympathetic predominance and suggest LF at peak load could predict achievement in this population."
+  ],
+  "limitations": "Eight recreational athletes, no control group, needs a laboratory HR-lactate profile. Does not compare TRIMP versions or test the sex-specific Banister constants; the abstract does not state the weighting used. The fitted r2 values describe 6 monthly points per person, so they overstate precision.",
+  "implications": [
+    "Where the user has a lactate-threshold or field-test HR profile, offer an individualized exponential-weighted TRIMP as an optional upgrade over the generic Banister weighting.",
+    "Use weekly or monthly TRIMP trend, not a single-session value, as a build/recovery input.",
+    "With n = 8, keep any thresholds from this paper out of hard rules; supporting rationale only."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, AJP Heart Circ Physiol, 2009, first author Manzi. Abstract read in Europe PMC; numbers match. This is not a source for the 1.92/1.67 Banister constants, which remain unverified in this corpus (Banister 1991 is a book chapter that is not indexed).",
+    "checkedAt": "2026-10-22"
+  }
+}

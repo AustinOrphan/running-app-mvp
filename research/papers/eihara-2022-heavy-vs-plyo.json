@@ -1,0 +1,35 @@
+{
+  "id": "eihara-2022-heavy-vs-plyo",
+  "title": "Heavy Resistance Training Versus Plyometric Training for Improving Running Economy and Running Time Trial Performance: A Systematic Review and Meta-analysis",
+  "authors": "Eihara Y, Takao K, Sugiyama T, Maeo S, Terada M, Kanehisa H, Isaka T",
+  "year": 2022,
+  "journal": "Sports Medicine - Open",
+  "doi": "10.1186/s40798-022-00511-1",
+  "pmid": "36370207",
+  "url": "https://doi.org/10.1186/s40798-022-00511-1",
+  "design": "meta-analysis",
+  "population": "Long-distance runners in 22 studies of heavy resistance or plyometric training as an adjunct to running",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Running economy pooled effect: heavy resistance g = -0.32 (95% CI -0.55 to -0.10, small) vs plyometric g = -0.13 (-0.47 to 0.21, trivial).",
+    "Running time trial: heavy resistance g = -0.24 (small) vs plyometric g = -0.17 (-0.27 to -0.06, trivial); the heavy-resistance CI printed in the abstract (-1.04 to -0.55) is inconsistent with the point estimate and appears to be a misprint.",
+    "Heavy resistance with nearly maximal loads (90% 1RM or more) g = -0.31 (-0.61 to -0.02, small) versus lower loads (below 90% 1RM) g = -0.17 (-1.05 to 0.70, trivial and imprecise).",
+    "Longer programs gave larger effects: heavy resistance 10-14 weeks g = -0.45 (-0.83 to -0.08) vs 6-8 weeks g = -0.21 (-0.56 to 0.15); plyometrics 8-10 weeks g = 0.26 (-0.67 to 0.15; sign apparently misprinted) vs 4-6 weeks g = -0.06 (trivial)."
+  ],
+  "limitations": "Small effects, very wide intervals and several inconsistent figures in the abstract; subgroup moderators come from few studies and CIs overlap; partly disagrees with Llanos-Lagos 2024 (plyometrics helped at slow speeds there).",
+  "implications": [
+    "Treat heavy resistance (near-maximal loads of 90% 1RM or more, low reps, after a technique base) as the primary economy method and plyometrics as secondary.",
+    "Plan strength blocks of about 10-14 weeks rather than 4-6 week bursts; this is directional support, not a tested threshold.",
+    "Present the economy benefit as small (g about 0.3) in any user-facing estimate."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Full abstract re-read without truncation; the load and duration subgroup numbers and the misprints are in the abstract. Added the explicit lower-load CI and plyometric duration numbers.",
+    "checkedAt": "2026-10-22"
+  }
+}

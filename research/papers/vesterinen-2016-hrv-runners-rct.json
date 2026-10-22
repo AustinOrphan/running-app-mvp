@@ -1,0 +1,36 @@
+{
+  "id": "vesterinen-2016-hrv-runners-rct",
+  "title": "Individual Endurance Training Prescription with Heart Rate Variability",
+  "authors": "Vesterinen V, Nummela A, Heikura I, Laine T, Hynynen E, Botella J, Häkkinen K",
+  "year": 2016,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000000910",
+  "pmid": "26909534",
+  "url": "https://doi.org/10.1249/mss.0000000000000910",
+  "design": "rct",
+  "population": "Recreational endurance runners",
+  "sampleSize": 40,
+  "evidenceLevel": "B",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "40 recreational endurance runners were split into an HRV-guided group (EXP) and a predefined group (TRAD); after a 4-week preparation period, an 8-week intensive period followed, with HRV measured every morning.",
+    "In EXP a moderate/high-intensity session was programmed only if HRV was within an individually determined smallest worthwhile change; otherwise low-intensity training was done.",
+    "EXP did fewer moderate+high intensity sessions than TRAD (13.2 ± 6.0 vs 17.7 ± 2.5; P = 0.021, ES = 0.98); no other training differences were found.",
+    "3000 m running speed improved in EXP (2.1% ± 2.0%, P = 0.004) but not in TRAD (1.1% ± 2.7%, P = 0.118); the between-group difference was small (ES = 0.42).",
+    "VO2max improved in both groups (EXP 3.7% ± 4.6%, P = 0.027; TRAD 5.0% ± 5.2%, P = 0.002)."
+  ],
+  "limitations": "Small sample (n = 40) and 8-week intensive phase; the abstract gives no significance test for the between-group difference (ES 0.42 is small); the HRV group did fewer hard sessions so comparisons are confounded by dose; VO2max did not favour HRV.",
+  "implications": [
+    "Rule template: schedule a moderate/high session only if morning HRV is within the individual smallest-worthwhile-change band of baseline; otherwise substitute low-intensity running.",
+    "Expect about 25% fewer hard sessions in an HRV-gated block (13 vs 18 over 8 weeks); do not back-fill skipped hard sessions.",
+    "Run-specific and recreational, so it supports HRV gating for the target user, with the benefit treated as small."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, MSSE, first author, July 2016. All numbers in Europe PMC abstract (PMID 26909534). Abstract does not name the HRV metric (lnRMSSD is not stated there), so the rule template does not specify it from this source. The Javaloyes runner RCT in the brief was not found by the researcher; Javaloyes work is in cyclists.",
+    "checkedAt": "2026-10-22"
+  }
+}

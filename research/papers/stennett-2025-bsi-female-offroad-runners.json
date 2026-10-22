@@ -1,0 +1,34 @@
+{
+  "id": "stennett-2025-bsi-female-offroad-runners",
+  "title": "Bone Stress Injury Epidemiology and Risk Factors in Female Off-Road Runners: A Systematic Review",
+  "authors": "Stennett R, Scheer V, Kaulback K",
+  "year": 2025,
+  "journal": "Journal of Sport Rehabilitation",
+  "doi": "10.1123/jsr.2024-0288",
+  "pmid": "39874957",
+  "url": "https://doi.org/10.1123/jsr.2024-0288",
+  "design": "systematic-review",
+  "population": "Female off-road (trail and cross-country) runners; 17 studies, 897 female runners",
+  "sampleSize": 897,
+  "evidenceLevel": "C",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "17 studies included (searches to July 2024); only 2 reported risk factors for BSI.",
+    "BSI incidence ranged from 0 to 34.39 per 100,000 athlete-exposures and prevalence from 0% to 40.9%; most BSIs were high severity and in the lower leg.",
+    "Eight significant intrinsic risk factors: increasing age, disrupted menstruation, previous BSI, increased female triad risk, and lower calcium, vitamin D and calorie intake.",
+    "Authors note scarcity of data and call for high-quality prospective studies."
+  ],
+  "limitations": "Systematic review without meta-analysis; scarce data on the target population, cross-country runners included, only 2 studies on risk factors.",
+  "implications": [
+    "Supports counting previous BSI, menstrual disruption, triad/REDs risk and low intake as BSI risk-flag factors for female trail runners.",
+    "Age was a risk factor here, so do not restrict BSI vigilance to young athletes."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref (J Sport Rehabil, 2025-07, first author Stennett) matches; Europe PMC abstract (PMID 39874957) supports all findings.",
+    "checkedAt": "2026-10-22"
+  }
+}

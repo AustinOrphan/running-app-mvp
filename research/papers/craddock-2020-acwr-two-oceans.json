@@ -1,0 +1,34 @@
+{
+  "id": "craddock-2020-acwr-two-oceans",
+  "title": "Does a greater training load increase the risk of injury and illness in ultramarathon runners? A prospective, descriptive, longitudinal design",
+  "authors": "Craddock N, Buchholtz K, Burgess TL",
+  "year": 2020,
+  "journal": "South African Journal of Sports Medicine",
+  "doi": "10.17159/2078-516x/2020/v32i1a8559",
+  "pmid": "36818970",
+  "url": "https://doi.org/10.17159/2078-516x/2020/v32i1a8559",
+  "design": "prospective-cohort",
+  "population": "119 runners training for the 2019 Two Oceans ultramarathon (56 km), weekly online logbook over 16 weeks",
+  "sampleSize": 119,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Injury incidence was 5 per 1,000 training hours; illness incidence was 16 per 1,000 training days.",
+    "There was a significant relationship between external training load and injury and illness incidence for runners who ran less than 30 km per week.",
+    "There was a significant relationship between the acute:chronic workload ratio (ACWR) and injury incidence when ACWR was > 1.5, and with illness incidence when ACWR was < 0.5.",
+    "The authors recommend monitoring both absolute and relative workloads."
+  ],
+  "limitations": "One 56-km race, 119 self-reporting runners, no effect sizes in the abstract; conflicts with [burgess-2025-training-load-injury-gam] on ACWR; ACWR methodology is itself contested.",
+  "implications": [
+    "Show a low-volume note when average weekly distance is under 30 km in the 12 weeks before an ultra (one study, low confidence).",
+    "Treat ACWR > 1.5 as an informational caution, not a hard gate, because the later 90-km cohort found minimal ACWR effect."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added in this review: the researcher cited this paper inside the Burgess entry but described it as a Comrades cohort; Europe PMC and Crossref show it is a Two Oceans (56 km) study of 119 runners. Crossref title, journal and 2020-09-30 date match; abstract read in full (PMID 36818970).",
+    "checkedAt": "2026-10-22"
+  }
+}

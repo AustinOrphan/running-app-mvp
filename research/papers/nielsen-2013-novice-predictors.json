@@ -1,0 +1,35 @@
+{
+  "id": "nielsen-2013-novice-predictors",
+  "title": "Predictors of Running-Related Injuries Among 930 Novice Runners: A 1-Year Prospective Follow-up Study",
+  "authors": "Nielsen RO, Buist I, Parner ET, Nohr EA, Sørensen H, Lind M, Rasmussen S",
+  "year": 2013,
+  "journal": "Orthopaedic Journal of Sports Medicine",
+  "doi": "10.1177/2325967113487316",
+  "pmid": "26535228",
+  "url": "https://doi.org/10.1177/2325967113487316",
+  "design": "prospective-cohort",
+  "population": "Novice runners given GPS watches and a neutral shoe, followed for 1 year",
+  "sampleSize": 930,
+  "evidenceLevel": "B",
+  "topics": ["beginners-return"],
+  "findings": [
+    "254 of 930 novice runners sustained a running-related injury over 155,318 km of running.",
+    "After 500 km, TASRI Type B (non-competitive) behaviour was a significant predictor (cIRD 11.9%, P = .04); age 45-65 (cIRD 14.7%, P = .08) and previous non-running injuries (cIRD 11.1%, P = .05) were clinically interesting but not statistically significant.",
+    "BMI groups showed a borderline relationship (P = .06); no significant relationships for sex (P = .42), previous running injury (P = .47), running experience (P = .30) or other sports (P = .30).",
+    "The authors suggest BMI over 30 kg/m2, age 45-65, non-competitive behaviour and previous non-running injuries are associated with higher risk, and BMI under 20 was protective; causal roles need investigation."
+  ],
+  "limitations": "Most associations were borderline or non-significant with wide intervals; behaviour questionnaire (TASRI) is unusual; novice sample from one Danish cohort. Running experience was not a significant predictor here, unlike in NLstart2run.",
+  "implications": [
+    "Use age 45-65, BMI over 30 and prior non-running injury as soft risk flags only; evidence is borderline.",
+    "Do not treat sex or prior running injury as risk modifiers on this evidence.",
+    "Expose cumulative running distance (km) as the injury-risk time scale when modelling novice risk."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "ADDED by verifier. Crossref title (without the subtitle 'A 1-Year...' in Crossref), OJSM, 2013-05-02, first author Nielsen, 7 authors. PubMed esummary confirms. All numbers read from Europe PMC abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

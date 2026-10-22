@@ -1,0 +1,34 @@
+{
+  "id": "lovdal-2021-injury-prediction-ml",
+  "title": "Injury Prediction in Competitive Runners With Machine Learning",
+  "authors": "Lovdal SS, Den Hartigh RJR, Azzopardi G",
+  "year": 2021,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2020-0518",
+  "pmid": "33931574",
+  "url": "https://doi.org/10.1123/ijspp.2020-0518",
+  "design": "other",
+  "population": "74 high-level middle- and long-distance runners with detailed training logs over 7 years",
+  "sampleSize": 74,
+  "evidenceLevel": "C",
+  "topics": ["ai-coaching"],
+  "findings": [
+    "Bagged XGBoost models on a daily time series (previous 7 days, 10 features/day mixing GPS-watch data and subjective exertion and success) reached average ROC AUC 0.724.",
+    "A weekly approach (22 aggregate features, 3-week window) reached average AUC 0.678.",
+    "The authors report the system predicts a sizable portion of injuries, particularly with data from the days preceding injury, and suggest ML could help tailor training programs."
+  ],
+  "limitations": "74 runners from one new data set; modest AUC (0.68-0.72) is the verifier's assessment that it is insufficient to drive decisions; no external or recreational validation in abstract. The researcher's claim of a published erratum could not be confirmed (Crossref/PubMed show none) and was removed. Study type (retrospective ML on logs) inferred from the abstract.",
+  "implications": [
+    "ML injury-risk output at this accuracy must not drive automatic plan changes; at most a non-alarming heads-up, with plans governed by explicit conservative rules.",
+    "Capture subjective daily data (perceived exertion, session success) alongside GPS metrics.",
+    "Prefer daily-resolution features over weekly aggregates if an exploratory indicator is built."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed XML: title, IJSPP, print 2021-10 (e-pub 2021-04-29), first author Lovdal (Lövdal) match. Abstract re-read. Design reclassified prospective-cohort to other; erratum claim removed (unverified).",
+    "checkedAt": "2026-10-22"
+  }
+}

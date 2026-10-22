@@ -1,0 +1,34 @@
+{
+  "id": "fell-2008-aging-muscle-recovery",
+  "title": "The effect of aging on skeletal-muscle recovery from exercise: possible implications for aging athletes",
+  "authors": "Fell J, Williams D",
+  "year": 2008,
+  "journal": "Journal of Aging and Physical Activity",
+  "doi": "10.1123/japa.16.1.97",
+  "pmid": "18268815",
+  "url": "https://doi.org/10.1123/japa.16.1.97",
+  "design": "narrative-review",
+  "population": "Review of studies of skeletal-muscle damage and recovery in older vs younger participants",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["age-masters"],
+  "findings": [
+    "There is a perception among older athletes that aging negatively affects recovery; plausible arguments are a greater susceptibility of older muscle to exercise-induced damage and a slower repair and adaptation response.",
+    "Differences in physical activity level of participants are rarely considered, so the roles of declining activity and aging in recovery are hard to separate.",
+    "The exercise used to induce damage and monitor recovery is often not indicative of a normal athletic training stimulus, limiting applicability to older athletes.",
+    "The authors recommend future work use a normal training stimulus and account for participants' physical activity level."
+  ],
+  "limitations": "Abstract reports no quantitative recovery-time estimate and no verdict that recovery is or is not slower; it presents the evidence as limited by design problems. Narrative review.",
+  "implications": [
+    "This paper alone does not justify a change in default recovery spacing: it does not demonstrate an age-specific recovery delay in trained people.",
+    "Treat age-related recovery slowing as an individual, data-driven adjustment (readiness signals, reported soreness, session-to-session performance) rather than a fixed age multiplier."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match. Abstract confirms all findings; the researcher's 'inconclusive' wording is an interpretation, reworded as 'limited by design problems'.",
+    "checkedAt": "2026-10-22"
+  }
+}

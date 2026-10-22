@@ -1,0 +1,36 @@
+{
+  "id": "martinez-2023-gut-training-sr",
+  "title": "The Effect of Gut-Training and Feeding-Challenge on Markers of Gastrointestinal Status in Response to Endurance Exercise: A Systematic Literature Review",
+  "authors": "Martinez IG, Mika AS, Biesiekierski JR, Costa RJS",
+  "year": 2023,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-023-01841-0",
+  "pmid": "37061651",
+  "url": "https://doi.org/10.1007/s40279-023-01841-0",
+  "design": "systematic-review",
+  "population": "Eight studies of gut-training or feeding-challenge (7 carbohydrate only, 1 carbohydrate plus protein), 4-28 day interventions, cycling or running",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "304 studies identified, 8 included; quality assessed with RoB 2.",
+    "Gut discomfort decreased by an average of 47% after 2-week repetitive carbohydrate feeding (n = 2) and 26% with repeated fluid ingestion over five trials (n = 1).",
+    "Carbohydrate malabsorption fell 45-54% in two studies of 2-week carbohydrate feeding but did not change significantly in one.",
+    "Significant improvements in GI symptoms in 2 studies, unclear in 4; no significant change in gastric emptying (n = 2) or intestinal injury/permeability markers (n = 3); cytokine results inconclusive (n = 2).",
+    "Conclusion: gut-training may reduce gut discomfort and potentially improve carbohydrate malabsorption and Ex-GIS, with possible performance implications."
+  ],
+  "limitations": "Eight small heterogeneous studies, mostly CHO-only and short; no ultra-distance trials; mixed symptom tools.",
+  "implications": [
+    "Gut-training is plausible but low-certainty: offer as an optional 2-4 week progression, not a mandatory block.",
+    "Raise CHO progressively during long runs and stop progression when GI symptoms worsen (step size is an engine default, not from the evidence).",
+    "Intestinal injury markers did not change: do not claim gut-training protects the gut barrier."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match; all numbers confirmed in the Europe PMC abstract. The '~10 g/h steps' in the researcher's implication is not from the paper and was removed from the evidence claims.",
+    "checkedAt": "2026-10-22"
+  }
+}

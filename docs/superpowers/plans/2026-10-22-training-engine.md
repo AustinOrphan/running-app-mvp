@@ -1,0 +1,312 @@
+# Training engine — implementation plan
+
+> For agentic workers: one task per engineer, own worktree, test first. Read
+> `docs/superpowers/specs/2026-10-22-training-engine-design.md`, the sections of
+> `research/engine-rules.md` your task cites, `CLAUDE.md`, the **Global constraints** and
+> **Shared contract** below, and your own task. Numbers come from `research/engine-rules.md`
+> through the parameter registry; never type a rule number into module code.
+
+**Base branch:** `feat/evidence-engine`. Groups in order; tasks inside a group in parallel.
+
+## Global constraints
+
+- Everything in `shared/engine/` is pure: no I/O, no `Date.now()`, no randomness; `today`
+  arrives in the input. Same input, same output.
+- Every number used by engine code is a `Param` from `shared/engine/params/`. A task may add
+  parameters only to its own section file(s) (listed in its Files). Grade D parameters carry
+  a `note` that says they are defaults. Evidence ids must exist in `research/papers/`.
+- Copy follows the tone rules [rules G5]: no "behind", "missed", streaks, red states; never
+  claim a limit prevents injury.
+- Engine output never adds load from a readiness signal, never reschedules missed sessions,
+  never exceeds a limit silently (a limit hit yields a warning with rule ids).
+- Only Task E1 edits `prisma/`, `shared/types.ts`, `shared/engine/types.ts`,
+  `server/app.ts`, `web/App.tsx`, `web/api/*.ts`, `package.json`.
+- Fixtures synthetic. The owner's real history is never committed.
+
+## Shared contract (E1 writes `shared/engine/types.ts`; frozen afterwards)
+
+```ts
+export type Grade = 'A' | 'B' | 'C' | 'D'
+export interface Param<T = number> { id: string; value: T; range?: [T, T]; unit?: string
+  grade: Grade; rule: string; evidence: string[]; note?: string }
+export interface EngineWarning { code: string; severity: 'info' | 'warn' | 'hold'; message: string; rules: string[] }
+export type PhaseV2 = 'base' | 'build' | 'specific' | 'taper' | 'race'
+export type SessionKind = 'easy' | 'recovery' | 'long' | 'long-fast-finish' | 'threshold' | 'intervals'
+  | 'race-pace' | 'strides' | 'hills' | 'hike' | 'b2b' | 'strength' | 'mobility' | 'rest' | 'race' | 'cross'
+export interface Step { kind: 'warmup' | 'work' | 'recover' | 'cooldown' | 'steady'; reps: number
+  durationSec: number | null; distanceM: number | null; zone: ZoneKey }
+export type ZoneKey = 'z1' | 'z2' | 'z3' | 'race-pace' | 'strides' | 'strength' | 'rest'
+export interface SessionTarget { zone: ZoneKey; rpe: [number, number]; hr: [number, number] | null
+  paceSecPerKm: [number, number] | null; heatNote: string | null }
+export type SessionFlag = 'spike-warn' | 'override-required' | 'heat' | 'night' | 'fuel-practice'
+  | 'b2b-day1' | 'b2b-day2' | 'downhill' | 'run-walk'
+export interface SessionSpec { date: string; order: number; kind: SessionKind; title: string
+  durationMin: number; distanceM: number | null; gainM: number | null; structure: Step[]
+  target: SessionTarget; purpose: string; rules: string[]; flags: SessionFlag[] }
+export interface Boundary { value: number; band: [number, number]
+  source: 'tested' | 'cs' | 'dfa' | 'rpe' | 'hrmax-observed' | 'hrmax-age' | 'hrr' | 'profile'; asOf: string }
+export interface ZoneSet { hrMax: Boundary | null; hrRest: number | null; lt1Hr: Boundary | null
+  lt2Hr: Boundary | null; csMps: Boundary | null; lt1PaceSecPerKm: Boundary | null
+  thresholdPaceSecPerKm: Boundary | null
+  hr: Record<'z1' | 'z2' | 'z3', [number, number]> | null
+  pace: Record<'z1' | 'z2' | 'z3', [number, number]> | null       // sec/km, slow..fast
+  rpe: Record<'z1' | 'z2' | 'z3', [number, number]> }            // CR-10
+export interface AthleteState {
+  asOf: string; age: number | null; sex: 'female' | 'male' | 'unspecified' | null
+  experience: 'novice' | 'returning' | 'recreational' | 'trained'; yearsRunning: number | null
+  load: { metric: 'srpe' | 'trimp' | 'minutes'; acute: number; chronic: number
+    daily: Array<{ date: string; load: number }> }
+  weeks: WeekRow[]                       // last 16 Mondays, oldest first (shared/domain/weeks)
+  typicalWeekMin: number                 // median run minutes of the last 4 weeks with a run
+  longest30d: { distanceM: number; durationSec: number; gainM: number; lossM: number; twoDaySec: number }
+  gaps16w: number; layoffDays: number; lastRunDate: string | null
+  fitness: { csMps: number | null; dPrimeM: number | null; csEfforts: number
+    exponent: number | null; races: Array<{ date: string; distanceM: number; timeSec: number }>
+    vo2maxTrend: number | null }
+  efficiency: { current: number | null; trendPct: number | null; samples: number }
+  durability: { decouplingMedianPct: number | null; samples: number }
+  risk: { recentInjury: boolean; priorBsi: boolean; bsiFactors: number; redsFlags: number; noviceFlags: string[] }
+  heatAcclimation: number                // 0..1 credit
+}
+export interface GoalModel { goalId: string; name: string; date: string; distanceM: number
+  gainM: number; lossM: number; surface: 'road' | 'trail' | 'track' | 'mixed'; goalType: 'finish' | 'time'
+  targetTimeSec: number | null; startTime: string | null; isUltra: boolean
+  distanceClass: '5k' | '10k' | 'half' | 'marathon' | 'ultra50' | 'ultra100k' | 'ultra100mi' | 'beyond'
+  expectedDurationSec: number; crossesDarkness: boolean; raceWbgtC: number | null }
+export interface Feasibility { label: 'comfortable' | 'tight' | 'not-reachable'; weeksNeeded: number
+  weeksAvailable: number; notes: EngineWarning[] }
+export interface WeekDraft { weekStart: string; index: number; phase: PhaseV2; focus: string
+  targetRunMin: number; longRunMin: number; longRunM: number | null; gainTargetM: number | null
+  runDays: number; qualitySessions: number; strengthSessions: number
+  tid: { z1: number; z2: number; z3: number }; flags: string[]; isRecovery: boolean; isTaper: boolean }
+export interface ChecklistResult { id: string; ok: boolean; detail: string; rules: string[] }
+export interface Prediction { method: string; predictedSec: number; lowSec: number; highSec: number
+  conditions: string[]; rules: string[] }
+export interface PlanDraft { weeks: WeekDraft[]; sessions: SessionSpec[]; feasibility: Feasibility
+  warnings: EngineWarning[]; checklist: ChecklistResult[]; prediction: Prediction | null
+  zones: ZoneSet; paramsVersion: string }
+export interface Checkin { date: string; fatigue: number | null; soreness: number | null; sleepQuality: number | null
+  mood: number | null; stress: number | null; illness: boolean; painScore: number | null
+  painArea: string | null; painFocalBone: boolean }
+export interface ReadinessSnapshot { date: string; checkin: Checkin | null
+  hrv: { readings: number; latest: number | null; baselineMean: number | null; baselineSd: number | null; flag: boolean }
+  restingHrFlag: boolean; sleepAvgH: number | null; sleepFlag: boolean
+  state: 'normal' | 'possible-fatigue' | 'persistent-suppression'
+  redFlags: Array<{ code: string; message: string; rules: string[] }> }
+export interface ExecutionAssessment { completion: 'completed' | 'partial' | 'extended' | 'modified'
+  intensity: 'below' | 'on' | 'above' | 'unknown'
+  effort: { score: -2 | -1 | 0 | 1 | 2 | null; confidence: 'high' | 'moderate' | 'low'
+    parts: { rpeDelta: number | null; feel: number | null; hrResidualZ: number | null; paceResidualPct: number | null } }
+  conditions: { wbgtC: number | null; heatAdjusted: boolean; gradeAdjusted: boolean }
+  flags: Array<'pain' | 'focal-bone-pain' | 'heat' | 'hr-unqualified' | 'spike'>; lines: string[] }
+export interface WeeklyDecision { decision: 'progress' | 'hold' | 'reduce'
+  signals: Array<{ code: string; detail: string; rules: string[] }>; nextWeekTargetMin: number }
+export interface ZoneProposal { boundary: 'cs' | 'lt1Pace' | 'thresholdPace' | 'lt1Hr' | 'hrMax'
+  from: number; to: number; observations: number; reason: string; rules: string[] }
+export interface PlanChange { weekStart: string; field: string; from: unknown; to: unknown; rules: string[] }
+export interface EngineInput { today: string; profile: AthleteProfile; activities: Activity[]
+  wellness: (WellnessDay & Partial<Checkin>)[]; reviews: WeeklyReview[]; goal: GoalModel
+  forecast: Array<{ time: string; tempC: number; dewPointC: number; humidityPct: number; windKph: number;
+    shortwaveWm2?: number }> | null
+  existing: { weeks: WeekDraft[]; sessions: Array<SessionSpec & { id: string; status: string;
+    activityId: string | null }> } | null
+  options: { recoveryCycle?: '3:1' | '2:1'; strengthSessions?: 0 | 1 | 2; tidModel?: 'pyramidal' | 'polarized' } }
+```
+
+Server and web additions (E1 adds to `shared/types.ts` and hooks): `PlanSession` (row shape
+of spec 3.3 with parsed JSON), `PlanRevision`, `PlanWithSessions` (`PlanWithWeeks` +
+`sessions` + `feasibility` + `warnings` + `checklist` + `zones`), `TodayView { date;
+sessions: Array<{ session: PlanSession; advice: 'as-planned' | 'downgrade-easy' | 'rest';
+reasons: string[] }>; heat: { wbgtC: number | null; note: string | null; coolerHour: string | null };
+checkin: Checkin | null; readiness: ReadinessSnapshot; unrated: Activity[] }`.
+
+Engine entry points (`shared/engine/index.ts`, E9):
+
+```ts
+buildPlan(input: EngineInput): PlanDraft
+replan(input: EngineInput): { draft: PlanDraft; changes: PlanChange[] }
+assessExecution(session: SessionSpec, activity: Activity, ctx: { zones: ZoneSet; state: AthleteState }): ExecutionAssessment
+matchSessions(sessions: Array<SessionSpec & { id: string; activityId: string | null; linkSource: string | null }>,
+  activities: Activity[]): Array<{ sessionId: string; activityId: string }>
+todayAdvice(input: EngineInput, sessions: Array<SessionSpec & { id: string }>): TodayView['sessions']
+weeklyDecision(input: EngineInput, weekStart: string): WeeklyDecision
+predictRace(input: EngineInput): Prediction | null
+zoneProposals(input: EngineInput): ZoneProposal[]
+```
+
+---
+
+## Group E0
+
+### Task E1: Engine scaffold, parameter registry, research tooling
+
+**Files:** `prisma/schema.prisma` + migration `training_engine` (spec 3), `shared/types.ts`,
+`shared/engine/types.ts`, `shared/engine/params/{index,a-state,b-load,c-zones,d-goal,e-macro,f-micro,g-limits,h-ultra,i-env,j-adapt,k-taper,l-predict,m-execution}.ts`,
+stubs for every engine module and every file named below, `server/serialize.ts`
+(new serializers), `server/app.ts` (register new routers), `web/App.tsx` (`/research`),
+`web/api/*.ts` (hooks for every endpoint in spec 6), `research/README.md`,
+`research/tools/{build-corpus.workflow.js,write-corpus.mjs}`, `scripts/research-check.ts`,
+`scripts/research-verify.ts`, `package.json` scripts `research:check`, `research:verify`
+(add `research:check` to `check`), `.claude/skills/research-update/SKILL.md`,
+`tests/unit/engine/params.test.ts`, `tests/unit/research/corpus.test.ts`.
+
+- Transcribe **every** numeric value in `research/engine-rules.md` (all sections and the
+  numeric parameter table) into the section files as `Param`s with ids like `g1.spikeRatio`,
+  rule ids (`g-1`), grades, evidence ids and notes for grade D; `params/index.ts` exports
+  `P` (all sections merged) and `PARAMS_VERSION = '2026-10-22.1'`.
+- Tests: every evidence id exists as `research/papers/<id>.json`; every grade D param has a
+  note; ids unique; every paper validates against a zod schema (fields as in the corpus);
+  every `[id]` cited in `research/rules/*.json` and `research/engine-rules.md` exists
+  (a small set of known unresolved ids may be listed explicitly in the test with a reason).
+- `scripts/research-verify.ts`: the Crossref check (title token overlap ≥ 0.6, year ±1),
+  one request at a time, prints mismatches; not run in CI.
+- Skill: when and how to add papers or a topic (the workflow, the writer, both scripts,
+  updating `engine-rules.md` and params, never inventing ids).
+- Finish with `npm run check`, `npm run build`, `npm run test:e2e`; commit
+  `chore: scaffold the training engine and parameter registry`.
+
+## Group EA (parallel, pure engine)
+
+Each task: its modules, its params section files, `tests/unit/engine/<module>.test.ts`.
+
+### Task E2: Athlete state and load — `athlete.ts`, `load.ts`; params a, b
+
+`estimateState(input: EngineInput): AthleteState`; `sessionLoad(activity: Activity, ctx: {
+profile; zones }): { srpe: number | null; trimp: number | null; metric: 'srpe' | 'trimp' | 'minutes';
+hrQualified: boolean }`; `dailyLoad(activities, ctx, metric): Array<{ date; load }>`;
+`ewma(series, days)`; `criticalSpeed(efforts: Array<{ distanceM; timeSec }>): { csMps; dPrimeM } | null`
+(linear distance-time fit, ≥ 3 efforts 400-5000 m within 90 days, grade-adjusted);
+`efficiencyIndex(activities)`; `experienceClass(...)`. Tests pin rules A2-A9, B1-B5, B7
+(including: optical HR on a trail run is not qualified; sRPE and TRIMP never summed; the
+30-day longest run uses completed runs only; gap counting over 16 weeks; female TRIMP
+constant 1.67, male 1.92, unspecified uses the profile's explicit setting defaulting to male).
+
+### Task E3: Zones, heat and terrain — `zones.ts`, `heat.ts`, `terrain.ts`; params c, i
+
+`buildZones(profile, state, today): ZoneSet` (anchor hierarchy C2, HRmax C3, LT1 C4,
+threshold C5, bands C7); `liljegrenWbgt(input: { tempC; humidityPct; windKph; shortwaveWm2;
+pressureHpa? ; zenithDeg? }): number` with the air-temperature fallback and a label;
+`heatPenaltyPct(wbgtC, abilityMarathonSec): number` (I2-I4, no extrapolation above 25 C →
+warning); `trainingHeatAdvice(forecastHours, session)` (I7, cooler hour);
+`acclimationCredit(exposureDays: string[], today): number` (I8 decay);
+`minettiCost(grade: number): number`, `gradeAdjustedSpeed(speed, grade)` (I11). Also
+change `shared/importers/files/summarize.ts` to use `terrain.ts` instead of its own Minetti
+copy (keep its tests green). Tests: published WBGT reference values within 0.5 C; penalty
+table cross-check (Ely bands); Minetti values 5.6 at +45%, 0.51 floor at -20%.
+
+### Task E4: Goal model and prediction — `goal.ts`, `predict.ts`; params d, l
+
+`goalModel(goal: Goal, state: AthleteState, climate): GoalModel` (distance class, expected
+duration from prediction or pace prior, darkness from start time and duration, ultra flag);
+`feasibility(goal, state, today): Feasibility` (D4 formula, floors D3, notes D5, never
+refuse); `predictRace(input): Prediction | null` (L1-L6 hierarchy, intervals, trail
+widening, heat penalty from E3's interface via its stub). Tests: D4 weeks formula with
+cutbacks; 100-mile defaults to finish-first; half and marathon floors; Riegel only ≤ 21.1 km;
+minimum ±3% band, ±6% marathon; trail +50%.
+
+### Task E5: Macrocycle and sessions — `macro.ts`, `sessions.ts`; params e, h, k
+
+`macroPlan(input, state, goal, feasibility): WeekDraft[]` — backwards from race day: taper
+(K1, K2, strictly decreasing), specific 6-8 weeks, build, base; 3:1 or 2:1 cycles by flags
+(E3); TID targets per phase and distance class (E4 table; Z1 ≥ 70, Z2 ≤ Z1); weekly targets
+from `typicalWeekMin` within G-2/G-3 and floors; strength, gut-training and heat blocks
+(E5, H7, I8); ultra volume-first (H1); post-race week. `sessionLibrary(kind, params): ...` and
+`prescribe(kind, minutes, zones, week): SessionSpec` with structure (C5 continuous threshold
+margins, C6 rep length from D′ budget, strides, long fast finish rules, hike, b2b). Tests:
+taper multipliers and lengths per distance; recovery-week cut 20-30%; Z1 floor in every
+phase; strength block length; heat block placed when race WBGT ≥ 18 C; ultra long-run cap
+min(6 h, 0.6 × race duration).
+
+### Task E6: Microcycle and guards — `micro.ts`, `guards.ts`; params f, g
+
+`placeWeek(week: WeekDraft, ctx: { profile; zones; state; prevSessions }): SessionSpec[]` —
+available days and max minutes, long-run day, 1-2 quality sessions, spacing F1, F3, F4,
+frequency F5, novice run-walk, b2b pairs (H3), strength placement. `applyGuards(sessions,
+state, history): { sessions; warnings }` — G-1 spike guard on distance, duration, gain and
+descent against the 30-day maxima (completed runs only; minimum steps), G-2 ramp (soft 10%,
+30% per 2 weeks ceiling), G-3 profiles, H2/H3 ultra caps, never-make-up G-6 helper
+`nextWeekCap(plannedMin, actualLastWeekMin, ramp)`. Tests: no two hard days in a row; no
+session on an unavailable day; long run never between two quality days; a 2.1× spike is
+never scheduled without `override-required`; 1.10-2.0× gets `spike-warn`; ramp ceiling over
+any 2-week window; prior-BSI ramp ≤ 5%.
+
+### Task E7: Execution — `execution.ts`; params m
+
+`matchSessions` and `assessExecution` per spec 4.1-4.2: compatibility table, scoring,
+greedy per day, owner links untouched; completion bands; intensity from HR histogram time in
+band when HR is qualified, else GAP pace vs band; HR model fit (≥ 8 steady runs in 8 weeks,
+heat term, shrinkage); effort score combining RPE delta, feel, HR residual, pace residual;
+pain flags. Tests: a 60-minute easy session matched by a 58-minute run the same day over a
+30-minute run the day after; strength activity never matches a run session; RPE 7 on an easy
+run → score ≥ +1; feel −2 with RPE 2 on a threshold session → score ≤ −1; HR residual null
+with fewer than 8 qualifying runs; heat-adjusted flag at WBGT 22 C; pain 5 → `pain` flag.
+
+### Task E8: Readiness and adaptation — `readiness.ts`, `adapt.ts`; params j
+
+`readinessSnapshot(input, date): ReadinessSnapshot` (J2-J4, sleep, red flags §n, fatigue
+states J8); `todayAdvice` (downgrade-only J3 with persistence rule); `weeklyDecision`
+(J5 using completion, execution scores, check-ins, efficiency, sleep, HRV, REDs, heat; G-6
+cap); `zoneProposals` (C8 + spec 4.3: three concordant observations); `breakRestart(layoffDays,
+preBreakWeekMin)` (J7 table); `quality trim` helper (spec 4.3). Tests: high HRV never adds
+load; one flagged day without poor subjective score → as planned; two days → downgrade;
+completion 75% → hold; two signals for 7 days → reduce; illness → no intensity until one
+symptom-free day plus three easy days; masters gate J6; restart table tiers.
+
+## Group EB
+
+### Task E9: Orchestration, checklist, explanations — `index.ts`, `checklist.ts`, `explain.ts`
+
+`buildPlan` (state → zones → goal → feasibility → macro → per-week micro → guards →
+checklist → prediction), `replan` (keeps past weeks and completed sessions, recomputes the
+future, returns `PlanChange[]` with rule ids), `explain(rules: string[]): Array<{ rule;
+params: Param[]; papers: string[] }>`, checklist items for G1 (progression within limits,
+recovery cadence, TID per phase, strictly decreasing taper, level differentiation between
+novice and trained plans, spike guard, availability). **Plan matrix test** in
+`tests/unit/engine/matrix.test.ts`: nine synthetic athletes × goals from spec 9 and assert
+every checklist item and every guard in every week; plus determinism (same input twice →
+identical output).
+
+## Group EC
+
+### Task E10: Server services and routes
+
+**Files:** `server/services/engineInput.ts` (gather `EngineInput` from the DB: profile,
+365 days of activities, 60 days of wellness and check-ins, reviews, goal model inputs,
+forecast, race climate via Open-Meteo archive climatology for the race date and location),
+`server/services/planEngine.ts` (generate, replan with `PlanRevision`, persist sessions),
+`server/services/execution.ts` (after store: match and assess; nightly sweep),
+`server/routes/{plan,today,checkins,zones,predictions,screenings,research}.ts`,
+`server/jobs/scheduler.ts` (add Monday 03:00 local re-plan and nightly matching),
+`server/services/activityStore.ts` (call the execution hook after a store), tests.
+API per spec 6; 422 with the checklist when publishing fails; owner session edits never
+violate guards (a move that would break spacing returns 409 with the reason).
+
+## Group ED (parallel, web)
+
+### Task E11: Today
+`web/pages/DashboardPage.tsx` becomes Today: session cards (pace, HR, RPE, purpose, why),
+readiness advice, heat note with cooler hour, check-in card (1-5 chips, illness, pain with
+area and "point tenderness on a bone"), the existing "How did it go?" card, red-flag banners,
+disclaimer link. Tests with mocked API.
+
+### Task E12: Plan
+`web/pages/PlanPage.tsx` + `web/components/SessionSheet.tsx`: week rows expand to day cards;
+session sheet with prescription, steps, why drawer, linked activity and execution
+assessment, link/relink, move, skip; feasibility, warnings, checklist, "What changed".
+
+### Task E13: Goals, Review, Profile additions
+Goals: new descriptors, feasibility, prediction range and method, race heat. Review:
+weekly decision with signals, zone proposals accept/decline, execution summaries. Profile:
+risk fields, zones with sources, REDs screen.
+
+### Task E14: Research page and why drawer
+`web/pages/ResearchPage.tsx`, `web/components/WhyDrawer.tsx`: topics, rules with grade
+badges, papers with findings and DOI links, grade filter; drawer used by Today, Plan and
+Review; data via `import.meta.glob` (lazy).
+
+## Group EE
+
+### Task E15: End to end and docs
+E2E spec per spec 9; README "Training engine" section (what it does, what it does not, the
+disclaimer, how evidence and defaults are shown); `docs/STATUS.md`; ADR 0005 (deterministic
+evidence-graded engine, LLM text only) and ADR 0006 (provider framework, experimental Garmin).

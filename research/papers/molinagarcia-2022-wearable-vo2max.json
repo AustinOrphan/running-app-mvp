@@ -1,0 +1,35 @@
+{
+  "id": "molinagarcia-2022-wearable-vo2max",
+  "title": "Validity of Estimating the Maximal Oxygen Consumption by Consumer Wearables: A Systematic Review with Meta-analysis and Expert Statement of the INTERLIVE Network",
+  "authors": "Molina-Garcia P, Notbohm HL, Schumann M, Argent R, Hetherington-Rauth M, Stang J, et al.",
+  "year": 2022,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-021-01639-y",
+  "pmid": "35072942",
+  "url": "https://doi.org/10.1007/s40279-021-01639-y",
+  "design": "meta-analysis",
+  "population": "Validation studies of wearable-estimated VO2max (14 studies)",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["ai-coaching"],
+  "findings": [
+    "Fourteen validation studies were included.",
+    "Wearables using resting-condition information significantly overestimated VO2max (bias 2.17 ml/kg/min; limits of agreement -13.07 to 17.41).",
+    "Devices using exercise-based algorithms had lower error (bias -0.09 ml/kg/min; limits of agreement -9.92 to 9.74).",
+    "Authors conclude exercise-based estimation seems optimal at population level but individual-level error is large, so for sport or clinical use it needs improvement; an INTERLIVE statement proposes six validation domains."
+  ],
+  "limitations": "Only 14 heterogeneous studies; no brand- or running-specific results in the abstract. Crossref lists a 2026 correction (10.1007/s40279-026-02547-9), contents not checked.",
+  "implications": [
+    "Treat watch VO2max or fitness scores as noisy (about plus or minus 10 ml/kg/min individual limits of agreement); do not derive training paces from them.",
+    "Set zones from the athlete's own hard efforts and race results; use device VO2max only as a smoothed trend.",
+    "Ignore resting-based wearable VO2max estimates."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: title, Sports Med, 2022-01-24, first author Molina-Garcia match. PubMed/Europe PMC abstract re-read; added resting-based bias/LoA numbers. Erratum claim verified as a Crossref 'Correction' relation dated 2026-10-13.",
+    "checkedAt": "2026-10-22"
+  }
+}

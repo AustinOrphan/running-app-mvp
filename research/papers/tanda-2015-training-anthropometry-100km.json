@@ -1,0 +1,40 @@
+{
+  "id": "tanda-2015-training-anthropometry-100km",
+  "title": "Effects of training and anthropometric factors on marathon and 100 km ultramarathon race performance",
+  "authors": "Tanda G, Knechtle B",
+  "year": 2015,
+  "journal": "Open Access Journal of Sports Medicine",
+  "doi": "10.2147/oajsm.s80637",
+  "pmid": "25995653",
+  "url": "https://doi.org/10.2147/oajsm.s80637",
+  "design": "cross-sectional",
+  "population": "Marathoners and 100 km ultramarathoners (large cohort; bivariate and multiple regression of training and anthropometric variables vs race pace)",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training", "volume-performance"],
+  "findings": [
+    "A combination of training volume and intensity was suitable for predicting both marathon and 100 km race pace.",
+    "Training volume was more important than training pace for predicting 100 km performance, whereas the opposite held for the marathon.",
+    "Mean weekly training distance and mean training pace were the key predictor variables for both marathon and 100 km performance.",
+    "Higher body-fat percentage negatively affected 42 km and 100 km performance; below about 15% body fat, performance could be predicted solely from training indices.",
+    "A combination of training volume and intensity predicted marathon and 100 km race pace.",
+    "Higher body fat percentage hurt both 42 km and 100 km performance; below 15% body fat, performance could be predicted solely from training indices.",
+    "Mean weekly training distance and mean training pace were the key predictors for both distances."
+  ],
+  "limitations": "Observational and correlational, self-reported training; sample size not stated in the abstract; body-fat finding applies to a mostly male recreational cohort; association is not proof that raising volume improves performance.",
+  "implications": [
+    "For 100 km goals, weight weekly volume above training pace in progression priorities (volume first, then pace); for marathon, the reverse.",
+    "Use mean weekly training distance and mean training pace as the two inputs of a simple race-pace sanity predictor for 100 km, fitted locally on the athlete's own data; coefficients are not in the abstract.",
+    "The plan generator should set no body-composition target.",
+    "Use both weekly distance and training pace as inputs for marathon and 100 km predictions; do not hard-code which dominates for ultras given the conflicting 2010 paper.",
+    "Show uncertainty wider for ultra predictions."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2015-04) title and journal match; Crossref lists Knechtle first but PubMed/Europe PMC list Tanda G, Knechtle B and the researcher's order was kept. Abstract re-read from Europe PMC; sample size not stated so null.",
+    "checkedAt": "2026-10-22"
+  }
+}

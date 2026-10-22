@@ -1,0 +1,34 @@
+{
+  "id": "ehrstrom-2018-short-trail",
+  "title": "Short Trail Running Race: Beyond the Classic Model for Endurance Running Performance",
+  "authors": "Ehrstrom S, Tartaruga MP, Easthope CS, Brisswalter J, Morin JB, Vercruyssen F",
+  "year": 2018,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000001467",
+  "pmid": "29077639",
+  "url": "https://doi.org/10.1249/mss.0000000000001467",
+  "design": "cross-sectional",
+  "population": "Nine highly trained trail runners performing a 27 km trail race plus laboratory tests",
+  "sampleSize": 9,
+  "evidenceLevel": "D",
+  "topics": ["performance-prediction"],
+  "findings": [
+    "VO2max, %VO2max at ventilatory threshold and level running economy gave a low prediction of the 27 km trail race time (R = 0.48).",
+    "A knee-extension fatigue index (local endurance, r = 0.91) and VO2max (r = -0.76) had the highest correlations with trail time.",
+    "Adding the fatigue index and running economy on a +10% slope markedly improved the model (R = 0.98); the fatigue index and VO2max had the largest unique contributions (49.8% and 20.4%).",
+    "The authors conclude the classic endurance model does not allow meaningful prediction of short trail performance."
+  ],
+  "limitations": "n = 9 with several candidate predictors, so R = 0.98 is probably overfitted and unvalidated; 27 km only; homogeneous highly trained group; predictors are lab measures not available from a training log.",
+  "implications": [
+    "Do not transfer a road-derived VDOT or CS directly to trail races; discount confidence and widen the range when the course is hilly.",
+    "Prefer course gradient data and the athlete's uphill performance over level-running metrics; do not code the R = 0.98 model."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref gives short title 'Short Trail Running Race'; subtitle from Europe PMC. Corrected the researcher's 'elite-level males' (the abstract says highly trained, sex not stated) and clarified the fatigue index is a knee-extension local-endurance test.",
+    "checkedAt": "2026-10-22"
+  }
+}

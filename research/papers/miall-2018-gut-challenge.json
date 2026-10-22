@@ -1,0 +1,35 @@
+{
+  "id": "miall-2018-gut-challenge",
+  "title": "Two weeks of repetitive gut-challenge reduce exercise-associated gastrointestinal symptoms and malabsorption",
+  "authors": "Miall A, Khoo A, Rauch C, Snipe RMJ, Camoes-Costa VL, Gibson PR, Costa RJS",
+  "year": 2018,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.12912",
+  "pmid": "28508559",
+  "url": "https://doi.org/10.1111/sms.12912",
+  "design": "rct",
+  "population": "Endurance runners (n = 18) randomised to blinded CHO (90 g/h) or placebo gut-training for 2 weeks",
+  "sampleSize": 18,
+  "evidenceLevel": "C",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "Gut-training: 1 h running at 60% VO2max-equivalent daily for 2 weeks while consuming 90 g CHO/h (CHO) or 0 g/h (PLA).",
+    "In the repeat 2 h gut-challenge, gut discomfort (P = .012), total (P = .009), upper (P = .015) and lower GI symptoms (P = .008) and nausea (P = .05) were reduced on CHO but not PLA.",
+    "Peak breath H2 fell from 13 +/- 6 to 6 +/- 3 ppm on CHO (P = .004) but not PLA; feeding tolerance did not differ between trials.",
+    "Effort-bout distance rose from 11.7 +/- 1.5 to 12.3 +/- 1.3 km on CHO only (P = .035)."
+  ],
+  "limitations": "Very small (n = 18), 2-week laboratory-style protocol, 1 h daily sessions, no ultra-distance or solid-food outcomes; Crossref lists online publication in 2017, print year 2018 used here.",
+  "implications": [
+    "Gut-training pathway default: about 14 days of near-daily 1 h steady runs at the target race CHO rate (this protocol used 90 g/h), only for athletes who choose a high-CHO race plan; lower-rate athletes can scale the rate to their own target.",
+    "Expect symptom and malabsorption benefits to show within 2 weeks; log symptoms to confirm per athlete.",
+    "Evidence is low-certainty; do not present it as guaranteed."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title/journal/authors match (issued year 2017 online, Europe PMC 2018 print); all numbers from Europe PMC abstract. Added by verifier as a second gut-training RCT.",
+    "checkedAt": "2026-10-22"
+  }
+}

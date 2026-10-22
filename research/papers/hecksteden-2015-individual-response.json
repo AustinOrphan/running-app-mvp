@@ -1,0 +1,35 @@
+{
+  "id": "hecksteden-2015-individual-response",
+  "title": "Individual response to exercise training - a statistical perspective",
+  "authors": "Hecksteden A, Kraushaar J, Scharhag-Rosenberger F, Theisen D, Senn S, Meyer T",
+  "year": 2015,
+  "journal": "Journal of Applied Physiology",
+  "doi": "10.1152/japplphysiol.00714.2014",
+  "pmid": "25663672",
+  "url": "https://doi.org/10.1152/japplphysiol.00714.2014",
+  "design": "narrative-review",
+  "population": "Statistical and methodological perspective on exercise-training response research",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ai-coaching"],
+  "findings": [
+    "Measurement error limits the accuracy of individual response estimates; at the individual level a low signal-to-noise ratio may not be compensated by increasing sample size.",
+    "Within-subject variation in training efficacy may contribute to gross response variability and cannot be disclosed by comparison with a control group; it calls for repeated interventions.",
+    "Response is influenced by a multitude of determinants, and indications of interaction between them lead to the hypothesis that an interactive rather than additive approach may give optimal predictive accuracy.",
+    "Conclusive inference and optimal prediction of subject-by-training interaction entail demanding statistical requirements beset with practical difficulties; pragmatic alternatives are warranted."
+  ],
+  "limitations": "Conceptual statistical paper without original data; provides no ready-made predictive model or response-classification thresholds.",
+  "implications": [
+    "Treat a single test or block as a noisy measure of response: require repeated comparable measurements before changing an athlete's model parameters or labelling a responder.",
+    "Use smoothing or shrinkage toward population priors when updating individual fitness or load-tolerance parameters from sparse data, and show uncertainty.",
+    "Do not hard-code a responder classification; keep the individual adaptation signal as a soft, confidence-weighted adjustment."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: title, J Appl Physiol, issued 2015-06-15, first author Hecksteden match. Abstract (PMID 25663672) re-read in full; findings are paraphrases of it.",
+    "checkedAt": "2026-10-22"
+  }
+}

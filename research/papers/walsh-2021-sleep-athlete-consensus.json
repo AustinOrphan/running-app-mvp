@@ -1,0 +1,36 @@
+{
+  "id": "walsh-2021-sleep-athlete-consensus",
+  "title": "Sleep and the athlete: narrative review and 2021 expert consensus recommendations",
+  "authors": "Walsh NP, Halson SL, Sargent C, Roach GD, Nédélec M, Gupta L, Leeder J, Fullagar HH, et al.",
+  "year": 2021,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2020-102025",
+  "pmid": "33144349",
+  "url": "https://doi.org/10.1136/bjsports-2020-102025",
+  "design": "consensus-statement",
+  "population": "Athletes (narrative review and expert consensus; abstract emphasises elite athletes)",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "Elite athletes are particularly susceptible to sleep inadequacies: habitual short sleep (<7 hours/night) and poor sleep quality (for example fragmentation).",
+    "Performance is reduced by a night or more without sleep, but the influence of partial restriction over 1-3 nights remains unclear.",
+    "In the wider population, habitually sleeping <7 hours/night increases susceptibility to respiratory infection.",
+    "Sleep is influenced by sport-specific factors (training, travel, competition) and non-sport factors (for example female gender, stress, anxiety).",
+    "A one-size-fits-all recommendation (for example 7-9 hours/night) is unlikely to be ideal; an individualised approach considering perceived sleep need is recommended; research is needed on napping and sleep extension."
+  ],
+  "limitations": "Studies in athletes often have inadequate experimental control, few females, and questionable sleep-assessment validity; no quantitative load-adjustment rules.",
+  "implications": [
+    "Use sleep as a risk modifier: when habitual sleep is below about 7 h over several nights, surface a warning and an option to reduce intensity, not an automatic large volume cut.",
+    "Do not penalise a single short night; act on multi-night patterns and the athlete's perceived sleep need.",
+    "Ask for perceived sleep quality and let the athlete set a personal sleep need."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: title, BJSM, first author Walsh, online 3 Nov 2020; print issue 2021 (title includes 2021), year recorded as 2021. Abstract (PMID 33144349) supports all findings. Author list abbreviated; Walsh, Halson, Fullagar confirmed as authors by the researcher's Crossref check, not re-listed here in full.",
+    "checkedAt": "2026-10-22"
+  }
+}

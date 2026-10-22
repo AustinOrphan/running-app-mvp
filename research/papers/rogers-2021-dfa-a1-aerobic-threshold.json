@@ -1,0 +1,34 @@
+{
+  "id": "rogers-2021-dfa-a1-aerobic-threshold",
+  "title": "A New Detection Method Defining the Aerobic Threshold for Endurance Exercise and Training Prescription Based on Fractal Correlation Properties of Heart Rate Variability",
+  "authors": "Rogers B, Giles D, Draper N, Hoos O, Gronwald T",
+  "year": 2021,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2020.596567",
+  "pmid": "33519504",
+  "url": "https://doi.org/10.3389/fphys.2020.596567",
+  "design": "other",
+  "population": "15 participants performing an incremental treadmill run with gas exchange and HRV recording (single-session method comparison)",
+  "sampleSize": 15,
+  "evidenceLevel": "C",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "The VO2 and HR at which DFA a1 first reached 0.75 (HRVT) were compared with those at gas-exchange VT1.",
+    "Mean VT1 was reached at 39.8 ml/kg/min and HR 152 bpm versus HRVT at 40.1 ml/kg/min and HR 154 bpm, with no difference by t test.",
+    "Pearson r was 0.99 for VO2 and 0.97 for HR; intraclass correlation 0.99 for VO2 and 0.96 for HR.",
+    "The authors conclude DFA a1 reaching 0.75 on an incremental treadmill test is closely associated with crossing VT1."
+  ],
+  "limitations": "Small sample (n = 15), single incremental treadmill test; no repeat tests or fatigued state; the abstract does not report the Bland-Altman limits of agreement (see Van Hooren 2023 for those).",
+  "implications": [
+    "Where beat-to-beat RR data from a chest strap exist, DFA a1 = 0.75 can be offered as an optional data-driven estimate of the HR at VT1 (Zone 1 upper boundary), shown alongside other estimates, not as the sole definition.",
+    "Do not compute DFA a1 from optical wrist HR; require RR-interval data with artifact correction. No other DFA a1 cut-off is justified by this paper."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Front Physiol vol 11, issued 2021-01-15 (article number carries 2020). Abstract confirms numbers. Design relabelled from experimental-crossover to other (single-session method comparison). The wrist-HR statement is an engineering inference, not in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

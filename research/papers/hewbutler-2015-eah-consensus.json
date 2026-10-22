@@ -1,0 +1,35 @@
+{
+  "id": "hewbutler-2015-eah-consensus",
+  "title": "Statement of the Third International Exercise-Associated Hyponatremia Consensus Development Conference, Carlsbad, California, 2015",
+  "authors": "Hew-Butler T, Rosner MH, Fowkes-Godek S, Dugas JP, Hoffman MD, Lewis DP, et al.",
+  "year": 2015,
+  "journal": "Clinical Journal of Sport Medicine",
+  "doi": "10.1097/jsm.0000000000000221",
+  "pmid": "26102445",
+  "url": "https://doi.org/10.1097/jsm.0000000000000221",
+  "design": "consensus-statement",
+  "population": "Expert panel consensus on exercise-associated hyponatremia (EAH) in athletes; also published in Br J Sports Med (doi 10.1136/bjsports-2015-095004, PMID 26227507)",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "Concluded that the primary etiology of EAH is overconsumption of hypotonic fluids, likely combined with non-osmotic stimulation of arginine vasopressin secretion (as reported by Hew-Butler 2017 full text).",
+    "Sodium ingestion during a race may attenuate the fall in blood sodium but cannot prevent EAH in the setting of excessive fluid intake (as reported by Hew-Butler 2017 full text).",
+    "Recommended treatment of severe symptomatic EAH with encephalopathy is a 100 mL bolus of 3% saline, repeated every 10 min until symptoms resolve (as reported by Hew-Butler 2017 full text).",
+    "Educational points attributed to it: drinking to thirst appears safe and effective; excessive fluid beyond thirst has not been shown to reduce fatigue, cramping or exertional heat stroke; body weight is a reasonable surrogate of hydration change and weight gain indicates fluid overload (as reported by Hew-Butler 2017 full text)."
+  ],
+  "limitations": "No abstract is available in Europe PMC, PubMed or Semantic Scholar, and publisher full text was not accessible (403). The findings are verified only through their citation in the 2017 update by the same lead author, not from the consensus text itself. Expert consensus, not a systematic review.",
+  "implications": [
+    "Hydration copy must say 'drink to thirst'; the engine must not generate fixed volume prescriptions that push intake beyond thirst.",
+    "Do not present sodium as protection against hyponatremia when fluid intake is excessive.",
+    "The engine does not prescribe treatment: include a safety card listing EAH symptoms and directing to medical care."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "none",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed confirm title, year, journal, authors, PMID 26102445. No abstract or accessible full text, so each finding is limited to statements that the 2017 update (full text read via Europe PMC XML, PMC5334560) attributes to the consensus. Treat as secondarily verified.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "billat-2020-cardiac-cost-marathon",
+  "title": "Pacing Strategy Affects the Sub-Elite Marathoner's Cardiac Drift and Performance",
+  "authors": "Billat VL, Palacin F, Correa M, Pycke JR",
+  "year": 2020,
+  "journal": "Frontiers in Psychology",
+  "doi": "10.3389/fpsyg.2019.03026",
+  "pmid": "32140116",
+  "url": "https://doi.org/10.3389/fpsyg.2019.03026",
+  "design": "retrospective-cohort",
+  "population": "Sub-elite recreational marathoners (finish 2 h 30 to 3 h 40)",
+  "sampleSize": 280,
+  "evidenceLevel": "C",
+  "topics": ["durability-drift"],
+  "findings": [
+    "215 of 280 runners (77%) were 'fallers' with a significant speed decrease appearing at about the 26th km.",
+    "Fallers had significantly lower performance (p=0.006) and higher cardiac drift (p<0.0001) than non-fallers.",
+    "Marathon performance correlated with the amplitude of cardiac drift (r=0.18, p=0.0018) but not with the increase in HR alone (r=0.01, p=0.80).",
+    "Because drift is very sensitive to running strategy, the authors recommend cardiac cost (HR divided by running velocity) rather than HR alone."
+  ],
+  "limitations": "Observational; drift-performance correlation is weak (r=0.18) and its sign is not given in the abstract; drift is confounded by pacing, so high drift can reflect slowing as well as low durability; no environment data in the abstract.",
+  "implications": [
+    "Use cardiac cost (HR per unit speed) rather than raw HR when judging drift; when the athlete slows late in a run, report drift as pace-adjusted and note that pacing, not fitness, may explain it.",
+    "A weak drift-performance link (r=0.18) argues against using drift alone to adjust race-pace targets."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref (2020-02-19; article ID carries 2019 volume) and PubMed (Front Psychol 2020 Feb 19;10:3026) match.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,171 @@
+[
+  {
+    "id": "terrain-elevation-level-cost-baseline",
+    "statement": "Level running energy cost is about 3.40 J/kg/m, independent of speed; use it as the denominator of a gradient cost-ratio grade-adjusted pace model.",
+    "parameter": "level_running_energy_cost",
+    "value": 3.4,
+    "unit": "J/kg/m",
+    "appliesTo": "grade-adjusted pace model, all distances, adult runners",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["minetti-2002-gradient-cost"]
+  },
+  {
+    "id": "terrain-elevation-uphill-cost-ratio",
+    "statement": "Running cost rises non-linearly with gradient: 18.93 J/kg/m at +45% gradient, about 5.6 times level cost (ratio derived from two abstract values). Fetch the full cost-versus-gradient fit from the paper's full text before implementing; the abstract gives anchor values only.",
+    "parameter": "uphill_cost_ratio_at_plus_45_pct",
+    "value": 5.57,
+    "unit": "ratio to level cost",
+    "appliesTo": "grade-adjusted pace, climbs up to +45% gradient",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["minetti-2002-gradient-cost", "vernillo-2017-graded-running-review"]
+  },
+  {
+    "id": "terrain-elevation-downhill-cost-minimum",
+    "statement": "Downhill running cost is lowest near -20% gradient (1.73 J/kg/m, about half of level cost) and rises on steeper descents (3.92 J/kg/m at -45%); apply the metabolic credit only down to about -20%.",
+    "parameter": "downhill_cost_minimum_gradient",
+    "value": -20,
+    "unit": "% gradient",
+    "appliesTo": "grade-adjusted pace model, descents",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["minetti-2002-gradient-cost", "vernillo-2017-graded-running-review"]
+  },
+  {
+    "id": "terrain-elevation-downhill-pace-credit-cap",
+    "statement": "Do not convert the downhill metabolic saving into a full pace credit: the source reports estimated maximum descent speeds well above those achieved in downhill competitions, and runners slow more on descents than ascents late in ultras. The cap is not quantified in any source; set it conservatively and personalise it from the runner's own descents.",
+    "parameter": "downhill_pace_credit_cap",
+    "value": "not quantified in sources",
+    "unit": "qualitative",
+    "appliesTo": "pace plans for trail races and ultras with long descents",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["minetti-2002-gradient-cost", "genitrini-2022-downhill-pacing"]
+  },
+  {
+    "id": "terrain-elevation-late-race-downhill-cost",
+    "statement": "After a mountain ultramarathon, downhill energy cost rose 13.1% (at -5% grade and 10 km/h) while level and uphill cost did not change; apply a fatigue penalty to descent pace late in long mountain events.",
+    "parameter": "post_ultra_downhill_cost_increase",
+    "value": 13.1,
+    "unit": "%",
+    "appliesTo": "mountain ultramarathon pacing, late race stages",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["vernillo-2015-fatigue-energy-cost", "genitrini-2022-downhill-pacing"]
+  },
+  {
+    "id": "terrain-elevation-walk-run-switch-800mph",
+    "statement": "At a climbing rate of about 800 m/h, trained runners switched from walking to running at a 7.2 degree slope (about 12.6% grade, derived); default to walking on steeper grades at that climbing rate, using an energy-cost criterion.",
+    "parameter": "walk_run_transition_slope_at_800_m_per_h",
+    "value": 7.2,
+    "unit": "degrees (about 12.6% grade)",
+    "appliesTo": "uphill hiking versus running threshold, endurance-trained runners, short bouts",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["finiel-2026-uphill-walk-run"]
+  },
+  {
+    "id": "terrain-elevation-steep-walk-default",
+    "statement": "At a climbing rate of 1,260 m/h walking was cheaper than running on all slopes of 15.8 degrees (about 28% grade) and steeper; at 30 degrees walking was cheaper below 0.7 m/s along the slope and equal at 0.8 m/s. Default to power hiking on grades of about 28% and steeper unless the climbing rate is high.",
+    "parameter": "walk_cheaper_than_run_above_slope",
+    "value": 15.8,
+    "unit": "degrees (about 28% grade) at 1,260 m/h climbing",
+    "appliesTo": "uphill hiking versus running threshold, steep trail and vertical-kilometer climbs",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["giovanelli-2016-vk-energetics", "ortiz-2017-30deg-walk-run"]
+  },
+  {
+    "id": "terrain-elevation-transition-speed-incline",
+    "statement": "The walk-run transition speed falls approximately 1% per 1% incline (earlier observations reproduced by a vaulting model, with one incline of 9.8% measured); use only as a prior for hiking-speed thresholds.",
+    "parameter": "walk_run_transition_speed_change_per_incline",
+    "value": -1,
+    "unit": "% speed per % incline",
+    "appliesTo": "uphill walk/run threshold prior",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["hubel-2013-walk-run-incline"]
+  },
+  {
+    "id": "terrain-elevation-ultra-uphill-vertical-speed",
+    "statement": "Mean uphill vertical speed in an extreme 220 km mountain ultra was 547 m/h (SD 135, 27 runners) and the change in vertical speed over the race tracked stride-height loss; use about 550 m/h only as a reference for sustained ultra climbing, not as a race-average vert/h, and expect decline with distance.",
+    "parameter": "ultra_uphill_vertical_speed_mean",
+    "value": 547,
+    "unit": "m/h",
+    "appliesTo": "mountain ultra climbing sections, 100 mile class races",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["jeker-2020-vertical-speed-ultra"]
+  },
+  {
+    "id": "terrain-elevation-effort-by-power-not-vert-speed",
+    "statement": "Prescribe climbing effort by power or effort-equivalent pace, not vertical speed: at similar VO2max, maximal ascent speed was 1,760 m/h at 25% slope versus 1,330 m/h at 10% (about 32% higher, derived), while relative VO2 followed relative power irrespective of slope.",
+    "parameter": "max_ascent_speed_ratio_25_vs_10_pct_slope",
+    "value": 1.32,
+    "unit": "ratio",
+    "appliesTo": "vert targets and climbing intensity prescription",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["hingrand-2023-power-vs-ascent-speed"]
+  },
+  {
+    "id": "terrain-elevation-downhill-priming-bout",
+    "statement": "A single unaccustomed 30 min downhill bout (-11.3 degrees, about -20% grade, 2.8 m/s) attenuated strength loss, quadriceps pain and biomechanical decline when repeated 3 weeks later; a first moderate downhill exposure about 3 weeks before heavy downhill work is a defensible default. Protection duration beyond 3 weeks is untested.",
+    "parameter": "downhill_priming_bout_interval",
+    "value": 3,
+    "unit": "weeks between first and second exposure",
+    "appliesTo": "downhill conditioning before downhill-heavy races, healthy adults",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "khassetarash-2023-rbe-downhill",
+      "mchugh-2003-repeated-bout",
+      "bontemps-2020-downhill-review"
+    ]
+  },
+  {
+    "id": "terrain-elevation-damaging-downhill-protocol",
+    "statement": "Treat an unaccustomed downhill session near the typical research damaging protocol (median -12% slope, 40 min, 11.3 km/h) as high muscle-damage load and introduce descents progressively; the least accustomed runners show the most damage and prior exposure is the best-supported protection.",
+    "parameter": "damaging_downhill_protocol_median_slope",
+    "value": -12,
+    "unit": "% slope (median; 40 min, 11.3 km/h)",
+    "appliesTo": "downhill load management, unaccustomed runners",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": ["bontemps-2020-downhill-review"]
+  },
+  {
+    "id": "terrain-elevation-downhill-training-specificity",
+    "statement": "Downhill running training (-10%, 20 min, 3 per week, 5 weeks at lactate-threshold heart rate) raised knee-extension torque 9-24% but did not improve aerobic capacity, whereas level running raised VO2max 5%; use downhill running for strength specificity and keep aerobic work on level or uphill terrain.",
+    "parameter": "downhill_training_knee_extension_torque_gain",
+    "value": "9-24",
+    "unit": "%",
+    "appliesTo": "downhill strength block in young healthy men; transfer to ultras untested",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["toyomura-2018-downhill-training"]
+  },
+  {
+    "id": "terrain-elevation-trail-prediction-interval",
+    "statement": "The classic endurance model (VO2max, lactate threshold, economy) explained trail performance less well than road performance across 7 studies; widen prediction intervals for trail goals and label them lower confidence than road predictions.",
+    "parameter": "trail_prediction_interval_vs_road",
+    "value": "wider than road",
+    "unit": "qualitative",
+    "appliesTo": "trail race time prediction",
+    "grade": "A",
+    "confidence": "low",
+    "evidence": ["dewaal-2021-trail-physiology-sr"]
+  },
+  {
+    "id": "terrain-elevation-acute-altitude-vo2max",
+    "statement": "Under acute altitude exposure, VO2max fell linearly by 6.3% per 1,000 m (range 4.6-7.5%), starting already between 300 and 800 m, and time to exhaustion at a fixed supramaximal speed fell 14.5% per 1,000 m; adjust effort expectations on high courses approximately and exclude acclimatisation.",
+    "parameter": "acute_vo2max_decline_per_1000m",
+    "value": 6.3,
+    "unit": "% per 1,000 m",
+    "appliesTo": "altitude courses and training camps, acute exposure, endurance-trained athletes",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["wehrlin-2006-altitude-linear"]
+  }
+]

@@ -1,0 +1,41 @@
+{
+  "id": "blythe-2016-individual-prediction",
+  "title": "Prediction and Quantification of Individual Athletic Performance of Runners",
+  "authors": "Blythe DAJ, Kiraly FJ",
+  "year": 2016,
+  "journal": "PLOS ONE",
+  "doi": "10.1371/journal.pone.0157257",
+  "pmid": "27336162",
+  "url": "https://doi.org/10.1371/journal.pone.0157257",
+  "design": "modelling",
+  "population": "British runners from the thepowerof10 database: 164,746 individuals, 1,417,432 performances, 100 m to marathon",
+  "sampleSize": 164746,
+  "evidenceLevel": "C",
+  "topics": ["ai-coaching", "performance-prediction"],
+  "findings": [
+    "Out-of-sample average prediction error of 3.6 min on elite marathon performances and 0.3 s on 100 m performances.",
+    "About 30% lower RMSE than the state of the art in performance prediction over a range of distances.",
+    "The model has three parameters per runner; the first component is a power law with a runner-dependent exponent that fits better than known power laws.",
+    "The authors argue Riegel's formula, Purdy points and the world-record power law can be explained within their findings, and that the per-runner parameters relate to training state, event specialisation and age.",
+    "Predictor trained on 164,746 individuals and 1,417,432 performances; out-of-sample average error e.g. 3.6 min on elite marathon performances and 0.3 s on 100 m, and a 30% RMSE improvement over the state of the art across distances.",
+    "The model has three parameters per runner and three shared components; the first component is a power law with a runner-dependent exponent that fits better than known power laws.",
+    "Documented phenomena (scoring tables, Riegel's formula, Purdy points, world-record power laws) may be explained on this basis; the authors present strong evidence that the three parameters relate to training state, event specialization and age, and state physiological hypotheses as conjecture."
+  ],
+  "limitations": "Database of ranked UK (mostly club-level) runners, so skewed to competitive athletes; the quoted errors are for elite marathon performances and may not transfer to recreational or ultra runners; no environment or course adjustment; distances up to the marathon only.",
+  "implications": [
+    "Replace a single fixed Riegel exponent with a runner-specific exponent estimated from that athlete's multi-distance results.",
+    "Use several race results rather than one anchor, and report prediction error in minutes per distance.",
+    "Do not quote the 3.6 min figure as expected accuracy for recreational runners.",
+    "Use a runner-specific exponent for cross-distance race projection instead of a fixed Riegel exponent, falling back to a default only when results exist at a single distance.",
+    "Treat predictions as goal ranges, widening uncertainty for distances far from recent races (e.g. ultras).",
+    "Age and event specialization should enter goal-time estimates as covariates."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (PLOS ONE, 2016-06-23, Blythe/Kiraly) and Europe PMC abstract re-fetched. Corrected the limitation text: the data is a public results database, not self-reported rankings.",
+    "checkedAt": "2026-10-22"
+  }
+}

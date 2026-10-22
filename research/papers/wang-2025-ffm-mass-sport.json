@@ -1,0 +1,34 @@
+{
+  "id": "wang-2025-ffm-mass-sport",
+  "title": "Advancing training effectiveness prediction in mass sport through longitudinal data: a mathematical model approach based on the Fitness-Fatigue Model",
+  "authors": "Wang W, Zhao Y, Hou X, Yu W, Ren H, Ren H",
+  "year": 2025,
+  "journal": "PLOS One",
+  "doi": "10.1371/journal.pone.0337824",
+  "pmid": "41335608",
+  "url": "https://doi.org/10.1371/journal.pone.0337824",
+  "design": "prospective-cohort",
+  "population": "13 recreational subjects, 12 weeks of medium-intensity continuous cycling, 28-42 days of daily data per person (420 paired data points)",
+  "sampleSize": 13,
+  "evidenceLevel": "C",
+  "topics": ["load-response-models"],
+  "findings": [
+    "External load (speed, wattage) and wearable-compatible internal indicators (HRV and heart rate recovery related) were collected on each training day and the model was fitted and evaluated for each individual separately.",
+    "With the optimal output indicator selected, the optimised model had R2 0.61-0.95, fitting RMSE 0.07-0.37 and predictive MAPE 3.99%-31.99%.",
+    "With an inappropriate output indicator some individuals had minimum R2 0.32, maximum RMSE 0.90 and maximum MAPE 86.57%.",
+    "Optimal indicator selection varies by individual; HRV and HRR related indicators are proposed as generalisable model outputs usable through wearables."
+  ],
+  "limitations": "13 homogeneous cycling subjects, one training type, short duration; predictive error is highly variable. The model output is a physiological indicator (HRV/HRR), not race or time-trial performance, so it is a weak proxy for the performance target. The paper's modified model is not fully specified in the abstract.",
+  "implications": [
+    "If wearable HRV/HRR is used as a response variable, select the output indicator per athlete by forward validation and fall back to load-only guidance when predictive error is high.",
+    "Expect noisy daily recovery signals; smooth them before fitting."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, PLOS One, 2025-12-03. Numbers match Europe PMC abstract. Added caveat that the outcome is a physiological proxy rather than performance.",
+    "checkedAt": "2026-10-22"
+  }
+}

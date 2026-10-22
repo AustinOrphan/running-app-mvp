@@ -1,0 +1,35 @@
+{
+  "id": "deering-2024-postpartum-return-to-running",
+  "title": "Clinical and exercise professional opinion on designing a postpartum return-to-running training programme: an international Delphi study and consensus statement",
+  "authors": "Deering RE, Donnelly GM, Brockwell E, Bo K, Davenport MH, De Vivo M, Dufour S, Forner L, Mills H, Moore IS, Olson A, Christopher SM",
+  "year": 2024,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2023-107490",
+  "pmid": "38191239",
+  "url": "https://doi.org/10.1136/bjsports-2023-107490",
+  "design": "consensus-statement",
+  "population": "Clinical and exercise professionals working with postpartum runners (3-round Delphi: 118, 107 and 95 participants)",
+  "sampleSize": 118,
+  "evidenceLevel": "D",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "Consensus (at least 75% agreement) reached on 42 of 47 statements (89%).",
+    "Recommendations include a period of relative rest, gradual increases in duration and intensity, a walk-run protocol start, and incorporating strength training; an individualised prescription is emphasised.",
+    "Training should be modified for musculoskeletal or pelvic symptoms, sleep, mental health, lactation or energy availability concerns.",
+    "Cost of and access to experienced postpartum running professionals were identified as barriers."
+  ],
+  "limitations": "Expert opinion, not outcome data; no specific return week, load numbers or injury-reduction evidence. Goom 2019 guidelines are grey literature and were not verified.",
+  "implications": [
+    "Add a postpartum mode with no default time-based return date; start with walk-run, increase duration before intensity, include strength training (2 or more sessions/week is a design default), and make progression conditional on no pelvic floor symptoms or pain.",
+    "Add check-ins (sleep, mood, lactation, energy availability, pelvic symptoms) that can pause progression; refer symptoms to a pelvic health professional rather than adjusting around them.",
+    "Label any numeric week thresholds as common clinical practice, not research findings."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (BJSM, 2024-01, Deering). Europe PMC abstract (PMID 38191239) supports findings. Evidence level lowered A to D because the data are structured expert opinion; added the abstract's 'individualised exercise prescription' emphasis.",
+    "checkedAt": "2026-10-22"
+  }
+}

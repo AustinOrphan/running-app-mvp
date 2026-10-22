@@ -1,0 +1,34 @@
+{
+  "id": "gillinov-2017-wearable-hr-aerobic",
+  "title": "Variable Accuracy of Wearable Heart Rate Monitors during Aerobic Exercise",
+  "authors": "Gillinov S, Etiwy M, Wang R, Blackburn G, Phelan D, Gillinov AM, Houghtaling P, Javadikasgari H, Desai MY",
+  "year": 2017,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000001284",
+  "pmid": "28709155",
+  "url": "https://doi.org/10.1249/mss.0000000000001284",
+  "design": "experimental-crossover",
+  "population": "50 healthy adult volunteers (age 38 +/- 12 y, 54% female) on a treadmill, stationary bike and elliptical trainer at rest, light, moderate and vigorous intensity",
+  "sampleSize": 50,
+  "evidenceLevel": "C",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Against ECG, the Polar H7 chest strap agreed best (rc = 0.996), then Apple Watch (0.92), TomTom Spark (0.83), Garmin Forerunner 235 (0.81), Scosche Rhythm+ (0.75) and Fitbit Blaze (0.67), across all conditions.",
+    "On the treadmill all devices performed well (rc = 0.88-0.93) except the Fitbit Blaze (0.76).",
+    "Accuracy varied with exercise type: greatest on the treadmill, lowest on the elliptical with arm levers (all rc < 0.80).",
+    "Authors advise electrode-containing chest monitors when accurate HR is imperative."
+  ],
+  "limitations": "Laboratory protocols on three ergometers, not outdoor running; 2016-era devices; short bouts; Lin's concordance only, no limits of agreement in the abstract.",
+  "implications": [
+    "Wrist HR during treadmill running is generally acceptable (rc 0.88-0.93 for most devices) but varies by device; chest strap is the reference-quality input for TRIMP.",
+    "Treat non-running or arm-motion-heavy activities as low HR confidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "ADDED by verifier. Crossref confirms title, MSSE, Aug 2017, first author Gillinov. Numbers read in Europe PMC abstract. PubMed labels the design as an RCT, but devices were worn concurrently within subjects, so classified as within-subject experimental.",
+    "checkedAt": "2026-10-22"
+  }
+}

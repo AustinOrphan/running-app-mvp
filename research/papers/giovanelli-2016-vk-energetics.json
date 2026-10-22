@@ -1,0 +1,35 @@
+{
+  "id": "giovanelli-2016-vk-energetics",
+  "title": "Energetics of vertical kilometer foot races; is steeper cheaper?",
+  "authors": "Giovanelli N, Ortiz ALR, Henninger K, Kram R",
+  "year": 2016,
+  "journal": "Journal of Applied Physiology",
+  "doi": "10.1152/japplphysiol.00546.2015",
+  "pmid": "26607247",
+  "url": "https://doi.org/10.1152/japplphysiol.00546.2015",
+  "design": "experimental-repeated-measures",
+  "population": "15 runners (10 male, 5 female, 32.9 +/- 7.5 yr) walking and running 5 min at 7 angles (9.4 to 39.2 degrees) at a fixed vertical velocity of 0.35 m/s",
+  "sampleSize": 15,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "At every angle other than 9.4 degrees, the vertical cost of walking was lower than that of running (average -8.45 +/- 1.05%, P < 0.001).",
+    "Broad minima of vertical cost existed for both gaits between 20.4 and 35.0 degrees (average walking 44.17 +/- 0.41 J/kg/m; running 48.46 +/- 0.35 J/kg/m).",
+    "In walking, stride frequency was about 28% slower (and stride length longer) than in running.",
+    "The authors conclude that on inclines steeper than 15.8 degrees athletes can reduce energy expenditure by walking rather than running at the vertical velocity tested."
+  ],
+  "limitations": "15 runners, 5 min treadmill bouts, one vertical velocity (0.35 m/s = 1,260 m/h, derived); no fatigue or technical terrain. The angle at which running stops being cheaper depends on vertical speed.",
+  "implications": [
+    "At a climbing rate of 1,260 m/h, switch to walking above about 15.8 degrees (about 28% grade, derived by tan) because walking was cheaper; at 9.4 degrees (about 17%) it was not.",
+    "Treat the walk/run switch as a function of both grade and climbing rate: at 800 m/h another study found the switch at about 7.2 degrees.",
+    "Energy per vertical metre has a broad minimum on very steep slopes (20.4-35.0 degrees, about 37-70% grade), so steeper is not more expensive per vertical metre in that range."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Added. Crossref: J Appl Physiol 120(3):370-375, 2016-02-01, four authors match. PubMed PMID 26607247 abstract supports all numbers; degree-to-grade conversions are derived.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "marchal-2025-ffm-statistical-flaws",
+  "title": "Statistical flaws of the fitness-fatigue sports performance prediction model",
+  "authors": "Marchal A, Benazieb O, Weldegebriel Y, Méline T, Imbach F",
+  "year": 2025,
+  "journal": "Scientific Reports",
+  "doi": "10.1038/s41598-025-88153-7",
+  "pmid": "39881202",
+  "url": "https://doi.org/10.1038/s41598-025-88153-7",
+  "design": "modelling",
+  "population": "World-class short-track speed skaters in two datasets: 2019 (7 athletes after 2 injured exclusions, 10 weeks) and 2016 (14 athletes, 13 weeks, 948 training and 755 performance observations), per the open-access full text; 2 athletes appear in both",
+  "sampleSize": 21,
+  "evidenceLevel": "C",
+  "topics": ["load-response-models"],
+  "findings": [
+    "A Bayesian framework with biologically meaningful priors and cross-validation was used to separate goodness-of-fit from predictive ability.",
+    "The FFM was ill-conditioned; Markov chains illustrated poor identifiability of the fitness and fatigue parameters.",
+    "The model overfitted: adding the fatigue-related parameters did not significantly improve predictive ability (p > 0.40), confirmed on 2 independent datasets.",
+    "The authors say the results question the relevance of the fatigue component and its biological meaning."
+  ],
+  "limitations": "One sport (short-track skating), small samples; the 2019 dataset is the same seven skaters as imbach-2022-generalisation, from one coach. Conclusions apply to the standard FFM fitted from performance tests and training load alone. sampleSize 21 counts per-dataset athletes (19 distinct).",
+  "implications": [
+    "Do not claim fitted fatigue time constants are physiologically meaningful; prefer a fitness-only or heavily regularised formulation unless a held-out forward test shows the fatigue term improves prediction.",
+    "Use Bayesian or priored estimation with posterior intervals and flag poorly identified fits instead of reporting point estimates. In the full text an informative prior on the fitness time constant dominated its posterior, i.e. the data carried little information about it."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, Sci Rep, 2025-01-29. Findings from abstract; population and sample sizes taken from the Europe PMC open-access full text (PMC11779798), filling the researcher's null.",
+    "checkedAt": "2026-10-22"
+  }
+}

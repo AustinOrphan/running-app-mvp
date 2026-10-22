@@ -1,0 +1,34 @@
+{
+  "id": "gloersen-2018-gnss-endurance",
+  "title": "Tracking Performance in Endurance Racing Sports: Evaluation of the Accuracy Offered by Three Commercial GNSS Receivers Aimed at the Sports Market",
+  "authors": "Gloersen O, Kocbach J, Gilgien M",
+  "year": 2018,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2018.01425",
+  "pmid": "30356794",
+  "url": "https://doi.org/10.3389/fphys.2018.01425",
+  "design": "cross-sectional",
+  "population": "Six volunteers skiing four laps of a 3.05 km cross-country track wearing a 1 Hz wrist GNSS (Garmin Forerunner 920XT), a 10 Hz standalone receiver (Catapult Optimeye S5) and a 10 Hz differential receiver (ZXY-Go), against a geodetic reference (< 5 cm)",
+  "sampleSize": 6,
+  "evidenceLevel": "D",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Horizontal position error (Q3) was 5.29 m for the Garmin 920XT vs 1.04 m (Catapult S5) and 2.09 m (ZXY-Go); vertical precision (IQR) was 13.35 m for the Garmin vs 3.89 and 2.71 m.",
+    "Horizontal speed precision (IQR) was 0.66 m/s for the Garmin vs 0.072 and 0.038 m/s for the 10 Hz receivers.",
+    "Error was inversely related to speed, so substantially larger errors can occur at the low speeds typical of uphill skiing.",
+    "All receivers produced sub-second accuracy in the time analysis except at very low speeds."
+  ],
+  "limitations": "Cross-country skiing, not running; six volunteers; one older (2014-era) wrist watch; measures position, speed and time, not total distance accuracy. Applicable to running only by analogy.",
+  "implications": [
+    "Do not derive instantaneous or gradient-adjusted pace from raw 1 Hz wrist GNSS speed; smooth speed and prefer device-reported lap/total distance, and treat watch elevation as noisy.",
+    "Weight pace-based intensity less on slow uphill or technical segments, where speed error is largest; use HR or RPE there. Applicability is indirect, so treat as grade D."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, Front Physiol, 9 Oct 2018, first author Gloersen. Numbers match the abstract (vertical IQRs for ZXY-Go/CAT-S5/Gar are 2.71/3.89/13.35 m). Evidence level lowered from C to D because the sport, sample and device are all indirect to modern running. No running-specific GPS systematic review was found.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "lukasiewicz-2024-cho-sex-modeling",
+  "title": "Assessing exogenous carbohydrate intake needed to optimize human endurance performance across sex: insights from modeling runners pursuing a sub-2-h marathon",
+  "authors": "Lukasiewicz CJ, Vandiver KJ, Albert ED, Kirby BS, Jacobs RA",
+  "year": 2024,
+  "journal": "Journal of Applied Physiology",
+  "doi": "10.1152/japplphysiol.00521.2023",
+  "pmid": "38059288",
+  "url": "https://doi.org/10.1152/japplphysiol.00521.2023",
+  "design": "modelling",
+  "population": "Modelled elite runners (120 male, 120 female) attempting a sub-2-h marathon, parameterised from published literature",
+  "sampleSize": 240,
+  "evidenceLevel": "C",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "Modelled exogenous CHO needed was 93 +/- 26 g/h (males) and 108 +/- 22 g/h (females) (P < 0.0001, d = 0.61).",
+    "Without exogenous CHO, males depleted glycogen in 84 +/- 7 min vs 71 +/- 5 min for females.",
+    "Intakes <= 90 g/h were insufficient for 65% of modelled runners; sufficient for 56 of 120 males and 28 of 120 females.",
+    "Authors say research on benefits of > 90 g/h should prioritise female athlete inclusion."
+  ],
+  "limitations": "Pure simulation of an elite two-hour marathon at very high intensity; not ultra, not recreational; assumptions on glycogen stores and oxidation; no empirical validation.",
+  "implications": [
+    "Evidence for sex-specific CHO targets is open: do not apply sex multipliers to ultra paces.",
+    "No change to the low-intensity 100-mile pathway; use only as a flag that high-CHO evidence is male-dominated."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match; modelling numbers from Europe PMC abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

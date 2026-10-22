@@ -1,0 +1,44 @@
+{
+  "id": "parise-2011-161km-pacing-heat",
+  "title": "Influence of temperature and performance level on pacing a 161 km trail ultramarathon",
+  "authors": "Parise CA, Hoffman MD",
+  "year": 2011,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.6.2.243",
+  "pmid": "21725109",
+  "url": "https://doi.org/10.1123/ijspp.6.2.243",
+  "design": "retrospective-cohort",
+  "population": "50 Western States Endurance Run finishers in both 2006 (hot, 7-38 C) and 2007 (cooler, 2-30 C), stratified by 2007 finish time (<22, 22-24, 24-30 h)",
+  "sampleSize": 50,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather", "performance-prediction"],
+  "findings": [
+    "Mean pace over 161 km was slower in 2006 than 2007 (9:23 +/- 1:13 vs 8:42 +/- 1:15 min/km, P < .001), about 8% slower (calculated from these values), and pace was slower from the start when temperatures were still relatively cool.",
+    "The <22 h group ran slower in 2006 on 12 of 14 segments, the 22-24 h group on 10, and the >24 h group on 6 (chi-square P = .050).",
+    "Comparable pacing between years corresponded with the onset of night and cooling.",
+    "Authors conclude extreme heat impairs all runners but faster runners are at greater disadvantage because they complete a greater proportion of the race in the heat.",
+    "Mean pace over the full 161 km was slower in the hot year: 9:23 +/- 1:13 vs 8:42 +/- 1:15 min/km (P < .001), about 8% slower (563 s vs 522 s is +7.9%, own arithmetic).",
+    "Pace was slower from the start, when temperatures were still relatively cool.",
+    "The <22 h group was slower in the hot year across 12 of 14 segments, the 22-24 h group across 10, and the 24-30 h group across only 6 (chi-square P = .050).",
+    "Comparable pacing between years corresponded with onset of night and cooling temperatures.",
+    "Conclusion: extreme heat impairs all runners, but faster runners are disadvantaged more because they spend a greater proportion of the race in the heat."
+  ],
+  "limitations": "Only 50 repeat finishers (survivor bias); two editions, with other year-to-year differences (course, snow, conditions) confounded with heat; checkpoint timing only; trail terrain prevents even pacing by design.",
+  "implications": [
+    "Apply a heat penalty to ultra predictions that is larger for faster targets (a <22 h 100-mile effort loses more than a 24-30 h effort); the hot year averaged about 8% slower in this sample.",
+    "Do not predict ultra finish time from a flat pace; include time-of-day and temperature effects by segment.",
+    "Scale the penalty by the fraction of the race expected to fall in hot hours.",
+    "For 100 km to 100 mile plans, apply the heat penalty in proportion to the hours expected in daytime heat, so faster athletes (who run more of the day in heat) get a larger total adjustment.",
+    "Reference magnitude: a 7-38 C day gave about 8% slower mean 161 km pace than a 2-30 C day in experienced finishers; an upper-range example, not a formula.",
+    "Allow pace to recover toward the cool-weather target once night temperatures begin; no uniform heat penalty for the whole race.",
+    "Pre-race pace in heat starts slower from the gun, so the first-hours target must already be reduced."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed abstract re-fetched (EPMC truncated at '<'). 8% is my arithmetic (563 s/km vs 522 s/km = 7.9%). Added the authors' explicit conclusion about faster runners.",
+    "checkedAt": "2026-10-22"
+  }
+}

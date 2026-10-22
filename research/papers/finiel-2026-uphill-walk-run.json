@@ -1,0 +1,36 @@
+{
+  "id": "finiel-2026-uphill-walk-run",
+  "title": "Energetic cost of locomotion closely aligns with the preferred uphill walk-run transition at constant vertical speed in runners",
+  "authors": "Finiel L, Carron S, Margot C, Luc V, Malatesta D, Borrani F",
+  "year": 2026,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-026-06363-x",
+  "pmid": "42530641",
+  "url": "https://doi.org/10.1007/s00421-026-06363-x",
+  "design": "experimental-crossover",
+  "population": "17 endurance-trained runners walking and running at a constant vertical speed of 800 m/h",
+  "sampleSize": 17,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "17 endurance-trained runners walked and ran 6 min bouts at a constant vertical speed of 800 m/h; the average preferred transition speed (PTS) occurred at 1.76 m/s on a 7.2 degree slope (tan 7.2 degrees = 0.126, about 12.6% grade, derived).",
+    "Energy cost of transport, O2 cost and metabolic power gave optimal transition speeds that did not differ significantly from PTS.",
+    "Heart rate, ventilation and internal mechanical work gave optimal transition speeds significantly different from PTS.",
+    "External and total mechanical work, step frequency and step length showed no crossover between gaits.",
+    "The authors conclude that uphill PTS aligns more closely with energetic crossover criteria than with cardiorespiratory or mechanical-work crossovers."
+  ],
+  "limitations": "17 trained runners, 6 min treadmill bouts at one vertical speed (800 m/h); no fatigue and no ultra durations.",
+  "implications": [
+    "At about 800 m/h of climbing, trained runners chose to walk on slopes steeper than about 7 degrees (about 12.6% grade); use this as the default walk/run switch at that climbing rate and let personal data move it.",
+    "Gait choice followed energetic cost, not heart rate or ventilation. Do not set the walk/run switch from heart rate alone; use a cost or power criterion where the engine has the data.",
+    "800 m/h is one tested condition and is above the 547 m/h mean uphill vertical speed observed in a 220 km mountain ultra [jeker-2020-vertical-speed-ultra], so it is not a default hiking pace for ultras."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: Eur J Appl Physiol, online 2026-07-30, six authors match (no volume yet). PubMed PMID 42530641 abstract supports all numbers. Recent paper, single lab; 7.2 degrees to 12.6% grade is derived (tan).",
+    "checkedAt": "2026-10-22"
+  }
+}

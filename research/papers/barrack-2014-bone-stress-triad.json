@@ -1,0 +1,35 @@
+{
+  "id": "barrack-2014-bone-stress-triad",
+  "title": "Higher incidence of bone stress injuries with increasing female athlete triad-related risk factors: a prospective multisite study of exercising girls and women",
+  "authors": "Barrack MT, Gibbs JC, De Souza MJ, Williams NI, Nichols JF, Rauh MJ, Nattiv A",
+  "year": 2014,
+  "journal": "American Journal of Sports Medicine",
+  "doi": "10.1177/0363546513520295",
+  "pmid": "24567250",
+  "url": "https://doi.org/10.1177/0363546513520295",
+  "design": "prospective-cohort",
+  "population": "259 physically active girls and women (mean age 18.1 y) in 4 cohorts, competitive and recreational",
+  "sampleSize": 259,
+  "evidenceLevel": "B",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "28 participants (10.8%) incurred a bone stress injury (BSI) during prospective follow-up.",
+    "Single factors significantly associated with BSI: at least 12 h/week of purposeful exercise (14.7%), BMI below 21.0 kg/m2 (15.3%) and low bone mass (BMD Z-score below -1.0; 21.0%).",
+    "Strongest combinations: low BMD + at least 12 h/week exercise gave 29.7% incidence (OR 5.1, 95% CI 2.2-12.1); at least 12 h/week + leanness sport/activity + dietary restraint gave 46.2% (OR 8.7, 95% CI 2.7-28.3).",
+    "Risk rose from about 15-20% for single factors to 30-50% for combined triad-related factors, supporting cumulative risk as factors accumulate."
+  ],
+  "limitations": "Mean age 18, mixed sports, 28 events so combined estimates are imprecise; not ultrarunners or older adults.",
+  "implications": [
+    "Implement a cumulative BSI-risk flag counting factors (weekly training time 12 h or more, BMI below 21, menstrual irregularity or amenorrhoea, dietary restraint, prior BSI or known low BMD). At 2 or more factors, cap weekly volume increases below the default progression; the size of the cap is a design choice.",
+    "Apply tighter vigilance at 12 h/week or more, which many 100-mile build phases reach; ask about focal bone pain and prompt medical review before further increases.",
+    "Do not generalise the BMI 21 cut-off to older athletes or to males."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Am J Sports Med, 2014-02, Barrack). All numbers confirmed in Europe PMC abstract (PMID 24567250); added the OR 8.7 CI (2.7-28.3) that the abstract does state.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "duking-2021-hrv-guided-meta",
+  "title": "Monitoring and adapting endurance training on the basis of heart rate variability monitored by wearable technologies: A systematic review with meta-analysis",
+  "authors": "Düking P, Zinner C, Trabelsi K, Reed J, Holmberg H, Kunz P, Sperlich B",
+  "year": 2021,
+  "journal": "Journal of Science and Medicine in Sport",
+  "doi": "10.1016/j.jsams.2021.04.012",
+  "pmid": "34489178",
+  "url": "https://doi.org/10.1016/j.jsams.2021.04.012",
+  "design": "meta-analysis",
+  "population": "Endurance-training adults in 8 studies comparing HRV-guided with predefined training (9 interventions)",
+  "sampleSize": 198,
+  "evidenceLevel": "A",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "8 studies (198 participants) and 9 interventions were meta-analysed; PubMed and Web of Science were searched in March 2020.",
+    "Compared with predefined training, most HRV-guided interventions included fewer moderate- and/or high-intensity training sessions.",
+    "Fixed-effects meta-analysis: significant medium-sized positive effect of HRV-guided training on submaximal physiological parameters (g = 0.296, 95% CI 0.031 to 0.562, p = 0.028).",
+    "Effects on performance (g = 0.079, p = 0.597) and VO2peak (g = 0.171, 95% CI -0.213 to 0.371, p = 0.130) were small and not statistically significant. The abstract's performance CI (-0.050 to 0.393) does not bracket g = 0.079, an apparent typo in the source.",
+    "With regard to performance, HRV-guided training was associated with fewer non-responders and more positive responders."
+  ],
+  "limitations": "Only 8 small studies using a variety of HRV approaches; fixed-effects model; short interventions; the abstract does not describe sex or training level of participants; the abstract contains an internally inconsistent CI.",
+  "implications": [
+    "HRV guidance behaves as a risk-reduction layer, not a performance enhancer: use it to withhold or downgrade hard sessions, not to add load.",
+    "Keep the planned session as the default and let HRV only convert a planned moderate/high session to easy on flagged days. HRV-guided arms did fewer hard sessions with equal or better outcomes, so skipped intensity need not be made up.",
+    "Do not present HRV as improving race performance; no change to periodisation is justified by this evidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: title, journal, first author Düking, issued Nov 2021 all match. Europe PMC abstract (PMID 34489178) states every number. Removed the researcher's unsupported 'mostly recreational/trained males' limitation.",
+    "checkedAt": "2026-10-22"
+  }
+}

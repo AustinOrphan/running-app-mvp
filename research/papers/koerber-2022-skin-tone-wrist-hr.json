@@ -1,0 +1,33 @@
+{
+  "id": "koerber-2022-skin-tone-wrist-hr",
+  "title": "Accuracy of Heart Rate Measurement with Wrist-Worn Wearable Devices in Various Skin Tones: a Systematic Review",
+  "authors": "Koerber D, Khan S, Shamsheri T, Kirubarajan A, Mehta S",
+  "year": 2022,
+  "journal": "Journal of Racial and Ethnic Health Disparities",
+  "doi": "10.1007/s40615-022-01446-9",
+  "pmid": "36376641",
+  "url": "https://doi.org/10.1007/s40615-022-01446-9",
+  "design": "systematic-review",
+  "population": "10 studies, 469 participants stratifying HR or rhythm data by race or skin tone for consumer wrist-worn devices; Fitzpatrick score mean 3.5 (range 1-6) in six studies (n = 293)",
+  "sampleSize": 469,
+  "evidenceLevel": "B",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Four of ten studies reported a significant reduction in HR accuracy in darker-skinned participants; four reported no effect of skin tone; two showed mixed results.",
+    "The authors call the evidence preliminary and inconclusive, while noting some studies suggest wearables may be less accurate in participants with darker skin tones.",
+    "Higher-quality evidence is needed, with larger samples and more objective stratification by skin tone."
+  ],
+  "limitations": "Only 10 small, heterogeneous studies with no pooled estimate and inconsistent skin-tone measurement; not running-specific. Year 2022 is the online date (print Dec 2023; Europe PMC lists 2023).",
+  "implications": [
+    "Do not apply a skin-tone-specific correction factor; evidence is inconclusive.",
+    "Treat wrist-HR error as device and activity dependent, use an HR-quality flag with an sRPE fallback, and offer a chest-strap recommendation to every user who wants accurate HR load."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, J Racial Ethn Health Disparities, online 14 Nov 2022, print Dec 2023, first author Koerber. Abstract read. Downgraded evidence from A to B: a systematic review by design, but with 10 small studies, no synthesis and an inconclusive result. Added the conclusion that some studies suggest lower accuracy at darker skin tones; the researcher's implication about optional skin-tone collection is a design choice, not from the paper.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "molmen-2019-block-periodization-meta-analysis",
+  "title": "Block periodization of endurance training - a systematic review and meta-analysis",
+  "authors": "Mølmen KS, Øfsteng SJ, Rønnestad BR",
+  "year": 2019,
+  "journal": "Open Access Journal of Sports Medicine",
+  "doi": "10.2147/oajsm.s180408",
+  "pmid": "31802956",
+  "url": "https://doi.org/10.2147/oajsm.s180408",
+  "design": "meta-analysis",
+  "population": "Trained to well-trained endurance athletes in block-periodized (BP) versus traditional (TRAD) training; 2905 studies screened, 20 records included, 6 pooled",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Of 2905 studies screened, 20 records met eligibility criteria; 6 were pooled for VO2max and maximal power output (Wmax).",
+    "Meta-analysis showed small favourable effects for BP versus TRAD for VO2max (SMD 0.40, 95% CI 0.02 to 0.79) and Wmax (SMD 0.28, 95% CI 0.01 to 0.54).",
+    "For endurance performance and workload at thresholds, BP generally showed moderate to large effect sizes versus TRAD.",
+    "Authors call BP an adequate alternative to TRAD but urge caution because of small studies of generally low methodological quality (mean PEDro 3.7/10)."
+  ],
+  "limitations": "Few small, low-quality studies (mean PEDro 3.7/10); lower CI bounds are essentially zero; full text shows no running studies (cyclists and skiers dominate: 'runner' absent, 'cyclist' 22 mentions, 'skier' 16); no ultra-distance data.",
+  "implications": [
+    "Offer block-style mesocycles (concentrated interval block then lower-intensity weeks) as an optional, flagged-experimental template for trained athletes, not a default or for beginners.",
+    "Default to traditional progression; no numeric block parameter is justified by this evidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref title is HTML-wrapped; journal, 2019, authors match. Numbers verified in PubMed abstract. Sport mix claim checked against PMC6802561 full text. Evidence level downgraded A to B because of poor primary-study quality.",
+    "checkedAt": "2026-10-22"
+  }
+}

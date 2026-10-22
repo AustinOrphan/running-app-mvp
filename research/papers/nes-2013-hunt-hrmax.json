@@ -1,0 +1,40 @@
+{
+  "id": "nes-2013-hunt-hrmax",
+  "title": "Age-predicted maximal heart rate in healthy subjects: The HUNT Fitness Study",
+  "authors": "Nes BM, Janszky I, Wisloff U, Stoylen A, Karlsen T",
+  "year": 2013,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/j.1600-0838.2012.01445.x",
+  "pmid": "22376273",
+  "url": "https://doi.org/10.1111/j.1600-0838.2012.01445.x",
+  "design": "cross-sectional",
+  "population": "3320 healthy Norwegian men and women across a wide age range with verified maximal effort (HUNT Fitness Study 2007-2008)",
+  "sampleSize": 3320,
+  "evidenceLevel": "C",
+  "topics": ["age-masters", "zones-thresholds"],
+  "findings": [
+    "HRmax = 211 - 0.64 x age with a standard error of the estimate (SEE) of 10.8 bpm.",
+    "No evidence of interaction with gender, physical activity, VO2max level or BMI groups; only minor age-adjusted differences between these groups.",
+    "Three previously suggested equations underestimated measured HRmax in subjects older than 30 years.",
+    "HRmax in healthy older subjects and women was higher than previously reported.",
+    "HRmax was explained by the formula 211 - 0.64 x age (SEE 10.8 bpm).",
+    "No evidence of interaction with gender, physical activity, VO2max level or BMI groups; only minor age-adjusted differences in HRmax between these groups.",
+    "Previously suggested prediction equations underestimated measured HRmax in subjects older than 30 years.",
+    "HRmax in healthy older subjects and women was higher than previously reported; the standard error of 10.8 beats/min must be taken into account."
+  ],
+  "limitations": "Cross-sectional, not longitudinal; Norwegian population; lab ergometer protocol with verified maximal effort; not runner-specific. Another sample (Shookster 2020, n = 99) found this equation significantly different from measured HRmax.",
+  "implications": [
+    "Use an SEE of about 10.8 bpm as the uncertainty on any age-predicted HRmax; label zones derived from a predicted HRmax as approximate and low confidence.",
+    "211 - 0.64 x age gives values about 4-7 bpm higher than 208 - 0.7 x age between ages 20 and 60 (difference widens with age); this is inside the SEE, so the choice is not critical. Prefer Tanaka as the default because Nes differed significantly from measured HRmax in Shookster 2020 while Tanaka did not.",
+    "Use 211 - 0.64 x age as a sensitivity alternative to Tanaka (it gives higher HRmax for older runners: about 6-7 bpm higher at age 60-70) and report the +/-10.8 bpm SEE.",
+    "Zones anchored on percent HRmax must be recalibrated from observed maxima, since individual HRmax can differ by 10+ bpm from any age equation."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: vol 23 pp 697-704, print Dec 2013, online 2012-02-29; first author Nes matches. Abstract confirms 3320, 211 - 0.64 age, SEE 10.8. Corrected the researcher's claim that the two equations 'differ little in 30-50 years': the arithmetic difference is 4.8 bpm at 30, 5.4 at 40 and 6.0 at 50 (and larger at older ages).",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "foster-1998-monotony-strain",
+  "title": "Monitoring training in athletes with reference to overtraining syndrome",
+  "authors": "Foster C",
+  "year": 1998,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1097/00005768-199807000-00023",
+  "pmid": "9662690",
+  "url": "https://doi.org/10.1097/00005768-199807000-00023",
+  "design": "other",
+  "population": "Experienced athletes recording session RPE x duration; observational",
+  "sampleSize": 25,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Observations in 25 experienced athletes who recorded training by integrating session RPE with session duration.",
+    "Banal illnesses were correlated with training load (rolling 6-week average), monotony (daily mean/standard deviation) and strain (load x monotony).",
+    "A high percentage of illnesses could be accounted for when individual athletes exceeded individually identifiable training thresholds, mostly related to the strain of training.",
+    "Simple monitoring of training characteristics may let athletes achieve training goals while minimizing undesired outcomes."
+  ],
+  "limitations": "Small sample (n=25), mixed athletes, observational and correlational with illness as the outcome; thresholds were individual, not universal; no numeric thresholds in the abstract; abstract does not state whether the design was prospective. Strain/monotony have since been questioned in the wider literature (not assessed here).",
+  "implications": [
+    "Compute weekly load (session RPE x minutes or HR-based proxy), monotony and strain; show them descriptively and flag only when an athlete's own value exceeds their personal historical range.",
+    "Keep daily load varied (hard-easy days) to limit monotony; supports scheduled recovery weeks."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed match (MSSE 1998;30(7):1164-8). Design changed from 'prospective-cohort' to 'other' because the abstract only says 'observations'.",
+    "checkedAt": "2026-10-22"
+  }
+}

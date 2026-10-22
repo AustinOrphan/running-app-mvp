@@ -1,0 +1,40 @@
+{
+  "id": "stuempfle-2015-gi-distress-wser",
+  "title": "Gastrointestinal distress is common during a 161-km ultramarathon",
+  "authors": "Stuempfle KJ, Hoffman MD",
+  "year": 2015,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/02640414.2015.1012104",
+  "pmid": "25716739",
+  "url": "https://doi.org/10.1080/02640414.2015.1012104",
+  "design": "cross-sectional",
+  "population": "272 finishers and non-finishers of the 161-km Western States Endurance Run (71.0% of starters), post-race questionnaire",
+  "sampleSize": 272,
+  "evidenceLevel": "C",
+  "topics": ["ultra-nutrition", "ultra-training"],
+  "findings": [
+    "96.0% of runners reported at least one GI symptom; flatulence (65.9%), belching (61.3%) and nausea (60.3%) were the most common.",
+    "Among finishers, 43.9% said GI symptoms affected race performance, nausea being the most common (86.0%).",
+    "Among non-finishers, 35.6% said GI symptoms were a reason for dropping out, nausea being the most common (90.5%).",
+    "Nausea was greatest during the most challenging and hottest part of the race.",
+    "272 runners (71.0% of starters) completed the questionnaire; 96.0% experienced GI symptoms.",
+    "Most common: flatulence (65.9%), belching (61.3%) and nausea (60.3%), each mean severity about 1.0 on the 0-4 scale.",
+    "Among finishers, 43.9% said GI symptoms affected performance (nausea 86.0% of those); among non-finishers 35.6% said GI symptoms were a reason for dropping out (nausea 90.5%)."
+  ],
+  "limitations": "Retrospective self-report from one race; symptoms are not experimentally linked to diet or training; no intervention tested.",
+  "implications": [
+    "Make gut-tolerance rehearsal a standing element of the 100-mile build (practise planned race fuel in long runs, ideally including hot sessions) because GI distress is near-universal and a major cited reason for dropping out.",
+    "Use nausea as a prompt in race-day guidance for pace reduction and a fuelling plan change, not as a signal to quit by default.",
+    "Expect GI symptoms and plan for them (backup foods, savoury options, reduced pace in heat), not as failures.",
+    "Use nausea in heat as a trigger to reduce intensity and switch to simple fuel; include a hot-segment contingency in race notes.",
+    "Log GI symptoms in training long runs on the same 0-4 scale."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added in this review for DNF reasons. Crossref (2015-02-26, first author Stuempfle, Journal of Sports Sciences) and Europe PMC abstract (PMID 25716739) fetched; all numbers stated in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

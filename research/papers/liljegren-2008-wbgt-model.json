@@ -1,0 +1,34 @@
+{
+  "id": "liljegren-2008-wbgt-model",
+  "title": "Modeling the wet bulb globe temperature using standard meteorological measurements",
+  "authors": "Liljegren JC, Carhart RA, Lawday P, Tschopp S, Sharp R",
+  "year": 2008,
+  "journal": "Journal of Occupational and Environmental Hygiene",
+  "doi": "10.1080/15459620802310770",
+  "pmid": "18668404",
+  "url": "https://doi.org/10.1080/15459620802310770",
+  "design": "modelling",
+  "population": "Outdoor WBGT model for U.S. Army chemical-munition depots, validated against WBGT measurements at all depots",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather"],
+  "findings": [
+    "A model of outdoor WBGT using only standard meteorological data, with separate submodels of natural wet bulb and globe temperatures based on fundamental heat and mass transfer principles.",
+    "The model has no site-dependent parameters.",
+    "It achieves accuracy better than 1 C against WBGT measurements at all depots."
+  ],
+  "limitations": "Occupational (military) validation at U.S. depots; the abstract does not list inputs (the usual inputs are air temperature, humidity, pressure, wind speed and solar radiation, from background knowledge, not the abstract); not validated for running or non-U.S. races.",
+  "implications": [
+    "Implement WBGT as the Liljegren physics-based model from hourly forecast air temperature, relative humidity, pressure, wind speed and solar radiation; expect about 1 C accuracy under ideal inputs, more with forecast error.",
+    "If solar radiation is unavailable, estimate from cloud cover and widen the stated uncertainty; never silently substitute air temperature for WBGT.",
+    "Keep it a pure function in shared/ with unit tests against published reference values (full text needed; not verified here)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (JOEH, online 2008-08, print 2008-09) and Europe PMC abstract re-fetched. Input list is not in the abstract; verify against the full text before implementing. Heat index (Steadman/Rothfusz) is not covered by any verified paper.",
+    "checkedAt": "2026-10-22"
+  }
+}

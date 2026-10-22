@@ -1,0 +1,35 @@
+{
+  "id": "stones-2019-age-differences-marathon",
+  "title": "Age differences, age changes, and generalizability in marathon running by master athletes",
+  "authors": "Stones MJ",
+  "year": 2019,
+  "journal": "Frontiers in Psychology",
+  "doi": "10.3389/fpsyg.2019.02161",
+  "pmid": "31616350",
+  "url": "https://doi.org/10.3389/fpsyg.2019.02161",
+  "design": "retrospective-cohort",
+  "population": "World Top 100 age-class marathon performances (937 performances by 387 men, 856 by 301 women), mean ages 62.05 and 60.5",
+  "sampleSize": 688,
+  "evidenceLevel": "C",
+  "topics": ["age-masters"],
+  "findings": [
+    "Critiques the paradigm that age-class record lists are a 'virtual' cross-sectional study of aging; best-fitting mixed model on log performance time includes linear and quadratic terms for entry cohort age and elapsed age.",
+    "Rates of increase in performance time are higher at older cohort ages and elapsed ages, with greater increases in women than men.",
+    "Increases in performance time with cohort age and elapsed age are higher in slower than faster performance quartiles; faster-quartile athletes more likely have multiple entries and slower-quartile athletes single entries.",
+    "The author evaluates generalizability from the fastest quartile to slower quartiles."
+  ],
+  "limitations": "Elite-level archival top-100 lists; selection effects; log-time model; no training data. The abstract does not mention WMA age-grading tables, so the link to them is the verifier's inference.",
+  "implications": [
+    "Do not assume record-list age curves (the basis of WMA-style age grading) describe typical recreational runners; this paper suggests slower athletes decline faster than the fastest quartile.",
+    "Where age grading is shown, label it as a rough comparison to elite standards and prefer the athlete's own longitudinal trend for target setting.",
+    "Allow faster decline slopes for slower or less consistent runners than elite-derived curves; the data cannot give a number."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC abstract match. Sample size 688 = 387 + 301 athletes (stated in abstract). No validation paper for WMA factors was found by researcher or verifier.",
+    "checkedAt": "2026-10-22"
+  }
+}

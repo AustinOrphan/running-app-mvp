@@ -1,0 +1,33 @@
+{
+  "id": "stoggl-2015-tid-among-elite",
+  "title": "The training intensity distribution among well-trained and elite endurance athletes",
+  "authors": "Stoggl TL, Sperlich B",
+  "year": 2015,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2015.00295",
+  "pmid": "26578968",
+  "url": "https://doi.org/10.3389/fphys.2015.00295",
+  "design": "narrative-review",
+  "population": "Retrospective and prospective TID studies in competitive endurance athletes across disciplines",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "Most retrospective studies show a pyramidal TID with a high proportion of high-volume low-intensity training.",
+    "Some world-class athletes appear to adopt a polarized TID during certain phases of the season.",
+    "Authors state that emerging prospective RCTs showed superior responses of endurance-related variables with polarized TID in well-trained and recreational individuals versus high-volume or threshold emphasis (since moderated by the larger syntheses above)."
+  ],
+  "limitations": "Narrative review from 2015 that predates the 2019-2025 meta-analyses; abstract lacks quantitative pooled results.",
+  "implications": [
+    "Supports pyramidal as the commonest observed pattern and polarized as a phase-specific variant, reinforcing the engine's phase-dependent TID design.",
+    "Do not cite its statement of polarized superiority; use the 2024-2025 syntheses instead."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref: Front Physiol 6, online 2015-10-27, two authors match. Statements taken from the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

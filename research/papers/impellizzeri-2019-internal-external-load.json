@@ -1,0 +1,34 @@
+{
+  "id": "impellizzeri-2019-internal-external-load",
+  "title": "Internal and External Training Load: 15 Years On",
+  "authors": "Impellizzeri FM, Marcora SM, Coutts AJ",
+  "year": 2019,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2018-0935",
+  "pmid": "30614348",
+  "url": "https://doi.org/10.1123/ijspp.2018-0935",
+  "design": "narrative-review",
+  "population": "Conceptual commentary on training-load constructs in athletes",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Exercise is a stressor inducing psychophysiological responses that mediate cellular adaptations, so coaches and scientists need to control the stress applied at the individual level.",
+    "In 2003 the authors introduced a framework in which training load has two measurable components: internal and external load.",
+    "The commentary extends, clarifies and refines the framework and the definitions of internal and external load to avoid misinterpretation."
+  ],
+  "limitations": "Conceptual commentary with no new data; the abstract states no quantitative findings and the refined definitions are in the full text, which was not read.",
+  "implications": [
+    "Keep the data model split into external load (distance, duration, pace, elevation, running power) and internal load (HR-based TRIMP, sRPE), and never present an external metric as physiological stress.",
+    "Compute adaptation-oriented features from internal load and mechanical/volume features from external load, stored separately.",
+    "No numeric parameter is justified by this paper."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, IJSPP, Feb 2019, first author Impellizzeri. Findings limited to the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

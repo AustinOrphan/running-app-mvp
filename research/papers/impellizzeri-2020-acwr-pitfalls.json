@@ -1,0 +1,50 @@
+{
+  "id": "impellizzeri-2020-acwr-pitfalls",
+  "title": "Acute:chronic workload ratio: conceptual issues and fundamental pitfalls",
+  "authors": "Impellizzeri FM, Tenan MS, Kempton T, Novak A, Coutts AJ",
+  "year": 2020,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2019-0864",
+  "pmid": "32502973",
+  "url": "https://doi.org/10.1123/ijspp.2019-0864",
+  "design": "narrative-review",
+  "population": "Not applicable (conceptual and methodological critique of ACWR research)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ai-coaching", "injury-load", "load-response-models", "periodization-recovery"],
+  "findings": [
+    "No studies have properly tried to estimate causal effects of ACWR, so manipulating ACWR to change injury rates remains conjecture and overinterpretation.",
+    "ACWR is an inaccurate metric (it fails to normalise the numerator by the denominator even when uncoupled), is ambiguous, and is not consistently and unidirectionally related to injury risk.",
+    "The authors conclude there is no evidence supporting ACWR in training-load-management systems or for training recommendations aimed at reducing injury risk; the ratio adds noise and statistical artifacts.",
+    "Because no studies have even tried to estimate causal effects of ACWR properly, manipulating ACWR to change injury rates in practice remains conjecture and an overinterpretation of the available data.",
+    "ACWR is described as inaccurate (failing to normalise the numerator by the denominator even when uncoupled), lacking background rationale for a causal role, ambiguous, and not consistently and unidirectionally related to injury risk.",
+    "Conclusion: no evidence supports use of ACWR in training-load-management systems or for training recommendations aimed at reducing injury risk; it adds noise and creates statistical artifacts.",
+    "No studies have properly attempted to estimate causal effects of ACWR on injury, so manipulating ACWR to change injury rates remains conjecture.",
+    "ACWR is an inaccurate metric (fails to normalize the numerator by the denominator even when uncoupled), is ambiguous, and is not consistently and unidirectionally related to injury risk; it adds noise and statistical artifacts.",
+    "Conclusion: there is no evidence supporting the use of ACWR in training-load-management systems or for training recommendations aimed at reducing injury risk.",
+    "ACWR is the most popular training-load-based prognostic factor, but no study has properly tried to estimate causal effects, so manipulating ACWR to change injury rates remains conjecture and an overinterpretation of the data.",
+    "The authors state ACWR is an inaccurate metric (it fails to normalize the numerator by the denominator even when uncoupled), ambiguous, lacks background rationale for a causal role, and is not consistently and unidirectionally related to injury risk.",
+    "Stated conclusion: there is no evidence supporting use of ACWR in training-load-management systems or for training recommendations aimed at reducing injury risk; the ratio adds noise and creates statistical artifacts."
+  ],
+  "limitations": "Critique rather than new data; absence of causal evidence is not proof of no relationship.",
+  "implications": [
+    "Do not use an ACWR threshold (such as 0.8-1.3) as a safety rule or hard cap in the plan generator.",
+    "If load trend is shown, show acute and chronic load separately, and limit weekly progression with explicit conservative rules supported by other evidence.",
+    "Do not make ACWR a hard constraint or sole safety score; do not optimise the plan towards an ACWR target.",
+    "If an ACWR is displayed, show it as a descriptive metric with no 'sweet spot' claim.",
+    "Prefer simple auditable rules on absolute changes (session vs longest recent run, weekly volume change) over ratio thresholds.",
+    "Do not use an ACWR band as a hard rule for blocking or allowing load; if displayed, label it descriptive and make no injury-prediction claims.",
+    "Control ramp with simple capped week-to-week increases and scheduled recovery weeks combined with athlete-reported and efficiency signals.",
+    "Do not use an ACWR band (e.g. 0.8 to 1.3) as a hard safety gate or as the justification for progression; if shown, present it as a descriptive, low-confidence indicator.",
+    "Limit progression with explicit, stated expert-rule caps on volume and long-run increases rather than ratio thresholds claimed to prevent injury.",
+    "Do not market any load metric in the app as injury prediction."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, IJSPP, 2020-07-01. Findings match abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

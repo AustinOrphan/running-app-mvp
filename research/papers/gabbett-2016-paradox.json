@@ -1,0 +1,34 @@
+{
+  "id": "gabbett-2016-paradox",
+  "title": "The training-injury prevention paradox: should athletes be training smarter and harder?",
+  "authors": "Gabbett TJ",
+  "year": 2016,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2015-095788",
+  "pmid": "26758673",
+  "url": "https://doi.org/10.1136/bjsports-2015-095788",
+  "design": "narrative-review",
+  "population": "Conceptual model drawn mainly from team-sport athletes (no participants)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["injury-load"],
+  "findings": [
+    "Presents a 'training-injury prevention paradox': athletes accustomed to high training loads have fewer injuries than athletes training at lower workloads.",
+    "Cites evidence that team-sport athletes with more than 18 weeks of training before an initial injury were at reduced risk of a subsequent injury, and that high chronic workloads have been shown to decrease injury risk.",
+    "States that excessive and rapid increases in training load are likely responsible for a large proportion of non-contact soft-tissue injuries, and that under-training may increase injury risk.",
+    "Describes the acute:chronic workload ratio as a best-practice predictor of training-related injury (the author's claim, later critiqued)."
+  ],
+  "limitations": "Single-author narrative paper, not a systematic synthesis; team-sport focus; promotes ACWR, which later critiques (Impellizzeri 2020; Wang 2020) challenge; no running-specific data.",
+  "implications": [
+    "Cutting load is not automatically protective: avoid drifting plans towards minimal volume for risk reasons, and prefer gradual build-up of chronic load.",
+    "Do not adopt its ACWR recommendation; use it only as the pro-ACWR counterweight to Impellizzeri 2020."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref: BJSM 50:273-280 (online Jan 2016), single author. Abstract read from Europe PMC (PMID 26758673).",
+    "checkedAt": "2026-10-22"
+  }
+}

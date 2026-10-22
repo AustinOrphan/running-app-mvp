@@ -1,0 +1,35 @@
+{
+  "id": "burgess-2025-training-load-injury-gam",
+  "title": "Assessing the relationship between training load and injury in ultramarathon runners: a novel approach using Generalised Additive Models",
+  "authors": "Burgess TL, Durand P, Buchholtz K",
+  "year": 2025,
+  "journal": "South African Journal of Sports Medicine",
+  "doi": "10.17159/2078-516x/2025/v37i1a20747",
+  "pmid": "40772114",
+  "url": "https://doi.org/10.17159/2078-516x/2025/v37i1a20747",
+  "design": "retrospective-cohort",
+  "population": "106 runners training for the 2018 Comrades ultramarathon; weekly data for 12 weeks before and 2 weeks after the race (retrospectively recalled)",
+  "sampleSize": 106,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Injury incidence was 8 per 1,000 hours and the overall injury proportion was 40%; muscles (47%) and tendons (24%) were the most commonly injured structures, the knee (26%) and hip (19%) the most common sites.",
+    "Lower training distance in the 12 weeks leading to the race was linked to higher injury risk (p = 0.02), primarily occurring during or after the race.",
+    "Weekly training frequency had a significant heterogeneous (non-linear) relationship with injury risk (p = 0.02).",
+    "The ACWR effect on injury risk was minimal (p = 0.3); relationships between training load and injury were non-linear."
+  ],
+  "limitations": "Retrospectively recalled weekly data in 106 runners at one race; injuries during or after the race are conflated with training injuries; low training load may mark pre-existing injury (reverse causation).",
+  "implications": [
+    "Do not use ACWR as a hard injury-prevention gate: this study found minimal effect (p = 0.3), whereas [craddock-2020-acwr-two-oceans] (Two Oceans 56 km, n = 119) reported an injury association above ACWR 1.5. Keep ACWR as an informational display.",
+    "Flag a plan whose last-12-week distance is far below the athlete's own prior peak, since under-training was associated with more injury (direction only, no threshold).",
+    "Model load-to-risk non-linearly in any injury-risk estimator; avoid single linear thresholds."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2025-07-09) and Europe PMC abstract re-fetched; numbers confirmed. The researcher's description of Craddock 2020 as a Comrades cohort was wrong (it is a 119-runner Two Oceans study) and is corrected; Craddock is now its own entry.",
+    "checkedAt": "2026-10-22"
+  }
+}

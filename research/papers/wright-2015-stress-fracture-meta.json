@@ -1,0 +1,36 @@
+{
+  "id": "wright-2015-stress-fracture-meta",
+  "title": "Risk factors associated with lower extremity stress fractures in runners: a systematic review with meta-analysis",
+  "authors": "Wright AA, Taylor JB, Ford KR, Siska L, Smoliga JM",
+  "year": 2015,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2015-094828",
+  "pmid": "26582192",
+  "url": "https://doi.org/10.1136/bjsports-2015-094828",
+  "design": "meta-analysis",
+  "population": "Runners in 8 eligible studies (4 pooled in the meta-analysis); search through 9 January 2014",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["injury-load"],
+  "findings": [
+    "Stress fractures account for 15-20% of all musculoskeletal injuries in runners, with up to 95% in the lower extremities.",
+    "8 articles met inclusion criteria (7 considered low risk of bias); 4 qualified for meta-analysis.",
+    "Previous history of stress fracture: pooled OR 4.99 (95% CI 2.91-8.56; p<0.001; I2 = 0%).",
+    "Female sex: pooled OR 2.31 (95% CI 1.24-4.29; p<0.01; I2 = 0%).",
+    "Only previous stress fracture and female sex are risk factors strongly supported by the data."
+  ],
+  "limitations": "Only four studies pooled; search ended January 2014; observational data. Abstract does not give weekly-volume or energy-availability findings, so no training threshold follows.",
+  "implications": [
+    "A previous bone stress injury should trigger a markedly more conservative profile and a prompt to consult a clinician; the specific step sizes are engineering defaults.",
+    "Female sex modifies bone-stress vigilance (surface low-energy-availability and menstrual warning signs), not overall volume caps (see Hollander 2021).",
+    "No numeric volume threshold is supported by this paper."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: BJSM 49:1517-1523 (online Jul 2015). Abstract matched; p-values and I2 confirmed from the raw record. Removed the researcher's unsupported remark about energy availability and BMD from limitations.",
+    "checkedAt": "2026-10-22"
+  }
+}

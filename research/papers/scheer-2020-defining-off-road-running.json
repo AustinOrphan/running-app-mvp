@@ -1,0 +1,40 @@
+{
+  "id": "scheer-2020-defining-off-road-running",
+  "title": "Defining Off-road Running: A Position Statement from the Ultra Sports Science Foundation",
+  "authors": "Scheer V, Basset P, Giovanelli N, Vernillo G, Millet GP, Costa RJS",
+  "year": 2020,
+  "journal": "International Journal of Sports Medicine",
+  "doi": "10.1055/a-1096-0980",
+  "pmid": "32059243",
+  "url": "https://doi.org/10.1055/a-1096-0980",
+  "design": "consensus-statement",
+  "population": "Position statement on terminology for off-road running events and athletes",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["terrain-elevation", "ultra-training"],
+  "findings": [
+    "Ultramarathon running is defined as any running event over marathon distance conducted in any terrain and surface.",
+    "Trail, mountain, skyrunning, fell, orienteering, obstacle course and cross-country running overlap but have distinct features and need clear terminology.",
+    "It recommends describing events by distance, surface, elevation change and altitude, continuous vs staged format, type of support, name and year of the event, and governing body.",
+    "It recommends describing athletes by basic data, physiological determinants, and training and competition characteristics.",
+    "Trail, mountain, sky, fell running, orienteering, obstacle course and cross-country events are mostly off-road but have distinct features.",
+    "Ultramarathon is any event beyond marathon distance on any terrain.",
+    "Studies and reports should state distance, surface, elevation change and altitude, event type (continuous vs staged), support, event name/year and governing body.",
+    "Athletes should be described by basic data, physiological determinants, training and competition characteristics."
+  ],
+  "limitations": "A terminology and reporting statement; no training prescription, outcome data or numeric thresholds.",
+  "implications": [
+    "Model race goals with the statement's descriptors as fields: distance, elevation gain/loss, surface, altitude, continuous vs staged, support level, so plan rules can branch on them.",
+    "Treat 'ultramarathon' as any distance above 42.2 km, making 50 km the lower bound of the ultra module; no training parameter change is justified by this paper.",
+    "Define plan inputs for course goals with distance, total ascent and descent, altitude range and surface, as the statement recommends reporting.",
+    "Do not make an event-type-specific training rule from this paper."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2020-02-14) and Europe PMC abstract re-fetched; claims confirmed. Evidence level downgraded from A to D: it is a consensus on terminology, not on training effects. Scheer et al. 2021 ultra-trail position statements were not found in Europe PMC searches in this session and are listed under gaps.",
+    "checkedAt": "2026-10-22"
+  }
+}

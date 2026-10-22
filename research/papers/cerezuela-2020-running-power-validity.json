@@ -1,0 +1,33 @@
+{
+  "id": "cerezuela-2020-running-power-validity",
+  "title": "Are we ready to measure running power? Repeatability and concurrent validity of five commercial technologies",
+  "authors": "Cerezuela-Espejo V, Hernandez-Belmonte A, Courel-Ibanez J, Conesa-Ros E, Mora-Rodriguez R, Pallares JG",
+  "year": 2020,
+  "journal": "European Journal of Sport Science",
+  "doi": "10.1080/17461391.2020.1748117",
+  "pmid": "32212955",
+  "url": "https://doi.org/10.1080/17461391.2020.1748117",
+  "design": "cross-sectional",
+  "population": "12 endurance-trained male athletes; test-retest on a treadmill and an athletic track, three submaximal protocols varying speed, body weight and slope",
+  "sampleSize": 12,
+  "evidenceLevel": "C",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Five technologies (Stryd app, Stryd watch, RunScribe, Garmin running power, Polar Vantage) were compared with VO2 from a metabolic cart.",
+    "Stryd was the most repeatable in all environments and conditions (SEM <= 12.5 W, CV <= 4.3%, ICC >= 0.980) and had the best concurrent validity with VO2 (r >= 0.911, SEE <= 7.3%).",
+    "Polar, Garmin and RunScribe power kept some relationship with VO2, but their low repeatability questions their suitability; the authors name Stryd the most recommended tool of those analysed."
+  ],
+  "limitations": "12 male endurance athletes, short submaximal protocols, 2020-era firmware; the criterion is VO2, not mechanical power, so r with VO2 does not establish absolute watts; the abstract does not describe the Garmin or Polar hardware used (do not assume native-watch power). Online 2020, print 2021.",
+  "implications": [
+    "If running power is ingested, treat it as external load whose reliability depends on the device: accept Stryd for load/intensity features and flag Garmin, Polar and RunScribe power as low confidence.",
+    "Never mix power from different devices when computing power zones or loads; store the source device with each activity."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, Eur J Sport Sci, online 26 Apr 2020 (print Mar 2021), first author Cerezuela-Espejo. Numbers match the Europe PMC abstract. Corrected 'Garmin native' to the abstract's 'Garmin RP'; design changed from experimental-crossover to cross-sectional.",
+    "checkedAt": "2026-10-22"
+  }
+}

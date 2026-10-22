@@ -1,0 +1,34 @@
+{
+  "id": "kluitenberg-2015-nlstart2run",
+  "title": "The NLstart2run study: Incidence and risk factors of running-related injuries in novice runners",
+  "authors": "Kluitenberg B, van Middelkoop M, Smits DW, Verhagen E, Hartgens F, Diercks R, van der Worp H",
+  "year": 2015,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.12346",
+  "pmid": "25438823",
+  "url": "https://doi.org/10.1111/sms.12346",
+  "design": "prospective-cohort",
+  "population": "Adults aged 18-65 in a 6-week supervised 'Start to Run' program in the Netherlands",
+  "sampleSize": 1696,
+  "evidenceLevel": "B",
+  "topics": ["beginners-return"],
+  "findings": [
+    "1696 runners were included; 10.9% sustained an RRI during the 6-week program.",
+    "RRI was defined as a musculoskeletal complaint of the lower extremity or back attributed to running that hampered running ability for three consecutive training sessions.",
+    "Multivariable Cox regression: higher age, higher BMI, previous musculoskeletal complaints not attributed to sports, and no previous running experience were related to RRI.",
+    "The authors recommend using the identified risk factors for screening and prevention."
+  ],
+  "limitations": "Short 6-week follow-up of a supervised program; self-reported weekly log; the abstract gives no effect sizes or thresholds for the risk factors.",
+  "implications": [
+    "Raise a novice's baseline injury-risk flag for higher age, higher BMI, recent non-sport musculoskeletal complaints, or no running history; for flagged runners slow the first weeks and use more walk intervals (action choice is a design decision, not tested here).",
+    "Add an intake screen for age, BMI, prior musculoskeletal complaints and running experience; no numeric cut-offs are justified by this abstract."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Own re-fetch: Crossref first author Kluitenberg, 7 authors, SJMSS, issued 2014-12 online, 2015 in Europe PMC. Abstract matches all numbers and definitions. Removed the researcher's '6-12 weeks' interpretation as a finding.",
+    "checkedAt": "2026-10-22"
+  }
+}

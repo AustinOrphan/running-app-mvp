@@ -1,0 +1,195 @@
+[
+  {
+    "id": "heat-wbgt-primary-input",
+    "statement": "Use WBGT as the primary weather input to pace and risk adjustments; fall back to air temperature only when WBGT cannot be computed, and label the index used. Do not add a separate humidity or pressure penalty on top of WBGT.",
+    "parameter": "weather_index",
+    "value": "WBGT primary; air temperature fallback (10-17.5 C air-temperature optimum band)",
+    "unit": "C",
+    "appliesTo": "All runners, all events",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "mantzios-2022-weather-endurance",
+      "ely-2007-weather-marathon",
+      "elhelou-2012-environment-marathon",
+      "vihma-2010-weather-marathon"
+    ]
+  },
+  {
+    "id": "heat-wbgt-calculation",
+    "statement": "Compute WBGT with the Liljegren physics-based model from hourly forecast air temperature, relative humidity, pressure, wind and solar radiation; expect about 1 C accuracy with measured inputs and wider with forecasts. If solar is missing, estimate from cloud cover and widen the stated uncertainty. Input list must be confirmed in the full text.",
+    "parameter": "wbgt_model_accuracy",
+    "value": "<1",
+    "unit": "C (validation accuracy, occupational setting)",
+    "appliesTo": "Plan engine weather module",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["liljegren-2008-wbgt-model", "thorsson-2021-pet-vs-wbgt"]
+  },
+  {
+    "id": "heat-optimum-wbgt-band",
+    "statement": "Treat WBGT 7.5-15 C as the optimum band with no weather penalty; keep the edges tunable (Ely 2007 shows +0.8% already at 10-15 C relative to 5-10 C).",
+    "parameter": "optimum_wbgt_band",
+    "value": "7.5 to 15",
+    "unit": "C WBGT",
+    "appliesTo": "Competitive and elite runners (evidence); recreational runners as a default",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["mantzios-2022-weather-endurance", "ely-2007-weather-marathon"]
+  },
+  {
+    "id": "heat-hot-side-slope",
+    "statement": "Above the optimum band, increase predicted time by 0.3-0.4% per C WBGT (default 0.35%) for top-level runners.",
+    "parameter": "heat_penalty_slope_elite",
+    "value": "0.3-0.4 (default 0.35)",
+    "unit": "% of finish time per C WBGT",
+    "appliesTo": "Elite or highly trained runners, marathon and shorter",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["mantzios-2022-weather-endurance", "ely-2007-weather-marathon"]
+  },
+  {
+    "id": "heat-marathon-reference-table",
+    "statement": "For marathon-distance targets, use these penalties relative to the WBGT 5-10 C band as a cross-check on the slope: +0.8% at 10-15 C, +1.6% at 15-20 C, +2.8% at 20-25 C (top male finishers). Do not extrapolate beyond WBGT 25 C; flag as outside the evidence base.",
+    "parameter": "marathon_penalty_table",
+    "value": "0.8 / 1.6 / 2.8",
+    "unit": "% time at WBGT 10-15 / 15-20 / 20-25 C",
+    "appliesTo": "Fast marathoners; women's quartile differences were not significant",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["ely-2007-weather-marathon"]
+  },
+  {
+    "id": "heat-ability-multiplier",
+    "statement": "Scale the heat penalty up for slower runners. Evidence says slower runners lose more but gives no multiplier, so use a conservative tunable default of 1.0 for sub-2:30 equivalents, rising linearly to 2.0 at 4:30+ marathon-equivalent, then calibrate from the athlete's logs. Do not apply a sex term in version 1 (marathon evidence is weak; ultra evidence suggests men lose more at high air temperature, low confidence).",
+    "parameter": "heat_penalty_ability_multiplier",
+    "value": "1.0 to 2.0 (default, not evidence-derived)",
+    "unit": "multiplier on elite slope",
+    "appliesTo": "Recreational and slower runners, up to about 4.7 h marathon evidence",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "ely-2007-weather-marathon",
+      "vihma-2010-weather-marathon",
+      "knechtle-2019-boston-weather",
+      "struska-2026-ultra-weather-sex"
+    ]
+  },
+  {
+    "id": "heat-pacing-shape",
+    "statement": "In heat, give mid-pack and slower runners a uniformly slower target pace from the start; give fast runners (about top quartile) a more conservative first half because they show a late heat-driven deceleration.",
+    "parameter": "within_race_heat_pacing",
+    "value": "uniform slowdown (slower runners); conservative first half (fast runners)",
+    "unit": null,
+    "appliesTo": "Marathon; evidence from women's championship races up to 21 C air temperature",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["ely-2008-pacing-temperature", "parise-2011-161km-pacing-heat"]
+  },
+  {
+    "id": "heat-ultra-exposure-weighting",
+    "statement": "For 100 km to 100 mile plans, apply the heat penalty only to the hours the runner is expected to be in daytime heat and relax it at night; faster runners accumulate more heat hours. Reference: a 7-38 C day gave about 8% slower mean 161 km pace than a 2-30 C day in experienced finishers (upper-range example, not a formula).",
+    "parameter": "ultra_heat_penalty_basis",
+    "value": "per hour of daytime heat exposure; reference 8% for 7-38 vs 2-30 C",
+    "unit": "% mean pace (161 km)",
+    "appliesTo": "Ultra and 100-mile runners",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "parise-2011-161km-pacing-heat",
+      "bouscaren-2019-marathon-vs-ultra-heat",
+      "struska-2026-ultra-weather-sex"
+    ]
+  },
+  {
+    "id": "heat-ultra-confidence-flag",
+    "statement": "Label every heat adjustment for events over 6 h as lower confidence, do not reuse marathon coefficients unflagged, and adjust by event profile (climbing, night, multi-day, desert, long-haul travel) instead of one global coefficient. Treat long-haul travel to hot venues as an acclimation trigger.",
+    "parameter": "ultra_heat_confidence_label",
+    "value": "low for events >6 h",
+    "unit": null,
+    "appliesTo": "Ultra and 100-mile runners",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": ["bouscaren-2019-marathon-vs-ultra-heat"]
+  },
+  {
+    "id": "heat-acclimation-block",
+    "statement": "When forecast race WBGT is in a moderate-or-higher heat band (default trigger WBGT >= 18 C, tunable and not evidence-derived), schedule daily heat exposure for 7-14 days before the race; lengthen beyond 14 days if time allows. Five days is the minimum for HR and core-temperature adaptation. Flag plans without such a window.",
+    "parameter": "acclimation_block_length",
+    "value": "7-14 (minimum 5, extend >14)",
+    "unit": "days of daily heat exposure",
+    "appliesTo": "Any runner with a hot goal race; consensus is elite-oriented",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "racinais-2015-heat-consensus",
+      "tyler-2016-heat-adaptation-meta",
+      "daanen-2018-acclimation-decay",
+      "periard-2015-heat-acclimation-adaptations"
+    ]
+  },
+  {
+    "id": "heat-acclimation-decay",
+    "statement": "Credit of HR and core-temperature acclimation falls about 2.5% of the acclimated state per day after the last session (HR 2.3, core 2.6). Cut credit to zero at about 40 days (extrapolation, flagged). Schedule the block to finish close to the race and use a short top-up (re-acclimation is 8-12 times faster than decay) inside the taper.",
+    "parameter": "acclimation_decay_rate",
+    "value": "2.5",
+    "unit": "% of adaptation lost per day",
+    "appliesTo": "Athletes with a completed acclimation block (decay data after at least 7 days)",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["daanen-2018-acclimation-decay"]
+  },
+  {
+    "id": "heat-acclimation-penalty-discount",
+    "statement": "Apply acclimation only as a partial discount on the heat penalty: shrink, never remove. No numeric discount is evidence-derived; use a conservative default of at most 50% reduction scaled by remaining acclimation credit, and flag as default.",
+    "parameter": "acclimation_penalty_discount_max",
+    "value": "50 (default, not evidence-derived)",
+    "unit": "% of heat penalty",
+    "appliesTo": "Athletes with credited acclimation",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "tyler-2016-heat-adaptation-meta",
+      "periard-2015-heat-acclimation-adaptations",
+      "periard-2021-exercise-heat-stress"
+    ]
+  },
+  {
+    "id": "heat-effort-based-sessions",
+    "statement": "For training sessions above the optimum WBGT band, prescribe effort by RPE or an HR cap and treat pace as secondary, because heat strain accumulates with time (core temperature, hydration). Show a euhydration reminder before sessions and reduce intensity targets on the first hot days of a season. Numeric HR-drift or intensity-reduction values are not justified by the corpus.",
+    "parameter": "hot_session_prescription",
+    "value": "RPE/HR-based; pace secondary",
+    "unit": null,
+    "appliesTo": "Training sessions in WBGT above the optimum band",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["periard-2021-exercise-heat-stress", "racinais-2015-heat-consensus"]
+  },
+  {
+    "id": "heat-safety-warnings",
+    "statement": "Treat WBGT as a screening and pacing index, not a safety guarantee. Show warnings for high solar or radiant load, a large day-over-day temperature rise, WBGT above 25 C (outside the evidence base), and high specific humidity or temperature as a withdrawal-risk factor.",
+    "parameter": "heat_warning_triggers",
+    "value": "high solar load; large day-over-day rise; WBGT >25; high specific humidity",
+    "unit": null,
+    "appliesTo": "All runners, race-day plans",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "thorsson-2021-pet-vs-wbgt",
+      "vihma-2010-weather-marathon",
+      "ely-2007-weather-marathon",
+      "elhelou-2012-environment-marathon"
+    ]
+  },
+  {
+    "id": "heat-cold-side-default",
+    "statement": "Apply no numeric cold-side pace penalty until Mantzios 2022 full text confirms the cold-side slope; add a generic cold advisory (warm-up, layering) and extra caution for long, slow ultras in cold (inference).",
+    "parameter": "cold_side_penalty",
+    "value": "0 (advisory only)",
+    "unit": "% per C below 7.5 C WBGT",
+    "appliesTo": "Cold-weather races and training",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["castellani-2015-cold-stress", "mantzios-2022-weather-endurance"]
+  }
+]

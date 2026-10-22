@@ -1,0 +1,34 @@
+{
+  "id": "rogers-2021-dfa-a1-ultramarathon-fatigue",
+  "title": "Fractal correlation properties of heart rate variability as a biomarker of endurance exercise fatigue in ultramarathon runners",
+  "authors": "Rogers B, Mourot L, Doucende G, Gronwald T",
+  "year": 2021,
+  "journal": "Physiological Reports",
+  "doi": "10.14814/phy2.14956",
+  "pmid": "34291602",
+  "url": "https://doi.org/10.14814/phy2.14956",
+  "design": "other",
+  "population": "11 experienced ultramarathon runners: 7 ran a simulated 6 h ultramarathon (fatigue group), 4 performed daily activity (control)",
+  "sampleSize": 11,
+  "evidenceLevel": "C",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "DFA a1 measured while running at 3 m/s on a treadmill fell from 0.71 before to 0.32 after the 6 h simulated ultramarathon in the fatigue group only (d = 1.34).",
+    "HR (d = 0.02) and running economy (d = 0.21) changed little in the fatigue group, whereas countermovement-jump peak force decreased (d = 0.82).",
+    "The control group showed only minor differences in DFA a1 (d = 0.19), HR (d = 0.15) and running economy (d = 0.31).",
+    "The authors suggest DFA a1 may provide real-time tracking of physiologic status and possibly an early warning of systemic perturbation."
+  ],
+  "limitations": "Very small sample (7 vs 4), single simulated ultramarathon of 6 h (not a 100-mile effort), treadmill measurement at a fixed speed, no validation against race outcomes.",
+  "implications": [
+    "DFA a1 and the HR at a fixed pace can diverge after prolonged running (HR unchanged while DFA a1 collapsed), so threshold estimates derived from DFA a1 late in or after long efforts must be excluded from threshold updates.",
+    "Supports logging a within-run DFA a1 decline as a candidate fatigue/durability indicator for ultra-distance athletes; no intervention threshold is justified by n = 7."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref: Physiol Rep 2021 vol 9, first author Rogers; Europe PMC PMID 34291602 abstract states all numbers.",
+    "checkedAt": "2026-10-22"
+  }
+}

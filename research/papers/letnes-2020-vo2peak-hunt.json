@@ -1,0 +1,35 @@
+{
+  "id": "letnes-2020-vo2peak-hunt",
+  "title": "Age-related change in peak oxygen uptake and change of cardiovascular risk factors. The HUNT Study",
+  "authors": "Letnes JM, Dalen H, Aspenes ST, Salvesen O, Wisloff U, Nes BM",
+  "year": 2020,
+  "journal": "Progress in Cardiovascular Diseases",
+  "doi": "10.1016/j.pcad.2020.09.002",
+  "pmid": "32971113",
+  "url": "https://doi.org/10.1016/j.pcad.2020.09.002",
+  "design": "prospective-cohort",
+  "population": "1,431 healthy adults with directly measured VO2peak in HUNT3 (2006-08) and HUNT4 (2017-19)",
+  "sampleSize": 1431,
+  "evidenceLevel": "B",
+  "topics": ["age-masters"],
+  "findings": [
+    "Average ten-year decline in VO2peak was non-linear: about 3% in the third decade of life rising to about 20% in the eighth decade, and more pronounced in men.",
+    "Linear mixed models with an additional 2,933 HUNT3-only observations showed similar age-related decline.",
+    "Self-reported adherence to leisure-time physical activity recommendations was associated with better maintenance of VO2peak, with intensity seemingly more important than minutes of activity at higher age.",
+    "One mL/kg/min better VO2peak maintenance was associated with lower odds of hypertension (OR 0.95), dyslipidemia (0.92) and metabolic syndrome (0.86)."
+  ],
+  "limitations": "General population, not runners; leisure-time activity self-reported; VO2peak in a mostly untrained sample.",
+  "implications": [
+    "Model the age-related fitness decline as accelerating, not constant: about 3%/decade in the 20s rising to about 20%/decade in the 70s. A planning figure of 5-10%/decade for the 40s-50s is the verifier's/librarian's interpolation, not in the abstract; fit to the runner's own data.",
+    "Retain some high-intensity work for older runners: intensity appears more important than total minutes for maintaining VO2peak at higher ages (association, self-reported).",
+    "Decline was more pronounced in men here, which differs from Ganse 2020 (no sex difference in annual percentage performance decline); keep sex-neutral defaults."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC abstract match; all numbers confirmed. The abstract says more pronounced in men, added to limit sex-neutral claims.",
+    "checkedAt": "2026-10-22"
+  }
+}

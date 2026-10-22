@@ -1,0 +1,34 @@
+{
+  "id": "rogers-2022-dfa-a1-update",
+  "title": "Fractal Correlation Properties of Heart Rate Variability as a Biomarker for Intensity Distribution and Training Prescription in Endurance Exercise: An Update",
+  "authors": "Rogers B, Gronwald T",
+  "year": 2022,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2022.879071",
+  "pmid": "35615679",
+  "url": "https://doi.org/10.3389/fphys.2022.879071",
+  "design": "narrative-review",
+  "population": "Review of DFA a1 studies in elite, recreational and cardiac disease populations, artifact handling and field tools",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "DFA a1 of 0.75 has been associated with the aerobic threshold in elite, recreational and cardiac disease populations (termed HRVT); DFA a1 of 0.5 may be associated with the anaerobic threshold.",
+    "Common artifact correction methods induce minimal bias in DFA a1 at artifact levels below 3%, and HRVT changes negligibly even at 6%.",
+    "Several websites and smartphone apps can track DFA a1 retrospectively or in real time.",
+    "DFA a1 combined with non-autonomic markers such as pace or power opens possibilities for athlete durability and fatigue identification."
+  ],
+  "limitations": "Narrative update by the group that originated the method (possible author bias); cites mostly small laboratory studies; the 0.5 upper anchor is described as 'may be associated' and is contradicted for sustained running by Gronwald 2024.",
+  "implications": [
+    "Reject RR windows with more than about 3% artifact beats before computing DFA a1 (6% is the most the review reports as tolerable for HRVT).",
+    "Treat the DFA a1 = 0.5 upper-threshold link as tentative; do not use it to prescribe sustained running."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref: Front Physiol 2022 vol 13, Rogers & Gronwald; Europe PMC PMID 35615679 abstract states the figures.",
+    "checkedAt": "2026-10-22"
+  }
+}

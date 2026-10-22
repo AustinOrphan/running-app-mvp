@@ -1,0 +1,191 @@
+[
+  {
+    "id": "ultra-nutrition-daily-carbohydrate",
+    "statement": "Set daily carbohydrate for ultra training at about 60% of energy intake, 5-8 g/kg/day, scaled within the range to training load; periodise rather than hold the same intake every day.",
+    "parameter": "daily_cho_target",
+    "value": "5-8",
+    "unit": "g/kg/day",
+    "appliesTo": "All ultra training athletes; build and peak weeks use upper half, recovery weeks lower half (the split is an engine default)",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["tiller-2019-issn-ultra-nutrition", "podlogar-2022-cho-new-horizons"]
+  },
+  {
+    "id": "ultra-nutrition-daily-protein",
+    "statement": "Set protein at about 1.6 g/kg/day, raised up to 2.5 g/kg/day only in the most demanding training blocks.",
+    "parameter": "daily_protein_target",
+    "value": "1.6 (up to 2.5)",
+    "unit": "g/kg/day",
+    "appliesTo": "All ultra training athletes",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["tiller-2019-issn-ultra-nutrition"]
+  },
+  {
+    "id": "ultra-nutrition-race-floor-fuelling",
+    "statement": "Default race-day fuelling floor for ultras is 150-400 kcal/h with 30-50 g/h carbohydrate and 5-10 g/h protein from varied, palatable foods, including savoury options in longer races.",
+    "parameter": "race_fuel_floor",
+    "value": "150-400 kcal/h; CHO 30-50; protein 5-10",
+    "unit": "kcal/h; g/h",
+    "appliesTo": "All single-stage ultra race plans, especially 50 km to 100+ miles, as the starting plan before any gut-training tiers",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["tiller-2019-issn-ultra-nutrition", "jeukendrup-2014-cho-intake"]
+  },
+  {
+    "id": "ultra-nutrition-cho-tier-60-90",
+    "statement": "Offer carbohydrate above the floor in tiers: up to about 60 g/h (single source acceptable) and up to about 90 g/h only as multiple transportable carbohydrates, each tier unlocked only after it was tolerated in long training runs. Reduce the target when absolute pace or intensity is low; do not scale by body mass.",
+    "parameter": "race_cho_rate_standard_tier",
+    "value": "60 then 90",
+    "unit": "g/h",
+    "appliesTo": "Athletes who choose a higher-CHO plan and have tolerated the previous tier in training; evidence is physiological and from non-ultra trials",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "jeukendrup-2014-cho-intake",
+      "tiller-2019-issn-ultra-nutrition",
+      "king-2022-high-cho-gut-training"
+    ]
+  },
+  {
+    "id": "ultra-nutrition-cho-above-90-optin",
+    "statement": "Treat 90-120 g/h as an advanced athlete opt-in flagged low-certainty: require tolerance of 90 g/h in at least a gut-training block with symptoms logged, never a default, with automatic fall-back to the last tolerated rate if symptoms rise. Do not promise a performance benefit.",
+    "parameter": "race_cho_rate_advanced_tier",
+    "value": "90-120",
+    "unit": "g/h",
+    "appliesTo": "Gut-trained athletes only; evidence from a 26-athlete trail marathon RCT, a 16-cyclist crossover and a 37-athlete trial showing no extra performance gain",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "urdampilleta-2020-cho-120",
+      "norte-2026-graded-cho-cp",
+      "king-2022-high-cho-gut-training"
+    ]
+  },
+  {
+    "id": "ultra-nutrition-gut-training-block",
+    "statement": "Offer gut training as an optional 2-4 week block ending before the key race: near-daily to several-times-weekly sessions of at least 1 h at steady (about 60% VO2max-equivalent) effort at the intended race CHO rate. The 14-day protocol with a 1 h daily session at 90 g/h reduced GI symptoms and malabsorption; session count and the step size for increasing CHO (conservative default +10 g/h, grade D) are not established.",
+    "parameter": "gut_training_block",
+    "value": "2-4 weeks; sessions >= 1 h",
+    "unit": "weeks",
+    "appliesTo": "Athletes planning above-floor CHO or reporting GI symptoms; not for athletes with known GI disease",
+    "grade": "B",
+    "confidence": "low",
+    "evidence": [
+      "costa-2017-gut-training",
+      "miall-2018-gut-challenge",
+      "martinez-2023-gut-training-sr"
+    ]
+  },
+  {
+    "id": "ultra-nutrition-gut-training-claims",
+    "statement": "Describe gut training as improving tolerance and possibly performance, never as guaranteed performance gain or gut-barrier protection; intestinal injury and permeability markers did not change in the systematic review.",
+    "parameter": "gut_training_claim_wording",
+    "value": "tolerance 'may improve'; no barrier-protection claim",
+    "unit": null,
+    "appliesTo": "All plan copy and UI text about gut training",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["martinez-2023-gut-training-sr", "king-2022-high-cho-gut-training"]
+  },
+  {
+    "id": "ultra-nutrition-gi-symptom-log",
+    "statement": "Log GI symptoms after long runs on the 0-4 scale (none to very severe); stop increasing CHO if symptoms worsen and drop back to the last tolerated rate. A numeric stopping threshold is not evidence-based; default to stopping progression when any symptom is moderate (2) or worse for two sessions in a row.",
+    "parameter": "gi_progression_stop_threshold",
+    "value": "symptom >= 2 on two consecutive sessions",
+    "unit": "0-4 score",
+    "appliesTo": "Gut-training and fuelling-progression logic",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["stuempfle-2015-gi-distress-wser", "martinez-2023-gut-training-sr"]
+  },
+  {
+    "id": "ultra-nutrition-heat-gi",
+    "statement": "When forecast heat is high, lower pace expectations and GI-tolerance assumptions for long runs and races, include a nausea contingency (switch to simpler fuel, slow down) and do not escalate CHO targets that day. Count sessions of at least 2 h at about 60% VO2max-equivalent as the point where GI strain and fuelling practice matter.",
+    "parameter": "heat_gi_adjustment",
+    "value": "no CHO escalation in heat; nausea contingency; 2 h threshold",
+    "unit": "h",
+    "appliesTo": "Long runs and races in hot conditions; GI symptoms were reported by 96% of 161-km runners and peaked in the hottest segment",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "costa-2017-eigs-sr",
+      "stuempfle-2015-gi-distress-wser",
+      "tiller-2019-issn-ultra-nutrition"
+    ]
+  },
+  {
+    "id": "ultra-nutrition-fluid-thirst",
+    "statement": "Present fluid as a reference range of 450-750 mL/h scaled up in heat, always with a 'drink to thirst, do not force fluids' rule; never generate fixed intake volumes beyond thirst. The ACSM 2% weight-loss limit is not applied in ultras.",
+    "parameter": "fluid_reference_range",
+    "value": "450-750 (thirst-led)",
+    "unit": "mL/h",
+    "appliesTo": "All ultra race and long-run plans; sweat rate varies widely so numbers are references, not prescriptions",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "tiller-2019-issn-ultra-nutrition",
+      "hewbutler-2015-eah-consensus",
+      "hewbutler-2017-eah-update",
+      "hoffman-2015-sodium-supplementation-eah",
+      "acsm-2007-fluid-replacement"
+    ]
+  },
+  {
+    "id": "ultra-nutrition-sodium-framing",
+    "statement": "Show sodium as a range above about 575 mg/L of fluid, labelled as taste/cramp/comfort support; do not claim it prevents hyponatremia, and never suggest sodium to offset overdrinking.",
+    "parameter": "sodium_concentration_reference",
+    "value": "> 575",
+    "unit": "mg/L of fluid",
+    "appliesTo": "All ultra race plans that display electrolyte guidance; the number rests on an expert position stand, while observational data show sodium intake does not prevent EAH",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "tiller-2019-issn-ultra-nutrition",
+      "hoffman-2015-sodium-supplementation-eah",
+      "hewbutler-2015-eah-consensus",
+      "hewbutler-2017-eah-update"
+    ]
+  },
+  {
+    "id": "ultra-nutrition-weight-flag",
+    "statement": "If weights are used, treat weight gain over pre-race as an overhydration red flag; do not treat weight loss up to about 3% of body mass as a problem and do not target zero weight change.",
+    "parameter": "weight_loss_tolerance",
+    "value": "<= 3",
+    "unit": "% body mass",
+    "appliesTo": "Races with weigh-ins or athletes who self-weigh; evidence from 161-km races in northern California",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "hoffman-2013-eah-hydration-161km",
+      "hewbutler-2017-eah-update",
+      "hoffman-2015-sodium-supplementation-eah"
+    ]
+  },
+  {
+    "id": "ultra-nutrition-eah-safety-card",
+    "statement": "Attach an EAH safety card to ultra plans (nausea, headache, confusion, swelling, weight gain mean seek medical care; do not drink more) and an alert for races longer than about 17 h or in heat. The engine states symptoms and directs to medical care but does not prescribe treatment.",
+    "parameter": "eah_alert_event_duration",
+    "value": "17",
+    "unit": "h",
+    "appliesTo": "All ultra plans; stronger prompt for hot races and events over 17 h where thirst-guided drinking is stated to prevent EAH only in temperate climates under 17 h",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "hewbutler-2015-eah-consensus",
+      "hewbutler-2017-eah-update",
+      "hoffman-2013-eah-hydration-161km"
+    ]
+  },
+  {
+    "id": "ultra-nutrition-medical-and-sex-limits",
+    "statement": "Do not prescribe high-CHO or gut-training strategies to athletes with known GI disease (show a medical disclaimer), and do not apply sex-based CHO multipliers to ultra paces because the evidence is modelling at elite marathon pace.",
+    "parameter": "gi_disease_and_sex_exclusions",
+    "value": "no high-CHO prescription with GI disease; no sex multiplier",
+    "unit": null,
+    "appliesTo": "Athletes who report GI disease; all athletes for sex-based CHO scaling",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["costa-2017-eigs-sr", "lukasiewicz-2024-cho-sex-modeling"]
+  }
+]

@@ -1,0 +1,34 @@
+{
+  "id": "lepers-2021-sub3-marathon-decades",
+  "title": "Sub 3-hour marathon runners for five consecutive decades demonstrate a reduced age-related decline in performance",
+  "authors": "Lepers R, Burfoot A, Stapley PJ",
+  "year": 2021,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2021.649282",
+  "pmid": "33732172",
+  "url": "https://doi.org/10.3389/fphys.2021.649282",
+  "design": "retrospective-cohort",
+  "population": "40 sub-3-h marathoners (39 males, 1 female), best marathon per calendar decade from the 1970s to 2010s; mean PB 2:23 +/- 0:09 at age 28.6 +/- 4.7",
+  "sampleSize": 40,
+  "evidenceLevel": "C",
+  "topics": ["age-masters"],
+  "findings": [
+    "The time difference between personal best and worst marathon performance in the 5th (calendar) decade was 26 +/- 9 min, an increase of 1 min 4 s per year, i.e. a decrease in running speed of 0.67 +/- 0.29% per year.",
+    "With consistent training and racing it may be possible to limit the age-related decline in marathon performance to less than 7% per decade at least until 60 years of age.",
+    "World-record-based estimates of decline are limited because records belong to different individuals; longitudinal data on the same individuals are more appropriate.",
+    "The authors say further studies are required to verify whether such a low rate could be maintained after 60."
+  ],
+  "limitations": "Tiny, self-selected cohort of elite-level survivors, nearly all male; not representative of recreational runners; abstract defines the decline via best vs worst performance in the last decade, not an age-matched population curve.",
+  "implications": [
+    "For a consistently training runner, an optimistic upper bound on marathon speed retention is about 0.67% per year (under 7% per decade) through about 60; only 0.67% appears in the abstract, the 0.5% lower figure was not supported and is dropped.",
+    "Do not apply this rate as a default for athletes with inconsistent training; condition the slope on training consistency (weeks completed per year)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC abstract match. Researcher's '0.5-0.7%' range corrected to the single reported 0.67 +/- 0.29%; clarified that '5th decade' is the calendar decade (mean age at first PB about 28.6, last decade about 61).",
+    "checkedAt": "2026-10-22"
+  }
+}

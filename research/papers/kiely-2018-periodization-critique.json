@@ -1,0 +1,33 @@
+{
+  "id": "kiely-2018-periodization-critique",
+  "title": "Periodization Theory: Confronting an Inconvenient Truth",
+  "authors": "Kiely J",
+  "year": 2018,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-017-0823-y",
+  "pmid": "29189930",
+  "url": "https://doi.org/10.1007/s40279-017-0823-y",
+  "design": "narrative-review",
+  "population": "Conceptual critique; no study population",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Periodization theory has emerged over seven decades as the preeminent training planning paradigm, with its philosophical assumptions largely unchallenged.",
+    "The theory is repeatedly tied to Selye's stress research and the assumption that mechanical training stress directly regulates the magnitude of subsequent fitness adaptation.",
+    "Since then the science of stress has evolved extensively; the author argues for re-evaluating periodization and realigning it with contemporary stress theory."
+  ],
+  "limitations": "Conceptual argument with no new data or numeric guidance; no specific alternative model proposed in the abstract.",
+  "implications": [
+    "Treat any fixed periodization template as a prior to be adapted by observed response; re-plan from recent data rather than locking a season calendar.",
+    "No parameter change is justified; use as rationale for data-responsive rather than fixed recovery weeks."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref issued 2017 (online); Sports Med 2018;48(4):753-764 per PubMed, so 2018 retained. Abstract verified from PubMed.",
+    "checkedAt": "2026-10-22"
+  }
+}

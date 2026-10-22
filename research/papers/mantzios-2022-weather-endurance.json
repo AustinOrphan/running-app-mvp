@@ -1,0 +1,36 @@
+{
+  "id": "mantzios-2022-weather-endurance",
+  "title": "Effects of weather parameters on endurance running performance: discipline-specific analysis of 1258 races",
+  "authors": "Mantzios K, Ioannou LG, Panagiotaki Z, Ziaka S, Periard JD, Racinais S, et al.",
+  "year": 2022,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000002769",
+  "pmid": "34652333",
+  "url": "https://doi.org/10.1249/mss.0000000000002769",
+  "design": "retrospective-cohort",
+  "population": "Athletes in marathon, 50 km and 20 km racewalk, 10,000 m, 5000 m and 3000 m steeplechase results from large competitions; 1258 races 1936-2019 in 42 countries with a weather station about 8.9 +/- 9.3 km away",
+  "sampleSize": 7867,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather"],
+  "findings": [
+    "WBGT across races ranged from -7 to 33 C; 27% of races took place in cold/cool, 47% neutral, 18% moderate heat, 7% high heat and 1% extreme heat (World Athletics classification).",
+    "Decision-tree models (R2 = 0.21-0.58) found air temperature the most important single parameter (importance 40%), but alone it predicted worse (R2 = 0.04-0.34) than WBGT (R2 = 0.11-0.47).",
+    "Conditions of 7.5-15 C WBGT (or 10-17.5 C air temperature) increased the likelihood of peak performance.",
+    "For every degree WBGT outside these optimum conditions, performance declined by 0.3-0.4%.",
+    "More than a quarter of events were held in moderate, high or extreme heat, rising to one-half when marathons were excluded."
+  ],
+  "limitations": "Sample is top-level athletes in large competitions with a peak-performance outcome; the 0.3-0.4%/C slope is pooled across disciplines (not marathon-specific) and is not for recreational runners, who lose more per Ely 2007 and Vihma 2010; the abstract's phrase 'outside these optimum conditions' does not state cold-side slope separately; decision-tree R2 is modest.",
+  "implications": [
+    "Optimum WBGT band 7.5-15 C; baseline penalty 0.3-0.4% of finishing time per C outside the band. Apply on the hot side with moderate confidence; apply on the cold side only after checking the full text.",
+    "For recreational runners scale the slope up; the multiplier is a tunable parameter (grade D default) to be calibrated against the athlete's own logs.",
+    "Use WBGT as the primary input (explains more variance than air temperature) and use the 10-17.5 C air-temperature band only as fallback."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (online 2021-10-15, print 2022-01) and Europe PMC abstract re-fetched. Abstract says 'large competitions', not 'elite/championship', so the population wording is softened. Pooled slope across all disciplines noted.",
+    "checkedAt": "2026-10-22"
+  }
+}

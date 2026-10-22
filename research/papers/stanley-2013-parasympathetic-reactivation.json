@@ -1,0 +1,35 @@
+{
+  "id": "stanley-2013-parasympathetic-reactivation",
+  "title": "Cardiac parasympathetic reactivation following exercise: implications for training prescription",
+  "authors": "Stanley J, Peake JM, Buchheit M",
+  "year": 2013,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-013-0083-4",
+  "pmid": "23912805",
+  "url": "https://doi.org/10.1007/s40279-013-0083-4",
+  "design": "narrative-review",
+  "population": "Athletes and healthy individuals after single aerobic exercise sessions (quantitative analysis of published data)",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Time required for complete cardiac autonomic recovery after a single aerobic-based session is up to 24 h after low-intensity exercise, 24-48 h after threshold-intensity exercise and at least 48 h after high-intensity exercise.",
+    "Based on limited data, exercise duration is unlikely to be the greatest determinant of cardiac parasympathetic reactivation.",
+    "Cardiac autonomic recovery occurs more rapidly in individuals with greater aerobic fitness.",
+    "Parasympathetic reactivation does not appear to coincide with recovery of all physiological systems (e.g. energy stores or the neuromuscular system).",
+    "Coaches should structure programmes tailored to each individual's recovery kinetics; the review gives recommendations for structuring microcycles."
+  ],
+  "limitations": "Narrative review with quantitative pooling of heterogeneous studies; autonomic recovery is one recovery system and may not match muscular, tendon or glycogen recovery; limited data after resistance exercise and none specific to long runs or ultras.",
+  "implications": [
+    "Hard-easy rule: after a high-intensity session allow at least 48 h before the next hard session; after threshold work 24-48 h; easy running needs no spacing. Encode as minimum spacing between quality sessions.",
+    "Fitter athletes may use the shorter end of the range (supported by the fitness finding); use 48 h for novices or when readiness is low (design choice). Long runs are not covered, so use a separate conservative rule."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed match (Sports Med 2013;43(12):1259-77). Numbers verified in PubMed abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "dewaal-2021-trail-physiology-sr",
+  "title": "Physiological Indicators of Trail Running Performance: A Systematic Review",
+  "authors": "de Waal SJ, Gomez-Ezeiza J, Venter RE, Lamberts RP",
+  "year": 2021,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2020-0812",
+  "pmid": "33508776",
+  "url": "https://doi.org/10.1123/ijspp.2020-0812",
+  "design": "systematic-review",
+  "population": "7 studies of trail runners",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "Trail performance most often correlated with maximal aerobic capacity (71% of studies; r = -.50), lactate threshold (57%; r = -.48), velocity at maximal aerobic capacity (43%; r = -.68), running economy (43%; r = -.31), body fat (43%; r = .55) and age (43%; r = .52).",
+    "Regression models explained 48-60% (single variable) and 48-99% (multiple variable) of performance variation.",
+    "The classic endurance model is a weaker predictor in trail than in road running.",
+    "Testing procedures, race profiles and participants differ so much that comparisons are hindered."
+  ],
+  "limitations": "Only 7 studies; the abstract states that testing procedures, race profiles and participants differ so much that comparisons are hindered. No meta-analysis is reported. The abstract does not state the sign convention of the correlations, which are presumably against finishing time (negative r = faster).",
+  "implications": [
+    "Do not predict trail finishing times from a road-based VO2max or flat-pace model alone; the classic endurance model was a weaker predictor in trail than in road running, so widen the prediction interval for trail goals.",
+    "Where the runner has trail-specific data (graded running economy, actual race splits on known gradients), prefer it over road-derived values and label trail predictions as lower confidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: Int J Sports Physiol Perform 16(3):325-332, 2021, four authors match. PubMed PMID 33508776 abstract supports all numbers (percentages read as share of the 7 studies: 5/7=71%, 4/7=57%, 3/7=43%). A systematic review by design (A), but of 7 heterogeneous studies; strength limited.",
+    "checkedAt": "2026-10-22"
+  }
+}

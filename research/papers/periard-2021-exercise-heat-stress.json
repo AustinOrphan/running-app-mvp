@@ -1,0 +1,34 @@
+{
+  "id": "periard-2021-exercise-heat-stress",
+  "title": "Exercise under heat stress: thermoregulation, hydration, performance implications, and mitigation strategies",
+  "authors": "Periard JD, Eijsvogels TMH, Daanen HAM",
+  "year": 2021,
+  "journal": "Physiological Reviews",
+  "doi": "10.1152/physrev.00038.2020",
+  "pmid": "33829868",
+  "url": "https://doi.org/10.1152/physrev.00038.2020",
+  "design": "narrative-review",
+  "population": "Comprehensive review of human exercise-heat physiology (thermoregulation, hydration, performance, exertional heat illness) and mitigation strategies",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["heat-weather"],
+  "findings": [
+    "A rise in core temperature and loss of body water by sweating are natural consequences of prolonged exercise in the heat.",
+    "Exercise-heat stress disrupts homeostasis, leading to hyperthermia, hypohydration, sodium disturbances and in some cases exertional heat illness.",
+    "The review examines the physiological mechanisms (including systemic and peripheral hemodynamic adjustments) by which heat and hypohydration impair performance.",
+    "Mitigation strategies reviewed: heat acclimation, cooling strategies and hyperhydration; controversies and future research directions are summarized."
+  ],
+  "limitations": "Narrative, not systematic; no quantitative pooled estimates in the abstract; mostly lab and elite-sport literature, not 100-mile events.",
+  "implications": [
+    "Mechanistic basis for treating heat strain as cumulative (core temperature, hydration), which motivates duration-scaled and effort-based (HR/RPE) heat adjustments instead of a pace penalty alone. This is a design inference, not a quoted finding.",
+    "Place heat acclimation first among mitigations, with cooling and hydration as secondary levers; no numeric rule is justified by the abstract."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (Physiol Rev 2021-10, Periard) and Europe PMC abstract re-fetched. Researcher's quoted findings match. Cardiovascular drift is not named in the abstract, so it is moved out of the findings into a labelled inference.",
+    "checkedAt": "2026-10-22"
+  }
+}

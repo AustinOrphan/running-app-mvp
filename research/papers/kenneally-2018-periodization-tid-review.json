@@ -1,0 +1,33 @@
+{
+  "id": "kenneally-2018-periodization-tid-review",
+  "title": "The Effect of Periodization and Training Intensity Distribution on Middle- and Long-Distance Running Performance: A Systematic Review",
+  "authors": "Kenneally M, Casado A, Santos-Concejero J",
+  "year": 2018,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2017-0327",
+  "pmid": "29182410",
+  "url": "https://doi.org/10.1123/ijspp.2017-0327",
+  "design": "systematic-review",
+  "population": "Middle- and long-distance runners; 16 studies (6 observational, 3 case studies, 6 interventions, 1 review) of programs lasting 4 weeks or more",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "Searched May 2017; 493 articles screened and 16 included.",
+    "Pyramidal and polarized training appear more effective than threshold training, although threshold training is used by some of the best marathon runners in the world.",
+    "Review proposes defining zones as a percentage of goal race pace so different periodization types can be reconciled; authors state this approach needs further development."
+  ],
+  "limitations": "Heterogeneous and mostly non-randomized studies; race-pace zone percentages not validated; predates 2019-2025 meta-analyses.",
+  "implications": [
+    "Define race-specific intensity relative to goal race pace as well as physiological anchors.",
+    "Do not prohibit threshold work: some elite marathoners succeed with substantial threshold volume; the evidence is against threshold-dominant defaults, not against threshold sessions."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref: IJSPP 13(10), 2018-10-01, authors Kenneally, Casado, Santos-Concejero. Abstract confirms counts and conclusions.",
+    "checkedAt": "2026-10-22"
+  }
+}

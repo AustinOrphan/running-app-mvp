@@ -1,0 +1,42 @@
+{
+  "id": "manresa-rocamora-2021-hrv-guided-meta",
+  "title": "Heart Rate Variability-Guided Training for Enhancing Cardiac-Vagal Modulation, Aerobic Fitness, and Endurance Performance: A Methodological Systematic Review with Meta-Analysis",
+  "authors": "Manresa-Rocamora A, Sarabia JM, Javaloyes A, Flatt AA, Moya-Ramón M",
+  "year": 2021,
+  "journal": "International Journal of Environmental Research and Public Health",
+  "doi": "10.3390/ijerph181910299",
+  "pmid": "34639599",
+  "url": "https://doi.org/10.3390/ijerph181910299",
+  "design": "meta-analysis",
+  "population": "Adults in controlled trials of HRV-guided vs predefined endurance training (random-effects SMD)",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["ai-coaching", "readiness-monitoring"],
+  "findings": [
+    "HRV-guided training was superior for enhancing vagal-related HRV indices (SMD+ = 0.50, 95% CI 0.09 to 0.91) but not resting HR (SMD+ = 0.04, 95% CI -0.34 to 0.43).",
+    "Small, non-significant SMDs (p > 0.05) favoured HRV-guided training for maximal aerobic capacity (0.20, 95% CI -0.07 to 0.47), aerobic capacity at second ventilatory threshold (0.26, 95% CI -0.05 to 0.57) and endurance performance (0.20, 95% CI -0.09 to 0.48).",
+    "No heterogeneity was found for any aerobic fitness or endurance performance outcome.",
+    "Best methodological practice for HRV index selection, recording position, and baseline/daily-change approach (fixed vs rolling averages) requires further study.",
+    "Authors conclude HRV-guided training may be more effective for maintaining and improving vagal HRV with less likelihood of negative responses; any superiority for fitness and performance is 'only by a small margin'.",
+    "HRV-guided training was superior for vagal-related HRV indices (SMD+ = 0.50, 95% CI 0.09 to 0.91) but not resting HR (SMD+ = 0.04, 95% CI -0.34 to 0.43).",
+    "Small, non-significant SMDs favoured HRV-guided training for maximal aerobic capacity (0.20, 95% CI -0.07 to 0.47), aerobic capacity at second ventilatory threshold (0.26, 95% CI -0.05 to 0.57) and endurance performance (0.20, 95% CI -0.09 to 0.48); no heterogeneity for these outcomes.",
+    "Authors conclude HRV-guided training may maintain and improve vagal HRV with less likelihood of negative responses, but any superiority for group-level fitness and performance is only by a small margin; HRV index, recording position and baseline method (fixed vs rolling averages) need further study."
+  ],
+  "limitations": "Trial count and total N are not in the abstract; methodological heterogeneity in HRV protocol; confidence intervals include zero for all performance outcomes.",
+  "implications": [
+    "Treat HRV as a tolerance monitor: performance effect is about SMD 0.2 and not significant, so it should not drive large plan changes.",
+    "Resting HR did not differ between guided and predefined training (SMD 0.04); this is an outcome comparison, so it argues against giving resting HR its own prescription trigger rather than against using it as a corroborating signal.",
+    "Make the HRV baseline method (rolling vs fixed) configurable and label it unresolved rather than presenting one method as proven.",
+    "HRV-based readiness adjustment is a justified optional feature but only a minor modifier (e.g. downgrade a hard session to easy after sustained suppression vs a rolling personal baseline), never the planning backbone.",
+    "Use a rolling personal baseline (multi-day), not single mornings or population thresholds; the optimal window is not established, so any window length is a default.",
+    "Do not promise performance gains; frame changes as lowering the chance of a poor response."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, journal, first author, 29 Sep 2021. All numbers match the Europe PMC abstract (PMID 34639599). Total N not stated so sampleSize null.",
+    "checkedAt": "2026-10-22"
+  }
+}

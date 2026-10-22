@@ -1,0 +1,33 @@
+{
+  "id": "gellish-2007-longitudinal-hrmax",
+  "title": "Longitudinal modeling of the relationship between age and maximal heart rate",
+  "authors": "Gellish RL, Goslin BR, Olson RE, McDonald A, Russi GD, Moudgil VK",
+  "year": 2007,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1097/mss.0b013e31803349c6",
+  "pmid": "17468581",
+  "url": "https://doi.org/10.1097/mss.0b013e31803349c6",
+  "design": "retrospective-cohort",
+  "population": "Men and women of broad age and fitness range with repeated maximal graded exercise tests over 25 years at a university fitness centre",
+  "sampleSize": 132,
+  "evidenceLevel": "C",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "Retrospective analysis of 908 maximal graded exercise tests from 132 individuals tested repeatedly between 1978 and 2003.",
+    "Linear mixed-models gave HRmax = 207 - 0.7 x age (P < 0.001).",
+    "The longitudinal equation is appreciably different from 220 - age and confirms recent cross-sectional findings."
+  ],
+  "limitations": "Single-centre retrospective fitness-centre sample; N = 132 individuals; not runner-specific; abstract reports no individual-level error. The abstract does not explicitly state that the within-person slope equals the cross-sectional slope; it says the result confirms cross-sectional investigations.",
+  "implications": [
+    "A within-person HRmax decline of about 0.7 bpm per year of age is supported longitudinally (inference from the equation slope): when only an older measured HRmax exists, age-adjust it by about 0.7 bpm per year elapsed, with low confidence.",
+    "Gellish (207) and Tanaka (208) are practically identical; implement one equation, not both."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (title case differs only). Europe PMC abstract confirms N=132, 908 tests, 207 - 0.7 x age. Researcher's claim that the within-person slope 'matched the cross-sectional slope' was reworded to the abstract's 'confirms cross-sectional findings'.",
+    "checkedAt": "2026-10-22"
+  }
+}

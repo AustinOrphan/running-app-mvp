@@ -1,0 +1,36 @@
+{
+  "id": "costa-2017-gut-training",
+  "title": "Gut-training: the impact of two weeks repetitive gut-challenge during exercise on gastrointestinal status, glucose availability, fuel kinetics, and running performance",
+  "authors": "Costa RJS, Miall A, Khoo A, Rauch C, Snipe R, Camoes-Costa V, Gibson P",
+  "year": 2017,
+  "journal": "Applied Physiology, Nutrition, and Metabolism",
+  "doi": "10.1139/apnm-2016-0453",
+  "pmid": "28177715",
+  "url": "https://doi.org/10.1139/apnm-2016-0453",
+  "design": "rct",
+  "population": "Endurance runners (n = 25); gut-challenge trial of 2 h running at 60% VO2max with 30 g CHO (2:1 glucose/fructose) gel-disc every 20 min plus 1 h distance test, then 2 weeks of gut-training and a repeat trial",
+  "sampleSize": 25,
+  "evidenceLevel": "C",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "Participants randomised to carbohydrate gel-disc (CHO-S), carbohydrate food (CHO-F) or placebo (PLA) for 2 weeks of repetitive gut-challenge.",
+    "GI symptoms fell by 60% (p = 0.008) on CHO-S and 63% (p = 0.046) on CHO-F, reductions greater than PLA (p < 0.05).",
+    "Peak breath H2 (malabsorption marker) lower after CHO-S (6 ppm) than CHO-F (9) and PLA (12); blood glucose higher on CHO-S (7.2 vs 6.1 and 6.2 mmol/L).",
+    "1 h distance test improved 5.2% (CHO-S) and 4.3% (CHO-F) but not PLA (-2.1%) (p = 0.009).",
+    "No differences in oxidation rates, plasma I-FABP or cortisol."
+  ],
+  "limitations": "Small trial (n = 25 across three arms), 2-week intervention, 60 g/h challenge, laboratory-style running, not ultra-distance; the abstract does not state the number or frequency of training sessions in the intervention.",
+  "implications": [
+    "A 2-week repeated gut-challenge block is supported before a key long effort; trial challenge used about 2 h at 60% VO2max with ~60 g CHO/h (30 g every 20 min). Session frequency is not stated in the abstract, so do not claim an evidence-based session count from this paper.",
+    "Gut-training works with gels or real-food CHO; log a GI symptom score after each session to titrate dose.",
+    "Describe performance benefit only as 'possible' (single small trial)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match; every number re-checked against the Europe PMC abstract. Removed the researcher's '2-3 long runs' implication because the abstract does not state session frequency.",
+    "checkedAt": "2026-10-22"
+  }
+}

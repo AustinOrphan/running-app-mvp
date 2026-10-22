@@ -1,0 +1,34 @@
+{
+  "id": "schumann-2022-concurrent-compatibility",
+  "title": "Compatibility of Concurrent Aerobic and Strength Training for Skeletal Muscle Size and Function: An Updated Systematic Review and Meta-Analysis",
+  "authors": "Schumann M, Feuerbacher JF, Sunkeler M, Freitag N, Ronnestad BR, Doma K, Lundberg TR",
+  "year": 2022,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-021-01587-7",
+  "pmid": "34757594",
+  "url": "https://doi.org/10.1007/s40279-021-01587-7",
+  "design": "meta-analysis",
+  "population": "Healthy adults of any sex and age in 43 studies of supervised concurrent aerobic plus strength training of 4 weeks or more versus identical strength training alone",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "43 studies; pooled SMD for maximal strength -0.06 (95% CI -0.20 to 0.09, p = 0.446) and muscle hypertrophy -0.01 (-0.16 to 0.18, p = 0.919): no compromise.",
+    "Explosive strength was attenuated: SMD -0.28 (-0.48 to -0.08, p = 0.007), more so when aerobic and strength work were in the same session (p = 0.043) than when separated by at least 3 hours (p > 0.05).",
+    "No significant moderators: aerobic type (cycling vs running), frequency (more than 5 vs fewer than 5 weekly sessions), training status (untrained vs active) or mean age (below vs above 40 years)."
+  ],
+  "limitations": "Outcomes are strength and muscle size, not running performance; participants were healthy adults, not described as elite endurance athletes; session-separation subgroup rests on few studies; supervised programs.",
+  "implications": [
+    "Separate plyometric or explosive work from key running sessions by at least 3 hours where feasible, or put it on a different day; same-session lifting is acceptable for maximal strength goals.",
+    "Do not reduce the strength prescription for masters runners on interference grounds; no age moderation (below vs above 40) was found.",
+    "Do not assume running volume blocks strength gains in general; combine with Wilson 2012 for caution at very high endurance volume."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref year 2021 (online-first), issue year 2022. Corrected training-status moderator to 'untrained vs active' per full abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

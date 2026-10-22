@@ -1,0 +1,167 @@
+[
+  {
+    "id": "algo-llm-no-prescription",
+    "statement": "Session prescription (volume, intensity, paces) must come from deterministic engine code; an LLM may only produce explanatory text behind schema and rule validation.",
+    "parameter": "llm_prescribes_sessions",
+    "value": "false",
+    "unit": null,
+    "appliesTo": "All athletes and plans",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["duking-2024-chatgpt-running-plans", "montaruli-2026-ai-marathon-programs"]
+  },
+  {
+    "id": "algo-plan-quality-checklist-tests",
+    "statement": "Run an automated expert-style quality checklist on every generated plan (progression, recovery weeks, intensity distribution, taper, level differentiation); a failing plan is not published.",
+    "parameter": "plan_quality_checks_must_pass",
+    "value": "all",
+    "unit": null,
+    "appliesTo": "All generated plans",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": ["duking-2024-chatgpt-running-plans", "montaruli-2026-ai-marathon-programs"]
+  },
+  {
+    "id": "algo-collect-granular-inputs",
+    "statement": "Require structured inputs before generation (recent training history, availability, goal and race date, recent race or hard-effort results); plan quality rose with input detail, so ask for more rather than guess.",
+    "parameter": "required_input_set",
+    "value": "history + availability + goal + recent effort",
+    "unit": null,
+    "appliesTo": "Plan creation",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["duking-2024-chatgpt-running-plans"]
+  },
+  {
+    "id": "algo-individualise-from-own-data",
+    "statement": "Derive paces and thresholds from the athlete's own recent hard efforts and race results, not population percentages or device VO2max; refit as new data arrive.",
+    "parameter": "pace_source",
+    "value": "athlete recent best efforts / races",
+    "unit": null,
+    "appliesTo": "Athletes with at least one recent hard effort or race",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "mann-2014-high-low-responders",
+      "emig-2020-big-data",
+      "molinagarcia-2022-wearable-vo2max"
+    ]
+  },
+  {
+    "id": "algo-device-vo2max-trend-only",
+    "statement": "Never set paces directly from a watch-reported VO2max; treat it as a smoothed trend with about plus or minus 10 ml/kg/min individual error and ignore resting-based estimates.",
+    "parameter": "device_vo2max_individual_limits_of_agreement",
+    "value": "-9.92 to 9.74",
+    "unit": "ml/kg/min",
+    "appliesTo": "Imported wearable fitness metrics",
+    "grade": "A",
+    "confidence": "high",
+    "evidence": ["molinagarcia-2022-wearable-vo2max"]
+  },
+  {
+    "id": "algo-personal-race-projection",
+    "statement": "Project race times between distances with a runner-specific exponent or a two-parameter capacity/endurance model; fall back to a fixed power-law default (Riegel 1.06 is convention, not from these abstracts) only with results at one distance; present a range that widens for distances far from recent races (ultras).",
+    "parameter": "projection_model",
+    "value": "personal exponent; fallback fixed exponent 1.06 (convention)",
+    "unit": null,
+    "appliesTo": "Goal-time setting and race prediction, including ultra distances",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["blythe-2016-individual-prediction", "emig-2020-big-data"]
+  },
+  {
+    "id": "algo-reforecast-goal-time",
+    "statement": "Re-predict the goal time and re-derive pacing guidance as new training or race data arrive, showing the change and uncertainty; pacing numbers are not justified by the cited papers and must come from other topic rules.",
+    "parameter": "reforecast_trigger",
+    "value": "on each new qualifying hard effort or race",
+    "unit": null,
+    "appliesTo": "Athletes with ongoing data feeds",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "feely-2020-cbr-marathon-plans",
+      "berndsen-2019-pace-my-race",
+      "emig-2020-big-data"
+    ]
+  },
+  {
+    "id": "algo-shrinkage-soft-adaptation",
+    "statement": "Update individual parameters (fitness, load tolerance) by shrinking toward population priors and require repeated comparable observations before changing them; no single test or block changes the model on its own. The minimum count is a conservative default, not evidence-derived.",
+    "parameter": "min_comparable_observations_before_parameter_change",
+    "value": "3",
+    "unit": "observations",
+    "appliesTo": "Individual adaptation of any model parameter",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["hecksteden-2015-individual-response", "mann-2014-high-low-responders"]
+  },
+  {
+    "id": "algo-no-responder-label",
+    "statement": "Do not store a high/low/non-responder classification; if a block shows no measurable improvement beyond measurement noise, vary the training stimulus before drawing a conclusion.",
+    "parameter": "responder_classification_stored",
+    "value": "false",
+    "unit": null,
+    "appliesTo": "All athletes",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "bonafiglia-2016-interval-response-variability",
+      "hecksteden-2015-individual-response"
+    ]
+  },
+  {
+    "id": "algo-load-display-descriptive-fixed-constants",
+    "statement": "If a CTL/ATL/TSB-style view is shown, use fixed population time constants (conventional 42 and 7 days, a convention not derived from these papers) and label it a descriptive trend; never fit per-athlete constants, and never present TSB as a precise readiness or taper-timing prediction.",
+    "parameter": "fitness_fatigue_time_constants",
+    "value": "42 / 7",
+    "unit": "days",
+    "appliesTo": "Load visualisation",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": ["hellard-2006-banister-limitations"]
+  },
+  {
+    "id": "algo-acwr-never-a-gate",
+    "statement": "No ACWR or other load-ratio band may gate, block or justify a progression decision or be marketed as injury prediction; if displayed, use an EWMA form, mark it low-confidence and descriptive. Progression is limited by explicit caps declared as expert rules with a conservative default (grade D, no numeric value justified here).",
+    "parameter": "acwr_used_as_gate",
+    "value": "false",
+    "unit": null,
+    "appliesTo": "Load progression and safety logic",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": ["impellizzeri-2020-acwr-pitfalls", "griffin-2020-acwr-systematic-review"]
+  },
+  {
+    "id": "algo-hrv-downgrade-only",
+    "statement": "HRV readiness may only downgrade a planned hard session to easy after a sustained drop versus a rolling personal baseline; it never adds load and never drives plan structure. Window length is a default, as the best method is unestablished.",
+    "parameter": "hrv_baseline_window",
+    "value": "7",
+    "unit": "days (default)",
+    "appliesTo": "Athletes who opt in and have regular HRV recordings",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["manresa-rocamora-2021-hrv-guided-meta"]
+  },
+  {
+    "id": "algo-ml-injury-risk-advisory-only",
+    "statement": "Any ML injury-risk indicator must be advisory (non-alarming heads-up) and must not alter the plan automatically; reported AUCs of 0.68 to 0.72 are insufficient for decisions.",
+    "parameter": "ml_injury_score_changes_plan",
+    "value": "false",
+    "unit": null,
+    "appliesTo": "Optional exploratory risk indicator",
+    "grade": "C",
+    "confidence": "high",
+    "evidence": ["lovdal-2021-injury-prediction-ml", "impellizzeri-2020-acwr-pitfalls"]
+  },
+  {
+    "id": "algo-cohort-priors-capped",
+    "statement": "Cohort or similar-runner data may seed typical weekly volume and long-run shape for a goal time as priors; results are clamped by explicit safety caps and never used as targets to exceed.",
+    "parameter": "cohort_prior_use",
+    "value": "prior only, clamped by caps",
+    "unit": null,
+    "appliesTo": "Initial plan seeding for athletes with limited history",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["feely-2020-cbr-marathon-plans", "smyth-2021-marathon-recsys"]
+  }
+]

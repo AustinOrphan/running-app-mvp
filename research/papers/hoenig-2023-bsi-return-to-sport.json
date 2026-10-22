@@ -1,0 +1,34 @@
+{
+  "id": "hoenig-2023-bsi-return-to-sport",
+  "title": "Return to sport following low-risk and high-risk bone stress injuries: a systematic review and meta-analysis",
+  "authors": "Hoenig T, Eissele J, Strahl A, Popp KL, Stürznickel J, Ackerman KE, et al.",
+  "year": 2023,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2022-106328",
+  "pmid": "36720584",
+  "url": "https://doi.org/10.1136/bjsports-2022-106328",
+  "design": "meta-analysis",
+  "population": "Athletes with lower-extremity and pelvic bone stress injuries (BSIs) in 76 studies reporting 2974 BSIs",
+  "sampleSize": 2974,
+  "evidenceLevel": "A",
+  "topics": ["beginners-return"],
+  "findings": [
+    "76 studies reporting on 2974 BSIs were included; 16 compared multiple sites and 11 described anatomical site as prognostic for return to sport or complication rate.",
+    "Pooled time to return to sport was longest for tarsal navicular (127 days; 95% CI 102-151) and femoral neck (107 days; 95% CI 79-135), and shortest for posteromedial tibial shaft (44 days; 95% CI 27-61) and fibula (56 days; 95% CI 13-100).",
+    "More than 90% of athletes successfully returned to sport overall.",
+    "Complication rate was highest in BSIs of the femoral neck, tarsal navicular, anterior tibial shaft and fifth metatarsal, and lowest in the fibula, pubic bone and posteromedial tibial shaft."
+  ],
+  "limitations": "Return to sport, not run-specific; heterogeneous definitions across mostly retrospective and small studies; sample size counts injuries, not people; pooled intervals for some sites are wide (e.g. fibula 13-100 days).",
+  "implications": [
+    "When a BSI is logged, set the earliest return-to-run date by site: about 6 weeks (44 days) for posteromedial tibial shaft up to about 18 weeks (127 days) for tarsal navicular; these are pooled averages, so treat them as minimum planning intervals.",
+    "Treat femoral neck, tarsal navicular, anterior tibial shaft and fifth metatarsal as high-risk requiring clinician clearance; block automatic plan resumption until a clinician-cleared date is entered."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Own re-fetch: Crossref title, BJSM 2023-01-31, first author Hoenig, 11 authors. All numbers in abstract. 'Treat as minimum' framing is the verifier's interpretation.",
+    "checkedAt": "2026-10-22"
+  }
+}

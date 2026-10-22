@@ -1,0 +1,34 @@
+{
+  "id": "byrne-2024-elite-24h-training",
+  "title": "Training Regimen of an Elite Ultramarathon Runner: A Case Study of What Led Up to the 24-Hour World-Record Run",
+  "authors": "Byrne J, Lynch S, Mokha GM",
+  "year": 2024,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2023-0182",
+  "pmid": "38215736",
+  "url": "https://doi.org/10.1123/ijspp.2023-0182",
+  "design": "other",
+  "population": "One elite male ultramarathoner (8 world records in 2021-2022, including 319.6 km in 24 h); Strava/Coros data Dec 2020 to Sept 2022",
+  "sampleSize": 1,
+  "evidenceLevel": "D",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Five training blocks, with volume per block averaging 172.1 to 263 km/week and a maximum of 378 km/week.",
+    "Peak running volume per block occurred on average 3.2 weeks before races.",
+    "The week after a race was a recovery week with 19 km running and more cross-training.",
+    "Interval-type workouts (1-10 km repeats) were completed throughout the blocks; the 24-h average pace (4:30/km) closely matched the overall average training pace."
+  ],
+  "limitations": "Single elite athlete (n = 1), descriptive only, no controls; volumes are far beyond what a recreational athlete could safely use.",
+  "implications": [
+    "Use only the structure, not the volumes: peak volume about 3 weeks before the goal race, a very short post-race recovery week (19 km, roughly 7-11% of the athlete's block averages by simple arithmetic), and quality work retained through blocks.",
+    "Do not scale the 172-378 km/week figures to recreational plans; cap volume by the athlete's own history and injury risk."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2024-04-01) and Europe PMC abstract re-fetched; numbers confirmed. The percentage of a typical week is the verifier's arithmetic (19/263 to 19/172).",
+    "checkedAt": "2026-10-22"
+  }
+}

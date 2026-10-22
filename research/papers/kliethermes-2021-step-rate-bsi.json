@@ -1,0 +1,34 @@
+{
+  "id": "kliethermes-2021-step-rate-bsi",
+  "title": "Lower step rate is associated with a higher risk of bone stress injury: a prospective study of collegiate cross country runners",
+  "authors": "Kliethermes SA, Stiffler-Joachim MR, Wille CM, Sanfilippo JL, Zavala P, Heiderscheit BC",
+  "year": 2021,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2020-103833",
+  "pmid": "33990294",
+  "url": "https://doi.org/10.1136/bjsports-2020-103833",
+  "design": "prospective-cohort",
+  "population": "54 NCAA Division I cross country runners over three consecutive seasons, preseason treadmill biomechanics and DXA BMD, medically diagnosed BSI followed 12 months",
+  "sampleSize": 54,
+  "evidenceLevel": "C",
+  "topics": ["injury-load"],
+  "findings": [
+    "Univariably, step rate, centre of mass vertical excursion, peak vertical GRF and vertical GRF impulse were associated with BSI incidence.",
+    "After adjusting for BSI history and sex, each 1 step/min higher step rate was associated with 5% lower BSI risk (RR 0.95, 95% CI 0.91-0.98).",
+    "BMD z-score was not a statistically significant predictor in the final model (RR 0.93, 95% CI 0.85-1.03).",
+    "No other biomechanical variables were independently associated with BSI risk."
+  ],
+  "limitations": "54 collegiate runners; single preseason measurement; observational so causality of cadence is untested; collegiate competitive athletes, not general recreational runners.",
+  "implications": [
+    "Cadence from watch data can be a displayed risk context for bone stress only; do not prescribe cadence changes from this evidence.",
+    "No change to load-progression rules is justified."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: BJSM 55:851-856 (online May 2021), 6 authors (the author list is complete). Abstract matched. Removed the speculative 'low cadence plus rapid increases' combined rule.",
+    "checkedAt": "2026-10-22"
+  }
+}

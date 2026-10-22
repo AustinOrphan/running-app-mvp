@@ -1,0 +1,42 @@
+{
+  "id": "bellenger-2016-autonomic-hr-meta-analysis",
+  "title": "Monitoring Athletic Training Status Through Autonomic Heart Rate Regulation: A Systematic Review and Meta-Analysis",
+  "authors": "Bellenger CR, Fuller JT, Thomson RL, Davison K, Robertson EY, Buckley JD",
+  "year": 2016,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-016-0484-2",
+  "pmid": "26888648",
+  "url": "https://doi.org/10.1007/s40279-016-0484-2",
+  "design": "meta-analysis",
+  "population": "Endurance-trained athletes in training periods that raised or lowered performance; 5377 records retrieved, 27 studies in the review, 24 in the meta-analysis",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["periodization-recovery", "readiness-monitoring"],
+  "findings": [
+    "With performance-increasing training: small increase in resting RMSSD (SMD 0.58, P<0.001) and HF power (SMD 0.55, P<0.001), moderate increases in post-exercise RMSSD (SMD 0.60), and post-exercise HR recovery (SMD 0.63, P=0.002).",
+    "With performance-decreasing training (overreaching): small increase in resting RMSSD (SMD 0.26, P=0.01) but trivial changes in resting HF power (SMD 0.04) and SD1 (SMD 0.04).",
+    "Post-exercise HRR (SMD 0.46, P<0.001) and post-exercise RMSSD (SMD 0.64, P=0.04) also increased with overreaching, so increases in post-exercise HRV and HRR occur in both adaptation and overreaching.",
+    "HR acceleration decreased with overreaching (SMD -0.48, P<0.001) and increased strongly (SMD 1.34) in the single study assessing it during positive adaptation; the authors conclude additional measures of training tolerance are needed.",
+    "5377 records retrieved; 27 studies in the systematic review and 24 in the meta-analysis.",
+    "Training that increased performance: small increases in resting RMSSD (SMD = 0.58; P < 0.001) and resting HFP (SMD = 0.55; P < 0.001); moderate increases in post-exercise RMSSD (0.60), HFP (0.90) and HRR (SMD = 0.63; P = 0.002).",
+    "Training that decreased performance (overreaching): small increase in resting RMSSD (SMD = 0.26; P = 0.01) but trivial changes in resting HFP (0.04) and SD1 (0.04); post-exercise RMSSD (0.64) and HRR (0.46; P < 0.001) were still increased.",
+    "HR acceleration decreased with overreaching (SMD = -0.48; P < 0.001) and may be a potential fatigue indicator (a large increase of 1.34 came from a single study of positive adaptation).",
+    "Authors conclude resting HRV is largely unaffected by overreaching, perhaps because of methodological issues, and that additional measures of training tolerance may be needed."
+  ],
+  "limitations": "Only one study assessed HR acceleration in positive adaptation; several pooled effects are non-significant (e.g. post-exercise HF power P=0.18); protocols and measurement conditions vary; controlled laboratory-type measurements, not free-living wearable data.",
+  "implications": [
+    "Do not treat rising HRV or faster HR recovery as proof of good adaptation: both rise in overreaching too. Interpret autonomic metrics only alongside performance/efficiency change and subjective fatigue.",
+    "Resting HRV alone must not trigger or clear a recovery week; HR acceleration at run start may be tracked as an experimental indicator only.",
+    "Resting RMSSD alone cannot separate productive adaptation from overreaching; do not infer overreaching from resting HRV alone.",
+    "Pair HRV with a performance or workload-response measure (for example pace at a given HR) before declaring negative adaptation.",
+    "Do not use post-exercise HR recovery as a stand-alone fatigue flag since it also rises with overreaching."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed match (Sports Med 2016;46(10):1461-86). All SMD/P values re-checked in the PubMed abstract. Researcher's 'authors flag methodological issues' removed as not seen in the abstract; limitations rewritten.",
+    "checkedAt": "2026-10-22"
+  }
+}

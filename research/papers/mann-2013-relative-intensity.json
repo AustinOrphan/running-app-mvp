@@ -1,0 +1,36 @@
+{
+  "id": "mann-2013-relative-intensity",
+  "title": "Methods of prescribing relative exercise intensity: physiological and practical considerations",
+  "authors": "Mann T, Lamberts RP, Lambert MI",
+  "year": 2013,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-013-0045-x",
+  "pmid": "23620244",
+  "url": "https://doi.org/10.1007/s40279-013-0045-x",
+  "design": "narrative-review",
+  "population": "Review of %VO2max, %HRmax, %VO2R, %HRR (Karvonen), aerobic-threshold and anaerobic-threshold intensity prescription",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "Exercise at a fixed %VO2max or %HRmax does not necessarily place individuals at an equivalent intensity above resting levels; some are above and others below the aerobic or anaerobic threshold at the same percentage.",
+    "Fixed %VO2max/%HRmax produces interindividual variation in blood lactate, and a similar effect has been shown for %VO2R and %HRR.",
+    "Threshold-relative prescription is expected to give less individual variation in metabolic response and time to exhaustion, but many of these theoretical advantages have not been directly demonstrated.",
+    "Thresholds from a single incremental test cannot be assumed accurate without verification trials and tend to show higher day-to-day variation than VO2max or HRmax."
+  ],
+  "limitations": "Narrative review; the claimed advantages of threshold-based prescription are described as largely not yet demonstrated; no numeric zone boundaries.",
+  "implications": [
+    "Prefer threshold-anchored zones (LT1/VT1 and CS or LT2) when data exist; do not present %HRmax zones as physiologically equivalent between athletes.",
+    "Heart rate reserve (Karvonen) is not shown here to be better than %HRmax, since similar lactate variation was reported for %HRR; the review gives no basis to rank them, so HRR is an acceptable fallback only when resting HR is reliably known.",
+    "Because thresholds vary day to day, re-estimate them from rolling recent data and give them a tolerance band rather than a single fixed value.",
+    "No specific %HRR cut-offs are justified by this paper."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (vol 43 pp 613-625). Abstract confirms all statements. Researcher's implication that HRR is preferable to raw %HRmax was not supported (abstract says HRR also shows interindividual variation); rewritten.",
+    "checkedAt": "2026-10-22"
+  }
+}

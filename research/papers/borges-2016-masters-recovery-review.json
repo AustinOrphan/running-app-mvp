@@ -1,0 +1,33 @@
+{
+  "id": "borges-2016-masters-recovery-review",
+  "title": "Age-related changes in performance and recovery kinetics in masters athletes: a narrative review",
+  "authors": "Borges N, Reaburn P, Driller M, Argus C",
+  "year": 2016,
+  "journal": "Journal of Aging and Physical Activity",
+  "doi": "10.1123/japa.2015-0021",
+  "pmid": "25880787",
+  "url": "https://doi.org/10.1123/japa.2015-0021",
+  "design": "narrative-review",
+  "population": "Masters athletes; review of performance and recovery literature",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["age-masters"],
+  "findings": [
+    "Current research suggests the effect of age on performance and recovery may be smaller than originally suggested, and increasing sedentary lifestyles appear to play a larger role in observed decrements.",
+    "Performance decrements appear inevitable with age, but performance capacities can be maintained through systematic physical training.",
+    "The limited current research suggests there may be an age effect on recovery kinetics following an exercise bout; acute and chronic recovery processes in the masters athlete need further research."
+  ],
+  "limitations": "Narrative review; authors state evidence on recovery kinetics is limited. No quantitative effect sizes in the abstract. This is the Borges review (2016); the 2018 Borges paper in this corpus is an experiment, not a review.",
+  "implications": [
+    "Do not hard-code a large age-based recovery penalty; allow a small, adjustable recovery-demand factor for masters athletes (start at default spacing and let readiness data lengthen it).",
+    "Keep training consistency the primary lever and avoid prescribing long unplanned breaks, since inactivity rather than age is the main driver of observed decline in this review."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC abstract match; all three findings stated in the abstract. Year 2016 in Crossref (issue year).",
+    "checkedAt": "2026-10-22"
+  }
+}

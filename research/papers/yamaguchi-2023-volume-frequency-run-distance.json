@@ -1,0 +1,34 @@
+{
+  "id": "yamaguchi-2023-volume-frequency-run-distance",
+  "title": "Interactions between monthly training volume, frequency and running distance per workout on marathon time",
+  "authors": "Yamaguchi A, Shouji M, Akizuki A, Inoue K, Fukuie T, Sakuma K, et al.",
+  "year": 2023,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-022-05062-7",
+  "pmid": "36207466",
+  "url": "https://doi.org/10.1007/s00421-022-05062-7",
+  "design": "cross-sectional",
+  "population": "Male recreational runners entered in the 2017 Hokkaido Marathon (587 completed a questionnaire, 494 finished)",
+  "sampleSize": 587,
+  "evidenceLevel": "C",
+  "topics": ["volume-performance"],
+  "findings": [
+    "Within training-frequency subgroups, monthly volume, longest run distance (LRD) or average run distance (ARD) correlated significantly with marathon time, except in the subgroup training 2 times per week or less, where the ARD relationship was not significant.",
+    "In all monthly-volume subgroups, training frequency, LRD and ARD were not significantly related to marathon time.",
+    "Monthly volume correlated significantly with marathon time in the LRD >=21 km and ARD >=10 km subgroups (all P<0.01), not in the LRD 1-20 km and ARD <10 km subgroups.",
+    "Authors conclude monthly volume is the most important factor and that its influence is significant only if distance per workout exceeds a certain level."
+  ],
+  "limitations": "Cross-sectional questionnaire; men only; self-reported; single race; finishers analysed; subgroup correlations, no causal dose-response; no effect sizes in the abstract.",
+  "implications": [
+    "Treat volume as the primary progression variable, with typical session length of about 10 km or more and a longest run of at least 21 km before relying on more volume.",
+    "Do not expect extra weekly runs or a longer long run to add benefit at a fixed monthly volume; choose frequency by what the athlete can sustain."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (issued 2022-10-07), title, journal, first author match; Europe PMC year 2023 used. Researcher's finding 1 reworded to match the abstract (LRD/ARD, not only volume, correlated within frequency subgroups).",
+    "checkedAt": "2026-10-22"
+  }
+}

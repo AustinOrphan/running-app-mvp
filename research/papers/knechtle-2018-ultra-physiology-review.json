@@ -1,0 +1,36 @@
+{
+  "id": "knechtle-2018-ultra-physiology-review",
+  "title": "Physiology and Pathophysiology in Ultra-Marathon Running",
+  "authors": "Knechtle B, Nikolaidis PT",
+  "year": 2018,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2018.00634",
+  "pmid": "29910741",
+  "url": "https://doi.org/10.3389/fphys.2018.00634",
+  "design": "narrative-review",
+  "population": "Overview of the ultra-marathon literature (mostly recreational and age-group ultrarunners)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Ultra-marathoners are older and have a larger weekly training volume, but run more slowly in training, than marathoners.",
+    "Previous experience (number of ultra finishes, personal-best marathon time) is the most important predictor of ultra performance, followed by low BMI/body fat and training characteristics (high volume and running speed in training).",
+    "The fastest ultra times are generally achieved at 35-45 years or older, and the age of peak performance rises with race distance or duration; the sex difference has fallen to about 10-20% depending on race length.",
+    "In longer ultras about 50-60% of participants have musculoskeletal problems, most commonly ankle and knee; creatine kinase can reach 100,000-200,000 U/l depending on fitness and race length.",
+    "Ultras are associated with exercise-associated hyponatremia (with heat or cold extremes), digestive problems and temporary biomarker changes that usually normalise after the race."
+  ],
+  "limitations": "Narrative (non-systematic) review by the group whose studies it summarises; no pooled effect sizes; much underlying evidence is cross-sectional. Full text not read.",
+  "implications": [
+    "Use marathon personal best and prior ultra finishes as the primary inputs for 50 km to 100 mile goal-time estimation, ahead of training-derived estimates.",
+    "Do not apply an age penalty to ultra goals before about 35-45 years; peak age rises with distance.",
+    "Budget a real post-race recovery block after 100 km or longer events; no day count is justified by this review."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2018-06-01) and Europe PMC abstract re-fetched; all claims stated in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

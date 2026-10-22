@@ -1,0 +1,33 @@
+{
+  "id": "peronnet-1989-running-model",
+  "title": "Mathematical analysis of running performance and world running records",
+  "authors": "Peronnet F, Thibault G",
+  "year": 1989,
+  "journal": "Journal of Applied Physiology",
+  "doi": "10.1152/jappl.1989.67.1.453",
+  "pmid": "2759974",
+  "url": "https://doi.org/10.1152/jappl.1989.67.1.453",
+  "design": "modelling",
+  "population": "Men's 1987 world records from 60 m to the marathon, plus the progression of men's and women's records",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["performance-prediction"],
+  "findings": [
+    "An empirical model relates performance to anaerobic capacity A, maximal aerobic power MAP and E, the reduction in peak aerobic power with the natural log of race duration T when T exceeds 420 s.",
+    "Average absolute error between actual and estimated times for men's 1987 world records from 60 m to the marathon was 0.73%.",
+    "Estimated characteristics of world-class male runners: A = 1,658 J/kg, MAP = 83.5 ml O2/kg/min, and 83.5% of MAP sustained over the marathon."
+  ],
+  "limitations": "Fitted to world records of elite men, not validated on recreational runners or ultra durations; the error is in-sample.",
+  "implications": [
+    "Supports a log-duration decline in sustainable power beyond about 7 min as the structural form of an endurance term, consistent with the Emig endurance index.",
+    "Candidate fallback model when only a few efforts exist (see Ruiz-Alias); do not use elite parameter values for recreational athletes."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref (J Appl Physiol, 1989-07-01, Peronnet/Thibault) and Europe PMC abstract re-fetched; numbers match.",
+    "checkedAt": "2026-10-22"
+  }
+}

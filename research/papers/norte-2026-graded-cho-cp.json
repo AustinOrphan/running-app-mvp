@@ -1,0 +1,34 @@
+{
+  "id": "norte-2026-graded-cho-cp",
+  "title": "Graded Carbohydrate Ingestion up to 120 g/h Attenuates the Reduction in Critical Power Following 3 h of Moderate-Intensity Exercise in a Dose-Dependent Manner",
+  "authors": "Norte BR, Slinn MM, Johnson KO, Mahon E, Shepherd SO, Strauss JA, Louis JB",
+  "year": 2026,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.70326",
+  "pmid": "42322010",
+  "url": "https://doi.org/10.1111/sms.70326",
+  "design": "experimental-crossover",
+  "population": "Endurance-trained cyclists/triathletes (n = 16; VO2max 51.8 +/- 6.8 mL/kg/min), 3 h cycling at 95% gas exchange threshold",
+  "sampleSize": 16,
+  "evidenceLevel": "C",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "Water vs 60 vs 120 g/h CHO (maltodextrin:fructose 1:0.8) after a standardised 24 h CHO load (8 g/kg) and a 2 g/kg pre-exercise meal.",
+    "Critical power (end-test power) fell from 277 +/- 27 W unfatigued to 236 +/- 30 (water), 257 +/- 28 (60 g/h) and 266 +/- 29 W (120 g/h); reduction attenuated dose-dependently (p < 0.05).",
+    "W' declined over time with no differences between fatigued conditions.",
+    "Whole-body CHO oxidation 1.84, 2.16 and 2.31 g/min for water, 60 and 120 g/h."
+  ],
+  "limitations": "n = 16 cyclists, 3 h, no running, GI outcomes not in the abstract, not ultra-distance; durability inferred from a critical-power surrogate; crossover design inferred from the multi-condition protocol, not stated in the abstract.",
+  "implications": [
+    "Supports the idea that fatigue resistance depends on in-event CHO dose; may justify higher targets for moderate-to-high intensity efforts over 3 h within tolerance.",
+    "Do not generalise to low-intensity ultra racing; keep 120 g/h as an optional tier requiring training tolerance."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match (title HTML formatting only); 2026 record and numbers from Europe PMC abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

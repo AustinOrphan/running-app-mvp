@@ -1,0 +1,33 @@
+{
+  "id": "sim-2019-iron-athlete",
+  "title": "Iron considerations for the athlete: a narrative review",
+  "authors": "Sim M, Garvican-Lewis LA, Cox GR, Govus A, McKay AKA, Stellingwerff T, Peeling P",
+  "year": 2019,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-019-04157-y",
+  "pmid": "31055680",
+  "url": "https://doi.org/10.1007/s00421-019-04157-y",
+  "design": "narrative-review",
+  "population": "Athletes (especially female and endurance athletes); review of iron regulation, hepcidin, sex hormones, diet, training and altitude",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "Iron deficiency is commonly diagnosed in female and endurance athletes: about 15-35% of female athlete cohorts are deficient versus about 5-11% of male athlete cohorts.",
+    "Exercise-induced increases in the iron regulatory hormone hepcidin are highlighted as a contributor to altered iron metabolism in athletes.",
+    "The review covers effects of sex hormones, macronutrient manipulation, training and environmental stress (e.g. altitude hypoxia) on iron status and offers recommendations for consideration."
+  ],
+  "limitations": "A narrative review, not a formal consensus statement (the brief's 'Sim 2019 consensus' label is inaccurate). The abstract gives no ferritin thresholds or dosing rules.",
+  "implications": [
+    "Add an optional iron-status prompt for female and high-volume endurance users (user-entered latest ferritin). If fatigue or underperformance persists 2 or more weeks despite stable load (design default), suggest clinician blood testing. No self-supplementing advice.",
+    "No numeric training modification is justified; use as rationale for the flag, not a threshold."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Eur J Appl Physiol, 2019-05, Sim). Prevalence figures confirmed in Europe PMC abstract (PMID 31055680).",
+    "checkedAt": "2026-10-22"
+  }
+}

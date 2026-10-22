@@ -1,0 +1,35 @@
+{
+  "id": "thomas-2005-taper-model-simulation",
+  "title": "A theoretical study of taper characteristics to optimize performance",
+  "authors": "Thomas L, Busso T",
+  "year": 2005,
+  "journal": "Medicine and Science in Sports and Exercise",
+  "doi": "10.1249/01.mss.0000177461.94156.4b",
+  "pmid": "16177616",
+  "url": "https://doi.org/10.1249/01.mss.0000177461.94156.4b",
+  "design": "modelling",
+  "population": "Simulation using individual parameters from six subjects of a 15-week training experiment (nonlinear dose-response model)",
+  "sampleSize": 6,
+  "evidenceLevel": "C",
+  "topics": ["taper"],
+  "findings": [
+    "Without preceding overload, the best simulated performance came with a load reduction of 30.8 +/- 11.8% and duration of 19.3 +/- 2.3 d.",
+    "With a preceding 28-day 20% step overload, best performance was significantly higher (P < 0.02) and was reached with a greater load reduction and longer duration (39.3 +/- 9.9% and 28.0 +/- 5.1 d).",
+    "A progressive load reduction beat a step reduction only when overload preceded the taper (102.2 +/- 1.7 vs 101.8 +/- 1.5% of steady-state performance, P < 0.005).",
+    "Greater training before the taper allows higher gains but demands a greater reduction of load over a longer period; taper adaptations matter in addition to fatigue dissipation."
+  ],
+  "limitations": "Simulation, not an experiment; six subjects' fitted parameters; large between-individual spread; the 28-day optimum after overload exceeds empirical taper durations; no marathon or ultra validation.",
+  "implications": [
+    "Model-based support for scaling taper depth and length with preceding load, as a direction only; do not hard-code simulated values.",
+    "Cap taper length at 3 weeks for recreational runners based on empirical data (Smyth & Lawlor, Bosquet).",
+    "The between-individual SDs (about 10-12 percentage points in load reduction) argue for allowing individual override."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (MSSE Sep 2005, Thomas first author). Overload was a 20% step increase for 28 d; clarified in findings.",
+    "checkedAt": "2026-10-22"
+  }
+}

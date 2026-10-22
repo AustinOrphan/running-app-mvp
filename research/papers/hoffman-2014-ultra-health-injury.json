@@ -1,0 +1,35 @@
+{
+  "id": "hoffman-2014-ultra-health-injury",
+  "title": "Health and exercise-related medical issues among 1,212 ultramarathon runners: baseline findings from the Ultrarunners Longitudinal TRAcking (ULTRA) Study",
+  "authors": "Hoffman MD, Krishnan E",
+  "year": 2014,
+  "journal": "PLoS ONE",
+  "doi": "10.1371/journal.pone.0083867",
+  "pmid": "24416176",
+  "url": "https://doi.org/10.1371/journal.pone.0083867",
+  "design": "cross-sectional",
+  "population": "1,212 active ultramarathon runners (ULTRA Study enrollment data, retrospective self-report)",
+  "sampleSize": 1212,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "64.6% reported an exercise-related injury in the preceding year that resulted in lost training days (median 14 days); the knee was the most common injury site.",
+    "Prior-year stress fracture incidence was 5.5%, most (44.5%) in the foot; stress fractures were more common in women than men (p < 0.01).",
+    "Runners with exercise-related injuries were younger (p < 0.001) and less experienced (p < 0.01) than those without injury.",
+    "The most prevalent chronic conditions were allergies/hay fever (25.1%) and exercise-induced asthma (13.0%); serious conditions (e.g. coronary artery disease 0.7%) were uncommon."
+  ],
+  "limitations": "Retrospective self-report from a convenience cohort; prevalence over one year, not a prospective injury-incidence study; no training-load variables in the abstract.",
+  "implications": [
+    "Treat younger and less experienced ultrarunners as higher injury risk in progression logic: use conservative ramp rates and an explicit injury-history check.",
+    "Expect a median of about 2 weeks of lost training in a typical injury year when sizing buffer weeks in a long build (descriptive only).",
+    "Add a bone-stress caution (foot) in plans for women, without a numeric threshold."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added in this review as an essential ULTRA Study paper named in the topic scope. Crossref (2014-01-08, first author Hoffman, PLoS ONE) and Europe PMC abstract (PMID 24416176) fetched; all numbers stated in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

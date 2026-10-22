@@ -1,0 +1,33 @@
+{
+  "id": "bent-2020-ppg-inaccuracy",
+  "title": "Investigating sources of inaccuracy in wearable optical heart rate sensors",
+  "authors": "Bent B, Goldstein BA, Kibbe WA, Dunn JP",
+  "year": 2020,
+  "journal": "npj Digital Medicine",
+  "doi": "10.1038/s41746-020-0226-6",
+  "pmid": "32047863",
+  "url": "https://doi.org/10.1038/s41746-020-0226-6",
+  "design": "cross-sectional",
+  "population": "Consumer- and research-grade wearables tested across skin tones and activity types (sample size not in the abstract)",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["load-quantification"],
+  "findings": [
+    "The authors saw no statistically significant difference in HR accuracy across skin tones.",
+    "They did see significant differences between devices and between activity types; absolute error during activity was on average 30% higher than during rest.",
+    "Wearables were all reasonably accurate at rest and at prolonged elevated heart rate, but differed in responding to changes in activity."
+  ],
+  "limitations": "Abstract gives no sample size, device list or error in bpm; mostly laboratory conditions; the result on skin tone was contested in published Matters Arising (Colvonen 2021; reply Bent 2021) whose content was not read.",
+  "implications": [
+    "Supports modelling wrist-HR quality per device and per activity change rather than per skin tone, consistent with the inconclusive systematic review (Koerber).",
+    "HR during changing intensity (intervals, hills) deserves lower confidence than steady running."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "ADDED by verifier. Crossref confirms title, npj Digit Med, 10 Feb 2020, authors Bent, Goldstein, Kibbe, Dunn. Abstract read in Europe PMC. Matters-arising titles seen in a Europe PMC search but not read.",
+    "checkedAt": "2026-10-22"
+  }
+}

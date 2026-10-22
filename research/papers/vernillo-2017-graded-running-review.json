@@ -1,0 +1,36 @@
+{
+  "id": "vernillo-2017-graded-running-review",
+  "title": "Biomechanics and Physiology of Uphill and Downhill Running",
+  "authors": "Vernillo G, Giandolini M, Edwards WB, Morin JB, Samozino P, Horvais N, Millet GY",
+  "year": 2017,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-016-0605-y",
+  "pmid": "27501719",
+  "url": "https://doi.org/10.1007/s40279-016-0605-y",
+  "design": "narrative-review",
+  "population": "Literature on graded running in adults",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "Compared with level running, uphill running has higher step frequency, more internal mechanical work, shorter swing/aerial phase and greater duty factor.",
+    "Downhill running has longer aerial time, lower step frequency and lower duty factor.",
+    "Uphill running moves toward mid- or forefoot strike and downhill toward rearfoot strike.",
+    "Lower-limb muscles do more net positive work uphill; energy dissipation is generally prevalent downhill. The rising work demand with incline is met by more power at all joints, particularly the hip, so uphill running needs more muscular activity than level or downhill running.",
+    "Energy cost of running (Cr) increases linearly with positive slope; downhill Cr decreases until a minimum at -20% slope, after which it increases again."
+  ],
+  "limitations": "Narrative review, so no pooled effect sizes and no stated search method in the abstract. It is a synthesis of mostly laboratory graded-running studies.",
+  "implications": [
+    "Corroborates the -20% slope minimum of the descent cost curve reported by Minetti; use about -20% as the hinge of the descent part of the grade model.",
+    "The review reports different mechanics for uphill (more positive work, more hip power) and downhill (energy dissipation) running. Inference, not a finding of the review: track downhill load separately from ascent, since a single elevation-gain metric cannot represent both.",
+    "Where a plan targets a downhill-heavy race, include graded sessions in the run mix for specific neuromuscular exposure (inference from the abstract's injury-prevention remark)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Sports Medicine 47(4):615-629, print 2017 (online 2016-08-09), seven authors match. Europe PMC PMID 27501719 abstract checked. Corrected the hip-power finding (all joints, particularly hip) and removed an unsupported limitation about fatigue and technical terrain.",
+    "checkedAt": "2026-10-22"
+  }
+}

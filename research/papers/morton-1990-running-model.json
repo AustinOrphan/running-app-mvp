@@ -1,0 +1,34 @@
+{
+  "id": "morton-1990-running-model",
+  "title": "Modeling human performance in running",
+  "authors": "Morton RH, Fitz-Clarke JR, Banister EW",
+  "year": 1990,
+  "journal": "Journal of Applied Physiology",
+  "doi": "10.1152/jappl.1990.69.3.1171",
+  "pmid": "2246166",
+  "url": "https://doi.org/10.1152/jappl.1990.69.3.1171",
+  "design": "modelling",
+  "population": "Athletes and non-athletes (running performance); details not given in the abstract",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["load-response-models"],
+  "findings": [
+    "A systematically quantified impulse of training produces dual responses, fitness and fatigue; in the absence of training both decay exponentially with time.",
+    "With repetitive training the responses satisfy individual recurrence equations; fitness and fatigue are combined in a simple linear difference equation to predict performance.",
+    "A significant observed correlation of model-predicted performance with a measure of actual performance during both training and tapering is presented as validation of the model for athletes and non-athletes alike.",
+    "This enables specific model parameters to be estimated and the model to be used to optimise future training regimens for any individual."
+  ],
+  "limitations": "Original formulation; the abstract gives no sample size, parameter values or out-of-sample test. Validation is in-sample correlation. Later work (Hellard 2006, Marchal 2025) shows wide parameter uncertainty and poor identifiability of the fatigue part.",
+  "implications": [
+    "Implement the core engine as a two-compartment exponential impulse-response (fitness minus fatigue) over daily load with per-athlete parameters; do not hard-code population constants as individual truths.",
+    "Use it as a descriptive and scenario tool (taper and load-shape what-ifs) and label outputs as model-based estimates; out-of-sample accuracy evidence is weak (see busso-2023-impulse-response-validity, marchal-2025-ffm-statistical-flaws)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (title, J Appl Physiol, 1990, Morton/Fitz-Clarke/Banister) matches. Europe PMC abstract supports all four findings; no numeric results exist in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

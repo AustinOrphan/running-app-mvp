@@ -1,0 +1,35 @@
+{
+  "id": "jones-2024-physiological-resilience",
+  "title": "The fourth dimension: physiological resilience as an independent determinant of endurance exercise performance",
+  "authors": "Jones AM",
+  "year": 2024,
+  "journal": "The Journal of Physiology",
+  "doi": "10.1113/jp284205",
+  "pmid": "37606604",
+  "url": "https://doi.org/10.1113/jp284205",
+  "design": "narrative-review",
+  "population": "Endurance athletes (review of laboratory and field evidence)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["durability-drift"],
+  "findings": [
+    "VO2max, economy and fractional utilisation are not static: they are prone to significant deterioration as fatiguing endurance exercise proceeds.",
+    "Critical power may fall by an average of 10% following 2 h of heavy-intensity cycling.",
+    "Individual changes in CP ranged from under 1% to about 32%, so inter-individual variability is appreciable.",
+    "The mechanistic basis for differences in fatigue resistance is not resolved.",
+    "Argues physiological resilience should be an additional (fourth) component in models of endurance performance."
+  ],
+  "limitations": "Narrative perspective; the quantitative example in the abstract is from cycling and mechanisms are unresolved. Crossref gives online date 2023-08-22; print issue is J Physiol 2024 Sep;602(17):4113-4128, and the 2024 print year is recorded.",
+  "implications": [
+    "Default prior for fatigued threshold or critical-speed decline after about 2 h of heavy-intensity work: about 10% (range under 1% to about 32%), to be personalised from the athlete's own data. This is a cycling-derived prior; treat it as unvalidated for running.",
+    "Add a resilience term to the performance and pacing model for marathon and longer plans instead of using only start-line CS or LT."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref title, journal, first author match; online 2023, print 2024. All numbers (10%, <1% to ~32%, 2 h heavy cycling) present in PubMed abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

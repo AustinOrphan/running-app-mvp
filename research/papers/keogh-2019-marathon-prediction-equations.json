@@ -1,0 +1,34 @@
+{
+  "id": "keogh-2019-marathon-prediction-equations",
+  "title": "Prediction Equations for Marathon Performance: A Systematic Review",
+  "authors": "Keogh A, Smyth B, Caulfield B, Lawlor A, Berndsen J, Doherty C",
+  "year": 2019,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2019-0360",
+  "pmid": "31575820",
+  "url": "https://doi.org/10.1123/ijspp.2019-0360",
+  "design": "systematic-review",
+  "population": "36 observational studies containing 114 marathon prediction equations",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["volume-performance"],
+  "findings": [
+    "36 studies with 114 equations; 61 based on training and anthropometric variables, 53 requiring laboratory tests or equipment.",
+    "r2 reported for 68 equations (r2 = .10-.99) and SEE for 19 equations (0.27-27.4 min).",
+    "Course gradient, sex and expected weather were often omitted; some widely used equations reported no r2.",
+    "Heterogeneity precludes identifying a single best equation; runners should be wary of relying on one."
+  ],
+  "limitations": "Heterogeneous accuracy metrics prevented pooling; study quality not summarised in the abstract; not specific to training volume.",
+  "implications": [
+    "Do not rely on one published equation; present a predicted time range from several sources (recent race or time trial, training-based estimates).",
+    "Add course profile, sex and expected temperature as explicit adjustments."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title, journal, first author, issued 2019-10 match; abstract re-fetched and numbers match.",
+    "checkedAt": "2026-10-22"
+  }
+}

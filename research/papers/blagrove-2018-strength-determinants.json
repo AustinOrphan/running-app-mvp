@@ -1,0 +1,37 @@
+{
+  "id": "blagrove-2018-strength-determinants",
+  "title": "Effects of Strength Training on the Physiological Determinants of Middle- and Long-Distance Running Performance: A Systematic Review",
+  "authors": "Blagrove RC, Howatson G, Hayes PR",
+  "year": 2018,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-017-0835-7",
+  "pmid": "29249083",
+  "url": "https://doi.org/10.1007/s40279-017-0835-7",
+  "design": "systematic-review",
+  "population": "Middle- and long-distance runners with at least 6 months of running experience; 24 controlled studies (heavy, explosive or plyometric training of 4 weeks or more versus a running-only control)",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "24 studies met the inclusion criteria; PEDro internal validity scores were 4, 5 or 6.",
+    "Running economy was measured in 20 studies and generally improved by 2-8% versus control, although not in every study.",
+    "Time trial performance (1.5-10 km) and anaerobic speed qualities also tended to improve.",
+    "VO2max, velocity at VO2max, blood lactate and body composition were typically unaffected; body composition was not negatively impacted.",
+    "Authors conclude that two to three strength sessions per week, including a variety of modalities, are likely to benefit middle- and long-distance runners."
+  ],
+  "limitations": "Narrative synthesis with no pooled effect size; low PEDro scores (4-6); heterogeneous protocols; findings not consistent across all studies; no ultra-distance or masters focus. The 2-3 sessions per week statement is a recommendation, not a tested dose-response.",
+  "implications": [
+    "Default to 2 strength sessions per week; allow 3 for athletes with a lifting background in base phases; do not exceed 3.",
+    "Mix modalities in a block (heavy resistance plus plyometric/explosive work) rather than a single method.",
+    "State the expected running economy gain as a modest range (about 2-8% in the literature, with a conservative planning figure lower) and do not promise a VO2max or threshold change.",
+    "Assume no body-mass penalty from lower-body strength work for distance runners."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref and Europe PMC. Title, journal, first author match; Crossref issued year 2017 (online first), issue year 2018. All findings stated in abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "jones-2025-resilience-training",
+  "title": "Physiological Resilience: What Is It and How Might It Be Trained?",
+  "authors": "Jones AM, Kirby BS",
+  "year": 2025,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.70032",
+  "pmid": "40024804",
+  "url": "https://doi.org/10.1111/sms.70032",
+  "design": "narrative-review",
+  "population": "Endurance athletes (review)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["durability-drift"],
+  "findings": [
+    "Resilience is built into a modified Joyner model: start-line VO2max, economy and thresholds deteriorate during prolonged exercise, often with appreciable inter-individual variability.",
+    "Data are scant, but training consistency and accumulation of relatively large training volumes over several years might promote resilience.",
+    "Regular prolonged sessions, especially including high-intensity bouts at race pace or above or a progressive intensity increase in the face of developing fatigue, might be an effective means of enhancing resilience.",
+    "Resistance training, especially heavy strength and plyometric training, appears to have positive effects on resilience."
+  ],
+  "limitations": "Narrative review that itself says data are scant; recommendations are hypotheses, not tested prescriptions. The abstract gives no specific fraction or frequency for late-run intensity.",
+  "implications": [
+    "Include a regular long run in every build and add some race-pace or progressive-intensity work late in selected long runs for marathon and longer goals. The specific fraction (for example the final 20-30%) is an engineering heuristic, not a value from this paper; treat as low-to-moderate-confidence.",
+    "Keep two weekly heavy strength or plyometric sessions in a durability-focused block (supported by the RCT in this corpus, [zanini-2025-strength-economy-durability-rct])."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed match (Scand J Med Sci Sports 2025 Mar;35(3):e70032). Crossref title contains an HTML-escaped ampersand only.",
+    "checkedAt": "2026-10-22"
+  }
+}

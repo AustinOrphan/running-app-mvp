@@ -1,0 +1,33 @@
+{
+  "id": "issurin-2010-block-periodization",
+  "title": "New horizons for the methodology and physiology of training periodization",
+  "authors": "Issurin VB",
+  "year": 2010,
+  "journal": "Sports Medicine",
+  "doi": "10.2165/11319770-000000000-00000",
+  "pmid": "20199119",
+  "url": "https://doi.org/10.2165/11319770-000000000-00000",
+  "design": "narrative-review",
+  "population": "Conceptual review of periodization in high-performance sport; no study population",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Lists limitations of traditional periodization: conflicting responses to 'mixed' training of many abilities, excessive fatigue from prolonged multi-targeted training, insufficient stimulation from medium/low-concentration workloads, and inability to provide multi-peak performance over a season.",
+    "Block periodization sequences specialised cycles (blocks) with highly concentrated workloads directed to a minimal number of targeted abilities, developed consecutively rather than simultaneously.",
+    "The paper sets out general principles, a taxonomy of mesocycle blocks and guidelines for compiling an annual plan."
+  ],
+  "limitations": "Theoretical, narrative review aimed at high-performance sport; the abstract presents no outcome data comparing block with traditional training.",
+  "implications": [
+    "Provides the conceptual basis for an optional block mode (concentrated single-ability blocks) for trained athletes; empirical support is only the low-quality evidence in [molmen-2019-block-periodization-meta-analysis].",
+    "No numeric parameters are given; block lengths must be treated as design choices (grade D)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Added by verifier as the core block-periodization source named in scope. Crossref and PubMed match (Sports Med 2010;40(3):189-206, Issurin).",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "hoffman-2013-ultra-exercise-behavior",
+  "title": "Exercise behavior of ultramarathon runners: baseline findings from the ULTRA study",
+  "authors": "Hoffman MD, Krishnan E",
+  "year": 2013,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0b013e3182a1f261",
+  "pmid": "23838972",
+  "url": "https://doi.org/10.1519/jsc.0b013e3182a1f261",
+  "design": "cross-sectional",
+  "population": "Current and former ultramarathon runners in the Ultrarunners Longitudinal TRAcking (ULTRA) Study, baseline data",
+  "sampleSize": 1345,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Exercise history collected on 1,345 current and former ultramarathon runners; 1,212 were active.",
+    "Median age at first ultramarathon was 36 years; median years of regular running before the first ultramarathon was 7 (IQR 3-15); years of regular running before the first ultra fell with calendar year (r = -0.13, p < 0.0001).",
+    "Active runners had a previous-year median running distance of 3,347 km (about 64 km/week, derived by dividing by 52), minimally related to age (r = -0.068, p = 0.018) but mostly related to their longest ultramarathon of the year (p < 0.0001).",
+    "25% had been regularly running for 3 years or less at the time of their first ultramarathon.",
+    "Running injuries were the most common reason for discontinuing regular running; work and family commitments were the main reasons for not running an ultramarathon in the prior year."
+  ],
+  "limitations": "Self-reported, retrospective, convenience cohort of mostly US ultrarunners; describes habits, not predictors of outcome; the median is for experienced, active ultrarunners and is not a prescription.",
+  "implications": [
+    "Use about 64 km/week (3,347 km/yr median) only as a descriptive benchmark to sanity-check a recreational athlete's peak volume; never as a target.",
+    "Show an informational note when the athlete has under 3 years of regular running before a first ultra: this is the lower quarter of the observed distribution. The paper does not show that this group is at higher risk; the risk direction comes from [sewry-2022-safer-xxi-dnf] and [hoffman-2014-ultra-health-injury].",
+    "Keep an explicit injury-load check in the progression logic because injury is the most common reason ultrarunners stop regular running."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2013-11, first author Hoffman; Crossref omits the subtitle) and Europe PMC abstract re-fetched. Removed the unsupported claim that the under-3-years group is injury-prone. The task text said 2014; this paper is 2013, the 2014 ULTRA paper is added separately.",
+    "checkedAt": "2026-10-22"
+  }
+}

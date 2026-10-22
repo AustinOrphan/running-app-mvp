@@ -1,0 +1,34 @@
+{
+  "id": "mujika-2000-detraining-part1",
+  "title": "Detraining: Loss of Training-Induced Physiological and Performance Adaptations. Part I: Short Term Insufficient Training Stimulus",
+  "authors": "Mujika I, Padilla S",
+  "year": 2000,
+  "journal": "Sports Medicine",
+  "doi": "10.2165/00007256-200030020-00002",
+  "pmid": "10966148",
+  "url": "https://doi.org/10.2165/00007256-200030020-00002",
+  "design": "narrative-review",
+  "population": "Trained athletes and recently trained individuals; short-term (under 4 weeks) insufficient training",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["beginners-return"],
+  "findings": [
+    "Short-term detraining (under 4 weeks) in highly trained athletes brings a rapid decline in VO2max and blood volume; exercise heart rate does not rise enough to offset lower stroke volume, so maximal cardiac output falls.",
+    "Ventilatory efficiency and endurance performance are impaired; changes are more moderate in recently trained individuals.",
+    "Metabolically: greater carbohydrate reliance (higher exercise RER), lower lipase activity, GLUT-4 content, glycogen level and lactate threshold.",
+    "Muscle: capillary density and oxidative enzyme activities are reduced; fibre cross-sectional area gains reverse, but strength performance declines are limited."
+  ],
+  "limitations": "Narrative review from 2000; the abstract gives no quantified rates and the review is not run-specific.",
+  "implications": [
+    "Model fitness loss as starting within the first 2-4 weeks of no or low training: reduce the starting load after a 2-4 week layoff and re-estimate threshold paces rather than using pre-break paces.",
+    "Strength is lost more slowly than aerobic capacity, so strength sessions can resume closer to previous loads than running volume."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Own re-fetch: Crossref title (Part I), Sports Medicine 2000, Mujika first author, 2 authors. All findings in abstract. Removed unsupported 'mostly men' limitation claim.",
+    "checkedAt": "2026-10-22"
+  }
+}

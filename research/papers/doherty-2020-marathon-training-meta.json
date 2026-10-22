@@ -1,0 +1,35 @@
+{
+  "id": "doherty-2020-marathon-training-meta",
+  "title": "An evaluation of the training determinants of marathon performance: A meta-analysis with meta-regression",
+  "authors": "Doherty C, Keogh A, Davenport J, Lawlor A, Smyth B, Caulfield B",
+  "year": 2020,
+  "journal": "Journal of Science and Medicine in Sport",
+  "doi": "10.1016/j.jsams.2019.09.013",
+  "pmid": "31704026",
+  "url": "https://doi.org/10.1016/j.jsams.2019.09.013",
+  "design": "meta-analysis",
+  "population": "Elite and recreational marathon runners (25% female) in 85 observational and interventional studies (137 cohorts)",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["volume-performance"],
+  "findings": [
+    "85 studies with 137 cohorts of runners (25% female) were included in the meta-regression.",
+    "Covariates: average weekly running distance, number of weekly runs, maximum distance in a single week, number of runs of 32 km or more in the pre-marathon block, average training pace, longest-run distance and hours of running per week.",
+    "Separate univariate random-effects meta-regressions found a negative association between each behaviour and marathon time (R2 0.38-0.81, p<0.001): increases in a training parameter coincided with faster finish times.",
+    "Meta-analysis estimated the marathon non-finisher rate at 7.27% (95% CI 6.09% to 8.65%)."
+  ],
+  "limitations": "Between-cohort (ecological) associations from observational data; univariate models, so the covariates are collinear and not separated; no per-athlete causality; heterogeneous measurement; faster cohorts differ in talent and history. The abstract gives only direction and an R2 range, no coefficients. Monotone associations say nothing about diminishing returns or injury cost.",
+  "implications": [
+    "Treat weekly distance, runs per week, longest run, count of 32 km+ runs and training pace as monotone predictors of marathon time and scale targets to the goal time band instead of one template.",
+    "Do not hard-code numeric volume bands from this abstract; calibrate from full-text coefficients or from larger datasets (Muniz-Pumares 2025, Fokkema 2020).",
+    "Use about 7% as the baseline population non-finish rate when describing risk."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (issued 2020-02), title, journal and first author match; abstract re-fetched from Europe PMC and all numbers checked. Level lowered from A to B because the meta-regression is univariate and ecological. Full text not read.",
+    "checkedAt": "2026-10-22"
+  }
+}

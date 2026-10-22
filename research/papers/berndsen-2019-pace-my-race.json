@@ -1,0 +1,33 @@
+{
+  "id": "berndsen-2019-pace-my-race",
+  "title": "Pace my race: recommendations for marathon running",
+  "authors": "Berndsen J, Smyth B, Lawlor A",
+  "year": 2019,
+  "journal": "Proceedings of the 13th ACM Conference on Recommender Systems (RecSys 2019)",
+  "doi": "10.1145/3298689.3346991",
+  "pmid": null,
+  "url": "https://doi.org/10.1145/3298689.3346991",
+  "design": "modelling",
+  "population": "Marathon runners with high-resolution race data from multiple races",
+  "sampleSize": 7931,
+  "evidenceLevel": "C",
+  "topics": ["ai-coaching"],
+  "findings": [
+    "Using high-resolution data from multiple marathon races (n = 7931), the authors report in-race finish-time prediction that outperforms existing techniques currently employed.",
+    "Predictions drive real-time recommendations at critical points in the race so the runner can adjust race strategy.",
+    "Linking model features to expert knowledge yields explainable, adaptable pacing recommendations intended to guide runners to their best finish time and avoid hitting the wall."
+  ],
+  "limitations": "Pacing only; no randomized evaluation of runner outcomes; marathon road-race data; abstract reports no error values.",
+  "implications": [
+    "Race-day pacing guidance should draw on the athlete's own pacing history and explainable features rather than an even-split rule alone.",
+    "Recompute pacing from an updated predicted finish time; the paper justifies no specific numeric rule."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "semanticscholar",
+    "findingsSupported": true,
+    "notes": "Crossref: RecSys 2019 proceedings, issued 2019-09-10, authors Berndsen, Smyth, Lawlor (Crossref short title 'Pace my race'); abstract from Semantic Scholar read in full.",
+    "checkedAt": "2026-10-22"
+  }
+}

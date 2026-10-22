@@ -1,0 +1,200 @@
+[
+  {
+    "id": "strength-frequency-default",
+    "statement": "Schedule 2 strength sessions per week by default; allow 3 for athletes with a lifting background in a base or general phase; never exceed 3. Do not raise frequency to chase additional benefit.",
+    "parameter": "strength_sessions_per_week",
+    "value": "2 (range 2-3, max 3)",
+    "unit": "sessions/week",
+    "appliesTo": "All distance runners, 5 km to ultra",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "blagrove-2018-strength-determinants",
+      "balsalobre-2016-running-economy-highly-trained",
+      "llanoslagos-2024-performance-methods",
+      "zanini-2025-strength-economy-durability-rct"
+    ]
+  },
+  {
+    "id": "strength-block-duration",
+    "statement": "Run a structured heavy-plus-plyometric block of at least 10 weeks, with 10-14 weeks preferred for heavy resistance; avoid 4-6 week bursts. Benefit increases with duration, but the exact threshold is not established.",
+    "parameter": "strength_block_length",
+    "value": "10-14 (minimum 8)",
+    "unit": "weeks",
+    "appliesTo": "Trained and recreational runners",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "eihara-2022-heavy-vs-plyo",
+      "denadai-2017-explosive-heavy-economy",
+      "balsalobre-2016-running-economy-highly-trained",
+      "zanini-2025-strength-economy-durability-rct",
+      "giovanelli-2017-ultra-sep"
+    ]
+  },
+  {
+    "id": "strength-primary-method-heavy",
+    "statement": "Make heavy, low-rep lower-body lifting (80% 1RM or more, with 90% 1RM or more best supported) the primary economy stimulus after a technique base. Use submaximal circuits and isometrics only as support or tissue conditioning; they did not improve economy.",
+    "parameter": "primary_load_intensity",
+    "value": ">=80% 1RM (90% 1RM where tolerated)",
+    "unit": "% 1RM",
+    "appliesTo": "Runners with a technique base; targeting moderate to fast paces",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "llanoslagos-2024-economy-speeds",
+      "eihara-2022-heavy-vs-plyo",
+      "berryman-2018-strength-performance-meta",
+      "storen-2008-maximal-strength-economy"
+    ]
+  },
+  {
+    "id": "strength-heavy-dose-and-ramp-in",
+    "statement": "No trial identifies an optimal set and rep scheme. Conservative default: 2-4 lower-body exercises, 3-4 sets of 3-6 repetitions, preceded by a 2-4 week ramp-in of technique and lighter loads. The one trial template is 4 sets of 4RM, three times per week for 8 weeks in 17 runners. Make these values user-configurable.",
+    "parameter": "heavy_lifting_prescription",
+    "value": "2-4 exercises x 3-4 sets x 3-6 reps; 2-4 week ramp-in",
+    "unit": "sets x reps",
+    "appliesTo": "All runners starting a heavy block",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "storen-2008-maximal-strength-economy",
+      "balsalobre-2016-running-economy-highly-trained",
+      "llanoslagos-2024-economy-speeds"
+    ]
+  },
+  {
+    "id": "strength-plyometric-complement",
+    "statement": "Pair heavy work with plyometrics in the same block. Prioritize plyometrics when target running pace is 12 km/h or slower (long runs, ultra, trail); keep contacts low, with the observed upper end about 200 jumps per session plus 5-10 short sprints. The 200 cap is the maximum observed in trials, not a tested limit.",
+    "parameter": "plyometric_ground_contacts",
+    "value": "<=200 per session",
+    "unit": "contacts/session",
+    "appliesTo": "Runners in a strength block; emphasis for slow-pace and ultra runners",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "llanoslagos-2024-economy-speeds",
+      "balsalobre-2016-running-economy-highly-trained",
+      "zanini-2025-strength-economy-durability-rct",
+      "giovanelli-2017-ultra-sep"
+    ]
+  },
+  {
+    "id": "strength-expected-benefit",
+    "statement": "Present expected benefit as a small oxygen-cost improvement (planning figure 2-4% after a complete block; individual studies up to 6-8%), never as a VO2max, threshold or pace change. Treat SMD -1.42 and single-study figures (5-6%) as upper bounds. Derive VO2max and threshold estimates from running data only.",
+    "parameter": "expected_running_economy_gain",
+    "value": "2-4 (planning), 8 (ceiling in literature)",
+    "unit": "% oxygen cost",
+    "appliesTo": "All runners; user-facing estimates",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "denadai-2017-explosive-heavy-economy",
+      "llanoslagos-2024-economy-speeds",
+      "llanoslagos-2024-performance-methods",
+      "blagrove-2018-strength-determinants",
+      "eihara-2024-middle-aged-pt-rt"
+    ]
+  },
+  {
+    "id": "strength-maintenance-year-round",
+    "statement": "Keep strength in the plan all year. After the main block and during peak-mileage phases drop to 1 maintenance session per week at reduced volume (heavy sets kept, volume cut). The maintenance dose is a design choice: no trial in this corpus tested it. Progress volume and intensity gradually across the year.",
+    "parameter": "maintenance_sessions_per_week",
+    "value": "1",
+    "unit": "sessions/week",
+    "appliesTo": "All runners after the main block and at peak mileage",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["lauersen-2018-strength-dose-dependent", "wilson-2012-concurrent-interference"]
+  },
+  {
+    "id": "strength-run-separation",
+    "statement": "Separate plyometric and heavy sessions from key running sessions (long run, intervals) by at least 3 hours, or place them on a different day; place them on easy-run days where possible. Same-session lifting is acceptable for maximal strength goals. Evidence concerns strength outcomes, not running performance.",
+    "parameter": "min_separation_from_key_run",
+    "value": "3",
+    "unit": "hours",
+    "appliesTo": "All runners combining strength and running",
+    "grade": "A",
+    "confidence": "low",
+    "evidence": ["schumann-2022-concurrent-compatibility", "wilson-2012-concurrent-interference"]
+  },
+  {
+    "id": "strength-injury-claims",
+    "statement": "Include strength in every plan as a supportive injury-risk measure, but do not state a running-specific injury reduction; sports-general meta-analyses (RR about 0.32-0.34, overuse RR about 0.53) were not confirmed by the one large running RCT (RR 0.97). Do not turn the dose-response figure into a formula.",
+    "parameter": "injury_prevention_claim",
+    "value": "supportive only; no quantified claim",
+    "unit": null,
+    "appliesTo": "All runners; user-facing copy",
+    "grade": "A",
+    "confidence": "low",
+    "evidence": [
+      "lauersen-2014-exercise-injury-prevention",
+      "lauersen-2018-strength-dose-dependent",
+      "toresdahl-2020-nyc-marathon-rct"
+    ]
+  },
+  {
+    "id": "strength-no-static-stretching-for-injury",
+    "statement": "Do not prescribe static stretching as an injury-prevention measure; spend the time on strength or proprioceptive work. This does not address mobility or comfort goals.",
+    "parameter": "static_stretching_for_injury_prevention",
+    "value": "not prescribed",
+    "unit": null,
+    "appliesTo": "All runners",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["lauersen-2014-exercise-injury-prevention"]
+  },
+  {
+    "id": "strength-novice-priority",
+    "statement": "For novice runners and first-time marathoners, rely on gradual mileage progression and adherence as the injury control; a short self-directed bodyweight routine did not reduce overuse injury. Offer strength as a low-cost addition, and cap weekly load increases to guard against bone stress injury.",
+    "parameter": "novice_injury_control",
+    "value": "progression cap first; strength additive",
+    "unit": null,
+    "appliesTo": "Novice runners, first marathon",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": ["toresdahl-2020-nyc-marathon-rct"]
+  },
+  {
+    "id": "strength-masters",
+    "statement": "Use the same strength prescription for masters runners (about 40-50 years): heavy low-rep work is justified and age did not moderate outcomes. As a conservative design choice, lengthen the ramp-in to 4 weeks. No evidence above about 50 years; no female masters evidence.",
+    "parameter": "masters_prescription",
+    "value": "same as general rule; ramp-in 4 weeks",
+    "unit": "weeks",
+    "appliesTo": "Runners aged 40 and over",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "piacentini-2013-masters-runners",
+      "eihara-2024-middle-aged-pt-rt",
+      "schumann-2022-concurrent-compatibility",
+      "llanoslagos-2024-performance-methods"
+    ]
+  },
+  {
+    "id": "strength-ultra-trail",
+    "statement": "For ultra and trail runners, include a roughly 12-week strength, explosive and plyometric block with plyometric emphasis at slow speeds; use 2 sessions per week (3 optional) and offer a home-based option. Track late-run durability (pace fade, heart rate drift). No evidence exists for 100-mile runners, downhill or eccentric work.",
+    "parameter": "ultra_strength_block",
+    "value": "12 weeks, 2 sessions/week",
+    "unit": "weeks",
+    "appliesTo": "Ultra and trail runners (evidence is from ultra-marathoners and well-trained 10 km runners)",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "giovanelli-2017-ultra-sep",
+      "zanini-2025-strength-economy-durability-rct",
+      "llanoslagos-2024-economy-speeds"
+    ]
+  },
+  {
+    "id": "strength-calf-plantarflexor",
+    "statement": "Include explicit calf and plantarflexor strengthening (heavy calf raises) in the lower-body exercise selection; the change in calf-raise 1RM correlated with oxygen-cost change in a small RCT.",
+    "parameter": "calf_raise_inclusion",
+    "value": "include in every block",
+    "unit": null,
+    "appliesTo": "Recreational and middle-aged runners",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["eihara-2024-middle-aged-pt-rt"]
+  }
+]

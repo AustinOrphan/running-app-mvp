@@ -1,0 +1,35 @@
+{
+  "id": "borges-2018-masters-hiit-recovery",
+  "title": "Age-related changes in physical and perceptual markers of recovery following high-intensity interval cycle exercise",
+  "authors": "Borges NR, Reaburn PR, Doering TM, Argus CK, Driller MW",
+  "year": 2018,
+  "journal": "Experimental Aging Research",
+  "doi": "10.1080/0361073x.2018.1477361",
+  "pmid": "29843564",
+  "url": "https://doi.org/10.1080/0361073x.2018.1477361",
+  "design": "experimental-crossover",
+  "population": "Well-trained masters (mean age 55.6 +/- 5.0 y, n=9) and young (25.9 +/- 3.0 y, n=8) cyclists",
+  "sampleSize": 17,
+  "evidenceLevel": "C",
+  "topics": ["age-masters"],
+  "findings": [
+    "After 6 x 30 s intervals at 175% peak power output, there were no significant group-by-time interactions for MVC, 10 s sprint, 30-min time trial or creatine kinase (P > 0.05); sprint peak power fell significantly in both groups at 1 h and both groups physically recovered at similar rates over 48 h.",
+    "Neither group showed significant or practically meaningful CK increases (change < 10%).",
+    "Perceptual recovery was delayed in masters at 48 h: lower motivation (ES 0.69 +/- 0.77, moderate), greater fatigue (ES 0.75 +/- 0.93, moderate) and more muscle soreness (ES 0.61 +/- 0.70, moderate); perceptual fatigue differed by age (P = 0.01).",
+    "The authors conclude the delay in perceived recovery may have negative effects on long-term participation in systematic training."
+  ],
+  "limitations": "Very small sample, cycling not running, a single HIIT protocol, well-trained volunteers; effect-size 90% CIs are wide and include zero for each perceptual measure.",
+  "implications": [
+    "Physical readiness (strength, sprint, 30-min TT, CK) after a hard interval session did not differ by age within 48 h, so no age-based lengthening of the minimum gap between hard sessions is justified for trained masters; the 48 h default itself is an engine convention, not a threshold from this paper.",
+    "Weight subjective readiness (soreness, motivation, fatigue ratings) for masters: if ratings are still poor at about 48 h after a hard session, defer the next quality session or convert it to easy aerobic running.",
+    "Collect a brief post-session perceived-recovery rating and use it to adapt spacing instead of an age rule."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC abstract match; numbers (ES, P values, ages, n) confirmed. Added the abstract's 1 h sprint-power drop and the ES CIs; CI claim in limitations is read from the abstract's ES values.",
+    "checkedAt": "2026-10-22"
+  }
+}

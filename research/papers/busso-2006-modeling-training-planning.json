@@ -1,0 +1,33 @@
+{
+  "id": "busso-2006-modeling-training-planning",
+  "title": "Using mathematical modeling in training planning",
+  "authors": "Busso T, Thomas L",
+  "year": 2006,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.1.4.400",
+  "pmid": "19124896",
+  "url": "https://doi.org/10.1123/ijspp.1.4.400",
+  "design": "narrative-review",
+  "population": "Not applicable (critical discussion of systems modelling of training effects on performance)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["load-response-models"],
+  "findings": [
+    "Discusses strengths and weaknesses of systems modelling for analysing training effects on performance.",
+    "The simplifications inherent to the approach are outlined: choice of input and output variables, model structure, data collection for parameter estimation, and use of identified models to predict responses.",
+    "Despite insight into the effects of intensifying or reducing training, the existing models would not be accurate enough to make predictions for a particular athlete in order to monitor his or her training."
+  ],
+  "limitations": "Narrative critique from 2006, before regularised, Bayesian and ML approaches; no new data.",
+  "implications": [
+    "Use the model for explanation and scenario comparison (what-if taper or load-shape), not for individual race-time prediction.",
+    "Document model inputs (load metric), outputs (performance test) and structure explicitly in the engine, since these are the stated sources of error."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "ADDED by verifier. Crossref confirms title, IJSPP, 2006-12, Busso and Thomas. Findings paraphrase the Europe PMC abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

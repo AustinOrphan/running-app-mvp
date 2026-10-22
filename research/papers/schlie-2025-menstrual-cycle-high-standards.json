@@ -1,0 +1,35 @@
+{
+  "id": "schlie-2025-menstrual-cycle-high-standards",
+  "title": "Effects of menstrual cycle phases on athletic performance and related physiological outcomes: a systematic review of studies using high methodological standards",
+  "authors": "Schlie J, Krassowski V, Schmidt A",
+  "year": 2025,
+  "journal": "Journal of Applied Physiology",
+  "doi": "10.1152/japplphysiol.00223.2025",
+  "pmid": "40695607",
+  "url": "https://doi.org/10.1152/japplphysiol.00223.2025",
+  "design": "systematic-review",
+  "population": "Eumenorrheic females in studies that measured 17-beta-estradiol, progesterone and LH, with performance tested in 2 or more phases",
+  "sampleSize": 279,
+  "evidenceLevel": "B",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "Only 19 studies (total n = 279, 25.6 +/- 3.6 y, mean n = 13.9 +/- 7) met the hormone-verification standard; elite athletes were underrepresented and serum hormone analysis in elite sport appeared poor.",
+    "58% of included studies reported a significant phase effect on at least one performance-related outcome, but direction and magnitude varied between studies.",
+    "Early follicular phase was unfavourable for VO2max in one study and peak power in two studies; submaximal ventilation was reduced in the early follicular phase; maximum and explosive strength were largely unaffected; neuromuscular coordination improved at ovulation.",
+    "Medium to high risk of bias in randomisation and reported outcomes; authors advise critical interpretation of conclusions about presence or absence of cycle effects."
+  ],
+  "limitations": "Very small studies and heterogeneous phases and populations prevented quantitative synthesis; most findings come from single studies. Supports uncertainty rather than a rule.",
+  "implications": [
+    "Confirms McNulty with a hormone-verified sample: keep cycle phase out of automatic load prescription.",
+    "Treat self-reported phase (calendar counting, app-based) as low-validity input and label phase estimates as approximate.",
+    "Frame any cycle feature as an optional awareness and symptom-tracking tool, not a performance predictor."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (J Appl Physiol, 2025-09). Europe PMC abstract (PMID 40695607) supports all numbers. Evidence level lowered from A to B because the review itself reports medium/high bias and no quantitative synthesis.",
+    "checkedAt": "2026-10-22"
+  }
+}

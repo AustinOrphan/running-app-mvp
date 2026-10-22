@@ -1,0 +1,34 @@
+{
+  "id": "timpka-2020-health-complaints-heat-taper",
+  "title": "Health complaints and heat stress prevention strategies during taper as predictors of peaked athletic performance at the 2015 World Athletics Championship in hot conditions",
+  "authors": "Timpka T, Periard JD, Spreco A, Dahlstrom O, Jacobsson J, Bargoria V, Andersson C, Alonso JM, Racinais S",
+  "year": 2020,
+  "journal": "Journal of Science and Medicine in Sport",
+  "doi": "10.1016/j.jsams.2019.10.024",
+  "pmid": "31761558",
+  "url": "https://doi.org/10.1016/j.jsams.2019.10.024",
+  "design": "prospective-cohort",
+  "population": "Elite athletes (sprint/power and endurance/combined events) at the 2015 World Athletics Championships in Beijing",
+  "sampleSize": 245,
+  "evidenceLevel": "C",
+  "topics": ["taper"],
+  "findings": [
+    "245 of 841 eligible athletes (29%) participated; peaking defined from pre-competition ranking and final competition rank.",
+    "Athletes with concern-causing health complaints during the taper were less likely to peak (sprint/power OR 0.33, 95% CI 0.11-0.94; endurance/combined OR 0.38, 95% CI 0.14-1.00).",
+    "Endurance/combined athletes who chose pre-cooling were less likely to peak (OR 0.35, 95% CI 0.15-0.80).",
+    "Sprint/power athletes reporting a sudden-onset injury complaint during the taper displayed increased peaking (OR 4.47, 95% CI 1.28-15.59); authors suggest heat strategies be individually tested before championships."
+  ],
+  "limitations": "Elite track-and-field athletes, 29% response rate, self-report; peaking proxied by rank not time; pre-cooling result likely confounded by choice; not distance-running specific.",
+  "implications": [
+    "Add a taper-phase health check: logged illness, niggles or high concern should prompt an adjustment prompt (rest or reduce) rather than keeping the schedule.",
+    "Heat-mitigation strategies should be trialled before race day; no numeric parameter is justified."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (JSAMS Apr 2020); authors list verified, nine authors. Observational.",
+    "checkedAt": "2026-10-22"
+  }
+}

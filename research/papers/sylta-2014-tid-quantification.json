@@ -1,0 +1,35 @@
+{
+  "id": "sylta-2014-tid-quantification",
+  "title": "From heart-rate data to training quantification: a comparison of 3 methods of training-intensity analysis",
+  "authors": "Sylta O, Tonnessen E, Seiler S",
+  "year": 2014,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2013-0298",
+  "pmid": "24408353",
+  "url": "https://doi.org/10.1123/ijspp.2013-0298",
+  "design": "cross-sectional",
+  "population": "Elite cross-country skiers (16 male, 13 female; VO2max 76 +/- 7), about 14-day altitude camp",
+  "sampleSize": 29,
+  "evidenceLevel": "C",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "570 sessions analysed by time in zone (TIZ), session goal (SG) and a hybrid SG/TIZ method.",
+    "TIZ and SG/TIZ put 96.1% and 95.5% of total time in zone 1, with 2.9%/3.6% in zone 2 and 1.1%/0.8% in zone 3.",
+    "Counting sessions by goal (SG) gave 86.6% zone 1 sessions and 11.1% / 2.4% zone 2 / zone 3.",
+    "Conversion factors TIZ or SG/TIZ to SG and back were 0.9 / 1.1 in zone 1 and 3.0 / 0.33 in zones 2-3."
+  ],
+  "limitations": "Skiers at a camp, HR-based zones only; factors depend on session structure and are not validated for runners or pace-based zones.",
+  "implications": [
+    "Compute TID both ways, time-in-zone and session-goal, because the same training reads about 96% vs about 87% zone 1.",
+    "When comparing a plan with a literature target such as 80/20, state which counting method the target uses; an 80/20 split by session count implies far more than 80% of time in zone 1 (in this sample).",
+    "Store a planned zone per session so both views can be derived."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Jan 2014). Result figures read from PubMed efetch (Europe PMC truncated at '<'). P-values omitted.",
+    "checkedAt": "2026-10-22"
+  }
+}

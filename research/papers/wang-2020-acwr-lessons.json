@@ -1,0 +1,35 @@
+{
+  "id": "wang-2020-acwr-lessons",
+  "title": "Analyzing activity and injury: lessons learned from the acute:chronic workload ratio",
+  "authors": "Wang C, Vargas JT, Stokes T, Steele R, Shrier I",
+  "year": 2020,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-020-01280-1",
+  "pmid": "32125672",
+  "url": "https://doi.org/10.1007/s40279-020-01280-1",
+  "design": "narrative-review",
+  "population": "Methodological review of ACWR analysis (no participants)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["injury-load"],
+  "findings": [
+    "The IOC has recommended ACWR with thresholds, but limitations of the ratio and of how it has been analysed affect the validity of those recommendations and should discourage its use.",
+    "Using exponentially weighted moving averages to calculate ACWR creates an initial load problem, and is inapplicable to sports where athletes taper their activity.",
+    "Implementation problems include discretisation, sparse data, bias in injured athletes, unmeasured and time-varying confounding, and application to subsequent injuries.",
+    "Proposes causal-inference based analytic strategies as alternatives, conditional on well-conceived study design."
+  ],
+  "limitations": "Methodological critique, not an empirical study; no effect sizes; alternatives are conditional on good study design.",
+  "implications": [
+    "Because the engine tapers before races, suppress any ratio-based warnings or display in taper and recovery weeks.",
+    "Any ACWR display needs a warm-up period (initial load problem); the 4-week minimum is an engineering default, not from the paper.",
+    "Avoid fixed ratio bands as hard rules."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Sports Med 50:1243-1254 (online Mar 2020). Abstract matched. The '4 weeks' figure in the implication is flagged as an engineering default.",
+    "checkedAt": "2026-10-22"
+  }
+}

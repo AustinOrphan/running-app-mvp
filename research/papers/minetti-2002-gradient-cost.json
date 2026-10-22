@@ -1,0 +1,47 @@
+{
+  "id": "minetti-2002-gradient-cost",
+  "title": "Energy cost of walking and running at extreme uphill and downhill slopes",
+  "authors": "Minetti AE, Moia C, Roi GS, Susta D, Ferretti G",
+  "year": 2002,
+  "journal": "Journal of Applied Physiology",
+  "doi": "10.1152/japplphysiol.01177.2001",
+  "pmid": "12183501",
+  "url": "https://doi.org/10.1152/japplphysiol.01177.2001",
+  "design": "experimental-crossover",
+  "population": "10 runners on a treadmill at gradients from -0.45 to +0.45",
+  "sampleSize": 10,
+  "evidenceLevel": "C",
+  "topics": ["performance-prediction", "terrain-elevation"],
+  "findings": [
+    "Running cost on the level was 3.40 +/- 0.24 J/kg/m, independent of speed.",
+    "It rose to 18.93 +/- 1.74 J/kg/m at +0.45, fell to 1.73 +/- 0.36 at -0.20, and rose again to 3.92 +/- 0.81 at -0.45.",
+    "Optimum gradients for mountain paths approximated 0.20-0.30 for both walking and running.",
+    "Estimated maximum running speeds on positive gradients corresponded to those adopted in uphill races, but on negative gradients were well above those attained in downhill competitions.",
+    "Level running cost (Cr) was 3.40 +/- 0.24 J/kg/m, independent of speed.",
+    "Cr rose on positive slopes to 18.93 +/- 1.74 J/kg/m at +0.45.",
+    "Cr was lowest at -0.20 (1.73 +/- 0.36 J/kg/m) and rose again on steeper descents, reaching 3.92 +/- 0.81 J/kg/m at -0.45.",
+    "Walking cost was lowest at 1.64 +/- 0.50 J/kg/m on the level at about 1.0 m/s, 17.33 +/- 1.11 at +0.45 and 0.81 +/- 0.37 at -0.10.",
+    "Mechanical efficiency above +0.15 and below -0.15 approached that of concentric and eccentric muscle contraction respectively.",
+    "Optimum gradients for mountain paths were about 0.20-0.30 for both gaits.",
+    "Downhill Cr was about 40% lower than literature values for sedentary subjects.",
+    "Walking cost rose again on steep descents to 3.46 +/- 0.95 J/kg/m at -0.45.",
+    "Estimated maximum running speeds on positive gradients matched those adopted in uphill races; on negative gradients they were well above those attained in downhill competitions."
+  ],
+  "limitations": "Ten fresh runners on a treadmill, short bouts: no fatigue, technical terrain, footwear or ultra-duration effects; the equations are population averages.",
+  "implications": [
+    "Use the gradient-cost curve as the basis for grade-adjusted pace on trail/ultra course estimates (cost ratios to level: about 0.51 at -0.20, 1.15 at -0.45, 5.6 at +0.45, derived from the abstract values).",
+    "Do not credit steep downhills with their theoretical speed: observed downhill race speeds are well below the estimated maximum, so cap downhill benefit.",
+    "Fresh-state costs understate late-race cost; add a separate fatigue term.",
+    "Use the cost-of-running versus gradient curve as the core of a grade-adjusted effort and pace model. Cost is strongly non-linear in gradient: level 3.40 J/kg/m, +0.45 gradient 18.93 J/kg/m (about 5.6 times level, derived). The curve's functional form and coefficients are not in the abstract and were not verified; fetch them from the full text before implementing.",
+    "Model descent cost with a minimum near -0.20 gradient (1.73 J/kg/m, about half of level cost) and rising cost on steeper descents (3.92 J/kg/m at -0.45). The paper reports estimated maximum descent speeds well above those reached in downhill races, so metabolic cost alone does not set descent pace.",
+    "The data come from 10 adult runners on short steady-state treadmill bouts. Keep the curve as a default prior that personal data can adjust, not an exact per-athlete value."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC re-fetched; numbers match. Removed the researcher's implication that walking and running costs are similar at the steepest gradients, which the abstract does not state (it states mechanical efficiencies reach muscle limits beyond +/-0.15).",
+    "checkedAt": "2026-10-22"
+  }
+}

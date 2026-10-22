@@ -1,0 +1,35 @@
+{
+  "id": "mujika-2003-taper-scientific-bases",
+  "title": "Scientific bases for precompetition tapering strategies",
+  "authors": "Mujika I, Padilla S",
+  "year": 2003,
+  "journal": "Medicine and Science in Sports and Exercise",
+  "doi": "10.1249/01.mss.0000074448.73931.11",
+  "pmid": "12840640",
+  "url": "https://doi.org/10.1249/01.mss.0000074448.73931.11",
+  "design": "narrative-review",
+  "population": "Athletes across sports (review of the taper literature)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["taper"],
+  "findings": [
+    "Taper defined as a progressive nonlinear reduction of training load during a variable period to reduce physiological and psychological stress of daily training and optimize performance.",
+    "Best achieved by maintaining training intensity, reducing training volume (up to 60-90%) and slightly reducing training frequency (no more than 20%).",
+    "Optimal duration of the taper ranges between 4 and more than 28 d; progressive nonlinear tapers are more beneficial than step tapers.",
+    "Performance usually improves by about 3% (usual range 0.5-6.0%)."
+  ],
+  "limitations": "Narrative review by the group that also authored the meta-analysis; ranges are wide (4 to >28 days, volume cut up to 60-90%) and not individualized; population not specified in the abstract.",
+  "implications": [
+    "Frequency floor: never cut run frequency by more than 20% of the pre-taper weekly session count during a taper.",
+    "Taper length should scale with preceding load; the 4 to >28 day range is too wide to prescribe from, so the engine caps at 21 days for recreational runners (engine decision, informed by Smyth & Lawlor and Bosquet).",
+    "Expected benefit shown to users should be conservative (about 0.5-3%) and phrased as a sketch, not a guarantee."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (MSSE Jul 2003, Mujika first author); abstract text re-read and all findings present. Narrative review so graded D.",
+    "checkedAt": "2026-10-22"
+  }
+}

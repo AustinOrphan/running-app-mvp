@@ -1,0 +1,35 @@
+{
+  "id": "wallace-2014-load-methods-runners",
+  "title": "A comparison of methods for quantifying training load: relationships between modelled and actual training responses",
+  "authors": "Wallace LK, Slattery KM, Coutts AJ",
+  "year": 2014,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-013-2745-1",
+  "pmid": "24104194",
+  "url": "https://doi.org/10.1007/s00421-013-2745-1",
+  "design": "prospective-cohort",
+  "population": "Seven trained runners (VO2max 51.7 +/- 4.5 mL/kg/min, age 38.6 +/- 9.4 y) over 15 weeks of endurance running training",
+  "sampleSize": 7,
+  "evidenceLevel": "C",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Training dose was calculated from session-RPE, Banister's TRIMP and running training stress score (rTSS), then fed to an individual mathematical (fitness-fatigue) model.",
+    "Training produced a 5.4 +/- 2.6% improvement in 1,500 m time-trial performance. Modelled vs actual weekly performance correlations were r = 0.70 +/- 0.11 (rTSS), 0.60 +/- 0.10 (session-RPE) and 0.65 +/- 0.13 (TRIMP).",
+    "Moderate correlations between modelled and actual fitness (submaximal HR): -0.43 +/- 0.37 (sRPE), -0.48 +/- 0.39 (TRIMP); moderate-to-large with HRV fatigue indices: -0.48 +/- 0.39 (sRPE), -0.59 +/- 0.31 (TRIMP).",
+    "Authors conclude each method is appropriate for quantifying endurance training dose."
+  ],
+  "limitations": "n = 7 trained runners, 1,500 m performance only; per-individual correlations on about 15 weekly points with wide SDs, so the methods cannot be ranked; the abstract does not state the TRIMP weighting constants or sex of participants; short block, not ultra or marathon training.",
+  "implications": [
+    "Any of sRPE, Banister TRIMP or rTSS is a defensible load input for a runner; none is shown to be superior, so do not make plan logic depend on which one is used.",
+    "Support multiple load metrics per run (sRPE primary, TRIMP or rTSS when HR/pace quality is good) and compare against the athlete's own history.",
+    "Submaximal HR and HRV trends may be useful fitness/fatigue markers (supporting rationale only, n = 7)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "ADDED by verifier. Crossref confirms title, Eur J Appl Physiol, online Oct 2013 (Europe PMC year 2014), authors Wallace, Slattery, Coutts. Numbers read in Europe PMC abstract. This is the only located runner study that directly compares sRPE, Banister TRIMP and rTSS.",
+    "checkedAt": "2026-10-22"
+  }
+}

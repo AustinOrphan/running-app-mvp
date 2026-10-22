@@ -1,0 +1,31 @@
+{
+  "id": "smyth-2021-marathon-recsys",
+  "title": "Recommendations for marathon runners: on the application of recommender systems and machine learning to support recreational marathon runners",
+  "authors": "Smyth B, Lawlor A, Berndsen J, Feely C, Cunningham P",
+  "year": 2021,
+  "journal": "User Modeling and User-Adapted Interaction",
+  "doi": "10.1007/s11257-021-09299-3",
+  "pmid": "36452939",
+  "url": "https://doi.org/10.1007/s11257-021-09299-3",
+  "design": "narrative-review",
+  "population": "Position paper with case studies using fitness-app, smartwatch and wearable activity data from marathon runners",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ai-coaching"],
+  "findings": [
+    "Argues that the complexity of marathon training plus availability of real-time activity data provides an opportunity for machine learning and recommender systems to support runners as they train, race and recover.",
+    "Presents a mix of original and recent case studies illustrating what can be done with activity data routinely collected by mobile apps, smartwatches and wearables."
+  ],
+  "limitations": "Abstract is a position statement with case studies and gives no numeric results; author list beyond the first three (Smyth, Lawlor, Berndsen) is from memory and not Crossref-checked; Crossref issued 2021-08-18 online.",
+  "implications": [
+    "Supports the design pattern of continuously refreshed, data-driven prediction and recommendation from routinely collected activity data, but supplies no numeric parameters."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier as the Smyth-group overview. Crossref: title, UMUAI, 2021-08-18, first three authors Smyth, Lawlor, Berndsen, 4 authors total per Crossref (so the author list here should be treated as Smyth B, Lawlor A, Berndsen J, plus one more; the names Feely and Cunningham were not confirmed). Abstract read in Europe PMC (PMID 36452939).",
+    "checkedAt": "2026-10-22"
+  }
+}

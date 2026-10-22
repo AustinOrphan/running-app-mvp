@@ -1,0 +1,34 @@
+{
+  "id": "campos-2022-tid-runners-review",
+  "title": "Training-intensity Distribution on Middle- and Long-distance Runners: A Systematic Review",
+  "authors": "Campos Y, Casado A, Vieira JG, Guimaraes M, et al.",
+  "year": 2022,
+  "journal": "International Journal of Sports Medicine",
+  "doi": "10.1055/a-1559-3623",
+  "pmid": "34749417",
+  "url": "https://doi.org/10.1055/a-1559-3623",
+  "design": "systematic-review",
+  "population": "Middle- and long-distance runners; 20 articles",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "20 articles identified; quantification methods (session RPE, heart rate, blood lactate, race pace, running speed) gave different zone proportions for the same training.",
+    "Studies using greater volumes of low-intensity training (pyramidal or polarized) reported larger endurance improvements than threshold TID.",
+    "Authors conclude high volume at low intensity (>=70% of overall volume) plus low volume at threshold and high-intensity interval training (<=30%) appears necessary to optimise adaptations in middle- and long-distance runners.",
+    "Authors recommend monitoring TID with both objective and subjective methods."
+  ],
+  "limitations": "Heterogeneous mostly small studies; the 70/30 split is the authors' synthesis and not a pooled estimate.",
+  "implications": [
+    "Use >=70% low-intensity as the hard floor and about 80% as the default (see rule tid-low-intensity-floor).",
+    "Track TID with more than one method (HR or pace time-in-zone plus session RPE)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref: online 2021-11-08, print 2022-04, vol 43; 10 authors, first four Campos, Casado, Vieira, Guimaraes, so 'et al.' used. Claims confirmed in abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

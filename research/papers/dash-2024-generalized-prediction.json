@@ -1,0 +1,33 @@
+{
+  "id": "dash-2024-generalized-prediction",
+  "title": "Win Your Race Goal: A Generalized Approach to Prediction of Running Performance",
+  "authors": "Dash S",
+  "year": 2024,
+  "journal": "Sports Medicine International Open",
+  "doi": "10.1055/a-2401-6234",
+  "pmid": "39439845",
+  "url": "https://doi.org/10.1055/a-2401-6234",
+  "design": "modelling",
+  "population": "Complete running logs of 15 runners (15,686 runs) covering marathon to ultra distances, varied elevation gain, front-pack to back-of-pack",
+  "sampleSize": 15,
+  "evidenceLevel": "D",
+  "topics": ["performance-prediction"],
+  "findings": [
+    "An LSTM network with a regression approach reached 89.13% accuracy versus 85.21% for a time-series regression approach.",
+    "Over 60 races, accuracy was 90.4% for the LSTM, 80% for the Riegel formula and 87.5% for the UltraSignup formula.",
+    "The test set was the last 15 runs of each running log."
+  ],
+  "limitations": "Only 15 runners; accuracy is not defined in the abstract; test runs are from the same athletes (not independent); single author, no external validation.",
+  "implications": [
+    "Treat as hypothesis-generating; do not adopt an ML model on n = 15.",
+    "Back-test any ultra predictions against Riegel and an UltraSignup-style formula using per-athlete logged races."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC re-fetched; numbers match. Accuracy metric undefined in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

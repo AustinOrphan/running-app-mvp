@@ -1,0 +1,34 @@
+{
+  "id": "ramskov-2018-run-clever",
+  "title": "Progression in Running Intensity or Running Volume and the Development of Specific Injuries in Recreational Runners: Run Clever, a Randomized Trial Using Competing Risks",
+  "authors": "Ramskov D, Rasmussen S, Sørensen H, Parner ET, Lind M, Nielsen R",
+  "year": 2018,
+  "journal": "Journal of Orthopaedic & Sports Physical Therapy",
+  "doi": "10.2519/jospt.2018.8062",
+  "pmid": "29895234",
+  "url": "https://doi.org/10.2519/jospt.2018.8062",
+  "design": "rct",
+  "population": "Healthy recreational runners (not specifically novices), 24-week follow-up: 8-week preconditioning then 16 weeks of an intensity-progression (S-I) or volume-progression (S-V) schedule",
+  "sampleSize": 447,
+  "evidenceLevel": "B",
+  "topics": ["beginners-return"],
+  "findings": [
+    "Of 447 runners, 80 sustained an injury (S-I n=36, S-V n=44).",
+    "The S-I group progressed high-intensity running (88% VO2max or greater) each week; the S-V group progressed total weekly running volume.",
+    "Risk differences for hypothesised intensity-related injuries in the S-I group were -0.8% (-5.0, 3.4) at 2 weeks and -5.1% (-16.5, 6.3) at 16 weeks; all reported confidence intervals included zero.",
+    "The authors concluded there was no difference in risk of hypothesised intensity- and volume-specific injuries between the two schedules."
+  ],
+  "limitations": "Likely underpowered for 16-week differences (wide CIs); recreational rather than novice runners; both arms had an 8-week preconditioning phase, so the benefit of preconditioning itself was not tested. Specific injuries were hypothesised from clinical assumptions.",
+  "implications": [
+    "No evidence supports separate injury-risk rules for intensity vs volume progression or modelling Achilles/plantar injuries as intensity-specific.",
+    "Progressing either high-intensity running or weekly volume (one at a time) is acceptable in a 16-week block. An 8-week low-intensity preconditioning phase was the trial's design, not a tested benefit, so treat it as a conservative option for new runners."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Own re-fetch: Crossref title, JOSPT 2018-10, first author Ramskov, 6 authors match. Numbers in abstract. Corrected that the abstract does not claim a preconditioning benefit; noted the abstract's printed 16-week S-V interval has a sign typo, not used.",
+    "checkedAt": "2026-10-22"
+  }
+}

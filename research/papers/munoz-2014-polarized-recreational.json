@@ -1,0 +1,34 @@
+{
+  "id": "munoz-2014-polarized-recreational",
+  "title": "Does polarized training improve performance in recreational runners?",
+  "authors": "Munoz I, Seiler S, Bautista J, Espana J, Larumbe E, Esteve-Lanao J",
+  "year": 2014,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2012-0350",
+  "pmid": "23752040",
+  "url": "https://doi.org/10.1123/ijspp.2012-0350",
+  "design": "rct",
+  "population": "Recreational endurance runners, 10-week HR-controlled intervention, 10 km race outcome",
+  "sampleSize": 30,
+  "evidenceLevel": "B",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "30 runners randomised to polarized (about 77/3/20 time in zones 1/2/3) or between-thresholds (about 46/35/19) training for 10 weeks.",
+    "Both groups improved 10 km time: 39:18 to 37:19 (polarized, P<.0001) and 39:24 to 38:00 (between-thresholds, P<.001); improvements 5.0% vs 3.6%, about 41 s difference, not significant.",
+    "Post-hoc subset of the runners who actually performed the most polarized (n=6) and between-thresholds (n=16) distributions: 1.29 effect-size units in favour of polarized (90% CI 0.31-2.27, P=.038)."
+  ],
+  "limitations": "Primary between-group difference was not significant; the positive finding is a post-hoc subset with unequal tiny groups. Ten weeks only. Authors' conclusion that polarized 'can stimulate greater training effects' is stronger than the primary result.",
+  "implications": [
+    "Both distributions improved recreational 10 km times in 10 weeks, so the evidence does not justify rigid insistence on polarization for recreational runners.",
+    "Where execution is adherent, favour a low-intensity-dominant layout (about 75-80% zone 1) over a large zone 2 block, but label the evidence weak.",
+    "Surface executed versus planned TID to the user, because the post-hoc effect depended on what runners actually did."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref matches (author surname Munoz with diacritic). Results read from PubMed efetch since Europe PMC text is truncated at the '<' character.",
+    "checkedAt": "2026-10-22"
+  }
+}

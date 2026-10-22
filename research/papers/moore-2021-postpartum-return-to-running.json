@@ -1,0 +1,34 @@
+{
+  "id": "moore-2021-postpartum-return-to-running",
+  "title": "Multidisciplinary, biopsychosocial factors contributing to return to running and running related stress urinary incontinence in postpartum women",
+  "authors": "Moore IS, James ML, Brockwell E, Perkins J, Jones AL, Donnelly GM",
+  "year": 2021,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2021-104168",
+  "pmid": "34144950",
+  "url": "https://doi.org/10.1136/bjsports-2021-104168",
+  "design": "cross-sectional",
+  "population": "881 postpartum women who completed an online questionnaire on running experience",
+  "sampleSize": 881,
+  "evidenceLevel": "C",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "Median time to first postpartum run was 12 weeks.",
+    "Higher odds of returning to running: running during pregnancy (OR 2.81, 1.90-4.15), high weekly volume (OR 1.79, 1.22-2.63), lower fear of movement (OR 0.53 per unit, 0.43-0.64) and no vaginal heaviness (OR 0.52 for heaviness, 0.35-0.76).",
+    "Risk factors for running-related stress urinary incontinence (SUI): having returned to running (OR 2.70), SUI before pregnancy (OR 4.01) and during pregnancy (OR 4.49); caesarean delivery lowered odds (OR 0.39).",
+    "Authors suggest fear of movement, vaginal heaviness and running-related SUI before or during pregnancy be addressed early by healthcare providers."
+  ],
+  "limitations": "Self-selected online survey with retrospective self-report; associations only, no outcome-based timeline of safe return.",
+  "implications": [
+    "Ask about pre-pregnancy and pregnancy SUI, vaginal heaviness and fear of movement at postpartum onboarding and route positive answers to pelvic health care.",
+    "The 12-week median is descriptive of what happened, not a recommended return date; do not set a default return date from it."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref (BJSM, 2021-06, first author Moore) matches; ORs confirmed in the Europe PMC abstract (PMID 34144950). Odds ratio directions for return-to-running as stated in the abstract (OR 0.52 attached to 'not suffering heaviness').",
+    "checkedAt": "2026-10-22"
+  }
+}

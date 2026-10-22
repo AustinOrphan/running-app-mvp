@@ -1,0 +1,34 @@
+{
+  "id": "vanderworp-2015-risk-factors",
+  "title": "Injuries in runners; a systematic review on risk factors and sex differences",
+  "authors": "van der Worp MP, ten Haaf DS, van Cingel R, de Wijer A, Nijhuis-van der Sanden MW, Staal JB",
+  "year": 2015,
+  "journal": "PLoS ONE",
+  "doi": "10.1371/journal.pone.0114937",
+  "pmid": "25706955",
+  "url": "https://doi.org/10.1371/journal.pone.0114937",
+  "design": "systematic-review",
+  "population": "15 longitudinal cohort studies of runners with at least 1 month follow-up (11 high quality, 4 moderate quality)",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["injury-load"],
+  "findings": [
+    "15 longitudinal studies were included out of 400 retrieved; 11 were rated high quality and 4 moderate quality.",
+    "Strong and moderate evidence was found that a history of previous injury and having used orthotics/inserts were associated with increased injury risk.",
+    "Overall, women were at lower risk than men for sustaining running-related injuries; the review notes the risk profile appeared to differ by sex but few studies reported sexes separately.",
+    "Authors caution that results should be interpreted carefully because of recall bias, follow-up time and participation rates."
+  ],
+  "limitations": "Best-evidence synthesis without pooling; few studies reported results by sex; its 'women at lower risk' conclusion differs from the later Hollander 2021 meta-analysis (no overall sex difference).",
+  "implications": [
+    "Supports a previous-injury flag as the best-supported general (non-training) risk factor for running injury.",
+    "Do not use sex to change overall volume limits (conflicting evidence, see Hollander 2021)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref: PLoS ONE 10(2):e0114937 (Feb 2015), 6 authors. Abstract read from PubMed (PMID 25706955).",
+    "checkedAt": "2026-10-22"
+  }
+}

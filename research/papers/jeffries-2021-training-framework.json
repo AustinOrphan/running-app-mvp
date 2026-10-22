@@ -1,0 +1,33 @@
+{
+  "id": "jeffries-2021-training-framework",
+  "title": "Development of a revised conceptual framework of physical training for use in research and practice",
+  "authors": "Jeffries AC, Marcora SM, Coutts AJ, Wallace L, McCall A, Impellizzeri FM",
+  "year": 2021,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-021-01551-5",
+  "pmid": "34519982",
+  "url": "https://doi.org/10.1007/s40279-021-01551-5",
+  "design": "narrative-review",
+  "population": "Not applicable (qualitative synthesis integrating the Banister and PerPot frameworks)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["load-response-models"],
+  "findings": [
+    "Proposes 'training effects' as a measurable higher-order construct resulting from the combined effect of four possible responses (acute and chronic, positive and negative).",
+    "Explains training-effect measures (performance, physiological, subjective and other) and integrates a sport performance outcome continuum from improvement to overtraining.",
+    "Extends and defines the network of uni- and bidirectional linkages between individual and contextual factors and other constructs; applications include performance readiness and training tolerance when adapting training to individual responses."
+  ],
+  "limitations": "Conceptual framework without empirical validation; no parameter values. Published online 2021-09-14; Europe PMC lists the 2022 print year.",
+  "implications": [
+    "Model structure: keep separate stores for load (input), acute readiness/fatigue indicators and chronic performance measures, rather than one fitness-minus-fatigue scalar.",
+    "Include individual and contextual modifiers (age, sex, sleep, heat) as explicit moderators of response."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, Sports Med, 2021-09-14. Findings match abstract. The moderator examples in implications (age, sex, sleep, heat) are the engineers' application, not listed in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}
