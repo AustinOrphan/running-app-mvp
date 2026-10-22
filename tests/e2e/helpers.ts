@@ -1,0 +1,86 @@
+import { expect, type APIResponse, type Page } from '@playwright/test'
+import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { createPrisma, initSqlite } from '../../server/db.ts'
+import { E2E_DATABASE_URL } from './env.ts'
+
+/** Synthetic account shared by every spec. */
+export const RUNNER = {
+  email: 'runner@example.com',
+  password: 'correct horse battery',
+}
+
+/**
+ * Local-day dates computed from the clock, never hard-coded. The server derives "today" from the
+ * same machine clock, so the two agree.
+ */
+export function relativeDates() {
+  const today = todayIso()
+  const thisMonday = mondayOf(today)
+  return {
+    today,
+    thisMonday,
+    lastMonday: addDays(thisMonday, -7),
+    /** The Wednesday of last week: always finished, always inside the last 28 days. */
+    lastWednesday: addDays(thisMonday, -5),
+    /** The Monday three weeks ago, used as the plan start. */
+    planStart: addDays(thisMonday, -21),
+    /** The Saturday 20 weeks ahead. */
+    raceDate: addDays(thisMonday, 20 * 7 + 5),
+  }
+}
+
+type Body = Record<string, unknown>
+
+/**
+ * JSON calls through the page's request context, so the session cookie is shared with the page.
+ * Mutating requests carry an Origin, which the server's same-origin guard requires.
+ */
+export function apiFor(page: Page, origin: string) {
+  const headers = { Origin: origin }
+  async function ok(response: APIResponse): Promise<unknown> {
+    expect(response.ok(), `${response.url()} answered ${String(response.status())}`).toBe(true)
+    return response.status() === 204 ? null : response.json()
+  }
+  return {
+    get: async (path: string) => ok(await page.request.get(`/api${path}`)),
+    post: async (path: string, data?: Body) =>
+      ok(await page.request.post(`/api${path}`, { headers, data })),
+    delete: async (path: string) => ok(await page.request.delete(`/api${path}`, { headers })),
+  }
+}
+
+export type Api = ReturnType<typeof apiFor>
+
+/**
+ * Makes the page signed in as the runner without driving the UI: creates the account on a fresh
+ * database, signs in otherwise. A spec starts from here unless it is testing the auth screens.
+ */
+export async function signedInApi(page: Page, origin: string): Promise<Api> {
+  const api = apiFor(page, origin)
+  const status = (await api.get('/setup')) as { needsSetup: boolean }
+  await api.post(status.needsSetup ? '/setup' : '/auth/login', RUNNER)
+  return api
+}
+
+/**
+ * Empties everything the specs create, leaving the account, so each spec starts from a blank log.
+ * It writes to the server's SQLite file directly: the API has no way to retire an active plan.
+ */
+export async function resetData() {
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    await prisma.activity.deleteMany()
+    await prisma.importBatch.deleteMany()
+    await prisma.weeklyReview.deleteMany()
+    await prisma.plan.deleteMany()
+    await prisma.goal.deleteMany()
+  } finally {
+    await prisma.$disconnect()
+  }
+}
+
+/** The toast region announces confirmations; it is the one `role="status"` on a signed-in page. */
+export function toast(page: Page, message: string | RegExp) {
+  return page.getByRole('status').getByText(message)
+}
