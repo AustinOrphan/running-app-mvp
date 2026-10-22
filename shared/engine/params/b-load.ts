@@ -31,6 +31,50 @@ export const bLoad = {
         note: 'MAPE of one wrist device on a trail run; optical HR on hills, trail and intervals is rejected for TRIMP.',
       },
     ),
+    steadyHrBandBpm: param(
+      'b2.steadyHrBandBpm',
+      10,
+      'D',
+      'B2',
+      ['zhang-2020-wrist-ppg-meta', 'navalta-2020-trail-running-hr'],
+      {
+        unit: 'bpm',
+        note: 'Default: a run is steady when most of its heart-rate samples lie within this many bpm of the average.',
+      },
+    ),
+    steadyMinShare: param(
+      'b2.steadyMinShare',
+      0.8,
+      'D',
+      'B2',
+      ['zhang-2020-wrist-ppg-meta', 'navalta-2020-trail-running-hr'],
+      {
+        unit: 'fraction of samples',
+        note: 'Default: the share of samples inside the steady band for a run to count as steady.',
+      },
+    ),
+    minHistogramCoverage: param(
+      'b2.minHistogramCoverage',
+      0.9,
+      'D',
+      'B2',
+      ['zhang-2020-wrist-ppg-meta'],
+      {
+        unit: 'fraction of duration',
+        note: 'Default: wrist heart rate must cover at least this share of the run to pass the sample checks.',
+      },
+    ),
+    flatMaxGainPerKm: param(
+      'b2.flatMaxGainPerKm',
+      10,
+      'D',
+      'B2',
+      ['navalta-2020-trail-running-hr', 'bent-2020-ppg-inaccuracy'],
+      {
+        unit: 'm of ascent per km',
+        note: 'Default: a run with no more ascent per km than this counts as flat; hills and trail are rejected for wrist TRIMP.',
+      },
+    ),
   },
   b3: {
     trimpExponentMale: param(
@@ -80,6 +124,17 @@ export const bLoad = {
         note: 'Metric choice moved the implied timing of peak benefit by up to this many days; sRPE and TRIMP are never summed or converted.',
       },
     ),
+    metricMinCoverage: param(
+      'b4.metricMinCoverage',
+      0.6,
+      'D',
+      'B4',
+      ['vermeire-2021-load-quantification'],
+      {
+        unit: 'fraction of recent runs',
+        note: 'Default: a metric (sRPE, then TRIMP) drives the load series only when at least this share of runs in the chronic window has it; otherwise the next metric is used. Metrics are never combined.',
+      },
+    ),
   },
   b5: {
     divergenceSd: param('b5.divergenceSd', 1.5, 'D', 'B5', ['chen-2002-borg-rpe-meta'], {
@@ -97,5 +152,26 @@ export const bLoad = {
         note: 'Default: z-scores need at least this many prior sessions.',
       },
     ),
+  },
+  b7: {
+    monotonyWindowDays: param(
+      'b7.monotonyWindowDays',
+      7,
+      'C',
+      'B7',
+      ['foster-1998-monotony-strain'],
+      {
+        unit: 'days',
+        note: 'Monotony is the mean daily load over a week divided by its standard deviation.',
+      },
+    ),
+    ownRangeSd: param('b7.ownRangeSd', 1.5, 'D', 'B7', ['foster-1998-monotony-strain'], {
+      unit: 'SD',
+      note: "Default: monotony or strain is flagged only when it exceeds the athlete's own mean by this many standard deviations.",
+    }),
+    ownRangeMinWeeks: param('b7.ownRangeMinWeeks', 6, 'D', 'B7', ['foster-1998-monotony-strain'], {
+      unit: 'weeks',
+      note: "Default: fewest earlier weeks that define the athlete's own range.",
+    }),
   },
 } satisfies ParamGroups
