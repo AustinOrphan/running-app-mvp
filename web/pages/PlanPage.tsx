@@ -34,6 +34,7 @@ import { distanceClassOf } from '../../shared/engine/goal.ts'
 import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
+import { groupWarnings, localiseEngineText } from '../components/engineText.ts'
 import type { EngineWarning } from '../../shared/engine/types.ts'
 import type {
   Goal,
@@ -536,9 +537,11 @@ function WhyButton({
 
 function WhatChanged({
   revisions,
+  units,
   onWhy,
 }: {
   revisions: ReturnType<typeof usePlanRevisions>
+  units: Units | undefined
   onWhy: (rules: string[]) => void
 }) {
   let body
@@ -565,7 +568,7 @@ function WhatChanged({
                   {formatShortDate(todayIso(new Date(revision.createdAt)))}
                 </span>
               </p>
-              <p>{revision.summary}</p>
+              <p>{localiseEngineText(revision.summary, units)}</p>
               {revision.changes.length > 0 ? (
                 <ul className={styles.changes}>
                   {revision.changes.map((change, index) => (
@@ -601,6 +604,7 @@ function PlanOverview({
   onWhy: (rules: string[]) => void
 }) {
   const revisions = usePlanRevisions()
+  const units = useSettings().data?.units
   const passed = plan.checklist.filter((item) => item.ok).length
   const feasibility = plan.feasibility
 
@@ -623,7 +627,7 @@ function PlanOverview({
             <ul className={styles.items}>
               {feasibility.notes.map((note, index) => (
                 <li key={`${note.code}-${String(index)}`}>
-                  <span>{note.message}</span>
+                  <span>{localiseEngineText(note.message, units)}</span>
                   <WhyButton rules={note.rules} label="Why this note" onOpen={onWhy} />
                 </li>
               ))}
@@ -637,12 +641,24 @@ function PlanOverview({
             Warnings
           </h2>
           <ul className={styles.items}>
-            {plan.warnings.map((warning) => (
-              <li key={`${warning.code}-${warning.message}`}>
-                <span>
-                  <strong>{SEVERITY_LABELS[warning.severity]}</strong> {warning.message}
+            {groupWarnings(plan.warnings, units).map((group) => (
+              <li key={group.code}>
+                <span className={styles.warningText}>
+                  <span>
+                    <strong>{SEVERITY_LABELS[group.severity]}</strong> {group.summary}
+                  </span>
+                  {group.details.length > 1 ? (
+                    <details className={styles.warningDetails}>
+                      <summary>Show each one</summary>
+                      <ul>
+                        {group.details.map((detail) => (
+                          <li key={detail}>{detail}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : null}
                 </span>
-                <WhyButton rules={warning.rules} label="Why this warning" onOpen={onWhy} />
+                <WhyButton rules={group.rules} label="Why this warning" onOpen={onWhy} />
               </li>
             ))}
           </ul>
@@ -659,7 +675,8 @@ function PlanOverview({
               {plan.checklist.map((item) => (
                 <li key={item.id}>
                   <span>
-                    <strong>{item.ok ? 'Passed' : 'Not met'}</strong> {item.detail}
+                    <strong>{item.ok ? 'Passed' : 'Not met'}</strong>{' '}
+                    {localiseEngineText(item.detail, units)}
                   </span>
                   <WhyButton rules={item.rules} label="Why this check" onOpen={onWhy} />
                 </li>
@@ -668,7 +685,7 @@ function PlanOverview({
           </details>
         </section>
       ) : null}
-      <WhatChanged revisions={revisions} onWhy={onWhy} />
+      <WhatChanged revisions={revisions} units={units} onWhy={onWhy} />
     </div>
   )
 }
