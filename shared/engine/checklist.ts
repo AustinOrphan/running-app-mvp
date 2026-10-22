@@ -90,16 +90,25 @@ function weekMinutes(sessions: SessionSpec[], weekStart: string, from: string): 
     .reduce((sum, s) => sum + s.durationMin, 0)
 }
 
-/** Largest value among `count` weeks that end `lag` weeks before `weekStart`; null when none is known. */
+/**
+ * Largest value among `count` weeks that end `lag` weeks before `weekStart`; null when none is
+ * known. Weeks in `skip` (recovery and taper weeks) are left out.
+ */
 function highest(
   values: ReadonlyMap<string, number>,
   weekStart: string,
   lag: number,
   count: number,
+  skip?: ReadonlySet<string>,
+  lookback = count,
 ): number | null {
   let best: number | null = null
-  for (let k = 0; k < count; k++) {
-    const v = values.get(addDays(weekStart, -7 * (lag + k)))
+  for (let k = 0; k < Math.max(count, lookback); k++) {
+    const week = addDays(weekStart, -7 * (lag + k))
+    // past the window, only a window that found nothing keeps looking
+    if (k >= count && best !== null) break
+    if (skip?.has(week)) continue
+    const v = values.get(week)
     if (v !== undefined) best = best === null ? v : Math.max(best, v)
   }
   return best
@@ -131,6 +140,12 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
   const failures: string[] = []
   const ahead = toRun(draft, input)
   let soft = 0
+  // A recovery or taper week never sets the ceiling baseline. The restart floor week is exempt from
+  // G-2 up to the floor and is the ceiling baseline of the week after it [design-macro].
+  const lowWeeks = new Set(
+    draft.weeks.filter((w) => w.isRecovery || w.isTaper).map((w) => w.weekStart),
+  )
+  const floorWeek = draft.weeks.find((w) => w.flags.includes('restart-floor'))
   for (const weekStart of starts) {
     if (weekStart < currentMonday) continue
     // The current week holds what was already run plus the sessions still planned.
@@ -142,15 +157,33 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
       positive(highest(volume, weekStart, 1, baselineWeeks)) ??
       (state.typicalWeekMin > 0 ? state.typicalWeekMin : null)
     if (base === null) continue
+    const afterFloor =
+      floorWeek !== undefined &&
+      weekStart > floorWeek.weekStart &&
+      daysBetween(floorWeek.weekStart, weekStart) <= 7 * (P.g2.ceilingWindowWeeks.value - 1)
+    const window = highest(
+      volume,
+      weekStart,
+      P.g2.ceilingWindowWeeks.value,
+      baselineWeeks,
+      lowWeeks,
+      P.g2.ceilingLookbackWeeks.value,
+    )
+    const floorBase = afterFloor ? (volume.get(floorWeek.weekStart) ?? null) : null
     const ceilingBase =
-      positive(highest(volume, weekStart, P.g2.ceilingWindowWeeks.value, baselineWeeks)) ?? base
+      positive(
+        window === null ? floorBase : floorBase === null ? window : Math.max(window, floorBase),
+      ) ?? base
     const ceilingLimit = limitOf(ceilingBase, P.g2.rampCeilingTwoWeeks.value)
     const tightLimit = tight === null ? Infinity : limitOf(base, tight)
-    if (total > Math.min(ceilingLimit, tightLimit) + EPS) {
+    let allowed = Math.min(ceilingLimit, tightLimit)
+    const isFloorWeek = floorWeek !== undefined && weekStart === floorWeek.weekStart
+    if (isFloorWeek) allowed = Math.max(allowed, floorWeek.targetRunMin)
+    if (total > allowed + EPS) {
       failures.push(
-        `week of ${weekStart}: ${Math.round(total)} min is above ${Math.round(Math.min(ceilingLimit, tightLimit))} min`,
+        `week of ${weekStart}: ${Math.round(total)} min is above ${Math.round(allowed)} min`,
       )
-    } else if (total > limitOf(base, P.g2.rampSoft.value) + EPS) soft += 1
+    } else if (!isFloorWeek && total > limitOf(base, P.g2.rampSoft.value) + EPS) soft += 1
   }
   if (failures.length > 0) return result('progression', false, failures.join('; '), rules)
   return result(
@@ -354,8 +387,10 @@ function breakRestartItem(
     return result('break-restart', true, 'No break of 7 days or more before the plan.', rules)
   }
   const { restartMin, fraction } = breakRestart(state.layoffDays, state.typicalWeekMin)
-  const limit = restartMin * (1 + P.g2.rampSoft.value) + 1
   const first = sortedWeeks(draft).find((w) => w.weekStart >= mondayOf(input.today))
+  // The restart floor week starts above the restart volume by design [design-macro].
+  const floorMin = first?.flags.includes('restart-floor') ? first.targetRunMin : 0
+  const limit = Math.max(restartMin * (1 + P.g2.rampSoft.value) + 1, floorMin + 1)
   const done = state.weeks.find((w) => w.weekStart === mondayOf(input.today))?.runMin ?? 0
   const planned =
     first === undefined ? 0 : done + weekMinutes(toRun(draft, input), first.weekStart, input.today)

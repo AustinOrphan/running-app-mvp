@@ -144,6 +144,7 @@ function generate(
 
   // Micro: each week to days; weeks see the sessions placed before them.
   const placed: SessionSpec[] = []
+  const shortOfDays: Array<{ weekStart: string; open: number; wanted: number }> = []
   const history: SessionSpec[] = [...kept]
   for (const week of macro) {
     const isCurrent = week.weekStart === currentMonday
@@ -173,6 +174,18 @@ function generate(
       planWeek.targetRunMin > 0 || planWeek.strengthSessions > 0
         ? placeWeek(planWeek, { profile, zones, state, prevSessions: history })
         : []
+    // Fewer run days open than planned: the week gets the days there are, and the plan says so.
+    const open = WEEKDAYS.filter((day) => {
+      const a = profile.availability[day]
+      return a.available && (a.maxMin === null || a.maxMin >= P.fplace.minRunDayMin.value)
+    }).length
+    if (
+      planWeek.targetRunMin > 0 &&
+      !planWeek.flags.includes('post-race') &&
+      open < planWeek.runDays
+    ) {
+      shortOfDays.push({ weekStart: week.weekStart, open, wanted: planWeek.runDays })
+    }
     // The race day holds the race and the rest of race week is the start of recovery; the weeks
     // after it keep their own (reduced) sessions.
     const raceMonday = mondayOf(goal.date)
@@ -182,8 +195,14 @@ function generate(
   }
 
   // Guards over the whole plan.
+  const floorWeek = macro.find((w) => w.flags.includes('restart-floor'))
   const guarded = applyGuards(placed, state, input.activities, {
     ultraRaceDurationSec: goal.isUltra ? goal.expectedDurationSec : null,
+    lowWeeks: macro.filter((w) => w.isRecovery || w.isTaper).map((w) => w.weekStart),
+    restartFloor:
+      floorWeek === undefined
+        ? null
+        : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
   })
 
   // Race day.
@@ -195,6 +214,15 @@ function generate(
   const all = [...kept, ...sessions].sort(bySlot)
 
   const warnings: EngineWarning[] = [...feas.notes, ...guarded.warnings]
+  if (shortOfDays.length > 0) {
+    const first = shortOfDays[0]!
+    warnings.push({
+      code: 'availability-limits-runs',
+      severity: 'info',
+      message: `${shortOfDays.length} week(s), from the week of ${first.weekStart}, have fewer open run days (${first.open}) than the ${first.wanted} planned, so those weeks hold the runs on the days that are open.`,
+      rules: ['F5'],
+    })
+  }
   if (goal.raceWbgtC !== null) {
     const heat = heatWarning(goal.raceWbgtC)
     if (heat !== null) warnings.push(heat)

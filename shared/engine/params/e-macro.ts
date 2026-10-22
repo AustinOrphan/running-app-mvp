@@ -170,6 +170,35 @@ export const eMacro = {
       note: 'Default: one maintenance session per week after the strength block.',
     }),
   },
+  // The restart floor: the first week of a plan for a runner whose recent weeks are below it.
+  restartFloor: {
+    sessions: param(
+      'restartFloor.sessions',
+      3,
+      'D',
+      'design-macro',
+      ['kluitenberg-2015-nlstart2run', 'buist-2008-graded-training'],
+      {
+        unit: 'sessions per week',
+        note: 'Default: novice and return programmes start at about three sessions of 20-30 minutes. G-2 governs growth from an established weekly base, so the floor week itself is exempt from G-2; every session still obeys G-1.',
+      },
+    ),
+    sessionMin: param(
+      'restartFloor.sessionMin',
+      20,
+      'D',
+      'design-macro',
+      ['kluitenberg-2015-nlstart2run', 'buist-2008-graded-training'],
+      {
+        unit: 'min per session',
+        note: 'Default: novice and return programmes start at about three sessions of 20-30 minutes; the low end is the floor.',
+      },
+    ),
+    lookbackDays: param('restartFloor.lookbackDays', 90, 'D', 'design-macro', [], {
+      unit: 'days',
+      note: 'Default: the floor sessions are plain runs when the runner completed a run of at least the floor session length within this many days, and run-walk otherwise.',
+    }),
+  },
   // Engine defaults that the rules leave open. Every one is grade D with no evidence: they size
   // the plan around the rules' limits and are labelled as defaults wherever they are shown.
   macroDesign: {

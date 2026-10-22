@@ -6,6 +6,7 @@
 // Race week is the last week with the race in it: its volume is the shake-out running around the
 // race, not the race itself, and its long run is 0. The weeks after the race (H12) follow it.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
+import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import type {
   AthleteState,
@@ -239,6 +240,35 @@ function gainShare(phase: PhaseV2): number {
   return P.macroDesign.gainShareSpecific.value
 }
 
+/** The restart floor week: its minutes, and whether the runner has a recent run to build on. */
+export interface RestartFloor {
+  minutes: number
+  hasRecentRun: boolean
+}
+
+/**
+ * The first week of a plan for a runner whose typical week is under the floor (sessions x session
+ * length) starts at the floor instead [design-macro]: novice and return programmes begin at about
+ * three sessions of 20-30 minutes, and the 10% ramp from a very small week never reaches a useful
+ * volume. Tightened profiles (recent injury, bone stress history) are not lifted. The sessions
+ * are plain runs when a run of the floor length was completed in the last 90 days, else run-walk.
+ */
+export function restartFloor(input: EngineInput, state: AthleteState): RestartFloor | null {
+  const minutes = P.restartFloor.sessions.value * P.restartFloor.sessionMin.value
+  if (state.typicalWeekMin <= 0 || state.typicalWeekMin >= minutes) return null
+  if (weeklyRamp(state) < P.g2.rampSoft.value) return null
+  const since = addDays(input.today, -P.restartFloor.lookbackDays.value)
+  const hasRecentRun = input.activities.some(
+    (a) =>
+      (a.type === 'run' || a.type === 'race') &&
+      !isDuplicate(a) &&
+      a.date >= since &&
+      a.date <= input.today &&
+      a.durationSec >= P.restartFloor.sessionMin.value * 60,
+  )
+  return { minutes, hasRecentRun }
+}
+
 /**
  * Phases built backwards from race day, weekly targets, TID targets, fixed blocks and the
  * post-race weeks [rules e, h, k]. Feasibility labels the plan elsewhere; it never changes a limit.
@@ -279,12 +309,26 @@ export function macroPlan(
   const daysFor = (target: number) => {
     if (target <= 0) return 0
     if (novice) return minDays
-    return Math.min(maxDays, Math.max(minDays, Math.round(target / sessionMin)))
+    // volume sets a floor on the run days: 4 from 3 h, 5 from 5 h, 6 from 7 h [F5]
+    const byVolume =
+      target >= P.f5.sixDaysFromWeeklyMin.value
+        ? 6
+        : target >= P.f5.fiveDaysFromWeeklyMin.value
+          ? 5
+          : target >= P.f5.fourDaysFromWeeklyMin.value
+            ? 4
+            : 0
+    return Math.min(maxDays, Math.max(minDays, Math.round(target / sessionMin), byVolume))
   }
 
   // Weekly targets, long runs, run days and gain for the pre-taper weeks
+  const restart = restartFloor(input, state)
   const start =
-    state.typicalWeekMin > 0 ? state.typicalWeekMin : P.macroDesign.startFloorWeekMin.value
+    restart !== null
+      ? restart.minutes
+      : state.typicalWeekMin > 0
+        ? state.typicalWeekMin
+        : P.macroDesign.startFloorWeekMin.value
   const ceiling = Math.max(peakWeeklyMin(goal, pace), start)
   const peakLong = peakLongRunMin(goal, pace)
   const hasGain = goal.gainM > 0 && goal.distanceM > 0
@@ -327,7 +371,9 @@ export function macroPlan(
     longRun.push(long)
     prevLong = long
 
-    prevDays = Math.max(prevDays, daysFor(t))
+    // the restart floor week holds its floor sessions [design-macro]
+    const floorDays = i === 0 && restart !== null ? P.restartFloor.sessions.value : 0
+    prevDays = Math.max(prevDays, daysFor(t), floorDays)
     runDays.push(prevDays)
 
     if (hasGain) {
@@ -387,6 +433,10 @@ export function macroPlan(
     if (i < blockLen) flag(i, 'strength-block')
   }
   if (preCount > 0) flag(preCount - 1, 'peak')
+  if (restart !== null && preCount > 0) {
+    flag(0, 'restart-floor')
+    if (!restart.hasRecentRun) flag(0, 'run-walk')
+  }
 
   const specificIdx = phases.map((p, i) => (p.phase === 'specific' ? i : -1)).filter((i) => i >= 0)
   if (goal.isUltra || goal.distanceClass === 'marathon') {

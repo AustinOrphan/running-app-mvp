@@ -128,9 +128,23 @@ describe.each(all)('plan matrix: $label', (a) => {
     const at = (weekStart: string, back: number) => volume.get(addDays(weekStart, -7 * back)) ?? 0
     const tight = state.risk.priorBsi || state.risk.recentInjury ? 0.05 : null
     const bad: string[] = []
+    // The restart floor week is exempt from G-2 and is the ceiling baseline of the week after it.
+    const floor = plan.weeks.find((w) => w.flags.includes('restart-floor'))
     for (const w of planWeeks(plan)) {
       const total = at(w.weekStart, 0)
-      const ceilingBase = Math.max(at(w.weekStart, 2), at(w.weekStart, 3))
+      if (floor !== undefined && w.weekStart === floor.weekStart) {
+        // exempt from G-2 only up to the floor
+        if (total > floor.targetRunMin + 1) {
+          bad.push(`${w.weekStart}: floor week ${Math.round(total)} min > ${floor.targetRunMin}`)
+        }
+        continue
+      }
+      const afterFloor = floor !== undefined && daysBetween(floor.weekStart, w.weekStart) === 7
+      const ceilingBase = Math.max(
+        at(w.weekStart, 2),
+        at(w.weekStart, 3),
+        afterFloor ? at(w.weekStart, 1) : 0,
+      )
       const previous = Math.max(at(w.weekStart, 1), at(w.weekStart, 2))
       const step = state.experience === 'novice' ? 1 : 0
       const base = previous > 0 ? previous : state.typicalWeekMin
@@ -416,5 +430,182 @@ describe('plan matrix: per-athlete expectations', () => {
     expect(plan.prediction!.highSec).toBeGreaterThan(plan.prediction!.predictedSec)
     const race: SessionSpec = plan.sessions.find((s) => s.kind === 'race')!
     expect(race.target.paceSecPerKm).not.toBeNull()
+  })
+})
+
+// ---- plan adequacy [task E16] ----
+
+const MIN_RUN = 20
+const RUN_WALK_MIN = 15
+
+/** Weeks the guards shortened: the warning message names the Monday of the week. */
+function cutWeeks(plan: PlanDraft): Set<string> {
+  const out = new Set<string>()
+  for (const w of plan.warnings) {
+    if (w.code !== 'ramp-ceiling' && w.code !== 'ramp-tightened') continue
+    const m = /week of (\d{4}-\d{2}-\d{2})/.exec(w.message)
+    if (m !== null) out.add(m[1]!)
+  }
+  return out
+}
+
+/** Weeks placed in full: not the part week the plan opens in, the race week or the weeks after it. */
+function fullWeeks(plan: PlanDraft) {
+  return planWeeks(plan).filter(
+    (w) =>
+      w.weekStart > mondayOf(TODAY) &&
+      !w.flags.includes('race-week') &&
+      !w.flags.includes('post-race'),
+  )
+}
+
+describe.each(all)('plan adequacy: $label', (a) => {
+  const plan = planOf(a)
+  const state = estimateState(a.input)
+
+  it('places the run days of every week plus its strength sessions', () => {
+    const cut = cutWeeks(plan)
+    const bad: string[] = []
+    for (const w of fullWeeks(plan)) {
+      const sessions = plan.sessions.filter((s) => mondayOf(s.date) === w.weekStart)
+      const runs = sessions.filter((s) => ANY_RUN.has(s.kind))
+      const strength = sessions.filter((s) => s.kind === 'strength')
+      const open = WEEKDAYS.filter((d) => {
+        const day = a.input.profile.availability[d]
+        return day.available && (day.maxMin === null || day.maxMin >= RUN_WALK_MIN)
+      }).length
+      let days = w.runDays
+      if (state.experience === 'novice') days = Math.min(days, 3)
+      if (state.age !== null && state.age >= 40) days = Math.min(days, 6)
+      const walking = runs.some((s) => s.flags.includes('run-walk'))
+      const fit = Math.floor(w.targetRunMin / (walking ? RUN_WALK_MIN : MIN_RUN))
+      const lowest = w.isRecovery || w.isTaper ? 1 : Math.min(2, days)
+      const expected = Math.min(days, open, Math.max(lowest, fit))
+      if (cut.has(w.weekStart)) {
+        if (runs.length < 1) bad.push(`${w.weekStart}: no run left`)
+        continue
+      }
+      if (runs.length !== expected) {
+        bad.push(`${w.weekStart}: ${runs.length} runs, expected ${expected} (runDays ${w.runDays})`)
+      }
+      if (strength.length !== w.strengthSessions) {
+        bad.push(`${w.weekStart}: ${strength.length} strength sessions of ${w.strengthSessions}`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('keeps every run at the session minimum outside run-walk, and the long run the longest', () => {
+    const bad: string[] = []
+    for (const s of plan.sessions) {
+      if (!RUNNING.has(s.kind) || s.flags.includes('run-walk')) continue
+      if (s.durationMin < MIN_RUN) bad.push(`${s.date} ${s.kind} ${s.durationMin} min`)
+    }
+    for (const w of fullWeeks(plan)) {
+      const runs = plan.sessions.filter(
+        (s) => mondayOf(s.date) === w.weekStart && RUNNING.has(s.kind),
+      )
+      const long = runs.find((s) => s.kind === 'long' || s.kind === 'long-fast-finish')
+      if (long === undefined) continue
+      const longer = runs.find((s) => s.durationMin > long.durationMin)
+      if (longer !== undefined) {
+        bad.push(
+          `${w.weekStart}: ${longer.kind} ${longer.durationMin} min is longer than the long run`,
+        )
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('never holds a week down for a recovery or taper week two weeks earlier', () => {
+    const byStart = new Map(plan.weeks.map((w) => [w.weekStart, w]))
+    const bad: string[] = []
+    for (const warning of plan.warnings) {
+      if (warning.code !== 'ramp-ceiling') continue
+      const m = /week of (\d{4}-\d{2}-\d{2})/.exec(warning.message)
+      const earlier = byStart.get(addDays(m![1]!, -14))
+      if (earlier !== undefined && (earlier.isRecovery || earlier.isTaper)) {
+        bad.push(
+          `${m![1]}: held by the ${earlier.isTaper ? 'taper' : 'recovery'} week of ${earlier.weekStart}`,
+        )
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('plans the minutes of the week target, within 10%', () => {
+    const volume = weeklyVolume(a, plan)
+    const bad: string[] = []
+    for (const w of fullWeeks(plan)) {
+      const planned = volume.get(w.weekStart) ?? 0
+      if (w.targetRunMin <= 0) continue
+      if (Math.abs(planned - w.targetRunMin) > w.targetRunMin * 0.1 + 1) {
+        bad.push(`${w.weekStart}: ${Math.round(planned)} planned vs ${w.targetRunMin} target`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('lists each week flag once', () => {
+    for (const w of plan.weeks) expect(new Set(w.flags).size, w.weekStart).toBe(w.flags.length)
+  })
+
+  it('gives at least four run days from 3 h, five from 5 h and six from 7 h when the days are free', () => {
+    const open = WEEKDAYS.filter((d) => a.input.profile.availability[d].available).length
+    const bad: string[] = []
+    for (const w of fullWeeks(plan)) {
+      if (w.isTaper || w.isRecovery || state.experience === 'novice') continue
+      const want =
+        w.targetRunMin >= 420 ? 6 : w.targetRunMin >= 300 ? 5 : w.targetRunMin >= 180 ? 4 : 0
+      if (Math.min(want, open) > w.runDays) {
+        bad.push(`${w.weekStart}: ${w.runDays} run days at ${w.targetRunMin} min`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
+})
+
+describe('plan adequacy: sparse history, first 100-mile', () => {
+  const a = all.find((x) => x.id === 'sparse-100-mile')!
+  const plan = planOf(a)
+
+  it('starts with three runs of at least 20 minutes on non-consecutive days', () => {
+    const first = plan.sessions.filter(
+      (s) => mondayOf(s.date) === mondayOf(TODAY) && ANY_RUN.has(s.kind),
+    )
+    expect(first).toHaveLength(3)
+    for (const s of first) expect(s.durationMin).toBeGreaterThanOrEqual(MIN_RUN)
+    const dates = first.map((s) => s.date).sort()
+    for (let i = 1; i < dates.length; i++) {
+      expect(daysBetween(dates[i - 1]!, dates[i]!)).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('grows to 6 h in the last specific week with a 3 h long run, and labels feasibility', () => {
+    const specific = planWeeks(plan).filter((w) => w.phase === 'specific' && !w.isRecovery)
+    const last = specific.at(-1)!
+    const volume = weeklyVolume(a, plan)
+    const long = Math.max(
+      ...plan.sessions
+        .filter((s) => mondayOf(s.date) === last.weekStart && RUNNING.has(s.kind))
+        .map((s) => s.durationMin),
+    )
+    // The label is not-reachable (goal.ts asks for more weeks than there are), and it says so;
+    // the plan still has to grow to the volume and the long run.
+    expect(plan.feasibility.label).toBe('not-reachable')
+    expect(plan.warnings.some((w) => w.code === 'not-reachable')).toBe(true)
+    expect(volume.get(last.weekStart) ?? 0).toBeGreaterThanOrEqual(360)
+    expect(long).toBeGreaterThanOrEqual(180)
+  })
+
+  it('does not collapse to one session a week after the opening weeks', () => {
+    const counts = fullWeeks(plan)
+      .filter((w) => !w.isTaper)
+      .map(
+        (w) =>
+          plan.sessions.filter((s) => mondayOf(s.date) === w.weekStart && ANY_RUN.has(s.kind))
+            .length,
+      )
+    expect(Math.min(...counts)).toBeGreaterThanOrEqual(2)
   })
 })

@@ -282,9 +282,10 @@ describe('placeWeek', () => {
     })
 
     it('allows one pair every 2 weeks', () => {
+      // a pair of 150 and 100 min sets the 2-day total the next pair is measured against [H3]
       const lastWeek = [
-        session({ date: '2026-10-31', kind: 'b2b', flags: ['b2b-day1'] }),
-        session({ date: '2026-11-01', kind: 'b2b', flags: ['b2b-day2'] }),
+        session({ date: '2026-10-31', kind: 'b2b', flags: ['b2b-day1'], durationMin: 150 }),
+        session({ date: '2026-11-01', kind: 'b2b', flags: ['b2b-day2'], durationMin: 100 }),
       ]
       expect(place(b2bWeek(), { prev: lastWeek }).some((s) => s.kind === 'b2b')).toBe(false)
       const older = lastWeek.map((s) => ({ ...s, date: addDays(s.date, -7) }))
@@ -369,6 +370,117 @@ describe('placeWeek', () => {
         week({ targetRunMin: 0, longRunMin: 0, runDays: 0, strengthSessions: 1 }),
       )
       expect(sessions.map((s) => s.kind)).toEqual(['strength'])
+    })
+  })
+
+  describe('session minimums', () => {
+    const MIN = P.fplace.easyRunMinMin.value
+    const runs = (sessions: SessionSpec[]) => sessions.filter(isRun)
+
+    it('places fewer runs rather than runs under the minimum', () => {
+      const sessions = place(week({ targetRunMin: 70, longRunMin: 30, runDays: 5 }))
+      expect(runs(sessions)).toHaveLength(3)
+      for (const s of runs(sessions)) expect(s.durationMin).toBeGreaterThanOrEqual(MIN)
+      expect(runMinutes(sessions)).toBe(70)
+    })
+
+    it('places at least two runs outside recovery, taper and race weeks, and one inside them', () => {
+      const small = { targetRunMin: 30, longRunMin: 15, runDays: 4, qualitySessions: 0 }
+      const plain = place(week(small))
+      expect(runs(plain)).toHaveLength(2)
+      for (const s of runs(plain)) expect(s.durationMin).toBeGreaterThanOrEqual(MIN)
+      for (const over of [{ isRecovery: true }, { isTaper: true }]) {
+        expect(runs(place(week({ ...small, ...over })))).toHaveLength(1)
+      }
+    })
+
+    it('keeps the long run at the minimum and the longest run of the week', () => {
+      const short = place(week({ targetRunMin: 100, longRunMin: 8, runDays: 3 }))
+      const long = short.find((s) => s.kind === 'long')!
+      expect(long.durationMin).toBeGreaterThanOrEqual(MIN)
+      for (const s of runs(short)) expect(s.durationMin).toBeLessThanOrEqual(long.durationMin)
+    })
+
+    it('lets the long run take the share of the runs left out, so it stays the longest', () => {
+      const sessions = place(
+        week({
+          targetRunMin: 54,
+          longRunMin: 23,
+          runDays: 3,
+          isRecovery: true,
+          qualitySessions: 0,
+        }),
+      )
+      expect(runs(sessions)).toHaveLength(2)
+      const long = sessions.find((s) => s.kind === 'long')!
+      expect(runMinutes(sessions)).toBe(54)
+      for (const s of runs(sessions)) expect(s.durationMin).toBeLessThanOrEqual(long.durationMin)
+    })
+
+    it('keeps the run day minimum for run-walk weeks', () => {
+      const walk = place(
+        week({ targetRunMin: 45, longRunMin: 15, runDays: 3, flags: ['run-walk'] }),
+      )
+      expect(runs(walk)).toHaveLength(3)
+      for (const s of runs(walk)) {
+        expect(s.durationMin).toBeGreaterThanOrEqual(P.fplace.minRunDayMin.value)
+        expect(s.flags).toContain('run-walk')
+      }
+    })
+  })
+
+  describe('restart floor week', () => {
+    it('places three runs of 20 min on non-consecutive days in the days left of a part week', () => {
+      // Wednesday to Sunday are open; the long-run day is Saturday, which would leave room for two
+      const avail = availability({
+        mon: { available: false, maxMin: null },
+        tue: { available: false, maxMin: null },
+      })
+      const sessions = place(
+        week({
+          index: 0,
+          targetRunMin: 60,
+          longRunMin: 27,
+          runDays: 3,
+          qualitySessions: 0,
+          flags: ['restart-floor'],
+        }),
+        { profile: profile({ availability: avail }) },
+      )
+      const days = sessions
+        .filter(isRun)
+        .map(dayOf)
+        .sort((a, b) => a - b)
+      expect(days).toHaveLength(3)
+      for (let i = 1; i < days.length; i++)
+        expect(days[i]! - days[i - 1]!).toBeGreaterThanOrEqual(2)
+      for (const s of sessions.filter(isRun)) expect(s.durationMin).toBeGreaterThanOrEqual(20)
+      expect(runMinutes(sessions)).toBe(60)
+    })
+  })
+
+  describe('pairs and the 2-day total', () => {
+    const b2bWeek = () =>
+      week({ phase: 'specific', flags: ['b2b'], targetRunMin: 480, longRunMin: 180, runDays: 5 })
+    const history = (day2: number) => [
+      session({ date: '2026-10-24', kind: 'long', durationMin: 150 }),
+      session({ date: '2026-10-25', kind: 'easy', durationMin: day2 }),
+    ]
+
+    it('shortens day 2 to stay within 1.10x of the largest 2-day total (H3)', () => {
+      const sessions = place(b2bWeek(), { prev: history(60) })
+      const day1 = sessions.find((s) => s.flags.includes('b2b-day1'))!
+      const day2 = sessions.find((s) => s.flags.includes('b2b-day2'))!
+      expect(day1.durationMin).toBe(180)
+      expect(day1.durationMin + day2.durationMin).toBe(Math.floor(210 * P.h3.b2bTwoDayRatio.value))
+      expect(day2.durationMin).toBeLessThan(Math.round(180 * P.fplace.b2bDay2Fraction.value))
+    })
+
+    it('drops the pair for a single long run when day 2 would fall under the minimum', () => {
+      const sessions = place(b2bWeek(), { prev: history(30) })
+      expect(sessions.some((s) => s.kind === 'b2b')).toBe(false)
+      expect(sessions.some((s) => s.kind === 'long' || s.kind === 'long-fast-finish')).toBe(true)
+      expect(sessions.filter(isRun).length).toBeGreaterThanOrEqual(2)
     })
   })
 })
