@@ -310,3 +310,60 @@ Review; data via `import.meta.glob` (lazy).
 E2E spec per spec 9; README "Training engine" section (what it does, what it does not, the
 disclaimer, how evidence and defaults are shown); `docs/STATUS.md`; ADR 0005 (deterministic
 evidence-graded engine, LLM text only) and ADR 0006 (provider framework, experimental Garmin).
+
+## Group EF (found by local validation, 2026-10-22)
+
+### Task E16: Plan adequacy — projection, recovery baselines, restart floor, session minimums
+
+A plan generated from a real, sparse recent history (one run of about 30 minutes most weeks,
+an 84-minute run seven weeks earlier, a 10-day gap; goal 100 miles on trail, finish-first,
+33 weeks away) passed every checklist item yet was unusable: 30 minutes in week 1 split into
+runs of 10-13 minutes, a peak of 3.7 h with a 72-minute long run, and from week 12 on a
+single session per week. Causes and required behaviour:
+
+1. **Projection.** `applyGuards` measures G-2 baselines from a volume map filled only with
+   completed weeks, and G-1 references only completed runs, so every future week is compared
+   with the last real week. Future weeks must be guarded against the projected history:
+   completed runs up to `today`, then the guarded planned sessions of earlier weeks in date
+   order. After a week is final, its total enters the volume map and its runs enter the
+   G-1 records. Re-plans re-anchor on actual data (they already pass `history`).
+2. **Recovery and taper weeks never lower a baseline.** The soft ramp uses the highest of the
+   previous `g2.baselineWeeks` weeks (keep). The 2-week ceiling compares with the highest
+   non-recovery, non-taper week in the window ending two weeks earlier, so a planned recovery
+   week cannot hold the following weeks down. The week after a recovery week may return to
+   the pre-recovery level and grow from it.
+3. **Restart floor (new params, grade D, in `e-macro.ts`):** `restartFloor.sessions = 3`,
+   `restartFloor.sessionMin = 20`, evidence `kluitenberg-2015-nlstart2run`,
+   `buist-2008-graded-training`, note: novice and return programmes start at about three
+   sessions of 20-30 minutes; G-2 governs growth from an established weekly base, so the
+   floor week itself is exempt from G-2. When `typicalWeekMin` is below sessions × sessionMin
+   and the runner has completed a run of at least `sessionMin` in the last 90 days, the first
+   week's target is sessions × sessionMin on non-consecutive days; every session still obeys
+   G-1. Without such a run, the floor sessions are run-walk (flag `run-walk`). Growth from
+   the floor follows G-2.
+4. **Session minimums (grade D params in `f-micro.ts`):** easy and recovery runs at least 20
+   minutes (run-walk allowed for novices and returners); the long run at least the easy-run
+   minimum and never shorter than the week's other runs. When a week's minutes cannot fit
+   `runDays` runs at the minimum, place fewer runs (never below 2 outside taper, race and
+   recovery weeks) instead of shrinking runs below the minimum. Guards that shorten a week
+   scale the movable sessions down to the minimum and then remove the shortest easy run; the
+   long run is never removed by a ramp cut.
+5. **Run days follow volume** within availability and the F5 caps (novices 3 for their first
+   6 weeks; 40 and over at most 6): verify the existing `daysFor` produces at least 4 days
+   from 3 h, 5 days from 5 h, 6 days from 7 h of weekly running when the days are available;
+   fix and add params if it does not.
+6. **Placement completeness.** Every non-race, non-post-race week places exactly its `runDays`
+   runs plus its strength sessions (unless availability prevents it, which yields a warning).
+7. **Week flags** are unique (no `recovery,recovery` or `taper,taper`).
+8. **Adequacy tests** in `tests/unit/engine/matrix.test.ts` for all nine athletes: sessions per
+   week match runDays (+ strength); no run below the session minimum outside run-walk; no
+   `ramp-ceiling` warning whose 2-weeks-earlier week was a recovery or taper week; weekly
+   planned minutes within 10% of the week target. Add a tenth synthetic athlete with the
+   sparse shape above and assert: week 1 has three runs of at least 20 minutes; volume grows
+   to at least 6 h in the last specific week and the long run reaches at least 180 minutes
+   (or feasibility is `not-reachable` with its warning, never silently); every guard and
+   checklist item holds. Keep the existing assertions.
+
+**Files:** `shared/engine/{guards,macro,micro,index,checklist}.ts`, `shared/engine/params/{e-macro,f-micro,g-limits}.ts`,
+`tests/unit/engine/{matrix,matrix-fixtures,guards,macro,micro,orchestration}.test.ts` (and
+fixtures). Engine purity and the parameter rules apply.
