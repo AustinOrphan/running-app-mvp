@@ -27,6 +27,29 @@ export const iEnv = {
         note: 'Air-temperature optimum used as the fallback when WBGT cannot be computed; label which index was used.',
       },
     ),
+    defaultPressureHpa: param(
+      'i1.defaultPressureHpa',
+      1013.25,
+      'D',
+      'I1',
+      ['liljegren-2008-wbgt-model'],
+      { unit: 'hPa', note: 'Default: standard sea-level pressure when the forecast gives none.' },
+    ),
+    defaultZenithDeg: param('i1.defaultZenithDeg', 45, 'D', 'I1', ['liljegren-2008-wbgt-model'], {
+      unit: 'degrees',
+      note: 'Default: solar zenith angle when the caller gives none (no site or clock in the input); only matters when shortwave radiation is above zero.',
+    }),
+    directBeamFraction: param(
+      'i1.directBeamFraction',
+      0.67,
+      'D',
+      'I1',
+      ['liljegren-2008-wbgt-model'],
+      {
+        unit: 'fraction of shortwave radiation',
+        note: 'Default: share of shortwave radiation that arrives as direct beam; the full model estimates it from a clear-sky calculation that needs a site and a clock.',
+      },
+    ),
   },
   i2: {
     wbgtOptimumC: param<[number, number]>(
@@ -193,6 +216,32 @@ export const iEnv = {
         note: 'HR rose by this much at 35 C while capacity fell, so a fixed HR zone is never held in heat.',
       },
     ),
+    windowStartHour: param(
+      'i7.windowStartHour',
+      5,
+      'D',
+      'I7',
+      ['periard-2021-exercise-heat-stress'],
+      {
+        unit: 'hour of day',
+        note: 'Default: earliest start hour offered when suggesting a cooler time of day.',
+      },
+    ),
+    windowEndHour: param('i7.windowEndHour', 21, 'D', 'I7', ['periard-2021-exercise-heat-stress'], {
+      unit: 'hour of day',
+      note: 'Default: a suggested session must end by this hour.',
+    }),
+    coolerMinGainC: param(
+      'i7.coolerMinGainC',
+      1,
+      'D',
+      'I7',
+      ['periard-2021-exercise-heat-stress'],
+      {
+        unit: 'C of the index',
+        note: 'Default: a cooler hour is suggested only when it lowers the index by at least this much.',
+      },
+    ),
   },
   i8: {
     triggerWbgtC: param('i8.triggerWbgtC', 18, 'D', 'I8', HEAT_CONSENSUS, {
@@ -242,6 +291,21 @@ export const iEnv = {
     }),
   },
   i11: {
+    polynomial: param<number[]>(
+      'i11.polynomial',
+      [155.4, -30.4, -43.3, 46.3, 19.5, 3.6],
+      'C',
+      'I11',
+      MINETTI,
+      {
+        unit: 'J/kg/m, highest power of grade first',
+        note: 'Fifth-order fit of the cost of running against fractional grade, valid from -45% to +45%; divided by its own level value to give the ratio. It reaches 5.4 at +45% and 0.50 at -20% against the measured anchors 5.6 and 0.51 below, so a small difference from those anchors is expected.',
+      },
+    ),
+    maxGradeFraction: param('i11.maxGradeFraction', 0.45, 'C', 'I11', MINETTI, {
+      unit: 'fraction',
+      note: 'The grade is clamped to plus or minus this value, the range of the fit.',
+    }),
     levelCostJPerKgM: param('i11.levelCostJPerKgM', 3.4, 'C', 'I11', MINETTI, {
       unit: 'J/kg/m',
       note: 'Level running cost; costs are expressed as a ratio to it. The full polynomial comes from the paper text, which engine-rules.md does not reproduce.',

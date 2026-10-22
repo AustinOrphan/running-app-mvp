@@ -2,6 +2,52 @@
 import { param, type ParamGroups } from './define.ts'
 
 export const cZones = {
+  c2: {
+    lt1FractionOfHrMax: param(
+      'c2.lt1FractionOfHrMax',
+      0.78,
+      'D',
+      'C2',
+      ['mann-2013-relative-intensity'],
+      {
+        unit: 'fraction of HRmax',
+        note: 'Default: Z1/Z2 boundary as a share of HRmax, used only when no better anchor exists (tier 3 of the anchor hierarchy); the band follows the HRmax band.',
+      },
+    ),
+    lt2FractionOfHrMax: param(
+      'c2.lt2FractionOfHrMax',
+      0.88,
+      'D',
+      'C2',
+      ['mann-2013-relative-intensity'],
+      {
+        unit: 'fraction of HRmax',
+        note: 'Default: Z2/Z3 boundary as a share of HRmax, used only when neither a lactate-threshold HR nor a threshold pace is known.',
+      },
+    ),
+    z1FloorFractionOfHrMax: param(
+      'c2.z1FloorFractionOfHrMax',
+      0.6,
+      'D',
+      'C2',
+      ['mann-2013-relative-intensity'],
+      {
+        unit: 'fraction of HRmax',
+        note: 'Default: lower edge of the Z1 heart-rate range when no resting heart rate is known.',
+      },
+    ),
+    z1PaceSlowFactor: param(
+      'c2.z1PaceSlowFactor',
+      1.25,
+      'D',
+      'C2',
+      ['mann-2013-relative-intensity'],
+      {
+        unit: 'ratio to LT1 pace',
+        note: 'Default: slow edge of the Z1 pace range is this much slower than the LT1 pace; easy running is bounded by effort and heart rate, not by a floor pace.',
+      },
+    ),
+  },
   c3: {
     hrMaxIntercept: param(
       'c3.hrMaxIntercept',
@@ -100,6 +146,39 @@ export const cZones = {
       {
         unit: 'Borg 6-20',
         note: 'Default: perceived-effort anchor for VT1 on the Borg 6-20 scale. The source gives no CR-10 equivalent; the CR-10 mapping used elsewhere is an engine default.',
+      },
+    ),
+    rpeZ1: param<[number, number]>(
+      'c4.rpeZ1',
+      [1, 3],
+      'D',
+      'C4',
+      ['bok-2022-subjective-intensity'],
+      {
+        unit: 'CR-10',
+        note: 'Default: CR-10 range for Z1, mapped from the Borg 6-20 anchor below VT1; the mapping is an engine default, not a published conversion.',
+      },
+    ),
+    rpeZ2: param<[number, number]>(
+      'c4.rpeZ2',
+      [3, 5],
+      'D',
+      'C4',
+      ['bok-2022-subjective-intensity'],
+      {
+        unit: 'CR-10',
+        note: 'Default: CR-10 range for Z2, between the VT1 and threshold anchors; an engine default mapping.',
+      },
+    ),
+    rpeZ3: param<[number, number]>(
+      'c4.rpeZ3',
+      [5, 7],
+      'D',
+      'C4',
+      ['bok-2022-subjective-intensity'],
+      {
+        unit: 'CR-10',
+        note: 'Default: CR-10 range for Z3, at and above the Borg 13-15 respiratory compensation anchor; an engine default mapping.',
       },
     ),
     borgRcp: param<[number, number]>(
