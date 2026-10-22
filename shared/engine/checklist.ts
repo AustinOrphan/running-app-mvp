@@ -67,6 +67,23 @@ function sortedWeeks(draft: PlanDraft): WeekDraft[] {
   return [...draft.weeks].sort((a, b) => (a.weekStart < b.weekStart ? -1 : 1))
 }
 
+/**
+ * A re-plan keeps the sessions of the current week that are finished: done (their running is
+ * already in the week's history) or skipped. They add no running still to come.
+ */
+const FINISHED: ReadonlySet<string> = new Set(['completed', 'partial', 'skipped'])
+const slotKey = (s: SessionSpec) => `${s.date}|${s.order}|${s.kind}|${s.title}|${s.durationMin}`
+
+/** The sessions from today on that are still to run. */
+function toRun(draft: PlanDraft, input: EngineInput): SessionSpec[] {
+  const finished = new Set(
+    (input.existing?.sessions ?? [])
+      .filter((s) => s.date >= input.today && FINISHED.has(s.status))
+      .map(slotKey),
+  )
+  return draft.sessions.filter((s) => s.date >= input.today && !finished.has(slotKey(s)))
+}
+
 function weekMinutes(sessions: SessionSpec[], weekStart: string, from: string): number {
   return sessions
     .filter((s) => mondayOf(s.date) === weekStart && s.date >= from && VOLUME_KINDS.has(s.kind))
@@ -112,12 +129,13 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
   const limitOf = (from: number, ramp: number) => from + Math.max(from * ramp, minStep)
   const tight = tightRamp(state)
   const failures: string[] = []
+  const ahead = toRun(draft, input)
   let soft = 0
   for (const weekStart of starts) {
     if (weekStart < currentMonday) continue
     // The current week holds what was already run plus the sessions still planned.
     const done = weekStart === currentMonday ? (volume.get(weekStart) ?? 0) : 0
-    const total = done + weekMinutes(draft.sessions, weekStart, input.today)
+    const total = done + weekMinutes(ahead, weekStart, input.today)
     volume.set(weekStart, total)
     if (total <= 0) continue
     const base =
@@ -340,7 +358,7 @@ function breakRestartItem(
   const first = sortedWeeks(draft).find((w) => w.weekStart >= mondayOf(input.today))
   const done = state.weeks.find((w) => w.weekStart === mondayOf(input.today))?.runMin ?? 0
   const planned =
-    first === undefined ? 0 : done + weekMinutes(draft.sessions, first.weekStart, input.today)
+    first === undefined ? 0 : done + weekMinutes(toRun(draft, input), first.weekStart, input.today)
   return result(
     'break-restart',
     planned <= limit,

@@ -22,6 +22,7 @@ import type {
   EngineWarning,
   PlanChange,
   PlanDraft,
+  SessionKind,
   SessionSpec,
   WeekDraft,
   ZoneSet,
@@ -37,6 +38,13 @@ export { predictRace } from './predict.ts'
 export { todayAdvice } from './readiness.ts'
 
 const WEEKDAYS: readonly Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+/** Session kinds that do not use a run day. */
+const NOT_RUNS: ReadonlySet<SessionKind> = new Set<SessionKind>([
+  'strength',
+  'mobility',
+  'rest',
+  'cross',
+])
 
 /** A session the plan already holds and keeps as it is (replan): the spec without its row fields. */
 type KeptSession = SessionSpec
@@ -68,13 +76,16 @@ function remainingOfCurrentWeek(
   week: WeekDraft,
   state: AthleteState,
   input: EngineInput,
-  keptRuns: number,
+  keptRunDates: ReadonlySet<string>,
   cap: number | null,
 ): WeekDraft {
   const row = state.weeks.find((w) => w.weekStart === week.weekStart)
   const done = row === undefined ? 0 : row.runMin
-  const ranDays = new Set(
-    input.activities
+  // A day with a run, done or kept, is one run day: a session finished today and its activity
+  // are the same run.
+  const usedDays = new Set([
+    ...keptRunDates,
+    ...input.activities
       .filter(
         (a) =>
           (a.type === 'run' || a.type === 'race') &&
@@ -83,7 +94,7 @@ function remainingOfCurrentWeek(
           a.date <= input.today,
       )
       .map((a) => a.date),
-  ).size
+  ]).size
   const left = Math.max(0, Math.floor(week.targetRunMin - done))
   const target = cap === null ? left : Math.min(left, cap)
   const share = week.targetRunMin > 0 ? target / week.targetRunMin : 0
@@ -94,7 +105,7 @@ function remainingOfCurrentWeek(
     longRunM: week.longRunM === null ? null : Math.round((week.longRunM * share) / 100) * 100,
     gainTargetM:
       week.gainTargetM === null ? null : Math.round((week.gainTargetM * share) / 10) * 10,
-    runDays: Math.max(0, week.runDays - ranDays - keptRuns),
+    runDays: Math.max(0, week.runDays - usedDays),
   }
 }
 
@@ -143,10 +154,18 @@ function generate(
         const date = addDays(week.weekStart, i)
         if (date < today || keptDates.has(date)) closed.add(date)
       }
-      const keptRuns = kept.filter(
-        (s) => s.date >= today && mondayOf(s.date) === currentMonday && s.durationMin > 0,
-      ).length
-      planWeek = remainingOfCurrentWeek(week, state, input, keptRuns, stillPlannedMin)
+      const keptRunDates = new Set(
+        kept
+          .filter(
+            (s) =>
+              s.date >= today &&
+              mondayOf(s.date) === currentMonday &&
+              s.durationMin > 0 &&
+              !NOT_RUNS.has(s.kind),
+          )
+          .map((s) => s.date),
+      )
+      planWeek = remainingOfCurrentWeek(week, state, input, keptRunDates, stillPlannedMin)
     }
     const profile =
       closed.size > 0 ? closeDates(input.profile, week.weekStart, closed) : input.profile

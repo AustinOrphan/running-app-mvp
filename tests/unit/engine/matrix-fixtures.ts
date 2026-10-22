@@ -107,7 +107,7 @@ export interface MatrixAthlete {
   id: string
   label: string
   input: EngineInput
-  /** The longest a single run may be (minutes), for the ultra check; null for shorter goals. */
+  /** Whether the goal is an ultra, so the ultra caps apply. */
   isUltra: boolean
 }
 

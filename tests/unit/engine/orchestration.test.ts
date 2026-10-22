@@ -223,6 +223,39 @@ describe('replan', () => {
     })
   })
 
+  it('re-plans on the day a session is finished without counting that run twice', () => {
+    // The session planned for today is done and its activity stored; nothing else changed.
+    for (const id of ['prior-bsi', 'half', 'masters']) {
+      const a = athlete(id)
+      const built = buildPlan(a.input)
+      const week = (list: SessionSpec[]) =>
+        list.filter(
+          (s) => mondayOf(s.date) === mondayOf(TODAY) && s.kind !== 'strength' && s.kind !== 'race',
+        )
+      const first = week(built.sessions)[0]!
+      const ran = activity(first.date, {
+        id: 'done-today',
+        durationSec: first.durationMin * 60,
+        distanceM: first.durationMin * 170,
+      })
+      const old = asExisting(built)
+      const out = replan({
+        ...a.input,
+        today: first.date,
+        activities: [...a.input.activities, ran],
+        existing: {
+          weeks: old.weeks,
+          sessions: old.sessions.map((s) =>
+            s.date === first.date && s.order === first.order ? { ...s, status: 'completed' } : s,
+          ),
+        },
+      })
+      expect(failed(out.draft.checklist), id).toEqual([])
+      // The finished run and its activity use one run day: the rest of the week keeps its runs.
+      expect(week(out.draft.sessions).length, id).toBe(week(built.sessions).length)
+    }
+  })
+
   it('lowers the coming weeks after a week that was mostly missed and never makes it up', () => {
     const later = addDays(TODAY, 7)
     // Only one short run was done in the week; the plan asked for far more.
