@@ -77,6 +77,62 @@ describe('Plan page, version-2 plans', () => {
     expect(document.body.textContent).not.toMatch(/behind|missed|streak/i)
   })
 
+  test('groups warnings of one code into a line with a disclosure of the weeks', async () => {
+    const user = userEvent.setup()
+    const warning = (week: string, gain: number) => ({
+      code: 'gain-ramp-soft',
+      severity: 'warn' as const,
+      message: `Climbing in the week of ${week} is ${String(gain)} m, above a 10% step.`,
+      rules: ['H4'],
+    })
+    mockApi(
+      routes(
+        makeV2Plan({
+          warnings: [
+            warning('2027-01-04', 700),
+            warning('2027-01-11', 800),
+            warning('2027-01-18', 900),
+          ],
+        }),
+      ),
+    )
+    renderPlan()
+    const warnings = await screen.findByRole('region', { name: 'Warnings' })
+    expect(within(warnings).getAllByRole('button', { name: 'Why this warning' })).toHaveLength(1)
+    expect(within(warnings).getByText('Climbing above the 10% step in 3 weeks')).toBeInTheDocument()
+    expect(within(warnings).queryByText(/2027-01/)).not.toBeInTheDocument()
+    await user.click(within(warnings).getByText('Show each one'))
+    expect(
+      within(warnings).getByText('Climbing in the week of 4 Jan is 700 m, above a 10% step.'),
+    ).toBeInTheDocument()
+    expect(
+      within(warnings).getByText('Climbing in the week of 18 Jan is 900 m, above a 10% step.'),
+    ).toBeInTheDocument()
+  })
+
+  test('shows engine text in feet and miles with the miles setting', async () => {
+    mockApi(
+      routes(
+        makeV2Plan({
+          warnings: [
+            {
+              code: 'gain-ramp-soft',
+              severity: 'warn',
+              message: 'Climbing in the week of 2027-01-04 is 700 m, above 550 m.',
+              rules: ['H4'],
+            },
+          ],
+        }),
+        { 'GET /api/settings': () => ({ ...settings, units: 'mi' }) },
+      ),
+    )
+    renderPlan()
+    const warnings = await screen.findByRole('region', { name: 'Warnings' })
+    expect(
+      await within(warnings).findByText('Climbing in the week of 4 Jan is 2297 ft, above 1804 ft.'),
+    ).toBeInTheDocument()
+  })
+
   test('a not-reachable plan says so in the spec wording', async () => {
     mockApi(
       routes(

@@ -135,6 +135,9 @@ describe('ActivityDetailPage', () => {
 
   test('laps table', async () => {
     renderDetail()
+    const scroller = await screen.findByRole('region', { name: 'Laps table, scrolls sideways' })
+    expect(scroller).toHaveAttribute('tabindex', '0')
+    expect(within(scroller).getByRole('table', { name: 'Laps' })).toBeInTheDocument()
     const table = await screen.findByRole('table', { name: 'Laps' })
     const rows = within(table).getAllByRole('row')
     expect(rows).toHaveLength(3)

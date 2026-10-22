@@ -5,6 +5,7 @@ import {
   buildSeries,
   StreamChart,
   streamXAxis,
+  yAxisWidth,
   type StreamData,
 } from '../../web/components/charts/StreamChart.tsx'
 
@@ -34,6 +35,14 @@ describe('streamXAxis', () => {
 
   test('falls back to time when every distance bucket is empty', () => {
     expect(streamXAxis(makeStream({ d: Array.from({ length: 12 }, () => null) }))).toBe('time')
+  })
+})
+
+describe('yAxisWidth', () => {
+  test('leaves room for a four-digit elevation label and never goes below three characters', () => {
+    expect(yAxisWidth(['420', '800', '1180'])).toBeGreaterThanOrEqual(48)
+    expect(yAxisWidth(['1180'])).toBeGreaterThan(yAxisWidth(['180']))
+    expect(yAxisWidth(['5'])).toBe(yAxisWidth(['180']))
   })
 })
 

@@ -175,7 +175,12 @@ function LapsTable({ laps, units, hasPace }: { laps: Lap[]; units: Units; hasPac
       <h2 id={id} className={styles.heading}>
         Laps
       </h2>
-      <div className={styles.tableScroll}>
+      <div
+        className={styles.tableScroll}
+        role="region"
+        aria-label="Laps table, scrolls sideways"
+        tabIndex={0}
+      >
         <table aria-labelledby={id} className={styles.table}>
           <thead>
             <tr>

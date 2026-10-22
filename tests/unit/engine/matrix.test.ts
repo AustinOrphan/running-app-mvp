@@ -206,6 +206,30 @@ describe.each(all)('plan matrix: $label', (a) => {
     expect(bad).toEqual([])
   })
 
+  it('stays in the normal band: no warn-band run and no minimum-step gain warning [rules G6]', () => {
+    expect(plan.sessions.filter((s) => s.flags.includes('spike-warn'))).toEqual([])
+    const weekly = new Map<string, number>()
+    for (const act of a.input.activities) {
+      if (act.type !== 'run') continue
+      const w = mondayOf(act.date)
+      weekly.set(w, (weekly.get(w) ?? 0) + (act.elevationGainM ?? 0))
+    }
+    for (const s of plan.sessions) {
+      if (!RUNNING.has(s.kind)) continue
+      const w = mondayOf(s.date)
+      weekly.set(w, (weekly.get(w) ?? 0) + (s.gainM ?? 0))
+    }
+    for (const w of plan.warnings.filter((x) => x.code === 'gain-ramp-soft')) {
+      const week = /week of (\d{4}-\d{2}-\d{2}) is (\d+) m/.exec(w.message)!
+      const before = Math.max(
+        0,
+        ...[1, 2, 3, 4].map((k) => weekly.get(addDays(week[1]!, -7 * k)) ?? 0),
+      )
+      // a warning needs a rise above both 10% and the 100 m minimum step
+      expect(Number(week[2]) - before, w.message).toBeGreaterThan(100)
+    }
+  })
+
   it('spaces hard days and keeps the long run out from between quality days', () => {
     const byDate = new Map<string, SessionKind[]>()
     for (const s of plan.sessions) byDate.set(s.date, [...(byDate.get(s.date) ?? []), s.kind])

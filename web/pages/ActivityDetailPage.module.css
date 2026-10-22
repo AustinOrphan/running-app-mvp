@@ -66,8 +66,27 @@
   max-width: var(--page-max);
 }
 
+/*
+ * The laps scroll sideways inside this region. The first two gradients (attached to the content)
+ * cover the edge fade where there is nothing more to scroll to; the last two (attached to the
+ * box) show it where more is hidden.
+ */
 .tableScroll {
   overflow-x: auto;
+  background:
+    linear-gradient(to right, var(--surface) 30%, transparent) left center / 2rem 100% no-repeat
+      local,
+    linear-gradient(to left, var(--surface) 30%, transparent) right center / 2rem 100% no-repeat
+      local,
+    linear-gradient(to right, var(--border-strong), transparent) left center / 0.75rem 100%
+      no-repeat scroll,
+    linear-gradient(to left, var(--border-strong), transparent) right center / 0.75rem 100%
+      no-repeat scroll;
+}
+
+.tableScroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .table {
@@ -172,6 +191,11 @@
 }
 
 @media (max-width: 420px) {
+  .table th,
+  .table td {
+    padding-right: var(--space-2);
+  }
+
   .band {
     grid-template-columns: 6.5rem 1fr 6rem;
     gap: var(--space-2);

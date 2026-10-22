@@ -25,13 +25,6 @@
   gap: var(--space-2);
 }
 
-.scaleChips {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
-  gap: var(--space-2);
-  max-width: 32rem;
-}
-
 .chip {
   min-height: var(--control-h);
   padding: 0 var(--space-2);
@@ -42,12 +35,6 @@
   font-family: var(--font-sans);
   font-size: var(--text-base);
   cursor: pointer;
-}
-
-.number {
-  padding: 0;
-  font-family: var(--font-serif);
-  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .chip[aria-pressed='true'] {

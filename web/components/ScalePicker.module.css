@@ -1,0 +1,60 @@
+.fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.fieldset legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+}
+
+/* One row, however many steps: the columns share the width and may shrink below a finger. */
+.row {
+  display: grid;
+  grid-template-columns: repeat(var(--steps), minmax(0, 1fr));
+  gap: var(--space-1);
+  max-width: 34rem;
+}
+
+.button {
+  min-width: 0;
+  min-height: var(--control-h);
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  font-variant-numeric: lining-nums tabular-nums;
+  cursor: pointer;
+}
+
+.button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+@media (max-width: 30rem) {
+  .row {
+    gap: 2px;
+  }
+
+  .button {
+    font-size: var(--text-sm);
+  }
+}
+
+.hint {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

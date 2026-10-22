@@ -137,6 +137,11 @@ function yScale(
   return { domain: [low, high], ticks: [low, (low + high) / 2, high] }
 }
 
+/** Room for the widest tick label plus the tick margin, so a label such as "1180" is never clipped. */
+export function yAxisWidth(labels: string[]): number {
+  return 16 + 8 * Math.max(3, ...labels.map((label) => label.length))
+}
+
 function paceLabel(seconds: number, units: Units): string {
   return `${formatDuration(seconds)} /${units}`
 }
@@ -193,6 +198,7 @@ export function StreamChart({ stream, channel, units = 'mi' }: StreamChartProps)
     axis === 'distance' ? x.toFixed(2) : String(Math.round(x))
   const yFormat = (y: number): string =>
     channel === 'pace' ? formatDuration(y) : String(Math.round(y))
+  const yWidth = yAxisWidth(ticks.map(yFormat))
   const unitCaption =
     channel === 'pace' ? `per ${units}` : channel === 'hr' ? 'bpm' : altUnit(units)
 
@@ -218,7 +224,7 @@ export function StreamChart({ stream, channel, units = 'mi' }: StreamChartProps)
             />
             <YAxis
               {...axisProps}
-              width={40}
+              width={yWidth}
               reversed={channel === 'pace'}
               domain={domain}
               ticks={ticks}

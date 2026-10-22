@@ -85,7 +85,9 @@ test('profile, goal, plan, today, a rated run, its assessment, a review and what
   await expect(card.getByText(todays.purpose)).toBeVisible()
   await card.getByRole('button', { name: 'Why this session' }).click()
   const why = page.getByRole('dialog', { name: 'Why this?' })
-  await expect(why.getByRole('heading', { name: /^Rule / }).first()).toBeVisible()
+  // Each rule is named in words, never as a bare id.
+  await expect(why.getByRole('heading', { level: 3 }).first()).toBeVisible()
+  await expect(why.getByRole('heading', { name: /^Rule / })).toHaveCount(0)
   await expect(why.getByText(/Grade A is the strongest evidence/)).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(why).toBeHidden()

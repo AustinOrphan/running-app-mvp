@@ -13,6 +13,7 @@ import { usePredictions } from '../api/predictions.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
+import { localiseEngineText } from '../components/engineText.ts'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -564,6 +565,7 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
 /** Feasibility, the predicted time with its range and method, and race-day heat of the active goal. */
 function GoalOutlook({ goal }: { goal: Goal }) {
   const plan = usePlan()
+  const units = useSettings().data?.units
   const predictions = usePredictions(goal.id)
   if (plan.isPending || predictions.isPending) return null
   if (plan.isError || predictions.isError) {
@@ -578,8 +580,10 @@ function GoalOutlook({ goal }: { goal: Goal }) {
   const heatLines = [
     ...(prediction?.conditions.filter(isHeat) ?? []),
     ...heatNotes.map((note) => note.message),
-  ]
-  const conditions = prediction?.conditions.filter((line) => !isHeat(line)) ?? []
+  ].map((line) => localiseEngineText(line, units))
+  const conditions = (prediction?.conditions.filter((line) => !isHeat(line)) ?? []).map((line) =>
+    localiseEngineText(line, units),
+  )
 
   return (
     <div className={styles.outlook}>
@@ -592,7 +596,7 @@ function GoalOutlook({ goal }: { goal: Goal }) {
           </p>
           {otherNotes.map((note, i) => (
             <p key={i} className={styles.note}>
-              {note.message}
+              {localiseEngineText(note.message, units)}
             </p>
           ))}
           <ExplainButton
@@ -672,7 +676,7 @@ function GoalRow({ goal, units, onEdit }: GoalRowProps) {
         {goal.isActive ? <span className={styles.badge}>Active goal</span> : null}
       </div>
       <p className={styles.meta}>
-        {STATUS_LABELS[goal.status]}. {details.join(', ')}
+        {STATUS_LABELS[goal.status]} · {details.join(', ')}
       </p>
       {goal.successCriteria !== null && goal.successCriteria !== '' ? (
         <p className={styles.note}>{goal.successCriteria}</p>
