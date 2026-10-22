@@ -221,17 +221,25 @@ export function feasibility(goal: GoalModel, state: AthleteState, today: string)
     }
   }
 
-  // D4, ultras: weekly running time grows from the start week to the class peak at the weekly ramp.
-  // The start week is the one the generator starts from, so the label matches the plan.
+  // D4, ultras: weekly running time grows from the start week at the weekly ramp to the week
+  // that carries the target long run at the ultra long-run share, capped at the class peak. The
+  // class peak itself is a ceiling the plan may never reach, not a requirement, so it is not the
+  // target. The start week is the one the generator starts from, so the label matches the plan.
   if (goal.isUltra && goal.distanceClass in P.d4LongRun) {
     const peakMin = P.peakWeeklyMin[goal.distanceClass as keyof typeof P.d4LongRun].value
+    const targetMin = Math.min(
+      peakMin,
+      Math.ceil(
+        ultraLongRunTargetMin(goal, state) / P.macroDesign.longRunShareOfWeekUltra.value - EPSILON,
+      ),
+    )
     const startMin = startWeekMin(state)
-    weeklyWeeks = growthWeeks(startMin, peakMin)
+    weeklyWeeks = growthWeeks(startMin, targetMin)
     if (weeklyWeeks > longRunWeeks) {
       notes.push({
         code: 'weekly-path',
         severity: 'info',
-        message: `Weekly running time sets the pace for this goal: growing from about ${Math.round(startMin)} to ${peakMin} minutes a week within the ramp limits takes longer than building the long run. This only labels the outlook; the plan keeps every limit.`,
+        message: `Weekly running time sets the pace for this goal: growing from about ${Math.round(startMin)} to ${targetMin} minutes a week within the ramp limits takes longer than building the long run. This only labels the outlook; the plan keeps every limit.`,
         rules: ['D4'],
       })
     }

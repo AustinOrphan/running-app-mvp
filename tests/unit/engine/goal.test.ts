@@ -425,10 +425,12 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
     })
 
     it('measures the weekly path of an ultra and labels the slower of the two paths', () => {
-      // typical 200 min a week, longest run 2 h: the long run needs 4 growth weeks, the week 8
+      // typical 200 min a week, longest run 2 h: the long run (to 175 min) needs 4 growth weeks;
+      // the week that carries a 175-min long run at the 45% share is 389 min, 7 growth weeks away
       const state = makeState({ longestSec: 7200, typicalWeekMin: 200 })
       const f = feasibility(ultra('ultra50', 18000), state, TODAY)
-      expect(f.weeksNeeded).toBe(d4Weeks(200, P.peakWeeklyMin.ultra50.value, 2))
+      expect(Math.ceil(175 / P.macroDesign.longRunShareOfWeekUltra.value - 1e-9)).toBe(389)
+      expect(f.weeksNeeded).toBe(d4Weeks(200, 389, 2))
       expect(f.weeksNeeded).toBeGreaterThan(d4Weeks(7200, 175 * 60, 2))
       const note = f.notes.find((n) => n.code === 'weekly-path')
       expect(note?.severity).toBe('info')
@@ -444,11 +446,14 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
     })
 
     it('starts the weekly path of a runner under the restart floor at the floor', () => {
-      // typical 30 min, restart floor week 60 min, 100 miles: the weekly path 60 to 600 governs
+      // typical 30 min, restart floor week 60 min, 100 miles: the weekly path from 60 to the
+      // 534-min week that carries the 240-min long run at the 45% share governs (the 600-min class
+      // peak is a ceiling, not the target)
       const state = makeState({ longestSec: 1800, typicalWeekMin: 30, weeklyKm: 5 })
       const goal = ultra('ultra100mi', 108000)
       const floor = P.restartFloor.sessions.value * P.restartFloor.sessionMin.value
-      const weekly = d4Weeks(floor, P.peakWeeklyMin.ultra100mi.value, 2)
+      expect(Math.ceil(240 / P.macroDesign.longRunShareOfWeekUltra.value - 1e-9)).toBe(534)
+      const weekly = d4Weeks(floor, 534, 2)
       const longRun = d4Weeks(1800, P.d4LongRun.ultra100mi.value * 60, 2)
       expect(weekly).toBeGreaterThan(longRun)
       const at = (weeks: number) =>
@@ -464,19 +469,22 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
       expect(weekly - 1).toBeGreaterThanOrEqual(longRun)
     })
 
-    it('labels a 30-min typical week with 33 weeks to 100 miles by the weekly path', () => {
+    it('labels a 30-min typical week with 33 weeks to 100 miles tight by the weekly path', () => {
       const state = makeState({ longestSec: 1800, typicalWeekMin: 30, weeklyKm: 5 })
       const goal = { ...ultra('ultra100mi', 108000), date: addDays(TODAY, 33 * 7) }
-      const needed = d4Weeks(60, 600, 2)
+      const needed = d4Weeks(60, 534, 2)
       const f = feasibility(goal, state, TODAY)
       expect(f.weeksNeeded).toBe(needed)
       expect(f.weeksAvailable).toBe(33)
-      // 60 to 600 min a week at 10% takes 25 growth weeks, 36 with cutbacks and the taper; the
-      // long run alone (30 min to 240 min) would have needed 32 and left the label at tight
-      expect(needed).toBe(36)
+      // 60 to 534 min a week at 10% takes 23 growth weeks, 33 with cutbacks and the taper; the
+      // long run alone (30 min to 240 min) needs 32, so the weekly path governs by one week and
+      // the label stays tight. Measured against the 600-min class peak it would read not
+      // reachable although the generator builds the plan.
+      expect(needed).toBe(33)
       expect(d4Weeks(1800, 240 * 60, 2)).toBe(32)
-      expect(f.label).toBe('not-reachable')
-      expect(f.notes.find((n) => n.code === 'not-reachable')?.message).toMatch(/later race/)
+      expect(f.label).toBe('tight')
+      expect(f.notes.map((n) => n.code)).toContain('weekly-path')
+      expect(f.notes.map((n) => n.code)).not.toContain('not-reachable')
     })
   })
 
