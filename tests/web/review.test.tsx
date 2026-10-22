@@ -214,6 +214,43 @@ describe('ReviewPage', () => {
     expect(screen.getByLabelText('Next week minutes')).toHaveValue('300')
   })
 
+  test('choosing another Final decision prefills the minutes for that decision, and the number stays editable', async () => {
+    const user = userEvent.setup()
+    const api = renderReview(
+      { weeks: { [W]: fullWeek } },
+      { [`PUT /api/reviews/${W}`]: () => makeReview(W, { id: 'r1', dataStatus: 'complete' }) },
+    )
+    await ready()
+    await user.click(screen.getByRole('radio', { name: 'Data complete' }))
+    await user.click(screen.getByRole('radio', { name: '4' }))
+    await user.click(screen.getByRole('radio', { name: 'None' }))
+    const minutes = screen.getByLabelText('Next week minutes')
+    expect(minutes).toHaveValue('330')
+
+    const decision = screen.getByRole('radiogroup', { name: 'Final decision' })
+    await user.click(within(decision).getByRole('radio', { name: 'Reduce' }))
+    expect(minutes).toHaveValue('210')
+    await user.click(within(decision).getByRole('radio', { name: 'Hold' }))
+    expect(minutes).toHaveValue('300')
+    await user.click(within(decision).getByRole('radio', { name: 'Reduce' }))
+    expect(minutes).toHaveValue('210')
+
+    await user.clear(minutes)
+    await user.type(minutes, '200')
+    await user.click(screen.getByRole('button', { name: 'Save review' }))
+    await screen.findByText('Week of 12 Oct saved')
+    expect(api.calls.find((c) => c.method === 'PUT')?.body).toMatchObject({
+      finalDecision: 'reduce',
+      finalNextMin: 200,
+    })
+    // The suggestion itself still reads Progress.
+    expect(
+      within(screen.getByRole('region', { name: 'Suggested action' })).getByText(
+        'Suggested next week: 330 min (5.5 h)',
+      ),
+    ).toBeInTheDocument()
+  })
+
   test('Save review PUTs { dataStatus: "complete", fatigue: 4, symptoms: "none", recoveryConstrained: false, finalDecision: "progress", finalNextMin: 330, notes } and toasts "Week of 12 Oct saved"', async () => {
     const user = userEvent.setup()
     const api = renderReview(
