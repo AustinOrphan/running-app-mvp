@@ -127,15 +127,13 @@ describe('StatsPage', () => {
     expect(cellTexts(fiveK)).toEqual(['23:00', '4:33 /km', '5.05 km', '3 Feb 2026'])
   })
 
-  test('fastest efforts with sparse data say which distances have no qualifying run and that a run counts within 2% over the distance', async () => {
+  test('fastest efforts with sparse data say which distances have no qualifying run and that a run counts from 0.5% under to 2% over the distance', async () => {
     mockStats()
     renderWithProviders(<StatsPage />)
     await screen.findByRole('table', { name: 'Fastest efforts' })
     expect(screen.getByText('No qualifying run yet for 10K, Marathon, 50K.')).toBeInTheDocument()
     expect(
-      screen.getByText(
-        'A run counts for a distance when it is at least that long and within 2% over it.',
-      ),
+      screen.getByText('A run counts for a distance when it is within 0.5% under to 2% over it.'),
     ).toBeInTheDocument()
   })
 
