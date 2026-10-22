@@ -108,6 +108,11 @@ function DrawerBody({ rules }: { rules: string[] }) {
               <div className={styles.papers}>
                 <p className={styles.paperHeading}>Papers</p>
                 {corpus.isPending ? <p className={styles.note}>Loading papers.</p> : null}
+                {corpus.isError ? (
+                  <p role="alert" className={styles.note}>
+                    The research base could not be loaded. Papers: {paperIds.join(', ')}.
+                  </p>
+                ) : null}
                 {corpus.data
                   ? paperIds.map((id) => {
                       const paper = corpus.data.papers.get(id)

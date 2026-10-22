@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { describe, expect, test } from 'vitest'
 import type { Param } from '../../shared/engine/types.ts'
 import type { ResearchParams } from '../../shared/types.ts'
+import { PaperCard } from '../../web/components/PaperCard.tsx'
 import { WhyDrawer } from '../../web/components/WhyDrawer.tsx'
+import { shortCitation, type CorpusPaper } from '../../web/components/researchCorpus.ts'
 import { ResearchPage } from '../../web/pages/ResearchPage.tsx'
 import { mockApi, renderWithProviders } from './helpers.tsx'
 
@@ -178,5 +180,43 @@ describe('ResearchPage', () => {
   test('says that the research is decision support and not medical advice', () => {
     renderWithProviders(<ResearchPage />)
     expect(screen.getByText(/not medical advice/i)).toBeInTheDocument()
+  })
+})
+
+describe('citations', () => {
+  const base: CorpusPaper = {
+    id: 'example-2021-paper',
+    title: 'An example paper',
+    authors: 'de Jager E, Holden S',
+    year: 2021,
+    journal: 'Example Journal',
+    doi: null,
+    pmid: null,
+    url: 'https://example.com',
+    design: 'cohort',
+    population: 'runners',
+    sampleSize: null,
+    evidenceLevel: 'C',
+    topics: [],
+    findings: [],
+    limitations: '',
+    implications: [],
+  }
+
+  test('a short citation keeps a multi-word surname and drops the initials', () => {
+    expect(shortCitation(base)).toBe('de Jager 2021')
+    expect(shortCitation({ ...base, authors: 'Foster C' })).toBe('Foster 2021')
+  })
+
+  test('a single author has no "et al."', () => {
+    renderWithProviders(
+      <PaperCard paper={{ ...base, authors: 'Foster C' }} open={false} onToggle={() => {}} />,
+    )
+    expect(screen.getByText('Foster C (2021), Example Journal')).toBeInTheDocument()
+  })
+
+  test('a list of authors shows the first with "et al."', () => {
+    renderWithProviders(<PaperCard paper={base} open={false} onToggle={() => {}} />)
+    expect(screen.getByText('de Jager E et al. (2021), Example Journal')).toBeInTheDocument()
   })
 })

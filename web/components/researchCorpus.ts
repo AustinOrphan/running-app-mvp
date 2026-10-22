@@ -99,8 +99,13 @@ export function useToggleSet(): [Set<string>, (id: string) => void, (id: string)
   return [ids, toggle, add]
 }
 
-/** "Bosquet 2007": first author's surname and year, for a citation. */
+/** The first author of a Vancouver-style list: "de Jager E, Holden S" gives "de Jager E". */
+export function firstAuthor(paper: CorpusPaper): string {
+  return paper.authors.split(',')[0]?.trim() ?? paper.authors
+}
+
+/** "Bosquet 2007", "de Jager 2021": first author's surname (initials dropped) and year. */
 export function shortCitation(paper: CorpusPaper): string {
-  const surname = paper.authors.trim().split(/\s+/)[0] ?? paper.id
+  const surname = firstAuthor(paper).replace(/\s+[A-Z]{1,4}$/, '') || paper.id
   return `${surname} ${paper.year}`
 }

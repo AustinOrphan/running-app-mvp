@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import { GradeBadge } from './GradeBadge.tsx'
 import styles from './PaperCard.module.css'
-import type { CorpusPaper } from './researchCorpus.ts'
+import { firstAuthor, type CorpusPaper } from './researchCorpus.ts'
 
 export interface PaperCardProps {
   paper: CorpusPaper
@@ -13,7 +13,8 @@ export interface PaperCardProps {
 export function PaperCard({ paper, open, onToggle }: PaperCardProps) {
   const panelId = useId()
   const doiUrl = paper.doi === null ? null : `https://doi.org/${paper.doi}`
-  const authors = paper.authors.split(',')[0]?.trim() ?? paper.authors
+  // A single author gets no "et al."; a list (even one ending "et al.") shows its first name.
+  const authors = paper.authors.includes(',') ? `${firstAuthor(paper)} et al.` : paper.authors
   return (
     <div className={styles.card} id={`paper-${paper.id}`}>
       <button
@@ -25,7 +26,7 @@ export function PaperCard({ paper, open, onToggle }: PaperCardProps) {
       >
         <span className={styles.title}>{paper.title}</span>
         <span className={styles.meta}>
-          {authors} et al. ({paper.year}), {paper.journal}
+          {authors} ({paper.year}), {paper.journal}
         </span>
       </button>
       {open ? (
