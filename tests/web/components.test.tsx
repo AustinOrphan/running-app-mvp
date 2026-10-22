@@ -100,6 +100,17 @@ describe('Field', () => {
     expect(invalid.getAttribute('aria-describedby')).toBe(error.id)
   })
 
+  test('an empty error string keeps the hint and does not mark the control invalid', () => {
+    render(
+      <Field label="Duration" hint="Minutes, like 45" error="">
+        {(a) => <Input {...a} />}
+      </Field>,
+    )
+    const input = screen.getByLabelText('Duration')
+    expect(input).not.toHaveAttribute('aria-invalid')
+    expect(input.getAttribute('aria-describedby')).toBe(screen.getByText('Minutes, like 45').id)
+  })
+
   test('without hint or error there is no description', () => {
     render(<Field label="Notes">{(a) => <Input {...a} />}</Field>)
     expect(screen.getByLabelText('Notes')).not.toHaveAttribute('aria-describedby')

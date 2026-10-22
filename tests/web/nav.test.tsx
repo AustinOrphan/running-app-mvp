@@ -28,6 +28,11 @@ describe('Nav', () => {
     renderWithProviders(<Nav />, { route })
     const current = primaryLinks().filter((l) => l.getAttribute('aria-current') === 'page')
     expect(current.map((l) => l.textContent)).toEqual(['More'])
+    // Both groups share the DOM at every width, so only one link in the whole nav may be current.
+    const everywhere = screen
+      .getAllByRole('link')
+      .filter((l) => l.getAttribute('aria-current') === 'page')
+    expect(everywhere.map((l) => l.textContent)).toEqual(['More'])
   })
 
   test('Today is current only on the root path', () => {
@@ -44,7 +49,8 @@ describe('Nav', () => {
       'Stats',
       'Settings',
     ])
-    expect(group.getByRole('link', { name: 'Stats' })).toHaveAttribute('aria-current', 'page')
+    expect(group.getByRole('link', { name: 'Stats' })).toHaveAttribute('data-current', 'true')
+    expect(group.getByRole('link', { name: 'Stats' })).not.toHaveAttribute('aria-current')
   })
 })
 
