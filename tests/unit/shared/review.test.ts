@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { suggestAction, type SuggestInput } from '../../../shared/domain/review.ts'
+import { nextMinutesFor, suggestAction, type SuggestInput } from '../../../shared/domain/review.ts'
 import { makeWeekRow } from '../../factories.ts'
 
 type Review = NonNullable<SuggestInput['review']>
@@ -191,5 +191,37 @@ describe('suggestAction', () => {
     )
     expect(pct.action).toBe('progress')
     expect(pct.suggestedNextMin).toBe(0)
+  })
+})
+
+describe('nextMinutesFor', () => {
+  test('applies each adjusting action to the same input, whatever the suggested action is', () => {
+    const base = input({ targetRunMin: 300, baselineRunMin: 400, nextBaselineMin: 500 })
+    expect(nextMinutesFor('progress', base)).toBe(330)
+    expect(nextMinutesFor('hold', base)).toBe(300)
+    expect(nextMinutesFor('repeat', base)).toBe(300)
+    expect(nextMinutesFor('reduce', base)).toBe(210)
+  })
+
+  test('repeat lifts a low target to half the baseline; every action is capped by the next baseline', () => {
+    const low = input({ targetRunMin: 100, baselineRunMin: 300, nextBaselineMin: 400 })
+    expect(nextMinutesFor('repeat', low)).toBe(150)
+    const capped = input({ targetRunMin: 300, baselineRunMin: 300, nextBaselineMin: 250 })
+    expect(nextMinutesFor('progress', capped)).toBe(250)
+    expect(nextMinutesFor('hold', capped)).toBe(250)
+    expect(nextMinutesFor('repeat', capped)).toBe(250)
+    expect(nextMinutesFor('reduce', capped)).toBe(210)
+  })
+
+  test('is null without a next baseline and for actions that carry no minutes', () => {
+    expect(nextMinutesFor('progress', input({ nextBaselineMin: null }))).toBeNull()
+    expect(nextMinutesFor('upcoming', input())).toBeNull()
+    expect(nextMinutesFor('await_data', input())).toBeNull()
+    expect(nextMinutesFor('needs_recovery_review', input())).toBeNull()
+  })
+
+  test('agrees with the minutes of the suggestion', () => {
+    const s = suggestAction(input())
+    expect(s.suggestedNextMin).toBe(nextMinutesFor(s.action, input()))
   })
 })

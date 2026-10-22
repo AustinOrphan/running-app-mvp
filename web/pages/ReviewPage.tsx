@@ -1,7 +1,12 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { addDays, mondayOf, todayIso, weekStartsBetween } from '../../shared/dates.ts'
-import { suggestAction, type Suggestion } from '../../shared/domain/review.ts'
+import {
+  nextMinutesFor,
+  suggestAction,
+  type SuggestInput,
+  type Suggestion,
+} from '../../shared/domain/review.ts'
 import type {
   Activity,
   DataStatus,
@@ -345,8 +350,8 @@ function WeekReview({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState<string | null>(null)
 
-  const suggestion: Suggestion | null = planWeek
-    ? suggestAction({
+  const suggestInput: SuggestInput | null = planWeek
+    ? {
         today,
         weekStart,
         phase: planWeek.phase,
@@ -362,13 +367,23 @@ function WeekReview({
           recoveryConstrained,
         },
         hasPossibleDuplicates,
-      })
+      }
     : null
+  const suggestion: Suggestion | null = suggestInput ? suggestAction(suggestInput) : null
 
   const suggestedDecision = suggestion && isDecision(suggestion.action) ? suggestion.action : ''
   const suggestedMin = suggestion?.suggestedNextMin ?? null
   const shownDecision = decision ?? suggestedDecision
-  const shownNextMin = nextMin ?? (suggestedMin === null ? '' : String(suggestedMin))
+  // The prefill follows the decision shown, which may differ from the suggested action.
+  const decisionMin =
+    suggestInput && isDecision(shownDecision) ? nextMinutesFor(shownDecision, suggestInput) : null
+  const shownNextMin = nextMin ?? (decisionMin === null ? '' : String(decisionMin))
+
+  function chooseDecision(value: string) {
+    setDecision(value)
+    // A new decision brings its own minutes; typing in the field overrides them again.
+    setNextMin(null)
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -496,7 +511,7 @@ function WeekReview({
               label="Final decision"
               options={DECISION_OPTIONS}
               value={finished && isDecision(shownDecision) ? shownDecision : ''}
-              onChange={setDecision}
+              onChange={chooseDecision}
             />
           </Group>
           <Field label="Next week minutes" error={errors['finalNextMin']}>

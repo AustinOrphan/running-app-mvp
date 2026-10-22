@@ -62,7 +62,11 @@ function chooseAction(input: SuggestInput): { action: SuggestedAction; reason?: 
   return { action: 'progress' }
 }
 
-function nextMinutes(action: SuggestedAction, input: SuggestInput): number | null {
+/**
+ * Next week's minutes if `action` is taken, from the same rules the suggestion uses. Only the four
+ * adjusting actions carry minutes; the rest, and a plan without a next week, give null.
+ */
+export function nextMinutesFor(action: SuggestedAction, input: SuggestInput): number | null {
   const { nextBaselineMin, targetRunMin, baselineRunMin } = input
   if (nextBaselineMin === null) return null
   switch (action) {
@@ -84,6 +88,6 @@ export function suggestAction(input: SuggestInput): Suggestion {
   return {
     action,
     reason: reason ?? REASONS[action],
-    suggestedNextMin: nextMinutes(action, input),
+    suggestedNextMin: nextMinutesFor(action, input),
   }
 }
