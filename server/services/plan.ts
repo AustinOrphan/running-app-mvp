@@ -1,4 +1,4 @@
-import { daysBetween, mondayOf } from '../../shared/dates.ts'
+import { addDays, daysBetween, mondayOf } from '../../shared/dates.ts'
 import { distanceClassOf, generatePlan, GENERATOR_VERSION } from '../../shared/domain/plan.ts'
 import type { PlanWithWeeks } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
@@ -67,6 +67,24 @@ export async function generatePlanForGoal(
     strengthPreference: input.strengthPreference ?? 2,
   })
 
+  // A reviewed week sets the next week's working target (spec 7.5); regenerating keeps that link.
+  const reviews = await prisma.weeklyReview.findMany({
+    where: {
+      userId: input.userId,
+      dataStatus: 'complete',
+      reviewedAt: { not: null },
+      finalNextMin: { not: null },
+      weekStart: { gte: addDays(startMonday, -7), lt: raceMonday },
+    },
+    select: { weekStart: true, finalNextMin: true },
+  })
+  const reviewTargets = new Map<string, number>()
+  for (const review of reviews) {
+    if (review.finalNextMin !== null) {
+      reviewTargets.set(addDays(review.weekStart, 7), review.finalNextMin)
+    }
+  }
+
   const created = await prisma.$transaction(async (tx) => {
     await tx.plan.updateMany({
       where: { userId: input.userId, status: 'active' },
@@ -82,20 +100,23 @@ export async function generatePlanForGoal(
         status: 'active',
         generatorVersion: GENERATOR_VERSION,
         weeks: {
-          create: weeks.map((week) => ({
-            weekStart: week.weekStart,
-            index: week.index,
-            phase: week.phase,
-            focus: week.focus,
-            baselineRunMin: week.baselineRunMin,
-            targetRunMin: week.baselineRunMin,
-            targetSource: 'baseline',
-            longRunMin: week.longRunMin,
-            day2Min: week.day2Min,
-            runDays: week.runDays,
-            strengthSessions: week.strengthSessions,
-            overrideNote: null,
-          })),
+          create: weeks.map((week) => {
+            const fromReview = reviewTargets.get(week.weekStart)
+            return {
+              weekStart: week.weekStart,
+              index: week.index,
+              phase: week.phase,
+              focus: week.focus,
+              baselineRunMin: week.baselineRunMin,
+              targetRunMin: fromReview ?? week.baselineRunMin,
+              targetSource: fromReview === undefined ? 'baseline' : 'review',
+              longRunMin: week.longRunMin,
+              day2Min: week.day2Min,
+              runDays: week.runDays,
+              strengthSessions: week.strengthSessions,
+              overrideNote: null,
+            }
+          }),
         },
       },
       include: { weeks: { orderBy: { index: 'asc' } } },

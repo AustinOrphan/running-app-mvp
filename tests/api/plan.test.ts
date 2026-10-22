@@ -306,6 +306,55 @@ describe('POST /api/plan/generate', () => {
     }
   })
 
+  test('regenerating re-applies the target of a reviewed previous week and drops overrides', async () => {
+    const fresh = await createTestCtx()
+    try {
+      const u = await seedUser(fresh)
+      const c = client(fresh, u)
+      const goal = await fresh.prisma.goal.create({
+        data: {
+          userId: u.id,
+          name: 'Review link',
+          priority: 'A',
+          targetDate: addDays(thisMonday, 7 * 12 + 5),
+          distanceM: 21_097,
+        },
+      })
+      await fresh.prisma.weeklyReview.create({
+        data: {
+          userId: u.id,
+          weekStart: addDays(thisMonday, -7),
+          dataStatus: 'complete',
+          finalDecision: 'hold',
+          finalNextMin: 150,
+          reviewedAt: new Date(),
+        },
+      })
+      // Not reviewed: finalNextMin alone does not count.
+      await fresh.prisma.weeklyReview.create({
+        data: {
+          userId: u.id,
+          weekStart: thisMonday,
+          dataStatus: 'complete',
+          finalNextMin: 90,
+        },
+      })
+
+      const res = await c.post('/api/plan/generate').send({ goalId: goal.id, baselineRunMin: 160 })
+      expect(res.status).toBe(201)
+      const plan = res.body as PlanWithWeeks
+      const current = plan.weeks.find((w) => w.weekStart === thisMonday) as PlanWeek
+      expect(current.baselineRunMin).not.toBe(150)
+      expect(current.targetRunMin).toBe(150)
+      expect(current.targetSource).toBe('review')
+      const next = plan.weeks.find((w) => w.weekStart === addDays(thisMonday, 7)) as PlanWeek
+      expect(next.targetSource).toBe('baseline')
+      expect(next.targetRunMin).toBe(next.baselineRunMin)
+    } finally {
+      await fresh.close()
+    }
+  })
+
   test('generate errors', async () => {
     const goal = await seedGoal({ name: 'Errors ok' })
     const foreign = await seedGoal({ name: 'Foreign', userId: other.id })
