@@ -86,7 +86,7 @@ describe("Today: today's session", () => {
     expect(await screen.findByRole('dialog', { name: 'Why' })).toHaveTextContent('rules: f-1, g-1')
   })
 
-  test('readiness that downgrades names the easier choice and its reasons, and never adds load', async () => {
+  test('readiness that downgrades names the easier choice and its reasons', async () => {
     const session = makeSession({ kind: 'intervals', title: 'Intervals' })
     renderToday(
       makeToday({
@@ -111,7 +111,7 @@ describe("Today: today's session", () => {
     expect(within(card).getByText('Illness reported.')).toBeInTheDocument()
   })
 
-  test('a completed session is labelled and a plan with no sessions today adds no card', async () => {
+  test('a completed session is labelled', async () => {
     renderToday(
       makeToday({
         sessions: [
@@ -153,11 +153,23 @@ describe('Today: heat, readiness and red flags', () => {
     expect(screen.queryByRole('region', { name: 'Heat' })).not.toBeInTheDocument()
   })
 
-  test('possible fatigue is stated plainly', async () => {
+  test('possible fatigue is stated plainly, with the fatigue-state rules behind it', async () => {
+    const user = userEvent.setup()
     const today = makeToday()
     today.readiness.state = 'possible-fatigue'
     renderToday(today)
     expect(await screen.findByText('Recent signals point to possible fatigue.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Why this note' }))
+    expect(await screen.findByRole('dialog', { name: 'Why' })).toHaveTextContent('rules: j-2, j-8')
+  })
+
+  test('persistent suppression is stated plainly', async () => {
+    const today = makeToday()
+    today.readiness.state = 'persistent-suppression'
+    renderToday(today)
+    expect(
+      await screen.findByText('Recent signals have stayed low for several days.'),
+    ).toBeInTheDocument()
   })
 
   test('red flags appear as notes with their why button, not as alarms', async () => {

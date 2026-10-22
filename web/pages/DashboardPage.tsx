@@ -300,7 +300,8 @@ function SessionsSection({
           <Button
             variant="quiet"
             onClick={() => {
-              onWhy(['j-2', 'j-3'])
+              // J8 defines the fatigue states; J2 makes the check-in their primary input.
+              onWhy(['j-2', 'j-8'])
             }}
           >
             Why this note
