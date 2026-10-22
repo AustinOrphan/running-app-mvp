@@ -161,6 +161,9 @@ describe('Goals page', () => {
     renderWithProviders(<GoalsPage />)
 
     expect(await screen.findAllByText('Active goal')).toHaveLength(1)
+    expect(
+      within(screen.getByRole('article', { name: 'Spring half' })).getByText(/Sun 9 May 2027/),
+    ).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Make active' })).toHaveLength(1)
 
     await user.click(screen.getByRole('button', { name: 'Edit Spring half' }))
