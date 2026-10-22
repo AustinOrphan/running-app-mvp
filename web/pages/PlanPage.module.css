@@ -167,6 +167,8 @@
 
 .noteText {
   display: block;
+  max-width: 16rem;
+  white-space: normal;
   color: var(--text-muted);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
@@ -264,6 +266,18 @@
 
   .row[aria-current='date'] .week {
     box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  /* Figures never wrap ("4.3 / h"); the Focus column takes the slack. */
+  .row .week,
+  .row .target,
+  .row .actual,
+  .row .number {
+    white-space: nowrap;
+  }
+
+  .row .focus {
+    width: 100%;
   }
 
   .target,

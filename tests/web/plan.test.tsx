@@ -226,6 +226,30 @@ describe('Plan page', () => {
     expect(within(row('2027-01-04')).getByText('7.0 h')).toBeInTheDocument()
   })
 
+  test('numeric cells keep number and unit together with a non-breaking space, and a zero long run shows a dash', async () => {
+    mockApi(
+      routes(
+        makePlan(
+          phases.map((_, i) =>
+            makeWeek(i, i === phases.length - 1 ? { longRunMin: 0 } : { day2Min: 50 }),
+          ),
+        ),
+      ),
+    )
+    renderWithProviders(<PlanPage />)
+    await screen.findByText('Focus 0')
+
+    const cell = (weekStart: string, name: string) =>
+      row(weekStart).querySelector(`[data-cell="${name}"]`)
+    expect(cell(CURRENT_WEEK, 'target')?.textContent).toContain('7.0 h')
+    expect(cell(CURRENT_WEEK, 'long-run')?.textContent).toBe('100 min')
+    expect(cell(CURRENT_WEEK, 'day2')?.textContent).toBe('50 min')
+
+    const raceWeek = '2027-03-01'
+    expect(cell(raceWeek, 'long-run')?.textContent).toBe('—')
+    expect(row(raceWeek)).not.toHaveTextContent('0 min')
+  })
+
   test('edited week shows the baseline struck through, "edited" and the note on focus; a review-sourced week shows "from review"', async () => {
     const weeks = phases.map((_, i) => makeWeek(i))
     weeks[4] = makeWeek(4, {
