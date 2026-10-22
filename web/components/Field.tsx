@@ -38,10 +38,7 @@ export function Field({ label, hint, error, children }: FieldProps) {
       </label>
       {children(control)}
       {message !== undefined && message !== '' ? (
-        <p
-          id={messageId}
-          className={hasError ? styles.error : styles.hint}
-        >
+        <p id={messageId} className={hasError ? styles.error : styles.hint}>
           {message}
         </p>
       ) : null}
