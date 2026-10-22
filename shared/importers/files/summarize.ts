@@ -1,6 +1,7 @@
 // Derived fields for a parsed activity, plus the small helpers the FIT, GPX and TCX parsers share.
 // Everything here is pure and free of Node-only imports so the web bundle can use it too.
 import { gradeAdjustedSpeed } from '../../engine/terrain.ts'
+import { MAX_DURATION_SEC } from '../../limits.ts'
 import type { ActivityStreamData, ActivityType, HrHistogram, ParsedActivity } from '../../types.ts'
 
 export interface ActivitySummary {
@@ -15,12 +16,6 @@ type Samples = ParsedActivity['samples']
 
 /** Bucket width of the stream, in seconds, for any activity short enough to fit `MAX_STREAM_BUCKETS`. */
 export const STREAM_SAMPLE_SEC = 10
-/**
- * Longest activity the importers accept, in seconds: 240 hours, since a 200-mile race takes up to
- * about 100 hours. A longer elapsed time or sample time means a corrupt timestamp, and the
- * stream's bucket arrays are sized from the last sample time.
- */
-export const MAX_ACTIVITY_SEC = 240 * 3600
 /**
  * Most buckets a stream holds: 24 hours at 10 seconds. A longer activity gets wider buckets (a
  * multiple of 10 seconds, reported as `sampleSec`), so a multi-day file stays a bounded payload.
@@ -433,8 +428,9 @@ function buildStream(s: Samples): ActivitySummary['stream'] {
       cad: null,
       pwr: null,
     }
-  // A sample past the cap is a corrupt timestamp: it neither sizes the stream nor lands in it.
-  const inRange = (i: number): boolean => s.t[i]! <= MAX_ACTIVITY_SEC
+  // A sample past the cap is a corrupt timestamp (the stream's bucket arrays are sized from the
+  // last sample time): it neither sizes the stream nor lands in it.
+  const inRange = (i: number): boolean => s.t[i]! <= MAX_DURATION_SEC
   let maxT = 0
   for (let i = 0; i < n; i++) if (inRange(i)) maxT = Math.max(maxT, s.t[i]!)
   const sampleSec =

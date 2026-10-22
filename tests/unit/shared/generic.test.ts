@@ -8,9 +8,9 @@ describe('parseGenericCsv', () => {
       [
         'date,minutes,miles,notes',
         '2026-01-01,1e12,1e9,x',
-        '2026-01-02,3000,5,x',
+        '2026-01-02,9001,5,x',
         '2026-01-03,60,700,x',
-        '2026-01-04,2880,621,edge',
+        '2026-01-04,9000,621,edge',
       ].join('\n'),
     )
     expect(errors).toEqual([

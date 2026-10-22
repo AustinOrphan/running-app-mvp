@@ -64,8 +64,10 @@ describe('parseDurationInput', () => {
     ['1:75', null],
     ['1:75:00', null],
     ['1:05:75', null],
-    ['49:00:00', null],
-    ['48:00:00', 172800],
+    ['151:00:00', null],
+    ['150:00:01', null],
+    ['150:00:00', 540000],
+    ['49:00:00', 176400],
     ['-5', null],
   ])('%j -> %j', (text, expected) => {
     expect(parseDurationInput(text)).toBe(expected)
