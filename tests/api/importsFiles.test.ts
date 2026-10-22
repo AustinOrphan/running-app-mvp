@@ -223,8 +223,14 @@ describe('POST /api/imports/parsed', () => {
       wellness: [wellness('2026-01-05', 52), wellness('2026-01-06', null)],
     })
     expect(status).toBe(201)
-    expect(body).toMatchObject({ source: 'apple-health', rowCount: 4, accepted: 3 })
-    expect(body.skippedDuplicate + body.skippedInvalid).toBe(1)
+    expect(body).toMatchObject({
+      source: 'apple-health',
+      rowCount: 4,
+      accepted: 3,
+      skippedDuplicate: 1,
+      skippedInvalid: 0,
+      errors: [{ line: null, reason: '1 wellness day had nothing new' }],
+    })
     const rows = await ctx.prisma.activity.findMany({ where: { userId: user.id } })
     expect(rows.map((row) => row.source)).toEqual(['apple-health', 'apple-health'])
     expect(rows[0]?.startLat).toBe(0)
@@ -232,11 +238,12 @@ describe('POST /api/imports/parsed', () => {
     expect(day).toMatchObject({ date: '2026-01-05', restingHr: 52, source: 'apple-health' })
   })
 
-  test('sending the same activity again never makes a second row', async () => {
+  test('sending the same activity again updates it and never makes a second row', async () => {
     const body = { source: 'apple-health', activities: [parsed()], wellness: [] }
     await postParsed(body)
     const again = await postParsed(body)
     expect(again.status).toBe(201)
+    expect(again.body).toMatchObject({ rowCount: 1, accepted: 1, skippedDuplicate: 0 })
     expect(await ctx.prisma.activity.count()).toBe(1)
   })
 
