@@ -170,4 +170,208 @@ export const eMacro = {
       note: 'Default: one maintenance session per week after the strength block.',
     }),
   },
+  // Engine defaults that the rules leave open. Every one is grade D with no evidence: they size
+  // the plan around the rules' limits and are labelled as defaults wherever they are shown.
+  macroDesign: {
+    buildWeeks: param('macroDesign.buildWeeks', 6, 'D', 'design-macro', [], {
+      unit: 'weeks',
+      note: 'Default: the build phase lasts up to this many weeks; base takes the remainder (E2).',
+    }),
+    startFloorWeekMin: param('macroDesign.startFloorWeekMin', 90, 'D', 'design-macro', [], {
+      unit: 'min per week',
+      note: 'Default: weekly running time to start from when no recent running exists (3 runs of 30 min).',
+    }),
+    longRunShareOfWeek: param('macroDesign.longRunShareOfWeek', 0.35, 'D', 'design-macro', [], {
+      note: 'Default: the long run is about this share of the weekly running time.',
+    }),
+    longRunShareOfWeekUltra: param(
+      'macroDesign.longRunShareOfWeekUltra',
+      0.45,
+      'D',
+      'design-macro',
+      [],
+      {
+        note: 'Default: for ultras the long run is about this share of the weekly running time (H2 still caps it).',
+      },
+    ),
+    trainingPaceFactor: param('macroDesign.trainingPaceFactor', 1.15, 'D', 'design-macro', [], {
+      note: 'Default: average training pace is this multiple of the goal pace when no recent pace exists.',
+    }),
+    defaultEasyPaceSecPerKm: param(
+      'macroDesign.defaultEasyPaceSecPerKm',
+      360,
+      'D',
+      'design-macro',
+      [],
+      {
+        unit: 'sec/km',
+        note: 'Default: easy pace used to turn minutes into distance when neither history nor goal gives one.',
+      },
+    ),
+    postRaceReducedFraction: param(
+      'macroDesign.postRaceReducedFraction',
+      0.5,
+      'D',
+      'design-macro',
+      [],
+      {
+        note: 'Default: reduced running after a race is this fraction of the pre-taper reference week (H12).',
+      },
+    ),
+    polarizedZ2Share: param('macroDesign.polarizedZ2Share', 5, 'D', 'design-macro', [], {
+      unit: '% of running time',
+      note: 'Default: Z2 share of the optional polarized specific phase for 5-10 km (E4).',
+    }),
+    gainShareBase: param('macroDesign.gainShareBase', 0.3, 'D', 'design-macro', [], {
+      note: 'Default: share of the race gain per km practised in the base phase (H4).',
+    }),
+    gainShareBuild: param('macroDesign.gainShareBuild', 0.6, 'D', 'design-macro', [], {
+      note: 'Default: share of the race gain per km practised in the build phase (H4).',
+    }),
+    gainShareSpecific: param('macroDesign.gainShareSpecific', 1, 'D', 'design-macro', [], {
+      note: 'Default: in the specific phase the weekly gain works toward the full race gain per km (H4).',
+    }),
+  },
+  peakWeeklyMin: {
+    '5k': param('peakWeeklyMin.5k', 180, 'D', 'design-macro', [], {
+      unit: 'min per week',
+      note: 'Default: peak weekly running time for a 5 km goal; never above what the ramp allows.',
+    }),
+    '10k': param('peakWeeklyMin.10k', 210, 'D', 'design-macro', [], {
+      unit: 'min per week',
+      note: 'Default: peak weekly running time for a 10 km goal; never above what the ramp allows.',
+    }),
+    half: param('peakWeeklyMin.half', 270, 'D', 'design-macro', [], {
+      unit: 'min per week',
+      note: 'Default: peak weekly running time for a half-marathon; the D3 floor can raise it for a time goal.',
+    }),
+    marathon: param('peakWeeklyMin.marathon', 330, 'D', 'design-macro', [], {
+      unit: 'min per week',
+      note: 'Default: peak weekly running time for a marathon; the D3 floor can raise it for a time goal.',
+    }),
+    ultra50: param('peakWeeklyMin.ultra50', 390, 'D', 'design-macro', [], {
+      unit: 'min per week',
+      note: 'Default: peak weekly running time for a 50 km ultra; never above what the ramp allows.',
+    }),
+    ultra100k: param('peakWeeklyMin.ultra100k', 480, 'D', 'design-macro', [], {
+      unit: 'min per week',
+      note: 'Default: peak weekly running time for 100 km; never above what the ramp allows.',
+    }),
+    ultra100mi: param('peakWeeklyMin.ultra100mi', 600, 'D', 'design-macro', [], {
+      unit: 'min per week',
+      note: 'Default: peak weekly running time for 100 miles; never above what the ramp allows.',
+    }),
+    beyond: param('peakWeeklyMin.beyond', 660, 'D', 'design-macro', [], {
+      unit: 'min per week',
+      note: 'Default: peak weekly running time beyond 100 miles; never above what the ramp allows.',
+    }),
+  },
+  peakLongRunMin: {
+    '5k': param('peakLongRunMin.5k', 60, 'D', 'design-macro', [], {
+      unit: 'min',
+      note: 'Default: peak long-run duration for a 5 km goal.',
+    }),
+    '10k': param('peakLongRunMin.10k', 75, 'D', 'design-macro', [], {
+      unit: 'min',
+      note: 'Default: peak long-run duration for a 10 km goal.',
+    }),
+    half: param('peakLongRunMin.half', 105, 'D', 'design-macro', [], {
+      unit: 'min',
+      note: 'Default: peak long-run duration for a half-marathon; the D3 long-run floor can raise it.',
+    }),
+    marathon: param('peakLongRunMin.marathon', 180, 'D', 'design-macro', [], {
+      unit: 'min',
+      note: 'Default: peak long-run duration for a marathon; the D3 long-run floor can raise it.',
+    }),
+    ultra50: param('peakLongRunMin.ultra50', 240, 'D', 'design-macro', [], {
+      unit: 'min',
+      note: 'Default: peak long-run duration for a 50 km ultra, capped by H2.',
+    }),
+    ultra100k: param('peakLongRunMin.ultra100k', 300, 'D', 'design-macro', [], {
+      unit: 'min',
+      note: 'Default: peak long-run duration for 100 km, capped by H2.',
+    }),
+    ultra100mi: param('peakLongRunMin.ultra100mi', 360, 'D', 'design-macro', [], {
+      unit: 'min',
+      note: 'Default: peak long-run duration for 100 miles, capped by H2.',
+    }),
+    beyond: param('peakLongRunMin.beyond', 360, 'D', 'design-macro', [], {
+      unit: 'min',
+      note: 'Default: peak long-run duration beyond 100 miles, capped by H2.',
+    }),
+  },
+  // Session structure defaults (sessions.ts) where the rules give a method but not a size.
+  sessionDesign: {
+    warmupMin: param('sessionDesign.warmupMin', 10, 'D', 'design-sessions', [], {
+      unit: 'min',
+      note: 'Default: easy warm-up before quality work.',
+    }),
+    cooldownMin: param('sessionDesign.cooldownMin', 10, 'D', 'design-sessions', [], {
+      unit: 'min',
+      note: 'Default: easy cool-down after quality work.',
+    }),
+    stridesWorkSec: param('sessionDesign.stridesWorkSec', 20, 'D', 'design-sessions', [], {
+      unit: 'sec',
+      note: 'Default: length of one stride.',
+    }),
+    stridesRecoverSec: param('sessionDesign.stridesRecoverSec', 60, 'D', 'design-sessions', [], {
+      unit: 'sec',
+      note: 'Default: easy walk or jog between strides.',
+    }),
+    thresholdRecoverMin: param('sessionDesign.thresholdRecoverMin', 3, 'D', 'design-sessions', [], {
+      unit: 'min',
+      note: 'Default: easy recovery between cruise-interval bouts.',
+    }),
+    intervalSpeedAboveCs: param(
+      'sessionDesign.intervalSpeedAboveCs',
+      0.05,
+      'D',
+      'design-sessions',
+      [],
+      {
+        note: 'Default: interval speed is this fraction above critical speed.',
+      },
+    ),
+    intervalRepSec: param('sessionDesign.intervalRepSec', 240, 'D', 'design-sessions', [], {
+      unit: 'sec',
+      note: 'Default: intended interval length before the D-prime budget of C6 limits it.',
+    }),
+    intervalDefaultDPrimeM: param(
+      'sessionDesign.intervalDefaultDPrimeM',
+      200,
+      'D',
+      'design-sessions',
+      [],
+      {
+        unit: 'm',
+        note: 'Default: D-prime used for the rep budget when the athlete has no estimate.',
+      },
+    ),
+    intervalRecoverFraction: param(
+      'sessionDesign.intervalRecoverFraction',
+      1,
+      'D',
+      'design-sessions',
+      [],
+      {
+        note: 'Default: easy recovery between interval reps lasts this multiple of the rep.',
+      },
+    ),
+    hillsRepSec: param('sessionDesign.hillsRepSec', 60, 'D', 'design-sessions', [], {
+      unit: 'sec',
+      note: 'Default: length of one hill repeat.',
+    }),
+    hillsRecoverSec: param('sessionDesign.hillsRecoverSec', 120, 'D', 'design-sessions', [], {
+      unit: 'sec',
+      note: 'Default: easy jog or walk down between hill repeats.',
+    }),
+    racePaceBoutMin: param('sessionDesign.racePaceBoutMin', 20, 'D', 'design-sessions', [], {
+      unit: 'min',
+      note: 'Default: longest single bout at race pace.',
+    }),
+    racePaceRecoverMin: param('sessionDesign.racePaceRecoverMin', 3, 'D', 'design-sessions', [], {
+      unit: 'min',
+      note: 'Default: easy recovery between race-pace bouts.',
+    }),
+  },
 } satisfies ParamGroups
