@@ -1,0 +1,16 @@
+{
+  "name": "Running log",
+  "short_name": "Running log",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f6f9",
+  "theme_color": "#3a36b5",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

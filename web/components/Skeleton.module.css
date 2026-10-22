@@ -1,0 +1,18 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+}
+
+.line {
+  height: 1.5rem;
+}
+
+.line:first-child {
+  width: 60%;
+}
+
+.line:last-child:not(:first-child) {
+  width: 80%;
+}
