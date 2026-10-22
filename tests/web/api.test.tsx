@@ -334,8 +334,12 @@ describe('invalidation', () => {
     expect(await run((r) => r.activate.mutateAsync('g1'))).toEqual(['goals', 'plan'])
   })
 
-  test('plan generation and week edits refetch plan and reviews', async () => {
-    expect(await run((r) => r.generate.mutateAsync({ goalId: 'g1' }))).toEqual(['plan', 'reviews'])
+  test('plan generation refetches goals (it activates the goal), plan and reviews; week edits plan and reviews', async () => {
+    expect(await run((r) => r.generate.mutateAsync({ goalId: 'g1' }))).toEqual([
+      'goals',
+      'plan',
+      'reviews',
+    ])
     expect(
       await run((r) => r.week.mutateAsync({ weekStart: '2026-03-02', patch: { runDays: 4 } })),
     ).toEqual(['plan', 'reviews'])
