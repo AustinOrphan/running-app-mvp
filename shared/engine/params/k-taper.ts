@@ -173,4 +173,11 @@ export const kTaper = {
       },
     ),
   },
+  // Engine default where the rule names a condition but no number.
+  k1Design: {
+    lowVolumeWeeklyMin: param('k1Design.lowVolumeWeeklyMin', 240, 'D', 'design-macro', [], {
+      unit: 'min per week',
+      note: 'Default: a marathon build below this typical weekly running time counts as low volume for the shorter taper (K1).',
+    }),
+  },
 } satisfies ParamGroups
