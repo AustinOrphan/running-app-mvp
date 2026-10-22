@@ -78,7 +78,9 @@
 
 .day {
   display: grid;
-  grid-template-columns: minmax(8rem, 1fr) minmax(0, 8rem);
+  /* the minutes input sits next to its day, not at the far edge */
+  grid-template-columns: minmax(7rem, 9rem) minmax(0, 8rem);
+  justify-content: start;
   align-items: start;
   gap: var(--space-3);
 }

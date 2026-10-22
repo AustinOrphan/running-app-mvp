@@ -107,6 +107,13 @@ describe('Goals page', () => {
     expect(await screen.findByRole('dialog', { name: 'Add goal' })).toBeInTheDocument()
   })
 
+  test('the status and the race details read as one line with no stray full stop', async () => {
+    mockApi(routes([makeGoal({ status: 'target' })], miUser))
+    renderWithProviders(<GoalsPage />)
+    const line = await screen.findByText(/^Target · /)
+    expect(line.textContent).not.toMatch(/Target\./)
+  })
+
   test('creating a goal posts metres: Marathon preset -> distanceM 42195; custom 10 mi -> 16093; km user custom 12 -> 12000; the date is not shifted by timezone', async () => {
     const user = userEvent.setup()
     const mi = mockApi(
