@@ -196,4 +196,29 @@ describe('Goals page', () => {
     ).toBeInTheDocument()
     expect(calls.filter((c) => c.method === 'DELETE')).toHaveLength(1)
   })
+
+  test('renaming a goal with a custom distance keeps the stored metres instead of re-parsing the rounded text', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes([makeGoal({ distanceM: 15000 })], miUser, {
+        'PUT /api/goals/g1': () => makeGoal({ distanceM: 15000, name: 'Renamed' }),
+      }),
+    )
+    renderWithProviders(<GoalsPage />)
+
+    await user.click(await screen.findByRole('button', { name: 'Edit Spring half' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit goal' })
+    expect(within(dialog).getByLabelText('Distance (mi)')).toHaveValue('9.32')
+    await user.clear(within(dialog).getByLabelText('Name'))
+    await user.type(within(dialog).getByLabelText('Name'), 'Renamed')
+    await user.click(within(dialog).getByRole('button', { name: 'Save goal' }))
+
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'PUT')).toBe(true)
+    })
+    expect(calls.find((c) => c.method === 'PUT')?.body).toMatchObject({
+      name: 'Renamed',
+      distanceM: 15000,
+    })
+  })
 })
