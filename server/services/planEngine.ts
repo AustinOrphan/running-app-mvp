@@ -354,19 +354,33 @@ export async function replanActivePlan(
     { userId, goalId: plan.goalId, today, options },
     { existing: true },
   )
-  const { draft, changes } = replan(input)
-  const blocked = failedChecklist(draft.checklist)
-  if (blocked) throw blocked
-
-  // The decision for the week that just finished goes into the summary; the review page reads it
-  // from the engine with the same inputs.
-  const lastWeek = addDays(mondayOf(today), -7)
+  // The decision for the week that just finished goes into the summary and, after a reduce or a
+  // hold, caps the week that follows it; the owner's or review's lower target caps its week too
+  // and takes the place of the decision's number [rules g-2, J5].
+  const currentMonday = mondayOf(today)
+  const lastWeek = addDays(currentMonday, -7)
   const decision = input.existing?.weeks.some((w) => w.weekStart === lastWeek)
     ? weeklyDecision(input, lastWeek, {
         executions: await executionRecords(prisma, plan.id, lastWeek),
         redsFlags: input.screeningFlags,
       })
     : null
+  const weekCaps: Record<string, number> = {}
+  if (decision !== null && decision.decision !== 'progress') {
+    weekCaps[addDays(lastWeek, 7)] = decision.nextWeekTargetMin
+  }
+  const ownerWeeks = await prisma.planWeek.findMany({
+    where: {
+      planId: plan.id,
+      weekStart: { gte: currentMonday },
+      targetSource: { in: ['override', 'review'] },
+    },
+  })
+  for (const week of ownerWeeks) weekCaps[week.weekStart] = week.targetRunMin
+  const { draft, changes } = replan({ ...input, weekCaps })
+  const blocked = failedChecklist(draft.checklist)
+  if (blocked) throw blocked
+
   const state = estimateState(input)
   const reason: PlanRevisionReason =
     args.reason === 'weekly' && state.layoffDays >= P.j7.tier1Days.value ? 'break' : args.reason
@@ -379,7 +393,6 @@ export async function replanActivePlan(
     .filter((line): line is string => line !== null)
     .join(' ')
 
-  const currentMonday = mondayOf(today)
   const revision = await prisma.$transaction(
     async (tx) => {
       const rows = await tx.planSession.findMany({ where: { planId: plan.id } })

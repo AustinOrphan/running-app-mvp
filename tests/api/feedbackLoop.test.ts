@@ -113,6 +113,16 @@ async function runWeek(userId: string, plan: PlanWithSessions, weekStart: string
   }
 }
 
+/** Running minutes of a week's stored sessions on or after `from` (strength and rest are not running). */
+async function runMinutes(planId: string, weekStart: string, from: string): Promise<number> {
+  const rows = await ctx.prisma.planSession.findMany({
+    where: { planId, weekStart, date: { gte: from } },
+  })
+  return rows
+    .filter((r) => !['strength', 'mobility', 'rest', 'cross', 'race'].includes(r.kind))
+    .reduce((sum, r) => sum + r.durationMin, 0)
+}
+
 const TARGET = JSON.stringify({
   zone: 'z1',
   rpe: [2, 3],
@@ -324,6 +334,58 @@ describe('reviews of version-2 plans use the weekly decision and re-plan', () =>
       where: { planId: plan.id, weekStart: addDays(thisMonday, 7) },
     })
     expect(week.targetRunMin).toBeLessThanOrEqual(200)
+    // ... and so do the sessions still to run that week.
+    expect(await runMinutes(plan.id, thisMonday, '2026-10-28')).toBeLessThanOrEqual(200)
+  })
+
+  test('a decided lower target for next week sizes the sessions, not only the week row', async () => {
+    const { u, plan } = await generatedPlan('review-sessions@example.com')
+    await runWeek(u.id, plan, thisMonday, 1)
+    // The Monday after the reviewed week: all of the next week is still to run.
+    const monday = addDays(thisMonday, 7)
+    vi.setSystemTime(new Date(2026, 9, 26, 12))
+    const planned = await runMinutes(plan.id, monday, monday)
+    expect(planned).toBeGreaterThan(100)
+
+    const saved = await client(ctx, u)
+      .put(`/api/reviews/${thisMonday}`)
+      .send({ dataStatus: 'complete', finalDecision: 'reduce', finalNextMin: 80 })
+    expect(saved.status, JSON.stringify(saved.body)).toBe(200)
+    expect((saved.body as ReviewView).revision).not.toBeNull()
+    const after = await runMinutes(plan.id, monday, monday)
+    expect(after).toBeLessThanOrEqual(80)
+    expect(after).toBeGreaterThan(0)
+  })
+
+  test('an illness check-in makes next week lighter than a clean week', async () => {
+    const clean = await generatedPlan('review-clean@example.com')
+    const ill = await generatedPlan('review-ill@example.com')
+    const lastWeek = addDays(thisMonday, 7)
+    for (const { u, plan } of [clean, ill]) {
+      await runWeek(u.id, plan, thisMonday, 1)
+      await runWeek(u.id, plan, lastWeek, 1)
+    }
+    await ctx.prisma.wellnessDay.create({
+      data: {
+        userId: ill.u.id,
+        date: addDays(lastWeek, 2),
+        illness: true,
+        painScore: 7,
+        source: 'manual',
+      },
+    })
+    // The Monday after the week with the illness.
+    vi.setSystemTime(new Date(2026, 10, 2, 12))
+    const monday = addDays(thisMonday, 14)
+    for (const { u } of [clean, ill]) {
+      const res = await client(ctx, u).post('/api/plan/replan').send({})
+      expect(res.status, JSON.stringify(res.body)).toBe(200)
+    }
+    const cleanMin = await runMinutes(clean.plan.id, monday, monday)
+    const illMin = await runMinutes(ill.plan.id, monday, monday)
+    expect(cleanMin).toBeGreaterThan(0)
+    expect(illMin).toBeGreaterThan(0)
+    expect(illMin).toBeLessThan(cleanMin)
   })
 
   test('a re-plan that cannot run does not fail the save', async () => {

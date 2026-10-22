@@ -298,4 +298,10 @@ export interface EngineInput {
   }
   /** Signs from the latest REDs screening [rules n-4]; absent means no screening. */
   screeningFlags?: number
+  /**
+   * Working minutes a week may not exceed, by week start: the owner's or review's lower target,
+   * and the weekly decision's target after a reduce or hold [rules g-2, J5]. Sessions are placed
+   * against the capped week.
+   */
+  weekCaps?: Record<string, number>
 }

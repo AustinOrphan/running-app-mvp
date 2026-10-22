@@ -121,6 +121,24 @@ function remainingOfCurrentWeek(
 }
 
 /**
+ * The week held to `cap` minutes: the long run and the climbing shrink by the same share, so the
+ * sessions are placed against the lower week. A cap above the target changes nothing.
+ */
+function capWeek(week: WeekDraft, cap: number | undefined): WeekDraft {
+  if (cap === undefined || cap >= week.targetRunMin) return week
+  const target = Math.max(0, Math.floor(cap))
+  const share = week.targetRunMin > 0 ? target / week.targetRunMin : 0
+  return {
+    ...week,
+    targetRunMin: target,
+    longRunMin: Math.min(Math.floor(week.longRunMin * share + 1e-9), target),
+    longRunM: week.longRunM === null ? null : Math.round((week.longRunM * share) / 100) * 100,
+    gainTargetM:
+      week.gainTargetM === null ? null : Math.round((week.gainTargetM * share) / 10) * 10,
+  }
+}
+
+/**
  * A break of 7 days or more restarts below the volume before it [rules J7]: the typical week the
  * macrocycle grows from is the restart volume, not the pre-break one.
  */
@@ -147,7 +165,7 @@ function generate(
   const zones = buildZones(input.profile, state, today)
   const feas = feasibility(goal, state, today)
   const macro = macroPlan(input, state, goal, feas).map((w) => ({
-    ...w,
+    ...capWeek(w, input.weekCaps?.[w.weekStart]),
     index: w.index + weekOffset,
   }))
   const currentMonday = mondayOf(today)
@@ -218,7 +236,14 @@ function generate(
   const guarded = applyGuards(placed, state, input.activities, {
     ultraRaceDurationSec: goal.isUltra ? goal.expectedDurationSec : null,
     neverOverride: true,
-    lowWeeks: macro.filter((w) => w.isRecovery || w.isTaper).map((w) => w.weekStart),
+    // recovery and taper weeks never set a ramp baseline, past ones of a re-plan included (the
+    // checklist reads them from the merged weeks)
+    lowWeeks: [
+      ...(input.existing?.weeks ?? []).filter((w) => w.weekStart < currentMonday),
+      ...macro,
+    ]
+      .filter((w) => w.isRecovery || w.isTaper)
+      .map((w) => w.weekStart),
     restartFloor:
       floorWeek === undefined
         ? null
