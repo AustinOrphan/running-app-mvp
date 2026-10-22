@@ -1,7 +1,7 @@
 // Planned versus actual on the server: link stored activities to the sessions they fulfil, assess
 // each linked session against expectation, and trim the next quality session after a run that was
 // much harder than expected [design 4.1 to 4.3]. The engine decides; this module reads and writes.
-import { addDays, todayIso } from '../../shared/dates.ts'
+import { addDays, daysBetween, todayIso } from '../../shared/dates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { shouldTrimQuality, trimQuality } from '../../shared/engine/adapt.ts'
 import { assessExecution, fitHrModel, matchSessions } from '../../shared/engine/execution.ts'
@@ -18,7 +18,7 @@ import type { Deps } from '../app.ts'
 import type { PlanSession as PlanSessionRow } from '../db.ts'
 import { notFound } from '../errors.ts'
 import { createLogger } from '../logger.ts'
-import { toPlanSession } from '../serialize.ts'
+import { toActivity, toPlanSession } from '../serialize.ts'
 import { gatherContextInput, sessionSpec } from './engineInput.ts'
 
 /** How far back the nightly sweep looks, in days. */
@@ -209,46 +209,87 @@ async function matchAndAssess(
   }
 }
 
-/** After an activity is stored: match it to a planned session and assess the execution. */
+/**
+ * Whether a stored activity still fits the session it fulfils: the same test the matcher applies,
+ * so the kinds are compatible and the dates are at most a day apart [design 4.1].
+ */
+function stillFits(row: PlanSessionRow, activity: Activity): boolean {
+  const spec = sessionSpec(toPlanSession(row))
+  return (
+    matchSessions(
+      [{ ...spec, id: row.id, activityId: null, linkSource: null, status: 'planned' }],
+      [activity],
+    ).length === 1
+  )
+}
+
+/** Clears a link and the assessment resting on it; a finished session goes back to planned. */
+async function unlink(deps: Deps, row: PlanSessionRow): Promise<void> {
+  await deps.prisma.planSession.update({
+    where: { id: row.id },
+    data: {
+      activityId: null,
+      linkSource: null,
+      execution: null,
+      status: row.status === 'completed' || row.status === 'partial' ? 'planned' : row.status,
+    },
+  })
+}
+
+/**
+ * After an activity is stored: match it to a planned session and assess the execution. With
+ * `reconsider` (its date or type was edited) a linked activity that no longer fits its session is
+ * unlinked, the owner's link included, and matching runs again over the freed session.
+ */
 export async function runExecutionForActivity(
   deps: Deps,
-  args: { userId: string; activityId: string },
+  args: { userId: string; activityId: string; reconsider?: boolean },
 ): Promise<void> {
   const { prisma } = deps
   const today = todayIso()
   const activity = await prisma.activity.findFirst({
     where: { id: args.activityId, userId: args.userId },
-    select: { id: true, date: true },
   })
   if (!activity) return
   // An activity that already fulfils a session is assessed again whatever its age: an edit or a
-  // new rating changes the assessment. Linked sessions of any plan count; the link is not touched.
+  // new rating changes the assessment. Linked sessions of any plan count.
   const linked = await prisma.planSession.findFirst({
     where: { activityId: activity.id, plan: { userId: args.userId } },
-    select: { id: true },
   })
+  // Dates around a session freed below, whose neighbours may now fulfil it.
+  let freed: string | null = null
   if (linked) {
-    await assessSessionById(deps, { userId: args.userId, sessionId: linked.id })
-    return
+    if (!args.reconsider || stillFits(linked, toActivity(activity))) {
+      await assessSessionById(deps, { userId: args.userId, sessionId: linked.id })
+      return
+    }
+    await unlink(deps, linked)
+    freed = linked.date
   }
-  // Imports of old history reach here too; only recent activities can fulfil a session.
-  if (activity.date < addDays(today, -SWEEP_DAYS) || activity.date > addDays(today, 1)) return
   const plan = await activePlan(deps, args.userId)
   if (!plan) return
-  const near = await prisma.planSession.count({
-    where: {
-      planId: plan.id,
-      date: {
-        gte: addDays(activity.date, -MATCH_SPREAD_DAYS),
-        lte: addDays(activity.date, MATCH_SPREAD_DAYS),
+  // Imports of old history reach here too; only recent activities can fulfil a session.
+  let eligible = activity.date >= addDays(today, -SWEEP_DAYS) && activity.date <= addDays(today, 1)
+  if (eligible) {
+    const near = await prisma.planSession.count({
+      where: {
+        planId: plan.id,
+        date: {
+          gte: addDays(activity.date, -MATCH_SPREAD_DAYS),
+          lte: addDays(activity.date, MATCH_SPREAD_DAYS),
+        },
       },
-    },
-  })
-  if (near === 0) return
+    })
+    eligible = near > 0
+  }
+  const freedDate = linked?.planId === plan.id ? freed : null
+  if (!eligible && freedDate === null) return
   await matchAndAssess(
     deps,
     { userId: args.userId, planId: plan.id, goalId: plan.goalId, today },
-    (a) => a.id === activity.id,
+    (a) =>
+      (eligible && a.id === activity.id) ||
+      (freedDate !== null && Math.abs(daysBetween(freedDate, a.date)) <= MATCH_SPREAD_DAYS),
   )
 }
 
@@ -258,7 +299,7 @@ export async function runExecutionForActivity(
  */
 export async function runExecutionQuietly(
   deps: Deps,
-  args: { userId: string; activityId: string },
+  args: { userId: string; activityId: string; reconsider?: boolean },
 ): Promise<void> {
   try {
     await runExecutionForActivity(deps, args)

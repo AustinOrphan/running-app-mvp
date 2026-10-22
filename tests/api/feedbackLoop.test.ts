@@ -436,6 +436,97 @@ describe('execution runs as soon as an activity is stored, edited, rated or link
     expect((await sessionRow(sessionIds[0]!)).activityId).toBe(created.id)
   })
 
+  test('an edit that moves the activity away from its session unlinks it and clears the assessment', async () => {
+    const { u, sessionIds } = await planWith('rematch-away@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    const c = client(ctx, u)
+    const created = (await c.post('/api/activities').send(manualRun(today))).body as Activity
+    expect((await sessionRow(sessionIds[0]!)).status).toBe('completed')
+
+    const edited = await c.put(`/api/activities/${created.id}`).send(manualRun(addDays(today, -4)))
+    expect(edited.status).toBe(200)
+    expect(await sessionRow(sessionIds[0]!)).toMatchObject({
+      activityId: null,
+      linkSource: null,
+      execution: null,
+      status: 'planned',
+    })
+  })
+
+  test('a date change within a day keeps the link and re-assesses', async () => {
+    const { u, sessionIds } = await planWith('rematch-near@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    const c = client(ctx, u)
+    const created = (await c.post('/api/activities').send(manualRun(today))).body as Activity
+    await c
+      .put(`/api/activities/${created.id}`)
+      .send(manualRun(addDays(today, -1), { durationSec: 1800 }))
+    expect(await sessionRow(sessionIds[0]!)).toMatchObject({
+      activityId: created.id,
+      linkSource: 'auto',
+      status: 'partial',
+    })
+  })
+
+  test('a freed session is matched again to another run beside it', async () => {
+    const { u, sessionIds } = await planWith('rematch-other@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    const c = client(ctx, u)
+    const created = (await c.post('/api/activities').send(manualRun(today))).body as Activity
+    const nearby = (await c.post('/api/activities').send(manualRun(addDays(today, -1))))
+      .body as Activity
+    // the run of the day takes the session; the run of the day before stays free
+    expect((await sessionRow(sessionIds[0]!)).activityId).toBe(created.id)
+
+    await c.put(`/api/activities/${created.id}`).send(manualRun(addDays(today, -6)))
+    expect(await sessionRow(sessionIds[0]!)).toMatchObject({
+      activityId: nearby.id,
+      linkSource: 'auto',
+      status: 'completed',
+    })
+  })
+
+  test('a change of type that no longer fits the session unlinks it', async () => {
+    const { u, sessionIds } = await planWith('rematch-type@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    const c = client(ctx, u)
+    const created = (await c.post('/api/activities').send(manualRun(today))).body as Activity
+    await c.put(`/api/activities/${created.id}`).send(manualRun(today, { type: 'strength' }))
+    expect(await sessionRow(sessionIds[0]!)).toMatchObject({ activityId: null, status: 'planned' })
+  })
+
+  test('an owner link on the same date stays through an edit; one moved out of reach is unlinked', async () => {
+    const { u, sessionIds } = await planWith('rematch-owner@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    const c = client(ctx, u)
+    const created = (await c.post('/api/activities').send(manualRun(addDays(today, -3))))
+      .body as Activity
+    await ctx.prisma.planSession.update({
+      where: { id: sessionIds[0]! },
+      data: { activityId: created.id, linkSource: 'owner' },
+    })
+    // the date is untouched: nothing is reconsidered, the owner's link stays and is re-assessed
+    await c.put(`/api/activities/${created.id}`).send(manualRun(addDays(today, -3), { rpe: 4 }))
+    expect(await sessionRow(sessionIds[0]!)).toMatchObject({
+      activityId: created.id,
+      linkSource: 'owner',
+    })
+    // on the session's date it fits, so a date edit onto it keeps the link
+    await c.put(`/api/activities/${created.id}`).send(manualRun(today))
+    expect(await sessionRow(sessionIds[0]!)).toMatchObject({
+      activityId: created.id,
+      linkSource: 'owner',
+    })
+    // a date edit out of reach unlinks it
+    await c.put(`/api/activities/${created.id}`).send(manualRun(addDays(today, -5)))
+    expect(await sessionRow(sessionIds[0]!)).toMatchObject({ activityId: null, linkSource: null })
+  })
+
   test('a feedback change re-assesses the linked session', async () => {
     const { u, sessionIds } = await planWith('trigger-feedback@example.com', [
       { date: today, kind: 'easy', min: 60 },
