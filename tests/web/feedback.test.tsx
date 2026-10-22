@@ -114,6 +114,15 @@ describe('Today: How did it go?', () => {
     expect(within(card).getByText(/Thu 12 Mar/)).toBeInTheDocument()
   })
 
+  test('the invitation says a rating is what lets the plan adjust', async () => {
+    renderDashboard([makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })])
+    const card = await screen.findByRole('region', { name: 'How did it go?' })
+    expect(within(card).getByText(/^Recent runs without a rating\./)).toHaveTextContent(
+      'Recent runs without a rating. A rating of effort or feel is what lets the plan adjust. Rate any or all of it.',
+    )
+    expect(card.textContent).not.toMatch(/behind|missed|streak|!/i)
+  })
+
   test('shows the newest run in full and the others as a list with Rate buttons', async () => {
     const user = userEvent.setup()
     const api = renderDashboard(

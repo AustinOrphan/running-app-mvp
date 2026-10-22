@@ -197,7 +197,7 @@ export const jAdapt = {
     }),
     harderEffortSessions: param('j5.harderEffortSessions', 2, 'D', 'J5', SUBJECTIVE, {
       unit: 'sessions in the week',
-      note: 'Default: this many sessions in a week with an effort score of +1 or more count as a subjective decline (design 4.3).',
+      note: 'Default: this many sessions in a week with an effort score of +1 or more count as a subjective decline (design 4.3); only scores that rest on an RPE or feel rating count.',
     }),
     harderEffortScore: param('j5.harderEffortScore', 1, 'D', 'J5', SUBJECTIVE, {
       unit: 'effort score',

@@ -1,4 +1,4 @@
-import type { EngineWarning } from '../../shared/engine/types.ts'
+import type { EngineWarning, ExecutionAssessment } from '../../shared/engine/types.ts'
 import type { Units } from '../../shared/types.ts'
 import { formatShortDate } from './format.ts'
 
@@ -106,3 +106,26 @@ export function groupWarnings(
     }
   })
 }
+
+/** The ask for a rating, wherever the app shows or invites the feedback behind an effort verdict. */
+export const RATING_PROMPT = 'Rate this activity (effort or feel) so the plan can adjust.'
+
+/**
+ * What an effort verdict is without a rating (`hasSubjectivePart` in shared/engine/execution.ts):
+ * a guess from heart rate and pace, held to low confidence, that never trims a session, proposes
+ * a zone change or counts toward the weekly decision.
+ */
+const UNRATED_CAVEAT =
+  "Without a rating, the plan's read of this activity stays a low-confidence guess from heart rate and pace, and the plan never changes because of it."
+
+/**
+ * The note beside an effort verdict that has no RPE and no feel behind it. With no score there is
+ * no verdict to call a guess, so only the ask remains.
+ */
+export function unratedEffortNote(score: ExecutionAssessment['effort']['score']): string {
+  return score === null ? RATING_PROMPT : `${RATING_PROMPT} ${UNRATED_CAVEAT}`
+}
+
+/** One line for the why drawer, where the effort assessment's parameters are explained. */
+export const RATING_WHY_NOTE =
+  'An adjustment needs a rating of effort or feel: without one, the effort read rests on heart rate and pace alone, stays at low confidence, and never changes the plan.'

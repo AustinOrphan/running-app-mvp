@@ -8,6 +8,7 @@ import type {
   ZoneKey,
 } from '../../shared/engine/types.ts'
 import { addDays, isIsoDate } from '../../shared/dates.ts'
+import { hasSubjectivePart } from '../../shared/engine/execution.ts'
 import { formatDistance, formatPace } from '../../shared/units.ts'
 import type { Activity, PlanSession, PlanSessionStatus, Units } from '../../shared/types.ts'
 import { useActivities } from '../api/activities.ts'
@@ -18,6 +19,7 @@ import { Field, Input, Select } from './Field.tsx'
 import { Sheet } from './Sheet.tsx'
 import { useToast } from './Toast.tsx'
 import { WhyDrawer } from './WhyDrawer.tsx'
+import { unratedEffortNote } from './engineText.ts'
 import {
   formatClimb,
   formatLongDate,
@@ -180,7 +182,13 @@ function Targets({ target, units }: { target: SessionTarget; units: Units | unde
   )
 }
 
-function Assessment({ execution }: { execution: ExecutionAssessment }) {
+function Assessment({
+  execution,
+  activityId,
+}: {
+  execution: ExecutionAssessment
+  activityId: string | null
+}) {
   const { effort, conditions } = execution
   const effortText =
     effort.score === null
@@ -211,6 +219,20 @@ function Assessment({ execution }: { execution: ExecutionAssessment }) {
             <p key={line}>{line}</p>
           ))}
         </div>
+      ) : null}
+      {/* The rating controls are on the activity page. */}
+      {!hasSubjectivePart(effort.parts) ? (
+        <p className={styles.note} role="note">
+          {unratedEffortNote(effort.score)}
+          {activityId !== null ? (
+            <>
+              {' '}
+              <Link to={`/activities/${encodeURIComponent(activityId)}`}>
+                Open the activity to rate it.
+              </Link>
+            </>
+          ) : null}
+        </p>
       ) : null}
     </section>
   )
@@ -526,7 +548,9 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
             </div>
           </section>
 
-          {session.execution !== null ? <Assessment execution={session.execution} /> : null}
+          {session.execution !== null ? (
+            <Assessment execution={session.execution} activityId={session.activityId} />
+          ) : null}
           <LinkSection session={session} units={units} />
           <ChangeSection session={session} onClose={onClose} />
         </div>

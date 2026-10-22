@@ -4,10 +4,12 @@ import type { Activity, ActivityDetail, HrHistogram, Lap, Units } from '../../sh
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
 import { useActivityDetail, useDeleteActivity, useSaveFeedback } from '../api/activities.ts'
 import { ApiError } from '../api/client.ts'
+import { usePlan } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { buildSeries, StreamChart, type StreamChannel } from '../components/charts/StreamChart.tsx'
 import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
+import { unratedEffortNote } from '../components/engineText.ts'
 import { formatLongDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
@@ -315,6 +317,11 @@ function HeartRate({ activity }: { activity: Activity }) {
 function Feedback({ activity }: { activity: Activity }) {
   const save = useSaveFeedback(activity.id)
   const toast = useToast()
+  // The assessment of the planned session this activity fulfils, from the plan that other pages
+  // share. While the plan loads, or when no session is assessed, the section has no note.
+  const plan = usePlan()
+  const execution =
+    plan.data?.sessions.find((session) => session.activityId === activity.id)?.execution ?? null
   const [value, setValue] = useState<FeedbackValues>({
     rpe: activity.rpe,
     feel: activity.feel,
@@ -323,6 +330,9 @@ function Feedback({ activity }: { activity: Activity }) {
 
   return (
     <Section title="How did it go?">
+      {execution !== null && activity.rpe === null && activity.feel === null ? (
+        <p className={styles.note}>{unratedEffortNote(execution.effort.score)}</p>
+      ) : null}
       <FeedbackFields value={value} onChange={setValue} />
       <div className={styles.actions}>
         <Button

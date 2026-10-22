@@ -230,7 +230,11 @@ export function weeklyDecision(
   const weekObs = observations(input, ctx.executions).filter(
     (o) => o.date >= weekStart && o.date <= weekEnd,
   )
-  const harder = weekObs.filter((o) => (o.score ?? 0) >= P.j5.harderEffortScore.value).length
+  // Only verdicts that rest on the runner's own rating count: a guess from heart rate or pace
+  // alone never moves the plan [design 7].
+  const harder = weekObs.filter(
+    (o) => o.subjective && (o.score ?? 0) >= P.j5.harderEffortScore.value,
+  ).length
   const weekReview = input.reviews.find((r) => r.weekStart === weekStart)
   const reviewFatigue =
     weekReview !== undefined &&

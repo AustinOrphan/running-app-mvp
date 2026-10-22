@@ -347,6 +347,26 @@ describe('weeklyDecision (J5, G-6)', () => {
     expect(once.decision).toBe('progress')
   })
 
+  it('ignores harder-than-expected verdicts that rest on heart rate or pace alone', () => {
+    // No RPE and no feel: the score is a low-confidence guess and never counts as a decline.
+    const unrated = (date: string, kind: SessionKind): ExecutionRecord => ({
+      date,
+      kind,
+      assessment: {
+        ...assessment(1),
+        effort: {
+          ...assessment(1).effort,
+          confidence: 'low',
+          parts: { rpeDelta: null, feel: null, hrResidualZ: 2, paceResidualPct: null },
+        },
+      },
+    })
+    const executions = [unrated('2026-10-12', 'easy'), unrated('2026-10-14', 'threshold')]
+    const d = weeklyDecision(base(), WEEK, { efficiency: STABLE, executions })
+    expect(d.decision).toBe('progress')
+    expect(codes(d)).toEqual([])
+  })
+
   it('derives effort from RPE and the feel rating when no assessment is passed', () => {
     const sessions = weekSessions().map((s, n) => ({
       ...s,

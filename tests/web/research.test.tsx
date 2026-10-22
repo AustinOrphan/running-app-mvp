@@ -27,7 +27,18 @@ const defaultParam: Param<unknown> = {
   evidence: [],
   note: 'Default chosen for the plan; no direct evidence.',
 }
-const registry: ResearchParams = { version: '2026-10-22.1', params: [taperParam, defaultParam] }
+const effortParam: Param<unknown> = {
+  id: 'effort.weightRpe',
+  value: 0.4,
+  grade: 'D',
+  rule: 'J2',
+  evidence: [],
+  note: 'Default: the weight of the RPE part of the effort score.',
+}
+const registry: ResearchParams = {
+  version: '2026-10-22.1',
+  params: [taperParam, defaultParam, effortParam],
+}
 
 function Harness({ rules }: { rules: string[] }) {
   const [open, setOpen] = useState(false)
@@ -94,6 +105,24 @@ describe('WhyDrawer', () => {
         SLOW,
       ),
     ).toBeInTheDocument()
+  })
+
+  test('the effort assessment says that an adjustment needs a rating', async () => {
+    mockApi({ 'GET /api/research/params': () => registry })
+    const user = userEvent.setup()
+    renderWithProviders(<Harness rules={['J2', 'K1']} />)
+    await user.click(screen.getByRole('button', { name: 'Why' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    const effort = await within(dialog).findByRole('region', { name: 'Subjective first' })
+    expect(within(effort).getByText(/the weight of the RPE part/)).toBeInTheDocument()
+    expect(
+      within(effort).getByText(
+        'An adjustment needs a rating of effort or feel: without one, the effort read rests on heart rate and pace alone, stays at low confidence, and never changes the plan.',
+      ),
+    ).toBeInTheDocument()
+    // Only the effort parameters bring the sentence; another rule in the same drawer does not.
+    expect(within(dialog).getAllByText(/An adjustment needs a rating/)).toHaveLength(1)
   })
 
   test('says so when a rule has no parameter', async () => {

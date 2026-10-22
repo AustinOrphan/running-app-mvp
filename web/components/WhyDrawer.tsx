@@ -3,6 +3,7 @@ import { useResearchParams } from '../api/research.ts'
 import { GradeBadge } from './GradeBadge.tsx'
 import { PaperCard } from './PaperCard.tsx'
 import { Sheet } from './Sheet.tsx'
+import { RATING_WHY_NOTE } from './engineText.ts'
 import { ruleTitle } from './ruleTitles.ts'
 import styles from './WhyDrawer.module.css'
 import { useCorpus, useToggleSet } from './researchCorpus.ts'
@@ -105,6 +106,9 @@ function DrawerBody({ rules }: { rules: string[] }) {
         return (
           <section key={rule} className={styles.rule} aria-label={title ?? `Rule ${rule}`}>
             <h3 className={styles.ruleTitle}>{title ?? `Rule ${rule}`}</h3>
+            {matched.some((param) => param.id.startsWith('effort.')) ? (
+              <p className={styles.note}>{RATING_WHY_NOTE}</p>
+            ) : null}
             {matched.length === 0 ? (
               <p className={styles.note}>No parameter is recorded for {title ?? rule}.</p>
             ) : (
