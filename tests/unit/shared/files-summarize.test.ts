@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, test } from 'vitest'
 import {
+  MAX_STREAM_BUCKETS,
   elevationGainLoss,
+  fillSamples,
   localDateTime,
   sha256Hex,
   summarize,
@@ -32,6 +34,40 @@ function parsed(over: Partial<ParsedActivity> = {}): ParsedActivity {
     ...over,
   }
 }
+
+describe('heart rate gaps', () => {
+  const point = (t: number, hr: number | null) => ({ t, d: t * 3, hr })
+
+  test('a heart rate is carried for at most 10 seconds, other channels for as long as needed', () => {
+    const samples = fillSamples([
+      point(0, 140),
+      point(5, null),
+      point(10, null),
+      point(11, null),
+      point(60, 150),
+      point(65, null),
+    ])
+    expect(samples.hr).toEqual([140, 140, 140, 0, 150, 150])
+    expect(samples.d).toEqual([0, 15, 30, 33, 180, 195])
+  })
+
+  test('a gap at the start is back-filled for 10 seconds only', () => {
+    const samples = fillSamples([point(0, null), point(8, null), point(20, 130), point(21, null)])
+    expect(samples.hr).toEqual([0, 0, 130, 130])
+  })
+
+  test('the stream and histogram leave gap samples out', () => {
+    const t = Array.from({ length: 40 }, (_, i) => i)
+    const hr = t.map((x) => (x < 10 || x >= 30 ? 150 : null))
+    const samples = fillSamples(t.map((x, i) => ({ t: x, d: x * 3, hr: hr[i] })))
+    const a = parsed({ elapsedSec: 39, distanceM: 117, samples })
+    const { stream, hrHistogram } = summarize(a)
+    expect(JSON.parse(JSON.stringify(stream.hr))).toEqual([150, 150, null, 150])
+    const seconds = hrHistogram?.sec.reduce((sum, v) => sum + v, 0) ?? 0
+    // 10 s of readings plus the 10 s carried, then 10 s after the strap came back; not 40 s.
+    expect(seconds).toBeCloseTo(30, 0)
+  })
+})
 
 describe('summarize stream', () => {
   test('averages each 10-second bucket and takes cumulative distance at the bucket end', () => {
@@ -92,6 +128,29 @@ describe('summarize stream', () => {
     expect(stream.t).toEqual([0, 10, 20, 30])
     expect(stream.d).toEqual([0, 10, 20, 30])
     expect(stream.hr).toEqual([100, 110, 120, 130])
+  })
+
+  test('a multi-day activity widens the buckets so the stream stays bounded', () => {
+    const hours = 100
+    const t = Array.from({ length: 101 }, (_, i) => i * hours * 36)
+    const a = parsed({
+      elapsedSec: hours * 3600,
+      samples: {
+        t,
+        d: t.map((x) => x * 3),
+        hr: t.map(() => 140),
+        alt: null,
+        cad: null,
+        pwr: null,
+      },
+    })
+    const { stream } = summarize(a)
+    expect(stream.sampleSec).toBeGreaterThan(10)
+    expect(stream.sampleSec % 10).toBe(0)
+    expect(stream.t.length).toBeLessThanOrEqual(MAX_STREAM_BUCKETS)
+    expect(stream.t[1]).toBe(stream.sampleSec)
+    expect(stream.t.length).toBe(Math.floor((hours * 3600) / stream.sampleSec) + 1)
+    expect(stream.d?.at(-1)).toBe(hours * 3600 * 3)
   })
 
   test('an activity with no samples has an empty stream', () => {

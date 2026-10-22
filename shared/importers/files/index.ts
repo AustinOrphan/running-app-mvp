@@ -36,7 +36,7 @@ export function parseActivityFile(
   for (const a of activities) {
     const last = a.samples.t.length > 0 ? a.samples.t[a.samples.t.length - 1]! : 0
     if (a.elapsedSec > MAX_ACTIVITY_SEC || last > MAX_ACTIVITY_SEC) {
-      throw new RangeError('the activity lasts longer than 48 hours; a timestamp looks corrupt')
+      throw new RangeError('the activity lasts longer than 240 hours; a timestamp looks corrupt')
     }
   }
   return activities

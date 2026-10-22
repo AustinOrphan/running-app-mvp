@@ -28,6 +28,7 @@ import { EmptyState } from '../components/EmptyState.tsx'
 import { Input } from '../components/Field.tsx'
 import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
 import {
+  formatClimb,
   formatLongDate,
   formatShortDate,
   formatWeekday,
@@ -237,8 +238,6 @@ const ADVICE_LINES = {
   rest: 'A rest day is the better choice today.',
 } as const
 
-const FEET_PER_METRE = 3.28084
-
 /** "9:15 to 10:28 /mi" from sec/km bounds given slow to fast. */
 function formatPaceRange(range: [number, number], units: Units): string {
   const [slow, fast] = range
@@ -248,9 +247,7 @@ function formatPaceRange(range: [number, number], units: Units): string {
 
 function climbText(gainM: number | null, units: Units): string | null {
   if (gainM === null || gainM <= 0) return null
-  return units === 'mi'
-    ? `${String(Math.round(gainM * FEET_PER_METRE))} ft`
-    : `${String(Math.round(gainM))} m`
+  return formatClimb(gainM, units)
 }
 
 function sessionFigures(
@@ -457,7 +454,7 @@ interface CheckinDraft {
   painFocalBone: boolean
 }
 
-function draftFrom(checkin: Checkin | null): CheckinDraft {
+function draftFrom(checkin: Checkin | null, boneActive: boolean): CheckinDraft {
   return {
     fatigue: checkin?.fatigue ?? null,
     soreness: checkin?.soreness ?? null,
@@ -467,7 +464,8 @@ function draftFrom(checkin: Checkin | null): CheckinDraft {
     illness: checkin?.illness ?? false,
     painScore: checkin?.painScore ?? null,
     painArea: checkin?.painArea ?? '',
-    painFocalBone: checkin?.painFocalBone ?? false,
+    // Reported bone tenderness stays ticked until the runner unticks it [rules n-1].
+    painFocalBone: checkin?.painFocalBone ?? boneActive,
   }
 }
 
@@ -482,15 +480,18 @@ const CHECKIN_SCALES = [
 function CheckinCard({
   date,
   checkin,
+  boneActive,
   onSaved,
 }: {
   date: string
   checkin: Checkin | null
+  /** The engine still counts an earlier report of point tenderness on a bone. */
+  boneActive: boolean
   onSaved: (message: string) => void
 }) {
   const headingId = useId()
   const save = useSaveCheckin()
-  const initial = draftFrom(checkin)
+  const initial = draftFrom(checkin, boneActive)
   const [draft, setDraft] = useState<CheckinDraft>(initial)
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial)
   const area = draft.painArea.trim()
@@ -783,6 +784,9 @@ export function DashboardPage() {
             key={todayView.data.date}
             date={todayView.data.date}
             checkin={todayView.data.checkin}
+            boneActive={todayView.data.readiness.redFlags.some(
+              (flag) => flag.code === 'focal-bone-pain',
+            )}
             onSaved={(message) => {
               toast.show(message)
             }}

@@ -399,6 +399,59 @@ describe('trims follow the evidence of the session just assessed', () => {
   })
 })
 
+describe("trims need the runner's own rating", () => {
+  const deps = () => ({ prisma: ctx.prisma, config: ctx.config })
+  const statusOf = async (id: string) =>
+    (await ctx.prisma.planSession.findUniqueOrThrow({ where: { id } })).status
+  const guess: ExecutionAssessment = {
+    completion: 'completed',
+    intensity: 'above',
+    effort: {
+      score: 1,
+      confidence: 'low',
+      parts: { rpeDelta: null, feel: null, hrResidualZ: 2, paceResidualPct: null },
+    },
+    conditions: { wbgtC: null, heatAdjusted: false, gradeAdjusted: false },
+    flags: [],
+    lines: [],
+  }
+
+  test('an earlier +1 from heart rate alone does not make a later rated +1 a repeat', async () => {
+    const { u, rows } = await planWith('trim-guess@example.com', [
+      { date: addDays(today, -3), kind: 'threshold', min: 50, structure: WORK },
+      { date: addDays(today, -1), kind: 'intervals', min: 50, structure: WORK },
+      { date: addDays(today, 1), kind: 'hills', min: 50, structure: WORK },
+    ])
+    await ctx.prisma.planSession.update({
+      where: { id: rows[0]!.id },
+      data: { status: 'completed', execution: JSON.stringify(guess) },
+    })
+    const run = await addRun(u.id, addDays(today, -1), { durationSec: 50 * 60, rpe: 9, feel: 0 })
+    await runExecutionForActivity(deps(), { userId: u.id, activityId: run.id })
+    const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[1]!.id } })
+    const assessed = JSON.parse(row.execution!) as ExecutionAssessment
+    expect(assessed.effort.score).toBe(1)
+    expect(await statusOf(rows[2]!.id)).toBe('planned')
+
+    // With a rated +1 before it, the same run is a repeat and trims.
+    await ctx.prisma.planSession.update({
+      where: { id: rows[0]!.id },
+      data: {
+        execution: JSON.stringify({
+          ...guess,
+          effort: { ...guess.effort, parts: { ...guess.effort.parts, feel: 1 } },
+        }),
+      },
+    })
+    await ctx.prisma.planSession.update({
+      where: { id: rows[1]!.id },
+      data: { execution: null, activityId: null, status: 'planned' },
+    })
+    await runExecutionForActivity(deps(), { userId: u.id, activityId: run.id })
+    expect(await statusOf(rows[2]!.id)).toBe('downgraded')
+  })
+})
+
 describe('assessing against what came before the run', () => {
   test('a run far longer than the longest run of the last 30 days is flagged as a spike', async () => {
     const { u, rows } = await planWith('spike@example.com', [
@@ -670,6 +723,15 @@ describe('zone proposals', () => {
     expect(revisions[0]).toMatchObject({ reason: 'owner' })
     expect(revisions[0]!.summary).toMatch(/Accepted zone proposal/)
     expect((await c.post(`/api/zones/proposals/${proposal.id}/accept`).send({})).status).toBe(404)
+
+    // The same observations never move the boundary a second time.
+    expect((await c.get('/api/zones/proposals')).body).toEqual([])
+    // Dating the acceptance before all three of them is what brings the proposal back.
+    await ctx.prisma.planRevision.updateMany({
+      where: { summary: { startsWith: 'Accepted zone proposal ' }, plan: { userId: u.id } },
+      data: { createdAt: new Date(Date.now() - 10 * 86_400_000) },
+    })
+    expect(((await c.get('/api/zones/proposals')).body as ZoneProposalView[]).length).toBe(1)
   })
 
   test('declining hides the proposal and changes nothing else', async () => {

@@ -439,6 +439,14 @@ function spikeOf(activity: Activity, state: AthleteState): boolean {
   return false
 }
 
+/**
+ * True when the owner's own rating (RPE or the feel) is among the parts. Heart rate and pace alone
+ * are inferences about effort, so a score built from them is a guess [rules J2].
+ */
+export function hasSubjectivePart(parts: ExecutionAssessment['effort']['parts']): boolean {
+  return parts.rpeDelta !== null || parts.feel !== null
+}
+
 function effortScore(
   parts: ExecutionAssessment['effort']['parts'],
 ): Pick<ExecutionAssessment['effort'], 'score' | 'confidence'> {
@@ -457,8 +465,12 @@ function effortScore(
       units: parts.paceResidualPct / E.paceResidualPctPerUnit.value,
     })
   }
-  const confidence =
-    terms.length >= E.confidenceHighMinParts.value
+  const subjective = hasSubjectivePart(parts)
+  // With no rating from the owner the score is a guess from heart rate or pace: at most one step
+  // either way, and low confidence, whatever the number of parts.
+  const confidence = !subjective
+    ? 'low'
+    : terms.length >= E.confidenceHighMinParts.value
       ? 'high'
       : terms.length >= E.confidenceModerateMinParts.value
         ? 'moderate'
@@ -470,6 +482,7 @@ function effortScore(
   const sign = weighted < 0 ? -1 : 1
   if (size < E.neutralHalfWidth.value) return { score: 0, confidence }
   if (size < E.strongFrom.value) return { score: (sign * 1) as 1 | -1, confidence }
+  if (!subjective) return { score: (sign * 1) as 1 | -1, confidence }
   return { score: (sign * 2) as 2 | -2, confidence }
 }
 

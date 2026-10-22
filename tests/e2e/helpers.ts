@@ -84,18 +84,27 @@ export async function signedInApi(page: Page, origin: string): Promise<Api> {
 }
 
 /**
- * Empties everything the specs create, leaving the account, so each spec starts from a blank log.
+ * Empties everything the specs create, leaving the account, so each spec starts from a blank log
+ * with no profile, check-ins, integrations or screenings left by an earlier spec.
  * It writes to the server's SQLite file directly: the API has no way to retire an active plan.
  */
 export async function resetData() {
   const prisma = createPrisma(E2E_DATABASE_URL)
   try {
     await initSqlite(prisma)
+    // Every table that holds a user's data; children of these cascade (streams, files, plan
+    // weeks, sessions and revisions, predictions).
     await prisma.activity.deleteMany()
     await prisma.importBatch.deleteMany()
+    await prisma.importedFile.deleteMany()
     await prisma.weeklyReview.deleteMany()
     await prisma.plan.deleteMany()
     await prisma.goal.deleteMany()
+    await prisma.predictionLog.deleteMany()
+    await prisma.screening.deleteMany()
+    await prisma.wellnessDay.deleteMany()
+    await prisma.athleteProfile.deleteMany()
+    await prisma.integration.deleteMany()
   } finally {
     await prisma.$disconnect()
   }

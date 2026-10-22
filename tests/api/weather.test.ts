@@ -90,6 +90,7 @@ async function addActivity(data: {
   startLng?: number | null
   tempC?: number | null
   weatherSource?: string | null
+  subtype?: string | null
   providerKey?: string
 }) {
   return ctx.prisma.activity.create({
@@ -135,6 +136,46 @@ describe('enrichWeather', () => {
       'temperature_2m,relative_humidity_2m,dew_point_2m,wind_speed_10m',
     )
     expect(calls[0]!.searchParams.get('timezone')).toBe('GMT')
+  })
+
+  test('attaches no weather to treadmill, virtual or indoor activities', async () => {
+    const calls: URL[] = []
+    const fetchFn = fakeFetch({ [`GET ${ARCHIVE}`]: archiveRoute(calls) })
+    const indoors = ['treadmill', 'virtual', 'Indoor cycling'] as const
+    for (const [i, subtype] of indoors.entries()) {
+      await addActivity({
+        date: '2026-03-02',
+        startUtc: `2026-03-02T0${String(i + 5)}:00:00Z`,
+        startLat: 10.12,
+        startLng: -20.34,
+        subtype,
+        providerKey: `in-${String(i)}`,
+      })
+    }
+    const outside = await addActivity({
+      date: '2026-03-02',
+      startUtc: '2026-03-02T09:00:00Z',
+      startLat: 10.12,
+      startLng: -20.34,
+      subtype: 'trail',
+      providerKey: 'out',
+    })
+    const plain = await addActivity({
+      date: '2026-03-02',
+      startUtc: '2026-03-02T10:00:00Z',
+      startLat: 10.12,
+      startLng: -20.34,
+      subtype: null,
+      providerKey: 'plain',
+    })
+
+    // The limit counts outdoor activities only: indoor ones never use up its places.
+    const updated = await enrichWeather(ctx, user.id, { limit: 2, fetch: fetchFn, now: NOW })
+
+    expect(updated).toBe(2)
+    const rows = await ctx.prisma.activity.findMany({ where: { tempC: { not: null } } })
+    expect(rows.map((r) => r.id).sort()).toEqual([outside.id, plain.id].sort())
+    expect(await ctx.prisma.activity.count({ where: { weatherSource: null } })).toBe(3)
   })
 
   test('uses the forecast endpoint with past days for recent activities', async () => {

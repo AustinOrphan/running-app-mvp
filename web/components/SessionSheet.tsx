@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import type {
   ExecutionAssessment,
   SessionFlag,
-  SessionKind,
   SessionTarget,
   Step,
   ZoneKey,
@@ -19,31 +18,18 @@ import { Field, Input, Select } from './Field.tsx'
 import { Sheet } from './Sheet.tsx'
 import { useToast } from './Toast.tsx'
 import { WhyDrawer } from './WhyDrawer.tsx'
-import { formatLongDate, formatShortDate, formatWeekday } from './format.ts'
+import {
+  formatClimb,
+  formatLongDate,
+  formatShortDate,
+  formatWeekday,
+  sessionKindLabel,
+} from './format.ts'
 import styles from './SessionSheet.module.css'
 
 export interface SessionSheetProps {
   session: PlanSession
   onClose: () => void
-}
-
-const KIND_LABELS: Record<SessionKind, string> = {
-  easy: 'Easy run',
-  recovery: 'Recovery run',
-  long: 'Long run',
-  'long-fast-finish': 'Long run, fast finish',
-  threshold: 'Threshold',
-  intervals: 'Intervals',
-  'race-pace': 'Race pace',
-  strides: 'Strides',
-  hills: 'Hills',
-  hike: 'Hike',
-  b2b: 'Back-to-back',
-  strength: 'Strength',
-  mobility: 'Mobility',
-  rest: 'Rest',
-  race: 'Race',
-  cross: 'Cross-training',
 }
 
 const ZONE_LABELS: Record<ZoneKey, string> = {
@@ -338,6 +324,7 @@ function ChangeSection({ session, onClose }: SessionSheetProps) {
   const update = useUpdatePlanSession()
   const [date, setDate] = useState(session.date)
   const [error, setError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
   const done = session.status === 'completed' || session.status === 'partial'
   const unchanged = !isIsoDate(date) || date === session.date
 
@@ -359,17 +346,18 @@ function ChangeSection({ session, onClose }: SessionSheetProps) {
     )
   }
 
-  function skip() {
+  function skip(skipped: boolean) {
     setError(null)
     update.mutate(
-      { id: session.id, patch: { skip: true } },
+      { id: session.id, patch: { skip: skipped } },
       {
         onSuccess: () => {
-          toast.show('Session skipped')
+          toast.show(skipped ? 'Session skipped' : 'Session restored')
           onClose()
         },
         onError: (err) => {
           setError(err.message)
+          setConfirming(false)
         },
       },
     )
@@ -406,11 +394,52 @@ function ChangeSection({ session, onClose }: SessionSheetProps) {
       <p className={styles.muted}>
         A move is checked against spacing and the weekly limits before it is saved.
       </p>
-      <div>
-        <Button variant="secondary" disabled={done || session.status === 'skipped'} onClick={skip}>
-          Skip session
-        </Button>
-      </div>
+      {session.status === 'skipped' ? (
+        <div>
+          <Button
+            variant="secondary"
+            loading={update.isPending}
+            onClick={() => {
+              skip(false)
+            }}
+          >
+            Restore session
+          </Button>
+        </div>
+      ) : confirming ? (
+        <div className={styles.inline} role="group" aria-label="Confirm skipping">
+          <p>Skip this session?</p>
+          <Button
+            variant="secondary"
+            loading={update.isPending}
+            onClick={() => {
+              skip(true)
+            }}
+          >
+            Yes, skip it
+          </Button>
+          <Button
+            variant="quiet"
+            onClick={() => {
+              setConfirming(false)
+            }}
+          >
+            Keep it
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <Button
+            variant="secondary"
+            disabled={done}
+            onClick={() => {
+              setConfirming(true)
+            }}
+          >
+            Skip session
+          </Button>
+        </div>
+      )}
       <p className={styles.muted}>A skipped session is not made up later.</p>
       {error !== null ? (
         <p role="alert" className={styles.error}>
@@ -433,7 +462,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
       <Sheet open onClose={onClose} title={session.title}>
         <div className={styles.body}>
           <p className={styles.context}>
-            {formatLongDate(session.date)}. {KIND_LABELS[session.kind]}.{' '}
+            {formatLongDate(session.date)}. {sessionKindLabel(session.kind)}.{' '}
             <span data-status={session.status}>{STATUS_LABELS[session.status]}</span>
           </p>
           {original !== null ? (
@@ -458,8 +487,8 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
               {session.distanceM !== null && units !== undefined ? (
                 <Row label="Distance">{formatDistance(session.distanceM, units)}</Row>
               ) : null}
-              {session.gainM !== null ? (
-                <Row label="Climb">{`${String(session.gainM)}${NBSP}m`}</Row>
+              {session.gainM !== null && units !== undefined ? (
+                <Row label="Climb">{formatClimb(session.gainM, units)}</Row>
               ) : null}
             </dl>
             <Targets target={session.target} units={units} />

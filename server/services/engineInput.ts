@@ -3,7 +3,7 @@
 // wellness and check-ins, 16 weeks of reviews, the goal, the home forecast, the race-day climate
 // and the plan it is asked to keep (re-plans, today's advice, weekly decisions).
 import type { Deps } from '../app.ts'
-import { addDays, mondayOf } from '../../shared/dates.ts'
+import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { goalModel } from '../../shared/engine/goal.ts'
 import { weatherIndex } from '../../shared/engine/heat.ts'
@@ -11,8 +11,10 @@ import { isQualityKind } from '../../shared/engine/readiness.ts'
 import type {
   EngineInput,
   GoalModel,
+  PlanChange,
   SessionSpec,
   WeekDraft,
+  ZoneProposal,
   ZoneSet,
 } from '../../shared/engine/types.ts'
 import { buildZones } from '../../shared/engine/zones.ts'
@@ -323,6 +325,33 @@ async function loadExisting(deps: Deps, userId: string): Promise<EngineInput['ex
   return existingFrom(plan.weeks.map(toPlanWeek), plan.sessions.map(toPlanSession))
 }
 
+/** Summary prefix of the owner revision `decideZoneProposal` writes when a proposal is accepted. */
+const ACCEPTED_PROPOSAL = 'Accepted zone proposal '
+const ZONE_FIELD = /^zones\.(\w+)$/
+
+/**
+ * The local day of the newest accepted change of each zone boundary, read from the `zones.<boundary>`
+ * changes of the accepted-proposal revisions, so zone proposals count fresh observations only.
+ */
+export async function acceptedZoneChanges(
+  deps: Deps,
+  userId: string,
+): Promise<NonNullable<EngineInput['zoneChanges']>> {
+  const revisions = await deps.prisma.planRevision.findMany({
+    where: { plan: { userId }, reason: 'owner', summary: { startsWith: ACCEPTED_PROPOSAL } },
+    orderBy: { createdAt: 'asc' },
+    select: { changes: true, createdAt: true },
+  })
+  const changes: NonNullable<EngineInput['zoneChanges']> = {}
+  for (const revision of revisions) {
+    for (const change of JSON.parse(revision.changes) as PlanChange[]) {
+      const boundary = ZONE_FIELD.exec(change.field)?.[1] as ZoneProposal['boundary'] | undefined
+      if (boundary !== undefined) changes[boundary] = todayIso(revision.createdAt)
+    }
+  }
+  return changes
+}
+
 async function assemble(
   deps: Deps,
   args: { userId: string; today: string; goalId: string | null; options?: EngineInput['options'] },
@@ -369,6 +398,7 @@ async function assemble(
     existing: null,
     options: args.options ?? {},
     screeningFlags: await latestRedsFlags(deps, userId),
+    zoneChanges: await acceptedZoneChanges(deps, userId),
   }
 
   const goalRow =

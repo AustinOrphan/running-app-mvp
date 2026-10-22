@@ -133,7 +133,7 @@ export function parseTcx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
 
     const change = samples.alt ? elevationGainLoss(samples.alt) : null
     const located = trackpoints.find((tp) => tp.lat !== null && tp.lng !== null)
-    const avgHr = mean(samples.hr ?? [])
+    const avgHr = mean((samples.hr ?? []).filter((v) => v > 0))
     const avgCadence = mean(samples.cad ?? [])
     const avgPower = mean(samples.pwr ?? [])
     const creator = activity['Creator']

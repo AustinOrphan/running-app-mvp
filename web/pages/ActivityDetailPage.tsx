@@ -329,11 +329,16 @@ function Feedback({ activity }: { activity: Activity }) {
           variant="primary"
           loading={save.isPending}
           onClick={() => {
-            save.mutate(value, {
-              onSuccess: () => {
+            // The section starts again from the stored values once they refetch, which unmounts
+            // this component before a per-call callback of `mutate` would run; the promise does not.
+            save.mutateAsync(value).then(
+              () => {
                 toast.show('Feedback saved')
               },
-            })
+              () => {
+                // The failure is shown in the section's alert.
+              },
+            )
           }}
         >
           Save
@@ -472,7 +477,11 @@ export function ActivityDetailPage() {
       ) : null}
       <Weather activity={activity} units={units} />
       <HeartRate activity={activity} />
-      <Feedback key={activity.id} activity={activity} />
+      {/* Keyed on the stored values, so the pickers start again from them when they change. */}
+      <Feedback
+        key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}`}
+        activity={activity}
+      />
       {activity.notes !== null ? (
         <Section title="Notes">
           <p className={styles.notes}>{activity.notes}</p>

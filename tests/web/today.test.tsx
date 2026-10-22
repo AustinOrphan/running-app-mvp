@@ -261,6 +261,75 @@ describe('Today: check-in', () => {
     expect(within(card).getByRole('button', { name: 'Save check-in' })).toBeDisabled()
   })
 
+  describe('bone tenderness that is still reported', () => {
+    const activeFlag = {
+      code: 'focal-bone-pain',
+      message: 'Focal bone pain or point tenderness was reported.',
+      rules: ['n-1'],
+    }
+    const withActiveFlag = () => {
+      const today = makeToday()
+      return { ...today, readiness: { ...today.readiness, redFlags: [activeFlag] } }
+    }
+
+    test('is ticked from the active state until the runner unticks it', async () => {
+      const user = userEvent.setup()
+      const api = renderToday(withActiveFlag(), [], {
+        'PUT /api/checkins/2026-03-18': () => ({}),
+      })
+      const card = await screen.findByRole('region', { name: 'Check-in' })
+      const box = within(card).getByRole('checkbox', { name: 'Point tenderness on a bone' })
+      expect(box).toBeChecked()
+      expect(within(card).getByRole('button', { name: 'Save check-in' })).toBeDisabled()
+
+      await user.click(within(card).getByRole('button', { name: 'Fatigue 4' }))
+      await user.click(within(card).getByRole('button', { name: 'Save check-in' }))
+      await waitFor(() => {
+        expect(api.calls.some((c) => c.method === 'PUT')).toBe(true)
+      })
+      expect(api.calls.find((c) => c.method === 'PUT')?.body).toMatchObject({
+        fatigue: 4,
+        painFocalBone: true,
+      })
+    })
+
+    test('is stored as false only after the runner unticks it', async () => {
+      const user = userEvent.setup()
+      const api = renderToday(withActiveFlag(), [], {
+        'PUT /api/checkins/2026-03-18': () => ({}),
+      })
+      const card = await screen.findByRole('region', { name: 'Check-in' })
+      await user.click(within(card).getByRole('checkbox', { name: 'Point tenderness on a bone' }))
+      await user.click(within(card).getByRole('button', { name: 'Save check-in' }))
+      await waitFor(() => {
+        expect(api.calls.some((c) => c.method === 'PUT')).toBe(true)
+      })
+      expect(api.calls.find((c) => c.method === 'PUT')?.body).toMatchObject({
+        painFocalBone: false,
+      })
+    })
+
+    test("today's own saved answer wins over the active state", async () => {
+      const checkin = {
+        date: TODAY,
+        fatigue: 3,
+        soreness: null,
+        sleepQuality: null,
+        mood: null,
+        stress: null,
+        illness: false,
+        painScore: null,
+        painArea: null,
+        painFocalBone: false,
+      }
+      renderToday({ ...withActiveFlag(), checkin })
+      const card = await screen.findByRole('region', { name: 'Check-in' })
+      expect(
+        within(card).getByRole('checkbox', { name: 'Point tenderness on a bone' }),
+      ).not.toBeChecked()
+    })
+  })
+
   test('a failed save keeps the entries and says what to do', async () => {
     const user = userEvent.setup()
     renderToday(makeToday(), [], {

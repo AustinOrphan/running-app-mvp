@@ -199,7 +199,7 @@ export function parseFit(bytes: Uint8Array, opts: { timezone: string }): ParsedA
         ? fileOffset
         : offsetMinFor(startUtc, opts.timezone)
 
-    const avgHr = num(session, 'avg_heart_rate') ?? mean(samples.hr ?? [])
+    const avgHr = num(session, 'avg_heart_rate') ?? mean((samples.hr ?? []).filter((v) => v > 0))
     const maxHr =
       num(session, 'max_heart_rate') ??
       (samples.hr ? samples.hr.reduce((m, v) => Math.max(m, v), 0) : null)

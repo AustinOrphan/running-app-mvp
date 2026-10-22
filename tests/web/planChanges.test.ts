@@ -42,6 +42,44 @@ describe('describeChange', () => {
     expect(describeChange(change('week', 'taper', null)).text).toBe('Week removed (Taper)')
   })
 
+  test('names session changes: status, date and kind', () => {
+    expect(describeChange(change('session.status', 'planned', 'skipped'))).toEqual({
+      label: 'Session status',
+      from: 'planned',
+      to: 'skipped',
+      text: 'Session status planned to skipped',
+    })
+    expect(describeChange(change('session.status', 'skipped', 'planned')).text).toBe(
+      'Session status skipped to planned',
+    )
+    expect(describeChange(change('session.date', '2026-10-21', '2026-10-23')).text).toBe(
+      'Session date 21 Oct to 23 Oct',
+    )
+    expect(describeChange(change('session.kind', 'easy', 'long-fast-finish')).text).toBe(
+      'Session type Easy run to Long run, fast finish',
+    )
+    expect(describeChange(change('session.date', 'someday', null)).text).toBe(
+      'Session date someday to none',
+    )
+  })
+
+  test("names zone changes with the boundary and its value in the runner's unit", () => {
+    expect(describeChange(change('zones.thresholdPace', 300, 294))).toEqual({
+      label: 'Threshold pace',
+      from: '5:00 /km',
+      to: '4:54 /km',
+      text: 'Threshold pace 5:00 /km to 4:54 /km',
+    })
+    expect(describeChange(change('zones.thresholdPace', 300, 294), 'mi').text).toBe(
+      'Threshold pace 8:03 /mi to 7:53 /mi',
+    )
+    expect(describeChange(change('zones.hrMax', 185, 188)).text).toBe(
+      'Maximum heart rate 185 bpm to 188 bpm',
+    )
+    expect(describeChange(change('zones.cs', 3.5, 3.6)).label).toBe('Critical speed')
+    expect(describeChange(change('zones.unknown', 1, 2)).text).toBe('zones.unknown 1 to 2')
+  })
+
   test('falls back to the field name and a plain value for a field it does not know', () => {
     expect(describeChange(change('mystery', 1, { a: 2 })).text).toBe('mystery 1 to {"a":2}')
   })

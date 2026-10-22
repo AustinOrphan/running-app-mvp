@@ -252,6 +252,60 @@ describe('ActivityDetailPage', () => {
     })
   })
 
+  test('feedback follows the stored values when they change after the page loaded', async () => {
+    const user = userEvent.setup()
+    const base = makeDetail()
+    // The stored values are what the server answers with; a rating from elsewhere replaces them.
+    let stored = {
+      rpe: 5 as number | null,
+      feel: null as number | null,
+      pain: null as number | null,
+    }
+    const api = mockApi({
+      'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'mi' }),
+      'GET /api/activities/a1/detail': () => ({
+        ...base,
+        activity: { ...base.activity, ...stored },
+      }),
+      'PATCH /api/activities/a1/feedback': () => {
+        stored = { rpe: 8, feel: 1, pain: 0 }
+        return {}
+      },
+    })
+    renderWithProviders(
+      <ToastProvider>
+        <Routes>
+          <Route path="/activities/:id" element={<ActivityDetailPage />} />
+        </Routes>
+      </ToastProvider>,
+      { route: '/activities/a1' },
+    )
+    const section = await screen.findByRole('region', { name: 'How did it go?' })
+    expect(within(section).getByRole('button', { name: 'RPE 5' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await user.click(within(section).getByRole('button', { name: 'RPE 7' }))
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(api.calls.some((c) => c.method === 'PATCH')).toBe(true)
+    })
+    // The stored rating is 8 now, whatever was picked: the section shows what is stored.
+    await waitFor(() => {
+      expect(
+        within(screen.getByRole('region', { name: 'How did it go?' })).getByRole('button', {
+          name: 'RPE 8',
+        }),
+      ).toHaveAttribute('aria-pressed', 'true')
+    })
+    expect(
+      within(screen.getByRole('region', { name: 'How did it go?' })).getByRole('button', {
+        name: 'Harder',
+      }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByText('Feedback saved')).toBeInTheDocument()
+  })
+
   test('a failed feedback save says so and keeps the entries', async () => {
     const user = userEvent.setup()
     renderDetail({

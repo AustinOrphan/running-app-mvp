@@ -416,7 +416,12 @@ describe('POST /api/ingest/:provider', () => {
     const token = await pushToken()
     const res = await bare().set('Authorization', `Bearer ${token}`).send(payload)
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ activities: 1, wellness: 1, ignored: { step_count: 1 } })
+    expect(res.body).toEqual({
+      activities: 1,
+      wellness: 1,
+      ignored: { step_count: 1 },
+      failed: [],
+    })
 
     const activity = await ctx.prisma.activity.findFirstOrThrow()
     expect(activity).toMatchObject({

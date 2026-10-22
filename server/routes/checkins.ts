@@ -51,6 +51,17 @@ export function checkinsRouter(deps: Deps): Router {
   const { prisma } = deps
   const router = Router()
 
+  /** Whether the newest check-in before `date` reports focal bone pain. */
+  async function boneReportedBefore(userId: string, date: string): Promise<boolean> {
+    const rows = await prisma.wellnessDay.findMany({
+      where: { userId, date: { lt: date } },
+      orderBy: { date: 'desc' },
+      take: 120,
+    })
+    const newest = rows.find((row) => toCheckin(row) !== null)
+    return newest?.painFocalBone === true
+  }
+
   router.get('/:date', async (req, res) => {
     const date = parse(isoDate, req.params.date)
     const row = await prisma.wellnessDay.findUnique({
@@ -62,11 +73,21 @@ export function checkinsRouter(deps: Deps): Router {
   router.put('/:date', async (req, res) => {
     const date = parse(isoDate, req.params.date)
     const body = parse(checkinSchema, req.body)
+    const existing = await prisma.wellnessDay.findUnique({
+      where: { userId_date: { userId: req.userId, date } },
+    })
+    // Bone tenderness stays reported until the runner clears it [rules n-1]: a first check-in for
+    // the day that does not mention it inherits the newest earlier report, so a stored false
+    // always comes from the runner's own action.
+    const fields =
+      body.painFocalBone === undefined && (existing === null || toCheckin(existing) === null)
+        ? { ...body, painFocalBone: await boneReportedBefore(req.userId, date) }
+        : body
     // A row created here is the owner's own; one a provider created keeps its source.
     const row = await prisma.wellnessDay.upsert({
       where: { userId_date: { userId: req.userId, date } },
-      create: { userId: req.userId, date, source: 'manual', ...body },
-      update: body,
+      create: { userId: req.userId, date, source: 'manual', ...fields },
+      update: fields,
     })
     res.json(checkinOf(row))
   })

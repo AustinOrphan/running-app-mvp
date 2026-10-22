@@ -169,7 +169,7 @@ export function parseGpx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
     const startUtc = msToUtcIso(first.ms)
     const change = samples.alt ? elevationGainLoss(samples.alt) : null
     const located = points.find((p) => p.lat !== null && p.lng !== null)
-    const avgHr = mean(samples.hr ?? [])
+    const avgHr = mean((samples.hr ?? []).filter((v) => v > 0))
     const avgCadence = mean(samples.cad ?? [])
     const avgPower = mean(samples.pwr ?? [])
     const finalDistance = samples.d ? samples.d[samples.d.length - 1]! : null

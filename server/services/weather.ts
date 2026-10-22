@@ -20,6 +20,8 @@ const RECENT_PAST_DAYS = 7
 /** One archive request never spans more than this many days. */
 const MAX_RANGE_DAYS = 90
 const FORECAST_TTL_MS = HOUR_MS
+/** Words in an activity's subtype that mark it as indoors (matched without regard to case). */
+const INDOOR_SUBTYPES = ['treadmill', 'virtual', 'indoor']
 
 interface Place {
   lat: number
@@ -91,6 +93,11 @@ export async function enrichWeather(
       tempC: null,
       weatherSource: null,
       startUtc: { lt: opts.now.toISOString() },
+      // Nothing outside shaped a treadmill, virtual or indoor session, so it gets no weather.
+      OR: [
+        { subtype: null },
+        { NOT: INDOOR_SUBTYPES.map((word) => ({ subtype: { contains: word } })) },
+      ],
       ...(home ? {} : { startLat: { not: null }, startLng: { not: null } }),
     },
     orderBy: [{ date: 'desc' }, { startTime: 'desc' }, { createdAt: 'desc' }],

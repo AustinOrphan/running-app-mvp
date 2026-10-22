@@ -27,7 +27,15 @@ import {
 } from '../../web/api/plan.ts'
 import { useReviews, useSaveReview } from '../../web/api/reviews.ts'
 import { useSettings, useUpdateSettings } from '../../web/api/settings.ts'
+import { useProfile, useUpdateProfile } from '../../web/api/profile.ts'
+import { useToday } from '../../web/api/today.ts'
 import { useWeeks } from '../../web/api/weeks.ts'
+import {
+  useAcceptZoneProposal,
+  useDeclineZoneProposal,
+  useZoneProposals,
+  useZones,
+} from '../../web/api/zones.ts'
 import { mockApi, type MockRoutes } from './helpers.tsx'
 
 function setup() {
@@ -389,6 +397,99 @@ describe('invalidation', () => {
       'me',
       'settings',
     ])
+  })
+})
+
+describe('invalidation of engine data', () => {
+  function mountEngineReaders() {
+    const harness = setup()
+    const rendered = renderHook(
+      () => ({
+        profile: useProfile(),
+        zones: useZones(),
+        proposals: useZoneProposals(),
+        plan: usePlan(),
+        revisions: usePlanRevisions(),
+        today: useToday(),
+        saveProfile: useUpdateProfile(),
+        week: useUpdatePlanWeek(),
+        accept: useAcceptZoneProposal(),
+        decline: useDeclineZoneProposal(),
+      }),
+      { wrapper: harness.wrapper },
+    )
+    return rendered
+  }
+
+  const engineRoutes = (): MockRoutes =>
+    allRoutes({
+      'GET /api/profile': () => ({}),
+      'PUT /api/profile': () => ({}),
+      'GET /api/zones': () => ({}),
+      'GET /api/zones/proposals': () => [],
+      'POST /api/zones/proposals/z1/accept': () => ({}),
+      'POST /api/zones/proposals/z1/decline': () => ({ status: 204, body: undefined }),
+      'GET /api/plan/revisions': () => [],
+      'GET /api/today': () => ({}),
+    })
+
+  async function refetchedBy(
+    mutate: (r: ReturnType<typeof mountEngineReaders>['result']['current']) => Promise<unknown>,
+  ): Promise<string[]> {
+    const { calls } = mockApi(engineRoutes())
+    const { result } = mountEngineReaders()
+    await waitFor(() => {
+      expect(result.current.profile.isSuccess).toBe(true)
+      expect(result.current.zones.isSuccess).toBe(true)
+      expect(result.current.proposals.isSuccess).toBe(true)
+      expect(result.current.plan.isSuccess).toBe(true)
+      expect(result.current.revisions.isSuccess).toBe(true)
+      expect(result.current.today.isSuccess).toBe(true)
+    })
+    const before = calls.length
+    await act(() => mutate(result.current))
+    await waitFor(() => {
+      expect(result.current.today.isFetching).toBe(false)
+      expect(result.current.revisions.isFetching).toBe(false)
+      expect(result.current.zones.isFetching).toBe(false)
+    })
+    return [
+      ...new Set(
+        calls
+          .slice(before)
+          .filter((c) => c.method === 'GET')
+          .map((c) => c.url),
+      ),
+    ].sort()
+  }
+
+  test('a profile save refetches zones, the plan, today and the zone proposals', async () => {
+    expect(await refetchedBy((r) => r.saveProfile.mutateAsync({} as never))).toEqual([
+      '/api/plan',
+      '/api/today',
+      '/api/zones',
+      '/api/zones/proposals',
+    ])
+  })
+
+  test('a week edit refetches the plan, its revisions and today', async () => {
+    expect(
+      await refetchedBy((r) =>
+        r.week.mutateAsync({ weekStart: '2026-03-02', patch: { runDays: 4 } }),
+      ),
+    ).toEqual(['/api/plan', '/api/plan/revisions', '/api/today'])
+  })
+
+  test('accepting or declining a zone proposal refetches the revisions as well', async () => {
+    const expected = [
+      '/api/plan',
+      '/api/plan/revisions',
+      '/api/today',
+      '/api/zones',
+      '/api/zones/proposals',
+    ]
+    expect(await refetchedBy((r) => r.accept.mutateAsync('z1'))).toEqual(expected)
+    expect(await refetchedBy((r) => r.decline.mutateAsync('z1'))).toEqual(expected)
   })
 })
 

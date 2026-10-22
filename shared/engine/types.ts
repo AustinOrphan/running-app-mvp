@@ -304,4 +304,9 @@ export interface EngineInput {
    * against the capped week.
    */
   weekCaps?: Record<string, number>
+  /**
+   * The day the owner last accepted a change of each zone boundary (supplied by the server).
+   * Zone proposals ignore observations on or before it [rules C8]; absent means none accepted.
+   */
+  zoneChanges?: Partial<Record<ZoneProposal['boundary'], string>>
 }
