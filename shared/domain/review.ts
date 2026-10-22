@@ -9,10 +9,7 @@ export interface SuggestInput {
   baselineRunMin: number
   nextBaselineMin: number | null
   week: WeekRow
-  review: Pick<
-    WeeklyReview,
-    'dataStatus' | 'fatigue' | 'symptoms' | 'recoveryConstrained'
-  > | null
+  review: Pick<WeeklyReview, 'dataStatus' | 'fatigue' | 'symptoms' | 'recoveryConstrained'> | null
   hasPossibleDuplicates: boolean
 }
 
@@ -56,11 +53,7 @@ function chooseAction(input: SuggestInput): { action: SuggestedAction; reason?: 
   if (review.fatigue === null || review.symptoms === null) {
     return { action: 'needs_recovery_review' }
   }
-  if (
-    review.symptoms === 'mild' ||
-    review.fatigue >= 6 ||
-    week.runMin * 100 < 85 * targetRunMin
-  ) {
+  if (review.symptoms === 'mild' || review.fatigue >= 6 || week.runMin * 100 < 85 * targetRunMin) {
     return { action: 'hold' }
   }
   return { action: 'progress' }
