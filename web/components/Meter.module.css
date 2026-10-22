@@ -1,0 +1,53 @@
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.track {
+  position: relative;
+  height: 10px;
+  margin: 6px 0;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-xs);
+}
+
+.band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--accent-soft);
+}
+
+.fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--accent);
+  border-radius: var(--radius-xs);
+}
+
+.over {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(45deg, var(--accent) 0 3px, transparent 3px 6px);
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+}
+
+.tick {
+  position: absolute;
+  top: -6px;
+  height: 22px;
+  width: 0;
+  border-left: 2px dotted var(--text);
+  transform: translateX(-1px);
+}
+
+.caption {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
