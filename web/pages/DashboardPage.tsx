@@ -70,9 +70,7 @@ export function DashboardPage() {
     return (
       <>
         <PageHeader title="Today" actions={logActivity} />
-        <p role="alert">
-          Today did not load. The server did not respond; reload the page to try again.
-        </p>
+        <p role="alert">Today did not load. Reload the page to try again.</p>
       </>
     )
   }

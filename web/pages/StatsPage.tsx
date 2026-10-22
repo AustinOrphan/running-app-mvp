@@ -58,9 +58,7 @@ export function StatsPage() {
     return (
       <>
         <PageHeader title="Stats" />
-        <p role="alert">
-          Stats did not load. The server did not respond; reload the page to try again.
-        </p>
+        <p role="alert">Stats did not load. Reload the page to try again.</p>
       </>
     )
   }
