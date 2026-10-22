@@ -164,7 +164,7 @@ export function runCaps(ref: SpikeReference): RunCaps {
   const gainStep = P.h4.minStepGainM.value
   const down = (v: number) => Math.floor(v + EPS)
   return {
-    min: down(spikeWarnLimit(ref.min, 0)),
+    min: down(spikeWarnLimit(ref.min, P.g1.minStepMin.value)),
     distanceM:
       ref.distanceM === null
         ? Infinity

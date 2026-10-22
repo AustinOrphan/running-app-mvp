@@ -1125,15 +1125,23 @@ function planWeeks(
   }
 
   // No quality sessions or strides on the ladder, in the floor and injury-return weeks, or for two
-  // weeks after the ladder ends [rules E6]: the Monday of the last ladder week, from this plan or
-  // the plan it replaces.
+  // weeks after the ladder or the injury return ends [rules E6, G-3]: the Monday of the last such
+  // week, from this plan or the plan it replaces.
   let ladderEnd =
     (input.existing?.weeks ?? [])
-      .filter((w) => w.weekStart < firstMonday && ladderRung(w.flags) !== null)
+      .filter(
+        (w) =>
+          w.weekStart < firstMonday &&
+          (ladderRung(w.flags) !== null || injuryLevel(w.flags) !== null),
+      )
       .map((w) => w.weekStart)
       .sort()
       .at(-1) ?? null
-  if (restart?.kind === 'ladder' && startWeeks > 0 && stepAt(restart, startWeeks) === null) {
+  if (
+    (restart?.kind === 'ladder' || restart?.kind === 'injury-return') &&
+    startWeeks > 0 &&
+    stepAt(restart, startWeeks) === null
+  ) {
     ladderEnd = addDays(firstMonday, 7 * (startWeeks - 1))
   }
   const quiet = (weekStart: string) =>

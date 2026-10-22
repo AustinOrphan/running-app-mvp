@@ -670,9 +670,22 @@ describe('the floor and the injury-return ladder [rules E6, g-3]', () => {
     const runs = plan.sessions.filter((x) => x.flags.includes('injury-return'))
     expect(runs.map((s) => s.durationMin)).toEqual([5, 5, 10, 10, 15, 15, 20, 20, 25, 25, 30, 30])
     expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
+    // no quality or strides for two weeks after the last level either [rules E6, G-3]
+    const after = plan.weeks.slice(plan.weeks.indexOf(levels.at(-1)!) + 1)
+    expect(
+      after.slice(0, P.noviceLadder.quietWeeksAfter.value).map((w) => w.qualitySessions),
+    ).toEqual([0, 0])
+    const quietKinds = after
+      .slice(0, P.noviceLadder.quietWeeksAfter.value)
+      .flatMap((w) =>
+        plan.sessions
+          .filter((s) => mondayOf(s.date) === w.weekStart && s.kind !== 'strength')
+          .map((s) => s.kind),
+      )
+    expect(quietKinds.filter((k) => k !== 'easy' && k !== 'long' && k !== 'rest')).toEqual([])
   })
 
-  it('climbs the levels from a pain-free run: 25 minutes allow level 5 and then level 6 at 1.10x', () => {
+  it('climbs the levels from a pain-free run: 25 minutes allow level 5 and then level 6 at the bound', () => {
     const plan = buildPlan({
       ...injured(),
       activities: [runOf(5, 25, { pain: 0 })],
@@ -683,8 +696,9 @@ describe('the floor and the injury-return ladder [rules E6, g-3]', () => {
       'injury-level-5',
     ])
     const runs = plan.sessions.filter((s) => s.flags.includes('injury-return'))
-    // level 5 is 25 min, the run before it; level 6 is 30 min, held to 1.10 x 25 = 27
-    expect(runs.map((s) => s.durationMin)).toEqual([25, 25, 27, 27])
+    // level 5 is 25 min, the run before it; level 6 is 30 min, held to the G-1 bound on a 25-min
+    // run, the larger of 1.10 x 25 = 27.5 and 25 + 3 (the duration step), so 28
+    expect(runs.map((s) => s.durationMin)).toEqual([25, 25, 28, 28])
     expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
   })
 
@@ -764,7 +778,9 @@ describe('the floor and the injury-return ladder [rules E6, g-3]', () => {
 })
 
 describe('a re-plan in the first weeks of a start path [rules E6]', () => {
-  // two 15-minute runs a few days ago: the ladder starts at rung 4, held to 16 min a session
+  // two 15-minute, 2400-m runs a few days ago: the ladder starts at rung 4, held to 17 min a
+  // session by the distance bound (2400 m + 0.5 km at the run's pace), just under the 18-min
+  // duration bound (the larger of 1.10 x 15 and 15 + 3)
   const inp = input({
     activities: [runOf(3, 15, { distanceM: 2400 }), runOf(6, 15, { distanceM: 2400 })],
     profile: profile(NOVICE),
@@ -787,12 +803,12 @@ describe('a re-plan in the first weeks of a start path [rules E6]', () => {
     }).draft
   }
 
-  it('draws the first plan from the run it can hold: rung 4 in sessions of 16 minutes', () => {
+  it('draws the first plan from the run it can hold: rung 4 in sessions of 17 minutes', () => {
     expect(plan.weeks[0]!.flags).toEqual(
       expect.arrayContaining(['restart-floor', 'run-walk', 'ladder-4']),
     )
     const runs = plan.sessions.filter((s) => mondayOf(s.date) === MONDAY && s.kind === 'easy')
-    expect(runs.map((s) => s.durationMin)).toEqual([16, 16, 16])
+    expect(runs.map((s) => s.durationMin)).toEqual([17, 17, 17])
     expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
   })
 

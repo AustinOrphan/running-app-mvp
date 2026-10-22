@@ -429,12 +429,14 @@ describe('hold and reduce decisions reach the sessions [rules J5]', () => {
 })
 
 describe('a 30-day longest run too short for a run day [rules g-1, F5]', () => {
+  // 10-min runs: the G-1 bound (the larger of 1.10x and the 3-min duration step) is 13 min,
+  // under the 15-min run day minimum
   const a = all.find((x) => x.id === 'half')!
   const short = a.input.activities.map((x) => ({
     ...x,
-    durationSec: 13 * 60,
-    movingSec: 13 * 60,
-    distanceM: 2300,
+    durationSec: 10 * 60,
+    movingSec: 10 * 60,
+    distanceM: 1800,
   }))
   const plan = buildPlan({ ...a.input, activities: short })
 

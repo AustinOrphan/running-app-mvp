@@ -368,7 +368,7 @@ export const eMacro = {
       ['kluitenberg-2016-nlstart2run-training-factors'],
       {
         unit: 'weeks',
-        note: 'Default: no quality sessions or strides during the ladder and for this many weeks after it ends. The direction (harder training early, more injuries) is grade C; the length is an engine default.',
+        note: 'Default: no quality sessions or strides during the ladder or the injury-return ladder and for this many weeks after either ends. The direction (harder training early, more injuries) is grade C; the length is an engine default.',
       },
     ),
   },

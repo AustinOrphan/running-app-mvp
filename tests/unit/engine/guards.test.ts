@@ -193,6 +193,16 @@ describe('applyGuards: session spike guard (G-1)', () => {
     expect(flags({ gainM: 301 })).toEqual(['spike-warn'])
     expect(P.g1.minStepDistanceM.value).toBe(500)
     expect(P.h4.minStepGainM.value).toBe(100)
+    // duration has its own minimum step, so a return built on 5-min runs can rise
+    expect(P.g1.minStepMin.value).toBe(3)
+    const tinyRef = state({
+      longest30d: { distanceM: 800, durationSec: 300, gainM: 0, lossM: 0, twoDaySec: 0 },
+    })
+    const minutes = (durationMin: number) =>
+      applyGuards([session({ date: '2026-11-03', durationMin, distanceM: null })], tinyRef, [])
+        .sessions[0]!.flags
+    expect(minutes(8)).toEqual([])
+    expect(minutes(9)).toEqual(['spike-warn'])
   })
 
   it('uses the history, within the 30 days before the run, completed runs only', () => {

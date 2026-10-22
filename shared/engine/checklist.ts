@@ -323,12 +323,13 @@ function taper(draft: PlanDraft): ChecklistResult {
 const NO_QUALITY_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([...HARD_KINDS, 'strides'])
 
 /**
- * The Mondays within the quiet weeks after the ladder ends [rules E6]: no quality sessions and no
- * strides for `noviceLadder.quietWeeksAfter` weeks after the last ladder week.
+ * The Mondays within the quiet weeks after the ladder or the injury return ends [rules E6, G-3]:
+ * no quality sessions and no strides for `noviceLadder.quietWeeksAfter` weeks after the last such
+ * week.
  */
 function quietWeeks(weeks: WeekDraft[]): Set<string> {
   const last = weeks
-    .filter((w) => ladderRung(w.flags) !== null)
+    .filter((w) => ladderRung(w.flags) !== null || injuryLevel(w.flags) !== null)
     .map((w) => w.weekStart)
     .sort()
     .at(-1)
@@ -398,7 +399,7 @@ function levelDifferentiation(draft: PlanDraft, state: AthleteState): ChecklistR
     'level-differentiation',
     failures.length === 0,
     failures.length === 0
-      ? `At most ${P.f5.noviceRunDays.value} non-consecutive run days in a novice or start-path week, and no hard work or strides on the ${rungCount()}-step run-walk ladder, in the starting weeks or in the ${P.noviceLadder.quietWeeksAfter.value} weeks after the ladder.`
+      ? `At most ${P.f5.noviceRunDays.value} non-consecutive run days in a novice or start-path week, and no hard work or strides on the ${rungCount()}-step run-walk ladder, in the starting weeks or in the ${P.noviceLadder.quietWeeksAfter.value} weeks after the ladder or the injury return.`
       : failures.join('; '),
     rules,
   )

@@ -56,6 +56,10 @@ export const gLimits = {
         note: 'Default: a completed race at or above this distance (the marathon) does not count toward the 30-day reference; shorter races count as runs. A 100-mile finish would otherwise allow training runs up to 1.10 times the race. Recovery after such races is long and measured in days to weeks; no study sets the cutoff.',
       },
     ),
+    minStepMin: param('g1.minStepMin', 3, 'D', 'g-1', SPIKE, {
+      unit: 'min',
+      note: 'Default: when the longest run is short the minimum step on duration is 3 min, about the time 0.5 km takes at an easy pace, so a return built on 5-minute runs can rise at all.',
+    }),
     minStepDistanceM: param('g1.minStepDistanceM', 500, 'D', 'g-1', SPIKE, {
       unit: 'm',
       note: 'Default: when the longest run is short the minimum step is 0.5 km (stored in metres).',

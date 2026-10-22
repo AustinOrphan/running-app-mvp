@@ -715,13 +715,15 @@ describe('placeWeek: start-path weeks [rules E6, g-3]', () => {
   })
 
   it('cuts a session to 1.10x the longest run of the last 30 days: the lesser of the rung and the bound', () => {
-    const sessions = runsOf(placeStart(ladderWeek(4, { targetRunMin: 66 }), { recent: 18 }))
-    // 1.10 x 18 min = 19.8, so the 21.5-minute session of rung 4 is cut to 19 minutes
-    expect(sessions.map((s) => s.durationMin)).toEqual([19, 19, 19])
+    const sessions = runsOf(placeStart(ladderWeek(4, { targetRunMin: 66 }), { recent: 15 }))
+    // the bound is the larger of 1.10 x 15 = 16.5 and 15 + 3 (the duration step), so the
+    // 21.5-minute session of rung 4 is cut to 18 minutes
+    expect(sessions.map((s) => s.durationMin)).toEqual([18, 18, 18])
   })
 
   it('leaves a session out when the bound falls under the run day minimum', () => {
-    const sessions = runsOf(placeStart(ladderWeek(1), { recent: 12 }))
+    // 10 + 3 = 13 min sits under the 15-min run day minimum
+    const sessions = runsOf(placeStart(ladderWeek(1), { recent: 10 }))
     expect(sessions).toEqual([])
   })
 
@@ -750,8 +752,8 @@ describe('placeWeek: start-path weeks [rules E6, g-3]', () => {
       qualitySessions: 0,
       flags: ['injury-return', 'injury-level-2'],
     })
-    // level 3 is 15 min; 1.10 x 12 = 13.2 gives 13
-    expect(runsOf(placeStart(injury, { recent: 12 })).map((s) => s.durationMin)).toEqual([13, 13])
+    // level 3 is 15 min; from a 9-min run the bound is 9 + 3 = 12 (more than 1.10 x 9)
+    expect(runsOf(placeStart(injury, { recent: 9 })).map((s) => s.durationMin)).toEqual([12, 12])
     expect(runsOf(placeStart(injury, { recent: 30 })).map((s) => s.durationMin)).toEqual([15, 15])
   })
 })

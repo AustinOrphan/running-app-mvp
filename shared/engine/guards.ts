@@ -634,7 +634,9 @@ function limits(d: Dim): { level: 0 | 1 | 2; warnLimit: number; overrideLimit: n
 /** The dimensions to compare: a dimension is skipped only when the window holds no record of it. */
 function dimensionsOf(s: SessionSpec, ref: SpikeReference): Dim[] {
   if (ref.min <= 0) return []
-  const dims: Dim[] = [{ name: 'duration', value: s.durationMin, ref: ref.min, minStep: 0 }]
+  const dims: Dim[] = [
+    { name: 'duration', value: s.durationMin, ref: ref.min, minStep: P.g1.minStepMin.value },
+  ]
   if (s.distanceM !== null && ref.distanceM !== null) {
     dims.push({
       name: 'distance',
