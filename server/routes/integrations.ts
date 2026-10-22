@@ -47,9 +47,13 @@ export function integrationsRouter(deps: Deps): Router {
   const router = Router()
   const logger = createLogger(config)
 
-  /** A connected row whose secret no longer decrypts (SESSION_SECRET changed) needs a reconnect. */
+  /**
+   * A pull row whose secret no longer decrypts (SESSION_SECRET changed) needs a reconnect. Push
+   * and folder rows hold no secret and keep working, so a key change leaves them alone.
+   */
   async function checked(row: Integration): Promise<Integration> {
     if (row.status === 'needs_auth') return row
+    if (!(Object.hasOwn(PROVIDERS, row.provider) && PROVIDERS[row.provider]?.pull)) return row
     try {
       openIntegration(row, config.sessionSecret)
       return row

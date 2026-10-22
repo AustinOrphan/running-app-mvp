@@ -209,6 +209,7 @@ async function ingest(
   }
   const importBatchId = await ensureBatch(deps, userId, tally, path)
   let first: string | null = null
+  let imported = false
   for (const parsed of activities) {
     const result = await storeParsed(deps, userId, parsed, {
       source: 'file',
@@ -217,10 +218,13 @@ async function ingest(
       file: { name: baseName(name), format, bytes },
     })
     if (result.outcome === 'duplicate') tally.duplicate += 1
-    else tally.stored += 1
+    else {
+      tally.stored += 1
+      imported = true
+    }
     first ??= result.activityId
   }
-  await recordFile(deps, userId, sha, name, first === null ? 'duplicate' : 'imported', first)
+  await recordFile(deps, userId, sha, name, imported ? 'imported' : 'duplicate', first)
   return first
 }
 

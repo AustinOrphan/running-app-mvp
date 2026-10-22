@@ -111,6 +111,21 @@ describe('GET /api/integrations', () => {
       lastError: 'Reconnect: the session secret changed.',
     })
   })
+
+  test('keeps push and folder rows connected after a session secret change', async () => {
+    const stale = sealSecret({}, 'another-session-secret-0123456789abcdef')
+    for (const provider of ['apple-health', 'folder']) {
+      await ctx.prisma.integration.create({
+        data: { userId: user.id, provider, status: 'connected', secret: stale, config: '{}' },
+      })
+    }
+    const res = await client(ctx, user).get('/api/integrations')
+    const byKey = new Map(
+      (res.body as Array<{ provider: string; status: string }>).map((s) => [s.provider, s]),
+    )
+    expect(byKey.get('apple-health')?.status).toBe('connected')
+    expect(byKey.get('folder')?.status).toBe('connected')
+  })
 })
 
 describe('PUT /api/integrations/:provider', () => {
