@@ -1,6 +1,6 @@
 # 0001. Replace the old code with a clean rewrite
 
-Status: Proposed 2026-10-21
+Status: Accepted 2026-10-22 (#528)
 
 ## Context
 

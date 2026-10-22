@@ -1,6 +1,6 @@
 # 0002. Cookie session instead of bearer tokens
 
-Status: Proposed 2026-10-21
+Status: Accepted 2026-10-22 (#528)
 
 ## Context
 
