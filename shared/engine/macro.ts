@@ -199,12 +199,17 @@ function cycleWorkWeeks(input: EngineInput, state: AthleteState): number {
   return state.experience === 'novice' ? flagged : P.e3.defaultCycleWorkWeeks.value
 }
 
-/** Phases built backwards: taper and race week, specific, build, base takes the remainder [E2]. */
+/**
+ * Phases built backwards: taper and race week, specific, build, base takes the remainder [E2]. A
+ * re-plan passes the phase the replaced plan gave each week (`carried`), so the weeks close to the
+ * race stay race-specific instead of falling under the minimum length of a new plan's specific block.
+ */
 function planPhases(
   weeksBeforeTaper: number,
   taperWeeks: number,
   workPerCycle: number,
   openingRecovery: boolean,
+  carried: ReadonlyArray<PhaseV2 | null> = [],
 ): PhasePlan[] {
   const specificMin = P.e2.specificWeeksMin.value
   const specific =
@@ -215,7 +220,8 @@ function planPhases(
   const cycle = workPerCycle + 1
   const out: PhasePlan[] = []
   for (let i = 0; i < weeksBeforeTaper; i++) {
-    const phase: PhaseV2 = i < base ? 'base' : i < base + build ? 'build' : 'specific'
+    const phase: PhaseV2 =
+      carried[i] ?? (i < base ? 'base' : i < base + build ? 'build' : 'specific')
     // counted back from the last pre-taper week, which is always a work week (the peak); a new
     // plan never opens with a recovery week, so its first cycle may run one work week longer. A
     // re-plan keeps the first week a recovery week when the plan it replaces had it so.
@@ -229,6 +235,68 @@ function planPhases(
     out.push({ phase: i === taperWeeks - 1 ? 'race' : 'taper', isRecovery: false })
   }
   return out
+}
+
+/**
+ * The phases the replaced plan gave the pre-taper weeks, by week; null where it had none. They
+ * carry over only when the race week is the same, so a moved goal builds its phases anew.
+ */
+function carriedPhases(
+  input: EngineInput,
+  firstMonday: string,
+  raceMonday: string,
+  preCount: number,
+): Array<PhaseV2 | null> {
+  const weeks = input.existing?.weeks ?? []
+  const sameRace = weeks.some((w) => w.weekStart === raceMonday && w.phase === 'race')
+  if (!sameRace) return []
+  const out: Array<PhaseV2 | null> = []
+  for (let i = 0; i < preCount; i++) {
+    const phase = weeks.find((w) => w.weekStart === addDays(firstMonday, 7 * i))?.phase
+    out.push(phase === 'base' || phase === 'build' || phase === 'specific' ? phase : null)
+  }
+  return out
+}
+
+/**
+ * Where a re-plan restarts the loading sequence: the working target of the current week in the plan
+ * it replaces, not the typical week, so the Monday re-plan does not flatten the progression. In a
+ * recovery week the sequence continues from the work week before it (`paused`). The start is held
+ * to the step the recent weeks allow, so missed training still lowers it. A break of a week or more
+ * restarts from the typical week.
+ */
+function replanAnchor(
+  input: EngineInput,
+  state: AthleteState,
+  firstMonday: string,
+  ramp: number,
+): { minutes: number; paused: boolean } | null {
+  const weeks = input.existing?.weeks
+  if (weeks === undefined || state.layoffDays >= P.j7.tier1Days.value) return null
+  const current = weeks.find((w) => w.weekStart === firstMonday)
+  if (current === undefined || current.isTaper || current.phase === 'race') return null
+  const work = current.isRecovery
+    ? [...weeks]
+        .filter((w) => w.weekStart < firstMonday && !w.isRecovery && !w.isTaper)
+        .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))[0]
+    : current
+  if (work === undefined || work.targetRunMin <= 0) return null
+
+  const recent = Math.max(
+    0,
+    ...state.weeks
+      .filter(
+        (w) =>
+          w.weekStart < firstMonday &&
+          w.weekStart >= addDays(firstMonday, -7 * P.g2.baselineWeeks.value),
+      )
+      .map((w) => w.runMin),
+  )
+  const base = recent > 0 ? recent : state.typicalWeekMin
+  if (base <= 0) return null
+  const minStep = state.experience === 'novice' ? P.g2.noviceMinStepMin.value : 0
+  const limit = floorEps(base + Math.max(base * ramp, minStep))
+  return { minutes: Math.min(work.targetRunMin, limit), paused: current.isRecovery }
 }
 
 /** Quality sessions wanted in a pre-taper week before the run-day cap [rules F2, H1]. */
@@ -309,7 +377,13 @@ export function macroPlan(
   const preCount = total - taperCount
   const openingRecovery =
     input.existing?.weeks.find((w) => w.weekStart === firstMonday)?.isRecovery === true
-  const phases = planPhases(preCount, taperCount, cycleWorkWeeks(input, state), openingRecovery)
+  const phases = planPhases(
+    preCount,
+    taperCount,
+    cycleWorkWeeks(input, state),
+    openingRecovery,
+    carriedPhases(input, firstMonday, raceMonday, preCount),
+  )
   const raceIdx = total - 1
 
   // Run days: novices keep the three-day rhythm, others follow the minutes, never above six
@@ -334,12 +408,15 @@ export function macroPlan(
   // Weekly targets, long runs, run days and gain for the pre-taper weeks
   // The floor lifts a small week to a useful one, which is growth; a hold keeps the current level.
   const restart = hold ? null : restartFloor(input, state)
+  const anchored = restart !== null || hold ? null : replanAnchor(input, state, firstMonday, ramp)
   const start =
     restart !== null
       ? restart.minutes
-      : state.typicalWeekMin > 0
-        ? state.typicalWeekMin
-        : P.macroDesign.startFloorWeekMin.value
+      : anchored !== null
+        ? anchored.minutes
+        : state.typicalWeekMin > 0
+          ? state.typicalWeekMin
+          : P.macroDesign.startFloorWeekMin.value
   const ceiling = Math.max(peakWeeklyMin(goal, pace), start)
   const peakLong = peakLongRunMin(goal, pace)
   const hasGain = goal.gainM > 0 && goal.distanceM > 0
@@ -351,7 +428,8 @@ export function macroPlan(
   const runDays: number[] = []
   const gain: Array<number | null> = []
   let lastWork = start
-  let haveWork = false
+  // after an opening recovery week, the first work week continues the loading sequence it paused
+  let haveWork = anchored?.paused === true
   let prevLong = floorEps(state.longest30d.durationSec / 60)
   let prevDays = 0
   let prevGain = Math.max(gainStep, floorTo10(state.longest30d.gainM))
