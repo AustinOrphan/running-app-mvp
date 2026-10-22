@@ -219,18 +219,47 @@ describe('enrichWeather', () => {
     ])
   })
 
+  test('splits a long run of consecutive days into archive requests of at most 90 days', async () => {
+    const calls: URL[] = []
+    const fetchFn = fakeFetch({ [`GET ${ARCHIVE}`]: archiveRoute(calls) })
+    const first = Date.parse('2025-10-01T07:00:00Z')
+    await ctx.prisma.activity.createMany({
+      data: Array.from({ length: 91 }, (_, index) => {
+        const startUtc = new Date(first + index * 86_400_000).toISOString()
+        return {
+          userId: user.id,
+          type: 'run',
+          durationSec: 1800,
+          source: 'file',
+          date: startUtc.slice(0, 10),
+          startUtc,
+          startLat: 10.12,
+          startLng: -20.34,
+          providerKey: `day-${index}`,
+        }
+      }),
+    })
+
+    expect(await enrichWeather(ctx, user.id, { limit: 100, fetch: fetchFn, now: NOW })).toBe(91)
+
+    const ranges = calls
+      .map((url) => `${url.searchParams.get('start_date')}..${url.searchParams.get('end_date')}`)
+      .sort()
+    expect(ranges).toEqual(['2025-10-01..2025-12-29', '2025-12-30..2025-12-30'])
+  })
+
   test('falls back to the home location when the profile allows it', async () => {
     const calls: URL[] = []
     const fetchFn = fakeFetch({ [`GET ${ARCHIVE}`]: archiveRoute(calls) })
     await ctx.prisma.athleteProfile.create({
-      data: { userId: user.id, homeLat: 51.5, homeLng: -0.12, useHomeWeather: true },
+      data: { userId: user.id, homeLat: 20.5, homeLng: -30.12, useHomeWeather: true },
     })
     const run = await addActivity({ date: '2026-03-02', startUtc: '2026-03-02T07:00:00Z' })
 
     expect(await enrichWeather(ctx, user.id, { limit: 10, fetch: fetchFn, now: NOW })).toBe(1)
 
-    expect(calls[0]!.searchParams.get('latitude')).toBe('51.5')
-    expect(calls[0]!.searchParams.get('longitude')).toBe('-0.1')
+    expect(calls[0]!.searchParams.get('latitude')).toBe('20.5')
+    expect(calls[0]!.searchParams.get('longitude')).toBe('-30.1')
     const row = await ctx.prisma.activity.findUniqueOrThrow({ where: { id: run.id } })
     expect(row.weatherSource).toBe('open-meteo')
   })
@@ -243,7 +272,7 @@ describe('enrichWeather', () => {
     expect(await enrichWeather(ctx, user.id, { limit: 10, fetch: fetchFn, now: NOW })).toBe(0)
 
     await ctx.prisma.athleteProfile.create({
-      data: { userId: user.id, homeLat: 51.5, homeLng: -0.12, useHomeWeather: false },
+      data: { userId: user.id, homeLat: 20.5, homeLng: -30.12, useHomeWeather: false },
     })
     expect(await enrichWeather(ctx, user.id, { limit: 10, fetch: fetchFn, now: NOW })).toBe(0)
     expect(calls).toHaveLength(0)
@@ -384,7 +413,7 @@ describe('enrichWeather', () => {
 describe('getForecast', () => {
   async function setHome() {
     await ctx.prisma.athleteProfile.create({
-      data: { userId: user.id, homeLat: 51.5, homeLng: -0.12 },
+      data: { userId: user.id, homeLat: 20.5, homeLng: -30.12 },
     })
   }
 
@@ -403,8 +432,8 @@ describe('getForecast', () => {
     const forecast = await getForecast(ctx, user.id, fetchFn)
 
     expect(calls).toHaveLength(1)
-    expect(calls[0]!.searchParams.get('latitude')).toBe('51.5')
-    expect(calls[0]!.searchParams.get('longitude')).toBe('-0.1')
+    expect(calls[0]!.searchParams.get('latitude')).toBe('20.5')
+    expect(calls[0]!.searchParams.get('longitude')).toBe('-30.1')
     expect(calls[0]!.searchParams.get('forecast_days')).toBe('7')
     expect(calls[0]!.searchParams.get('past_days')).toBeNull()
     expect(forecast!.hours).toHaveLength(168)
@@ -436,7 +465,7 @@ describe('getForecast', () => {
 
     await ctx.prisma.athleteProfile.update({
       where: { userId: user.id },
-      data: { homeLat: 52.5 },
+      data: { homeLat: 21.5 },
     })
     await getForecast(ctx, user.id, fetchFn)
     expect(calls).toHaveLength(3)
@@ -463,7 +492,7 @@ describe('GET /api/weather/forecast', () => {
     vi.setSystemTime(NOW)
     vi.stubGlobal('fetch', fakeFetch({ [`GET ${FORECAST}`]: forecastRoute([]) }))
     await ctx.prisma.athleteProfile.create({
-      data: { userId: user.id, homeLat: 51.5, homeLng: -0.12 },
+      data: { userId: user.id, homeLat: 20.5, homeLng: -30.12 },
     })
 
     const res = await client(ctx, user).get('/api/weather/forecast').expect(200)
@@ -479,7 +508,7 @@ describe('GET /api/weather/forecast', () => {
       fakeFetch({ [`GET ${FORECAST}`]: () => new Response('no', { status: 500 }) }),
     )
     await ctx.prisma.athleteProfile.create({
-      data: { userId: user.id, homeLat: 51.5, homeLng: -0.12 },
+      data: { userId: user.id, homeLat: 20.5, homeLng: -30.12 },
     })
     await client(ctx, user).get('/api/weather/forecast').expect(502)
   })

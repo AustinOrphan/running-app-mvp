@@ -57,7 +57,7 @@ function dateRanges(dates: string[]): Array<{ start: string; end: string }> {
     if (
       last &&
       ms - Date.parse(`${last.end}T00:00:00Z`) <= DAY_MS &&
-      ms - Date.parse(`${last.start}T00:00:00Z`) < (MAX_RANGE_DAYS - 1) * DAY_MS
+      ms - Date.parse(`${last.start}T00:00:00Z`) <= (MAX_RANGE_DAYS - 1) * DAY_MS
     ) {
       last.end = date
     } else {
