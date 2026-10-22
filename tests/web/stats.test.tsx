@@ -109,6 +109,16 @@ describe('StatsPage', () => {
     expect(cellTexts(fiveK)).toEqual(['23:00', '7:20 /mi', '3.14 mi', '3 Feb 2026'])
   })
 
+  test('the header says totals come from runs and that races count only for fastest efforts', async () => {
+    mockStats()
+    renderWithProviders(<StatsPage />)
+    expect(
+      await screen.findByText(
+        'Totals and longest runs use runs only; races count toward fastest efforts; flagged duplicates are left out',
+      ),
+    ).toBeInTheDocument()
+  })
+
   test('the same figures follow the kilometre setting', async () => {
     mockStats({ units: 'km' })
     renderWithProviders(<StatsPage />)

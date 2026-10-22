@@ -106,7 +106,7 @@ export function StatsPage() {
     <>
       <PageHeader
         title="Stats"
-        context="Run time and distance; races count, flagged duplicates do not"
+        context="Totals and longest runs use runs only; races count toward fastest efforts; flagged duplicates are left out"
       />
 
       {weekRows.some((w) => w.runMin > 0) ? (
