@@ -223,11 +223,13 @@ function flagCounts(ctx: Ctx, date: string): boolean {
 }
 
 /**
- * Consecutive days of unexplained decline ending at `date` [rules J8]. A day without any data
- * is skipped; a day with data and no flag, or with illness reported, ends the run.
+ * Consecutive days of unexplained decline ending at `date` [rules J8]. A short gap without any
+ * data is bridged (j8.maxDataGapDays); a longer gap, a day with data and no flag, or a day with
+ * illness reported ends the run. A single old flagged day followed by silence is not a run.
  */
 function declineStreakDays(ctx: Ctx, date: string): number {
   let streak = 0
+  let gap = 0
   for (let k = 0; k < P.j8.medicalReviewDays.value; k++) {
     const d = addDays(date, -k)
     const row = ctx.byDate.get(d)
@@ -235,12 +237,15 @@ function declineStreakDays(ctx: Ctx, date: string): number {
     const flags = dayFlags(ctx, d)
     if (flags.flagged) {
       streak = k + 1
+      gap = 0
       continue
     }
     const hasData =
       row !== undefined &&
       (checkinOfRow(row) !== null || validPositive(row.hrvRmssd) !== null || row.restingHr != null)
     if (hasData) break
+    gap += 1
+    if (gap > P.j8.maxDataGapDays.value) break
   }
   return streak
 }

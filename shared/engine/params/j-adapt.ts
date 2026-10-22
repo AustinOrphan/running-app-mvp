@@ -425,6 +425,17 @@ export const jAdapt = {
         note: 'Default: at this many days show a stronger medical-review prompt. OTS and NFOR are never diagnosed.',
       },
     ),
+    maxDataGapDays: param(
+      'j8.maxDataGapDays',
+      2,
+      'D',
+      'J8',
+      ['meeusen-2013-overtraining-consensus', 'weakley-2022-ots-systematic-review'],
+      {
+        unit: 'days',
+        note: 'Default: a run of unexplained decline bridges at most this many consecutive days without check-in, HRV or resting HR data; a longer gap ends it.',
+      },
+    ),
   },
   n1: {
     bsiReturnDays: param<number[]>(

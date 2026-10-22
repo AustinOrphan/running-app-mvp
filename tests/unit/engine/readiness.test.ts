@@ -314,6 +314,20 @@ describe('fatigue states (J8)', () => {
     expect(readinessSnapshot(input({ wellness }), TODAY).state).toBe('normal')
   })
 
+  it('does not stretch one old flagged day over a long gap without data', () => {
+    const wellness = [wellnessDay(addDays(TODAY, -13), POOR)]
+    const snap = readinessSnapshot(input({ wellness }), TODAY)
+    expect(snap.state).toBe('normal')
+    expect(snap.redFlags).toEqual([])
+  })
+
+  it('bridges a short gap without data inside a run', () => {
+    const wellness = Array.from({ length: 16 }, (_, n) => n)
+      .filter((n) => n !== 5 && n !== 6)
+      .map((n) => wellnessDay(addDays(TODAY, -n), POOR))
+    expect(readinessSnapshot(input({ wellness }), TODAY).state).toBe('persistent-suppression')
+  })
+
   it('reported illness explains the decline and ends the run', () => {
     const wellness = Array.from({ length: 14 }, (_, n) =>
       wellnessDay(addDays(TODAY, -n), n === 6 ? { ...POOR, illness: true } : POOR),

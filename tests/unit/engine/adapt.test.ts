@@ -8,6 +8,7 @@ import {
   zoneProposals,
   type ExecutionRecord,
 } from '../../../shared/engine/adapt.ts'
+import { readinessSnapshot } from '../../../shared/engine/readiness.ts'
 import type {
   EngineInput,
   ExecutionAssessment,
@@ -280,6 +281,42 @@ describe('weeklyDecision (J5, G-6)', () => {
     const d = weeklyDecision(base({ wellness: hrv }), WEEK, { efficiency: STABLE })
     expect(d.decision).toBe('progress')
     expect(codes(d)).toEqual([])
+  })
+
+  it('never lets a suppression made of HRV alone insert a recovery week', () => {
+    // A steady fall of 6% a day flags every day as a two-day decline, for 16 days to the week end.
+    const end = addDays(WEEK, 6)
+    const falling = Array.from({ length: 16 }, (_, n) =>
+      wellnessDay(addDays(end, n - 15), { hrvRmssd: 60 * 0.94 ** (n + 1) }),
+    )
+    const steady = Array.from({ length: 10 }, (_, n) =>
+      wellnessDay(addDays(end, n - 25), { hrvRmssd: 60 }),
+    )
+    const i = base({ wellness: [...steady, ...falling] })
+    expect(readinessSnapshot(i, end).state).toBe('persistent-suppression')
+    const d = weeklyDecision(i, WEEK, { efficiency: STABLE })
+    expect(d.decision).toBe('progress')
+    expect(codes(d)).toEqual([])
+  })
+
+  it('holds on mild pain below the red-flag score', () => {
+    const d = weeklyDecision(
+      base({ wellness: [wellnessDay('2026-10-15', { painScore: 2 })] }),
+      WEEK,
+      {
+        efficiency: STABLE,
+      },
+    )
+    expect(d.decision).toBe('hold')
+    expect(codes(d)).toEqual(['pain-mild'])
+  })
+
+  it('holds while a readiness flag with a poor check-in is active at the week end', () => {
+    const poor = { fatigue: 5, soreness: 4, mood: 2 }
+    const wellness = [wellnessDay('2026-10-17', poor), wellnessDay('2026-10-18', poor)]
+    const d = weeklyDecision(base({ wellness }), WEEK, { efficiency: STABLE })
+    expect(d.decision).toBe('hold')
+    expect(codes(d)).toEqual(['readiness-flag'])
   })
 
   it('reduces on reported illness or pain', () => {

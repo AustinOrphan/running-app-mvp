@@ -278,11 +278,31 @@ export function weeklyDecision(
       rules: ['n-2', 'J5'],
     })
   }
-  if (readinessSnapshot(input, asOf).state === 'persistent-suppression') {
+  if (worstPain > 0 && worstPain < P.pain.flagScore.value) {
+    holds.push({
+      code: 'pain-mild',
+      detail: `Pain of ${worstPain} out of 10 was reported. Volume holds until it settles.`,
+      rules: ['J5'],
+    })
+  }
+
+  // HRV and resting HR only corroborate [J2, J4]: a readiness state counts toward the weekly
+  // decision only when the check-ins also show a poor subjective score.
+  const snapshot = readinessSnapshot(input, asOf)
+  const recentPoor = Array.from({ length: P.j3.persistenceDays.value }, (_, k) =>
+    poorSubjective(checkinOn(input, addDays(asOf, -k))),
+  ).some(Boolean)
+  if (snapshot.state === 'persistent-suppression' && poorDays > 0) {
     direct.push({
       code: 'persistent-suppression',
       detail: `Readiness has stayed lower than usual for ${P.j8.deloadSuggestDays.value} days or more with no clear cause. A lighter week is suggested.`,
       rules: ['J8'],
+    })
+  } else if (snapshot.state !== 'normal' && recentPoor) {
+    holds.push({
+      code: 'readiness-flag',
+      detail: 'A readiness flag is still active at the end of the week. Volume holds.',
+      rules: ['J3', 'J5'],
     })
   }
 
