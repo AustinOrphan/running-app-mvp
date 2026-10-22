@@ -35,7 +35,8 @@ describe('fastestEfforts', () => {
     expect(mile(1609.344)).toHaveLength(1)
     expect(mile(1641)).toHaveLength(1)
     expect(mile(1642)).toHaveLength(0)
-    expect(mile(1609)).toHaveLength(0)
+    expect(mile(1609)).toHaveLength(1)
+    expect(mile(1608)).toHaveLength(0)
   })
 
   test('pace is whole-run seconds per km, fastest wins, earlier date breaks ties', () => {

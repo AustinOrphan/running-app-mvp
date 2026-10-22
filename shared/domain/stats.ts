@@ -56,7 +56,8 @@ export function fastestEfforts(activities: Activity[]): FastestEffort[] {
     let best: Activity | null = null
     for (const a of candidates) {
       const d = a.distanceM ?? 0
-      if (d < targetM || d * 100 > targetM * WINDOW_PERCENT) continue
+      // Distances are stored as whole metres, so the lower bound is the target rounded down.
+      if (d < Math.floor(targetM) || d * 100 > targetM * WINDOW_PERCENT) continue
       if (best === null || isFasterOrEarlier(a, best)) best = a
     }
     if (best === null || best.distanceM === null) continue
