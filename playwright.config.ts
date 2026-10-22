@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { E2E_DATABASE_URL } from './tests/e2e/env.ts'
 
 const port = 3101
 
@@ -20,7 +21,7 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 60_000,
     env: {
-      DATABASE_URL: `file:${process.cwd()}/data/e2e.db`,
+      DATABASE_URL: E2E_DATABASE_URL,
       SESSION_SECRET: 'e2e-test-only-secret-0123456789abcdef!!',
       PORT: String(port),
     },
