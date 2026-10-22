@@ -2,8 +2,8 @@
 
 A self-hosted training log and planner for one runner. It keeps activities, goal races, a
 generated weekly plan, weekly reviews, a dashboard and stats. One Node process serves the API and
-the built web app, and the data lives in a single SQLite file. There is no telemetry and the app
-makes no requests to third parties.
+the built web app, and the data lives in a single SQLite file. There is no telemetry. The app calls
+third parties only for the integrations you connect and for weather (see Integrations).
 
 Targets are a sketch, not minimums: the plan never makes up missed volume, and a suggestion never
 changes a target by itself.
@@ -84,6 +84,157 @@ files (byte-order mark, Windows line endings) import like clean ones.
 
 Activities can be exported again from Settings as CSV.
 
+## Integrations
+
+Activities and daily health data can arrive without typing. Every source is a provider; the
+Integrations page (More, then Integrations) shows one card each with its status, last sync and a
+Disconnect button. Disconnecting forgets the stored credentials; the activities stay.
+
+Pull providers sync hourly in the background, and the card's Sync now button runs one at once. The
+first run reads the last year; set Backfill from on the card to go further back. Weather is added
+afterwards by a background job that runs every ten minutes.
+
+Credentials (API keys, client secrets, tokens) are encrypted with a key derived from
+`SESSION_SECRET` and stored in the database. Rotating `SESSION_SECRET` makes them unreadable: the
+card then says "Needs reconnecting" and the credentials must be entered again.
+
+An activity that arrives from two sources (a watch file and the same run through Strava, say) is
+kept once: the richer source wins and the other is marked as a duplicate. The detail page and the
+activities list name the source of each activity.
+
+| Provider       | How it connects                | Brings                                                   |
+| -------------- | ------------------------------ | -------------------------------------------------------- |
+| Activity files | Import dialog                  | Activities with heart rate, laps, elevation and a stream |
+| intervals.icu  | API key, hourly pull           | Activities, resting HR, HRV (rMSSD), sleep, weight       |
+| Strava         | Your own API app, OAuth, pull  | Activities with heart rate, cadence, power and elevation |
+| Garmin Connect | Sign-in or pasted tokens, pull | Activities, resting HR, HRV (rMSSD), sleep. Experimental |
+| Apple Health   | Health Auto Export push, file  | Workouts, resting HR, HRV (SDNN), sleep, weight, VO2 max |
+| Watched folder | A folder on the server         | Any FIT, GPX or TCX file that lands in it                |
+
+### Activity files and exports
+
+On the Activities page, Import, then Activity files. Pick FIT, GPX or TCX files, or ZIP archives of
+them. The browser opens archives inside archives and `.gz` files before uploading, so the Garmin
+"Export your data" archive and the Strava bulk export (`*.fit.gz`, `*.gpx.gz`, `*.tcx.gz`) work as
+downloaded, in batches of up to 20 files. The report lists every file that was skipped and why. A
+file already imported is recognised by its content, so importing it twice changes nothing. Each
+activity keeps its original file; the detail page offers it for download.
+
+Apple Health history: on the iPhone open the Health app, tap your picture, choose Export All Health
+Data, and import the resulting `export.zip` with Import, then Apple Health. The file is read in your
+browser (it can be hundreds of megabytes); only workouts, routes and daily values are sent.
+
+### intervals.icu
+
+Needs an intervals.icu account that is active. It is the recommended route for Garmin: connect Garmin to
+intervals.icu there (an official integration), then connect intervals.icu here.
+
+1. In intervals.icu, open Settings, then Developer Settings, and create an API key.
+2. Note the athlete id shown on the settings page (it looks like `i12345`).
+3. On the Integrations page, enter both on the intervals.icu card and choose Connect.
+
+The original FIT file is downloaded when intervals.icu has it. Activities that intervals.icu itself
+received from Strava are not exposed through its API and no file is available for them; connect
+Strava here as well to get those. Daily resting HR, HRV (rMSSD), sleep and weight come from the
+wellness records.
+
+### Strava
+
+Strava needs your own API application, because the app is self-hosted and has no shared client.
+
+1. Open <https://www.strava.com/settings/api> and create an application (any name and category).
+2. Set Authorization Callback Domain to the host you open this app on, such as `running.example.com`
+   or `localhost`. The card shows the exact value. It is a host name only, without `https://` or a
+   path.
+3. Copy the client id and client secret into the Strava card. The secret is stored encrypted.
+4. If the app is reached through an address other than the one in your browser's address bar (for
+   example behind a reverse proxy), fill in Public address so the callback uses it.
+5. Choose Connect, then approve access on Strava (`read` and `activity:read_all`). Activities
+   arrive on the next sync.
+
+Strava brings activities with heart rate, cadence, power and altitude streams but no original files
+and no wellness data. Strava rate-limits each application; a long backfill pauses at 80% of either
+limit and continues on the next run.
+
+### Garmin Connect (experimental)
+
+Garmin's official developer programme is closed to new applicants, so this provider uses the same
+sign-in and API as Garmin's mobile app. It is off until connected. Risks:
+
+- It is unofficial and against the spirit of Garmin's terms. Garmin can change or block it at any
+  time and it may stop working without notice.
+- Repeated failed or rapid sign-ins can rate-limit or temporarily block the Garmin account
+  (reports mention blocks of about 48 hours). The connect form requires ticking that you
+  understand this.
+- Cloudflare in front of Garmin may refuse the sign-in from a server (HTTP 403) or from a
+  datacentre address. Use the token route below when that happens.
+- Only tokens are stored, never the password. The password is sent once to Garmin and not logged.
+- Sync is deliberately slow: one request per second, at most 200 per run. Any 403 or 429 pauses the
+  provider for six hours.
+
+To connect: enter the Garmin username and password on the card. If the account uses two-step
+verification, enter the code Garmin sends within 10 minutes. If the sign-in is refused, run
+`python-garminconnect` once on a trusted machine to sign in, and paste the token JSON it writes
+(`access_token`, `refresh_token`, `expires_in` or `expires_at`) with Paste tokens instead.
+
+It brings activities (the original FIT file where Garmin provides it), plus resting heart rate,
+HRV (last-night average, rMSSD) and sleep for the last 30 days on each run. If intervals.icu already
+receives the same Garmin data, prefer intervals.icu and leave this off.
+
+### Apple Health
+
+Two ways, which can be combined:
+
+- **Health Auto Export (push).** The iOS app Health Auto Export (its Premium tier supports REST
+  automations) posts workouts and daily metrics to this server as they happen.
+  1. On the Apple Health card, choose Create push token. The token is shown once; copy it.
+     Creating another replaces the first.
+  2. In Health Auto Export, add an automation of type REST API. Set the URL to
+     `https://<your host>/api/ingest/apple-health` (the card shows it). The phone must be able to
+     reach the server, so a home server needs a VPN or a public HTTPS address.
+  3. Add a header `Authorization` with the value `Bearer <token>`.
+  4. Export format JSON, version 2. Turn Include Route Data on. Set the sync to Since Last Sync and
+     select the Workouts data type and the metrics Resting Heart Rate, Heart Rate Variability,
+     Sleep Analysis, Body Mass (weight) and VO2 Max.
+     Workouts, heart-rate series, route altitude and the start location, temperature and humidity are
+     used. Metrics with names the app does not know are counted and ignored, never an error. Apple's
+     HRV is SDNN, which is stored separately from the rMSSD that Garmin and intervals.icu report and
+     is never mixed with it.
+- **Export file (history).** See Activity files and exports above.
+
+### Watched folder
+
+Point the Watched folder card at a directory on the server and any FIT, GPX or TCX file (also
+`.zip` and `.gz`) that appears in it is imported. This suits HealthFit, a Garmin or Coros export
+tool, or any app that can write files to iCloud Drive, Dropbox, Syncthing or a network share.
+
+- The folder is read-only to the app. It is scanned every 5 minutes, including subfolders, and a
+  file changed in the last few seconds waits for the next scan. Files are remembered by content, so
+  moving or renaming one does not import it twice.
+- The path must exist and be a directory.
+- In Docker the folder must be mounted into the container, and the path on the card is the path
+  inside it. Add a read-only bind mount to `docker-compose.yml`:
+
+  ```yaml
+  services:
+    app:
+      volumes:
+        - app-data:/data
+        - /srv/sync/running-files:/import:ro
+  ```
+
+  Then enter `/import` on the card. The container runs as uid 1000, so that user must be able to
+  read the host folder.
+
+### Weather and privacy
+
+The app otherwise makes no third-party requests. With weather on, a background job sends
+Open-Meteo (no account or key) the start location of each activity, rounded to about one
+kilometre, and its time; for an activity without a location it uses the home location from the
+Profile page when "use the home location for weather" is on. Turn that off, and leave the home
+location empty, to send nothing. Providers see only what you connect: the app calls intervals.icu,
+Strava and Garmin only after you connect them, and only for your own account.
+
 ## Docker
 
 ```sh
@@ -133,11 +284,14 @@ There is no offline mode; the app needs the server.
 - `docs/superpowers/specs/2026-10-21-visual-design.md`: tokens, layout, components, charts and
   copy tone
 - `docs/superpowers/plans/2026-10-21-running-app-rewrite.md`: the task plan the code was built from
+- `docs/superpowers/specs/2026-10-22-data-foundation-design.md` and its plan: file import,
+  providers, weather, profile and wellness
+- `docs/research/integrations-2026-10.md`: feasibility research behind the provider list
 - `docs/adr/`: architecture decision records
 
 ## Layout
 
-- `server/`: Express app, auth, routes, services
+- `server/`: Express app, auth, routes, services, `providers/` (one module per source), `jobs/`
 - `shared/`: pure domain code used by server and web
 - `web/`: React and Vite single-page app
 - `prisma/`: schema and migrations; `prisma.config.ts` holds the CLI settings

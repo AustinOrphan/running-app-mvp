@@ -1,5 +1,6 @@
 import { expect, type APIResponse, type Page } from '@playwright/test'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { SESSION_COOKIE, signSession } from '../../server/auth/session.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
 import { E2E_DATABASE_URL } from './env.ts'
 
@@ -51,14 +52,34 @@ export function apiFor(page: Page, origin: string) {
 
 export type Api = ReturnType<typeof apiFor>
 
+/** `SESSION_SECRET` of the e2e server; keep in step with `webServer.env` in playwright.config.ts. */
+const E2E_SESSION_SECRET = 'e2e-test-only-secret-0123456789abcdef!!'
+
 /**
  * Makes the page signed in as the runner without driving the UI: creates the account on a fresh
- * database, signs in otherwise. A spec starts from here unless it is testing the auth screens.
+ * database. Once the account exists it sets a session cookie signed with the server's secret
+ * instead of calling the sign-in route, because that route allows 10 attempts per 15 minutes and
+ * the specs together would exhaust it. A spec starts from here unless it is testing the auth
+ * screens.
  */
 export async function signedInApi(page: Page, origin: string): Promise<Api> {
   const api = apiFor(page, origin)
   const status = (await api.get('/setup')) as { needsSetup: boolean }
-  await api.post(status.needsSetup ? '/setup' : '/auth/login', RUNNER)
+  if (status.needsSetup) {
+    await api.post('/setup', RUNNER)
+    return api
+  }
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: RUNNER.email } })
+    await page
+      .context()
+      .addCookies([
+        { name: SESSION_COOKIE, value: signSession(user.id, E2E_SESSION_SECRET), url: origin },
+      ])
+  } finally {
+    await prisma.$disconnect()
+  }
   return api
 }
 
