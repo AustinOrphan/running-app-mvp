@@ -274,8 +274,8 @@ export function StreamChart({ stream, channel, units = 'mi' }: StreamChartProps)
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.x}>
+          {rows.map((row, index) => (
+            <tr key={index}>
               <th scope="row">{xFormat(row.x)}</th>
               <td>{formatValue(channel, units, row.y)}</td>
             </tr>

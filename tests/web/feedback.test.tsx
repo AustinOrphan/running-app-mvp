@@ -106,6 +106,30 @@ describe('Today: How did it go?', () => {
     })
   })
 
+  test('keeps a saved pain score when only RPE is rated', async () => {
+    const user = userEvent.setup()
+    const api = renderDashboard(
+      [makeActivity({ id: 'r1', date: '2026-03-17', type: 'run', pain: 3 })],
+      { 'PATCH /api/activities/r1/feedback': () => ({}) },
+    )
+    const card = await screen.findByRole('region', { name: 'How did it go?' })
+    expect(within(card).getByRole('button', { name: 'Pain 3' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(within(card).getByRole('button', { name: 'Save' })).toBeDisabled()
+    await user.click(within(card).getByRole('button', { name: 'RPE 4' }))
+    await user.click(within(card).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(api.calls.some((c) => c.method === 'PATCH')).toBe(true)
+    })
+    expect(api.calls.find((c) => c.method === 'PATCH')?.body).toEqual({
+      rpe: 4,
+      feel: null,
+      pain: 3,
+    })
+  })
+
   test('Save waits until something is chosen', async () => {
     renderDashboard([makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })])
     const card = await screen.findByRole('region', { name: 'How did it go?' })

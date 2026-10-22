@@ -203,7 +203,7 @@ describe('ActivityDetailPage', () => {
     expect(screen.queryByRole('link', { name: 'Download original file' })).not.toBeInTheDocument()
   })
 
-  test('saves feedback with a partial patch', async () => {
+  test('saves RPE, feel and pain together', async () => {
     const user = userEvent.setup()
     const api = renderDetail({ routes: { 'PATCH /api/activities/a1/feedback': () => ({}) } })
     const section = await screen.findByRole('region', { name: 'How did it go?' })

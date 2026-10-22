@@ -71,8 +71,9 @@ function unratedRecent(activities: Activity[], today: string): Activity[] {
 function FeedbackItem({ activity, units }: { activity: Activity; units: Units }) {
   const save = useSaveFeedback(activity.id)
   const toast = useToast()
-  const [value, setValue] = useState<FeedbackValues>({ rpe: null, feel: null, pain: null })
-  const touched = value.rpe !== null || value.feel !== null || value.pain !== null
+  // Starts from the saved pain so a save that only sets RPE or feel does not clear it.
+  const [value, setValue] = useState<FeedbackValues>({ rpe: null, feel: null, pain: activity.pain })
+  const touched = value.rpe !== null || value.feel !== null || value.pain !== activity.pain
   const figures = [
     formatDuration(activity.durationSec),
     ...(activity.distanceM === null ? [] : [formatDistance(activity.distanceM, units)]),
