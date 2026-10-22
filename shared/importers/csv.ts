@@ -20,6 +20,8 @@ export interface RowError {
 /**
  * Small RFC 4180 parser. Strips a leading BOM, accepts CRLF or LF record ends, keeps quoted
  * commas, doubled quotes and newlines, and drops records that are entirely empty (blank lines).
+ * A quote that is never closed is read as a literal character, so the records after it are
+ * still parsed instead of disappearing into one field.
  */
 export function parseCsv(text: string): string[][] {
   const input = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
@@ -28,6 +30,10 @@ export function parseCsv(text: string): string[][] {
   let field = ''
   let quoted = false
   let fieldStarted = false
+  // Where the open quoted field started, to re-read it if the quote is never closed.
+  let openAt = -1
+  let openRecords = 0
+  let openRecord: string[] = []
 
   const endField = () => {
     record.push(field)
@@ -40,7 +46,18 @@ export function parseCsv(text: string): string[][] {
     record = []
   }
 
-  for (let i = 0; i < input.length; i++) {
+  for (let i = 0; i <= input.length; i++) {
+    if (i === input.length) {
+      if (!quoted) break
+      // Unclosed quote: rewind to it and read it as an ordinary character.
+      quoted = false
+      records.length = openRecords
+      record = openRecord
+      field = '"'
+      fieldStarted = true
+      i = openAt
+      continue
+    }
     const ch = input.charAt(i)
     if (quoted) {
       if (ch === '"') {
@@ -56,6 +73,9 @@ export function parseCsv(text: string): string[][] {
     } else if (ch === '"' && !fieldStarted) {
       quoted = true
       fieldStarted = true
+      openAt = i
+      openRecords = records.length
+      openRecord = [...record]
     } else if (ch === ',') {
       endField()
     } else if (ch === '\n') {
