@@ -72,4 +72,15 @@ describe('parseGenericCsv', () => {
     expect(errors).toEqual([])
     expect(rows[0]?.notes).toBe('Hills, "fast"')
   })
+
+  test('an unclosed quote in notes does not swallow the rows after it', () => {
+    const text =
+      'date,type,minutes,miles,notes\n2026-03-02,run,45,5,"Hills\n2026-03-03,run,30,3,ok\n'
+    const { rows, errors } = parseGenericCsv(text)
+    expect(errors).toEqual([])
+    expect(rows.map((r) => [r.date, r.notes])).toEqual([
+      ['2026-03-02', '"Hills'],
+      ['2026-03-03', 'ok'],
+    ])
+  })
 })

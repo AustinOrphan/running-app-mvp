@@ -30,4 +30,15 @@ describe('parseCsv', () => {
       ['', ''],
     ])
   })
+
+  test('an unclosed quote is a literal character and later records survive', () => {
+    expect(parseCsv('a,"b\nc,d\n')).toEqual([
+      ['a', '"b'],
+      ['c', 'd'],
+    ])
+    expect(parseCsv('1,2\na,"b')).toEqual([
+      ['1', '2'],
+      ['a', '"b'],
+    ])
+  })
 })
