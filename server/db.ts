@@ -1,7 +1,30 @@
-import { PrismaClient } from '@prisma/client'
+import { isAbsolute, resolve } from 'node:path'
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
+import { PrismaClient } from '../generated/prisma/client.ts'
+
+export { PrismaClient }
+export type {
+  Activity,
+  Goal,
+  ImportBatch,
+  Plan,
+  PlanWeek,
+  WeeklyReview,
+} from '../generated/prisma/client.ts'
+
+/**
+ * A relative `file:` URL resolves against `prisma/` under the working directory, as it did under
+ * Prisma 6, so the CLI and the client open the same file. Keep this in step with prisma.config.ts.
+ */
+function resolveSqliteUrl(url: string): string {
+  const path = url.replace(/^file:/, '').split('?')[0] ?? ''
+  if (!url.startsWith('file:') || isAbsolute(path)) return url
+  return `file:${resolve(process.cwd(), 'prisma', path)}`
+}
 
 export function createPrisma(databaseUrl: string): PrismaClient {
-  return new PrismaClient({ datasourceUrl: databaseUrl })
+  const adapter = new PrismaBetterSqlite3({ url: resolveSqliteUrl(databaseUrl) })
+  return new PrismaClient({ adapter })
 }
 
 /** Write-ahead logging lets reads continue during a write; the timeout waits out a brief lock. */
