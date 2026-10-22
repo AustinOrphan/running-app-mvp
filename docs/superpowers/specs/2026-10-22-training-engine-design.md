@@ -335,3 +335,32 @@ the why drawer), so no API is needed for papers.
 
 WBGT implementation details within the Liljegren method; chart choices; component layout;
 exact copy within the tone rules.
+
+## 10. Decisions made during the build (for the owner to confirm)
+
+Each was a builder call made while validating plans against a real, sparse history; each is
+a grade D default in `shared/engine/params` unless stated.
+
+1. **Restart floor.** A runner below three 20-minute sessions a week who has run at least 20
+   minutes in the last 90 days restarts at 3 × 20 minutes; that floor week is exempt from
+   the weekly ramp (G-2 governs growth from an established base) but not from the session
+   spike guard. Tightened injury profiles get no floor.
+2. **Generated runs stay in the normal band.** The generator plans every run at or below 1.10×
+   the projected 30-day maximum on duration, distance, gain and descent; the 1.10-2.00× warn
+   band is reachable only by the owner's own edits. Planning and checking share one limit
+   module (`shared/engine/limits.ts`), so a generated plan needs no trimming.
+3. **Baselines.** Recovery, taper and the part current week never lower a ramp baseline; when
+   every week of the 2-week window is one of those, the baseline looks back up to 6 weeks to
+   the last loading week. The restart floor week counts at its floor minutes.
+4. **Post-race.** After 100 km or more: a week without running, then one week at 25% of the
+   pre-taper peak; a new plan after the race restarts from the J7 table.
+5. **Ultra feasibility target.** Feasibility measures the longest single run against 180 min
+   (50 km), 240 min (100 km and 100 miles) or 270 min (beyond), capped by H2; back-to-backs
+   add time on feet beyond it.
+6. **Run length cap follows the long run.** No run is placed longer than the week's long run,
+   so a very high-volume 5 km runner (above 6 days × the 60-minute 5 km long-run default) is
+   held at that product; raise `peakLongRunMin.5k` if that is too low.
+7. **No guessed trims.** An effort score with no RPE and no feel is capped at ±1 and never
+   triggers a session trim or a zone proposal.
+8. **Multi-day files.** Activities up to 240 hours parse (200-mile races); longer files are
+   rejected as corrupt.

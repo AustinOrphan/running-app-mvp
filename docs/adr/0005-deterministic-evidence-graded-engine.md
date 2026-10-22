@@ -1,6 +1,6 @@
 # 0005. A deterministic, evidence-graded training engine; a language model writes text only
 
-Status: Proposed 2026-10-22
+Status: Accepted 2026-10-22 (#529)
 
 ## Context
 

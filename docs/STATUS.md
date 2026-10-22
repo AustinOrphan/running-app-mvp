@@ -1,53 +1,70 @@
 # Status
 
-Current state only; rewritten at every boundary. History lives in `git log`, the design doc
-(`docs/superpowers/specs/2026-10-21-running-app-rewrite-design.md`), the plan
-(`docs/superpowers/plans/2026-10-21-running-app-rewrite.md`) and `docs/adr/`.
+Current state only; rewritten at every boundary. History lives in `git log`, the specs and
+plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
 Last update: 2026-10-22.
 
 ## Where things stand
 
-- Branch `rewrite/v2` replaces the whole tree with the clean rewrite. Draft PR #528 targets
-  `main`; the owner merges.
-- Gates on the branch: `npm run check` (lint, Prettier, typecheck, Vitest unit + API),
-  `npm run build`, `npm run test:e2e` (Playwright, chromium), `npm audit --omit=dev` at 0,
-  Docker image builds and stops cleanly. CI runs the first three plus CodeQL on every push.
-- CodeQL on the PR reports "2 configurations not found" because old `main` scanned JavaScript
-  and TypeScript as separate configurations; it clears once the new `codeql.yml` is on `main`.
+- **PR #528** (`rewrite/v2` → `main`): the clean rewrite. Ready for review; the owner merges.
+- **PR #529** (`feat/evidence-engine` → `rewrite/v2`, stacked): the verified research corpus
+  (300 papers), the data foundation (files, intervals.icu, Strava, experimental Garmin, Apple
+  Health, watched folder, weather, profile, wellness, activity detail, feedback) and the
+  evidence-based training engine. Merge #528 first, then retarget #529 to `main`.
+- Gates on `feat/evidence-engine` (2026-10-22): `npm run check` (lint, Prettier, typecheck,
+  `research:check`, 2331 Vitest tests), `npm run build`, `npm run test:e2e` (18 Playwright
+  specs), `npm audit --omit=dev` at 0, Docker image builds (602 MB), applies all three
+  migrations on a fresh volume and serves health, setup and the Research page.
+- A local validation against the owner's real history (kept outside the repository) builds the
+  100-mile plan with 0 warnings and all 13 checklist items passing.
 
-## Open follow-ups (none blocks the merge)
+## Decisions for the owner
 
-1. Behind a reverse proxy, rate limits key on the proxy's address. Add a trust-proxy setting
-   when deploying that way (review finding skipped on purpose: the env var list is fixed at six).
-2. "Make active" on a goal other than the plan's goal leaves the plan on the old goal; the
-   dashboard follows the plan's goal. Decide whether activation should prompt to regenerate.
-3. Imports and activity edits run their duplicate pass in separate statements; a crash
-   part-way can leave flags inconsistent. Acceptable for one user; revisit if it bites.
-4. Spec non-goals still open: readiness and race-decision gates as stored decisions, long-run
-   lab and fueling logs, strength programming, live Smashrun sync.
-5. Enable branch protection on `main` requiring the `ci` and `analyze` checks.
-6. The Docker runtime image is 594 MB; most of it is the Prisma CLI needed for
-   `migrate deploy`. A smaller migration path would shrink it.
+The engine design (`docs/superpowers/specs/2026-10-22-training-engine-design.md`, section 10)
+lists eight builder calls made during validation (restart floor, generated runs kept in the
+normal spike band, baseline rules, post-race weeks, ultra feasibility targets, run length
+following the long run, no trims from unrated runs, multi-day files up to 240 h). Each is a
+labelled default in `shared/engine/params`.
 
-## Clean-up after the merge
+## Open follow-ups (none blocks a merge)
+
+1. The weekly decision's "first days of heat" and "sleep efficiency drop" holds are not derived
+   from data yet, so those two J5 signals never fire.
+2. Manual activity entry still stops at 48 hours (file imports allow 240); a one-line change in
+   the activity schema and form.
+3. A session the engine trims after a hold decision is stored without its untrimmed version.
+4. Lower-ranked review findings not yet addressed: nested sheets share the Escape key; Apple
+   Health push skips the range checks the parsed import applies; the JSON body parsers for
+   ingest and imports run before authentication; Garmin wellness that runs out of request budget
+   records a successful run; Goals reads "1:45" as minutes and seconds; a few engine tests
+   assert conditionally.
+5. Behind a reverse proxy, rate limits key on the proxy's address (no trust-proxy setting by
+   design: the environment variables are fixed).
+6. "Make active" on a goal other than the plan's goal leaves the plan on the old goal.
+7. Spec non-goals still open: readiness and race-decision gates as stored decisions, long-run
+   lab and fueling logs, strength programming; Polar, WHOOP, Oura and Google Health providers.
+8. Enable branch protection on `main` requiring the `ci` and `analyze` checks.
+
+## Clean-up after the merges
 
 - Delete obsolete remote branches: `feat/comprehensive-ci-cd-infrastructure`,
   `feature/phase3-test-fixes-complete`, the five `fix/*-pr298` branches, the eight July-2025
   rescue branches (`architectural-review-and-improvements`, `error-logging-standardization`,
   `feature/refactor-async-handlers-39`, `fix/footer-css-classes-issue-155`,
   `fix/issue-113-api-mocking-standardization`, `fix/limit-pace-decimal-places-108`,
-  `issue-105-fix-unreachable-catch-stats`, `lint-react-hooks`), and the `task/*` and
-  `review/*` branches from the rewrite's parallel agents.
-- Remove the stale worktrees in the bare repository (`build e2e integration linting
-unit-tests` and `.claude/worktrees/wf_*`) and check `_main` out on `main`.
-- Close the open Dependabot PRs; their targets no longer exist.
+  `issue-105-fix-unreachable-catch-stats`, `lint-react-hooks`).
+- Delete the local `task/*` and `review/*` branches from the parallel agents, and remove the
+  agent worktrees under `.claude/worktrees/wf_*` plus the stale `build e2e integration linting
+unit-tests` worktrees; check `_main` out on `main`.
 - Unset `core.hooksPath` in the bare repository; it points at a removed `.husky/_`.
 
 ## Environment notes
 
 - Bare repository with worktrees (`~/src/BARE-REPO-WORKFLOW.md`). Isolated agent worktrees
   branch from `origin/main` and have no `node_modules`.
-- Port 3101 is reserved by the Playwright web server.
-- Personal training data stays in Google Sheets and Smashrun; the repository holds synthetic
-  fixtures only.
+- Port 3101 is reserved by the Playwright web server, which also clears `test-results/`.
+- The owner's intervals.icu account goes dormant without a login; Garmin's official API is
+  closed to new applicants (October 2026).
+- Personal training data stays in Google Sheets, Smashrun and the owner's own app database; the
+  repository holds synthetic fixtures only.

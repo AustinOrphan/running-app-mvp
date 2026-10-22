@@ -1,6 +1,6 @@
 # 0006. One provider interface for data sources, with Garmin Connect as an experimental provider
 
-Status: Proposed 2026-10-22
+Status: Accepted 2026-10-22 (#529)
 
 ## Context
 
