@@ -564,3 +564,74 @@ describe('zoneProposals (C8, design 4.3)', () => {
     expect(zoneProposals(i, tainted)).toEqual([])
   })
 })
+
+describe('weeklyDecision inside a post-race window (H12)', () => {
+  // A marathon on Sunday 11 October by a runner of 36 with an earlier finish: a 2-day hold, step 1
+  // from 13 to 19 October, step 2 from 20 to 26 October, quality work from 27 October.
+  const marathon = (id: string, date: string) =>
+    activity(date, { id, type: 'race', durationSec: 14_400, distanceM: 42_195 })
+  const afterMarathon = (over: Partial<EngineInput> = {}) =>
+    base({
+      activities: [
+        ...runs([50, 50, 50, 50]),
+        marathon('old', '2025-10-12'),
+        marathon('m', '2026-10-11'),
+      ],
+      ...over,
+    })
+
+  it('reports the step instead of progress, hold or reduce', () => {
+    const d = weeklyDecision(afterMarathon(), WEEK, { efficiency: STABLE })
+    expect(d.postRace).toMatchObject({ phase: 'step', step: 1, steps: 2, extensionDays: 0 })
+    expect(d.postRace?.label).toBe('After the race, step 1 of 2')
+    expect(codes(d)).toEqual(['post-race-stage'])
+    expect(d.signals[0]!.detail).toBe('After the race, step 1 of 2')
+    expect(d.signals[0]!.rules).toContain('H12')
+    // the next week keeps the minutes the plan holds for it, never a cut from this week's total
+    expect(d.nextWeekTargetMin).toBe(210)
+    const current = weeklyDecision(afterMarathon(), NEXT, { efficiency: STABLE })
+    expect(current.postRace?.label).toBe('After the race, step 2 of 2')
+  })
+
+  it('says that a sore day keeps the current step when the gate has moved the return', () => {
+    // the day-9 boundary (20 October) moves to 21 October after a sore 18 October
+    const wellness = [
+      wellnessDay('2026-10-17', { soreness: 3 }),
+      wellnessDay('2026-10-18', { soreness: 5 }),
+      wellnessDay('2026-10-19', { soreness: 3 }),
+      wellnessDay('2026-10-20', { soreness: 3 }),
+    ]
+    const d = weeklyDecision(afterMarathon({ wellness, today: '2026-10-20' }), NEXT, {
+      efficiency: STABLE,
+    })
+    // 20 October would have been the first day of step 2; the sore day keeps the runner in step 1
+    expect(d.postRace).toMatchObject({ step: 1, extensionDays: 1 })
+    expect(codes(d)).toEqual(['post-race-stage', 'post-race-delayed'])
+    expect(d.signals[1]!.detail).toMatch(
+      /A sore, tired, painful or ill day keeps you at your current step/,
+    )
+    expect(d.signals[1]!.detail).not.toMatch(/behind|missed/i)
+  })
+
+  it('leaves the usual decision to a week outside the window and to a race that is not ahead', () => {
+    expect(
+      weeklyDecision(afterMarathon(), '2026-11-02', { efficiency: STABLE }).postRace,
+    ).toBeUndefined()
+    // a short race opens no window for a new plan
+    const tenK = base({
+      activities: [
+        ...runs([50, 50, 50, 50]),
+        activity('2026-10-11', { id: 'tenk', type: 'race', durationSec: 3000, distanceM: 10_000 }),
+      ],
+    })
+    expect(weeklyDecision(tenK, WEEK, { efficiency: STABLE }).postRace).toBeUndefined()
+    expect(weeklyDecision(base(), WEEK, { efficiency: STABLE }).decision).toBe('progress')
+  })
+
+  it('reports the rest of the hold with the date running resumes', () => {
+    const justRaced = afterMarathon({ today: '2026-10-12' })
+    const d = weeklyDecision(justRaced, WEEK, { efficiency: STABLE })
+    expect(d.postRace).toMatchObject({ phase: 'hold', step: null, holdUntil: '2026-10-13' })
+    expect(d.postRace?.label).toBe('After the race: rest, no running until 2026-10-13')
+  })
+})

@@ -64,7 +64,7 @@ describe('buildPlan', () => {
     const plan = buildPlan(half.input)
     expect(plan.weeks[0]!.weekStart).toBe(mondayOf(TODAY))
     expect(plan.feasibility.label).toBe('comfortable')
-    expect(plan.checklist).toHaveLength(13)
+    expect(plan.checklist).toHaveLength(14)
     expect(plan.zones.hr).not.toBeNull()
     expect(plan.paramsVersion).toBe(engine.PARAMS_VERSION)
     expect(plan.sessions).toEqual(
@@ -468,6 +468,56 @@ describe('the checklist fails on a plan that breaks its rule', () => {
     const plan = clone(buildPlan(a.input))
     plan.sessions = plan.sessions.filter((s) => s.kind !== 'race')
     expect(failedIds(plan, a.input)).toContain('race-day')
+  })
+
+  it('race day: a run in the hold, a run over its step cap and quality work before the window ends', () => {
+    const a = athlete('first-100-mile')
+    const plan = clone(buildPlan(a.input))
+    const race = a.input.goal.date
+    expect(plan.checklist.find((c) => c.id === 'race-day')?.detail).toMatch(
+      /15 days without running/,
+    )
+    const easy = plan.sessions.find((s) => s.kind === 'recovery' && s.date > race)!
+    const template = { ...easy, durationMin: 30, flags: [] as SessionSpec['flags'] }
+    // 100 miles with no earlier finish: the hold runs 15 days after the race
+    const inHold = clone(plan)
+    inHold.sessions.push({ ...template, date: addDays(race, 3) })
+    const hold = runChecklist(inHold, a.input).find((c) => c.id === 'race-day')!
+    expect(hold.ok).toBe(false)
+    expect(hold.detail).toMatch(/inside the hold/)
+    const over = clone(plan)
+    over.sessions.find((s) => s.kind === 'recovery' && s.date > race)!.durationMin = 55
+    expect(failedIds(over, a.input)).toContain('race-day')
+    const hard = clone(plan)
+    hard.sessions.push({ ...template, kind: 'threshold', date: addDays(race, 26) })
+    expect(runChecklist(hard, a.input).find((c) => c.id === 'race-day')?.detail).toMatch(
+      /before the end of the post-race window/,
+    )
+  })
+
+  it('post-race window: a plan built inside a window needs the hold, the caps and no quality', () => {
+    const a = athlete('first-100-mile')
+    const input: EngineInput = {
+      ...a.input,
+      activities: [
+        ...a.input.activities,
+        activity(addDays(TODAY, -5), {
+          id: 'just-raced',
+          type: 'race',
+          durationSec: 108_000,
+          distanceM: 160_934,
+        }),
+      ],
+    }
+    const plan = clone(buildPlan(input))
+    expect(failed(plan.checklist)).toEqual([])
+    const run = plan.sessions.find((s) => s.kind === 'recovery')!
+    const early = clone(plan)
+    early.sessions.push({ ...run, date: TODAY })
+    expect(failedIds(early, input)).toContain('post-race-window')
+    const hard = clone(plan)
+    hard.sessions.push({ ...run, kind: 'intervals', date: addDays(run.date, 14) })
+    expect(failedIds(hard, input)).toContain('post-race-window')
   })
 
   it('reds hold: a plan that grows or pairs long runs under two or more flags', () => {

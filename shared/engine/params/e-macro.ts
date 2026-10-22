@@ -294,24 +294,36 @@ export const eMacro = {
         note: 'Default: easy pace used to turn minutes into distance when neither history nor goal gives one.',
       },
     ),
-    postRaceReducedFraction: param(
-      'macroDesign.postRaceReducedFraction',
-      0.5,
+    postRaceReducedFraction: param('macroDesign.postRaceReducedFraction', 0.5, 'D', 'H12', [], {
+      note: 'Default: the single return step after a race of 5 km to a half marathon is this fraction of the pre-taper reference week; no source covers recovery after races shorter than a marathon.',
+    }),
+    postRaceMarathonFractions: param<number[]>(
+      'macroDesign.postRaceMarathonFractions',
+      [0.5, 0.75],
       'D',
-      'design-macro',
-      [],
+      'H12',
+      [
+        'bernat-adell-2021-marathon-biomarkers',
+        'petersen-2007-marathon-muscle-mechanics',
+        'takayama-2017-marathon-one-week',
+      ],
       {
-        note: 'Default: reduced running after a race is this fraction of the pre-taper reference week (H12).',
+        note: 'Default: the 7-day return steps after a marathon or a 50 km class race are these fractions of the pre-taper reference week; LDH normalises about day 8 and CRP is still raised then, and the fractions themselves are a convention.',
       },
     ),
     postRaceLongFractions: param<number[]>(
       'macroDesign.postRaceLongFractions',
-      [0.25],
+      [0.25, 0.5, 0.75],
       'D',
-      'design-macro',
-      ['byrne-2024-elite-24h-training'],
+      'H12',
+      [
+        'skurka-2017-roche-100-recovery',
+        'cts-2025-koop-ultra-recovery',
+        'irunfar-2016-powell-post-100-return',
+        'millet-2011-ultramarathon-neuromuscular',
+      ],
       {
-        note: 'Default: after a race of 100 km or more the rest week is followed by a reduced week at this fraction of the pre-taper reference week (H12); a new plan after the race restarts from the J7 table. No study sets the fraction.',
+        note: 'Default: the 7-day return steps after a race of 100 km or longer are these fractions of the pre-taper reference week; coach plans stage the return over about four weeks and no study sets the fractions.',
       },
     ),
     polarizedZ2Share: param('macroDesign.polarizedZ2Share', 5, 'D', 'design-macro', [], {

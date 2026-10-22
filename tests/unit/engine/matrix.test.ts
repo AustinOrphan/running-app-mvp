@@ -52,6 +52,7 @@ const CHECKLIST_IDS = [
   'spacing',
   'ultra-caps',
   'race-day',
+  'post-race-window',
   'reds-hold',
   'bone-pain-hold',
 ]
@@ -109,17 +110,18 @@ describe.each(all)('plan matrix: $label', (a) => {
       'race',
     ])
     const raceWeek = mondayOf(a.input.goal.date)
+    // the days after the race are rest days (the hold); nothing runs until the recovery weeks
     const after = plan.sessions.filter(
       (s) => mondayOf(s.date) === raceWeek && s.date > a.input.goal.date,
     )
-    expect(after).toEqual([])
+    expect(after.filter((s) => s.kind !== 'rest')).toEqual([])
     expect(plan.paramsVersion).toMatch(/^\d{4}-\d{2}-\d{2}/)
   })
 
   it('keeps no session on an unavailable day or above the day limit', () => {
     const bad: string[] = []
     for (const s of plan.sessions) {
-      if (s.kind === 'race') continue
+      if (s.kind === 'race' || s.kind === 'rest') continue
       const day = a.input.profile.availability[WEEKDAYS[daysBetween(mondayOf(s.date), s.date)]!]
       if (!day.available) bad.push(`${s.date} ${s.kind} on a closed day`)
       else if (day.maxMin !== null && ANY_RUN.has(s.kind) && s.durationMin > day.maxMin) {
@@ -138,6 +140,8 @@ describe.each(all)('plan matrix: $label', (a) => {
     const floor = plan.weeks.find((w) => w.flags.includes('restart-floor'))
     for (const w of planWeeks(plan)) {
       const total = at(w.weekStart, 0)
+      // the weeks after the race are exempt from G-2, as a return to an established base [H12]
+      if (w.flags.includes('post-race')) continue
       if (floor !== undefined && w.weekStart === floor.weekStart) {
         // exempt from G-2 only up to the floor
         if (total > floor.targetRunMin + 1) {
@@ -393,9 +397,12 @@ describe('plan matrix: per-athlete expectations', () => {
     for (let i = 1; i < day1.length; i++) {
       expect(daysBetween(day1[i - 1]!.date, day1[i]!.date)).toBeGreaterThanOrEqual(14)
     }
+    // a 100-mile race: the first week after it is inside the hold, so it holds rest days only
     const rest = plan.weeks.find((w) => w.flags.includes('post-race'))!
     expect(rest.targetRunMin).toBe(0)
-    expect(plan.sessions.filter((s) => mondayOf(s.date) === rest.weekStart)).toEqual([])
+    const inRest = plan.sessions.filter((s) => mondayOf(s.date) === rest.weekStart)
+    expect(inRest.length).toBeGreaterThan(0)
+    expect(inRest.every((s) => s.kind === 'rest')).toBe(true)
   })
 
   it('50 km trail: climbing grows toward the course gain and sessions carry gain', () => {
@@ -416,7 +423,7 @@ describe('plan matrix: per-athlete expectations', () => {
     for (const set of days.values()) expect(set.size).toBeLessThanOrEqual(6)
     for (const s of plan.sessions) {
       const weekday = WEEKDAYS[daysBetween(mondayOf(s.date), s.date)]
-      if (s.kind !== 'race') expect(['mon', 'wed']).not.toContain(weekday)
+      if (s.kind !== 'race' && s.kind !== 'rest') expect(['mon', 'wed']).not.toContain(weekday)
     }
   })
 

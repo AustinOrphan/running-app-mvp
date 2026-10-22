@@ -155,4 +155,30 @@ describe('parameter registry', () => {
     expect(P.l6.minBandPct.value).toBe(3)
     expect(P.n1.bsiReturnDays.value).toEqual([44, 56, 107, 127])
   })
+
+  it('transcribes the post-race window of rule H12', () => {
+    const hold = P.h12HoldDays
+    expect(
+      [hold.marathon, hold.ultra50, hold.ultra100k, hold.ultra100mi, hold.beyond].map(
+        (p) => p.value,
+      ),
+    ).toEqual([2, 4, 7, 10, 14])
+    expect(P.h12.reducedDays.value).toBe(7)
+    expect([P.h12.step1RunMaxMin.value, P.h12.step1MaxRuns.value]).toEqual([40, 3])
+    expect([P.h12.step2RunMaxMin.value, P.h12.laterStepLongRunMaxMin.value]).toEqual([60, 90])
+    expect([P.h12.modifierMultiplier.value, P.h12.hillyDescentMPerKm.value]).toEqual([1.5, 30])
+    expect([
+      P.h12.advanceCleanCheckins.value,
+      P.h12.ownBaselineMinCheckins.value,
+      P.h12.gateEscalationDays.value,
+    ]).toEqual([2, 14, 14])
+    expect(P.macroDesign.postRaceMarathonFractions.value).toEqual([0.5, 0.75])
+    expect(P.macroDesign.postRaceLongFractions.value).toEqual([0.25, 0.5, 0.75])
+    expect(P.macroDesign.postRaceReducedFraction.value).toBe(0.5)
+    // grade B only where one trial backs the dose; every other value is a labelled default
+    expect(hold.marathon.grade).toBe('B')
+    expect(P.h12.step1RunMaxMin.grade).toBe('B')
+    expect(P.h12.modifierMultiplier.grade).toBe('D')
+    expect(paramsForRule('H12')).toHaveLength(18)
+  })
 })

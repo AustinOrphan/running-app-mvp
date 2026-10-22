@@ -745,3 +745,23 @@ describe('applyGuards: restart floor', () => {
     expect(result.sessions[0]!.flags).toContain('override-required')
   })
 })
+
+describe('applyGuards: post-race return weeks (H12)', () => {
+  const st = () => withWeeks([200, 200, 200])
+
+  it('leaves an exempt week above the ramp as planned, and cuts the same week otherwise', () => {
+    const plan = planWeek('2026-11-02', 400)
+    const exempt = applyGuards(plan, st(), [], { exemptWeeks: ['2026-11-02'] })
+    expect(weekMinutes(exempt.sessions, '2026-11-02')).toBe(weekMinutes(plan, '2026-11-02'))
+    expect(exempt.warnings.some((w) => w.code.startsWith('ramp'))).toBe(false)
+    const cut = applyGuards(plan, st(), [])
+    expect(weekMinutes(cut.sessions, '2026-11-02')).toBeLessThan(weekMinutes(plan, '2026-11-02'))
+  })
+
+  it('still applies the session spike guard (G-1) in an exempt week', () => {
+    const history = [run('2026-10-28', 35)]
+    const plan = [session({ date: '2026-11-03', kind: 'long', durationMin: 80 })]
+    const result = applyGuards(plan, st(), history, { exemptWeeks: ['2026-11-02'] })
+    expect(result.sessions[0]!.flags).toContain('override-required')
+  })
+})
