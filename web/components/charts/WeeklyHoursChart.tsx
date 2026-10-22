@@ -54,22 +54,18 @@ export function WeeklyHoursChart({ weeks, planned, ariaLabel }: WeeklyHoursChart
         >
           <BarChart data={points} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
             <CartesianGrid {...gridProps} />
+            {/* Bars on different category axes are laid out independently, so the planned bar
+                sits centred behind the actual one instead of beside it. */}
             <XAxis dataKey="label" {...axisProps} interval="preserveStartEnd" />
-            <YAxis
-              yAxisId="planned"
-              {...axisProps}
-              width={28}
-              domain={[0, ceiling]}
-              ticks={ticks}
-            />
-            <YAxis yAxisId="actual" hide domain={[0, ceiling]} />
+            <XAxis xAxisId="planned" dataKey="label" hide />
+            <YAxis {...axisProps} width={28} domain={[0, ceiling]} ticks={ticks} />
             <Tooltip
               content={<ChartTooltip format={(value) => `${value.toFixed(1)} h`} />}
               cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1, fill: 'none' }}
             />
             {hasPlanned ? (
               <Bar
-                yAxisId="planned"
+                xAxisId="planned"
                 dataKey="planned"
                 name="Planned"
                 fill="none"
@@ -80,7 +76,6 @@ export function WeeklyHoursChart({ weeks, planned, ariaLabel }: WeeklyHoursChart
               />
             ) : null}
             <Bar
-              yAxisId="actual"
               dataKey="actual"
               name="Actual"
               fill={chartColors.actual}

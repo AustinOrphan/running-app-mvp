@@ -1,6 +1,7 @@
-import { screen, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
+import { WeeklyHoursChart } from '../../web/components/charts/WeeklyHoursChart.tsx'
 import type {
   Activity,
   Goal,
@@ -213,6 +214,39 @@ describe('DashboardPage', () => {
       screen.getByRole('img', { name: 'Run hours per week, last 12 weeks' }),
     ).toBeInTheDocument()
     expect(screen.getByText('Solid is actual, outline is planned.')).toBeInTheDocument()
+  })
+
+  test('the planned bar sits centred behind the narrower actual bar', () => {
+    // jsdom has no layout; give the chart a size so recharts draws the bars.
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(640)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(200)
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(640)
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(200)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ width: 640, height: 200 }),
+    )
+    try {
+      const { container } = render(
+        <WeeklyHoursChart
+          weeks={[makeWeekRow({ weekStart: THIS_WEEK, runMin: 300 })]}
+          planned={[{ weekStart: THIS_WEEK, targetRunMin: 450 }]}
+          ariaLabel="Run hours"
+        />,
+      )
+      const bars = [...container.querySelectorAll('.recharts-rectangle')].map((el) => ({
+        x: Number(el.getAttribute('x')),
+        width: Number(el.getAttribute('width')),
+        fill: el.getAttribute('fill'),
+      }))
+      expect(bars).toHaveLength(2)
+      const [planned, actual] = bars as [(typeof bars)[0], (typeof bars)[0]]
+      // Drawn first, so behind; outlined, so unfilled.
+      expect(planned.fill).toBe('none')
+      expect(actual.width).toBeLessThan(planned.width)
+      expect(actual.x + actual.width / 2).toBeCloseTo(planned.x + planned.width / 2)
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 
   test('data-health flags: possible duplicates link to /activities?duplicates=1; past plan weeks without complete data link to /review; a finished unreviewed week shows "Last week is ready to review."', async () => {
