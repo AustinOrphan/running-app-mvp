@@ -7,9 +7,11 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
 import { breakRestart } from './adapt.ts'
 import { estimateState } from './athlete.ts'
+import { rampLimits, rampSkipWeeks, tightRamp, ultraRunCapMin, type RampContext } from './limits.ts'
 import { redsHold } from './macro.ts'
 import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
+import { focalBoneActive } from './readiness.ts'
 import type {
   AthleteState,
   ChecklistResult,
@@ -91,42 +93,6 @@ function weekMinutes(sessions: SessionSpec[], weekStart: string, from: string): 
     .reduce((sum, s) => sum + s.durationMin, 0)
 }
 
-/**
- * Largest value among `count` weeks that end `lag` weeks before `weekStart`; null when none is
- * known. Weeks in `skip` (recovery and taper weeks) are left out.
- */
-function highest(
-  values: ReadonlyMap<string, number>,
-  weekStart: string,
-  lag: number,
-  count: number,
-  skip?: ReadonlySet<string>,
-  lookback = count,
-): number | null {
-  let best: number | null = null
-  for (let k = 0; k < Math.max(count, lookback); k++) {
-    const week = addDays(weekStart, -7 * (lag + k))
-    // past the window, only a window that found nothing keeps looking
-    if (k >= count && best !== null) break
-    if (skip?.has(week)) continue
-    const v = values.get(week)
-    if (v !== undefined) best = best === null ? v : Math.max(best, v)
-  }
-  return best
-}
-
-const positive = (v: number | null): number | null => (v !== null && v > 0 ? v : null)
-
-function tightRamp(state: AthleteState): number | null {
-  const caps: number[] = []
-  if (state.risk.recentInjury) caps.push(P.g3.recentInjuryRamp.value[1])
-  if (state.risk.priorBsi) caps.push(P.g3.priorBsiRampMax.value)
-  if (state.risk.bsiFactors >= P.g3.bsiFactorsForCap.value) {
-    caps.push(P.g2.rampSoft.value * P.g3.bsiRampFactor.value)
-  }
-  return caps.length === 0 ? null : Math.min(...caps)
-}
-
 /** G-2, G-3: no week above the 2-week ceiling or the tightened ramp; the soft 10% only warns. */
 function progression(draft: PlanDraft, input: EngineInput, state: AthleteState): ChecklistResult {
   const rules = ['g-2', 'g-3']
@@ -134,25 +100,27 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
   for (const row of state.weeks) volume.set(row.weekStart, row.runMin)
   const currentMonday = mondayOf(input.today)
   const starts = [...new Set(draft.sessions.map((s) => mondayOf(s.date)))].sort()
-  const baselineWeeks = P.g2.baselineWeeks.value
-  const minStep = state.experience === 'novice' ? P.g2.noviceMinStepMin.value : 0
-  const limitOf = (from: number, ramp: number) => from + Math.max(from * ramp, minStep)
-  const tight = tightRamp(state)
   const failures: string[] = []
   const ahead = toRun(draft, input)
   let soft = 0
-  // A recovery or taper week never sets the ceiling baseline. The restart floor week is exempt from
-  // G-2 up to the floor and is the ceiling baseline of the week after it [design-macro].
-  const lowWeeks = new Set(
-    draft.weeks.filter((w) => w.isRecovery || w.isTaper).map((w) => w.weekStart),
-  )
+  // The same limits the guards apply (limits.ts): a recovery or taper week, and the current week
+  // when the plan starts after its Monday, set no baseline; the restart floor week is exempt from
+  // G-2 up to the floor and is a baseline at its floor minutes [design-macro].
   const floorWeek = draft.weeks.find((w) => w.flags.includes('restart-floor'))
-  // A week under way with no running logged is only part of a week, so it is no baseline for the
-  // weeks after it (as in guards.ts).
-  const rampSkip: ReadonlySet<string> =
-    input.today > currentMonday && (volume.get(currentMonday) ?? 0) === 0
-      ? new Set([...lowWeeks, currentMonday])
-      : lowWeeks
+  const ctx: RampContext = {
+    volumes: volume,
+    skip: rampSkipWeeks(
+      input.today,
+      draft.weeks.filter((w) => w.isRecovery || w.isTaper).map((w) => w.weekStart),
+    ),
+    floor:
+      floorWeek === undefined
+        ? null
+        : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
+    typicalWeekMin: state.typicalWeekMin,
+    novice: state.experience === 'novice',
+    tight: tightRamp(state),
+  }
   for (const weekStart of starts) {
     if (weekStart < currentMonday) continue
     // The current week holds what was already run plus the sessions still planned.
@@ -160,37 +128,13 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
     const total = done + weekMinutes(ahead, weekStart, input.today)
     volume.set(weekStart, total)
     if (total <= 0) continue
-    const base =
-      positive(highest(volume, weekStart, 1, baselineWeeks, rampSkip)) ??
-      (state.typicalWeekMin > 0 ? state.typicalWeekMin : null)
-    if (base === null) continue
-    const afterFloor =
-      floorWeek !== undefined &&
-      weekStart > floorWeek.weekStart &&
-      daysBetween(floorWeek.weekStart, weekStart) <= 7 * (P.g2.ceilingWindowWeeks.value - 1)
-    const window = highest(
-      volume,
-      weekStart,
-      P.g2.ceilingWindowWeeks.value,
-      baselineWeeks,
-      rampSkip,
-      P.g2.ceilingLookbackWeeks.value,
-    )
-    const floorBase = afterFloor ? (volume.get(floorWeek.weekStart) ?? null) : null
-    const ceilingBase =
-      positive(
-        window === null ? floorBase : floorBase === null ? window : Math.max(window, floorBase),
-      ) ?? base
-    const ceilingLimit = limitOf(ceilingBase, P.g2.rampCeilingTwoWeeks.value)
-    const tightLimit = tight === null ? Infinity : limitOf(base, tight)
-    let allowed = Math.min(ceilingLimit, tightLimit)
-    const isFloorWeek = floorWeek !== undefined && weekStart === floorWeek.weekStart
-    if (isFloorWeek) allowed = Math.max(allowed, floorWeek.targetRunMin)
-    if (total > allowed + EPS) {
+    const limits = rampLimits(ctx, weekStart)
+    if (limits === null) continue
+    if (total > limits.allowed + EPS) {
       failures.push(
-        `week of ${weekStart}: ${Math.round(total)} min is above ${Math.round(allowed)} min`,
+        `week of ${weekStart}: ${Math.round(total)} min is above ${Math.round(limits.allowed)} min`,
       )
-    } else if (!isFloorWeek && total > limitOf(base, P.g2.rampSoft.value) + EPS) soft += 1
+    } else if (!limits.isFloorWeek && total > limits.soft + EPS) soft += 1
   }
   if (failures.length > 0) return result('progression', false, failures.join('; '), rules)
   return result(
@@ -500,10 +444,7 @@ function ultraCaps(draft: PlanDraft, input: EngineInput): ChecklistResult {
     return result('ultra-caps', true, 'Not an ultra goal.', rules)
   }
   const failures: string[] = []
-  const cap = Math.min(
-    P.h2.longestRunCapHours.value * 60,
-    (input.goal.expectedDurationSec / 60) * P.h2.longestRunCapRaceFraction.value,
-  )
+  const cap = ultraRunCapMin(input.goal.expectedDurationSec) ?? Infinity
   for (const s of draft.sessions) {
     if (s.date < input.today || !VOLUME_KINDS.has(s.kind)) continue
     if (s.durationMin > cap + 1)
@@ -575,14 +516,10 @@ function raceDay(draft: PlanDraft, input: EngineInput): ChecklistResult {
 }
 
 /**
- * N-4: with two or more REDs flags no loading week from today is above the first one, its long run
- * and gain target do not grow, and no back-to-back pair is planned.
+ * A held plan: no loading week from today is above the first one, its long run and gain target do
+ * not grow, and no back-to-back pair is planned. Returns what breaks the hold.
  */
-function redsHoldItem(draft: PlanDraft, input: EngineInput, state: AthleteState): ChecklistResult {
-  const rules = ['n-4', 'J5']
-  if (!redsHold(state)) {
-    return result('reds-hold', true, 'No energy-availability hold: fewer than 2 flags.', rules)
-  }
+function heldProgression(draft: PlanDraft, input: EngineInput): string[] {
   const failures: string[] = []
   const currentMonday = mondayOf(input.today)
   const loading = sortedWeeks(draft).filter(
@@ -616,11 +553,38 @@ function redsHoldItem(draft: PlanDraft, input: EngineInput, state: AthleteState)
       failures.push(`${s.date} plans a back-to-back run`)
     }
   }
+  return failures
+}
+
+/** N-4: two or more REDs flags hold progression. */
+function redsHoldItem(draft: PlanDraft, input: EngineInput, state: AthleteState): ChecklistResult {
+  const rules = ['n-4', 'J5']
+  if (!redsHold(state)) {
+    return result('reds-hold', true, 'No energy-availability hold: fewer than 2 flags.', rules)
+  }
+  const failures = heldProgression(draft, input)
   return result(
     'reds-hold',
     failures.length === 0,
     failures.length === 0
       ? `${state.risk.redsFlags} energy-availability flags: progression holds, with no growth and no back-to-back runs.`
+      : failures.join('; '),
+    rules,
+  )
+}
+
+/** N-1: focal bone pain, while it is reported, holds progression. */
+function bonePainHoldItem(draft: PlanDraft, input: EngineInput): ChecklistResult {
+  const rules = ['n-1']
+  if (!focalBoneActive(input, input.today)) {
+    return result('bone-pain-hold', true, 'No focal bone pain reported.', rules)
+  }
+  const failures = heldProgression(draft, input)
+  return result(
+    'bone-pain-hold',
+    failures.length === 0,
+    failures.length === 0
+      ? 'Focal bone pain reported: progression holds, with no growth and no back-to-back runs.'
       : failures.join('; '),
     rules,
   )
@@ -642,5 +606,6 @@ export function runChecklist(draft: PlanDraft, input: EngineInput): ChecklistRes
     ultraCaps(draft, input),
     raceDay(draft, input),
     redsHoldItem(draft, input, state),
+    bonePainHoldItem(draft, input),
   ]
 }

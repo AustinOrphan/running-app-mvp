@@ -64,7 +64,7 @@ describe('buildPlan', () => {
     const plan = buildPlan(half.input)
     expect(plan.weeks[0]!.weekStart).toBe(mondayOf(TODAY))
     expect(plan.feasibility.label).toBe('comfortable')
-    expect(plan.checklist).toHaveLength(12)
+    expect(plan.checklist).toHaveLength(13)
     expect(plan.zones.hr).not.toBeNull()
     expect(plan.paramsVersion).toBe(engine.PARAMS_VERSION)
     expect(plan.sessions).toEqual(

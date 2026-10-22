@@ -4,6 +4,16 @@
 // decides when and how long.
 import { addDays, daysBetween } from '../dates.ts'
 import type { AthleteProfile, Weekday } from '../types.ts'
+import {
+  recordOf,
+  referenceAt,
+  runCaps,
+  twoDayReference,
+  VOLUME_KINDS,
+  type CompletedReference,
+  type RunCaps,
+  type RunRecord,
+} from './limits.ts'
 import { P } from './params/index.ts'
 import { prescribe } from './sessions.ts'
 import type {
@@ -66,7 +76,23 @@ interface RunPlan {
   flags: SessionFlag[]
 }
 
-/** Week to days: availability, long-run day, quality sessions, spacing, strength [rules F, H3]. */
+/**
+ * The runs the session spike guard and the back-to-back rule compare this week with (limits.ts):
+ * the completed runs and the runs planned before the week, as the guards count them.
+ */
+export interface PlaceLimits {
+  runs: RunRecord[]
+  virtualTwoDay: CompletedReference['virtualTwoDay']
+}
+
+/**
+ * Week to days: availability, long-run day, quality sessions, spacing, strength [rules F, H3]. No
+ * run is placed above the normal band of the session spike guard on its day (1.10x the 30-day
+ * reference on duration, distance and gain), and a back-to-back pair stays within 1.10x of the
+ * largest 2-day total [rules g-1, H3, H4]: minutes that do not fit are left out, never moved.
+ * Without `limits` (a single week placed on its own) no 30-day reference is applied, and the 2-day
+ * total comes from the sessions before and the state.
+ */
 export function placeWeek(
   week: WeekDraft,
   ctx: {
@@ -74,9 +100,16 @@ export function placeWeek(
     zones: ZoneSet
     state: AthleteState
     prevSessions: SessionSpec[]
+    limits?: PlaceLimits
   },
 ): SessionSpec[] {
-  const slots = slotsOf(week, ctx.profile)
+  const limits = ctx.limits ?? defaultLimits(ctx.state, ctx.prevSessions)
+  const caps = WEEKDAYS.map((_, day) =>
+    ctx.limits === undefined
+      ? runCaps({ min: 0, distanceM: null, gainM: null, lossM: null })
+      : runCaps(referenceAt(limits.runs, addDays(week.weekStart, day))),
+  )
+  const slots = slotsOf(week, ctx.profile, caps)
   // Earlier weeks, plus sessions kept on closed days of this week (a re-plan keeps finished
   // sessions), so spacing and pair limits see them [rules F1, F3, H3].
   const weekEnd = addDays(week.weekStart, 6)
@@ -85,13 +118,14 @@ export function placeWeek(
       s.date < week.weekStart ||
       (s.date <= weekEnd && slots[daysBetween(week.weekStart, s.date)]?.open === false),
   )
-  const runs = planRuns(week, ctx, slots, before)
+  const runs = planRuns(week, ctx, slots, before, caps, limits)
   capIntensity(runs, week, ctx.zones)
   const strength = planStrength(week, ctx.profile, slots, runs)
 
+  const specs = fitDistances(runs, slots, caps, ctx.zones, week)
   const sessions: SessionSpec[] = []
-  for (const run of runs) {
-    const spec = prescribe(run.kind, run.minutes, ctx.zones, week)
+  for (const [i, run] of runs.entries()) {
+    const spec = specs[i]!
     // `prescribe` marks every 'b2b' session as day 1; the second day of a pair is day 2 only.
     const specFlags = run.flags.includes('b2b-day2')
       ? spec.flags.filter((f) => f !== 'b2b-day1')
@@ -103,7 +137,11 @@ export function placeWeek(
       flags: unique([...specFlags, ...run.flags]),
     })
   }
-  fillDistanceAndGain(sessions, week)
+  // The weekly gain is split here, to the metre and within each run's limit, not per prescription.
+  if (week.gainTargetM !== null && week.gainTargetM > 0) {
+    for (const s of sessions) if (RUN_KINDS.has(s.kind)) s.gainM = null
+  }
+  fillDistanceAndGain(sessions, week, (date) => caps[daysBetween(week.weekStart, date)]!.gainM)
   for (const day of strength) {
     const spec = prescribe('strength', P.fplace.strengthSessionMin.value, ctx.zones, week)
     const hasRun = runs.some((r) => r.day === day)
@@ -162,9 +200,11 @@ function capIntensity(runs: RunPlan[], week: WeekDraft, zones: ZoneSet): void {
 
 function planRuns(
   week: WeekDraft,
-  ctx: { profile: AthleteProfile; state: AthleteState },
+  ctx: { profile: AthleteProfile; state: AthleteState; zones: ZoneSet },
   slots: Slot[],
   before: SessionSpec[],
+  caps: RunCaps[],
+  limits: PlaceLimits,
 ): RunPlan[] {
   const { profile, state } = ctx
   const novice = state.experience === 'novice'
@@ -207,12 +247,14 @@ function planRuns(
   )
   let fixed: RunPlan[] = []
   const pair = !novice && runDays >= 2 && wantsPair ? choosePair() : null
-  const longPlan = (day: number): RunPlan => ({
-    day,
-    kind: fastFinishAllowed() ? 'long-fast-finish' : 'long',
-    minutes: Math.min(longMin, slots[day]!.capMin),
-    flags: [],
-  })
+  const longPlan = (day: number): RunPlan => {
+    // the fast finish covers more ground in the same time; it is left out when only the plain
+    // long run fits the day's distance limit
+    const plain = Math.min(longMin, longCap(day, 'long'))
+    const kind: SessionKind =
+      fastFinishAllowed() && longCap(day, 'long-fast-finish') >= plain ? 'long-fast-finish' : 'long'
+    return { day, kind, minutes: plain, flags: [] }
+  }
   if (pair !== null) {
     fixed.push(...pair)
   } else if (longMin > 0) {
@@ -273,7 +315,7 @@ function planRuns(
     // fewer runs than planned: the long run takes its share of the runs left out, so it stays the
     // longest of the week
     const share = Math.ceil(target / (others.length + 1))
-    const raised = Math.min(Math.max(fixed[0]!.minutes, share), slots[fixed[0]!.day]!.capMin)
+    const raised = Math.min(Math.max(fixed[0]!.minutes, share), longCap(fixed[0]!.day))
     fixed[0]!.minutes = raised
     fixedMin = raised
   }
@@ -307,6 +349,14 @@ function planRuns(
 
   // ---- placement helpers ----
 
+  /**
+   * The longest the long run (or day 1 of a pair) may be on `day`: the day's limit, and the
+   * distance limit of the day at the distance the run will carry.
+   */
+  function longCap(day: number, kind: SessionKind = 'long'): number {
+    return Math.min(slots[day]!.capMin, distanceCapMin(kind, caps[day]!.distanceM, ctx.zones, week))
+  }
+
   function chooseLongDay(minutes: number): number | null {
     if (usable(preferred)) return preferred
     const days = slots.map((s) => s.day).filter(usable)
@@ -323,28 +373,6 @@ function planRuns(
   function nearest(days: number[], to: number): number {
     // On a tie the later day wins: a long run moved off its day usually lands on the weekend.
     return [...days].sort((a, b) => Math.abs(a - to) - Math.abs(b - to) || b - a)[0]!
-  }
-
-  /** Largest total of two consecutive days of running in the 30 days before `date` [H3]. */
-  function twoDayReference(date: string): number {
-    const window = P.g1.windowDays.value
-    const perDay = new Map<string, number>()
-    for (const s of before) {
-      if (s.kind === 'hike' || !RUN_KINDS.has(s.kind) || s.kind === 'race') continue
-      const ago = daysBetween(s.date, date)
-      if (ago >= 1 && ago <= window) perDay.set(s.date, (perDay.get(s.date) ?? 0) + s.durationMin)
-    }
-    let best = 0
-    for (let ago = window; ago >= 2; ago -= 1) {
-      const first = addDays(date, -ago)
-      best = Math.max(best, (perDay.get(first) ?? 0) + (perDay.get(addDays(first, 1)) ?? 0))
-    }
-    // completed running, as the state holds it, while it is still inside the window
-    const sinceToday = daysBetween(state.asOf, date)
-    if (sinceToday >= 1 && sinceToday <= window) {
-      best = Math.max(best, state.longest30d.twoDaySec / 60)
-    }
-    return best
   }
 
   /** The largest set (up to `want`) of usable, non-consecutive days; the best spread that holds the long day. */
@@ -378,9 +406,9 @@ function planRuns(
       .filter((d) => lastPairs.every((p) => d - p >= gapDays))
       .sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred) || a - b)
     for (const day1 of starts) {
-      const first = Math.min(longMin, slots[day1]!.capMin)
+      const first = Math.min(longMin, longCap(day1, 'b2b'))
       // The pair stays within H3 of the largest 2-day total the guards will see; day 2 takes the rest.
-      const reference = twoDayReference(slots[day1]!.date)
+      const reference = twoDayReference(limits.runs, limits.virtualTwoDay, slots[day1]!.date)
       const room =
         reference > 0 ? Math.floor(reference * P.h3.b2bTwoDayRatio.value + 1e-9) - first : Infinity
       const second = Math.min(
@@ -520,7 +548,8 @@ function planStrength(
 
 // ---- small helpers ----
 
-function slotsOf(week: WeekDraft, profile: AthleteProfile): Slot[] {
+/** The days of the week: open or not, and the most a run may hold on each (availability, G-1). */
+function slotsOf(week: WeekDraft, profile: AthleteProfile, caps: RunCaps[]): Slot[] {
   return WEEKDAYS.map((weekday, day) => {
     const a = profile.availability[weekday]
     const open = a.available && (a.maxMin === null || a.maxMin > 0)
@@ -528,9 +557,107 @@ function slotsOf(week: WeekDraft, profile: AthleteProfile): Slot[] {
       day,
       date: addDays(week.weekStart, day),
       open,
-      capMin: open ? (a.maxMin ?? Infinity) : 0,
+      capMin: open ? Math.min(a.maxMin ?? Infinity, caps[day]!.min) : 0,
     }
   })
+}
+
+/** Minutes per metre are measured on a run of this length, so rounding barely moves them. */
+const PROBE_MIN = 100
+
+/**
+ * The most minutes a run of `kind` may hold and carry no more than `metres`: its distance as
+ * prescribed (at the zone paces, rounded to 100 m), or, for a long run without zone paces, the
+ * week's long-run distance. Infinity without a limit or a distance.
+ */
+function distanceCapMin(
+  kind: SessionKind,
+  metres: number,
+  zones: ZoneSet,
+  week: WeekDraft,
+): number {
+  if (!Number.isFinite(metres)) return Infinity
+  const probe = prescribe(kind, PROBE_MIN, zones, week).distanceM
+  const perMin =
+    probe !== null
+      ? probe / PROBE_MIN
+      : week.longRunM !== null && week.longRunMin > 0
+        ? week.longRunM / week.longRunMin
+        : null
+  if (perMin === null || perMin <= 0) return Infinity
+  // a prescribed distance rounds to 100 m, so it may sit 50 m above the minutes' own
+  return Math.floor((metres - 50) / perMin + 1e-9)
+}
+
+/**
+ * The runs prescribed, each held to its day's distance limit [rules g-1]: a run that would carry
+ * more (a faster session as long as the long run, say) is shortened to fit, and the minutes it
+ * gives up go to the slower runs that have room on their day, never above the long run and never
+ * to a back-to-back day; what no run can take is left out.
+ */
+function fitDistances(
+  runs: RunPlan[],
+  slots: Slot[],
+  caps: RunCaps[],
+  zones: ZoneSet,
+  week: WeekDraft,
+): SessionSpec[] {
+  const fits = (spec: SessionSpec, day: number) =>
+    spec.distanceM === null || spec.distanceM <= caps[day]!.distanceM
+  let freed = 0
+  const specs = runs.map((run) => {
+    let spec = prescribe(run.kind, run.minutes, zones, week)
+    let minutes = run.minutes
+    while (!fits(spec, run.day) && minutes > 1) {
+      const perMin = spec.distanceM! / minutes
+      minutes = Math.max(
+        1,
+        Math.min(minutes - 1, Math.floor((caps[run.day]!.distanceM - 50) / perMin + 1e-9)),
+      )
+      spec = prescribe(run.kind, minutes, zones, week)
+    }
+    freed += run.minutes - minutes
+    return spec
+  })
+  if (freed <= 0) return specs
+  const isLongDay = (r: RunPlan) => r.kind === 'long' || r.kind === 'long-fast-finish'
+  const longest = Math.max(
+    0,
+    ...runs.flatMap((r, i) => (isLongDay(r) ? [specs[i]!.durationMin] : [])),
+  )
+  const takers = runs
+    .map((r, i) => i)
+    .filter((i) => runs[i]!.kind !== 'b2b')
+    .sort((a, b) => takerRank(runs[a]!) - takerRank(runs[b]!) || a - b)
+  for (const i of takers) {
+    const run = runs[i]!
+    while (freed > 0) {
+      const next = specs[i]!.durationMin + 1
+      if (next > slots[run.day]!.capMin) break
+      if (!isLongDay(run) && longest > 0 && next > longest) break
+      const trial = prescribe(run.kind, next, zones, week)
+      if (!fits(trial, run.day)) break
+      specs[i] = trial
+      freed -= 1
+    }
+  }
+  return specs
+}
+
+/** Which runs take freed minutes first: the slowest, easy runs, then the long run, then the rest. */
+function takerRank(run: RunPlan): number {
+  if (run.kind === 'easy' || run.kind === 'recovery') return 0
+  if (run.kind === 'long') return 1
+  return 2
+}
+
+/** For a week placed on its own: the sessions before it, and the state's largest 2-day total. */
+function defaultLimits(state: AthleteState, prevSessions: SessionSpec[]): PlaceLimits {
+  const twoDay = state.longest30d.twoDaySec / 60
+  return {
+    runs: prevSessions.filter((s) => VOLUME_KINDS.has(s.kind)).map(recordOf),
+    virtualTwoDay: twoDay > 0 ? [{ date: state.asOf, min: twoDay }] : [],
+  }
 }
 
 /** Integer minutes for each day, as even as the day limits allow, adding up to `total` or less. */
@@ -550,8 +677,16 @@ function distribute(total: number, caps: number[]): number[] {
   return out
 }
 
-/** The weekly gain goes to the runs without a gain of their own, by minutes; the long run gets its distance. */
-function fillDistanceAndGain(sessions: SessionSpec[], week: WeekDraft): void {
+/**
+ * The long run gets its distance. The weekly gain goes to the runs without a gain of their own, by
+ * minutes, to the metre, and never above a run's own gain limit (`gainCap`); what no run can take
+ * is left out.
+ */
+function fillDistanceAndGain(
+  sessions: SessionSpec[],
+  week: WeekDraft,
+  gainCap: (date: string) => number,
+): void {
   if (week.longRunM !== null && week.longRunMin > 0) {
     for (const s of sessions) {
       const isLongDay =
@@ -565,12 +700,51 @@ function fillDistanceAndGain(sessions: SessionSpec[], week: WeekDraft): void {
     const runs = sessions.filter((s) => RUN_KINDS.has(s.kind))
     const open = runs.filter((s) => s.gainM === null)
     const taken = runs.reduce((sum, s) => sum + (s.gainM ?? 0), 0)
-    const minutes = open.reduce((sum, s) => sum + s.durationMin, 0)
-    if (minutes > 0) {
-      const left = Math.max(0, week.gainTargetM - taken)
-      for (const s of open) s.gainM = Math.floor((left * s.durationMin) / minutes)
-    }
+    const left = Math.max(0, Math.floor(week.gainTargetM - taken))
+    const shares = allocate(
+      left,
+      open.map((s) => s.durationMin),
+      open.map((s) => Math.floor(gainCap(s.date))),
+    )
+    open.forEach((s, i) => {
+      s.gainM = shares[i]!
+    })
   }
+}
+
+/**
+ * Splits `total` whole units by `weights` (largest remainder, ties to the earlier entry), never
+ * giving an entry more than its cap; what a capped entry cannot take goes to the others.
+ */
+function allocate(total: number, weights: number[], caps: number[]): number[] {
+  const out = weights.map(() => 0)
+  let left = total
+  let active = weights.flatMap((w, i) => (w > 0 && caps[i]! > 0 ? [i] : []))
+  while (left > 0 && active.length > 0) {
+    const sum = active.reduce((n, i) => n + weights[i]!, 0)
+    const exact = active.map((i) => (left * weights[i]!) / sum)
+    const give = exact.map((x) => Math.floor(x + 1e-9))
+    let rest = left - give.reduce((n, g) => n + g, 0)
+    const order = active
+      .map((_, k) => k)
+      .sort((a, b) => exact[b]! - give[b]! - (exact[a]! - give[a]!) || a - b)
+    for (const k of order) {
+      if (rest <= 0) break
+      give[k]! += 1
+      rest -= 1
+    }
+    let given = 0
+    active.forEach((i, k) => {
+      const g = Math.min(give[k]!, caps[i]! - out[i]!)
+      out[i]! += g
+      given += g
+    })
+    left -= given
+    const still = active.filter((i) => out[i]! < caps[i]!)
+    if (given === 0 || still.length === active.length) break
+    active = still
+  }
+  return out
 }
 
 function combinations(days: number[], k: number): number[][] {

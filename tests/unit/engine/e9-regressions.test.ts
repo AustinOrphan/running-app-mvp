@@ -52,17 +52,22 @@ describe('applyGuards: running already done this week counts toward its ramp [ru
     expect(result.warnings.filter((w) => w.code.startsWith('ramp'))).toEqual([])
   })
 
-  it('measures the next week against the whole of this one, not the part still planned', () => {
-    const next = [0, 1, 3, 5].map((d) =>
-      session({ date: addDays('2026-11-09', d), durationMin: 60 }),
-    )
-    const result = applyGuards([...remaining().slice(0, 2), ...next], st, [])
-    // base = highest of the two previous weeks = 220 (120 done + 100 planned); soft limit 242
-    const nextMin = result.sessions
-      .filter((s) => mondayOf(s.date) === '2026-11-09')
-      .reduce((n, s) => n + s.durationMin, 0)
-    expect(nextMin).toBe(240)
-    expect(result.warnings.filter((w) => w.code.startsWith('ramp'))).toEqual([])
+  // Task E21 reversed this: a part week is no baseline whatever has been logged in it, so the
+  // next week is measured against the completed weeks before it (200), not 120 done + 100 planned.
+  it('measures the next week against the completed weeks, not this part week', () => {
+    const next = (min: number) =>
+      [0, 1, 3, 5].map((d) => session({ date: addDays('2026-11-09', d), durationMin: min }))
+    const nextMin = (sessions: SessionSpec[]) =>
+      sessions
+        .filter((s) => mondayOf(s.date) === '2026-11-09')
+        .reduce((n, s) => n + s.durationMin, 0)
+    // soft limit 220: 4 x 55 fits, 4 x 60 keeps its minutes and warns
+    const fits = applyGuards([...remaining().slice(0, 2), ...next(55)], st, [])
+    expect(nextMin(fits.sessions)).toBe(220)
+    expect(fits.warnings.filter((w) => w.code.startsWith('ramp'))).toEqual([])
+    const over = applyGuards([...remaining().slice(0, 2), ...next(60)], st, [])
+    expect(nextMin(over.sessions)).toBe(240)
+    expect(over.warnings.map((w) => w.code)).toContain('ramp-soft')
   })
 })
 

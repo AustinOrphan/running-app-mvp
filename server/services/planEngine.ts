@@ -6,6 +6,7 @@ import { estimateState } from '../../shared/engine/athlete.ts'
 import { weatherIndex, trainingHeatAdvice } from '../../shared/engine/heat.ts'
 import {
   buildPlan,
+  keptByReplan,
   replan,
   todayAdvice,
   weeklyDecision,
@@ -120,6 +121,10 @@ function weekRow(week: WeekDraft) {
   }
 }
 
+/**
+ * A new session row. A session the engine trimmed after a hold decision [rules J5, design 4.3] is
+ * stored as downgraded, as an execution trim is.
+ */
 function sessionRow(planId: string, spec: SessionSpec) {
   return {
     planId,
@@ -136,7 +141,7 @@ function sessionRow(planId: string, spec: SessionSpec) {
     purpose: spec.purpose,
     rules: json(spec.rules),
     flags: json(spec.flags),
-    status: 'planned',
+    status: spec.rules.includes('design-4.3') ? 'downgraded' : 'planned',
   }
 }
 
@@ -385,7 +390,12 @@ export async function replanActivePlan(
     },
   })
   for (const week of ownerWeeks) weekCaps[week.weekStart] = week.targetRunMin
-  const { draft, changes } = replan({ ...input, weekCaps })
+  // A hold trims the next quality session of the week it caps; a reduce makes it a recovery week.
+  const decisions: Record<string, WeeklyDecision['decision']> =
+    decision !== null && decision.decision !== 'progress'
+      ? { [addDays(lastWeek, 7)]: decision.decision }
+      : {}
+  const { draft, changes } = replan({ ...input, weekCaps }, { decisions })
   const blocked = failedChecklist(draft.checklist)
   if (blocked) throw blocked
 
@@ -403,9 +413,10 @@ export async function replanActivePlan(
   const revision = await prisma.$transaction(
     async (tx) => {
       const rows = await tx.planSession.findMany({ where: { planId: plan.id } })
-      // What the engine kept: the past and the finished sessions of the current week.
-      const keptRows = rows.filter(
-        (r) => r.date < today || (r.weekStart === currentMonday && r.status !== 'planned'),
+      // What the engine kept: the past, the finished sessions of the current week and the owner's
+      // edits of the next 14 days.
+      const keptRows = rows.filter((r) =>
+        keptByReplan({ date: r.date, status: r.status, rules: toPlanSession(r).rules }, today),
       )
       const replaced = rows.filter((r) => !keptRows.includes(r))
       await tx.planSession.deleteMany({ where: { id: { in: replaced.map((r) => r.id) } } })

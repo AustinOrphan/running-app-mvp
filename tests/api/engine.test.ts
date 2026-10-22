@@ -386,6 +386,62 @@ describe('re-plan', () => {
     expect(row?.status).toBe('completed')
   })
 
+  test('owner edits of the next 14 days survive a re-plan', async () => {
+    const u = await seedUser(ctx, { email: 'replan-edits@example.com' })
+    await seedHistory(u.id)
+    const goal = await seedGoal(u.id)
+    const plan = await generated(u, goal.id)
+    const c = client(ctx, u)
+    const next = addDays(thisMonday, 7)
+    const week = plan.sessions.filter((s) => s.weekStart === next)
+    const easy = week.filter((s) => s.kind === 'easy')
+    expect(easy.length).toBeGreaterThanOrEqual(2)
+    const taken = new Set(week.map((s) => s.date))
+    // a free day with no hard session next to it
+    const free = [0, 1, 2, 3, 4, 5, 6]
+      .map((i) => addDays(next, i))
+      .find(
+        (date) =>
+          !taken.has(date) &&
+          !week.some(
+            (s) =>
+              !['easy', 'recovery', 'strength'].includes(s.kind) &&
+              Math.abs(Date.parse(s.date) - Date.parse(date)) === 86_400_000,
+          ),
+      )
+    expect(free).toBeDefined()
+    const moved = await c.put(`/api/plan/sessions/${easy[0]!.id}`).send({ date: free })
+    expect(moved.status, JSON.stringify(moved.body)).toBe(200)
+    expect((await c.put(`/api/plan/sessions/${easy[1]!.id}`).send({ skip: true })).status).toBe(200)
+
+    expect((await c.post('/api/plan/replan').send({})).status).toBe(200)
+    const after = (await c.get('/api/plan')).body as PlanWithSessions
+    expect(after.sessions.find((s) => s.id === easy[0]!.id)).toMatchObject({
+      date: free,
+      status: 'moved',
+    })
+    expect(after.sessions.find((s) => s.id === easy[1]!.id)).toMatchObject({ status: 'skipped' })
+    // nothing else is planned on their days, and the skipped run is not made up
+    for (const date of [free!, easy[1]!.date]) {
+      const runs = after.sessions.filter(
+        (s) => s.date === date && !['strength', 'mobility', 'rest'].includes(s.kind),
+      )
+      expect(runs, date).toHaveLength(1)
+    }
+    const minutes = (sessions: PlanSession[]) =>
+      sessions
+        .filter(
+          (s) =>
+            s.weekStart === next &&
+            s.status !== 'skipped' &&
+            !['strength', 'mobility', 'rest', 'race'].includes(s.kind),
+        )
+        .reduce((n, s) => n + s.durationMin, 0)
+    expect(minutes(after.sessions)).toBeLessThanOrEqual(
+      minutes(plan.sessions) - easy[1]!.durationMin,
+    )
+  })
+
   test('without a plan there is nothing to re-plan', async () => {
     const u = await seedUser(ctx, { email: 'noplan@example.com' })
     expect((await client(ctx, u).post('/api/plan/replan').send({})).status).toBe(404)

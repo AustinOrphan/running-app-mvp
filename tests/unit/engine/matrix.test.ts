@@ -53,6 +53,7 @@ const CHECKLIST_IDS = [
   'ultra-caps',
   'race-day',
   'reds-hold',
+  'bone-pain-hold',
 ]
 
 const all = athletes()

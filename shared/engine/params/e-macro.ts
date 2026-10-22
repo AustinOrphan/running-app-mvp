@@ -270,6 +270,10 @@ export const eMacro = {
     gainShareSpecific: param('macroDesign.gainShareSpecific', 1, 'D', 'design-macro', [], {
       note: 'Default: in the specific phase the weekly gain works toward the full race gain per km (H4).',
     }),
+    keepOwnerEditsDays: param('macroDesign.keepOwnerEditsDays', 14, 'D', 'design-macro', [], {
+      unit: 'days',
+      note: 'Default: a re-plan keeps the sessions the owner moved, swapped or skipped, and the trims of the next quality session, for this many days from today, and plans the rest of those weeks around them.',
+    }),
   },
   peakWeeklyMin: {
     '5k': param('peakWeeklyMin.5k', 180, 'D', 'design-macro', [], {
