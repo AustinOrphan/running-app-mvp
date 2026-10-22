@@ -36,6 +36,13 @@ describe('App routing', () => {
         displayName: null,
         units: 'mi',
       }),
+      // The dashboard's own data: a new account with nothing logged yet.
+      'GET /api/goals': () => [],
+      'GET /api/plan': () => null,
+      'GET /api/weeks': () => [],
+      'GET /api/reviews': () => [],
+      'GET /api/activities': () => [],
+      'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'mi' }),
     })
     renderWithProviders(<App />)
     expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
