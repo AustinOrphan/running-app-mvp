@@ -1,0 +1,34 @@
+{
+  "id": "knechtle-2012-100km-age",
+  "title": "Age-related changes in 100-km ultra-marathon running performance",
+  "authors": "Knechtle B, Rust CA, Rosemann T, Lepers R",
+  "year": 2012,
+  "journal": "AGE",
+  "doi": "10.1007/s11357-011-9290-9",
+  "pmid": "21796378",
+  "url": "https://doi.org/10.1007/s11357-011-9290-9",
+  "design": "retrospective-cohort",
+  "population": "Finishers of the 100 km Lauf Biel (Switzerland), 1998-2010, both sexes",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["age-masters"],
+  "findings": [
+    "The best 100-km times were observed at ages 30-49 for males and 30-54 for females.",
+    "Mean age of the top ten finishers increased by 0.4 years per annum for both sexes (males P = 0.003; females P = 0.02).",
+    "Age-related decline in running performance was similar between sexes until 60-64 years and greater for females after 65.",
+    "The share of finishers rose for the 40-49 and 50-59 age groups and fell for the 18-29 and 30-39 groups over the period."
+  ],
+  "limitations": "Single race, finishers only (survivor bias), cross-sectional by age, no physiological or training data; abstract gives no sample size.",
+  "implications": [
+    "For 100 km goals, best times were observed in age 30-49 (men) and 30-54 (women), so applying an age-related target decline before about 50 is not supported by this data; the researcher's claim that ultras 'peak later than middle-distance' is not tested in this abstract.",
+    "After the best-age window, apply the general decline model; the sex difference appears only after 65."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (online 2011) and Europe PMC (print 2012) match; findings confirmed. Implication softened: comparison with shorter distances is not in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

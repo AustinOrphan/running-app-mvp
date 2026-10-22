@@ -1,0 +1,35 @@
+{
+  "id": "dejager-2026-wearable-hrv-menstrual",
+  "title": "Wearable-Derived Heart Rate Variability Across the Menstrual Cycle, Hormonal Contraceptive Use, and Reproductive Life Stages in Females: A Living Systematic Review",
+  "authors": "de Jager E, Caulfield B, Angelidi E, MacNamee B, Holden S",
+  "year": 2026,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-025-02388-y",
+  "pmid": "41545627",
+  "url": "https://doi.org/10.1007/s40279-025-02388-y",
+  "design": "systematic-review",
+  "population": "Females of any age in 16 studies of wearable- or mobile-measured HRV across the menstrual cycle, hormonal contraceptive use or reproductive life stage",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "16 studies included from 299 records (search to December 2025); evidence quality moderate (Newcastle-Ottawa 7/9).",
+    "In naturally menstruating females, HRV was higher at the beginning of the cycle and lower toward the end, with time-domain HRV differences of 3 to 9%.",
+    "Hormonal contraceptive users exhibited lower HRV, particularly in the late cycle; HRV tended to decline after menopause with increasing age.",
+    "Inconsistent phase and menopause classification prevented quantitative synthesis; authors state this should be considered when presenting HRV metrics to female users."
+  ],
+  "limitations": "No pooling; HRV only, not performance or training decisions. Whether a 3-9% cyclic change alters training decisions was not tested.",
+  "implications": [
+    "Compare each female user with her own rolling HRV baseline and widen the alert band so a within-cycle drop of 3-9% is not flagged as stress by itself (the range is observed, not a validated correction factor).",
+    "Show a caveat on HRV trends for female and hormonal-contraceptive users; never auto-reduce load on one low late-cycle reading.",
+    "Use a baseline window of at least one full cycle (about 28-35 days) for female users (design default, not stated by the authors)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Sports Med, online 2026-01, de Jager). Numbers confirmed in Europe PMC abstract (PMID 41545627). Evidence level lowered A to B: moderate quality, no pooling.",
+    "checkedAt": "2026-10-22"
+  }
+}

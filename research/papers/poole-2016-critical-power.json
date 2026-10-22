@@ -1,0 +1,34 @@
+{
+  "id": "poole-2016-critical-power",
+  "title": "Critical Power: An Important Fatigue Threshold in Exercise Physiology",
+  "authors": "Poole DC, Burnley M, Vanhatalo A, Rossiter HB, Jones AM",
+  "year": 2016,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000000939",
+  "pmid": "27031742",
+  "url": "https://doi.org/10.1249/mss.0000000000000939",
+  "design": "narrative-review",
+  "population": "Review of the critical power (CP) and W' concept across species, exercise modalities and muscle groups (power-based analogue of critical speed and D')",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "The hyperbolic power-duration relationship is rigorous and highly conserved across species, forms of exercise and muscle groups; for modalities such as cycling it resolves to two parameters, CP (asymptote) and W' (work doable above CP).",
+    "CP separates intensity domains within which physiological responses can (below CP) or cannot (above CP) be stabilised.",
+    "Above CP, tolerable duration is predicted by W' until W' is expended, VO2max is attained and intolerance is manifested.",
+    "Setting intensity relative to CP unifies the profile of systemic and intramuscular responses better than calibrating to metabolically distant parameters such as lactate threshold or VO2max."
+  ],
+  "limitations": "Narrative review framed mainly on cycling; applicability to running is by analogy (critical speed and D'); no runner data or numbers in the abstract.",
+  "implications": [
+    "Model hard sessions with critical speed (CS) and D' (running analogues of CP and W'): intensity above CS draws down D' and is time-limited; intensity below CS can be physiologically stable.",
+    "Use CS as the heavy-severe boundary in the zone model and budget interval volume above CS against D' within a session."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title 'Critical Power', vol 48 pp 2320-2334; Europe PMC carries full title. Abstract confirms findings.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "besson-2022-sex-differences-endurance-running",
+  "title": "Sex Differences in Endurance Running",
+  "authors": "Besson T, Macchi R, Rossi J, Morio CYM, Kunimasa Y, Nicol C, Vercruyssen F, Millet GY",
+  "year": 2022,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-022-01651-w",
+  "pmid": "35122632",
+  "url": "https://doi.org/10.1007/s40279-022-01651-w",
+  "design": "narrative-review",
+  "population": "Female and male endurance (road and trail) runners across the reviewed literature",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "Males and females do not differ in running economy or endurance (percentage VO2max sustained).",
+    "Females show a greater proportional area of type I fibres, a greater ability to use fatty acids and preserve carbohydrate during prolonged exercise, a more even pacing strategy and less fatigue after endurance running.",
+    "These differences confer an advantage in ultra-endurance, but lower O2 carrying capacity and greater body fat percentage counterbalance them, so females outperforming males remains a rare exception.",
+    "Biomechanics differ (greater non-sagittal hip and knee motion in females, partly explained by pelvis width, femur-tibia angle and relative limb length); sex comparison in running biomechanics under fatigue and during recovery is lacking."
+  ],
+  "limitations": "Narrative review without pooling; much of the cited evidence is from small, matched-performance or male-dominated studies. The abstract gives no effect sizes.",
+  "implications": [
+    "Apply no sex-specific running-economy or percent-VO2max-sustained correction to pace or zones; derive zones from the individual's own test, race or wearable data.",
+    "Expect similar or better per-session fatigue resistance in females on long runs, but do not shorten recovery or lengthen long runs by sex; no numeric adjustment is justified.",
+    "Default ultra pacing guidance to even pacing for everyone."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Sports Med, 2022-02, first author Besson). Findings supported by Europe PMC abstract (PMID 35122632). Abstract states narrative review scope including thermoregulation and pacing.",
+    "checkedAt": "2026-10-22"
+  }
+}

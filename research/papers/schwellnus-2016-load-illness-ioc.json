@@ -1,0 +1,35 @@
+{
+  "id": "schwellnus-2016-load-illness-ioc",
+  "title": "How much is too much? (Part 2) International Olympic Committee consensus statement on load in sport and risk of illness",
+  "authors": "Schwellnus M, Soligard T, Alonso JM, Bahr R, Clarsen B, Dijkstra HP, Gabbett TJ, Gleeson M, Hägglund M, Hutchinson MR, Janse Van Rensburg C, Meeusen R, Orchard JW, Pluim BM, Raftery M, Budgett R, Engebretsen L",
+  "year": 2016,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2016-096572",
+  "pmid": "27535991",
+  "url": "https://doi.org/10.1136/bjsports-2016-096572",
+  "design": "consensus-statement",
+  "population": "Athletes, mainly elite (IOC expert-group consensus; no primary sample)",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "Emerging evidence indicates that inappropriate load management is a significant risk factor for acute illness and the overtraining syndrome.",
+    "The expert group reviewed the relationship of load, including rapid changes in training and competition load, calendar congestion, psychological load and travel, with health outcomes.",
+    "The statement provides practical guidelines for prescription of training and competition load and for monitoring of training, competition and psychological load, athlete well-being and illness.",
+    "Urgent research priorities were identified."
+  ],
+  "limitations": "Consensus/expert opinion; the abstract states no numeric thresholds; mainly elite sport context.",
+  "implications": [
+    "Supports monitoring illness and psychological load alongside training load; add stress and illness fields to the daily check-in.",
+    "Rapid load changes are a flagged risk, which supports conservative ramps after any illness break.",
+    "Provides no numeric return-to-training rule; any engine thresholds remain safety conventions."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier to cover load, illness and overtraining consensus. Crossref confirms title, BJSM, first author Schwellnus, 17 Aug 2016; Europe PMC abstract (PMID 27535991) supports findings; full author list from Europe PMC.",
+    "checkedAt": "2026-10-22"
+  }
+}

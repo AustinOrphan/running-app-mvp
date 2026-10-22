@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { DataStatus, Symptoms, WeeklyReview } from '../../shared/types.ts'
+import type { DataStatus, ReviewView, SavedReview, Symptoms } from '../../shared/types.ts'
 import { api, keys, qs } from './client.ts'
 
 export interface ReviewPatch {
@@ -12,23 +12,31 @@ export interface ReviewPatch {
   notes?: string | null
 }
 
-/** One review per week from `from` to `to` (Mondays, inclusive); unsaved weeks are synthetic. */
+/**
+ * One review per week from `from` to `to` (Mondays, inclusive); unsaved weeks are synthetic. A
+ * version-2 plan adds the signals behind each weekly decision.
+ */
 export function useReviews(params: { from: string; to: string }) {
   return useQuery({
     queryKey: [keys.reviews, params],
-    queryFn: () => api<WeeklyReview[]>('GET', `/reviews${qs(params)}`),
+    queryFn: () => api<ReviewView[]>('GET', `/reviews${qs(params)}`),
   })
 }
 
-/** A final decision can write next week's target, so the plan refreshes with the reviews. */
+/**
+ * A final decision can write next week's target, and a decided review of a version-2 plan
+ * re-plans, so the plan, its revisions ("What changed") and Today refresh with the reviews.
+ */
 export function useSaveReview() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ weekStart, patch }: { weekStart: string; patch: ReviewPatch }) =>
-      api<WeeklyReview>('PUT', `/reviews/${encodeURIComponent(weekStart)}`, patch),
+      api<SavedReview>('PUT', `/reviews/${encodeURIComponent(weekStart)}`, patch),
     onSuccess: () =>
       Promise.all(
-        [keys.reviews, keys.plan].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+        [keys.reviews, keys.plan, keys.planRevisions, keys.today].map((key) =>
+          queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
       ),
   })
 }

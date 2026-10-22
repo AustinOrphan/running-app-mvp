@@ -1,0 +1,35 @@
+{
+  "id": "spilsbury-2015-elite-runner-taper-survey",
+  "title": "Tapering strategies in elite British endurance runners",
+  "authors": "Spilsbury KL, Fudge BW, Ingham SA, Faulkner SH, Nimmo MA",
+  "year": 2015,
+  "journal": "European Journal of Sport Science",
+  "doi": "10.1080/17461391.2014.955128",
+  "pmid": "25189116",
+  "url": "https://doi.org/10.1080/17461391.2014.955128",
+  "design": "cross-sectional",
+  "population": "Elite British middle-distance (800/1500 m), long-distance (3000 m steeplechase to 10,000 m) and marathon runners",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["taper"],
+  "findings": [
+    "Taper duration median (IQR): 6 (3) days in middle distance, 6 (1) in long distance and 14 (8) days in marathon runners.",
+    "Continuous running volume was reduced to 70 (16)%, 71 (24)% and 53 (12)% of regular levels in MD, LD and MAR runners; interval volume to 53 (45)%, 67 (23)% and 64 (34)%.",
+    "Peak interval intensity during taper was above race speed in LD and MAR runners (112 (27)% and 114 (3)%), not different from race speed in MD (100 (2)%).",
+    "Higher weekly continuous volume and frequency in regular training were associated with greater reductions during taper (R = -0.70 and R = -0.63); regular-training intensity predicted taper intensity (R = 0.97 continuous, 0.81 interval); algorithms to predict taper content were generated."
+  ],
+  "limitations": "Survey of elite athletes describing practice, not outcomes; no performance comparison across strategies; sample size not stated in abstract; elite practice may not transfer to recreational runners.",
+  "implications": [
+    "Real-world marathon benchmark: taper about 14 days, continuous volume about 53% of regular, interval volume about 64%, interval pace around 114% of race speed.",
+    "Distance scaling default band: 5-10 km about 6 days, marathon about 14 days.",
+    "Heavier pre-taper weeks get larger absolute and proportional cuts."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref issued 5 Sep 2014 (online); Europe PMC year 2015 (print issue); 2015 kept. Researcher claim 'interval pace around 114% of race speed (faster than race pace, short reps)' - 'short reps' is not in the abstract and was removed.",
+    "checkedAt": "2026-10-22"
+  }
+}

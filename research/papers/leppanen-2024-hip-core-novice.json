@@ -1,0 +1,35 @@
+{
+  "id": "leppanen-2024-hip-core-novice",
+  "title": "Hip and core exercise programme prevents running-related overuse injuries in adult novice recreational runners: a three-arm randomised controlled trial (Run RCT)",
+  "authors": "Leppänen M, Viiala J, Kaikkonen P, Tokola K, Vasankari T, Nigg B, et al.",
+  "year": 2024,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2023-107926",
+  "pmid": "38724071",
+  "url": "https://doi.org/10.1136/bjsports-2023-107926",
+  "design": "rct",
+  "population": "Adult novice recreational runners (245 female, 80 male) followed for 24 weeks, all doing the same running programme under physiotherapist supervision",
+  "sampleSize": 325,
+  "evidenceLevel": "B",
+  "topics": ["beginners-return"],
+  "findings": [
+    "Runners were randomised to hip and core exercises (n=108), ankle and foot exercises (n=111), or static stretching control (n=106), performed before running; all groups were physiotherapist-supervised and ran the same programme.",
+    "Lower-extremity injury incidence was lower with hip and core than control: HR 0.66 (95% CI 0.45-0.97).",
+    "Average weekly prevalence of overuse injuries was 39% lower (PRR 0.61, 95% CI 0.39-0.96) and of substantial overuse injuries 52% lower (PRR 0.48, 95% CI 0.27-0.90) with hip and core exercises.",
+    "Ankle and foot exercises did not reduce injuries and had a higher incidence of acute injuries than control (HR 3.60, 95% CI 1.20-10.86)."
+  ],
+  "limitations": "Single-country trial with supervised delivery; the abstract does not give exercise dose or frequency. The ankle/foot acute-injury finding rests on few events (wide CI). Control was static stretching, not no intervention.",
+  "implications": [
+    "Include a hip and core strength block in the novice plan, done before runs; set, rep and frequency are not in the abstract, so defaults must come from elsewhere and be labelled grade D.",
+    "Do not prescribe an ankle/foot-only routine as injury prevention for novices on this evidence.",
+    "Weekly self-reported injury and exposure questionnaires are a usable monitoring input."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Own re-fetch: Crossref title, BJSM, 2024-05-09, 10 authors, first author Leppanen. All numbers in abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

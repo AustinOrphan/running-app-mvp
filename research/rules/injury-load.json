@@ -1,0 +1,201 @@
+[
+  {
+    "id": "injury-session-cap-longest30",
+    "statement": "Planned single-run distance should not exceed 1.10 x the longest actual run in the trailing 30 days; runs above this are flagged in the plan and avoided by the generator by default.",
+    "parameter": "maxSessionRatioToLongest30d",
+    "value": "1.10",
+    "unit": "ratio (planned distance / longest run in the last 30 days)",
+    "appliesTo": "All runners with at least 30 days of logged runs; for runners with no recent history, use the user's declared longest recent run",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": ["frandsen-2025-session-spike"]
+  },
+  {
+    "id": "injury-session-spike-tiers",
+    "statement": "Warn when a planned or logged run is more than 10% above the 30-day longest run (observed HRR about 1.6), and treat more than 100% above (more than 2.0x) as the highest-risk band (HRR about 2.3) that the generator never schedules without an explicit user override. Do not describe the 30-100% band as safer than 10-30% since the HRRs are not monotonic.",
+    "parameter": "sessionSpikeBands",
+    "value": "<=1.10 ok; >1.10-1.30 warn; >1.30-2.00 warn; >2.00 block unless overridden",
+    "unit": "ratio",
+    "appliesTo": "All runners",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": ["frandsen-2025-session-spike"]
+  },
+  {
+    "id": "injury-longrun-step-rolling-max",
+    "statement": "Check each long-run step against the rolling 30-day maximum of actual runs, not against planned runs or weekly volume; after a missed or shortened long run, the allowed next long run is still bounded by the highest run still inside the 30-day window.",
+    "parameter": "longRunProgressionBasis",
+    "value": "rolling 30-day max of completed runs",
+    "unit": "days / ratio",
+    "appliesTo": "All runners; long-run progression",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": ["frandsen-2025-session-spike", "frandsen-2025-sudden-onset"]
+  },
+  {
+    "id": "injury-small-run-increment-floor",
+    "statement": "When the longest recent run is short, a strict 10% step is a fraction of a kilometre; allow a small absolute minimum increment so the rule stays usable. This number is an engineering default, not evidence-derived, and the generator should show it as such.",
+    "parameter": "minAbsoluteIncrementKm",
+    "value": "0.5",
+    "unit": "km",
+    "appliesTo": "Runners whose longest 30-day run is under about 5 km",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["frandsen-2025-session-spike"]
+  },
+  {
+    "id": "injury-weekly-ramp-soft-default",
+    "statement": "Default weekly volume ramp is about 10% with regular lower-volume weeks, as a soft default that can be exceeded with a warning. Up to about 30% over two weeks is the outer bound observed to be tolerated in novices; do not hard-block 10-30% increases and never present the ramp as preventing injury.",
+    "parameter": "maxWeeklyVolumeIncrease",
+    "value": "0.10 default; 0.30 outer bound over two weeks (novices)",
+    "unit": "fraction of previous week's distance",
+    "appliesTo": "All runners (default); novices (outer bound)",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "buist-2008-graded-training",
+      "nielsen-2014-weekly-progression",
+      "damsted-2018-training-load-change",
+      "nielsen-2012-training-errors"
+    ]
+  },
+  {
+    "id": "injury-copy-no-10pct-claim",
+    "statement": "User-facing copy must not say that following the 10% rule or any weekly progression prevents injury; describe progression limits as conservative defaults and describe the session-spike guard as an observed association.",
+    "parameter": null,
+    "value": null,
+    "unit": null,
+    "appliesTo": "All user-facing text",
+    "grade": "B",
+    "confidence": "high",
+    "evidence": [
+      "buist-2008-graded-training",
+      "damsted-2018-training-load-change",
+      "frandsen-2025-session-spike"
+    ]
+  },
+  {
+    "id": "injury-acwr-no-constraint",
+    "statement": "Do not use ACWR (any window or EWMA/rolling form) as a constraint, objective, risk score or safety claim in the plan generator, and do not use the week-to-week ratio as a risk rule.",
+    "parameter": "useAcwrAsConstraint",
+    "value": "false",
+    "unit": null,
+    "appliesTo": "Plan generator and risk messaging",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "impellizzeri-2020-acwr-pitfalls",
+      "wang-2020-acwr-lessons",
+      "frandsen-2025-session-spike",
+      "griffin-2020-acwr-systematic-review"
+    ]
+  },
+  {
+    "id": "injury-acwr-display-rules",
+    "statement": "If an ACWR is ever displayed, show it as a descriptive metric only, with no 'sweet spot' band, suppressed during taper and recovery weeks, and with a warm-up period before first display; the 4-week warm-up is an engineering default.",
+    "parameter": "acwrDisplayWarmupWeeks",
+    "value": "4",
+    "unit": "weeks of history",
+    "appliesTo": "Any ACWR display",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "wang-2020-acwr-lessons",
+      "impellizzeri-2020-acwr-pitfalls",
+      "griffin-2020-acwr-systematic-review"
+    ]
+  },
+  {
+    "id": "injury-previous-injury-flag",
+    "statement": "Collect injury history at onboarding and mark runners with a recent running injury as higher risk; the flag selects more conservative defaults. Previous injury is the best-supported general risk factor.",
+    "parameter": "recentInjuryFlag",
+    "value": "true if any running-related injury in the last 12 months (window is an engineering choice)",
+    "unit": "boolean / months",
+    "appliesTo": "All runners",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["hulme-2017-risk-protective", "vanderworp-2015-risk-factors"]
+  },
+  {
+    "id": "injury-previous-injury-defaults",
+    "statement": "For flagged runners, tighten progression: session cap at the 1.10x limit enforced as a hard limit (no soft overrides), weekly ramp lower than the standard default, and a lower-volume week at least every 3rd week. These specific values are unvalidated conservative defaults.",
+    "parameter": "flaggedRunnerProfile",
+    "value": "session cap 1.10 hard; weekly ramp <= 0.05-0.07; lower-volume week every 3rd week",
+    "unit": "ratio / weeks",
+    "appliesTo": "Runners with the recent-injury flag",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["hulme-2017-risk-protective", "vanderworp-2015-risk-factors"]
+  },
+  {
+    "id": "injury-previous-bsi-conservative",
+    "statement": "A previous bone stress injury (OR about 5 for recurrence) should trigger the most conservative profile, a prompt to consult a clinician, and a gradual return-to-run structure; reported menstrual irregularity should trigger a medical-review caution, not a plan parameter.",
+    "parameter": "previousBoneStressInjury",
+    "value": "flag; hard session cap 1.10; ramp <= 0.05; clinician prompt",
+    "unit": "boolean",
+    "appliesTo": "Runners with a previous bone stress injury or reported menstrual irregularity",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "wright-2015-stress-fracture-meta",
+      "hulme-2017-risk-protective",
+      "hollander-2021-sex-differences"
+    ]
+  },
+  {
+    "id": "injury-sex-modifies-bsi-only",
+    "statement": "Do not apply a sex-specific cap to overall volume or progression. Sex only adjusts injury-specific cautions: bone-stress vigilance for women (surface energy-availability and menstrual warning signs), Achilles vigilance for men.",
+    "parameter": "sexAdjustedVolumeCap",
+    "value": "none",
+    "unit": null,
+    "appliesTo": "All runners",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "hollander-2021-sex-differences",
+      "wright-2015-stress-fracture-meta",
+      "vanderworp-2015-risk-factors"
+    ]
+  },
+  {
+    "id": "injury-novice-profile",
+    "statement": "Runners who the engine classifies as novice (definition is the engine's, not from the literature) get the most conservative defaults, since their injury rate per hour is about 2.3x that of recreational runners.",
+    "parameter": "noviceConservativeProfile",
+    "value": "weekly ramp <= 0.10; session cap 1.10; lower-volume week every 3rd-4th week",
+    "unit": "ratio / weeks",
+    "appliesTo": "Novice runners",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "videbaek-2015-incidence",
+      "buist-2008-graded-training",
+      "nielsen-2014-weekly-progression"
+    ]
+  },
+  {
+    "id": "injury-symptom-checkin-secondary",
+    "statement": "Keep symptom or niggle check-ins as a secondary signal; most overuse injuries have no reported preceding problem, so check-ins must not replace load-based guards or be presented as injury prediction.",
+    "parameter": "preInjuryProblemRate",
+    "value": "6.9% at 7 days; 11.1% at 28 days",
+    "unit": "proportion of overuse injuries with a prior problem",
+    "appliesTo": "Adaptive rules and copy",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["frandsen-2025-sudden-onset"]
+  },
+  {
+    "id": "injury-ultra-unvalidated",
+    "statement": "For ultra-distance and 100-mile preparation, apply the same session guard on distance and also on duration, flag both as unvalidated extrapolation, and allow explicit user override; time-on-feet or back-to-back structure is not supported by this evidence.",
+    "parameter": "ultraSessionGuard",
+    "value": "1.10 default on distance and duration; unvalidated",
+    "unit": "ratio",
+    "appliesTo": "Runners training for ultra events",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "frandsen-2025-session-spike",
+      "hulme-2017-risk-protective",
+      "videbaek-2015-incidence"
+    ]
+  }
+]

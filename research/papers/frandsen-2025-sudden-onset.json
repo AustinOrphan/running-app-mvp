@@ -1,0 +1,33 @@
+{
+  "id": "frandsen-2025-sudden-onset",
+  "title": "A paradigm shift in understanding overuse running-related injuries: findings from the Garmin-RUNSAFE study point to a sudden not gradual onset",
+  "authors": "Frandsen JSB, Simonsen NS, Hulme A, Jacobsen JS, Nielsen RO",
+  "year": 2025,
+  "journal": "JOSPT Open",
+  "doi": "10.2519/josptopen.2024.0075",
+  "pmid": null,
+  "url": "https://doi.org/10.2519/josptopen.2024.0075",
+  "design": "prospective-cohort",
+  "population": "English-speaking runners aged at least 18 years who were tracking running activities, 18-month follow-up (Garmin-RUNSAFE)",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["injury-load"],
+  "findings": [
+    "Overload injury accounted for 467 of 1666 injuries (28%), while 1199 injuries were overuse (72%).",
+    "Among overuse injuries, the proportion of runners having a running-related problem before the injury was 6.9% (95% CI 5.5%-8.4%) 7 days prior and 11.1% (95% CI 9.4%-13.0%) 28 days prior.",
+    "Authors conclude most overuse injuries in adult runners may be classified as sudden repetitive overuse injuries rather than gradual-onset injuries."
+  ],
+  "limitations": "Self-reported injuries and preceding problems; onset classification is subjective and depends on how often problems were reported; abstract gives no sample size of runners; not indexed in PubMed or Europe PMC on lookup, abstract taken from Crossref.",
+  "implications": [
+    "Pain-trend check-ins would flag only a small fraction of overuse injuries ahead of time, so keep load-based guards (session-spike rule) as the primary mechanism and treat symptom check-ins as a secondary aid.",
+    "Supports checking each planned session against recent maxima rather than only slow weekly trends."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "crossref",
+    "findingsSupported": true,
+    "notes": "Crossref: JOSPT Open 3(1):85-92 (Epub 1 Oct 2024), 5 authors: Frandsen JSB, Simonsen NS, Hulme A, Jacobsen JS, Nielsen RO (researcher listed only 3). No PubMed record found via esearch. Abstract text read from Crossref, numbers match. Grade lowered from B to C (descriptive classification, subjective onset).",
+    "checkedAt": "2026-10-22"
+  }
+}

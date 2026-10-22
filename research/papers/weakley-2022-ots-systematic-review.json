@@ -1,0 +1,34 @@
+{
+  "id": "weakley-2022-ots-systematic-review",
+  "title": "Overtraining Syndrome Symptoms and Diagnosis in Athletes: Where Is the Research? A Systematic Review",
+  "authors": "Weakley J, Halson SL, Mujika I",
+  "year": 2022,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2021-0448",
+  "pmid": "35320774",
+  "url": "https://doi.org/10.1123/ijspp.2021-0448",
+  "design": "systematic-review",
+  "population": "Adult athletes with an OTS diagnosis (search for objective pre-to-OTS performance and psychological data)",
+  "sampleSize": 0,
+  "evidenceLevel": "A",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Inclusion required adult humans with objective evidence of performance change from before OTS diagnosis, performance suppressed for more than 4 weeks, and objective evidence of psychological symptoms.",
+    "Zero studies met these criteria.",
+    "While OTS may be observed in the field, little data describe how physiological and psychological symptoms manifest, owing to vague terminology, difficulty monitoring for prolonged periods and the need for prospective testing.",
+    "The ideal testing battery that can easily be conducted regularly does not yet exist; an evidence base of sufficient scientific quality for understanding OTS in athletes is lacking."
+  ],
+  "limitations": "A negative systematic review with strict inclusion criteria; shows absence of evidence, not absence of the syndrome. Sample size 0 because no study qualified.",
+  "implications": [
+    "Do not present any wearable metric combination as a validated OTS detector; label warnings 'possible accumulated fatigue' and respond with load reduction plus check-in.",
+    "The review's 4-week suppression criterion may be borrowed as an escalation point for a 'consider medical review' message, but this is a design choice, not a validated threshold (grade D)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed match (IJSPP 2022;17(5):675-681, Weakley, Halson, Mujika). Findings verified against PubMed abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "vanhooren-2023-dfa-a1-runners",
+  "title": "Correlation properties of heart rate variability to assess the first ventilatory threshold and fatigue in runners",
+  "authors": "Van Hooren B, Mennen B, Gronwald T, Bongers BC, Rogers B",
+  "year": 2023,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/02640414.2023.2277034",
+  "pmid": "37916488",
+  "url": "https://doi.org/10.1080/02640414.2023.2277034",
+  "design": "other",
+  "population": "14 individuals running a treadmill session with two incremental ramps, using a consumer-grade chest belt",
+  "sampleSize": 14,
+  "evidenceLevel": "C",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "First ramp: bias between gas-exchange VT1 and DFA-a1 0.75 was -0.5 ml/kg/min (95% limits of agreement -6.8 to 5.8) for VO2 and -0.9 bpm (-12.2 to 10.5) for HR; R2 0.83 and 0.56.",
+    "Second ramp: bias -7.3 ml/kg/min (-18.1 to 3.5) for VO2 and -12.3 bpm (-30.4 to 5.9) for HR; R2 0.62 and 0.43.",
+    "The authors state individual-level accuracy was similar to that of gas-exchange methods and that DFA-a1 only accurately demarcates thresholds in a non-fatigued state."
+  ],
+  "limitations": "Small sample (n = 14); treadmill only; individual limits of agreement of about +/-11 bpm are wide; no long-term or race-condition validation. Published online 2023-11-02, print January 2025 (vol 43).",
+  "implications": [
+    "Use DFA-a1 0.75 HR only from fresh, non-fatigued efforts and attach an error band of about +/-11 bpm (first-ramp limits of agreement); do not update zone boundaries from sessions late in a long or fatigued run.",
+    "A DFA-a1 0.75 crossing at a markedly lower HR than the stored VT1 HR can be logged as a possible fatigue signal; no automatic plan change is justified from one study."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: J Sports Sci vol 43 pp 125-134, online 2023-11-02, print 2025-01-17 (Europe PMC lists year 2025; kept 2023 as first publication). Abstract confirms all numbers. Design relabelled to other (within-session two-ramp comparison). 'Similar to gas exchange methods' rewritten as the authors' statement.",
+    "checkedAt": "2026-10-22"
+  }
+}

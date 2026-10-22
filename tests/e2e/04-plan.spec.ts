@@ -6,7 +6,7 @@ test('create a goal, activate it, generate a plan and edit one week with a note'
   page,
   baseURL,
 }) => {
-  const { thisMonday, planStart, raceDate } = relativeDates()
+  const { thisMonday, raceDate } = relativeDates()
   await signedInApi(page, baseURL ?? '')
   await resetData()
 
@@ -30,16 +30,18 @@ test('create a goal, activate it, generate a plan and edit one week with a note'
   // Plan
   await page.goto('/plan')
   await expect(page.getByText('No plan yet.').first()).toBeVisible()
-  await page.getByLabel('Weekly run minutes').fill('150')
-  await page.getByLabel('Plan start (Monday)').fill(planStart)
   await page.getByRole('button', { name: 'Generate plan' }).click()
   await expect(toast(page, 'Plan generated')).toBeVisible()
 
   const table = page.getByRole('table', { name: 'Weekly plan, target and actual run hours' })
   await expect(table).toBeVisible()
-  await expect(table.getByText('Restart', { exact: true }).first()).toBeVisible()
-  await expect(table.getByRole('row', { name: /Race week/ })).toBeVisible()
-  await expect(table.getByRole('row', { name: /Race week/ })).toHaveAttribute('data-race', 'true')
+  await expect(page.getByRole('heading', { name: 'Feasibility' })).toBeVisible()
+  await expect(table.getByText('Taper', { exact: true }).first()).toBeVisible()
+  // The week after the race (planned recovery) keeps the race phase but reads "After the race".
+  const raceRow = table.getByRole('row', { name: /Race week/ })
+  await expect(raceRow).toBeVisible()
+  await expect(raceRow).toHaveAttribute('data-race', 'true')
+  await expect(table.getByRole('row', { name: /After the race/ })).toBeVisible()
 
   // Edit a future week: a changed target needs a note.
   const week = addDays(thisMonday, 7)

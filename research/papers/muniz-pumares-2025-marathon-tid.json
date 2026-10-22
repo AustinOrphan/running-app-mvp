@@ -1,0 +1,35 @@
+{
+  "id": "muniz-pumares-2025-marathon-tid",
+  "title": "The Training Intensity Distribution of Marathon Runners Across Performance Levels",
+  "authors": "Muniz-Pumares D, Hunter B, Meyler S, Maunder E, Smyth B",
+  "year": 2025,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-024-02137-7",
+  "pmid": "39616560",
+  "url": "https://doi.org/10.1007/s40279-024-02137-7",
+  "design": "retrospective-cohort",
+  "population": "Training in the 16 weeks before 151,813 marathons completed by 119,452 runners, from recreational to fast (marathon 120-150 min group)",
+  "sampleSize": 119452,
+  "evidenceLevel": "C",
+  "topics": ["volume-performance"],
+  "findings": [
+    "Mean training volume across all runners was 45.1 +/- 26.4 km per week; the fastest runners (marathon 120-150 min) accumulated more than three times the volume of slower runners.",
+    "Three-zone model: critical speed is the Z2/Z3 boundary and Z1/Z2 transition assumed at 82.3% of critical speed.",
+    "Time in Z2 and Z3 stayed relatively stable across performance levels; the proportion in Z1 was higher in progressively faster groups; pyramidal TID was most common, adopted by more than 80% of the fastest runners.",
+    "Marathon time correlated negatively with volume markers and Z1 proportion (p<0.01, R2 >= 0.90); Z2 and Z3 proportions correlated with slower times (R2 >= 0.85)."
+  ],
+  "limitations": "Observational group-level correlations; zones derived from critical speed estimated from the same training data; talent and history confounding; slower runners likely run closer to threshold when going easy; reverse causation possible. Crossref online 2024-12; Europe PMC issue year 2025.",
+  "implications": [
+    "Add weekly volume mainly as easy (Z1) running and keep absolute Z2+Z3 time roughly constant; default structure pyramidal.",
+    "Use 45 km/week (SD 26) only as a population reference and scale the target to the goal-time band.",
+    "Estimate critical speed from logged runs and set Z1/Z2 at 82.3% of it."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title, journal, first author match; abstract re-fetched and every number matches. Kept at C because the evidence is group-level correlation.",
+    "checkedAt": "2026-10-22"
+  }
+}

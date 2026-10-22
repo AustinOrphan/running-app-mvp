@@ -1,0 +1,34 @@
+{
+  "id": "nixon-2021-cs-vs-mlss",
+  "title": "Steady-state VO2 above MLSS: evidence that critical speed better represents maximal metabolic steady state in well-trained runners",
+  "authors": "Nixon RJ, Kranen SH, Vanhatalo A, Jones AM",
+  "year": 2021,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-021-04780-8",
+  "pmid": "34351531",
+  "url": "https://doi.org/10.1007/s00421-021-04780-8",
+  "design": "experimental-crossover",
+  "population": "Ten well-trained male distance runners completing 9-12 constant-speed treadmill tests",
+  "sampleSize": 10,
+  "evidenceLevel": "C",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "Running speed at CS was 16.4 +/- 1.3 km/h versus 15.2 +/- 0.9 km/h at MLSS (P < 0.001).",
+    "At 0.5 km/h above MLSS blood lactate was higher and rose over time, but pulmonary VO2 did not change significantly between 10 and 30 min at either MLSS or MLSS + 0.5 km/h.",
+    "VO2 rose significantly and reached VO2max at end-exercise at about 0.4 km/h above CS, but remained stable at about 0.5 km/h below CS.",
+    "The authors conclude MLSS underestimates the maximal metabolic steady state and CS more closely represents it when defined by VO2 stability."
+  ],
+  "limitations": "Ten well-trained men on a treadmill; recreational runners, women and trail or ultra settings not tested; runs were up to 30 min; MLSS-based criteria are contested.",
+  "implications": [
+    "Place the upper limit of sustained (threshold) running at or just below CS rather than at an MLSS-style pace: in these runners CS was about 1.2 km/h (about 8%) faster than MLSS (computed from the two reported means).",
+    "Keep a safety margin when prescribing continuous work near CS (VO2 stable 0.5 km/h below CS; VO2max reached at 0.4 km/h above); a margin of about 0.5 km/h is supported only for well-trained men and only for up to 30 min."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (EJAP vol 121 pp 3133-3144, online 2021-08-05). Abstract confirms all numbers; 1.2 km/h and 8% are derived.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "mattsson-2011-late-drift-ultra",
+  "title": "Late cardiovascular drift observable during ultraendurance exercise",
+  "authors": "Mattsson CM, Stahlberg M, Larsen FJ, Braunschweig F, Ekblom B",
+  "year": 2011,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0b013e318208f773",
+  "pmid": "21131858",
+  "url": "https://doi.org/10.1249/mss.0b013e318208f773",
+  "design": "other",
+  "population": "Eight subjects in 12 h of mixed exercise at controlled intensity and 20 participants in a 53-h adventure race; HR, VO2 and cardiac output measured during fixed-work-rate cycling at 0, 4, 8, 12 h and 0, 20, 53 h",
+  "sampleSize": 28,
+  "evidenceLevel": "C",
+  "topics": ["durability-drift"],
+  "findings": [
+    "The first step was typical early cardiovascular drift: HR rose while stroke volume and VO2/HR fell, during the first 4-6 h.",
+    "A second step, to about 12 h, included reversed HR drift with normalisation of SV and VO2/HR.",
+    "When exercise continued to about 50 h, late drift was characterised by increased VO2/HR, decreased peripheral resistance, increased SV and decreased cardiac work.",
+    "Cardiac output was maintained throughout; the authors interpret the changes as physiologically appropriate adaptations. VO2 at a fixed work rate was increased at every time point."
+  ],
+  "limitations": "Small samples; mixed-mode exercise and an adventure race, not running; measurements during cycling at fixed work rate; the single-slope picture of drift does not hold, so extrapolation from 1-3 h studies is not supported.",
+  "implications": [
+    "Drift behaviour is not monotonic across ultra durations: do not extrapolate the 1-3 h drift and threshold-decline priors to 100-mile efforts, and do not use HR drift to infer fitness in sessions over about 4 h.",
+    "For 100-mile plans, steer long efforts by pace, RPE, fuelling and terrain, and treat drift metrics as descriptive only."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Added by verifier to cover the ultra-duration scope. Crossref (2011-07) and PubMed (Med Sci Sports Exerc 2011 Jul;43(7):1162-8) match; findings from abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

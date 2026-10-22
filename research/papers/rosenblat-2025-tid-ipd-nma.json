@@ -1,0 +1,35 @@
+{
+  "id": "rosenblat-2025-tid-ipd-nma",
+  "title": "Which Training Intensity Distribution Intervention will Produce the Greatest Improvements in Maximal Oxygen Uptake and Time-Trial Performance in Endurance Athletes? A Systematic Review and Network Meta-analysis of Individual Participant Data",
+  "authors": "Rosenblat MA, Watt JA, Arnold JI, Treff G, Sandbakk OB, Esteve-Lanao J, et al.",
+  "year": 2025,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-024-02149-3",
+  "pmid": "39888556",
+  "url": "https://doi.org/10.1007/s40279-024-02149-3",
+  "design": "meta-analysis",
+  "population": "Recreational (n=150) and competitive (n=198) endurance athletes; 13 studies; mean age 17.6-41.5 y; VO2max 46.6-68.3 mL/kg/min; 52 female",
+  "sampleSize": 348,
+  "evidenceLevel": "A",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "13 studies, 348 athletes (296 male, 52 female); Medline and SPORTDiscus searched to 11 February 2024.",
+    "Using time-in-HR-zone: no difference between polarized and pyramidal for VO2max (SMD -0.06, p=0.68) or time trial (SMD -0.05, p=0.34); no significant difference between polarized and any other TID.",
+    "Subgroup analysis: significant difference in VO2max response between recreational and competitive athletes for polarized vs pyramidal (SMD -0.63).",
+    "Authors conclude competitive athletes may benefit from polarized and recreational athletes from pyramidal TID."
+  ],
+  "limitations": "Only 13 studies with short interventions; 15% female; VO2max and time trial are surrogates; subgroup finding is exploratory (the p-value for it is truncated in the Europe PMC and PubMed abstract text, which states only that it was statistically significant).",
+  "implications": [
+    "For recreational runners default to pyramidal (zone 1 dominant, zone 2 > zone 3, both small); allow polarized only for competitive athletes with demonstrated training age.",
+    "Treat polarized and pyramidal as equivalent for time-trial performance; choose by phase, race distance and tolerance rather than claimed superiority.",
+    "Make TID type a function of athlete level in the generator's input model."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: online 2025-01-31, print Mar 2025. Researcher quoted 'p<0.05' for the subgroup; abstract text is cut off at that point, so p-value removed. Counts and SMDs verified.",
+    "checkedAt": "2026-10-22"
+  }
+}

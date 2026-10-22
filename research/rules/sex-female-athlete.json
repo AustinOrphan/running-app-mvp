@@ -1,0 +1,197 @@
+[
+  {
+    "id": "sexdiff-cycle-no-load-adjustment",
+    "statement": "Do not adjust session intensity, volume, pacing or race targets by menstrual cycle phase. Pooled effects are trivial with credible intervals including zero, and the authors state general guidelines cannot be formed.",
+    "parameter": "cyclePhaseLoadMultiplier",
+    "value": "1.0 (no adjustment)",
+    "unit": "multiplier",
+    "appliesTo": "Eumenorrheic female users",
+    "grade": "A",
+    "confidence": "high",
+    "evidence": [
+      "mcnulty-2020-menstrual-cycle-performance",
+      "schlie-2025-menstrual-cycle-high-standards"
+    ]
+  },
+  {
+    "id": "sexdiff-cycle-tracking-optional",
+    "statement": "Offer cycle and symptom logging as an optional individual annotation only. Show a personal pattern only after at least 3 logged cycles, label self-reported phase as approximate, and never auto-move key sessions from phase. The 3-cycle minimum is a design default.",
+    "parameter": "minLoggedCyclesForPattern",
+    "value": "3",
+    "unit": "cycles",
+    "appliesTo": "Female users who opt into cycle tracking",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "mcnulty-2020-menstrual-cycle-performance",
+      "schlie-2025-menstrual-cycle-high-standards",
+      "barlow-2024-injury-menstrual-cycle-footballers"
+    ]
+  },
+  {
+    "id": "sexdiff-contraceptive-no-adjustment",
+    "statement": "Do not change load or performance predictions for oral contraceptive use; group effects are trivial and variable. Record contraceptive status only as an optional annotation that informs HRV caveats.",
+    "parameter": "contraceptiveLoadMultiplier",
+    "value": "1.0 (no adjustment)",
+    "unit": "multiplier",
+    "appliesTo": "Female users on hormonal contraception",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "elliottsale-2020-oral-contraceptives-performance",
+      "dejager-2026-wearable-hrv-menstrual"
+    ]
+  },
+  {
+    "id": "sexdiff-no-sex-zone-correction",
+    "statement": "Do not apply sex-specific corrections to pace, heart rate zones, running economy or percent-VO2max-sustained. Derive zones from the user's own test, race or wearable data. Default ultra pacing guidance to even pacing for all users.",
+    "parameter": "sexZoneCorrection",
+    "value": "0 (none)",
+    "unit": "percent",
+    "appliesTo": "All users, including ultra plans",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "besson-2022-sex-differences-endurance-running",
+      "hunter-2014-sex-differences-fatigability"
+    ]
+  },
+  {
+    "id": "sexdiff-no-sex-recovery-multiplier",
+    "statement": "Do not shorten recovery, taper or lengthen long runs on the basis of sex. Female advantage in post-race fatigue was seen in one n = 20 race study and is task specific. Schedule post-ultra recovery from symptoms, RPE and wearable readiness trends.",
+    "parameter": "sexRecoveryMultiplier",
+    "value": "1.0 (no adjustment)",
+    "unit": "multiplier",
+    "appliesTo": "All users, ultra and long-run modules",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "temesi-2015-female-neuromuscular-fatigue",
+      "hunter-2014-sex-differences-fatigability",
+      "besson-2022-sex-differences-endurance-running"
+    ]
+  },
+  {
+    "id": "sexdiff-reds-screening",
+    "statement": "Include a short non-diagnostic REDs risk screen (unintended weight loss, menstrual dysfunction, recurrent bone stress injury, recurrent illness, persistent fatigue or underperformance, GI symptoms, disordered eating) at onboarding and periodically. Recommend clinician review when flags are present. Never output a diagnosis or a calorie target derived from wearable data.",
+    "parameter": "redsScreenEnabled",
+    "value": "true; repeat about every 12 weeks (design default)",
+    "unit": "weeks",
+    "appliesTo": "All users; emphasised for females, high-volume and ultra users",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["mountjoy-2023-reds-consensus", "melin-2014-leaf-q"]
+  },
+  {
+    "id": "sexdiff-reds-hold-threshold",
+    "statement": "When 2 or more REDs flags are active, hold weekly volume flat, add no new high-intensity sessions and show a clinician prompt until the user clears the flags. The evidence supports risk-stratified training advice but not the number 2; it is a conservative default.",
+    "parameter": "redsFlagCountToHoldProgression",
+    "value": "2",
+    "unit": "flags",
+    "appliesTo": "All users with REDs screen flags",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["mountjoy-2023-reds-consensus", "melin-2014-leaf-q"]
+  },
+  {
+    "id": "sexdiff-leaq-periodic-screen",
+    "statement": "Offer a LEAF-Q-style 25-item self-screen to female users at plan start and about every 12 weeks (interval is a design default). A positive screen triggers a clinician prompt and progression hold; a negative screen (sensitivity 78%) must not suppress other REDs flags.",
+    "parameter": "leafQRescreenInterval",
+    "value": "12",
+    "unit": "weeks",
+    "appliesTo": "Female users, ages about 18-39 in the validation sample; extend with a caveat to older users",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["melin-2014-leaf-q", "mountjoy-2023-reds-consensus"]
+  },
+  {
+    "id": "sexdiff-reds-bone-both-sexes-ultra",
+    "statement": "Include the REDs and bone-stress-history questions for male and female users in 100-mile and other ultra plans. Do not gate on BMI alone, since disordered-eating risk was not associated with low BMI or BMD, and low BMD was more common in men in the sampled ultra runners.",
+    "parameter": "redsScreenSexScope",
+    "value": "all sexes",
+    "unit": null,
+    "appliesTo": "Users on ultra (50 km to 100+ mile) plans",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["hoeg-2022-ultramarathon-triad", "mountjoy-2023-reds-consensus"]
+  },
+  {
+    "id": "sexdiff-bsi-cumulative-risk",
+    "statement": "Count bone-stress risk factors: 12 h/week or more of training, BMI below 21 (do not apply to males or older athletes), menstrual irregularity or amenorrhoea, dietary restraint or disordered eating, previous BSI or known low BMD. At 2 or more factors, cap weekly volume increases at a fraction of the default progression. The fraction is a design choice; 50% of the default is a conservative starting value.",
+    "parameter": "bsiRiskFactorCountForProgressionCap",
+    "value": "2 factors; progression cap 50% of default (design default)",
+    "unit": "factors",
+    "appliesTo": "Female users primarily; prior-BSI and weekly-hours factors apply to all users",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "barrack-2014-bone-stress-triad",
+      "stennett-2025-bsi-female-offroad-runners",
+      "hoeg-2022-ultramarathon-triad"
+    ]
+  },
+  {
+    "id": "sexdiff-bsi-symptom-gate",
+    "statement": "If a user reports focal bone pain or point tenderness, stop volume and intensity increases and recommend medical assessment before progressing; weekly hours of 12 or more increase vigilance. The review sample is small and the threshold is a design default.",
+    "parameter": "focalBonePainProgressionHold",
+    "value": "true",
+    "unit": null,
+    "appliesTo": "All users; higher priority with 12 h/week or more",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["barrack-2014-bone-stress-triad"]
+  },
+  {
+    "id": "sexdiff-iron-flag-and-retest",
+    "statement": "Allow optional entry of a clinician-measured ferritin result. If fatigue or underperformance persists 2 or more weeks at stable load, suggest blood testing through a clinician. When deficiency is logged, mark fitness-test and threshold estimates as possibly suppressed and re-test after treatment (about 8-12 weeks, design default) rather than lowering long-term targets. Give no supplementation advice.",
+    "parameter": "ironFatigueWeeksToPrompt",
+    "value": "2 weeks; retest 8-12 weeks after treatment start",
+    "unit": "weeks",
+    "appliesTo": "Female users and high-volume endurance users",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["sim-2019-iron-athlete", "burden-2015-iron-treatment-meta"]
+  },
+  {
+    "id": "sexdiff-hrv-female-baseline",
+    "statement": "For female users, compute readiness from an individual HRV baseline spanning at least one full cycle and widen the alert band so a within-cycle change of up to about 9% is not flagged alone. Show a caveat for hormonal-contraceptive users (lower late-cycle HRV expected). Never auto-reduce load on a single low late-cycle reading. The numeric values are design defaults, not validated corrections.",
+    "parameter": "hrvBaselineWindowDays and alertBandWidening",
+    "value": "baseline 35 days; widen alert band by 9 percentage points",
+    "unit": "days; percentage points",
+    "appliesTo": "Female users with wearable HRV, including hormonal contraceptive users",
+    "grade": "B",
+    "confidence": "low",
+    "evidence": [
+      "dejager-2026-wearable-hrv-menstrual",
+      "elliottsale-2020-oral-contraceptives-performance"
+    ]
+  },
+  {
+    "id": "sexdiff-postpartum-mode",
+    "statement": "Provide a postpartum mode with no default return date: relative rest first, then a walk-run start, duration before intensity, and strength training (2 or more sessions per week is a design default). Show any week numbers only as common clinical practice, not research findings.",
+    "parameter": "postpartumStrengthSessionsPerWeek",
+    "value": "2 (design default)",
+    "unit": "sessions/week",
+    "appliesTo": "Postpartum users",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "deering-2024-postpartum-return-to-running",
+      "moore-2021-postpartum-return-to-running"
+    ]
+  },
+  {
+    "id": "sexdiff-postpartum-symptom-gate",
+    "statement": "Pause progression and refer to a pelvic health professional when the user reports pelvic heaviness, leaking, pelvic or musculoskeletal pain, or when check-ins flag sleep, mood, lactation or energy availability concerns. Ask about pre-pregnancy and pregnancy stress urinary incontinence and fear of movement at onboarding.",
+    "parameter": "postpartumProgressionPauseOnSymptom",
+    "value": "true",
+    "unit": null,
+    "appliesTo": "Postpartum users",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "deering-2024-postpartum-return-to-running",
+      "moore-2021-postpartum-return-to-running"
+    ]
+  }
+]

@@ -1,0 +1,34 @@
+{
+  "id": "chen-2002-borg-rpe-meta",
+  "title": "Criterion-related validity of the Borg ratings of perceived exertion scale in healthy individuals: a meta-analysis",
+  "authors": "Chen MJ, Fan X, Moe ST",
+  "year": 2002,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/026404102320761787",
+  "pmid": "12430990",
+  "url": "https://doi.org/10.1080/026404102320761787",
+  "design": "meta-analysis",
+  "population": "Healthy individuals in studies correlating Borg RPE with physiological criterion measures",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Weighted mean validity coefficients between RPE and physiological criteria were 0.62 for heart rate, 0.57 for blood lactate, 0.64 for %VO2max, 0.63 for VO2, 0.61 for ventilation and 0.72 for respiration rate.",
+    "Moderators: for heart rate, fitness, type of exercise, protocol and RPE mode; for lactate, sex and RPE scale; for VO2, sex, exercise type and RPE mode.",
+    "Highest correlations occurred in specific conditions, e.g. males exerting maximally, unusual exercise tasks such as swimming (rather than walking or running for HR, %VO2max and VO2), or the 15-point scale for lactate.",
+    "Authors conclude Borg RPE is a valid measure of exercise intensity but its validity may be lower than previously thought (r = 0.80-0.90), except under certain conditions."
+  ],
+  "limitations": "Pre-2002 studies pooled across many protocols; the abstract gives no study or participant counts; covers Borg scales in general, not session-RPE, CR-10 or runners specifically.",
+  "implications": [
+    "Do not treat RPE as a precise physiological measurement: the pooled correlation with heart rate is about 0.62, so the engine should not auto-correct sRPE from HR (or the reverse) when they disagree.",
+    "When both sRPE and HR load exist for a session, keep both and surface divergence as information, not error. Any flag threshold (for example a difference in within-user z-scores) is a design choice, not from this paper."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, J Sports Sci, 2002, first author Chen. Abstract read in Europe PMC; all coefficients match. Added the VO2 moderators and the walking/running qualifier that the researcher omitted.",
+    "checkedAt": "2026-10-22"
+  }
+}

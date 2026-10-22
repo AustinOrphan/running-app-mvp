@@ -1,0 +1,35 @@
+{
+  "id": "lauersen-2018-strength-dose-dependent",
+  "title": "Strength training as superior, dose-dependent and safe prevention of acute and overuse sports injuries: a systematic review, qualitative analysis and meta-analysis",
+  "authors": "Lauersen JB, Andersen TE, Andersen LB",
+  "year": 2018,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2018-099078",
+  "pmid": "30131332",
+  "url": "https://doi.org/10.1136/bjsports-2018-099078",
+  "design": "meta-analysis",
+  "population": "Participants aged 12-40 years in six RCTs of strength-training-based primary injury prevention (five from Europe, one from Africa); 7,738 participants with 177 acute or overuse injuries",
+  "sampleSize": 7738,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Six studies analysed five different interventions with four distinct outcomes; 7,738 participants aged 12-40 years sustained 177 acute or overuse injuries.",
+    "Cluster-adjusted intention-to-treat RR 0.338 (0.238-0.480), consistent across robustness tests; strength of evidence rated high; no publication bias found.",
+    "A 10% increase in strength training volume reduced injury risk by more than four percentage points.",
+    "Authors report the included studies were generally well designed, had high compliance and were safe; increasing strength training volume and intensity were associated with injury risk reduction."
+  ],
+  "limitations": "Only six trials and 177 injuries; sport-general populations with considerable differences between interventions, so the dose-response is exploratory (post-hoc meta-regression); not running-specific.",
+  "implications": [
+    "Support progressive increases in strength volume and intensity over the year rather than a flat dose, within the 2-3 session per week ceiling.",
+    "Keep strength in the plan year-round, not only in a pre-season block.",
+    "Do not convert the 10% volume to four percentage points figure into a formula; use it as directional support only."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC re-fetched. Removed unsupported 'largely team sports and youth' descriptor; age range 12-40 is in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

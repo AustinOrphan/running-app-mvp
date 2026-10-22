@@ -1,0 +1,35 @@
+{
+  "id": "dial-2025-nocturnal-wearables",
+  "title": "Validation of nocturnal resting heart rate and heart rate variability in consumer wearables",
+  "authors": "Dial M, Hollander M, Vatne E, Emerson A, Edwards N, Hagen J",
+  "year": 2025,
+  "journal": "Physiological Reports",
+  "doi": "10.14814/phy2.70527",
+  "pmid": "40834291",
+  "url": "https://doi.org/10.14814/phy2.70527",
+  "design": "cross-sectional",
+  "population": "13 healthy adults (6 females) wearing an ECG reference and multiple consumer wearables during sleep (536 nights)",
+  "sampleSize": 13,
+  "evidenceLevel": "C",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "Five devices (Garmin Fenix 6, Oura Gen 3, Oura Gen 4, Polar Grit X Pro, Whoop 4.0) were compared with ECG over 536 nights; interdevice accuracy varied significantly (p < 0.05).",
+    "Resting HR: Oura Gen 3 CCC = 0.97 (MAPE 1.67 ± 1.54%) and Gen 4 CCC = 0.98 (MAPE 1.94 ± 2.51%) were most accurate; Polar poor (CCC 0.86, MAPE 2.71 ± 2.75%); Whoop moderate (CCC 0.91, MAPE 3.00 ± 2.15%).",
+    "HRV: Oura Gen 4 CCC = 0.99 (MAPE 5.96 ± 5.12%), Gen 3 CCC = 0.97 (7.15 ± 5.48%); Whoop moderate (CCC 0.94, MAPE 8.17 ± 10.49%); Garmin poor (CCC 0.87, MAPE 10.52 ± 8.63%); Polar poor (CCC 0.82, MAPE 16.32 ± 24.39%).",
+    "Garmin was excluded from resting-HR analyses due to methodological inconsistencies."
+  ],
+  "limitations": "Only 13 healthy participants; devices and firmware change quickly; validates nightly summaries against ECG, not usefulness for daily readiness or training outcomes.",
+  "implications": [
+    "Make the HRV noise floor device-specific: nightly HRV error ranged from about 6% (Oura Gen 4) to about 16% (Polar) MAPE, so night-to-night changes within roughly 10% should not trigger plan changes on lower-accuracy devices (derived engine guard, not a paper finding).",
+    "Use rolling averages and multi-night trends; store the device model with each reading.",
+    "Nightly resting HR is more reliable than nightly HRV on most devices (MAPE 1.7 to 3.0%); treat HRV flags from lower-accuracy devices as low-confidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, Physiol Rep, first author Dial, Aug 2025. All numbers verified in Europe PMC abstract (PMID 40834291). Single small validation study.",
+    "checkedAt": "2026-10-22"
+  }
+}

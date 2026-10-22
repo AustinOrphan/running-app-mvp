@@ -1,0 +1,34 @@
+{
+  "id": "coyle-1984-detraining-time-course",
+  "title": "Time course of loss of adaptations after stopping prolonged intense endurance training",
+  "authors": "Coyle EF, Martin WH, Sinacore DR, Joyner MJ, Hagberg JM, Holloszy JO",
+  "year": 1984,
+  "journal": "Journal of Applied Physiology",
+  "doi": "10.1152/jappl.1984.57.6.1857",
+  "pmid": "6511559",
+  "url": "https://doi.org/10.1152/jappl.1984.57.6.1857",
+  "design": "other",
+  "population": "Seven endurance-trained subjects studied 12, 21, 56 and 84 days after cessation of training, compared with eight sedentary control subjects (longitudinal detraining study, not a crossover)",
+  "sampleSize": 7,
+  "evidenceLevel": "C",
+  "topics": ["beginners-return"],
+  "findings": [
+    "VO2max declined 7% during the first 21 days of inactivity and stabilised after 56 days at 16% below the initial trained value.",
+    "After 84 days of detraining the subjects still had a higher VO2max than eight sedentary controls (50.8 vs 43.3 ml/kg/min), mainly due to a larger arterial-mixed venous O2 difference.",
+    "Exercise stroke volume declined early to control levels; the initial VO2max decline related to reduced stroke volume and the later decline to reduced a-vO2 difference.",
+    "Citrate synthase and succinate dehydrogenase activities declined with a half-time of 12 days and stabilised 50% above sedentary controls; capillarization did not decline and remained 50% above sedentary."
+  ],
+  "limitations": "Seven subjects with complete training cessation, 1980s methods, not run-specific, no retraining phase.",
+  "implications": [
+    "Seed the layoff model with an early fast decline (about 7% VO2max by 3 weeks, about 16% by 8 weeks) that plateaus above the sedentary level; a 12-day half-time for oxidative enzyme loss supports reducing paces noticeably after 2-3 weeks off.",
+    "Bound modelled loss for long-trained runners at roughly 15-20% of VO2max rather than returning to zero; this is a 7-subject estimate and should be a default, not a fact for every runner."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Own re-fetch: Crossref title, J Appl Physiol 1984-12-01, first author Coyle, 6 authors. All numbers in abstract. Design changed from experimental-crossover to other (single-group longitudinal with sedentary reference group).",
+    "checkedAt": "2026-10-22"
+  }
+}

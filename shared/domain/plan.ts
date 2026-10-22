@@ -1,5 +1,5 @@
 import { weekStartsBetween } from '../dates.ts'
-import type { DistanceClass, Phase, PlanWeek } from '../types.ts'
+import type { DistanceClass, Phase, PlanWeek, PlanPhase } from '../types.ts'
 
 export const GENERATOR_VERSION = 1
 
@@ -15,13 +15,19 @@ export type PlanWeekInput = Pick<
   PlanWeek,
   | 'weekStart'
   | 'index'
-  | 'phase'
   | 'baselineRunMin'
   | 'longRunMin'
   | 'day2Min'
   | 'runDays'
   | 'strengthSessions'
-> & { focus: string }
+> & { phase: Phase; focus: string }
+
+/** Maps a stored week phase to the version-1 phase the version-1 review rules expect. */
+export function toV1Phase(phase: PlanPhase): Phase {
+  if (phase === 'base') return 'base1'
+  if (phase === 'build') return 'endurance'
+  return phase
+}
 
 export const BUILD_PHASES: readonly Phase[] = [
   'restart',
@@ -129,8 +135,8 @@ export function longRunMinutes(weekMin: number): number {
 }
 
 /** Every 4th week of a build phase is a cutback. */
-export function isCutbackIndex(index: number, phase: Phase): boolean {
-  return index % 4 === 3 && BUILD_PHASES.includes(phase)
+export function isCutbackIndex(index: number, phase: PlanPhase): boolean {
+  return index % 4 === 3 && BUILD_PHASES.includes(toV1Phase(phase))
 }
 
 function percentOf(percent: number, value: number): number {

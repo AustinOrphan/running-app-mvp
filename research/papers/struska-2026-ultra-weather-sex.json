@@ -1,0 +1,35 @@
+{
+  "id": "struska-2026-ultra-weather-sex",
+  "title": "The impact of air temperature, relative humidity, and solar irradiance on ultramarathon running speed in women and men",
+  "authors": "Struska M, Hora M, Wall-Scheffler C, Sladek V",
+  "year": 2026,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000004148",
+  "pmid": "42750656",
+  "url": "https://doi.org/10.1249/mss.0000000000004148",
+  "design": "retrospective-cohort",
+  "population": "1,353,878 finish times in 8,582 ultramarathons of 50-161 km at daily-average air temperature 0-34 C, relative humidity 0-100% and solar irradiance 0-700 W/m2",
+  "sampleSize": 1353878,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Running speed declined in both sexes at high air temperature, with a steeper decline in men, narrowing the speed difference between sexes from 0.73 km/h at 0-8 C to 0.34 km/h at 34 C.",
+    "The narrowing was most pronounced at high humidity: predicted difference 0.21 km/h at 34 C and 90% RH.",
+    "Relative humidity had the opposite but weaker effect on the sex difference (+0.07 km/h across its range).",
+    "Solar irradiance had a small effect on running speed with no significant sex difference."
+  ],
+  "limitations": "Abstract only (online ahead of print, 2026); daily-averaged air temperature, not WBGT or hour-by-hour; aggregate race-level data; no per-degree slope for the whole field stated in the abstract; no zero-citation record yet.",
+  "implications": [
+    "First large ultra-specific dataset: heat slows both sexes in 50-161 km races, so ultras need a heat term, but the abstract gives no per-degree slope for plan use.",
+    "Men lose more speed than women at high air temperature in ultras; treat a sex term as a low-confidence calibration covariate, not a hard-coded penalty. It also qualifies Vihma 2010's marathon statement.",
+    "Solar irradiance mattered little for ultra speed here, so do not over-weight solar load for ultras (WBGT still captures it)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier: very recent (2026) large ultra dataset. Crossref (MSSE online 2026-09-17, Struska first author) and Europe PMC abstract (PMID 42750656) re-fetched. Preprint-era; replicate before heavy reliance.",
+    "checkedAt": "2026-10-22"
+  }
+}

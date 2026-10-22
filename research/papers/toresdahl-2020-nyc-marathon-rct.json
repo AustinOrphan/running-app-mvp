@@ -1,0 +1,35 @@
+{
+  "id": "toresdahl-2020-nyc-marathon-rct",
+  "title": "A Randomized Study of a Strength Training Program to Prevent Injuries in Runners of the New York City Marathon",
+  "authors": "Toresdahl BG, McElheny K, Metzl J, Ammerman B, Chang B, Kinderknecht J",
+  "year": 2020,
+  "journal": "Sports Health",
+  "doi": "10.1177/1941738119877180",
+  "pmid": "31642726",
+  "url": "https://doi.org/10.1177/1941738119877180",
+  "design": "rct",
+  "population": "First-time New York City Marathon runners aged 18 or older (mean age 35.9, 69.4% female); 720 enrolled, 583 started, 579 completed",
+  "sampleSize": 720,
+  "evidenceLevel": "B",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Randomized 12 weeks before the marathon to a self-directed 10-minute strength program done 3 times weekly (quadriceps, hip abductor, core; written and video instruction) or an observation group.",
+    "Overuse injury causing marathon noncompletion occurred in 7.1% (strength) versus 7.3% (observation); RR 0.97 (95% CI 0.57-1.63; P = 0.90).",
+    "Major injury incidence was 8.9% and minor injury 48.5%; 52 of 64 major injuries were overuse, of which 20 were bone stress injuries.",
+    "Finishing time was 5 h 1 min versus 4 h 58 min (P = 0.35)."
+  ],
+  "limitations": "Self-directed program with unmeasured adherence; self-reported injuries; novice first-time marathoners, mostly female; only 10 minutes of low-load work; noncompletion is a late, rare outcome so the trial is underpowered for minor injury.",
+  "implications": [
+    "Do not claim that a short, self-directed bodyweight routine prevents running injuries.",
+    "For first-time marathoners prioritize gradual mileage progression and adherence; keep strength as a low-cost addition.",
+    "Flag bone stress injury risk in novice marathon plans by capping weekly load increases rather than relying on strength."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Corrected the researcher's '20 of 64 major injuries were bone stress injuries': the abstract states 52 of 64 major injuries were overuse, 20 of which were bone stress injuries. Crossref year 2019 (online-first), Europe PMC 2020.",
+    "checkedAt": "2026-10-22"
+  }
+}

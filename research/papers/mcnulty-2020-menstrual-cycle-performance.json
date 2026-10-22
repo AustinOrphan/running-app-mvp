@@ -1,0 +1,35 @@
+{
+  "id": "mcnulty-2020-menstrual-cycle-performance",
+  "title": "The Effects of Menstrual Cycle Phase on Exercise Performance in Eumenorrheic Women: A Systematic Review and Meta-Analysis",
+  "authors": "McNulty KL, Elliott-Sale KJ, Dolan E, Swinton PA, Ansdell P, Goodall S, Thomas K, Hicks KM",
+  "year": 2020,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-020-01319-3",
+  "pmid": "32661839",
+  "url": "https://doi.org/10.1007/s40279-020-01319-3",
+  "design": "meta-analysis",
+  "population": "Eumenorrheic women in experimental studies measuring exercise performance in two or more menstrual cycle phases",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "78 studies included; 51 eligible for the pairwise meta-analysis and 73 for the network meta-analysis.",
+    "Pooled effect: trivial reduction in performance in the early follicular phase versus all other phases for both endurance and strength outcomes (ES0.5 = -0.06, 95% CrI -0.16 to 0.04).",
+    "Largest pairwise effect was early follicular vs late follicular (ES0.5 = -0.14, 95% CrI -0.26 to -0.03). SUCRA was 30% for the early follicular phase and 53-55% for all other phases.",
+    "Quality of evidence graded low (42%). Authors state general guidelines cannot be formed because of trivial effect size, large between-study variation and poor-quality studies, and recommend a personalised approach based on each individual's response."
+  ],
+  "limitations": "Low overall study quality, large between-study variance, small samples and heterogeneous phase verification. Pooled credible interval includes zero.",
+  "implications": [
+    "Apply no population-level cycle-phase multiplier to session intensity or volume.",
+    "If cycle tracking is offered, use it as an optional individual annotation (symptoms and session quality by phase); surface her own pattern only after at least 3 logged cycles (design default); never auto-reduce or move key sessions or race pacing from phase alone.",
+    "Do not schedule races or key workouts around cycle phase by default."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches title, Sports Medicine, 2020, first author McNulty. All numbers confirmed in the Europe PMC abstract (PMID 32661839).",
+    "checkedAt": "2026-10-22"
+  }
+}

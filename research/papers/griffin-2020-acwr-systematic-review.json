@@ -1,0 +1,41 @@
+{
+  "id": "griffin-2020-acwr-systematic-review",
+  "title": "The association between the acute:chronic workload ratio and injury and its application in team sports: a systematic review",
+  "authors": "Griffin A, Kenny IC, Comyns TM, Lyons M",
+  "year": 2020,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-019-01218-2",
+  "pmid": "31691167",
+  "url": "https://doi.org/10.1007/s40279-019-01218-2",
+  "design": "systematic-review",
+  "population": "22 studies of team-sport athletes examining ACWR and injury",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["ai-coaching", "injury-load"],
+  "findings": [
+    "22 articles met inclusion criteria; median Newcastle-Ottawa Scale score 8 (range 5-9).",
+    "Review supports an association between ACWR and non-contact injuries and its use as one tool in a larger multifaceted monitoring system.",
+    "Support exists for both rolling-average and EWMA models; EWMA is judged more suitable, in part for greater sensitivity.",
+    "The most appropriate acute and chronic windows and load variables may depend on the sport.",
+    "22 articles met inclusion; median Newcastle-Ottawa quality score 8 (range 5-9).",
+    "The review reports it supports an association between ACWR and non-contact injuries, and its use as one tool within a larger multifaceted monitoring system that includes other proven methods.",
+    "Both rolling-average and exponentially weighted moving average (EWMA) models were supported; EWMA is described as more suitable, partly for greater sensitivity.",
+    "The most appropriate acute and chronic windows and load variables may depend on the sport; future work should cover both sexes and combine ACWR with other risk factors."
+  ],
+  "limitations": "Team sports only, no endurance running. Observational cohorts with heterogeneous ACWR definitions. Association, not causation; predates the main critiques (Impellizzeri 2020, Wang 2020).",
+  "implications": [
+    "Evidence for ACWR comes from team sports; do not transfer a 0.8-1.3 'sweet spot' to running plans.",
+    "If ACWR is ever surfaced, use EWMA, label it a monitoring signal, and combine with other risk factors.",
+    "No change to plan generation is justified by this paper alone.",
+    "ACWR evidence is contested: associations exist in team sports but causal use is unsupported, so at most show it as a descriptive monitor.",
+    "If a ratio is displayed, an EWMA formulation is the better-supported option over rolling averages, and it must sit inside a multi-signal view rather than act alone."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Sports Med 50:561-580 (online Nov 2019), 4 authors. Abstract matched. Grade A reflects design; applicability to running is low.",
+    "checkedAt": "2026-10-22"
+  }
+}

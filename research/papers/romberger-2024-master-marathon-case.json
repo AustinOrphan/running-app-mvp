@@ -1,0 +1,34 @@
+{
+  "id": "romberger-2024-master-marathon-case",
+  "title": "Six-year follow-up of a world record-breaking master marathon runner",
+  "authors": "Romberger NT, Stock JM, McMillan RK, Overstreet ML, Lepers R, Joyner MJ, Farquhar WB",
+  "year": 2024,
+  "journal": "Journal of Applied Physiology",
+  "doi": "10.1152/japplphysiol.00474.2024",
+  "pmid": "39359184",
+  "url": "https://doi.org/10.1152/japplphysiol.00474.2024",
+  "design": "other",
+  "population": "One male distance runner, retested at age 76 after setting the men's over-70 marathon world record in 2018",
+  "sampleSize": 1,
+  "evidenceLevel": "D",
+  "topics": ["age-masters"],
+  "findings": [
+    "Between 2018 and 2024 marathon running velocity decreased significantly.",
+    "VO2max declined by 15.1%, HRmax by 3.2% and maximal O2 pulse by 12.4%, suggesting reduced maximal stroke volume and/or arteriovenous O2 difference.",
+    "Running economy remained similar to 2018, and he likely still runs marathons at about 90% of VO2max.",
+    "The performance decline is attributed primarily to reduced VO2max, speculated to reflect primarily age-related processes."
+  ],
+  "limitations": "Single-subject case study of an elite outlier; not generalisable; the 6-year interval spans ages about 70-76.",
+  "implications": [
+    "Consistent with modelling decline in the 70s mainly via VO2max/threshold paces with running economy unchanged; no change beyond the existing model is justified.",
+    "When observed HRmax falls over years, lower the HRmax parameter accordingly (HRmax fell 3.2% over 6 years here, one person)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC abstract match; numbers verbatim.",
+    "checkedAt": "2026-10-22"
+  }
+}

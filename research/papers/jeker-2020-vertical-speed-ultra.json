@@ -1,0 +1,35 @@
+{
+  "id": "jeker-2020-vertical-speed-ultra",
+  "title": "Changes in spatio-temporal gait parameters and vertical speed during an extreme mountain ultra-marathon",
+  "authors": "Jeker D, Falbriard M, Vernillo G, Meyer F, Savoldelli A, Degache F, Schena F, Aminian K, Millet GP",
+  "year": 2020,
+  "journal": "European Journal of Sport Science",
+  "doi": "10.1080/17461391.2020.1712480",
+  "pmid": "31914356",
+  "url": "https://doi.org/10.1080/17461391.2020.1712480",
+  "design": "observational-cohort",
+  "population": "27 runners with a shank inertial sensor on 10 mountain passes of a 220 km mountain ultra-marathon (low 1300-2000 m vs high 2400-3200 m)",
+  "sampleSize": 27,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "Average uphill vertical speed was 547 +/- 135 m/h, stride height 0.23 +/- 0.05 m and stride frequency 0.66 +/- 0.09 Hz.",
+    "There was a significant altitude x distance interaction on vertical speed (F(4,52) = 4.04, p < 0.01): early passes were faster at lower altitude, but the difference disappeared at a quarter of the race length.",
+    "The authors read this as neuromuscular fatigue influencing uphill velocity more than oxygen delivery.",
+    "The individual change in vertical speed correlated more strongly with change in stride height (r = 0.80, n = 321) than stride frequency (r = 0.43).",
+    "The authors suggest a large effect of knee extensor strength loss on the diminution of vertical speed."
+  ],
+  "limitations": "Observational, 27 runners in one extreme race; altitude and distance covary; the mechanism is inferred from correlations. The abstract does not describe the runners' level.",
+  "implications": [
+    "Use about 547 m/h (SD 135) as an observed mean uphill vertical speed in an extreme 220 km mountain ultra for the 27 runners studied; it is a ceiling-type reference for sustained climbing, not a race-average vert/h that includes flat and downhill sections. Expect decline with distance.",
+    "Plan knee-extensor strength work for long mountain events, since the fatigue-related loss of vertical speed was tied to shorter strides (a suggestion by the authors, from correlations)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: Eur J Sport Sci 20(10):1339-1345, 2020; Crossref lists nine authors (added Aminian K). PubMed PMID 31914356 abstract supports all numbers. Removed the unsupported 'recreational field' claim.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "pyne-2009-peaking-limitations",
+  "title": "Peaking for optimal performance: Research limitations and future directions",
+  "authors": "Pyne DB, Mujika I, Reilly T",
+  "year": 2009,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/02640410802509136",
+  "pmid": "19153861",
+  "url": "https://doi.org/10.1080/02640410802509136",
+  "design": "narrative-review",
+  "population": "Athletes across sports (critical review of the taper/peaking literature)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["taper"],
+  "findings": [
+    "Existing research has defined the taper and examined prescription of training volume, load, intensity, duration and type (progressive or step).",
+    "Limitations: lack of studies on team, combative, racquet and precision sports; a relatively small number of randomized controlled trials; narrow focus on a single peak versus multiple peaking.",
+    "Limited understanding of the physiological, neuromuscular and biomechanical basis of the taper.",
+    "Future research should address the influence of prior training on optimal tapers and interactions between the taper and long-haul travel, heat and altitude."
+  ],
+  "limitations": "Narrative critique with no effect sizes; dated and does not cover ultra-endurance or recreational runners.",
+  "implications": [
+    "Present taper prescriptions as defaults with an uncertainty note and allow user override.",
+    "Taper interaction with heat, altitude and travel is unresolved: no numeric adjustment is justified, but surface a note when race conditions are hot, high or need travel."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (J Sports Sci Feb 2009). Included as a critique of the evidence base.",
+    "checkedAt": "2026-10-22"
+  }
+}

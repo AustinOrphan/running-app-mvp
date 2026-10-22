@@ -1,0 +1,35 @@
+{
+  "id": "mchugh-2003-repeated-bout",
+  "title": "Recent advances in the understanding of the repeated bout effect: the protective effect against muscle damage from a single bout of eccentric exercise",
+  "authors": "McHugh MP",
+  "year": 2003,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1034/j.1600-0838.2003.02477.x",
+  "pmid": "12641640",
+  "url": "https://doi.org/10.1034/j.1600-0838.2003.02477.x",
+  "design": "narrative-review",
+  "population": "Eccentric exercise literature on the repeated bout effect",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "A single eccentric bout protects against muscle damage in later eccentric bouts (the repeated bout effect).",
+    "Proposed adaptations are neural, mechanical and cellular.",
+    "There is some evidence of a shift toward slow-twitch motor unit recruitment, evidence of increased dynamic and passive muscle stiffness with eccentric training, and evidence of longitudinal sarcomere addition and altered inflammatory response.",
+    "The effect occurs with electrically stimulated contractions, indicating that a peripheral, non-neural adaptation predominates.",
+    "A unified mechanism remains elusive."
+  ],
+  "limitations": "Narrative review from 2003, with no running-specific or duration data. The abstract gives no dose or protection duration.",
+  "implications": [
+    "Treat protection from a single downhill exposure as real but mechanism-unclear; schedule an early moderate downhill session before heavy ones.",
+    "Prescribe no specific protective dose from this paper; use it only to justify progression from short, moderate descents."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Scand J Med Sci Sports 13(2):88-97, 2003, single author matches. Europe PMC PMID 12641640 abstract checked. Population changed from 'human and animal' (not in abstract). Review is not running-specific.",
+    "checkedAt": "2026-10-22"
+  }
+}

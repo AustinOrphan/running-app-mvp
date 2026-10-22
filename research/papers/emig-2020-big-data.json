@@ -1,0 +1,48 @@
+{
+  "id": "emig-2020-big-data",
+  "title": "Human running performance from real-world big data",
+  "authors": "Emig T, Peltonen J",
+  "year": 2020,
+  "journal": "Nature Communications",
+  "doi": "10.1038/s41467-020-18737-6",
+  "pmid": "33024098",
+  "url": "https://doi.org/10.1038/s41467-020-18737-6",
+  "design": "modelling",
+  "population": "Wearable-tracker users: about 14,000 individuals, about 1.6 million exercise sessions (duration and distance), about 20 million km",
+  "sampleSize": 14000,
+  "evidenceLevel": "C",
+  "topics": ["ai-coaching", "performance-prediction", "volume-performance"],
+  "findings": [
+    "A previously validated two-parameter model (aerobic power index plus endurance index) was applied to real-world running activities of about 14,000 individuals with about 1.6 million sessions and about 20 million km.",
+    "The endurance index describes the decline in sustainable power with duration and gave 'a highly accurate race time prediction' (no numeric error in the abstract).",
+    "The model identified key parameters such as the lactate threshold.",
+    "Correlations between performance indices and training volume and intensity were quantified, 'pointing to an optimal training' (no values in the abstract).",
+    "A previously validated mathematical model was applied to about 1.6 million exercise sessions (duration and distance) from about 14,000 individuals, about 20 million km in total.",
+    "The model has two parameters: an aerobic power index and an endurance index (the decline in sustainable power with duration).",
+    "Including endurance gave highly accurate race-time prediction and identified key parameters such as the lactate threshold.",
+    "Correlations between the performance indices and training volume and intensity were quantified, 'pointing to an optimal training' (values not given in the abstract).",
+    "A previously validated two-parameter model (aerobic power index and endurance index) was applied to about 1.6 million exercise sessions of about 14,000 individuals (about 20 million km).",
+    "Including endurance, the decline in sustainable power with duration, gave highly accurate race-time prediction and identified key parameters such as the lactate threshold.",
+    "Correlations between performance indices and training volume and intensity were quantified, pointing to an optimal training."
+  ],
+  "limitations": "No numeric prediction error in the abstract; wearable data are self-selected without verified maximal efforts; applicability of the power-law/endurance model beyond marathon-range durations is not stated.",
+  "implications": [
+    "Fit a per-athlete two-parameter model (aerobic power index plus endurance index) from the athlete's own best duration/distance efforts rather than a population-wide fixed exponent.",
+    "Store the endurance index as a tracked athlete parameter; a low index should lower predicted pace for long races.",
+    "Do not hard-code any training volume/intensity optimum from this paper.",
+    "Fit an athlete-specific two-parameter (power-like plus endurance-decay) model to logged duration and distance rather than a single race-time equation, and use it for targets at different race lengths.",
+    "Re-fit on a rolling window of recent activities so targets follow current fitness.",
+    "Do not hard-code a volume or intensity optimum from this paper.",
+    "A two-parameter (capacity plus endurance decay) model fitted to the athlete's own wearable data can derive pace zones and race predictions at any distance where a fixed exponent fails.",
+    "Refit continuously from recent best efforts so predictions track current fitness.",
+    "Do not use the cross-sectional volume-intensity correlations as causal prescriptions."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC re-fetched; findings match the abstract. 'Highly accurate' is the authors' phrase with no number, so no accuracy figure is asserted.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "kenneally-2021-race-pace-vs-physiological",
+  "title": "Training intensity distribution analysis by race pace vs. physiological approach in world-class middle- and long-distance runners",
+  "authors": "Kenneally M, Casado A, Gomez-Ezeiza J, Santos-Concejero J",
+  "year": 2021,
+  "journal": "European Journal of Sport Science",
+  "doi": "10.1080/17461391.2020.1773934",
+  "pmid": "32449500",
+  "url": "https://doi.org/10.1080/17461391.2020.1773934",
+  "design": "retrospective-cohort",
+  "population": "Seven world-class middle- and long-distance runners, 50 weeks of training",
+  "sampleSize": 7,
+  "evidenceLevel": "C",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "Mean weekly volume 135.4 +/- 29.4 km.",
+    "Race-pace zones gave 88.5/7.4/4.1% in Z1/Z2/Z3; physiological zones gave 87.2/6.1/6.6%; differences in Z2 (ES=1.20, large) and Z3 (ES=0.93, moderate).",
+    "Race-pace zones produced pyramidal TID in all phases; physiological zones produced polarized or pyramidal depending on season phase in middle-distance runners and pyramidal throughout in long-distance runners."
+  ],
+  "limitations": "Seven world-class runners, descriptive; neither anchor was shown to be superior.",
+  "implications": [
+    "Whether a plan is labelled polarized or pyramidal depends on the zone anchor, so report TID with both physiological (LT1/LT2) and race-pace anchors.",
+    "Define race-specific sessions relative to goal race pace and easy/moderate classification relative to physiological thresholds; name the anchor whenever a TID label is shown."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: online 2020-06-20, print 2021-06. All numbers confirmed in abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "hickson-1981-reduced-frequency",
+  "title": "Reduced training frequencies and maintenance of increased aerobic power",
+  "authors": "Hickson RC, Rosenkoetter MA",
+  "year": 1981,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/00005768-198101000-00011",
+  "pmid": "7219129",
+  "url": "https://doi.org/10.1249/00005768-198101000-00011",
+  "design": "other",
+  "population": "Twelve young adults (mean age 23 y) trained 40 min/d, 6 d/wk by cycling and running for 10 weeks, then continued 4 d/wk or 2 d/wk for 15 weeks at unchanged intensity and duration",
+  "sampleSize": 12,
+  "evidenceLevel": "C",
+  "topics": ["beginners-return"],
+  "findings": [
+    "10 weeks of training raised VO2max by 25% on cycle tests and 20% on treadmill tests.",
+    "VO2max remained essentially at trained levels in both the 4 d/wk and 2 d/wk groups at 5-week checks over 15 weeks of reduced training.",
+    "Intensity and duration were unchanged during the reduced-frequency period.",
+    "The authors conclude more exercise is needed to increase VO2max than to maintain it, and that VO2max can be maintained for at least 15 weeks with high-intensity training 2 d/wk or 4 d/wk."
+  ],
+  "limitations": "Twelve young adults, two small groups, high-intensity training, 15-week duration; not runners-specific and not distance-endurance or ultra outcomes.",
+  "implications": [
+    "Supports the maintenance-mode finding: 2 sessions per week at unchanged intensity and duration preserved VO2max for 15 weeks in young adults.",
+    "Keep intensity and session duration, cut frequency, when only maintenance is needed; treat it as an upper bound of evidence for fitness maintenance, not for injury resilience."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "ADDED by verifier. Crossref title, Med Sci Sports Exerc 1981-01, first author Hickson, 2 authors. PubMed esummary authors Hickson RC, Rosenkoetter MA. Numbers read from Europe PMC abstract. Primary study underlying part of Spiering 2021.",
+    "checkedAt": "2026-10-22"
+  }
+}

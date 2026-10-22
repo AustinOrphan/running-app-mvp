@@ -1,0 +1,34 @@
+{
+  "id": "berryman-2018-strength-performance-meta",
+  "title": "Strength Training for Middle- and Long-Distance Performance: A Meta-Analysis",
+  "authors": "Berryman N, Mujika I, Arvisais D, Roubeix M, Binet C, Bosquet L",
+  "year": 2018,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2017-0032",
+  "pmid": "28459360",
+  "url": "https://doi.org/10.1123/ijspp.2017-0032",
+  "design": "meta-analysis",
+  "population": "Endurance athletes in running, cycling, cross-country skiing and swimming; 28 of 554 potential studies included",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "28 of 554 potential studies met inclusion criteria; subgroups examined strength-training intensity, duration, frequency, performance level, age, sex and sport.",
+    "A strength-training mesocycle was associated with a moderate improvement in middle- and long-distance performance (net SMD 0.52, 95% CI 0.33-0.70).",
+    "Associated improvements were seen in energy cost of locomotion (SMD 0.65, 0.32-0.98), maximal force (0.99, 0.80-1.18) and maximal power (0.50, 0.34-0.67).",
+    "Maximal-force training led to greater improvements than other intensities; beneficial effects on performance were consistent irrespective of the athletes' level."
+  ],
+  "limitations": "Pools running with cycling, skiing and swimming, so running-specific effect is not isolated in the abstract; sample size not stated in abstract; mixed study quality not summarized in the abstract.",
+  "implications": [
+    "Supports maximal-force (heavy) training as the preferred intensity for performance across endurance sports.",
+    "Supports offering strength work at all performance levels, not only elite runners."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref (IJSPP, 2018, Berryman) and Europe PMC abstract checked. Pooled across sports, so graded for running indirectly.",
+    "checkedAt": "2026-10-22"
+  }
+}

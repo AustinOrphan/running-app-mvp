@@ -1,0 +1,44 @@
+{
+  "id": "meeusen-2013-overtraining-consensus",
+  "title": "Prevention, diagnosis, and treatment of the overtraining syndrome: joint consensus statement of the European College of Sport Science and the American College of Sports Medicine",
+  "authors": "Meeusen R, Duclos M, Foster C, Fry A, Gleeson M, Nieman D, Raglin J, Rietjens G, Steinacker J, Urhausen A",
+  "year": 2013,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0b013e318279a10a",
+  "pmid": "23247672",
+  "url": "https://doi.org/10.1249/mss.0b013e318279a10a",
+  "design": "consensus-statement",
+  "population": "Athletes in general (consensus statement, not a study population)",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["periodization-recovery", "readiness-monitoring"],
+  "findings": [
+    "Functional overreaching is a short-term performance decrement without severe psychological or lasting negative symptoms that leads to improved performance after recovery.",
+    "When athletes do not respect the balance between training and recovery, nonfunctional overreaching (NFOR) can occur; distinguishing NFOR from overtraining syndrome (OTS) is very difficult, depends on clinical outcome and exclusion diagnosis, and athletes often show the same clinical, hormonal and other signs and symptoms.",
+    "A keyword in recognising OTS is 'prolonged maladaptation' of the athlete and of several biological, neurochemical and hormonal regulation mechanisms.",
+    "It is generally thought OTS symptoms (fatigue, performance decline, mood disturbance) are more severe than NFOR, but there is no scientific evidence to confirm or refute this.",
+    "Diagnosis involves excluding organic disease or infection, caloric restriction (negative energy balance), insufficient carbohydrate and/or protein intake, iron deficiency, magnesium deficiency, allergies, and identifying initiating events or triggers.",
+    "Several markers (hormones, performance tests, psychological tests, biochemical and immune markers) are used, but none meets all the criteria for generally accepted use.",
+    "Functional overreaching causes a short-term performance decrement and leads to improved performance after recovery; non-functional overreaching (NFOR) can occur when the balance between training and recovery is not respected.",
+    "Distinguishing NFOR from overtraining syndrome (OTS) is very difficult and depends on clinical outcome and exclusion diagnosis; 'prolonged maladaptation' is the keyword.",
+    "Etiology work involves excluding organic disease or infection, caloric restriction, insufficient carbohydrate and/or protein, iron deficiency, magnesium deficiency, allergies and others, plus identifying triggers.",
+    "Several markers (hormones, performance tests, psychological, biochemical, immune) are used, but none meet all the criteria for generally accepted use."
+  ],
+  "limitations": "Expert consensus; offers no validated numeric thresholds a wearable app could apply. Evidence for markers is explicitly insufficient.",
+  "implications": [
+    "Model overreaching risk as a flag with a conservative response (reduce load, schedule recovery); never output an OTS diagnosis.",
+    "When a flag persists, show a prompt to see a clinician and to consider illness, under-fuelling (energy availability), and iron status.",
+    "No numeric thresholds are justified by this paper; any thresholds the engine uses are design choices (grade D).",
+    "No single biomarker (including HRV or resting HR) can diagnose overreaching; flags should prompt load reduction, not diagnoses.",
+    "Persistent unexplained performance decline and fatigue or mood change should trigger a rest/deload suggestion and a prompt to see a clinician; the duration threshold is not given by the source.",
+    "Plan copy should prompt checks of energy intake, iron status, illness and sleep before attributing fatigue to training."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref gives title without the 'joint consensus statement' subtitle, MSSE, 2013, no author list; PubMed gives full title, authors, vol 45(1):186-205. Findings re-checked against the PubMed abstract; added the statement that OTS-more-severe-than-NFOR is unproven.",
+    "checkedAt": "2026-10-22"
+  }
+}

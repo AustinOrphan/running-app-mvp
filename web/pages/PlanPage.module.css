@@ -297,3 +297,183 @@
     text-align: right;
   }
 }
+
+.muted {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* Version-2 overview: feasibility, warnings, checks and revisions on one paper, set off by rules. */
+.overview {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--space-5);
+}
+
+.panel {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--border);
+}
+
+.panel summary {
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+}
+
+.panelTitle {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+}
+
+.feasibility {
+  margin: 0 0 var(--space-2);
+}
+
+.items,
+.revisions,
+.changes {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.items li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  max-width: var(--prose-max);
+}
+
+.revisions > li {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.revisions p {
+  margin: 0;
+  max-width: var(--prose-max);
+}
+
+.changes {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Day cards sit under their week row. */
+.daysRow {
+  display: block;
+}
+
+.daysRow td {
+  display: block;
+  padding: 0 0 var(--space-3) var(--space-3);
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-left: 1px solid var(--border-strong);
+}
+
+.dayName {
+  margin: 0;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.sessionButton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  min-height: 2.75rem;
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sessionButton:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.sessionTitle {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.sessionButton[data-status='skipped'] .sessionTitle {
+  text-decoration: line-through;
+}
+
+.sessionMeta {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+@media (min-width: 900px) {
+  .daysRow {
+    display: table-row;
+  }
+
+  .daysRow td {
+    display: table-cell;
+    padding: 0 var(--space-3) var(--space-3);
+  }
+}
+
+.warningText {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.warningDetails summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.items .warningDetails ul {
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.items .warningDetails li {
+  display: block;
+  padding: var(--space-1) 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

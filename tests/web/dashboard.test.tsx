@@ -14,6 +14,7 @@ import type {
 import { addDays } from '../../shared/dates.ts'
 import { makeActivity, makeWeekRow } from '../factories.ts'
 import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { makeToday } from './today-fixtures.ts'
 
 // The fixed clock is Wednesday 2026-03-18, so the current week starts on Monday 2026-03-16.
 const THIS_WEEK = '2026-03-16'
@@ -37,6 +38,15 @@ function makeGoal(over: Partial<Goal> = {}): Goal {
     notes: null,
     url: null,
     isActive: true,
+    gainM: null,
+    lossM: null,
+    surface: 'road',
+    goalType: 'time',
+    targetTimeSec: null,
+    startTime: null,
+    raceLat: null,
+    raceLng: null,
+    supportLevel: 'aided',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...over,
@@ -59,6 +69,9 @@ function makePlan(): PlanWithWeeks {
     runDays: 4,
     strengthSessions: 2,
     overrideNote: null,
+    tid: null,
+    flags: [],
+    gainTargetM: null,
     updatedAt: '2026-01-01T00:00:00.000Z',
   }))
   return {
@@ -70,6 +83,7 @@ function makePlan(): PlanWithWeeks {
     raceWeekStart: '2026-06-08',
     status: 'active',
     generatorVersion: 1,
+    paramsVersion: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     weeks,
@@ -128,6 +142,7 @@ function routes(s: Scenario): MockRoutes {
     'GET /api/reviews': () => s.reviews ?? windowReviews(),
     'GET /api/activities': () => s.activities ?? [],
     'GET /api/settings': () => settings,
+    'GET /api/today': () => makeToday(),
   }
 }
 

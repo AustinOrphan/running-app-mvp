@@ -1,0 +1,42 @@
+{
+  "id": "smyth-2020-cs-training-data",
+  "title": "Calculation of Critical Speed from Raw Training Data in Recreational Marathon Runners",
+  "authors": "Smyth B, Muniz-Pumares D",
+  "year": 2020,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000002412",
+  "pmid": "32472926",
+  "url": "https://doi.org/10.1249/mss.0000000000002412",
+  "design": "retrospective-cohort",
+  "population": "More than 25,000 recreational athletes whose running activities (time, distance, elevation every 100 m) were logged on an online platform before big-city marathons",
+  "sampleSize": 25000,
+  "evidenceLevel": "C",
+  "topics": ["performance-prediction", "zones-thresholds"],
+  "findings": [
+    "CS was computed as the slope of the distance-time relationship using all combinations of at least three of the fastest grade-adjusted efforts at 400, 800, 1000, 1500, 3000 and 5000 m; the relationship was linear irrespective of distances used (R = 0.9999 +/- 0.0001) and mean CS was 3.74 +/- 0.08 m/s across models.",
+    "CS from all models correlated with marathon performance (R = 0.672 +/- 0.036, error 8.01% +/- 0.51%); the model with 400, 800 and 5000 m was best (R = 0.695, error 7.67%).",
+    "Runners completed the marathon at 84.8% +/- 13.6% of CS, faster runners closer to CS (93.0% of CS for 150 min finishers vs 78.9% of CS for 360 min finishers).",
+    "Runners who completed the first half at more than 94% of CS, and particularly faster than CS, were more likely to slow by more than 25% in the second half.",
+    "Critical speed (CS) was the slope of the distance-time relationship over the fastest grade-adjusted efforts at target distances of 400, 800, 1000, 1500, 3000 and 5000 m (at least three distances per model); the relationship was linear (R = 0.9999 +/- 0.0001).",
+    "Estimated CS was 3.74 +/- 0.08 m/s across models, and all models correlated with marathon performance (R = 0.672 +/- 0.036, error = 8.01% +/- 0.51%).",
+    "The 400, 800 and 5000 m model predicted best (R = 0.695, error = 7.67%).",
+    "Runners completed the marathon at 84.8% +/- 13.6% of CS, with faster runners closer to CS (93.0% CS for 150 min finishers versus 78.9% CS for 360 min finishers).",
+    "Runners who ran the first half above 94% of CS, and particularly faster than CS, were more likely to slow by more than 25% in the second half."
+  ],
+  "limitations": "Abstract gives sample as '>25,000' (25,000 used as floor); self-recorded GPS data with elevation noise and unknown effort quality; no lab validation of CS; marathon only, no ultra distance; about 8% error in predicted performance; the pacing finding is an association, not a trial.",
+  "implications": [
+    "Estimate CS automatically from logged GPS activities as the slope of the grade-adjusted distance-time relationship using at least three best efforts between 400 m and 5 km (400/800/5000 m worked best); present it as an estimate with roughly 8% performance-prediction error.",
+    "Marathon pacing guardrail: treat a first half faster than about 94% of CS as a flagged risk of a large second-half slowdown; sustainable fractions of CS fall with finishing time (about 93% at 2.5 h, about 79% at 6 h). Extrapolation to 50 km to 100 miles is not justified by this paper.",
+    "Estimate CS from the athlete's best grade-adjusted efforts at about 400 m, 800 m and 5 km via the distance-time slope; use it as a pacing anchor, not as a race-time predictor with error below 8%.",
+    "Use the observed fraction of CS sustained in the marathon (about 93% at 150 min, about 79% at 360 min) as a descriptive prior for marathon target pace by ability; these are what runners did, not proven optimal.",
+    "Warn when planned first-half marathon pace exceeds about 94% of CS."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (MSSE vol 52 pp 2637-2645, online 2020-05-29, print Dec 2020). Abstract confirms all numbers. 'Cap at 94%' reworded to a flagged risk because the abstract reports an association.",
+    "checkedAt": "2026-10-22"
+  }
+}

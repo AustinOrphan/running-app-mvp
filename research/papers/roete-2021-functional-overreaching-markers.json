@@ -1,0 +1,34 @@
+{
+  "id": "roete-2021-functional-overreaching-markers",
+  "title": "A Systematic Review on Markers of Functional Overreaching in Endurance Athletes",
+  "authors": "Roete AJ, Elferink-Gemser MT, Otter RTA, Stoter IK, Lamberts RP",
+  "year": 2021,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2021-0024",
+  "pmid": "34108275",
+  "url": "https://doi.org/10.1123/ijspp.2021-0024",
+  "design": "systematic-review",
+  "population": "Trained to professional endurance athletes under overload; 380 articles screened, 12 included",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Changes in power output, heart rate (submaximal and HR recovery), rating of perceived exertion, and DALDA and/or POMS scores reflected functional overreaching, whereas changes in maximal oxygen uptake and HR-variability parameters did not.",
+    "Within a maximal test, functional overreaching showed decreased peak power and lower maximum HR; in time trials, lower mean power and lower HR.",
+    "In standardized submaximal tests, functional overreaching showed higher power at a fixed HR or lower HR at a fixed intensity, higher RPE and faster HR recovery.",
+    "Both DALDA and POMS reflected functional overreaching, but POMS could not differentiate it from acute fatigue, making it unsuitable for accurately monitoring functional overreaching."
+  ],
+  "limitations": "Brief review of only 12 studies; the abstract does not give participant numbers, sport mix or effect sizes. Overload protocols are experimental and short, not free-living training.",
+  "implications": [
+    "Compute a standardized submaximal efficiency index (pace or power at fixed HR, or HR at fixed pace) and treat a sustained decline with rising RPE as an overreaching signal.",
+    "Do not rely on VO2max estimates or HRV alone to detect overreaching, and do not use POMS-type mood scores alone to separate overreaching from ordinary fatigue."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed match (IJSPP 2021;16(8):1065-1073). Removed the researcher's unsupported claim that protocols were mostly cycling-based (not stated in abstract). Evidence level downgraded from A to B because only 12 heterogeneous studies in a brief review.",
+    "checkedAt": "2026-10-22"
+  }
+}

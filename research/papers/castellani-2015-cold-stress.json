@@ -1,0 +1,35 @@
+{
+  "id": "castellani-2015-cold-stress",
+  "title": "Cold stress effects on exposure tolerance and exercise performance",
+  "authors": "Castellani JW, Tipton MJ",
+  "year": 2015,
+  "journal": "Comprehensive Physiology",
+  "doi": "10.1002/cphy.c140081",
+  "pmid": "26756639",
+  "url": "https://doi.org/10.1002/cphy.c140081",
+  "design": "narrative-review",
+  "population": "Review of human cold tolerance and exercise performance in cold air and water",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Cold weather can have deleterious effects on health, tolerance and performance.",
+    "The impact of cold exposure on physical performance, especially aerobic performance, has not been thoroughly studied; the few studies suggest aerobic performance is degraded in cold environments.",
+    "Proposed mechanisms: decreases in deep body and muscle temperature, and changes in cardiovascular function and metabolism.",
+    "Strength and power are also degraded during cold exposure, primarily through a decline in muscle temperature.",
+    "Thermoregulatory fatigue (reduced shivering and vasoconstriction after multistressor factors including exhaustive exercise) is described."
+  ],
+  "limitations": "Narrative review; sparse running-specific evidence; mostly cold-water and military contexts; no numeric thresholds in the abstract.",
+  "implications": [
+    "No numeric cold-side pace penalty is justified by this review; add a generic cold-weather advisory (warm-up, layering) and treat any cold-side slope borrowed from Mantzios 2022 as unverified.",
+    "Flag very long, slow ultras in cold conditions for extra caution (inference from thermoregulatory fatigue, not a stated finding)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (Compr Physiol 2015-12-15) and Europe PMC abstract re-fetched. Europe PMC lists Tipton twice in the author string; Crossref has Castellani and Tipton. The last implication is an inference, labelled as such.",
+    "checkedAt": "2026-10-22"
+  }
+}

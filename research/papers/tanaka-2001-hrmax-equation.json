@@ -1,0 +1,41 @@
+{
+  "id": "tanaka-2001-hrmax-equation",
+  "title": "Age-predicted maximal heart rate revisited",
+  "authors": "Tanaka H, Monahan KD, Seals DR",
+  "year": 2001,
+  "journal": "Journal of the American College of Cardiology",
+  "doi": "10.1016/s0735-1097(00)01054-8",
+  "pmid": "11153730",
+  "url": "https://doi.org/10.1016/s0735-1097(00)01054-8",
+  "design": "meta-analysis",
+  "population": "Healthy adults: meta-analysis of group means from 351 studies (492 groups), plus laboratory cross-validation in 514 healthy subjects",
+  "sampleSize": 18712,
+  "evidenceLevel": "A",
+  "topics": ["age-masters", "zones-thresholds"],
+  "findings": [
+    "Meta-analysis of 351 studies, 492 groups and 18,712 subjects: HRmax strongly related to age (r = -0.90), regression HRmax = 208 - 0.7 x age.",
+    "Laboratory cross-validation in 514 healthy subjects gave 209 - 0.7 x age, virtually identical to the meta-analytic equation.",
+    "The regression line was not different between men and women, nor influenced by wide variation in habitual physical activity.",
+    "The authors state the then-current 220 - age equation underestimates HRmax in older adults.",
+    "Meta-analysis: HRmax strongly related to age (r = -0.90), equation HRmax = 208 - 0.7 x age.",
+    "Laboratory study (n=514) gave 209 - 0.7 x age, virtually identical to the meta-analysis.",
+    "The regression line did not differ between men and women and was not influenced by wide variations in habitual physical activity."
+  ],
+  "limitations": "Meta-analysis of group means, so the equation says nothing about individual spread (the abstract gives no SD or SEE). Healthy, mostly non-athletic adults; not runner-specific.",
+  "implications": [
+    "Use 208 - 0.7 x age as the default HRmax prior when no measured or observed maximum exists; do not use 220 - age.",
+    "No sex or training-status adjustment of the HRmax estimate is justified by this paper.",
+    "Treat the estimate as a population mean with wide individual error (see Nes 2013 for SEE and Shookster 2020 for poor individual agreement) and replace it with an observed maximum as soon as data exist.",
+    "If no measured maximum is available, seed HRmax with 208 - 0.7 x age rather than 220 - age, treated as a prior with about +/-10 bpm uncertainty.",
+    "Replace the prior with the highest reliably recorded wearable heart rate from hard efforts once enough data exist (guard against optical sensor artefacts).",
+    "Do not adjust HRmax for sex or habitual activity level."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-checked: Crossref title/journal/year 2001/vol 37 pp 153-156/first author Tanaka match; Europe PMC abstract (PMID 11153730) states all numbers.",
+    "checkedAt": "2026-10-22"
+  }
+}

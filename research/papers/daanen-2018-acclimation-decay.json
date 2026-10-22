@@ -1,0 +1,36 @@
+{
+  "id": "daanen-2018-acclimation-decay",
+  "title": "Heat acclimation decay and re-induction: a systematic review and meta-analysis",
+  "authors": "Daanen HAM, Racinais S, Periard JD",
+  "year": 2018,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-017-0808-x",
+  "pmid": "29129022",
+  "url": "https://doi.org/10.1007/s40279-017-0808-x",
+  "design": "meta-analysis",
+  "population": "12 studies of heat acclimation (at least 5 days) followed by decay (at least 7 days) and, in 8 studies, re-acclimation; outcomes heart rate, core temperature, sweat rate",
+  "sampleSize": 12,
+  "evidenceLevel": "A",
+  "topics": ["heat-weather"],
+  "findings": [
+    "End-exercise HR adaptations decreased 2.3% per day of decay and core temperature adaptations 2.6% per day (adaptation scored 0% = acclimated, 100% = unacclimated).",
+    "About 2.5% of HR and core temperature adaptations are lost per decay day (earlier literature: 1 day lost per 2 days of decay).",
+    "Decay in sweat rate was not related to the number of decay days.",
+    "Five or more acclimation days are sufficient to cause adaptations in HR and core temperature; longer daily exposure duration (and lower exposure intensity) made core temperature adaptations more sustainable.",
+    "Re-acclimation was 8-12 times faster than decay for HR and core temperature; it may provide a practical, less disruptive way to maintain acclimation before competition (e.g. in a taper)."
+  ],
+  "limitations": "Only 12 studies (8 on re-acclimation); no protocol standardization; regression on heterogeneous designs; healthy trained adults.",
+  "implications": [
+    "Decay model: credit of HR/core-temperature acclimation falls by about 2.5% of the acclimated state per day after the last heat session (2.3% HR, 2.6% core temperature). Setting credit to zero at about 40 days is a design extrapolation (100/2.5) beyond the data, flagged as such.",
+    "Schedule heat exposure close to the goal race; a short top-up block is far quicker than the original and fits a taper.",
+    "The 5-day minimum is a lower bound; the plan default remains the 7-14 day block."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (online 2017-11, print 2018-02) and Europe PMC abstract re-fetched. Added the intensity and taper statements from the abstract; the 40-day cutoff is the researcher's extrapolation and is labelled as such.",
+    "checkedAt": "2026-10-22"
+  }
+}

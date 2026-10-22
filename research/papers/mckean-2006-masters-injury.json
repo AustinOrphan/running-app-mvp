@@ -1,0 +1,35 @@
+{
+  "id": "mckean-2006-masters-injury",
+  "title": "Musculoskeletal injury in the masters runners",
+  "authors": "McKean KA, Manson NA, Stanish WD",
+  "year": 2006,
+  "journal": "Clinical Journal of Sport Medicine",
+  "doi": "10.1097/00042752-200603000-00011",
+  "pmid": "16603885",
+  "url": "https://doi.org/10.1097/00042752-200603000-00011",
+  "design": "cross-sectional",
+  "population": "2,886 runners in the Hood to Coast relay (34% masters, aged 40 or over), retrospective one-year injury survey",
+  "sampleSize": 2886,
+  "evidenceLevel": "C",
+  "topics": ["age-masters"],
+  "findings": [
+    "Overall injury rate was 46%; significantly more masters runners were injured than younger runners (P < 0.05), and more masters suffered multiple injuries (P < 0.001).",
+    "Significantly more masters were male, had 7+ years of running experience, ran more than 30 miles per week and 6 or more times per week, and wore orthotics (P < 0.001).",
+    "Soft-tissue injuries to the calf, Achilles and hamstrings were more prevalent in masters (P < 0.001); younger runners had more knee and leg injuries (P < 0.005).",
+    "Running more times per week increased the risk of injury for both groups; the authors say differences may reflect differences in training intensity."
+  ],
+  "limitations": "Retrospective self-report (recall bias), cross-sectional, relay-event sample; masters trained more (experience, weekly miles, sessions per week), so age is confounded with exposure.",
+  "implications": [
+    "For runners 40 or over, give extra attention to calf, Achilles and hamstring loading: calf and posterior-chain strength and gradual progression of hills and speedwork.",
+    "Do not push frequency: a soft default cap on run days per week (for example 6) with a rest or cross-training day is a design suggestion derived from the finding that frequency raised risk; the paper gives no threshold.",
+    "Treat increased injury susceptibility as modest and exposure-related; use conservative weekly load progression rather than an age-specific rule."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC abstract match. Added the abstract's confounder data (6+ times/week, >30 mi/wk) supporting the exposure confound.",
+    "checkedAt": "2026-10-22"
+  }
+}

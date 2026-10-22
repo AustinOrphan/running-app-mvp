@@ -1,0 +1,34 @@
+{
+  "id": "oficial-casado-2026-valencia-vdot",
+  "title": "Performance prediction equation for the Valencia Marathon based on time and pacing in the half marathon",
+  "authors": "Oficial-Casado F, Priego-Quesada JI, Perez-Soriano P",
+  "year": 2026,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2025.1718298",
+  "pmid": "41631237",
+  "url": "https://doi.org/10.3389/fphys.2025.1718298",
+  "design": "retrospective-cohort",
+  "population": "Runners who finished both the Valencia Half Marathon and Marathon in the same year (2022 and 2023) and ran the half faster than the marathon",
+  "sampleSize": 8261,
+  "evidenceLevel": "C",
+  "topics": ["performance-prediction"],
+  "findings": [
+    "Three linear regressions were built: half-marathon time plus sex; plus age category; plus half-marathon pace range (max minus min relative speed).",
+    "Adding pace range did not improve prediction; the selected model had explained variance of 85% and a mean absolute error of 5.9%.",
+    "The overall accuracy of the obtained model was similar to Daniels' VDOT, but the two models behaved differently depending on runner performance level."
+  ],
+  "limitations": "One city, two editions; only runners who ran the half faster than the marathon (selection); the abstract gives neither VDOT's own error nor the level-dependent pattern, and does not say whether age category helped; MAE of 5.9% is about 13-14 min for a 3:50 marathon.",
+  "implications": [
+    "Treat half-to-marathon equivalence (regression or VDOT-style) as carrying about 6% mean absolute error in a large recreational sample; show a range, not a point.",
+    "Include sex in half-to-marathon regression; in-race pace range added nothing. The abstract does not establish a benefit of age category.",
+    "Check VDOT-style predictions separately by ability tier when calibrating, because the models diverged by level."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref gives issued 2026-02-02 with a 2025 DOI prefix (EPMC pubYear 2025); year 2026 kept. Rewrote the implications: the abstract does not state a VDOT-specific MAE nor reject age category.",
+    "checkedAt": "2026-10-22"
+  }
+}

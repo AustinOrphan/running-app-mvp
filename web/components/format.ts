@@ -1,4 +1,5 @@
-import type { Phase } from '../../shared/types.ts'
+import type { SessionKind } from '../../shared/engine/types.ts'
+import type { PlanPhase, Units } from '../../shared/types.ts'
 
 const parts = new Intl.DateTimeFormat('en-GB', {
   weekday: 'short',
@@ -36,7 +37,7 @@ export function formatLongDate(iso: string): string {
   return `${weekday} ${day} ${month} ${year}`
 }
 
-const phaseLabels: Record<Phase, string> = {
+const phaseLabels: Record<PlanPhase, string> = {
   restart: 'Restart',
   base1: 'Base 1',
   base2: 'Base 2',
@@ -45,8 +46,56 @@ const phaseLabels: Record<Phase, string> = {
   peak: 'Peak',
   taper: 'Taper',
   race: 'Race week',
+  base: 'Base',
+  build: 'Build',
 }
 
-export function phaseLabel(phase: Phase): string {
+export function phaseLabel(phase: PlanPhase): string {
   return phaseLabels[phase]
+}
+
+/**
+ * The label of a plan week. A week after the race keeps the phase 'race' (no schema change) and
+ * carries the 'post-race' flag; every view calls it "After the race", not "Race week".
+ */
+export function weekPhaseLabel(week: { phase: PlanPhase; flags?: readonly string[] }): string {
+  return week.flags?.includes('post-race') === true ? 'After the race' : phaseLabel(week.phase)
+}
+
+const kindLabels: Record<SessionKind, string> = {
+  easy: 'Easy run',
+  recovery: 'Recovery run',
+  long: 'Long run',
+  'long-fast-finish': 'Long run, fast finish',
+  threshold: 'Threshold',
+  intervals: 'Intervals',
+  'race-pace': 'Race pace',
+  strides: 'Strides',
+  hills: 'Hills',
+  hike: 'Hike',
+  b2b: 'Back-to-back',
+  strength: 'Strength',
+  mobility: 'Mobility',
+  rest: 'Rest',
+  race: 'Race',
+  cross: 'Cross-training',
+}
+
+/** A session kind as the Plan page names it: "Long run, fast finish". */
+export function sessionKindLabel(kind: SessionKind): string {
+  return kindLabels[kind]
+}
+
+/** Whether a string names a session kind. */
+export function isSessionKind(value: unknown): value is SessionKind {
+  return typeof value === 'string' && value in kindLabels
+}
+
+const FEET_PER_METRE = 3.28084
+
+/** Climb in the runner's unit: metres for km, feet for miles ("197 ft"). */
+export function formatClimb(gainM: number, units: Units): string {
+  return units === 'mi'
+    ? `${String(Math.round(gainM * FEET_PER_METRE))} ft`
+    : `${String(Math.round(gainM))} m`
 }

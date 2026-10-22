@@ -1,0 +1,473 @@
+// Weekly adaptation: progress, hold or reduce; zone proposals; break restarts; quality trims
+// [rules J5, J7, G-6, C8; design 4.3]. Pure: `today` comes from the input.
+//
+// Convention: an efficiency-index trend below zero is a decline (the index rises when pace at a
+// fixed HR improves).
+import { addDays } from '../dates.ts'
+import { aggregateWeeks } from '../domain/weeks.ts'
+import type { Activity } from '../types.ts'
+import { efficiencyIndex } from './athlete.ts'
+import { hasSubjectivePart } from './execution.ts'
+import { nextWeekCap } from './guards.ts'
+import { P } from './params/index.ts'
+import {
+  checkinOn,
+  hrvFlaggedOn,
+  isQualityKind,
+  poorSubjective,
+  readinessSnapshot,
+  sleepAverageH,
+} from './readiness.ts'
+import type {
+  AthleteState,
+  EngineInput,
+  ExecutionAssessment,
+  SessionKind,
+  SessionSpec,
+  WeeklyDecision,
+  ZoneProposal,
+} from './types.ts'
+
+/** An execution assessment with the date and kind of the session it belongs to. */
+export interface ExecutionRecord {
+  date: string
+  kind: SessionKind
+  assessment: ExecutionAssessment
+}
+
+/** What the engine state adds to the weekly decision; every field is optional. */
+export interface WeeklyContext {
+  /** Defaults to the index computed from the input activities. */
+  efficiency?: AthleteState['efficiency']
+  /** Assessments of the week's sessions; without them, effort comes from RPE and feel. */
+  executions?: ExecutionRecord[]
+  /** REDs screen flags [rules n-4]. */
+  redsFlags?: number
+  /** The first hot days of a season [rules I9]. */
+  heatFirstDays?: boolean
+  /** Drop in sleep efficiency over the week, in percentage points. */
+  sleepEfficiencyDropPp?: number | null
+  /** Weekly ramp; defaults to the soft ramp, and the caller passes a tightened one by profile. */
+  ramp?: number
+}
+
+type Signal = WeeklyDecision['signals'][number]
+
+const RUN_KINDS: ReadonlySet<SessionKind> = new Set([
+  'easy',
+  'recovery',
+  'long',
+  'long-fast-finish',
+  'threshold',
+  'intervals',
+  'race-pace',
+  'strides',
+  'hills',
+  'b2b',
+  'race',
+])
+const POOR_EFFORT_FLAGS: ReadonlySet<ExecutionAssessment['flags'][number]> = new Set([
+  'pain',
+  'focal-bone-pain',
+  'heat',
+  'spike',
+])
+
+interface Observation {
+  date: string
+  kind: SessionKind
+  score: number | null
+  /** The score rests on the runner's own rating (RPE or feel), not on heart rate or pace alone. */
+  subjective: boolean
+  /** Heat, pain or a spike: such a session does not move a boundary [rules C8]. */
+  excluded: boolean
+}
+
+/** Effort score from RPE against the expected range and the feel rating (design 4.2 weights). */
+function feedbackScore(kind: SessionKind, activity: Activity): number | null {
+  const [lo, hi] = P.expectedRpe[kind].value
+  const parts: Array<{ weight: number; units: number }> = []
+  if (activity.rpe !== null) {
+    parts.push({
+      weight: P.effort.weightRpe.value,
+      units: (activity.rpe - (lo + hi) / 2) / P.effort.rpePointsPerUnit.value,
+    })
+  }
+  if (activity.feel !== null)
+    parts.push({ weight: P.effort.weightFeel.value, units: activity.feel })
+  if (parts.length === 0) return null
+  const totalWeight = parts.reduce((sum, p) => sum + p.weight, 0)
+  const weighted = parts.reduce((sum, p) => sum + p.weight * p.units, 0) / totalWeight
+  const size = Math.abs(weighted)
+  if (size < P.effort.neutralHalfWidth.value) return 0
+  return Math.sign(weighted) * (size >= P.effort.strongFrom.value ? 2 : 1)
+}
+
+/** Observations from assessments when given, else from linked sessions and their feedback. */
+function observations(
+  input: EngineInput,
+  executions: ExecutionRecord[] | undefined,
+): Observation[] {
+  if (executions) {
+    return executions.map((e) => ({
+      date: e.date,
+      kind: e.kind,
+      score: e.assessment.effort.score,
+      subjective: hasSubjectivePart(e.assessment.effort.parts),
+      excluded: e.assessment.flags.some((f) => POOR_EFFORT_FLAGS.has(f)),
+    }))
+  }
+  const byId = new Map(input.activities.map((a) => [a.id, a]))
+  const out: Observation[] = []
+  for (const s of input.existing?.sessions ?? []) {
+    const activity = s.activityId ? byId.get(s.activityId) : undefined
+    if (!activity) continue
+    const pain = activity.pain !== null && activity.pain >= P.pain.flagScore.value
+    out.push({
+      date: s.date,
+      kind: s.kind,
+      score: feedbackScore(s.kind, activity),
+      // Built from RPE and feel only.
+      subjective: true,
+      excluded: pain || s.flags.includes('heat'),
+    })
+  }
+  return out
+}
+
+function minutes(sessions: Array<{ durationMin: number }>): number {
+  return sessions.reduce((sum, s) => sum + s.durationMin, 0)
+}
+
+function formatPace(secPerKm: number): string {
+  const total = Math.round(secPerKm)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
+/** Progress, hold or reduce from execution, check-ins, efficiency, sleep and HRV [rules J5, G-6]. */
+export function weeklyDecision(
+  input: EngineInput,
+  weekStart: string,
+  ctx: WeeklyContext = {},
+): WeeklyDecision {
+  const weekEnd = addDays(weekStart, 6)
+  const ramp = ctx.ramp ?? P.g2.rampSoft.value
+  const finished = input.today > weekEnd
+  const asOf = finished ? weekEnd : input.today
+  const actual = aggregateWeeks(input.activities, [weekStart])[0]!.runMin
+
+  // Completion: a week still in progress is judged on the sessions already due, never on the rest.
+  const draft = input.existing?.weeks.find((w) => w.weekStart === weekStart)
+  const weekSessions = (input.existing?.sessions ?? []).filter(
+    (s) => s.date >= weekStart && s.date <= weekEnd && RUN_KINDS.has(s.kind),
+  )
+  const plannedFull =
+    weekSessions.length > 0 ? minutes(weekSessions) : (draft?.targetRunMin ?? null)
+  const plannedDue =
+    weekSessions.length > 0
+      ? minutes(weekSessions.filter((s) => s.date < input.today))
+      : finished
+        ? (draft?.targetRunMin ?? null)
+        : null
+
+  const holds: Signal[] = []
+  const independent: Signal[] = []
+  const direct: Signal[] = []
+
+  if (plannedDue !== null && plannedDue > 0) {
+    const share = actual / plannedDue
+    if (share < P.j5.completionHoldShare.value) {
+      holds.push({
+        code: 'completion-low',
+        detail: `${actual} of ${plannedDue} planned minutes were run (${Math.round(share * 100)}%). Volume holds and the remaining minutes are not added later.`,
+        rules: ['J5', 'G-6'],
+      })
+    }
+  }
+
+  const sleepH = sleepAverageH(input, asOf)
+  if (sleepH !== null && sleepH < P.j5.sleepWarnHours.value) {
+    holds.push({
+      code: 'sleep-warning',
+      detail: `Sleep averaged ${sleepH.toFixed(1)} h over the last ${P.j5.sleepWarnNights.value} nights, under ${P.j5.sleepWarnHours.value} h.`,
+      rules: ['J5'],
+    })
+  }
+  if ((ctx.redsFlags ?? 0) >= P.j5.redsHoldFlags.value) {
+    holds.push({
+      code: 'reds',
+      detail: `${ctx.redsFlags} signs from the energy-availability screen. Progression holds; a clinician can help.`,
+      rules: ['J5', 'n-4'],
+    })
+  }
+  if (ctx.heatFirstDays) {
+    holds.push({
+      code: 'heat',
+      detail: 'The first hot days of the season: volume holds while adapting to heat.',
+      rules: ['J5', 'I9'],
+    })
+  }
+
+  // Subjective decline: poor check-in days, harder-than-expected effort, or the weekly review.
+  let poorDays = 0
+  let hrvDays = 0
+  let illnessDay: string | null = null
+  let worstPain = 0
+  for (let k = 0; k < 7; k++) {
+    const date = addDays(weekStart, k)
+    if (date > asOf) break
+    const checkin = checkinOn(input, date)
+    if (poorSubjective(checkin)) poorDays += 1
+    if (checkin?.illness && illnessDay === null) illnessDay = date
+    if (checkin?.painScore != null) worstPain = Math.max(worstPain, checkin.painScore)
+    if (checkin?.painFocalBone) worstPain = Math.max(worstPain, P.pain.flagScore.value)
+    if (hrvFlaggedOn(input, date)) hrvDays += 1
+  }
+  for (const a of input.activities) {
+    if (a.date >= weekStart && a.date <= weekEnd && a.pain !== null)
+      worstPain = Math.max(worstPain, a.pain)
+  }
+  const weekObs = observations(input, ctx.executions).filter(
+    (o) => o.date >= weekStart && o.date <= weekEnd,
+  )
+  const harder = weekObs.filter((o) => (o.score ?? 0) >= P.j5.harderEffortScore.value).length
+  const weekReview = input.reviews.find((r) => r.weekStart === weekStart)
+  const reviewFatigue =
+    weekReview !== undefined &&
+    ((weekReview.fatigue !== null && weekReview.fatigue >= P.j5.reviewFatigueDecline.value) ||
+      weekReview.symptoms === 'persistent')
+
+  const why: string[] = []
+  if (poorDays >= P.j5.subjectivePoorDays.value)
+    why.push(`${poorDays} days with a lower check-in score`)
+  if (harder >= P.j5.harderEffortSessions.value)
+    why.push(`${harder} sessions felt harder than expected`)
+  if (reviewFatigue) why.push('fatigue or symptoms in the weekly review')
+  if (why.length > 0) {
+    independent.push({
+      code: 'subjective-decline',
+      detail: `${why.join('; ')}.`,
+      rules: ['J2', 'J5'],
+    })
+  }
+
+  const efficiency = ctx.efficiency ?? efficiencyIndex(input.activities)
+  if (efficiency.trendPct !== null && efficiency.trendPct <= -P.j5.efficiencyDeclinePct.value) {
+    independent.push({
+      code: 'efficiency-decline',
+      detail: `Pace at a given heart rate has slipped ${Math.abs(efficiency.trendPct).toFixed(1)}%.`,
+      rules: ['A8', 'J5'],
+    })
+  }
+  if (
+    ctx.sleepEfficiencyDropPp != null &&
+    ctx.sleepEfficiencyDropPp >= P.j5.sleepEfficiencyDropPp.value
+  ) {
+    independent.push({
+      code: 'sleep-efficiency-drop',
+      detail: `Sleep efficiency dropped about ${ctx.sleepEfficiencyDropPp.toFixed(1)} percentage points.`,
+      rules: ['J5'],
+    })
+  }
+
+  if (illnessDay !== null) {
+    direct.push({
+      code: 'illness',
+      detail: `Illness was reported on ${illnessDay}. A lighter week follows.`,
+      rules: ['n-3', 'J5'],
+    })
+  }
+  if (worstPain >= P.pain.flagScore.value) {
+    direct.push({
+      code: 'pain',
+      detail: `Pain of ${worstPain} out of 10 was reported. A lighter week follows; see a clinician if it persists.`,
+      rules: ['n-2', 'J5'],
+    })
+  }
+  if (worstPain > 0 && worstPain < P.pain.flagScore.value) {
+    holds.push({
+      code: 'pain-mild',
+      detail: `Pain of ${worstPain} out of 10 was reported. Volume holds until it settles.`,
+      rules: ['J5'],
+    })
+  }
+
+  // HRV and resting HR only corroborate [J2, J4]: a readiness state counts toward the weekly
+  // decision only when the check-ins also show a poor subjective score.
+  const snapshot = readinessSnapshot(input, asOf)
+  const recentPoor = Array.from({ length: P.j3.persistenceDays.value }, (_, k) =>
+    poorSubjective(checkinOn(input, addDays(asOf, -k))),
+  ).some(Boolean)
+  if (snapshot.state === 'persistent-suppression' && poorDays > 0) {
+    direct.push({
+      code: 'persistent-suppression',
+      detail: `Readiness has stayed lower than usual for ${P.j8.deloadSuggestDays.value} days or more with no clear cause. A lighter week is suggested.`,
+      rules: ['J8'],
+    })
+  } else if (snapshot.state !== 'normal' && recentPoor) {
+    holds.push({
+      code: 'readiness-flag',
+      detail: 'A readiness flag is still active at the end of the week. Volume holds.',
+      rules: ['J3', 'J5'],
+    })
+  }
+
+  // HRV only corroborates a subjective decline; alone it never changes the decision [J4].
+  const corroboration: Signal[] =
+    independent.some((s) => s.code === 'subjective-decline') && hrvDays >= 2
+      ? [
+          {
+            code: 'hrv-suppressed',
+            detail: `HRV was lower than usual on ${hrvDays} days; it supports the check-in picture but does not decide.`,
+            rules: ['J4'],
+          },
+        ]
+      : []
+
+  const reduce = direct.length > 0 || independent.length >= P.j5.reduceSignals.value
+  const hold = holds.length > 0 || independent.length > 0
+  const decision: WeeklyDecision['decision'] = reduce ? 'reduce' : hold ? 'hold' : 'progress'
+
+  // G-6: the target never exceeds last week's actual x (1 + ramp); missed minutes are not repeated.
+  const plannedThis = plannedFull ?? actual
+  const nextPlanned =
+    input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))?.targetRunMin ??
+    Math.round(plannedThis * (1 + ramp))
+  let nextWeekTargetMin: number
+  // Whole minutes, rounded down so the number never passes the cap.
+  const whole = (minutes: number) => Math.floor(minutes + 1e-9)
+  if (decision === 'progress') nextWeekTargetMin = whole(nextWeekCap(nextPlanned, actual, ramp))
+  else if (decision === 'hold') nextWeekTargetMin = whole(nextWeekCap(plannedThis, actual, ramp))
+  else {
+    nextWeekTargetMin = Math.round(
+      nextWeekCap(plannedThis, actual, ramp) * (1 - P.e3.recoveryWeekCutPct.value / 100),
+    )
+  }
+  return {
+    decision,
+    signals: [...holds, ...independent, ...direct, ...corroboration],
+    nextWeekTargetMin,
+  }
+}
+
+/**
+ * Proposed zone updates after three concordant observations [rules C8, design 4.3]. Pass the
+ * execution assessments when available; without them, effort comes from RPE and the feel
+ * rating. Only sessions the runner rated count (heart rate or pace alone is a guess), and, per
+ * boundary, only sessions after the last accepted change of it (`input.zoneChanges`), so one run of
+ * observations never moves a boundary twice. A proposal never applies itself: the owner confirms it
+ * on the review page.
+ */
+export function zoneProposals(input: EngineInput, executions?: ExecutionRecord[]): ZoneProposal[] {
+  const from = input.profile.thresholdPaceSecPerKm
+  if (from === null) return []
+  const windowStart = addDays(input.today, -P.zoneProposal.windowDays.value)
+  const needed = P.c8.minObservations.value
+  const changedOn = input.zoneChanges?.thresholdPace ?? null
+  const recent = observations(input, executions)
+    .filter(
+      (o) =>
+        (o.kind === 'threshold' || o.kind === 'intervals') &&
+        o.date >= windowStart &&
+        o.date <= input.today &&
+        (changedOn === null || o.date > changedOn) &&
+        !o.excluded &&
+        o.subjective &&
+        o.score !== null,
+    )
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    .slice(-needed)
+  if (recent.length < needed) return []
+  const directions = recent.map((o) => Math.sign(o.score!))
+  const first = directions[0]!
+  if (first === 0 || directions.some((d) => d !== first)) return []
+
+  const stepPct = P.zoneProposal.paceStepPct.value
+  const to = Math.round(from * (1 + (first < 0 ? -stepPct : stepPct) / 100))
+  const felt = first < 0 ? 'easier' : 'harder'
+  return [
+    {
+      boundary: 'thresholdPace',
+      from,
+      to,
+      observations: recent.length,
+      reason: `The last ${recent.length} threshold and interval sessions felt ${felt} than expected. Moving the threshold pace from ${formatPace(from)} to ${formatPace(to)} per km would match them; confirm or decline.`,
+      rules: ['C8', 'design-4.3'],
+    },
+  ]
+}
+
+/** Restart volume after a break of 7 days or more [rules J7]. */
+export function breakRestart(
+  layoffDays: number,
+  preBreakWeekMin: number,
+  consistentMonthsBefore?: number,
+): { restartMin: number; fraction: number; runWalk: boolean } {
+  let fraction: number
+  if (layoffDays < P.j7.tier1Days.value) fraction = P.j7.restartUnder7.value
+  else if (layoffDays <= P.j7.tier2Days.value) fraction = P.j7.restart7to14.value
+  else if (layoffDays <= P.j7.tier3Days.value) fraction = P.j7.restart15to28.value
+  else fraction = P.j7.restartOver28.value
+  // Run-walk needs a known short running history; with none given the usual restart applies.
+  const runWalk =
+    layoffDays > P.j7.tier3Days.value &&
+    consistentMonthsBefore !== undefined &&
+    consistentMonthsBefore < P.j7.runWalkIfConsistentUnderMonths.value
+  return { restartMin: Math.round(preBreakWeekMin * fraction), fraction, runWalk }
+}
+
+/**
+ * True when the next quality session is trimmed: the latest quality session scored +2, or the
+ * latest consecutive ones scored +1 each [design 4.3]. `scores` runs oldest first and holds only
+ * sessions without pain; `trimsThisWeek` enforces the weekly maximum.
+ */
+export function shouldTrimQuality(scores: number[], trimsThisWeek = 0): boolean {
+  if (trimsThisWeek >= P.trim.maxPerWeek.value) return false
+  const last = scores[scores.length - 1]
+  if (last === undefined) return false
+  if (last >= P.trim.triggerScore.value) return true
+  const n = P.trim.repeatedCount.value
+  return scores.length >= n && scores.slice(-n).every((s) => s >= P.trim.repeatedScore.value)
+}
+
+/** Fewer reps or a shorter session after a harder-than-expected quality session [design 4.3]. */
+export function trimQuality(session: SessionSpec, reason: string): SessionSpec {
+  if (!isQualityKind(session.kind)) return session
+  const f = P.trim.volumeFactor.value
+  let removedSec = 0
+  const structure = session.structure.map((step) => {
+    if (step.kind !== 'work' && step.kind !== 'recover') return { ...step }
+    if (step.reps > 1) {
+      const reps = Math.max(1, Math.floor(step.reps * f))
+      const lost = step.reps - reps
+      if (step.durationSec !== null) removedSec += lost * step.durationSec
+      else if (step.distanceM !== null && session.distanceM) {
+        removedSec += (lost * step.distanceM * session.durationMin * 60) / session.distanceM
+      }
+      return { ...step, reps }
+    }
+    if (step.kind === 'recover') return { ...step }
+    const durationSec = step.durationSec === null ? null : Math.round(step.durationSec * f)
+    const distanceM = step.distanceM === null ? null : Math.round(step.distanceM * f)
+    if (step.durationSec !== null && durationSec !== null)
+      removedSec += step.durationSec - durationSec
+    return { ...step, durationSec, distanceM }
+  })
+  const changed = structure.some(
+    (s, i) =>
+      s.reps !== session.structure[i]!.reps || s.durationSec !== session.structure[i]!.durationSec,
+  )
+  const durationMin = changed
+    ? Math.max(1, Math.round(session.durationMin - removedSec / 60))
+    : Math.max(1, Math.round(session.durationMin * f))
+  const ratio = durationMin / session.durationMin
+  return {
+    ...session,
+    structure,
+    durationMin,
+    distanceM: session.distanceM === null ? null : Math.round(session.distanceM * ratio),
+    gainM: session.gainM === null ? null : Math.round(session.gainM * ratio),
+    purpose: `${session.purpose} Trimmed: ${reason}`,
+    rules: session.rules.includes('design-4.3') ? session.rules : [...session.rules, 'design-4.3'],
+  }
+}

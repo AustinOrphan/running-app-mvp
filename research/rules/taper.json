@@ -1,0 +1,222 @@
+[
+  {
+    "id": "taper-duration-default",
+    "statement": "Default taper duration is 14 days for races from 10 km to half-marathon; the allowed window is 7-21 days.",
+    "parameter": "taper_duration_days",
+    "value": "14 (window 7-21)",
+    "unit": "days",
+    "appliesTo": "Recreational and competitive runners, 10 km to half-marathon",
+    "grade": "A",
+    "confidence": "high",
+    "evidence": [
+      "bosquet-2007-taper-meta-analysis",
+      "wang-2023-taper-endurance-sr-ma",
+      "spilsbury-2015-elite-runner-taper-survey"
+    ]
+  },
+  {
+    "id": "taper-duration-marathon",
+    "statement": "For a marathon, use a 21-day (3-week) taper with strictly decreasing weekly volume; use 14 days only for low-volume or short-build plans. Never exceed 21 days.",
+    "parameter": "taper_duration_days_marathon",
+    "value": "21 (min 14, max 21)",
+    "unit": "days",
+    "appliesTo": "Recreational marathon runners",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "smyth-2021-marathon-taper-big-data",
+      "bosquet-2007-taper-meta-analysis",
+      "aubry-2014-overreaching-before-taper"
+    ]
+  },
+  {
+    "id": "taper-duration-short-race",
+    "statement": "For 5-10 km races use a shorter taper of 7-10 days; very short tapers are a freshness measure, not a guaranteed gain.",
+    "parameter": "taper_duration_days_short",
+    "value": "7-10",
+    "unit": "days",
+    "appliesTo": "Runners racing 5-10 km",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "wang-2023-taper-endurance-sr-ma",
+      "houmard-1994-taper-distance-runners",
+      "spilsbury-2015-elite-runner-taper-survey",
+      "mujika-2000-taper-volume-null-result"
+    ]
+  },
+  {
+    "id": "taper-volume-reduction-band",
+    "statement": "Average weekly volume across the taper should be 41-60% below the pre-taper reference week (multiplier 0.40-0.59).",
+    "parameter": "mean_taper_volume_multiplier",
+    "value": "0.40-0.59 of pre-taper weekly volume",
+    "unit": "ratio",
+    "appliesTo": "All runners 5 km to marathon",
+    "grade": "A",
+    "confidence": "high",
+    "evidence": [
+      "bosquet-2007-taper-meta-analysis",
+      "wang-2023-taper-endurance-sr-ma",
+      "spilsbury-2015-elite-runner-taper-survey"
+    ]
+  },
+  {
+    "id": "taper-weekly-schedule",
+    "statement": "Default weekly multipliers: 3-week taper 0.75, 0.55, 0.35 (race week, excluding the race); 2-week taper 0.65, 0.40. These keep the mean in the 41-60% band. The exact split is an engine design choice, not a published value.",
+    "parameter": "weekly_volume_multipliers",
+    "value": "3wk: 0.75/0.55/0.35; 2wk: 0.65/0.40",
+    "unit": "ratio",
+    "appliesTo": "Marathon (3wk) and shorter races (2wk)",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "bosquet-2007-taper-meta-analysis",
+      "smyth-2021-marathon-taper-big-data",
+      "spilsbury-2015-elite-runner-taper-survey"
+    ]
+  },
+  {
+    "id": "taper-progressive-monotonic",
+    "statement": "Taper weekly volume must decrease monotonically week to week; reject plans with flat or rising taper weeks. Step tapers are an allowed fallback only for 7-10 day tapers.",
+    "parameter": "weekly_volume_monotonic_decrease",
+    "value": "true",
+    "unit": null,
+    "appliesTo": "All taper plans; validation rule",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "smyth-2021-marathon-taper-big-data",
+      "mujika-2003-taper-scientific-bases",
+      "thomas-2005-taper-model-simulation",
+      "wang-2023-taper-endurance-sr-ma"
+    ]
+  },
+  {
+    "id": "taper-intensity-maintained",
+    "statement": "Keep pace of quality sessions equal to pre-taper levels; reduce reps and warm-up/cool-down volume instead. Keep at least one quality session per taper week (one per week is an engine choice).",
+    "parameter": "taper_quality_sessions_per_week",
+    "value": ">=1 at pre-taper pace",
+    "unit": "sessions per week",
+    "appliesTo": "All runners with quality work before the taper",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "bosquet-2007-taper-meta-analysis",
+      "mujika-2010-intense-training-taper",
+      "spilsbury-2015-elite-runner-taper-survey"
+    ]
+  },
+  {
+    "id": "taper-frequency-floor",
+    "statement": "Do not reduce weekly run-day count by more than 20% of the pre-taper count; shorten runs rather than skipping them.",
+    "parameter": "max_frequency_reduction",
+    "value": "20",
+    "unit": "percent",
+    "appliesTo": "All runners",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "bosquet-2007-taper-meta-analysis",
+      "mujika-2003-taper-scientific-bases",
+      "mujika-2002-taper-frequency-middle-distance"
+    ]
+  },
+  {
+    "id": "taper-scale-with-pretaper-load",
+    "statement": "Scale taper depth and length with preceding load: heavier pre-taper weeks get longer and deeper tapers up to the 21-day cap; lighter builds get the lower end of the band. Allow user override.",
+    "parameter": "taper_scaling_with_peak_volume",
+    "value": "direction only; no fixed slope",
+    "unit": null,
+    "appliesTo": "All runners",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "spilsbury-2015-elite-runner-taper-survey",
+      "thomas-2005-taper-model-simulation",
+      "pyne-2009-peaking-limitations"
+    ]
+  },
+  {
+    "id": "taper-ultra-default",
+    "statement": "No ultra-specific taper trials exist. Conservative default: 50 km to 100 km, 14 days; 100 miles, 14-21 days, with the same 41-60% mean volume reduction, quality shortened but kept, and the final long run before the taper. Mark as extrapolated and overridable.",
+    "parameter": "taper_duration_days_ultra",
+    "value": "14 (50-100 km); 14-21 (100 mi)",
+    "unit": "days",
+    "appliesTo": "Ultramarathon runners, 50 km to 100+ miles",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "bosquet-2007-taper-meta-analysis",
+      "smyth-2021-marathon-taper-big-data",
+      "spilsbury-2015-elite-runner-taper-survey",
+      "pyne-2009-peaking-limitations"
+    ]
+  },
+  {
+    "id": "taper-overreaching-guard",
+    "statement": "Do not schedule a large overload block directly before the taper. If wearable or subjective data show functional overreaching at taper start (performance down with high perceived fatigue), do not add load, apply the deeper end of the volume band and flag elevated illness risk. Do not extend the taper beyond the cap on this basis.",
+    "parameter": "overreaching_guard",
+    "value": "deeper end of volume band; no overload block immediately pre-taper",
+    "unit": null,
+    "appliesTo": "Runners with a heavy pre-taper block and monitoring data",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "aubry-2014-overreaching-before-taper",
+      "wang-2023-taper-endurance-sr-ma",
+      "thomas-2005-taper-model-simulation"
+    ]
+  },
+  {
+    "id": "taper-health-check",
+    "statement": "During the taper, prompt a check-in on illness, niggles, sleep and concern; if the runner reports a concern, suggest rest or a lighter week rather than holding the schedule.",
+    "parameter": "taper_health_checkin",
+    "value": "weekly",
+    "unit": "per week",
+    "appliesTo": "All runners in the taper",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "timpka-2020-health-complaints-heat-taper",
+      "aubry-2014-overreaching-before-taper",
+      "mujika-2004-taper-physiology"
+    ]
+  },
+  {
+    "id": "taper-hrv-caution",
+    "statement": "Do not use a fall in post-exercise or single-day HRV during the taper as a standalone alert or a performance predictor; require corroboration (rising resting HR, symptoms or poor sleep) before alerting.",
+    "parameter": "hrv_alert_policy",
+    "value": "corroboration required",
+    "unit": null,
+    "appliesTo": "Runners using wearable HR or HRV during the taper",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["hug-2014-taper-marathon-hrv", "mujika-2004-taper-physiology"]
+  },
+  {
+    "id": "prerace-carb-final-24-48h",
+    "statement": "For races of about 90 minutes or longer, show high-carbohydrate guidance for the last 24-48 hours with little running; default target 8-10 g per kg per day. Evidence is glycogen, not race time; no multi-day depletion phase.",
+    "parameter": "carb_intake_final_24_48h",
+    "value": "8-10",
+    "unit": "g per kg body mass per day",
+    "appliesTo": "Marathon and ultra runners",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["bussau-2002-carb-loading-one-day", "mujika-2004-taper-physiology"]
+  },
+  {
+    "id": "taper-expectation-messaging",
+    "statement": "Describe the taper's likely benefit as roughly 0.5-3%, phrased as a sketch with uncertainty; never promise a time. Marathon strict 3-week taper association: median 2.6% (5 min 32 s) versus a minimal taper.",
+    "parameter": "expected_taper_benefit",
+    "value": "0.5-3",
+    "unit": "percent",
+    "appliesTo": "All runners; user-facing copy",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "mujika-2003-taper-scientific-bases",
+      "smyth-2021-marathon-taper-big-data",
+      "pyne-2009-peaking-limitations"
+    ]
+  }
+]

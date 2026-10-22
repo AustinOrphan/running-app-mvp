@@ -1,0 +1,35 @@
+{
+  "id": "lauersen-2014-exercise-injury-prevention",
+  "title": "The effectiveness of exercise interventions to prevent sports injuries: a systematic review and meta-analysis of randomised controlled trials",
+  "authors": "Lauersen JB, Bertelsen DM, Andersen LB",
+  "year": 2014,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2013-092538",
+  "pmid": "24100287",
+  "url": "https://doi.org/10.1136/bjsports-2013-092538",
+  "design": "meta-analysis",
+  "population": "Participants in 25 randomised controlled trials of exercise-based sports injury prevention; 26,610 participants with 3,464 injuries",
+  "sampleSize": 26610,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "25 trials with 26,610 participants and 3,464 injuries were analysed; the overall effect estimate was heterogeneous and 12 studies were adjusted for clustering.",
+    "Strength training RR 0.315 (0.207-0.480); proprioception training RR 0.550 (0.347-0.869); multiple-exposure programs RR 0.655 (0.520-0.826).",
+    "Stretching showed no benefit (RR 0.963, 0.846-1.095).",
+    "Acute injuries RR 0.647 (0.502-0.836) and overuse injuries RR 0.527 (0.373-0.746) were reduced; authors state strength training reduced sports injuries to less than one third and overuse injuries could be almost halved."
+  ],
+  "limitations": "General sports population, not running-specific; heterogeneous overall effect; the strength-training stratum is a subgroup with a very large point estimate that is likely overstated; the single large running RCT in this corpus (Toresdahl 2020) found no effect.",
+  "implications": [
+    "Include strength work in every plan, but do not quote RR 0.315 as a running-specific injury guarantee.",
+    "Do not prescribe static stretching as an injury-prevention measure.",
+    "Treat the overuse benefit (RR about 0.53) as supportive only and rely on load-progression rules as the primary injury control."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref year 2013 (online-first), Europe PMC 2014. Removed the researcher's unsupported 'mostly team and ball sports' descriptor, which is not in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

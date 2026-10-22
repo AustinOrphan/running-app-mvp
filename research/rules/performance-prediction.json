@@ -1,0 +1,181 @@
+[
+  {
+    "id": "prediction-riegel-scope",
+    "statement": "Use the Riegel power law with its conventional exponent of 1.06 only to predict targets up to the half marathon. For marathon targets, never output the raw single-race Riegel time as the central estimate; treat it as an optimistic bound and shade it slower. Evidence shows Riegel gave marathon times at least 10 min too fast for half of runners; it does not give a correction size.",
+    "parameter": "riegel_exponent_max_target_distance",
+    "value": "21.1",
+    "unit": "km (target distance limit for single-race Riegel)",
+    "appliesTo": "Recreational runners predicting from one prior race",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["vickers-2016-race-times", "blythe-2016-individual-prediction"]
+  },
+  {
+    "id": "prediction-marathon-correction-default",
+    "statement": "No evidence-based exponent for extending short-race results to the marathon was retrieved. Conservative default: when the only anchor is a race of 21.1 km or shorter, add a documented placeholder slowdown to the marathon estimate and widen the interval; replace it with per-athlete fitting as soon as two or more races exist. The placeholder value is an engineering assumption, not a finding.",
+    "parameter": "single_anchor_marathon_slowdown",
+    "value": "3",
+    "unit": "% added to Riegel marathon time (placeholder, to be calibrated by back-testing)",
+    "appliesTo": "Marathon prediction from a single race of 21.1 km or shorter",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["vickers-2016-race-times", "oficial-casado-2026-valencia-vdot"]
+  },
+  {
+    "id": "prediction-multi-anchor-preferred",
+    "statement": "When two or more race results at different distances are available, fit a per-athlete model (runner-specific exponent / endurance index) instead of a fixed exponent. Marathon MSE fell from 381 (Riegel) to 228 (one race) and 208 (two races) in a recreational sample, and per-runner exponents fit better in a 165k-runner database.",
+    "parameter": "min_anchor_races_for_personal_exponent",
+    "value": "2",
+    "unit": "races at different distances",
+    "appliesTo": "All runners with logged race or time-trial results",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "vickers-2016-race-times",
+      "blythe-2016-individual-prediction",
+      "emig-2020-big-data",
+      "peronnet-1989-running-model"
+    ]
+  },
+  {
+    "id": "prediction-covariates",
+    "statement": "Include sex, age, BMI, typical weekly mileage and a tempo/interval share as covariates when predicting from limited race data; weight tempo work more for races up to the half marathon. Include sex in half-to-marathon regressions. Age category and in-race pace range were not shown to help in the Valencia regression (pace range explicitly did not).",
+    "parameter": "model_covariates",
+    "value": "sex, age, BMI, weekly_distance, tempo_share",
+    "unit": null,
+    "appliesTo": "Recreational runners, marathon and shorter",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["vickers-2016-race-times", "oficial-casado-2026-valencia-vdot"]
+  },
+  {
+    "id": "prediction-marathon-min-interval",
+    "statement": "Display marathon predictions made from a non-marathon anchor as a range whose half-width is at least the reported mean absolute error of about 6% of predicted time, widening it for a single anchor, old data, or non-road or hot conditions. Reported errors: 5.9% (half-to-marathon regression), 7.7-8.0% (CS from logs), 5.2-6.5% (CS plus durability).",
+    "parameter": "marathon_interval_half_width_min",
+    "value": "6",
+    "unit": "% of predicted finish time",
+    "appliesTo": "Marathon predictions for recreational runners",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "oficial-casado-2026-valencia-vdot",
+      "smyth-2020-cs-training-data",
+      "smyth-2022-durability-decoupling"
+    ]
+  },
+  {
+    "id": "prediction-cs-estimation",
+    "statement": "Estimate critical speed from the athlete's fastest grade-adjusted efforts over about 400 m, 800 m and 5 km (distance-time slope) and use it as a pacing anchor. Do not present it as a race-time predictor with sub-8% accuracy. Training-log efforts may not be maximal, so require recent efforts and report low confidence when none are near-maximal.",
+    "parameter": "cs_target_distances",
+    "value": "400, 800, 5000",
+    "unit": "m (fastest grade-adjusted efforts, minimum 3 distances)",
+    "appliesTo": "Recreational runners with GPS training logs",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["smyth-2020-cs-training-data"]
+  },
+  {
+    "id": "prediction-marathon-fraction-cs-prior",
+    "statement": "Use the observed marathon intensity as a fraction of CS as a descriptive prior for target pace by ability: about 93% CS at 150 min, falling to about 79% CS at 360 min (linear interpolation between). These are what runners did, not proven optima; overridden by individual durability data when available. High-decoupling athletes (index >= 1.2) ran about 82% CS and low-decoupling (< 1.1) about 88% CS.",
+    "parameter": "marathon_fraction_of_cs",
+    "value": "0.93 at 150 min to 0.79 at 360 min; 0.88 low-decoupling, 0.82 high-decoupling",
+    "unit": "fraction of CS",
+    "appliesTo": "Recreational marathon runners",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidenceLevel": "C",
+    "evidence": ["smyth-2020-cs-training-data", "smyth-2022-durability-decoupling"]
+  },
+  {
+    "id": "prediction-first-half-cs-cap",
+    "statement": "Warn when the planned first-half marathon pace exceeds about 94% of CS (and strongly when faster than CS): this was associated with higher likelihood of a >25% second-half slowdown. Also cap the opening kilometres of the race plan; no numeric start-pace cap is supported by evidence.",
+    "parameter": "first_half_cs_warning_threshold",
+    "value": "94",
+    "unit": "% of CS",
+    "appliesTo": "Marathon race-day pacing plans for recreational runners",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["smyth-2020-cs-training-data", "smyth-2018-pacing-start-end"]
+  },
+  {
+    "id": "prediction-durability-index",
+    "statement": "Compute and store a decoupling (durability) index from long runs: (%HRmax / %CS) in the late segment divided by the same in the early segment. Classify <1.1 low, 1.1 to <1.2 moderate, >=1.2 high, and use it to shade marathon and ultra predictions. That long-run decoupling matches race decoupling is untested, so flag the proxy and back-test it per athlete; heat and hydration inflate HR-based decoupling.",
+    "parameter": "decoupling_class_thresholds",
+    "value": "low <1.1; moderate 1.1-1.2; high >=1.2",
+    "unit": "ratio (late segment over early segment)",
+    "appliesTo": "Marathon and longer; athletes with HR and pace on long runs",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["smyth-2022-durability-decoupling", "maunder-2021-durability"]
+  },
+  {
+    "id": "prediction-model-by-data-available",
+    "statement": "Choose the fitting model by the efforts available: CP models only with efforts spread over about 3-30 min; power law with efforts around 1, 3, 10 min; Peronnet with about 4-20 min. Refuse a CP fit from very short efforts only. Validated extrapolation reached 60 min only; for marathon or ultra durations add a durability term and widen the interval.",
+    "parameter": "cp_min_effort_span",
+    "value": "3 to 30",
+    "unit": "min (shortest to longest effort for CP fitting); validated extrapolation limit 60 min",
+    "appliesTo": "Athletes with power or pace-duration data",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["ruizalias-2023-long-duration-power", "peronnet-1989-running-model"]
+  },
+  {
+    "id": "prediction-heat-wbgt-penalty",
+    "statement": "Apply a weather adjustment for marathon-range road races: about 0.9 percentage points of slowdown per 5 C WBGT for top male runners within 5-25 C WBGT (1.7% at 5-10 C to 4.5% at 20-25 C versus course record). Slower runners slowed more but no multiplier was published; as a documented placeholder, use a multiplier of 1.5 for predicted finish over 4 h. Do not extrapolate outside 5-25 C WBGT.",
+    "parameter": "wbgt_slowdown_per_5c",
+    "value": "0.9 (elite men, derived); placeholder multiplier 1.5 for >4 h finishers",
+    "unit": "percentage points of finish time per 5 C WBGT",
+    "appliesTo": "Marathon road races, 5-25 C WBGT",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["ely-2007-weather-marathon"]
+  },
+  {
+    "id": "prediction-ultra-heat-fraction",
+    "statement": "For 100-mile or 161 km predictions, scale a heat penalty by the fraction of race time expected in hot hours rather than using a flat pace: the hot year averaged about 8% slower pace over 161 km in one race, with <22 h finishers slower on 12 of 14 segments versus 6 of 14 for >24 h finishers, and pace converging at night. Treat 8% as an upper-end example from one race, not a general constant.",
+    "parameter": "ultra_hot_year_pace_penalty_example",
+    "value": "8",
+    "unit": "% slower average pace in a hot versus cool year (161 km, one race, n = 50)",
+    "appliesTo": "Trail ultramarathons of about 100 miles; strongest for fast finishers",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["parise-2011-161km-pacing-heat"]
+  },
+  {
+    "id": "prediction-ultra-anchor",
+    "statement": "Predict road and trail ultra finish times from the marathon personal best (r = 0.72 with 100 km time; r = -0.58 with 24 h distance) plus weekly kilometres, habitual training pace and longest long run, with a wide interval and per-athlete back-testing. No validated exponent or coefficients for ultra extrapolation exist in this corpus; do not hard-code the 24 h regression equation or the LSTM model.",
+    "parameter": "ultra_primary_anchor",
+    "value": "marathon personal best",
+    "unit": null,
+    "appliesTo": "Ultramarathon (50 km to 100 mi); male road samples only in the evidence",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "knechtle-2011-100km-predictors",
+      "knechtle-2011-24h-ultra",
+      "dash-2024-generalized-prediction"
+    ]
+  },
+  {
+    "id": "prediction-trail-gradient-adjust",
+    "statement": "For hilly or trail courses, convert the elevation profile to flat-equivalent effort with the Minetti cost-versus-gradient curve (cost ratio to level: about 5.6 at +45%, 0.51 at -20%, 1.15 at -45%) but cap the downhill benefit at the -20% minimum and treat the result as an upper bound on speed, since observed downhill race speeds are far below the theoretical maximum and the curve is fresh-state. Add a fatigue term for late-race slowing; its size is not established (default 0, flagged).",
+    "parameter": "gradient_cost_ratio_downhill_floor",
+    "value": "0.51",
+    "unit": "cost ratio to level at -20% gradient (minimum credit)",
+    "appliesTo": "Trail and hilly road courses; fresh-state estimate only",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["minetti-2002-gradient-cost", "ehrstrom-2018-short-trail"]
+  },
+  {
+    "id": "prediction-trail-confidence-default",
+    "statement": "Do not transfer a road VDOT or CS directly to trail targets. Label trail predictions lower-confidence and widen the interval with elevation gain per km. No evidence gives the multiplier; default placeholder is a road interval widened by 50%, to be calibrated by back-testing against logged trail races.",
+    "parameter": "trail_interval_widening",
+    "value": "50",
+    "unit": "% wider than the road interval (placeholder)",
+    "appliesTo": "Trail races; any course with substantial elevation gain",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["ehrstrom-2018-short-trail", "dash-2024-generalized-prediction"]
+  }
+]

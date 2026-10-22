@@ -1,0 +1,39 @@
+{
+  "id": "zanini-2025-strength-economy-durability-rct",
+  "title": "Strength Training Improves Running Economy Durability and Fatigued High-Intensity Performance in Well-Trained Male Runners: A Randomized Control Trial",
+  "authors": "Zanini M, Folland JP, Wu H, Blagrove RC",
+  "year": 2025,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000003685",
+  "pmid": "40016936",
+  "url": "https://doi.org/10.1249/mss.0000000000003685",
+  "design": "rct",
+  "population": "Well-trained male runners (VO2max 58.6 mL/kg/min, 10 km 39:02), performance-matched and randomised to running-only control or running plus strength",
+  "sampleSize": 28,
+  "evidenceLevel": "B",
+  "topics": ["durability-drift", "strength-plyometrics"],
+  "findings": [
+    "Maximal strength plus plyometric training twice weekly for 10 weeks versus habitual running only (n=14 per group).",
+    "RE (oxygen cost) during a 90-min run in the heavy-intensity domain (13.1 +/- 1.4 km/h, 79.7% VO2max) changed -2.1% with strength vs +0.6% in control at 90 min (P=0.04); group-by-time interaction P=0.003.",
+    "Time to exhaustion at 95% pre-test VO2max, run straight after the 90-min run, changed +35% with strength vs -8% in control (P=0.004).",
+    "A supplementary 10-week program of maximal strength and plyometric training twice weekly was compared with habitual running only.",
+    "During a 90-minute run in the heavy-intensity domain (13.1 km/h, 79.7% VO2max), running economy at 90 min changed by -2.1% in the strength group versus +0.6% in controls (P = 0.04; group-by-time interaction P = 0.003).",
+    "Time to exhaustion at 95% of pre-test VO2max immediately after the run changed by +35% in the strength group and -8% in controls (interaction P = 0.004).",
+    "Authors conclude that adding maximal strength and plyometrics improved running-economy durability and late-run high-intensity capacity."
+  ],
+  "limitations": "Single-sex, small RCT of well-trained runners; one 10-week intervention; durability measured in a 90-min laboratory run, not a race.",
+  "implications": [
+    "For well-trained runners, schedule two strength sessions per week (maximal strength plus plyometrics) in a block of at least 10 weeks ahead of long-race builds.",
+    "Do not generalise to the whole population without caution: female and novice runners were not studied.",
+    "Prescribe 2 sessions per week of maximal strength plus plyometrics for about 10 weeks; this is the best-supported recent prescription for late-run economy, which matters for marathon and ultra.",
+    "Track late-run durability (pace fade, heart rate drift) as an outcome when strength is present, noting that the trial measured oxygen cost and not drift."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref (online 2025-02-28, print 2025 Jul) and PubMed match; numbers match abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

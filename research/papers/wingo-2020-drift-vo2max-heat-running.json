@@ -1,0 +1,33 @@
+{
+  "id": "wingo-2020-drift-vo2max-heat-running",
+  "title": "Cardiovascular Drift and Maximal Oxygen Uptake during Running and Cycling in the Heat",
+  "authors": "Wingo JE, Stone T, Ng J",
+  "year": 2020,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000002324",
+  "pmid": "32102057",
+  "url": "https://doi.org/10.1249/mss.0000000000002324",
+  "design": "experimental-crossover",
+  "population": "Seven active men (age 25 +/- 6 y) exercising at 60% VO2max in 35 C for 15 or 45 min of running or cycling, then a graded test",
+  "sampleSize": 7,
+  "evidenceLevel": "C",
+  "topics": ["durability-drift"],
+  "findings": [
+    "Between 15 and 45 min, heart rate rose 19% (running) and 17% (cycling) and stroke volume fell 20% and 15%; modes did not differ (all P>0.05).",
+    "Decrements in VO2peak did not differ between modes (95% CI for difference in change scores -0.2 to 0.3) despite a 1.8 C larger core-to-skin gradient in running.",
+    "Authors conclude CV strain indexed as drift corresponds to reduced VO2max irrespective of mode or thermal gradient, so upward HR drift reflects increased relative metabolic intensity (%VO2max)."
+  ],
+  "limitations": "Seven men only; 30 min of drift window (15 to 45 min); the abstract reports no hydration manipulation and no absolute VO2max loss; running drift at temperate temperature not compared.",
+  "implications": [
+    "In the heat, rising HR at fixed pace means rising relative intensity because capacity is falling; do not treat it only as measurement noise. For hot long runs steer by pace, RPE and temperature-adjusted effort rather than holding a fixed HR zone.",
+    "Tag runs with ambient temperature; do not compare drift between hot and temperate runs without a temperature adjustment (the magnitude of the adjustment is not justified by this paper)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed match (Med Sci Sports Exerc 2020 Sep;52(9):1924-1932). Removed the researcher's unverifiable 'no hydration manipulation' claim from the findings/limitations and recorded that the abstract does not report one.",
+    "checkedAt": "2026-10-22"
+  }
+}

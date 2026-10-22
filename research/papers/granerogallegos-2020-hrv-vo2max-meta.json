@@ -1,0 +1,35 @@
+{
+  "id": "granerogallegos-2020-hrv-vo2max-meta",
+  "title": "HRV-Based Training for Improving VO2max in Endurance Athletes. A Systematic Review with Meta-Analysis",
+  "authors": "Granero-Gallegos A, González-Quílez A, Plews D, Carrasco-Poyatos M",
+  "year": 2020,
+  "journal": "International Journal of Environmental Research and Public Health",
+  "doi": "10.3390/ijerph17217999",
+  "pmid": "33143175",
+  "url": "https://doi.org/10.3390/ijerph17217999",
+  "design": "meta-analysis",
+  "population": "Trained endurance athletes in RCTs of HRV-guided vs control training with a VO2max outcome",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "Only randomised controlled trials in trained athletes with a VO2max outcome were included; random-effects meta-analysis with moderator analyses (athlete level and sex) and meta-regression by group size.",
+    "Both HRV-guided and control training improved VO2max (p < 0.0001), but the effect size for HRV-guided training was significantly higher (p < 0.0001; ES HRVG-CG = 0.187).",
+    "The amateur-level and female subgroups showed better and significant VO2max results (p < 0.0001).",
+    "HRV-guided training had a small (ES = 0.402) but positive effect on VO2max, conditioned by athlete level and sex."
+  ],
+  "limitations": "Number of RCTs and participants not in the abstract; VO2max only, not race performance; subgroup findings are moderator analyses, not randomised comparisons; the abstract reports 0.187 and 0.402 without clarifying which comparison each describes.",
+  "implications": [
+    "The benefit signal is larger in amateur athletes and women, which supports default-on HRV adjustment for recreational users; sex-specific evidence is subgroup-driven and thin.",
+    "Keep HRV rules conservative and treat any VO2max benefit as small (ES about 0.2 to 0.4).",
+    "Store sex and training level as inputs, but do not hard-code sex-specific HRV thresholds on this evidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, journal, first author, 30 Oct 2020. p-values and ES verified in the raw Europe PMC abstract (PMID 33143175).",
+    "checkedAt": "2026-10-22"
+  }
+}

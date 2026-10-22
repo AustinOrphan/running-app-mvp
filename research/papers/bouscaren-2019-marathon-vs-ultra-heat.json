@@ -1,0 +1,35 @@
+{
+  "id": "bouscaren-2019-marathon-vs-ultra-heat",
+  "title": "Heat stress challenges in marathon vs. ultra-endurance running",
+  "authors": "Bouscaren N, Millet GY, Racinais S",
+  "year": 2019,
+  "journal": "Frontiers in Sports and Active Living",
+  "doi": "10.3389/fspor.2019.00059",
+  "pmid": "33344982",
+  "url": "https://doi.org/10.3389/fspor.2019.00059",
+  "design": "narrative-review",
+  "population": "Conceptual comparison of heat-stress risk factors in marathon vs ultra-endurance (events longer than 6 h) running",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Studies on exercise longer than a marathon in the heat are sparse, so marathon knowledge cannot be transposed to ultra-endurance events (>6 h; variable distance, elevation, technicality, altitude, night running).",
+    "Marathon-specific heat risks: high running intensity (especially for the fastest runners), urban high-albedo surfaces and a hot self-generated microclimate in mass-participation events (for average to slow runners).",
+    "Ultra-specific heat risks: uphill running or walking (sometimes with poles), long-haul travel to exotic destinations, desert environments, and the need to sustain thermoregulatory and sweating responses for several days.",
+    "Authors call for specific research on hot conditions in ultra-endurance disciplines."
+  ],
+  "limitations": "Narrative, opinion-level, no quantitative estimates; explicitly states ultra evidence is lacking.",
+  "implications": [
+    "Do not reuse marathon heat-penalty values for events above 6 h without a flag; give ultra heat adjustments a lower-confidence label.",
+    "Adjust heat factors by event profile (climbs, night, multi-day, travel) rather than one global coefficient; no numeric values are justified.",
+    "Treat long-haul travel to a hot or desert venue as a trigger for an early acclimation block."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (Front Sports Act Living 2019-11-13) and Europe PMC abstract re-fetched; all statements match.",
+    "checkedAt": "2026-10-22"
+  }
+}

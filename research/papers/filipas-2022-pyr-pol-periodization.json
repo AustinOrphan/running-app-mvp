@@ -1,0 +1,35 @@
+{
+  "id": "filipas-2022-pyr-pol-periodization",
+  "title": "Effects of 16 weeks of pyramidal and polarized training intensity distributions in well-trained endurance runners",
+  "authors": "Filipas L, Bonato M, Gallo G, Codella R",
+  "year": 2022,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.14101",
+  "pmid": "34792817",
+  "url": "https://doi.org/10.1111/sms.14101",
+  "design": "rct",
+  "population": "Sixty well-trained male runners, 16-week intervention with training load kept constant",
+  "sampleSize": 60,
+  "evidenceLevel": "B",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "Four groups: pyramidal (PYR), polarized (POL), PYR then POL (8+8 weeks) and POL then PYR.",
+    "Significant group x time interactions for relative VO2peak (p<0.0001), velocity at 2 and 4 mmol/L lactate (both p<0.0001) and 5 km time trial (p=0.0001).",
+    "PYR then POL improved most: about 3.0% relative VO2peak, 1.7% vBLa2, 1.5% vBLa4 and 1.5% 5 km time trial.",
+    "Every intervention improved surrogates and performance in well-trained runners."
+  ],
+  "limitations": "Male only, single research group, 16 weeks, load matched by design so volume effects untested. Goal event was 5 km; not tested for marathon or ultra.",
+  "implications": [
+    "Supports phase-based TID for 5-10 km goals: pyramidal early, polarized in the later specific block (consistent with Casado 2022).",
+    "Hold total load constant when switching TID; change the distribution, not the volume, at the transition.",
+    "Do not generalise the shift to marathon/ultra goals without other evidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: published online 2021-11-25, print 2022-03; journal and first author match. Numbers confirmed in abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "buchheit-2014-hr-monitoring",
+  "title": "Monitoring training status with HR measures: do all roads lead to Rome?",
+  "authors": "Buchheit M",
+  "year": 2014,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2014.00073",
+  "pmid": "24578692",
+  "url": "https://doi.org/10.3389/fphys.2014.00073",
+  "design": "narrative-review",
+  "population": "Athletes (review of resting, exercise and recovery HR measures)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "Argues most contradictory findings in the literature relate to methodological inconsistencies or misinterpretation, not to limitations of HR measures.",
+    "Measures from 5-min (almost daily) resting recordings (beat-to-beat indices reflecting parasympathetic activity) and submaximal exercise HR (30- to 60-s average) are likely the most useful monitoring tools.",
+    "Individual-level interpretation should consider measurement error and the smallest important change, plus training context (phase, load, intensity distribution).",
+    "HR measures cannot inform on all aspects of wellness, fatigue and performance; combine with training logs, psychometric questionnaires and a countermovement jump."
+  ],
+  "limitations": "Narrative expert review, no pooled effects and no quantitative thresholds in the abstract.",
+  "implications": [
+    "Implement HRV/HR flags relative to the athlete's own smallest important change, not population cut-offs.",
+    "Prefer a standardised short recording or nightly average; mark missing or noisy days unknown rather than interpolating (engineering convention).",
+    "Interpret flags in the context of training phase."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, Front Physiol, first author Buchheit, 2014. Findings match Europe PMC abstract (PMID 24578692). Narrative review, level D.",
+    "checkedAt": "2026-10-22"
+  }
+}

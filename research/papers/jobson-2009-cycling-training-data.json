@@ -1,0 +1,34 @@
+{
+  "id": "jobson-2009-cycling-training-data",
+  "title": "The analysis and utilization of cycling training data",
+  "authors": "Jobson SA, Passfield L, Atkinson G, Barton G, Scarf P",
+  "year": 2009,
+  "journal": "Sports Medicine",
+  "doi": "10.2165/11317840-000000000-00000",
+  "pmid": "19757861",
+  "url": "https://doi.org/10.2165/11317840-000000000-00000",
+  "design": "narrative-review",
+  "population": "Not applicable (review of training-dose quantification methods and mathematical training-performance models, focused on cycling)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["load-response-models"],
+  "findings": [
+    "Volume (km or h per week) is an index of training dose used with some success but usually fails to accommodate training intensity; session RPE and heart-rate TRIMP are alternatives that capture intensity.",
+    "An exponentially weighted averaging process can represent variable power output as 'normalized power'.",
+    "Impulse-response models take into account the dynamic and temporal characteristics of training, but have significant limitations such as an excessive number of performance tests needed to determine model parameters.",
+    "Non-linear artificial neural networks may describe the adaptation process more accurately but are constrained by the large number of datasets needed to train them; PerPot, mixed linear modelling, cluster analysis and chaos theory need much further research before they can be considered alternatives."
+  ],
+  "limitations": "2009 narrative review, cycling-centred; predates modern wearables and regularised ML work.",
+  "implications": [
+    "Quantify load with an intensity-aware metric (HR TRIMP or session RPE) rather than volume alone.",
+    "Expect high data demands from both impulse-response and neural-network approaches; plan fallbacks for athletes with sparse performance tests."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "ADDED by verifier. Crossref confirms title, Sports Med, 2009-10, five authors; the DOI contains zeros and resolves via Crossref. Findings paraphrase the Europe PMC abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

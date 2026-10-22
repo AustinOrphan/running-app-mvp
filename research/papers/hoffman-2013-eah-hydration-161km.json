@@ -1,0 +1,36 @@
+{
+  "id": "hoffman-2013-eah-hydration-161km",
+  "title": "Exercise-associated hyponatremia and hydration status in 161-km ultramarathoners",
+  "authors": "Hoffman MD, Hew-Butler T, Stuempfle KJ",
+  "year": 2013,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0b013e31827985a8",
+  "pmid": "23135369",
+  "url": "https://doi.org/10.1249/mss.0b013e31827985a8",
+  "design": "prospective-cohort",
+  "population": "Finishers of 161-km ultramarathons in northern California (5 years of data combined and reanalyzed); body weight before/after, post-race [Na] in a subset",
+  "sampleSize": 887,
+  "evidenceLevel": "B",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "887 finishers with body-weight data and 669 with post-race [Na]; EAH incidence 15.1% overall (range 4.6-51.0% by year), with a significant positive relationship with ambient temperature.",
+    "Among runners with EAH, 23.8% were overhydrated (weight change >= 0), 40.6% euhydrated (0 to -3%) and 35.6% dehydrated (< -3%); in this environment EAH was more common with dehydration than overhydration.",
+    "Weak relationship between post-race [Na] and body-weight change (r = 0.17, P < 0.0001): lower [Na] more common with more weight loss.",
+    "Faster runners tended to lose more weight (r = 0.092, P = 0.006); top finishers ranged from ~1% weight gain to ~6% loss.",
+    "Authors conclude weight loss > 3% does not seem to harm performance, so excessive sodium supplementation and aggressive fluid ingestion beyond thirst are ill advised."
+  ],
+  "limitations": "Observational reanalysis of pooled data from one region and event type; correlations are weak; body-weight change is confounded by food, glycogen water and gut contents; cannot establish causation. Contrasts with the overdrinking mechanism emphasised in the 2015 consensus, so the finding that EAH was more common with dehydration should not be generalised.",
+  "implications": [
+    "Do not prescribe fixed fluid volumes: 'drink to thirst' with an upper bound; treat weight gain as a flag.",
+    "Do not use weight loss up to ~3% as a stop or penalty trigger; hydration targets should not aim for zero weight change.",
+    "Heat modifier: more sodium awareness and monitoring in hot races (highest EAH incidence), without encouraging overdrinking."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match; all numbers confirmed in the Europe PMC abstract. Design kept as prospective-cohort although the paper is a pooled reanalysis of earlier prospective data.",
+    "checkedAt": "2026-10-22"
+  }
+}

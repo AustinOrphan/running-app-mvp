@@ -1,0 +1,34 @@
+{
+  "id": "gonzalezrave-2022-reverse-periodization",
+  "title": "Reverse Periodization for Improving Sports Performance: A Systematic Review",
+  "authors": "González-Ravé JM, González-Mohino F, Rodrigo-Carranza V, Pyne DB",
+  "year": 2022,
+  "journal": "Sports Medicine - Open",
+  "doi": "10.1186/s40798-022-00445-8",
+  "pmid": "35445953",
+  "url": "https://doi.org/10.1186/s40798-022-00445-8",
+  "design": "systematic-review",
+  "population": "Athletes in 11 studies (swimming, running, muscular endurance, strength, VO2max outcomes)",
+  "sampleSize": 200,
+  "evidenceLevel": "B",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "925 studies identified, 17 remained after screening and 11 were included, with 200 athletes in total.",
+    "Reverse periodization did not provide superior performance improvements in swimming, running, muscular endurance, maximum strength or maximal oxygen uptake versus traditional or block periodization.",
+    "Evidence level was 1b (individual RCT) for two investigations and 2b (individual cohort) for the remainder; mean PEDro 4.9 (range 0-7).",
+    "Reverse periodization appears no more effective than other forms; more comparative studies are needed across a range of endurance sports."
+  ],
+  "limitations": "Small number of moderate-to-low quality studies across mixed sports; few running studies and none on ultra-distance events.",
+  "implications": [
+    "Do not make reverse periodization (intensity first, volume later) a default; use a traditional base-build-specific-taper sequence.",
+    "Allow reverse sequencing only as a user-selected option and make no performance-benefit claim."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed match (Sports Med Open 2022;8(1):56). Added 17-remaining-studies detail. Evidence level downgraded A to B because of low-moderate primary-study quality (PEDro 4.9).",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "lazarus-2017-master-athletes-trajectory",
+  "title": "Declining performance of master athletes: silhouettes of the trajectory of healthy human ageing?",
+  "authors": "Lazarus NR, Harridge SDR",
+  "year": 2017,
+  "journal": "The Journal of Physiology",
+  "doi": "10.1113/jp272443",
+  "pmid": "27808406",
+  "url": "https://doi.org/10.1113/jp272443",
+  "design": "narrative-review",
+  "population": "Review of world-record performances of master athletes and a proposed set-point theory",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["age-masters"],
+  "findings": [
+    "World-record analysis suggests an essentially linear performance decline with age until about the eighth decade, after which decline accelerates.",
+    "Because records come from highly trained individuals, the authors argue they reflect the diminution of integrative physiology due to ageing alone, unconfounded by inactivity.",
+    "The authors propose a set-point theory: a threshold of physical activity is needed to age optimally; exercising below it results in ageing contaminated by the effects of inactivity, while exercise above it stimulates adaptations to maximise athletic performance.",
+    "They argue the controlled decades-long decline in athletic performance should not be seen as a disease process."
+  ],
+  "limitations": "Hypothesis-generating review built on world-record data from different individuals (the limitation Lepers 2021 and Stones 2019 stress); set-point theory is untested.",
+  "implications": [
+    "A near-linear decline to about age 70 followed by acceleration is a defensible default curve shape for elite-level performance, consistent with Ganse 2020's steeper post-70 decline.",
+    "Recommend a minimum-consistency framing: reduced training volume or frequency adds decline beyond the ageing trajectory."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref title/journal (J Physiol)/first author match; issued 2017 (online Jan 2017 per Crossref). Abstract confirmed in Europe PMC.",
+    "checkedAt": "2026-10-22"
+  }
+}

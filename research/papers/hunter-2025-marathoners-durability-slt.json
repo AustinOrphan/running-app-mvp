@@ -1,0 +1,34 @@
+{
+  "id": "hunter-2025-marathoners-durability-slt",
+  "title": "Durability of Parameters Associated With Endurance Running in Marathoners",
+  "authors": "Hunter B, Muniz-Pumares D",
+  "year": 2025,
+  "journal": "European Journal of Sport Science",
+  "doi": "10.1002/ejsc.70073",
+  "pmid": "41128270",
+  "url": "https://doi.org/10.1002/ejsc.70073",
+  "design": "other",
+  "population": "2024 London Marathon participants (11 male; age 41 +/- 12 y; finish 3:17 +/- 0:32 h:min)",
+  "sampleSize": 18,
+  "evidenceLevel": "C",
+  "topics": ["durability-drift"],
+  "findings": [
+    "Within-subject comparison of fresh (PRE) vs after a 90-min run at lactate-threshold speed (POST).",
+    "VO2peak fell from 56.7 +/- 7.2 to 53.4 +/- 6.3 mL/kg/min and sLT fell from 12.8 +/- 2.0 to 12.1 +/- 2.2 km/h (both p<0.001), a decline of about 5.5% in mean sLT.",
+    "Running economy and fractional utilisation at LT did not change (p>0.05).",
+    "Percentage change in sLT correlated with marathon performance (r=0.680, p<0.01): smaller deterioration went with faster marathon times."
+  ],
+  "limitations": "18 mostly recreational marathoners; single laboratory fatiguing protocol with no between-condition randomisation; correlation only; RE not changing differs from other studies using other protocols.",
+  "implications": [
+    "Estimate a runner's durability as the percent decline of threshold speed after about 90 min at threshold pace (about 5.5% on average here: 12.8 to 12.1 km/h) and feed it into marathon prediction.",
+    "Where no lab test exists, use the late-run decoupling ratio as a proxy and flag the proxy as lower confidence (the link between the two has not been shown in this paper)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref (online 2025-10-23, print 2025 Nov) and PubMed match. Design changed from experimental-crossover to other: single-group PRE/POST with correlation. 'About 5%' made explicit as 5.5% from the reported means.",
+    "checkedAt": "2026-10-22"
+  }
+}

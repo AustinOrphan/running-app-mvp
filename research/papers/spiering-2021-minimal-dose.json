@@ -1,0 +1,34 @@
+{
+  "id": "spiering-2021-minimal-dose",
+  "title": "Maintaining Physical Performance: The Minimal Dose of Exercise Needed to Preserve Endurance and Strength Over Time",
+  "authors": "Spiering BA, Mujika I, Sharp MA, Foulis SA",
+  "year": 2021,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000003964",
+  "pmid": "33629972",
+  "url": "https://doi.org/10.1519/jsc.0000000000003964",
+  "design": "narrative-review",
+  "population": "General populations (endurance and strength training studies); insufficient data for athletes or military personnel",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["beginners-return"],
+  "findings": [
+    "In general populations, endurance performance can be maintained for up to 15 weeks when training frequency is cut to as few as 2 sessions per week or exercise volume is cut by 33-66% (as low as 13-26 minutes per session), provided exercise intensity (exercising heart rate) is maintained.",
+    "Strength and muscle size (at least in younger people) can be maintained for up to 32 weeks with as little as 1 strength session per week and 1 set per exercise at maintained relative load; older people may need up to 2 sessions and 2-3 sets per exercise.",
+    "Exercise intensity seems to be the key variable for maintaining performance despite large reductions in frequency and volume.",
+    "Insufficient data exist for specific recommendations for athletes or military personnel."
+  ],
+  "limitations": "Brief narrative review of mostly short studies in non-athletes; not specific to long-distance running; the 15-week figure is a bound set by study durations, not a safe limit; the 'or' between frequency and volume reductions means the combination is not shown.",
+  "implications": [
+    "Implement a time-limited maintenance mode: about 2 runs per week, weekly volume cut 33-66% (sessions of at least 13-26 min), at least one session at usual intensity, and 1 strength session per week at 1 set per exercise (2 sessions and 2-3 sets for older runners).",
+    "Default maintenance mode to at most about 15 weeks, then re-check fitness; do not apply it to 50 km-100 mile fitness without a caveat that ultra-specific durability is not covered."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Own re-fetch: Crossref (upper-case DOI) title, J Strength Cond Res, 2021-02-24, first author Spiering, 4 authors. Abstract gives every number. Corrected: frequency and volume reductions are alternatives ('or'), and removed the unsupported 'Hickson-type' remark.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "fuller-2020-wearables-systematic-review",
+  "title": "Reliability and Validity of Commercially Available Wearable Devices for Measuring Steps, Energy Expenditure, and Heart Rate: Systematic Review",
+  "authors": "Fuller D, Colwell E, Low J, Orychock K, Tobin MA, Simango B, Buote R, Van Heerden D, Luan H, Cullen K, Slade L, Taylor NGA",
+  "year": 2020,
+  "journal": "JMIR mHealth and uHealth",
+  "doi": "10.2196/18694",
+  "pmid": "32897239",
+  "url": "https://doi.org/10.2196/18694",
+  "design": "systematic-review",
+  "population": "158 publications on nine commercial wearable brands (PubMed, Embase, SPORTDiscus, English language, to May 2019); general and special populations",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["load-quantification"],
+  "findings": [
+    "158 publications covering nine commercial wearable brands were included; Fitbit was by far the most studied.",
+    "In laboratory settings Fitbit, Apple Watch and Samsung appeared to measure steps accurately; heart rate was more variable, with Apple Watch and Garmin the most accurate and Fitbit tending toward underestimation.",
+    "For energy expenditure, no brand was accurate.",
+    "Overall, devices are accurate for steps and heart rate in laboratory settings, but this varies by manufacturer and device type; devices are upgraded constantly, so more current reviews are needed."
+  ],
+  "limitations": "Mostly laboratory evidence; searches end May 2019 and device generations have changed; no pooled error figures in the abstract; mixes populations and activities and is not running-specific.",
+  "implications": [
+    "Do not use device-reported energy expenditure (kcal) as an input to any load or fuelling calculation.",
+    "Treat wrist HR as acceptable under controlled conditions but model quality per device and activity; store device make/model with each activity so an HR-quality flag can be applied.",
+    "The chest-strap preference is supported by Navalta 2020 and Gillinov 2017, not by this review."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, JMIR mHealth uHealth, 8 Sep 2020, first author Fuller, 12 authors. Abstract read in Europe PMC. Moved the chest-strap implication off this paper since the abstract does not support it.",
+    "checkedAt": "2026-10-22"
+  }
+}

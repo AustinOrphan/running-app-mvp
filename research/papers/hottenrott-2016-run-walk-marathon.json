@@ -1,0 +1,36 @@
+{
+  "id": "hottenrott-2016-run-walk-marathon",
+  "title": "Does a run/walk strategy decrease cardiac stress during a marathon in non-elite runners?",
+  "authors": "Hottenrott K, Ludyga S, Schulze S, Gronwald T, Jäger FS",
+  "year": 2016,
+  "journal": "Journal of Science and Medicine in Sport",
+  "doi": "10.1016/j.jsams.2014.11.010",
+  "pmid": "25467199",
+  "url": "https://doi.org/10.1016/j.jsams.2014.11.010",
+  "design": "rct",
+  "population": "Non-elite marathon runners (22 men, 20 women) completing a marathon either with a run/walk strategy or running only (randomized experimental trial, repeated-measure design)",
+  "sampleSize": 42,
+  "evidenceLevel": "C",
+  "topics": ["beginners-return"],
+  "findings": [
+    "Finish times were similar: 4:14:25 +/- 0:19:51 with run/walk vs 4:07:40 +/- 0:27:15 running only (p = 0.377), a mean difference of about 6 min 45 s.",
+    "BNP, CK-MB and myoglobin increased after the marathon in both groups (p < 0.001) and returned to baseline 4 days later; elevated cTnI was seen in only two subjects.",
+    "BNP (r = -0.363, p = 0.041) and myoglobin (r = -0.456, p = 0.009) correlated inversely with velocity at the individual anaerobic threshold.",
+    "The run/walk strategy reported less muscle pain and fatigue (p = 0.006) after the event.",
+    "Authors concluded run/walk does not reduce load on the cardiovascular system but allows similar finish times with less muscle discomfort."
+  ],
+  "limitations": "Small sample; one marathon; walk ratio not given in the abstract; outcomes are biomarkers and subjective ratings, not injury incidence; no ultra-distance evidence. Allocation details are not given in the abstract.",
+  "implications": [
+    "Offer a run/walk option for marathon-distance goals: similar finish time (about +7 min mean, not significant) and less muscle discomfort, with no cardiac benefit.",
+    "Do not market run/walk as protective of the heart; present it as a comfort and muscle-damage option.",
+    "Walk-interval ratios and effects for 50 km-100 mile events are not established by this paper; no change to ultra pacing is justified from it."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Own re-fetch: Crossref title, JSAMS 2016-01, first author Hottenrott, 5 authors. Full PubMed abstract contains every number including p=0.006. Design reclassified from experimental-crossover to rct because the abstract says 'randomized experimental trial in a repeated measure design' and groups ran 'either' strategy.",
+    "checkedAt": "2026-10-22"
+  }
+}

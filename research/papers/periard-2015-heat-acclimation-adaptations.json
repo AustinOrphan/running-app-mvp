@@ -1,0 +1,34 @@
+{
+  "id": "periard-2015-heat-acclimation-adaptations",
+  "title": "Adaptations and mechanisms of human heat acclimation: Applications for competitive athletes and sports",
+  "authors": "Periard JD, Racinais S, Sawka MN",
+  "year": 2015,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.12408",
+  "pmid": "25943654",
+  "url": "https://doi.org/10.1111/sms.12408",
+  "design": "narrative-review",
+  "population": "Review of heat acclimation induction regimens and physiological adaptations, with application to competitive athletes",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Heat acclimation improves thermoregulation, attenuates physiological strain, reduces serious heat illness risk and improves aerobic performance in warm-hot and potentially temperate environments.",
+    "Adaptations include improved sweating, skin blood flow, lowered body temperatures, reduced cardiovascular strain, improved fluid balance, altered metabolism and cellular protection.",
+    "Magnitude of adaptation is determined by the intensity, duration, frequency and number of exposures and by whether heat is dry or humid.",
+    "Emerging evidence that controlled-hyperthermia regimens (target core temperature held) give more rapid and complete adaptation than constant work-rate regimens; field (outdoor) acclimation may give more specific adaptation to race conditions."
+  ],
+  "limitations": "Narrative review, no pooled estimates in the abstract; the controlled-hyperthermia advantage was described as emerging, not established; athletes in mostly lab or elite-sport settings.",
+  "implications": [
+    "Dose acclimation by intensity, duration, frequency and number of sessions; prefer sessions that raise core temperature (hot, humid conditions or extra clothing) over leisurely hot exposure; no numeric dose is justified by the abstract.",
+    "Where the goal race is hot, prefer acclimation outdoors in matching conditions when possible (specificity), else indoor or passive options as a lower-confidence fallback."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier: named in the topic scope but missing from the researcher list. Crossref (SJMSS 2015-06, Periard first author) and Europe PMC abstract (PMID 25943654) re-fetched and quoted.",
+    "checkedAt": "2026-10-22"
+  }
+}

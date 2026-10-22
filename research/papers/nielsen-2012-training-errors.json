@@ -1,0 +1,38 @@
+{
+  "id": "nielsen-2012-training-errors",
+  "title": "Training errors and running related injuries: a systematic review",
+  "authors": "Nielsen RO, Buist I, Sorensen H, Lind M, Rasmussen S",
+  "year": 2012,
+  "journal": "International Journal of Sports Physical Therapy",
+  "doi": null,
+  "pmid": "22389869",
+  "url": "https://pubmed.ncbi.nlm.nih.gov/22389869/",
+  "design": "systematic-review",
+  "population": "Novice, recreational or elite runners aged 18-65 in 31 studies (9 retrospective cohort, 13 prospective cohort, 6 case-control, 3 RCT)",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["beginners-return", "injury-load"],
+  "findings": [
+    "4561 titles and abstracts were examined and 63 articles identified as potentially relevant; 31 studies were finally included.",
+    "Mean methodological quality score was 44.1%.",
+    "Conflicting results were reported on the relationships between volume, duration, intensity and frequency and RRI.",
+    "Authors conclude it was not possible to identify which training errors relate to running-related injuries.",
+    "After examining 4561 titles and abstracts, 63 articles were potentially relevant; 31 studies were included (9 retrospective cohort, 13 prospective cohort, 6 case-control, 3 RCTs).",
+    "The authors concluded it was not possible to identify which training errors were related to running-related injuries."
+  ],
+  "limitations": "Low mean study quality; heterogeneous exposure measurement; predates GPS-based cohorts (Nielsen 2014, Frandsen 2025); no DOI is registered for this record (IJSPT 2012 7(1):58-75), verified through PubMed and PMC instead.",
+  "implications": [
+    "No volume, frequency or intensity 'training error' threshold was empirically established as of 2012, so the engine should label progression limits as conservative defaults.",
+    "Do not claim a validated causal link between any single training variable and injury.",
+    "Treat any single training-load rule (10% rule, mileage caps, intensity caps) as unproven; present as defaults, not as injury-prevention guarantees.",
+    "Prefer monitoring plus individual response (pain, load tolerance) over rigid population-level load thresholds."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Added by verifier. No DOI in PubMed or Europe PMC; Crossref bibliographic search did not return it. Identity verified through PubMed efetch (PMID 22389869, PMC3290924): title, authors, journal, year, volume and pages match.",
+    "checkedAt": "2026-10-22"
+  }
+}

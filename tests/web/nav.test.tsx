@@ -25,16 +25,19 @@ describe('Nav', () => {
     expect(current.map((l) => l.textContent)).toEqual(['Plan'])
   })
 
-  test.each(['/more', '/goals', '/stats', '/settings'])('More is current on %s', (route) => {
-    renderWithProviders(<Nav />, { route })
-    const current = primaryLinks().filter((l) => l.getAttribute('aria-current') === 'page')
-    expect(current.map((l) => l.textContent)).toEqual(['More'])
-    // Both groups share the DOM at every width, so only one link in the whole nav may be current.
-    const everywhere = screen
-      .getAllByRole('link')
-      .filter((l) => l.getAttribute('aria-current') === 'page')
-    expect(everywhere.map((l) => l.textContent)).toEqual(['More'])
-  })
+  test.each(['/more', '/goals', '/stats', '/settings', '/integrations', '/profile'])(
+    'More is current on %s',
+    (route) => {
+      renderWithProviders(<Nav />, { route })
+      const current = primaryLinks().filter((l) => l.getAttribute('aria-current') === 'page')
+      expect(current.map((l) => l.textContent)).toEqual(['More'])
+      // Both groups share the DOM at every width, so only one link in the whole nav may be current.
+      const everywhere = screen
+        .getAllByRole('link')
+        .filter((l) => l.getAttribute('aria-current') === 'page')
+      expect(everywhere.map((l) => l.textContent)).toEqual(['More'])
+    },
+  )
 
   test('Today is current only on the root path', () => {
     renderWithProviders(<Nav />, { route: '/' })
@@ -125,5 +128,15 @@ describe('MorePage', () => {
     )
     expect(settings).toHaveTextContent('Units, display name, export')
     expect(settings).not.toHaveTextContent(/import/i)
+  })
+
+  test('links to Integrations and Profile', () => {
+    renderWithProviders(<MorePage />, { route: '/more' })
+    const nav = within(screen.getByRole('navigation', { name: 'More pages' }))
+    expect(nav.getByRole('link', { name: /^Integrations/ })).toHaveAttribute(
+      'href',
+      '/integrations',
+    )
+    expect(nav.getByRole('link', { name: /^Profile/ })).toHaveAttribute('href', '/profile')
   })
 })

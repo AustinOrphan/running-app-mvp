@@ -1,0 +1,35 @@
+{
+  "id": "sperlich-2023-tid-phases",
+  "title": "The proportional distribution of training by elite endurance athletes at different intensities during different phases of the season",
+  "authors": "Sperlich B, Matzka M, Holmberg HC",
+  "year": 2023,
+  "journal": "Frontiers in Sports and Active Living",
+  "doi": "10.3389/fspor.2023.1258585",
+  "pmid": "37964776",
+  "url": "https://doi.org/10.3389/fspor.2023.1258585",
+  "design": "systematic-review",
+  "population": "175 retrospective TIDs from elite-to-world-class endurance athletes across sports (120 HR-based)",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "Of 175 TIDs, 89 were pyramidal, 65 polarized and 8 threshold; 49% were single-case studies, mostly cross-country skiing and biathlon.",
+    "In 91% (n=160) of TIDs more than 60% of endurance exercise was low intensity.",
+    "Triathlon, speed skating, rowing, running, cross-country skiing and biathlon had >80% in zone 1 and <12% in zone 2; cyclists and swimmers had a lower zone 1 share (16% quoted for the lower figure in the abstract).",
+    "For most athletes the heavy-to-severe share was higher in the competition period than the preparatory phase, but authors conclude the literature does not allow general conclusions because quantification methods vary widely."
+  ],
+  "limitations": "Authors state the evidence base cannot support general TID prescriptions; heterogeneous methods; elite athletes only; many single-case studies.",
+  "implications": [
+    "Treat every TID target as a prior with an uncertainty band: pyramidal is more common than polarized and threshold is rare.",
+    "Allow a higher high-intensity share in the competition phase than in the base phase, parameterised by event and athlete.",
+    "Keep TID type as a descriptive output of the plan, not an optimization target."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: online 2023-10-27. Counts confirmed in abstract. Grade B because the review is systematic but descriptive and heterogeneous.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "muhlen-2021-wearable-hr-validation-statement",
+  "title": "Recommendations for determining the validity of consumer wearable heart rate devices: expert statement and checklist of the INTERLIVE Network",
+  "authors": "Mühlen JM, Stang J, Lykke Skovgaard E, Judice PB, Molina-Garcia P, Johnston W, Sardinha LB, Ortega FB, Caulfield B, Bloch W, Cheng S, Ekelund U, Brønd JC, Grøntved A, Schumann M",
+  "year": 2021,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2020-103148",
+  "pmid": "33397674",
+  "url": "https://doi.org/10.1136/bjsports-2020-103148",
+  "design": "consensus-statement",
+  "population": "Expert statement built on a PRISMA-based systematic review (44 eligible articles), a wider literature review and expert opinion, on PPG-based consumer HR wearables",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Methodological differences and shortcomings in the validation process hamper comparability of the validity of consumer PPG heart-rate wearables.",
+    "A PRISMA-based systematic review found 44 eligible articles; together with a wider literature review and expert opinion it produced a validation framework with six domains: target population, criterion measure, index measure, testing conditions, data processing and statistical analysis.",
+    "Checklists are provided to guide validation protocol development and reporting."
+  ],
+  "limitations": "Methodological guidance, not a device ranking; the abstract gives no accuracy figures; recommendations rest partly on expert opinion.",
+  "implications": [
+    "Judge any wearable-validity evidence the engine relies on against this framework (criterion measure, testing conditions, statistics) before turning it into a rule.",
+    "No numeric parameter is justified by this statement."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, BJSM, published online 4 Jan 2021 (print Jul 2021), first author Muhlen, 15 authors. Abstract read in Europe PMC. Rated A because it includes a PRISMA systematic review, but it is methodology guidance rather than accuracy evidence.",
+    "checkedAt": "2026-10-22"
+  }
+}

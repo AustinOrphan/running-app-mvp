@@ -1,0 +1,40 @@
+{
+  "id": "buist-2008-graded-training",
+  "title": "No effect of a graded training program on the number of running-related injuries in novice runners: a randomized controlled trial",
+  "authors": "Buist I, Bredeweg SW, van Mechelen W, Lemmink KA, Pepping GJ, Diercks RL",
+  "year": 2008,
+  "journal": "American Journal of Sports Medicine",
+  "doi": "10.1177/0363546507307505",
+  "pmid": "17940147",
+  "url": "https://doi.org/10.1177/0363546507307505",
+  "design": "rct",
+  "population": "Novice runners preparing for a 4-mile (6.7 km) recreational event (GRONORUN trial)",
+  "sampleSize": 532,
+  "evidenceLevel": "B",
+  "topics": ["beginners-return", "injury-load"],
+  "findings": [
+    "Two-arm RCT compared a standard 8-week training program with an adapted, graded 13-week program based on the 10% training rule.",
+    "RRI incidence was 20.8% in the graded group and 20.3% in the standard group (chi2 = 0.016, df = 1, P = .90): the graded program was not preventive.",
+    "RRI was defined as any musculoskeletal complaint of the lower extremity or back restricting running for at least 1 week; both groups recorded running and injury in an internet-based log.",
+    "532 novice runners were randomised to a graded 13-week program based on the 10% training rule or a standard 8-week program.",
+    "RRI incidence was 20.8% in the graded group and 20.3% in the standard group (chi-squared = 0.016, df = 1, P = .90).",
+    "RRI was defined as any musculoskeletal complaint of the lower extremity or back causing a restriction of running for at least 1 week.",
+    "The authors concluded the 10%-rule graded program had no effect on RRI incidence compared with the standard 8-week program."
+  ],
+  "limitations": "Novice runners only and a short event-preparation program. The two arms differed in length (13 vs 8 weeks) as well as progression, and the graded arm used a program built on the 10% rule rather than verified strict adherence. Not generalisable to experienced runners or long-distance training.",
+  "implications": [
+    "The 10% weekly rule has no RCT support as an injury preventive; do not present it as a safety guarantee or hard constraint on weekly volume.",
+    "Keep weekly progression a soft default and let the session-spike rule (Frandsen 2025) act as the actual guard.",
+    "User-facing copy must not claim that following the 10% rule prevents injury.",
+    "Do not claim the 10% weekly-increase rule prevents injuries in novices; use it as a default convention and rely on other levers (exposure caps, rest weeks, strength work).",
+    "No change to the 10% default is justified by this trial alone, and the rule should not be applied rigidly at very low volumes where 10% is a trivial change (an engineering judgement, not a finding)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Am J Sports Med 36:33-39 (online Oct 2007, print Jan 2008). Abstract matched. Title in Crossref lacks the sentence-case colon text but matches.",
+    "checkedAt": "2026-10-22"
+  }
+}

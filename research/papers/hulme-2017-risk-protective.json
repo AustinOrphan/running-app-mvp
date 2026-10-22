@@ -1,0 +1,35 @@
+{
+  "id": "hulme-2017-risk-protective",
+  "title": "Risk and protective factors for middle- and long-distance running-related injury",
+  "authors": "Hulme A, Nielsen RO, Timpka T, Verhagen E, Finch C",
+  "year": 2017,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-016-0636-4",
+  "pmid": "27785775",
+  "url": "https://doi.org/10.1007/s40279-016-0636-4",
+  "design": "systematic-review",
+  "population": "73 eligible articles on runners competing from 800 m to 42.2 km (searches 1970-2015)",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["injury-load"],
+  "findings": [
+    "73 articles included; 19 (26.0%) were of high and 30 (41.0%) of satisfactory methodological quality.",
+    "A history of previous injury was associated with increased risk of both general and specific RRI.",
+    "Irregular and/or absent menstruation was associated with increased risk of stress fracture, whereas oral contraceptive use was associated with decreased risk.",
+    "High clinical, methodological and statistical heterogeneity made pooling of effect sizes infeasible and prevented definitive conclusions for most factors."
+  ],
+  "limitations": "No pooled estimates; high heterogeneity; distances up to marathon only (no ultra); mostly observational; search ended Dec 2015.",
+  "implications": [
+    "Add 'injury in the last 12 months' as an onboarding/risk-profile input that makes progression more conservative; the 12-month window and the size of the adjustment are engineering choices.",
+    "Capture menstrual irregularity as a reported flag that triggers a caution to seek medical review, not a plan parameter.",
+    "No other training factor in this review justifies a rule change."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Sports Med 47:869-886 (online Oct 2016). Abstract matched. Grade lowered from A to B because no pooled estimate was possible. The '12 months' window is not in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

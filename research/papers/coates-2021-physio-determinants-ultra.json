@@ -1,0 +1,35 @@
+{
+  "id": "coates-2021-physio-determinants-ultra",
+  "title": "Physiological determinants of ultramarathon trail-running performance",
+  "authors": "Coates AM, Berard JA, King TJ, Burr JF",
+  "year": 2021,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2020-0766",
+  "pmid": "33691287",
+  "url": "https://doi.org/10.1123/ijspp.2020-0766",
+  "design": "cross-sectional",
+  "population": "Athletes finishing a 50-, 80- or 160-km trail race on a 20-km loop course on the same day; performance defined as percent difference from the winning time",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "In the 50-km race, training volumes, cardiovascular health, aerobic fitness and a greater loss of body mass were related to better performance (all P < .05).",
+    "Peak velocity in the VO2max test was the best predictor in the 50-km race (men: beta = -11.7, P = .002, with baseline blood pressure, r2 = .96; women: beta = -13.6, P = .001, with body-mass loss, r2 = .87).",
+    "In the 80-km race only peak velocity from the VO2max test predicted performance (beta = -20.3, r2 = .78, P < .001).",
+    "In the 160-km race there were no significant performance determinants; the authors conclude performance in longer races appears less influenced by such physiological parameters."
+  ],
+  "limitations": "Group sizes not stated in the abstract; very high r2 values suggest overfitting with small samples; the 160-km null result may reflect low power and finisher-only samples.",
+  "implications": [
+    "Keep VO2max-test peak velocity (or a field equivalent such as recent 5 or 10 km speed) as a performance predictor for 50 to 80 km goals only.",
+    "For 100-mile goal-time estimates, widen the prediction interval and rely less on speed-based fitness; do not present a precise time from fitness alone.",
+    "Treat the 160-km null result as a reason for finish-first plan framing, not as evidence that fitness is irrelevant."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2021-10-01) and Europe PMC abstract re-fetched; all numbers confirmed.",
+    "checkedAt": "2026-10-22"
+  }
+}

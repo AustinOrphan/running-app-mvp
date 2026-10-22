@@ -1,0 +1,36 @@
+{
+  "id": "hoffman-2015-sodium-supplementation-eah",
+  "title": "Sodium Supplementation and Exercise-Associated Hyponatremia during Prolonged Exercise",
+  "authors": "Hoffman MD, Stuempfle KJ",
+  "year": 2015,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000000599",
+  "pmid": "25551404",
+  "url": "https://doi.org/10.1249/mss.0000000000000599",
+  "design": "prospective-cohort",
+  "population": "Starters and finishers of the 161-km Western States Endurance Run (body weight, questionnaire, post-race serum sodium)",
+  "sampleSize": 376,
+  "evidenceLevel": "B",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "Questionnaire completed by 74.5% of 376 starters; blood sample from 61.1% of 296 finishers; 53.0% of finishers did both.",
+    "Hyponatremia incidence among finishers 6.6%; 93.9% used sodium supplements.",
+    "Post-race serum sodium directly related to sodium supplement intake rate (r = 0.24, P = 0.0027) and inversely related to body weight change (r = -0.19, P = 0.010).",
+    "No difference in sodium supplement intake rate between hyponatremic and normonatremic finishers; none of the hyponatremic finishers lost > 4.3% body weight; hyponatremic finishers were not distinguished by other runner characteristics, drinking strategies, or nausea/vomiting.",
+    "Conclusion: low sodium intake from supplements has minimal responsibility for hyponatremia during continuous exercise up to 30 h; overhydration is the primary characteristic; avoiding overhydration is the most important prevention."
+  ],
+  "limitations": "Observational, self-reported intake, weak correlations, near-universal supplement use (restricted contrast), single event; the positive sodium-intake correlation means sodium may modestly help, which authors interpret as small.",
+  "implications": [
+    "Treat sodium as secondary: no rule that sodium supplements prevent EAH; advise not to overdrink.",
+    "If sodium targets are shown, use Tiller's range (> 575 mg/L of fluid) labelled as taste/cramp/comfort support.",
+    "Add alert for 20-30 h races with heavy fluid intake: EAH risk is not fixed by any sodium rule."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match; numbers confirmed in the Europe PMC abstract. Sample size 376 is starters; 296 finishers.",
+    "checkedAt": "2026-10-22"
+  }
+}

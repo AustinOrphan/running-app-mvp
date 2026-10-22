@@ -1,0 +1,35 @@
+{
+  "id": "aubry-2014-overreaching-before-taper",
+  "title": "Functional overreaching: the key to peak performance during the taper?",
+  "authors": "Aubry A, Hausswirth C, Louis J, Coutts AJ, Le Meur Y",
+  "year": 2014,
+  "journal": "Medicine and Science in Sports and Exercise",
+  "doi": "10.1249/mss.0000000000000301",
+  "pmid": "25134000",
+  "url": "https://doi.org/10.1249/mss.0000000000000301",
+  "design": "other",
+  "population": "Trained male triathletes (cycling performance measured)",
+  "sampleSize": 33,
+  "evidenceLevel": "C",
+  "topics": ["taper"],
+  "findings": [
+    "33 trained male triathletes were assigned to overload training (n=23) or normal training (n=10, CTL) for 8 weeks, with 3-week overload and 4-week taper; 11 of 23 were diagnosed functionally overreached (F-OR, decreased performance with high perceived fatigue) and 12 were only acutely fatigued (AF).",
+    "By qualitative statistics the AF group showed a small to large greater peak performance supercompensation than the F-OR group (2.6% +/- 1.1%) and the CTL group (2.6% +/- 1.6%).",
+    "60%, 83% and 73% of peak performances occurred within the first two weeks of taper in CTL, AF and OR groups respectively.",
+    "Ten infections were reported, with higher prevalence in F-OR (70%) than AF (20%) and CTL (10%); authors conclude peak performance is not delayed when heavy training immediately precedes the taper, and F-OR carries a higher risk of maladaptation including infection."
+  ],
+  "limitations": "Male triathletes, cycling outcome, not runners; qualitative statistics; subgroups (F-OR vs AF) defined post hoc, 11-12 per group; assignment method to overload vs normal not stated.",
+  "implications": [
+    "Peak performance mostly arrives in the first two taper weeks, which supports not extending the taper beyond about 3 weeks (extrapolation; the study itself used a 4-week taper).",
+    "Avoid scheduling a large overload block immediately before the taper without monitoring; if the athlete shows functional overreaching signs (performance drop with high perceived fatigue) at taper start, do not add load and flag higher illness risk. The study did not test whether a longer taper helps F-OR athletes, so no taper extension is justified from it.",
+    "Infection risk was 70% in the overreached subgroup; flag illness prevention and monitoring after heavy pre-taper load."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref returns short title 'Functional Overreaching' (MSSE Sep 2014, Aubry first author). Design changed rct to other and level B to C (assignment not described as randomized; post hoc subgrouping). Researcher's 'extend the taper' advice was not supported and was removed.",
+    "checkedAt": "2026-10-22"
+  }
+}

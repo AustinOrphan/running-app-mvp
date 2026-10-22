@@ -1,0 +1,34 @@
+{
+  "id": "denadai-2017-explosive-heavy-economy",
+  "title": "Explosive Training and Heavy Weight Training are Effective for Improving Running Economy in Endurance Athletes: A Systematic Review and Meta-Analysis",
+  "authors": "Denadai BS, de Aguiar RA, de Lima LC, Greco CC, Caputo F",
+  "year": 2017,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-016-0604-z",
+  "pmid": "27497600",
+  "url": "https://doi.org/10.1007/s40279-016-0604-z",
+  "design": "meta-analysis",
+  "population": "Endurance running athletes; 20 effects from 16 studies published up to August 2015",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Concurrent strength and endurance training had a small beneficial effect on running economy (% change -3.93 +/- 1.19%, p < 0.001).",
+    "Explosive (-4.83 +/- 1.53%, p < 0.001) and heavy weight (-3.65 +/- 2.74%, p = 0.009) programs produced similar improvements; isometric training (-2.20 +/- 4.37%, p = 0.324) did not produce a significant effect.",
+    "Meta-regression: the magnitude of running economy change was larger for longer training duration (beta -0.83 +/- 0.72, p = 0.02).",
+    "Authors conclude that explosive and heavy training are effective within a few weeks, but long-term programs seem necessary for the largest improvement."
+  ],
+  "limitations": "Pre-2016 literature; small number of effects; meta-regression with many covariates on 20 effects is exploratory; sample size not stated in abstract; running economy outcome only. Crossref issued year 2016 (online first); issue year 2017.",
+  "implications": [
+    "Use roughly 3-4% as the central conservative planning figure for relative oxygen-cost improvement from a strength block, with ranges of about 2-8% in individual studies.",
+    "Treat explosive and heavy work as comparably effective for economy in this analysis, and favor longer blocks over short ones."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref first author, title and journal match; Crossref year 2016 (online-first), Europe PMC print year 2017.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "navalta-2020-trail-running-hr",
+  "title": "Concurrent heart rate validity of wearable technology devices during trail running",
+  "authors": "Navalta JW, Montes J, Bodell NG, Salatto RW, Manning JW, DeBeliso M",
+  "year": 2020,
+  "journal": "PLOS ONE",
+  "doi": "10.1371/journal.pone.0238569",
+  "pmid": "32866216",
+  "url": "https://doi.org/10.1371/journal.pone.0238569",
+  "design": "cross-sectional",
+  "population": "21 healthy participants (10 female, mean age 31 y) running a self-paced 3.22 km out-and-back trail (1.61 km uphill, 1.61 km downhill) wearing five devices plus a Polar H7 criterion strap",
+  "sampleSize": 21,
+  "evidenceLevel": "C",
+  "topics": ["load-quantification"],
+  "findings": [
+    "MAPE / LOA (bpm) / Lin's rC vs the Polar H7 strap: Garmin Fenix 5 wrist 13% / -32 to 162 / 0.32; Jabra Elite Sport earbuds 23% / -464 to 503 / 0.38; Motiv ring 16% / -52 to 96 / 0.29; Scosche Rhythm+ forearm band 6% / -114 to 120 / 0.79; Suunto Spartan Sport watch with accompanying chest strap 2% / -62 to 61 / 0.96.",
+    "All PPG-based devices displayed poor HR agreement during variable-intensity trail running.",
+    "Authors recommend that outdoor HR be obtained with an ECG-based chest strap connected to a watch or receiver, until PPG technology improves."
+  ],
+  "limitations": "n = 21, one short 3.22 km run, five 2017-2019 era devices, a single criterion strap (not ECG), no ultra-length or sustained efforts. The study design does not identify the cause of error (cadence lock, motion, etc.).",
+  "implications": [
+    "For hilly, trail or interval runs, down-weight or reject wrist-only HR for TRIMP and use chest-strap HR or sRPE; this follows the authors' recommendation, but the study did not test long or ultra efforts.",
+    "Add an HR-quality check (implausible jumps, large gaps, cadence-like HR) and fall back to sRPE when it fails; thresholds are a design choice, not from this paper."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, PLOS ONE, 31 Aug 2020, first author Navalta. All numbers re-checked against the Europe PMC abstract and match; added the other devices' LOA. Design changed from experimental-crossover to cross-sectional (concurrent-validity comparison). Dropped the researcher's reference to ultra load, which the study did not test.",
+    "checkedAt": "2026-10-22"
+  }
+}

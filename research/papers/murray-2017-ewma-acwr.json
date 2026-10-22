@@ -1,0 +1,33 @@
+{
+  "id": "murray-2017-ewma-acwr",
+  "title": "Calculating acute:chronic workload ratios using exponentially weighted moving averages provides a more sensitive indicator of injury likelihood than rolling averages",
+  "authors": "Murray NB, Gabbett TJ, Townshend AD, Blanch P",
+  "year": 2017,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2016-097152",
+  "pmid": "28003238",
+  "url": "https://doi.org/10.1136/bjsports-2016-097152",
+  "design": "prospective-cohort",
+  "population": "59 elite Australian football players from one club over 2 years (GPS external load, non-contact time-loss injuries)",
+  "sampleSize": 59,
+  "evidenceLevel": "C",
+  "topics": ["load-response-models"],
+  "findings": [
+    "ACWR values differed significantly between rolling-average and EWMA models in the moderate (1.0-1.49, p=0.021), high (1.50-1.99, p=0.012) and very high (>2.0, p=0.001) ranges.",
+    "Both models showed significant associations between a very high ACWR (>2.0) and injury risk for total distance (RR 6.52-21.28) and high-speed distance (RR 5.87-13.43); the EWMA model was more sensitive.",
+    "The variance (R2) in injury explained was significantly greater with the EWMA model."
+  ],
+  "limitations": "Team-sport athletes, one club, injury (not performance) outcome, associational. Contradicted for runners by nakaoka-2021-acwr-runners and criticised conceptually by impellizzeri-2020-acwr-pitfalls. The abstract states no EWMA decay constants.",
+  "implications": [
+    "If an acute/chronic metric is computed, use EWMA weighting rather than uncoupled rolling windows, but present it only as descriptive context.",
+    "No specific EWMA decay constants can be justified from this abstract."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref issued online 2016-12-21 (Europe PMC lists 2017 print); kept 2017. Numbers match Europe PMC abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

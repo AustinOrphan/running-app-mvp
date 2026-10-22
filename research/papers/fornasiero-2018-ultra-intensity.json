@@ -1,0 +1,41 @@
+{
+  "id": "fornasiero-2018-ultra-intensity",
+  "title": "Physiological intensity profile, exercise load and performance predictors of a 65-km mountain ultra-marathon",
+  "authors": "Fornasiero A, Savoldelli A, Fruet D, Boccia G, Pellegrini B, Schena F",
+  "year": 2018,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/02640414.2017.1374707",
+  "pmid": "28869746",
+  "url": "https://doi.org/10.1080/02640414.2017.1374707",
+  "design": "cross-sectional",
+  "population": "Twenty-three amateur trail runners in a 65 km mountain ultra-marathon (4000 m ascent), HR monitored",
+  "sampleSize": 23,
+  "evidenceLevel": "C",
+  "topics": ["intensity-distribution", "ultra-training"],
+  "findings": [
+    "Mean race intensity 77.1+/-4.4% of HRmax, distributed 85.7+/-19.4% zone I, 13.9+/-18.6% zone II, 0.4+/-0.9% zone III (zones defined by VT1 and VT2).",
+    "Exercise load 766+/-110 TRIMP units; race time 11.8+/-1.6 h.",
+    "Race time correlated with VO2max (r=-0.66) and PMax (r=-0.73); thresholds did not improve prediction; laboratory variables explained only 59% of race-time variance.",
+    "Authors state results support VT1 as a boundary of tolerable intensity in such events.",
+    "Mean race intensity was 77.1% +/- 4.4% of HRmax, distributed as 85.7% in Zone I (below VT1), 13.9% in Zone II (VT1-VT2) and 0.4% in Zone III (above VT2).",
+    "Exercise load was 766 +/- 110 TRIMP units; race time was 11.8 +/- 1.6 h.",
+    "Race time correlated negatively with VO2max (r = -0.66, P < 0.001) and peak power (r = -0.73, P < 0.001); exercise thresholds did not improve prediction.",
+    "Laboratory variables explained only 59% of race-time variance; the authors suggest VT1 is a boundary of tolerable intensity in such events."
+  ],
+  "limitations": "One race, amateur sample, observational and about racing not training. Extrapolation to 100-mile events untested.",
+  "implications": [
+    "Ultra race-day pacing: spend the large majority of the race below VT1/LT1; use that as the zone 1 anchor for ultra-specific sessions.",
+    "Prioritise time on feet and low-intensity volume for ultra goals (inference; no TID trial exists in ultra runners).",
+    "Anchor ultra race pacing guidance to heart rate at or below VT1 for most of the event (about 86% of time in Zone I in this race) and flag planned effort above VT2 as a risk.",
+    "The paper does not describe training intensity distribution, so any easy-running share in training is an engine choice, not a finding.",
+    "Compute TRIMP or an equivalent from watch heart-rate data as a race-load estimate (about 770 units for a 12 h mountain ultra) and use it to scale the post-race recovery block; the scaling rule is an engine choice."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: online 2017-09-04, print 2018-06. Numbers confirmed in abstract. The training-emphasis implication is flagged as inference.",
+    "checkedAt": "2026-10-22"
+  }
+}

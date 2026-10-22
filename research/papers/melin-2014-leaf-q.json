@@ -1,0 +1,34 @@
+{
+  "id": "melin-2014-leaf-q",
+  "title": "The LEAF questionnaire: a screening tool for the identification of female athletes at risk for the female athlete triad",
+  "authors": "Melin A, Tornberg AB, Skouby S, Faber J, Ritz C, Sjodin A, Sundgot-Borgen J",
+  "year": 2014,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2013-093240",
+  "pmid": "24563388",
+  "url": "https://doi.org/10.1136/bjsports-2013-093240",
+  "design": "cross-sectional",
+  "population": "Female athletes aged 18-39 training at least 5 times/week; validation in 45 endurance athletes (long-distance running, triathlon)",
+  "sampleSize": 84,
+  "evidenceLevel": "C",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "The 25-item Low Energy Availability in Females Questionnaire (LEAF-Q) covers injuries and gastrointestinal and reproductive function.",
+    "Against measured current EA, menstrual function and bone health in 45 endurance athletes, sensitivity was 78% and specificity 90% for correctly classifying current EA and/or reproductive function and/or bone health.",
+    "Reliability and internal consistency were evaluated in a subsample of 37 dancers and endurance athletes.",
+    "Authors position it as a complement to validated disordered-eating screening instruments for early detection and intervention."
+  ],
+  "limitations": "Single development study (n = 84; validation n = 45), young adults, validated against a female athlete triad definition, not tested prospectively.",
+  "implications": [
+    "Offer an optional periodic LEAF-Q-style self-screen to female users (plan start and about every 12 weeks is a design default, not from the paper). A positive screen triggers a non-diagnostic clinician prompt and a hold on volume progression.",
+    "With sensitivity only 78%, a negative screen must not suppress other REDs flags (missing periods, bone stress injury, recurrent illness)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (BJSM, 2014-02, Melin). Sensitivity/specificity and sample sizes confirmed in Europe PMC abstract (PMID 24563388). Removed unsupported claim about later studies' accuracy.",
+    "checkedAt": "2026-10-22"
+  }
+}

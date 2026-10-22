@@ -1,0 +1,35 @@
+{
+  "id": "zheng-2022-detraining-vo2max",
+  "title": "Effects of Short- and Long-Term Detraining on Maximal Oxygen Uptake in Athletes: A Systematic Review and Meta-Analysis",
+  "authors": "Zheng J, Pan T, Jiang Y, Shen Y",
+  "year": 2022,
+  "journal": "BioMed Research International",
+  "doi": "10.1155/2022/2130993",
+  "pmid": "36017396",
+  "url": "https://doi.org/10.1155/2022/2130993",
+  "design": "meta-analysis",
+  "population": "Trained individuals/athletes in 21 studies (of 3315 potential studies) with short- or long-term training cessation",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["beginners-return"],
+  "findings": [
+    "Short-term cessation lowered VO2max: ES -0.62 (95% CI -0.94 to -0.31), I2 = 35.3%, Egger p = 0.335.",
+    "Long-term cessation lowered VO2max more: ES -1.42 (95% CI -1.99 to -0.84), I2 = 76.3%, Egger p < 0.01; short vs long term Q = 6.5, p = 0.01.",
+    "No significant difference in VO2max change between 30-90 days and over 90 days of detraining (Q = 0.54, p = 0.46); the authors state there was no significant change in VO2max when cessation exceeded 30 days.",
+    "Younger (<20) athletes had a greater reduction after long-term detraining than adults (Q = 5.9, p = 0.05), and athletes with higher trained VO2max declined more (Q = 4.24, p = 0.03); performing some exercise during cessation weakens the effect."
+  ],
+  "limitations": "Standardised effect sizes, not absolute percentages; high heterogeneity in the long-term analysis (I2 76.3%); Egger's test indicates small-study bias for long-term cessation (p < 0.01); definitions of short and long term are not stated in the abstract; the 'no change beyond 30 days' conclusion rests on a subgroup comparison.",
+  "implications": [
+    "Use a saturating (plateau) layoff-decay shape rather than a linear one; most loss accrues in the first weeks and extra time off beyond about 30 days adds little on average.",
+    "Scale decay up for higher-VO2max and under-20 athletes and down for lower-fitness adults.",
+    "Prescribe some easy exercise during breaks when a full break is not medically required, because any exercise blunts detraining."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Own re-fetch: Crossref title, BioMed Res Int 2022, first author Zheng, 4 authors. PubMed abstract gives every statistic including '<20'. Level lowered from A to B because of I2 76% and small-study bias. Tension noted: Coyle shows VO2max still falling between day 21 and 56.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "ganse-2020-longitudinal-masters",
+  "title": "Longitudinal trends in master track and field performance throughout the aging process: 83,209 results from Sweden in 16 athletics disciplines",
+  "authors": "Ganse B, Kleerekoper A, Knobe M, Hildebrand F, Degens H",
+  "year": 2020,
+  "journal": "GeroScience",
+  "doi": "10.1007/s11357-020-00275-0",
+  "pmid": "33048301",
+  "url": "https://doi.org/10.1007/s11357-020-00275-0",
+  "design": "retrospective-cohort",
+  "population": "34,132 masters track and field athletes (aged 35-97) with 83,209 results; longitudinal subset with 10+ results",
+  "sampleSize": 34132,
+  "evidenceLevel": "C",
+  "topics": ["age-masters"],
+  "findings": [
+    "Performance in cross-sectional data was lower than in longitudinal data in all events except 1000 m men, because average age was lower in the cross-sectional data (men 46 vs 58, women 44 vs 56).",
+    "The annual percentage rate of decline did not differ significantly between cross-sectional and longitudinal data, or between sexes in most disciplines.",
+    "Performance declines after age 70 were 1.7 times (men) and 1.4 times (women) as steep as before.",
+    "The authors conclude cross-sectional data give a good impression of the annual percentage decline in performance, which was similar in men and women."
+  ],
+  "limitations": "Track and field results (not mainly distance road running); athletes with many results are survivors, selecting for higher performers; no training data.",
+  "implications": [
+    "Cross-sectional age curves can be used as a reasonable approximation of individual annual percentage decline for projecting age-based target changes.",
+    "Apply a steeper decline after age 70 (about 1.4-1.7 times the pre-70 slope) in long-range projections and goal-time realism checks.",
+    "Use no sex-specific decline slope as the default; sex differences in annual percentage decline were not significant in most disciplines."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC abstract match; numbers confirmed verbatim.",
+    "checkedAt": "2026-10-22"
+  }
+}

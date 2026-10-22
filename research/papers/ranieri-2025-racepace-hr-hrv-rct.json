@@ -1,0 +1,36 @@
+{
+  "id": "ranieri-2025-racepace-hr-hrv-rct",
+  "title": "Performance and Physiological Effects of Race Pace-Based Versus Heart Rate Variability-Guided Training Prescription in Runners",
+  "authors": "Ranieri LE, Casado A, Martin D, Trujillo-Colmena D, Gil-Arias A, Kenneally M, Jiménez A",
+  "year": 2025,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000003671",
+  "pmid": "39935030",
+  "url": "https://doi.org/10.1249/mss.0000000000003671",
+  "design": "rct",
+  "population": "Recreational distance runners, 6-week intervention",
+  "sampleSize": 28,
+  "evidenceLevel": "C",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "28 runners were randomised to heart rate-based (n = 9), race pace-based (n = 9) or HRV-based (n = 10) prescription for 6 weeks.",
+    "No group x time interaction effects; main time effects for VO2max, running economy, sVT1, sVT2 and 7-km time trial (P < 0.001, 0.88 <= d <= 2.67).",
+    "The race-pace group improved the time trial (P < 0.05, ES = 1.07); the HRV group increased sVT2 (P < 0.01, ES = 1.34) and was more successful in boosting sVT1 and VO2max, but fat mass increased.",
+    "Lowest inter-individual variation in time trial in the race-pace group (CV = 0.82); HRV group had lower variation in relative VO2max (0.75) and sVT2 (0.79).",
+    "Training load was similar between groups (P > 0.05) and all groups followed a pyramidal intensity distribution."
+  ],
+  "limitations": "Groups of 9-10 and 6 weeks; no between-group interaction effects, so group differences are descriptive and rest on within-group changes.",
+  "implications": [
+    "Most recent runner-specific RCT shows no between-group advantage for HRV-guided over HR-based or race-pace-based prescription at equal load, so HRV should not replace pace/HR zones as the intensity anchor.",
+    "Keep pace/HR-based zone prescription as the core and use HRV as a modifier only.",
+    "No change to intensity distribution is justified by HRV evidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, MSSE, first author Ranieri, 12 Feb 2025. Numbers verified in the raw Europe PMC abstract (PMID 39935030). First-author initials corrected to Ranieri LE. Downgraded evidence level B to C (n = 28, 9-10 per arm).",
+    "checkedAt": "2026-10-22"
+  }
+}

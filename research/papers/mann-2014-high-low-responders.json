@@ -1,0 +1,35 @@
+{
+  "id": "mann-2014-high-low-responders",
+  "title": "High responders and low responders: factors associated with individual variation in response to standardized training",
+  "authors": "Mann TN, Lamberts RP, Lambert MI",
+  "year": 2014,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-014-0197-3",
+  "pmid": "24807838",
+  "url": "https://doi.org/10.1007/s40279-014-0197-3",
+  "design": "narrative-review",
+  "population": "Studies of standardized endurance-type training in humans (review)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ai-coaching"],
+  "findings": [
+    "Individuals commonly show a wide range of responses to the same standardized training rather than a response close to the group average.",
+    "Genetic influences make an important contribution to variation in some training responses (heritability estimates and specific SNPs); hereditary effects are often expressed through the pre-training phenotype.",
+    "In most cases the pre-training phenotype predicts only a small amount of the variation in subsequent training response; pre-training autonomic activity shows relatively stronger predictive potential for maximal oxygen uptake response.",
+    "Non-genetic contributors include the method of relative intensity prescription (may create unequal homeostatic stress between individuals), recovery between sessions (training status, sleep, psychological stress, habitual activity), nutrition timing and composition, and measurement error. An imbalance of stress and recovery may cause fatigue and maladaptation."
+  ],
+  "limitations": "Narrative review; authors state more studies are needed to clarify and quantify each factor, and measurement error confounds many cited response data. No numeric thresholds.",
+  "implications": [
+    "Do not assume the same prescription yields the same adaptation: re-estimate fitness and thresholds from the athlete's own recent data and adjust the next block from observed response.",
+    "Prescribe intensity from individualized markers (athlete's own threshold or critical-speed estimates, own race results) rather than percentages of a population norm.",
+    "Include recovery covariates (sleep, life stress, recent load) as inputs to progression; a stress-recovery imbalance is a documented route to maladaptation."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: title, Sports Med, 2014-05-08, first author Mann match. Europe PMC abstract (PMID 24807838) re-read in full; all findings stated.",
+    "checkedAt": "2026-10-22"
+  }
+}

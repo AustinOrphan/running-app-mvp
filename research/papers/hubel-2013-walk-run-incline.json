@@ -1,0 +1,35 @@
+{
+  "id": "hubel-2013-walk-run-incline",
+  "title": "Vaulting mechanics successfully predict decrease in walk-run transition speed with incline",
+  "authors": "Hubel TY, Usherwood JR",
+  "year": 2013,
+  "journal": "Biology Letters",
+  "doi": "10.1098/rsbl.2012.1121",
+  "pmid": "23325739",
+  "url": "https://doi.org/10.1098/rsbl.2012.1121",
+  "design": "modelling",
+  "population": "Humans walking on the level and up a 9.8% incline (sample size not stated in the abstract); compass-gait model",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "A compass-gait vaulting model extended to inclines agrees with earlier observations that walk-run transition speed falls approximately 1% per 1% incline.",
+    "Measured preferred walk-run transition speed lay below the predicted maximum walking speed.",
+    "Actual maximum walking speeds were above predictions.",
+    "Onset of compliant walking on level and incline occurred near predicted values.",
+    "Preferred absolute transition speeds may be influenced by additional factors."
+  ],
+  "limitations": "Theory plus a small laboratory experiment (the abstract does not give the sample size); one incline measured (9.8%); walking speeds at the transition, not hiking at ultra durations or in fatigued runners. The measured preferred transition lay consistently below the predicted maximum walking speed.",
+  "implications": [
+    "A gradient-dependent walk/run switch is plausible: transition speed falls approximately 1% per 1% incline (from earlier observations, matched by the vaulting model), so on steeper grades walking becomes the natural gait at progressively lower speeds.",
+    "Use only as a prior; the paper states that preferred absolute transition speeds may be influenced by additional factors."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: Biol Lett 9(2):20121121, 2013, two authors match. PubMed PMID 23325739 abstract checked. The 1% per 1% figure is the earlier observation that the model reproduces, not a new measurement. Sample size unstated in abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

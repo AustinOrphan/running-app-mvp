@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase
+  xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+  xmlns:ns3="http://www.garmin.com/xmlschemas/ActivityExtension/v2">
+  <Activities>
+    <Activity Sport="Running">
+      <Id>2026-03-02T06:30:00Z</Id>
+      <Lap StartTime="2026-03-02T06:30:00Z">
+        <TotalTimeSeconds>20.0</TotalTimeSeconds>
+        <DistanceMeters>60.0</DistanceMeters>
+        <MaximumSpeed>3.2</MaximumSpeed>
+        <Calories>5</Calories>
+        <AverageHeartRateBpm><Value>130</Value></AverageHeartRateBpm>
+        <MaximumHeartRateBpm><Value>135</Value></MaximumHeartRateBpm>
+        <Intensity>Active</Intensity>
+        <TriggerMethod>Manual</TriggerMethod>
+        <Track>
+          <Trackpoint>
+            <Time>2026-03-02T06:30:00Z</Time>
+            <Position><LatitudeDegrees>0.0100</LatitudeDegrees><LongitudeDegrees>0.0200</LongitudeDegrees></Position>
+            <AltitudeMeters>20.0</AltitudeMeters>
+            <DistanceMeters>0.0</DistanceMeters>
+            <HeartRateBpm><Value>125</Value></HeartRateBpm>
+            <Extensions><ns3:TPX><ns3:RunCadence>85</ns3:RunCadence><ns3:Watts>210</ns3:Watts></ns3:TPX></Extensions>
+          </Trackpoint>
+          <Trackpoint>
+            <Time>2026-03-02T06:30:10Z</Time>
+            <Position><LatitudeDegrees>0.0101</LatitudeDegrees><LongitudeDegrees>0.0200</LongitudeDegrees></Position>
+            <AltitudeMeters>21.0</AltitudeMeters>
+            <DistanceMeters>30.0</DistanceMeters>
+            <HeartRateBpm><Value>130</Value></HeartRateBpm>
+            <Extensions><ns3:TPX><ns3:RunCadence>86</ns3:RunCadence><ns3:Watts>220</ns3:Watts></ns3:TPX></Extensions>
+          </Trackpoint>
+          <Trackpoint>
+            <Time>2026-03-02T06:30:20Z</Time>
+            <Position><LatitudeDegrees>0.0102</LatitudeDegrees><LongitudeDegrees>0.0200</LongitudeDegrees></Position>
+            <AltitudeMeters>22.0</AltitudeMeters>
+            <DistanceMeters>60.0</DistanceMeters>
+            <HeartRateBpm><Value>135</Value></HeartRateBpm>
+            <Extensions><ns3:TPX><ns3:RunCadence>87</ns3:RunCadence><ns3:Watts>230</ns3:Watts></ns3:TPX></Extensions>
+          </Trackpoint>
+        </Track>
+      </Lap>
+      <Lap StartTime="2026-03-02T06:30:20Z">
+        <TotalTimeSeconds>20.0</TotalTimeSeconds>
+        <DistanceMeters>60.0</DistanceMeters>
+        <MaximumSpeed>3.2</MaximumSpeed>
+        <Calories>5</Calories>
+        <AverageHeartRateBpm><Value>145</Value></AverageHeartRateBpm>
+        <MaximumHeartRateBpm><Value>150</Value></MaximumHeartRateBpm>
+        <Intensity>Active</Intensity>
+        <TriggerMethod>Manual</TriggerMethod>
+        <Track>
+          <Trackpoint>
+            <Time>2026-03-02T06:30:30Z</Time>
+            <AltitudeMeters>21.0</AltitudeMeters>
+            <DistanceMeters>90.0</DistanceMeters>
+            <HeartRateBpm><Value>140</Value></HeartRateBpm>
+            <Extensions><ns3:TPX><ns3:RunCadence>88</ns3:RunCadence><ns3:Watts>230</ns3:Watts></ns3:TPX></Extensions>
+          </Trackpoint>
+          <Trackpoint>
+            <Time>2026-03-02T06:30:40Z</Time>
+            <AltitudeMeters>20.0</AltitudeMeters>
+            <DistanceMeters>120.0</DistanceMeters>
+            <HeartRateBpm><Value>150</Value></HeartRateBpm>
+            <Extensions><ns3:TPX><ns3:RunCadence>89</ns3:RunCadence><ns3:Watts>240</ns3:Watts></ns3:TPX></Extensions>
+          </Trackpoint>
+        </Track>
+      </Lap>
+      <Creator xsi:type="Device_t" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <Name>Example Watch 100</Name>
+      </Creator>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>

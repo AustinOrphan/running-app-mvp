@@ -1,0 +1,34 @@
+{
+  "id": "urdampilleta-2020-cho-120",
+  "title": "Effects of 120 vs. 60 and 90 g/h Carbohydrate Intake during a Trail Marathon on Neuromuscular Function and High Intensity Run Capacity Recovery",
+  "authors": "Urdampilleta A, Arribalzaga S, Viribay A, Castaneda-Babarro A, Seco-Calvo J, Mielgo-Ayuso J",
+  "year": 2020,
+  "journal": "Nutrients",
+  "doi": "10.3390/nu12072094",
+  "pmid": "32679728",
+  "url": "https://doi.org/10.3390/nu12072094",
+  "design": "rct",
+  "population": "26 elite trail runners, 4000 m cumulative-slope mountain marathon",
+  "sampleSize": 26,
+  "evidenceLevel": "C",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "Randomised to LOW (60 g/h), MED (90 g/h) or HIGH (120 g/h) CHO intake.",
+    "Abalakov jump time/height and half-squat 1RM changed significantly 24 h post-race in LOW and MED but not HIGH (Wilcoxon).",
+    "Internal load significantly lower in HIGH vs LOW and MED (p = 0.017); changes in jump (p = 0.038), half-squat (p = 0.041), fatigue (p = 0.018) and lactate (p = 0.012) in the aerobic power-capacity test were smaller in HIGH.",
+    "Authors conclude 120 g/h might limit neuromuscular fatigue and improve recovery of high-intensity run capacity 24 h after the race."
+  ],
+  "limitations": "About 8-9 per arm, non-parametric tests, recovery measures only at 24 h, no race performance or GI outcomes in the abstract; study motivated by the authors' prior work on 120 g/h.",
+  "implications": [
+    "Evidence for > 90 g/h in running is preliminary: allow 90-120 g/h only as an advanced athlete opt-in tier for athletes already tolerating 90 g/h, flagged low-certainty.",
+    "Never default to 120 g/h."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match; numbers from the Europe PMC abstract. Removed unverified commercial-link and '~4-5 h' claims.",
+    "checkedAt": "2026-10-22"
+  }
+}

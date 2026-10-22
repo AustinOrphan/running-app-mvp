@@ -1,0 +1,35 @@
+{
+  "id": "costa-2017-eigs-sr",
+  "title": "Systematic review: exercise-induced gastrointestinal syndrome - implications for health and intestinal disease",
+  "authors": "Costa RJS, Snipe RMJ, Kitic CM, Gibson PR",
+  "year": 2017,
+  "journal": "Alimentary Pharmacology & Therapeutics",
+  "doi": "10.1111/apt.14157",
+  "pmid": "28589631",
+  "url": "https://doi.org/10.1111/apt.14157",
+  "design": "systematic-review",
+  "population": "Healthy populations and those with chronic GI conditions in studies of acute exercise (injury, permeability, endotoxaemia, motility, malabsorption)",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "With increasing exercise intensity and duration, intestinal injury, permeability and endotoxaemia increase, with impaired gastric emptying, slower small-intestinal transit and malabsorption.",
+    "Heat stress and running mode appear to exacerbate these markers.",
+    "Exercise stress of >= 2 h at 60% VO2max appears to be the threshold for significant GI perturbations, irrespective of fitness status.",
+    "GI symptoms (upper and lower) are common and a limiting factor in prolonged strenuous exercise; effects are reversible in healthy populations; safety of strenuous exercise in chronic GI disease has not been established."
+  ],
+  "limitations": "Heterogeneous markers and protocols; most studies shorter than ultras; no performance dose-response.",
+  "implications": [
+    "Hot-weather rule: when forecast heat is high, reduce intensity and expectations of GI tolerance for long runs.",
+    "Treat sessions of >= 2 h at ~60% VO2max-equivalent effort as the point where fuelling practice becomes relevant to GI adaptation.",
+    "Medical disclaimer for athletes with known GI disease; do not prescribe high-CHO strategies to them."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match (dash/hyphen formatting only); findings confirmed in the Europe PMC abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

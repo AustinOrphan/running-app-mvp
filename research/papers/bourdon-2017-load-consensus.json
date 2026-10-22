@@ -1,0 +1,38 @@
+{
+  "id": "bourdon-2017-load-consensus",
+  "title": "Monitoring Athlete Training Loads: Consensus Statement",
+  "authors": "Bourdon PC, Cardinale M, Murray A, Gastin P, Kellmann M, Varley MC, Gabbett TJ, Coutts AJ, Burgess DJ, Gregson W, Cable NT",
+  "year": 2017,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2017-0208",
+  "pmid": "28463642",
+  "url": "https://doi.org/10.1123/ijspp.2017-0208",
+  "design": "consensus-statement",
+  "population": "Expert consensus from the February 2016 Doha conference on monitoring athlete training loads",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["load-quantification", "load-response-models"],
+  "findings": [
+    "The statement brings together key findings and recommendations from a February 2016 conference in Doha on monitoring athlete training loads, in a shared conceptual framework for coaches and sport-science staff.",
+    "It outlines what load monitoring is, how it is applied in research and practice, why it matters and where it is heading.",
+    "The abstract refers to quantifying both internal and external loads to help protect athletes from injury and ill health; it reports no numeric thresholds.",
+    "Brings together key findings and recommendations from the 2016 Doha conference into a shared conceptual framework for coaches and sport-science and -medicine staff.",
+    "Outlines what athlete-load monitoring is, how it is applied in research and practice, why it matters (rationale and goals) and where it is heading.",
+    "The abstract refers to quantifying both internal and external loads placed on athletes."
+  ],
+  "limitations": "Conference-based expert consensus with no systematic methods described in the abstract; no thresholds; applicability to a single recreational runner is by analogy; full-text recommendations not read.",
+  "implications": [
+    "Use the internal/external-load framework to structure what the app records; combine measures rather than rely on one number.",
+    "Frame load features as decision support for one athlete, not validated injury predictors; no parameter value is justified by the abstract.",
+    "Record external load (distance, pace, time) and internal load (HR, RPE) for each session and keep them as separate model inputs.",
+    "No numeric rule is justified from this abstract."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, IJSPP, Apr 2017, first author Bourdon, 11 authors. Removed 'developed largely from team-sport contexts' from limitations because the abstract does not say so.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,188 @@
+[
+  {
+    "id": "ultra-goal-race-descriptors",
+    "statement": "Define an ultra as any race above 42.2 km and store race goals with the consensus descriptors (distance, elevation gain/loss, surface, altitude, continuous vs staged, support level) so rules can branch on them. 50 km is the lower bound of the ultra module.",
+    "parameter": "ultra_min_distance",
+    "value": "42.2",
+    "unit": "km (exclusive)",
+    "appliesTo": "All ultra goals",
+    "grade": "D",
+    "confidence": "high",
+    "evidence": ["scheer-2020-defining-off-road-running"]
+  },
+  {
+    "id": "ultra-volume-before-pace-100k",
+    "statement": "For goals of about 100 km and longer, prioritise growing weekly distance (bounded by the athlete's history and injury flags) ahead of adding pace work; for marathon and 50 km goals keep pace work in higher proportion. Weekly distance and training pace are the two inputs of a locally fitted race-pace sanity check.",
+    "parameter": "progression_priority",
+    "value": "volume first for >=100 km; pace weighted more for <=marathon",
+    "unit": "qualitative",
+    "appliesTo": "Athletes with 100 km to 100-mile goals",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "tanda-2015-training-anthropometry-100km",
+      "hoffman-2011-wser-vt100-factors",
+      "sewry-2022-safer-xxi-dnf"
+    ]
+  },
+  {
+    "id": "ultra-readiness-flags",
+    "statement": "Show non-blocking readiness messages when recent weekly distance, sessions per week, or training pace look low compared with the athlete's own history and the goal, since each was associated with DNF in a 24,000-starter 56 km cohort. No thresholds may be hard-coded from this evidence.",
+    "parameter": "readiness_flags",
+    "value": "weekly distance, sessions per week, goal pace vs recent training pace",
+    "unit": "athlete-relative, no numeric threshold",
+    "appliesTo": "Athletes 4+ weeks from an ultra goal",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": ["sewry-2022-safer-xxi-dnf", "burgess-2025-training-load-injury-gam"]
+  },
+  {
+    "id": "ultra-low-volume-note",
+    "statement": "Show an informational note, not a block, when average weekly running distance in the 12 weeks before an ultra is under 30 km. Based on one 56 km cohort; treat as a conservative default.",
+    "parameter": "low_weekly_distance_note",
+    "value": "30",
+    "unit": "km/week",
+    "appliesTo": "Athletes training for 50 km and longer",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["craddock-2020-acwr-two-oceans", "burgess-2025-training-load-injury-gam"]
+  },
+  {
+    "id": "ultra-acwr-informational",
+    "statement": "Display acute:chronic workload ratio only as information. Evidence conflicts (injury association above 1.5 in one study, minimal effect in another) and the load-injury relationship is non-linear, so ACWR must not hard-limit progression.",
+    "parameter": "acwr_use",
+    "value": "informational only; caution display at >1.5",
+    "unit": "ratio",
+    "appliesTo": "Ultra training load monitoring",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["burgess-2025-training-load-injury-gam", "craddock-2020-acwr-two-oceans"]
+  },
+  {
+    "id": "ultra-injury-history-gate",
+    "statement": "Apply conservative ramp rates and an explicit injury-history check to younger and less experienced runners, and show a note when the athlete has under 3 years of regular running before a first ultra. The 3-year value is the lower quarter of a descriptive distribution, not a risk threshold.",
+    "parameter": "min_years_regular_running_note",
+    "value": "3",
+    "unit": "years",
+    "appliesTo": "First-time ultra and 100-mile runners",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "hoffman-2013-ultra-exercise-behavior",
+      "hoffman-2014-ultra-health-injury",
+      "sewry-2022-safer-xxi-dnf"
+    ]
+  },
+  {
+    "id": "ultra-heat-age-risk",
+    "statement": "Raise the race-risk flag and recommend a more conservative pace target when forecast WBGT or temperature is high and when the runner is older than 38 (strongest for women older than 38 at 161 km). Use as a qualitative multiplier; no coefficients are available.",
+    "parameter": "risk_modifiers",
+    "value": "age>38; high WBGT/temperature",
+    "unit": "years; qualitative",
+    "appliesTo": "Ultra goals of 50 km to 100 miles",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": ["wegelin-2010-odds-finishing-161km", "sewry-2022-safer-xxi-dnf"]
+  },
+  {
+    "id": "ultra-first-timer-label",
+    "statement": "Do not treat first-time 100-mile status as a risk factor on its own; first-timers finished more often at Western States, most likely through selection. Base caution on training data and injury history.",
+    "parameter": "first_timer_risk_label",
+    "value": "not used",
+    "unit": null,
+    "appliesTo": "First-time 100-mile runners",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["wegelin-2010-odds-finishing-161km"]
+  },
+  {
+    "id": "ultra-fuel-gut-rehearsal",
+    "statement": "Include race-fuel rehearsal in long runs of ultra builds, progressing intake toward the planned race rate (ISSN range 30-50 g/h carbohydrate, 150-400 kcal/h total, shown as information with an individual-tolerance disclaimer), because nausea and GI distress are the leading cited reasons for dropping out at 161 km. Include foot-care and blister management in race readiness. Do not recommend routine NSAID use.",
+    "parameter": "long_run_fuel_rehearsal",
+    "value": "30-50 g/h carbohydrate; 150-400 kcal/h",
+    "unit": "g/h; kcal/h",
+    "appliesTo": "All 50 km to 100-mile builds, long runs",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "tiller-2019-issn-ultra-nutrition",
+      "hoffman-2011-wser-vt100-factors",
+      "stuempfle-2015-gi-distress-wser"
+    ]
+  },
+  {
+    "id": "ultra-race-pacing-vt1",
+    "statement": "Set race-day pacing guidance to keep heart rate at or below VT1 (aerobic zone) for most of the race (about 86% of time in this zone in a 65 km, 12 h race) and flag planned effort above VT2. For 100-mile goals use a more conservative default.",
+    "parameter": "race_time_below_vt1",
+    "value": "~85",
+    "unit": "% of race time",
+    "appliesTo": "Ultra goals lasting 10 hours or more",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["fornasiero-2018-ultra-intensity"]
+  },
+  {
+    "id": "ultra-goal-time-prediction",
+    "statement": "Estimate ultra goal times from prior ultra finishes and marathon PB first; use speed-based fitness (VO2max proxy, recent 5-10 km) for 50 to 80 km only. For 100 miles and longer, present a wide range and finish-first framing; for multi-stage events use 50-100 km race performance and last-year training speed.",
+    "parameter": "goal_time_inputs",
+    "value": "ultra history + marathon PB; range for >=161 km",
+    "unit": "qualitative",
+    "appliesTo": "Goal-time estimates for 50 km to 100 miles and multi-day",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "knechtle-2018-ultra-physiology-review",
+      "coates-2021-physio-determinants-ultra",
+      "pastor-2022-trail-determinants-distances",
+      "schutz-2019-tefr-prerace"
+    ]
+  },
+  {
+    "id": "ultra-strength-maintenance",
+    "statement": "Include a strength-maintenance component (knee extensors and plantar flexors) in plans for about 100 km and longer trail goals. Evidence shows only that maximal isometric strength determined performance at 101 km; the dose is an engine default.",
+    "parameter": "strength_sessions_per_week",
+    "value": "2",
+    "unit": "sessions/week (engine default)",
+    "appliesTo": "Athletes with 100 km or longer trail goals",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["pastor-2022-trail-determinants-distances"]
+  },
+  {
+    "id": "ultra-volume-benchmark",
+    "statement": "Use about 64 km/week (3,347 km/yr median) only as a descriptive sanity check of experienced ultrarunners' volume; never set it as a target. Cap peak volume by the athlete's own history and injury risk.",
+    "parameter": "experienced_ultra_median_weekly_distance",
+    "value": "64",
+    "unit": "km/week (descriptive)",
+    "appliesTo": "Recreational athletes with ultra goals",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["hoffman-2013-ultra-exercise-behavior", "byrne-2024-elite-24h-training"]
+  },
+  {
+    "id": "ultra-peak-timing-recovery",
+    "statement": "Place peak training volume about 3 weeks before the goal race (elite n = 1 structure), and follow 100 km or longer races with a long, load-scaled recovery block. No day count is evidenced; engine default: no running for 7 days after a 100 km or longer race, then reduced running for at least a further 7 days, scaled up by race load (TRIMP or duration).",
+    "parameter": "post_race_recovery_default",
+    "value": "7 days no running, then >=7 days reduced",
+    "unit": "days (engine default)",
+    "appliesTo": "Races of 100 km or longer",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "byrne-2024-elite-24h-training",
+      "knechtle-2018-ultra-physiology-review",
+      "fornasiero-2018-ultra-intensity"
+    ]
+  },
+  {
+    "id": "ultra-multiday-no-volume-promise",
+    "statement": "For multi-day and stage events do not claim that pre-race volume prevents dropout; no tested pre-race variable separated finishers from non-finishers in the one cohort studied. Put risk guidance on in-event management (pacing, injury, fuel) and show 5,500 km/year only as a descriptive reference.",
+    "parameter": "multi_day_dropout_messaging",
+    "value": "no volume-based promise",
+    "unit": null,
+    "appliesTo": "Multi-day and stage race goals",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["schutz-2019-tefr-prerace"]
+  }
+]

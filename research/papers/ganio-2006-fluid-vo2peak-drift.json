@@ -1,0 +1,33 @@
+{
+  "id": "ganio-2006-fluid-vo2peak-drift",
+  "title": "Fluid ingestion attenuates the decline in VO2peak associated with cardiovascular drift",
+  "authors": "Ganio MS, Wingo JE, Carroll CE, Thomas MK, Cureton KJ",
+  "year": 2006,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/01.mss.0000218127.14107.08",
+  "pmid": "16672844",
+  "url": "https://doi.org/10.1249/01.mss.0000218127.14107.08",
+  "design": "experimental-crossover",
+  "population": "Eleven trained men cycling at 60% control VO2max in 30 C, 40% relative humidity",
+  "sampleSize": 11,
+  "evidenceLevel": "C",
+  "topics": ["durability-drift"],
+  "findings": [
+    "VO2peak was measured immediately after 15, 60 or 120 min without fluid (15 NF, 60 NF, 120 NF) or after 120 min with fluid (120 F); body mass fell 0.7, 2.3 and 3.7% in 120 F, 60 NF and 120 NF.",
+    "Stroke volume and VO2peak fell significantly from 15-min values in 120 NF (13.8% and 8.7%) but not in 60 NF (4.6% and 1.2%) or 120 F (2.1% and 1.9%).",
+    "Authors conclude the progressive stroke-volume decline reduces VO2peak and that fluid ingestion mitigates it."
+  ],
+  "limitations": "Eleven trained men, cycling, 30 C only; the stroke-volume decline cannot be separated from dehydration and hyperthermia in the abstract; running not tested.",
+  "implications": [
+    "Dehydration of roughly 3-4% body mass over 2 h in the warm was accompanied by a large drop in VO2peak (about 9%), while about 0.7% loss with fluid was not; use about 2% body-mass loss as a conservative flag for excluding a run from durability estimates (the exact cut-off is not established).",
+    "Fluid intake in long warm runs is a plan-level instruction, not only a race-day tip."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref (2006-05) and PubMed (Med Sci Sports Exerc 2006 May;38(5):901-9) match; numbers from abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "balsalobre-2016-running-economy-highly-trained",
+  "title": "Effects of Strength Training on Running Economy in Highly Trained Runners: A Systematic Review With Meta-Analysis of Controlled Trials",
+  "authors": "Balsalobre-Fernandez C, Santos-Concejero J, Grivas GV",
+  "year": 2016,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000001316",
+  "pmid": "26694507",
+  "url": "https://doi.org/10.1519/jsc.0000000000001316",
+  "design": "meta-analysis",
+  "population": "Competitive middle- and long-distance runners with VO2max above 60 ml/kg/min; 5 controlled trials",
+  "sampleSize": 93,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Five controlled trials with 93 high-level middle- and long-distance runners met the criteria after 699 articles were screened; programs lasted longer than 4 weeks.",
+    "Four of the 5 studies used low to moderate intensities (40-70% 1RM) and all used low to moderate volume (2-4 lower-body resistance exercises plus up to 200 jumps and 5-10 short sprints), 2-3 times per week for 8-12 weeks.",
+    "Pooled effect on running economy was large and beneficial: SMD -1.42 (95% CI -2.23 to -0.60).",
+    "Authors conclude that low to high intensity resistance plus plyometric exercises 2-3 times per week for 8-12 weeks is an appropriate strategy for highly trained runners."
+  ],
+  "limitations": "Only five small trials; very wide confidence interval; the pooled SMD is probably inflated by small samples and heterogeneous running-economy protocols; elite-only population (VO2max above 60) may not transfer to recreational runners; no performance outcome.",
+  "implications": [
+    "Default strength block of 8-12 weeks, 2-3 sessions per week, 2-4 lower-body exercises plus a limited jump and short-sprint component (up to about 200 jumps per session as observed in the included trials).",
+    "Treat the SMD of -1.42 as an upper bound and do not use it to predict an individual's economy or pace gain; use the smaller Llanos-Lagos 2024 and Denadai 2017 estimates."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title, journal, 2016 and first author match. All numbers in abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "sewry-2022-safer-xxi-dnf",
+  "title": "Risk factors for not finishing an ultramarathon: 4-year study in 23,996 race starters, SAFER XXI",
+  "authors": "Sewry N, Schwellnus MP, Borjesson M, Swanevelder S, Jordaan E",
+  "year": 2022,
+  "journal": "The Journal of Sports Medicine and Physical Fitness",
+  "doi": "10.23736/s0022-4707.21.12252-2",
+  "pmid": "33871241",
+  "url": "https://doi.org/10.23736/s0022-4707.21.12252-2",
+  "design": "cross-sectional",
+  "population": "Starters of the 56-km Two Oceans ultramarathon who completed a pre-race medical screening questionnaire",
+  "sampleSize": 23996,
+  "evidenceLevel": "B",
+  "topics": ["ultra-training"],
+  "findings": [
+    "The abstract describes a prospective, cross-sectional study. DNF risk was higher with older age and in females (P < 0.0001).",
+    "After adjusting for age and sex, significant univariate risk factors were fewer years of running (P < 0.0001), less previous race experience (P < 0.0001), less training/racing per week (P = 0.0002), lower average weekly training distance (P = 0.0016) and slower race vs training speed (P < 0.0001).",
+    "Higher average wet-bulb globe temperature on race day increased DNF risk (P < 0.0001).",
+    "Lack of allergies was also associated with DNF (P = 0.0100)."
+  ],
+  "limitations": "One 56-km race; univariate (age/sex-adjusted) associations from self-reported questionnaires; no effect sizes or thresholds in the abstract; may not transfer to 100-mile races.",
+  "implications": [
+    "Implement a pre-race readiness check using three training-derived DNF flags: low weekly training distance, low sessions per week, and race goal pace that is fast relative to recent training pace. Show as messages, not a hard block.",
+    "Add heat adjustment: raise the finish-risk flag and slow the planned pace when forecast WBGT is high.",
+    "No numeric thresholds are justified by the abstract; calibrate against the athlete's own history."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2022-04, first author Sewry) and Europe PMC abstract re-fetched with P-values. Design changed from prospective-cohort to cross-sectional to match the abstract's own label; B kept because of n = 23,996. Researcher wording 'slower race vs training speed' implies a slow goal pace; the abstract does not say which direction of mismatch, so the implication was reworded to a mismatch flag.",
+    "checkedAt": "2026-10-22"
+  }
+}

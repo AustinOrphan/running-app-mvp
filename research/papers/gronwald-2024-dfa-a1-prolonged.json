@@ -1,0 +1,35 @@
+{
+  "id": "gronwald-2024-dfa-a1-prolonged",
+  "title": "Correlation properties of heart rate variability for exercise prescription during prolonged running at constant speeds: A randomized cross-over trial",
+  "authors": "Gronwald T, Horn L, Schaffarczyk M, Hoos O",
+  "year": 2024,
+  "journal": "European Journal of Sport Science",
+  "doi": "10.1002/ejsc.12175",
+  "pmid": "39300759",
+  "url": "https://doi.org/10.1002/ejsc.12175",
+  "design": "experimental-crossover",
+  "population": "21 trained endurance athletes (9 women, 12 men): ramp test then two 20-min constant-speed runs at DFAa1-derived speeds",
+  "sampleSize": 21,
+  "evidenceLevel": "C",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "Mean DFAa1-based speeds matched ventilatory-threshold speeds: vDFAa1 at 0.75 10.6 +/- 1.9 vs vVT1 10.8 +/- 1.7 km/h; vDFAa1 at 0.5 13.1 +/- 2.4 vs vVT2 13.2 +/- 1.9 km/h.",
+    "The 20-min run at the DFAa1 = 0.5 speed could not be finished by all participants (15 finishers, 6 in the exhaustion group, who ran 15.2 +/- 2.4 km/h).",
+    "In finishers, 20 min at the 0.75 vs 0.5 speed gave HR 76.2% vs 86.4% of HRpeak, VO2 62.1% vs 77.5% of VO2peak, DFAa1 0.86 vs 0.60 and lactate 1.41 vs 3.34 mmol/L.",
+    "During the 0.5 run, respiratory frequency rose and DFAa1 fell substantially (finishers RF +15.6%, DFAa1 -12.8%; exhaustion group RF +20.1%, DFAa1 -35.9%), while changes during the 0.75 run were small.",
+    "The authors conclude DFAa1-based prescription from incremental testing could be useful for most participants in prolonged running at least in the moderate to heavy domain, with an increased risk of overloading in the heavy to severe domains."
+  ],
+  "limitations": "Only 20-min bouts, short for marathon or ultra relevance; n = 21 including 6 who could not finish at the upper speed; trained athletes, not recreational.",
+  "implications": [
+    "Use the DFA-a1 0.75 speed (about 62% VO2peak and 76% HRpeak in finishers) only as the aerobic anchor; do not prescribe sustained running at a DFA-a1 0.5 speed, because 6 of 21 athletes could not complete 20 min.",
+    "A falling DFA-a1 and rising respiratory frequency at constant speed accompanied overload in the 0.5 bout; this may be logged as a possible slow-down cue, but the study supports only 20-min bouts, so no ultra-duration rule is justified."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Eur J Sport Sci vol 24 pp 1539-1551, online 2024-09-19. Abstract confirms numbers; RF/DFAa1 change figures added from abstract. The researcher's 'slow down when DFA-a1 drops' implication is only a hypothesis from this abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

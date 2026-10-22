@@ -1,0 +1,35 @@
+{
+  "id": "haugen-2022-world-class-runners",
+  "title": "The Training Characteristics of World-Class Distance Runners: An Integration of Scientific Literature and Results-Proven Practice",
+  "authors": "Haugen T, Sandbakk O, Seiler S, Tonnessen E",
+  "year": 2022,
+  "journal": "Sports Medicine - Open",
+  "doi": "10.1186/s40798-022-00438-7",
+  "pmid": "35362850",
+  "url": "https://doi.org/10.1186/s40798-022-00438-7",
+  "design": "narrative-review",
+  "population": "World-class 5000/10,000 m and marathon runners (literature plus coaching practice)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "Mid-preparation weekly distance is 160-220 km for marathoners and 130-190 km for track runners; both groups perform 11-14 sessions per week.",
+    "At least 80% of total running volume is performed at low intensity throughout the training year.",
+    "TID varies across mesocycles and differs between marathon and track runners, but volume of race-pace running increases as the main competition approaches.",
+    "Tapering starts 7-10 days before the main competition."
+  ],
+  "limitations": "Narrative integration for world-class runners; volumes and frequencies do not transfer to recreational athletes; no controlled comparison.",
+  "implications": [
+    "Use >=80% low-intensity volume as the annual floor, scaled to the athlete's own load rather than elite absolute volume.",
+    "Increase the race-pace share as the goal race approaches.",
+    "Taper timing belongs to the taper topic; 7-10 days is an elite figure and needs scaling for lower-volume athletes."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: online 2022-04-01, journal matches. All figures from abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

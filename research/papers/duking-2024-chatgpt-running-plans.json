@@ -1,0 +1,35 @@
+{
+  "id": "duking-2024-chatgpt-running-plans",
+  "title": "ChatGPT Generated Training Plans for Runners are not Rated Optimal by Coaching Experts, but Increase in Quality with Additional Input Information",
+  "authors": "Düking P, Sperlich B, Voigt L, Van Hooren B, Zanini M, Zinner C",
+  "year": 2024,
+  "journal": "Journal of Sports Science and Medicine",
+  "doi": "10.52082/jssm.2024.56",
+  "pmid": "38455449",
+  "url": "https://doi.org/10.52082/jssm.2024.56",
+  "design": "other",
+  "population": "Three ChatGPT-generated six-week running plans rated by coaching experts on 22 literature-derived quality criteria",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["ai-coaching"],
+  "findings": [
+    "Three plans were generated with increasing input granularity and rated by coaching experts on a 1-5 Likert scale across 22 criteria (Friedman test).",
+    "A median rating below 3 was given for 19, 11 and 1 criteria for plans 1, 2 and 3; a median of 3 for 3, 5 and 8; a median above 3 for 0, 6 and 13.",
+    "Plan 1 was rated significantly lower than plan 2 on 3 criteria and lower than plan 3 on 15; plan 2 lower than plan 3 on 9 (p < 0.05).",
+    "Authors conclude ChatGPT plans were ranked sub-optimally, quality rising with more input, and advise avoiding use without an expert coach's feedback."
+  ],
+  "limitations": "Three plans from one chatbot version; rater count not in abstract; subjective Likert ratings; no outcomes or injuries measured.",
+  "implications": [
+    "Generate sessions with a deterministic rule-based engine seeded by structured inputs; use LLMs only for explanation text.",
+    "Collect granular history, availability and goal before generating, since quality rose with input detail.",
+    "Turn the idea of an expert quality checklist (progression, recovery weeks, intensity distribution, taper) into automated tests on generated plans."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: title, J Sports Sci Med, 2024-03-01, first author Düking match. Abstract (PMID 38455449) re-read; added the plan 1 vs 2 result (3 criteria) and median-3 counts.",
+    "checkedAt": "2026-10-22"
+  }
+}

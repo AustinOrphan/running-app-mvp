@@ -1,0 +1,35 @@
+{
+  "id": "podlogar-2022-cho-new-horizons",
+  "title": "New Horizons in Carbohydrate Research and Application for Endurance Athletes",
+  "authors": "Podlogar T, Wallis GA",
+  "year": 2022,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-022-01757-1",
+  "pmid": "36173597",
+  "url": "https://doi.org/10.1007/s40279-022-01757-1",
+  "design": "narrative-review",
+  "population": "Endurance athletes; contemporary review of carbohydrate research and application",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "High carbohydrate availability for prolonged intense exercise and competition remains a priority.",
+    "Recent advances on the recommended type and quantity of carbohydrate before, during and after intense bouts.",
+    "The contemporary view of 'train-low' based on the totality of evidence suggests limited utility for enhancing performance benefits from training, but periodising carbohydrate intake to the goal and demand of training or competition is important.",
+    "Calls for a more personalised approach to carbohydrate recommendations, potentially supported by continuous glucose monitoring."
+  ],
+  "limitations": "Narrative review; abstract gives no numeric dose recommendations and full text was not read.",
+  "implications": [
+    "Periodise carbohydrate: high availability around key long or intense sessions and races.",
+    "Do not schedule train-low as a performance enhancer; at most an optional, rare, low-intensity adaptation tool.",
+    "Fuelling module should allow athlete-specific tolerance data to personalise targets."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match; findings paraphrase the Europe PMC abstract only.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "id": "hewbutler-2017-eah-update",
+  "title": "Exercise-Associated Hyponatremia: 2017 Update",
+  "authors": "Hew-Butler T, Loi V, Pani A, Rosner MH",
+  "year": 2017,
+  "journal": "Frontiers in Medicine",
+  "doi": "10.3389/fmed.2017.00021",
+  "pmid": "28316971",
+  "url": "https://doi.org/10.3389/fmed.2017.00021",
+  "design": "narrative-review",
+  "population": "Endurance and ultra-endurance athletes; review of EAH epidemiology, pathophysiology, treatment and prevention (follows the 2015 consensus)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "Overdrinking beyond thirst and non-osmotic arginine vasopressin release are the most common etiologic factors; a volume- and sodium-depletion contribution in a subset of athletes is also described (abstract).",
+    "Hyponatremia is blood [Na+] below 135 mmol/L; screening studies found asymptomatic EAH in 11% of 1,089 Ironman triathletes tested post-race and 67% of 15 ultramarathon runners tested during the race (full text).",
+    "Sodium ingestion cannot prevent EAH with excessive fluid intake; the amount of fluid ingested rather than sodium ingested drives final blood sodium, and hypotonic sodium-containing sports drinks will not prevent EAH in athletes who overdrink (full text).",
+    "Prevention: fixed fluid ranges are not appropriate; drinking when thirsty is the most individualized strategy; fluid deficits up to ~3% of body mass (~5% TBW) are well tolerated; thirst-guided drinking prevents EAH in temperate climates with duration under 17 h (full text).",
+    "Treatment: IV 100 mL 3% NaCl boluses every 10 min for severe symptomatic EAH, oral hypertonic solution for mild-moderate symptoms; 85% of hyponatremic athletes in one Czech ultra-endurance study were volume depleted by body-weight change, so weight loss does not exclude EAH (full text)."
+  ],
+  "limitations": "Narrative review, not a systematic search. Authors state that the evidence on sodium supplementation is mixed. The 17 h thirst-guided claim is for temperate climates and is an expert statement, not a tested threshold.",
+  "implications": [
+    "Do not generate rigid fluid prescriptions above thirst; present fluid as a range (Tiller 450-750 mL/h) with a 'drink to thirst, do not force fluids' rule.",
+    "For events over ~17 h or hot races add a plan note: weigh at aid stations if possible, weight gain is a red flag, avoid water-only/hypotonic overdrinking.",
+    "Frame sodium as secondary to avoiding overdrinking.",
+    "Include a safety card with EAH warning symptoms and a medical-care directive; no treatment prescription in the engine."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match. Abstract from Europe PMC. Full text (PMC5334560) re-fetched as XML and searched directly: 1,089 Ironman, 67% of 15 ultramarathoners, 135 mmol/L, 100 mL 3% saline every 10 min, 17 h, 3% body mass and Czech 85% all confirmed verbatim.",
+    "checkedAt": "2026-10-22"
+  }
+}

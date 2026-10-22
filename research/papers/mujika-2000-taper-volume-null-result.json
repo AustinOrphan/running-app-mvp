@@ -1,0 +1,35 @@
+{
+  "id": "mujika-2000-taper-volume-null-result",
+  "title": "Physiological responses to a 6-d taper in middle-distance runners: influence of training intensity and volume",
+  "authors": "Mujika I, Goya A, Padilla S, Grijalba A, Gorostiaga E, Ibanez J",
+  "year": 2000,
+  "journal": "Medicine and Science in Sports and Exercise",
+  "doi": "10.1097/00005768-200002000-00038",
+  "pmid": "10694140",
+  "url": "https://doi.org/10.1097/00005768-200002000-00038",
+  "design": "rct",
+  "population": "Well-trained male middle-distance runners after 15 weeks of training",
+  "sampleSize": 8,
+  "evidenceLevel": "C",
+  "topics": ["taper"],
+  "findings": [
+    "8 runners were randomly assigned to a moderate volume taper (50% progressive reduction, n=4) or a low volume taper (75% progressive reduction, n=4) of low intensity continuous and high intensity interval training.",
+    "800 m performance was not significantly enhanced by either taper (LVT 124.9 +/- 4.5 vs 126.1 +/- 4.2 s; MVT 126.2 +/- 8.0 vs 125.7 +/- 6.6 s).",
+    "Red cell count, haemoglobin, mean corpuscular volume and mean corpuscular Hb concentration significantly decreased with taper while reticulocyte count increased; physiological changes were mainly haematological.",
+    "Performance changes correlated with changes in postrace peak blood lactate (r = 0.87, P < 0.01); authors conclude middle-distance runners can progressively reduce usual training volume by at least 75% during a 6-d taper."
+  ],
+  "limitations": "n=8 total (underpowered), no non-taper control group, 800 m runners, 6-day taper; absence of a significant improvement is not evidence of no effect.",
+  "implications": [
+    "A very short taper should be presented as freshness preparation, not a promised improvement.",
+    "Performance was not reduced by cutting volume 50-75% over 6 days in this small sample, so the lower bound of the volume band is not alarming, but there was no control group to confirm this.",
+    "No change to the 14-day, 41-60% default is justified by this study."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (MSSE Feb 2000; Crossref author field shows a mangled 'Ibanez'). 'Randomly assigned' stated in abstract so rct label kept.",
+    "checkedAt": "2026-10-22"
+  }
+}

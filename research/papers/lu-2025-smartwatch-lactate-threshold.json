@@ -1,0 +1,35 @@
+{
+  "id": "lu-2025-smartwatch-lactate-threshold",
+  "title": "Validity of smartwatch-derived estimates of lactate threshold heart rate and pace compared to graded exercise testing",
+  "authors": "Lu C, Cui W, Zhu Z, Wu Y, Xing Q, Pan B, Shen Y",
+  "year": 2025,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2025.1621996",
+  "pmid": "40740423",
+  "url": "https://doi.org/10.3389/fphys.2025.1621996",
+  "design": "cross-sectional",
+  "population": "100 healthy recreational runners doing indoor graded tests (modified Dmax) then outdoor smartwatch LT tests with Huawei GT Runner (n = 100), Garmin Forerunner 265/265s (n = 23) and Coros Pace3 (n = 17)",
+  "sampleSize": 100,
+  "evidenceLevel": "C",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Single-test success rates were 78% (Huawei), 65.22% (Garmin) and 47.06% (Coros).",
+    "LT HR: no significant difference from the lab estimate, but MAE 10.66 bpm (MAPE 6.32%) Huawei, 11.44 bpm (7.15%) Garmin and 8.93 bpm (5.95%) Coros, with r = 0.13 to 0.67 (R2 0.02 to 0.45).",
+    "LT pace was overestimated: Huawei MAE 1.22 km/h (MAPE 12.70%, p = 0.01, r = 0.88), Garmin 2.17 km/h (25.78%, p < 0.01, r = 0.73), Coros 1.93 km/h (22.63%, p = 0.08, r = 0.79). The Coros overestimate was not significant by its own p-value despite the abstract's 'all devices' wording.",
+    "Authors conclude smartwatches can estimate LT HR and LT pace in recreational runners but tend to overestimate LT pace and accuracy remains to be improved."
+  ],
+  "limitations": "Unequal device groups (Garmin n = 23, Coros n = 17); the reference is lab modified Dmax, not maximal lactate steady state; healthy recreational runners only; closed-source algorithms.",
+  "implications": [
+    "Do not use watch-reported LT pace as a zone anchor without confirmation (race or time-trial result): it overestimated by about 13-26% (MAPE).",
+    "Watch LT HR (MAE about 9-11 bpm, weak correlation) is only a rough starting point; allow user override and prefer zones from observed max HR and recent hard efforts.",
+    "LT pace correlated with the lab value (r 0.73-0.88) while biased high, so a user-specific correction could be tested, but this paper does not validate one."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, Front Physiol, 4 Jul 2025, first author Lu. Numbers re-checked against the abstract. The corrigendum (10.3389/fphys.2025.1661421, read in Europe PMC full text) only adds Yanfei Shen as corresponding author; results are unaffected. Fixed the Coros significance detail.",
+    "checkedAt": "2026-10-22"
+  }
+}

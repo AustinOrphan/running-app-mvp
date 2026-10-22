@@ -1,0 +1,35 @@
+{
+  "id": "khassetarash-2023-rbe-downhill",
+  "title": "The repeated bout effect influences lower-extremity biomechanics during a 30-min downhill run",
+  "authors": "Khassetarash A, Baggaley M, Vernillo G, Millet GY, Edwards WB",
+  "year": 2023,
+  "journal": "European Journal of Sport Science",
+  "doi": "10.1080/17461391.2022.2048083",
+  "pmid": "35225166",
+  "url": "https://doi.org/10.1080/17461391.2022.2048083",
+  "design": "experimental-repeated-measures",
+  "population": "11 male participants, two 30-min downhill runs 3 weeks apart at 2.8 m/s and -11.3 degrees",
+  "sampleSize": 11,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "The second bout (DR2) had less MVIC loss (P = 0.004) and less perceived quadriceps pain (P < 0.001) than the first (DR1).",
+    "Duty factor increased +5.4% in DR2 versus +8.8% in DR1 (P < 0.035).",
+    "Leg stiffness fell 11.7% (P = 0.002) and joint quasi-stiffness up to 25.4% (all P < 0.001) in DR1 but not in DR2.",
+    "DR2 involved less energy absorption and generation than DR1 (P < 0.004).",
+    "The two bouts were three weeks apart (stated in the highlights); each was 30 min at 2.8 m/s on a -11.3 degree treadmill."
+  ],
+  "limitations": "Eleven male participants, treadmill, fixed slope and speed, a single repeat at one interval. No control group and no follow-up beyond the second bout; the abstract calls the mechanism speculative.",
+  "implications": [
+    "One 30 min downhill bout at -11.3 degrees (tan 11.3 degrees = 0.20, so -20% grade) at 2.8 m/s (10.1 km/h) attenuated muscle-function loss, pain and biomechanical changes when repeated 3 weeks later. A single early exposure about 3 weeks before heavy downhill work is therefore a defensible default, tested at that one interval only.",
+    "Unaccustomed runners lose downhill leg stiffness and absorb more energy over 30 min of steep descent. The study used 30 min only, so a safe first-exposure cap is not established; start shorter and progress."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: Eur J Sport Sci 23(4):510-519, print 2023 (online 2022-03-29), five authors match. Used PubMed XML because Europe PMC text drops the less-than signs from P values; all numbers then supported. Design relabelled repeated-measures (not a crossover).",
+    "checkedAt": "2026-10-22"
+  }
+}

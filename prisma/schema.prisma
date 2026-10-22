@@ -24,6 +24,12 @@ model User {
   goals         Goal[]
   plans         Plan[]
   reviews       WeeklyReview[]
+  profile       AthleteProfile?
+  wellnessDays  WellnessDay[]
+  integrations  Integration[]
+  importedFiles ImportedFile[]
+  predictions   PredictionLog[]
+  screenings    Screening[]
 }
 
 model Activity {
@@ -39,18 +45,41 @@ model Activity {
   maxHr           Int?
   elevationGainM  Int?
   notes           String?
-  source          String   @default("manual") // 'manual' | 'smashrun' | 'csv'
+  source          String   @default("manual") // provider registry key, or 'manual' | 'smashrun' | 'csv' | 'file'
   providerKey     String?
+  subtype         String? // run/race: road|trail|track|treadmill; cross: bike|hike|walk|swim|ski|elliptical|other
+  startUtc        String? // ISO 8601 with Z
+  utcOffsetMin    Int?
+  movingSec       Int?
+  elevationLossM  Int?
+  avgCadence      Int? // steps per minute
+  avgPowerW       Int?
+  deviceName      String?
+  startLat        Float? // rounded to 0.01 degrees
+  startLng        Float?
+  tempC           Float?
+  dewPointC       Float?
+  windKph         Float?
+  humidityPct     Int?
+  weatherSource   String? // 'open-meteo' | 'provider' | 'manual'
+  hrHistogram     String? // JSON text: HrHistogram
+  decouplingPct   Float?
+  gapDistanceM    Int?
+  feel            Int? // -2 much easier .. +2 much harder than expected
+  pain            Int? // 0-10
   importBatchId   String?
   duplicateOfId   String?
   duplicateStatus String   @default("none") // 'none' | 'possible' | 'confirmed' | 'dismissed'
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  importBatch ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
-  duplicateOf Activity?    @relation("Duplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
-  duplicates  Activity[]   @relation("Duplicates")
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importBatch ImportBatch?    @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  duplicateOf Activity?       @relation("Duplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates  Activity[]      @relation("Duplicates")
+  stream      ActivityStream?
+  file        ActivityFile?
+  planSession PlanSession?
 
   @@unique([userId, providerKey])
   @@index([userId, date])
@@ -59,7 +88,7 @@ model Activity {
 model ImportBatch {
   id               String   @id @default(cuid())
   userId           String
-  source           String // 'smashrun' | 'csv'
+  source           String // provider registry key, or 'smashrun' | 'csv' | 'file'
   fileName         String?
   rowCount         Int
   accepted         Int
@@ -90,9 +119,19 @@ model Goal {
   isActive        Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  gainM           Int? // course ascent, metres
+  lossM           Int? // course descent, metres
+  surface         String   @default("road") // 'road' | 'trail' | 'track' | 'mixed'
+  goalType        String   @default("time") // 'finish' | 'time'; the API defaults to 'finish' above 42.2 km
+  targetTimeSec   Int?
+  startTime       String? // HH:MM
+  raceLat         Float? // rounded to 0.01 degrees
+  raceLng         Float?
+  supportLevel    String   @default("aided") // 'aided' | 'self'
 
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plans Plan[]
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plans       Plan[]
+  predictions PredictionLog[]
 
   @@index([userId])
 }
@@ -105,13 +144,20 @@ model Plan {
   startDate        String // Monday, YYYY-MM-DD
   raceWeekStart    String // Monday, YYYY-MM-DD
   status           String   @default("active") // 'active' | 'archived'
-  generatorVersion Int
+  generatorVersion Int // 1 = shared/domain/plan.ts, 2 = shared/engine
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  paramsVersion    String? // PARAMS_VERSION of the parameter registry at generation
+  feasibility      String? // JSON text: Feasibility
+  warnings         String   @default("[]") // JSON text: EngineWarning[]
+  checklist        String   @default("[]") // JSON text: ChecklistResult[]
+  options          String   @default("{}") // JSON text: EngineInput['options']
 
-  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goal  Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  weeks PlanWeek[]
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal      Goal           @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  weeks     PlanWeek[]
+  sessions  PlanSession[]
+  revisions PlanRevision[]
 
   @@index([userId, status])
 }
@@ -132,10 +178,87 @@ model PlanWeek {
   strengthSessions Int
   overrideNote     String?
   updatedAt        DateTime @updatedAt
+  tid              String? // JSON text: { z1, z2, z3 } targets, percent of running time
+  flags            String   @default("[]") // JSON text: string[] (recovery, taper, strength, gut-training, heat-acclimation)
+  gainTargetM      Int?
 
   plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@unique([planId, weekStart])
+}
+
+model PlanSession {
+  id          String   @id @default(cuid())
+  planId      String
+  weekStart   String // Monday, YYYY-MM-DD
+  date        String // YYYY-MM-DD
+  order       Int
+  kind        String // see shared/engine/types.ts SessionKind
+  title       String
+  durationMin Int
+  distanceM   Int?
+  gainM       Int?
+  structure   String   @default("[]") // JSON text: Step[]
+  target      String // JSON text: SessionTarget
+  purpose     String
+  rules       String   @default("[]") // JSON text: string[] of rule ids
+  flags       String   @default("[]") // JSON text: SessionFlag[]
+  status      String   @default("planned") // 'planned' | 'completed' | 'partial' | 'skipped' | 'downgraded' | 'moved'
+  activityId  String?  @unique
+  linkSource  String? // 'auto' | 'owner'
+  execution   String? // JSON text: ExecutionAssessment
+  original    String? // JSON text: the prescription before a downgrade or move
+  updatedAt   DateTime @updatedAt
+
+  plan     Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  activity Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
+
+  @@index([planId, date])
+}
+
+model PlanRevision {
+  id        String   @id @default(cuid())
+  planId    String
+  createdAt DateTime @default(now())
+  reason    String // 'generate' | 'weekly' | 'review' | 'owner' | 'break'
+  summary   String
+  changes   String   @default("[]") // JSON text: PlanChange[]
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, createdAt])
+}
+
+model PredictionLog {
+  id           String   @id @default(cuid())
+  userId       String
+  goalId       String
+  createdAt    DateTime @default(now())
+  method       String
+  predictedSec Int
+  lowSec       Int
+  highSec      Int
+  inputs       String   @default("{}") // JSON text
+  actualSec    Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([userId, goalId, createdAt])
+}
+
+model Screening {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String // YYYY-MM-DD
+  kind      String // 'reds'
+  answers   String // JSON text
+  flags     Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, date])
 }
 
 model WeeklyReview {
@@ -159,4 +282,115 @@ model WeeklyReview {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, weekStart])
+}
+
+model ActivityStream {
+  activityId String  @id
+  sampleSec  Int
+  data       String // JSON text: ActivityStreamData
+  laps       String? // JSON text: Lap[]
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+model ActivityFile {
+  activityId String  @id
+  format     String // 'fit' | 'gpx' | 'tcx'
+  fileName   String?
+  sizeBytes  Int
+  sha256     String
+  gz         Bytes
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+model AthleteProfile {
+  userId                String   @id
+  birthYear             Int?
+  sex                   String? // 'female' | 'male' | 'unspecified'
+  heightCm              Float?
+  weightKg              Float?
+  hrMax                 Int?
+  hrMaxSource           String? // 'measured' | 'estimated'
+  hrRest                Int?
+  lthr                  Int?
+  thresholdPaceSecPerKm Int?
+  runningSinceYear      Int?
+  injuries              String   @default("[]") // JSON text: Injury[]
+  availability          String   @default("{}") // JSON text: Availability
+  longRunDay            String   @default("sat") // 'mon' .. 'sun'
+  terrain               String   @default("{}") // JSON text: Terrain
+  strengthPreference    Int      @default(2) // 0-3
+  timezone              String   @default("UTC") // IANA
+  homeLat               Float?
+  homeLng               Float?
+  useHomeWeather        Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WellnessDay {
+  id            String   @id @default(cuid())
+  userId        String
+  date          String // YYYY-MM-DD
+  restingHr     Int?
+  hrvRmssd      Float?
+  hrvSdnn       Float?
+  sleepSec      Int?
+  sleepScore    Int?
+  weightKg      Float?
+  vo2max        Float?
+  notes         String?
+  source        String // provider registry key or 'manual'
+  updatedAt     DateTime @updatedAt
+  fatigue       Int? // check-in, 1-5, 3 = normal
+  soreness      Int?
+  sleepQuality  Int?
+  mood          Int?
+  stress        Int?
+  illness       Boolean  @default(false)
+  painScore     Int? // 0-10
+  painArea      String?
+  painFocalBone Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model Integration {
+  id              String    @id @default(cuid())
+  userId          String
+  provider        String // provider registry key
+  status          String // 'connected' | 'needs_auth' | 'error'
+  secret          String // encrypted, see server/crypto.ts
+  config          String // JSON text, no secrets
+  ingestTokenHash String? // SHA-256 of the push token
+  cursor          String? // opaque, provider-defined
+  lastSyncAt      DateTime?
+  lastSyncStatus  String?
+  lastError       String?
+  pausedUntil     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+}
+
+model ImportedFile {
+  id         String   @id @default(cuid())
+  userId     String
+  sha256     String
+  fileName   String?
+  channel    String // 'upload' | 'folder' | 'provider' | 'push'
+  outcome    String // 'imported' | 'duplicate' | 'no-activity' | 'invalid'
+  activityId String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sha256])
 }

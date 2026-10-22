@@ -1,0 +1,36 @@
+{
+  "id": "hoffman-2011-wser-vt100-factors",
+  "title": "Factors related to successful completion of a 161-km ultramarathon",
+  "authors": "Hoffman MD, Fogard K",
+  "year": 2011,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.6.1.25",
+  "pmid": "21487147",
+  "url": "https://doi.org/10.1123/ijspp.6.1.25",
+  "design": "cross-sectional",
+  "population": "Entrants of the 2009 Western States Endurance Run and Vermont 100 (161-km trail ultramarathons); post-race questionnaire",
+  "sampleSize": 500,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "500 respondents among 701 race entries (71.3% response).",
+    "Finish time had a significant (P <= .01) negative association with training volume (higher volume, faster finish) and was generally directly associated with body mass index.",
+    "Among nonfinishers the primary reason for dropping out was nausea and/or vomiting (23.0%).",
+    "Finishers compared with nonfinishers were more likely (P <= .02) to report blisters (40.1% vs 17.3%), muscle pain (36.5% vs 20.1%) and exhaustion (23.1% vs 13.7%) as adversely affecting race performance; nausea/vomiting was similar (36.8% vs 39.6%).",
+    "Nausea/vomiting was no more common with NSAID use, higher ambient temperature, lower training volume or less 161-km finishing experience; NSAID use was high and greater (P = .006) in finishers (60.5%) than nonfinishers (46.4%). The authors concluded that the primary performance-limiting issues were nausea/vomiting, blisters and muscle pain, and that NSAID use was disturbingly high."
+  ],
+  "limitations": "Self-reported retrospective questionnaire from two North American races; response and recall bias; association not causation; the abstract gives no training-volume threshold.",
+  "implications": [
+    "For 100-mile plans, include a race-readiness block that rehearses the self-reported failure points: gastrointestinal tolerance of the planned fuel at race effort, foot care and blister management, and muscular conditioning for the muscle pain finishers reported (the muscle-conditioning link is an engine inference, not a tested intervention).",
+    "Treat higher weekly training volume as favourable for 100-mile finish time but do not derive a numeric minimum from this paper (none stated); direction-of-effect support only.",
+    "Include a caution note on routine NSAID use in race-day guidance: use was very high (46-61%), the authors called it disturbingly high, and nausea/vomiting was not lower in users. The study did not test NSAID benefit or harm directly."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (title, journal, 2011-03, first author Hoffman, 2 authors) and Europe PMC abstract in this session. All numbers confirmed. Added the P-values and the authors' conclusion; reworded the NSAID and muscle-conditioning implications that overstated the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

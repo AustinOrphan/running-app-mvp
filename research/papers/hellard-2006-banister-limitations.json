@@ -1,0 +1,39 @@
+{
+  "id": "hellard-2006-banister-limitations",
+  "title": "Assessing the limitations of the Banister model in monitoring training",
+  "authors": "Hellard P, Avalos M, Lacoste L, Barale F, Chatard JC, Millet GP",
+  "year": 2006,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/02640410500244697",
+  "pmid": "16608765",
+  "url": "https://doi.org/10.1080/02640410500244697",
+  "design": "modelling",
+  "population": "Nine elite swimmers, one season of training load and performance data",
+  "sampleSize": 9,
+  "evidenceLevel": "C",
+  "topics": ["ai-coaching", "load-response-models"],
+  "findings": [
+    "Performances were related to training loads for all participants (R2 = 0.79 +/- 0.13, P < 0.05) and the estimation procedure seemed stable (leave-one-performance-out).",
+    "The 95% bootstrap CIs of the parameters most useful for monitoring were wide: t(a) = 38 (17, 59), t(f) = 19 (6, 32), t(n) = 19 (7, 35), t(g) = 43 (25, 61) days.",
+    "Some parameters were highly correlated (ill-conditioning), which the authors say makes their interpretation worthless.",
+    "Modelled performance related to training load for all participants (R2 = 0.79 +/- 0.13, P < 0.05) and the estimation procedure seemed stable.",
+    "95% bootstrap confidence intervals of the key parameters were wide: ta = 38 (17, 59), tf = 19 (6, 32), tn = 19 (7, 35), tg = 43 (25, 61).",
+    "Some parameters were highly correlated (ill-conditioning), making their interpretation worthless; the authors review alternative methods for modelling the training-performance relationship."
+  ],
+  "limitations": "Elite swimmers only, nine athletes, one season; no running or ultra-endurance data. Re-classified from retrospective-cohort to modelling: the study is a statistical analysis of the model's accuracy, ill-conditioning and stability.",
+  "implications": [
+    "Report parameter estimates with bootstrap intervals; do not display or act on fitness/fatigue time constants as precise personal values (95% CI widths here were about 26-42 days).",
+    "Constrain or regularise parameters (informative priors, fixed time constants within physiological ranges) when fewer than a season of dense performance tests exist, and do not interpret correlated parameters individually.",
+    "If a CTL/ATL/TSB display is offered, use fixed population time constants (conventionally ~42 and ~7 days; convention, not from this paper) and label it a descriptive trend, not fitted individual parameters.",
+    "Never present TSB/form as a precise readiness or taper-timing prediction; use fixed taper rules instead.",
+    "If individual fitting is ever added, report bootstrap intervals and fall back to defaults when intervals are wide."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, J Sports Sci, 2006, six authors. All numbers match the Europe PMC abstract. CI widths recomputed: ta 42, tf 26, tn 28, tg 36 days (researcher's '20-40' corrected to 26-42).",
+    "checkedAt": "2026-10-22"
+  }
+}

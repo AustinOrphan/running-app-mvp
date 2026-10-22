@@ -1,0 +1,35 @@
+{
+  "id": "foster-2001-session-rpe",
+  "title": "A New Approach to Monitoring Exercise Training",
+  "authors": "Foster C, Florhaug JA, Franklin J, Gottschall L, Hrovatin LA, Parker S, Doleshal P, Dodge C",
+  "year": 2001,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/00124278-200102000-00019",
+  "pmid": "11708692",
+  "url": "https://doi.org/10.1519/00124278-200102000-00019",
+  "design": "other",
+  "population": "Subjects (not further described in the abstract) who did steady-state and interval cycle exercise in part 1 and practised basketball in part 2; different subjects in each part",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Session RPE was compared with an objective heart-rate-based method for quantifying exercise during steady-state and interval cycling and during basketball practice.",
+    "During cycling the relationship between session-RPE score and HR score was highly consistent, although the absolute session-RPE score was significantly greater than the HR score; basketball showed the same pattern (consistent relationship, significantly greater absolute session-RPE score).",
+    "Despite different subjects in the two parts, the regression relationships between the two methods were nearly overlapping, which the authors read as broad applicability.",
+    "The authors conclude session RPE is a valid method of quantifying exercise training across a wide variety of exercise types and may be a mode- and intensity-independent method."
+  ],
+  "limitations": "Criterion is an HR-based score (itself a proxy), not a physiological or performance outcome. Cycling and basketball only; no runners and no ultra-endurance exercise. The abstract gives no sample size, correlation coefficients or the CR-10 rating timing. The abstract does not spell out the duration x rating calculation (standard definition, taken from the full-text method, which was not read). Absolute session-RPE values are systematically higher than the HR method, so the scales are not interchangeable.",
+  "implications": [
+    "Implement session-RPE load = session duration (min) x CR-10 rating (0-10) as the primary device-independent internal-load metric, since it works with no HR data (treadmill without strap, hot, hilly, trail).",
+    "Collect one rating per run after the session. The commonly used protocol asks about 30 min post-session, but the abstract does not state timing, so treat 30 min as a design default (grade D).",
+    "Store HR-based load separately from sRPE and never add them, because absolute values differ between methods. Interpret sRPE against the user's own history; do not apply a fixed cross-method conversion."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, JSCR, Feb 2001, first author Foster. Europe PMC does not index the Crossref DOI directly (lists legacy DOI 10.1519/1533-4287(2001)015<0109:anatme>2.0.co;2), so the abstract was fetched by PMID 11708692 and read. Corrected: 'healthy' and 'recreational' were not in the abstract; design changed from experimental-crossover (different subjects per part, not a crossover) to other.",
+    "checkedAt": "2026-10-22"
+  }
+}

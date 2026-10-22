@@ -1,0 +1,34 @@
+{
+  "id": "piacentini-2013-masters-runners",
+  "title": "Concurrent strength and endurance training effects on running economy in master endurance runners",
+  "authors": "Piacentini MF, De Ioannon G, Comotto S, Spedicato A, Vernillo G, La Torre A",
+  "year": 2013,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0b013e3182794485",
+  "pmid": "23207882",
+  "url": "https://doi.org/10.1519/jsc.0b013e3182794485",
+  "design": "rct",
+  "population": "Regularly training master marathon runners (about 43-45 years); 16 participants randomized to maximal strength training (n=6, 44.2 years), resistance training (n=5, 44.8 years) or control (n=5, 43.2 years)",
+  "sampleSize": 16,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "The maximal strength training group improved 1RM by 16.34% and running economy by 6.17% at marathon pace (p < 0.05).",
+    "The resistance training and control groups showed no significant changes (p > 0.05).",
+    "Anthropometric data were unchanged in all groups.",
+    "Authors call it a preliminary study and suggest rate of force development may be crucial for the economy improvement."
+  ],
+  "limitations": "Very small groups (5-6 per arm), self-described preliminary; intervention length and frequency not stated in the abstract; marathon-pace economy only; no performance outcome; sex mix not stated in the abstract.",
+  "implications": [
+    "For runners aged about 40-50, heavy low-rep work is justified on the same basis as for younger runners; do not default masters to light high-rep circuits only.",
+    "Treat 6.17% as a hypothesis-level number; keep masters rules aligned with the general rules."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC re-fetched; group ages and p-values added from abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

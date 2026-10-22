@@ -1,0 +1,36 @@
+{
+  "id": "milewski-2014-sleep-injury",
+  "title": "Chronic Lack of Sleep is Associated With Increased Sports Injuries in Adolescent Athletes",
+  "authors": "Milewski MD, Skaggs DL, Bishop GA, Pace JL, Ibrahim DA, Wren TA, Barzdukas A",
+  "year": 2014,
+  "journal": "Journal of Pediatric Orthopaedics",
+  "doi": "10.1097/bpo.0000000000000151",
+  "pmid": "25028798",
+  "url": "https://doi.org/10.1097/bpo.0000000000000151",
+  "design": "cross-sectional",
+  "population": "Adolescent middle/high-school athletes (mean age 15 y, range 12-18)",
+  "sampleSize": 112,
+  "evidenceLevel": "C",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "112 adolescent athletes (70% completion rate; 54 male, 58 female) completed an online survey, correlated with a retrospective review of school injury records.",
+    "Hours of sleep per night and grade in school were the best independent predictors of injury in multivariate analysis.",
+    "Athletes sleeping on average <8 hours per night were 1.7 times more likely to have had an injury than those sleeping >=8 hours (95% CI 1.0-3.0; P = 0.04).",
+    "Each additional grade in school made injury 1.4 times more likely (95% CI 1.2-1.6; P < 0.001).",
+    "Level III evidence."
+  ],
+  "limitations": "Adolescent multi-sport sample, cross-sectional with retrospective injury data and self-reported sleep; association not causation; CI lower bound is 1.0; not run-specific and not adult.",
+  "implications": [
+    "Supports chronic short sleep as a soft injury-risk input for explanatory copy only; do not hard-code the 8 h cut-off for adults.",
+    "Not suitable for automated load cuts.",
+    "Prefer adult evidence (Walsh 2021) for any sleep rule."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, J Pediatr Orthop, first author Milewski, March 2014. Odds figures verified in the raw Europe PMC abstract (PMID 25028798).",
+    "checkedAt": "2026-10-22"
+  }
+}

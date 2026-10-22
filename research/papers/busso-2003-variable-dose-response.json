@@ -1,0 +1,34 @@
+{
+  "id": "busso-2003-variable-dose-response",
+  "title": "Variable dose-response relationship between exercise training and performance",
+  "authors": "Busso T",
+  "year": 2003,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/01.mss.0000074465.13621.37",
+  "pmid": "12840641",
+  "url": "https://doi.org/10.1249/01.mss.0000074465.13621.37",
+  "design": "modelling",
+  "population": "Six previously untrained volunteers on a 15-week endurance training programme (8 weeks at 3 sessions/week, 4 weeks at 5 sessions/week, remaining weeks without training); performance = average power in a 5-min all-out exercise measured 3 times per week",
+  "sampleSize": 6,
+  "evidenceLevel": "C",
+  "topics": ["load-response-models"],
+  "findings": [
+    "A nonlinear model was proposed with a variable accounting for training-related changes in the magnitude and duration of exercise-induced fatigue.",
+    "Standard error of fit was 6.47 +/- 0.71 W for the proposed model versus 9.20 +/- 2.27 W to 10.31 +/- 1.56 W for earlier models; the proposed model fitted significantly better in each subject.",
+    "The training programme produced a 30 +/- 7% improvement in performance.",
+    "The data demonstrated an inverted-U relationship between daily amount of training and performance."
+  ],
+  "limitations": "Six untrained subjects on a cycle protocol. The comparison is goodness-of-fit, not out-of-sample prediction; a better fit with more parameters is not evidence of better prediction (see marchal-2025-ffm-statistical-flaws, busso-2023-impulse-response-validity). Re-classified from experimental-crossover to modelling: it is a single-group training study used to fit models, not a crossover.",
+  "implications": [
+    "Offer the variable dose-response model (fatigue gain depends on recent load) only as an optional variant behind a forward cross-validation gate; keep the simple Banister form as the default when data are sparse.",
+    "Because the dose-response is inverted-U, cap modelled benefit of additional load; the optimiser must never recommend unbounded load increases."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, MSSE, 2003, single author Busso. All numbers match the Europe PMC abstract. Design corrected from experimental-crossover to modelling.",
+    "checkedAt": "2026-10-22"
+  }
+}

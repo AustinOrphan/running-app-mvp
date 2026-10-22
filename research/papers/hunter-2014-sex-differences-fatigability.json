@@ -1,0 +1,34 @@
+{
+  "id": "hunter-2014-sex-differences-fatigability",
+  "title": "Sex differences in human fatigability: mechanisms and insight to physiological responses",
+  "authors": "Hunter SK",
+  "year": 2014,
+  "journal": "Acta Physiologica",
+  "doi": "10.1111/apha.12234",
+  "pmid": "24433272",
+  "url": "https://doi.org/10.1111/apha.12234",
+  "design": "narrative-review",
+  "population": "Review of neuromuscular fatigability literature in men and women",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "Women are usually less fatigable than men for similar-intensity isometric fatiguing contractions, but the difference is task specific.",
+    "Task variables that alter the sex difference include type, intensity and speed of contraction, muscle group and environmental conditions.",
+    "Proposed mechanisms include motor neurone pool activation, metabolically sensitive small afferent input, muscle perfusion and metabolism, and fibre type properties.",
+    "A sex bias toward studying males masks true understanding of magnitude and mechanisms; the review states there is a tremendous lack of understanding of sex differences in fatigability."
+  ],
+  "limitations": "Narrative review, mostly isometric laboratory tasks rather than running; no running effect sizes in the abstract.",
+  "implications": [
+    "Fatigue resistance is task dependent, so no universal female fatigue-resistance factor belongs in run load models.",
+    "Keep sex out of the fatigue/recovery model as a multiplier; use the individual's session RPE, HR drift and wearable recovery data."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Acta Physiol, 2014-02, Hunter). Europe PMC abstract (PMID 24433272) supports all findings; no numbers.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "tanaka-2008-masters-endurance",
+  "title": "Endurance exercise performance in Masters athletes: age-associated changes and underlying physiological mechanisms",
+  "authors": "Tanaka H, Seals DR",
+  "year": 2008,
+  "journal": "The Journal of Physiology",
+  "doi": "10.1113/jphysiol.2007.141879",
+  "pmid": "17717011",
+  "url": "https://doi.org/10.1113/jphysiol.2007.141879",
+  "design": "narrative-review",
+  "population": "Masters (older) endurance athletes; review of published studies",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["age-masters"],
+  "findings": [
+    "Peak endurance performance is maintained until approximately 35 years of age, followed by modest decreases until 50-60 years, with progressively steeper declines thereafter.",
+    "A progressive reduction in VO2max appears to be the primary mechanism of the age-related decline in endurance performance; a lower lactate threshold also contributes but may be secondary to the fall in VO2max.",
+    "Exercise economy (metabolic cost of sustained submaximal exercise) does not change with age in endurance-trained adults.",
+    "Decreases in maximal stroke volume, heart rate and arterio-venous O2 difference all appear to contribute to the reduced VO2max in endurance-trained athletes.",
+    "Declines in performance and its physiological determinants appear mediated in large part by a reduction in the intensity (velocity) and volume of exercise that can be performed during training sessions."
+  ],
+  "limitations": "Narrative review without systematic search; much of the underlying data are cross-sectional comparisons of different individuals at different ages. No numeric decline rates in the abstract.",
+  "implications": [
+    "Age-based projection: flat to about 35, gentle decline to 50-60, steeper after; make the slope a parameter, not a constant.",
+    "Do not apply an age penalty to running-economy assumptions for trained runners; attribute projected decline to VO2max and threshold paces.",
+    "Because decline is partly mediated by the reduced intensity and volume masters can train at, do not cut quality or volume purely on age; adjust on observed tolerance, recovery and injury signals."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title/journal/year/first author match. Every finding matched against the Europe PMC abstract (reworded finding 1 slightly to say lactate threshold is 'also contributing').",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "nuuttila-2017-hrv-block-training",
+  "title": "Effects of HRV-Guided vs. Predetermined Block Training on Performance, HRV and Serum Hormones",
+  "authors": "Nuuttila OP, Nikander A, Polomoshnov D, Laukkanen JA, Häkkinen K",
+  "year": 2017,
+  "journal": "International Journal of Sports Medicine",
+  "doi": "10.1055/s-0043-115122",
+  "pmid": "28950399",
+  "url": "https://doi.org/10.1055/s-0043-115122",
+  "design": "rct",
+  "population": "Endurance-trained males in an 8-week block of high-intensity aerobic training with running tests",
+  "sampleSize": 24,
+  "evidenceLevel": "C",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "24 endurance-trained males compared HRV-guided (HRVG) and predetermined (PD) block periodization of high-intensity aerobic training over 8 weeks.",
+    "Both groups significantly improved maximal treadmill velocity (Vmax, p < 0.001) and 3000 m running performance (HRVG p < 0.001; PD p = 0.001).",
+    "Relative changes in Vmax and countermovement jump were significantly greater in HRVG (p < 0.05).",
+    "Nocturnal heart rate decreased in both groups (p < 0.01), but HRV (RMSSD, LF, TP) increased significantly only in HRVG (p < 0.05).",
+    "Authors suggest individually HRV-guided block training 'may be more optimal' than predetermined training."
+  ],
+  "limitations": "n = 24, males only, 8 weeks; the abstract gives no between-group significance for 3000 m time; the abstract does not report the number of hard sessions per group; authors' conclusion is tentative.",
+  "implications": [
+    "A second small run-based RCT with the same direction as Vesterinen 2016: HRV-guided block training is at least as good as fixed blocks, not clearly better.",
+    "Nocturnal HR fell in both arms, so a falling resting HR trend reflects training adaptation and should not alone be read as readiness.",
+    "Male-only evidence: do not claim validation in women."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier to cover the runner HRV RCT category (the Javaloyes runner RCT named in the brief could not be located). Crossref confirms title, Int J Sports Med, first author Nuuttila, 26 Sep 2017; numbers from Europe PMC abstract (PMID 28950399).",
+    "checkedAt": "2026-10-22"
+  }
+}

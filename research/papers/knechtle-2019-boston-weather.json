@@ -1,0 +1,35 @@
+{
+  "id": "knechtle-2019-boston-weather",
+  "title": "The role of weather conditions on running performance in the Boston Marathon from 1972 to 2018",
+  "authors": "Knechtle B, Di Gangi S, Rust CA, Villiger E, Rosemann T, Nikolaidis PT",
+  "year": 2019,
+  "journal": "PLoS ONE",
+  "doi": "10.1371/journal.pone.0212797",
+  "pmid": "30849085",
+  "url": "https://doi.org/10.1371/journal.pone.0212797",
+  "design": "retrospective-cohort",
+  "population": "Boston Marathon 1972-2018: 580,990 observations from 382,209 finishers (all runners, near-elite 101-200 and 21-100, annual top ten, annual winners), generalized additive mixed models",
+  "sampleSize": 382209,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Each 1 C rise in average air temperature was associated with worse performance by 1:47 (h:min:sec) for all finishers and 0:20 for annual winners.",
+    "WBGT and pressure, when increasing, were also related to worse performance.",
+    "Tail wind improved performance in all groups; increasing wind speed and precipitation worsened performance in most groups (precipitation excepted for winners).",
+    "Men were faster than women in all groups, with the sex difference largest in near-elite groups."
+  ],
+  "limitations": "Single race (course effects); multivariable model with collinear weather terms; average finishing time not in the abstract, so the percent-per-C scale is only illustrative; air temperature rather than WBGT drives the headline slope; pressure effect conflicts with El Helou 2012.",
+  "implications": [
+    "Corroborates a roughly 5-fold larger per-degree time loss for the whole field than for winners (107 s vs 20 s per C; for a hypothetical 4 h finisher about 0.7%/C, for a 2:10 winner about 0.26%/C, own arithmetic), supporting an ability multiplier above 1 for non-elite runners.",
+    "Add wind (headwind and speed) as an optional adjustment term; no numeric values are justified beyond the direction.",
+    "Do not use the per-C air-temperature slope as a WBGT slope; keep the two separate."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier to cover the Knechtle strand of the scope. Crossref (PLoS ONE 2019-03-08, first author Knechtle) and Europe PMC abstract (PMID 30849085) re-fetched; numbers quoted from the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "eihara-2024-middle-aged-pt-rt",
+  "title": "The effects of plyometric versus resistance training on running economy and 5-km running time in middle-aged recreational runners",
+  "authors": "Eihara Y, Takao K, Sugiyama T, Maeo S, Kanehisa H, Isaka T",
+  "year": 2024,
+  "journal": "European Journal of Sport Science",
+  "doi": "10.1002/ejsc.12197",
+  "pmid": "39523854",
+  "url": "https://doi.org/10.1002/ejsc.12197",
+  "design": "rct",
+  "population": "Middle-aged recreational runners randomized to plyometric (n=10) or resistance training (n=10); oxygen cost assessed at 8-12 km/h",
+  "sampleSize": 20,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Both programs ran twice per week for 10 weeks alongside daily running; resistance training used leg press, leg curl and calf raise at 50-90% of 1RM.",
+    "Both groups improved countermovement jump height (6.4-8.3%) and oxygen cost regardless of running velocity (2.0%, p = 0.001), without group differences.",
+    "Resistance training increased 1RM on all three lifts (19.0-21.1%); plyometrics increased leg curl 1RM only (8.5%).",
+    "Neither group changed 5-km time (p 0.259 or higher).",
+    "The change in calf raise 1RM correlated with the change in oxygen cost (r = -0.477, p = 0.046)."
+  ],
+  "limitations": "Only 20 participants and no running-only control group, so the economy gain cannot be separated from running or familiarization effects; mean age not stated in the abstract; 10 weeks only; no performance effect.",
+  "implications": [
+    "For recreational and middle-aged runners either plyometric or resistance training twice weekly is acceptable; let preference and injury history decide.",
+    "Include calf and plantarflexor strengthening explicitly.",
+    "Do not promise a 5 km time improvement from a 10-week block in recreational runners; about 2% oxygen-cost improvement is the supported expectation."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC re-fetched. Added resistance-training lifts and loads from abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "nuuttila-2025-recreational-runners-durability",
+  "title": "Durability in recreational runners: effects of 90-min low-intensity exercise on the running speed at the lactate threshold",
+  "authors": "Nuuttila OP, Laatikainen-Raussi V, Vohlakari K, Laatikainen-Raussi I, Ihalainen JK",
+  "year": 2025,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-024-05631-y",
+  "pmid": "39384626",
+  "url": "https://doi.org/10.1007/s00421-024-05631-y",
+  "design": "other",
+  "population": "Recreational runners, 15 female and 16 male",
+  "sampleSize": 31,
+  "evidenceLevel": "C",
+  "topics": ["durability-drift"],
+  "findings": [
+    "A 90-min run at 90% of first-lactate-threshold speed (LT1v) lowered LT1v by 5.8 +/- 4.4% in females and 5.3 +/- 6.4% in males (p<0.01); changes were comparable between sexes.",
+    "Heart rate rose 5.9 +/- 3.1% in females and 5.5 +/- 3.6% in males over the run (p<0.001); energy expenditure rose 3.1 +/- 4.5% in females (p=0.013) but not in males (0.9 +/- 3.1%).",
+    "Change in HRV-derived DFA-a1 was the only marker that correlated significantly with relative change in LT1v (r=0.463, p=0.013); authors suggest DFA-a1 as a potential intra-session durability marker."
+  ],
+  "limitations": "One 90-min low-intensity session on a treadmill; single-group pre/post design; moderate correlation (r=0.46) in a small sample; the abstract does not report HR rise as correlating with LT1v change. Online 2024-10-09, print issue Mar 2025 recorded.",
+  "implications": [
+    "Expect about 5-6% heart-rate rise and about 5-6% lower LT1 speed after 90 min of easy running in recreational runners; use about 5.5% as a default for pace-HR drift in long easy runs, with large individual spread (SD about 4-6 percentage points for LT1v).",
+    "Do not treat raw HR rise as a stand-alone durability measure; consider DFA-a1 only as an experimental, wearable-dependent feature."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed (Eur J Appl Physiol 2025 Mar;125(3):697-705) match. Design changed from experimental-crossover to other (single-session pre/post). Added the energy-expenditure finding from the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

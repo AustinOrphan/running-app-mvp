@@ -1,0 +1,34 @@
+{
+  "id": "thorsson-2021-pet-vs-wbgt",
+  "title": "Is physiological equivalent temperature (PET) a superior screening tool for heat stress risk than wet-bulb globe temperature (WBGT) index? Eight years of data from the Gothenburg half marathon",
+  "authors": "Thorsson S, Rayner D, Palm G, Lindberg F, Carlstrom E, Borjesson M, et al.",
+  "year": 2021,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2019-100632",
+  "pmid": "32467149",
+  "url": "https://doi.org/10.1136/bjsports-2019-100632",
+  "design": "retrospective-cohort",
+  "population": "Gothenburg half marathon 2010-2017 (eight editions): meteorological data and ambulance transport records",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather"],
+  "findings": [
+    "PET correlated best with ambulance-required assistance (R2 = 0.72, p = 0.008) and collapses (R2 = 0.71, p = 0.008).",
+    "UTCI followed (R2 = 0.64 for both, p = 0.017), whereas WBGT correlated substantially worse (R2 = 0.56, p = 0.031 and p = 0.033).",
+    "Compared with PET, WBGT underestimates heat stress, especially at high radiant heat load.",
+    "Collapse rate increases with heat stress; a large increase from the day before the race seems to have an impact."
+  ],
+  "limitations": "One race, eight editions (eight data points), medical-incident outcome not performance; PET/UTCI need more inputs and are less standardized for racing; the authors call for further investigation of PET alongside WBGT, not replacement.",
+  "implications": [
+    "Treat WBGT as a screening and pacing index, not a complete safety measure: warn on high solar or radiant load and on a large day-over-day temperature jump.",
+    "Keep the heat-index implementation modular so PET or UTCI can be added later; no change to pace-penalty parameters is justified by this study."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (online 2020-05-28, print 2021-08) and Europe PMC abstract re-fetched. Removed the researcher's unsupported 'cool-to-moderate climate' qualifier.",
+    "checkedAt": "2026-10-22"
+  }
+}

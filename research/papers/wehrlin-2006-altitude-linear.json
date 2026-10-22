@@ -1,0 +1,34 @@
+{
+  "id": "wehrlin-2006-altitude-linear",
+  "title": "Linear decrease in VO2max and performance with increasing altitude in endurance athletes",
+  "authors": "Wehrlin JP, Hallen J",
+  "year": 2006,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-005-0081-9",
+  "pmid": "16311764",
+  "url": "https://doi.org/10.1007/s00421-005-0081-9",
+  "design": "randomized-double-blind-crossover",
+  "population": "8 endurance-trained athletes, hypobaric chamber simulating 300-2,800 m",
+  "sampleSize": 8,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "VO2max fell linearly from 66 +/- 1.6 mL/kg/min at 300 m to 55 +/- 1.6 at 2,800 m, a 6.3% decrease per 1,000 m (range 4.6-7.5%).",
+    "Time to exhaustion at a constant velocity (associated with 107% of sea-level VO2max) decreased 14.5% per 1,000 m between 300 and 2,800 m (P < 0.001).",
+    "Both VO2max and performance already decreased from 300 to 800 m (P < 0.01; P < 0.05).",
+    "Arterial O2 saturation at test cessation fell from 89.0 +/- 2.9% at 300 m to 76.5 +/- 4.0% at 2,800 m."
+  ],
+  "limitations": "Eight endurance-trained athletes, acute exposure in a hypobaric chamber (simulated altitude), time to exhaustion at a fixed supramaximal speed rather than race pace. No acclimatisation.",
+  "implications": [
+    "For acute exposure, expect maximal aerobic capacity to fall about 6% per 1,000 m (range 4.6-7.5%) from near sea level; scale altitude-course effort expectations from this, not pace directly: the abstract reports VO2max and time to exhaustion, not race pace.",
+    "Label altitude adjustments approximate: individuals vary and acclimatisation is not modelled."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: Eur J Appl Physiol 96(4):404-412, print 2006 (online 2005-11-26), two authors match (Hallen with diacritic). PubMed PMID 16311764 abstract supports all numbers. Added the 107% VO2max test speed; removed direct VO2max-to-pace scaling.",
+    "checkedAt": "2026-10-22"
+  }
+}

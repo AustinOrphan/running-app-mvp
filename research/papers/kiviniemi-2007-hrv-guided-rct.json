@@ -1,0 +1,35 @@
+{
+  "id": "kiviniemi-2007-hrv-guided-rct",
+  "title": "Endurance training guided individually by daily heart rate variability measurements",
+  "authors": "Kiviniemi AM, Hautala AJ, Kinnunen H, Tulppo MP",
+  "year": 2007,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-007-0552-2",
+  "pmid": "17849143",
+  "url": "https://doi.org/10.1007/s00421-007-0552-2",
+  "design": "rct",
+  "population": "Healthy, moderately fit males in a 4-week running programme",
+  "sampleSize": 26,
+  "evidenceLevel": "C",
+  "topics": ["readiness-monitoring"],
+  "findings": [
+    "26 men were randomised to predefined (TRA, n = 8), HRV-guided (n = 9) or control (n = 9); 4 weeks of 40-min running sessions at low or high intensity (TRA: 6 days/week, 2 low and 4 high).",
+    "HRV-group rule: increase or no change in morning high-frequency R-R oscillation gave high-intensity training; a significant decrease (below reference value of 10-day mean minus SD, or a decreasing trend for 2 days) gave low-intensity training or rest.",
+    "Maximal running velocity (Load-max) rose from 15.5 to 16.4 km/h in the HRV group (P < 0.001) and from 15.1 to 15.7 km/h in TRA (P = 0.004); the change was significantly greater in the HRV group (P = 0.048, adjusted for baseline).",
+    "VO2peak improved in the HRV group (56 ± 4 to 60 ± 5 ml/kg/min, P = 0.002) but not in TRA (54 ± 4 to 55 ± 3, P = 0.224); the between-group VO2peak change was not significant."
+  ],
+  "limitations": "Groups of 8-9, 4 weeks, healthy moderately fit males, high-frequency-power HRV; the later meta-analyses (Düking 2021, Manresa-Rocamora 2021) find a much smaller advantage than this seminal trial.",
+  "implications": [
+    "Defines the classic decision rule: reference = rolling 10-day mean minus 1 SD of morning HRV; HRV below reference or decreasing for 2 consecutive days means easy or rest, otherwise hard sessions proceed.",
+    "Use as an adjustable default, not a proven performance lever.",
+    "Male-only evidence; do not claim validation in women."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, journal, first author, 2007. Numbers verified in Europe PMC abstract (PMID 17849143). Downgraded evidence level B to C because groups are 8-9 per arm.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "tiller-2019-issn-ultra-nutrition",
+  "title": "International Society of Sports Nutrition Position Stand: nutritional considerations for single-stage ultra-marathon training and racing",
+  "authors": "Tiller NB, Roberts JD, Beasley L, Chapman S, Pinto JM, et al.",
+  "year": 2019,
+  "journal": "Journal of the International Society of Sports Nutrition",
+  "doi": "10.1186/s12970-019-0312-9",
+  "pmid": "31699159",
+  "url": "https://doi.org/10.1186/s12970-019-0312-9",
+  "design": "consensus-statement",
+  "population": "Evidence review and position stand for single-stage ultra-marathon runners",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["ultra-nutrition", "ultra-training"],
+  "findings": [
+    "Training: an individualised, periodised, food-first strategy; a moderate-to-high carbohydrate diet (about 60% of energy, 5-8 g/kg/day) to mitigate chronic glycogen depletion.",
+    "Protein of about 1.6 g/kg/day to maintain lean mass, up to 2.5 g/kg/day in demanding training.",
+    "Racing: 150-400 kcal/h (carbohydrate 30-50 g/h; protein 5-10 g/h) from calorie-dense foods; fluid 450-750 mL/h; sodium above 575 mg/L may be needed, with higher needs in heat and humidity.",
+    "Progressive gut-training and/or low-FODMAP diets are supported to relieve GI distress during racing; evidence for ketogenic diets or ketone esters is lacking; caffeine use is supported late in races.",
+    "Training: moderate-to-high carbohydrate diet (~60% of energy intake, 5-8 g/kg/day) to mitigate chronic training-induced glycogen depletion; limiting CHO before selected low-intensity sessions and/or moderating daily CHO may enhance mitochondrial function and fat oxidative capacity but may compromise high-intensity efforts.",
+    "Protein ~1.6 g/kg/day to maintain lean mass and support recovery, up to 2.5 g/kg/day may be warranted in demanding training when calorie needs are greater.",
+    "Racing: consume 150-400 kcal/h (carbohydrate 30-50 g/h; protein 5-10 g/h) from a variety of calorie-dense foods, with attention to palatability, individual tolerance and the increased preference for savoury foods in longer races.",
+    "Fluid 450-750 mL/h (~150-250 mL every 20 min); to minimise hyponatraemia likelihood electrolytes (mainly sodium) may be needed in concentrations greater than most commercial products (> 575 mg/L sodium); fluid and electrolyte requirements are elevated in hot and/or humid conditions.",
+    "Evidence supports progressive gut-training and/or low-FODMAP diets to alleviate GI distress during racing; evidence for ketogenic diets/ketone esters is lacking; strategic caffeine supports performance in the latter stages of racing, particularly when sleep deprivation may compromise safety."
+  ],
+  "limitations": "Nutrition-focused, not training load; recommendations rest largely on small, low-quality ultra studies and extrapolation from shorter events; the Europe PMC abstract lists recommendations i to x.",
+  "implications": [
+    "Add a fuelling-rehearsal element to long runs: practise intake in the 30-50 g/h carbohydrate (150-400 kcal/h total) range, increasing progressively, to train gut tolerance.",
+    "Show training-phase carbohydrate 5-8 g/kg/day and protein 1.6 g/kg/day as informational guidance only; the app is not a nutrition prescriber.",
+    "Frame all nutrition numbers with an individual-tolerance-first disclaimer.",
+    "Use as the ultra baseline: daily CHO 5-8 g/kg (about 60% of energy) in build weeks; protein ~1.6 g/kg, up to 2.5 g/kg in the heaviest blocks.",
+    "Race-day default 150-400 kcal/h with 30-50 g/h CHO as the tolerated floor; offer higher CHO targets only via the gut-training pathway as an athlete-selectable option.",
+    "Show fluid as a range (450-750 mL/h, scaled up in heat) never as a prescription; sodium > ~575 mg/L is a range, framed as taste/cramp support, not EAH prophylaxis (see Hew-Butler 2015/2017, Hoffman 2015).",
+    "Offer progressive gut-training in long runs and an optional low-FODMAP pre-race window for athletes who report GI symptoms."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2019-01-15, 25 authors) and the complete Europe PMC abstract re-fetched; recommendations i-x all confirmed. Evidence level lowered from A to B because the position stand itself rests on low-quality evidence.",
+    "checkedAt": "2026-10-22"
+  }
+}

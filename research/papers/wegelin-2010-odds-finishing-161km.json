@@ -1,0 +1,36 @@
+{
+  "id": "wegelin-2010-odds-finishing-161km",
+  "title": "Variables associated with odds of finishing and finish time in a 161-km ultramarathon",
+  "authors": "Wegelin JA, Hoffman MD",
+  "year": 2010,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-010-1633-1",
+  "pmid": "20835714",
+  "url": "https://doi.org/10.1007/s00421-010-1633-1",
+  "design": "retrospective-cohort",
+  "population": "Every starter of the Western States 100-mile race 1986-2007 (finish-odds models) and every finisher (finish-time models)",
+  "sampleSize": 3956,
+  "evidenceLevel": "B",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Finish-odds models used 8,282 starts by 3,956 individuals; finish-time models used 5,276 finishes (1986-2007).",
+    "Being a first-time starter was associated with improved odds of finishing, as was advancing calendar year.",
+    "Advancing age above 38 years and warmer weather were associated with reduced odds of finishing; beyond 38 years women had worse odds of finishing than men.",
+    "Warmer weather had a similar effect on finish rates in men and women.",
+    "Finish times were slower with advancing age, slower for women than men, and less affected by warm weather for women than for men. Calendar year was not associated with finish time after adjustment."
+  ],
+  "limitations": "Registry data with no training variables; the counter-intuitive first-timer effect most plausibly reflects selection (qualifying standards, self-selection), not a benefit of inexperience; single race (Western States); coefficients not in the abstract.",
+  "implications": [
+    "Raise the baseline DNF-risk flag when forecast race-day temperature is high and for athletes older than 38 (strongest for women over 38); suggest heat preparation and a more conservative target when flagged. Use as a qualitative multiplier only; no coefficients are available.",
+    "Do not treat first-time 100-mile status as a risk factor by itself; first-timers finished more often here (probable selection effect), so first-timer caution should come from the athlete's training data.",
+    "No training prescription is justified by this paper; use it for risk messaging and pacing conservatism in heat."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (online 2010-09-11, first author Wegelin) and Europe PMC abstract re-fetched; all findings confirmed. Europe PMC print year is 2011; 2010 kept to match the DOI online date. Graded B for the very large registry, which is a lenient reading because it is retrospective.",
+    "checkedAt": "2026-10-22"
+  }
+}

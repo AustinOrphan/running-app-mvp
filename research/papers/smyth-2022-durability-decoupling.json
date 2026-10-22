@@ -1,0 +1,43 @@
+{
+  "id": "smyth-2022-durability-decoupling",
+  "title": "Decoupling of Internal and External Workload During a Marathon: An Analysis of Durability in 82,303 Recreational Runners",
+  "authors": "Smyth B, Maunder E, Meyler S, Hunter B, Muniz-Pumares D",
+  "year": 2022,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-022-01680-5",
+  "pmid": "35511416",
+  "url": "https://doi.org/10.1007/s40279-022-01680-5",
+  "design": "retrospective-cohort",
+  "population": "Marathon runners with heart-rate and pace data (13,125 female)",
+  "sampleSize": 82303,
+  "evidenceLevel": "C",
+  "topics": ["durability-drift", "performance-prediction"],
+  "findings": [
+    "Decoupling magnitude (35-40 km segment relative to 5-10 km segment, %HRmax per speed relative to CS) averaged 1.16 +/- 0.22, first detected 25.2 +/- 9.9 km into the marathon; onset was defined as decoupling exceeding 1.025.",
+    "Low-decoupling runners (<1.1; 34.5%) ran 88 +/- 6% CS, finished in 217.3 +/- 33.1 min and decoupled at 33.4 +/- 9.0 km; high-decoupling runners (>=1.2; 32.8%) ran 82 +/- 7% CS, finished in 238.5 +/- 30.7 min and decoupled at 19.1 +/- 6.8 km (moderate group: 86% CS, 224.9 min, 22.6 km).",
+    "Males had greater decoupling than females (1.17 +/- 0.22 vs 1.12 +/- 0.16) and earlier onset (25.0 vs 26.3 km).",
+    "Adding decoupling magnitude and onset to models using CS and the curvature constant reduced marathon prediction error from 6.45% to 5.16%.",
+    "Internal workload was %HRmax and external workload was speed relative to estimated critical speed (CS); decoupling magnitude was the 35-40 km segment relative to the 5-10 km segment, with onset defined as the point decoupling exceeded 1.025.",
+    "Overall decoupling was 1.16 +/- 0.22, first detected 25.2 +/- 9.9 km into the marathon.",
+    "Low decoupling (<1.1; 34.5% of runners) ran at 88 +/- 6% CS, finished in 217.3 +/- 33.1 min and decoupled at 33.4 +/- 9.0 km; moderate (1.1 to <1.2; 32.7%) 86% CS, 224.9 min, 22.6 km; high (>=1.2; 32.8%) 82% CS, 238.5 min, 19.1 km (all p<0.01).",
+    "Males had greater decoupling than females (1.17 +/- 0.22 vs 1.12 +/- 0.16) and earlier onset (25.0 vs 26.3 km; both p<0.01).",
+    "Adding decoupling magnitude and onset to CS plus curvature-constant models reduced marathon prediction error from 6.45% to 5.16%."
+  ],
+  "limitations": "Observational, marathon-only; decoupling is measured during the race itself, so it cannot be known in advance without an unvalidated long-run proxy; HR-based internal load is sensitive to heat, hydration and cardiac drift; groups differ in ability, so cause and effect are unclear.",
+  "implications": [
+    "Compute a decoupling index (%HRmax per %CS, late segment over early segment) from long runs as a durability metric and use it to adjust marathon/ultra predictions (6.45% to 5.16% error in this dataset). Whether long-run decoupling matches race decoupling is untested.",
+    "Treat decoupling >=1.2 as a high-fade profile and lower the target fraction of CS (about 82% versus 88% in low-decoupling runners).",
+    "Use about 25 km as the average onset when scheduling long-run decoupling checks; the proxy needs back-testing.",
+    "Compute a per-run decoupling ratio: (HR as %HRmax divided by speed as %CS) in the late segment divided by the same in the 5-10 km segment; flag onset when the ratio exceeds 1.025.",
+    "Use bands low <1.1, moderate 1.1 to <1.2, high >=1.2 for race feedback; use ratio and onset as predictors in the marathon-time model (about 1.3 percentage points of error reduction in the paper).",
+    "Apply to hilly or hot races only after adjusting for terrain and temperature, which this analysis did not do."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed abstract re-fetched; the Europe PMC rendering truncated at '<', so PubMed was used to confirm thresholds (<1.1, >=1.1 to <1.2, >=1.2), onset definition and the 6.45% to 5.16% result. Added the moderate-group and sex-onset numbers.",
+    "checkedAt": "2026-10-22"
+  }
+}

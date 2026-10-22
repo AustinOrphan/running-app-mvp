@@ -1,0 +1,37 @@
+{
+  "id": "elhelou-2012-environment-marathon",
+  "title": "Impact of environmental parameters on marathon running performance",
+  "authors": "El Helou N, Tafflet M, Berthelot G, Tolaini J, Marc A, Guillaume M, Hausswirth C, Toussaint JF",
+  "year": 2012,
+  "journal": "PLoS ONE",
+  "doi": "10.1371/journal.pone.0037407",
+  "pmid": "22649525",
+  "url": "https://doi.org/10.1371/journal.pone.0037407",
+  "design": "retrospective-cohort",
+  "population": "All finishers of six major marathons (Paris, London, Berlin, Boston, Chicago, New York), 2001-2010, 60 races; temperature, humidity, dew point, sea-level pressure and NO2/SO2/O3/PM10 gathered per race",
+  "sampleSize": 1791972,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Performance distributions per race-year were normal, with mean and SD varying with environmental factors.",
+    "Air temperature and performance were significantly correlated through a quadratic model, so there is an optimum temperature rather than a monotonic effect.",
+    "The optimal temperature for maximal mean speed depends on performance level; above the optimum, speed decreases and withdrawal rates increase.",
+    "Ozone also affected performance but its effect might be linked to temperature; the other environmental parameters (humidity, dew point, pressure, other pollutants) had no significant impact.",
+    "Conclusion: air temperature has the major influence of all climatic parameters on marathon running."
+  ],
+  "limitations": "Race-level aggregates, not individual runners; correlational; no solar or wind data; city-level weather; humidity effect may be masked by collinearity with temperature; the abstract does not give the optimum temperature values or the direction of the shift with ability.",
+  "implications": [
+    "Model temperature as a U-shaped (quadratic) penalty around an optimum. The ability-dependent optimum is not quantified in the abstract, so keep it a tunable parameter calibrated from Ely 2007 and Mantzios 2022.",
+    "Do not add a separate humidity or pressure term on top of temperature or WBGT; no independent effect was found (humidity is already inside WBGT).",
+    "Treat high-ozone days as a possible small extra penalty (low confidence); no number is justified.",
+    "Include a withdrawal-risk warning that rises with temperature above the optimum."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (PLoS ONE, 2012-05-23, El Helou) and Europe PMC abstract (PMID 22649525) re-fetched. All findings stated. Rewrote the garbled first implication. Full text not read, so optimum values are not quoted.",
+    "checkedAt": "2026-10-22"
+  }
+}

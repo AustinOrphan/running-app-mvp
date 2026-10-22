@@ -165,3 +165,66 @@
   min-width: 5rem;
   font-weight: 600;
 }
+
+.signals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.sessions,
+.proposals {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session,
+.proposal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.session:first-child,
+.proposal:first-child {
+  border-top: 0;
+}
+
+.sessionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.sessionDay {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  min-width: 2.5rem;
+}
+
+.sessionTitle {
+  font-weight: 600;
+}
+
+.sessionStatus {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.sessionLine {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

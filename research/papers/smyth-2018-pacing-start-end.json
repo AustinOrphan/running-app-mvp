@@ -1,0 +1,33 @@
+{
+  "id": "smyth-2018-pacing-start-end",
+  "title": "Fast starters and slow finishers: A large-scale data analysis of pacing at the beginning and end of the marathon for recreational runners",
+  "authors": "Smyth B",
+  "year": 2018,
+  "journal": "Journal of Sports Analytics",
+  "doi": "10.3233/jsa-170205",
+  "pmid": null,
+  "url": "https://doi.org/10.3233/jsa-170205",
+  "design": "retrospective-cohort",
+  "population": "Recreational marathon runners from big-city marathons",
+  "sampleSize": 1700000,
+  "evidenceLevel": "C",
+  "topics": ["performance-prediction"],
+  "findings": [
+    "Analysis of 1.7 million recreational marathon runners, focused on pacing at the start and end of the race.",
+    "Starting or finishing too quickly resulted in poorer finish times: fast starts tend to be very fast, leading to later endurance problems, while fast finishes suggest overly cautious early pacing.",
+    "Women tend to pace their race more effectively than men, but can be more cautious, costing them minutes overall."
+  ],
+  "limitations": "No effect sizes in the abstract; results/splits only, with no physiology or training history; marathon-specific.",
+  "implications": [
+    "Race-day guidance should include a start-pace cap and discourage a strong finishing kick as a sign of a too-cautious start; no numeric threshold is supported by the abstract.",
+    "Model finishing time with a fade term; starting too fast worsens finish time."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "semanticscholar",
+    "findingsSupported": true,
+    "notes": "Crossref confirmed metadata (J Sports Analytics, 2018-04-24, Smyth); Europe PMC has no record of this DOI, so the abstract was read from the Semantic Scholar API; it states all three findings. No PMID.",
+    "checkedAt": "2026-10-22"
+  }
+}

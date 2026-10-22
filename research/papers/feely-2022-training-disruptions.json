@@ -1,0 +1,35 @@
+{
+  "id": "feely-2022-training-disruptions",
+  "title": "Estimating the cost of training disruptions on marathon performance",
+  "authors": "Feely C, Smyth B, Caulfield B, Lawlor A",
+  "year": 2022,
+  "journal": "Frontiers in Sports and Active Living",
+  "doi": "10.3389/fspor.2022.1096124",
+  "pmid": "36704260",
+  "url": "https://doi.org/10.3389/fspor.2022.1096124",
+  "design": "retrospective-cohort",
+  "population": "Recreational runners who completed marathons in 2014-2017; more than 15 million activities from 300,000 runners; cost estimated in runners with both a disrupted (>=7 days) and an undisrupted marathon",
+  "sampleSize": 300000,
+  "evidenceLevel": "B",
+  "topics": ["volume-performance"],
+  "findings": [
+    "A disruption was a complete cessation of training within the 16 weeks before the marathon; over 50% of runners had short disruptions of up to 6 days, and longer disruptions were increasingly less frequent among those who reached race day.",
+    "Runners with a disruption of 7 days or more had a finish-time cost of 5-8% versus their own marathon with only short (<7 day) disruptions.",
+    "Likelihood of disruption differed little (<5%) by sex, age, ability and timing, but the cost differed more (10-15%): males 5% vs females 3.5%; faster runners 5.4% vs slower 2.6%; late disruptions 5.2% vs early 4.4%.",
+    "Group differences were tested with two-sample t-tests."
+  ],
+  "limitations": "Within-runner comparison, but only runners who reached race day (survivorship); cause of disruption unknown (illness, injury, life); self-selected tracker data; the cost comparison uses the subset with multiple marathons, not all 300,000; no confidence intervals in the abstract. Crossref gives 2023-01-10 online, Europe PMC year 2022 (volume 4).",
+  "implications": [
+    "Count a full-rest gap of 7 or more days in the 16 weeks before a race as a strong negative signal (about 5-8% slower projected finish); tolerate gaps under 7 days.",
+    "After a 7+ day gap, re-plan remaining weeks with a graded restart and widen or slow the goal-time projection; protect the final weeks from planned breaks since late gaps cost more (5.2% vs 4.4%).",
+    "Schedule to avoid 7 days without running; present targets as adjustable sketches."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title, journal, first author match; issued year 2023 vs Europe PMC 2022, 2022 kept (volume year). Abstract re-fetched; all percentages match.",
+    "checkedAt": "2026-10-22"
+  }
+}

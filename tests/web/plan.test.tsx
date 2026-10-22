@@ -32,6 +32,15 @@ const goal: Goal = {
   notes: null,
   url: null,
   isActive: true,
+  gainM: null,
+  lossM: null,
+  surface: 'road',
+  goalType: 'time',
+  targetTimeSec: null,
+  startTime: null,
+  raceLat: null,
+  raceLng: null,
+  supportLevel: 'aided',
   createdAt: '2026-10-01T10:00:00.000Z',
   updatedAt: '2026-10-01T10:00:00.000Z',
 }
@@ -65,6 +74,9 @@ function makeWeek(index: number, over: Partial<PlanWeek> = {}): PlanWeek {
     runDays: 4,
     strengthSessions: 2,
     overrideNote: null,
+    tid: null,
+    flags: [],
+    gainTargetM: null,
     updatedAt: '2026-12-01T10:00:00.000Z',
     ...over,
   }
@@ -80,6 +92,7 @@ function makePlan(weeks: PlanWeek[] = phases.map((_, i) => makeWeek(i))): PlanWi
     raceWeekStart: '2027-03-01',
     status: 'active',
     generatorVersion: 1,
+    paramsVersion: null,
     createdAt: '2026-12-01T10:00:00.000Z',
     updatedAt: '2026-12-01T10:00:00.000Z',
     weeks,
@@ -125,12 +138,22 @@ describe('Plan page', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Plan', level: 1 })).toBeInTheDocument()
     expect(screen.getByLabelText('Goal')).toHaveValue('g1')
-    expect(screen.getByLabelText('Weekly run minutes')).toBeInTheDocument()
-    expect(screen.getByLabelText('Plan start (Monday)')).toHaveValue(CURRENT_WEEK)
+    // the version-1 fields are gone; the engine options are offered instead
+    expect(screen.queryByLabelText('Weekly run minutes')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Plan start (Monday)')).not.toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'Recovery cycle' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '3 up, 1 easy' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
     expect(
       screen.getByRole('radiogroup', { name: 'Strength sessions per week' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: '2' })).toHaveAttribute('aria-checked', 'true')
+    // a half marathon is not a 5 to 10 km goal
+    expect(
+      screen.queryByRole('radiogroup', { name: 'Polarized specific phase' }),
+    ).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Generate plan' })).toBeInTheDocument()
     first.unmount()
 
@@ -141,7 +164,7 @@ describe('Plan page', () => {
     expect(screen.queryByRole('button', { name: 'Generate plan' })).not.toBeInTheDocument()
   })
 
-  test('generate posts { goalId, baselineRunMin, startDate, strengthPreference } and shows the server validation message inline (for example no baseline)', async () => {
+  test('generate posts { goalId, options } and shows the server validation message inline', async () => {
     const user = userEvent.setup()
     let plan: PlanWithWeeks | null = null
     let attempts = 0
@@ -156,7 +179,7 @@ describe('Plan page', () => {
               body: {
                 error: {
                   code: 'validation',
-                  message: 'No recent runs to take a baseline from. Enter weekly run minutes.',
+                  message: 'The goal date is in the past.',
                 },
               },
             }
@@ -169,13 +192,14 @@ describe('Plan page', () => {
     renderWithProviders(<PlanPage />)
 
     await user.click(await screen.findByRole('button', { name: 'Generate plan' }))
-    expect(
-      await screen.findByText('No recent runs to take a baseline from. Enter weekly run minutes.'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('The goal date is in the past.')).toBeInTheDocument()
     const first = calls.find((c) => c.method === 'POST')?.body as Record<string, unknown>
-    expect(first).toEqual({ goalId: 'g1', startDate: CURRENT_WEEK, strengthPreference: 2 })
+    expect(first).toEqual({
+      goalId: 'g1',
+      options: { recoveryCycle: '3:1', strengthSessions: 2 },
+    })
 
-    await user.type(screen.getByLabelText('Weekly run minutes'), '180')
+    await user.click(screen.getByRole('radio', { name: '2 up, 1 easy' }))
     await user.click(screen.getByRole('radio', { name: '1' }))
     await user.click(screen.getByRole('button', { name: 'Generate plan' }))
     await waitFor(() => {
@@ -183,11 +207,58 @@ describe('Plan page', () => {
     })
     expect(calls.filter((c) => c.method === 'POST')[1]?.body).toEqual({
       goalId: 'g1',
-      baselineRunMin: 180,
-      startDate: CURRENT_WEEK,
-      strengthPreference: 1,
+      options: { recoveryCycle: '2:1', strengthSessions: 1 },
     })
     expect(await screen.findByRole('button', { name: 'Regenerate plan' })).toBeInTheDocument()
+  })
+
+  test('a 5 or 10 km goal offers the polarized specific phase, off by default, and sends it when on', async () => {
+    const user = userEvent.setup()
+    const short: Goal = { ...goal, distanceM: 10_000 }
+    const { calls } = mockApi(
+      routes(null, { 'POST /api/plan/generate': () => ({ status: 201, body: makePlan() }) }, [
+        short,
+      ]),
+    )
+    renderWithProviders(<PlanPage />)
+
+    const group = await screen.findByRole('radiogroup', { name: 'Polarized specific phase' })
+    expect(within(group).getByRole('radio', { name: 'Off' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await user.click(screen.getByRole('button', { name: 'Generate plan' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1)
+    })
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+      goalId: 'g1',
+      options: { recoveryCycle: '3:1', strengthSessions: 2 },
+    })
+
+    await user.click(within(group).getByRole('radio', { name: 'On' }))
+    await user.click(screen.getByRole('button', { name: 'Generate plan' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'POST')).toHaveLength(2)
+    })
+    expect(calls.filter((c) => c.method === 'POST')[1]?.body).toEqual({
+      goalId: 'g1',
+      options: { recoveryCycle: '3:1', strengthSessions: 2, tidModel: 'polarized' },
+    })
+  })
+
+  test('a week flagged post-race reads "After the race", the race week "Race week"', async () => {
+    const weeks = phases.map((_, i) => makeWeek(i))
+    const after = makeWeek(phases.length, { phase: 'race', flags: ['post-race'] })
+    mockApi(routes(makePlan([...weeks, after])))
+    renderWithProviders(<PlanPage />)
+    await screen.findByText('Focus 0')
+
+    expect(within(row(weeks[9]!.weekStart)).getByText('Race week')).toBeInTheDocument()
+    expect(within(row(after.weekStart)).getByText('After the race')).toBeInTheDocument()
+    expect(within(row(after.weekStart)).queryByText('Race week')).not.toBeInTheDocument()
+    expect(row(after.weekStart)).not.toHaveAttribute('data-race')
+    expect(screen.getAllByText('Race week')).toHaveLength(1)
   })
 
   test('week table: phase chips with --phase-level 1..6 (taper and race dashed), cutback rows italic with the word "cutback", race row emphasised, current week aria-current="date", targets via minutesToHours1', async () => {
@@ -411,14 +482,14 @@ describe('Plan page', () => {
     ).toBeInTheDocument()
     expect(calls.some((c) => c.method === 'POST')).toBe(false)
 
-    await user.type(within(dialog).getByLabelText('Weekly run minutes'), '200')
+    await user.click(within(dialog).getByRole('radio', { name: '2 up, 1 easy' }))
     await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
     await waitFor(() => {
       expect(calls.some((c) => c.method === 'POST' && c.url === '/api/plan/generate')).toBe(true)
     })
     expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({
       goalId: 'g1',
-      baselineRunMin: 200,
+      options: { recoveryCycle: '2:1', strengthSessions: 2 },
     })
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

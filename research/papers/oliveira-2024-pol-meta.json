@@ -1,0 +1,35 @@
+{
+  "id": "oliveira-2024-pol-meta",
+  "title": "Comparison of Polarized Versus Other Types of Endurance Training Intensity Distribution on Athletes' Endurance Performance: A Systematic Review with Meta-analysis",
+  "authors": "Silva Oliveira P, Boppre G, Fonseca H",
+  "year": 2024,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-024-02034-z",
+  "pmid": "38717713",
+  "url": "https://doi.org/10.1007/s40279-024-02034-z",
+  "design": "meta-analysis",
+  "population": "Adults and young adults in interventions of >=4 weeks comparing polarized with other TIDs; 17 studies",
+  "sampleSize": 437,
+  "evidenceLevel": "A",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "Polarized superior for VO2peak: SMD 0.24 (95% CI 0.01-0.48), 11 studies, n=284, I2=0%, GRADE high certainty.",
+    "VO2peak superiority occurred only in shorter interventions (<12 weeks; SMD 0.40, 95% CI 0.08-0.71, n=163) and in highly trained athletes (SMD 0.46, 95% CI 0.10-0.82, n=125).",
+    "No difference for time trial (SMD -0.01, 95% CI -0.28 to 0.25, n=221), time to exhaustion (SMD 0.30, 95% CI -0.20 to 0.79, n=66) or speed/power at VT2/LT2 (SMD 0.04, 95% CI -0.21 to 0.29, n=253).",
+    "Searched to 20 October 2022; PROSPERO CRD42022365117; RCT risk of bias rated as some concerns."
+  ],
+  "limitations": "Pooled across sports (mostly cycling, skiing, rowing, running) and heterogeneous comparator TIDs; VO2peak is a surrogate, not race performance; search ends October 2022.",
+  "implications": [
+    "Do not force polarization for performance outcomes (time trial, thresholds): the pooled effect is null.",
+    "If VO2max is the specific aim and the athlete is highly trained, a short (<12 week) polarized block is justified; otherwise default to a pyramidal, low-intensity-dominant layout.",
+    "Treat TID as an individual and phase-dependent choice, not a single optimum."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: Sports Med, online 2024-05-08, print Aug 2024. Researcher's '<=8 weeks' was wrong; PubMed abstract says shorter interventions are <12 weeks. Corrected, and the <12 week SMD added.",
+    "checkedAt": "2026-10-22"
+  }
+}

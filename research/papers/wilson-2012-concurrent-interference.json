@@ -1,0 +1,35 @@
+{
+  "id": "wilson-2012-concurrent-interference",
+  "title": "Concurrent training: a meta-analysis examining interference of aerobic and resistance exercises",
+  "authors": "Wilson JM, Marin PJ, Rhea MR, Wilson SM, Loenneke JP, Anderson JC",
+  "year": 2012,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0b013e31823a3e2d",
+  "pmid": "22002517",
+  "url": "https://doi.org/10.1519/jsc.0b013e31823a3e2d",
+  "design": "meta-analysis",
+  "population": "21 studies (422 effect sizes) comparing strength training alone, endurance training alone and concurrent training; population not described in the abstract",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Mean ES for hypertrophy: strength alone 1.23, endurance alone 0.27, concurrent 0.85. Strength: 1.76, 0.78 and 1.44. Power: 0.91, 0.11 and 0.55 (all three groups significantly different for power).",
+    "Resistance training concurrent with running, but not cycling, produced significant decrements in hypertrophy and strength.",
+    "Endurance training frequency (r -0.26 to -0.35) and duration (r -0.29 to -0.75) correlated negatively with hypertrophy, strength and power gains.",
+    "Authors conclude that interference is a factor of the modality, frequency and duration of the endurance training selected."
+  ],
+  "limitations": "Pre-2012 literature; correlational moderator analyses with several effect sizes per study; outcomes are strength, hypertrophy and power, not running performance or economy; later and larger meta-analyses (Schumann 2022) found less interference for maximal strength and hypertrophy.",
+  "implications": [
+    "Do not stack heavy or explosive sessions directly onto long or high-volume running days.",
+    "At peak endurance volume, plan lifting at maintenance volume and expect smaller strength gains; this is a plausible management rule, not a proven threshold.",
+    "Use as a counterweight to Schumann 2022: interference is most credible for power development at high endurance volume."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref returns the short title 'Concurrent Training'; the full title is in Europe PMC. Removed the researcher's unsupported 'mostly non-athletic adults' claim.",
+    "checkedAt": "2026-10-22"
+  }
+}

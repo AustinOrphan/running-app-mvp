@@ -1,0 +1,34 @@
+{
+  "id": "temesi-2015-female-neuromuscular-fatigue",
+  "title": "Are Females More Resistant to Extreme Neuromuscular Fatigue?",
+  "authors": "Temesi J, Arnal PJ, Rupp T, Feasson L, Cartier R, Gergele L, Verges S, Martin V, Millet GY",
+  "year": 2015,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000000540",
+  "pmid": "25304334",
+  "url": "https://doi.org/10.1249/MSS.0000000000000540",
+  "design": "cross-sectional",
+  "population": "20 experienced ultra-trail runners (10 female, 10 male, matched by percent of winning time by sex) in a 110 km race",
+  "sampleSize": 20,
+  "evidenceLevel": "C",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "Maximal voluntary knee extensor torque fell more in males than females (-38% vs -29%, P = 0.006); plantar flexor torque loss was similar (-26% vs -31%).",
+    "Plantar flexor potentiated twitch amplitude fell more in males (-23% vs -8%, P = 0.010), indicating greater plantar flexor peripheral fatigue in males.",
+    "Central fatigue (voluntary activation by TMS and nerve stimulation) decreased similarly in both sexes; knee extensor peripheral fatigue and corticospinal excitability and inhibition changes were similar.",
+    "Authors suggest lower fatigue in females could partly explain better relative performance as race distance increases."
+  ],
+  "limitations": "20 finishers, performance-matched, one race; single post-race measurement with no recovery time course. Menstrual status and contraceptive use not reported in the abstract.",
+  "implications": [
+    "No change to recovery or taper length can be justified from n = 20 single-race data; background for the ultra module only.",
+    "Schedule post-ultra recovery by the individual's symptoms and wearable readiness trends, not by sex."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (MSSE, 2015-07, first author Temesi). Numbers confirmed in Europe PMC abstract (PMID 25304334).",
+    "checkedAt": "2026-10-22"
+  }
+}

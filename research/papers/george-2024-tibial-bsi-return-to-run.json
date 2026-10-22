@@ -1,0 +1,34 @@
+{
+  "id": "george-2024-tibial-bsi-return-to-run",
+  "title": "Criteria and Guidelines for Returning to Running Following a Tibial Bone Stress Injury: A Scoping Review",
+  "authors": "George E, Sheerin K, Reid D",
+  "year": 2024,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-024-02051-y",
+  "pmid": "39141251",
+  "url": "https://doi.org/10.1007/s40279-024-02051-y",
+  "design": "systematic-review",
+  "population": "50 studies (39 reviews or clinical commentaries, 3 retrospective cohorts, 2 RCTs, 2 pilot studies, 1 prospective observational study, 3 case studies) on returning to running after tibial BSI",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["beginners-return"],
+  "findings": [
+    "Fifty studies were included; recommendations rest on level IV evidence.",
+    "Five components should be addressed before introducing running: resolution of bony tenderness, pain-free walking, radiological healing evidence in high-risk BSIs, strength, functional and loading tests, and identification of contributing factors.",
+    "An individualised graduated programme should be started, often with walk-run intervals, progressing running distance ahead of speed and intensity, with symptom provocation a key consideration.",
+    "Return-to-run decisions should be shared between clinician, coach and athlete; contributing factors to the initial injury should be addressed throughout."
+  ],
+  "limitations": "Scoping review (classified here as systematic-review design for lack of a closer category); evidence is level IV, mostly expert opinion; tibial BSI only; the abstract gives no interval durations or distances.",
+  "implications": [
+    "Gate the return-to-run plan on athlete-confirmed criteria (no bony tenderness, pain-free walking, clinician clearance when high-risk) before generating any running.",
+    "Start with walk-run intervals and increase running distance before pace or intensity; hold progression when symptoms recur. Interval durations are not in the evidence; use conservative defaults and label them grade D."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Own re-fetch: Crossref title, Sports Medicine 2024-08-14, first author George, 3 authors. Abstract matches the listed study mix and five criteria.",
+    "checkedAt": "2026-10-22"
+  }
+}

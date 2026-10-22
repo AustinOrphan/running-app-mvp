@@ -1,0 +1,35 @@
+{
+  "id": "genitrini-2022-downhill-pacing",
+  "title": "Downhill Sections Are Crucial for Performance in Trail Running Ultramarathons - A Pacing Strategy Analysis",
+  "authors": "Genitrini M, Fritz J, Zimmermann G, Schwameder H",
+  "year": 2022,
+  "journal": "Journal of Functional Morphology and Kinesiology",
+  "doi": "10.3390/jfmk7040103",
+  "pmid": "36412765",
+  "url": "https://doi.org/10.3390/jfmk7040103",
+  "design": "retrospective-observational",
+  "population": "Public results from 16 races (4 courses, multiple editions); linear mixed model",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "Better finishers ran downhill at higher relative speeds and uphill at lower relative speeds than slower finishers (p < 0.001).",
+    "In later race stages the relative speed drop was larger downhill than uphill (p < 0.001), for men and women.",
+    "Slower finishers lost the most downhill time in late stages (p < 0.001).",
+    "Among elite athletes no pacing difference between faster and slower finishers was found.",
+    "Elite women slowed more than men in late stages regardless of terrain (p < 0.001)."
+  ],
+  "limitations": "Race-website data from 4 courses (16 races) analysed with a linear mixed model of relative speed; no physiological, technicality or training-history data, and the number of athletes is not given in the abstract.",
+  "implications": [
+    "Do not treat downhill as free time: relative speed fell more on descents than ascents in late race stages, for men and women, so apply a larger late-race slowdown to descents in an ultra pace model.",
+    "Better finishers ran downhill at higher and uphill at lower relative speeds than slower finishers. This is an association in observational data; it suggests, but does not show, that downhill durability separates finishers, so budget downhill-specific preparation for ultra goals."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: J Funct Morphol Kinesiol 7(4):103, 2022 (online 2022-11-21), four authors match. PubMed PMID 36412765 abstract supports all findings. Softened the causal wording in implications (observational).",
+    "checkedAt": "2026-10-22"
+  }
+}

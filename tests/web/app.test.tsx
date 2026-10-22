@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react'
 import { describe, expect, test } from 'vitest'
 import { App } from '../../web/App.tsx'
 import { mockApi, renderWithProviders } from './helpers.tsx'
+import { makeToday } from './today-fixtures.ts'
 
 const signedOut = {
   status: 401,
@@ -44,9 +45,69 @@ describe('App routing', () => {
       'GET /api/weeks': () => [],
       'GET /api/reviews': () => [],
       'GET /api/activities': () => [],
+      'GET /api/today': () => makeToday(),
       'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'mi' }),
     })
     renderWithProviders(<App />)
     expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+
+  test.each([
+    ['/integrations', 'Integrations'],
+    ['/profile', 'Profile'],
+  ])('%s renders its page inside the signed-in layout', async (route, heading) => {
+    mockApi({
+      'GET /api/setup': () => ({ needsSetup: false }),
+      'GET /api/auth/me': () => ({
+        id: 'u1',
+        email: 'runner@example.com',
+        displayName: null,
+        units: 'mi',
+      }),
+      'GET /api/integrations': () => [],
+      // The profile page's own data: a profile that was never filled in.
+      'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'mi' }),
+      'GET /api/screenings': () => [],
+      'GET /api/zones': () => ({
+        hrMax: null,
+        hrRest: null,
+        lt1Hr: null,
+        lt2Hr: null,
+        csMps: null,
+        lt1PaceSecPerKm: null,
+        thresholdPaceSecPerKm: null,
+        hr: null,
+        pace: null,
+        rpe: { z1: [2, 3], z2: [4, 6], z3: [7, 9] },
+      }),
+      'GET /api/profile': () => ({
+        birthYear: null,
+        sex: null,
+        heightCm: null,
+        weightKg: null,
+        hrMax: null,
+        hrMaxSource: null,
+        hrRest: null,
+        lthr: null,
+        thresholdPaceSecPerKm: null,
+        runningSinceYear: null,
+        injuries: [],
+        availability: Object.fromEntries(
+          ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day) => [
+            day,
+            { available: true, maxMin: null },
+          ]),
+        ),
+        longRunDay: 'sat',
+        terrain: { trail: false, hills: false, treadmill: false, track: false },
+        strengthPreference: 2,
+        timezone: 'UTC',
+        homeLat: null,
+        homeLng: null,
+        useHomeWeather: true,
+      }),
+    })
+    renderWithProviders(<App />, { route })
+    expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
   })
 })

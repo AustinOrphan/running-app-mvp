@@ -1,0 +1,39 @@
+{
+  "id": "maunder-2021-durability",
+  "title": "The Importance of 'Durability' in the Physiological Profiling of Endurance Athletes",
+  "authors": "Maunder E, Seiler S, Mildenhall MJ, Kilding AE, Plews DJ",
+  "year": 2021,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-021-01459-0",
+  "pmid": "33886100",
+  "url": "https://doi.org/10.1007/s40279-021-01459-0",
+  "design": "narrative-review",
+  "population": "Endurance athletes (narrative review with field data)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["durability-drift", "performance-prediction"],
+  "findings": [
+    "Physiological attributes measured in rested athletes change during prolonged exercise.",
+    "Ignoring these shifts affects intensity regulation, quantifying adaptations, training-load programming and the prediction of exercise performance.",
+    "The authors define durability as the time of onset and magnitude of deterioration in physiological-profiling characteristics during prolonged exercise, and argue that models should quantify it.",
+    "Physiological-profiling attributes measured in rested athletes are not static; they change over time during prolonged exercise.",
+    "Unaccounted shifts affect the accuracy of intensity regulation in long sessions or races, quantifying training adaptations, training-load programming and monitoring, and performance prediction.",
+    "Proposes defining durability as the time of onset and magnitude of deterioration in physiological-profiling characteristics during prolonged exercise.",
+    "Argues for profiling models that quantify each athlete's durability."
+  ],
+  "limitations": "Narrative review and position argument; no prediction-accuracy figures in the abstract; author list beyond the first three taken from Crossref ordering not fully checked.",
+  "implications": [
+    "Fresh-state fitness estimates (CS, VDOT) should be paired with a durability term for long races.",
+    "Durability should be a tracked athlete parameter, estimated from long-run data.",
+    "Treat fresh-state thresholds (LT, CS, HR zones) as optimistic late in long runs: store a per-athlete durability descriptor with two parts, onset (km or minutes) and magnitude of deterioration.",
+    "For long-run and ultra plans, set late-session intensity targets from a durability-adjusted threshold rather than the rested value; magnitude parameters come from the empirical papers, not this review."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref (Sports Med, 2021-04-22, Maunder, Seiler, Mildenhall...) and Europe PMC abstract re-fetched. Only the first three authors were seen in the Crossref excerpt; the remaining two (Kilding, Plews) were not re-checked, so treat them as unconfirmed.",
+    "checkedAt": "2026-10-22"
+  }
+}

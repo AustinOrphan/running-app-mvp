@@ -1,0 +1,184 @@
+[
+  {
+    "id": "novice-run-walk-injury-hazard-reference",
+    "statement": "Treat runners with no or little recent running history as the highest injury-risk class. Pooled incidence is 17.8 vs 7.7 per 1000 h of running (novice vs recreational), about 2.3 times per hour of exposure; use for classification and display, not as a causal hazard ratio.",
+    "parameter": "novice_to_recreational_injury_rate_ratio",
+    "value": "2.3 (17.8 / 7.7 per 1000 h)",
+    "unit": "ratio per hour of running",
+    "appliesTo": "Runners with no running in the prior several months or no running history",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "videbaek-2015-incidence",
+      "kluitenberg-2015-nlstart2run",
+      "buist-2008-graded-training"
+    ]
+  },
+  {
+    "id": "novice-risk-flags-intake",
+    "statement": "Collect age, BMI, recent non-sport musculoskeletal complaints and running experience at intake. Set soft risk flags (slower start, more walk intervals) for age 45-65, BMI over 30, prior non-running musculoskeletal complaints and no running history. Do not use sex or previous running injury as modifiers. No flag should exclude anyone; no thresholds beyond those quoted are justified.",
+    "parameter": "risk_flags",
+    "value": "age 45-65; BMI > 30; prior non-sport MSK complaint; no running history",
+    "unit": "categorical flags",
+    "appliesTo": "Novice runners",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["kluitenberg-2015-nlstart2run", "nielsen-2013-novice-predictors"]
+  },
+  {
+    "id": "novice-weekly-progression-default",
+    "statement": "Default weekly progression for novices is at most 10% per week of running time, with no more than about 30% growth over any 2-week window. Both numbers are conservative conventions: the 10% rule showed no injury benefit in an RCT and the 30% signal was not statistically significant. UI copy must not claim these prevent injury. At very low volumes use a small absolute minimum step (default one extra minute of running per week, grade D) rather than 10%.",
+    "parameter": "max_weekly_load_increase",
+    "value": "10% per week default; 30% over any 2 weeks as hard cap",
+    "unit": "% change in weekly running time or distance",
+    "appliesTo": "Novice runners and returning runners with a long layoff",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "buist-2008-graded-training",
+      "nielsen-2014-weekly-progression",
+      "nielsen-2012-training-errors"
+    ]
+  },
+  {
+    "id": "novice-flag-sudden-distance-jump",
+    "statement": "Flag (warn, not block) any logged week whose GPS distance is more than 30% above the prior 2-week level and cap the next planned week at the prior week's level. The evidence is an exploratory non-significant signal (HR 1.59, 95% CI 0.96-2.66) for distance-related overuse injuries.",
+    "parameter": "distance_jump_flag_threshold",
+    "value": "> 30% over prior 2 weeks",
+    "unit": "% change in weekly distance",
+    "appliesTo": "Novice runners",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["nielsen-2014-weekly-progression"]
+  },
+  {
+    "id": "novice-run-walk-start-structure",
+    "statement": "Start novices with run-walk intervals on 3 non-consecutive days per week for the first 6 weeks (NLstart2run program length), lengthening run intervals before walk intervals shrink. No trial establishes injury benefit or the best ratio. Use a conservative, configurable default of short run intervals (about 1 minute) with longer walk intervals; label the ratio grade D.",
+    "parameter": "initial_run_walk_structure",
+    "value": "3 sessions/week, non-consecutive; 6-week run-walk phase; ratio default about 1:2 (unvalidated)",
+    "unit": "sessions per week; weeks; run:walk ratio",
+    "appliesTo": "Novice runners and runners restarting after a long layoff or after a bone stress injury",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "kluitenberg-2015-nlstart2run",
+      "buist-2008-graded-training",
+      "george-2024-tibial-bsi-return-to-run",
+      "hottenrott-2016-run-walk-marathon"
+    ]
+  },
+  {
+    "id": "novice-hip-core-strength-block",
+    "statement": "Include a hip and core strength block before novice running sessions. In an RCT it reduced lower-extremity injury incidence (HR 0.66, 95% CI 0.45-0.97) and weekly overuse-injury prevalence (PRR 0.61). The abstract gives no set, rep or frequency; use configurable defaults and label them grade D. Do not offer ankle/foot-only routines as prevention (no benefit, more acute injuries in the trial).",
+    "parameter": "hip_core_block",
+    "value": "include before runs; dose not established (default 2-3 sessions/week, grade D)",
+    "unit": "sessions per week",
+    "appliesTo": "Novice recreational runners",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": ["leppanen-2024-hip-core-novice"]
+  },
+  {
+    "id": "progression-one-variable-at-a-time",
+    "statement": "Progress either high-intensity running time or total weekly volume in a block, not both at once. Trial data show no difference in specific injury types between intensity-focused and volume-focused progression, so no separate injury-risk model is justified. Treat an 8-week low-intensity preconditioning phase as a conservative option for new runners; its benefit is not tested.",
+    "parameter": "progression_variable_policy",
+    "value": "one variable at a time; optional 8-week preconditioning",
+    "unit": "policy",
+    "appliesTo": "Recreational runners, including new runners",
+    "grade": "B",
+    "confidence": "low",
+    "evidence": ["ramskov-2018-run-clever", "nielsen-2012-training-errors"]
+  },
+  {
+    "id": "run-walk-option-marathon",
+    "statement": "Offer a run/walk strategy as an option for marathon goals: similar finish time (about +6:45 mean, not significant) with less post-race muscle pain and fatigue. Do not claim cardiac protection. Do not extrapolate walk ratios or benefits to 50 km-100 mile events.",
+    "parameter": "run_walk_marathon_option",
+    "value": "available; expect about +7 min vs continuous running; no cardiac benefit claim",
+    "unit": "option flag; minutes",
+    "appliesTo": "Non-elite marathon runners",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["hottenrott-2016-run-walk-marathon"]
+  },
+  {
+    "id": "layoff-fitness-decay-model",
+    "statement": "Model aerobic fitness loss during a layoff as saturating: about 7% VO2max by 3 weeks and up to about 16% by 8 weeks in long-trained athletes, flattening after roughly 30-60 days. Cap modelled loss at about 15-20% for long-trained runners. Scale decay up for higher VO2max and under-20s. Recently trained runners (gains of a few months) lose all of those gains after more than 4 weeks. Re-estimate paces from fresh data after any break of 2 weeks or more.",
+    "parameter": "vo2max_loss_curve",
+    "value": "7% at day 21; 16% at day 56; plateau; cap 15-20%",
+    "unit": "% of trained VO2max",
+    "appliesTo": "Any runner returning after 2 or more weeks with no or minimal training",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "coyle-1984-detraining-time-course",
+      "zheng-2022-detraining-vo2max",
+      "mujika-2000-detraining-part1",
+      "mujika-2000-detraining-part2"
+    ]
+  },
+  {
+    "id": "layoff-restart-volume-tiers",
+    "statement": "Restart after a layoff at a fraction of prior volume and rebuild with the normal progression caps. The evidence supports direction, not magnitudes: under 7 days no reduction; 7-14 days about 90%; 15-28 days about 75%; over 28 days about 50-60%, with run-walk if the runner had under about 6 months of consistent running before the break. These fractions are conservative engineering defaults (grade D). Strength sessions can resume closer to prior loads than running volume.",
+    "parameter": "restart_volume_fraction",
+    "value": "<7 d: 100%; 7-14 d: 90%; 15-28 d: 75%; >28 d: 50-60%",
+    "unit": "fraction of pre-break weekly volume",
+    "appliesTo": "Runners returning from a layoff of non-injury cause",
+    "grade": "D",
+    "confidence": "low",
+    "evidenceLevel": "mujika and coyle indicate direction only",
+    "evidence": [
+      "mujika-2000-detraining-part1",
+      "mujika-2000-detraining-part2",
+      "coyle-1984-detraining-time-course",
+      "zheng-2022-detraining-vo2max"
+    ]
+  },
+  {
+    "id": "maintenance-mode-minimum-dose",
+    "statement": "Maintenance mode: about 2 runs per week, weekly volume cut 33-66% (sessions of at least 13-26 min), at least one session at the usual intensity, and 1 strength session per week at 1 set per exercise (2 sessions and 2-3 sets for older runners). Limit to about 15 weeks by default, then re-check fitness and notify the runner. Add a visible caveat that ultra-specific durability and race-specific endurance are not covered.",
+    "parameter": "maintenance_mode",
+    "value": "2 runs/week; volume -33% to -66%; session >= 13-26 min; intensity kept; max about 15 weeks",
+    "unit": "runs per week; % volume; minutes; weeks",
+    "appliesTo": "Time-limited reduced-availability periods in general-population runners",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "spiering-2021-minimal-dose",
+      "hickson-1981-reduced-frequency",
+      "mujika-2000-detraining-part2"
+    ]
+  },
+  {
+    "id": "keep-some-exercise-during-breaks",
+    "statement": "When a break is not medically required, prescribe a small number of easy sessions (default 1-2 per week, same mode where possible) rather than complete rest; any exercise weakens detraining. For injuries that forbid running, substitute cross-training.",
+    "parameter": "break_activity_default",
+    "value": "1-2 easy sessions per week (default, grade D value)",
+    "unit": "sessions per week",
+    "appliesTo": "Runners on planned or forced breaks without a contraindication to exercise",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["zheng-2022-detraining-vo2max", "mujika-2000-detraining-part2"]
+  },
+  {
+    "id": "bsi-site-return-timelines",
+    "statement": "On a logged bone stress injury, set the earliest return-to-run date by site using pooled return-to-sport times: posteromedial tibial shaft 44 days, fibula 56 days, femoral neck 107 days, tarsal navicular 127 days. Use as minimum planning intervals (they are average return-to-sport times, not run-specific). Treat femoral neck, tarsal navicular, anterior tibial shaft and fifth metatarsal as high risk requiring clinician clearance.",
+    "parameter": "bsi_min_days_before_return_to_run",
+    "value": "44 / 56 / 107 / 127 days by site",
+    "unit": "days",
+    "appliesTo": "Athletes with a logged bone stress injury",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["hoenig-2023-bsi-return-to-sport"]
+  },
+  {
+    "id": "bsi-return-to-run-gating",
+    "statement": "Do not generate running sessions after a tibial bone stress injury until the runner confirms: no bony tenderness, pain-free walking, and, for high-risk sites, clinician clearance (a clinician-entered date). Then start a graduated walk-run programme, increase running distance before speed or intensity, and hold progression when symptoms recur. Interval lengths and step sizes are not evidenced: use conservative grade D defaults.",
+    "parameter": "return_to_run_gate",
+    "value": "3 athlete-confirmed criteria plus clinician date for high-risk sites; distance before intensity",
+    "unit": "gate conditions",
+    "appliesTo": "Runners returning after tibial bone stress injury (apply cautiously to other lower-limb bone stress injuries)",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": ["george-2024-tibial-bsi-return-to-run", "hoenig-2023-bsi-return-to-sport"]
+  }
+]

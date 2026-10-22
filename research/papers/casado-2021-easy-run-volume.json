@@ -1,0 +1,34 @@
+{
+  "id": "casado-2021-easy-run-volume",
+  "title": "World-Class Long-Distance Running Performances Are Best Predicted by Volume of Easy Runs and Deliberate Practice of Short-Interval and Tempo Runs",
+  "authors": "Casado A, Hanley B, Santos-Concejero J, Ruiz-Perez LM",
+  "year": 2021,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000003176",
+  "pmid": "31045681",
+  "url": "https://doi.org/10.1519/jsc.0000000000003176",
+  "design": "cross-sectional",
+  "population": "85 elite-standard and world-class male long-distance runners, training reported after 3, 5 and 7 years",
+  "sampleSize": 85,
+  "evidenceLevel": "C",
+  "topics": ["volume-performance"],
+  "findings": [
+    "Total distance correlated strongly with performance (r >= 0.75, p<0.001) and explained significant variance (R2 >= 0.57).",
+    "Easy runs (r >= 0.68), tempo runs (r >= 0.50) and short intervals (r >= 0.53) correlated with performance; long intervals did not (r >= 0.22).",
+    "Hierarchical regression: easy runs and tempo runs accounted for significant variance (p<0.01).",
+    "Authors note easy running was crucial partly because of its contribution to total distance."
+  ],
+  "limitations": "Elite and world-class men only, retrospective self-reported bests, correlational, track-event scoring; weak generalisation to recreational and ultra runners.",
+  "implications": [
+    "Fill added volume with easy continuous running; keep tempo and short intervals as a modest fixed share.",
+    "Do not prioritise long intervals for volume-limited athletes."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title, journal, first author, 2021-09 match; abstract re-fetched and numbers match. Author name spelled Ruiz-Perez here without accent.",
+    "checkedAt": "2026-10-22"
+  }
+}

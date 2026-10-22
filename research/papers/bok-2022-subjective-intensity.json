@@ -1,0 +1,35 @@
+{
+  "id": "bok-2022-subjective-intensity",
+  "title": "An Examination and Critique of Subjective Methods to Determine Exercise Intensity: The Talk Test, Feeling Scale, and Rating of Perceived Exertion",
+  "authors": "Bok D, Rakovac M, Foster C",
+  "year": 2022,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-022-01690-3",
+  "pmid": "35507232",
+  "url": "https://doi.org/10.1007/s40279-022-01690-3",
+  "design": "narrative-review",
+  "population": "Review of reliability and construct validity of the talk test, Feeling Scale and RPE for delineating ventilatory threshold and respiratory compensation threshold",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "The talk test and RPE appear to be valid measures of both the ventilatory threshold (VT) and the respiratory compensation threshold (RCP).",
+    "Equivocal talk-test stage, RPE of 10-11 and Feeling Scale ratings between +1 and +3 reflect VT.",
+    "Negative talk-test stage, RPE of 13-15 and Feeling Scale ratings around 0 reflect RCP.",
+    "Talk test and RPE can elicit responses consistent with moderate, heavy and severe domains; physiological responses to constant Feeling Scale ratings vary widely around VT and are not considered effective for demarcating moderate to heavy."
+  ],
+  "limitations": "Narrative review; the abstract does not name the RPE scale (10-11 and 13-15 are consistent with the Borg 6-20 scale, an inference); talk-test studies were mostly not in runners.",
+  "implications": [
+    "When no HR or pace threshold data exist, use perceived-effort anchors: RPE about 10-11 (Borg 6-20) and the equivocal talk-test stage mark VT1; RPE 13-15 and a negative talk test mark the RCP/VT2 region.",
+    "Do not use the Feeling Scale to set the upper threshold boundary; use it only as a secondary comfort cue.",
+    "Do not convert these values to a 0-10 RPE scale without a separate source."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (vol 52 pp 2085-2109). Abstract confirms values. Feeling Scale statement tightened to the abstract's wording.",
+    "checkedAt": "2026-10-22"
+  }
+}

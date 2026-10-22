@@ -1,0 +1,35 @@
+{
+  "id": "haddad-2017-session-rpe-review",
+  "title": "Session-RPE Method for Training Load Monitoring: Validity, Ecological Usefulness, and Influencing Factors",
+  "authors": "Haddad M, Stylianides G, Djaoui L, Dellal A, Chamari K",
+  "year": 2017,
+  "journal": "Frontiers in Neuroscience",
+  "doi": "10.3389/fnins.2017.00612",
+  "pmid": "29163016",
+  "url": "https://doi.org/10.3389/fnins.2017.00612",
+  "design": "narrative-review",
+  "population": "Athletes of any gender, age or competition level in studies using the Foster 2001 session-RPE method (English-language searches 2001-2016: SPORTDiscus, PubMed, Google Scholar)",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["load-quantification"],
+  "findings": [
+    "950 studies cited the Foster et al. 2001 paper that proposed the session-RPE method.",
+    "36 studies examined the validity and reliability of the method using the modified CR-10 scale.",
+    "These studies confirmed validity, good reliability and internal consistency of session-RPE in several sports and physical activities, in men and women, children, adolescents and adults, across expertise levels.",
+    "The method could be used as a stand-alone training-load monitor, though some authors recommend combining it with physiological parameters such as heart rate."
+  ],
+  "limitations": "Narrative literature search with no stated risk-of-bias assessment or pooled effect size in the abstract; validity analysis restricted to English-language studies; the abstract does not give the sport breakdown (so applicability to distance running is not shown) and does not enumerate the RPE-altering factors it discusses.",
+  "implications": [
+    "Treat session-RPE as validated enough to be the default internal-load measure for all users, including those without HR data.",
+    "Offer HR-based load alongside sRPE when HR quality is good, in line with the suggestion to combine the two, rather than replacing sRPE.",
+    "Show CR-10 anchors in the UI and keep the question wording constant, since RPE can be altered by factors the review lists; the abstract does not enumerate them, so do not hard-code adjustments."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, Frontiers in Neuroscience, 2017, first author Haddad. Abstract read in Europe PMC; all numbers match. Removed the researcher's unsupported limitation that most included studies are team sports (not stated in the abstract).",
+    "checkedAt": "2026-10-22"
+  }
+}

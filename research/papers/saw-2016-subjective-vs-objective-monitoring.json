@@ -1,0 +1,41 @@
+{
+  "id": "saw-2016-subjective-vs-objective-monitoring",
+  "title": "Monitoring the athlete training response: subjective self-reported measures trump commonly used objective measures: a systematic review",
+  "authors": "Saw AE, Main LC, Gastin PB",
+  "year": 2016,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2015-094758",
+  "pmid": "26423706",
+  "url": "https://doi.org/10.1136/bjsports-2015-094758",
+  "design": "systematic-review",
+  "population": "Athletes in 56 original studies reporting concurrent subjective and objective well-being measures",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["periodization-recovery", "readiness-monitoring"],
+  "findings": [
+    "Fifty-six original studies reported concurrent subjective and objective measures of athlete well-being; the two generally did not correlate.",
+    "Subjective measures reflected acute and chronic training loads with superior sensitivity and consistency than objective measures.",
+    "Subjective well-being was typically impaired with an acute increase in training load and with chronic training, while an acute decrease in training load improved it.",
+    "Subjective measures may stand alone or be incorporated into a mixed-methods approach to athlete monitoring.",
+    "56 original studies reporting concurrent subjective and objective measures of athlete well-being were evaluated for levels of evidence (databases searched May 2014).",
+    "Subjective and objective measures of well-being generally did not correlate.",
+    "Subjective well-being was typically impaired with an acute increase in training load and with chronic training, while an acute decrease in load improved it.",
+    "Authors support subjective measures standing alone or within a mixed-methods monitoring approach."
+  ],
+  "limitations": "Mixed sports and measures; no pooled effect sizes in the abstract; levels of evidence were assessed qualitatively. Not specific to runners.",
+  "implications": [
+    "Include a brief daily or per-run subjective check-in (fatigue, sleep, soreness, mood, readiness) as a first-class input to load adjustments.",
+    "Because subjective and objective measures often disagree, a single subjective decline may trim the next hard session, but require two independent signals before auto-inserting an unplanned recovery week (design choice).",
+    "Make a short daily subjective wellness rating (fatigue, sleep quality, soreness, mood, stress) the primary readiness input and treat HRV/resting HR as secondary.",
+    "Because subjective and objective markers rarely agree, do not change the plan on a single objective marker alone.",
+    "Track the subjective trend over days, since the signal is about response to load."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref issued 2015 (online 9 Sep 2015); journal issue is Br J Sports Med 2016;50(5):281-91, so year 2016 retained. Findings verified against PubMed abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "frandsen-2025-session-spike",
+  "title": "How much running is too much? Identifying high-risk running sessions in a 5200-person cohort study",
+  "authors": "Schuster Brandt Frandsen J, Hulme A, Parner ET, Moller M, Lindman I, Abrahamson J, et al.",
+  "year": 2025,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2024-109380",
+  "pmid": "40623829",
+  "url": "https://doi.org/10.1136/bjsports-2024-109380",
+  "design": "prospective-cohort",
+  "population": "Adult runners recruited for an 18-month cohort, distance data from Garmin devices (mean age 45.8 y, SD 10.4; 22% female); outcome self-reported overuse running-related injury",
+  "sampleSize": 5205,
+  "evidenceLevel": "B",
+  "topics": ["injury-load"],
+  "findings": [
+    "1820 of 5205 runners (35%) sustained a running-related overuse injury during 588,071 sessions.",
+    "Exposure 1 was session distance relative to the longest run in the past 30 days. Reference state was regression or up to a 10% increase. Adjusted hazard rate ratios (multistate Cox): small spike (>10% to 30%) HRR 1.64 (95% CI 1.31-2.05); moderate spike (>30% to 100%) HRR 1.52 (95% CI 1.16-2.00); large spike (>100%) HRR 2.28 (95% CI 1.50-3.48).",
+    "A negative dose-response relationship was observed for the ACWR (1 week vs the preceding 3 weeks), and no relationship was identified for the week-to-week ratio.",
+    "Authors conclude the rate of overuse injury rose significantly when a single session exceeded 10% of the longest run in the last 30 days."
+  ],
+  "limitations": "Observational, so confounding (fitness, prior injury, unmeasured load such as pace, terrain, other sport) is possible. Self-reported injury; self-selected, mostly male, middle-aged wearable users. Hazard ratios are rates relative to a reference state, not absolute risk, and do not show that capping sessions prevents injury. The small-spike HRR (1.64) is higher than the moderate-spike HRR (1.52), so the pattern is a threshold above about 10%, not a graded curve. Exposure is distance only (not duration, elevation or intensity). No runners doing ultra-distance build-ups are characterised. Abstract-level verification only.",
+  "implications": [
+    "Add a per-session guard computed from actual logged runs: planned run distance <= 1.10 x the longest run in the trailing 30 days is the default ('green'). Treat >1.10 to 1.30 as a soft warning (HRR about 1.6), and >2.0x as the highest-risk band (HRR about 2.3); do not present the 30-100% band as safer than the 10-30% band.",
+    "Long-run progression must be checked against a rolling 30-day maximum at each step; the 10% ceiling applies to the longest recent run, not to weekly volume.",
+    "Do not use the week-to-week ratio or the 1-week:3-week ACWR as a risk rule (no positive association found).",
+    "Evidence is for single-session distance in mostly 'recreational' runners; it does not justify a different allowed rate for ultra build-ups without separate evidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: Br J Sports Med 2025 (online 7 Jul 2025), 59:1203-1210, 13 authors, first author Schuster Brandt Frandsen J. Abstract re-read from PubMed (PMID 40623829); all HRRs, CIs, sample numbers and the ACWR / week-to-week statements are in the abstract. Author list in the entry expanded and spelling normalised. Researcher's implication 'hard block above 2.0x' is a design choice, not a finding.",
+    "checkedAt": "2026-10-22"
+  }
+}

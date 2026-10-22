@@ -1,0 +1,34 @@
+{
+  "id": "bussau-2002-carb-loading-one-day",
+  "title": "Carbohydrate loading in human muscle: an improved 1 day protocol",
+  "authors": "Bussau VA, Fairchild TJ, Rao A, Steele P, Fournier PA",
+  "year": 2002,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-002-0621-5",
+  "pmid": "12111292",
+  "url": "https://doi.org/10.1007/s00421-002-0621-5",
+  "design": "experimental-crossover",
+  "population": "Eight endurance-trained male athletes",
+  "sampleSize": 8,
+  "evidenceLevel": "C",
+  "topics": ["taper"],
+  "findings": [
+    "Eight endurance-trained men ate 10 g per kg body mass per day of high glycaemic index carbohydrate for 3 days while physically inactive; biopsies before and after 1 and 3 days.",
+    "Muscle glycogen rose significantly from 95 (5) to 180 (15) mmol per kg wet mass after only 1 day and remained stable after another 2 days.",
+    "Staining analyses showed 1 day of high carbohydrate intake was sufficient for maximal glycogen in type I, IIa and IIb fibres.",
+    "Authors conclude combining physical inactivity with high carbohydrate intake lets trained athletes reach maximal glycogen within 24 h."
+  ],
+  "limitations": "Eight men, no performance outcome, no depletion comparison, no females, inactivity (not tapered running) during loading; within-subject time series rather than a crossover.",
+  "implications": [
+    "For marathon and longer races, the final 24-48 h can include a rest-day-style high carbohydrate intake (about 10 g per kg as tested; a conservative lower target of 8-10 g per kg is an engine choice) and little running; no multi-day depletion phase is needed.",
+    "Evidence is physiological (glycogen), not race-performance; present as guidance."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier for the pre-race week. Crossref: Eur J Appl Physiol, 1 Jul 2002, Bussau first author; abstract fetched (PMID 12111292). Design label is a nearest fit; actual design is a single-group repeated-measures biopsy study.",
+    "checkedAt": "2026-10-22"
+  }
+}

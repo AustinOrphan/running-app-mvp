@@ -1,0 +1,35 @@
+{
+  "id": "king-2022-high-cho-gut-training",
+  "title": "Short-Term Very High Carbohydrate Diet and Gut-Training Have Minor Effects on Gastrointestinal Status and Performance in Highly Trained Endurance Athletes",
+  "authors": "King AJ, Etxebarria N, Ross ML, Garvican-Lewis L, Heikura IA, et al.",
+  "year": 2022,
+  "journal": "Nutrients",
+  "doi": "10.3390/nu14091929",
+  "pmid": "35565896",
+  "url": "https://doi.org/10.3390/nu14091929",
+  "design": "rct",
+  "population": "19 elite male race walkers (26 km session) and 18 highly trained male and female distance runners (35 km run), MAX vs CON strategy",
+  "sampleSize": 37,
+  "evidenceLevel": "C",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "MAX = 2 weeks high-CHO diet + gut-training, CHO loading and 90 g/h CHO during exercise; CON = lower ranges of current guidelines.",
+    "Race walkers: MAX associated with increased GI symptoms in the second half of exercise, especially upper GI (p < 0.01); no significant difference in breath H2 across exercise.",
+    "Runners: no major differences in I-FABP or GI symptoms between groups despite a 3-fold increase in exercise CHO intake in MAX.",
+    "Both groups improved similarly from pre to post intervention (CON 39 s; MAX 36 s; p = 0.002), suggesting higher CHO availability above current guidelines gives no additional advantage; considerable inter-individual variability.",
+    "Authors conclude athletes should meet minimum CHO guidelines, noting that with practice increased CHO intake can be tolerated and may contribute to performance outcomes."
+  ],
+  "limitations": "Non-ultra distances (26-35 km); small groups; confounded by body-mass loss in several athletes and large aerobic gains from intensified training that may have masked small differences (stated by authors).",
+  "implications": [
+    "Do not promise that 90+ g/h improves performance; present it as 'tolerance can be trained'.",
+    "Require meeting minimum CHO guidelines first; treat > 90 g/h as an athlete-chosen experiment with GI monitoring and fall-back to the previous tolerated rate."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match; findings confirmed against the Europe PMC abstract. Removed the unsupported 'non-blinded' limitation; clarified that the similar improvement refers to the runner cohort.",
+    "checkedAt": "2026-10-22"
+  }
+}

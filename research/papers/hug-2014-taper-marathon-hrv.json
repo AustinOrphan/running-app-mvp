@@ -1,0 +1,34 @@
+{
+  "id": "hug-2014-taper-marathon-hrv",
+  "title": "Tapering for marathon and cardiac autonomic function",
+  "authors": "Hug B, Heyer L, Naef N, Buchheit M, Wehrlin JP, Millet GP",
+  "year": 2014,
+  "journal": "International Journal of Sports Medicine",
+  "doi": "10.1055/s-0033-1361184",
+  "pmid": "24595813",
+  "url": "https://doi.org/10.1055/s-0033-1361184",
+  "design": "other",
+  "population": "9 male runners (marathon training) in a 3-week overload then 3-week taper",
+  "sampleSize": 9,
+  "evidenceLevel": "C",
+  "topics": ["taper"],
+  "findings": [
+    "9 male runners followed 3 weeks of overload then 3 weeks of tapering (-33 +/- 7% volume); exhaustive running test (Tlim) and post-exercise heart rate recovery (HRR) and vagal HRV indices (RMSSD) were measured.",
+    "Tlim did not change during overload (603 +/- 105 vs 614 +/- 132 s; P = 0.992) but increased (727 +/- 185 s; P = 0.035) during the second week of tapering.",
+    "RMSSD(5-10 min) was reduced after the 2nd week of tapering compared with overload (7.6 +/- 3.3 vs 8.6 +/- 2.9 ms; P = 0.045).",
+    "Improvements in Tlim during taper correlated negatively with change in HRR(60 s) (r = -0.84; P = 0.005) but not RMSSD (r = -0.21; P = 0.59); authors conclude slower HRR may indicate improved performance and single-day post-exercise HRV monitoring may have little or no additive value."
+  ],
+  "limitations": "Nine runners, single-group design, post-exercise (not resting) autonomic measures on a single day; measurement protocol unlikely to match wearable overnight HRV.",
+  "implications": [
+    "Do not assume that a fall in post-exercise HRV during the taper signals a problem or predicts performance; HRV-based taper flags should require corroboration (symptoms, resting HR, sleep) before an alert.",
+    "Performance gain appeared in the second taper week, consistent with a 2-week minimum."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref: 'Tapering for Marathon and Cardiac Autonomic Function', IJSM, 4 Mar 2014, Hug first author; abstract fetched from Europe PMC (PMID 24595813).",
+    "checkedAt": "2026-10-22"
+  }
+}

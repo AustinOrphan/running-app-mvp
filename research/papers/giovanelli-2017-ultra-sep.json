@@ -1,0 +1,35 @@
+{
+  "id": "giovanelli-2017-ultra-sep",
+  "title": "Effects of strength, explosive and plyometric training on energy cost of running in ultra-endurance athletes",
+  "authors": "Giovanelli N, Taboga P, Rejc E, Lazzer S",
+  "year": 2017,
+  "journal": "European Journal of Sport Science",
+  "doi": "10.1080/17461391.2017.1305454",
+  "pmid": "28394719",
+  "url": "https://doi.org/10.1080/17461391.2017.1305454",
+  "design": "other",
+  "population": "Well-trained male ultra-marathoners (38.2 +/- 7.1 years; VO2max 55.4 +/- 4.0 ml/kg/min); 25 runners divided into exercise (n=13) and control (n=12) groups; randomization is not stated in the abstract",
+  "sampleSize": 25,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "A 12-week home-based strength, explosive and plyometric (SEP) program lowered the energy cost of running at all four tested speeds: -6.4% at 8 km/h, -3.5% at 10, -4.0% at 12 and -3.2% at 14 km/h (p < 0.05); the control group showed no differences.",
+    "Contact time increased at 8, 10 and 12 km/h (mean +4.4%).",
+    "Changes in energy cost were inversely related to changes in maximal lower-limb muscle power at 10 km/h (r = -0.67) and 12 km/h (r = -0.86).",
+    "Authors suggest adding at least three SEP sessions per week to normal endurance training may decrease the cost of running."
+  ],
+  "limitations": "Small, male-only sample; randomization not stated; no race-performance or injury outcome; economy measured at 8-14 km/h only; the three-sessions-per-week suggestion was not tested against other frequencies.",
+  "implications": [
+    "For ultra and trail plans, include a strength/explosive/plyometric block of about 12 weeks; gains were largest at the slowest tested speed (8 km/h).",
+    "A home-based program was effective, supporting an equipment-light option.",
+    "Use 2 sessions per week at high mileage and flag the authors' 3 per week as optional, because the dose is untested."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Reclassified from rct to other (controlled trial): abstract says runners were 'divided into' groups. Removed the unsupported 'control group not randomization-blind' limitation. Participants are ultra-marathoners, not 100-mile runners.",
+    "checkedAt": "2026-10-22"
+  }
+}

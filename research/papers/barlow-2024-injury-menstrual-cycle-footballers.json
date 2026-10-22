@@ -1,0 +1,35 @@
+{
+  "id": "barlow-2024-injury-menstrual-cycle-footballers",
+  "title": "Injury Incidence, Severity, and Type Across the Menstrual Cycle in Female Footballers: A Prospective Three Season Cohort Study",
+  "authors": "Barlow A, Blodgett JM, Williams S, Pedlar CR, Bruinvels G",
+  "year": 2024,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000003391",
+  "pmid": "38227488",
+  "url": "https://doi.org/10.1249/mss.0000000000003391",
+  "design": "prospective-cohort",
+  "population": "26 elite professional female footballers over three seasons; 593 cycles over 13,390 days",
+  "sampleSize": 26,
+  "evidenceLevel": "C",
+  "topics": ["sex-female-athlete"],
+  "findings": [
+    "74 injuries eligible; overall injury rate highest in the premenstrual phase (P4) vs menstruation (IIRR 2.30, 95% CI 0.99-5.34, P = 0.05).",
+    "P4 rates were higher for muscle injuries (IIRR 6.07, 95% CI 1.34-27.43, P = 0.02) and non-contact injuries (IIRR 3.05, 95% CI 1.10-8.50, P = 0.03).",
+    "Early luteal (P3) vs menstruation: muscle injuries IIRR 5.07 (95% CI 1.16-22.07, P = 0.03) and time-loss of 7 days or less IIRR 4.47 (1.01-19.68, P = 0.05).",
+    "Authors conclude injury risk was elevated in the luteal phase (P3 and P4) and call for urgent further research; no ACL injuries occurred."
+  ],
+  "limitations": "26 players, 74 injuries, very wide confidence intervals, football (contact, intermittent), elite athletes, no running data; single cohort not yet replicated.",
+  "implications": [
+    "Add no cycle-phase injury multiplier to running load rules.",
+    "If cycle tracking is offered, show an optional awareness message (warm-up, hydration) for users who log a premenstrual phase; do not change prescribed load.",
+    "Optionally log injury onset with cycle day to build per-user data."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref lookup for this DOI returned no record (empty response) but Europe PMC (PMID 38227488) returns the same DOI, title, MSSE and 2024; treated as resolved via Europe PMC. Numbers confirmed in the abstract. Removed the unsupported claim about conflicting ovulatory-phase literature.",
+    "checkedAt": "2026-10-22"
+  }
+}

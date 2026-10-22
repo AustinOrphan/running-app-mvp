@@ -1,0 +1,33 @@
+{
+  "id": "keir-2015-exercise-intensity-thresholds",
+  "title": "Exercise Intensity Thresholds: Identifying the Boundaries of Sustainable Performance",
+  "authors": "Keir DA, Fontana FY, Robertson TC, Murias JM, Paterson DH, Kowalchuk JM, Pogliaghi S",
+  "year": 2015,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000000613",
+  "pmid": "25606817",
+  "url": "https://doi.org/10.1249/mss.0000000000000613",
+  "design": "experimental-crossover",
+  "population": "Twelve healthy men (27 +/- 3 yr) performing cycle ergometer tests for CP, MLSS, ramp-derived RCP and deoxyhemoglobin breakpoint",
+  "sampleSize": 12,
+  "evidenceLevel": "C",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "Oxygen uptake at CP, RCP, MLSS and [HHb] breakpoint did not differ (3.29, 3.34, 3.27 and 3.41 L/min respectively).",
+    "Power output at RCP (262 W) and [HHb] breakpoint (273 W) was higher than at CP (226 W) and MLSS (223 W), which did not differ from each other.",
+    "The authors conclude the indices occur at the same VO2 and each provides a valid delineation between tolerable and intolerable constant-power exercise."
+  ],
+  "limitations": "Twelve healthy young men on a cycle ergometer; not runners; RCP and CP were at the same VO2 but different power outputs, so the 'same threshold' conclusion is about VO2, not about the workload prescribed.",
+  "implications": [
+    "Treat RCP/VT2 and CS as neighbouring but not identical markers of the upper sustainable boundary: when both RCP-type (HR, RPE) and CS estimates exist, expect different absolute workloads and keep both as ranges rather than forcing one value.",
+    "Supports using CS as the sustainable upper boundary rather than a lactate-defined value, but evidence is from cycling."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref returns short title 'Exercise Intensity Thresholds', MSSE 2015 vol 47 pp 1932-1940, first author Keir; Europe PMC (PMID 25606817) gives full title and all numbers.",
+    "checkedAt": "2026-10-22"
+  }
+}

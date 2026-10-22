@@ -1,0 +1,34 @@
+{
+  "id": "houmard-1994-taper-distance-runners",
+  "title": "The effects of taper on performance in distance runners",
+  "authors": "Houmard JA, Scott BK, Justice CL, Chenier TC",
+  "year": 1994,
+  "journal": "Medicine and Science in Sports and Exercise",
+  "doi": "10.1249/00005768-199405000-00016",
+  "pmid": "8007812",
+  "url": "https://doi.org/10.1249/00005768-199405000-00016",
+  "design": "other",
+  "population": "Distance runners in three groups of eight (run taper, cycle taper, control)",
+  "sampleSize": 24,
+  "evidenceLevel": "C",
+  "topics": ["taper"],
+  "findings": [
+    "7-day taper with high-intensity intervals and an 85% reduction in training volume decreased self-paced 5-km time by 3% (1036.2 +/- 30.6 to 1006.8 +/- 28.2 s, P < 0.005).",
+    "Submaximal oxygen consumption (6%) and calculated caloric expenditure (7%) at a speed eliciting 80% of VO2max fell significantly (P < 0.01) in the run taper group.",
+    "5-km performance and running economy did not change in the cycle taper or control groups.",
+    "Authors conclude that a taper of equivalent-duration cycle training maintained performance in distance runners."
+  ],
+  "limitations": "Small groups (n=8 each), single 5-km time trial; an 85% volume cut is far larger than the meta-analytic 41-60%; abstract does not state how participants were allocated, so it is a controlled parallel-group trial of unclear randomization.",
+  "implications": [
+    "A 7-day taper with sharp volume reduction and retained intervals improved 5 km in this sample; supports a short 7-day option for 5-10 km, though 41-60% remains the default.",
+    "Cycling replacing running maintained but did not improve performance; bike substitution in taper weeks is a low-confidence option for injury-prone athletes."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (MSSE May 1994). Design changed from 'rct' to 'other' and level B to C because randomization is not stated in the abstract and groups are small.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "jamnick-2020-intensity-methods",
+  "title": "An Examination and Critique of Current Methods to Determine Exercise Intensity",
+  "authors": "Jamnick NA, Pettitt RW, Granata C, Pyne DB, Bishop DJ",
+  "year": 2020,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-020-01322-8",
+  "pmid": "32729096",
+  "url": "https://doi.org/10.1007/s40279-020-01322-8",
+  "design": "narrative-review",
+  "population": "Review of methods to prescribe intensity relative to the moderate, heavy and severe domains (percent-of-max anchors, VT/GET/RCP, LT1/LT2, MLSS, CP/CS)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["zones-thresholds"],
+  "findings": [
+    "Prescribing intensity as a fixed percentage of VO2max, VO2peak, HRmax or maximum work rate has little merit for eliciting distinct, domain-specific homeostatic perturbations.",
+    "There is some evidence supporting LT1, GET and VT as delineating the moderate and heavy domains.",
+    "There is little evidence supporting most commonly used methods to delineate the heavy and severe domains, with the exception of CP and CS.",
+    "Training studies are still required to verify whether different methods of prescribing intensity change training adaptations."
+  ],
+  "limitations": "Evaluates construct validity through acute physiological responses, not training outcomes; narrative rather than systematic search.",
+  "implications": [
+    "Define a three-domain zone model: LT1/VT1 as the moderate-heavy boundary and critical speed as the heavy-severe boundary; avoid fixed %HRmax cut-offs for those two boundaries.",
+    "Estimate CS from performance data and LT1/VT1 from HR/DFA-a1/RPE/talk-test proxies, and label which source defines each boundary."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (vol 50 pp 1729-1756, online 2020-07-30). Abstract confirms all findings.",
+    "checkedAt": "2026-10-22"
+  }
+}

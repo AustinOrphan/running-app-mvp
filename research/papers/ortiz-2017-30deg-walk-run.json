@@ -1,0 +1,34 @@
+{
+  "id": "ortiz-2017-30deg-walk-run",
+  "title": "The metabolic costs of walking and running up a 30-degree incline: implications for vertical kilometer foot races",
+  "authors": "Ortiz ALR, Giovanelli N, Kram R",
+  "year": 2017,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-017-3677-y",
+  "pmid": "28695271",
+  "url": "https://doi.org/10.1007/s00421-017-3677-y",
+  "design": "experimental-repeated-measures",
+  "population": "11 experienced runners (7 M, 4 F) walking and running 5 min trials on a 30 degree treadmill incline at 0.3 m/s and rising by 0.1 m/s until failure",
+  "sampleSize": 11,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "Oxygen uptake and metabolic power increased linearly with velocity at 30 degrees.",
+    "Between 0.3 and 0.7 m/s walking cost per unit distance was lower than running cost; at 0.8 m/s there was no difference.",
+    "Extrapolation suggests that at faster velocities running likely costs less than walking.",
+    "At speeds slower than 0.7 m/s walking requires less metabolic power than running, suggesting most vertical kilometer racers should walk."
+  ],
+  "limitations": "11 runners, 5 min trials, one angle (30 degrees, about 58% grade, derived); extrapolation beyond 0.8 m/s; no fatigue.",
+  "implications": [
+    "On very steep climbs (about 30 degrees) default to power hiking at the speeds most runners can sustain (below about 0.7 m/s along the slope, assuming treadmill velocity is along the belt; about 1,260 m/h of climbing, derived).",
+    "The result supports a walk-default rule for very steep grades while leaving the threshold dependent on speed."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Added. Crossref: Eur J Appl Physiol 117(9):1869-1876, 2017, three authors match. PubMed PMID 28695271 abstract supports all numbers; vertical-speed conversion assumes belt velocity is along the slope.",
+    "checkedAt": "2026-10-22"
+  }
+}

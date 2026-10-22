@@ -1,0 +1,36 @@
+{
+  "id": "racinais-2015-heat-consensus",
+  "title": "Consensus recommendations on training and competing in the heat",
+  "authors": "Racinais S, Alonso JM, Coutts AJ, Flouris AD, Girard O, Gonzalez-Alonso J, et al.",
+  "year": 2015,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.12467",
+  "pmid": "25943653",
+  "url": "https://doi.org/10.1111/sms.12467",
+  "design": "consensus-statement",
+  "population": "Expert consensus (17 authors per Crossref) for athletes training and competing in hot conditions",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Heat acclimatization is the most important intervention to reduce physiological strain and optimize performance in the heat.",
+    "Heat acclimatization should comprise repeated exercise-heat exposures over 1-2 weeks.",
+    "Athletes should start competition and training euhydrated and minimize dehydration during exercise.",
+    "Cooling strategies (e.g. cooling vest) can be used before training or competing to facilitate heat loss or raise heat storage capacity.",
+    "Organizers should schedule events to minimize health risk, especially for mass participation events and during the first hot days of the year."
+  ],
+  "limitations": "Consensus statement with no pooled effect sizes in the abstract; elite and team-sport oriented; cooling and hydration advice not specific to ultra distances.",
+  "implications": [
+    "If forecast race WBGT is in a moderate-or-higher heat band, schedule 7-14 days of heat exposure before the race and flag plans lacking such a window.",
+    "Flag the first hot days of a season as higher risk: reduce intensity targets and show a warning.",
+    "Add a pre-session reminder to start euhydrated; no numeric hydration target is justified by this abstract."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (SJMSS, online 2015-05, print 2015-06; 17 authors) and Europe PMC abstract re-fetched. Co-published copies (BJSM, Sports Med) omitted as duplicates. Graded A per the consensus rule, but it gives no effect sizes, so rules from it carry only moderate confidence.",
+    "checkedAt": "2026-10-22"
+  }
+}

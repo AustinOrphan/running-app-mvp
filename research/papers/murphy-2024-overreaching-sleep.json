@@ -1,0 +1,34 @@
+{
+  "id": "murphy-2024-overreaching-sleep",
+  "title": "Does overreaching from endurance-based training impair sleep: A systematic review and meta-analysis",
+  "authors": "Murphy C, Svansdottir SA, Dupuy O, Louis J",
+  "year": 2024,
+  "journal": "PLOS ONE",
+  "doi": "10.1371/journal.pone.0303748",
+  "pmid": "38809828",
+  "url": "https://doi.org/10.1371/journal.pone.0303748",
+  "design": "meta-analysis",
+  "population": "Endurance athletes in overreaching protocols (cycling k=5, rowing 4, triathlon 3, running 2, swimming 1); 14 studies, 3 in the objective and 8 in the subjective meta-analysis",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "805 articles returned; 14 studies in the systematic review; overreaching protocols averaged 16 days (range 6 to 28).",
+    "Objective sleep (actigraphy, 3 studies): overreaching reduced sleep efficiency (mean difference -2.0%, 95% CI -3.2 to -0.8%; Glass' delta -0.83; p<0.01).",
+    "Subjective sleep quality showed no significant effect (Glass' delta -0.27, 95% CI -0.79 to 0.25, p=0.08).",
+    "None of the included studies was judged low risk of bias; overreaching from endurance training appears to deteriorate objective sleep without changing perceived sleep quality."
+  ],
+  "limitations": "Only 3 studies in the objective meta-analysis; no study at low risk of bias; short protocols; only 2 running studies.",
+  "implications": [
+    "Use wearable sleep efficiency, not only self-reported sleep quality, as one overreaching signal; a sustained drop of about 2 percentage points versus the athlete's own baseline during a heavy block is consistent with this review but not a validated trigger.",
+    "Combine the sleep signal with an efficiency decline or fatigue rating before adding a recovery week; consumer-wearable sleep efficiency is less accurate than actigraphy (not assessed here)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed match (PLoS One 2024;19(5):e0303748). Numbers verified in PubMed abstract. Evidence level downgraded A to B: 3 studies, all at non-low risk of bias.",
+    "checkedAt": "2026-10-22"
+  }
+}

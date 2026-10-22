@@ -1,0 +1,35 @@
+{
+  "id": "jeukendrup-2014-cho-intake",
+  "title": "A step towards personalized sports nutrition: carbohydrate intake during exercise",
+  "authors": "Jeukendrup A",
+  "year": 2014,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-014-0148-z",
+  "pmid": "24791914",
+  "url": "https://doi.org/10.1007/s40279-014-0148-z",
+  "design": "narrative-review",
+  "population": "Endurance athletes; guideline proposal on carbohydrate intake during exercise by duration and intensity",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "For ~1 h events, a mouth rinse or small amounts of carbohydrate can improve performance.",
+    "A single carbohydrate source can be oxidised at up to ~60 g/h; this is the recommendation for more prolonged exercise (2-3 h).",
+    "For ultra-endurance events the recommendation is higher, ~90 g/h, and must be multiple transportable carbohydrates to allow high oxidation and prevent intestinal accumulation.",
+    "Source may be liquid, semisolid or solid; recommendations may be adjusted downward when absolute exercise intensity (and CHO oxidation) is low; advice is independent of body weight and training status."
+  ],
+  "limitations": "Narrative guideline proposal; the ~90 g/h ultra figure is an extrapolation from oxidation physiology, not tested in ultras, and sits above Tiller 2019's 30-50 g/h; does not address individual gut tolerance.",
+  "implications": [
+    "Tiers by duration: ~1 h small amounts/rinse; 2-3 h up to ~60 g/h single source; > ~2.5 h up to ~90 g/h only as multiple transportable carbohydrates.",
+    "Scale down when absolute intensity is low (e.g. slow mountain ultra or walking), not by body mass.",
+    "For 100 mi use the Tiller 30-50 g/h baseline plus the gut-training pathway to 60-90 g/h only when tolerated."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref match; all findings in the Europe PMC abstract. Removed the researcher's '1-2 h 30 g/h' and '2:1 glucose:fructose' tier details and the 'industry ties' claim because they are not in the abstract and were not verified.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,187 @@
+[
+  {
+    "id": "durability-threshold-decline-prior",
+    "statement": "Assume fatigued threshold speed is lower than the fresh value after prolonged running: about 5.5% lower after 90 min at or below threshold, with large individual spread; use population prior until at least 3 comparable athlete runs exist, then personalise.",
+    "parameter": "threshold_speed_decline_90min",
+    "value": "5.5 (individual SD about 4-6)",
+    "unit": "% decline of lactate-threshold speed after 90 min",
+    "appliesTo": "recreational to well-trained runners targeting half marathon or longer; lab-derived, running",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "hunter-2025-marathoners-durability-slt",
+      "nuuttila-2025-recreational-runners-durability",
+      "jones-2024-physiological-resilience"
+    ]
+  },
+  {
+    "id": "durability-prior-scaling-2h",
+    "statement": "For prolonged heavy-intensity work around 2 h, a larger default decline of about 10% in critical speed/threshold is plausible (range under 1% to about 32%); this is cycling-derived and unvalidated for running, so use only as an upper-bound sensitivity for marathon-pace planning, not as the default.",
+    "parameter": "critical_speed_decline_2h_heavy",
+    "value": "10 (range <1 to ~32)",
+    "unit": "% decline in critical power/speed after 2 h heavy intensity",
+    "appliesTo": "marathon and longer plans, heavy-intensity efforts of 2 h or more",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["jones-2024-physiological-resilience", "maunder-2021-durability"]
+  },
+  {
+    "id": "durability-hr-drift-expected",
+    "statement": "Expect HR at constant easy pace to rise about 5.5% over 90 min in temperate lab conditions; treat drift near this value as normal and not as evidence of lost fitness. Do not apply this number to hot, dehydrated or ultra-duration runs.",
+    "parameter": "expected_hr_rise_90min_easy",
+    "value": "5.5",
+    "unit": "% rise in HR over 90 min at constant easy pace",
+    "appliesTo": "recreational runners, temperate conditions, easy runs of about 90 min",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["nuuttila-2025-recreational-runners-durability"]
+  },
+  {
+    "id": "durability-decoupling-marathon-metric",
+    "statement": "For marathon-distance efforts with HR and speed, compute decoupling as the ratio of (%HRmax divided by speed as %CS) in the 35-40 km segment to the same in the 5-10 km segment; flag onset when it exceeds 1.025; band low <1.1, moderate 1.1 to <1.2, high >=1.2 for feedback only.",
+    "parameter": "decoupling_ratio_bands",
+    "value": "<1.1 low; 1.1-<1.2 moderate; >=1.2 high; onset 1.025",
+    "unit": "ratio (dimensionless)",
+    "appliesTo": "marathon races with HR and speed data; needs grade-adjusted pace and temperature/hydration tagging before comparing runs",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["smyth-2022-durability-decoupling", "billat-2020-cardiac-cost-marathon"]
+  },
+  {
+    "id": "durability-decoupling-nonmarathon-proxy",
+    "statement": "For long runs shorter or longer than a marathon, compute a proportionally scaled decoupling (late segment vs early reference segment of the same fractional position, e.g. 5-10 km vs 35-40 km of 42.2 km) and label it a low-confidence proxy; do not apply the Smyth bands as fitness grades.",
+    "parameter": "decoupling_segment_scaling",
+    "value": "early reference at ~12-24% of distance, late at ~83-95% of distance",
+    "unit": "fraction of run distance",
+    "appliesTo": "long runs of 60 min to 3 h; engineering extension of a marathon-specific method",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["smyth-2022-durability-decoupling", "hunter-2025-marathoners-durability-slt"]
+  },
+  {
+    "id": "durability-drift-not-sole-adjuster",
+    "statement": "Do not change race-pace targets or fitness estimates from a single run's drift or decoupling; require several comparable runs and use pace-adjusted cardiac cost rather than raw HR; attribute late slowing to pacing before attributing drift to durability.",
+    "parameter": "min_comparable_runs_before_update",
+    "value": "3",
+    "unit": "comparable long runs",
+    "appliesTo": "all runners; engine fitness and pacing updates",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "billat-2020-cardiac-cost-marathon",
+      "hunter-2025-durability-methods",
+      "smyth-2022-durability-decoupling"
+    ]
+  },
+  {
+    "id": "durability-comparability-filters",
+    "statement": "Treat two long runs as comparable only if duration, relative intensity, temperature and fuelling/fluid status are similar; exclude or tag non-comparable runs from the durability estimate. Numeric tolerances are conservative engineering defaults, not literature values.",
+    "parameter": "comparability_tolerance",
+    "value": "duration within 20%; ambient temperature within 5 C; same fuelling/fluid flag",
+    "unit": "relative duration; degrees Celsius",
+    "appliesTo": "free-living run data used to estimate durability",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "hunter-2025-durability-methods",
+      "wingo-2020-drift-vo2max-heat-running",
+      "montain-1992-dehydration-drift"
+    ]
+  },
+  {
+    "id": "durability-heat-steer-by-effort",
+    "statement": "In hot conditions HR rises with falling capacity (HR +17-19% and VO2max loss within 45 min at 35 C), so do not hold a fixed HR zone; prescribe by pace/RPE with a temperature adjustment, and do not compare drift to temperate runs. The temperature at which to switch and the size of the correction are not established; default to flagging runs at or above 25 C.",
+    "parameter": "heat_flag_temperature",
+    "value": "25",
+    "unit": "degrees Celsius (ambient)",
+    "appliesTo": "all runners; runs in warm or hot conditions",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["wingo-2020-drift-vo2max-heat-running", "hunter-2025-durability-methods"]
+  },
+  {
+    "id": "durability-hydration-flag",
+    "statement": "Drift and VO2peak loss grow with dehydration, so require a hydration status input (fluid taken or estimated body-mass loss) for hot long runs; flag runs with no fluid or estimated body-mass loss above about 2% and exclude them from durability estimation. The 2% cut-off is a conservative reading of cycling data (0.7% loss with fluid showed little VO2peak loss; 3.7% without fluid showed about 9%).",
+    "parameter": "body_mass_loss_exclusion",
+    "value": "2",
+    "unit": "% body mass loss",
+    "appliesTo": "runs longer than 90 min in warm conditions; evidence from cycling in 30-33 C",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["montain-1992-dehydration-drift", "ganio-2006-fluid-vo2peak-drift"]
+  },
+  {
+    "id": "durability-long-run-staple",
+    "statement": "For half-marathon and longer goals, include a long run of at least 90 min every 7 to 14 days once training status allows, because regular long runs and higher volume are associated with smaller economy decay; the evidence is associative.",
+    "parameter": "long_run_min_duration_and_frequency",
+    "value": "90 min every 7-14 days",
+    "unit": "minutes; days between long runs",
+    "appliesTo": "runners targeting half marathon or longer with adequate base; evidence from well-trained men",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "zanini-2026-long-runs-economy-durability",
+      "zanini-2024-re-durability-quantification",
+      "jones-2025-resilience-training"
+    ]
+  },
+  {
+    "id": "durability-late-run-intensity",
+    "statement": "In marathon-and-longer builds, optionally finish selected long runs with race-pace or progressive-intensity work; conservative default of the final 20% of duration at goal marathon pace, at most once every 2 weeks, never in heat-flagged or low-fluid conditions. Proposed in a narrative review, untested.",
+    "parameter": "late_run_intensity_dose",
+    "value": "final 20% of long-run duration at marathon pace, at most once per 2 weeks",
+    "unit": "% of run duration; frequency",
+    "appliesTo": "runners in marathon or longer builds with a consistent long-run base",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["jones-2025-resilience-training", "maunder-2021-durability"]
+  },
+  {
+    "id": "durability-strength-block",
+    "statement": "For well-trained runners targeting long races, include two weekly sessions of maximal strength plus plyometrics for at least 10 weeks ahead of the specific build; an RCT showed better economy durability and fatigued high-intensity performance. For women, novices and older runners the effect is untested, so use as a moderate-confidence extrapolation and progress conservatively.",
+    "parameter": "strength_sessions",
+    "value": "2 sessions/week for at least 10 weeks",
+    "unit": "sessions per week; weeks",
+    "appliesTo": "well-trained runners (RCT in men); extrapolation to others",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": ["zanini-2025-strength-economy-durability-rct", "jones-2025-resilience-training"]
+  },
+  {
+    "id": "durability-sex-prior-weak",
+    "statement": "Use a sex term in durability and decoupling priors, but keep it weak (males larger and earlier decoupling: 1.17 vs 1.12 ratio, onset 25.0 vs 26.3 km) and let athlete data override it after a few comparable runs; no sex-specific fuelling change is justified.",
+    "parameter": "decoupling_prior_sex_offset",
+    "value": "0.05 (male minus female)",
+    "unit": "decoupling ratio",
+    "appliesTo": "marathon-distance decoupling priors and durability descriptor initialisation",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["smyth-2022-durability-decoupling", "jaen-carrillo-2026-sex-differences-runners"]
+  },
+  {
+    "id": "durability-marathon-prediction-features",
+    "statement": "When a prior marathon with HR and speed exists, add decoupling magnitude and onset (or lab threshold decline) as optional predictors in the marathon time model; population-level error reduction was 6.45% to 5.16%. Validate against the athlete's own results before letting it change pacing targets.",
+    "parameter": "prediction_feature_set",
+    "value": "decoupling magnitude + onset (or % threshold decline after 90 min)",
+    "unit": "model features",
+    "appliesTo": "marathon prediction for runners with a prior marathon with HR and speed data",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["smyth-2022-durability-decoupling", "hunter-2025-marathoners-durability-slt"]
+  },
+  {
+    "id": "durability-ultra-no-drift-inference",
+    "statement": "Do not extrapolate 1-3 h drift or threshold-decline priors to 100-mile or other ultra efforts, and do not infer fitness from HR drift in sessions beyond about 3 to 4 h; drift reverses and changes character over 12-50 h. Steer ultra long efforts by pace, RPE, fuelling and terrain, and use drift only descriptively. DFA-a1 and respiratory frequency are optional, device-dependent extras.",
+    "parameter": "max_session_duration_for_drift_inference",
+    "value": "180",
+    "unit": "minutes",
+    "appliesTo": "ultramarathon and 100-mile plans, sessions over 3 h",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "mattsson-2011-late-drift-ultra",
+      "jaen-carrillo-2026-sex-differences-runners",
+      "rogers-2025-dfa-hr-drift-durability"
+    ]
+  }
+]

@@ -1,0 +1,36 @@
+{
+  "id": "wang-2023-taper-endurance-sr-ma",
+  "title": "Effects of tapering on performance in endurance athletes: A systematic review and meta-analysis",
+  "authors": "Wang Z, Wang YT, Gao W, Zhong Y",
+  "year": 2023,
+  "journal": "PLOS ONE",
+  "doi": "10.1371/journal.pone.0282838",
+  "pmid": "37163550",
+  "url": "https://doi.org/10.1371/journal.pone.0282838",
+  "design": "meta-analysis",
+  "population": "Endurance athletes (14 studies) with pre-post taper outcomes",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["taper"],
+  "findings": [
+    "14 studies included; time-trial performance improved (SMD = -0.45; P < 0.05) and time to exhaustion improved (SMD = 1.28; P < 0.05).",
+    "No improvements in VO2max or economy of movement (P > 0.05) between pre- and post-tapering.",
+    "Tapering combined with pre-taper overload training had a more significant effect on time-trial performance than conventional tapering (P < 0.05).",
+    "A taper reducing volume 41-60%, maintaining intensity and frequency, lasting <=7, 8-14 or 15-21 days, with a progressive or step pattern, significantly improved time-trial performance (P < 0.05). Authors conclude a <=21-day taper with progressive 41-60% volume reduction without changing intensity or frequency is effective."
+  ],
+  "limitations": "Only 14 studies, mostly small; the abstract does not show that duration subgroups differ from each other; no recreational-runner or ultra data in the abstract; overload-then-taper conclusion rests on few studies; total participants not stated.",
+  "implications": [
+    "Supports a flexible taper window of 7 to 21 days; use 14 days as default and shorten to 7-10 days for short races (5-10 km) or low-volume plans.",
+    "Confirms 41-60% volume reduction with intensity and frequency kept; step tapers also worked here, so a step schedule is a valid simpler fallback.",
+    "Do not present a taper as a fitness gain: VO2max and economy did not improve; frame it as fatigue dissipation.",
+    "A preceding overload block may add benefit, but see aubry-2014-overreaching-before-taper for the functional overreaching caveat."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (PLOS ONE, 10 May 2023, Wang first author). Abstract re-read; findings match. Population for the review is 'endurance athletes', no further breakdown stated.",
+    "checkedAt": "2026-10-22"
+  }
+}

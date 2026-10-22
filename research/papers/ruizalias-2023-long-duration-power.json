@@ -1,0 +1,34 @@
+{
+  "id": "ruizalias-2023-long-duration-power",
+  "title": "Can we predict long-duration running power output? A matter of selecting the appropriate predicting trials and empirical model",
+  "authors": "Ruiz-Alias SA, Nancupil-Andrade AA, Perez-Castilla A, Garcia-Pinillos F",
+  "year": 2023,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-023-05243-y",
+  "pmid": "37272943",
+  "url": "https://doi.org/10.1007/s00421-023-05243-y",
+  "design": "experimental-crossover",
+  "population": "Fifteen highly trained athletes performing nine time trials (1, 2, 3, 4, 5, 10, 20, 30 and 60 min) in randomised order over 5 weeks",
+  "sampleSize": 15,
+  "evidenceLevel": "C",
+  "topics": ["performance-prediction"],
+  "findings": [
+    "Critical power models (work-time, power-1/time, 2- and 3-parameter hyperbolic), the Stryd and Golden Cheetah CP models, the power law and the Peronnet model were extrapolated to 60-min power and compared with actual performance.",
+    "Shortest valid configurations: CPwork and CP1/time 3-30 min (bias 8.3 W); Stryd CP 10-30 min (bias 4.2 W); CP2hyp, CP3hyp and Golden Cheetah CP 3-5-30 min (bias <5.7 W); power law 1-3-10 min (bias -1.0 W); Peronnet 4-20 min (bias -3.0 W).",
+    "All models gave valid estimates only when the predicting trials suited each model's fitting needs."
+  ],
+  "limitations": "n = 15 highly trained athletes; power-meter data; 60-min ceiling, so no marathon or ultra durations; controlled trials rather than real-world logs.",
+  "implications": [
+    "Choose the model according to the available efforts: CP needs efforts spread from about 3 to 30 min; the power law works with 1-3-10 min; refuse a CP fit when only very short efforts exist.",
+    "The study validates extrapolation only to 60 min; extending any of these models to marathon/ultra durations needs a durability term (not tested here).",
+    "With only short efforts logged, prefer the power law or Peronnet over CP."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC re-fetched; bias values match. Removed the researcher's claim that short-trial CP overestimates, which the abstract does not state. The 60-min cap is stated as a study limit, not a finding.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "storen-2008-maximal-strength-economy",
+  "title": "Maximal strength training improves running economy in distance runners",
+  "authors": "Storen O, Helgerud J, Stoa EM, Hoff J",
+  "year": 2008,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0b013e318168da2f",
+  "pmid": "18460997",
+  "url": "https://doi.org/10.1249/mss.0b013e318168da2f",
+  "design": "rct",
+  "population": "Well-trained distance runners (9 male, 8 female); 17 randomized to intervention (4 men, 4 women) or control",
+  "sampleSize": 17,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Intervention: half-squats, 4 sets of 4 repetitions maximum, 3 times per week for 8 weeks, added to normal endurance training.",
+    "Significant improvements in 1RM (33.2%), rate of force development (26.0%), running economy at 70% VO2max (5.0%) and time to exhaustion at maximal aerobic speed (21.3%).",
+    "No change in VO2max or body weight; the control group showed no changes."
+  ],
+  "limitations": "Very small sample (n=17, 8 in intervention); single lift (half-squat); lab outcomes only, no race performance; frequency of three sessions per week is a single-trial protocol.",
+  "implications": [
+    "Provides a concrete heavy-lifting template for the engine (4 x 4RM, three times weekly in the trial), but the default frequency stays at 2 sessions per week because the larger meta-analyses show no dose moderation.",
+    "Supports heavy lifting for women as well as men, without a body-mass penalty."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref title, journal, 2008 and first author match; Europe PMC abstract read.",
+    "checkedAt": "2026-10-22"
+  }
+}

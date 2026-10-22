@@ -5,11 +5,15 @@ import { useMe, useSetupStatus } from './api/auth.ts'
 import { keys, UNAUTHORIZED_EVENT } from './api/client.ts'
 import { Layout } from './components/Layout.tsx'
 import { ActivitiesPage } from './pages/ActivitiesPage.tsx'
+import { ActivityDetailPage } from './pages/ActivityDetailPage.tsx'
 import { DashboardPage } from './pages/DashboardPage.tsx'
 import { GoalsPage } from './pages/GoalsPage.tsx'
+import { IntegrationsPage } from './pages/IntegrationsPage.tsx'
 import { LoginPage } from './pages/LoginPage.tsx'
 import { MorePage } from './pages/MorePage.tsx'
 import { PlanPage } from './pages/PlanPage.tsx'
+import { ProfilePage } from './pages/ProfilePage.tsx'
+import { ResearchPage } from './pages/ResearchPage.tsx'
 import { ReviewPage } from './pages/ReviewPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
 import { SetupPage } from './pages/SetupPage.tsx'
@@ -51,11 +55,15 @@ export function App() {
         <Route element={<Layout />}>
           <Route index element={<DashboardPage />} />
           <Route path="/activities" element={<ActivitiesPage />} />
+          <Route path="/activities/:id" element={<ActivityDetailPage />} />
           <Route path="/plan" element={<PlanPage />} />
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/goals" element={<GoalsPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/integrations" element={<IntegrationsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/research" element={<ResearchPage />} />
           <Route path="/more" element={<MorePage />} />
         </Route>
       </Route>

@@ -1,0 +1,200 @@
+[
+  {
+    "id": "age-no-default-load-reduction",
+    "statement": "Do not reduce weekly volume, quality-session count or progression rate based on age alone; adjust only from observed tolerance, soreness, performance trend and injury signals. Reduced training volume and intensity is itself a major mediator of the age-related decline.",
+    "parameter": "age_based_load_reduction",
+    "value": "0",
+    "unit": "percent",
+    "appliesTo": "All runners, including masters (40+)",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "tanaka-2008-masters-endurance",
+      "borges-2016-masters-recovery-review",
+      "fell-2008-aging-muscle-recovery"
+    ]
+  },
+  {
+    "id": "age-hard-session-spacing",
+    "statement": "Keep the same minimum gap between hard sessions for masters as for younger runners; one controlled study found no age difference in physical recovery (strength, sprint, time trial, CK) within 48 h of a repeated-interval session. The 48 h value is an engine convention.",
+    "parameter": "min_hours_between_hard_sessions",
+    "value": "48",
+    "unit": "hours",
+    "appliesTo": "Trained masters (about 50-60 y studied, cyclists); extrapolated to runners",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["borges-2018-masters-hiit-recovery", "fell-2008-aging-muscle-recovery"]
+  },
+  {
+    "id": "age-perceived-recovery-gate",
+    "statement": "For masters, collect a perceived-recovery rating (soreness, fatigue, motivation) after hard sessions; if ratings remain poor at about 48 h, defer the next quality session or convert it to easy aerobic running. The rating threshold is not given by the evidence: use a conservative default (for example soreness or fatigue worse than the runner's own recent median).",
+    "parameter": "perceived_recovery_check_after_hard_session",
+    "value": "48",
+    "unit": "hours",
+    "appliesTo": "Runners 40+ (extrapolated from mean age 55.6)",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["borges-2018-masters-hiit-recovery"]
+  },
+  {
+    "id": "age-recovery-factor-default",
+    "statement": "The age-related recovery-demand multiplier on rest between hard sessions defaults to 1.0; allow it to rise only from the runner's own data, capped at a modest value. The cap is a conservative engineering default, not an evidence-derived number.",
+    "parameter": "masters_recovery_multiplier",
+    "value": "1.0 default, adjustable 1.0-1.25",
+    "unit": "multiplier",
+    "appliesTo": "Runners 40+",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "fell-2008-aging-muscle-recovery",
+      "borges-2016-masters-recovery-review",
+      "borges-2018-masters-hiit-recovery"
+    ]
+  },
+  {
+    "id": "age-decline-curve-default",
+    "statement": "For multi-year goal-time projection (not within-block prescription), keep speed targets flat to age 35, then apply a decline defaulting to about 0.7% per year (band 0.5-1.0%) from 35 to 70, with the slope a user-fittable parameter. Decline accelerates with age, so avoid a single constant for all decades; fit to the runner's own history when more than 2 years of data exist.",
+    "parameter": "speed_decline_per_year_35_to_70",
+    "value": "0.7 (band 0.5-1.0); flat before 35",
+    "unit": "percent per year",
+    "appliesTo": "Recreational and competitive road runners, both sexes",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "tanaka-2008-masters-endurance",
+      "lepers-2021-sub3-marathon-decades",
+      "ganse-2020-longitudinal-masters",
+      "letnes-2020-vo2peak-hunt",
+      "hawkins-2003-vo2max-decline",
+      "pollock-1997-older-track-athletes"
+    ]
+  },
+  {
+    "id": "age-post-70-multiplier",
+    "statement": "After age 70 multiply the age-decline slope by 1.4-1.7 (men 1.7, women 1.4 in track and field data); use 1.5 as a sex-neutral default.",
+    "parameter": "post_70_decline_multiplier",
+    "value": "1.5 (range 1.4-1.7)",
+    "unit": "multiplier",
+    "appliesTo": "Runners over 70",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "ganse-2020-longitudinal-masters",
+      "lazarus-2017-master-athletes-trajectory",
+      "letnes-2020-vo2peak-hunt"
+    ]
+  },
+  {
+    "id": "age-decline-consistency-conditioning",
+    "statement": "Condition the decline slope on training consistency: use the optimistic rate (about 0.67% per year) only for runners with consistent year-round training; for inconsistent or detrained runners use a higher slope (up to about 1.0% per year, higher for long breaks). The consistency threshold is not defined by the evidence; a default is more than 80% of planned weeks completed (engineering default, grade D).",
+    "parameter": "speed_decline_per_year_by_consistency",
+    "value": "0.67 consistent; up to 1.0 otherwise",
+    "unit": "percent per year",
+    "appliesTo": "Runners 40-70",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "lepers-2021-sub3-marathon-decades",
+      "pollock-1997-older-track-athletes",
+      "stones-2019-age-differences-marathon",
+      "borges-2016-masters-recovery-review"
+    ]
+  },
+  {
+    "id": "age-hrmax-prior",
+    "statement": "When no measured maximum exists, seed HRmax with 208 - 0.7 x age (not 220 - age) and display a +/-10 bpm uncertainty; 211 - 0.64 x age is a sensitivity alternative (about 6-7 bpm higher at ages 60-70). Do not adjust by sex or training status.",
+    "parameter": "hrmax_prior_formula",
+    "value": "208 - 0.7 * age",
+    "unit": "bpm",
+    "appliesTo": "All runners without observed HRmax",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["tanaka-2001-hrmax-equation", "nes-2013-hunt-hrmax"]
+  },
+  {
+    "id": "age-hrmax-observed-update",
+    "statement": "Replace the age-based HRmax prior with an observed maximum from reliable hard efforts (artefact-filtered, ideally chest-strap) using a rolling window rather than an all-time maximum, and expect observed HRmax to fall about 5-7 bpm per decade regardless of training.",
+    "parameter": "expected_hrmax_decline",
+    "value": "5-7",
+    "unit": "bpm per decade",
+    "appliesTo": "Runners 40+ with wearable HR data",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "pollock-1997-older-track-athletes",
+      "tanaka-2001-hrmax-equation",
+      "romberger-2024-master-marathon-case",
+      "hawkins-2003-vo2max-decline"
+    ]
+  },
+  {
+    "id": "age-keep-weekly-intensity",
+    "statement": "Keep at least one quality session (threshold or interval) per week in build phases for masters when recovery signals allow; intensity appears more important than total minutes for maintaining VO2peak at higher ages (association, self-reported activity).",
+    "parameter": "min_quality_sessions_per_week_build_phase",
+    "value": "1",
+    "unit": "sessions per week",
+    "appliesTo": "Runners 40+ in build phases, if tolerated",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "letnes-2020-vo2peak-hunt",
+      "tanaka-2008-masters-endurance",
+      "hawkins-2003-vo2max-decline"
+    ]
+  },
+  {
+    "id": "age-strength-training",
+    "statement": "Include resistance training for masters runners to preserve lean mass (HRmax decline is not trainable, lean mass partly is); the 1-2 sessions per week figure is an engine default, not a measured dose.",
+    "parameter": "strength_sessions_per_week",
+    "value": "1-2",
+    "unit": "sessions per week",
+    "appliesTo": "Runners about 40+",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["hawkins-2003-vo2max-decline"]
+  },
+  {
+    "id": "age-run-frequency-soft-cap",
+    "statement": "Apply a soft cap on run days per week with at least one rest or cross-training day for 40+. Higher weekly frequency raised injury risk in both age groups, but the paper gives no threshold, so 6 days is a conservative default, not an evidence-derived value.",
+    "parameter": "max_run_days_per_week_default",
+    "value": "6",
+    "unit": "days per week",
+    "appliesTo": "Runners 40+",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["mckean-2006-masters-injury"]
+  },
+  {
+    "id": "age-posterior-chain-focus",
+    "statement": "For runners 40+, include calf, Achilles and hamstring strengthening and progress hills and speedwork gradually, since these soft-tissue sites were more often injured in masters; treat the extra risk as exposure-related and modest, not as a reason for an age-specific load rule.",
+    "parameter": "calf_posterior_chain_strength_included",
+    "value": "true",
+    "unit": null,
+    "appliesTo": "Runners 40+",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["mckean-2006-masters-injury"]
+  },
+  {
+    "id": "age-grading-display-only",
+    "statement": "Present WMA-style age-graded scores only as a labelled comparison to elite-derived standards, never as the basis for setting targets or goal realism; use the runner's own longitudinal trend. No validation of the WMA factor tables was found in this corpus, and record-list curves appear to understate decline for slower runners.",
+    "parameter": "age_grade_used_for_targets",
+    "value": "false",
+    "unit": null,
+    "appliesTo": "All runners, especially recreational and slower masters",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["stones-2019-age-differences-marathon", "lepers-2021-sub3-marathon-decades"]
+  },
+  {
+    "id": "age-ultra-age-neutral",
+    "statement": "For 100 km to 100-mile goals, apply no age-related target decline before about age 50 (best 100 km times observed at 30-49 men, 30-54 women; Western States fastest men comparable at 30-39 and 40-49), then use the general decline curve. Evidence is cross-sectional race data; low confidence.",
+    "parameter": "ultra_age_neutral_until",
+    "value": "50",
+    "unit": "years",
+    "appliesTo": "Runners targeting 100 km to 100-mile events",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["knechtle-2012-100km-age", "hoffman-2009-western-states-trends"]
+  }
+]

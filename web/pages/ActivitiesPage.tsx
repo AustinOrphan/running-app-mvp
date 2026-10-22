@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { todayIso } from '../../shared/dates.ts'
 import type { Activity, ActivityType, Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
@@ -13,7 +13,7 @@ import { formatShortDate, formatWeekday } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
-import { ActivityForm, TYPE_LABELS } from './ActivityForm.tsx'
+import { ActivityForm, sourceLabel, TYPE_LABELS } from './ActivityForm.tsx'
 import styles from './ActivitiesPage.module.css'
 import { ImportDialog } from './ImportDialog.tsx'
 
@@ -26,12 +26,6 @@ const FILTER_OPTIONS: Array<{ value: TypeFilter; label: string }> = [
   { value: 'strength', label: 'Strength' },
   { value: 'cross', label: 'Cross' },
 ]
-
-const SOURCE_LABELS: Record<Activity['source'], string | null> = {
-  manual: null,
-  smashrun: 'Smashrun',
-  csv: 'CSV',
-}
 
 const EN_DASH = '–'
 
@@ -70,28 +64,37 @@ function ActivityRow({
     (activity.type === 'run' || activity.type === 'race') &&
     activity.distanceM !== null &&
     activity.distanceM > 0
-  const source = SOURCE_LABELS[activity.source]
+  const source = sourceLabel(activity.source)
 
   return (
     <li className={styles.item}>
-      <button type="button" className={styles.row} onClick={onEdit}>
-        <span className={styles.type}>{TYPE_LABELS[activity.type]}</span>
-        <span className={styles.figure}>{formatDuration(activity.durationSec)}</span>
-        {hasDistance ? (
-          <span className={styles.figure}>
-            {activity.distanceM === null ? EN_DASH : formatDistance(activity.distanceM, units)}
-          </span>
-        ) : null}
-        {showPace && activity.distanceM !== null ? (
-          <span className={styles.pace}>
-            {formatPace(activity.durationSec, activity.distanceM, units)}
-          </span>
-        ) : null}
-        {source !== null ? <span className={styles.source}>{source}</span> : null}
-        {activity.duplicateStatus === 'confirmed' ? (
-          <span className={styles.source}>Duplicate, not counted</span>
-        ) : null}
-      </button>
+      <div className={styles.main}>
+        <button type="button" className={styles.row} onClick={onEdit}>
+          <span className={styles.type}>{TYPE_LABELS[activity.type]}</span>
+          <span className={styles.figure}>{formatDuration(activity.durationSec)}</span>
+          {hasDistance ? (
+            <span className={styles.figure}>
+              {activity.distanceM === null ? EN_DASH : formatDistance(activity.distanceM, units)}
+            </span>
+          ) : null}
+          {showPace && activity.distanceM !== null ? (
+            <span className={styles.pace}>
+              {formatPace(activity.durationSec, activity.distanceM, units)}
+            </span>
+          ) : null}
+          {source !== null ? <span className={styles.source}>{source}</span> : null}
+          {activity.duplicateStatus === 'confirmed' ? (
+            <span className={styles.source}>Duplicate, not counted</span>
+          ) : null}
+        </button>
+        <Link
+          to={`/activities/${encodeURIComponent(activity.id)}`}
+          className={styles.detailLink}
+          aria-label={`Details, ${TYPE_LABELS[activity.type]} on ${formatShortDate(activity.date)}`}
+        >
+          Details
+        </Link>
+      </div>
       {restorable && activity.duplicateStatus === 'confirmed' ? (
         <div className={styles.duplicate}>
           <div className={styles.duplicateActions}>

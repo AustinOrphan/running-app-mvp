@@ -1,0 +1,33 @@
+{
+  "id": "rosenblat-2019-pol-vs-thr",
+  "title": "Polarized vs. Threshold Training Intensity Distribution on Endurance Sport Performance: A Systematic Review and Meta-Analysis of Randomized Controlled Trials",
+  "authors": "Rosenblat MA, Perrotta AS, Vicenzino B",
+  "year": 2019,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000002618",
+  "pmid": "29863593",
+  "url": "https://doi.org/10.1519/jsc.0000000000002618",
+  "design": "meta-analysis",
+  "population": "Endurance-trained athletes (>2 years training, VO2max/peak >50 mL/kg/min); RCTs comparing polarized with threshold TID",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "Search to 6 November 2016 gave 329 results; 4 RCTs met inclusion (3 pooled); PEDro scores 4/10 (two studies) and 5/10 (two studies).",
+    "Pooled time-trial effect favoured polarized over threshold: ES = -0.66 (95% CI -1.17 to -0.15).",
+    "Authors conclude polarized may lead to greater improvement than threshold."
+  ],
+  "limitations": "Three pooled studies of low PEDro quality, mixed sports; compares polarized with threshold only (not pyramidal); search ended 2016 and later syntheses supersede it. Evidence level lowered from A to B because the underlying trials are few and low quality.",
+  "implications": [
+    "Supports not making a threshold-dominant (zone 2 > zone 1) distribution the default; this is the most consistent finding in the literature.",
+    "Do not cite it as evidence that polarized beats pyramidal."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches JSCR Dec 2019. Total n not stated in abstract, left null. Level downgraded A to B.",
+    "checkedAt": "2026-10-22"
+  }
+}

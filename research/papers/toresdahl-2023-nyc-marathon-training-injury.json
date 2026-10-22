@@ -1,0 +1,34 @@
+{
+  "id": "toresdahl-2023-nyc-marathon-training-injury",
+  "title": "Training patterns associated with injury in New York City Marathon runners",
+  "authors": "Toresdahl BG, Metzl JD, Kinderknecht J, McElheny K, de Mille P, Quijano B, Fontana MA",
+  "year": 2023,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2022-105670",
+  "pmid": "36113976",
+  "url": "https://doi.org/10.1136/bjsports-2022-105670",
+  "design": "prospective-cohort",
+  "population": "735 New York City Marathon registrants (mean age 41.0, 46.0% female) monitored for 16 weeks with Strava",
+  "sampleSize": 735,
+  "evidenceLevel": "C",
+  "topics": ["volume-performance"],
+  "findings": [
+    "49,195 training runs tracked; injury during training 40.0% (294/735), during or right after the marathon 16.0% (112/699); illness during training 27.2% (200/735).",
+    "Runners first injured in training quarter 3 ran less in quarter 2 than uninjured runners (27.7 vs 31.9 miles/week, p=0.018).",
+    "Runners first injured in quarter 1 had more days with 7-day to 28-day distance ratio (ACWR) >=1.5 (injured IQR 0-3 vs uninjured 0-1 days, p=0.009).",
+    "Multivariable logistic regression: each day with ACWR >=1.5 was associated with training injury (OR 1.06, 95% CI 1.02-1.10, p=0.002). Thresholds of 1.3 and 1.5 were analysed, but the abstract reports results for 1.5 only."
+  ],
+  "limitations": "Self-reported injury at 4-week intervals; distance-only ACWR with known statistical criticisms; per-day OR is small; registrants are a motivated sample; association, not proof that ratio caused injury.",
+  "implications": [
+    "Use a soft guard: avoid weeks where last-7-day distance is 1.5 or more times the 28-day distance; the 1.3 level is a D-grade early-warning default, since no result at 1.3 is in the abstract.",
+    "The lower mileage in the preceding block among later-injured runners is a single secondary comparison; do not treat it as evidence that low volume prevents injury or that high volume is safe."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title, journal, first author, 7 authors match; abstract re-fetched. Level lowered B to C (moderate n, small effect, ACWR criticisms). Researcher's claim about the 1.3 threshold rewritten, since abstract reports no 1.3 result.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "esteve-lanao-2007-tid-runners",
+  "title": "Impact of training intensity distribution on performance in endurance athletes",
+  "authors": "Esteve-Lanao J, Foster C, Seiler S, Lucia A",
+  "year": 2007,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/r-19725.1",
+  "pmid": "17685689",
+  "url": "https://doi.org/10.1519/r-19725.1",
+  "design": "rct",
+  "population": "Sub-elite endurance runners (mostly 5000 m track specialists who also race 9-12 km cross-country)",
+  "sampleSize": 12,
+  "evidenceLevel": "C",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "12 runners randomised to low-intensity (Z1) or between-thresholds (Z2) emphasis; HR-controlled for 5 months.",
+    "Time in zones 1/2: 80.5+/-1.8% and 11.8+/-2.0% (Z1 group) vs 66.8+/-1.1% and 24.7+/-1.5% (Z2 group); zone 3 matched (8.3+/-0.7% vs 8.5+/-1.0%).",
+    "Improvement in a simulated 10.4 km cross-country race was greater in Z1 (-157+/-13 s) than Z2 (-121.5+/-7.1 s), p = 0.03.",
+    "Authors conclude the results support a relatively large share of low-intensity training over about 5 months, provided high-intensity training remains sufficient."
+  ],
+  "limitations": "Only 12 runners; zone 3 dose was matched in both arms, so the trial tests displacement of moderate-intensity time and not polarized vs pyramidal. Single race outcome. Evidence level lowered from B to C because of sample size.",
+  "implications": [
+    "Replacing zone 2 (between-threshold) time with zone 1 while holding about 8% in zone 3 is a defensible default for sub-elite runners over multi-month blocks.",
+    "Do not drop zone 3 below about 8% of time on this evidence alone.",
+    "Zone 2 share of about 12% (versus about 25%) is the contrast supported here; treat about 12% as a base-phase ceiling, not a validated optimum."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches title, JSCR, 2007. All numbers confirmed in Europe PMC abstract. Evidence level downgraded B to C (n=12).",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "pollock-1997-older-track-athletes",
+  "title": "Twenty-year follow-up of aerobic power and body composition of older track athletes",
+  "authors": "Pollock ML, Mengelkoch LJ, Graves JE, Lowenthal DT, Limacher MC, Foster C, Wilmore JH",
+  "year": 1997,
+  "journal": "Journal of Applied Physiology",
+  "doi": "10.1152/jappl.1997.82.5.1508",
+  "pmid": "9134900",
+  "url": "https://doi.org/10.1152/jappl.1997.82.5.1508",
+  "design": "prospective-cohort",
+  "population": "21 older male-and-female track athletes followed 20 years (mean age 50.5 at baseline, 60.2 at 10 y, 70.4 at 20 y), grouped by training level: high (n=9), moderate (n=10), low (n=2)",
+  "sampleSize": 21,
+  "evidenceLevel": "C",
+  "topics": ["age-masters"],
+  "findings": [
+    "VO2max decreased at each testing point in all groups: high-intensity group 8% and 15%, moderate 13% and 14%, low (greatly reduced training) 18% and 34%, for T1 to T2 and T2 to T3 respectively.",
+    "Maximal heart rate decreased linearly by approximately 5-7 beats/min per decade and was independent of training status.",
+    "Body weight remained stable in high and moderate groups, percent fat increased about 2-2.5% per decade, fat-free weight decreased at each point with a trend for those who began weight training to better maintain it.",
+    "The authors conclude physiological capacities of older athletes are reduced despite continued vigorous endurance exercise over 20 years (approximately 8-15% per decade), with body-composition change less than in the sedentary population and related to training habits."
+  ],
+  "limitations": "Very small, self-selected cohort, only 2 in the low-training group; 1970s-era athletes and testing; track athletes, not runners across distances; attrition.",
+  "implications": [
+    "Even consistently training runners lose VO2max at roughly 8-15% per decade in the 50s-70s, so long-range targets should include decline; reduced or stopped training roughly doubles to triples the loss (low group 18% and 34%).",
+    "HRmax falls roughly 5-7 bpm per decade regardless of training status: recalibrate observed HRmax over time and do not expect training to hold it.",
+    "Supports including resistance training for masters to help maintain fat-free mass (trend only)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref title/journal/year/first author match; abstract numbers copied from Europe PMC. Population sex mix not stated in the abstract (my 'male-and-female' wording is unsupported; treat as 'older track athletes').",
+    "checkedAt": "2026-10-22"
+  }
+}

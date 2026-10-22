@@ -1,0 +1,34 @@
+{
+  "id": "mujika-2010-intense-training-taper",
+  "title": "Intense training: the key to optimal performance before and during the taper",
+  "authors": "Mujika I",
+  "year": 2010,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/j.1600-0838.2010.01189.x",
+  "pmid": "20840559",
+  "url": "https://doi.org/10.1111/j.1600-0838.2010.01189.x",
+  "design": "narrative-review",
+  "population": "Moderately and highly trained subjects and athletes, with discussion of team sports",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["taper"],
+  "findings": [
+    "Load reduction can be achieved by reducing intensity, volume and/or frequency, but with reduced training load there may be a risk of detraining.",
+    "Training at high intensities before the taper plays a key role in inducing maximal adaptations in moderately and highly trained subjects and athletes.",
+    "High-intensity training can also maintain or further enhance adaptations while athletes reduce training before a major competition.",
+    "Training volume can be markedly reduced without a negative impact on performance; training load should not be reduced at the expense of intensity during the taper."
+  ],
+  "limitations": "Narrative review with no quantified effect sizes in the abstract; mixes endurance and team-sport evidence.",
+  "implications": [
+    "Keep at least one quality session per week during the taper at pre-taper quality pace, with total volume shortened, rather than replacing quality with easy running (the count of one per week is an engine choice).",
+    "The final pre-taper block should contain intensity work; avoid entering a taper from a purely low-intensity base."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Scand J Med Sci Sports, 14 Sep 2010). Journal name uses '&' in Crossref. Abstract has no numbers.",
+    "checkedAt": "2026-10-22"
+  }
+}

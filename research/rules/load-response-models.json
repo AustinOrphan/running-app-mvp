@@ -1,0 +1,198 @@
+[
+  {
+    "id": "load-response-core-form",
+    "statement": "Implement the monitoring and what-if layer as a two-compartment exponential impulse-response (fitness minus fatigue) over daily load with per-athlete parameters. Do not drive plan structure from it.",
+    "parameter": "model_form",
+    "value": "banister_two_component",
+    "unit": null,
+    "appliesTo": "All athletes with daily load history",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "morton-1990-running-model",
+      "busso-2006-modeling-training-planning",
+      "imbach-2022-ffm-machine-learning"
+    ]
+  },
+  {
+    "id": "load-response-forecast-error-band",
+    "statement": "Every model-based performance forecast carries an explicit error band and is labelled an estimate. Use a minimum band of +/-3% on predicted race time until running-specific out-of-sample error has been measured.",
+    "parameter": "forecast_min_error_band",
+    "value": "3",
+    "unit": "percent MAPE",
+    "appliesTo": "Any race-time or performance forecast derived from the load-response model",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "busso-2023-impulse-response-validity",
+      "busso-2006-modeling-training-planning",
+      "wang-2025-ffm-mass-sport"
+    ]
+  },
+  {
+    "id": "load-response-no-time-constant-display",
+    "statement": "Do not display or act on fitted fitness/fatigue time constants as personal physiological values. Report parameters only with bootstrap or posterior intervals and flag fits whose intervals span more than about 25 days or whose parameters are strongly correlated.",
+    "parameter": "time_constant_ci_width_flag",
+    "value": "25",
+    "unit": "days",
+    "appliesTo": "Per-athlete parameter estimation",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidenceLevel": null,
+    "evidence": ["hellard-2006-banister-limitations", "marchal-2025-ffm-statistical-flaws"]
+  },
+  {
+    "id": "load-response-parameter-priors",
+    "statement": "Estimate parameters with bounded or informative priors instead of free fits. With no running-specific evidence for the numbers, use as a conservative default the common consumer-platform EWMA convention (fitness about 42 days, fatigue about 7 days) as prior centres, widely uncertain. The numbers are convention, not derived from the corpus.",
+    "parameter": "default_prior_time_constants",
+    "value": "fitness 42, fatigue 7",
+    "unit": "days",
+    "appliesTo": "Athletes with fewer than one season of dense performance tests",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["hellard-2006-banister-limitations", "marchal-2025-ffm-statistical-flaws"]
+  },
+  {
+    "id": "load-response-min-data",
+    "statement": "Fit an individual model only with sufficient dense performance observations; otherwise use population priors and load-only guidance. No study fixes the minimum. Conservative default: at least 20 performance observations spanning at least 12 weeks.",
+    "parameter": "min_performance_observations",
+    "value": "20 observations over 12 weeks",
+    "unit": "count / weeks",
+    "appliesTo": "Enabling per-athlete fitting",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "jobson-2009-cycling-training-data",
+      "busso-2006-modeling-training-planning",
+      "busso-2023-impulse-response-validity",
+      "wang-2025-ffm-mass-sport"
+    ]
+  },
+  {
+    "id": "load-response-forward-validation-gate",
+    "statement": "Choose between model variants (fitness-only, full Banister, variable dose-response) by forward-chaining time-series cross-validation, never random k-fold or in-sample R2. Default to fitness-only; enable the fatigue term or VDR only if it lowers held-out error.",
+    "parameter": "model_selection_method",
+    "value": "time_series_cv_default_fitness_only",
+    "unit": null,
+    "appliesTo": "All model variants",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "marchal-2025-ffm-statistical-flaws",
+      "imbach-2022-generalisation",
+      "busso-2023-impulse-response-validity",
+      "busso-2003-variable-dose-response"
+    ]
+  },
+  {
+    "id": "load-response-ml-benchmark",
+    "statement": "Maintain a regularised linear benchmark (elastic net) on exponentially filtered load features. Show a mechanistic model's output to the athlete only if it matches or beats the benchmark in forward CV. Feed FFM-derived features into multivariate models to add sleep, HRV, temperature and age.",
+    "parameter": "benchmark_model",
+    "value": "elastic_net_on_ewma_features",
+    "unit": null,
+    "appliesTo": "Performance prediction pipeline",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["imbach-2022-generalisation", "imbach-2022-ffm-machine-learning"]
+  },
+  {
+    "id": "load-response-single-load-metric",
+    "statement": "Use one load metric per athlete per fit (HR-based TRIMP or sRPE, with a consistent fallback). Store the metric id and calibration version with each parameter set and invalidate and refit on change. Keep external (pace, distance) and internal (HR, RPE) load as separate inputs.",
+    "parameter": "load_metric_versioning",
+    "value": "one_metric_per_fit_with_id",
+    "unit": null,
+    "appliesTo": "All athletes",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "vermeire-2021-load-quantification",
+      "bourdon-2017-load-consensus",
+      "jobson-2009-cycling-training-data"
+    ]
+  },
+  {
+    "id": "load-response-no-acwr-cap",
+    "statement": "Do not use ACWR or any acute:chronic ratio threshold as a safety rule, hard cap or trigger for reducing planned load. Show acute and chronic load separately and rely on explicit weekly progression rules from other evidence.",
+    "parameter": "acwr_hard_cap",
+    "value": "none",
+    "unit": null,
+    "appliesTo": "Runners; plan generator constraints",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "nakaoka-2021-acwr-runners",
+      "impellizzeri-2020-acwr-pitfalls",
+      "murray-2017-ewma-acwr"
+    ]
+  },
+  {
+    "id": "load-response-low-acwr-flag",
+    "statement": "An uncoupled acute:chronic ratio below about 0.7 may be shown as an informational return-from-break or detraining indicator, with wording that avoids 'behind' or 'missed'. It does not change the plan automatically. The 0.7 value is an observational cut-off, and detraining is an untested interpretation.",
+    "parameter": "low_acwr_info_flag",
+    "value": "0.70",
+    "unit": "ratio (2-week acute / 4-12-week chronic, distance or time)",
+    "appliesTo": "Runners, descriptive display only",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["nakaoka-2021-acwr-runners", "impellizzeri-2020-acwr-pitfalls"]
+  },
+  {
+    "id": "load-response-ewma-weighting",
+    "statement": "Where chronic and acute load are computed, use exponentially weighted averages, which equal the Banister kernel, rather than uncoupled rolling windows. No verified source supports particular decay constants for runners. Conservative default: 7-day acute and 42-day chronic time constants, user-adjustable. EWMA showed no advantage in the one runner cohort.",
+    "parameter": "ewma_time_constants",
+    "value": "acute 7, chronic 42",
+    "unit": "days",
+    "appliesTo": "Load-trend display and feature engineering",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "murray-2017-ewma-acwr",
+      "nakaoka-2021-acwr-runners",
+      "jobson-2009-cycling-training-data"
+    ]
+  },
+  {
+    "id": "load-response-inverted-u-cap",
+    "statement": "Modelled benefit of additional load saturates and then declines (inverted-U). Any what-if optimiser must bound daily and weekly load and must not maximise modelled fitness without limits. The model must never override progression and recovery rules from other topics.",
+    "parameter": "optimiser_load_bound",
+    "value": "bounded_by_progression_rules",
+    "unit": null,
+    "appliesTo": "Scenario and taper optimisation",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["busso-2003-variable-dose-response", "busso-2006-modeling-training-planning"]
+  },
+  {
+    "id": "load-response-time-varying-flag",
+    "statement": "Optional: re-estimate model parameters weekly with a recursive least squares scheme and use drift in the acute negative effect and delayed positive effect as an informational overreaching flag. It never triggers automatic load changes. Requires frequent performance tests (twice weekly in the source study).",
+    "parameter": "weekly_reestimation_flag",
+    "value": "informational_only",
+    "unit": null,
+    "appliesTo": "Athletes with at least twice-weekly performance proxies",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["busso-2025-time-varying-overreaching"]
+  },
+  {
+    "id": "load-response-hrv-output-selection",
+    "statement": "If wearable HRV or heart-rate-recovery indicators are used as a response variable, choose the output indicator per athlete by forward validation, smooth daily values before fitting, and fall back to load-only guidance when held-out error is high. Do not treat these as performance predictors without a performance-linked check.",
+    "parameter": "response_indicator_selection",
+    "value": "per_athlete_forward_validation",
+    "unit": null,
+    "appliesTo": "Athletes with daily wearable HRV/HRR data",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["wang-2025-ffm-mass-sport", "imbach-2022-ffm-machine-learning"]
+  },
+  {
+    "id": "load-response-separate-stores",
+    "statement": "Model architecture keeps separate stores for load (input), acute readiness or fatigue indicators, and chronic performance measures, with explicit moderators (age, sex, sleep, heat) as inputs. Moderator effect sizes are not established, so default to wide uncertainty.",
+    "parameter": "state_architecture",
+    "value": "separate_load_readiness_performance",
+    "unit": null,
+    "appliesTo": "Data model for the plan engine",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["jeffries-2021-training-framework", "imbach-2022-ffm-machine-learning"]
+  }
+]

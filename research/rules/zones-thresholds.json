@@ -1,0 +1,193 @@
+[
+  {
+    "id": "zones-hrmax-default-equation",
+    "statement": "When no observed or tested HRmax exists, estimate HRmax as 208 - 0.7 x age and flag it as an age-predicted, low-confidence value. No sex, fitness or BMI adjustment.",
+    "parameter": "hrmax_predicted",
+    "value": "208 - 0.7 * age",
+    "unit": "bpm",
+    "appliesTo": "Healthy adults without a measured HRmax",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": [
+      "tanaka-2001-hrmax-equation",
+      "gellish-2007-longitudinal-hrmax",
+      "nes-2013-hunt-hrmax"
+    ]
+  },
+  {
+    "id": "zones-hrmax-reject-220",
+    "statement": "Do not use 220 - age anywhere in the engine; it underestimates HRmax in adults older than about 30.",
+    "parameter": "hrmax_equation_blocklist",
+    "value": "220 - age",
+    "unit": null,
+    "appliesTo": "All adults, especially masters athletes",
+    "grade": "A",
+    "confidence": "moderate",
+    "evidence": ["tanaka-2001-hrmax-equation", "nes-2013-hunt-hrmax"]
+  },
+  {
+    "id": "zones-hrmax-individual-error",
+    "statement": "Attach an uncertainty of about 10.8 bpm (SEE) to any age-predicted HRmax and mark zones derived from it as approximate. Equation error is worst for athletes with unusually high or low true maxima.",
+    "parameter": "hrmax_prediction_se",
+    "value": "10.8",
+    "unit": "bpm",
+    "appliesTo": "Any plan using a predicted HRmax",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["nes-2013-hunt-hrmax", "shookster-2020-hrmax-accuracy"]
+  },
+  {
+    "id": "zones-hrmax-observed-override",
+    "statement": "Replace the predicted HRmax with an observed maximum as soon as one exists. Accept observed maxima only from chest-strap (not optical) data on efforts that were maximal; never cap an observed value to the equation. Specific effort-validity criteria are an engineering default, not evidence-derived.",
+    "parameter": "hrmax_source_priority",
+    "value": "observed (verified maximal effort) > predicted",
+    "unit": null,
+    "appliesTo": "All athletes; especially those far from the population mean",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": ["shookster-2020-hrmax-accuracy", "mann-2013-relative-intensity"]
+  },
+  {
+    "id": "zones-hrmax-age-drift",
+    "statement": "If only an old measured HRmax is available, age-adjust it downward by about 0.7 bpm per year elapsed, and mark it low confidence. Inference from the longitudinal slope, not a tested protocol.",
+    "parameter": "hrmax_annual_decline",
+    "value": "0.7",
+    "unit": "bpm per year",
+    "appliesTo": "Athletes with an old HRmax measurement",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["gellish-2007-longitudinal-hrmax", "tanaka-2001-hrmax-equation"]
+  },
+  {
+    "id": "zones-anchor-hierarchy",
+    "statement": "Zone anchors in order of preference: tested thresholds or CS; proxies (GPS CS, DFA a1 0.75 from fresh chest-strap data, RPE/talk test); then %HRmax. HRR (Karvonen) is an acceptable fallback only if resting HR is reliable, but is not shown to beat %HRmax and has no evidence-based cut-offs here. Record the source of every boundary.",
+    "parameter": "zone_anchor_priority",
+    "value": "threshold/CS > proxies (DFA a1, RPE, talk test) > %HRmax or %HRR",
+    "unit": null,
+    "appliesTo": "All plan generation and zone display",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": ["mann-2013-relative-intensity", "jamnick-2020-intensity-methods"]
+  },
+  {
+    "id": "zones-two-boundary-model",
+    "statement": "Use a three-domain model: LT1/VT1 separates moderate from heavy, critical speed separates heavy from severe. Do not define these boundaries as fixed percentages of HRmax. Treat the upper boundary as CS-based; RCP/VT2 and lactate-steady-state values sit at different workloads and are expressed as ranges.",
+    "parameter": "zone_boundaries",
+    "value": "LT1/VT1 and CS",
+    "unit": null,
+    "appliesTo": "Zone model for all runners",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "jamnick-2020-intensity-methods",
+      "nixon-2021-cs-vs-mlss",
+      "keir-2015-exercise-intensity-thresholds",
+      "faude-2009-lactate-thresholds"
+    ]
+  },
+  {
+    "id": "zones-boundary-tolerance",
+    "statement": "Show each zone boundary as a range and re-estimate from rolling recent data. Evidence-based widths: about +/-11 bpm for DFA-a1-derived VT1 HR and +/-10.8 bpm for HRmax predicted from age. No evidence supports a width for other sources; conservative default of a visible band of about 5 bpm or about 5% pace for tested thresholds (engineering default).",
+    "parameter": "boundary_tolerance",
+    "value": "+/-11 (DFA a1), +/-10.8 (age HRmax), default 5",
+    "unit": "bpm",
+    "appliesTo": "All threshold and zone estimates",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "mann-2013-relative-intensity",
+      "vanhooren-2023-dfa-a1-runners",
+      "nes-2013-hunt-hrmax",
+      "faude-2009-lactate-thresholds"
+    ]
+  },
+  {
+    "id": "zones-cs-from-gps",
+    "statement": "Estimate critical speed as the slope of the distance-time line through at least three best grade-adjusted efforts between 400 m and 5 km (400, 800 and 5000 m worked best). Report performance-prediction error of about 8%. The rolling window for best efforts (default 90 days) is an engineering default.",
+    "parameter": "critical_speed_estimate",
+    "value": "slope of distance-time, >=3 best efforts 400 m-5 km",
+    "unit": "m/s",
+    "appliesTo": "Runners with logged GPS data (recreational data in the source study)",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["smyth-2020-cs-training-data"]
+  },
+  {
+    "id": "zones-cs-threshold-margin",
+    "statement": "Limit continuous threshold work to at or slightly below CS: steady VO2 was held 0.5 km/h below CS and VO2max was reached at 0.4 km/h above it. A 0.5 km/h margin is supported only for well-trained men and runs up to 30 min; widen the margin for recreational athletes or longer bouts. CS is about 1.2 km/h (about 8%) faster than MLSS in the same runners.",
+    "parameter": "continuous_threshold_pace_margin_below_cs",
+    "value": "0.5",
+    "unit": "km/h",
+    "appliesTo": "Well-trained runners; extrapolation to others is a conservative default",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["nixon-2021-cs-vs-mlss", "poole-2016-critical-power"]
+  },
+  {
+    "id": "zones-dprime-interval-budget",
+    "statement": "Treat running above CS as time-limited by D'. Plan reps above CS so that work above CS in a rep never reaches the estimated tolerable time at that speed. A numeric limit (default: each rep at most half of the time to exhaustion) is an engineering default; D' reconstitution during recovery is not covered by the corpus.",
+    "parameter": "rep_fraction_of_time_to_exhaustion",
+    "value": "<=0.5",
+    "unit": "fraction",
+    "appliesTo": "Interval sessions above CS",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "poole-2016-critical-power",
+      "jamnick-2020-intensity-methods",
+      "smyth-2020-cs-training-data"
+    ]
+  },
+  {
+    "id": "zones-marathon-cs-pacing",
+    "statement": "Flag a planned or actual first-half marathon pace above about 94% of CS as a risk of a >25% second-half slowdown. Typical sustained fractions of CS are about 93% for 2.5 h and about 79% for 6 h finishers. Do not extrapolate to ultra distances.",
+    "parameter": "marathon_first_half_fraction_of_cs_flag",
+    "value": "0.94",
+    "unit": "fraction of CS",
+    "appliesTo": "Recreational marathoners; not ultra",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": ["smyth-2020-cs-training-data"]
+  },
+  {
+    "id": "zones-dfa-vt1-optional",
+    "statement": "If chest-strap RR data with artifact correction exist, offer HR at DFA a1 = 0.75 from a fresh, non-fatigued incremental or easy-to-moderate effort as an optional VT1 estimate with an error band of about +/-11 bpm. Reject RR windows with more than about 3% artifacts. Never compute DFA a1 from optical HR.",
+    "parameter": "dfa_a1_vt1_value",
+    "value": "0.75 (artifact <=3%, band +/-11 bpm)",
+    "unit": "DFA a1 index",
+    "appliesTo": "Runners with chest-strap RR data",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "rogers-2021-dfa-a1-aerobic-threshold",
+      "vanhooren-2023-dfa-a1-runners",
+      "rogers-2022-dfa-a1-update"
+    ]
+  },
+  {
+    "id": "zones-dfa-state-gating",
+    "statement": "Do not update thresholds from DFA a1 recorded when fatigued or late in a long run (ramp-2 bias -12.3 bpm; DFA a1 0.71 to 0.32 after a 6 h simulated ultramarathon with unchanged HR). Do not prescribe sustained running at a DFA a1 = 0.5 speed (6 of 21 athletes could not finish 20 min). A DFA a1 decline during a constant-pace run may be logged as a candidate fatigue/durability signal only, with no automatic plan change.",
+    "parameter": "dfa_a1_gating",
+    "value": "fresh state only; 0.5 not for sustained prescription",
+    "unit": null,
+    "appliesTo": "Runners using DFA a1, especially long-run and ultra athletes",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "vanhooren-2023-dfa-a1-runners",
+      "rogers-2021-dfa-a1-ultramarathon-fatigue",
+      "gronwald-2024-dfa-a1-prolonged"
+    ]
+  },
+  {
+    "id": "zones-perceived-effort-anchors",
+    "statement": "With no HR or pace threshold data, use Borg 6-20 RPE about 10-11 and the equivocal talk-test stage for VT1, and RPE 13-15 and a negative talk test for the RCP/VT2 region. Do not use Feeling Scale for the upper boundary, and do not convert to a 0-10 scale without another source.",
+    "parameter": "rpe_threshold_anchors",
+    "value": "VT1: RPE 10-11; RCP: RPE 13-15 (Borg 6-20)",
+    "unit": "Borg 6-20",
+    "appliesTo": "Athletes without threshold data; talk-test evidence is mostly non-runners",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["bok-2022-subjective-intensity", "jamnick-2020-intensity-methods"]
+  }
+]

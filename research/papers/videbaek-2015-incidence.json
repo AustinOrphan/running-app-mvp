@@ -1,0 +1,40 @@
+{
+  "id": "videbaek-2015-incidence",
+  "title": "Incidence of running-related injuries per 1000 h of running in different types of runners: a systematic review and meta-analysis",
+  "authors": "Videbaek S, Bueno AM, Nielsen RO, Rasmussen S",
+  "year": 2015,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-015-0333-8",
+  "pmid": "25951917",
+  "url": "https://doi.org/10.1007/s40279-015-0333-8",
+  "design": "meta-analysis",
+  "population": "13 prospective cohort studies or RCTs in novice runners, recreational runners, ultra-marathon runners and track and field athletes (815 abstracts screened)",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["beginners-return", "injury-load"],
+  "findings": [
+    "13 articles were included after screening 815 abstracts.",
+    "Incidence ranged from 2.5 (long-distance track and field athletes) to 33.0 (novice runners) injuries per 1000 h.",
+    "Weighted incidence 17.8 (95% CI 16.7-19.1) per 1000 h in novice runners and 7.7 (95% CI 6.9-8.7) in recreational runners.",
+    "13 original articles were included after screening 815 abstracts.",
+    "RRIs per 1000 h of running ranged from 2.5 (long-distance track and field athletes) to 33.0 (novice runners).",
+    "Weighted incidence was 17.8 per 1000 h (95% CI 16.7-19.1) in novice runners and 7.7 per 1000 h (95% CI 6.9-8.7) in recreational runners.",
+    "The authors concluded that novices seem to face a significantly greater risk of injury per 1000 h of running than recreational runners; heterogeneity in injury, runner-type and outcome definitions challenged comparison."
+  ],
+  "limitations": "Heterogeneity in injury definitions, runner-type definitions and outcomes; ultra-marathon data are sparse; exposure-based rates only, no progression data.",
+  "implications": [
+    "Novice runners carry about 2.3x the per-hour injury rate of recreational runners (17.8 vs 7.7), so a novice flag should select the most conservative defaults; the abstract gives no definition of novice, so the engine must define it.",
+    "Use for risk messaging baseline only; no numeric progression rule follows.",
+    "Treat a runner with no or little recent running history as high risk: apply the most conservative load-progression and recovery settings. The ratio of pooled rates is about 2.3 (17.8/7.7) per hour of exposure, a descriptive figure and not a causal hazard ratio.",
+    "Because risk is per hour of exposure, cap weekly running time (not just distance) in the first weeks and substitute walk time or cross-training for run time.",
+    "Use 17.8 and 7.7 per 1000 h as reference rates only when displaying or testing relative risk across athlete categories."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Sports Med 45:1017-1026 (online May 2015). Abstract matched. Removed the researcher's '1 year of consistent running' novice cut-off (not in abstract).",
+    "checkedAt": "2026-10-22"
+  }
+}

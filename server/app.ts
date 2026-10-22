@@ -11,13 +11,24 @@ import type { Config } from './config.ts'
 import { apiNotFound, errorHandler } from './errors.ts'
 import { createLogger } from './logger.ts'
 import { activitiesRouter } from './routes/activities.ts'
+import { checkinsRouter } from './routes/checkins.ts'
 import { goalsRouter } from './routes/goals.ts'
 import { healthRouter } from './routes/health.ts'
 import { importsRouter } from './routes/imports.ts'
+import { ingestRouter } from './routes/ingest.ts'
+import { integrationsRouter } from './routes/integrations.ts'
 import { planRouter } from './routes/plan.ts'
+import { predictionsRouter } from './routes/predictions.ts'
+import { profileRouter } from './routes/profile.ts'
+import { researchRouter } from './routes/research.ts'
 import { reviewsRouter } from './routes/reviews.ts'
+import { screeningsRouter } from './routes/screenings.ts'
 import { settingsRouter } from './routes/settings.ts'
+import { todayRouter } from './routes/today.ts'
+import { weatherRouter } from './routes/weather.ts'
 import { weeksRouter } from './routes/weeks.ts'
+import { wellnessRouter } from './routes/wellness.ts'
+import { zonesRouter } from './routes/zones.ts'
 import { mountStatic } from './static.ts'
 
 export interface Deps {
@@ -62,11 +73,21 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   // Before the routers and static serving, so API calls and the index fallback share one budget.
   app.use(createGlobalLimiter({ max: opts.globalLimit }))
 
-  // Imports carry the whole CSV file as JSON text. The general parser below skips bodies that an
-  // earlier parser already read.
+  // File imports, client-parsed exports and phone pushes carry up to 16 MB of JSON. CSV imports
+  // carry the whole file as text. The parsers run in order and each skips a body that an earlier
+  // one already read, so the general 1 MB parser below only sees every other route.
+  app.use(
+    ['/api/imports/files', '/api/imports/parsed', '/api/ingest'],
+    express.json({ limit: '16mb' }),
+  )
   app.use('/api/imports', express.json({ limit: '10mb' }))
   app.use(express.json({ limit: '1mb' }))
   app.use(cookieParser())
+
+  // Phone automations send neither an Origin header nor a cookie; the router checks a bearer
+  // token itself, so it sits before the same-origin guard and the session check.
+  app.use('/api/ingest', ingestRouter(deps))
+
   app.use('/api', sameOriginGuard())
 
   app.use('/api', healthRouter(deps))
@@ -79,6 +100,16 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/plan', planRouter(deps))
   app.use('/api/reviews', reviewsRouter(deps))
   app.use('/api/weeks', weeksRouter(deps))
+  app.use('/api/profile', profileRouter(deps))
+  app.use('/api/wellness', wellnessRouter(deps))
+  app.use('/api/integrations', integrationsRouter(deps))
+  app.use('/api/weather', weatherRouter(deps))
+  app.use('/api/today', todayRouter(deps))
+  app.use('/api/checkins', checkinsRouter(deps))
+  app.use('/api/zones', zonesRouter(deps))
+  app.use('/api/predictions', predictionsRouter(deps))
+  app.use('/api/screenings', screeningsRouter(deps))
+  app.use('/api/research', researchRouter(deps))
 
   app.use(apiNotFound)
   mountStatic(app)

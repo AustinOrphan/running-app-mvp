@@ -1,0 +1,35 @@
+{
+  "id": "vernillo-2015-fatigue-energy-cost",
+  "title": "Energy cost and kinematics of level, uphill and downhill running: fatigue-induced changes after a mountain ultramarathon",
+  "authors": "Vernillo G, Savoldelli A, Zignoli A, Skafidas S, Fornasiero A, La Torre A, Bortolan L, Pellegrini B, Schena F",
+  "year": 2015,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/02640414.2015.1022870",
+  "pmid": "25751128",
+  "url": "https://doi.org/10.1080/02640414.2015.1022870",
+  "design": "observational-pre-post",
+  "population": "14 ultratrail runners tested before and after a mountain ultramarathon on level, +5% and -5% treadmill at 10 km/h",
+  "sampleSize": 14,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "Downhill energy cost rose 13.1% after the race (P < 0.001).",
+    "Level and uphill energy cost did not change.",
+    "Duty factor and stride frequency rose, and stride length, swing and cycle time fell, in all conditions.",
+    "Contact time rose and rate of force generation fell only on graded surfaces.",
+    "Performance time correlated with pre- to post-race changes in level (r = 0.52) and uphill (r = 0.50) cost."
+  ],
+  "limitations": "Pre/post design with no control, 14 ultratrail runners, only 5% grades at a single speed (10 km/h). Positive correlations of performance time with level and uphill cost change were moderate (r about 0.5).",
+  "implications": [
+    "Model a fatigue penalty on downhill cost late in long mountain events: +13.1% at -5% grade and 10 km/h after a mountain ultramarathon, with no change on level or +5% grade.",
+    "Include downhill-specific preparation in ultra plans because downhill economy was the only condition to degrade significantly; the abstract itself suggests incorporating downhill locomotion in training."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: J Sports Sci 33(19):1998-2005, 2015, title and journal match; Crossref lists nine authors (added Pellegrini B, Schena F to the author string). PubMed PMID 25751128 abstract supports all numbers. Removed unsupported 'race not standardised'.",
+    "checkedAt": "2026-10-22"
+  }
+}

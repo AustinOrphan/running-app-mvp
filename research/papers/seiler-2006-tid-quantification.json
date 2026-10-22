@@ -1,0 +1,35 @@
+{
+  "id": "seiler-2006-tid-quantification",
+  "title": "Quantifying training intensity distribution in elite endurance athletes: is there evidence for an \"optimal\" distribution?",
+  "authors": "Seiler KS, Kjerland GO",
+  "year": 2006,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/j.1600-0838.2004.00418.x",
+  "pmid": "16430681",
+  "url": "https://doi.org/10.1111/j.1600-0838.2004.00418.x",
+  "design": "cross-sectional",
+  "population": "Eleven nationally competitive male junior cross-country skiers",
+  "sampleSize": 11,
+  "evidenceLevel": "C",
+  "topics": ["intensity-distribution"],
+  "findings": [
+    "384 sessions (347 endurance, 37 strength) over 32 consecutive days; 318 endurance sessions analysed in three zones bounded by VT1 and VT2.",
+    "Heart-rate distribution was 75+/-3% / 8+/-3% / 17+/-4% (zones 1/2/3); session-RPE distribution was 76+/-4% / 6+/-5% / 18+/-7%.",
+    "Blood lactate over 60 consecutive sessions: 71% at <=2.0 mM, 7% at 2-4 mM, 22% above 4 mM.",
+    "Authors describe a polarized pattern (about 75% clearly below, 15-20% substantially above the VT1-VT2 zone) and state that elite endurance athletes train surprisingly little at lactate-threshold intensity."
+  ],
+  "limitations": "Observational, 32 days, 11 male skiers, so it describes what athletes do and does not show the pattern is optimal. Not runners. Counts are by session (endurance sessions), not time.",
+  "implications": [
+    "Use a three-zone model anchored on VT1/LT1 and VT2/LT2 (or equivalent HR/pace anchors) as the engine's internal intensity vocabulary.",
+    "Treat about 75-80% low / 15-20% high with a small zone 2 as a prior for high-volume plans, not as proof of optimality.",
+    "Session RPE agreed closely with HR-zone analysis in this sample, so session RPE is a reasonable fallback when HR data are missing."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: title, journal, first author match; published online 2004-10-27, print issue 2006-02, so year 2006 kept (volume year). Every number checked against Europe PMC abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

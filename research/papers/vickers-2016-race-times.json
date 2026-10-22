@@ -1,0 +1,41 @@
+{
+  "id": "vickers-2016-race-times",
+  "title": "An empirical study of race times in recreational endurance runners",
+  "authors": "Vickers AJ, Vertosick EA",
+  "year": 2016,
+  "journal": "BMC Sports Science, Medicine and Rehabilitation",
+  "doi": "10.1186/s13102-016-0052-y",
+  "pmid": "27570626",
+  "url": "https://doi.org/10.1186/s13102-016-0052-y",
+  "design": "cross-sectional",
+  "population": "Recreational endurance runners recruited by internet survey; cohort split 2:1 into training and validation sets",
+  "sampleSize": 2303,
+  "evidenceLevel": "C",
+  "topics": ["performance-prediction", "volume-performance"],
+  "findings": [
+    "Sex, age, BMI and race training were associated with mean race velocity for all race distances; the male-female velocity difference decreased with increasing distance.",
+    "Tempo runs were more strongly associated with velocity for shorter distances; typical weekly training mileage and interval training had similar associations with velocity at all distances.",
+    "The Riegel formula was well calibrated for races up to a half marathon but dramatically underestimated marathon time, giving times at least 10 min too fast for half of runners.",
+    "Mean squared error for marathon time was 381 for Riegel versus 228 for a model based on one prior race and 208 for a model based on two prior races (units not stated in the abstract).",
+    "Sex, age, BMI and race training were associated with mean race velocity at all distances; the male-female velocity difference shrank with distance.",
+    "Tempo runs were more strongly associated with velocity for shorter distances; typical weekly mileage and interval training had similar associations for all distances.",
+    "Riegel's formula was well calibrated to the half-marathon but dramatically underestimated marathon time, giving times at least 10 min too fast for half of runners.",
+    "Marathon prediction mean squared error: 381 (Riegel) vs 228 (one prior race model) and 208 (two prior races)."
+  ],
+  "limitations": "Self-reported survey data from a self-selected internet sample; internal 2:1 split only, no external cohort; the abstract does not give model coefficients, which anchor race distance was used in the Riegel comparison, the MSE units, or whether trail/ultra distances were covered.",
+  "implications": [
+    "Do not use a single-race Riegel extrapolation to the marathon without a correction and an optimistic-bias flag; Riegel is acceptable up to the half marathon.",
+    "Where two prior race results exist, prefer a model that uses both (plus sex, age, BMI, weekly mileage) over single-race Riegel; MSE fell from 381 to 208.",
+    "Use weekly mileage and the share of tempo/interval work as covariates, with tempo weighted more for races up to the half marathon. If MSE is in min^2 (not confirmed), RMSE is about 19.5 min for Riegel versus 14.4 min with two races.",
+    "Do not extrapolate shorter-race results to the marathon with the plain Riegel exponent; use a corrected model using one or two prior races and weekly mileage.",
+    "Include weekly mileage, sex, age and BMI as inputs to goal-time prediction."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (title, BMC Sports Sci Med Rehabil, 2016-08-26, Vickers/Vertosick) and Europe PMC abstract; all four findings are stated. Removed the researcher's claim about a '5-10 km' anchor, which the abstract does not specify, and added the MSE-units caveat.",
+    "checkedAt": "2026-10-22"
+  }
+}

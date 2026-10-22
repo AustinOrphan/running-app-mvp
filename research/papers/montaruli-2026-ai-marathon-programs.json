@@ -1,0 +1,34 @@
+{
+  "id": "montaruli-2026-ai-marathon-programs",
+  "title": "Artificial intelligence-generated marathon training programs: reliable tools in exercise prescription for athletic performance?",
+  "authors": "Montaruli G, Nikolaidis PT, Racil G, Maffulli N, Migliaccio GM, Padulo J",
+  "year": 2026,
+  "journal": "British Medical Bulletin",
+  "doi": "10.1093/bmb/ldag010",
+  "pmid": "41722095",
+  "url": "https://doi.org/10.1093/bmb/ldag010",
+  "design": "other",
+  "population": "Outputs of eight AI models (Claude 3.5 Sonnet/Haiku, ChatGPT variants, Gemini 2.0 Flash variants, DeepSeek R1) each prompted for a 6-month marathon plan at beginner, intermediate and advanced levels",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ai-coaching"],
+  "findings": [
+    "Most AI systems identified weekly mileage progression, tapering and intensity distribution (>80% at low intensity), aligning with current endurance training theory.",
+    "Responses varied in accuracy and completeness: some omitted key details such as weekly mileage, merged intermediate and advanced levels as if the same, or gave inconsistent pacing data, especially for advanced runners.",
+    "The study is a descriptive qualitative comparison with the literature, not quantitative; authors note significant limitations in personalization and professional oversight and call for randomized trials including personal physiological data."
+  ],
+  "limitations": "Descriptive and qualitative; 8 model outputs; no athlete outcomes; models are older generations than current.",
+  "implications": [
+    "LLM output is inconsistent on mileage and pacing, supporting a validated deterministic engine with explicit numeric constraints.",
+    "Enforce level differentiation with explicit parameters (volume, long-run cap, quality-session count), not free text.",
+    "Use LLM output only as candidate text behind schema validation and rule checks."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref: title, Br Med Bull, issued 2026-01-02, first author Montaruli match. PubMed/Europe PMC abstract (PMID 41722095) re-read in full.",
+    "checkedAt": "2026-10-22"
+  }
+}

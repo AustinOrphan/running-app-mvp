@@ -1,0 +1,36 @@
+{
+  "id": "vihma-2010-weather-marathon",
+  "title": "Effects of weather on the performance of marathon runners",
+  "authors": "Vihma T",
+  "year": 2010,
+  "journal": "International Journal of Biometeorology",
+  "doi": "10.1007/s00484-009-0280-x",
+  "pmid": "19937453",
+  "url": "https://doi.org/10.1007/s00484-009-0280-x",
+  "design": "retrospective-cohort",
+  "population": "Stockholm Marathon 1980-2008 (annual finishing-time anomaly after removing the linear trend), male and female runners including slower finishers up to 4.7 h, plus percentage of non-finishers",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Air temperature had the highest correlation with finishing-time anomaly in all categories (r = 0.66-0.73, highest for the slowest runners).",
+    "Solar shortwave radiation (r = 0.41-0.71), relative humidity (r = -0.57 to -0.44) and, for men, rain (r = -0.51 to -0.42) were also significantly correlated, but humidity and rain effects arose only from their negative correlation with air temperature.",
+    "Percentage of non-finishers was significantly affected by air temperature and specific humidity (r = 0.72, multiple regression).",
+    "Slower runners were more affected by unfavourable weather than faster runners (previously shown for 2.1-3 h finishers, now extended to 4.7 h); warm-weather effects were less evident for women, 'probably partly' due to larger surface-area-to-mass ratio and slower speed."
+  ],
+  "limitations": "One race, about 29 annual aggregates (1980-2008, count is arithmetic), humidity and rain confounded with temperature; anomaly depends on the detrending method; the sex difference is speculative per the author.",
+  "implications": [
+    "Include solar radiation alongside temperature (r up to 0.71), supporting WBGT or globe-temperature input over air temperature alone.",
+    "Use specific (absolute) humidity, not relative humidity, for DNF or withdrawal-risk warnings.",
+    "Scale heat penalties up for slower runners (evidence to about 4.7 h finishing times); beyond that extrapolation is unsupported.",
+    "No sex-specific penalty is justified on this evidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref gives online 2009-11-25, print 2010-05; issue year 2010 used. Abstract (PMID 19937453) re-fetched; added the rain correlation and the 'probably partly' wording. All numbers match.",
+    "checkedAt": "2026-10-22"
+  }
+}

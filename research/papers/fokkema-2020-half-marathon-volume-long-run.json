@@ -1,0 +1,34 @@
+{
+  "id": "fokkema-2020-half-marathon-volume-long-run",
+  "title": "Training for a (half-)marathon: Training volume and longest endurance run related to performance and running injuries",
+  "authors": "Fokkema T, van Damme AADN, Fornerod MWJ, de Vos RJ, Bierma-Zeinstra SMA, van Middelkoop M",
+  "year": 2020,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.13725",
+  "pmid": "32421886",
+  "url": "https://doi.org/10.1111/sms.13725",
+  "design": "prospective-cohort",
+  "population": "Recreational half-marathon (n=556) and marathon (n=441) participants who completed three questionnaires",
+  "sampleSize": 997,
+  "evidenceLevel": "B",
+  "topics": ["volume-performance"],
+  "findings": [
+    "Half marathon: weekly training >32 km (beta -4.19, 95% CI -6.52 to -1.85) and longest run >21 km (beta -3.87, 95% CI -6.31 to -1.44) were associated with a faster finish time, and with less pace decline (beta -1.81 and -1.89).",
+    "Marathon: <40 km/wk was related to a slower finish (beta 6.33, 95% CI 0.18 to 12.48); >65 km/wk to a faster finish (beta -14.09, 95% CI -22.47 to -5.72).",
+    "Marathon: longest run <25 km was associated with a slower finish (beta 13.44, 95% CI 5.34 to 21.55).",
+    "No associations between training characteristics and running-related injuries were identified."
+  ],
+  "limitations": "Self-reported volume and longest run, categorised exposures, confounding by experience and ability, finish-time units not stated in the abstract, lower CI bound for the <40 km finding is near zero, and the null injury result may reflect low power or survivor bias.",
+  "implications": [
+    "Use volume and long-run values as quality floors, not caps: half >32 km/wk and longest run >21 km; marathon avoid <40 km/wk and longest run <25 km.",
+    "Weekly volume above 65 km was linked to the fastest marathon group; still progress gradually."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref title (HTML-escaped ampersand), journal, first author, 2020 match; abstract re-fetched and all betas and CIs match.",
+    "checkedAt": "2026-10-22"
+  }
+}

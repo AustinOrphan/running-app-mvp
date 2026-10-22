@@ -1,0 +1,36 @@
+{
+  "id": "tyler-2016-heat-adaptation-meta",
+  "title": "The effects of heat adaptation on physiology, perception and exercise performance in the heat: a meta-analysis",
+  "authors": "Tyler CJ, Reeve T, Hodges GJ, Cheung SS",
+  "year": 2016,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-016-0538-5",
+  "pmid": "27106556",
+  "url": "https://doi.org/10.1007/s40279-016-0538-5",
+  "design": "meta-analysis",
+  "population": "96 articles on human heat adaptation regimens (PubMed to 16 Feb 2016); most common duration 7-14 days, most common method controlled work-rate",
+  "sampleSize": 96,
+  "evidenceLevel": "A",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Heat adaptation had a moderately beneficial effect on exercise capacity and performance in the heat irrespective of regimen; longer regimens were more effective than shorter ones.",
+    "Moderate-to-large beneficial effect on lowering core temperature before and during exercise, maintaining cardiovascular stability and improving heat-loss pathways.",
+    "Limited data: possibly reduced oxygen consumption, better glycogen sparing, higher power at lactate threshold, lower lactate, and better RPE and thermal sensation; trivial effect on extracellular Hsp.",
+    "Regimens lasting <14 days induce many beneficial adaptations and improve performance in the heat, but adaptation is greatest with regimens longer than 14 days.",
+    "Large methodological differences leave uncertainty about the magnitude and time course of adaptation."
+  ],
+  "limitations": "Heterogeneous protocols; mostly young trained men in labs; outcomes mostly time trials or capacity tests, not marathon or ultra racing; Hedges' g values not in the abstract; the study unit is the article, not the participant.",
+  "implications": [
+    "Default acclimation block: 7-14 days of daily heat exposure, extended beyond 14 days when time allows because adaptation is greatest with longer regimens.",
+    "Use acclimation as a conservative discount on the heat-pace penalty (shrink, do not remove); the abstract justifies no numeric discount.",
+    "No regimen type is shown to be superior in the abstract; do not encode a modality preference from this paper."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (Sports Med online 2016-04, print 2016-11) and Europe PMC abstract re-fetched. Removed the researcher's 'prefer controlled-work-rate' implication, which the abstract does not support (it only reports that method as most common). The 5-day lower bound belongs to Daanen 2018.",
+    "checkedAt": "2026-10-22"
+  }
+}

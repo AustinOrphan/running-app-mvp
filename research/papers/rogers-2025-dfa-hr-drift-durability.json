@@ -1,0 +1,34 @@
+{
+  "id": "rogers-2025-dfa-hr-drift-durability",
+  "title": "Fractal correlation properties of heart rate variability and respiratory frequency as measures of endurance exercise durability",
+  "authors": "Rogers B, Fleitas-Paniagua PR, Trpcic M, Zagatto AM, Murias JM",
+  "year": 2025,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-025-05716-2",
+  "pmid": "39904800",
+  "url": "https://doi.org/10.1007/s00421-025-05716-2",
+  "design": "experimental-crossover",
+  "population": "Ten participants performing cycling time-to-task-failure at 95% of respiratory compensation point on two occasions (control and monetary reward)",
+  "sampleSize": 10,
+  "evidenceLevel": "C",
+  "topics": ["durability-drift"],
+  "findings": [
+    "After initial equilibration, metabolic responses (VO2, lactate, glucose) remained largely stable over quarters 2 to 4 of the trial.",
+    "HR, DFA-a1 and respiratory frequency each drifted over Q2-Q4 (significant ANOVA).",
+    "Repeatability of quarterly HR, DFA-a1 and respiratory frequency between control and reward sessions was high: ICC 0.73 to 0.94, Pearson r 0.83 to 0.98, no difference in means.",
+    "The authors conclude these are useful, repeatable markers of durability loss that could be monitored with low-cost consumer equipment."
+  ],
+  "limitations": "Ten participants, cycling, laboratory time-to-failure at a single intensity; running, heat, hydration and comparison against performance outcomes were not tested; the ICC range is pooled over three metrics, not HR alone.",
+  "implications": [
+    "Within-session HR drift at steady intensity was repeatable in this cycling study (ICC 0.73-0.94 pooled across HR, DFA-a1 and respiratory frequency), so computing and storing it per run is reasonable, but its link to performance must be checked in the athlete's own data.",
+    "Treat DFA-a1 and respiratory-frequency features as optional, device-dependent extras, not core plan inputs."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref (online 2025-02-04, print 2025 Jun) and PubMed match. Corrected the researcher's attribution of the ICC range to HR alone; the abstract pools HR, DFA-a1 and fB. Dropped the unsupported 'healthy' descriptor.",
+    "checkedAt": "2026-10-22"
+  }
+}

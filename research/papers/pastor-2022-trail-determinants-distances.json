@@ -1,0 +1,35 @@
+{
+  "id": "pastor-2022-trail-determinants-distances",
+  "title": "Performance determinants in trail-running races of different distances",
+  "authors": "Pastor FS, Besson T, Varesco G, Parent A, Fanget M, Koral J, et al.",
+  "year": 2022,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2021-0362",
+  "pmid": "35213820",
+  "url": "https://doi.org/10.1123/ijspp.2021-0362",
+  "design": "cross-sectional",
+  "population": "Trail runners entered in UTMB-week races (SHORT <55 km, MEDIUM 101 km, LONG >145 km) tested before the race",
+  "sampleSize": 75,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "75 trail runners recruited; 24 finished SHORT, 16 MEDIUM and 14 LONG.",
+    "SHORT performance was explained by VO2max and lipid utilisation at 10 km/h (r2 = .825, P < .001).",
+    "MEDIUM (101 km) performance was determined by VO2max, maximal isometric strength and body fat percentage (r2 = .917, P < .001).",
+    "A linear model could not be applied in LONG (>145 km), but performance correlated with peak velocity in the incremental test."
+  ],
+  "limitations": "Small samples per distance, finishers only (survivor bias), one event and set of conditions; lab-based predictors the engine cannot measure.",
+  "implications": [
+    "Include a strength-maintenance component (knee extensor and plantar flexor force work) in plans for about 100 km and longer trail goals, since maximal isometric strength was a determinant at 101 km.",
+    "Use aerobic capacity (a VO2max proxy) as a limiter for 50 to 100 km goals; for over 145 km treat peak speed as a weak correlate only.",
+    "No strength dose is justified by this study; a dose needs another source."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2022-06-01, 11 authors, last author Millet) and Europe PMC abstract re-fetched; all numbers confirmed.",
+    "checkedAt": "2026-10-22"
+  }
+}

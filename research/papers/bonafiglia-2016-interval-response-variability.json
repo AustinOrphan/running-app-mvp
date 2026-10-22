@@ -1,0 +1,34 @@
+{
+  "id": "bonafiglia-2016-interval-response-variability",
+  "title": "Inter-Individual Variability in the Adaptive Responses to Endurance and Sprint Interval Training: A Randomized Crossover Study",
+  "authors": "Bonafiglia JT, Rotundo MP, Whittall JP, Scribbans TD, Graham RB, Gurd BJ",
+  "year": 2016,
+  "journal": "PLOS ONE",
+  "doi": "10.1371/journal.pone.0167790",
+  "pmid": "27936084",
+  "url": "https://doi.org/10.1371/journal.pone.0167790",
+  "design": "rct",
+  "population": "Recreationally active adults completing both endurance (END) and sprint interval training (SIT) in randomized crossover with 3-month washout",
+  "sampleSize": 21,
+  "evidenceLevel": "B",
+  "topics": ["ai-coaching"],
+  "findings": [
+    "21 recreationally active adults completed 3 weeks (4 days/week) each of END (30 min at ~65% VO2peak work rate) and SIT (eight 20-s intervals at ~170% VO2peak work rate).",
+    "A main effect of training was seen for VO2peak, lactate threshold and submaximal HR, but individual responses to both END and SIT were highly variable.",
+    "No significant positive relationships were observed between individual END and SIT changes in any variable; non-response (defined as change below 2x typical error: VO2peak 0.107 L/min, lactate threshold 15.7 W, submaximal HR 10.7 bpm) occurred after both, but the individual patterns differed.",
+    "All individuals responded in at least one variable under at least one of the stimuli; authors suggest non-response may be reduced by changing the training stimulus."
+  ],
+  "limitations": "Small sample, 3-week interventions, cycling-based, healthy recreationally active adults (not runners); non-response defined by typical-error threshold on single measures.",
+  "implications": [
+    "Responder status is not a stable trait across stimulus types: after a block with no measurable improvement, vary the stimulus before concluding that the athlete is a non-responder.",
+    "Judge response with a pre-specified measurement-noise threshold (e.g. 2x typical error of the measure) and several markers rather than a single metric."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added by verifier. Crossref: title, PLOS ONE, 2016-12-09, first author Bonafiglia, 6 authors. Europe PMC abstract (PMID 27936084) read in full. Full author list taken from memory beyond first three Crossref-confirmed (Bonafiglia, Rotundo, Whittall); the last three names were not re-checked this session.",
+    "checkedAt": "2026-10-22"
+  }
+}

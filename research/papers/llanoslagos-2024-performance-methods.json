@@ -1,0 +1,35 @@
+{
+  "id": "llanoslagos-2024-performance-methods",
+  "title": "The Effect of Strength Training Methods on Middle-Distance and Long-Distance Runners' Athletic Performance: A Systematic Review with Meta-analysis",
+  "authors": "Llanos-Lagos C, Ramirez-Campillo R, Moran J, Saez de Villarreal E",
+  "year": 2024,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-024-02018-z",
+  "pmid": "38627351",
+  "url": "https://doi.org/10.1007/s40279-024-02018-z",
+  "design": "meta-analysis",
+  "population": "Middle- and long-distance runners of any sex and level (324 moderately trained, 272 well trained, 298 highly trained athletes); randomized and non-randomized controlled studies; programs of 6-40 weeks with 1-4 sessions per week",
+  "sampleSize": 894,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Certainty of evidence was very low to moderate (GRADE); search through November 2022.",
+    "High-load training improved running performance (time trial or time to exhaustion) with a moderate effect (ES -0.469, p = 0.029); combined methods had a large effect (ES -1.035, p = 0.036); plyometric training alone was not significant (ES -0.210, p = 0.064).",
+    "No method improved VO2max, vVO2max, maximum metabolic steady state or sprint capacity (all p > 0.072).",
+    "Moderators (sex, age, body mass, height, VO2max, performance level, strength training experience, weeks, sessions per week, total sessions) had no effect on running performance variables or determinants (all p > 0.166)."
+  ],
+  "limitations": "Very low to moderate certainty; the large combined-methods effect rests on few studies; non-significant moderators may reflect low power rather than true absence of dose effects; time trial and time-to-exhaustion tests are pooled. Sample size is the sum of the three athlete-level counts; overlaps with the economy review.",
+  "implications": [
+    "Credit strength work with a performance benefit through economy and neuromuscular factors, not VO2max or threshold; derive VO2max and threshold estimates from running data only.",
+    "Because no dose moderator was detected, 2 sessions per week is a justified default and frequency should not be escalated to chase more benefit.",
+    "Combine heavy and plyometric work in the same block where tolerated."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and Europe PMC re-fetched; all numbers in abstract. Added 'height' to the moderator list per abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

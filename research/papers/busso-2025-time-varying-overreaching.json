@@ -1,0 +1,34 @@
+{
+  "id": "busso-2025-time-varying-overreaching",
+  "title": "Differentiating acute fatigue and overreaching during intensified training using a recursive least squares algorithm combined with the variable dose-response model",
+  "authors": "Busso T, Chalencon S",
+  "year": 2025,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-024-05692-z",
+  "pmid": "39709585",
+  "url": "https://doi.org/10.1007/s00421-024-05692-z",
+  "design": "modelling",
+  "population": "Eight swimmers followed for 61 weeks covering five training cycles; daily load from pool kilometres and dry-land equivalents; performance from 50-m trials twice weekly",
+  "sampleSize": 8,
+  "evidenceLevel": "C",
+  "topics": ["load-response-models"],
+  "findings": [
+    "A time-varying variable dose-response model with a recursive least squares algorithm was applied; weekly changes in parameters were used to derive the modelled impulse response of a single session.",
+    "Functional overreaching appeared as a significant performance decline within four cycles of increased training, followed by a performance peak after two or three weeks of reduced training.",
+    "When increased training led to decreased performance, the modelled impulse response showed a significant increase in the acute negative effect and a decrease in the delayed positive effect of a single workout.",
+    "The authors conclude weekly variation in estimates could help diagnose overreaching and re-adjust subsequent training."
+  ],
+  "limitations": "Eight swimmers, one sport, retrospective modelling of existing data; no out-of-sample test of plan adjustments. Crossref lists online 2024-12-22; Europe PMC lists the 2025 print year.",
+  "implications": [
+    "Treat time-varying parameter drift as a descriptive flag for possible overreaching, never as an automatic load change.",
+    "Allow weekly re-estimation of model parameters only when performance tests are frequent (twice weekly in this study)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "ADDED by verifier. Crossref confirms title, Eur J Appl Physiol, authors Busso and Chalencon, online 2024-12-22. Findings match Europe PMC abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

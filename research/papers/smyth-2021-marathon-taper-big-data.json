@@ -1,0 +1,37 @@
+{
+  "id": "smyth-2021-marathon-taper-big-data",
+  "title": "Longer Disciplined Tapers Improve Marathon Performance for Recreational Runners",
+  "authors": "Smyth B, Lawlor A",
+  "year": 2021,
+  "journal": "Frontiers in Sports and Active Living",
+  "doi": "10.3389/fspor.2021.735220",
+  "pmid": "34651125",
+  "url": "https://doi.org/10.3389/fspor.2021.735220",
+  "design": "retrospective-cohort",
+  "population": "More than 158,000 recreational marathon runners with logged training activities",
+  "sampleSize": 158000,
+  "evidenceLevel": "B",
+  "topics": ["taper"],
+  "findings": [
+    "More than 158,000 recreational marathon runners analysed; tapers defined from decreases in weekly distance and classified by duration (1-4 weeks) and discipline (strict = progressively decreasing training in the weeks before the marathon; relaxed = not).",
+    "Strict tapers were associated with better marathon performance than relaxed tapers (p < 0.001); longer tapers of up to 3 weeks were associated with better performance than shorter tapers (p < 0.001).",
+    "Strict 3-week tapers were associated with a median finish-time saving of 5 min 32.4 s (2.6%) compared with a minimal taper (p < 0.001).",
+    "Female runners were associated with greater finish-time benefits than men for a given taper type (<= 3 weeks in duration), p < 0.001.",
+    "Most recreational runners (64%) adopt less disciplined (2-week and 3-week) tapers."
+  ],
+  "limitations": "Observational and self-selected, so strict tapers may travel with other differences (fitness, discipline, injury-free build-up); taper identified from weekly distance only; associations in median finish times, not causal effects; the abstract does not report what happened for 4-week tapers beyond 'up to 3 weeks'.",
+  "implications": [
+    "For marathon plans, default to a 3-week strict taper: each of the three final weeks lower in volume than the previous one (monotonic decrease), not a flat reduction.",
+    "Add a plan validation rule that flags a taper whose weekly volumes are not monotonically decreasing.",
+    "Cap the marathon taper at 3 weeks. The abstract supports benefit 'up to 3 weeks' but does not say 4 weeks is worse, so the cap is a conservative engine choice also supported by bosquet-2007 and aubry-2014 (peaks within first 2 taper weeks).",
+    "Female/male difference is an association only; no separate sex parameter is justified, but sex-specific messaging could note it."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Frontiers, 28 Sep 2021, Smyth first author). Researcher's claim 'data show no further benefit and risk of detraining' beyond 3 weeks is NOT in the abstract and was removed; data-source description ('public/wearable-style') also not in the abstract so generalised.",
+    "checkedAt": "2026-10-22"
+  }
+}
