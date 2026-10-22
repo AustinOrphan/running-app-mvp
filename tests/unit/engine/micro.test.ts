@@ -19,7 +19,8 @@ vi.mock('../../../shared/engine/sessions.ts', () => ({
     target: { zone: 'z1', rpe: [2, 3], hr: null, paceSecPerKm: null, heatNote: null },
     purpose: kind,
     rules: [],
-    flags: [],
+    // As in E5's prescribe: every 'b2b' session comes back marked as day 1.
+    flags: kind === 'b2b' ? ['b2b-day1'] : [],
   }),
 }))
 
@@ -256,6 +257,8 @@ describe('placeWeek', () => {
       expect(day1.kind).toBe('b2b')
       expect(day2.kind).toBe('b2b')
       expect(day2.date).toBe(addDays(day1.date, 1))
+      expect(day1.flags).not.toContain('b2b-day2')
+      expect(day2.flags).not.toContain('b2b-day1')
       expect(day2.durationMin).toBeLessThanOrEqual(day1.durationMin)
       expect(day2.durationMin).toBe(Math.round(day1.durationMin * P.fplace.b2bDay2Fraction.value))
       expect(runMinutes(sessions)).toBeLessThanOrEqual(480)

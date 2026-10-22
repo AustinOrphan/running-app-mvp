@@ -84,11 +84,15 @@ export function placeWeek(
   const sessions: SessionSpec[] = []
   for (const run of runs) {
     const spec = prescribe(run.kind, run.minutes, ctx.zones, week)
+    // `prescribe` marks every 'b2b' session as day 1; the second day of a pair is day 2 only.
+    const specFlags = run.flags.includes('b2b-day2')
+      ? spec.flags.filter((f) => f !== 'b2b-day1')
+      : spec.flags
     sessions.push({
       ...spec,
       date: slots[run.day]!.date,
       order: 0,
-      flags: unique([...spec.flags, ...run.flags]),
+      flags: unique([...specFlags, ...run.flags]),
     })
   }
   fillDistanceAndGain(sessions, week)

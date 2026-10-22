@@ -125,6 +125,20 @@ describe('applyGuards: session spike guard (G-1)', () => {
     expect(applyGuards(planned(300), state(), unfinished).sessions[0]!.flags).toEqual([])
   })
 
+  it('compares gain with a flat history, and says so when no run records gain', () => {
+    const flat = [run('2026-10-25', 60, { elevationGainM: 0, elevationLossM: 0 })]
+    const planned = (gainM: number) => [session({ date: '2026-11-03', durationMin: 50, gainM })]
+    expect(applyGuards(planned(80), state(), flat).sessions[0]!.flags).toEqual([])
+    const climb = applyGuards(planned(250), state(), flat)
+    expect(climb.sessions[0]!.flags).toEqual(['override-required'])
+    expect(climb.warnings[0]!.message).toContain('gain 250 m against none')
+    const unknown = applyGuards(planned(250), state(), [run('2026-10-25', 60)])
+    expect(unknown.sessions[0]!.flags).toEqual([])
+    expect(
+      unknown.warnings.filter((w) => w.code === 'spike-no-reference').map((w) => w.severity),
+    ).toEqual(['info', 'info'])
+  })
+
   it('falls back to the athlete state when the history holds no runs', () => {
     const result = applyGuards([session({ date: '2026-11-03', durationMin: 111 })], LONG_REF, [])
     expect(result.sessions[0]!.flags).toEqual(['spike-warn'])
@@ -311,6 +325,18 @@ describe('applyGuards: weekly ramp (G-2, G-3)', () => {
     })
     const result = applyGuards(planWeek('2026-11-02', 300), st, [])
     expect(weekMinutes(result.sessions, '2026-11-02')).toBeLessThanOrEqual(200 * 1.05 + 1)
+  })
+
+  it('leaves the race out of the weekly running minutes, so race week keeps its runs', () => {
+    const st = withWeeks([200, 150, 120])
+    const plan = [
+      session({ date: '2026-11-03', durationMin: 40 }),
+      session({ date: '2026-11-05', durationMin: 30 }),
+      session({ date: '2026-11-08', kind: 'race', durationMin: 240 }),
+    ]
+    const result = applyGuards(plan, st, [])
+    expect(result.sessions.map((s) => s.durationMin)).toEqual([40, 30, 240])
+    expect(result.warnings.filter((w) => w.code.startsWith('ramp'))).toEqual([])
   })
 
   it('lets novices grow by at least one minute a week', () => {

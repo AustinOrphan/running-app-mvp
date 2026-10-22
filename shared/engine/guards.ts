@@ -32,8 +32,11 @@ const MUTABLE_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'hills',
   'b2b',
 ])
-/** Sessions that count toward the weekly running minutes (a race counts but is never cut). */
-const VOLUME_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([...MUTABLE_KINDS, 'race'])
+/**
+ * Sessions that count toward the weekly running minutes. A race does not: the weeks before the
+ * plan (`state.weeks.runMin`) leave races out too, and a race week must not lose its shake-out runs.
+ */
+const VOLUME_KINDS: ReadonlySet<SessionKind> = MUTABLE_KINDS
 const EPS = 1e-9
 
 /** One completed or projected run. */
@@ -45,11 +48,12 @@ interface RunRecord {
   lossM: number | null
 }
 
+/** Maxima of the 30-day window; null when no run in the window records that dimension. */
 interface Reference {
   min: number
-  distanceM: number
-  gainM: number
-  lossM: number
+  distanceM: number | null
+  gainM: number | null
+  lossM: number | null
 }
 
 type DimName = 'duration' | 'distance' | 'gain' | 'descent'
@@ -76,7 +80,9 @@ export function nextWeekCap(plannedMin: number, actualLastWeekMin: number, ramp:
  * (from `history`, or from `state.longest30d` when the history holds no run); planned runs
  * from `state.asOf` on that come earlier count as done, so a multi-week plan has a reference,
  * except runs flagged `override-required`. Descent is estimated by the planned gain (a loop
- * course), because a session carries no descent field. Above 1.10x a run gets `spike-warn`,
+ * course), because a session carries no descent field. A dimension no run in the window records
+ * is not compared and yields an info warning; a recorded 0 (a flat history) is compared, with
+ * the minimum step as the allowance. Races are left out of the weekly minutes. Above 1.10x a run gets `spike-warn`,
  * above 2.00x `override-required`; with the recent-injury flag 1.10x is a hard limit and the
  * run is shortened. A week above the 2-week 30% ceiling or a tightened ramp is shortened; the
  * soft 10% only warns. Every cut leaves a warning with rule ids.
@@ -106,12 +112,13 @@ export function applyGuards(
     const longest = state.longest30d
     const date = addDays(asOf, -1)
     if (longest.durationSec > 0 || longest.distanceM > 0) {
+      // The state stores an unknown maximum as 0, so 0 here reads as "not recorded".
       records.push({
         date,
         min: longest.durationSec / 60,
-        distanceM: longest.distanceM,
-        gainM: longest.gainM,
-        lossM: longest.lossM,
+        distanceM: longest.distanceM > 0 ? longest.distanceM : null,
+        gainM: longest.gainM > 0 ? longest.gainM : null,
+        lossM: longest.lossM > 0 ? longest.lossM : null,
       })
     }
     if (longest.twoDaySec > 0) virtualTwoDay.push({ date, min: longest.twoDaySec / 60 })
@@ -169,7 +176,7 @@ export function applyGuards(
       }
       const outcome = spikeCheck(current)
       items[i] = outcome
-      if (outcome !== null && s.date > asOf && !outcome.flags.includes('override-required')) {
+      if (outcome !== null && !outcome.flags.includes('override-required')) {
         records.push(recordOf(outcome))
       }
     }
@@ -377,12 +384,34 @@ export function applyGuards(
       ...s,
       flags: s.flags.filter((f) => f !== 'spike-warn' && f !== 'override-required'),
     }
+    if (ref.min > 0) {
+      const unknown: Array<[DimName, number | null, number | null]> = [
+        ['distance', s.distanceM, ref.distanceM],
+        ['gain', s.gainM, ref.gainM],
+        ['descent', s.gainM, ref.lossM],
+      ]
+      for (const [name, value, known] of unknown) {
+        if (value === null || value <= 0 || known !== null) continue
+        warn(`spike-none|${name}`, {
+          code: 'spike-no-reference',
+          severity: 'info',
+          message: `No completed run in the ${P.g1.windowDays.value} days before ${s.date} records its ${name}, so the ${name} of planned runs is not compared until runs with it are logged.`,
+          rules: name === 'distance' ? ['g-1'] : ['g-1', 'H4'],
+        })
+      }
+    }
     const dims = dimensionsOf(s, ref)
     const checked = dims.map((d) => ({ d, ...limits(d) }))
     const over = checked.filter((c) => c.level > 0)
     if (over.length === 0) return base
     const level = Math.max(...over.map((c) => c.level))
-    const text = over.map((c) => `${c.d.name} ${(c.d.value / c.d.ref).toFixed(2)}x`).join(', ')
+    const text = over
+      .map((c) =>
+        c.d.ref > 0
+          ? `${c.d.name} ${(c.d.value / c.d.ref).toFixed(2)}x`
+          : `${c.d.name} ${Math.round(c.d.value)} m against none`,
+      )
+      .join(', ')
     const where = `${P.g1.windowDays.value}-day longest completed run`
 
     if (state.risk.recentInjury) {
@@ -411,14 +440,19 @@ export function applyGuards(
 
   function referenceAt(date: string): Reference {
     const window = P.g1.windowDays.value
-    const ref: Reference = { min: 0, distanceM: 0, gainM: 0, lossM: 0 }
+    const ref: Reference = { min: 0, distanceM: null, gainM: null, lossM: null }
+    const max = (a: number | null, b: number | null) => (b === null ? a : Math.max(a ?? 0, b))
     for (const r of records) {
       const ago = daysBetween(r.date, date)
       if (ago < 1 || ago > window) continue
       ref.min = Math.max(ref.min, r.min)
-      ref.distanceM = Math.max(ref.distanceM, r.distanceM ?? 0)
-      ref.gainM = Math.max(ref.gainM, r.gainM ?? 0)
-      ref.lossM = Math.max(ref.lossM, r.lossM ?? 0)
+      // A distance of 0 is a run without a recorded distance; a gain of 0 is a flat run.
+      ref.distanceM = max(
+        ref.distanceM,
+        r.distanceM !== null && r.distanceM > 0 ? r.distanceM : null,
+      )
+      ref.gainM = max(ref.gainM, r.gainM)
+      ref.lossM = max(ref.lossM, r.lossM)
     }
     return ref
   }
@@ -433,9 +467,11 @@ function limits(d: Dim): { level: 0 | 1 | 2; warnLimit: number; overrideLimit: n
   return { level, warnLimit, overrideLimit }
 }
 
+/** The dimensions to compare: a dimension is skipped only when the window holds no record of it. */
 function dimensionsOf(s: SessionSpec, ref: Reference): Dim[] {
+  if (ref.min <= 0) return []
   const dims: Dim[] = [{ name: 'duration', value: s.durationMin, ref: ref.min, minStep: 0 }]
-  if (s.distanceM !== null) {
+  if (s.distanceM !== null && ref.distanceM !== null) {
     dims.push({
       name: 'distance',
       value: s.distanceM,
@@ -445,10 +481,10 @@ function dimensionsOf(s: SessionSpec, ref: Reference): Dim[] {
   }
   if (s.gainM !== null) {
     const minStep = P.h4.minStepGainM.value
-    dims.push({ name: 'gain', value: s.gainM, ref: ref.gainM, minStep })
-    dims.push({ name: 'descent', value: s.gainM, ref: ref.lossM, minStep })
+    if (ref.gainM !== null) dims.push({ name: 'gain', value: s.gainM, ref: ref.gainM, minStep })
+    if (ref.lossM !== null) dims.push({ name: 'descent', value: s.gainM, ref: ref.lossM, minStep })
   }
-  return dims.filter((d) => d.ref > 0)
+  return dims
 }
 
 function ultraCap(options: GuardOptions): number | null {
@@ -493,7 +529,7 @@ function recordOf(s: SessionSpec): RunRecord {
 function weeklyGain(history: Activity[]): Map<string, number> {
   const out = new Map<string, number>()
   for (const a of history) {
-    if (a.type !== 'run' && a.type !== 'race') continue
+    if (a.type !== 'run') continue
     if (
       a.duplicateOfId !== null ||
       a.duplicateStatus === 'possible' ||
