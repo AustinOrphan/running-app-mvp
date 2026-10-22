@@ -40,6 +40,24 @@ function record(o: RowOptions = {}): string {
 const file = (...records: string[]) => [HEADER, ...records].join('\n') + '\n'
 
 describe('parseSmashrunCsv', () => {
+  test('out-of-range duration and distance are row errors; odd elevation and long notes are trimmed', () => {
+    const { rows, errors } = parseSmashrunCsv(
+      file(
+        record({ id: '1', distance: '1e9' }),
+        record({ id: '2', durationMs: '1e15' }),
+        record({ id: '3', gain: '1e9', description: 'n'.repeat(5000) }),
+      ),
+    )
+    expect(errors).toEqual([
+      { line: 2, reason: 'distance out of range' },
+      { line: 3, reason: 'duration out of range' },
+    ])
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.providerKey).toBe('smashrun:3')
+    expect(rows[0]?.elevationGainM).toBeNull()
+    expect(rows[0]?.notes).toHaveLength(2000)
+  })
+
   test('fixture parses to three rows', () => {
     const { rows, errors } = parseSmashrunCsv(fixture)
     expect(errors).toEqual([])

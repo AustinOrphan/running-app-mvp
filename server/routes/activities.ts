@@ -6,6 +6,12 @@ import { loadActivities, toActivity } from '../serialize.ts'
 import { markDuplicates, releaseDuplicates, releaseDuplicatesOf } from '../services/duplicates.ts'
 import { findPossibleDuplicate } from '../../shared/domain/duplicates.ts'
 import { isIsoDate, todayIso } from '../../shared/dates.ts'
+import {
+  MAX_DISTANCE_M,
+  MAX_DURATION_SEC,
+  MAX_ELEVATION_GAIN_M,
+  MAX_NOTES,
+} from '../../shared/limits.ts'
 import { mToMiles } from '../../shared/units.ts'
 
 const dateSchema = z
@@ -32,16 +38,16 @@ const activitySchema = z.object({
     .nullish()
     .transform((value) => value ?? null),
   type: z.enum(['run', 'race', 'strength', 'cross']),
-  durationSec: z.number().int().min(1).max(172_800),
-  distanceM: optionalInt(0, 1_000_000),
+  durationSec: z.number().int().min(1).max(MAX_DURATION_SEC),
+  distanceM: optionalInt(0, MAX_DISTANCE_M),
   rpe: optionalInt(1, 10),
   avgHr: optionalInt(30, 250),
   maxHr: optionalInt(30, 250),
-  elevationGainM: optionalInt(0, 9000),
+  elevationGainM: optionalInt(0, MAX_ELEVATION_GAIN_M),
   notes: z
     .string()
     .trim()
-    .max(2000)
+    .max(MAX_NOTES)
     .nullish()
     .transform((value) => (value ? value : null)),
 })

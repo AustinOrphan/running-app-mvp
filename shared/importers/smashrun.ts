@@ -1,5 +1,6 @@
 import { isIsoDate } from '../dates.ts'
 import type { Units } from '../types.ts'
+import { MAX_DISTANCE_M, MAX_DURATION_SEC, MAX_ELEVATION_GAIN_M, MAX_NOTES } from '../limits.ts'
 import { kmToM, milesToM } from '../units.ts'
 import { parseCsv } from './csv.ts'
 import type { ImportRow, RowError } from './csv.ts'
@@ -205,13 +206,23 @@ export function parseSmashrunCsv(
       errors.push({ line, reason: 'distance must be positive' })
       return
     }
+    if (distanceM > MAX_DISTANCE_M) {
+      errors.push({ line, reason: 'distance out of range' })
+      return
+    }
     const durationMs = at('durationMs') === '' ? NaN : Number(at('durationMs'))
     const durationSec = Math.round(durationMs / 1000)
     if (!Number.isFinite(durationMs) || durationSec <= 0) {
       errors.push({ line, reason: 'duration must be positive' })
       return
     }
+    if (durationSec > MAX_DURATION_SEC) {
+      errors.push({ line, reason: 'duration out of range' })
+      return
+    }
     const gain = at('elevationGained') === '' ? NaN : Number(at('elevationGained'))
+    const gainM =
+      Number.isFinite(gain) && gain >= 0 ? Math.round(metric ? gain : gain * M_PER_FOOT) : null
 
     rows.push({
       providerKey: `smashrun:${runId}`,
@@ -221,9 +232,8 @@ export function parseSmashrunCsv(
       distanceM,
       avgHr: heartRate(at('hrAverage')),
       maxHr: heartRate(at('hrMax')),
-      elevationGainM:
-        Number.isFinite(gain) && gain >= 0 ? Math.round(metric ? gain : gain * M_PER_FOOT) : null,
-      notes: at('description') || null,
+      elevationGainM: gainM !== null && gainM <= MAX_ELEVATION_GAIN_M ? gainM : null,
+      notes: at('description').slice(0, MAX_NOTES) || null,
     })
   })
   return { rows, errors }
