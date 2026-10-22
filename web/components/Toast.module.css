@@ -1,0 +1,43 @@
+.region {
+  position: fixed;
+  z-index: 50;
+  left: var(--gutter);
+  right: var(--gutter);
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--space-3));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-toast);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  pointer-events: auto;
+  animation: toast-in var(--dur-fast) var(--ease-out);
+}
+
+@media (min-width: 900px) {
+  .region {
+    left: calc(var(--rail-w) + var(--gutter));
+    right: auto;
+    bottom: var(--space-5);
+    width: 24rem;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+  }
+}
