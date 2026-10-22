@@ -177,7 +177,7 @@ function allocateBuildWeeks(build: number, skipRestart: boolean): Map<BuildPhase
 
 export function generatePlan(input: GeneratePlanInput): PlanWeekInput[] {
   const { distanceClass, strengthPreference } = input
-  if (!(input.baselineRunMin >= 1)) {
+  if (!Number.isFinite(input.baselineRunMin) || input.baselineRunMin < 1) {
     throw new RangeError('baselineRunMin must be at least 1')
   }
   const baseline = Math.round(input.baselineRunMin)

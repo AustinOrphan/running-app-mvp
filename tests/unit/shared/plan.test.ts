@@ -278,7 +278,9 @@ describe('generatePlan', () => {
   test('race in the starting week gives a race-only plan; invalid input throws', () => {
     expect(planOf(1)).toHaveLength(1)
     expect(() => generatePlan({ ...fixture, raceDate: '2026-02-20' })).toThrow(RangeError)
-    expect(() => generatePlan({ ...fixture, baselineRunMin: 0 })).toThrow(RangeError)
+    for (const baselineRunMin of [0, 0.5, -10, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => generatePlan({ ...fixture, baselineRunMin })).toThrow(RangeError)
+    }
   })
 
   test('every week has non-empty focus text and integer minutes', () => {
