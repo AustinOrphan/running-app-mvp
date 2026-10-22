@@ -175,6 +175,24 @@ export const dGoal = {
       note: 'Default: weeks needed are multiplied by 4/3 to allow for cutback weeks (3:1), plus the taper.',
     }),
   },
+  d4LongRun: {
+    ultra50: param('d4LongRun.ultra50', 180, 'D', 'D4', [], {
+      unit: 'min',
+      note: 'Default: longest single run the feasibility check works toward for a 50 km ultra; back-to-back days (H3) add time on feet beyond it, and the H2 cap stays the ceiling. No study sets it.',
+    }),
+    ultra100k: param('d4LongRun.ultra100k', 240, 'D', 'D4', [], {
+      unit: 'min',
+      note: 'Default: longest single run the feasibility check works toward for 100 km; back-to-backs add time on feet, H2 caps it. No study sets it.',
+    }),
+    ultra100mi: param('d4LongRun.ultra100mi', 240, 'D', 'D4', [], {
+      unit: 'min',
+      note: 'Default: longest single run the feasibility check works toward for 100 miles; back-to-backs add time on feet, H2 caps it. No study sets it.',
+    }),
+    beyond: param('d4LongRun.beyond', 270, 'D', 'D4', [], {
+      unit: 'min',
+      note: 'Default: longest single run the feasibility check works toward beyond 100 miles; back-to-backs add time on feet, H2 caps it. No study sets it.',
+    }),
+  },
   d4Label: {
     comfortableMargin: param('d4Label.comfortableMargin', 1.25, 'D', 'D4', [], {
       unit: 'ratio of weeks available to weeks needed',

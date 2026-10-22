@@ -339,7 +339,7 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
     expect(feasibility(makeModel(), state, TODAY).weeksNeeded).toBe(3)
   })
 
-  it('counts time on feet for an ultra: the lesser of 6 h or 60% of the expected duration', () => {
+  it('counts time on feet for an ultra: the class target, capped by 6 h or 60% of the expected duration', () => {
     const state = makeState({ longestM: 15000, longestSec: 7200 })
     const ultra = makeModel({
       distanceClass: 'ultra50',
@@ -348,11 +348,15 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
       goalType: 'finish',
       expectedDurationSec: 18000,
     })
-    // 60% of 5 h = 3 h is below the 6 h cap.
-    expect(feasibility(ultra, state, TODAY).weeksNeeded).toBe(d4Weeks(7200, 10800, 2))
+    // The 50 km target (3 h) equals 60% of 5 h and sits below the 6 h cap.
+    expect(feasibility(ultra, state, TODAY).weeksNeeded).toBe(
+      d4Weeks(7200, P.d4LongRun.ultra50.value * 60, 2),
+    )
     const long = { ...ultra, distanceClass: 'ultra100mi' as const, expectedDurationSec: 36 * 3600 }
-    // 60% of 36 h = 21.6 h; the 6 h cap governs; 100-mile taper is 14 days.
-    expect(feasibility(long, state, TODAY).weeksNeeded).toBe(d4Weeks(7200, 6 * 3600, 2))
+    // The 100-mile target (4 h) sits below both caps (6 h; 60% of 36 h); taper is 14 days.
+    expect(feasibility(long, state, TODAY).weeksNeeded).toBe(
+      d4Weeks(7200, P.d4LongRun.ultra100mi.value * 60, 2),
+    )
   })
 
   it('leaves the current partial week out of the weekly average', () => {

@@ -247,6 +247,16 @@ export const eMacro = {
         note: 'Default: reduced running after a race is this fraction of the pre-taper reference week (H12).',
       },
     ),
+    postRaceLongFractions: param<number[]>(
+      'macroDesign.postRaceLongFractions',
+      [0.25],
+      'D',
+      'design-macro',
+      ['byrne-2024-elite-24h-training'],
+      {
+        note: 'Default: after a race of 100 km or more the rest week is followed by a reduced week at this fraction of the pre-taper reference week (H12); a new plan after the race restarts from the J7 table. No study sets the fraction.',
+      },
+    ),
     polarizedZ2Share: param('macroDesign.polarizedZ2Share', 5, 'D', 'design-macro', [], {
       unit: '% of running time',
       note: 'Default: Z2 share of the optional polarized specific phase for 5-10 km (E4).',

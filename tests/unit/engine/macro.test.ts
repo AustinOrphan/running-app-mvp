@@ -639,9 +639,16 @@ describe('macroPlan: vertical gain and post-race', () => {
     expect(Math.max(...work.map((w) => w.gainTargetM ?? 0))).toBeGreaterThan(0)
   })
 
-  it('adds a rest week then a reduced week after a race of 100 km or more', () => {
-    const post = plan(goal('ultra100k', 26)).filter((w) => w.flags.includes('post-race'))
-    expect(post).toHaveLength(2)
+  it('adds a rest week then reduced weeks after a race of 100 km or more', () => {
+    const weeks = plan(goal('ultra100k', 26))
+    const post = weeks.filter((w) => w.flags.includes('post-race'))
+    const fractions = P.macroDesign.postRaceLongFractions.value
+    expect(post).toHaveLength(1 + fractions.length)
+    const ref = Math.max(...preTaper(weeks).map((w) => w.targetRunMin))
+    fractions.forEach((f, k) => {
+      expect(post[k + 1]?.targetRunMin).toBe(Math.floor(ref * f + 1e-9))
+    })
+    expect(post[1]!.targetRunMin).toBeLessThan(ref * 0.5)
     expect(post[0]?.targetRunMin).toBe(0)
     expect(post[0]?.runDays).toBe(0)
     expect(post[1]?.targetRunMin).toBeGreaterThan(0)

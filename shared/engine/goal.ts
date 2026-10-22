@@ -155,7 +155,12 @@ export function feasibility(goal: GoalModel, state: AthleteState, today: string)
   // Target long run. Ultras count time on feet (H2); shorter goals count distance (D3).
   let longRunWeeks: number
   if (goal.isUltra) {
+    const classTarget =
+      goal.distanceClass in P.d4LongRun
+        ? P.d4LongRun[goal.distanceClass as keyof typeof P.d4LongRun].value * SEC_PER_MIN
+        : Infinity
     const capSec = Math.min(
+      classTarget,
       P.h2.longestRunCapHours.value * SEC_PER_HOUR,
       P.h2.longestRunCapRaceFraction.value * goal.expectedDurationSec,
     )

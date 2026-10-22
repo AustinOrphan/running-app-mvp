@@ -513,7 +513,9 @@ export function macroPlan(
   // After the race: 7 days without running for 100 km and longer, then reduced running [rules H12]
   const reduced = floorEps(reference * P.macroDesign.postRaceReducedFraction.value)
   const restFirst = goal.distanceM >= P.h12.thresholdKm.value * 1000
-  const post = restFirst ? [0, reduced] : [reduced]
+  const post = restFirst
+    ? [0, ...P.macroDesign.postRaceLongFractions.value.map((f) => floorEps(reference * f))]
+    : [reduced]
   post.forEach((minutes, k) => {
     weeks.push({
       weekStart: addDays(firstMonday, 7 * (total + k)),
