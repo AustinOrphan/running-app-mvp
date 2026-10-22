@@ -38,7 +38,7 @@ test('a weekly review of the finished week changes next week target on the plan 
 
   // The review opens on last week, the latest finished week without a completed review.
   await page.getByRole('link', { name: 'Review' }).first().click()
-  await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Review', exact: true })).toBeVisible()
   await expect(page.getByText(/^Week of /)).toBeVisible()
 
   await page.getByRole('radio', { name: 'Data complete' }).click()
