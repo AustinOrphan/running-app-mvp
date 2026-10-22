@@ -1,11 +1,15 @@
 // Regression tests for the defects the plan matrix and the re-plan exposed in earlier modules (Task E9).
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
+import { estimateState } from '../../../shared/engine/athlete.ts'
+import { feasibility } from '../../../shared/engine/goal.ts'
 import { applyGuards } from '../../../shared/engine/guards.ts'
+import { macroPlan } from '../../../shared/engine/macro.ts'
 import { intensityMinutes, placeWeek } from '../../../shared/engine/micro.ts'
 import type { SessionSpec } from '../../../shared/engine/types.ts'
 import type { WeekRow } from '../../../shared/types.ts'
 import { ZONES, profile, session, state, week } from './e6-fixtures.ts'
+import { athletes, TODAY } from './matrix-fixtures.ts'
 
 const row = (weekStart: string, runMin: number): WeekRow => ({
   weekStart,
@@ -88,5 +92,28 @@ describe('placeWeek: zone 2 and 3 together stay under the 25% cap [rules F2]', (
     const sessions = placeWeek(easy, ctx)
     const kinds = ['race-pace', 'threshold', 'long-fast-finish']
     expect(sessions.filter((s) => kinds.includes(s.kind))).toHaveLength(2)
+  })
+})
+
+describe('macroPlan: a re-plan keeps the opening recovery week of the plan it replaces [rules E3]', () => {
+  const half = athletes().find((a) => a.id === 'half')!
+  const plan = (input: typeof half.input) => {
+    const st = estimateState(input)
+    return macroPlan(input, st, input.goal, feasibility(input.goal, st, input.today))
+  }
+  const fresh = plan(half.input)
+  const later = { ...half.input, today: addDays(TODAY, 7) }
+
+  it('lets a new plan open with a loading week only', () => {
+    expect(fresh[0]!.isRecovery).toBe(false)
+    expect(fresh[1]!.isRecovery).toBe(true)
+    expect(plan(later)[0]!.isRecovery).toBe(false)
+  })
+
+  it('keeps the week a recovery week when the replaced plan had it so', () => {
+    const again = plan({ ...later, existing: { weeks: fresh, sessions: [] } })
+    expect(again[0]!.weekStart).toBe(fresh[1]!.weekStart)
+    expect(again[0]!.isRecovery).toBe(true)
+    expect(again.map((w) => w.isRecovery)).toEqual(fresh.slice(1).map((w) => w.isRecovery))
   })
 })
