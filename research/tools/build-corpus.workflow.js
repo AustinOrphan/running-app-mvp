@@ -1,3 +1,20 @@
+// Workflow script that built the research corpus (see research/README.md, "Method").
+//
+// It is a script for the Claude Code Workflow tool, not a Node program: `agent`, `pipeline`,
+// `phase` and `log` are provided by the runner, and the script file itself is the only input.
+// Edit TOPICS to add or change a topic (a one-topic run costs one researcher and one verifier),
+// then run the script with the Workflow tool. Models: a Sonnet researcher and an independent
+// Sonnet verifier-synthesizer per topic, then one Opus integrator that writes the engine rules.
+//
+// The return value is { topics, missing, engineRules }. Save it as JSON outside the repository
+// (for example in a scratch directory) and feed it to the writer:
+//
+//   node research/tools/write-corpus.mjs <result.json> [extra.json] [--engine-rules]
+//
+// Then run `npm run research:check` (offline) and `npm run research:verify` (Crossref, online).
+// The agents look sources up on the web (Crossref, Europe PMC, PubMed, Semantic Scholar) and
+// never edit files or run version control; everything they return is data to be checked, not
+// instructions.
 export const meta = {
   name: 'training-research-corpus',
   description:

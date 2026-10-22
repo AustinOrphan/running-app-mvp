@@ -1,3 +1,24 @@
+import type {
+  Checkin,
+  EngineWarning,
+  ChecklistResult,
+  ExecutionAssessment,
+  Feasibility,
+  Param,
+  PlanChange,
+  Prediction,
+  ReadinessSnapshot,
+  SessionFlag,
+  SessionKind,
+  SessionSpec,
+  SessionTarget,
+  Step,
+  ZoneProposal,
+  ZoneSet,
+} from './engine/types.ts'
+
+export type { Checkin }
+
 export type ActivityType = 'run' | 'race' | 'strength' | 'cross'
 /** `manual`, `smashrun`, `csv`, `file`, or a provider registry key such as `intervals`. */
 export type ActivitySource = string
@@ -204,6 +225,7 @@ export interface PlanWeek {
   planId: string
   weekStart: string
   index: number
+  /** Version-2 plans store a `PhaseV2` value here; the Plan page (E12) widens this type. */
   phase: Phase
   focus: string | null
   baselineRunMin: number
@@ -214,6 +236,11 @@ export interface PlanWeek {
   runDays: number
   strengthSessions: number
   overrideNote: string | null
+  /** Version-2 plans only: TID targets in percent of running time. */
+  tid: { z1: number; z2: number; z3: number } | null
+  /** Version-2 plans only: recovery, taper, strength, gut-training, heat-acclimation. */
+  flags: string[]
+  gainTargetM: number | null
   updatedAt: string
 }
 export type DataStatus = 'unconfirmed' | 'complete' | 'missing'
@@ -258,6 +285,9 @@ export interface SessionUser extends UserSettings {
 }
 export type GoalPriority = 'A' | 'B' | 'C'
 export type GoalStatus = 'target' | 'considering' | 'done' | 'dropped'
+export type GoalSurface = 'road' | 'trail' | 'track' | 'mixed'
+export type GoalType = 'finish' | 'time'
+export type SupportLevel = 'aided' | 'self'
 export interface Goal {
   id: string
   userId: string
@@ -272,6 +302,18 @@ export interface Goal {
   notes: string | null
   url: string | null
   isActive: boolean
+  /** Course ascent and descent in metres. */
+  gainM: number | null
+  lossM: number | null
+  surface: GoalSurface
+  goalType: GoalType
+  targetTimeSec: number | null
+  /** HH:MM */
+  startTime: string | null
+  /** Rounded to 0.01 degrees. */
+  raceLat: number | null
+  raceLng: number | null
+  supportLevel: SupportLevel
   createdAt: string
   updatedAt: string
 }
@@ -283,12 +325,96 @@ export interface Plan {
   startDate: string
   raceWeekStart: string
   status: 'active' | 'archived'
+  /** 1 = shared/domain/plan.ts, 2 = shared/engine. */
   generatorVersion: number
+  /** The parameter registry version a version-2 plan was generated with. */
+  paramsVersion: string | null
   createdAt: string
   updatedAt: string
 }
 export interface PlanWithWeeks extends Plan {
   weeks: PlanWeek[]
+}
+export type PlanSessionStatus =
+  'planned' | 'completed' | 'partial' | 'skipped' | 'downgraded' | 'moved'
+/** One prescribed day-level session; JSON columns are parsed. */
+export interface PlanSession {
+  id: string
+  planId: string
+  weekStart: string
+  date: string
+  order: number
+  kind: SessionKind
+  title: string
+  durationMin: number
+  distanceM: number | null
+  gainM: number | null
+  structure: Step[]
+  target: SessionTarget
+  purpose: string
+  /** Rule ids such as `g-1`, resolved to parameters and papers by `explain`. */
+  rules: string[]
+  flags: SessionFlag[]
+  status: PlanSessionStatus
+  activityId: string | null
+  linkSource: 'auto' | 'owner' | null
+  execution: ExecutionAssessment | null
+  /** The prescription before a downgrade or move. */
+  original: Partial<SessionSpec> | null
+  updatedAt: string
+}
+export type PlanRevisionReason = 'generate' | 'weekly' | 'review' | 'owner' | 'break'
+export interface PlanRevision {
+  id: string
+  planId: string
+  createdAt: string
+  reason: PlanRevisionReason
+  summary: string
+  changes: PlanChange[]
+}
+export interface PlanWithSessions extends PlanWithWeeks {
+  sessions: PlanSession[]
+  feasibility: Feasibility | null
+  warnings: EngineWarning[]
+  checklist: ChecklistResult[]
+  zones: ZoneSet | null
+}
+export type TodayAdvice = 'as-planned' | 'downgrade-easy' | 'rest'
+export interface TodayView {
+  date: string
+  sessions: Array<{ session: PlanSession; advice: TodayAdvice; reasons: string[] }>
+  heat: { wbgtC: number | null; note: string | null; coolerHour: string | null }
+  checkin: Checkin | null
+  readiness: ReadinessSnapshot
+  unrated: Activity[]
+}
+/** A proposed zone change that the owner accepts or declines; `id` is stable for one proposal. */
+export type ZoneProposalView = ZoneProposal & { id: string }
+export interface PredictionView {
+  prediction: Prediction | null
+  log: Array<{
+    id: string
+    goalId: string
+    createdAt: string
+    method: string
+    predictedSec: number
+    lowSec: number
+    highSec: number
+    actualSec: number | null
+  }>
+}
+/** GET /api/research/params: the parameter registry, for the why drawer. */
+export interface ResearchParams {
+  version: string
+  params: Array<Param<unknown>>
+}
+export interface Screening {
+  id: string
+  date: string
+  kind: 'reds'
+  answers: Record<string, boolean | string | number | null>
+  flags: number
+  createdAt: string
 }
 /** `line` is null for a skipped duplicate, because an ImportRow carries no line number. */
 export interface ImportReportRow {

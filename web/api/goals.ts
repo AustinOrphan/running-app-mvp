@@ -1,5 +1,12 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import type { Goal, GoalPriority, GoalStatus } from '../../shared/types.ts'
+import type {
+  Goal,
+  GoalPriority,
+  GoalStatus,
+  GoalSurface,
+  GoalType,
+  SupportLevel,
+} from '../../shared/types.ts'
 import { api, keys } from './client.ts'
 
 export interface GoalInput {
@@ -13,6 +20,16 @@ export interface GoalInput {
   successCriteria?: string | null
   notes?: string | null
   url?: string | null
+  /** Race descriptors for the training engine; the server defaults the omitted ones. */
+  gainM?: number | null
+  lossM?: number | null
+  surface?: GoalSurface
+  goalType?: GoalType
+  targetTimeSec?: number | null
+  startTime?: string | null
+  raceLat?: number | null
+  raceLng?: number | null
+  supportLevel?: SupportLevel
 }
 
 /** The active goal decides which plan is shown, so goal changes refresh the plan too. */

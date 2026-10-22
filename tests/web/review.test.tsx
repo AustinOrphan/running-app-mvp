@@ -43,6 +43,9 @@ function planWeek(weekStart: string, over: Partial<PlanWeek> = {}): PlanWeek {
     runDays: 4,
     strengthSessions: 2,
     overrideNote: null,
+    tid: null,
+    flags: [],
+    gainTargetM: null,
     updatedAt: '2026-10-01T00:00:00.000Z',
     ...over,
   }
@@ -58,6 +61,7 @@ function makePlan(weeks: PlanWeek[]): PlanWithWeeks {
     raceWeekStart: '2027-01-04',
     status: 'active',
     generatorVersion: 1,
+    paramsVersion: null,
     createdAt: '2026-10-01T00:00:00.000Z',
     updatedAt: '2026-10-01T00:00:00.000Z',
     weeks,

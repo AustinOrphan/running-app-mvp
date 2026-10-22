@@ -5,14 +5,31 @@ import type {
   ImportBatch as ImportBatchRow,
   Integration as IntegrationRow,
   Plan as PlanRow,
+  PlanRevision as PlanRevisionRow,
+  PlanSession as PlanSessionRow,
   PlanWeek as PlanWeekRow,
+  PredictionLog as PredictionLogRow,
+  Screening as ScreeningRow,
   PrismaClient,
   WeeklyReview as WeeklyReviewRow,
   WellnessDay as WellnessDayRow,
 } from './db.ts'
 import type {
+  ChecklistResult,
+  EngineWarning,
+  ExecutionAssessment,
+  Feasibility,
+  PlanChange,
+  SessionFlag,
+  SessionKind,
+  SessionSpec,
+  SessionTarget,
+  Step,
+} from '../shared/engine/types.ts'
+import type {
   Activity,
   ActivityType,
+  Checkin,
   AthleteProfile,
   Availability,
   DataStatus,
@@ -21,14 +38,23 @@ import type {
   Goal,
   GoalPriority,
   GoalStatus,
+  GoalSurface,
+  GoalType,
   HrHistogram,
   ImportBatch,
   ImportReportRow,
   Injury,
   IntegrationStatus,
-  Phase,
   Plan,
+  Phase,
+  PlanRevision,
+  PlanRevisionReason,
+  PlanSession,
+  PlanSessionStatus,
   PlanWeek,
+  PredictionView,
+  Screening,
+  SupportLevel,
   ProviderInfo,
   SuggestedAction,
   Symptoms,
@@ -227,6 +253,15 @@ export function toGoal(row: GoalRow): Goal {
     notes: row.notes,
     url: row.url,
     isActive: row.isActive,
+    gainM: row.gainM,
+    lossM: row.lossM,
+    surface: row.surface as GoalSurface,
+    goalType: row.goalType as GoalType,
+    targetTimeSec: row.targetTimeSec,
+    startTime: row.startTime,
+    raceLat: row.raceLat,
+    raceLng: row.raceLng,
+    supportLevel: row.supportLevel as SupportLevel,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -242,6 +277,7 @@ export function toPlan(row: PlanRow): Plan {
     raceWeekStart: row.raceWeekStart,
     status: row.status as Plan['status'],
     generatorVersion: row.generatorVersion,
+    paramsVersion: row.paramsVersion,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -263,6 +299,9 @@ export function toPlanWeek(row: PlanWeekRow): PlanWeek {
     runDays: row.runDays,
     strengthSessions: row.strengthSessions,
     overrideNote: row.overrideNote,
+    tid: parseJson<PlanWeek['tid']>(row.tid, null),
+    flags: parseJson<string[]>(row.flags, []),
+    gainTargetM: row.gainTargetM,
     updatedAt: row.updatedAt.toISOString(),
   }
 }
@@ -285,6 +324,115 @@ export function toWeeklyReview(row: WeeklyReviewRow): WeeklyReview {
     reviewedAt: row.reviewedAt ? row.reviewedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
+/** The version-2 columns of a plan that `toPlan` leaves out. */
+export function toPlanEngineFields(row: PlanRow): {
+  feasibility: Feasibility | null
+  warnings: EngineWarning[]
+  checklist: ChecklistResult[]
+  options: Record<string, unknown>
+} {
+  return {
+    feasibility: parseJson<Feasibility | null>(row.feasibility, null),
+    warnings: parseJson<EngineWarning[]>(row.warnings, []),
+    checklist: parseJson<ChecklistResult[]>(row.checklist, []),
+    options: parseJson<Record<string, unknown>>(row.options, {}),
+  }
+}
+
+export function toPlanSession(row: PlanSessionRow): PlanSession {
+  return {
+    id: row.id,
+    planId: row.planId,
+    weekStart: row.weekStart,
+    date: row.date,
+    order: row.order,
+    kind: row.kind as SessionKind,
+    title: row.title,
+    durationMin: row.durationMin,
+    distanceM: row.distanceM,
+    gainM: row.gainM,
+    structure: parseJson<Step[]>(row.structure, []),
+    target: parseJson<SessionTarget>(row.target, {
+      zone: 'rest',
+      rpe: [0, 0],
+      hr: null,
+      paceSecPerKm: null,
+      heatNote: null,
+    }),
+    purpose: row.purpose,
+    rules: parseJson<string[]>(row.rules, []),
+    flags: parseJson<SessionFlag[]>(row.flags, []),
+    status: row.status as PlanSessionStatus,
+    activityId: row.activityId,
+    linkSource: row.linkSource as PlanSession['linkSource'],
+    execution: parseJson<ExecutionAssessment | null>(row.execution, null),
+    original: parseJson<Partial<SessionSpec> | null>(row.original, null),
+    updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
+export function toPlanRevision(row: PlanRevisionRow): PlanRevision {
+  return {
+    id: row.id,
+    planId: row.planId,
+    createdAt: row.createdAt.toISOString(),
+    reason: row.reason as PlanRevisionReason,
+    summary: row.summary,
+    changes: parseJson<PlanChange[]>(row.changes, []),
+  }
+}
+
+/** The check-in fields of a wellness row; null when none of them was ever filled in. */
+export function toCheckin(row: WellnessDayRow): Checkin | null {
+  const filled =
+    row.fatigue !== null ||
+    row.soreness !== null ||
+    row.sleepQuality !== null ||
+    row.mood !== null ||
+    row.stress !== null ||
+    row.illness ||
+    row.painScore !== null ||
+    row.painArea !== null ||
+    row.painFocalBone
+  if (!filled) return null
+  return {
+    date: row.date,
+    fatigue: row.fatigue,
+    soreness: row.soreness,
+    sleepQuality: row.sleepQuality,
+    mood: row.mood,
+    stress: row.stress,
+    illness: row.illness,
+    painScore: row.painScore,
+    painArea: row.painArea,
+    painFocalBone: row.painFocalBone,
+  }
+}
+
+export function toScreening(row: ScreeningRow): Screening {
+  return {
+    id: row.id,
+    date: row.date,
+    kind: row.kind as Screening['kind'],
+    answers: parseJson<Screening['answers']>(row.answers, {}),
+    flags: row.flags,
+    createdAt: row.createdAt.toISOString(),
+  }
+}
+
+export function toPredictionLogEntry(row: PredictionLogRow): PredictionView['log'][number] {
+  return {
+    id: row.id,
+    goalId: row.goalId,
+    createdAt: row.createdAt.toISOString(),
+    method: row.method,
+    predictedSec: row.predictedSec,
+    lowSec: row.lowSec,
+    highSec: row.highSec,
+    actualSec: row.actualSec,
   }
 }
 

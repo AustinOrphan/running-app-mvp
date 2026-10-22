@@ -13,7 +13,11 @@ export type {
   ImportedFile,
   Integration,
   Plan,
+  PlanRevision,
+  PlanSession,
   PlanWeek,
+  PredictionLog,
+  Screening,
   WeeklyReview,
   WellnessDay,
 } from '../generated/prisma/client.ts'

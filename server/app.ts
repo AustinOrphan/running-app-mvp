@@ -11,18 +11,24 @@ import type { Config } from './config.ts'
 import { apiNotFound, errorHandler } from './errors.ts'
 import { createLogger } from './logger.ts'
 import { activitiesRouter } from './routes/activities.ts'
+import { checkinsRouter } from './routes/checkins.ts'
 import { goalsRouter } from './routes/goals.ts'
 import { healthRouter } from './routes/health.ts'
 import { importsRouter } from './routes/imports.ts'
 import { ingestRouter } from './routes/ingest.ts'
 import { integrationsRouter } from './routes/integrations.ts'
 import { planRouter } from './routes/plan.ts'
+import { predictionsRouter } from './routes/predictions.ts'
 import { profileRouter } from './routes/profile.ts'
+import { researchRouter } from './routes/research.ts'
 import { reviewsRouter } from './routes/reviews.ts'
+import { screeningsRouter } from './routes/screenings.ts'
 import { settingsRouter } from './routes/settings.ts'
+import { todayRouter } from './routes/today.ts'
 import { weatherRouter } from './routes/weather.ts'
 import { weeksRouter } from './routes/weeks.ts'
 import { wellnessRouter } from './routes/wellness.ts'
+import { zonesRouter } from './routes/zones.ts'
 import { mountStatic } from './static.ts'
 
 export interface Deps {
@@ -98,6 +104,12 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/wellness', wellnessRouter(deps))
   app.use('/api/integrations', integrationsRouter(deps))
   app.use('/api/weather', weatherRouter(deps))
+  app.use('/api/today', todayRouter(deps))
+  app.use('/api/checkins', checkinsRouter(deps))
+  app.use('/api/zones', zonesRouter(deps))
+  app.use('/api/predictions', predictionsRouter(deps))
+  app.use('/api/screenings', screeningsRouter(deps))
+  app.use('/api/research', researchRouter(deps))
 
   app.use(apiNotFound)
   mountStatic(app)

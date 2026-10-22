@@ -1,13 +1,36 @@
-// Writes the research workflow result into research/ in the repository.
-// Merges papers by DOI (or PMID), rewrites duplicate ids in rules and syntheses.
+// Writes a corpus workflow result into research/ (papers, topics, rules).
+//
+//   node research/tools/write-corpus.mjs <result.json> [extra.json] [--engine-rules]
+//
+// <result.json>   the JSON returned by build-corpus.workflow.js (topics, missing, engineRules).
+// [extra.json]    optional: an array of extra topics in the same shape as result.topics, for a
+//                 second pass on one topic (for example terrain-elevation).
+// --engine-rules  also overwrite research/engine-rules.md with result.engineRules. Off by
+//                 default because that file is edited by hand after integration (terrain
+//                 additions, resolved conflicts) and the workflow output would discard those.
+//
+// The script merges into research/: papers already stored keep their ids and files, and a new
+// record with the same DOI (or PMID, or id) joins the stored paper. A repeated id for another
+// paper gets a numeric suffix, and every citation in the rules and syntheses of the topics in
+// the input is rewritten to the final id. It writes research/topics/<key>.md and
+// research/rules/<key>.json only for the topics in the input and never deletes a file.
+// Paths are relative to this file; nothing outside the repository is read except the inputs.
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const ROOT = '/Users/austinorphan/src/running-app-mvp/.claude/worktrees/rewrite/research'
-const result = JSON.parse(
-  fs.readFileSync('/Users/austinorphan/.claude/jobs/938a2fff/tmp/research-result.json', 'utf8'),
-)
-const extra = process.argv[2] ? JSON.parse(fs.readFileSync(process.argv[2], 'utf8')) : []
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const args = process.argv.slice(2)
+const writeEngineRules = args.includes('--engine-rules')
+const [resultPath, extraPath] = args.filter((arg) => !arg.startsWith('--'))
+if (!resultPath) {
+  console.error(
+    'usage: node research/tools/write-corpus.mjs <result.json> [extra.json] [--engine-rules]',
+  )
+  process.exit(2)
+}
+const result = JSON.parse(fs.readFileSync(path.resolve(resultPath), 'utf8'))
+const extra = extraPath ? JSON.parse(fs.readFileSync(path.resolve(extraPath), 'utf8')) : []
 const topics = [...result.topics.filter((t) => t.papers.length > 0), ...extra]
 
 const canonicalByKey = new Map() // doi|pmid|id -> canonical id
@@ -18,6 +41,16 @@ function keyOf(p) {
   if (p.doi) return `doi:${p.doi.toLowerCase().trim()}`
   if (p.pmid) return `pmid:${p.pmid}`
   return `id:${p.id}`
+}
+
+// Papers already in research/papers keep their ids; a new record with the same DOI merges into one.
+const today = new Date().toISOString().slice(0, 10)
+fs.mkdirSync(path.join(ROOT, 'papers'), { recursive: true })
+for (const file of fs.readdirSync(path.join(ROOT, 'papers')).filter((f) => f.endsWith('.json'))) {
+  const stored = JSON.parse(fs.readFileSync(path.join(ROOT, 'papers', file), 'utf8'))
+  papers.set(stored.id, stored)
+  canonicalByKey.set(keyOf(stored), stored.id)
+  idMap.set(stored.id, stored.id)
 }
 
 for (const t of topics) {
@@ -51,8 +84,7 @@ for (const t of topics) {
 
 const resolve = (topicKey, id) => idMap.get(`${topicKey}::${id}`) ?? idMap.get(id) ?? null
 
-fs.rmSync(ROOT, { recursive: true, force: true })
-for (const d of ['papers', 'topics', 'rules']) fs.mkdirSync(path.join(ROOT, d), { recursive: true })
+for (const d of ['topics', 'rules']) fs.mkdirSync(path.join(ROOT, d), { recursive: true })
 
 for (const [id, p] of [...papers].sort(([a], [b]) => a.localeCompare(b))) {
   const out = {
@@ -72,7 +104,7 @@ for (const [id, p] of [...papers].sort(([a], [b]) => a.localeCompare(b))) {
     findings: p.findings,
     limitations: p.limitations,
     implications: p.implications,
-    verification: { ...p.verification, checkedAt: '2026-10-22' },
+    verification: { ...p.verification, checkedAt: p.verification.checkedAt ?? today },
   }
   fs.writeFileSync(path.join(ROOT, 'papers', `${id}.json`), JSON.stringify(out, null, 2) + '\n')
 }
@@ -108,19 +140,23 @@ for (const t of topics) {
   fs.writeFileSync(path.join(ROOT, 'topics', `${t.key}.md`), md)
 }
 
-let engine = result.engineRules.replace(/\[([a-z0-9][a-z0-9-]*)\]/g, (m, id) => {
-  const c = idMap.get(id)
-  return c ? `[${c}]` : m
-})
-fs.writeFileSync(path.join(ROOT, 'engine-rules.md'), engine.trim() + '\n')
+if (writeEngineRules) {
+  const engine = result.engineRules.replace(/\[([a-z0-9][a-z0-9-]*)\]/g, (m, id) => {
+    const c = idMap.get(id)
+    return c ? `[${c}]` : m
+  })
+  fs.writeFileSync(path.join(ROOT, 'engine-rules.md'), engine.trim() + '\n')
+}
 
-const unknownInEngine = [
-  ...new Set(
-    [...result.engineRules.matchAll(/\[([a-z0-9][a-z0-9-]*-(?:19|20)\d\d[a-z0-9-]*)\]/g)].map(
-      (m) => m[1],
-    ),
-  ),
-].filter((id) => !idMap.has(id))
+const unknownInEngine = writeEngineRules
+  ? [
+      ...new Set(
+        [...result.engineRules.matchAll(/\[([a-z0-9][a-z0-9-]*-(?:19|20)\d\d[a-z0-9-]*)\]/g)].map(
+          (m) => m[1],
+        ),
+      ),
+    ].filter((id) => !idMap.has(id))
+  : []
 console.log(
   `papers ${papers.size}; topics ${topics.length}; unresolved rule refs ${unresolved.length}; unknown ids in engine-rules ${unknownInEngine.length}`,
 )

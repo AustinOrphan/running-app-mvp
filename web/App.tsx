@@ -13,6 +13,7 @@ import { LoginPage } from './pages/LoginPage.tsx'
 import { MorePage } from './pages/MorePage.tsx'
 import { PlanPage } from './pages/PlanPage.tsx'
 import { ProfilePage } from './pages/ProfilePage.tsx'
+import { ResearchPage } from './pages/ResearchPage.tsx'
 import { ReviewPage } from './pages/ReviewPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
 import { SetupPage } from './pages/SetupPage.tsx'
@@ -62,6 +63,7 @@ export function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/research" element={<ResearchPage />} />
           <Route path="/more" element={<MorePage />} />
         </Route>
       </Route>

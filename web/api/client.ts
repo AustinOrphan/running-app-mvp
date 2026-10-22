@@ -132,4 +132,12 @@ export const keys = {
   wellness: 'wellness',
   integrations: 'integrations',
   activityDetail: 'activityDetail',
+  planRevisions: 'planRevisions',
+  today: 'today',
+  checkins: 'checkins',
+  zones: 'zones',
+  zoneProposals: 'zoneProposals',
+  predictions: 'predictions',
+  screenings: 'screenings',
+  researchParams: 'researchParams',
 } as const

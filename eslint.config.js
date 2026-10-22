@@ -13,6 +13,8 @@ export default tseslint.config(
       'test-results',
       'node_modules',
       'generated',
+      // A script for the Workflow tool: top-level return and runner-provided globals.
+      'research/tools/build-corpus.workflow.js',
     ],
   },
   js.configs.recommended,
@@ -36,7 +38,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.js'],
+    files: ['**/*.{js,mjs}'],
     languageOptions: { globals: globals.node },
   },
   {
