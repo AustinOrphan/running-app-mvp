@@ -1,0 +1,133 @@
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--page-max);
+  padding-bottom: var(--space-6);
+}
+
+.heroLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.display {
+  font-family: var(--font-serif);
+  font-size: var(--text-display);
+  line-height: var(--lh-display);
+  font-weight: 500;
+}
+
+.heroUnit {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  color: var(--text-muted);
+}
+
+.muted {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--border);
+}
+
+@media (min-width: 600px) {
+  .figures {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.figureLine {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.figureNumber {
+  font-size: var(--text-xl);
+  line-height: var(--lh-xl);
+  font-weight: 500;
+}
+
+.caption {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.section {
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--border);
+}
+
+.heading {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.flags {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-base);
+}
+
+.flags a {
+  color: var(--accent);
+}
+
+.strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 3rem;
+  margin-bottom: var(--space-2);
+}
+
+.bar,
+.barEmpty {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+
+.bar {
+  background: var(--chart-actual);
+}
+
+.barEmpty {
+  background: var(--border);
+}

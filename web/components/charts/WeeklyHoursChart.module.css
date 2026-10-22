@@ -1,0 +1,16 @@
+.figure {
+  position: relative;
+  margin: 0;
+}
+
+.chart {
+  width: 100%;
+  height: 12.5rem;
+}
+
+.caption {
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
