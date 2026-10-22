@@ -369,6 +369,25 @@ describe('duplicate flagging', () => {
     })
   })
 
+  test('editing an original keeps a confirmed row while the pair still matches and releases it otherwise', async () => {
+    const imported = await seedImported()
+    const manual = await post({ ...run, distanceM: 5030 })
+    const id = json(manual).id
+    await client(ctx, user).post(`/api/activities/${id}/duplicate`).send({ status: 'confirmed' })
+
+    await client(ctx, user)
+      .put(`/api/activities/${imported.id}`)
+      .send({ ...run, distanceM: 5010 })
+    const still = await client(ctx, user).get(`/api/activities/${id}`)
+    expect(still.body).toMatchObject({ duplicateStatus: 'confirmed', duplicateOfId: imported.id })
+
+    await client(ctx, user)
+      .put(`/api/activities/${imported.id}`)
+      .send({ ...run, distanceM: 5010, date: '2026-03-04' })
+    const released = await client(ctx, user).get(`/api/activities/${id}`)
+    expect(released.body).toMatchObject({ duplicateStatus: 'none', duplicateOfId: null })
+  })
+
   test('deleting the original releases the flagged rows', async () => {
     const imported = await seedImported()
     const possible = await post({ ...run })

@@ -4,6 +4,7 @@ import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { loadActivities, toActivity } from '../serialize.ts'
 import { markDuplicates, releaseDuplicates, releaseDuplicatesOf } from '../services/duplicates.ts'
+import { findPossibleDuplicate } from '../../shared/domain/duplicates.ts'
 import { isIsoDate, todayIso } from '../../shared/dates.ts'
 import { mToMiles } from '../../shared/units.ts'
 
@@ -94,6 +95,26 @@ export function activitiesRouter(deps: Deps): Router {
     return row
   }
 
+  /**
+   * Confirmed rows pointing at an edited original stay confirmed while the pair still matches;
+   * the others go back to `none` so their totals recover. Returns the released ids.
+   */
+  async function releaseStaleConfirmed(userId: string, originalId: string): Promise<string[]> {
+    const original = toActivity(await findOwned(userId, originalId))
+    const confirmed = await prisma.activity.findMany({
+      where: { userId, duplicateOfId: originalId, duplicateStatus: 'confirmed' },
+    })
+    const stale = confirmed
+      .filter((row) => findPossibleDuplicate(toActivity(row), [original]) === null)
+      .map((row) => row.id)
+    if (stale.length === 0) return []
+    await prisma.activity.updateMany({
+      where: { id: { in: stale } },
+      data: { duplicateStatus: 'none', duplicateOfId: null },
+    })
+    return stale
+  }
+
   router.get('/', async (req, res) => {
     const query = parse(listSchema, req.query)
     if (query.from && query.to && query.from > query.to) {
@@ -164,6 +185,7 @@ export function activitiesRouter(deps: Deps): Router {
     })
     if (matchChanged) {
       const released = await releaseDuplicates(prisma, req.userId, id, ['possible'])
+      released.push(...(await releaseStaleConfirmed(req.userId, id)))
       await markDuplicates(prisma, req.userId, [id, ...released])
     }
     res.json(toActivity(await findOwned(req.userId, id)))
