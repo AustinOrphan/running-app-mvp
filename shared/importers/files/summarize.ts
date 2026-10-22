@@ -1,5 +1,6 @@
 // Derived fields for a parsed activity, plus the small helpers the FIT, GPX and TCX parsers share.
 // Everything here is pure and free of Node-only imports so the web bundle can use it too.
+import { gradeAdjustedSpeed } from '../../engine/terrain.ts'
 import type { ActivityStreamData, ActivityType, HrHistogram, ParsedActivity } from '../../types.ts'
 
 export interface ActivitySummary {
@@ -506,20 +507,15 @@ function computeDecoupling(a: ParsedActivity): number | null {
   return Math.round((costSecond / costFirst - 1) * 10_000) / 100
 }
 
-/** Minetti et al. (2002) metabolic cost of running, J/kg/m, at fractional grade `g`. */
-function minettiCost(g: number): number {
-  return 155.4 * g ** 5 - 30.4 * g ** 4 - 43.3 * g ** 3 + 46.3 * g ** 2 + 19.5 * g + 3.6
-}
-
 /**
  * Distance scaled by the cost of the terrain relative to the flat, on a grade smoothed over
- * 30 seconds and clamped to plus or minus 45%.
+ * 30 seconds and clamped to plus or minus 45%. Downhill credit stops at the -20% minimum of the
+ * cost curve (`gradeAdjustedSpeed`, rules I11).
  */
 function computeGapDistance(a: ParsedActivity): number | null {
   const s = a.samples
   if (a.type !== 'run' && a.type !== 'race') return null
   if (!s.d || !s.alt || s.t.length < 2) return null
-  const flat = minettiCost(0)
   const half = GRADE_WINDOW_SEC / 2
   let lo = 0
   let hi = 0
@@ -536,7 +532,7 @@ function computeGapDistance(a: ParsedActivity): number | null {
     const dd = s.d[i + 1]! - s.d[i]!
     if (dd <= 0) continue
     sumDist += dd
-    sumAdjusted += (dd * minettiCost(grade)) / flat
+    sumAdjusted += gradeAdjustedSpeed(dd, grade)
   }
   if (sumDist <= 0) return null
   const factor = sumAdjusted / sumDist
