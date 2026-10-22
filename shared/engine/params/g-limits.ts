@@ -35,6 +35,10 @@ export const gLimits = {
       unit: 'hazard ratio',
       note: 'Observed hazard ratio above the override ratio (descriptive).',
     }),
+    windowDays: param('g1.windowDays', 30, 'B', 'g-1', SPIKE, {
+      unit: 'days',
+      note: 'Window of the longest completed run that every planned run is compared with (also used for the largest 2-day total of h3).',
+    }),
     minStepDistanceM: param('g1.minStepDistanceM', 500, 'D', 'g-1', SPIKE, {
       unit: 'm',
       note: 'Default: when the longest run is short the minimum step is 0.5 km (stored in metres).',
@@ -48,6 +52,14 @@ export const gLimits = {
     rampCeilingTwoWeeks: param('g2.rampCeilingTwoWeeks', 0.3, 'C', 'g-2', RAMP, {
       unit: 'fraction over any 2-week window',
       note: 'Hard ceiling. The stricter 2-week window wins over a per-week 30% ceiling.',
+    }),
+    baselineWeeks: param('g2.baselineWeeks', 2, 'D', 'g-2', RAMP, {
+      unit: 'weeks',
+      note: 'Default: a week is compared with the highest of this many preceding weeks, so the week after a recovery week is not read as a jump.',
+    }),
+    ceilingWindowWeeks: param('g2.ceilingWindowWeeks', 2, 'C', 'g-2', RAMP, {
+      unit: 'weeks',
+      note: 'The 30% ceiling spans 2 weeks: a week is compared with the highest of the weeks that ended this many weeks earlier (stricter than a per-week 30%).',
     }),
     noviceMinStepMin: param('g2.noviceMinStepMin', 1, 'D', 'g-2', ['buist-2008-graded-training'], {
       unit: 'min of running per week',

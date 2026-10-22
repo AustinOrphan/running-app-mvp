@@ -270,4 +270,25 @@ export const fMicro = {
       note: 'Default: no more than 6 run days for runners 40 and over; overridable.',
     }),
   },
+  fplace: {
+    minRunDayMin: param('fplace.minRunDayMin', 15, 'D', 'F5', [], {
+      unit: 'min',
+      note: 'Default: a run day shorter than this is dropped and its minutes stay unplaced (never made up elsewhere); no study sets a minimum run length.',
+    }),
+    strengthSessionMin: param('fplace.strengthSessionMin', 30, 'D', 'F4', [], {
+      unit: 'min',
+      note: 'Default: length of a strength session when it is placed in the week; the dose itself is in flib.heavy*.',
+    }),
+    b2bDay2Fraction: param(
+      'fplace.b2bDay2Fraction',
+      0.6,
+      'D',
+      'H3',
+      ['frandsen-2025-session-spike'],
+      {
+        unit: 'fraction of day 1',
+        note: 'Default: day 2 of a back-to-back pair is this fraction of day 1, within the h3 limits (never longer than day 1).',
+      },
+    ),
+  },
 } satisfies ParamGroups
