@@ -127,7 +127,7 @@ for (const t of topics) {
   const ruleRows = rules
     .map(
       (r) =>
-        `| ${r.id} | ${r.statement.replace(/\|/g, '\\|')} | ${[r.value, r.unit].filter(Boolean).join(' ') || '-'} | ${r.grade} | ${r.confidence} | ${r.evidence.join(', ')} |`,
+        `| ${r.id} | ${r.statement.replace(/[\\|]/g, '\\$&')} | ${[r.value, r.unit].filter(Boolean).join(' ') || '-'} | ${r.grade} | ${r.confidence} | ${r.evidence.join(', ')} |`,
     )
     .join('\n')
   const paperList = [...new Set(t.papers.map((p) => resolve(t.key, p.id)))]
