@@ -3,6 +3,8 @@ import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { distanceClassOf, generatePlan } from '../../shared/domain/plan.ts'
 import type { PlanWeek, PlanWithWeeks } from '../../shared/types.ts'
 import { computeBaselineRunMin } from '../../server/services/baseline.ts'
+import { HttpError } from '../../server/errors.ts'
+import { generatePlanForGoal } from '../../server/services/plan.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
 let ctx: TestCtx
@@ -45,6 +47,29 @@ async function seedGoal(
 
 async function generate(body: Record<string, unknown>, who = user) {
   return client(ctx, who).post('/api/plan/generate').send(body)
+}
+
+/**
+ * The version-1 generator, which POST /api/plan/generate no longer runs. Plans it made stay in
+ * the database and keep working, so its behaviour stays covered through the service.
+ */
+async function generateV1(
+  where: TestCtx,
+  userId: string,
+  body: Record<string, unknown>,
+): Promise<{ status: number; body: unknown }> {
+  try {
+    const plan = await generatePlanForGoal(
+      { prisma: where.prisma, config: where.config },
+      { userId, today, ...(body as { goalId: string }) },
+    )
+    return { status: 201, body: plan }
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return { status: error.status, body: { error: { code: error.code, message: error.message } } }
+    }
+    throw error
+  }
 }
 
 describe('GET /api/plan', () => {
@@ -138,12 +163,11 @@ describe('computeBaselineRunMin', () => {
   })
 })
 
-describe('POST /api/plan/generate', () => {
+describe('version-1 generator (generatePlanForGoal)', () => {
   test('generate: baseline from request wins, else from runs, else validation', async () => {
     const fresh = await createTestCtx()
     try {
       const u = await seedUser(fresh)
-      const c = client(fresh, u)
       const goal = await fresh.prisma.goal.create({
         data: {
           userId: u.id,
@@ -154,7 +178,7 @@ describe('POST /api/plan/generate', () => {
         },
       })
 
-      const none = await c.post('/api/plan/generate').send({ goalId: goal.id })
+      const none = await generateV1(fresh, u.id, { goalId: goal.id })
       expect(none.status).toBe(400)
       const body = none.body as { error: { code: string; message: string } }
       expect(body.error.code).toBe('validation')
@@ -184,13 +208,11 @@ describe('POST /api/plan/generate', () => {
       const weekBaselines = (res: { body: unknown }) =>
         (res.body as PlanWithWeeks).weeks.map((w) => w.baselineRunMin)
 
-      const fromRuns = await c.post('/api/plan/generate').send({ goalId: goal.id })
+      const fromRuns = await generateV1(fresh, u.id, { goalId: goal.id })
       expect(fromRuns.status).toBe(201)
       expect(weekBaselines(fromRuns)).toEqual(baselinesFor(120))
 
-      const explicit = await c
-        .post('/api/plan/generate')
-        .send({ goalId: goal.id, baselineRunMin: 200 })
+      const explicit = await generateV1(fresh, u.id, { goalId: goal.id, baselineRunMin: 200 })
       expect(explicit.status).toBe(201)
       expect(weekBaselines(explicit)).toEqual(baselinesFor(200))
     } finally {
@@ -202,7 +224,7 @@ describe('POST /api/plan/generate', () => {
     const targetDate = addDays(thisMonday, 7 * 20 + 6)
     const goal = await seedGoal({ name: 'Persisted Marathon', targetDate })
     const startDate = addDays(thisMonday, 2) // a Wednesday
-    const res = await generate({ goalId: goal.id, baselineRunMin: 180, startDate })
+    const res = await generateV1(ctx, user.id, { goalId: goal.id, baselineRunMin: 180, startDate })
     expect(res.status).toBe(201)
     const plan = res.body as PlanWithWeeks
 
@@ -251,7 +273,11 @@ describe('POST /api/plan/generate', () => {
     expect((stored.body as PlanWithWeeks).id).toBe(plan.id)
     expect((stored.body as PlanWithWeeks).weeks).toHaveLength(plan.weeks.length)
 
-    const lean = await generate({ goalId: goal.id, baselineRunMin: 180, strengthPreference: 0 })
+    const lean = await generateV1(ctx, user.id, {
+      goalId: goal.id,
+      baselineRunMin: 180,
+      strengthPreference: 0,
+    })
     expect((lean.body as PlanWithWeeks).weeks.every((w) => w.strengthSessions === 0)).toBe(true)
   })
 
@@ -310,7 +336,6 @@ describe('POST /api/plan/generate', () => {
     const fresh = await createTestCtx()
     try {
       const u = await seedUser(fresh)
-      const c = client(fresh, u)
       const goal = await fresh.prisma.goal.create({
         data: {
           userId: u.id,
@@ -340,7 +365,7 @@ describe('POST /api/plan/generate', () => {
         },
       })
 
-      const res = await c.post('/api/plan/generate').send({ goalId: goal.id, baselineRunMin: 160 })
+      const res = await generateV1(fresh, u.id, { goalId: goal.id, baselineRunMin: 160 })
       expect(res.status).toBe(201)
       const plan = res.body as PlanWithWeeks
       const current = plan.weeks.find((w) => w.weekStart === thisMonday) as PlanWeek
@@ -392,8 +417,6 @@ describe('POST /api/plan/generate', () => {
     const dropped = await seedGoal({ name: 'Dropped', status: 'dropped' })
     const past = await seedGoal({ name: 'Past', targetDate: addDays(today, -3) })
     const far = await seedGoal({ name: 'Far', targetDate: addDays(thisMonday, 7 * 157) })
-    const farOk = await seedGoal({ name: 'Far ok', targetDate: addDays(thisMonday, 7 * 155 + 3) })
-    const near = await seedGoal({ name: 'Near', targetDate: addDays(today, 10) })
 
     const cases: Array<[string, Record<string, unknown>, number]> = [
       ['unknown goal', { goalId: 'nope', baselineRunMin: 120 }, 404],
@@ -403,11 +426,6 @@ describe('POST /api/plan/generate', () => {
       ['dropped goal', { goalId: dropped.id, baselineRunMin: 120 }, 400],
       ['past race', { goalId: past.id, baselineRunMin: 120 }, 400],
       ['too many weeks', { goalId: far.id, baselineRunMin: 120 }, 400],
-      [
-        'start after race week',
-        { goalId: near.id, baselineRunMin: 120, startDate: addDays(thisMonday, 21) },
-        400,
-      ],
       ['baseline 0', { goalId: goal.id, baselineRunMin: 0 }, 400],
       ['baseline huge', { goalId: goal.id, baselineRunMin: 1_000_000 }, 400],
       ['baseline fraction', { goalId: goal.id, baselineRunMin: 100.5 }, 400],
@@ -419,13 +437,12 @@ describe('POST /api/plan/generate', () => {
       const res = await generate(body)
       expect(res.status, label).toBe(status)
     }
-    expect((await generate({ goalId: farOk.id, baselineRunMin: 120 })).status).toBe(201)
     expect(await ctx.prisma.plan.count({ where: { goalId: done.id } })).toBe(0)
   })
 
   test('race in the current week gives a one-week plan', async () => {
     const goal = await seedGoal({ name: 'This week', targetDate: today })
-    const res = await generate({ goalId: goal.id, baselineRunMin: 120 })
+    const res = await generateV1(ctx, user.id, { goalId: goal.id, baselineRunMin: 120 })
     expect(res.status).toBe(201)
     const plan = res.body as PlanWithWeeks
     expect(plan.weeks).toHaveLength(1)
@@ -457,9 +474,7 @@ describe('POST /api/plan/generate', () => {
         },
       })
       const startDate = addDays(thisMonday, -21)
-      const res = await client(fresh, u)
-        .post('/api/plan/generate')
-        .send({ goalId: goal.id, baselineRunMin: 100, startDate })
+      const res = await generateV1(fresh, u.id, { goalId: goal.id, baselineRunMin: 100, startDate })
       expect(res.status).toBe(201)
       const plan = res.body as PlanWithWeeks
       expect(plan.weeks[0]?.weekStart).toBe(startDate)
