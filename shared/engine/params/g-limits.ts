@@ -45,6 +45,17 @@ export const gLimits = {
       unit: 'days',
       note: 'Window of the longest completed run that every planned run is compared with (also used for the largest 2-day total of h3).',
     }),
+    referenceRaceMaxM: param(
+      'g1.referenceRaceMaxM',
+      42_195,
+      'D',
+      'g-1',
+      ['hoffman-2017-161km-recovery-determinants', 'millet-2011-ultramarathon-neuromuscular'],
+      {
+        unit: 'm',
+        note: 'Default: a completed race at or above this distance (the marathon) does not count toward the 30-day reference; shorter races count as runs. A 100-mile finish would otherwise allow training runs up to 1.10 times the race. Recovery after such races is long and measured in days to weeks; no study sets the cutoff.',
+      },
+    ),
     minStepDistanceM: param('g1.minStepDistanceM', 500, 'D', 'g-1', SPIKE, {
       unit: 'm',
       note: 'Default: when the longest run is short the minimum step is 0.5 km (stored in metres).',

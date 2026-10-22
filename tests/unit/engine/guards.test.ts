@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { applyGuards, nextWeekCap } from '../../../shared/engine/guards.ts'
+import { completedReference, referenceAt, twoDayReference } from '../../../shared/engine/limits.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { SessionSpec } from '../../../shared/engine/types.ts'
-import type { WeekRow } from '../../../shared/types.ts'
+import type { Activity, WeekRow } from '../../../shared/types.ts'
 import { run, session, state } from './e6-fixtures.ts'
 
 // asOf is Sunday 2026-11-01; the plan starts Monday 2026-11-02.
@@ -211,6 +212,58 @@ describe('applyGuards: session spike guard (G-1)', () => {
       run('2026-10-20', 300, { duplicateOfId: 'x', duplicateStatus: 'confirmed' }),
     ]
     expect(applyGuards(planned(300), state(), unfinished).sessions[0]!.flags).toEqual([])
+  })
+
+  describe('races in the 30-day reference [rules g-1]', () => {
+    const planned = (durationMin: number) => [
+      session({ date: '2026-11-03', kind: 'long', durationMin }),
+    ]
+    const flags = (history: Activity[], durationMin: number) =>
+      applyGuards(planned(durationMin), state(), history).sessions[0]!.flags
+
+    it('does not let a 100-mile race 10 days ago raise the reference', () => {
+      const history = [
+        run('2026-10-10', 60, { distanceKm: 10 }),
+        run('2026-10-22', 1800, { type: 'race', distanceKm: 161 }),
+      ]
+      // 1.10 x 60 min = 66 min; the 30 h race would allow a run of 33 h
+      expect(flags(history, 66)).toEqual([])
+      expect(flags(history, 67)).toEqual(['spike-warn'])
+      expect(flags(history, 3000)).toEqual(['override-required'])
+    })
+
+    it('lets a 10 km race raise the reference like any other run', () => {
+      const history = [
+        run('2026-10-10', 40, { distanceKm: 8 }),
+        run('2026-10-22', 50, { type: 'race', distanceKm: 10 }),
+      ]
+      expect(flags(history, 55)).toEqual([])
+      expect(flags(history, 56)).toEqual(['spike-warn'])
+    })
+
+    it('draws the line at the marathon distance and counts a race without distance', () => {
+      const race = (distanceKm: number | undefined) => [
+        run('2026-10-10', 60, { distanceKm: 10 }),
+        run('2026-10-22', 240, { type: 'race', distanceKm }),
+      ]
+      const longest = (history: Activity[]) =>
+        referenceAt(completedReference(history, state()).runs, '2026-11-03').min
+      expect(P.g1.referenceRaceMaxM.value).toBe(42_195)
+      expect(longest(race(42.194))).toBe(240)
+      expect(longest(race(42.195))).toBe(60)
+      expect(longest(race(50))).toBe(60)
+      expect(longest(race(undefined))).toBe(240)
+    })
+
+    it('keeps a long race out of the largest 2-day total', () => {
+      const history = [
+        run('2026-10-10', 60, { distanceKm: 10 }),
+        run('2026-10-22', 600, { type: 'race', distanceKm: 100 }),
+      ]
+      const { runs, virtualTwoDay } = completedReference(history, state())
+      expect(runs.map((r) => r.min)).toEqual([60])
+      expect(twoDayReference(runs, virtualTwoDay, '2026-11-03')).toBe(60)
+    })
   })
 
   it('compares gain with a flat history, and says so when no run records gain', () => {
