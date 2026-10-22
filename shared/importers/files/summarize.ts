@@ -8,17 +8,24 @@ export interface ActivitySummary {
   hrHistogram: HrHistogram | null
   decouplingPct: number | null
   gapDistanceM: number | null
-  stream: ActivityStreamData & { sampleSec: 10 }
+  stream: ActivityStreamData & { sampleSec: number }
 }
 
 type Samples = ParsedActivity['samples']
 
+/** Bucket width of the stream, in seconds, for any activity short enough to fit `MAX_STREAM_BUCKETS`. */
 export const STREAM_SAMPLE_SEC = 10
 /**
- * Longest activity the importers accept, in seconds. A longer elapsed time or sample time means a
- * corrupt timestamp, and the stream's bucket arrays are sized from the last sample time.
+ * Longest activity the importers accept, in seconds: 240 hours, since a 200-mile race takes up to
+ * about 100 hours. A longer elapsed time or sample time means a corrupt timestamp, and the
+ * stream's bucket arrays are sized from the last sample time.
  */
-export const MAX_ACTIVITY_SEC = 48 * 3600
+export const MAX_ACTIVITY_SEC = 240 * 3600
+/**
+ * Most buckets a stream holds: 24 hours at 10 seconds. A longer activity gets wider buckets (a
+ * multiple of 10 seconds, reported as `sampleSec`), so a multi-day file stays a bounded payload.
+ */
+export const MAX_STREAM_BUCKETS = 8640
 /** Heart-rate histogram range: 1 bpm bins from 40 to 220 inclusive. */
 export const HR_HIST_START = 40
 export const HR_HIST_END = 220
@@ -417,8 +424,11 @@ function buildStream(s: Samples): ActivitySummary['stream'] {
   const inRange = (i: number): boolean => s.t[i]! <= MAX_ACTIVITY_SEC
   let maxT = 0
   for (let i = 0; i < n; i++) if (inRange(i)) maxT = Math.max(maxT, s.t[i]!)
-  const buckets = Math.floor(maxT / STREAM_SAMPLE_SEC) + 1
-  const bucketOf = (i: number): number => Math.max(0, Math.floor(s.t[i]! / STREAM_SAMPLE_SEC))
+  const sampleSec =
+    STREAM_SAMPLE_SEC *
+    Math.max(1, Math.ceil(maxT / (MAX_STREAM_BUCKETS - 1) / STREAM_SAMPLE_SEC))
+  const buckets = Math.floor(maxT / sampleSec) + 1
+  const bucketOf = (i: number): number => Math.max(0, Math.floor(s.t[i]! / sampleSec))
 
   const means = (values: number[] | null): number[] | null => {
     if (!values) return null
@@ -445,8 +455,8 @@ function buildStream(s: Samples): ActivitySummary['stream'] {
     })
   }
   return {
-    sampleSec: STREAM_SAMPLE_SEC,
-    t: Array.from({ length: buckets }, (_, b) => b * STREAM_SAMPLE_SEC),
+    sampleSec,
+    t: Array.from({ length: buckets }, (_, b) => b * sampleSec),
     d,
     hr: means(s.hr),
     alt: means(s.alt),

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, test } from 'vitest'
 import {
+  MAX_STREAM_BUCKETS,
   elevationGainLoss,
   localDateTime,
   sha256Hex,
@@ -92,6 +93,29 @@ describe('summarize stream', () => {
     expect(stream.t).toEqual([0, 10, 20, 30])
     expect(stream.d).toEqual([0, 10, 20, 30])
     expect(stream.hr).toEqual([100, 110, 120, 130])
+  })
+
+  test('a multi-day activity widens the buckets so the stream stays bounded', () => {
+    const hours = 100
+    const t = Array.from({ length: 101 }, (_, i) => i * hours * 36)
+    const a = parsed({
+      elapsedSec: hours * 3600,
+      samples: {
+        t,
+        d: t.map((x) => x * 3),
+        hr: t.map(() => 140),
+        alt: null,
+        cad: null,
+        pwr: null,
+      },
+    })
+    const { stream } = summarize(a)
+    expect(stream.sampleSec).toBeGreaterThan(10)
+    expect(stream.sampleSec % 10).toBe(0)
+    expect(stream.t.length).toBeLessThanOrEqual(MAX_STREAM_BUCKETS)
+    expect(stream.t[1]).toBe(stream.sampleSec)
+    expect(stream.t.length).toBe(Math.floor((hours * 3600) / stream.sampleSec) + 1)
+    expect(stream.d?.at(-1)).toBe(hours * 3600 * 3)
   })
 
   test('an activity with no samples has an empty stream', () => {
