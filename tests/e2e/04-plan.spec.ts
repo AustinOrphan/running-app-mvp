@@ -30,7 +30,6 @@ test('create a goal, activate it, generate a plan and edit one week with a note'
   // Plan
   await page.goto('/plan')
   await expect(page.getByText('No plan yet.').first()).toBeVisible()
-  await page.getByLabel('Weekly run minutes').fill('150')
   await page.getByRole('button', { name: 'Generate plan' }).click()
   await expect(toast(page, 'Plan generated')).toBeVisible()
 
