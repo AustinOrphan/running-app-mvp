@@ -382,3 +382,12 @@ A fresh reader of sections 1–6 raised these; each answer refines the section n
     27 min per planned hour is 45% of the week, so the 40% cap would always override it, and
     the owner's own peak week runs a 240-minute long run in a 9-hour week (44%). The rule is
     long run = round(27 × weekly hours) minutes, capped at 240.
+15. **Review run days (4.5).** The weekly review judges run days against the week's planned run
+    days, capped at 3: a week that plans 2 run days and runs 2 is not "repeat", and one that
+    plans 4 needs at least 3. The threshold is no longer a fixed 3.
+16. **Plan generation and the active goal (4.5, 4.6).** Generating or regenerating a plan
+    re-applies the targets from earlier reviewed weeks (`targetSource` `review`) and makes the
+    plan's goal the active goal. While a plan exists, the dashboard's race countdown and goal
+    name follow the plan's goal; without a plan they follow the active goal.
+17. **Fastest-effort window (4.5).** A run qualifies for a distance when it is between 99.5% and
+    102% of the target, compared in whole metres without rounding the target.
