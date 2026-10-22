@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import type {
   ExecutionAssessment,
   SessionFlag,
-  SessionKind,
   SessionTarget,
   Step,
   ZoneKey,
