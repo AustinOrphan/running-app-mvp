@@ -1,9 +1,19 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { GoalsPage } from '../../web/pages/GoalsPage.tsx'
-import type { Goal, UserSettings } from '../../shared/types.ts'
+import type { Goal, PlanWithSessions, PredictionView, UserSettings } from '../../shared/types.ts'
 import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+
+// The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
+vi.mock('../../web/components/WhyDrawer.tsx', () => ({
+  WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
+    open ? (
+      <div role="dialog" aria-label="Evidence">
+        {rules.join(',')}
+      </div>
+    ) : null,
+}))
 
 const miUser: UserSettings = { email: 'runner@example.com', displayName: null, units: 'mi' }
 const kmUser: UserSettings = { ...miUser, units: 'km' }
@@ -42,7 +52,32 @@ function routes(goals: Goal[], user: UserSettings, extra: MockRoutes = {}): Mock
   return {
     'GET /api/goals': () => goals,
     'GET /api/settings': () => user,
+    'GET /api/plan': () => null,
+    'GET /api/predictions': () => ({ prediction: null, log: [] }),
     ...extra,
+  }
+}
+
+function makePlan(over: Partial<PlanWithSessions> = {}): PlanWithSessions {
+  return {
+    id: 'p1',
+    userId: 'u1',
+    goalId: 'g1',
+    name: 'Spring half',
+    startDate: '2026-10-05',
+    raceWeekStart: '2027-05-03',
+    status: 'active',
+    generatorVersion: 2,
+    paramsVersion: '1',
+    createdAt: '2026-10-01T00:00:00.000Z',
+    updatedAt: '2026-10-01T00:00:00.000Z',
+    weeks: [],
+    sessions: [],
+    feasibility: null,
+    warnings: [],
+    checklist: [],
+    zones: null,
+    ...over,
   }
 }
 
@@ -229,5 +264,191 @@ describe('Goals page', () => {
       name: 'Renamed',
       distanceM: 15000,
     })
+  })
+
+  test('the form carries the race descriptors and posts them: gain, loss, surface, finish goal, start time, support', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes([], kmUser, { 'POST /api/goals': () => ({ status: 201, body: makeGoal() }) }),
+    )
+    renderWithProviders(<GoalsPage />)
+
+    const dialog = await openAddSheet(user)
+    await fillBasics(user, dialog, 'Mountain 50')
+    await user.click(within(dialog).getByRole('button', { name: '50K' }))
+    await user.type(within(dialog).getByLabelText('Elevation gain (m)'), '2400')
+    await user.type(within(dialog).getByLabelText('Elevation loss (m)'), '2350')
+    await user.selectOptions(within(dialog).getByLabelText('Surface'), 'trail')
+    await user.click(within(dialog).getByRole('radio', { name: 'Finish' }))
+    await user.type(within(dialog).getByLabelText('Start time'), '06:30')
+    await user.click(within(dialog).getByRole('radio', { name: 'Self-supported' }))
+    await user.type(within(dialog).getByLabelText('Race latitude'), '46.8123')
+    await user.type(within(dialog).getByLabelText('Race longitude'), '8.2271')
+    await user.click(within(dialog).getByRole('button', { name: 'Save goal' }))
+
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'POST')).toBe(true)
+    })
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({
+      distanceM: 50000,
+      gainM: 2400,
+      lossM: 2350,
+      surface: 'trail',
+      goalType: 'finish',
+      targetTimeSec: null,
+      startTime: '06:30',
+      supportLevel: 'self',
+      raceLat: 46.81,
+      raceLng: 8.23,
+    })
+  })
+
+  test('a time goal asks for a target time and posts it in seconds; a distance above 42.2 km defaults to a finish goal', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes([], miUser, { 'POST /api/goals': () => ({ status: 201, body: makeGoal() }) }),
+    )
+    renderWithProviders(<GoalsPage />)
+
+    const dialog = await openAddSheet(user)
+    await fillBasics(user, dialog, 'Autumn half')
+    await user.click(within(dialog).getByRole('button', { name: 'Half' }))
+    expect(within(dialog).getByRole('radio', { name: 'Time' })).toBeChecked()
+    await user.type(within(dialog).getByLabelText('Target time (h:mm:ss)'), '1:45:30')
+    await user.click(within(dialog).getByRole('button', { name: '100K' }))
+    expect(within(dialog).getByRole('radio', { name: 'Finish' })).toBeChecked()
+    expect(within(dialog).queryByLabelText('Target time (h:mm:ss)')).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Half' }))
+    await user.click(within(dialog).getByRole('radio', { name: 'Time' }))
+    await user.type(within(dialog).getByLabelText('Target time (h:mm:ss)'), 'abc')
+    await user.click(within(dialog).getByRole('button', { name: 'Save goal' }))
+    expect(await within(dialog).findByText('Enter a time like 1:45:30.')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'POST')).toBe(false)
+
+    await user.clear(within(dialog).getByLabelText('Target time (h:mm:ss)'))
+    await user.type(within(dialog).getByLabelText('Target time (h:mm:ss)'), '1:45:30')
+    await user.click(within(dialog).getByRole('button', { name: 'Save goal' }))
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'POST')).toBe(true)
+    })
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({
+      goalType: 'time',
+      targetTimeSec: 6330,
+    })
+  })
+
+  test('editing shows the stored descriptors', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(
+        [
+          makeGoal({
+            gainM: 800,
+            lossM: 790,
+            surface: 'mixed',
+            goalType: 'time',
+            targetTimeSec: 7200,
+            startTime: '08:00',
+            supportLevel: 'self',
+          }),
+        ],
+        miUser,
+      ),
+    )
+    renderWithProviders(<GoalsPage />)
+    await user.click(await screen.findByRole('button', { name: 'Edit Spring half' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit goal' })
+    expect(within(dialog).getByLabelText('Elevation gain (m)')).toHaveValue('800')
+    expect(within(dialog).getByLabelText('Elevation loss (m)')).toHaveValue('790')
+    expect(within(dialog).getByLabelText('Surface')).toHaveValue('mixed')
+    expect(within(dialog).getByLabelText('Target time (h:mm:ss)')).toHaveValue('2:00:00')
+    expect(within(dialog).getByLabelText('Start time')).toHaveValue('08:00')
+    expect(within(dialog).getByRole('radio', { name: 'Self-supported' })).toBeChecked()
+  })
+
+  test('the active goal shows its feasibility label, prediction range and method, and race-day heat, each with a Why button', async () => {
+    const user = userEvent.setup()
+    const prediction: PredictionView = {
+      prediction: {
+        method: 'Critical speed with a half-marathon anchor',
+        predictedSec: 6300,
+        lowSec: 6000,
+        highSec: 6700,
+        conditions: ['Race-day WBGT 21.0 C adds 2.1% to the time.', 'No gain counted.'],
+        rules: ['l-1', 'i-5'],
+      },
+      log: [],
+    }
+    mockApi(
+      routes([makeGoal({ isActive: true })], miUser, {
+        'GET /api/plan': () =>
+          makePlan({
+            feasibility: {
+              label: 'tight',
+              weeksNeeded: 18,
+              weeksAvailable: 16,
+              notes: [
+                {
+                  code: 'heat-acclimation',
+                  severity: 'info',
+                  message:
+                    'Race-day WBGT is 21.0 C, so the plan includes a heat acclimation block.',
+                  rules: ['d-6'],
+                },
+              ],
+            },
+          }),
+        'GET /api/predictions': () => prediction,
+      }),
+    )
+    renderWithProviders(<GoalsPage />)
+
+    const card = await screen.findByRole('article', { name: 'Spring half' })
+    expect(await within(card).findByText('Tight')).toBeInTheDocument()
+    expect(within(card).getByText(/18 weeks needed, 16 available/)).toBeInTheDocument()
+    expect(within(card).getByText('1:45:00')).toBeInTheDocument()
+    expect(within(card).getByText('1:40:00 to 1:51:40')).toBeInTheDocument()
+    expect(within(card).getByText('Critical speed with a half-marathon anchor')).toBeInTheDocument()
+    expect(
+      within(card).getByText('Race-day WBGT 21.0 C adds 2.1% to the time.'),
+    ).toBeInTheDocument()
+    expect(within(card).getByText(/heat acclimation block/)).toBeInTheDocument()
+
+    await user.click(within(card).getByRole('button', { name: 'Why: predicted time' }))
+    expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('l-1,i-5')
+  })
+
+  test('a goal that is not reachable within default limits says so and offers options, with no prediction text when none exists', async () => {
+    mockApi(
+      routes([makeGoal({ isActive: true })], miUser, {
+        'GET /api/plan': () =>
+          makePlan({
+            feasibility: { label: 'not-reachable', weeksNeeded: 40, weeksAvailable: 12, notes: [] },
+          }),
+      }),
+    )
+    renderWithProviders(<GoalsPage />)
+    const card = await screen.findByRole('article', { name: 'Spring half' })
+    expect(await within(card).findByText('Not reachable within default limits')).toBeInTheDocument()
+    expect(
+      within(card).getByText(/later race, a shorter distance or a finish goal/),
+    ).toBeInTheDocument()
+    expect(within(card).getByText(/No prediction yet/)).toBeInTheDocument()
+  })
+
+  test('a plan for another goal does not lend its feasibility to the active one', async () => {
+    mockApi(
+      routes([makeGoal({ isActive: true })], miUser, {
+        'GET /api/plan': () =>
+          makePlan({
+            goalId: 'other',
+            feasibility: { label: 'tight', weeksNeeded: 1, weeksAvailable: 1, notes: [] },
+          }),
+      }),
+    )
+    renderWithProviders(<GoalsPage />)
+    const card = await screen.findByRole('article', { name: 'Spring half' })
+    expect(await within(card).findByText(/No prediction yet/)).toBeInTheDocument()
+    expect(within(card).queryByText('Tight')).not.toBeInTheDocument()
   })
 })
