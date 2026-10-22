@@ -206,6 +206,18 @@ describe('refreshIfNeeded', () => {
     expect(calls).toBe(1)
   })
 
+  it('reports a Strava outage during refresh without asking to reconnect', async () => {
+    const ctx = ctxWith(
+      { [`POST ${TOKEN_URL}`]: () => new Response('{}', { status: 503 }) },
+      { expiresAt: NOW_SEC - 10 },
+    )
+    const error = await refreshIfNeeded(ctx).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).toMatch(/HTTP 503/)
+    expect((error as Error).message).not.toMatch(/reconnect/i)
+    expect(ctx.saved).toEqual([])
+  })
+
   it('asks to reconnect when there is no token or the refresh is rejected', async () => {
     const none = ctxWith({}, { accessToken: undefined, refreshToken: undefined })
     await expect(refreshIfNeeded(none)).rejects.toThrow(/reconnect/i)
@@ -294,6 +306,41 @@ describe('listActivities', () => {
     )
     expect(error).toBeInstanceOf(RateLimitPause)
     expect((error as RateLimitPause).retryAfterSec).toBe(13 * 3600 + 53 * 60)
+  })
+
+  it('pauses at 80% of the read-only limit even when the overall limit has room', async () => {
+    const ctx = ctxWith({
+      [`GET ${API}/athlete/activities`]: () =>
+        Response.json(fullPage('2026-10-19T06:00:00Z'), {
+          headers: {
+            'X-RateLimit-Limit': '200,2000',
+            'X-RateLimit-Usage': '80,300',
+            'X-ReadRateLimit-Limit': '100,1000',
+            'X-ReadRateLimit-Usage': '80,300',
+          },
+        }),
+    })
+    const error = await collect(stravaProvider.listActivities('2026-10-01T00:00:00Z', ctx)).catch(
+      (e: unknown) => e,
+    )
+    expect(error).toBeInstanceOf(RateLimitPause)
+    expect((error as RateLimitPause).cursor).toBe('2026-10-19T06:00:00Z')
+    expect((error as RateLimitPause).retryAfterSec).toBe(8 * 60)
+  })
+
+  it('keeps the cursor reached on earlier pages when a later page gets HTTP 429', async () => {
+    const ctx = ctxWith({
+      [`GET ${API}/athlete/activities`]: (req) =>
+        new URL(req.url).searchParams.get('page') === '1'
+          ? Response.json(fullPage('2026-10-19T06:00:00Z'))
+          : new Response('{}', { status: 429 }),
+    })
+    const error = await collect(stravaProvider.listActivities('2026-10-01T00:00:00Z', ctx)).catch(
+      (e: unknown) => e,
+    )
+    expect(error).toBeInstanceOf(RateLimitPause)
+    expect((error as RateLimitPause).cursor).toBe('2026-10-19T06:00:00Z')
+    expect((error as RateLimitPause).retryAfterSec).toBe(15 * 60)
   })
 
   it('pauses on HTTP 429 and fails on other errors', async () => {

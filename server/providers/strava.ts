@@ -109,6 +109,10 @@ async function tokenRequest(
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
     body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, ...fields }),
   })
+  // 4xx means Strava refused the grant; anything else is an outage, not a reason to reconnect.
+  if (response.status >= 500 || response.status === 429) {
+    throw new Error(`Strava token request failed: HTTP ${response.status}`)
+  }
   if (!response.ok) return null
   const parsed = tokenSchema.safeParse(await response.json().catch(() => null))
   return parsed.success ? parsed.data : null
@@ -168,19 +172,25 @@ function numbers(header: string | null): number[] {
   return (header ?? '').split(',').map((part) => Number(part.trim()))
 }
 
-/** Seconds to wait when a window is at or over 80% of its limit; null while both have room. */
+/**
+ * Seconds to wait when a window is at or over 80% of its limit; null while all have room.
+ * Strava sends the overall limits in `X-RateLimit-*` and the tighter read-only limits in
+ * `X-ReadRateLimit-*`; every request here is a read, so both families count.
+ */
 function pauseSeconds(headers: Headers, now: Date): number | null {
-  const limits = numbers(headers.get('X-RateLimit-Limit'))
-  const usage = numbers(headers.get('X-RateLimit-Usage'))
   const nowSec = Math.floor(now.getTime() / 1000)
-  const full = (i: number): boolean => {
-    const limit = limits[i]
-    const used = usage[i]
-    return limit !== undefined && used !== undefined && limit > 0 && used >= limit * USAGE_STOP
-  }
   const waits: number[] = []
-  if (full(0)) waits.push(WINDOW_SEC - (nowSec % WINDOW_SEC))
-  if (full(1)) waits.push(DAY_SEC - (nowSec % DAY_SEC))
+  for (const family of ['X-RateLimit', 'X-ReadRateLimit']) {
+    const limits = numbers(headers.get(`${family}-Limit`))
+    const usage = numbers(headers.get(`${family}-Usage`))
+    const full = (i: number): boolean => {
+      const limit = limits[i]
+      const used = usage[i]
+      return limit !== undefined && used !== undefined && limit > 0 && used >= limit * USAGE_STOP
+    }
+    if (full(0)) waits.push(WINDOW_SEC - (nowSec % WINDOW_SEC))
+    if (full(1)) waits.push(DAY_SEC - (nowSec % DAY_SEC))
+  }
   return waits.length === 0 ? null : Math.max(...waits)
 }
 
@@ -337,12 +347,13 @@ export const stravaProvider: PullProvider = {
   async *listActivities(since, ctx) {
     const sinceMs = Date.parse(since)
     const after = Number.isFinite(sinceMs) ? Math.floor(sinceMs / 1000) : 0
+    // The newest start yielded so far; a pause on a later page resumes from it.
+    let newest: string | undefined
     for (let page = 1; ; page += 1) {
       const url = `${API}/athlete/activities?after=${after}&page=${page}&per_page=${PER_PAGE}`
-      const { body, pause } = await get(ctx, url)
+      const { body, pause } = await get(ctx, url, newest)
       const parsed = z.array(summarySchema).safeParse(body)
       if (!parsed.success) throw unexpected()
-      let newest: string | undefined
       for (const summary of parsed.data) {
         if (newest === undefined || summary.start_date > newest) newest = summary.start_date
         const ref: StravaRef = { id: String(summary.id), startUtc: summary.start_date, summary }
