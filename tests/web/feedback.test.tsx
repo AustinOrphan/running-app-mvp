@@ -108,6 +108,26 @@ describe('Today: How did it go?', () => {
     })
   })
 
+  test('refreshes today and the plan after a save, since the server re-assesses the session', async () => {
+    const user = userEvent.setup()
+    const api = renderDashboard([makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })], {
+      'PATCH /api/activities/r1/feedback': () => ({}),
+    })
+    const card = await screen.findByRole('region', { name: 'How did it go?' })
+    const gets = (path: string) =>
+      api.calls.filter((c) => c.method === 'GET' && c.url.startsWith(path)).length
+    await waitFor(() => {
+      expect(gets('/api/today')).toBe(1)
+      expect(gets('/api/plan')).toBe(1)
+    })
+    await user.click(within(card).getByRole('button', { name: 'RPE 6' }))
+    await user.click(within(card).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(gets('/api/today')).toBe(2)
+      expect(gets('/api/plan')).toBe(2)
+    })
+  })
+
   test('keeps a saved pain score when only RPE is rated', async () => {
     const user = userEvent.setup()
     const api = renderDashboard(

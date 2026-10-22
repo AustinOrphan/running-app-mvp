@@ -310,19 +310,22 @@ describe('invalidation', () => {
     return refetched(calls, before)
   }
 
-  test('activities refetch activities, weeks and reviews', async () => {
+  test('activities refetch activities, plan, weeks and reviews', async () => {
     expect(await run((r) => r.createActivity.mutateAsync(activityInput))).toEqual([
       'activities',
+      'plan',
       'reviews',
       'weeks',
     ])
     expect(await run((r) => r.deleteActivity.mutateAsync('a1'))).toEqual([
       'activities',
+      'plan',
       'reviews',
       'weeks',
     ])
     expect(await run((r) => r.resolve.mutateAsync({ id: 'a1', status: 'dismissed' }))).toEqual([
       'activities',
+      'plan',
       'reviews',
       'weeks',
     ])
@@ -331,7 +334,7 @@ describe('invalidation', () => {
   test('imports also refetch the import list', async () => {
     expect(
       await run((r) => r.importFile.mutateAsync({ kind: 'csv', fileName: 'a.csv', text: 'x' })),
-    ).toEqual(['activities', 'imports', 'reviews', 'weeks'])
+    ).toEqual(['activities', 'imports', 'plan', 'reviews', 'weeks'])
   })
 
   test('goals refetch goals and plan', async () => {
