@@ -153,6 +153,65 @@ describe('version-2 plan generation', () => {
     expect(predictions.prediction?.predictedSec).toBeGreaterThan(0)
   })
 
+  test('generated on a Saturday, the week packs no spike into its last two days', async () => {
+    // 8 weeks of 40-minute runs on six days, the day 3 days ahead closed, a marathon 20 weeks out:
+    // the rest of the week used to be packed into Saturday and Sunday and failed spike-guard (422).
+    const saturday = addDays(thisMonday, 5)
+    vi.setSystemTime(new Date(2026, 9, 24, 12))
+    try {
+      const u = await seedUser(ctx, { email: 'saturday@example.com' })
+      const rows = []
+      for (let w = 1; w <= 8; w += 1) {
+        for (let dow = 0; dow < 6; dow += 1) {
+          rows.push({
+            userId: u.id,
+            date: addDays(thisMonday, -7 * w + dow),
+            type: 'run',
+            durationSec: 2400,
+            movingSec: 2400,
+            distanceM: 6500,
+            rpe: 3,
+            source: 'manual',
+          })
+        }
+      }
+      await ctx.prisma.activity.createMany({ data: rows })
+      const availability = JSON.stringify({ tue: { available: false, maxMin: null } })
+      await ctx.prisma.athleteProfile.upsert({
+        where: { userId: u.id },
+        create: {
+          userId: u.id,
+          birthYear: 1985,
+          hrMax: 188,
+          hrMaxSource: 'measured',
+          availability,
+        },
+        update: { birthYear: 1985, hrMax: 188, hrMaxSource: 'measured', availability },
+      })
+      const goal = await ctx.prisma.goal.create({
+        data: {
+          userId: u.id,
+          name: 'Synthetic marathon',
+          priority: 'A',
+          targetDate: addDays(saturday, 140),
+          distanceM: 42_195,
+          goalType: 'finish',
+        },
+      })
+
+      const res = await client(ctx, u).post('/api/plan/generate').send({ goalId: goal.id })
+      expect(res.status, JSON.stringify(res.body)).toBe(201)
+      const plan = res.body as PlanWithSessions
+      expect(plan.checklist.every((c) => c.ok)).toBe(true)
+      expect(plan.sessions.filter((s) => s.flags.includes('override-required'))).toEqual([])
+      // nothing in the current week is longer than 1.10x the 40-minute reference
+      const rest = plan.sessions.filter((s) => s.weekStart === thisMonday && s.kind !== 'strength')
+      expect(rest.every((s) => s.durationMin <= 44)).toBe(true)
+    } finally {
+      vi.setSystemTime(new Date(2026, 9, 21, 12))
+    }
+  })
+
   test('regenerating archives the old plan and keeps exactly one active plan', async () => {
     const u = await seedUser(ctx, { email: 'regen@example.com' })
     await seedHistory(u.id)

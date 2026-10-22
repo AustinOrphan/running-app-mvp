@@ -77,6 +77,56 @@ describe('applyGuards: session spike guard (G-1)', () => {
     expect(result.warnings[0]!.rules).toContain('g-1')
   })
 
+  describe('for a generated plan (neverOverride)', () => {
+    const generated = (s: SessionSpec[]) => applyGuards(s, LONG_REF, [], { neverOverride: true })
+
+    it('shortens a run above 2.00x to the 2.00x limit instead of flagging it', () => {
+      const result = generated([session({ date: '2026-11-03', kind: 'long', durationMin: 210 })])
+      expect(result.sessions[0]!.durationMin).toBe(200)
+      expect(result.sessions[0]!.flags).toEqual(['spike-warn'])
+      const warning = result.warnings.find((w) => w.code === 'spike-shortened')!
+      expect(warning.rules).toContain('g-1')
+    })
+
+    it('shortens distance and gain with the run', () => {
+      const result = generated([
+        session({
+          date: '2026-11-03',
+          kind: 'long',
+          durationMin: 90,
+          distanceM: 50_000,
+          gainM: 300,
+        }),
+      ])
+      const s = result.sessions[0]!
+      expect(s.distanceM).toBeLessThanOrEqual(40_000)
+      expect(s.durationMin).toBeLessThan(90)
+      expect(s.flags).not.toContain('override-required')
+    })
+
+    it('leaves a run inside the warn band as it is, with its warning flag', () => {
+      const result = generated([session({ date: '2026-11-03', kind: 'long', durationMin: 150 })])
+      expect(result.sessions[0]!.durationMin).toBe(150)
+      expect(result.sessions[0]!.flags).toEqual(['spike-warn'])
+    })
+
+    it('leaves a run out when the cut would fall under the session minimum', () => {
+      const tiny = state({
+        longest30d: { distanceM: 1000, durationSec: 300, gainM: 0, lossM: 0, twoDaySec: 0 },
+      })
+      const result = applyGuards([session({ date: '2026-11-03', durationMin: 60 })], tiny, [], {
+        neverOverride: true,
+      })
+      expect(result.sessions).toEqual([])
+      expect(result.warnings.map((w) => w.code)).toContain('spike-run-dropped')
+    })
+
+    it('still flags override-required by default, as an owner edit keeps its own rules', () => {
+      const result = only([session({ date: '2026-11-03', kind: 'long', durationMin: 210 })])
+      expect(result.sessions[0]!.flags).toEqual(['override-required'])
+    })
+  })
+
   it('checks distance, gain and descent as well as duration', () => {
     const base = { date: '2026-11-03', kind: 'long' as const, durationMin: 90 }
     expect(only([session({ ...base, distanceM: 24000 })]).sessions[0]!.flags).toEqual([

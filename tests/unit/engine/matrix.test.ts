@@ -90,6 +90,10 @@ describe.each(all)('plan matrix: $label', (a) => {
     for (const item of plan.checklist) expect(item.rules.length).toBeGreaterThan(0)
   })
 
+  it('schedules no session that needs an override [rules g-1]', () => {
+    expect(plan.sessions.filter((s) => s.flags.includes('override-required'))).toEqual([])
+  })
+
   it('is deterministic: the same input twice gives the identical plan', () => {
     const again = buildPlan(structuredClone(a.input))
     expect(again).toEqual(plan)
