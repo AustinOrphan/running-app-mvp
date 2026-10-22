@@ -117,7 +117,9 @@ export function useUpdatePlanWeek() {
       api<PlanWeek>('PUT', `/plan/weeks/${encodeURIComponent(weekStart)}`, patch),
     onSuccess: () =>
       Promise.all(
-        [keys.plan, keys.reviews].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+        [keys.plan, keys.planRevisions, keys.reviews, keys.today].map((key) =>
+          queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
       ),
   })
 }

@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test, vi } from 'vitest'
 import type { IntegrationStatus, ProviderInfo } from '../../shared/types.ts'
+import { SYNC_POLL_MS } from '../../web/api/integrations.ts'
 import { IntegrationsPage } from '../../web/pages/IntegrationsPage.tsx'
 import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 
@@ -194,6 +195,60 @@ describe('IntegrationsPage', () => {
       expect(calls.find((c) => c.method === 'POST')?.body).toEqual({})
     })
   })
+
+  test('refetches the list while a sync runs and stops when it has finished', async () => {
+    const user = userEvent.setup()
+    const before = '2026-10-20T08:30:00.000Z'
+    const after = '2026-10-22T07:00:00.000Z'
+    let finished = false
+    const { calls } = mockApi({
+      'GET /api/integrations': () =>
+        allStatuses({
+          intervals: {
+            status: 'connected',
+            lastSyncAt: finished ? after : before,
+            lastSyncStatus: 'ok',
+          },
+        }),
+      'POST /api/integrations/intervals/sync': () => ({
+        status: 202,
+        body: status('intervals', { status: 'connected', lastSyncAt: before }),
+      }),
+      'GET /api/activities': () => [],
+      'GET /api/imports': () => [],
+      'GET /api/wellness': () => [],
+    })
+    renderWithProviders(<IntegrationsPage />)
+    const listCalls = () => calls.filter((c) => c.url === '/api/integrations').length
+
+    const intervals = await screen.findByRole('region', { name: 'intervals.icu' })
+    await user.click(within(intervals).getByRole('button', { name: 'Sync now' }))
+    // Still running: the list is asked for again on its own.
+    await waitFor(
+      () => {
+        expect(listCalls()).toBeGreaterThanOrEqual(3)
+      },
+      { timeout: 6000 },
+    )
+
+    finished = true
+    await waitFor(
+      () => {
+        expect(
+          within(screen.getByRole('region', { name: 'intervals.icu' })).getByText(
+            `Last sync ${new Date(after).toLocaleString()}`,
+          ),
+        ).toBeInTheDocument()
+      },
+      { timeout: 6000 },
+    )
+
+    // Once it shows the new time the polling stops.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    const settled = listCalls()
+    await new Promise((resolve) => setTimeout(resolve, SYNC_POLL_MS + 500))
+    expect(listCalls()).toBe(settled)
+  }, 20_000)
 
   test('shows the stored error and offers a reconnect when authorisation lapsed', async () => {
     mockApi(

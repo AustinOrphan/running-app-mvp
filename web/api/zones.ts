@@ -24,10 +24,11 @@ function useDecideProposal(decision: 'accept' | 'decline') {
   return useMutation({
     mutationFn: (id: string) =>
       api<ZoneSet | undefined>('POST', `/zones/proposals/${encodeURIComponent(id)}/${decision}`),
-    // Accepting changes the zone set, and future sessions follow the zone set.
+    // Accepting changes the zone set, and future sessions follow the zone set. Both answers are
+    // written to the revision log, which the plan page lists as "What changed".
     onSuccess: () =>
       Promise.all(
-        [keys.zones, keys.zoneProposals, keys.plan, keys.today].map((key) =>
+        [keys.zones, keys.zoneProposals, keys.plan, keys.planRevisions, keys.today].map((key) =>
           queryClient.invalidateQueries({ queryKey: [key] }),
         ),
       ),
