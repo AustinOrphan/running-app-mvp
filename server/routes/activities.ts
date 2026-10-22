@@ -1,3 +1,4 @@
+import { gunzipSync } from 'node:zlib'
 import { Router } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
@@ -13,6 +14,7 @@ import {
   MAX_NOTES,
 } from '../../shared/limits.ts'
 import { mToMiles } from '../../shared/units.ts'
+import type { ActivityDetail, ActivityStreamData, Lap } from '../../shared/types.ts'
 
 const dateSchema = z
   .string()
@@ -30,6 +32,11 @@ function optionalInt(min: number, max: number) {
     .transform((value) => value ?? null)
 }
 
+/** Absent leaves the stored value alone; null clears it. */
+function optionalKeepInt(min: number, max: number) {
+  return z.number().int().min(min).max(max).nullable().optional()
+}
+
 const activitySchema = z.object({
   date: dateSchema,
   startTime: z
@@ -44,6 +51,8 @@ const activitySchema = z.object({
   avgHr: optionalInt(30, 250),
   maxHr: optionalInt(30, 250),
   elevationGainM: optionalInt(0, MAX_ELEVATION_GAIN_M),
+  feel: optionalKeepInt(-2, 2),
+  pain: optionalKeepInt(0, 10),
   notes: z
     .string()
     .trim()
@@ -57,6 +66,37 @@ const listSchema = z.object({
   to: dateSchema.optional(),
   type: z.enum(['run', 'race', 'strength', 'cross']).optional(),
 })
+
+const feedbackSchema = z.strictObject({
+  rpe: optionalKeepInt(1, 10),
+  feel: optionalKeepInt(-2, 2),
+  pain: optionalKeepInt(0, 10),
+})
+
+const FILE_TYPES: Record<string, string> = {
+  fit: 'application/octet-stream',
+  gpx: 'application/gpx+xml',
+  tcx: 'application/vnd.garmin.tcx+xml',
+}
+
+/** Parses stored JSON text; any failure gives null. */
+function parseJsonOrNull<T>(text: string | null): T | null {
+  if (text === null) return null
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    return null
+  }
+}
+
+/** A header-safe download name: no quotes, slashes or control characters. */
+function attachmentName(stored: string | null, format: string, id: string): string {
+  const stem = (stored ?? '')
+    .replace(/[^\w. -]/g, '_')
+    .trim()
+    .slice(0, 100)
+  return stem === '' || stem === `.${format}` ? `activity-${id}.${format}` : stem
+}
 
 const resolveSchema = z.object({ status: z.enum(['confirmed', 'dismissed']) })
 
@@ -171,6 +211,48 @@ export function activitiesRouter(deps: Deps): Router {
 
   router.get('/:id', async (req, res) => {
     res.json(toActivity(await findOwned(req.userId, idParam(req.params.id))))
+  })
+
+  router.get('/:id/detail', async (req, res) => {
+    const row = await findOwned(req.userId, idParam(req.params.id))
+    const [stream, file] = await Promise.all([
+      prisma.activityStream.findUnique({ where: { activityId: row.id } }),
+      prisma.activityFile.findUnique({
+        where: { activityId: row.id },
+        select: { activityId: true },
+      }),
+    ])
+    const data = stream ? parseJsonOrNull<ActivityStreamData>(stream.data) : null
+    const detail: ActivityDetail = {
+      activity: toActivity(row),
+      stream: stream && data ? { ...data, sampleSec: stream.sampleSec } : null,
+      laps: stream ? parseJsonOrNull<Lap[]>(stream.laps) : null,
+      hasFile: file !== null,
+    }
+    res.json(detail)
+  })
+
+  router.get('/:id/file', async (req, res) => {
+    const row = await findOwned(req.userId, idParam(req.params.id))
+    const file = await prisma.activityFile.findUnique({ where: { activityId: row.id } })
+    if (!file) throw notFound('This activity has no original file.')
+    const bytes = gunzipSync(file.gz)
+    res
+      .status(200)
+      .type(FILE_TYPES[file.format] ?? 'application/octet-stream')
+      .set(
+        'Content-Disposition',
+        `attachment; filename="${attachmentName(file.fileName, file.format, row.id)}"`,
+      )
+      .send(bytes)
+  })
+
+  router.patch('/:id/feedback', async (req, res) => {
+    const id = idParam(req.params.id)
+    await findOwned(req.userId, id)
+    const body = parse(feedbackSchema, req.body)
+    const updated = await prisma.activity.update({ where: { id }, data: body })
+    res.json(toActivity(updated))
   })
 
   router.put('/:id', async (req, res) => {
