@@ -230,6 +230,23 @@ describe('Sheet', () => {
       expect(dialog).toContainElement(document.activeElement as HTMLElement)
     }
   })
+
+  test('Tab returns to the dialog when focus has fallen to the page behind it', async () => {
+    const user = userEvent.setup()
+    render(<Harness onClose={() => {}} />)
+    await user.click(screen.getByRole('button', { name: 'Open sheet' }))
+    const dialog = screen.getByRole('dialog')
+
+    // The focused control unmounting or becoming disabled leaves focus on <body>.
+    ;(document.activeElement as HTMLElement).blur()
+    expect(document.body).toHaveFocus()
+    await user.tab()
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+
+    ;(document.activeElement as HTMLElement).blur()
+    await user.tab({ shift: true })
+    expect(screen.getByRole('button', { name: 'Save run' })).toHaveFocus()
+  })
 })
 
 describe('Toast', () => {

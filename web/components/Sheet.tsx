@@ -16,7 +16,7 @@ const focusable =
 
 /**
  * A modal dialog: a bottom sheet below 900px, a right-hand panel above. Escape and a click on the
- * scrim close it, Tab stays inside, and focus goes back to whatever opened it.
+ * scrim close it, Tab stays inside (also when focus has fallen to the page), and focus goes back to whatever opened it.
  */
 export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
   const titleId = useId()
@@ -37,6 +37,16 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
       if (event.key === 'Escape') {
         event.stopPropagation()
         onCloseRef.current()
+        return
+      }
+      // Focus falls to <body> when the focused control unmounts or becomes disabled, and then the
+      // panel's own handler never sees Tab. Bring focus back instead of letting it reach the page.
+      const dialog = panel.current
+      if (event.key === 'Tab' && dialog && !dialog.contains(document.activeElement)) {
+        event.preventDefault()
+        const items = [...dialog.querySelectorAll<HTMLElement>(focusable)]
+        const target = event.shiftKey ? items[items.length - 1] : items[0]
+        ;(target ?? dialog).focus()
       }
     }
     document.addEventListener('keydown', onKeyDown)
