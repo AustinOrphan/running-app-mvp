@@ -59,6 +59,10 @@ export function parseGenericCsv(text: string): { rows: ImportRow[]; errors: RowE
       return
     }
     const durationSec = Math.round(minutes * 60)
+    if (durationSec <= 0) {
+      errors.push({ line, reason: 'minutes must be at least 0.01' })
+      return
+    }
     if (durationSec > MAX_DURATION_SEC) {
       errors.push({ line, reason: 'minutes out of range' })
       return
