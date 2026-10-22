@@ -370,6 +370,27 @@ describe('ReviewPage', () => {
     expect(screen.queryByRole('meter')).toBeNull()
   })
 
+  test('the subtitle explains a week before the plan starts', async () => {
+    const user = userEvent.setup()
+    renderReview({ weeks: { [W]: fullWeek } })
+    await ready()
+    expect(screen.getByText('Base 2')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Previous week' }))
+    await screen.findByText('Week of 5 Oct')
+    expect(
+      screen.getByText("Before the plan starts. Suggestions begin with the plan's first week."),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Not in the plan')).toBeNull()
+  })
+
+  test('with no plan at all the subtitle says suggestions appear once a plan exists', async () => {
+    renderReview({ plan: null, weeks: { [W]: fullWeek } })
+    await ready()
+    expect(
+      screen.getByText('No plan yet. Suggestions appear once a plan exists.'),
+    ).toBeInTheDocument()
+  })
+
   test('empty states: no plan and no runs shows "Nothing to review. Last week is closed." and the no-plan message, never NaN', async () => {
     renderReview({ plan: null })
     expect(await screen.findByText('Nothing to review. Last week is closed.')).toBeInTheDocument()
