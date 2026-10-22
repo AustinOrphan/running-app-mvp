@@ -5,12 +5,30 @@ RUN npm ci
 COPY . .
 RUN npx prisma generate && npm run build
 
+FROM node:24-slim AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+# Drop what a SQLite-only install never loads at runtime: other databases' drivers and query
+# compilers, pglite, the TypeScript compiler, type declarations, source maps and the SQLite
+# amalgamation sources. The migrate smoke test in the final stage fails the build if this removes
+# something `prisma migrate deploy` needs.
+RUN rm -rf node_modules/@electric-sql node_modules/mysql2 node_modules/postgres \
+      node_modules/elkjs node_modules/typescript node_modules/@types node_modules/effect/src \
+      node_modules/better-sqlite3/deps node_modules/better-sqlite3/src \
+ && find node_modules \( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' -o -name '*.map' \) -delete \
+ && find node_modules/@prisma/client/runtime node_modules/prisma/build \
+      \( -name '*postgresql*' -o -name '*mysql*' -o -name '*sqlserver*' -o -name '*cockroachdb*' \
+      -o -name 'query_compiler_small*' \) -delete \
+ && rm -f node_modules/@prisma/client/runtime/query_compiler_fast_bg.sqlite.wasm-base64.js
+
 FROM node:24-slim
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+COPY --from=deps /app/node_modules ./node_modules
 COPY prisma ./prisma
 COPY prisma.config.ts ./
+RUN DATABASE_URL=file:/tmp/smoke.db npx prisma migrate deploy && rm -f /tmp/smoke.db*
 COPY --from=build /app/dist ./dist
 
 ENV NODE_ENV=production \
