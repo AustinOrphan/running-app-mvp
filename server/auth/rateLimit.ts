@@ -1,45 +1,51 @@
 import type { RequestHandler } from 'express'
+import { rateLimit } from 'express-rate-limit'
+import type { ApiErrorCode } from '../../shared/types.ts'
 import { HttpError } from '../errors.ts'
 
-interface Bucket {
-  count: number
-  resetAt: number
+interface LimiterOptions {
+  /** Requests allowed per window and IP. */
+  max?: number
+  windowMs?: number
+}
+
+const WINDOW_MS = 15 * 60_000
+
+/**
+ * Fixed-window limiter held in memory and keyed by `req.ip`. State lives in the returned
+ * middleware, so each call (and so each app instance) counts separately. The app sets no
+ * trust-proxy value (spec section 7), so `X-Forwarded-For` is ignored and its validation is off.
+ */
+function createLimiter(
+  opts: LimiterOptions,
+  defaultMax: number,
+  code: ApiErrorCode,
+  message: string,
+): RequestHandler {
+  return rateLimit({
+    limit: opts.max ?? defaultMax,
+    windowMs: opts.windowMs ?? WINDOW_MS,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
+    // The library has set Retry-After from the window's reset time just before calling this.
+    handler: (_req, res, next, options) => {
+      const header = Number(res.getHeader('Retry-After'))
+      const retryAfterSec = Number.isFinite(header) && header > 0 ? header : options.windowMs / 1000
+      next(new HttpError(429, code, message, { retryAfterSec }))
+    },
+  })
 }
 
 /**
- * Fixed-window limiter for sign-in attempts, keyed by `req.ip` and held in memory. Every attempt
- * counts, successful or not; the attempt after `max` gets 429 until the window that began at the
- * first attempt has passed.
+ * Sign-in limiter: 10 attempts per 15 minutes per IP. Every attempt counts, successful or not;
+ * the attempt after `max` gets 429 until the window that began at the first attempt has passed.
  */
-export function createLoginLimiter(
-  opts: { max?: number; windowMs?: number; now?: () => number } = {},
-): RequestHandler {
-  const max = opts.max ?? 10
-  const windowMs = opts.windowMs ?? 15 * 60_000
-  const now = opts.now ?? Date.now
-  const buckets = new Map<string, Bucket>()
+export function createLoginLimiter(opts: LimiterOptions = {}): RequestHandler {
+  return createLimiter(opts, 10, 'unauthorized', 'Too many sign-in attempts. Try again later.')
+}
 
-  return (req, res, next) => {
-    const time = now()
-    for (const [key, bucket] of buckets) {
-      if (bucket.resetAt <= time) buckets.delete(key)
-    }
-
-    const key = req.ip ?? 'unknown'
-    const bucket = buckets.get(key) ?? { count: 0, resetAt: time + windowMs }
-    buckets.set(key, bucket)
-
-    if (bucket.count >= max) {
-      const retryAfterSec = Math.ceil((bucket.resetAt - time) / 1000)
-      res.set('Retry-After', String(retryAfterSec))
-      next(
-        new HttpError(429, 'unauthorized', 'Too many sign-in attempts. Try again later.', {
-          retryAfterSec,
-        }),
-      )
-      return
-    }
-    bucket.count += 1
-    next()
-  }
+/** Generous app-wide limiter (1000 requests per 15 minutes per IP) that no normal use reaches. */
+export function createGlobalLimiter(opts: LimiterOptions = {}): RequestHandler {
+  return createLimiter(opts, 1000, 'internal', 'Too many requests. Try again later.')
 }

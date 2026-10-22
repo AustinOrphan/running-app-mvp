@@ -164,3 +164,40 @@ describe('errorHandler', () => {
     expect(res.body).toEqual({ error: { code: 'validation', message: 'Nope.' } })
   })
 })
+
+describe('global rate limit', () => {
+  test('the request after the limit gets 429 with the standard error body', async () => {
+    const limited = await createTestCtx({}, { globalLimit: 3 })
+    try {
+      for (let i = 0; i < 3; i++) {
+        expect((await client(limited).get('/api/health')).status).toBe(200)
+      }
+      const res = await client(limited).get('/api/health')
+      expect(res.status).toBe(429)
+      expect(res.body).toMatchObject({
+        error: { code: 'internal', details: { retryAfterSec: 900 } },
+      })
+      expect(res.headers['retry-after']).toBeTruthy()
+      // Other paths share the budget, including the SPA fallback and unknown API paths.
+      expect((await client(limited).get('/some/page')).status).toBe(429)
+      expect((await client(limited).post('/api/auth/logout')).status).toBe(429)
+    } finally {
+      await limited.close()
+    }
+  })
+
+  test('the default allows 1000 requests per window and blocks the 1001st', async () => {
+    const fresh = await createTestCtx()
+    try {
+      const agent = client(fresh)
+      for (let i = 0; i < 1000; i++) {
+        const res = await agent.get('/api/health')
+        if (res.status !== 200)
+          throw new Error(`request ${String(i + 1)} got ${String(res.status)}`)
+      }
+      expect((await agent.get('/api/health')).status).toBe(429)
+    } finally {
+      await fresh.close()
+    }
+  }, 60_000)
+})

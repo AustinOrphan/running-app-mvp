@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser'
 import express, { type Express } from 'express'
 import helmet from 'helmet'
 import { pinoHttp } from 'pino-http'
+import { createGlobalLimiter } from './auth/rateLimit.ts'
 import { authRouter } from './auth/routes.ts'
 import { requireAuth, sameOriginGuard } from './auth/middleware.ts'
 import type { Config } from './config.ts'
@@ -26,7 +27,8 @@ export interface Deps {
 
 const REQUEST_ID = /^[\w.-]{1,64}$/
 
-export function createApp(deps: Deps): Express {
+/** `globalLimit` overrides the per-IP request budget per 15 minutes; tests use it. */
+export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Express {
   const logger = createLogger(deps.config)
   const app = express()
 
@@ -56,6 +58,9 @@ export function createApp(deps: Deps): Express {
       },
     }),
   )
+
+  // Before the routers and static serving, so API calls and the index fallback share one budget.
+  app.use(createGlobalLimiter({ max: opts.globalLimit }))
 
   // Imports carry the whole CSV file as JSON text. The general parser below skips bodies that an
   // earlier parser already read.

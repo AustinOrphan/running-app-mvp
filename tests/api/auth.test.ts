@@ -3,7 +3,7 @@ import express from 'express'
 import jwt from 'jsonwebtoken'
 import { pino } from 'pino'
 import request from 'supertest'
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { setPasswordByEmail } from '../../server/auth/password.ts'
 import { createLoginLimiter } from '../../server/auth/rateLimit.ts'
 import { errorHandler } from '../../server/errors.ts'
@@ -227,31 +227,60 @@ test(
 describe('rate limit: 10 attempts per 15 minutes per IP', () => {
   const MINUTE = 60_000
 
-  test('limiter unit test with an injected clock', async () => {
-    let now = 1_000_000
-    const app = express()
-    app.post('/login', createLoginLimiter({ now: () => now }), (_req, res) => {
-      res.sendStatus(204)
-    })
-    app.use(errorHandler(pino({ level: 'silent' })))
+  test('limiter unit test with a mocked clock', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const app = express()
+      app.post('/login', createLoginLimiter(), (_req, res) => {
+        res.sendStatus(204)
+      })
+      app.use(errorHandler(pino({ level: 'silent' })))
 
-    for (let attempt = 1; attempt <= 10; attempt++) {
+      for (let attempt = 1; attempt <= 10; attempt++) {
+        expect((await request(app).post('/login')).status).toBe(204)
+      }
+      const blocked = await request(app).post('/login')
+      expect(blocked.status).toBe(429)
+      expect(blocked.body).toMatchObject({
+        error: { code: 'unauthorized', details: { retryAfterSec: 900 } },
+      })
+      expect(blocked.headers['retry-after']).toBe('900')
+      expect(blocked.headers['ratelimit-policy']).toBe('10;w=900')
+
+      vi.advanceTimersByTime(14 * MINUTE + 59_000)
+      const stillBlocked = await request(app).post('/login')
+      expect(stillBlocked.status).toBe(429)
+      expect(stillBlocked.headers['retry-after']).toBe('1')
+
+      vi.advanceTimersByTime(1_000)
       expect((await request(app).post('/login')).status).toBe(204)
+    } finally {
+      vi.useRealTimers()
     }
-    const blocked = await request(app).post('/login')
-    expect(blocked.status).toBe(429)
-    expect(blocked.body).toMatchObject({
-      error: { code: 'unauthorized', details: { retryAfterSec: 900 } },
-    })
-    expect(blocked.headers['retry-after']).toBe('900')
+  })
 
-    now += 14 * MINUTE + 59_000
-    const stillBlocked = await request(app).post('/login')
-    expect(stillBlocked.status).toBe(429)
-    expect(stillBlocked.headers['retry-after']).toBe('1')
+  test('each limiter keeps its own counter', async () => {
+    const make = () => {
+      const app = express()
+      app.post('/login', createLoginLimiter({ max: 1 }), (_req, res) => {
+        res.sendStatus(204)
+      })
+      app.use(errorHandler(pino({ level: 'silent' })))
+      return app
+    }
+    const first = make()
+    expect((await request(first).post('/login')).status).toBe(204)
+    expect((await request(first).post('/login')).status).toBe(429)
+    expect((await request(make()).post('/login')).status).toBe(204)
+  })
 
-    now += 1_000
-    expect((await request(app).post('/login')).status).toBe(204)
+  test('POST /api/setup shares the sign-in budget', async () => {
+    const ctx = await ctxFor({ allowRegistration: true })
+    for (let i = 0; i < 10; i++) {
+      await client(ctx).post('/api/setup').send({})
+    }
+    const res = await client(ctx).post('/api/setup').send(setupBody())
+    expect(res.status).toBe(429)
   })
 
   test('integration: the 11th bad login is 429', async () => {
