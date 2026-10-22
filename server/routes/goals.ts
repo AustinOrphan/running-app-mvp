@@ -120,6 +120,8 @@ export function goalsRouter(deps: Deps): Router {
         status: body.status,
         targetDate: body.targetDate,
         dateProvisional: body.dateProvisional,
+        // A finished or dropped goal cannot stay active, matching the activate rule.
+        ...(body.status === 'done' || body.status === 'dropped' ? { isActive: false } : {}),
         distanceM: body.distanceM,
         location: blankToNull(body.location),
         successCriteria: blankToNull(body.successCriteria),

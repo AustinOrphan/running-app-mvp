@@ -147,6 +147,11 @@ describe('goals', () => {
     expect((await client(ctx, user).post(`/api/goals/${done.id}/activate`)).status).toBe(409)
     expect((await client(ctx, user).post(`/api/goals/${dropped.id}/activate`)).status).toBe(409)
     expect((await client(ctx, user).post(`/api/goals/${foreign.id}/activate`)).status).toBe(404)
+
+    // Marking the active goal done or dropped also deactivates it.
+    const finished = await client(ctx, user).put(`/api/goals/${a.id}`).send({ status: 'done' })
+    expect(finished.status).toBe(200)
+    expect(finished.body).toMatchObject({ status: 'done', isActive: false })
   })
 
   test('delete: 204, but 409 while the goal has an active plan; other users get not_found', async () => {

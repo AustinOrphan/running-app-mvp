@@ -173,19 +173,26 @@ describe('POST /api/plan/generate', () => {
           },
         })
       }
+      const baselinesFor = (baselineRunMin: number) =>
+        generatePlan({
+          startDate: thisMonday,
+          raceDate: goal.targetDate,
+          distanceClass: distanceClassOf(42_195),
+          baselineRunMin,
+          strengthPreference: 2,
+        }).map((w) => w.baselineRunMin)
+      const weekBaselines = (res: { body: unknown }) =>
+        (res.body as PlanWithWeeks).weeks.map((w) => w.baselineRunMin)
+
       const fromRuns = await c.post('/api/plan/generate').send({ goalId: goal.id })
       expect(fromRuns.status).toBe(201)
-      const runsWeek = (fromRuns.body as PlanWithWeeks).weeks[0]
-      expect(runsWeek?.baselineRunMin).toBeGreaterThanOrEqual(120)
-      expect(runsWeek?.baselineRunMin).toBeLessThanOrEqual(138)
+      expect(weekBaselines(fromRuns)).toEqual(baselinesFor(120))
 
       const explicit = await c
         .post('/api/plan/generate')
         .send({ goalId: goal.id, baselineRunMin: 200 })
       expect(explicit.status).toBe(201)
-      const first = (explicit.body as PlanWithWeeks).weeks[0]
-      expect(first?.baselineRunMin).toBeGreaterThanOrEqual(200)
-      expect(first?.baselineRunMin).toBeLessThanOrEqual(230)
+      expect(weekBaselines(explicit)).toEqual(baselinesFor(200))
     } finally {
       await fresh.close()
     }
