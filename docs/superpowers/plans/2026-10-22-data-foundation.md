@@ -310,3 +310,39 @@ risks of the experimental ones, Docker volume for the watched folder), `CLAUDE.m
 E2E: upload a synthetic FIT built at test time, see it in the list, open detail, see charts
 and laps; rate it from the Today card; fill the profile and reload; integrations page lists
 every provider (no network).
+
+## Resolutions (builder check, 2026-10-22; these override anything above and the spec)
+
+1. **Hooks.** D1 writes every hook in the contract, plus `useSaveFeedback(id)` →
+   `PATCH /api/activities/:id/feedback { rpe?, feel?, pain? }` (D11 adds that route; partial
+   update, each field nullable to clear). D15 uses `useSaveFeedback` for the Today card and
+   the detail page; the full edit form keeps `useUpdateActivity`.
+2. **Keys and channels.** `Activity.providerKey` and its unique index already exist; reuse
+   them. `ImportBatch.source` is any registry key or `file|csv|smashrun`.
+   `ImportedFile.channel` is `upload|folder|provider|push`.
+3. **Integration status.** `disconnected` is synthetic (no row). A paused run sets
+   `lastSyncStatus 'paused'` and a new column `Integration.pausedUntil DateTime?` (D1 adds it);
+   the scheduler skips a provider until then.
+4. **Cursor.** An opaque, provider-defined string, by default the ISO `startUtc` of the newest
+   stored activity. `RateLimitPause` is `class RateLimitPause extends Error { cursor?: string;
+   retryAfterSec: number }`; sync saves the cursor it carries.
+5. **Provider types (D1 freezes them).** `PushProvider.parsePush` returns
+   `{ activities, wellness, ignored?: Record<string, number> }` and the ingest response is
+   `{ activities: n, wellness: n, ignored }`. `PullProvider.fetchActivity` returns
+   `{ parsed: ParsedActivity; file?: { name: string; format: 'fit'|'gpx'|'tcx'; bytes: Uint8Array } } | null`
+   so downloaded originals are kept.
+6. **ProviderCtx** (D1): `{ fetch: typeof fetch; timezone: string; secret: Record<string, unknown>;
+   config: Record<string, unknown>; saveSecret(next): Promise<void>; parseFile(name: string,
+   bytes: Uint8Array): ParsedActivity[]; sleep(ms: number): Promise<void>; now(): Date;
+   userId: string }`. Providers call `ctx.parseFile`, never D2's module directly; D10 wires
+   it to `parseActivityFile`.
+7. **Duplicate rank** (D3): `file 5, garmin 5, intervals 4, apple-health 4, strava 3,
+   smashrun 2, csv 1, manual 0`; any other source ranks 1.
+8. **OAuth redirect URI** (D10): `config.publicBaseUrl` when set, else
+   `${req.protocol}://${req.get('host')}`, plus `/api/integrations/<provider>/callback`. The
+   callback route sits behind the session check (the cookie travels on the top-level GET).
+9. **Weather** is filled by the scheduler only (every 10 minutes); no trigger on import.
+10. **Stream shape.** Buckets of `sampleSec` (10) seconds: `t` is the bucket start in
+    seconds from the activity start; `hr`, `alt`, `cad`, `pwr` are bucket means (null when
+    the bucket has no samples); `d` is cumulative metres at the bucket end. The serializer
+    merges `sampleSec` into `ActivityDetail.stream`.
