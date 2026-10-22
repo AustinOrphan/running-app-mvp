@@ -8,3 +8,4 @@ package-lock.json
 prisma/migrations
 docs/superpowers
 web/styles/tokens.css
+generated

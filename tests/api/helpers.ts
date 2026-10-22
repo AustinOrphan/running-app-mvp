@@ -1,7 +1,7 @@
 import { copyFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { PrismaClient } from '@prisma/client'
+import type { PrismaClient } from '../../server/db.ts'
 import bcrypt from 'bcryptjs'
 import type { Express } from 'express'
 import request from 'supertest'

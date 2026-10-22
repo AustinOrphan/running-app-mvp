@@ -6,7 +6,7 @@ import type {
   PlanWeek as PlanWeekRow,
   PrismaClient,
   WeeklyReview as WeeklyReviewRow,
-} from '@prisma/client'
+} from './db.ts'
 import type {
   Activity,
   ActivitySource,

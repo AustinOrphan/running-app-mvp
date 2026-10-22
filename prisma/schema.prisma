@@ -2,12 +2,12 @@
 // shared/types.ts narrows them to unions. Dates are YYYY-MM-DD strings.
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 model User {

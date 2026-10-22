@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client'
+import type { PrismaClient } from '../db.ts'
 
 /**
  * Stub until Task 8 implements the near-duplicate pass. Flags manual or csv runs that match an

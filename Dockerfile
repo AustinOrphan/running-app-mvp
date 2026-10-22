@@ -1,7 +1,5 @@
 FROM node:24-slim AS build
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends openssl \
-  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
@@ -9,12 +7,10 @@ RUN npx prisma generate && npm run build
 
 FROM node:24-slim
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends openssl \
-  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY prisma ./prisma
-RUN npx prisma generate
+COPY prisma.config.ts ./
 COPY --from=build /app/dist ./dist
 
 ENV NODE_ENV=production \

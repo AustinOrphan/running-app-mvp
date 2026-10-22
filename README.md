@@ -47,6 +47,7 @@ Rotating `SESSION_SECRET` signs the account out everywhere.
 - `server/`: Express app, auth, routes, services
 - `shared/`: pure domain code used by server and web
 - `web/`: React and Vite single-page app
-- `prisma/`: schema and migrations
+- `prisma/`: schema and migrations; `prisma.config.ts` holds the CLI settings
+- `generated/`: Prisma client, gitignored, written by `prisma generate` (the npm pre-scripts run it)
 - `tests/`: unit, api, web and e2e
 - `docs/`: design specs, plan and ADRs (`docs/adr/`)

@@ -23,3 +23,4 @@ Self-hosted training log and planner for one runner. Specs and the task plan are
 - Commit subjects are imperative with a conventional prefix, at most 72 characters, with no
   attribution trailers. Comments, commits and ADRs avoid first and second person.
 - Migrations under `prisma/migrations` are committed; never ignore them.
+- Import `PrismaClient` and the row types from `server/db.ts`, not from `@prisma/client` or `generated/`.
