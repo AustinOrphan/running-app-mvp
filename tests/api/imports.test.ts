@@ -368,11 +368,17 @@ describe('GET /api/imports', () => {
 
 describe('atomicity', () => {
   test('the whole batch is atomic: a database failure leaves no partial rows and no batch', async () => {
+    // 501 rows span two insert chunks; the failure hits the last row, after the first chunk ran.
+    const specs = Array.from({ length: 501 }, (_, i) => ({
+      id: String(5000 + i),
+      distance: '3',
+      startDate: '26/03/02 7:15',
+    }))
     await ctx.prisma.$executeRawUnsafe(
-      `CREATE TRIGGER fail_activity_insert BEFORE INSERT ON "Activity" BEGIN SELECT RAISE(ABORT, 'forced failure'); END`,
+      `CREATE TRIGGER fail_activity_insert BEFORE INSERT ON "Activity" WHEN NEW."providerKey" = 'smashrun:5500' BEGIN SELECT RAISE(ABORT, 'forced failure'); END`,
     )
     try {
-      const res = await upload('smashrun', { fileName: 'sample.csv', text: FIXTURE })
+      const res = await upload('smashrun', { fileName: 'many.csv', text: smashrunFile(...specs) })
       expect(res.status).toBe(500)
       expect(res.body.error.code).toBe('internal')
     } finally {
