@@ -15,6 +15,52 @@ export const dGoal = {
       },
     ),
   },
+  d1Class: {
+    fiveKmUpperM: param('d1Class.fiveKmUpperM', 7500, 'D', 'D1', [], {
+      unit: 'm',
+      note: 'Default: goals up to this distance are classed 5 km (the midpoint to the 10 km class).',
+    }),
+    tenKmUpperM: param('d1Class.tenKmUpperM', 15000, 'D', 'D1', [], {
+      unit: 'm',
+      note: 'Default: goals up to this distance are classed 10 km.',
+    }),
+    halfUpperM: param('d1Class.halfUpperM', 32000, 'D', 'D1', [], {
+      unit: 'm',
+      note: 'Default: goals up to this distance are classed half-marathon; longer road races up to the ultra threshold are classed marathon.',
+    }),
+    ultra50UpperM: param('d1Class.ultra50UpperM', 80467, 'D', 'D1', [], {
+      unit: 'm',
+      note: 'Default: 50 miles in metres; ultras above the ultra threshold up to this distance are classed 50 km.',
+    }),
+    ultra100kUpperM: param('d1Class.ultra100kUpperM', 130000, 'D', 'D1', [], {
+      unit: 'm',
+      note: 'Default: goals above the 50 class up to this distance are classed 100 km.',
+    }),
+    ultra100miUpperM: param('d1Class.ultra100miUpperM', 170000, 'D', 'D1', [], {
+      unit: 'm',
+      note: 'Default: goals above the 100 km class up to this distance are classed 100 miles; longer goals are classed beyond.',
+    }),
+  },
+  d1Dark: {
+    dawnHour: param('d1Dark.dawnHour', 6, 'D', 'D1', [], {
+      unit: 'hour of day',
+      note: 'Default: a race that starts before this local hour is run partly in darkness. Season and latitude are not modelled.',
+    }),
+    duskHour: param('d1Dark.duskHour', 20, 'D', 'D1', [], {
+      unit: 'hour of day',
+      note: 'Default: a race still running after this local hour crosses darkness. Season and latitude are not modelled.',
+    }),
+  },
+  d1Prior: {
+    paceSecPerKm: param('d1Prior.paceSecPerKm', 420, 'D', 'D1', [], {
+      unit: 'sec/km',
+      note: 'Default pace prior (7:00 per km) for the expected duration of a race up to the ultra threshold when there is no prediction and no target time.',
+    }),
+    ultraPaceSecPerKm: param('d1Prior.ultraPaceSecPerKm', 600, 'D', 'D1', [], {
+      unit: 'sec/km',
+      note: 'Default pace prior (10:00 per km of effort-equivalent distance) for an ultra when there is no prediction and no target time.',
+    }),
+  },
   d2: {
     finishFirstFromM: param(
       'd2.finishFirstFromM',
@@ -127,6 +173,12 @@ export const dGoal = {
     cutbackFactor: param('d4.cutbackFactor', 4 / 3, 'D', 'D4', [], {
       unit: 'ratio',
       note: 'Default: weeks needed are multiplied by 4/3 to allow for cutback weeks (3:1), plus the taper.',
+    }),
+  },
+  d4Label: {
+    comfortableMargin: param('d4Label.comfortableMargin', 1.25, 'D', 'D4', [], {
+      unit: 'ratio of weeks available to weeks needed',
+      note: 'Default: comfortable at or above this ratio, tight from 1.0 up to it, not reachable below 1.0. The rule names the labels, not the cut-offs.',
     }),
   },
   d5: {
