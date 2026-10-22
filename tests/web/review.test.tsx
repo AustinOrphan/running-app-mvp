@@ -641,7 +641,11 @@ describe('ReviewPage', () => {
               },
               conditions: { wbgtC: null, heatAdjusted: false, gradeAdjusted: false },
               flags: [],
-              lines: ['Effort matched the plan.'],
+              lines: [
+                '45 min against 45 planned (100%).',
+                'Intensity stayed in the target range.',
+                'Effort matched expectation.',
+              ],
             },
           }),
           makeSession({
@@ -665,7 +669,11 @@ describe('ReviewPage', () => {
               },
               conditions: { wbgtC: 24, heatAdjusted: true, gradeAdjusted: false },
               flags: ['heat'],
-              lines: ['Heat made it harder.'],
+              lines: [
+                '70 min against 100 planned (70%).',
+                'Effort felt much harder than expected.',
+                'Warm conditions (WBGT about 24 C): the heart-rate expectation was raised and pace was not judged.',
+              ],
             },
           }),
           makeSession({ id: 's4', weekStart: CURRENT, date: '2026-10-20', title: 'Later run' }),
@@ -680,15 +688,17 @@ describe('ReviewPage', () => {
       expect(within(items[0] as HTMLElement).getByText('Easy run')).toBeInTheDocument()
       expect(within(items[0] as HTMLElement).getByText('Completed')).toBeInTheDocument()
       expect(
-        within(items[0] as HTMLElement).getByText('Effort matched the plan.'),
+        within(items[0] as HTMLElement).getByText('Effort matched expectation.'),
       ).toBeInTheDocument()
-      expect(within(items[0] as HTMLElement).getByText('Felt as expected.')).toBeInTheDocument()
+      // The engine's lines are the summary; the page adds no second wording of the same facts.
+      expect(within(items[0] as HTMLElement).getAllByText(/target range|target zone/)).toHaveLength(
+        1,
+      )
+      expect(within(items[0] as HTMLElement).queryByText(/^Felt /)).not.toBeInTheDocument()
       expect(within(items[1] as HTMLElement).getByText('Skipped')).toBeInTheDocument()
       expect(within(items[2] as HTMLElement).getByText('Partly done')).toBeInTheDocument()
-      expect(
-        within(items[2] as HTMLElement).getByText('Felt harder than expected.'),
-      ).toBeInTheDocument()
-      expect(within(items[2] as HTMLElement).getByText('Heat made it harder.')).toBeInTheDocument()
+      expect(within(items[2] as HTMLElement).getAllByText(/harder than expected/)).toHaveLength(1)
+      expect(within(items[2] as HTMLElement).getByText(/WBGT about 24 C/)).toBeInTheDocument()
       expect(section.textContent).not.toMatch(/missed|behind/i)
 
       await user.click(

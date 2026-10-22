@@ -892,7 +892,7 @@ function ZonesSection({ units }: { units: Units }) {
       </p>
       {body}
       <div>
-        <ExplainButton subject="zones" rules={['c-1', 'c-2']} />
+        <ExplainButton subject="zones" rules={['C1', 'C2']} />
       </div>
     </section>
   )

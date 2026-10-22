@@ -412,7 +412,7 @@ describe('ProfilePage', () => {
       expect(within(z2).getByText('4 to 6')).toBeInTheDocument()
 
       await user.click(within(section).getByRole('button', { name: 'Why: zones' }))
-      expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('c-1,c-2')
+      expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('C1,C2')
     })
 
     test('a failed load is stated and the form still works', async () => {

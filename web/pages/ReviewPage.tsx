@@ -8,7 +8,7 @@ import {
   type SuggestInput,
   type Suggestion,
 } from '../../shared/domain/review.ts'
-import type { ExecutionAssessment, WeeklyDecision } from '../../shared/engine/types.ts'
+import type { WeeklyDecision } from '../../shared/engine/types.ts'
 import type {
   Activity,
   DataStatus,
@@ -67,37 +67,6 @@ const SESSION_STATUS_LABELS: Record<PlanSessionStatus, string> = {
   skipped: 'Skipped',
   downgraded: 'Eased',
   moved: 'Moved',
-}
-
-const COMPLETION_LINES: Partial<Record<ExecutionAssessment['completion'], string>> = {
-  partial: 'Shorter than planned.',
-  extended: 'Longer than planned.',
-  modified: 'A different kind of session than planned.',
-}
-
-const INTENSITY_LINES: Partial<Record<ExecutionAssessment['intensity'], string>> = {
-  below: 'Below the target zone.',
-  on: 'In the target zone.',
-  above: 'Above the target zone.',
-}
-
-/** What an assessment says in words, ahead of the engine's own lines. */
-function assessmentLines(execution: ExecutionAssessment): string[] {
-  const score = execution.effort.score
-  const effort =
-    score === null
-      ? null
-      : score < 0
-        ? 'Felt easier than expected.'
-        : score === 0
-          ? 'Felt as expected.'
-          : 'Felt harder than expected.'
-  return [
-    COMPLETION_LINES[execution.completion],
-    INTENSITY_LINES[execution.intensity],
-    effort,
-    ...execution.lines,
-  ].filter((line): line is string => line !== undefined && line !== null)
 }
 
 const DATA_OPTIONS: Array<{ value: DataStatus; label: string }> = [
@@ -682,13 +651,12 @@ function SessionSummaries({ sessions }: { sessions: PlanSession[] }) {
               <span className={styles.muted}>{`${String(session.durationMin)} min`}</span>
               <span className={styles.sessionStatus}>{SESSION_STATUS_LABELS[session.status]}</span>
             </div>
-            {session.execution
-              ? assessmentLines(session.execution).map((line) => (
-                  <p key={line} className={styles.sessionLine}>
-                    {line}
-                  </p>
-                ))
-              : null}
+            {/* The engine's lines already cover completion, intensity, effort and conditions. */}
+            {session.execution?.lines.map((line, i) => (
+              <p key={i} className={styles.sessionLine}>
+                {line}
+              </p>
+            ))}
             {session.execution ? (
               <div>
                 <ExplainButton subject={session.title} rules={session.rules} />

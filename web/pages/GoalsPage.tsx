@@ -578,16 +578,16 @@ function GoalOutlook({ goal }: { goal: Goal }) {
           <p className={styles.outlookValue}>{FEASIBILITY_LABELS[feasibility.label]}</p>
           <p className={styles.note}>
             {`${String(feasibility.weeksNeeded)} weeks needed, ${String(feasibility.weeksAvailable)} available.`}
-            {feasibility.label === 'not-reachable'
-              ? ' A later race, a shorter distance or a finish goal would fit inside the default limits.'
-              : ''}
           </p>
-          {otherNotes.map((note) => (
-            <p key={note.code} className={styles.note}>
+          {otherNotes.map((note, i) => (
+            <p key={i} className={styles.note}>
               {note.message}
             </p>
           ))}
-          <ExplainButton subject="feasibility" rules={['d-4']} />
+          <ExplainButton
+            subject="feasibility"
+            rules={[...new Set(['D4', ...otherNotes.flatMap((note) => note.rules)])]}
+          />
         </section>
       ) : null}
       <section className={styles.outlookBlock} aria-label="Prediction">
@@ -622,7 +622,7 @@ function GoalOutlook({ goal }: { goal: Goal }) {
           ))}
           <ExplainButton
             subject="race-day heat"
-            rules={[...new Set(heatNotes.flatMap((note) => note.rules))]}
+            rules={[...new Set(['D6', ...heatNotes.flatMap((note) => note.rules)])]}
           />
         </section>
       ) : null}

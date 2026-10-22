@@ -375,7 +375,7 @@ describe('Goals page', () => {
         lowSec: 6000,
         highSec: 6700,
         conditions: ['Race-day WBGT 21.0 C adds 2.1% to the time.', 'No gain counted.'],
-        rules: ['l-1', 'i-5'],
+        rules: ['L1', 'L2'],
       },
       log: [],
     }
@@ -393,7 +393,7 @@ describe('Goals page', () => {
                   severity: 'info',
                   message:
                     'Race-day WBGT is 21.0 C, so the plan includes a heat acclimation block.',
-                  rules: ['d-6'],
+                  rules: ['D6'],
                 },
               ],
             },
@@ -415,7 +415,17 @@ describe('Goals page', () => {
     expect(within(card).getByText(/heat acclimation block/)).toBeInTheDocument()
 
     await user.click(within(card).getByRole('button', { name: 'Why: predicted time' }))
-    expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('l-1,i-5')
+    expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('L1,L2')
+
+    await user.click(within(card).getByRole('button', { name: 'Why: race-day heat' }))
+    expect(screen.getAllByRole('dialog', { name: 'Evidence' }).map((d) => d.textContent)).toContain(
+      'D6',
+    )
+
+    await user.click(within(card).getByRole('button', { name: 'Why: feasibility' }))
+    expect(screen.getAllByRole('dialog', { name: 'Evidence' }).map((d) => d.textContent)).toContain(
+      'D4',
+    )
   })
 
   test('a goal that is not reachable within default limits says so and offers options, with no prediction text when none exists', async () => {
@@ -423,16 +433,28 @@ describe('Goals page', () => {
       routes([makeGoal({ isActive: true })], miUser, {
         'GET /api/plan': () =>
           makePlan({
-            feasibility: { label: 'not-reachable', weeksNeeded: 40, weeksAvailable: 12, notes: [] },
+            feasibility: {
+              label: 'not-reachable',
+              weeksNeeded: 40,
+              weeksAvailable: 12,
+              notes: [
+                {
+                  code: 'not-reachable',
+                  severity: 'warn',
+                  message:
+                    'Within the default limits this goal needs about 40 weeks and 12 are available. The plan keeps every limit; a later race, a shorter distance or a finish-first goal would fit better.',
+                  rules: ['D4'],
+                },
+              ],
+            },
           }),
       }),
     )
     renderWithProviders(<GoalsPage />)
     const card = await screen.findByRole('article', { name: 'Spring half' })
     expect(await within(card).findByText('Not reachable within default limits')).toBeInTheDocument()
-    expect(
-      within(card).getByText(/later race, a shorter distance or a finish goal/),
-    ).toBeInTheDocument()
+    // The engine's note carries the options; the page shows it once, without adding its own.
+    expect(within(card).getAllByText(/a later race, a shorter distance/)).toHaveLength(1)
     expect(within(card).getByText(/No prediction yet/)).toBeInTheDocument()
   })
 
