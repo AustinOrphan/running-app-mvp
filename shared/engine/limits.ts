@@ -13,8 +13,10 @@ import type { AthleteState, SessionKind, SessionSpec } from './types.ts'
 export const EPS = 1e-9
 
 /**
- * Runs that count toward the weekly running minutes and the 30-day reference. A race and a hike do
- * not: the weeks before the plan (`state.weeks.runMin`) leave races out too.
+ * Planned session kinds that count toward the weekly running minutes and the 30-day reference. A
+ * planned race and a hike do not: the weeks before the plan (`state.weeks.runMin`) leave races out
+ * too. A completed race is a different matter: one shorter than the marathon distance is a run in
+ * the 30-day reference, a longer one is not (`countsTowardReference`).
  */
 export const VOLUME_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'easy',
@@ -55,8 +57,19 @@ export interface CompletedReference {
   virtualTwoDay: Array<{ date: string; min: number }>
 }
 
+/**
+ * Whether a completed activity is a run of the 30-day reference [rules g-1]. A race counts as a run
+ * when it is shorter than the marathon distance (`g1.referenceRaceMaxM`) or has no distance; a
+ * marathon or longer would otherwise let training runs reach 1.10 times the race. Duplicates are
+ * the caller's business.
+ */
+export function countsTowardReference(a: Activity): boolean {
+  if (a.type === 'run') return true
+  return a.type === 'race' && (a.distanceM === null || a.distanceM < P.g1.referenceRaceMaxM.value)
+}
+
 const isCounted = (a: Activity) =>
-  (a.type === 'run' || a.type === 'race') &&
+  countsTowardReference(a) &&
   a.duplicateOfId === null &&
   a.duplicateStatus !== 'possible' &&
   a.duplicateStatus !== 'confirmed'
@@ -219,6 +232,29 @@ export function weeklyRamp(state: AthleteState): number {
     ramp = Math.min(ramp, P.g2.rampSoft.value * P.g3.bsiRampFactor.value)
   }
   return ramp
+}
+
+/**
+ * The minutes of the restart floor week when the runner's typical week sits under it
+ * (sessions x session length): null above it, with no typical week, and for the tightened
+ * profiles, which are not lifted [design-macro, rules g-3].
+ */
+export function restartFloorMin(state: AthleteState): number | null {
+  const minutes = P.restartFloor.sessions.value * P.restartFloor.sessionMin.value
+  if (state.typicalWeekMin <= 0 || state.typicalWeekMin >= minutes) return null
+  if (weeklyRamp(state) < P.g2.rampSoft.value) return null
+  return minutes
+}
+
+/**
+ * The weekly running minutes a new plan starts from: the restart floor where it applies, else the
+ * typical week, else the start floor of a runner without recent running. The generator and the
+ * feasibility label of an ultra [rules D4] both read it.
+ */
+export function startWeekMin(state: AthleteState): number {
+  const floor = restartFloorMin(state)
+  if (floor !== null) return floor
+  return state.typicalWeekMin > 0 ? state.typicalWeekMin : P.macroDesign.startFloorWeekMin.value
 }
 
 /** `from` plus the ramp, or plus the novice minimum step when that is larger [rules g-2]. */

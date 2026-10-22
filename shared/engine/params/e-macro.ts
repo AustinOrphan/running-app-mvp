@@ -11,6 +11,22 @@ const TID_FLOOR = [
   'campos-2022-tid-runners-review',
 ]
 
+/** D7: the plans and coaches whose long runs the 5 km and 10 km caps follow (conventions, grade D). */
+const SHORT_RACE_LONG_RUN = [
+  'higdon-2024-advanced-5k',
+  'higdon-2024-intermediate-5k',
+  'higdon-2024-advanced-10k',
+  'johnson-2018-long-runs-5k-10k',
+  'runningmagazine-2023-daniels-long-run-limit',
+]
+
+/** D4: the studies behind the weekly path of the ultra feasibility label (the principle is grade C). */
+const ULTRA_WEEKLY_PEAK = [
+  'rust-2012-100km-vs-marathoners',
+  'belinchon-2021-mountain-race-predictors',
+  'tanda-2015-training-anthropometry-100km',
+]
+
 export const eMacro = {
   e2: {
     specificWeeksMin: param(
@@ -206,8 +222,9 @@ export const eMacro = {
       note: 'Default: the floor sessions are plain runs when the runner completed a run of at least the floor session length within this many days, and run-walk otherwise.',
     }),
   },
-  // Engine defaults that the rules leave open. Every one is grade D with no evidence: they size
-  // the plan around the rules' limits and are labelled as defaults wherever they are shown.
+  // Engine defaults that the rules leave open. Every one is grade D, with no evidence except where
+  // it follows published plans (D7): they size the plan around the rules' limits and are labelled
+  // as defaults wherever they are shown.
   macroDesign: {
     buildWeeks: param('macroDesign.buildWeeks', 6, 'D', 'design-macro', [], {
       unit: 'weeks',
@@ -239,6 +256,28 @@ export const eMacro = {
       ['outside-2023-strava-western-states', 'outside-2023-strava-utmb'],
       {
         note: 'Default: for ultras the long run is about this share of the weekly running time (H2 still caps it). The Western States peak week put about 40% of weekly distance in the long run (inferred from two medians); the time share is higher than the distance share because long runs are slower.',
+      },
+    ),
+    longRunTierWeeklyMin: param<[number, number]>(
+      'macroDesign.longRunTierWeeklyMin',
+      [180, 360],
+      'D',
+      'D7',
+      [],
+      {
+        unit: 'min per week',
+        note: 'Default: the 5 km and 10 km long-run tier is the first below 180 min, the second from 180 to 360 min and the third above 360 min of the completed typical week (never the planned week). The boundaries keep run days times the cap at or above the week at every tier top.',
+      },
+    ),
+    peakLongRunKmMax: param(
+      'macroDesign.peakLongRunKmMax',
+      16,
+      'D',
+      'D7',
+      ['johnson-2018-long-runs-5k-10k', 'higdon-2024-advanced-10k'],
+      {
+        unit: 'km',
+        note: 'Default: the long run of a 5 km or 10 km goal never exceeds this distance (10 miles, the longest long run of the cited plans for both distances), so a fast runner is capped below the minutes of the tier. A coaching convention, not an injury limit.',
       },
     ),
     trainingPaceFactor: param('macroDesign.trainingPaceFactor', 1.15, 'D', 'design-macro', [], {
@@ -310,32 +349,46 @@ export const eMacro = {
       unit: 'min per week',
       note: 'Default: peak weekly running time for a marathon; the D3 floor can raise it for a time goal.',
     }),
-    ultra50: param('peakWeeklyMin.ultra50', 390, 'D', 'design-macro', [], {
+    ultra50: param('peakWeeklyMin.ultra50', 390, 'D', 'D4', ULTRA_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: 'Default: peak weekly running time for a 50 km ultra; never above what the ramp allows.',
+      note: 'Default: peak weekly running time for a 50 km ultra; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number.',
     }),
-    ultra100k: param('peakWeeklyMin.ultra100k', 480, 'D', 'design-macro', [], {
+    ultra100k: param('peakWeeklyMin.ultra100k', 480, 'D', 'D4', ULTRA_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: 'Default: peak weekly running time for 100 km; never above what the ramp allows.',
+      note: 'Default: peak weekly running time for 100 km; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number.',
     }),
-    ultra100mi: param('peakWeeklyMin.ultra100mi', 600, 'D', 'design-macro', [], {
+    ultra100mi: param('peakWeeklyMin.ultra100mi', 600, 'D', 'D4', ULTRA_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: 'Default: peak weekly running time for 100 miles; never above what the ramp allows.',
+      note: 'Default: peak weekly running time for 100 miles; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number.',
     }),
-    beyond: param('peakWeeklyMin.beyond', 660, 'D', 'design-macro', [], {
+    beyond: param('peakWeeklyMin.beyond', 660, 'D', 'D4', ULTRA_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: 'Default: peak weekly running time beyond 100 miles; never above what the ramp allows.',
+      note: 'Default: peak weekly running time for goals beyond 100 miles; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number.',
     }),
   },
   peakLongRunMin: {
-    '5k': param('peakLongRunMin.5k', 60, 'D', 'design-macro', [], {
-      unit: 'min',
-      note: 'Default: peak long-run duration for a 5 km goal.',
-    }),
-    '10k': param('peakLongRunMin.10k', 75, 'D', 'design-macro', [], {
-      unit: 'min',
-      note: 'Default: peak long-run duration for a 10 km goal.',
-    }),
+    '5k': param<[number, number, number]>(
+      'peakLongRunMin.5k',
+      [60, 75, 90],
+      'D',
+      'D7',
+      SHORT_RACE_LONG_RUN,
+      {
+        unit: 'min by tier',
+        note: 'Default: peak long-run duration for a 5 km goal by volume tier (typical week under 180, 180-360, over 360 min; macroDesign.longRunTierWeeklyMin), also capped at macroDesign.peakLongRunKmMax. The caps follow coaching conventions and published plans; they are not injury limits, and G-1 is the single-session guard.',
+      },
+    ),
+    '10k': param<[number, number, number]>(
+      'peakLongRunMin.10k',
+      [75, 90, 100],
+      'D',
+      'D7',
+      SHORT_RACE_LONG_RUN,
+      {
+        unit: 'min by tier',
+        note: 'Default: peak long-run duration for a 10 km goal by volume tier (typical week under 180, 180-360, over 360 min; macroDesign.longRunTierWeeklyMin), also capped at macroDesign.peakLongRunKmMax. The caps follow coaching conventions and published plans; they are not injury limits, and G-1 is the single-session guard.',
+      },
+    ),
     half: param('peakLongRunMin.half', 105, 'D', 'design-macro', [], {
       unit: 'min',
       note: 'Default: peak long-run duration for a half-marathon; the D3 long-run floor can raise it.',

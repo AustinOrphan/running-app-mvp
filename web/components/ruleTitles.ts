@@ -50,6 +50,7 @@ export const RULE_TITLES: Record<string, string> = {
   D4: 'Feasibility check',
   D5: 'Ultra readiness messages',
   D6: 'Race-day heat',
+  D7: 'Long run for 5 km and 10 km goals',
   // (e) macrocycle
   E1: 'Model',
   E2: 'Phase lengths',

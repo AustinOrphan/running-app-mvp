@@ -13,6 +13,7 @@ import {
   rampSkipWeeks,
   rampStep,
   referenceBetween,
+  restartFloorMin,
   runCaps,
   tightRamp,
   ultraRunCapMin,
@@ -139,9 +140,31 @@ function peakWeeklyMin(goal: GoalModel, pace: number): number {
   return peak
 }
 
-/** Longest planned run in minutes; ultras are capped by the lesser of 6 h and 60% of the race [H2]. */
-export function peakLongRunMin(goal: GoalModel, pace: number): number {
-  let peak = P.peakLongRunMin[goal.distanceClass].value
+/**
+ * The long-run tier of a 5 km or 10 km goal [rules D7]: 0 below the first boundary of
+ * `macroDesign.longRunTierWeeklyMin`, 1 up to and including the second, 2 above it. It is read from
+ * the completed typical week, never from a planned one, so a plan cannot lift its own cap.
+ */
+function longRunTier(state: AthleteState): 0 | 1 | 2 {
+  const [low, high] = P.macroDesign.longRunTierWeeklyMin.value
+  if (state.typicalWeekMin < low) return 0
+  return state.typicalWeekMin <= high ? 1 : 2
+}
+
+/**
+ * Longest planned run in minutes. 5 km and 10 km goals take the tier of the completed typical week
+ * and stop at the minutes that 16 km takes at `pace` [rules D7]; ultras are capped by the lesser of
+ * 6 h and 60% of the race [H2].
+ */
+export function peakLongRunMin(goal: GoalModel, pace: number, state: AthleteState): number {
+  const table = P.peakLongRunMin[goal.distanceClass].value
+  let peak: number
+  if (typeof table === 'number') {
+    peak = table
+  } else {
+    const kmMin = floorEps((P.macroDesign.peakLongRunKmMax.value * pace) / 60)
+    peak = Math.min(table[longRunTier(state)], kmMin)
+  }
   if (goal.goalType === 'time') {
     if (goal.distanceClass === 'half') {
       peak = Math.max(peak, minutesFor(P.d3.halfMinLongRunKm.value, pace))
@@ -338,9 +361,8 @@ export interface RestartFloor {
  * are plain runs when a run of the floor length was completed in the last 90 days, else run-walk.
  */
 export function restartFloor(input: EngineInput, state: AthleteState): RestartFloor | null {
-  const minutes = P.restartFloor.sessions.value * P.restartFloor.sessionMin.value
-  if (state.typicalWeekMin <= 0 || state.typicalWeekMin >= minutes) return null
-  if (weeklyRamp(state) < P.g2.rampSoft.value) return null
+  const minutes = restartFloorMin(state)
+  if (minutes === null) return null
   const since = addDays(input.today, -P.restartFloor.lookbackDays.value)
   const hasRecentRun = input.activities.some(
     (a) =>
@@ -469,7 +491,7 @@ export function macroPlan(
           ? state.typicalWeekMin
           : P.macroDesign.startFloorWeekMin.value
   const ceiling = Math.max(peakWeeklyMin(goal, pace), start)
-  const peakLong = peakLongRunMin(goal, pace)
+  const peakLong = peakLongRunMin(goal, pace, state)
   const hasGain = goal.gainM > 0 && goal.distanceM > 0
   const gainPerKm = hasGain ? goal.gainM / (goal.distanceM / 1000) : 0
   const gainStep = P.h4.minStepGainM.value

@@ -114,6 +114,20 @@ describe('estimateState: longest run in 30 days', () => {
     expect(estimateState(input([run(3, { durationSec: 7000 })])).longest30d.twoDaySec).toBe(7000)
   })
 
+  test('a race of marathon distance or longer is left out [G-1]', () => {
+    const base = run(12, { distanceM: 10_000, durationSec: 3600 })
+    const race = (distanceM: number | null) =>
+      run(10, { type: 'race', distanceM, durationSec: 90_000, elevationGainM: 5000 })
+    const longest = (distanceM: number | null) =>
+      estimateState(input([base, race(distanceM)])).longest30d
+    expect(longest(161_000)).toMatchObject({ distanceM: 10_000, durationSec: 3600, gainM: 0 })
+    expect(longest(161_000).twoDaySec).toBe(3600)
+    expect(longest(42_195).durationSec).toBe(3600)
+    expect(longest(42_194).durationSec).toBe(90_000)
+    expect(longest(10_000)).toMatchObject({ distanceM: 10_000, durationSec: 90_000, gainM: 5000 })
+    expect(longest(null).durationSec).toBe(90_000)
+  })
+
   test('is all zero without runs', () => {
     expect(estimateState(input([])).longest30d).toEqual({
       distanceM: 0,

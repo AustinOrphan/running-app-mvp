@@ -1,12 +1,13 @@
 // Goal model and feasibility [rules section d]. Pure: no I/O, no clock; `today` is an argument.
 import { daysBetween, mondayOf } from '../dates.ts'
 import type { Goal } from '../types.ts'
+import { startWeekMin } from './limits.ts'
 import { P } from './params/index.ts'
 import { predictFromState } from './predict.ts'
 import type { AthleteState, EngineWarning, Feasibility, GoalModel } from './types.ts'
 
 const SEC_PER_MIN = 60
-const SEC_PER_HOUR = 3600
+const MIN_PER_HOUR = 60
 const DAYS_PER_WEEK = 7
 const M_PER_KM = 1000
 const EPSILON = 1e-9
@@ -143,10 +144,33 @@ function taperWeeks(distanceClass: DistanceClass): number {
 }
 
 /**
+ * The long run, in whole minutes, that the feasibility check of an ultra works toward [rules D4]:
+ * the least of the class value, the H2 cap (6 h), its race fraction (60% of the expected duration)
+ * and the planner's long-run share of the larger of the class peak week and the start week, so the
+ * check never counts weeks toward a run the planner would not schedule.
+ */
+export function ultraLongRunTargetMin(goal: GoalModel, state: AthleteState): number {
+  const known = goal.distanceClass in P.d4LongRun
+  const cls = goal.distanceClass as keyof typeof P.d4LongRun
+  const caps = [
+    known ? P.d4LongRun[cls].value : Infinity,
+    P.h2.longestRunCapHours.value * MIN_PER_HOUR,
+    (P.h2.longestRunCapRaceFraction.value * goal.expectedDurationSec) / SEC_PER_MIN,
+  ]
+  if (known) {
+    const weekMin = Math.max(P.peakWeeklyMin[cls].value, startWeekMin(state))
+    caps.push(P.macroDesign.longRunShareOfWeekUltra.value * weekMin)
+  }
+  return Math.floor(Math.min(...caps) + EPSILON)
+}
+
+/**
  * comfortable, tight or not reachable within default limits; never refuses [rules D3-D5].
  * D4: weeks needed = ceil(ln(Lt / L0) / ln(1.10)) x 4/3 (cutbacks) plus the taper, where L0 is the
  * 30-day longest run and Lt the target long run; the weekly floor of a time goal uses the same
- * formula on the recent weekly distance, and the longer of the two governs.
+ * formula on the recent weekly distance, and the longer of the two governs. An ultra also grows its
+ * weekly running time from the start week to the class peak, and the slower path labels it. A
+ * label only: it changes no limit and no session.
  */
 export function feasibility(goal: GoalModel, state: AthleteState, today: string): Feasibility {
   const notes: EngineWarning[] = []
@@ -155,20 +179,11 @@ export function feasibility(goal: GoalModel, state: AthleteState, today: string)
   // Target long run. Ultras count time on feet (H2); shorter goals count distance (D3).
   let longRunWeeks: number
   if (goal.isUltra) {
-    const classTarget =
-      goal.distanceClass in P.d4LongRun
-        ? P.d4LongRun[goal.distanceClass as keyof typeof P.d4LongRun].value * SEC_PER_MIN
-        : Infinity
-    const capSec = Math.min(
-      classTarget,
-      P.h2.longestRunCapHours.value * SEC_PER_HOUR,
-      P.h2.longestRunCapRaceFraction.value * goal.expectedDurationSec,
-    )
     const current = Math.max(
       state.longest30d.durationSec,
       P.g2.noviceMinStepMin.value * SEC_PER_MIN,
     )
-    longRunWeeks = growthWeeks(current, capSec)
+    longRunWeeks = growthWeeks(current, ultraLongRunTargetMin(goal, state) * SEC_PER_MIN)
   } else {
     const targetM =
       goal.distanceClass === 'half'
@@ -202,6 +217,22 @@ export function feasibility(goal: GoalModel, state: AthleteState, today: string)
         severity: 'info',
         message: `A ${goal.distanceClass === 'half' ? 'half-marathon' : 'marathon'} time goal works toward ${floorKm} km per week, reached only within the weekly ramp limits.`,
         rules: ['D3'],
+      })
+    }
+  }
+
+  // D4, ultras: weekly running time grows from the start week to the class peak at the weekly ramp.
+  // The start week is the one the generator starts from, so the label matches the plan.
+  if (goal.isUltra && goal.distanceClass in P.d4LongRun) {
+    const peakMin = P.peakWeeklyMin[goal.distanceClass as keyof typeof P.d4LongRun].value
+    const startMin = startWeekMin(state)
+    weeklyWeeks = growthWeeks(startMin, peakMin)
+    if (weeklyWeeks > longRunWeeks) {
+      notes.push({
+        code: 'weekly-path',
+        severity: 'info',
+        message: `Weekly running time sets the pace for this goal: growing from about ${Math.round(startMin)} to ${peakMin} minutes a week within the ramp limits takes longer than building the long run. This only labels the outlook; the plan keeps every limit.`,
+        rules: ['D4'],
       })
     }
   }

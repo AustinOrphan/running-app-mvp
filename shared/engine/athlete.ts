@@ -3,6 +3,7 @@
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity, AthleteProfile, WeekRow } from '../types.ts'
+import { countsTowardReference } from './limits.ts'
 import {
   criticalSpeed,
   dailyLoad,
@@ -135,7 +136,8 @@ function countGaps(runDates: string[], today: string): number {
 
 function longestRuns(runs: Activity[], today: string): AthleteState['longest30d'] {
   const windowStart = addDays(today, -(P.a3.longestRunWindowDays.value - 1))
-  const recent = runs.filter((a) => a.date >= windowStart)
+  // a race of marathon distance or longer is no reference run [rules A3, G-1]
+  const recent = runs.filter((a) => a.date >= windowStart && countsTowardReference(a))
   const perDay = new Map<string, number>()
   for (const a of recent) perDay.set(a.date, (perDay.get(a.date) ?? 0) + a.durationSec)
   let twoDaySec = 0
