@@ -4,7 +4,14 @@ import { toV1Phase } from '../../shared/domain/plan.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { suggestAction, type Suggestion } from '../../shared/domain/review.ts'
 import type { WeeklyDecision } from '../../shared/engine/types.ts'
-import type { PlanRevision, PlanWeek, WeekRow, WeeklyReview } from '../../shared/types.ts'
+import type {
+  PlanWeek,
+  ReviewSignals,
+  ReviewView,
+  SavedReview,
+  WeekRow,
+  WeeklyReview,
+} from '../../shared/types.ts'
 import { HttpError, validationError } from '../errors.ts'
 import { createLogger } from '../logger.ts'
 import { loadActivities, toPlanWeek, toWeeklyReview } from '../serialize.ts'
@@ -34,20 +41,6 @@ type ReviewFields = Pick<
   | 'finalNextMin'
   | 'notes'
 >
-
-/**
- * A review as a version-2 plan returns it: the engine's weekly decision sits in the `suggested*`
- * fields and `signals` carries the signals behind it. Version-1 plans get a plain review.
- */
-export type ReviewView = WeeklyReview & { signals?: WeeklyDecision['signals'] }
-
-/** What saving returns: the review, plus for a version-2 plan the re-plan the review triggered. */
-export type SavedReview = ReviewView & {
-  /** The revision written by the re-plan; null when this save did not re-plan. */
-  revision?: PlanRevision | null
-  /** Why a re-plan that was due did not run; the review itself is saved. */
-  replanError?: string
-}
 
 /** A week is finished once its Sunday is before `today`. */
 const isFinished = (weekStart: string, today: string): boolean => addDays(weekStart, 6) < today
@@ -118,7 +111,7 @@ function suggestFor(
   })
 }
 
-type V2Suggestion = Suggestion & { signals?: WeeklyDecision['signals'] }
+type V2Suggestion = Suggestion & { signals?: ReviewSignals }
 
 const V2_REASONS: Record<WeeklyDecision['decision'], string> = {
   progress: 'Completion, effort and recovery support a small increase, inside every limit.',

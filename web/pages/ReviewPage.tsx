@@ -8,7 +8,6 @@ import {
   type SuggestInput,
   type Suggestion,
 } from '../../shared/domain/review.ts'
-import type { WeeklyDecision } from '../../shared/engine/types.ts'
 import type {
   Activity,
   DataStatus,
@@ -17,6 +16,9 @@ import type {
   PlanSessionStatus,
   PlanWeek,
   PlanWithSessions,
+  ReviewSignals,
+  ReviewView,
+  SavedReview,
   SuggestedAction,
   Symptoms,
   WeekRow,
@@ -40,6 +42,7 @@ import { Segmented } from '../components/Segmented.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { formatShortDate, formatWeekday, phaseLabel } from '../components/format.ts'
+import { describeChange } from '../components/planChanges.ts'
 import { PROPOSAL_LABELS, proposalValueText } from '../components/zoneFormat.ts'
 import styles from './ReviewPage.module.css'
 
@@ -55,28 +58,10 @@ const DECISION_OPTIONS: Array<{ value: Decision; label: string }> = [
   { value: 'reduce', label: 'Reduce' },
 ]
 
-/**
- * A review row as a version-2 plan returns it: the server's weekly decision lives in the
- * `suggested*` fields, and `signals` carries the signals behind it.
- */
-type ReviewView = WeeklyReview & { signals?: WeeklyDecision['signals'] }
-
-/**
- * What saving a review of a version-2 plan returns beyond the review: the revision the re-plan
- * wrote, or why a re-plan that was due did not run.
- */
-type SavedReview = WeeklyReview & { revision?: PlanRevision | null; replanError?: string }
-
 /** The re-plan that followed a save, as the page shows it. */
 interface ReplanOutcome {
   revision: PlanRevision | null
   error: string | null
-}
-
-function changeValue(value: unknown): string {
-  return typeof value === 'string' || typeof value === 'number'
-    ? String(value)
-    : JSON.stringify(value)
 }
 
 const SESSION_STATUS_LABELS: Record<PlanSessionStatus, string> = {
@@ -665,8 +650,7 @@ function WeekReview({
                 <ul className={styles.signals}>
                   {replanned.revision.changes.map((change, index) => (
                     <li key={`${change.weekStart}-${change.field}-${String(index)}`}>
-                      Week of {formatShortDate(change.weekStart)}: {change.field}{' '}
-                      {changeValue(change.from)} to {changeValue(change.to)}
+                      Week of {formatShortDate(change.weekStart)}: {describeChange(change).text}
                     </li>
                   ))}
                 </ul>
@@ -689,7 +673,7 @@ function WeekReview({
 }
 
 /** The rules behind a weekly decision: those its signals cite, else the decision rule itself. */
-function decisionRules(signals: WeeklyDecision['signals']): string[] {
+function decisionRules(signals: ReviewSignals): string[] {
   const rules = [...new Set(signals.flatMap((signal) => signal.rules))]
   return rules.length > 0 ? rules : ['J5']
 }

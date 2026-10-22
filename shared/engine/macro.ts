@@ -42,6 +42,14 @@ export function weeklyRamp(state: AthleteState): number {
   return ramp
 }
 
+/**
+ * Two or more flags on the latest energy-availability screening hold progression [rules n-4, J5]:
+ * weekly targets stay at the current level, there is no ramp growth and no new back-to-back.
+ */
+export function redsHold(state: AthleteState): boolean {
+  return state.risk.redsFlags >= P.j5.redsHoldFlags.value
+}
+
 /** Taper length in days [rules K1]; never above the 21-day maximum. */
 export function taperDays(goal: GoalModel, state: AthleteState): number {
   let days: number
@@ -286,9 +294,11 @@ export function macroPlan(
   if (total < 1) return []
 
   const novice = state.experience === 'novice'
-  const ramp = weeklyRamp(state)
+  // A REDs hold stops growth: no ramp and no minimum step, so every loading week stays level.
+  const hold = redsHold(state)
+  const ramp = hold ? 0 : weeklyRamp(state)
   const pace = trainingPace(state, goal)
-  const minStep = P.g2.noviceMinStepMin.value
+  const minStep = hold ? 0 : P.g2.noviceMinStepMin.value
   const share = goal.isUltra
     ? P.macroDesign.longRunShareOfWeekUltra.value
     : P.macroDesign.longRunShareOfWeek.value
@@ -322,7 +332,8 @@ export function macroPlan(
   }
 
   // Weekly targets, long runs, run days and gain for the pre-taper weeks
-  const restart = restartFloor(input, state)
+  // The floor lifts a small week to a useful one, which is growth; a hold keeps the current level.
+  const restart = hold ? null : restartFloor(input, state)
   const start =
     restart !== null
       ? restart.minutes
@@ -366,7 +377,12 @@ export function macroPlan(
     target.push(t)
 
     const raw = floorEps(t * share)
-    const progressive = prevLong > 0 ? Math.max(floorEps(prevLong * (1 + ramp)), prevLong + 1) : raw
+    const progressive =
+      prevLong > 0
+        ? hold
+          ? prevLong
+          : Math.max(floorEps(prevLong * (1 + ramp)), prevLong + 1)
+        : raw
     const long = Math.min(raw, progressive, peakLong)
     longRun.push(long)
     prevLong = long
@@ -380,7 +396,9 @@ export function macroPlan(
       const desired = floorTo10(gainPerKm * ((t * 60) / pace) * gainShare(ph.phase))
       prevGain = Math.min(
         desired,
-        Math.max(floorEps(prevGain * (1 + P.h4.weeklyGainRamp.value)), prevGain + gainStep),
+        hold
+          ? prevGain
+          : Math.max(floorEps(prevGain * (1 + P.h4.weeklyGainRamp.value)), prevGain + gainStep),
       )
       gain.push(prevGain)
     } else {
@@ -460,7 +478,7 @@ export function macroPlan(
       flag(i, 'downhill')
     }
   }
-  if (goal.isUltra) {
+  if (goal.isUltra && !hold) {
     let last = -Infinity
     for (let i = 0; i < preCount; i++) {
       const ph = phases[i] as PhasePlan

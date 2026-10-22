@@ -7,6 +7,7 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
 import { breakRestart } from './adapt.ts'
 import { estimateState } from './athlete.ts'
+import { redsHold } from './macro.ts'
 import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
 import type {
@@ -567,6 +568,58 @@ function raceDay(draft: PlanDraft, input: EngineInput): ChecklistResult {
   )
 }
 
+/**
+ * N-4: with two or more REDs flags no loading week from today is above the first one, its long run
+ * and gain target do not grow, and no back-to-back pair is planned.
+ */
+function redsHoldItem(draft: PlanDraft, input: EngineInput, state: AthleteState): ChecklistResult {
+  const rules = ['n-4', 'J5']
+  if (!redsHold(state)) {
+    return result('reds-hold', true, 'No energy-availability hold: fewer than 2 flags.', rules)
+  }
+  const failures: string[] = []
+  const currentMonday = mondayOf(input.today)
+  const loading = sortedWeeks(draft).filter(
+    (w) =>
+      w.weekStart >= currentMonday &&
+      !w.isRecovery &&
+      !w.isTaper &&
+      w.phase !== 'race' &&
+      !isRecoveryOnly(w),
+  )
+  const first = loading[0]
+  if (first !== undefined) {
+    for (const w of loading.slice(1)) {
+      if (w.targetRunMin > first.targetRunMin) {
+        failures.push(
+          `week of ${w.weekStart}: ${w.targetRunMin} min is above the held ${first.targetRunMin} min`,
+        )
+      }
+      if (w.longRunMin > first.longRunMin) {
+        failures.push(
+          `week of ${w.weekStart}: long run ${w.longRunMin} min is above the held ${first.longRunMin} min`,
+        )
+      }
+      if ((w.gainTargetM ?? 0) > (first.gainTargetM ?? 0)) {
+        failures.push(`week of ${w.weekStart}: gain target grows`)
+      }
+    }
+  }
+  for (const s of draft.sessions) {
+    if (s.date >= input.today && (s.flags.includes('b2b-day1') || s.flags.includes('b2b-day2'))) {
+      failures.push(`${s.date} plans a back-to-back run`)
+    }
+  }
+  return result(
+    'reds-hold',
+    failures.length === 0,
+    failures.length === 0
+      ? `${state.risk.redsFlags} energy-availability flags: progression holds, with no growth and no back-to-back runs.`
+      : failures.join('; '),
+    rules,
+  )
+}
+
 /** The plan quality checklist run before publishing [rules G1]. */
 export function runChecklist(draft: PlanDraft, input: EngineInput): ChecklistResult[] {
   const state = estimateState(input)
@@ -582,5 +635,6 @@ export function runChecklist(draft: PlanDraft, input: EngineInput): ChecklistRes
     spacing(draft, input),
     ultraCaps(draft, input),
     raceDay(draft, input),
+    redsHoldItem(draft, input, state),
   ]
 }

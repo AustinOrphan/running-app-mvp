@@ -280,7 +280,10 @@ export function activitiesRouter(deps: Deps): Router {
       released.push(...(await releaseStaleConfirmed(req.userId, id)))
       await markDuplicates(prisma, req.userId, [id, ...released])
     }
-    await runExecutionQuietly(deps, { userId: req.userId, activityId: id })
+    // A new date or type may no longer fit the session this activity fulfils.
+    const reconsider =
+      body.date !== existing.date ? 'date' : body.type !== existing.type ? 'type' : undefined
+    await runExecutionQuietly(deps, { userId: req.userId, activityId: id, reconsider })
     res.json(toActivity(await findOwned(req.userId, id)))
   })
 

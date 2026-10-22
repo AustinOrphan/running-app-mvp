@@ -13,6 +13,7 @@ import type {
   SessionSpec,
   SessionTarget,
   Step,
+  WeeklyDecision,
   ZoneProposal,
   ZoneSet,
 } from './engine/types.ts'
@@ -273,6 +274,23 @@ export interface WeeklyReview {
   reviewedAt: string | null
   createdAt: string
   updatedAt: string
+}
+
+/** The signals behind a version-2 weekly decision, each with the rules it rests on. */
+export type ReviewSignals = WeeklyDecision['signals']
+
+/**
+ * A review as a version-2 plan returns it: the engine's weekly decision sits in the `suggested*`
+ * fields and `signals` carries the signals behind it. Version-1 plans get a plain review.
+ */
+export type ReviewView = WeeklyReview & { signals?: ReviewSignals }
+
+/** What saving returns: the review, plus for a version-2 plan the re-plan the review triggered. */
+export type SavedReview = ReviewView & {
+  /** The revision written by the re-plan; null when this save did not re-plan. */
+  revision?: PlanRevision | null
+  /** Why a re-plan that was due did not run; the review itself is saved. */
+  replanError?: string
 }
 
 export type Units = 'mi' | 'km'

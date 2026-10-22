@@ -64,7 +64,7 @@ describe('buildPlan', () => {
     const plan = buildPlan(half.input)
     expect(plan.weeks[0]!.weekStart).toBe(mondayOf(TODAY))
     expect(plan.feasibility.label).toBe('comfortable')
-    expect(plan.checklist).toHaveLength(11)
+    expect(plan.checklist).toHaveLength(12)
     expect(plan.zones.hr).not.toBeNull()
     expect(plan.paramsVersion).toBe(engine.PARAMS_VERSION)
     expect(plan.sessions).toEqual(
@@ -470,12 +470,73 @@ describe('the checklist fails on a plan that breaks its rule', () => {
     expect(failedIds(plan, a.input)).toContain('race-day')
   })
 
+  it('reds hold: a plan that grows or pairs long runs under two or more flags', () => {
+    const a = athlete('first-100-mile')
+    const grown = buildPlan(a.input)
+    expect(grown.checklist.find((c) => c.id === 'reds-hold')?.ok).toBe(true)
+    const flagged = { ...a.input, screeningFlags: 2 }
+    const items = runChecklist(grown, flagged)
+    const hold = items.find((c) => c.id === 'reds-hold')!
+    expect(hold.ok).toBe(false)
+    expect(hold.rules).toContain('n-4')
+    // the same plan passes with one flag only
+    expect(failed(runChecklist(grown, { ...a.input, screeningFlags: 1 }))).toEqual([])
+  })
+
   it('returns a result per item with the rules it rests on', () => {
     const a = athlete('half')
     for (const item of runChecklist(buildPlan(a.input), a.input)) {
       expect(item.detail.length).toBeGreaterThan(0)
       expect(item.rules.length).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('REDs hold at build time and re-plan', () => {
+  const a = athlete('reds-hold')
+  const codes = (p: PlanDraft) => p.warnings.map((w) => w.code)
+
+  it('buildPlan holds progression and says so once, with a clinician prompt', () => {
+    const plan = buildPlan(a.input)
+    expect(codes(plan).filter((c) => c === 'reds-hold')).toHaveLength(1)
+    const warning = plan.warnings.find((w) => w.code === 'reds-hold')!
+    expect(warning.severity).toBe('hold')
+    expect(warning.message).toMatch(/clinician/i)
+    expect(failed(plan.checklist)).toEqual([])
+  })
+
+  it('replan holds too, from the screening in the input', () => {
+    const plan = buildPlan(a.input)
+    const later = addDays(TODAY, 7)
+    const out = replan({
+      ...a.input,
+      today: later,
+      existing: {
+        weeks: plan.weeks,
+        sessions: asExisting(plan).sessions.map((s) =>
+          s.date < later ? { ...s, status: 'completed' } : s,
+        ),
+      },
+    })
+    expect(codes(out.draft)).toContain('reds-hold')
+    expect(failed(out.draft.checklist)).toEqual([])
+    const loading = out.draft.weeks.filter(
+      (w) =>
+        w.weekStart >= mondayOf(later) &&
+        !w.isRecovery &&
+        !w.isTaper &&
+        !w.flags.includes('post-race'),
+    )
+    for (const w of loading) expect(w.targetRunMin).toBeLessThanOrEqual(loading[0]!.targetRunMin)
+    expect(out.draft.sessions.some((s) => s.date >= later && s.flags.includes('b2b-day1'))).toBe(
+      false,
+    )
+  })
+
+  it('one flag leaves the plan as it was', () => {
+    const open = buildPlan({ ...a.input, screeningFlags: 0 })
+    expect(buildPlan({ ...a.input, screeningFlags: 1 })).toEqual(open)
+    expect(codes(open)).not.toContain('reds-hold')
   })
 })
 

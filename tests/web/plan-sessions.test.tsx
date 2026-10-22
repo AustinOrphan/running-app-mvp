@@ -106,7 +106,9 @@ describe('Plan page, version-2 plans', () => {
       await within(changed).findByText('Held week 3 after an easier-than-expected long run.'),
     ).toBeInTheDocument()
     expect(within(changed).getByText('Weekly update')).toBeInTheDocument()
-    expect(within(changed).getByText(/Week of 18 Jan: targetRunMin 330 to 300/)).toBeInTheDocument()
+    expect(
+      within(changed).getByText(/Week of 18 Jan: Weekly running time 330 min to 300 min/),
+    ).toBeInTheDocument()
   })
 
   test('the current week opens to its day cards; other weeks open on request', async () => {

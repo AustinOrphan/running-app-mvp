@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
-import { macroPlan } from '../../../shared/engine/macro.ts'
+import { macroPlan, redsHold } from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type {
   AthleteState,
@@ -736,5 +736,63 @@ describe('macroPlan: restart floor and run days', () => {
     for (const w of plan(goal('ultra100mi', 40))) {
       expect(new Set(w.flags).size).toBe(w.flags.length)
     }
+  })
+})
+
+describe('macroPlan: REDs hold', () => {
+  const held = (flags: number, over: Partial<AthleteState> = {}) =>
+    state({
+      risk: {
+        recentInjury: false,
+        priorBsi: false,
+        bsiFactors: 0,
+        redsFlags: flags,
+        noviceFlags: [],
+      },
+      ...over,
+    })
+  const loading = (weeks: WeekDraft[]) =>
+    weeks.filter((w) => !w.isRecovery && !w.isTaper && !w.flags.includes('post-race'))
+
+  it('exports the hold as two or more flags (j5.redsHoldFlags)', () => {
+    expect(redsHold(held(0))).toBe(false)
+    expect(redsHold(held(P.j5.redsHoldFlags.value - 1))).toBe(false)
+    expect(redsHold(held(P.j5.redsHoldFlags.value))).toBe(true)
+    expect(redsHold(held(5))).toBe(true)
+  })
+
+  it('keeps every loading week at the current level: no ramp, no minimum step', () => {
+    const open = plan(goal('marathon', 20), held(0))
+    expect(Math.max(...loading(open).map((w) => w.targetRunMin))).toBeGreaterThan(240)
+    const weeks = plan(goal('marathon', 20), held(2))
+    for (const w of loading(weeks)) expect(w.targetRunMin).toBe(240)
+    const novice = plan(goal('5k', 14), held(2, { experience: 'novice', typicalWeekMin: 90 }))
+    for (const w of loading(novice)) expect(w.targetRunMin).toBe(90)
+  })
+
+  it('holds the long run and the weekly gain target too', () => {
+    const weeks = loading(plan(goal('ultra50', 24, { gainM: 2000, lossM: 2000 }), held(3)))
+    const longs = weeks.map((w) => w.longRunMin)
+    expect(Math.max(...longs)).toBeLessThanOrEqual(longs[0]!)
+    const gains = weeks.map((w) => w.gainTargetM ?? 0)
+    expect(Math.max(...gains)).toBeLessThanOrEqual(gains[0]!)
+  })
+
+  it('adds no back-to-back weekend and no restart-floor lift', () => {
+    const g = goal('ultra100mi', 40)
+    expect(plan(g, held(0)).some((w) => w.flags.includes('b2b'))).toBe(true)
+    expect(plan(g, held(2)).some((w) => w.flags.includes('b2b'))).toBe(false)
+    const floor = plan(goal('half', 20), held(2, { typicalWeekMin: 27 }))
+    expect(floor[0]!.targetRunMin).toBe(27)
+    expect(floor[0]!.flags).not.toContain('restart-floor')
+  })
+
+  it('still cuts recovery weeks and tapers, and one flag changes nothing', () => {
+    const weeks = plan(goal('marathon', 20), held(2))
+    expect(weeks.some((w) => w.isRecovery)).toBe(true)
+    const taper = taperWeeks(weeks)
+    expect(taper.length).toBeGreaterThan(0)
+    expect(taper[0]!.targetRunMin).toBeLessThan(240)
+    expect(plan(goal('marathon', 20), held(1))).toEqual(plan(goal('marathon', 20), held(0)))
   })
 })
