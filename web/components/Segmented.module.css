@@ -4,11 +4,13 @@
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--surface-raised);
-  overflow: hidden;
+  /* Scrolls instead of clipping when a label set still does not fit; the radius keeps clipping. */
+  overflow-x: auto;
 }
 
 .option {
   flex: 1 1 0;
+  min-width: 0;
   min-height: calc(var(--control-h) - 2px);
   padding: 0 var(--space-3);
   border: 0;
@@ -34,4 +36,10 @@
 
 .option:focus-visible {
   outline-offset: -3px;
+}
+
+@media (max-width: 420px) {
+  .option {
+    padding: 0 var(--space-1);
+  }
 }
