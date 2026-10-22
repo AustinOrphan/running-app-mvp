@@ -322,6 +322,29 @@ describe('Activities page', () => {
     })
   })
 
+  test('a failed Undo says the activity was not restored', async () => {
+    const user = userEvent.setup()
+    const row = makeActivity({ id: 'a1', durationSec: 2700, distanceM: 8047 })
+    renderPage({
+      activities: [row],
+      routes: {
+        'DELETE /api/activities/a1': () => ({ status: 204, body: undefined }),
+        'POST /api/activities': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'The server did not respond.' } },
+        }),
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: /5\.00 mi/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Delete activity' }))
+    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    expect(
+      await screen.findByText('Activity not restored. The server did not respond.'),
+    ).toBeInTheDocument()
+  })
+
   test('a possible duplicate shows a badge with "Confirm duplicate" and "Not a duplicate" buttons that POST the status', async () => {
     const user = userEvent.setup()
     const flagged = makeActivity({
