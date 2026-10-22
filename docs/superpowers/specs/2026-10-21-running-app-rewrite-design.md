@@ -377,3 +377,7 @@ A fresh reader of sections 1–6 raised these; each answer refines the section n
     with the runner's local offset, and take the file's distance unit from a request field
     `distanceUnit: 'mi'|'km'` defaulting to the user's units setting. `providerKey` is
     `smashrun:<Run Id>` because the `Key` column's format has changed between exports.
+14. **Long-run cap (4.5), withdrawn.** The "never above 40% of the week" cap is removed:
+    27 min per planned hour is 45% of the week, so the 40% cap would always override it, and
+    the owner's own peak week runs a 240-minute long run in a 9-hour week (44%). The rule is
+    long run = round(27 × weekly hours) minutes, capped at 240.
