@@ -19,9 +19,8 @@ export interface GeneratePlanForGoalInput {
 
 /**
  * Builds a plan for one of the caller's goals. The previous active plan is archived and the new
- * one created in a single transaction, so a user never has zero or two active plans. Reads that
- * decide the inputs run first; a concurrent write between them and the transaction cannot leave
- * the plan table inconsistent.
+ * one created in a single transaction, so there is never more than one active plan. The reads
+ * that decide the inputs (goal, baseline) run before that transaction.
  */
 export async function generatePlanForGoal(
   deps: Deps,
