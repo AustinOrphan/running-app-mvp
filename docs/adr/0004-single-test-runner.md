@@ -1,6 +1,6 @@
 # 0004. Vitest for unit, API and component tests; Playwright for end to end
 
-Status: Proposed 2026-10-21
+Status: Accepted 2026-10-22 (#528)
 
 ## Context
 
