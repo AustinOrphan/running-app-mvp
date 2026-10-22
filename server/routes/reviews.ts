@@ -27,13 +27,13 @@ export function reviewsRouter(deps: Deps): Router {
 
   router.get('/', async (req, res) => {
     const weekStarts = parseWeekRange(req.query)
-    res.json(await listReviews(deps.prisma, req.userId, weekStarts, todayIso()))
+    res.json(await listReviews(deps, req.userId, weekStarts, todayIso()))
   })
 
   router.put('/:weekStart', async (req, res) => {
     const { weekStart } = parse(weekParam, req.params)
     const patch = parse(reviewBody, req.body ?? {})
-    res.json(await saveReview(deps.prisma, req.userId, weekStart, patch, todayIso()))
+    res.json(await saveReview(deps, req.userId, weekStart, patch, todayIso()))
   })
 
   return router

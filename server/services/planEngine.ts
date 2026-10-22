@@ -21,6 +21,7 @@ import type {
   SessionKind,
   SessionSpec,
   WeekDraft,
+  WeeklyDecision,
   ZoneProposal,
   ZoneSet,
 } from '../../shared/engine/types.ts'
@@ -49,13 +50,7 @@ import {
   toPlanWeek,
 } from '../serialize.ts'
 import { assessSessionById } from './execution.ts'
-import {
-  currentZones,
-  gatherContextInput,
-  gatherEngineInput,
-  latestRedsFlags,
-  sessionSpec,
-} from './engineInput.ts'
+import { currentZones, gatherContextInput, gatherEngineInput, sessionSpec } from './engineInput.ts'
 import { MAX_PLAN_WEEKS } from './plan.ts'
 
 /** A plan's rows are written in one transaction; long plans have a thousand sessions. */
@@ -283,6 +278,55 @@ function describeChanges(changes: PlanChange[]): string {
   return `${changes.length} change${changes.length === 1 ? '' : 's'} across ${weeks} week${weeks === 1 ? '' : 's'}.`
 }
 
+/** The stored assessments of the sessions of one week, as the weekly decision reads them. */
+async function executionRecords(
+  prisma: PrismaClient,
+  planId: string,
+  weekStart: string,
+): Promise<ExecutionRecord[]> {
+  const rows = await prisma.planSession.findMany({
+    where: { planId, weekStart, execution: { not: null } },
+    orderBy: [{ date: 'asc' }, { order: 'asc' }],
+  })
+  return rows.map((row) => {
+    const session = toPlanSession(row)
+    return { date: session.date, kind: session.kind, assessment: session.execution! }
+  })
+}
+
+/**
+ * The engine's weekly decision for each of `weekStarts` that the active version-2 plan covers,
+ * from one gather of the input, the stored execution assessments and the latest REDs screening.
+ * Empty without a version-2 plan.
+ */
+export async function weeklyDecisions(
+  deps: Deps,
+  args: { userId: string; today: string; weekStarts: string[] },
+): Promise<Map<string, WeeklyDecision>> {
+  const decisions = new Map<string, WeeklyDecision>()
+  const plan = await deps.prisma.plan.findFirst({
+    where: { userId: args.userId, status: 'active', generatorVersion: { gte: 2 } },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (!plan || args.weekStarts.length === 0) return decisions
+  const input = await gatherContextInput(
+    deps,
+    { userId: args.userId, today: args.today, goalId: plan.goalId },
+    { existing: true },
+  )
+  for (const weekStart of args.weekStarts) {
+    if (!input.existing?.weeks.some((w) => w.weekStart === weekStart)) continue
+    decisions.set(
+      weekStart,
+      weeklyDecision(input, weekStart, {
+        executions: await executionRecords(deps.prisma, plan.id, weekStart),
+        redsFlags: input.screeningFlags,
+      }),
+    )
+  }
+  return decisions
+}
+
 /** Re-plans the active plan from the updated state and writes a `PlanRevision`. */
 export async function replanActivePlan(
   deps: Deps,
@@ -317,9 +361,11 @@ export async function replanActivePlan(
   // The decision for the week that just finished goes into the summary; the review page reads it
   // from the engine with the same inputs.
   const lastWeek = addDays(mondayOf(today), -7)
-  const redsFlags = await latestRedsFlags(deps, userId)
   const decision = input.existing?.weeks.some((w) => w.weekStart === lastWeek)
-    ? weeklyDecision(input, lastWeek, { redsFlags })
+    ? weeklyDecision(input, lastWeek, {
+        executions: await executionRecords(prisma, plan.id, lastWeek),
+        redsFlags: input.screeningFlags,
+      })
     : null
   const state = estimateState(input)
   const reason: PlanRevisionReason =
@@ -900,7 +946,7 @@ export async function todayView(
   ).map((entry, i) => ({ ...entry, session: sessions[i]! }))
 
   const readiness = readinessSnapshot(input, today)
-  const reds = await latestRedsFlags(deps, userId)
+  const reds = input.screeningFlags ?? 0
   if (reds >= P.j5.redsHoldFlags.value) {
     readiness.redFlags.push({
       code: 'reds-screen',

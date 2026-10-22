@@ -617,6 +617,86 @@ describe('ReviewPage', () => {
       expect(screen.getByLabelText('Next week minutes')).toHaveValue('280')
     })
 
+    test('saving shows what changed in the plan, with the changes the re-plan made', async () => {
+      const user = userEvent.setup()
+      renderReview(
+        { plan: v2Plan(), weeks: { [W]: fullWeek }, reviews: { [W]: decided } },
+        {
+          [`PUT /api/reviews/${W}`]: () => ({
+            ...makeReview(W, { id: 'r1', dataStatus: 'complete', ...decided }),
+            revision: {
+              id: 'rev1',
+              planId: 'p1',
+              createdAt: '2026-10-21T12:00:00.000Z',
+              reason: 'review',
+              summary:
+                "2 changes across 1 week. Last week's decision: hold, next week up to 280 min.",
+              changes: [
+                { weekStart: CURRENT, field: 'targetRunMin', from: 320, to: 280, rules: ['J5'] },
+                { weekStart: CURRENT, field: 'longRunMin', from: 90, to: 80, rules: ['G-6'] },
+              ],
+            },
+          }),
+        },
+      )
+      await ready()
+      expect(screen.queryByRole('region', { name: 'What changed' })).not.toBeInTheDocument()
+      await user.click(screen.getByRole('radio', { name: 'Data complete' }))
+      await user.click(screen.getByRole('button', { name: 'Save review' }))
+
+      const region = await screen.findByRole('region', { name: 'What changed' })
+      expect(
+        within(region).getByText(
+          "2 changes across 1 week. Last week's decision: hold, next week up to 280 min.",
+        ),
+      ).toBeInTheDocument()
+      const changes = within(region).getAllByRole('listitem')
+      expect(changes).toHaveLength(2)
+      expect(changes[0]).toHaveTextContent('Week of 19 Oct: targetRunMin 320 to 280')
+    })
+
+    test('a re-plan that could not run is said plainly and the review stays saved', async () => {
+      const user = userEvent.setup()
+      renderReview(
+        { plan: v2Plan(), weeks: { [W]: fullWeek }, reviews: { [W]: decided } },
+        {
+          [`PUT /api/reviews/${W}`]: () => ({
+            ...makeReview(W, { id: 'r1', dataStatus: 'complete', ...decided }),
+            revision: null,
+            replanError: 'The goal date has passed. Move the date or choose another goal.',
+          }),
+        },
+      )
+      await ready()
+      await user.click(screen.getByRole('radio', { name: 'Data complete' }))
+      await user.click(screen.getByRole('button', { name: 'Save review' }))
+
+      expect(await screen.findByText('Week of 12 Oct saved')).toBeInTheDocument()
+      const region = await screen.findByRole('region', { name: 'What changed' })
+      expect(within(region).getByText(/The plan was not re-planned/)).toBeInTheDocument()
+      expect(
+        within(region).getByText(/The goal date has passed. Move the date or choose another goal./),
+      ).toBeInTheDocument()
+    })
+
+    test('a save that did not re-plan shows no What changed section', async () => {
+      const user = userEvent.setup()
+      renderReview(
+        { plan: v2Plan(), weeks: { [W]: fullWeek }, reviews: { [W]: decided } },
+        {
+          [`PUT /api/reviews/${W}`]: () => ({
+            ...makeReview(W, { id: 'r1', dataStatus: 'missing', ...decided }),
+            revision: null,
+          }),
+        },
+      )
+      await ready()
+      await user.click(screen.getByRole('radio', { name: 'Missing data' }))
+      await user.click(screen.getByRole('button', { name: 'Save review' }))
+      expect(await screen.findByText('Week of 12 Oct saved')).toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: 'What changed' })).not.toBeInTheDocument()
+    })
+
     test('with no decision from the server yet, the page says so and still saves', async () => {
       renderReview({ plan: v2Plan(), weeks: { [W]: fullWeek } })
       await ready()

@@ -337,6 +337,24 @@ describe('Goals page', () => {
     })
   })
 
+  test('a time goal the runner chose needs a target; one that only follows the distance posts without a type', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes([], miUser, { 'POST /api/goals': () => ({ status: 201, body: makeGoal() }) }),
+    )
+    renderWithProviders(<GoalsPage />)
+
+    const dialog = await openAddSheet(user)
+    await fillBasics(user, dialog, 'Autumn half')
+    await user.click(within(dialog).getByRole('button', { name: 'Half' }))
+    await user.click(within(dialog).getByRole('radio', { name: 'Time' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save goal' }))
+    expect(
+      await within(dialog).findByText('Enter a target time like 1:45:30, or choose a finish goal.'),
+    ).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'POST')).toBe(false)
+  })
+
   test('editing shows the stored descriptors', async () => {
     const user = userEvent.setup()
     mockApi(

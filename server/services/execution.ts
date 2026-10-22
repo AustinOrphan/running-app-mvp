@@ -17,6 +17,7 @@ import type { Activity, PlanSession } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import type { PlanSession as PlanSessionRow } from '../db.ts'
 import { notFound } from '../errors.ts'
+import { createLogger } from '../logger.ts'
 import { toPlanSession } from '../serialize.ts'
 import { gatherContextInput, sessionSpec } from './engineInput.ts'
 
@@ -219,14 +220,19 @@ export async function runExecutionForActivity(
     where: { id: args.activityId, userId: args.userId },
     select: { id: true, date: true },
   })
-  // Imports of old history reach here too; only recent activities can fulfil a session.
-  if (
-    !activity ||
-    activity.date < addDays(today, -SWEEP_DAYS) ||
-    activity.date > addDays(today, 1)
-  ) {
+  if (!activity) return
+  // An activity that already fulfils a session is assessed again whatever its age: an edit or a
+  // new rating changes the assessment. Linked sessions of any plan count; the link is not touched.
+  const linked = await prisma.planSession.findFirst({
+    where: { activityId: activity.id, plan: { userId: args.userId } },
+    select: { id: true },
+  })
+  if (linked) {
+    await assessSessionById(deps, { userId: args.userId, sessionId: linked.id })
     return
   }
+  // Imports of old history reach here too; only recent activities can fulfil a session.
+  if (activity.date < addDays(today, -SWEEP_DAYS) || activity.date > addDays(today, 1)) return
   const plan = await activePlan(deps, args.userId)
   if (!plan) return
   const near = await prisma.planSession.count({
@@ -244,6 +250,21 @@ export async function runExecutionForActivity(
     { userId: args.userId, planId: plan.id, goalId: plan.goalId, today },
     (a) => a.id === activity.id,
   )
+}
+
+/**
+ * Matches and assesses after a manual create, an edit or a rating. The activity is already saved,
+ * so a failure is logged and never fails the request; the nightly sweep tries again.
+ */
+export async function runExecutionQuietly(
+  deps: Deps,
+  args: { userId: string; activityId: string },
+): Promise<void> {
+  try {
+    await runExecutionForActivity(deps, args)
+  } catch (error) {
+    createLogger(deps.config).warn({ err: error }, 'matching an activity to the plan failed')
+  }
 }
 
 /** Nightly sweep over the last 7 days of activities and sessions, for every user with a plan. */

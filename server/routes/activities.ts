@@ -5,6 +5,7 @@ import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { loadActivities, toActivity } from '../serialize.ts'
 import { markDuplicates, releaseDuplicates, releaseDuplicatesOf } from '../services/duplicates.ts'
+import { runExecutionQuietly } from '../services/execution.ts'
 import { findPossibleDuplicate } from '../../shared/domain/duplicates.ts'
 import { isIsoDate, todayIso } from '../../shared/dates.ts'
 import {
@@ -206,6 +207,7 @@ export function activitiesRouter(deps: Deps): Router {
       data: { ...body, userId: req.userId, source: 'manual', duplicateStatus: 'none' },
     })
     await markDuplicates(prisma, req.userId, [created.id])
+    await runExecutionQuietly(deps, { userId: req.userId, activityId: created.id })
     res.status(201).json(toActivity(await findOwned(req.userId, created.id)))
   })
 
@@ -251,8 +253,10 @@ export function activitiesRouter(deps: Deps): Router {
     const id = idParam(req.params.id)
     await findOwned(req.userId, id)
     const body = parse(feedbackSchema, req.body)
-    const updated = await prisma.activity.update({ where: { id }, data: body })
-    res.json(toActivity(updated))
+    await prisma.activity.update({ where: { id }, data: body })
+    // A new rating changes the assessment of the session this activity fulfils.
+    await runExecutionQuietly(deps, { userId: req.userId, activityId: id })
+    res.json(toActivity(await findOwned(req.userId, id)))
   })
 
   router.put('/:id', async (req, res) => {
@@ -276,6 +280,7 @@ export function activitiesRouter(deps: Deps): Router {
       released.push(...(await releaseStaleConfirmed(req.userId, id)))
       await markDuplicates(prisma, req.userId, [id, ...released])
     }
+    await runExecutionQuietly(deps, { userId: req.userId, activityId: id })
     res.json(toActivity(await findOwned(req.userId, id)))
   })
 

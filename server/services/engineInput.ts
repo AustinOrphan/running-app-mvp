@@ -368,6 +368,7 @@ async function assemble(
     forecast: null,
     existing: null,
     options: args.options ?? {},
+    screeningFlags: await latestRedsFlags(deps, userId),
   }
 
   const goalRow =
@@ -421,9 +422,9 @@ export async function gatherContextInput(
 }
 
 /**
- * The REDs flag count of the latest screening, 0 without one. The engine input has no screening
- * field and `estimateState` leaves `risk.redsFlags` at 0, so the server passes the count to the
- * one reader of it, `weeklyDecision`'s context, and adds a note to the Today readiness.
+ * The REDs flag count of the latest screening, 0 without one. `assemble` puts it on the engine
+ * input as `screeningFlags`, which `estimateState` turns into `risk.redsFlags`; the Today view
+ * reads it here directly to add its note.
  */
 export async function latestRedsFlags(deps: Deps, userId: string): Promise<number> {
   const row = await deps.prisma.screening.findFirst({
