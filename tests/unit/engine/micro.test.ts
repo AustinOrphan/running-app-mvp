@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addDays, daysBetween } from '../../../shared/dates.ts'
 import type { SessionKind, SessionSpec, WeekDraft } from '../../../shared/engine/types.ts'
-import { placeWeek } from '../../../shared/engine/micro.ts'
+import { holdSessions, placeWeek } from '../../../shared/engine/micro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
+import { postRaceWindow, windowWeeks } from '../../../shared/engine/postRace.ts'
 import { ZONES, availability, profile, session, state, week } from './e6-fixtures.ts'
 
 // Task E5 owns `prescribe`; the placement is tested against a fake with the frozen signature.
@@ -481,6 +482,140 @@ describe('placeWeek', () => {
       expect(sessions.some((s) => s.kind === 'b2b')).toBe(false)
       expect(sessions.some((s) => s.kind === 'long' || s.kind === 'long-fast-finish')).toBe(true)
       expect(sessions.filter(isRun).length).toBeGreaterThanOrEqual(2)
+    })
+  })
+
+  describe('post-race window (H12)', () => {
+    // A marathon on the Sunday before the week of 2026-11-02, by a runner under 40 with an earlier
+    // finish: days 0 and 1 are the hold, step 1 runs Tuesday to the Monday after (3 to 9 November),
+    // step 2 the 7 days after that, and quality work waits for 17 November.
+    const RACE = '2026-11-01'
+    const window = postRaceWindow(
+      { date: RACE, distanceM: 42_195, lossM: null, distanceClass: 'marathon' },
+      { age: 30 },
+      [{ date: '2025-04-01', distanceM: 42_195 }],
+      [],
+      '2026-11-01',
+    )
+    const afterRace = (weekStart: string) =>
+      windowWeeks(window, {
+        weekStarts: [weekStart],
+        firstIndex: 0,
+        reference: 300,
+        referenceRunDays: 5,
+      })[0]!
+    const placeAfter = (weekStart: string, prev: SessionSpec[] = []) =>
+      placeWeek(afterRace(weekStart), {
+        profile: profile(),
+        zones: ZONES,
+        state: state({ age: 30 }),
+        prevSessions: prev,
+        postRace: [window],
+      })
+
+    it('keeps the hold day free and puts three capped runs on every other day in step 1', () => {
+      const sessions = placeAfter('2026-11-02')
+      expect(sessions.map((s) => s.date)).toEqual(['2026-11-03', '2026-11-05', '2026-11-07'])
+      for (const s of sessions) {
+        expect(s.kind).toBe('recovery')
+        expect(s.durationMin).toBeLessThanOrEqual(P.h12.step1RunMaxMin.value)
+        expect(s.flags).toContain('post-race')
+        expect(s.rules).toContain('H12')
+        expect(s.title).toBe(`After the race: easy ${s.durationMin} min`)
+      }
+    })
+
+    it('counts the first step across the weeks it spans: no fourth run, none next to the third', () => {
+      const first = placeAfter('2026-11-02')
+      // the last day of step 1 is Monday 9 November: three runs are already placed
+      const next = placeAfter('2026-11-09', first)
+      expect(next.some((s) => s.date === '2026-11-09')).toBe(false)
+      const steps2 = next.filter(isRun)
+      expect(steps2.length).toBeGreaterThan(0)
+      for (const s of steps2) {
+        expect(s.kind).toBe('easy')
+        expect(s.durationMin).toBeLessThanOrEqual(60)
+      }
+    })
+
+    it('puts no quality work before the end of the window, whatever the week asks for', () => {
+      const ask = week({
+        weekStart: '2026-11-09',
+        phase: 'build',
+        qualitySessions: 2,
+        targetRunMin: 300,
+      })
+      const inside = placeWeek(ask, {
+        profile: profile(),
+        zones: ZONES,
+        state: state({ age: 30 }),
+        prevSessions: [],
+        postRace: [window],
+      })
+      expect(inside.filter((s) => HARD.includes(s.kind) || s.kind === 'strides')).toEqual([])
+      // the same week without the window holds quality work
+      const free = placeWeek(ask, {
+        profile: profile(),
+        zones: ZONES,
+        state: state({ age: 30 }),
+        prevSessions: [],
+      })
+      expect(free.some((s) => HARD.includes(s.kind))).toBe(true)
+      // a week that starts on the first day quality is allowed may hold it again
+      const after = placeWeek(
+        week({ weekStart: '2026-11-17', phase: 'build', qualitySessions: 2 }),
+        {
+          profile: profile(),
+          zones: ZONES,
+          state: state({ age: 30 }),
+          prevSessions: [],
+          postRace: [window],
+        },
+      )
+      expect(after.some((s) => HARD.includes(s.kind))).toBe(true)
+    })
+
+    it('lets one run of a later step reach 90 min and holds the others to 60', () => {
+      const late = postRaceWindow(
+        { date: RACE, distanceM: 160_934, lossM: null, distanceClass: 'ultra100mi' },
+        { age: 30 },
+        [{ date: '2025-04-01', distanceM: 160_934 }],
+        [],
+        RACE,
+      )
+      // a 10-day hold: step 2 runs 18 to 24 November and step 3 from 25 November
+      const wk = windowWeeks(late, {
+        weekStarts: ['2026-11-23'],
+        firstIndex: 0,
+        reference: 500,
+        referenceRunDays: 5,
+      })[0]!
+      const sessions = placeWeek(wk, {
+        profile: profile(),
+        zones: ZONES,
+        state: state({ age: 30 }),
+        prevSessions: [],
+        postRace: [late],
+      })
+      const lengths = sessions.map((s) => s.durationMin).sort((a, b) => b - a)
+      expect(lengths[0]!).toBe(P.h12.laterStepLongRunMaxMin.value)
+      for (const m of lengths.slice(1)) expect(m).toBeLessThanOrEqual(P.h12.step2RunMaxMin.value)
+    })
+
+    it('writes a rest day with the hold copy for every hold day from the first date given', () => {
+      const days = holdSessions(week({ weekStart: '2026-11-02' }), ZONES, [window], '2026-11-01')
+      expect(days.map((s) => s.date)).toEqual(['2026-11-02'])
+      expect(days[0]).toMatchObject({ kind: 'rest', title: 'After the race: rest' })
+      expect(days[0]!.purpose).toBe(
+        'Rest. Walking and easy movement are fine; no running until 2026-11-03.',
+      )
+      // the race day carries the race, and later hold days are not asked for before `from`
+      expect(
+        holdSessions(week({ weekStart: '2026-10-26' }), ZONES, [window], '2026-10-26'),
+      ).toEqual([])
+      expect(
+        holdSessions(week({ weekStart: '2026-11-02' }), ZONES, [window], '2026-11-03'),
+      ).toEqual([])
     })
   })
 })

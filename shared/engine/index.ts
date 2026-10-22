@@ -28,8 +28,9 @@ import {
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { macroPlan, redsHold } from './macro.ts'
-import { placeWeek } from './micro.ts'
+import { holdSessions, placeWeek } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
+import { planWindows, postRaceWarnings } from './postRace.ts'
 import { predictRace } from './predict.ts'
 import { focalBoneActive, isQualityKind } from './readiness.ts'
 import { prescribe } from './sessions.ts'
@@ -236,6 +237,8 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     macro.push(week)
   }
   const keptDates = new Set(kept.filter((s) => s.date >= today).map((s) => s.date))
+  // The post-race windows the plan's days fall in: a past race's, and the goal race's [rules H12].
+  const windows = planWindows(input)
 
   // The limits, from the completed runs and weeks, then each week as it is placed.
   const completed = completedReference(input.activities, state)
@@ -243,8 +246,14 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
   const volumes = new Map(state.weeks.map((w) => [w.weekStart, w.runMin]))
   const gains = weeklyGain(input.activities)
   const floorWeek = [...pastWeeks, ...macro].filter((w) => w.flags.includes('restart-floor')).at(-1)
+  // The post-race weeks are recovery weeks that set a ramp baseline: the weeks after them grow
+  // from the last step, not from the weeks before the race [rules H12, g-6].
   const lowWeeks = [...pastWeeks, ...macro]
-    .filter((w) => w.isRecovery || w.isTaper)
+    .filter((w) => (w.isRecovery || w.isTaper) && !w.flags.includes('post-race'))
+    .map((w) => w.weekStart)
+  // exempt from G-2: the post-race weeks, and the week that restarts from them [rules H12, J7]
+  const afterRaceWeeks = [...pastWeeks, ...macro]
+    .filter((w) => w.flags.includes('post-race') || w.flags.includes('post-race-restart'))
     .map((w) => w.weekStart)
   const rampCtx: RampContext = {
     volumes,
@@ -325,7 +334,11 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       }
     }
     // Inside the weekly ramp and the gain ramp, over what is run and placed [rules g-2, H4].
-    const ramp = rampLimits(rampCtx, week.weekStart)
+    // The post-race weeks and the restart week after them are exempt from G-2, as a return to an
+    // established base [rules H12].
+    const ramp = afterRaceWeeks.includes(week.weekStart)
+      ? null
+      : rampLimits(rampCtx, week.weekStart)
     if (ramp !== null && planWeek.targetRunMin > 0) {
       planWeek = capWeek(planWeek, Math.max(0, ramp.plan - done.minutes - keptMin))
     }
@@ -345,6 +358,11 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       }
     }
 
+    // The race week of the goal is placed as before: the days after the race are dropped below, and
+    // its minutes stay before the race. Every other week keeps the windows its days fall in.
+    const placing = windows.filter(
+      (w) => !(w.race.date === goal.date && mondayOf(w.race.date) === week.weekStart),
+    )
     const profile =
       closed.size > 0 ? closeDates(input.profile, week.weekStart, closed) : input.profile
     let sessions =
@@ -355,6 +373,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
             state,
             prevSessions: history,
             limits: { runs: records, virtualTwoDay: completed.virtualTwoDay },
+            postRace: placing,
           })
         : []
     // A hold trims the week's next quality session, once a week [rules J5, design 4.3].
@@ -398,7 +417,9 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     // The race day holds the race and the rest of race week is the start of recovery; the weeks
     // after it keep their own (reduced) sessions.
     const inside = sessions.filter((s) => s.date < goal.date || mondayOf(s.date) > raceMonday)
-    placed.push(...inside)
+    // hold days after a race are rest days, the race week's included [rules H12]
+    const rest = holdSessions(week, zones, windows, today).filter((s) => !keptDates.has(s.date))
+    placed.push(...inside, ...rest)
     history.push(...inside)
 
     // The week enters the baselines and its runs the 30-day reference, as the guards count them.
@@ -413,6 +434,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     ultraRaceDurationSec: goal.isUltra ? goal.expectedDurationSec : null,
     neverOverride: true,
     lowWeeks,
+    exemptWeeks: afterRaceWeeks,
     restartFloor: rampCtx.floor,
     fixed: kept.filter((s) => keep.toRun.has(s) && s.date >= today),
   })
@@ -444,6 +466,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       rules: ['g-1', 'F5'],
     })
   }
+  warnings.push(...postRaceWarnings(windows))
   if (redsHold(state)) {
     warnings.push({
       code: 'reds-hold',

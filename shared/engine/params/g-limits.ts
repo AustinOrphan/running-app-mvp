@@ -45,6 +45,17 @@ export const gLimits = {
       unit: 'days',
       note: 'Window of the longest completed run that every planned run is compared with (also used for the largest 2-day total of h3).',
     }),
+    referenceRaceMaxM: param(
+      'g1.referenceRaceMaxM',
+      42195,
+      'D',
+      'g-1',
+      ['hoffman-2017-161km-recovery-determinants', 'millet-2011-ultramarathon-neuromuscular'],
+      {
+        unit: 'm',
+        note: 'Default: a completed race of this distance or longer does not set the 30-day reference of the session spike guard, since 1.10 times a 100-mile race would allow training runs longer than any the return can take.',
+      },
+    ),
     minStepDistanceM: param('g1.minStepDistanceM', 500, 'D', 'g-1', SPIKE, {
       unit: 'm',
       note: 'Default: when the longest run is short the minimum step is 0.5 km (stored in metres).',

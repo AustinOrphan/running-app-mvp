@@ -87,7 +87,10 @@ describe.each(all)('generated plan inside the limits: $label', (a: MatrixAthlete
     const again = applyGuards(runs, st, a.input.activities, {
       ultraRaceDurationSec: a.input.goal.isUltra ? a.input.goal.expectedDurationSec : null,
       neverOverride: true,
-      lowWeeks: plan.weeks.filter((w) => w.isRecovery || w.isTaper).map((w) => w.weekStart),
+      lowWeeks: plan.weeks
+        .filter((w) => (w.isRecovery || w.isTaper) && !w.flags.includes('post-race'))
+        .map((w) => w.weekStart),
+      exemptWeeks: plan.weeks.filter((w) => w.flags.includes('post-race')).map((w) => w.weekStart),
       restartFloor: (() => {
         const floor = plan.weeks.find((w) => w.flags.includes('restart-floor'))
         return floor === undefined

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
+import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { macroPlan, redsHold } from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
+import { lastWindowDay, ownWindow, windowDay } from '../../../shared/engine/postRace.ts'
 import type {
   AthleteState,
   EngineInput,
@@ -154,9 +155,16 @@ describe('macroPlan: calendar and phases', () => {
     const raceWeek = weeks.find((w) => w.weekStart === mondayOf(g.date))
     expect(raceWeek?.phase).toBe('race')
     expect(raceWeek?.isTaper).toBe(true)
-    const last = weeks[weeks.length - 1]
-    expect(last?.flags).toContain('post-race')
-    expect(daysBetween(raceWeek?.weekStart ?? '', last?.weekStart ?? '')).toBe(7)
+    // the weeks after the race follow it one Monday at a time and cover the post-race window
+    const post = weeks.filter((w) => w.flags.includes('post-race'))
+    expect(post.length).toBeGreaterThan(0)
+    post.forEach((w, k) => {
+      expect(w.weekStart).toBe(addDays(raceWeek?.weekStart ?? '', 7 * (k + 1)))
+    })
+    const lastDay = lastWindowDay(ownWindow(input(g)))
+    const last = post[post.length - 1]
+    expect((last?.weekStart ?? '') <= lastDay).toBe(true)
+    expect(addDays(last?.weekStart ?? '', 6) >= lastDay).toBe(true)
   })
 
   it('builds backwards: base, build, specific, taper, race', () => {
@@ -646,28 +654,97 @@ describe('macroPlan: vertical gain and post-race', () => {
     expect(Math.max(...work.map((w) => w.gainTargetM ?? 0))).toBeGreaterThan(0)
   })
 
-  it('adds a rest week then reduced weeks after a race of 100 km or more', () => {
-    const weeks = plan(goal('ultra100k', 26))
-    const post = weeks.filter((w) => w.flags.includes('post-race'))
-    const fractions = P.macroDesign.postRaceLongFractions.value
-    expect(post).toHaveLength(1 + fractions.length)
-    const ref = Math.max(...preTaper(weeks).map((w) => w.targetRunMin))
-    fractions.forEach((f, k) => {
-      expect(post[k + 1]?.targetRunMin).toBe(Math.floor(ref * f + 1e-9))
-    })
-    expect(post[1]!.targetRunMin).toBeLessThan(ref * 0.5)
-    expect(post[0]?.targetRunMin).toBe(0)
-    expect(post[0]?.runDays).toBe(0)
-    expect(post[1]?.targetRunMin).toBeGreaterThan(0)
-    expect(post[1]?.isRecovery).toBe(true)
+  /** A runner under 40 with an earlier race in the class: no modifier lengthens the hold. */
+  const SEASONED = (distanceClass: GoalModel['distanceClass'], g: GoalModel): EngineInput => ({
+    ...input(g),
+    profile: { ...PROFILE, birthYear: 1995 },
+    activities: [
+      {
+        id: 'earlier',
+        date: addDays(TODAY, -300),
+        type: 'race',
+        durationSec: DISTANCES[distanceClass].sec,
+        distanceM: DISTANCES[distanceClass].m,
+        duplicateOfId: null,
+        duplicateStatus: 'none',
+      } as unknown as Activity,
+    ],
   })
 
-  it('adds one reduced week after a shorter race', () => {
-    const weeks = plan(goal('half', 20))
+  /** What a post-race week holds by the rule: the step fractions of its days after the hold. */
+  function byTheRule(g: GoalModel, weekStart: string, ref: number): number {
+    const window = ownWindow(SEASONED(g.distanceClass, g))
+    let minutes = 0
+    for (let d = 0; d < 7; d++) {
+      const day = windowDay(window, addDays(weekStart, d))
+      if (day?.kind === 'step') minutes += (day.stage.fraction * ref) / 7
+    }
+    return Math.floor(minutes + 1e-9)
+  }
+
+  it('counts the weeks after a 100 km race in days: rest through the hold, then three steps', () => {
+    const g = goal('ultra100k', 26)
+    const weeks = macroPlan(SEASONED('ultra100k', g), state(), g, FEASIBLE)
+    const post = weeks.filter((w) => w.flags.includes('post-race'))
+    const ref = Math.max(...preTaper(weeks).map((w) => w.targetRunMin))
+    // a Saturday race: the hold (7 days) ends on the Saturday after, so the first Monday week is
+    // all rest bar its last two days, and the steps of 7 days follow (fractions .25, .5, .75)
+    expect(P.macroDesign.postRaceLongFractions.value).toEqual([0.25, 0.5, 0.75])
+    expect(post).toHaveLength(4)
+    expect(post[0]?.targetRunMin).toBe(byTheRule(g, post[0]!.weekStart, ref))
+    for (const w of post) {
+      expect(w.targetRunMin).toBeLessThanOrEqual(byTheRule(g, w.weekStart, ref))
+      expect(w.targetRunMin).toBeLessThan(ref * 0.75)
+      expect(w.isRecovery).toBe(true)
+      expect(w.qualitySessions).toBe(0)
+      expect(w.strengthSessions).toBe(0)
+      expect(w.longRunMin).toBeLessThanOrEqual(P.h12.laterStepLongRunMaxMin.value)
+      expect(w.tid.z1).toBe(100)
+    }
+    // the last week holds only the days the window still covers, so it can sit below the one before
+    expect(post[2]?.targetRunMin).toBeGreaterThan(post[1]!.targetRunMin)
+    // a long run appears only in the third step, and stays at or under 90 min
+    expect(post.slice(0, 2).every((w) => w.longRunMin === 0)).toBe(true)
+    expect(post[2]?.longRunMin).toBeGreaterThan(P.h12.step2RunMaxMin.value)
+    expect(post[0]?.focus).toMatch(/After the race/)
+    expect(post[1]?.runDays).toBeLessThanOrEqual(P.h12.step1MaxRuns.value)
+    expect(post[1]?.targetRunMin).toBeGreaterThan(0)
+  })
+
+  it('keeps a week inside the hold at zero minutes and zero run days', () => {
+    // a marathon on a Sunday: Monday is day 1, inside the 2-day hold
+    const g = goal('marathon', 20, { date: addDays(mondayOf(TODAY), 20 * 7 + 6) })
+    const weeks = macroPlan(SEASONED('marathon', g), state(), g, FEASIBLE)
+    const first = weeks.find((w) => w.flags.includes('post-race'))!
+    // day 1 (Monday) is hold, day 2 (Tuesday) is the first run day: the week still holds minutes
+    expect(first.weekStart).toBe(addDays(g.date, 1))
+    expect(first.targetRunMin).toBeGreaterThan(0)
+    const hold = macroPlan(
+      SEASONED('ultra100mi', goal('ultra100mi', 26)),
+      state(),
+      goal('ultra100mi', 26),
+      FEASIBLE,
+    ).filter((w) => w.flags.includes('post-race'))
+    // a 10-day hold from a Saturday race covers the whole first Monday week (days 2 to 8)
+    expect(hold[0]?.targetRunMin).toBe(0)
+    expect(hold[0]?.runDays).toBe(0)
+    expect(hold[0]?.focus).toBe('After the race: rest')
+  })
+
+  it('adds one reduced step after a shorter race, 0.5 of the reference over the days it covers', () => {
+    const g = goal('half', 20)
+    const weeks = macroPlan(SEASONED('half', g), state(), g, FEASIBLE)
     const post = weeks.filter((w) => w.flags.includes('post-race'))
     expect(post).toHaveLength(1)
     const ref = Math.max(...preTaper(weeks).map((w) => w.targetRunMin))
+    // a Saturday race with no hold: the 7-day step covers Monday to Friday of the next week
     expect(post[0]?.targetRunMin).toBe(
+      Math.min(
+        byTheRule(g, post[0]!.weekStart, ref),
+        P.h12.step1MaxRuns.value * P.h12.step1RunMaxMin.value,
+      ),
+    )
+    expect(post[0]?.targetRunMin).toBeLessThanOrEqual(
       Math.floor(ref * P.macroDesign.postRaceReducedFraction.value + 1e-9),
     )
   })

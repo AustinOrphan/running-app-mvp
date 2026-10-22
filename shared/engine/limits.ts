@@ -62,11 +62,20 @@ const isCounted = (a: Activity) =>
   a.duplicateStatus !== 'confirmed'
 
 /**
+ * True for a completed run that sets the 30-day reference of the session spike guard: a race of
+ * marathon distance or longer does not (a race without a distance counts as a run) [rules g-1].
+ */
+export function countsTowardReference(a: Activity): boolean {
+  if (!isCounted(a)) return false
+  return !(a.type === 'race' && a.distanceM !== null && a.distanceM >= P.g1.referenceRaceMaxM.value)
+}
+
+/**
  * The completed runs of `history`; when it holds none, one record the day before `state.asOf` with
  * the state's 30-day maxima (an unknown maximum is stored as 0 there, so 0 reads as not recorded).
  */
 export function completedReference(history: Activity[], state: AthleteState): CompletedReference {
-  const runs: RunRecord[] = history.filter(isCounted).map((a) => ({
+  const runs: RunRecord[] = history.filter(countsTowardReference).map((a) => ({
     date: a.date,
     min: a.durationSec / 60,
     distanceM: a.distanceM,

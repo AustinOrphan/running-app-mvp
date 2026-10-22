@@ -10,6 +10,7 @@ import { efficiencyIndex } from './athlete.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
 import { P } from './params/index.ts'
+import { lastWindowDay, postRaceWindows, stageLabel, windowDay } from './postRace.ts'
 import {
   checkinOn,
   hrvFlaggedOn,
@@ -144,6 +145,59 @@ function formatPace(secPerKm: number): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
 }
 
+/**
+ * A week inside a post-race window reports its stage instead of progress, hold or reduce
+ * [rules H12]: the plan follows the window, and a rating can only delay it. `decision` is 'hold'
+ * for callers that read only that, and the next week keeps the minutes the plan holds for it.
+ */
+function postRaceDecision(
+  input: EngineInput,
+  weekStart: string,
+  asOf: string,
+): WeeklyDecision | null {
+  const weekEnd = addDays(weekStart, 6)
+  const { own, past } = postRaceWindows(input)
+  // the goal race's window counts for the weeks the plan marks as post-race; a past race's window
+  // for any week it covers, since the plan was built inside it
+  const planned = input.existing?.weeks.some(
+    (w) => w.weekStart === weekStart && w.flags.includes('post-race'),
+  )
+  const window = [past, planned === true ? own : null].find(
+    (w) => w !== null && w.race.date <= asOf && w.race.date <= weekEnd && w.quietUntil > weekStart,
+  )
+  if (window === null || window === undefined) return null
+  // the stage on the last day of the week that is not ahead of today, kept inside the window
+  const day = [asOf, weekEnd, lastWindowDay(window)].reduce((a, b) => (a < b ? a : b))
+  const at = day < window.race.date ? window.race.date : day
+  const info = windowDay(window, at)
+  const label = stageLabel(window, at)
+  const next = input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))
+  const signals: WeeklyDecision['signals'] = [
+    { code: 'post-race-stage', detail: label, rules: ['H12'] },
+  ]
+  if (window.extensionDays > 0) {
+    signals.push({
+      code: 'post-race-delayed',
+      detail: `A sore, tired, painful or ill day keeps you at your current step: the return is ${window.extensionDays} day${window.extensionDays === 1 ? '' : 's'} later than the default schedule, and a good day does not speed it up.`,
+      rules: ['H12', 'J3'],
+    })
+  }
+  return {
+    decision: 'hold',
+    signals,
+    nextWeekTargetMin: next?.targetRunMin ?? 0,
+    postRace: {
+      label,
+      phase: info?.kind === 'step' ? 'step' : 'hold',
+      step: info?.kind === 'step' ? info.stage.step : null,
+      steps: window.stages.length,
+      holdUntil: window.holdUntil,
+      quietUntil: window.quietUntil,
+      extensionDays: window.extensionDays,
+    },
+  }
+}
+
 /** Progress, hold or reduce from execution, check-ins, efficiency, sleep and HRV [rules J5, G-6]. */
 export function weeklyDecision(
   input: EngineInput,
@@ -154,6 +208,8 @@ export function weeklyDecision(
   const ramp = ctx.ramp ?? P.g2.rampSoft.value
   const finished = input.today > weekEnd
   const asOf = finished ? weekEnd : input.today
+  const inWindow = postRaceDecision(input, weekStart, asOf)
+  if (inWindow !== null) return inWindow
   const actual = aggregateWeeks(input.activities, [weekStart])[0]!.runMin
 
   // Completion: a week still in progress is judged on the sessions already due, never on the rest.

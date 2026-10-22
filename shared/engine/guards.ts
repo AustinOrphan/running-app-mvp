@@ -46,6 +46,11 @@ export interface GuardOptions {
    */
   lowWeeks?: Iterable<string>
   /**
+   * Mondays of the post-race return weeks [rules H12]: exempt from the weekly ramp as a return to
+   * an established base, like the restart floor week. Every session still obeys G-1.
+   */
+  exemptWeeks?: Iterable<string>
+  /**
    * The restart floor [design-macro]: the first week of a plan for a runner whose recent weeks are
    * below it. That one week is exempt from G-2 up to `minutes`, and is a baseline at its floor
    * minutes for the weeks after it. Every session still obeys G-1.
@@ -147,6 +152,7 @@ export function applyGuards(
     .sort()
 
   const ultraCapMin = ultraRunCapMin(options.ultraRaceDurationSec)
+  const exemptWeeks = new Set(options.exemptWeeks ?? [])
   const floor = options.restartFloor ?? null
   const rampCtx: RampContext = {
     volumes: volume,
@@ -232,6 +238,7 @@ export function applyGuards(
   // ---- weekly ramp ----
 
   function rampWeek(weekStart: string): void {
+    if (exemptWeeks.has(weekStart)) return
     const indices = indicesOf(weekStart)
     const week = indices.map((i) => items[i]!)
     const total = weekMinutes(weekStart, week)

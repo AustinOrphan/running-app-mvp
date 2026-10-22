@@ -11,6 +11,7 @@ import { rampLimits, rampSkipWeeks, tightRamp, ultraRunCapMin, type RampContext 
 import { redsHold } from './macro.ts'
 import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
+import { postRaceWindows, windowViolations } from './postRace.ts'
 import { focalBoneActive } from './readiness.ts'
 import type {
   AthleteState,
@@ -109,9 +110,12 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
   const floorWeek = draft.weeks.find((w) => w.flags.includes('restart-floor'))
   const ctx: RampContext = {
     volumes: volume,
+    // the post-race weeks are baselines for the weeks after them, and exempt themselves [H12]
     skip: rampSkipWeeks(
       input.today,
-      draft.weeks.filter((w) => w.isRecovery || w.isTaper).map((w) => w.weekStart),
+      draft.weeks
+        .filter((w) => (w.isRecovery || w.isTaper) && !isRecoveryOnly(w))
+        .map((w) => w.weekStart),
     ),
     floor:
       floorWeek === undefined
@@ -128,6 +132,14 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
     const total = done + weekMinutes(ahead, weekStart, input.today)
     volume.set(weekStart, total)
     if (total <= 0) continue
+    if (
+      draft.weeks.some(
+        (w) =>
+          w.weekStart === weekStart && (isRecoveryOnly(w) || w.flags.includes('post-race-restart')),
+      )
+    ) {
+      continue
+    }
     const limits = rampLimits(ctx, weekStart)
     if (limits === null) continue
     if (total > limits.allowed + EPS) {
@@ -334,6 +346,14 @@ function breakRestartItem(
   state: AthleteState,
 ): ChecklistResult {
   const rules = ['J7']
+  if (postRaceWindows(input).past !== null) {
+    return result(
+      'break-restart',
+      true,
+      'The plan follows the post-race window, which sets the restart (H12).',
+      rules,
+    )
+  }
   if (state.layoffDays < P.j7.tier1Days.value || state.typicalWeekMin <= 0) {
     return result('break-restart', true, 'No break of 7 days or more before the plan.', rules)
   }
@@ -500,17 +520,48 @@ function raceDay(draft: PlanDraft, input: EngineInput): ChecklistResult {
     (s) => s.date === input.goal.date && s.kind !== 'race' && VOLUME_KINDS.has(s.kind),
   )
   if (sameDay.length > 0) failures.push(`${sameDay.length} run(s) share the race day`)
-  const rest = draft.weeks.find((w) => w.flags.includes('post-race'))
-  if (rest !== undefined && rest.targetRunMin === 0) {
-    const running = draft.sessions.filter(
-      (s) => mondayOf(s.date) === rest.weekStart && VOLUME_KINDS.has(s.kind),
-    )
-    if (running.length > 0) failures.push('the rest week after the race holds runs')
-  }
+  // after the race: the hold, the step caps and no quality before the window ends [H12]
+  const { own } = postRaceWindows(input)
+  failures.push(
+    ...windowViolations(
+      draft.sessions.filter((s) => s.date > input.goal.date),
+      [own],
+      addDays(input.goal.date, 1),
+    ),
+  )
+  const holdDays = own.holdUntil > input.goal.date ? daysBetween(input.goal.date, own.holdUntil) : 0
   return result(
     'race-day',
     failures.length === 0,
-    failures.length === 0 ? `The race is on ${input.goal.date}.` : failures.join('; '),
+    failures.length === 0
+      ? `The race is on ${input.goal.date}; after it ${holdDays} day${holdDays === 1 ? '' : 's'} without running, then easy steps, and no quality work before ${own.quietUntil}.`
+      : failures.join('; '),
+    rules,
+  )
+}
+
+/**
+ * A plan built inside the window of a past race [rules H12]: no run in the hold, runs within the
+ * step caps, and no quality session before the window ends.
+ */
+function postRaceWindowItem(draft: PlanDraft, input: EngineInput): ChecklistResult {
+  const rules = ['H12']
+  const { past } = postRaceWindows(input)
+  if (past === null) {
+    return result(
+      'post-race-window',
+      true,
+      'No race of marathon distance or longer in its window.',
+      rules,
+    )
+  }
+  const failures = windowViolations(draft.sessions, [past], input.today)
+  return result(
+    'post-race-window',
+    failures.length === 0,
+    failures.length === 0
+      ? `The ${past.race.date} race is still in its window: no running until ${past.holdUntil}, easy capped runs after it, and no quality work before ${past.quietUntil}.`
+      : failures.join('; '),
     rules,
   )
 }
@@ -605,6 +656,7 @@ export function runChecklist(draft: PlanDraft, input: EngineInput): ChecklistRes
     spacing(draft, input),
     ultraCaps(draft, input),
     raceDay(draft, input),
+    postRaceWindowItem(draft, input),
     redsHoldItem(draft, input, state),
     bonePainHoldItem(draft, input),
   ]

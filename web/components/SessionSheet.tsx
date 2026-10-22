@@ -71,6 +71,7 @@ const FLAG_LABELS: Record<SessionFlag, string> = {
   'b2b-day2': 'Back-to-back, day 2',
   downhill: 'Downhill emphasis',
   'run-walk': 'Run-walk intervals',
+  'post-race': 'After the race: easy running only',
 }
 
 const COMPLETION_LABELS: Record<ExecutionAssessment['completion'], string> = {
