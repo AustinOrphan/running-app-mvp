@@ -1,0 +1,285 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 28rem;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.explain {
+  margin: 0 0 var(--space-4);
+  max-width: var(--prose-max);
+}
+
+.baseline {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.linkButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-h);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Phase chip: intensity builds with the phase in one hue; taper and race are dashed outlines. */
+.chip {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) calc(var(--phase-level, 0) * 4%), var(--surface));
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  white-space: nowrap;
+}
+
+.chipDashed {
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+}
+
+/* Week table: a two-line list on phones, a true table from 900px. */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.table thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.table tbody {
+  display: block;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    'week phase target'
+    'summary summary actual'
+    'focus focus edit';
+  column-gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-3) 0 var(--space-3) var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.row td {
+  padding: 0;
+}
+
+.row[data-cutback='true'] {
+  border-top: 1px dashed var(--border-strong);
+}
+
+.row[data-taper='true'] {
+  color: var(--text-muted);
+}
+
+.row[data-race='true'] {
+  border-top: 2px solid var(--text);
+  border-bottom: 2px solid var(--text);
+}
+
+.row[data-race='true'] .week,
+.row[data-race='true'] .target {
+  font-weight: 600;
+}
+
+.row[aria-current='date'] {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.week {
+  grid-area: week;
+  font-weight: 600;
+}
+
+.phase {
+  grid-area: phase;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.cutback {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.row[data-cutback='true'] .targetValue {
+  font-style: italic;
+}
+
+.target {
+  grid-area: target;
+  text-align: right;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+}
+
+.baselineValue {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.edited {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.noteText {
+  display: block;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.source {
+  display: block;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.actual {
+  grid-area: actual;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.summary {
+  grid-area: summary;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.number {
+  display: none;
+}
+
+.focus {
+  grid-area: focus;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.edit {
+  grid-area: edit;
+  justify-self: end;
+}
+
+@media (min-width: 900px) {
+  .table thead {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+  }
+
+  .table tbody {
+    display: table-row-group;
+  }
+
+  .table th {
+    padding: var(--space-2) var(--space-3);
+    text-align: left;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  .row {
+    display: table-row;
+    padding: 0;
+  }
+
+  .row td {
+    display: table-cell;
+    padding: var(--space-3);
+    vertical-align: baseline;
+    border-top: inherit;
+  }
+
+  .row .summary {
+    display: none;
+  }
+
+  .row .number {
+    display: table-cell;
+  }
+
+  .row .week:first-child {
+    box-shadow: none;
+  }
+
+  .row[aria-current='date'] {
+    box-shadow: none;
+  }
+
+  .row[aria-current='date'] .week {
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  .target,
+  .actual {
+    text-align: left;
+  }
+
+  .actual {
+    font-size: var(--text-base);
+  }
+
+  .focus {
+    font-size: var(--text-sm);
+  }
+
+  .edit {
+    text-align: right;
+  }
+}
