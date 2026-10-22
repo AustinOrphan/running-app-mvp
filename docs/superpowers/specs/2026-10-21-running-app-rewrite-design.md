@@ -362,7 +362,8 @@ A fresh reader of sections 1–6 raised these; each answer refines the section n
     that contain at least one run, ignoring `dataStatus`. If none exist the request must
     carry `baselineRunMin`; when supplied it always wins.
 11. **Fastest efforts (4.5).** Whole-run pace; a run qualifies for a distance when its
-    distance is between the target and 2% above it. Races count; `possible` and `confirmed`
+    distance is between the target (rounded down to whole metres, as distances are stored) and 2%
+    above it. Races count; `possible` and `confirmed`
     duplicates do not. No split detection in v1.
 12. **Auth details (4.2).** Email is the login identifier and is required at setup. Login is
     rate-limited to 10 attempts per 15 minutes per IP (in memory). Password reset is a CLI
