@@ -18,6 +18,7 @@ function input(over: Partial<SuggestInput> = {}): SuggestInput {
     phase: 'base2',
     targetRunMin: 300,
     baselineRunMin: 300,
+    plannedRunDays: 4,
     nextBaselineMin: 400,
     week: makeWeekRow({ runMin: 300, runDays: 4, runSessions: 4 }),
     review: completeReview,
@@ -35,6 +36,21 @@ function withRunMin(runMin: number, runDays = 4): SuggestInput {
 }
 
 describe('suggestAction', () => {
+  test('a cutback week with 2 planned run days, executed as written, is not repeat', () => {
+    const cutback = input({
+      targetRunMin: 120,
+      baselineRunMin: 160,
+      nextBaselineMin: 200,
+      plannedRunDays: 2,
+      week: makeWeekRow({ runMin: 120, runDays: 2, runSessions: 2 }),
+      review: { ...completeReview, fatigue: 3, symptoms: 'none' },
+    })
+    expect(suggestAction(cutback).action).toBe('progress')
+    // One run day when two were planned still repeats.
+    const short = { ...cutback, week: makeWeekRow({ runMin: 120, runDays: 1, runSessions: 1 }) }
+    expect(suggestAction(short).action).toBe('repeat')
+  })
+
   test('order: upcoming, in_progress, await_data, review_duplicates, reduce', () => {
     expect(suggestAction(input({ weekStart: '2026-03-23' })).action).toBe('upcoming')
     expect(suggestAction(input({ weekStart: '2026-03-16' })).action).toBe('in_progress')

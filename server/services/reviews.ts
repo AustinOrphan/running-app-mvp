@@ -91,6 +91,7 @@ function suggestFor(
     phase: planWeek.phase,
     targetRunMin: planWeek.targetRunMin,
     baselineRunMin: planWeek.baselineRunMin,
+    plannedRunDays: planWeek.runDays,
     nextBaselineMin: nextPlanWeek ? nextPlanWeek.baselineRunMin : null,
     week: context.row,
     review,
