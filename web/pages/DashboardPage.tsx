@@ -2,25 +2,37 @@ import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { addDays, daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
 import { remainingPlan } from '../../shared/domain/adaptation.ts'
-import type { Activity, Units, WeekRow } from '../../shared/types.ts'
-import { formatDistance, formatDuration, minutesToHours1 } from '../../shared/units.ts'
+import type {
+  Activity,
+  Checkin,
+  PlanSession,
+  PlanSessionStatus,
+  TodayView,
+  Units,
+  WeekRow,
+} from '../../shared/types.ts'
+import { formatDistance, formatDuration, formatPace, minutesToHours1 } from '../../shared/units.ts'
 import { useActivities, useSaveFeedback } from '../api/activities.ts'
+import { useSaveCheckin } from '../api/checkins.ts'
 import { ApiError } from '../api/client.ts'
 import { useGoals } from '../api/goals.ts'
 import { usePlan } from '../api/plan.ts'
 import { useReviews } from '../api/reviews.ts'
 import { useSettings } from '../api/settings.ts'
+import { useToday } from '../api/today.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { Button } from '../components/Button.tsx'
 import buttonStyles from '../components/Button.module.css'
 import { WeeklyHoursChart } from '../components/charts/WeeklyHoursChart.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
-import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
+import { Input } from '../components/Field.tsx'
+import { FeedbackFields, ScaleChips, type FeedbackValues } from '../components/FeelPicker.tsx'
 import { formatLongDate, formatShortDate, formatWeekday, phaseLabel } from '../components/format.ts'
 import { Meter } from '../components/Meter.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
+import { WhyDrawer } from '../components/WhyDrawer.tsx'
 import { TYPE_LABELS } from './ActivityForm.tsx'
 import styles from './DashboardPage.module.css'
 
@@ -68,9 +80,16 @@ function unratedRecent(activities: Activity[], today: string): Activity[] {
   )
 }
 
-function FeedbackItem({ activity, units }: { activity: Activity; units: Units }) {
+function FeedbackItem({
+  activity,
+  units,
+  onSaved,
+}: {
+  activity: Activity
+  units: Units
+  onSaved: () => void
+}) {
   const save = useSaveFeedback(activity.id)
-  const toast = useToast()
   // Starts from the saved pain so a save that only sets RPE or feel does not clear it.
   const [value, setValue] = useState<FeedbackValues>({ rpe: null, feel: null, pain: activity.pain })
   const touched = value.rpe !== null || value.feel !== null || value.pain !== activity.pain
@@ -92,10 +111,10 @@ function FeedbackItem({ activity, units }: { activity: Activity; units: Units })
           disabled={!touched}
           loading={save.isPending}
           onClick={() => {
-            save.mutate(value, {
-              onSuccess: () => {
-                toast.show('Feedback saved')
-              },
+            // The saved run drops out of the card, which unmounts this item before a mutate-level
+            // onSuccess could fire. The promise settles anyway, and the page owns the toast.
+            save.mutateAsync(value).then(onSaved, () => {
+              // The error shows in the card; there is nothing more to do here.
             })
           }}
         >
@@ -111,7 +130,15 @@ function FeedbackItem({ activity, units }: { activity: Activity; units: Units })
   )
 }
 
-function FeedbackCard({ activities, units }: { activities: Activity[]; units: Units }) {
+function FeedbackCard({
+  activities,
+  units,
+  onSaved,
+}: {
+  activities: Activity[]
+  units: Units
+  onSaved: () => void
+}) {
   const headingId = useId()
   if (activities.length === 0) return null
   return (
@@ -122,9 +149,405 @@ function FeedbackCard({ activities, units }: { activities: Activity[]; units: Un
       <p className={styles.caption}>Recent runs without a rating. Rate any or all of it.</p>
       <ul className={styles.feedbackList}>
         {activities.map((activity) => (
-          <FeedbackItem key={activity.id} activity={activity} units={units} />
+          <FeedbackItem key={activity.id} activity={activity} units={units} onSaved={onSaved} />
         ))}
       </ul>
+    </section>
+  )
+}
+
+const STATUS_LABELS: Record<PlanSessionStatus, string | null> = {
+  planned: null,
+  completed: 'Completed',
+  partial: 'Partly done',
+  skipped: 'Skipped',
+  downgraded: 'Adjusted',
+  moved: 'Moved',
+}
+
+const ADVICE_LINES = {
+  'as-planned': null,
+  'downgrade-easy': 'An easy run is the better choice today.',
+  rest: 'A rest day is the better choice today.',
+} as const
+
+const FEET_PER_METRE = 3.28084
+
+/** "9:15 to 10:28 /mi" from sec/km bounds given slow to fast. */
+function formatPaceRange(range: [number, number], units: Units): string {
+  const [slow, fast] = range
+  const bound = (secPerKm: number) => formatPace(secPerKm, 1000, units).split(' /')[0] ?? ''
+  return `${bound(fast)} to ${bound(slow)} /${units}`
+}
+
+function climbText(gainM: number | null, units: Units): string | null {
+  if (gainM === null || gainM <= 0) return null
+  return units === 'mi'
+    ? `${String(Math.round(gainM * FEET_PER_METRE))} ft`
+    : `${String(Math.round(gainM))} m`
+}
+
+function sessionFigures(
+  session: PlanSession,
+  units: Units,
+): Array<{ label: string; value: string }> {
+  const { target } = session
+  const figures: Array<{ label: string; value: string | null }> = [
+    { label: 'Duration', value: `${String(session.durationMin)} min` },
+    {
+      label: 'Distance',
+      value: session.distanceM === null ? null : formatDistance(session.distanceM, units),
+    },
+    { label: 'Climb', value: climbText(session.gainM, units) },
+    {
+      label: 'Pace',
+      value: target.paceSecPerKm === null ? null : formatPaceRange(target.paceSecPerKm, units),
+    },
+    {
+      label: 'Heart rate',
+      value: target.hr === null ? null : `${String(target.hr[0])} to ${String(target.hr[1])} bpm`,
+    },
+    { label: 'Effort (RPE)', value: `${String(target.rpe[0])} to ${String(target.rpe[1])}` },
+  ]
+  return figures.flatMap((f) => (f.value === null ? [] : [{ label: f.label, value: f.value }]))
+}
+
+function SessionCard({
+  entry,
+  units,
+  onWhy,
+}: {
+  entry: TodayView['sessions'][number]
+  units: Units
+  onWhy: (rules: string[]) => void
+}) {
+  const { session, advice, reasons } = entry
+  const titleId = useId()
+  const status = STATUS_LABELS[session.status]
+  const adviceLine = ADVICE_LINES[advice]
+  return (
+    <article aria-labelledby={titleId} className={styles.sessionCard}>
+      <div className={styles.sessionHead}>
+        <h3 id={titleId} className={styles.sessionTitle}>
+          {session.title}
+        </h3>
+        {status === null ? null : <span className={styles.sessionStatus}>{status}</span>}
+      </div>
+      <dl className={styles.figureList}>
+        {sessionFigures(session, units).map((f) => (
+          <div key={f.label} className={styles.figureItem}>
+            <dt>{f.label}</dt>
+            <dd>{f.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {session.target.heatNote === null ? null : (
+        <p className={styles.caption}>{session.target.heatNote}</p>
+      )}
+      <p className={styles.purpose}>{session.purpose}</p>
+      {adviceLine === null ? null : (
+        <div className={styles.advice}>
+          <p className={styles.adviceLine}>{adviceLine}</p>
+          {reasons.length > 0 ? (
+            <ul className={styles.reasons}>
+              {reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      )}
+      <div className={styles.cardActions}>
+        <Button
+          variant="quiet"
+          onClick={() => {
+            onWhy(session.rules)
+          }}
+        >
+          Why this session
+        </Button>
+      </div>
+    </article>
+  )
+}
+
+function SessionsSection({
+  today,
+  units,
+  onWhy,
+}: {
+  today: TodayView
+  units: Units
+  onWhy: (rules: string[]) => void
+}) {
+  const headingId = useId()
+  const { state } = today.readiness
+  const readinessLine =
+    state === 'possible-fatigue'
+      ? 'Recent signals point to possible fatigue.'
+      : state === 'persistent-suppression'
+        ? 'Recent signals have stayed low for several days.'
+        : null
+  if (today.sessions.length === 0 && readinessLine === null) return null
+  return (
+    <section aria-labelledby={headingId} className={styles.section}>
+      <h2 id={headingId} className={styles.heading}>
+        {"Today's session"}
+      </h2>
+      {readinessLine === null ? null : (
+        <p className={styles.readinessLine}>
+          <span>{readinessLine}</span>
+          <Button
+            variant="quiet"
+            onClick={() => {
+              onWhy(['j-2', 'j-3'])
+            }}
+          >
+            Why this note
+          </Button>
+        </p>
+      )}
+      <div className={styles.sessionList}>
+        {today.sessions.map((entry) => (
+          <SessionCard key={entry.session.id} entry={entry} units={units} onWhy={onWhy} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function HeatSection({
+  heat,
+  onWhy,
+}: {
+  heat: TodayView['heat']
+  onWhy: (rules: string[]) => void
+}) {
+  const headingId = useId()
+  if (heat.note === null && heat.wbgtC === null) return null
+  return (
+    <section aria-labelledby={headingId} className={styles.section}>
+      <h2 id={headingId} className={styles.heading}>
+        Heat
+      </h2>
+      {heat.note === null ? null : <p className={styles.purpose}>{heat.note}</p>}
+      <p className={styles.counts}>
+        {heat.wbgtC === null ? null : <span>{`WBGT ${heat.wbgtC.toFixed(1)} °C`}</span>}
+        {heat.coolerHour === null ? null : <span>{`Cooler hour: ${heat.coolerHour}`}</span>}
+      </p>
+      <div className={styles.cardActions}>
+        <Button
+          variant="quiet"
+          onClick={() => {
+            onWhy(['i-7', 'i-9'])
+          }}
+        >
+          Why this heat note
+        </Button>
+      </div>
+    </section>
+  )
+}
+
+function HealthNotes({
+  flags,
+  onWhy,
+}: {
+  flags: TodayView['readiness']['redFlags']
+  onWhy: (rules: string[]) => void
+}) {
+  if (flags.length === 0) return null
+  return (
+    <section aria-label="Health notes" className={styles.notes}>
+      <ul className={styles.noteList}>
+        {flags.map((flag) => (
+          <li key={flag.code} className={styles.note}>
+            <p className={styles.noteText}>{flag.message}</p>
+            <Button
+              variant="quiet"
+              onClick={() => {
+                onWhy(flag.rules)
+              }}
+            >
+              Why this note
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+interface CheckinDraft {
+  fatigue: number | null
+  soreness: number | null
+  sleepQuality: number | null
+  mood: number | null
+  stress: number | null
+  illness: boolean
+  painScore: number | null
+  painArea: string
+  painFocalBone: boolean
+}
+
+function draftFrom(checkin: Checkin | null): CheckinDraft {
+  return {
+    fatigue: checkin?.fatigue ?? null,
+    soreness: checkin?.soreness ?? null,
+    sleepQuality: checkin?.sleepQuality ?? null,
+    mood: checkin?.mood ?? null,
+    stress: checkin?.stress ?? null,
+    illness: checkin?.illness ?? false,
+    painScore: checkin?.painScore ?? null,
+    painArea: checkin?.painArea ?? '',
+    painFocalBone: checkin?.painFocalBone ?? false,
+  }
+}
+
+const CHECKIN_SCALES = [
+  ['fatigue', 'Fatigue'],
+  ['soreness', 'Soreness'],
+  ['sleepQuality', 'Sleep quality'],
+  ['mood', 'Mood'],
+  ['stress', 'Stress'],
+] as const
+
+function CheckinCard({
+  date,
+  checkin,
+  onSaved,
+}: {
+  date: string
+  checkin: Checkin | null
+  onSaved: (message: string) => void
+}) {
+  const headingId = useId()
+  const save = useSaveCheckin()
+  const initial = draftFrom(checkin)
+  const [draft, setDraft] = useState<CheckinDraft>(initial)
+  const dirty = JSON.stringify(draft) !== JSON.stringify(initial)
+  const area = draft.painArea.trim()
+
+  return (
+    <section aria-labelledby={headingId} className={styles.section}>
+      <h2 id={headingId} className={styles.heading}>
+        Check-in
+      </h2>
+      <p className={styles.caption}>
+        {checkin === null
+          ? 'Optional. 1 to 5, where 3 is normal. These answers come first when the plan checks readiness.'
+          : 'Saved for today. Change any answer and save again.'}
+      </p>
+      <div className={styles.checkinFields}>
+        {CHECKIN_SCALES.map(([key, legend]) => (
+          <ScaleChips
+            key={key}
+            legend={legend}
+            min={1}
+            max={5}
+            value={draft[key]}
+            onChange={(value) => {
+              setDraft({ ...draft, [key]: value })
+            }}
+          />
+        ))}
+        <label className={styles.checkLabel}>
+          <input
+            type="checkbox"
+            checked={draft.illness}
+            onChange={(event) => {
+              setDraft({ ...draft, illness: event.target.checked })
+            }}
+          />
+          Feeling ill
+        </label>
+        <ScaleChips
+          legend="Pain today"
+          min={0}
+          max={10}
+          value={draft.painScore}
+          onChange={(painScore) => {
+            setDraft({ ...draft, painScore })
+          }}
+          hint="0 is none, 10 is the worst."
+        />
+        <div className={styles.areaField}>
+          <label htmlFor={`${headingId}-area`} className={styles.areaLabel}>
+            Pain area
+          </label>
+          <Input
+            id={`${headingId}-area`}
+            value={draft.painArea}
+            maxLength={80}
+            onChange={(event) => {
+              setDraft({ ...draft, painArea: event.target.value })
+            }}
+          />
+        </div>
+        <label className={styles.checkLabel}>
+          <input
+            type="checkbox"
+            checked={draft.painFocalBone}
+            onChange={(event) => {
+              setDraft({ ...draft, painFocalBone: event.target.checked })
+            }}
+          />
+          Point tenderness on a bone
+        </label>
+      </div>
+      <div className={styles.feedbackActions}>
+        <Button
+          variant="primary"
+          disabled={!dirty}
+          loading={save.isPending}
+          onClick={() => {
+            save.mutate(
+              {
+                date,
+                input: {
+                  fatigue: draft.fatigue,
+                  soreness: draft.soreness,
+                  sleepQuality: draft.sleepQuality,
+                  mood: draft.mood,
+                  stress: draft.stress,
+                  illness: draft.illness,
+                  painScore: draft.painScore,
+                  painArea: area === '' ? null : area,
+                  painFocalBone: draft.painFocalBone,
+                },
+              },
+              {
+                onSuccess: () => {
+                  onSaved('Check-in saved')
+                },
+              },
+            )
+          }}
+        >
+          Save check-in
+        </Button>
+      </div>
+      {save.isError ? (
+        <p role="alert" className={styles.feedbackError}>
+          {`Check-in not saved. ${save.error instanceof ApiError ? save.error.message : 'Something went wrong.'} Try again.`}
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+function DisclaimerNote() {
+  return (
+    <section aria-label="Disclaimer" className={styles.section}>
+      <p className={styles.caption}>
+        This plan is a sketch built from published research on groups of runners and from
+        conservative defaults where research is missing. It cannot guarantee safety or performance,
+        and it is not medical, nutrition or injury advice. Stop and see a qualified clinician for
+        pain, illness or warning signs.
+      </p>
+      <p className={styles.caption}>
+        <Link to="/research">How the numbers are graded</Link>
+      </p>
     </section>
   )
 }
@@ -141,6 +564,10 @@ export function DashboardPage() {
   const reviews = useReviews(weekRange)
   const activities = useActivities({ from: addDays(today, 1 - ACTIVITY_DAYS) })
   const settings = useSettings()
+  const todayView = useToday()
+  const toast = useToast()
+  // One drawer for every "why" on the page; each button sets the rules it explains.
+  const [whyRules, setWhyRules] = useState<string[] | null>(null)
 
   const queries = [goals, plan, weeks, reviews, activities, settings]
   const logActivity = (
@@ -163,7 +590,8 @@ export function DashboardPage() {
     weeks.data === undefined ||
     reviews.data === undefined ||
     activities.data === undefined ||
-    settings.data === undefined
+    settings.data === undefined ||
+    (todayView.data === undefined && !todayView.isError)
   ) {
     return (
       <>
@@ -237,6 +665,14 @@ export function DashboardPage() {
     <>
       <PageHeader title="Today" context={context} actions={logActivity} />
 
+      {todayView.data === undefined ? (
+        <p role="alert">
+          {"Today's session and check-in did not load. Reload the page to try again."}
+        </p>
+      ) : (
+        <HealthNotes flags={todayView.data.readiness.redFlags} onWhy={setWhyRules} />
+      )}
+
       <section aria-label="This week" className={styles.hero}>
         <p className={styles.heroLine}>
           <span className={styles.display}>{minutesToHours1(runMin)}</span>
@@ -272,7 +708,28 @@ export function DashboardPage() {
         ) : null}
       </section>
 
-      <FeedbackCard activities={unratedRecent(activities.data, today)} units={units} />
+      {todayView.data === undefined ? null : (
+        <>
+          <SessionsSection today={todayView.data} units={units} onWhy={setWhyRules} />
+          <HeatSection heat={todayView.data.heat} onWhy={setWhyRules} />
+          <CheckinCard
+            key={todayView.data.date}
+            date={todayView.data.date}
+            checkin={todayView.data.checkin}
+            onSaved={(message) => {
+              toast.show(message)
+            }}
+          />
+        </>
+      )}
+
+      <FeedbackCard
+        activities={unratedRecent(activities.data, today)}
+        units={units}
+        onSaved={() => {
+          toast.show('Feedback saved')
+        }}
+      />
 
       {showRace || perDay !== null ? (
         <section aria-label="Race and week ahead" className={styles.figures}>
@@ -401,6 +858,15 @@ export function DashboardPage() {
           />
         </section>
       ) : null}
+
+      <DisclaimerNote />
+      <WhyDrawer
+        rules={whyRules ?? []}
+        open={whyRules !== null}
+        onClose={() => {
+          setWhyRules(null)
+        }}
+      />
     </>
   )
 }

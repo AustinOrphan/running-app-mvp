@@ -14,6 +14,7 @@ import type {
 import { addDays } from '../../shared/dates.ts'
 import { makeActivity, makeWeekRow } from '../factories.ts'
 import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { makeToday } from './today-fixtures.ts'
 
 // The fixed clock is Wednesday 2026-03-18, so the current week starts on Monday 2026-03-16.
 const THIS_WEEK = '2026-03-16'
@@ -141,6 +142,7 @@ function routes(s: Scenario): MockRoutes {
     'GET /api/reviews': () => s.reviews ?? windowReviews(),
     'GET /api/activities': () => s.activities ?? [],
     'GET /api/settings': () => settings,
+    'GET /api/today': () => makeToday(),
   }
 }
 

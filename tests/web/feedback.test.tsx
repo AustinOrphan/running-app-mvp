@@ -8,6 +8,7 @@ import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
 import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
 import { makeActivity } from '../factories.ts'
 import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { makeToday } from './today-fixtures.ts'
 
 // The fixed clock is Wednesday 2026-03-18.
 beforeEach(() => {
@@ -53,6 +54,7 @@ function renderDashboard(activities: Activity[], extra: MockRoutes = {}) {
     'GET /api/reviews': () => [],
     'GET /api/activities': () => activities,
     'GET /api/settings': () => settings,
+    'GET /api/today': () => makeToday(),
     ...extra,
   })
   renderWithProviders(
