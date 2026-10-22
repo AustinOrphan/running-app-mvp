@@ -830,28 +830,6 @@ function declinedSummary(id: string): string {
   return `Declined zone proposal ${id}.`
 }
 
-const ACCEPTED_PREFIX = 'Accepted zone proposal '
-const ACCEPTED_BOUNDARY = /^Accepted zone proposal [^:]+: (\w+) from /
-
-/** The day of the newest accepted change of each zone boundary, read from the revision log. */
-async function acceptedZoneChanges(
-  prisma: Deps['prisma'],
-  userId: string,
-): Promise<NonNullable<EngineInput['zoneChanges']>> {
-  const accepted = await prisma.planRevision.findMany({
-    where: { plan: { userId }, reason: 'owner', summary: { startsWith: ACCEPTED_PREFIX } },
-    orderBy: { createdAt: 'asc' },
-    select: { summary: true, createdAt: true },
-  })
-  const changes: NonNullable<EngineInput['zoneChanges']> = {}
-  for (const revision of accepted) {
-    const boundary = ACCEPTED_BOUNDARY.exec(revision.summary)?.[1] as
-      ZoneProposal['boundary'] | undefined
-    if (boundary !== undefined) changes[boundary] = todayIso(revision.createdAt)
-  }
-  return changes
-}
-
 /**
  * The zone proposals the engine makes from the recent executions, minus those the owner declined
  * within the observation window. Declines are kept as owner revisions of the active plan.
@@ -881,10 +859,7 @@ export async function listZoneProposals(
     const session = toPlanSession(row)
     return { date: session.date, kind: session.kind, assessment: session.execution! }
   })
-  const proposals = zoneProposals(
-    { ...input, zoneChanges: await acceptedZoneChanges(prisma, args.userId) },
-    executions,
-  )
+  const proposals = zoneProposals(input, executions)
   if (proposals.length === 0) return []
 
   const declines = await prisma.planRevision.findMany({
@@ -938,7 +913,7 @@ export async function decideZoneProposal(
       prisma,
       plan.id,
       'owner',
-      `${ACCEPTED_PREFIX}${proposal.id}: ${proposal.boundary} from ${proposal.from} to ${proposal.to}.`,
+      `Accepted zone proposal ${proposal.id}: ${proposal.boundary} from ${proposal.from} to ${proposal.to}.`,
       [
         {
           weekStart: mondayOf(args.today),

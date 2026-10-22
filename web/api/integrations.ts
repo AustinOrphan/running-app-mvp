@@ -85,7 +85,7 @@ export function useSyncIntegration() {
         from === undefined ? {} : { from },
       ),
     onMutate: ({ provider }) => {
-      // The list as shown before the sync: a newer `lastSyncAt than this marks the finish.
+      // The list as shown before the sync: a newer `lastSyncAt` than this marks the finish.
       const list = queryClient.getQueryData<IntegrationStatus[]>([keys.integrations])
       const before = list?.find((item) => item.provider === provider)?.lastSyncAt ?? null
       return { provider, before }
