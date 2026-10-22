@@ -28,6 +28,13 @@ export interface GuardOptions {
    * 2-week ceiling for the week after it. Every session still obeys G-1.
    */
   restartFloor?: { weekStart: string; minutes: number } | null
+  /**
+   * For a generated plan: a run above 2.00x the 30-day reference on any dimension is shortened to
+   * that limit (and left out when it would fall under the session minimum) instead of being
+   * flagged `override-required`, because the generator never schedules an override [rules g-1].
+   * Without it, such a run keeps the flag, as an owner edit does.
+   */
+  neverOverride?: boolean
 }
 
 /** Run sessions the guards may shorten. Hikes and races are never rewritten. */
@@ -94,7 +101,8 @@ export function nextWeekCap(plannedMin: number, actualLastWeekMin: number, ramp:
  * course), because a session carries no descent field. A dimension no run in the window records
  * is not compared and yields an info warning; a recorded 0 (a flat history) is compared, with
  * the minimum step as the allowance. Races are left out of the weekly minutes. Above 1.10x a run gets `spike-warn`,
- * above 2.00x `override-required`; with the recent-injury flag 1.10x is a hard limit and the
+ * above 2.00x `override-required`, or with `neverOverride` (a generated plan) it is shortened to
+ * 2.00x and left out when that falls under the session minimum; with the recent-injury flag 1.10x is a hard limit and the
  * run is shortened. A week above the 2-week 30% ceiling or a tightened ramp is shortened; the
  * soft 10% only warns. Every cut leaves a warning with rule ids.
  */
@@ -535,6 +543,30 @@ export function applyGuards(
       })
       return scaled
     }
+    if (level === 2 && options.neverOverride === true) {
+      const factor = Math.min(
+        ...over.filter((c) => c.level === 2).map((c) => c.overrideLimit / c.d.value),
+      )
+      const scaled = scaleSession(base, factor)
+      if (scaled === null) {
+        dropPartner(s)
+        warn(`g1|${s.date}`, {
+          code: 'spike-run-dropped',
+          severity: 'info',
+          message: `The run on ${s.date} would be ${text} of the ${where}, and a run that short is not worth scheduling, so it is left out. Runs are never scheduled above ${P.g1.spikeRatioOverride.value}x without an explicit override.`,
+          rules: ['g-1'],
+        })
+        return null
+      }
+      warn(`g1|${s.date}`, {
+        code: 'spike-shortened',
+        severity: 'warn',
+        message: `The run on ${s.date} would be ${text} of the ${where}, so it is shortened to ${P.g1.spikeRatioOverride.value}x. The minutes cut are not made up.`,
+        rules: ['g-1'],
+      })
+      // the shortened run may still sit in the warn band, which carries its own flag
+      return spikeCheck(scaled)
+    }
     const flag: SessionFlag = level === 2 ? 'override-required' : 'spike-warn'
     warn(`g1|${s.date}`, {
       code: level === 2 ? 'spike-override' : 'spike-warn',
@@ -546,6 +578,19 @@ export function applyGuards(
       rules: ['g-1'],
     })
     return { ...base, flags: [...base.flags, flag] }
+  }
+
+  /** A dropped day 1 of a back-to-back pair takes its day 2 with it. */
+  function dropPartner(day1: SessionSpec): void {
+    if (!day1.flags.includes('b2b-day1')) return
+    const j = items.findIndex(
+      (x) =>
+        x !== null &&
+        x.date === addDays(day1.date, 1) &&
+        x.kind === 'b2b' &&
+        x.flags.includes('b2b-day2'),
+    )
+    if (j >= 0) items[j] = null
   }
 
   function referenceAt(date: string): Reference {

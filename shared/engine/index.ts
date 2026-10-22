@@ -70,7 +70,10 @@ function closeDates(
 /**
  * The part of the current week still to plan: the target less what was already run, the same
  * share of the climbing, and no more run days than the week has left. Missed volume is never made
- * up [rules g-6]; the minutes already run count toward the week.
+ * up [rules g-6]; the minutes already run count toward the week. The rest is also held to what the
+ * open days can take inside the normal band of the session spike guard (1.10x the longest run of
+ * the last 30 days per day), so a week with little left to run is not packed into its last days;
+ * the minutes that do not fit are dropped [rules g-1].
  */
 function remainingOfCurrentWeek(
   week: WeekDraft,
@@ -78,6 +81,7 @@ function remainingOfCurrentWeek(
   input: EngineInput,
   keptRunDates: ReadonlySet<string>,
   cap: number | null,
+  openDays: number,
 ): WeekDraft {
   const row = state.weeks.find((w) => w.weekStart === week.weekStart)
   const done = row === undefined ? 0 : row.runMin
@@ -96,7 +100,14 @@ function remainingOfCurrentWeek(
       .map((a) => a.date),
   ]).size
   const left = Math.max(0, Math.floor(week.targetRunMin - done))
-  const target = cap === null ? left : Math.min(left, cap)
+  const runDays = Math.max(0, week.runDays - usedDays)
+  const longest = state.longest30d.durationSec / 60
+  const room =
+    longest > 0
+      ? Math.floor(Math.min(openDays, runDays) * longest * P.g1.spikeRatioWarn.value + 1e-9)
+      : null
+  const capped = cap === null ? left : Math.min(left, cap)
+  const target = room === null ? capped : Math.min(capped, room)
   const share = week.targetRunMin > 0 ? target / week.targetRunMin : 0
   return {
     ...week,
@@ -105,7 +116,7 @@ function remainingOfCurrentWeek(
     longRunM: week.longRunM === null ? null : Math.round((week.longRunM * share) / 100) * 100,
     gainTargetM:
       week.gainTargetM === null ? null : Math.round((week.gainTargetM * share) / 10) * 10,
-    runDays: Math.max(0, week.runDays - usedDays),
+    runDays,
   }
 }
 
@@ -166,7 +177,15 @@ function generate(
           )
           .map((s) => s.date),
       )
-      planWeek = remainingOfCurrentWeek(week, state, input, keptRunDates, stillPlannedMin)
+      const openDays = WEEKDAYS.filter((day, i) => {
+        const a = input.profile.availability[day]
+        return (
+          !closed.has(addDays(week.weekStart, i)) &&
+          a.available &&
+          (a.maxMin === null || a.maxMin >= P.fplace.minRunDayMin.value)
+        )
+      }).length
+      planWeek = remainingOfCurrentWeek(week, state, input, keptRunDates, stillPlannedMin, openDays)
     }
     const profile =
       closed.size > 0 ? closeDates(input.profile, week.weekStart, closed) : input.profile
@@ -198,6 +217,7 @@ function generate(
   const floorWeek = macro.find((w) => w.flags.includes('restart-floor'))
   const guarded = applyGuards(placed, state, input.activities, {
     ultraRaceDurationSec: goal.isUltra ? goal.expectedDurationSec : null,
+    neverOverride: true,
     lowWeeks: macro.filter((w) => w.isRecovery || w.isTaper).map((w) => w.weekStart),
     restartFloor:
       floorWeek === undefined

@@ -27,7 +27,12 @@ import { WeeklyHoursChart } from '../components/charts/WeeklyHoursChart.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { Input } from '../components/Field.tsx'
 import { FeedbackFields, ScaleChips, type FeedbackValues } from '../components/FeelPicker.tsx'
-import { formatLongDate, formatShortDate, formatWeekday, phaseLabel } from '../components/format.ts'
+import {
+  formatLongDate,
+  formatShortDate,
+  formatWeekday,
+  weekPhaseLabel,
+} from '../components/format.ts'
 import { Meter } from '../components/Meter.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
@@ -633,7 +638,7 @@ export function DashboardPage() {
   const context =
     planWeek === undefined
       ? `Week of ${formatShortDate(thisWeek)}`
-      : `Week of ${formatShortDate(thisWeek)}, ${phaseLabel(planWeek.phase)}`
+      : `Week of ${formatShortDate(thisWeek)}, ${weekPhaseLabel(planWeek)}`
 
   const strip = runMinutesPerDay(activities.data, today, STRIP_DAYS)
   const stripRuns = activities.data.filter(
@@ -692,7 +697,7 @@ export function DashboardPage() {
               hideUnderCaption
             />
             <p className={styles.muted}>
-              {`${phaseLabel(planWeek.phase)}, week ${String(planIndex + 1)} of ${String(planWeeks.length)}`}
+              {`${weekPhaseLabel(planWeek)}, week ${String(planIndex + 1)} of ${String(planWeeks.length)}`}
             </p>
             <p className={styles.counts}>
               <span>
