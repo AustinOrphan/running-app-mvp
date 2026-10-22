@@ -226,6 +226,15 @@ describe('estimateState: experience, risk and flags', () => {
     expect(estimateState(input(acts)).experience).toBe('trained')
   })
 
+  test('the screening flag count of the input becomes risk.redsFlags; absent or invalid means none', () => {
+    const base = input([])
+    expect(estimateState(base).risk.redsFlags).toBe(0)
+    expect(estimateState({ ...base, screeningFlags: 0 }).risk.redsFlags).toBe(0)
+    expect(estimateState({ ...base, screeningFlags: 3 }).risk.redsFlags).toBe(3)
+    expect(estimateState({ ...base, screeningFlags: -2 }).risk.redsFlags).toBe(0)
+    expect(estimateState({ ...base, screeningFlags: Number.NaN }).risk.redsFlags).toBe(0)
+  })
+
   test('injuries: recent within 12 months, prior bone stress injury at any date', () => {
     const none = estimateState(input([]))
     expect(none.risk).toMatchObject({ recentInjury: false, priorBsi: false, redsFlags: 0 })

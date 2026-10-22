@@ -296,4 +296,6 @@ export interface EngineInput {
     strengthSessions?: 0 | 1 | 2
     tidModel?: 'pyramidal' | 'polarized'
   }
+  /** Signs from the latest REDs screening [rules n-4]; absent means no screening. */
+  screeningFlags?: number
 }

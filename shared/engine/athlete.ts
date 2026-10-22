@@ -387,8 +387,9 @@ function riskOf(
       noviceFlags.push('no-running-history')
     }
   }
-  // The input carries no REDs screening, so the count stays 0 here; the orchestrator adds it.
-  return { recentInjury, priorBsi, bsiFactors, redsFlags: 0, noviceFlags }
+  const screened = input.screeningFlags ?? 0
+  const redsFlags = Number.isFinite(screened) ? Math.max(0, Math.floor(screened)) : 0
+  return { recentInjury, priorBsi, bsiFactors, redsFlags, noviceFlags }
 }
 
 /** Athlete state from the input history [rules section a]. */
