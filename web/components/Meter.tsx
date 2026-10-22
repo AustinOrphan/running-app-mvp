@@ -5,6 +5,8 @@ export interface MeterProps {
   valueMin: number
   targetMin: number
   label: string
+  /** Skips the caption when it would only repeat a headline that already states value and target. */
+  hideUnderCaption?: boolean
 }
 
 type MeterState = 'under' | 'near' | 'over'
@@ -37,7 +39,7 @@ function percent(part: number, whole: number): string {
  * The week's time against its target, drawn as a sketch: a dotted tick for the target, a soft
  * band for "near", and a hatched continuation past the tick. The state is also stated in words.
  */
-export function Meter({ valueMin, targetMin, label }: MeterProps) {
+export function Meter({ valueMin, targetMin, label, hideUnderCaption = false }: MeterProps) {
   const value = Number.isFinite(valueMin) ? Math.max(0, valueMin) : 0
   const target = Number.isFinite(targetMin) ? Math.max(0, targetMin) : 0
   const state = stateOf(value, target)
@@ -79,7 +81,9 @@ export function Meter({ valueMin, targetMin, label }: MeterProps) {
           <span className={styles.tick} style={{ left: percent(target, scale) }} />
         ) : null}
       </div>
-      <p className={styles.caption}>{caption(state, value, target)}</p>
+      {hideUnderCaption && state === 'under' && target > 0 ? null : (
+        <p className={styles.caption}>{caption(state, value, target)}</p>
+      )}
     </div>
   )
 }
