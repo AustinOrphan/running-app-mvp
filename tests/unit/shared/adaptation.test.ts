@@ -57,4 +57,13 @@ describe('remainingPlan', () => {
       perDayMin: null,
     })
   })
+
+  test('a malformed date or a non-Monday week start throws instead of hiding the advice', () => {
+    const base = { weekStart, targetRunMin: 240, runMinSoFar: 90 }
+    expect(() => remainingPlan({ ...base, today: '2026-3-4' })).toThrow(RangeError)
+    expect(() => remainingPlan({ ...base, today: 'not a date' })).toThrow(RangeError)
+    expect(() => remainingPlan({ ...base, today: '2026-03-04', weekStart: '2026-03-03' })).toThrow(
+      RangeError,
+    )
+  })
 })

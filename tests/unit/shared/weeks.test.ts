@@ -179,4 +179,9 @@ describe('aggregateWeeks', () => {
     expect(rows.map((r) => r.weekStart)).toEqual(['2026-03-16', W, '2026-03-09'])
     expect(rows.map((r) => r.runMin)).toEqual([0, 0, 30])
   })
+
+  test('a week start that is not a Monday or not a date throws instead of giving an empty row', () => {
+    expect(() => aggregateWeeks([], ['2026-03-04'])).toThrow(RangeError)
+    expect(() => aggregateWeeks([], ['2026-3-2'])).toThrow(RangeError)
+  })
 })
