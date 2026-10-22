@@ -1,0 +1,18 @@
+.badge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* A default is not evidence: dashed edge and no fill, still the accent. */
+.default {
+  border-style: dashed;
+  background: transparent;
+}
