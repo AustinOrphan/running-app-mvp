@@ -7,11 +7,14 @@ Last update: 2026-10-22.
 
 ## Where things stand
 
-- **PR #528** (`rewrite/v2` → `main`): the clean rewrite. Ready for review; the owner merges.
-- **PR #529** (`feat/evidence-engine` → `rewrite/v2`, stacked): the verified research corpus
-  (300 papers), the data foundation (files, intervals.icu, Strava, experimental Garmin, Apple
-  Health, watched folder, weather, profile, wellness, activity detail, feedback) and the
-  evidence-based training engine. Merge #528 first, then retarget #529 to `main`.
+- **PR #528** (`rewrite/v2` → `main`): the clean rewrite, rebase-merged 2026-10-22.
+- **PR #529** (`feat/evidence-engine` → `main`): the verified research corpus (300 papers), the
+  data foundation (files, intervals.icu, Strava, experimental Garmin, Apple Health, watched
+  folder, weather, profile, wellness, activity detail, feedback) and the evidence-based training
+  engine. The rebase merge of #528 gave its commits new hashes, so the branch still carries the
+  pre-rebase copies; a no-op merge of `main` (tree unchanged) makes the diff exact, and GitHub
+  reports the branch mergeable but not rebaseable. Squash-merge it: a merge commit would add
+  the 96 pre-rebase duplicates of #528's commits to `main`.
 - Gates on `feat/evidence-engine` (2026-10-22): `npm run check` (lint, Prettier, typecheck,
   `research:check`, 2331 Vitest tests), `npm run build`, `npm run test:e2e` (18 Playwright
   specs), `npm audit --omit=dev` at 0, Docker image builds (602 MB), applies all three
