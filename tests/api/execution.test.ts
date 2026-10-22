@@ -389,6 +389,73 @@ describe('scheduled jobs', () => {
   })
 })
 
+describe('owner edits against links and spacing', () => {
+  const nextMonday = addDays(thisMonday, 7)
+
+  test('a swap of kinds exchanges the two prescriptions inside the week', async () => {
+    const { u, rows } = await planWith('swap@example.com', [
+      { date: addDays(nextMonday, 1), kind: 'easy', min: 40 },
+      { date: addDays(nextMonday, 3), kind: 'threshold', min: 55, structure: WORK },
+      { date: addDays(nextMonday, 5), kind: 'long', min: 90 },
+    ])
+    const res = await client(ctx, u)
+      .put(`/api/plan/sessions/${rows[0]!.id}`)
+      .send({ kind: 'threshold' })
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    expect(res.body).toMatchObject({
+      date: addDays(nextMonday, 1),
+      kind: 'threshold',
+      durationMin: 55,
+      status: 'moved',
+    })
+    const partner = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[1]!.id } })
+    expect(partner).toMatchObject({ kind: 'easy', durationMin: 40, status: 'moved' })
+
+    const none = await client(ctx, u)
+      .put(`/api/plan/sessions/${rows[2]!.id}`)
+      .send({ kind: 'intervals' })
+    expect(none.status).toBe(409)
+  })
+
+  test('a hard session never moves next to another hard one', async () => {
+    const { u, rows } = await planWith('spacing@example.com', [
+      { date: addDays(nextMonday, 1), kind: 'threshold', min: 50, structure: WORK },
+      { date: addDays(nextMonday, 4), kind: 'intervals', min: 50, structure: WORK },
+    ])
+    const res = await client(ctx, u)
+      .put(`/api/plan/sessions/${rows[1]!.id}`)
+      .send({ date: addDays(nextMonday, 2) })
+    expect(res.status).toBe(409)
+    expect((res.body as { error: { message: string } }).error.message).toMatch(/rule F1/)
+    const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[1]!.id } })
+    expect(row).toMatchObject({ date: addDays(nextMonday, 4), status: 'planned' })
+  })
+
+  test('a linked or skipped session is neither moved nor swapped', async () => {
+    const { u, rows } = await planWith('linked-move@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+      { date: addDays(today, 2), kind: 'threshold', min: 50, structure: WORK },
+      { date: addDays(today, 4), kind: 'easy', min: 40, status: 'skipped' },
+    ])
+    const run = await addRun(u.id, today, { durationSec: 60 * 60 })
+    await runExecutionForActivity(
+      { prisma: ctx.prisma, config: ctx.config },
+      { userId: u.id, activityId: run.id },
+    )
+    const c = client(ctx, u)
+    const move = await c.put(`/api/plan/sessions/${rows[0]!.id}`).send({ date: addDays(today, 3) })
+    expect(move.status).toBe(409)
+    const swap = await c.put(`/api/plan/sessions/${rows[1]!.id}`).send({ kind: 'easy' })
+    expect(swap.status).toBe(409)
+    const skipped = await c
+      .put(`/api/plan/sessions/${rows[2]!.id}`)
+      .send({ date: addDays(today, 3) })
+    expect(skipped.status).toBe(409)
+    const linked = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
+    expect(linked).toMatchObject({ date: today, status: 'completed', activityId: run.id })
+  })
+})
+
 describe('zone proposals', () => {
   async function withThresholdFeedback(email: string, score: number) {
     const made = await planWith(email, [])

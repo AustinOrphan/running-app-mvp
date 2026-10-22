@@ -351,6 +351,11 @@ describe('owner edits of one session', () => {
     expect((skipped.body as PlanSession).original).not.toBeNull()
     const restored = await c.put(`/api/plan/sessions/${easy.id}`).send({ skip: false })
     expect((restored.body as PlanSession).status).toBe('planned')
+    const revisions = (await c.get('/api/plan/revisions')).body as PlanRevision[]
+    expect(revisions.slice(0, 2).map((r) => r.summary)).toEqual([
+      expect.stringMatching(/^Restored /),
+      expect.stringMatching(/^Skipped /),
+    ])
 
     const race = plan.sessions.find((s) => s.kind === 'race')!
     expect((await c.put(`/api/plan/sessions/${race.id}`).send({ skip: true })).status).toBe(409)
@@ -630,5 +635,13 @@ describe('predictions', () => {
     expect((await client(ctx, u).post('/api/plan/generate').send({ goalId: goal.id })).status).toBe(
       201,
     )
+    // The failure is not remembered: the next plan asks the archive again.
+    let asked = 0
+    vi.stubGlobal('fetch', () => {
+      asked += 1
+      return Promise.resolve(new Response('down', { status: 503 }))
+    })
+    await client(ctx, u).post('/api/plan/generate').send({ goalId: goal.id })
+    expect(asked).toBeGreaterThan(0)
   })
 })

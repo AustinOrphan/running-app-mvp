@@ -225,6 +225,7 @@ async function raceClimate(
 
   const goalYear = Number(goal.targetDate.slice(0, 4))
   const samples: number[] = []
+  let failed = false
   for (let back = 1; back <= CLIMATE_YEARS; back++) {
     const date = `${goalYear - back}${goal.targetDate.slice(4)}`
     if (date > addDays(today, -ARCHIVE_LAG_DAYS - CLIMATE_SPREAD_DAYS)) continue
@@ -238,13 +239,15 @@ async function raceClimate(
       )
     } catch {
       // Keep the years that did answer.
+      failed = true
     }
   }
   const wbgtC =
     samples.length === 0
       ? null
       : Math.round((samples.reduce((sum, v) => sum + v, 0) / samples.length) * 10) / 10
-  climateCache.set(key, { at: Date.now(), wbgtC })
+  // A partial or failed read is not cached, so the next plan asks the archive again.
+  if (!failed) climateCache.set(key, { at: Date.now(), wbgtC })
   return wbgtC === null ? null : { wbgtC, source: 'climatology' }
 }
 

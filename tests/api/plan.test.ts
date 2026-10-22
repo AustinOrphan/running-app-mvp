@@ -438,6 +438,15 @@ describe('version-1 generator (generatePlanForGoal)', () => {
       expect(res.status, label).toBe(status)
     }
     expect(await ctx.prisma.plan.count({ where: { goalId: done.id } })).toBe(0)
+
+    // The version-1 start date is checked by its own service; the route no longer passes it.
+    const near = await seedGoal({ name: 'Near', targetDate: addDays(today, 10) })
+    const late = await generateV1(ctx, user.id, {
+      goalId: near.id,
+      baselineRunMin: 120,
+      startDate: addDays(thisMonday, 21),
+    })
+    expect(late.status).toBe(400)
   })
 
   test('race in the current week gives a one-week plan', async () => {

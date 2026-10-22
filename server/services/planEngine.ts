@@ -439,6 +439,8 @@ const RUN_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'race',
 ])
 const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
+/** Statuses of a session that is still to be run and so can move or swap. */
+const MOVABLE_STATUSES: ReadonlySet<string> = new Set(['planned', 'downgraded', 'moved'])
 
 type Slot = Pick<SessionSpec, 'date' | 'kind' | 'durationMin'> & { title: string }
 
@@ -549,15 +551,41 @@ export async function updatePlanSession(
       return toPlanSession(saved)
     }
     if (session.status !== 'skipped') return session
-    const saved = await prisma.planSession.update({
-      where: { id: row.id },
-      data: { status: 'planned' },
+    const saved = await prisma.$transaction(async (tx) => {
+      const updated = await tx.planSession.update({
+        where: { id: row.id },
+        data: { status: 'planned' },
+      })
+      await writeRevision(
+        tx,
+        row.planId,
+        'owner',
+        `Restored ${session.title} on ${session.date}.`,
+        [
+          {
+            weekStart: session.weekStart,
+            field: 'session.status',
+            from: 'skipped',
+            to: 'planned',
+            rules: ['g-6'],
+          },
+        ],
+      )
+      return updated
     })
     return toPlanSession(saved)
   }
 
   if (session.kind === 'race') throw conflict('The race day stays where it is.')
   if (session.date < today) throw conflict('A session in the past cannot be moved.')
+  // A done session keeps the day it was run on; a skipped one is restored before it moves.
+  if (session.activityId !== null || !MOVABLE_STATUSES.has(session.status)) {
+    throw conflict(
+      session.status === 'skipped'
+        ? 'This session is skipped. Restore it before moving it.'
+        : 'This session is already done or linked to an activity, so it stays on its day.',
+    )
+  }
   const profile = await loadProfile(prisma, userId)
   const neighbours = await prisma.planSession.findMany({
     where: {
@@ -611,7 +639,8 @@ export async function updatePlanSession(
       n.weekStart === session.weekStart &&
       n.kind === kind &&
       n.date >= today &&
-      (n.status === 'planned' || n.status === 'downgraded' || n.status === 'moved'),
+      n.activityId === null &&
+      MOVABLE_STATUSES.has(n.status),
   )
   if (!partner) {
     throw conflict(
