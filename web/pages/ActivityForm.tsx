@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent } from 'react'
 import { todayIso } from '../../shared/dates.ts'
-import type { Activity, ActivityType, Units } from '../../shared/types.ts'
+import type { Activity, ActivityType, Feel, Units } from '../../shared/types.ts'
 import { formatDuration, kmToM, mToKm, mToMiles, milesToM } from '../../shared/units.ts'
 import {
   useCreateActivity,
@@ -12,6 +12,7 @@ import { ApiError, fieldErrors } from '../api/client.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { Field, Input, Textarea } from '../components/Field.tsx'
+import { FeelPicker, ScaleChips } from '../components/FeelPicker.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { Sheet } from '../components/Sheet.tsx'
 import { useToast } from '../components/Toast.tsx'
@@ -28,6 +29,22 @@ export const TYPE_LABELS: Record<ActivityType, string> = {
   race: 'Race',
   strength: 'Strength',
   cross: 'Cross',
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  smashrun: 'Smashrun',
+  csv: 'CSV',
+  file: 'File import',
+  intervals: 'intervals.icu',
+  strava: 'Strava',
+  garmin: 'Garmin Connect',
+  'apple-health': 'Apple Health',
+}
+
+/** The name shown for an activity's source; null for hand-entered activities. */
+export function sourceLabel(source: string): string | null {
+  if (source === 'manual') return null
+  return SOURCE_LABELS[source] ?? source
 }
 
 const TYPE_OPTIONS = (Object.keys(TYPE_LABELS) as ActivityType[]).map((value) => ({
@@ -113,6 +130,8 @@ export function activityToInput(activity: Activity): ActivityInput {
   if (activity.maxHr !== null) input.maxHr = activity.maxHr
   if (activity.elevationGainM !== null) input.elevationGainM = activity.elevationGainM
   if (activity.notes !== null) input.notes = activity.notes
+  if (activity.feel !== null) input.feel = activity.feel
+  if (activity.pain !== null) input.pain = activity.pain
   return input
 }
 
@@ -126,6 +145,8 @@ const SERVER_FIELDS: Record<string, string> = {
   maxHr: 'maxHr',
   elevationGainM: 'elevation',
   notes: 'notes',
+  feel: 'feel',
+  pain: 'pain',
 }
 
 type Errors = Partial<Record<string, string>>
@@ -159,6 +180,8 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
   const [maxHr, setMaxHr] = useState(activity?.maxHr?.toString() ?? '')
   const [elevation, setElevation] = useState(initial.elevation)
   const [notes, setNotes] = useState(activity?.notes ?? '')
+  const [feel, setFeel] = useState<Feel | null>(activity?.feel ?? null)
+  const [pain, setPain] = useState<number | null>(activity?.pain ?? null)
   const [showMore, setShowMore] = useState(
     activity !== undefined &&
       (activity.startTime !== null ||
@@ -166,7 +189,9 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
         activity.avgHr !== null ||
         activity.maxHr !== null ||
         activity.elevationGainM !== null ||
-        activity.notes !== null),
+        activity.notes !== null ||
+        activity.feel !== null ||
+        activity.pain !== null),
   )
   const [errors, setErrors] = useState<Errors>({})
   const [formError, setFormError] = useState<string | null>(null)
@@ -224,6 +249,9 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
     if (maxHrValue !== null) input.maxHr = maxHrValue
     if (elevationGainM !== null) input.elevationGainM = elevationGainM
     if (notes.trim() !== '') input.notes = notes.trim()
+    // The server replaces the whole row, so a feel or pain left out here would be cleared.
+    if (feel !== null) input.feel = feel
+    if (pain !== null) input.pain = pain
     return { input }
   }
 
@@ -447,6 +475,17 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
                 />
               )}
             </Field>
+
+            <FeelPicker value={feel} onChange={setFeel} />
+
+            <ScaleChips
+              legend="Pain"
+              min={0}
+              max={10}
+              value={pain}
+              onChange={setPain}
+              hint="0 is none, 10 is the worst. Tap again to clear."
+            />
 
             <Field label="Notes" error={errors.notes}>
               {(control) => (

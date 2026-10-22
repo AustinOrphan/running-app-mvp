@@ -131,3 +131,41 @@
 .barEmpty {
   background: var(--border);
 }
+
+.feedbackList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+  max-width: var(--page-max);
+}
+
+.feedbackItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.feedbackTitle {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.feedbackType {
+  font-weight: 600;
+}
+
+.feedbackActions {
+  display: flex;
+}
+
+.feedbackError {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

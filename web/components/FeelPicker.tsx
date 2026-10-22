@@ -1,13 +1,121 @@
-// Stub from the data-foundation scaffold; Task D15 builds the chips.
 import type { Feel } from '../../shared/types.ts'
+import styles from './FeelPicker.module.css'
 
 export interface FeelPickerProps {
   value: Feel | null
   onChange: (value: Feel | null) => void
 }
 
+const FEEL_OPTIONS: Array<{ value: Feel; label: string }> = [
+  { value: -2, label: 'Much easier' },
+  { value: -1, label: 'Easier' },
+  { value: 0, label: 'As expected' },
+  { value: 1, label: 'Harder' },
+  { value: 2, label: 'Much harder' },
+]
+
+/** How the activity felt against what was expected. Tapping the chosen chip again clears it. */
 export function FeelPicker({ value, onChange }: FeelPickerProps) {
-  void value
-  void onChange
-  return null
+  return (
+    <fieldset className={styles.fieldset}>
+      <legend>How it felt</legend>
+      <div className={styles.feelChips}>
+        {FEEL_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={styles.chip}
+            aria-pressed={value === option.value}
+            onClick={() => {
+              onChange(value === option.value ? null : option.value)
+            }}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <p className={styles.hint}>Against what you expected. Tap again to clear.</p>
+    </fieldset>
+  )
+}
+
+export interface ScaleChipsProps {
+  legend: string
+  min: number
+  max: number
+  value: number | null
+  onChange: (value: number | null) => void
+  hint?: string
+}
+
+/** A row of numbered chips, such as RPE 1 to 10 or pain 0 to 10. Tapping the chosen one clears it. */
+export function ScaleChips({ legend, min, max, value, onChange, hint }: ScaleChipsProps) {
+  const numbers = Array.from({ length: max - min + 1 }, (_, i) => min + i)
+  return (
+    <fieldset className={styles.fieldset}>
+      <legend>{legend}</legend>
+      <div className={styles.scaleChips}>
+        {numbers.map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={`${styles.chip} ${styles.number}`}
+            aria-label={`${legend} ${String(n)}`}
+            aria-pressed={value === n}
+            onClick={() => {
+              onChange(value === n ? null : n)
+            }}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      {hint !== undefined ? <p className={styles.hint}>{hint}</p> : null}
+    </fieldset>
+  )
+}
+
+export interface FeedbackValues {
+  rpe: number | null
+  feel: Feel | null
+  pain: number | null
+}
+
+export interface FeedbackFieldsProps {
+  value: FeedbackValues
+  onChange: (value: FeedbackValues) => void
+}
+
+/** RPE, feel and pain together: the fields of the "How did it go?" card and the detail page. */
+export function FeedbackFields({ value, onChange }: FeedbackFieldsProps) {
+  return (
+    <div className={styles.fields}>
+      <ScaleChips
+        legend="RPE"
+        min={1}
+        max={10}
+        value={value.rpe}
+        onChange={(rpe) => {
+          onChange({ ...value, rpe })
+        }}
+        hint="1 is very easy, 10 is all out."
+      />
+      <FeelPicker
+        value={value.feel}
+        onChange={(feel) => {
+          onChange({ ...value, feel })
+        }}
+      />
+      <ScaleChips
+        legend="Pain"
+        min={0}
+        max={10}
+        value={value.pain}
+        onChange={(pain) => {
+          onChange({ ...value, pain })
+        }}
+        hint="0 is none, 10 is the worst."
+      />
+    </div>
+  )
 }
