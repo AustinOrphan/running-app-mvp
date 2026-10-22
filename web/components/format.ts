@@ -1,5 +1,5 @@
 import type { SessionKind } from '../../shared/engine/types.ts'
-import type { PlanPhase } from '../../shared/types.ts'
+import type { PlanPhase, Units } from '../../shared/types.ts'
 
 const parts = new Intl.DateTimeFormat('en-GB', {
   weekday: 'short',
@@ -89,4 +89,13 @@ export function sessionKindLabel(kind: SessionKind): string {
 /** Whether a string names a session kind. */
 export function isSessionKind(value: unknown): value is SessionKind {
   return typeof value === 'string' && value in kindLabels
+}
+
+const FEET_PER_METRE = 3.28084
+
+/** Climb in the runner's unit: metres for km, feet for miles ("197 ft"). */
+export function formatClimb(gainM: number, units: Units): string {
+  return units === 'mi'
+    ? `${String(Math.round(gainM * FEET_PER_METRE))} ft`
+    : `${String(Math.round(gainM))} m`
 }

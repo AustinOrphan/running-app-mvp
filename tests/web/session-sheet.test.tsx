@@ -90,6 +90,9 @@ describe('SessionSheet', () => {
     const dialog = await screen.findByRole('dialog')
     expect(await within(dialog).findByText('5.59 mi')).toBeInTheDocument()
     expect(within(dialog).getByText('8:19 to 8:51 /mi')).toBeInTheDocument()
+    // The climb follows the setting too: 60 m is 197 ft.
+    expect(within(dialog).getByText('197 ft')).toBeInTheDocument()
+    expect(within(dialog).queryByText('60 m')).not.toBeInTheDocument()
   })
 
   test('the why button opens the drawer with the session rule ids', async () => {
@@ -216,7 +219,7 @@ describe('SessionSheet', () => {
     expect(await screen.findByText('Session moved to Fri 15 Jan')).toBeInTheDocument()
   })
 
-  test('skip sends { skip: true }, says it is not made up later, and shows a toast', async () => {
+  test('skip asks for confirmation, then sends { skip: true } and shows a toast', async () => {
     const user = userEvent.setup()
     const { calls, onClose } = renderSheet(makeSession(), {
       'PUT /api/plan/sessions/s1': () => makeSession({ status: 'skipped' }),
@@ -224,11 +227,42 @@ describe('SessionSheet', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/not made up later/)).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Skip session' }))
+    // Nothing is sent until the runner confirms.
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false)
+    expect(within(dialog).getByText(/Skip this session\?/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Yes, skip it' }))
     await waitFor(() => {
       expect(onClose).toHaveBeenCalled()
     })
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ skip: true })
     expect(await screen.findByText('Session skipped')).toBeInTheDocument()
+  })
+
+  test('keeping the session at the confirmation sends nothing', async () => {
+    const user = userEvent.setup()
+    const { calls, onClose } = renderSheet(makeSession())
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Skip session' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Keep it' }))
+    expect(within(dialog).getByRole('button', { name: 'Skip session' })).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Skip this session\?/)).not.toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  test('a skipped session can be restored with { skip: false }', async () => {
+    const user = userEvent.setup()
+    const { calls, onClose } = renderSheet(makeSession({ status: 'skipped' }), {
+      'PUT /api/plan/sessions/s1': () => makeSession({ status: 'planned' }),
+    })
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByRole('button', { name: 'Skip session' })).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Restore session' }))
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled()
+    })
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ skip: false })
+    expect(await screen.findByText('Session restored')).toBeInTheDocument()
   })
 
   test('a completed session cannot be moved or skipped', async () => {
