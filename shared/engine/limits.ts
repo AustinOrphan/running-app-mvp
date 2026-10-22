@@ -7,6 +7,7 @@
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity } from '../types.ts'
 import { P } from './params/index.ts'
+import { startWeek, type StartPath } from './startWeeks.ts'
 import type { AthleteState, SessionKind, SessionSpec } from './types.ts'
 
 /** Guards float noise (100 * 1.1 = 110.00000000000001) before rounding down. */
@@ -235,9 +236,10 @@ export function weeklyRamp(state: AthleteState): number {
 }
 
 /**
- * The minutes of the restart floor week when the runner's typical week sits under it
+ * The minutes of the 3 x 20 starting week when the runner's typical week sits under it
  * (sessions x session length): null above it, with no typical week, and for the tightened
- * profiles, which are not lifted [design-macro, rules g-3].
+ * profiles, which are not lifted [design-macro, rules g-3]. The stand-in for the start path of
+ * `startPath` (macro.ts) where only the athlete state is at hand.
  */
 export function restartFloorMin(state: AthleteState): number | null {
   const minutes = P.restartFloor.sessions.value * P.restartFloor.sessionMin.value
@@ -247,14 +249,28 @@ export function restartFloorMin(state: AthleteState): number | null {
 }
 
 /**
- * The weekly running minutes a new plan starts from: the restart floor where it applies, else the
- * typical week, else the start floor of a runner without recent running. The generator and the
- * feasibility label of an ultra [rules D4] both read it.
+ * The weekly running minutes a new plan starts from: the first week of the start path when it is
+ * the 3 x N floor or a run-walk rung, else the typical week, else the start floor of a runner
+ * without recent running. The feasibility label of an ultra [rules D4] reads it. `path` is the
+ * result of `startPath` (macro.ts); null means the plan starts from the typical week, and so does
+ * an injury-return path, whose levels set their own pace. Left out, the 3 x 20 week stands in for
+ * a typical week under it.
  */
-export function startWeekMin(state: AthleteState): number {
-  const floor = restartFloorMin(state)
+export function startWeekMin(state: AthleteState, path?: StartPath | null): number {
+  if (path !== undefined && path !== null && path.kind !== 'injury-return') {
+    return startWeek(path.kind, path.kind === 'ladder' ? path.rung : path.sessionMin).minutes
+  }
+  const floor = path === undefined ? restartFloorMin(state) : null
   if (floor !== null) return floor
   return state.typicalWeekMin > 0 ? state.typicalWeekMin : P.macroDesign.startFloorWeekMin.value
+}
+
+/**
+ * Novices and low-frequency runners (completed runs under 2 a week) progress by time, with a
+ * minimum step, and recover on the 2:1 cadence [rules A5, g-2, E3].
+ */
+export function noviceRamp(state: AthleteState): boolean {
+  return state.experience === 'novice' || state.lowFrequency
 }
 
 /** `from` plus the ramp, or plus the novice minimum step when that is larger [rules g-2]. */
@@ -275,6 +291,16 @@ export function rampSkipWeeks(today: string, lowWeeks: Iterable<string>): Set<st
   return skip
 }
 
+/**
+ * The weeks of a start path that follow a fixed programme [rules E6, g-3]: `soft` weeks (the
+ * run-walk ladder) are exempt from the soft 10% warning only, never from the 2-week ceiling.
+ * `ramp` weeks (the injury-return ladder, whose levels set the load) are exempt from the whole
+ * weekly ramp: the soft step, the tightened profile ramp and the ceiling. Each of their runs is
+ * held to 1.10x the longest completed run instead (G-1 is a hard limit under G-3), which keeps a
+ * week within about 10% of the one before.
+ */
+export type RampExemption = 'soft' | 'ramp'
+
 /** What the weekly ramp of a plan is computed from. */
 export interface RampContext {
   /** Running minutes by Monday: the completed weeks, then the planned ones. */
@@ -282,10 +308,12 @@ export interface RampContext {
   /** Weeks that are no baseline (`rampSkipWeeks`). */
   skip: ReadonlySet<string>
   /**
-   * The restart floor week [design-macro]: exempt from G-2 up to its floor, and a baseline at its
-   * floor minutes for the weeks after it, a part week included.
+   * The first week of a start path [rules E6]: exempt from G-2 up to its minutes, and a baseline
+   * at those minutes for the weeks after it, a part week included.
    */
   floor: { weekStart: string; minutes: number } | null
+  /** The later weeks of a start path by Monday, and what each is exempt from. */
+  exempt?: ReadonlyMap<string, RampExemption>
   typicalWeekMin: number
   novice: boolean
   /** `tightRamp(state)`. */
@@ -305,7 +333,9 @@ export interface WeekRampLimits {
   /** The tightened ramp used, if any. */
   tightRamp: number | null
   isFloorWeek: boolean
-  /** The most a generated week holds: `allowed`, and `soft` too outside the floor week. */
+  /** True for the floor week and the weeks of a start path: no soft-ramp warning. */
+  exempt: boolean
+  /** The most a generated week holds: `allowed`, and `soft` too outside the start-path weeks. */
   plan: number
 }
 
@@ -369,16 +399,19 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
   const ceiling = rampStep(ceilingBase, P.g2.rampCeilingTwoWeeks.value, ctx.novice)
   const tightLimit = ctx.tight === null ? Infinity : rampStep(base, ctx.tight, ctx.novice)
   const isFloorWeek = ctx.floor !== null && ctx.floor.weekStart === weekStart
-  let allowed = Math.min(ceiling, tightLimit)
+  const exemption = ctx.exempt?.get(weekStart) ?? null
+  const exempt = isFloorWeek || exemption !== null
+  let allowed = exemption === 'ramp' ? Infinity : Math.min(ceiling, tightLimit)
   if (isFloorWeek) allowed = Math.max(allowed, ctx.floor!.minutes)
   return {
     base,
     soft,
     allowed,
-    tightened: tightLimit <= ceiling,
+    tightened: exemption !== 'ramp' && tightLimit <= ceiling,
     tightRamp: ctx.tight,
     isFloorWeek,
-    plan: isFloorWeek ? allowed : Math.min(soft, allowed),
+    exempt,
+    plan: exempt ? allowed : Math.min(soft, allowed),
   }
 }
 
@@ -419,3 +452,11 @@ export function runningMinutes(sessions: SessionSpec[]): number {
 export function runningGain(sessions: SessionSpec[]): number {
   return sessions.reduce((sum, s) => sum + (VOLUME_KINDS.has(s.kind) ? (s.gainM ?? 0) : 0), 0)
 }
+
+/**
+ * A session of a start path whose length the programme sets (a run-walk ladder session, an
+ * injury-return run). Planned ones are no reference for the runs after them: G-1 is checked
+ * against completed runs, and the programme's steps rest on what the runner has run [rules E6, g-1].
+ */
+export const isProgramme = (s: Pick<SessionSpec, 'flags'>): boolean =>
+  s.flags.includes('run-walk') || s.flags.includes('injury-return')

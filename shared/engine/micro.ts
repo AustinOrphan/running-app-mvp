@@ -23,7 +23,16 @@ import {
   windowDay,
   type PostRaceWindow,
 } from './postRace.ts'
-import { prescribe } from './sessions.ts'
+import { prescribe, type PrescribeContext } from './sessions.ts'
+import {
+  clipBlueprint,
+  fitBlueprints,
+  injuryLevel,
+  ladderRung,
+  rungSessions,
+  sessionMin,
+  startWeek,
+} from './startWeeks.ts'
 import type {
   AthleteState,
   SessionFlag,
@@ -86,7 +95,15 @@ interface RunPlan {
   kind: SessionKind
   minutes: number
   flags: SessionFlag[]
+  /** A session of the run-walk ladder: its run and walk minutes in order [rules E6]. */
+  blueprint?: number[]
+  /** A session of a start path: its length is set by the programme, never stretched. */
+  fixed?: boolean
 }
+
+/** The prescription context of a planned run: ladder sessions carry their blueprint. */
+const contextOf = (run: RunPlan): PrescribeContext | undefined =>
+  run.blueprint === undefined ? undefined : { blueprint: run.blueprint }
 
 /**
  * The runs the session spike guard and the back-to-back rule compare this week with (limits.ts):
@@ -240,10 +257,18 @@ function planRuns(
   const { profile, state } = ctx
   const novice = state.experience === 'novice'
   const floorWeek = week.flags.includes('restart-floor')
-  const runWalk =
-    (novice && week.index < P.flib.runWalkWeeks.value) || week.flags.includes('run-walk')
-  // Shortest run of the week: the session minimum, or the run day minimum for run-walk [F5].
-  const minRun = runWalk ? P.fplace.minRunDayMin.value : P.fplace.easyRunMinMin.value
+  const rung = ladderRung(week.flags)
+  const injuryWeek = week.flags.includes('injury-return')
+  const runWalk = week.flags.includes('run-walk')
+  // A novice plan holds no quality work in its first weeks, on the ladder or not [rules F5, E6].
+  const gentle = runWalk || (novice && week.index < P.flib.runWalkWeeks.value)
+  // Shortest run of the week: the session minimum, the run day minimum for run-walk and the first
+  // weeks of a novice plan [F5], or the first level of the injury-return ladder [G-3].
+  const minRun = injuryWeek
+    ? (P.injuryReturn.levelsMin.value[0] ?? 0)
+    : gentle
+      ? P.fplace.minRunDayMin.value
+      : P.fplace.easyRunMinMin.value
   // Post-race days [H12]: the first return step has at most 3 runs on non-consecutive days, and
   // no quality work falls before the end of the window.
   const step1Week = slots.some((s) => s.open && s.step === 1)
@@ -268,10 +293,23 @@ function planRuns(
   const night = /night|dark/i.test(flagText)
   const heat = /heat/i.test(flagText)
   const preferred = WEEKDAYS.indexOf(profile.longRunDay)
-  const usable = (day: number) => slots[day]!.open && slots[day]!.capMin >= minRun
+  // In a start-path week a run never sits next to a run kept earlier in the same week: the weeks
+  // of a start path keep a rest day between runs [rules F5, E6, g-3].
+  const startWeekPlan = rung !== null || injuryWeek
+  const startGap = injuryWeek ? P.injuryReturn.restDaysBetween.value + 1 : 2
+  const nearKept = (day: number) =>
+    before.some(
+      (s) =>
+        RUN_KINDS.has(s.kind) &&
+        offsetOf(s.date) >= 0 &&
+        Math.abs(offsetOf(s.date) - day) < startGap,
+    )
+  const usable = (day: number) =>
+    slots[day]!.open && slots[day]!.capMin >= minRun && !(startWeekPlan && nearKept(day))
   // A taper, race or recovery week may hold a single run; any other week at least two [F5].
   const light = week.isTaper || week.isRecovery || week.phase === 'taper' || week.phase === 'race'
   const fewest = light ? 1 : P.fplace.minRunsPerWeek.value
+  if (startWeekPlan) return planStartRuns()
 
   // The long day (or the pair of days) comes first. The long run is never shorter than the
   // session minimum, and a week of several runs keeps the others at the minimum too.
@@ -372,7 +410,7 @@ function planRuns(
 
   // Quality days: spacing F1 and F3, not the day before the long run if it can be helped.
   let quality = Math.min(week.qualitySessions, P.f2.qualitySessionsPerWeek.value)
-  if (runWalk) quality = 0
+  if (gentle) quality = 0
   if (pair !== null) quality = Math.min(quality, 1)
   if (fixed[0]?.kind === 'long-fast-finish') quality -= 1
   const kinds = QUALITY_BY_PHASE[week.phase]
@@ -401,6 +439,43 @@ function planRuns(
   // ---- placement helpers ----
 
   /**
+   * The sessions of a ladder rung or an injury-return level on non-consecutive days [rules E6,
+   * g-3]: the programme sets each session, the day's limit (G-1 is hard in a start path) cuts it,
+   * and with fewer days than sessions the later, longer sessions stay. The first session goes on
+   * the first day, so the longest of the week comes last.
+   */
+  function planStartRuns(): RunPlan[] {
+    const all = injuryWeek
+      ? startWeek('injury-return', injuryLevel(week.flags) ?? 0).sessions
+      : rungSessions(rung!)
+    const wanted = Math.min(all.length, runDays)
+    const gap = injuryWeek ? P.injuryReturn.restDaysBetween.value + 1 : 2
+    const days = spacedDays(wanted, gap).sort((a, b) => a - b)
+    const blueprints = all.slice(all.length - days.length)
+    // each session is cut to its day's limit, and the week to its target: the week is placed
+    // against the target the ramp allows
+    const cut = fitBlueprints(
+      blueprints.map((bp, i) => clipBlueprint(bp, slots[days[i]!]!.capMin)),
+      week.targetRunMin,
+    )
+    const plan: RunPlan[] = []
+    cut.forEach((clipped, i) => {
+      const day = days[i]!
+      const minutes = sessionMin(clipped)
+      if (minutes < minRun) return
+      plan.push({
+        day,
+        kind: 'easy',
+        minutes,
+        flags: injuryWeek ? ['injury-return'] : ['run-walk'],
+        blueprint: injuryWeek ? undefined : clipped,
+        fixed: true,
+      })
+    })
+    return plan
+  }
+
+  /**
    * The longest the long run (or day 1 of a pair) may be on `day`: the day's limit, and the
    * distance limit of the day at the distance the run will carry.
    */
@@ -427,12 +502,12 @@ function planRuns(
   }
 
   /** The largest set (up to `want`) of usable, non-consecutive days; the best spread that holds the long day. */
-  function spacedDays(want: number): number[] {
+  function spacedDays(want: number, spacing = 2): number[] {
     const days = slots.map((s) => s.day).filter((d) => usable(d) && !(d === 0 && prevRunYesterday))
     for (let k = Math.min(want, days.length); k > 0; k -= 1) {
       let best: { key: number[]; combo: number[] } | null = null
       for (const combo of combinations(days, k)) {
-        if (combo.some((d, i) => i > 0 && d - combo[i - 1]! < 2)) continue
+        if (combo.some((d, i) => i > 0 && d - combo[i - 1]! < spacing)) continue
         let minGap = 7
         for (let i = 1; i < combo.length; i += 1)
           minGap = Math.min(minGap, combo[i]! - combo[i - 1]!)
@@ -734,7 +809,7 @@ function fitDistances(
     spec.distanceM === null || spec.distanceM <= caps[day]!.distanceM
   let freed = 0
   const specs = runs.map((run) => {
-    let spec = prescribe(run.kind, run.minutes, zones, week)
+    let spec = prescribe(run.kind, run.minutes, zones, week, contextOf(run))
     let minutes = run.minutes
     while (!fits(spec, run.day) && minutes > 1) {
       const perMin = spec.distanceM! / minutes
@@ -742,7 +817,7 @@ function fitDistances(
         1,
         Math.min(minutes - 1, Math.floor((caps[run.day]!.distanceM - 50) / perMin + 1e-9)),
       )
-      spec = prescribe(run.kind, minutes, zones, week)
+      spec = prescribe(run.kind, minutes, zones, week, contextOf(run))
     }
     freed += run.minutes - minutes
     return spec
@@ -755,7 +830,7 @@ function fitDistances(
   )
   const takers = runs
     .map((r, i) => i)
-    .filter((i) => runs[i]!.kind !== 'b2b')
+    .filter((i) => runs[i]!.kind !== 'b2b' && runs[i]!.fixed !== true)
     .sort((a, b) => takerRank(runs[a]!) - takerRank(runs[b]!) || a - b)
   for (const i of takers) {
     const run = runs[i]!
@@ -765,7 +840,7 @@ function fitDistances(
       if (next > Math.max(dayCap, specs[i]!.durationMin)) break
       if (next > slots[run.day]!.capMin) break
       if (!isLongDay(run) && longest > 0 && next > longest) break
-      const trial = prescribe(run.kind, next, zones, week)
+      const trial = prescribe(run.kind, next, zones, week, contextOf(run))
       if (!fits(trial, run.day)) break
       specs[i] = trial
       freed -= 1

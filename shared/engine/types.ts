@@ -63,6 +63,7 @@ export type SessionFlag =
   | 'downhill'
   | 'run-walk'
   | 'post-race'
+  | 'injury-return'
 export interface SessionSpec {
   date: string
   order: number
@@ -138,8 +139,14 @@ export interface AthleteState {
     priorBsi: boolean
     bsiFactors: number
     redsFlags: number
+    /** The soft start flags of A9 (age, BMI, injury in the last 12 months, no running history). */
     noviceFlags: string[]
   }
+  /**
+   * Completed runs average under `a5.lowFrequencyRunsPerWeek` a week over the last
+   * `a5.lowFrequencyWindowWeeks` weeks, for a runner above the start-path floor [rules A5].
+   */
+  lowFrequency: boolean
   /** 0..1 credit */
   heatAcclimation: number
 }

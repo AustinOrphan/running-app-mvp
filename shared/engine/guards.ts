@@ -9,6 +9,8 @@ import {
   completedReference,
   EPS,
   gainLimit,
+  isProgramme,
+  noviceRamp,
   rampLimits,
   rampSkipWeeks,
   recordOf,
@@ -23,10 +25,12 @@ import {
   VOLUME_KINDS,
   weeklyGain,
   type RampContext,
+  type RampExemption,
   type SpikeReference,
 } from './limits.ts'
 import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
+import type { StartKind } from './startWeeks.ts'
 import type {
   AthleteState,
   EngineWarning,
@@ -47,15 +51,22 @@ export interface GuardOptions {
   lowWeeks?: Iterable<string>
   /**
    * Mondays of the post-race return weeks [rules H12]: exempt from the weekly ramp as a return to
-   * an established base, like the restart floor week. Every session still obeys G-1.
+   * an established base, like the start path's first week. Every session still obeys G-1.
    */
   exemptWeeks?: Iterable<string>
   /**
-   * The restart floor [design-macro]: the first week of a plan for a runner whose recent weeks are
-   * below it. That one week is exempt from G-2 up to `minutes`, and is a baseline at its floor
-   * minutes for the weeks after it. Every session still obeys G-1.
+   * The start path [rules E6]: the first week of a plan for a runner whose recent weeks are below
+   * the floor, whether it opens the run-walk ladder, the 3 x N floor or the injury-return ladder.
+   * That one week is exempt from G-2 up to `minutes`, and is a baseline at those minutes for the
+   * weeks after it. Every session still obeys G-1.
    */
-  restartFloor?: { weekStart: string; minutes: number } | null
+  startPath?: { weekStart: string; minutes: number; kind?: StartKind } | null
+  /**
+   * The later weeks of a start path and what each is exempt from (limits.ts `RampExemption`): the
+   * ladder weeks from the soft 10% warning only, the injury-return weeks from the whole weekly
+   * ramp, as each of their runs is held to 1.10x the longest completed run instead.
+   */
+  exempt?: ReadonlyMap<string, RampExemption>
   /**
    * For a generated plan: a run above the normal band (1.10x the 30-day reference, or the minimum
    * step) on any dimension is shortened to that limit (and left out when it would fall under the
@@ -134,7 +145,11 @@ export function applyGuards(
   ].sort((a, b) => (a.date === b.date ? a.order - b.order : a.date < b.date ? -1 : 1))
   const asOf = state.asOf
   const completed = completedReference(history, state)
+  // The runs a planned run is compared with: the completed runs and the planned ones before it.
+  // The sessions of a start-path programme are compared with the completed runs and the plain
+  // runs only (G-1 reads completed runs); the runs after a programme see its sessions too.
   const records = [...completed.runs]
+  const plain = [...completed.runs]
 
   const modifiable = (s: SessionSpec): boolean =>
     MUTABLE_KINDS.has(s.kind) && s.date >= asOf && !fixedSet.has(s)
@@ -153,13 +168,14 @@ export function applyGuards(
 
   const ultraCapMin = ultraRunCapMin(options.ultraRaceDurationSec)
   const exemptWeeks = new Set(options.exemptWeeks ?? [])
-  const floor = options.restartFloor ?? null
+  const floor = options.startPath ?? null
   const rampCtx: RampContext = {
     volumes: volume,
     skip: rampSkipWeeks(asOf, options.lowWeeks ?? []),
     floor,
+    exempt: options.exempt,
     typicalWeekMin: state.typicalWeekMin,
-    novice: state.experience === 'novice',
+    novice: noviceRamp(state),
     tight: tightRamp(state),
   }
   const pairStarts: string[] = items
@@ -209,7 +225,10 @@ export function applyGuards(
       const s = items[i]
       if (s === null || s === undefined) continue
       if (fixedSet.has(s)) {
-        if (MUTABLE_KINDS.has(s.kind) && s.date >= asOf) records.push(recordOf(s))
+        if (MUTABLE_KINDS.has(s.kind) && s.date >= asOf) {
+          records.push(recordOf(s))
+          if (!isProgramme(s)) plain.push(recordOf(s))
+        }
         continue
       }
       if (!modifiable(s)) continue
@@ -221,6 +240,7 @@ export function applyGuards(
       items[i] = outcome
       if (outcome !== null && !outcome.flags.includes('override-required')) {
         records.push(recordOf(outcome))
+        if (!isProgramme(outcome)) plain.push(recordOf(outcome))
       }
     }
 
@@ -237,25 +257,37 @@ export function applyGuards(
 
   // ---- weekly ramp ----
 
+  /** What the first week of a start path says about itself; no word of falling behind. */
+  function startMessage(weekStart: string, start: { minutes: number; kind?: StartKind }): string {
+    if (start.kind === 'ladder') {
+      return `The week of ${weekStart} starts the run-walk steps: ${start.minutes} min of short runs and walking breaks, above the usual weekly step. The steps rise one at a time, and a step can be repeated.`
+    }
+    if (start.kind === 'injury-return') {
+      return `The week of ${weekStart} starts the return to running: ${start.minutes} min of easy running across the runs of the first level, above the usual weekly step. The levels rise one at a time, with a rest day between runs.`
+    }
+    return `The week of ${weekStart} starts at ${start.minutes} min, ${P.restartFloor.sessions.value} sessions of at least ${P.restartFloor.sessionMin.value} min, above the usual weekly step. Growth from it follows the weekly ramp.`
+  }
+
   function rampWeek(weekStart: string): void {
     if (exemptWeeks.has(weekStart)) return
     const indices = indicesOf(weekStart)
     const week = indices.map((i) => items[i]!)
     const total = weekMinutes(weekStart, week)
     if (total <= 0) return
-    const limits = rampLimits(rampCtx, weekStart)
-    if (limits === null) return
-    const { allowed, isFloorWeek } = limits
-    const baselineWeeks = P.g2.baselineWeeks.value
-    if (floor !== null && isFloorWeek) {
-      // The floor week is exempt from G-2 up to the floor; it is not exempt from anything else.
+    if (floor !== null && floor.weekStart === weekStart) {
+      // The first week of a start path is exempt from G-2 up to its minutes; it is not exempt from
+      // anything else. Where it starts from, the plan says so.
       warn(`floor|${weekStart}`, {
         code: 'restart-floor',
         severity: 'info',
-        message: `The week of ${weekStart} restarts at ${floor.minutes} min, ${P.restartFloor.sessions.value} sessions of at least ${P.restartFloor.sessionMin.value} min, above the usual weekly step. Growth from it follows the weekly ramp.`,
-        rules: ['g-2'],
+        message: startMessage(weekStart, floor),
+        rules: ['g-2', 'E6', ...(floor.kind === 'injury-return' ? ['g-3'] : ['A9'])],
       })
     }
+    const limits = rampLimits(rampCtx, weekStart)
+    if (limits === null) return
+    const { allowed } = limits
+    const baselineWeeks = P.g2.baselineWeeks.value
     if (total > allowed + 1e-6) {
       // Runs before the plan starts are already in `doneThisWeek`.
       const fixedMin = week
@@ -273,7 +305,7 @@ export function applyGuards(
           : `Running time in the week of ${weekStart} is held to ${Math.round(allowed)} min, ${Math.round(P.g2.rampCeilingTwoWeeks.value * 100)}% above the week ${P.g2.ceilingWindowWeeks.value} weeks earlier.`,
         rules: limits.tightened ? ['g-2', 'g-3'] : ['g-2'],
       })
-    } else if (!isFloorWeek && total > limits.soft + 1e-6) {
+    } else if (!limits.exempt && total > limits.soft + 1e-6) {
       warn(`ramp|${weekStart}`, {
         code: 'ramp-soft',
         severity: 'warn',
@@ -483,7 +515,7 @@ export function applyGuards(
   // ---- session spike guard (g-1, H4) ----
 
   function spikeCheck(s: SessionSpec): SessionSpec | null {
-    const ref = referenceAt(records, s.date)
+    const ref = referenceAt(isProgramme(s) ? plain : records, s.date)
     if (ref.min <= 0 && !noReferenceWarned) {
       noReferenceWarned = true
       warn('spike-none', {
@@ -623,13 +655,18 @@ function cloneSession(s: SessionSpec): SessionSpec {
   return structuredClone(s)
 }
 
-/** The shortest a run may be made by a cut: the session minimum, or the run day minimum for run-walk. */
+/**
+ * The shortest a run may be made by a cut: the session minimum, the run day minimum for run-walk,
+ * or the first level of the injury-return ladder.
+ */
 function runMinimum(s: SessionSpec): number {
+  if (s.flags.includes('injury-return')) return P.injuryReturn.levelsMin.value[0] ?? 0
   return s.flags.includes('run-walk') ? P.fplace.minRunDayMin.value : P.fplace.easyRunMinMin.value
 }
 
 /** The smallest size a guard cuts a run to; a run already under the session minimum may go to the run day minimum. */
 function minSize(s: SessionSpec): number {
+  if (s.flags.includes('injury-return')) return runMinimum(s)
   return s.durationMin >= runMinimum(s) ? runMinimum(s) : P.fplace.minRunDayMin.value
 }
 

@@ -720,7 +720,7 @@ describe('applyGuards: restart floor', () => {
 
   it('exempts the floor week from G-2, says so, and holds the weeks after it to the ramp', () => {
     const plan = floorPlan()
-    const result = applyGuards(plan, sparse(), [], { restartFloor: FLOOR })
+    const result = applyGuards(plan, sparse(), [], { startPath: FLOOR })
     expect(weekMinutes(result.sessions, '2026-11-02')).toBe(weekMinutes(plan, '2026-11-02'))
     expect(result.warnings.find((w) => w.code === 'restart-floor')?.severity).toBe('info')
     // the floor week is the ceiling baseline of the week after it
@@ -732,7 +732,7 @@ describe('applyGuards: restart floor', () => {
   it('does not exempt the floor week without the option, nor anything above the floor', () => {
     const plain = applyGuards(floorPlan(), sparse(), [])
     expect(weekMinutes(plain.sessions, '2026-11-02')).toBeLessThanOrEqual(39)
-    const above = applyGuards(planWeek('2026-11-02', 100), sparse(), [], { restartFloor: FLOOR })
+    const above = applyGuards(planWeek('2026-11-02', 100), sparse(), [], { startPath: FLOOR })
     expect(weekMinutes(above.sessions, '2026-11-02')).toBeLessThanOrEqual(60)
   })
 
@@ -740,7 +740,7 @@ describe('applyGuards: restart floor', () => {
     const history = [run('2026-10-28', 35)]
     const plan = [session({ date: '2026-11-03', kind: 'long', durationMin: 80 })]
     const result = applyGuards(plan, sparse(), history, {
-      restartFloor: { weekStart: '2026-11-02', minutes: 80 },
+      startPath: { weekStart: '2026-11-02', minutes: 80 },
     })
     expect(result.sessions[0]!.flags).toContain('override-required')
   })
@@ -763,5 +763,89 @@ describe('applyGuards: post-race return weeks (H12)', () => {
     const plan = [session({ date: '2026-11-03', kind: 'long', durationMin: 80 })]
     const result = applyGuards(plan, st(), history, { exemptWeeks: ['2026-11-02'] })
     expect(result.sessions[0]!.flags).toContain('override-required')
+  })
+})
+
+describe('applyGuards: ladder weeks [rules E6, g-2]', () => {
+  const FIRST = { weekStart: '2026-11-02', minutes: 63, kind: 'ladder' as const }
+  const EXEMPT = new Map<string, 'soft'>([
+    ['2026-11-09', 'soft'],
+    ['2026-11-16', 'soft'],
+  ])
+  const sparse = () => withWeeks([0, 30, 28], { typicalWeekMin: 27 })
+  /** Three run-walk sessions of `each` minutes on Tuesday, Thursday and Saturday. */
+  const ladderWeek = (weekStart: string, each: number) =>
+    [1, 3, 5].map((d) =>
+      session({ date: addDays(weekStart, d), durationMin: each, flags: ['run-walk'] }),
+    )
+  const plan = (second: number, third: number) => [
+    ...ladderWeek('2026-11-02', 21),
+    ...ladderWeek('2026-11-09', second),
+    ...ladderWeek('2026-11-16', third),
+  ]
+
+  it('warns of a step above the soft 10% only outside the ladder weeks', () => {
+    // 63 -> 75 min is +19%: over the soft step, under the 30% ceiling
+    const rise = plan(21, 25)
+    const exempt = applyGuards(rise, sparse(), [], { startPath: FIRST, exempt: EXEMPT })
+    expect(exempt.warnings.some((w) => w.code === 'ramp-soft')).toBe(false)
+    expect(exempt.warnings.some((w) => w.code === 'ramp-ceiling')).toBe(false)
+    const plain = applyGuards(rise, sparse(), [], { startPath: FIRST })
+    expect(plain.warnings.some((w) => w.code === 'ramp-soft')).toBe(true)
+  })
+
+  it('still holds a ladder week to the 30% ceiling over two weeks', () => {
+    // 90 min against 63 two weeks earlier is +43%
+    const jump = plan(21, 30)
+    const result = applyGuards(jump, sparse(), [], { startPath: FIRST, exempt: EXEMPT })
+    expect(result.warnings.some((w) => w.code === 'ramp-ceiling')).toBe(true)
+    expect(weekMinutes(result.sessions, '2026-11-16')).toBeLessThanOrEqual(
+      Math.floor(1.3 * 63 + 1e-9),
+    )
+  })
+
+  it('words the first week of the ladder without a word of blame', () => {
+    const result = applyGuards(plan(21, 21), sparse(), [], { startPath: FIRST, exempt: EXEMPT })
+    const note = result.warnings.find((w) => w.code === 'restart-floor')
+    expect(note?.severity).toBe('info')
+    expect(note?.rules).toContain('E6')
+    expect(note?.message).toMatch(/run-walk/)
+    expect(note?.message).not.toMatch(/behind|missed|streak|failed/i)
+  })
+
+  it('keeps the injury-return weeks out of the weekly ramp: each run is held to G-1 instead', () => {
+    const injured = withWeeks([0, 0, 0], {
+      typicalWeekMin: 0,
+      risk: { recentInjury: true, priorBsi: false, bsiFactors: 0, redsFlags: 0, noviceFlags: [] },
+    })
+    const level = (weekStart: string, each: number) =>
+      [1, 4].map((d) =>
+        session({
+          date: addDays(weekStart, d),
+          durationMin: each,
+          flags: ['injury-return'],
+        }),
+      )
+    const steps = [
+      ...level('2026-11-02', 10),
+      ...level('2026-11-09', 10),
+      ...level('2026-11-16', 11),
+    ]
+    const exempt = new Map<string, 'ramp'>([
+      ['2026-11-09', 'ramp'],
+      ['2026-11-16', 'ramp'],
+    ])
+    const free = applyGuards(steps, injured, [], {
+      startPath: { weekStart: '2026-11-02', minutes: 20, kind: 'injury-return' },
+      exempt,
+    })
+    // 20 -> 22 min is +10%, above the 5-7% of the profile, and passes the 2-week ceiling; each run
+    // is 1.10x the one before, the hard limit of G-3
+    expect(weekMinutes(free.sessions, '2026-11-16')).toBe(22)
+    expect(free.warnings.some((w) => w.code === 'ramp-tightened')).toBe(false)
+    const tight = applyGuards(steps, injured, [], {
+      startPath: { weekStart: '2026-11-02', minutes: 20, kind: 'injury-return' },
+    })
+    expect(tight.warnings.some((w) => w.code === 'ramp-tightened')).toBe(true)
   })
 })

@@ -72,6 +72,7 @@ const FLAG_LABELS: Record<SessionFlag, string> = {
   downhill: 'Downhill emphasis',
   'run-walk': 'Run-walk intervals',
   'post-race': 'After the race: easy running only',
+  'injury-return': 'Return-to-running step',
 }
 
 const COMPLETION_LABELS: Record<ExecutionAssessment['completion'], string> = {

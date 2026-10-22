@@ -83,6 +83,7 @@ function makeState(
       redsFlags: 0,
       noviceFlags: [],
     },
+    lowFrequency: false,
     heatAcclimation: 0,
   }
 }
@@ -422,6 +423,30 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
       )
       // a tightened profile is not lifted to the floor
       expect(startWeekMin(makeState({ typicalWeekMin: 30, recentInjury: true }))).toBe(30)
+    })
+
+    it('reads the first week of the start path when one is given', () => {
+      const state = makeState({ typicalWeekMin: 30 })
+      // 3 x 25 min for the floor, the three sessions of rung 1 for the ladder
+      expect(startWeekMin(state, { kind: 'floor', sessionMin: 25 })).toBe(75)
+      expect(startWeekMin(state, { kind: 'ladder', rung: 1, bmiHold: false })).toBe(63)
+      // the injury-return levels set their own pace, so the typical week stands; so it does
+      // without a path
+      expect(startWeekMin(state, { kind: 'injury-return', level: 2 })).toBe(30)
+      expect(startWeekMin(state, null)).toBe(30)
+      expect(startWeekMin(makeState({ typicalWeekMin: 200 }), null)).toBe(200)
+    })
+
+    it('starts the weekly path of an ultra at the first week of the start path', () => {
+      const state = makeState({ longestSec: 1800, typicalWeekMin: 30, weeklyKm: 5 })
+      const goal = { ...ultra('ultra100mi', 108000), date: addDays(TODAY, 40 * 7) }
+      const longRun = d4Weeks(1800, P.d4LongRun.ultra100mi.value * 60, 2)
+      const ladder = feasibility(goal, state, TODAY, { kind: 'ladder', rung: 1, bmiHold: false })
+      expect(ladder.weeksNeeded).toBe(Math.max(longRun, d4Weeks(63, 534, 2)))
+      expect(ladder.notes.map((n) => n.code)).toContain('weekly-path')
+      const floor = feasibility(goal, state, TODAY, { kind: 'floor', sessionMin: 30 })
+      expect(floor.weeksNeeded).toBe(Math.max(longRun, d4Weeks(90, 534, 2)))
+      expect(floor.weeksNeeded).toBeLessThan(ladder.weeksNeeded)
     })
 
     it('measures the weekly path of an ultra and labels the slower of the two paths', () => {

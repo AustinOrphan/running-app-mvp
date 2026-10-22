@@ -10,6 +10,7 @@ import { breakRestart } from '../../../shared/engine/adapt.ts'
 import { applyGuards } from '../../../shared/engine/guards.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import { macroPlan } from '../../../shared/engine/macro.ts'
+import { startExemptions } from '../../../shared/engine/startWeeks.ts'
 import type { EngineInput, PlanDraft, SessionSpec } from '../../../shared/engine/types.ts'
 import type { WeekRow } from '../../../shared/types.ts'
 import { session, state } from './e6-fixtures.ts'
@@ -91,7 +92,8 @@ describe.each(all)('generated plan inside the limits: $label', (a: MatrixAthlete
         .filter((w) => (w.isRecovery || w.isTaper) && !w.flags.includes('post-race'))
         .map((w) => w.weekStart),
       exemptWeeks: plan.weeks.filter((w) => w.flags.includes('post-race')).map((w) => w.weekStart),
-      restartFloor: (() => {
+      exempt: startExemptions(plan.weeks),
+      startPath: (() => {
         const floor = plan.weeks.find((w) => w.flags.includes('restart-floor'))
         return floor === undefined
           ? null

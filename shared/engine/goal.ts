@@ -4,6 +4,7 @@ import type { Goal } from '../types.ts'
 import { startWeekMin } from './limits.ts'
 import { P } from './params/index.ts'
 import { predictFromState } from './predict.ts'
+import type { StartPath } from './startWeeks.ts'
 import type { AthleteState, EngineWarning, Feasibility, GoalModel } from './types.ts'
 
 const SEC_PER_MIN = 60
@@ -149,7 +150,11 @@ function taperWeeks(distanceClass: DistanceClass): number {
  * and the planner's long-run share of the larger of the class peak week and the start week, so the
  * check never counts weeks toward a run the planner would not schedule.
  */
-export function ultraLongRunTargetMin(goal: GoalModel, state: AthleteState): number {
+export function ultraLongRunTargetMin(
+  goal: GoalModel,
+  state: AthleteState,
+  start?: StartPath | null,
+): number {
   const known = goal.distanceClass in P.d4LongRun
   const cls = goal.distanceClass as keyof typeof P.d4LongRun
   const caps = [
@@ -158,7 +163,7 @@ export function ultraLongRunTargetMin(goal: GoalModel, state: AthleteState): num
     (P.h2.longestRunCapRaceFraction.value * goal.expectedDurationSec) / SEC_PER_MIN,
   ]
   if (known) {
-    const weekMin = Math.max(P.peakWeeklyMin[cls].value, startWeekMin(state))
+    const weekMin = Math.max(P.peakWeeklyMin[cls].value, startWeekMin(state, start))
     caps.push(P.macroDesign.longRunShareOfWeekUltra.value * weekMin)
   }
   return Math.floor(Math.min(...caps) + EPSILON)
@@ -169,10 +174,16 @@ export function ultraLongRunTargetMin(goal: GoalModel, state: AthleteState): num
  * D4: weeks needed = ceil(ln(Lt / L0) / ln(1.10)) x 4/3 (cutbacks) plus the taper, where L0 is the
  * 30-day longest run and Lt the target long run; the weekly floor of a time goal uses the same
  * formula on the recent weekly distance, and the longer of the two governs. An ultra also grows its
- * weekly running time from the start week to the class peak, and the slower path labels it. A
- * label only: it changes no limit and no session.
+ * weekly running time from the start week to the class peak, and the slower path labels it. The
+ * start week is the first week of `start`, the start path of the plan (`startPath`, macro.ts).
+ * A label only: it changes no limit and no session.
  */
-export function feasibility(goal: GoalModel, state: AthleteState, today: string): Feasibility {
+export function feasibility(
+  goal: GoalModel,
+  state: AthleteState,
+  today: string,
+  start?: StartPath | null,
+): Feasibility {
   const notes: EngineWarning[] = []
   const weeksAvailable = Math.max(0, Math.floor(daysBetween(today, goal.date) / DAYS_PER_WEEK))
 
@@ -183,7 +194,7 @@ export function feasibility(goal: GoalModel, state: AthleteState, today: string)
       state.longest30d.durationSec,
       P.g2.noviceMinStepMin.value * SEC_PER_MIN,
     )
-    longRunWeeks = growthWeeks(current, ultraLongRunTargetMin(goal, state) * SEC_PER_MIN)
+    longRunWeeks = growthWeeks(current, ultraLongRunTargetMin(goal, state, start) * SEC_PER_MIN)
   } else {
     const targetM =
       goal.distanceClass === 'half'
@@ -230,10 +241,11 @@ export function feasibility(goal: GoalModel, state: AthleteState, today: string)
     const targetMin = Math.min(
       peakMin,
       Math.ceil(
-        ultraLongRunTargetMin(goal, state) / P.macroDesign.longRunShareOfWeekUltra.value - EPSILON,
+        ultraLongRunTargetMin(goal, state, start) / P.macroDesign.longRunShareOfWeekUltra.value -
+          EPSILON,
       ),
     )
-    const startMin = startWeekMin(state)
+    const startMin = startWeekMin(state, start)
     weeklyWeeks = growthWeeks(startMin, targetMin)
     if (weeklyWeeks > longRunWeeks) {
       notes.push({

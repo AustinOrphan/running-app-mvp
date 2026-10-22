@@ -4,6 +4,7 @@ import {
   breakRestart,
   shouldTrimQuality,
   trimQuality,
+  weekEvidence,
   weeklyDecision,
   zoneProposals,
   type ExecutionRecord,
@@ -633,5 +634,67 @@ describe('weeklyDecision inside a post-race window (H12)', () => {
     const d = weeklyDecision(justRaced, WEEK, { efficiency: STABLE })
     expect(d.postRace).toMatchObject({ phase: 'hold', step: null, holdUntil: '2026-10-13' })
     expect(d.postRace?.label).toBe('After the race: rest, no running until 2026-10-13')
+  })
+})
+
+describe('weekEvidence: what a finished week shows the start paths [rules E6, G-3]', () => {
+  const weekRuns = (over: Partial<Activity> = {}) => [
+    activity('2026-10-13', { id: 'w1', durationSec: 1200, ...over }),
+    activity('2026-10-15', { id: 'w2', durationSec: 1200, ...over }),
+    activity('2026-10-17', { id: 'w3', durationSec: 1200, ...over }),
+  ]
+
+  it('gives minutes run, minutes planned, the share and the number of runs', () => {
+    const inp = input({
+      activities: weekRuns(),
+      existing: {
+        weeks: [weekDraft(WEEK, 63)],
+        sessions: [],
+      },
+    })
+    const ev = weekEvidence(inp, WEEK)
+    expect(ev.actualMin).toBe(60)
+    expect(ev.plannedMin).toBe(63)
+    expect(ev.share).toBeCloseTo(60 / 63, 9)
+    expect(ev.runs).toBe(3)
+    expect(ev.meanRpe).toBeNull()
+    expect(ev.worstPain).toBe(0)
+  })
+
+  it('plans from the sessions of the week when it has them, and says nothing without a plan', () => {
+    const sessions = [
+      planned('s1', '2026-10-13', 'easy', { durationMin: 20 }),
+      planned('s2', '2026-10-15', 'easy', { durationMin: 20 }),
+    ]
+    const inp = input({
+      activities: weekRuns(),
+      existing: { weeks: [weekDraft(WEEK, 99)], sessions },
+    })
+    expect(weekEvidence(inp, WEEK).plannedMin).toBe(40)
+    const none = weekEvidence(input({ activities: weekRuns() }), WEEK)
+    expect(none.plannedMin).toBeNull()
+    expect(none.share).toBeNull()
+  })
+
+  it('takes the worst pain from an activity or a check-in, and the mean of the ratings given', () => {
+    const rated = [
+      activity('2026-10-13', { id: 'r1', rpe: 4, pain: 1 }),
+      activity('2026-10-15', { id: 'r2', rpe: 6, pain: null }),
+      activity('2026-10-17', { id: 'r3', rpe: null }),
+    ]
+    const ev = weekEvidence(input({ activities: rated }), WEEK)
+    expect(ev.meanRpe).toBe(5)
+    expect(ev.worstPain).toBe(1)
+    const checkin = weekEvidence(
+      input({ activities: rated, wellness: [wellnessDay('2026-10-16', { painScore: 3 })] }),
+      WEEK,
+    )
+    expect(checkin.worstPain).toBe(3)
+    // a pain report outside the week does not count
+    const later = weekEvidence(
+      input({ activities: rated, wellness: [wellnessDay('2026-10-20', { painScore: 7 })] }),
+      WEEK,
+    )
+    expect(later.worstPain).toBe(1)
   })
 })

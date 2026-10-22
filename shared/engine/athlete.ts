@@ -35,7 +35,8 @@ function yearOf(date: string): number {
   return Number(date.slice(0, 4))
 }
 
-function bmiOf(profile: AthleteProfile): number | null {
+/** Body mass index from the profile height and weight; null when either is missing. */
+export function bmiOf(profile: AthleteProfile): number | null {
   if (profile.weightKg === null || profile.heightCm === null || profile.heightCm <= 0) return null
   return profile.weightKg / (profile.heightCm / 100) ** 2
 }
@@ -356,7 +357,6 @@ function riskOf(
   input: EngineInput,
   weeks: WeekRow[],
   age: number | null,
-  experience: AthleteState['experience'],
   lastRunDate: string | null,
   yearsRunning: number | null,
 ): AthleteState['risk'] {
@@ -378,20 +378,37 @@ function riskOf(
     (weeklyHours >= P.a9.bsiWeeklyHours.value ? 1 : 0) +
     (profile.sex === 'female' && bmi !== null && bmi < P.a9.bsiBmiBelow.value ? 1 : 0)
 
+  // The soft start flags apply to every runner: they decide whether the start path may lift a
+  // returner to 30-minute sessions (E6), and they only ever make the start gentler.
   const noviceFlags: string[] = []
-  if (experience === 'novice') {
-    const { noviceFlagAgeMin: lo, noviceFlagAgeMax: hi, noviceFlagBmiAbove: bmiAbove } = P.a9
-    if (age !== null && age >= lo.value && age <= hi.value) {
-      noviceFlags.push(`age-${lo.value}-${hi.value}`)
-    }
-    if (bmi !== null && bmi > bmiAbove.value) noviceFlags.push(`bmi-over-${bmiAbove.value}`)
-    if (lastRunDate === null && (yearsRunning === null || yearsRunning === 0)) {
-      noviceFlags.push('no-running-history')
-    }
+  if (age !== null && age >= P.a9.noviceFlagAgeMin.value) {
+    noviceFlags.push(`age-${P.a9.noviceFlagAgeMin.value}-plus`)
+  }
+  if (bmi !== null && bmi > P.a9.noviceFlagBmiAbove.value) {
+    noviceFlags.push(`bmi-over-${P.a9.noviceFlagBmiAbove.value}`)
+  }
+  if (recentInjury) noviceFlags.push('injury-last-12-months')
+  if (lastRunDate === null && (yearsRunning === null || yearsRunning === 0)) {
+    noviceFlags.push('no-running-history')
   }
   const screened = input.screeningFlags ?? 0
   const redsFlags = Number.isFinite(screened) ? Math.max(0, Math.floor(screened)) : 0
   return { recentInjury, priorBsi, bsiFactors, redsFlags, noviceFlags }
+}
+
+/**
+ * Completed runs average under `a5.lowFrequencyRunsPerWeek` a week over the last
+ * `a5.lowFrequencyWindowWeeks` weeks, for a runner whose typical week is at or above the
+ * start-path floor [rules A5]: those below the floor have a start path (E6) instead.
+ */
+function lowFrequencyOf(runs: Activity[], today: string, typicalWeekMin: number): boolean {
+  if (typicalWeekMin < P.restartFloor.sessions.value * P.restartFloor.sessionMin.value) return false
+  const weeks = P.a5.lowFrequencyWindowWeeks.value
+  const inWindow = runs.filter((a) => {
+    const ago = daysBetween(a.date, today)
+    return ago >= 0 && ago < weeks * DAYS_PER_WEEK
+  })
+  return inWindow.length / weeks < P.a5.lowFrequencyRunsPerWeek.value
 }
 
 /** Athlete state from the input history [rules section a]. */
@@ -453,7 +470,8 @@ export function estimateState(input: EngineInput): AthleteState {
     fitness: fitnessOf(runs, input, today),
     efficiency: efficiencyIndex(acts, today),
     durability: durabilityOf(runs),
-    risk: riskOf(input, weeks, age, experience, lastRunDate, yearsRunning),
+    risk: riskOf(input, weeks, age, lastRunDate, yearsRunning),
+    lowFrequency: lowFrequencyOf(runs, today, typicalWeekMin),
     heatAcclimation: heatCredit(acts, today),
   }
 }

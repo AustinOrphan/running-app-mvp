@@ -46,6 +46,7 @@ const CHECKLIST_IDS = [
   'tid',
   'taper',
   'level-differentiation',
+  'ladder-steps',
   'break-restart',
   'spike-guard',
   'availability',
@@ -177,12 +178,17 @@ describe.each(all)('plan matrix: $label', (a) => {
     const completed = a.input.activities
       .filter((x) => x.type === 'run' || x.type === 'race')
       .map((x) => ({ date: x.date, min: x.durationSec / 60, distanceM: x.distanceM }))
-    const earlier: Array<{ date: string; min: number; distanceM: number | null }> = []
+    const earlier: Array<{ date: string; min: number; distanceM: number | null; step: boolean }> =
+      []
     const runs = plan.sessions
       .filter((s) => ANY_RUN.has(s.kind))
       .sort((x, y) => (x.date < y.date ? -1 : 1))
     for (const s of runs) {
-      const window = [...completed, ...earlier].filter((r) => {
+      // G-1 is checked against completed runs: a session of a run-walk or injury-return ladder is a
+      // programme step, compared with the completed and the plain runs but not with another step
+      // [rules E6]; the plain runs after the ladder see its sessions too
+      const step = s.flags.includes('run-walk') || s.flags.includes('injury-return')
+      const window = [...completed, ...earlier.filter((r) => !step || !r.step)].filter((r) => {
         const ago = daysBetween(r.date, s.date)
         return ago >= 1 && ago <= 30
       })
@@ -206,7 +212,7 @@ describe.each(all)('plan matrix: $label', (a) => {
         }
       }
       expect(s.flags).not.toContain('override-required')
-      earlier.push({ date: s.date, min: s.durationMin, distanceM: s.distanceM })
+      earlier.push({ date: s.date, min: s.durationMin, distanceM: s.distanceM, step })
     }
     expect(bad).toEqual([])
   })
@@ -288,6 +294,11 @@ describe.each(all)('plan matrix: $label', (a) => {
     let last = null as null | { target: number }
     const bad: string[] = []
     for (const w of weeks) {
+      // the weeks of the run-walk ladder follow its own steps and repeats [rules E6]
+      if (w.flags.some((f) => f.startsWith('ladder-'))) {
+        run = 0
+        continue
+      }
       if (w.isRecovery) {
         if (last !== null && w.targetRunMin > last.target * 0.8 + 1) {
           bad.push(`${w.weekStart}: recovery week ${w.targetRunMin} vs ${last.target}`)
