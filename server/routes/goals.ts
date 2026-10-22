@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { isIsoDate } from '../../shared/dates.ts'
 import type { Deps } from '../app.ts'
-import { conflict, notFound, parse } from '../errors.ts'
+import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { toGoal } from '../serialize.ts'
 
 /** Trimmed text; an empty string becomes null. */
@@ -30,7 +30,21 @@ const optionalUrl = z
     }
   }, 'Use an http or https link.')
 
-const goalBody = z.object({
+/** The distance above which the design defaults a goal to finish-first (design 3.1). */
+const FINISH_FIRST_ABOVE_M = 42_200
+const TARGET_TIME_REQUIRED = 'Enter a target time for a time goal, or choose a finish goal.'
+
+const metres = z.number().int().min(0).max(30_000).nullish()
+/** Rounded to 0.01 degrees, about a kilometre: the race place, not the start line. */
+const coordinate = (limit: number) =>
+  z
+    .number()
+    .min(-limit)
+    .max(limit)
+    .nullish()
+    .transform((value) => (value == null ? value : Math.round(value * 100) / 100))
+
+const goalFields = z.object({
   name: z.string().trim().min(1).max(200),
   priority: z.enum(['A', 'B', 'C']),
   status: z.enum(['target', 'considering', 'done', 'dropped']).default('target'),
@@ -41,20 +55,48 @@ const goalBody = z.object({
   successCriteria: optionalText(2000),
   notes: optionalText(5000),
   url: optionalUrl,
+  gainM: metres,
+  lossM: metres,
+  surface: z.enum(['road', 'trail', 'track', 'mixed']).default('road'),
+  goalType: z.enum(['finish', 'time']).optional(),
+  targetTimeSec: z.number().int().min(60).max(864_000).nullish(),
+  startTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a time as HH:MM.')
+    .nullish(),
+  raceLat: coordinate(90),
+  raceLng: coordinate(180),
+  supportLevel: z.enum(['aided', 'self']).default('aided'),
+})
+
+/** A goal type the caller chose as `time` needs a target; a defaulted one does not. */
+const goalBody = goalFields.superRefine((body, ctx) => {
+  if (body.goalType === 'time' && body.targetTimeSec == null) {
+    ctx.addIssue({ code: 'custom', path: ['targetTimeSec'], message: TARGET_TIME_REQUIRED })
+  }
 })
 
 /** PUT changes only the fields it carries; a null or empty text field clears the value. */
 const goalPatch = z.object({
-  name: goalBody.shape.name.optional(),
-  priority: goalBody.shape.priority.optional(),
+  name: goalFields.shape.name.optional(),
+  priority: goalFields.shape.priority.optional(),
   status: z.enum(['target', 'considering', 'done', 'dropped']).optional(),
-  targetDate: goalBody.shape.targetDate.optional(),
+  targetDate: goalFields.shape.targetDate.optional(),
   dateProvisional: z.boolean().optional(),
-  distanceM: goalBody.shape.distanceM,
+  distanceM: goalFields.shape.distanceM,
   location: z.string().trim().max(200).nullish(),
   successCriteria: z.string().trim().max(2000).nullish(),
   notes: z.string().trim().max(5000).nullish(),
   url: z.string().trim().max(500).nullish(),
+  gainM: metres,
+  lossM: metres,
+  surface: goalFields.shape.surface.unwrap().optional(),
+  goalType: goalFields.shape.goalType,
+  targetTimeSec: goalFields.shape.targetTimeSec,
+  startTime: goalFields.shape.startTime,
+  raceLat: goalFields.shape.raceLat,
+  raceLng: goalFields.shape.raceLng,
+  supportLevel: goalFields.shape.supportLevel.unwrap().optional(),
 })
 
 function checkUrl(value: string | null | undefined): string | null | undefined {
@@ -99,6 +141,16 @@ export function goalsRouter(deps: Deps): Router {
         successCriteria: body.successCriteria,
         notes: body.notes,
         url: body.url,
+        gainM: body.gainM ?? null,
+        lossM: body.lossM ?? null,
+        surface: body.surface,
+        goalType:
+          body.goalType ?? ((body.distanceM ?? 0) > FINISH_FIRST_ABOVE_M ? 'finish' : 'time'),
+        targetTimeSec: body.targetTimeSec ?? null,
+        startTime: body.startTime ?? null,
+        raceLat: body.raceLat,
+        raceLng: body.raceLng,
+        supportLevel: body.supportLevel,
       },
     })
     res.status(201).json(toGoal(goal))
@@ -111,7 +163,18 @@ export function goalsRouter(deps: Deps): Router {
   router.put('/:id', async (req, res) => {
     const body = parse(goalPatch, req.body)
     const url = checkUrl(body.url)
-    await ownedGoal(req.userId, req.params.id)
+    const existing = await ownedGoal(req.userId, req.params.id)
+    // A type or target that the request changes must leave a time goal with a target; a goal made
+    // earlier, edited without touching either, is left alone.
+    if (body.goalType !== undefined || body.targetTimeSec !== undefined) {
+      const type = body.goalType ?? existing.goalType
+      const target = body.targetTimeSec === undefined ? existing.targetTimeSec : body.targetTimeSec
+      if (type === 'time' && target === null) {
+        throw validationError(TARGET_TIME_REQUIRED, [
+          { path: 'targetTimeSec', message: TARGET_TIME_REQUIRED },
+        ])
+      }
+    }
     const goal = await prisma.goal.update({
       where: { id: req.params.id },
       data: {
@@ -127,6 +190,15 @@ export function goalsRouter(deps: Deps): Router {
         successCriteria: blankToNull(body.successCriteria),
         notes: blankToNull(body.notes),
         url,
+        gainM: body.gainM,
+        lossM: body.lossM,
+        surface: body.surface,
+        goalType: body.goalType,
+        targetTimeSec: body.targetTimeSec,
+        startTime: body.startTime,
+        raceLat: body.raceLat,
+        raceLng: body.raceLng,
+        supportLevel: body.supportLevel,
       },
     })
     res.json(toGoal(goal))

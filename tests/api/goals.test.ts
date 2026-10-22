@@ -185,3 +185,147 @@ describe('goals', () => {
     ).toBe(404)
   })
 })
+
+describe('race descriptors', () => {
+  test('defaults: road, aided, finish above 42.2 km and time at or below it', async () => {
+    const half = await createGoal({ name: 'Half', distanceM: 21_097 })
+    expect(half).toMatchObject({
+      surface: 'road',
+      supportLevel: 'aided',
+      goalType: 'time',
+      gainM: null,
+      lossM: null,
+      targetTimeSec: null,
+      startTime: null,
+      raceLat: null,
+      raceLng: null,
+    })
+    const marathon = await createGoal({ name: 'Marathon', distanceM: 42_195 })
+    expect(marathon.goalType).toBe('time')
+    const hundred = await createGoal({ name: 'Hundred', distanceM: 160_934 })
+    expect(hundred.goalType).toBe('finish')
+    const noDistance = await createGoal({ name: 'Someday' })
+    expect(noDistance.goalType).toBe('time')
+  })
+
+  test('accepts and stores the descriptors, rounding the race location to 0.01 degrees', async () => {
+    const created = await createGoal({
+      name: 'Trail 50',
+      distanceM: 50_000,
+      gainM: 2400,
+      lossM: 2350,
+      surface: 'trail',
+      goalType: 'time',
+      targetTimeSec: 31_500,
+      startTime: '06:30',
+      raceLat: 46.8123,
+      raceLng: -8.2356,
+      supportLevel: 'self',
+    })
+    expect(created).toMatchObject({
+      gainM: 2400,
+      lossM: 2350,
+      surface: 'trail',
+      goalType: 'time',
+      targetTimeSec: 31_500,
+      startTime: '06:30',
+      raceLat: 46.81,
+      raceLng: -8.24,
+      supportLevel: 'self',
+    })
+    const res = await client(ctx, user).get(`/api/goals/${created.id}`)
+    expect(res.body).toMatchObject({ gainM: 2400, raceLat: 46.81, raceLng: -8.24 })
+  })
+
+  test('validation: ranges, enums, HH:MM and a target time for a time goal', async () => {
+    const post = (body: Record<string, unknown>) =>
+      client(ctx, user)
+        .post('/api/goals')
+        .send({ ...valid, distanceM: 10_000, ...body })
+    const paths = (res: { body: unknown }) =>
+      (
+        res.body as { error: { details: { issues: Array<{ path: string }> } } }
+      ).error.details.issues.map((i) => i.path)
+
+    for (const [field, value] of [
+      ['gainM', -1],
+      ['gainM', 30_001],
+      ['lossM', 30_001],
+      ['gainM', 1.5],
+      ['surface', 'sand'],
+      ['goalType', 'bonus'],
+      ['startTime', '6:30'],
+      ['startTime', '24:00'],
+      ['raceLat', 91],
+      ['raceLng', -181],
+      ['supportLevel', 'crewed'],
+      ['targetTimeSec', 0],
+    ] as const) {
+      const res = await post({ [field]: value })
+      expect(res.status, `${field} ${String(value)}`).toBe(400)
+      expect(paths(res)).toContain(field)
+    }
+    const noTarget = await post({ goalType: 'time' })
+    expect(noTarget.status).toBe(400)
+    expect(paths(noTarget)).toContain('targetTimeSec')
+    expect((await post({ goalType: 'time', targetTimeSec: null })).status).toBe(400)
+    expect((await post({ goalType: 'finish' })).status).toBe(201)
+    expect((await post({ gainM: 30_000, lossM: 0 })).status).toBe(201)
+  })
+
+  test('PUT changes only the descriptors it carries and can clear them', async () => {
+    const created = await createGoal({
+      name: 'Hills',
+      distanceM: 21_097,
+      gainM: 800,
+      surface: 'trail',
+      goalType: 'time',
+      targetTimeSec: 7200,
+    })
+    const put = (body: Record<string, unknown>) =>
+      client(ctx, user).put(`/api/goals/${created.id}`).send(body)
+
+    await put({ raceLat: 46.5, raceLng: 8.25 })
+    const notesOnly = await put({ notes: 'Bring gels.' })
+    expect(notesOnly.status).toBe(200)
+    expect(notesOnly.body).toMatchObject({
+      raceLat: 46.5,
+      raceLng: 8.25,
+      gainM: 800,
+      surface: 'trail',
+      goalType: 'time',
+      targetTimeSec: 7200,
+    })
+
+    const cleared = await put({ gainM: null, startTime: '07:00', goalType: 'finish' })
+    expect(cleared.body).toMatchObject({ gainM: null, startTime: '07:00', goalType: 'finish' })
+
+    // A time goal keeps its target: switching back reuses it, clearing it is refused.
+    const switched = await put({ goalType: 'time' })
+    expect(switched.status).toBe(200)
+    expect(switched.body).toMatchObject({ goalType: 'time', targetTimeSec: 7200 })
+    expect((await put({ targetTimeSec: null })).status).toBe(400)
+    expect((await put({ goalType: 'time', targetTimeSec: null })).status).toBe(400)
+    expect((await put({ goalType: 'finish', targetTimeSec: null })).status).toBe(200)
+    expect((await put({ goalType: 'time' })).status).toBe(400)
+
+    expect((await put({ raceLat: 12.3456 })).body).toMatchObject({ raceLat: 12.35 })
+  })
+
+  test('a goal made before the descriptors existed can still be edited without touching the type', async () => {
+    const legacy = await ctx.prisma.goal.create({
+      data: {
+        userId: user.id,
+        name: 'Old',
+        priority: 'B',
+        targetDate: '2027-05-09',
+        distanceM: 10_000,
+      },
+    })
+    const res = await client(ctx, user)
+      .put(`/api/goals/${legacy.id}`)
+      .send({ notes: 'Still fine.' })
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ goalType: 'time', targetTimeSec: null, notes: 'Still fine.' })
+  })
+})

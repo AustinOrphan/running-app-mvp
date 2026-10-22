@@ -200,7 +200,10 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
   const [loss, setLoss] = useState(goal?.lossM == null ? '' : String(goal.lossM))
   const [surface, setSurface] = useState<GoalSurface>(goal?.surface ?? 'road')
   // null: follow the distance (finish above 42.2 km, else time) until the runner chooses.
-  const [goalTypeChoice, setGoalTypeChoice] = useState<GoalType | null>(goal?.goalType ?? null)
+  const [goalTypeChoice, setGoalTypeChoice] = useState<GoalType | null>(
+    // A time goal without a target was never chosen by the runner; it follows the distance.
+    goal && !(goal.goalType === 'time' && goal.targetTimeSec === null) ? goal.goalType : null,
+  )
   const [targetTime, setTargetTime] = useState(
     goal?.targetTimeSec == null ? '' : formatDuration(goal.targetTimeSec),
   )
@@ -238,9 +241,17 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
     const lossM = parseMetres(loss)
     if (lossM === undefined) local.lossM = 'Enter whole metres, like 1200.'
     let targetTimeSec: number | null = null
-    if (goalType === 'time' && targetTime.trim() !== '') {
-      targetTimeSec = parseTime(targetTime)
-      if (targetTimeSec === null) local.targetTimeSec = 'Enter a time like 1:45:30.'
+    if (goalType === 'time') {
+      if (targetTime.trim() === '') {
+        // The server needs a target only for a time goal the runner chose; one that follows the
+        // distance stays without it and the engine plans finish-first.
+        if (goalTypeChoice === 'time') {
+          local.targetTimeSec = 'Enter a target time like 1:45:30, or choose a finish goal.'
+        }
+      } else {
+        targetTimeSec = parseTime(targetTime)
+        if (targetTimeSec === null) local.targetTimeSec = 'Enter a time like 1:45:30.'
+      }
     }
     const lat = raceLat.trim() === '' ? null : parseCoordinate(raceLat, 90)
     if (raceLat.trim() !== '' && lat === null) local.raceLat = 'Enter a latitude like 46.81.'
@@ -264,7 +275,7 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
       gainM: gainM ?? null,
       lossM: lossM ?? null,
       surface,
-      goalType,
+      goalType: goalType === 'time' && targetTimeSec === null ? undefined : goalType,
       targetTimeSec,
       startTime: startTime === '' ? null : startTime,
       raceLat: lat,
@@ -392,7 +403,7 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
         {goalType === 'time' ? (
           <Field
             label="Target time (h:mm:ss)"
-            hint="Optional. It is a sketch to plan against, not a minimum."
+            hint="A sketch to plan against, not a minimum."
             error={errors.targetTimeSec}
           >
             {(a) => (
