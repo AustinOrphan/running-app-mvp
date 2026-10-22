@@ -235,6 +235,94 @@ Profile page when "use the home location for weather" is on. Turn that off, and 
 location empty, to send nothing. Providers see only what you connect: the app calls intervals.icu,
 Strava and Garmin only after you connect them, and only for your own account.
 
+## Training engine
+
+Plans come from a deterministic engine in `shared/engine/`: the same history, profile, goal and
+date always give the same plan. It is pure TypeScript with no network calls, and no language model
+chooses a session. Every number it uses is a record in a parameter registry, tied to a rule in
+`research/engine-rules.md` and, where one exists, to the papers behind it.
+
+### What it does
+
+- Estimates your state from the last year of runs: load, the longest recent runs, consistency,
+  fitness, and efficiency.
+- Builds zones, in heart rate and pace, and records the source of each boundary.
+- Plans backwards from race day: phases, recovery weeks, a taper, and day-level sessions placed on
+  the days you have free. A goal carries distance, climb, surface, start time and support level, and
+  gets a feasibility label (comfortable, tight, or not reachable within default limits) and a
+  predicted time with a range.
+- Holds every session and every week inside safety limits: a cap on the jump from your recent
+  longest run, a weekly ramp, no make-up of missed volume, and caps on time on feet for ultras. A
+  plan that would break a limit is not published; the page says which check failed.
+- Links each run to the session it fulfils and compares them: duration, time in the target zone,
+  how hard it felt (RPE and the feel rating), and heart rate at pace, corrected for heat and grade.
+  Pain of 4 or more raises the matching warning at once.
+- Re-plans from the Review page, from the Plan page ("Update plan from latest data") and every
+  Monday. The past stays as it was; the "What changed" list shows each revision with its rule ids.
+- Gives each day readiness advice that can only lower the day, never add to it.
+
+### What it does not do
+
+- It does not diagnose or treat anything. The red-flag notices and the energy-availability screen
+  point to care.
+- It does not add load because a signal looks good, and it does not reschedule missed sessions.
+- It does not change your zones by itself. Zone changes are proposals that the Review page asks
+  you to accept or decline.
+- It does not let heart-rate variability or sleep decide a plan: they can lower a day, nothing more.
+- It makes no claim about altitude: no evidence was retrieved for it.
+
+The disclaimer, in full (the Today page shows a shortened form with a link to the grading):
+
+> This plan is a sketch built from published research on groups of runners and from conservative defaults where research is missing. It cannot guarantee safety or performance, and it is not medical, nutrition or injury advice. Stop and see a qualified clinician for pain, illness or the warning signs listed. Many numbers are defaults that should change with your own experience, and the app shows which ones.
+
+### How evidence and defaults are shown
+
+The "Why this session" and "Why" buttons on Today, Plan, Goals and Review open one drawer. For each
+rule behind a number it shows the value and its range, a grade badge, the papers with their findings
+and DOI links, and a plain note when the value is a default. Grades:
+
+| Grade | Meaning                                                                      |
+| ----- | ---------------------------------------------------------------------------- |
+| A     | consistent meta-analyses or consensus statements                             |
+| B     | randomised trials or large prospective cohorts                               |
+| C     | small trials, observational data, or a reasonable extrapolation              |
+| D     | convention or engineering default; no direct evidence, chosen to be cautious |
+
+Grade D values read "Default, not evidence" in the drawer. The Research page (More, then Research)
+lists topics, rules and papers and filters by grade.
+
+### Research corpus
+
+`research/` holds the evidence: the papers as JSON (`papers/`), topic syntheses (`topics/`), the
+rules per topic (`rules/`), the integrated rule set (`engine-rules.md`) and a method note
+(`README.md`). Every DOI was checked against Crossref on 2026-10-22.
+
+```sh
+npm run research:check    # offline; schema, unique DOIs, every cited paper id exists. Part of npm run check
+npm run research:verify   # online; re-checks DOIs against Crossref, one request at a time
+```
+
+To extend it, follow `research/README.md` ("How to extend") or the project skill
+`.claude/skills/research-update/SKILL.md`: look up the paper, write its file, cite it in the topic,
+rule and parameter that use it, then run both commands. A change to a number goes into
+`engine-rules.md` first, then the parameter, then `PARAMS_VERSION`.
+
+### Limits
+
+- There are no training trials in runners of 50 km to 100 miles. The ultra rules (easy-running
+  share, time on feet, back-to-backs, taper) are extrapolated from shorter distances or are
+  conventions, and the drawer marks them as such.
+- Heart-rate zones need a threshold heart rate, a measured maximum, or your age (for a predicted
+  maximum of 208 minus 0.7 times age, with a band of about 11 bpm). With none of them there are no
+  heart-rate targets.
+- Pace zones need a threshold pace in the Profile, or three recent best efforts: runs of
+  different distances between 400 m and 5 km inside the last 90 days. Without them, sessions are
+  prescribed by effort (RPE) only.
+- The prediction rests on your own races and efforts and has a stated range; no model for
+  50 km to 100-mile trail times has been calibrated.
+- Women, runners over 50 and perimenopausal runners are under-represented in the underlying
+  studies.
+
 ## Docker
 
 ```sh
@@ -287,12 +375,15 @@ There is no offline mode; the app needs the server.
 - `docs/superpowers/specs/2026-10-22-data-foundation-design.md` and its plan: file import,
   providers, weather, profile and wellness
 - `docs/research/integrations-2026-10.md`: feasibility research behind the provider list
+- `docs/superpowers/specs/2026-10-22-training-engine-design.md` and its plan: the training engine
+- `research/README.md` and `research/engine-rules.md`: the evidence base and the rules derived from it
 - `docs/adr/`: architecture decision records
 
 ## Layout
 
 - `server/`: Express app, auth, routes, services, `providers/` (one module per source), `jobs/`
-- `shared/`: pure domain code used by server and web
+- `shared/`: pure domain code used by server and web; `shared/engine/` is the training engine
+- `research/`: the paper corpus, topic syntheses and `engine-rules.md`
 - `web/`: React and Vite single-page app
 - `prisma/`: schema and migrations; `prisma.config.ts` holds the CLI settings
 - `generated/`: Prisma client, gitignored, written by `prisma generate` (the npm pre-scripts run it)
