@@ -114,3 +114,89 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
 }
+
+.extras {
+  display: flex;
+  flex-direction: column;
+  max-width: 40rem;
+  margin-top: var(--space-5);
+}
+
+.boundaries {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.boundary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.boundary:first-child {
+  border-top: 0;
+}
+
+.boundaryName {
+  font-weight: 600;
+}
+
+.boundaryValue {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.zoneTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.zoneTable th,
+.zoneTable td {
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  font-weight: 500;
+  vertical-align: top;
+}
+
+.zoneTable thead th {
+  border-top: 0;
+  color: var(--text-muted);
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.callout {
+  margin: 0;
+  padding: var(--space-3);
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

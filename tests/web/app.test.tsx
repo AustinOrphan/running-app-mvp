@@ -65,6 +65,19 @@ describe('App routing', () => {
       'GET /api/integrations': () => [],
       // The profile page's own data: a profile that was never filled in.
       'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'mi' }),
+      'GET /api/screenings': () => [],
+      'GET /api/zones': () => ({
+        hrMax: null,
+        hrRest: null,
+        lt1Hr: null,
+        lt2Hr: null,
+        csMps: null,
+        lt1PaceSecPerKm: null,
+        thresholdPaceSecPerKm: null,
+        hr: null,
+        pace: null,
+        rpe: { z1: [2, 3], z2: [4, 6], z3: [7, 9] },
+      }),
       'GET /api/profile': () => ({
         birthYear: null,
         sex: null,
