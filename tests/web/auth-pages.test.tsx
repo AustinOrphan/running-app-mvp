@@ -223,6 +223,24 @@ describe('SettingsPage', () => {
     expect(screen.getByLabelText('Display name')).toHaveValue('x'.repeat(81))
   })
 
+  test('settings: a failed units change reverts the control and shows the error', async () => {
+    mockApi(
+      settingsRoutes(() => ({
+        status: 500,
+        body: { error: { code: 'internal', message: 'Something went wrong.' } },
+      })),
+    )
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    await typist.click(screen.getByRole('radio', { name: 'Kilometres' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Settings not saved.')
+    expect(screen.getByRole('radio', { name: 'Miles' })).toBeChecked()
+    expect(screen.queryByText('Settings saved')).not.toBeInTheDocument()
+  })
+
   test('settings: saving a display name sends only the changed field', async () => {
     const { calls } = mockApi(
       settingsRoutes((body) => ({ email: user.email, units: 'mi', ...(body as object) })),
