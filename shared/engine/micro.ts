@@ -77,7 +77,14 @@ export function placeWeek(
   },
 ): SessionSpec[] {
   const slots = slotsOf(week, ctx.profile)
-  const before = ctx.prevSessions.filter((s) => s.date < week.weekStart)
+  // Earlier weeks, plus sessions kept on closed days of this week (a re-plan keeps finished
+  // sessions), so spacing and pair limits see them [rules F1, F3, H3].
+  const weekEnd = addDays(week.weekStart, 6)
+  const before = ctx.prevSessions.filter(
+    (s) =>
+      s.date < week.weekStart ||
+      (s.date <= weekEnd && slots[daysBetween(week.weekStart, s.date)]?.open === false),
+  )
   const runs = planRuns(week, ctx, slots, before)
   capIntensity(runs, week, ctx.zones)
   const strength = planStrength(week, ctx.profile, slots, runs)
