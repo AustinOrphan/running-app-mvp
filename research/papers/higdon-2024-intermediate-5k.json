@@ -1,0 +1,33 @@
+{
+  "id": "higdon-2024-intermediate-5k",
+  "title": "Hal Higdon Intermediate 5K Training Program (8 weeks)",
+  "authors": "Higdon H",
+  "year": 2024,
+  "journal": "halhigdon.com",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.halhigdon.com/training-programs/5k-training/intermediate-5k/",
+  "design": "book-or-guideline",
+  "population": "Experienced runners who have raced a 5K, running 3-4 days a week for a year or two at 15-20 miles per week",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["volume-performance"],
+  "findings": [
+    "Sunday long run by week: 5, 5, 6, 5K test, 6, 7, 7 miles, then the 5K race in week 8; the page header lists a longest workout of 7 miles.",
+    "Typical week is 5 run days with Monday and Friday as rest; other runs are 3-5 mi easy or fast runs and one weekly interval or tempo session (30-40 min tempo, 400 m repeats).",
+    "The page states the audience as 'running 3-4 days a week for the last year or two and averaging 15-20 miles weekly'; a 5-7 mile long run is therefore about 25-47% of the assumed weekly miles (own arithmetic: 5/20 to 7/15), with the peak 7 miles at roughly 35-47%."
+  ],
+  "limitations": "Read through a page-fetch summariser; the weekly-share arithmetic is the auditor's own from the stated 15-20 mpw audience. Convention, not evidence. Year is the access date.",
+  "implications": [
+    "Medium-volume 5K runners (15-20 miles, roughly 2.5-3.5 h/week) are given a long run of up to 7 miles (about 60-75 min at easy pace, estimate), consistent with a 60-75 min medium-tier cap.",
+    "The implied peak share is about 35-47% of weekly distance, above Daniels' 30% guidance, so a share cap near 35-40% would be the upper end of coach practice."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched halhigdon.com intermediate 5K page 2026-10-22: Sunday entries 5/5/6/test/6/7/7/race, 'Longest workout 7 miles' and both audience quotes confirmed. Corrected: removed the unsupported '36-39% of scheduled miles' and the 'share near 30-35%' implication, which contradicted the 15-20 mpw audience (7/15-20 = 35-47%); weekly volume restated as roughly 2.5-3.5 h (earlier 3-4 h). Published convention, not evidence.",
+    "checkedAt": "2026-10-22"
+  }
+}

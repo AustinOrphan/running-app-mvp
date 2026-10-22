@@ -62,7 +62,7 @@
     "parameter": "average_run_distance_min / longest_run_min",
     "value": "10 / 21",
     "unit": "km",
-    "appliesTo": "Male-dominated recreational marathon samples; apply to all runners as a default",
+    "appliesTo": "Male-dominated recreational marathon samples; apply to half-marathon and longer as a default, not to 5-10 km goals",
     "grade": "C",
     "confidence": "low",
     "evidence": [
@@ -108,7 +108,7 @@
   },
   {
     "id": "volume-gap-replan",
-    "statement": "After a 7+ day gap, widen and slow the goal-time projection by about 5-8% (observed cost; larger for faster runners at 5.4% vs 2.6% and late gaps at 5.2% vs 4.4%) and re-plan with a graded restart. The restart fraction is not evidenced: default (grade D) is to resume at about 50-70% of pre-gap weekly volume and rebuild over 2-3 weeks, adjusting to athlete feedback.",
+    "statement": "After a 7+ day gap, widen and slow the goal-time projection by about 5-8% (observed cost; larger for faster runners at 5.4% vs 2.6% and late gaps at 5.2% vs 4.4%) and re-plan with a graded restart. The restart fraction is not evidenced: default (grade D) is to resume at about 50-70% of pre-gap weekly volume and rebuild over 2-3 weeks, adjusting to athlete feedback. Engine-rules J7 supersedes the fraction with layoff tiers.",
     "parameter": "post_gap_goal_time_adjustment / restart_volume_fraction",
     "value": "5-8 (evidence) / 50-70 (D default)",
     "unit": "% slower finish / % of pre-gap volume",
@@ -119,25 +119,31 @@
   },
   {
     "id": "volume-acute-ratio-guard",
-    "statement": "Soft-cap any week where the last-7-day distance is 1.5 or more times the 28-day distance (each such day was associated with injury, OR 1.06). Show 1.3 as an early-warning default (grade D; the abstract reports no 1.3 result). Combine with athlete-reported soreness or fatigue. Not proof of safe load.",
+    "statement": "Show, but do not gate on, the ratio of last-7-day to 28-day load (G-5). Each day at a distance ratio of 1.5 or more was associated with injury (OR 1.06), and a duration-based ACWR was associated with injury (adjusted HR 1.33) only while runners injured at baseline were included. A 1.3 early-warning display is a default (grade D). Combine with athlete-reported soreness or fatigue; never treat the ratio as proof of safe load or as a cap on long-run length.",
     "parameter": "acute_to_chronic_distance_ratio_max",
-    "value": "1.5 (cap); 1.3 (warning, D)",
-    "unit": "ratio (7-day / 28-day distance)",
-    "appliesTo": "Recreational marathon training",
+    "value": "1.5 (display); 1.3 (display warning, D)",
+    "unit": "ratio (7-day / 28-day load)",
+    "appliesTo": "Recreational 10 km to marathon training",
     "grade": "C",
     "confidence": "low",
-    "evidence": ["toresdahl-2023-nyc-marathon-training-injury", "soligard-2016-ioc-load"]
+    "evidence": [
+      "toresdahl-2023-nyc-marathon-training-injury",
+      "cloosterman-2026-gps-load-injury",
+      "soligard-2016-ioc-load"
+    ]
   },
   {
     "id": "volume-no-injury-claims-from-low-volume",
-    "statement": "Do not present lower volume as an injury-prevention strategy or higher volume as injury-safe. Fokkema found no volume-injury association; Toresdahl found 40% training injury incidence in a general cohort. Both are underpowered for this question. Keep injury handling as adaptive (guard, feedback, re-plan), not a volume cap.",
+    "statement": "Do not present lower volume as an injury-prevention strategy or higher volume as injury-safe. A review of 36 prospective studies found the evidence on weekly distance, duration, frequency, intensity and their changes conflicting; in short-distance runners lower volume and no running experience were associated with more injury, not less. Keep injury handling adaptive (G-1 spike guard, ramp, feedback, re-plan), not a volume cap.",
     "parameter": null,
     "value": null,
     "unit": null,
     "appliesTo": "All recreational runners",
-    "grade": "C",
-    "confidence": "low",
+    "grade": "B",
+    "confidence": "moderate",
     "evidence": [
+      "fredette-2022-training-parameters-injury-review",
+      "vanpoppel-2021-overuse-risk-factors-review",
       "fokkema-2020-half-marathon-volume-long-run",
       "toresdahl-2023-nyc-marathon-training-injury"
     ]
@@ -178,5 +184,96 @@
     "grade": "D",
     "confidence": "low",
     "evidence": ["emig-2020-big-data"]
+  },
+  {
+    "id": "volume-short-race-volume-first",
+    "statement": "For 5 km and 10 km goals, progress weekly running time first and let run days rise with volume (F5); lengthen the long run only as its share of the growing week. Weekly distance (r = -0.605) and training days (r = -0.583) were the strongest correlates of 10 km time; the longest run was not examined, and no study shows that a longer long run improves 5-10 km performance independently of volume. Do not add run days at a fixed volume as a separate lever (F2).",
+    "parameter": null,
+    "value": null,
+    "unit": null,
+    "appliesTo": "5 km and 10 km goals, all volumes",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "suwankan-2024-10km-time-prediction",
+      "knechtle-2023-nurmi-training-by-distance",
+      "yamaguchi-2023-volume-frequency-run-distance"
+    ]
+  },
+  {
+    "id": "volume-long-run-share",
+    "statement": "For non-ultra goals the long run is about 0.35 of the week's running time. Coach conventions range from 30% of weekly distance (Daniels, under 64 km/week) to about 35-47% implied by an intermediate 5K plan; measured in time, an easy long run is a slightly larger share than in distance, so 0.35 sits inside the range. Convention, labelled as a default.",
+    "parameter": "macroDesign.longRunShareOfWeek",
+    "value": "0.35",
+    "unit": "fraction of weekly running time",
+    "appliesTo": "All non-ultra goals; the tier cap and G-1 bound it",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "runningmagazine-2023-daniels-long-run-limit",
+      "higdon-2024-intermediate-5k",
+      "knechtle-2023-nurmi-training-by-distance"
+    ]
+  },
+  {
+    "id": "volume-short-race-long-run-cap",
+    "statement": "Cap the long run for 5 km and 10 km goals by a volume tier chosen from the runner's completed typical week (median of the last 4 weeks with a run), never from the planned week: 5 km 60 / 75 / 90 min and 10 km 75 / 90 / 100 min at under 180, 180-360 and over 360 min/week. G-1 and G-2 still bind every week, so the cap is reached only from the runner's own history. No minimum long run applies to 5-10 km goals; Johnson's minimums (5 mi for 5K, 7-8 mi for 10K) are context, not floors. The values follow established plans and coaches; they are not evidence-derived.",
+    "parameter": "peakLongRunMin.5k / peakLongRunMin.10k",
+    "value": "5 km 60/75/90; 10 km 75/90/100 (tiers <180, 180-360, >360 min/week)",
+    "unit": "min",
+    "appliesTo": "5 km and 10 km goals; tier from completed typical weekly running time",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "higdon-2024-advanced-5k",
+      "higdon-2024-intermediate-5k",
+      "higdon-2024-advanced-10k",
+      "johnson-2018-long-runs-5k-10k",
+      "runningmagazine-2023-daniels-long-run-limit"
+    ]
+  },
+  {
+    "id": "volume-short-race-long-run-distance-cap",
+    "statement": "For 5 km and 10 km goals the long run is also capped at 16 km (10 miles), the coach and plan maximum for both distances; this binds for faster runners, whose minute cap would otherwise cover more distance. Where Higdon's 90 min advanced 5K long run exceeds 16 km for a fast runner, the more conservative bound wins.",
+    "parameter": "peakLongRunKmMax",
+    "value": "16",
+    "unit": "km",
+    "appliesTo": "5 km and 10 km goals, all tiers",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["johnson-2018-long-runs-5k-10k", "higdon-2024-advanced-10k"]
+  },
+  {
+    "id": "volume-long-run-cap-is-convention",
+    "statement": "No study identifies a safe or unsafe single-session duration; reviews of prospective studies find the evidence on distance, duration and their changes conflicting or low quality. G-1 (each run against the 30-day longest completed run) is the single-session guard. Fixed long-run caps are design defaults and must never be presented as injury limits.",
+    "parameter": null,
+    "value": null,
+    "unit": null,
+    "appliesTo": "All goals; copy and rule documentation",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "fredette-2022-training-parameters-injury-review",
+      "vanpoppel-2021-overuse-risk-factors-review",
+      "cloosterman-2026-gps-load-injury",
+      "frandsen-2025-session-spike"
+    ]
+  },
+  {
+    "id": "volume-novice-graded-long-run",
+    "statement": "For new runners (novice experience, or no recent continuous run as long as the floor session), start from a structured, graded programme like Couch to 5K (the E6 start paths), and grow the longest run from the longest recent continuous run under G-1 (0.5 km minimum step) rather than from a share target; during the ladder there is no separate long run. A structured programme was associated with fewer first-year injuries than a self-devised one in a cross-sectional survey, and no running experience is a risk factor; a graded 10%-rule programme did not reduce injuries in an RCT, so no protection is claimed. A published novice 5K plan reaches a longest run of 3 mi (about 30-35 min) after 8 weeks.",
+    "parameter": null,
+    "value": null,
+    "unit": null,
+    "appliesTo": "Novices and runners in their first year",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "linton-2018-uk-novice-recreational-injury",
+      "vanpoppel-2021-overuse-risk-factors-review",
+      "kluitenberg-2015-nlstart2run",
+      "buist-2008-graded-training",
+      "higdon-2024-novice-5k"
+    ]
   }
 ]

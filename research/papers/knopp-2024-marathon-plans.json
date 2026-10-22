@@ -1,0 +1,35 @@
+{
+  "id": "knopp-2024-marathon-plans",
+  "title": "Quantitative Analysis of 92 12-Week Sub-elite Marathon Training Plans",
+  "authors": "Knopp M, Appelhans D, Schonfelder M, Seiler S, Wackerhage H",
+  "year": 2024,
+  "journal": "Sports Medicine - Open",
+  "doi": "10.1186/s40798-024-00717-5",
+  "pmid": "38695978",
+  "url": "https://doi.org/10.1186/s40798-024-00717-5",
+  "design": "other",
+  "population": "92 published sub-elite marathon training plans, grouped by peak-week volume (high over 90 km, middle 65-90 km, low under 65 km)",
+  "sampleSize": 92,
+  "evidenceLevel": "D",
+  "topics": ["injury-load"],
+  "findings": [
+    "Mean recommended weekly volume in the last 12 weeks before the race: 108 km (high), 59 km (middle), 43 km (low) volume plans.",
+    "Intensity distribution zones 1-5: 15-67-10-5-3% (high), 14-63-18-2-3% (middle), 12-67-17-2-2% (low), pyramidal.",
+    "Full text (PMC11065819): build-up weekly increase to the peak week averaged 3 +/- 1 km or 5 +/- 3% (high), 3 +/- 1 km or 7 +/- 3% (middle) and 2 +/- 1 km or 9 +/- 4% (low volume plans).",
+    "Full text: the longest run in the plans ranged from 35.2 km (high volume) to 30.9 km (low volume).",
+    "Authors state there is no evidence for the effectiveness of the training plans investigated."
+  ],
+  "limitations": "Plans are recommendations from a convenience set; no outcome data, so effectiveness and injury safety are unknown. Marathon plans only, for sub-elite runners; the relative increase is a mean over the build-up and says nothing about single-week maximum. A practice source, not an injury study.",
+  "implications": [
+    "Published marathon build-ups average roughly 5-9% weekly volume increase, i.e. at or below 10%, so a 10% soft ramp matches practice; this is a convention, not evidence of safety.",
+    "Longest runs in these plans reach about 31-35 km, a practice anchor for a marathon long-run cap but not for 5K or ultra plans."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (Sports Med Open, first author Knopp, 5 authors, 2024-05-02), Europe PMC abstract (PMID 38695978) and the open-access full text PMC11065819. Confirmed in full text: 5+/-3%, 7+/-3%, 9+/-4% weekly build-up increases, 3/3/2 km, longest run 35.2 to 30.9 km, and 'no evidence for the effectiveness' in abstract. Design changed from book-or-guideline to other (quantitative analysis of published plans). Level D (practice source).",
+    "checkedAt": "2026-10-22"
+  }
+}

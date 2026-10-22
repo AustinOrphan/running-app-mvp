@@ -1,0 +1,35 @@
+{
+  "id": "hoffman-2017-161km-recovery-determinants",
+  "title": "Determinants of recovery from a 161-km ultramarathon",
+  "authors": "Hoffman MD, Badowski N, Chin J, Stuempfle KJ, Parise CA",
+  "year": 2017,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/02640414.2016.1183808",
+  "pmid": "27167683",
+  "url": "https://doi.org/10.1080/02640414.2016.1183808",
+  "design": "prospective-cohort",
+  "population": "72 finishers of a 161-km ultramarathon with 400 m max-speed runs before the race and on days 3 and 5, a post-race blood sample, and daily soreness and fatigue ratings pre-race and for 7 days",
+  "sampleSize": 72,
+  "evidenceLevel": "B",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Soreness (10-point scale) and overall muscular fatigue (100-point scale) had statistically returned to pre-race levels by 5 days post-race.",
+    "400 m run times at day 3 and day 5 remained 26% (P = 0.001) and 12% (P = 0.01) slower than pre-race.",
+    "Post-race creatine kinase best modelled soreness, fatigue and per cent change in 400 m time: runners with the highest CKs had 1.5 points higher soreness (P < 0.001) and 11.2 points higher fatigue (P = 0.006) than runners with the lowest.",
+    "A significant time x CK interaction (P < 0.001) indicates higher CK was linked with a slower rate of return to pre-race 400 m time."
+  ],
+  "limitations": "Online 2016, issue year 2017; 400 m speed test is a narrow performance proxy and was done only to day 5 (ratings to day 7); post-race CK is not available to a plan engine; self-report at a single event.",
+  "implications": [
+    "After a 100-mile race, subjective soreness and fatigue can look normal by day 5 while maximal 400 m speed is still 12% down: a normal-looking check-in must not shorten the hold or advance the ramp. Check-ins can gate only in the cautious direction (delay or repeat a step).",
+    "Supports no speed or maximal-effort work for at least the first 5 to 7 days and a speed-free return beyond that, since speed was the slowest function to recover in this study (no data past day 5).",
+    "Runners with the most muscle damage recover slowest, so a plan could offer a longer default for hard-raced or hilly efforts, though the engine has no CK input."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (J Sports Sci, online 2016-05-11, authors match) and abstract re-read (PMID 27167683). All numbers match. Limitation text corrected: the abstract has ratings for 7 days and 400 m runs to day 5.",
+    "checkedAt": "2026-10-22"
+  }
+}

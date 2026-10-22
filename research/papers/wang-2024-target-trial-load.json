@@ -1,0 +1,34 @@
+{
+  "id": "wang-2024-target-trial-load",
+  "title": "Target trial framework for determining the effect of changes in training load on injury risk using observational data: a methodological commentary",
+  "authors": "Wang C, Kaufman JS, Steele RJ, Shrier I",
+  "year": 2024,
+  "journal": "BMJ Open Sport & Exercise Medicine",
+  "doi": "10.1136/bmjsem-2024-002037",
+  "pmid": "38975026",
+  "url": "https://doi.org/10.1136/bmjsem-2024-002037",
+  "design": "other",
+  "population": "Methodological commentary on load-and-injury studies in sport; no participants",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["injury-load"],
+  "findings": [
+    "States that conventional methods used to study the relationship between load and injury are prone to bias.",
+    "Describes the target trial framework: emulate a hypothetical randomised trial using observational data, with explicitly defined research questions and study design, to estimate causal effects.",
+    "Gives an overview of the framework's components as applied to load and injury studies and the design and analysis considerations needed to minimise bias.",
+    "No empirical result or threshold is reported."
+  ],
+  "limitations": "Commentary with no data, so it supplies no threshold. It shows how a progression-rule effect could be estimated, not that any such analysis exists for running.",
+  "implications": [
+    "Treat every progression threshold in the corpus as an association from observational data, not a causal limit; copy and ADR text should not say that exceeding the limit causes injury.",
+    "The route to testing a spike or ramp rule without a randomised trial is a target trial emulation on session-level data; logging planned versus actual load in the app would make such an analysis possible later (a design suggestion, not stated in the paper)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (first author Wang, 4 authors, 2024-07) and Europe PMC abstract (PMID 38975026). Findings match; 'prone to bias' stated as in the abstract. Kept because it answers the 'is there a randomised trial' sub-question (none found in this set; this is the methodological alternative). The app-logging implication is the verifier's, now labelled as such.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "takayama-2017-marathon-one-week",
+  "title": "Effects of Marathon Running on Aerobic Fitness and Performance in Recreational Runners One Week after a Race",
+  "authors": "Takayama F, Aoyagi A, Shimazu W, Nabekura Y",
+  "year": 2017,
+  "journal": "Journal of Sports Medicine",
+  "doi": "10.1155/2017/9402386",
+  "pmid": "29138757",
+  "url": "https://pubmed.ncbi.nlm.nih.gov/29138757/",
+  "design": "prospective-cohort",
+  "population": "11 recreational marathon runners (6 men, 5 women), finish time 3 h 36 min 20 s +/- 41 min 34 s",
+  "sampleSize": 11,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Treadmill test before and 7 days after the race: VO2max change -1.2 ml/kg/min (possibly trivial).",
+    "Velocity at anaerobic threshold -0.2 km/h and peak velocity -0.3 km/h (both likely trivial); %VO2max at AT -0.5% and running economy +0.2 ml/kg/km (both unclear).",
+    "Perceived muscle soreness increased until 3 days after the race, with no clear differences from pre-race values 4 to 7 days after.",
+    "Authors conclude that physiological capacity associated with marathon running performance is recovered within 7 days after a marathon."
+  ],
+  "limitations": "n = 11, one race, recreational runners; magnitude-based inference with unclear effects for economy and threshold %VO2max; treadmill test, not a race effort.",
+  "implications": [
+    "Supports that in recreational marathoners aerobic determinants are largely intact at day 7, so a hold plus return that regains normal training within roughly 1 to 2 weeks is plausible for a marathon.",
+    "Soreness had no clear difference from pre-race by day 4 in this sample, so a soreness check-in is a reasonable gate for the marathon easy-running window (day 2 to 6), consistent with the RCT above.",
+    "Not applicable to ultras, where Hoffman shows soreness clears before speed does."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref gives authors Takayama, Aoyagi, Shimazu, Nabekura; the record's 'Takahashi K' was wrong and is corrected. Abstract re-read (PMID 29138757); all numbers and the 7-day conclusion match.",
+    "checkedAt": "2026-10-22"
+  }
+}

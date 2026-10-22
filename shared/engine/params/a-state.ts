@@ -462,8 +462,15 @@ export const aState = {
       45,
       'C',
       'A9',
-      ['kluitenberg-2015-nlstart2run', 'nielsen-2013-novice-predictors'],
-      { unit: 'years', note: 'Novice soft flag: age 45-65.' },
+      [
+        'vanpoppel-2021-overuse-risk-factors-review',
+        'kluitenberg-2015-nlstart2run',
+        'nielsen-2013-novice-predictors',
+      ],
+      {
+        unit: 'years',
+        note: 'Soft start flag: age 45 or over, with no upper bound (65 was only the enrolment limit of the source cohort). The flag only makes the start gentler (E6).',
+      },
     ),
     noviceFlagAgeMax: param(
       'a9.noviceFlagAgeMax',

@@ -1,0 +1,35 @@
+{
+  "id": "damsted-2019-weekly-distance-change",
+  "title": "The Association Between Changes in Weekly Running Distance and Running-Related Injury: Preparing for a Half Marathon",
+  "authors": "Damsted C, Parner ET, Sorensen H, Malisoux L, Hulme A, Nielsen RO",
+  "year": 2019,
+  "journal": "Journal of Orthopaedic & Sports Physical Therapy",
+  "doi": "10.2519/jospt.2019.8541",
+  "pmid": "30526231",
+  "url": "https://doi.org/10.2519/jospt.2019.8541",
+  "design": "prospective-cohort",
+  "population": "261 healthy (non-injured) runners followed for 14 weeks (half-marathon preparation per the title), daily GPS watch or smartphone data and weekly injury questionnaires",
+  "sampleSize": 261,
+  "evidenceLevel": "B",
+  "topics": ["injury-load"],
+  "findings": [
+    "261 runners over 14 weeks; 56 (21.5%) sustained an RRI.",
+    "Twenty-one days into the study period, more runners were injured after increasing weekly distance by 20%-60% than after an increase of less than 20% (risk difference 22.6%, 95% CI 0.9%-44.3%, P=.041).",
+    "No significant difference between the two bands at day 56 or day 98.",
+    "No significant effect-measure modification by the running schedule the runner followed."
+  ],
+  "limitations": "Abstract-level verification only. Small cohort, one early time point significant with a lower CI bound of 0.9%, comparison of two broad bands (under 20% versus 20-60%) so it cannot locate a threshold such as 10% or 30%, self-reported injury. Day 21 is time since study start, not time since the distance increase. Not the same paper as damsted-2018-training-load-change (the systematic review already in the corpus).",
+  "implications": [
+    "Gives some support to a weekly ramp ceiling in the 20% region; it neither supports a 10% line nor rules out 30%. Keep the 10% as a soft default and the hard cap at or below 30%; do not tighten either number on this study alone.",
+    "The difference appeared at the day-21 analysis and was not significant at days 56 and 98, which is compatible with treating a ramp as a caution at the time of the jump (interpretation, not a tested claim).",
+    "No effect modification by schedule gives no basis for a separate ramp rule for runners on different plan types."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (JOSPT, first author Damsted, 6 authors, 2019-04) and Europe PMC abstract (PMID 30526231). Numbers match. Corrected: removed 'over 3 weeks' and 'faded' framing; day 21 is from study start. Level of evidence 'Prognosis 1b' is the journal's label.",
+    "checkedAt": "2026-10-22"
+  }
+}

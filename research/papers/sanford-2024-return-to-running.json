@@ -1,0 +1,34 @@
+{
+  "id": "sanford-2024-return-to-running",
+  "title": "Sanford Health Return to Running Guidelines (post-surgical, tendon and soft-tissue interval running programs)",
+  "authors": "Sanford Health",
+  "year": 2024,
+  "journal": "Sanford Health clinical resource (PDF)",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.sanfordhealth.org/-/media/org/files/medical-professionals/resources-and-education/return-to-running.pdf",
+  "design": "book-or-guideline",
+  "population": "Patients returning to running after lower-extremity injury or surgery; no outcome data",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["beginners-return"],
+  "findings": [
+    "Ready-to-run test: walk 30 min (about 3.0-3.5 mph), 25+ single-leg heel raises, step-ups, double-leg jumps and single-leg hops at 180 bpm, single-leg squats; all must be pain-free.",
+    "Post-surgical programme: run every other day at conversation pace (50-60% of max HR); each level done 3 times pain-free; Level 1 run 3 / walk 4 x3, L2 4/3 x3, L3 6/3 x3, L4 8-10 min or 1 mile / walk 2 x2.",
+    "Tendon and soft-tissue programme (tendinopathies and chronic strains): each level twice, 2-3 days between runs (72 h for tendon collagen net synthesis); L1 run 5 min continuous, L2 10, L3 15, L4 20, L5 25, L6 30 min, plus 30-60+ min walk or cross-training on non-running days.",
+    "Continue if gait is normal, pain is 5/10 or less and improves during the run, pain returns to baseline within 24 h, and the trend does not worsen week to week. Acute sprains and strains may need a more gradual walk/run approach; patients who kept running through the injury may start further along."
+  ],
+  "limitations": "Clinical convention (D); the page calls it 'evidence-based' but cites no study for the levels; no outcome data; written for rehabilitation, not for novices; year is from the document code '1/24' and file creation date (Jan 2024).",
+  "implications": [
+    "For a rehabilitating runner the soft-tissue floor is 5-10 min of continuous running, reaching 20 min continuous at the 7th run when each level is done twice; 3 x 20 is too high a floor for that group.",
+    "Supports 2-3 days between runs while a tendon or soft-tissue injury is recent, which fits 2-3 runs per week for a flagged runner; applying this to a generic injury flag is an extrapolation."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-downloaded the 8-page PDF and read it with pdftotext. Ready-to-run tests, post-surgical levels, tendon levels, 72 h rationale and pain rules match; footer '221-918-717 1/24' and PDF creation date 25 Jan 2024 confirm the year. 20 min (Level 4) is the 7th session with levels 1-3 done twice. Added the scope notes. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

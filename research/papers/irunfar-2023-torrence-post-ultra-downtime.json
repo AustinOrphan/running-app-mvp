@@ -1,0 +1,34 @@
+{
+  "id": "irunfar-2023-torrence-post-ultra-downtime",
+  "title": "Post-Ultra Downtime: How Much is Enough? (iRunFar, 2023-10-03)",
+  "authors": "Torrence I",
+  "year": 2023,
+  "journal": "iRunFar",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.irunfar.com/post-ultra-downtime-how-much-is-enough",
+  "design": "book-or-guideline",
+  "population": "Coach guidance on time off after an ultramarathon",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "The one-day-off-per-mile-raced formula is described as a common, conservative rule that does not seem to apply to ultrarunning.",
+    "For runners familiar with running with fatigue and soreness, 'easy running the days after an ultra is permissible'; newer runners are advised to take up to a week or three off before returning to some easy running.",
+    "'If you are looking forward to running the day after your ultra, do it.' For runners not in the mood to run, 'two to three weeks should do the trick'.",
+    "'Running with pain is not normal': see a professional if pain is present and cross-train while it heals."
+  ],
+  "limitations": "One coach's opinion with an 'it depends' answer; no numbers by distance.",
+  "implications": [
+    "Shows the spread in convention: easy running the next day for experienced ultrarunners through up to three weeks off for newcomers, so a single fixed schedule needs an experience or history input.",
+    "Pain gate: any injury-type pain should extend the hold regardless of the schedule."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched the page twice (WebFetch): Ian Torrence, October 3, 2023; formula, experienced vs newer runners, 'looking forward to running', two to three weeks, and pain quotes confirmed. The 'few take 3+ months off' point is only a rhetorical question on the page and is not used. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

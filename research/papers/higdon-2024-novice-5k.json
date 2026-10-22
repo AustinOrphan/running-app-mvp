@@ -1,0 +1,33 @@
+{
+  "id": "higdon-2024-novice-5k",
+  "title": "Hal Higdon Novice 5K Training Program (8 weeks)",
+  "authors": "Higdon H",
+  "year": 2024,
+  "journal": "halhigdon.com",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.halhigdon.com/training-programs/5k-training/novice-5k/",
+  "design": "book-or-guideline",
+  "population": "Beginning runners, or runners wanting a low-mileage approach",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["volume-performance"],
+  "findings": [
+    "8-week plan with 3 run days (Tuesday, Thursday, Saturday), run/walk or rest on Monday and Wednesday, Friday rest, and Sunday a timed walk; the longest run is 3 miles (4.8 km).",
+    "Tuesday and Saturday runs build from 1.5 mi in week 1 to 3 mi in week 7 in 0.25 mi steps; the Thursday run is 1.5-2 mi.",
+    "Sunday is a timed walk rising from 30 min in week 1 to 60 min in week 7; the 5K race is in week 8."
+  ],
+  "limitations": "Read through a page-fetch summariser. Convention, not evidence. Year is the access date.",
+  "implications": [
+    "Couch-to-5K style start: the longest run for a new runner is 3 miles (about 30-35 min, estimate) after 8 weeks, with the weekend session mainly a timed walk.",
+    "Engine inference: a new runner's longest run can grow by about 0.25 mi per week across three run days instead of being a share target."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched halhigdon.com novice 5K page 2026-10-22: full week table (1.5 to 3 mi, Thursday 1.5-2 mi, Sunday walk 30-60 min, 'Longest workout 3 miles') confirmed. Corrected the day layout wording. Published convention, not evidence.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "martinez-navarro-2021-marathon-week-rct",
+  "title": "The week after running a marathon: Effects of running vs elliptical training vs resting on neuromuscular performance and muscle damage recovery",
+  "authors": "Martinez-Navarro I, Montoya-Vieco A, Hernando C, Hernando B, Panizo N, Collado E",
+  "year": 2021,
+  "journal": "European Journal of Sport Science",
+  "doi": "10.1080/17461391.2020.1857441",
+  "pmid": "33251988",
+  "url": "https://doi.org/10.1080/17461391.2020.1857441",
+  "design": "rct",
+  "population": "64 road marathon finishers (54 men, 10 women; 39 +/- 4 years; finish time 3 h 35 min +/- 21 min), randomised at the finish line",
+  "sampleSize": 64,
+  "evidenceLevel": "B",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Randomised to running (RUN), elliptical (ELIP) or rest (REST). RUN and ELIP exercised continuously for 40 min at moderate intensity (95-105% of the heart rate at the first ventilatory threshold) at 48, 96 and 144 h after the marathon.",
+    "Lactate dehydrogenase and creatine kinase were sampled the day before, within 15 min of the finish and at 24, 48, 96, 144 and 192 h: no 'Intervention' or 'Intervention x Time' effect (p > 0.05).",
+    "Squat jump at 96 h: RUN 108.29 +/- 10.64% vs REST 100.58 +/- 9.16% (p = 0.020, d = 0.80).",
+    "Authors conclude that return to running at 48 h post-marathon does not seem to have a negative impact on muscle damage recovery up to eight days post-race and could be recommended to speed up neuromuscular recovery."
+  ],
+  "limitations": "Marathon only, mid-pack recreational runners finishing in about 3.5 h; the running dose was a fixed 40 min at about first ventilatory threshold, three sessions; squat jump was the only functional outcome; not applicable to 50 km and longer races; no check-in or soreness gating was tested.",
+  "implications": [
+    "Supports allowing easy running from about 48 h after a marathon: a run of up to about 40 min at or near first-threshold heart rate (conversational) on days 2, 4 and 6 did not slow CK/LDH recovery and was associated with better squat-jump recovery at 96 h. A fixed 7-day full stop after a marathon is more conservative than this evidence requires.",
+    "The result does not extend to 50 km, 100 km or 100 miles; keep the longer holds for those distances.",
+    "Use as the evidence for the 'easy and short, intensity-capped' shape of the marathon return, not for any quality session in the first week."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref and PubMed esummary: author list and order corrected (Martinez-Navarro, Montoya-Vieco, Hernando C, Hernando B, Panizo, Collado; the record had the order wrong). Abstract re-read from Europe PMC (PMID 33251988); all numbers match. Removed 'supervised' from limitations (not in abstract) and clarified the sampling times.",
+    "checkedAt": "2026-10-22"
+  }
+}

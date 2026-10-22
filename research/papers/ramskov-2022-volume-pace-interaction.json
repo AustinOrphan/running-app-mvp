@@ -1,0 +1,34 @@
+{
+  "id": "ramskov-2022-volume-pace-interaction",
+  "title": "Interactions Between Running Volume and Running Pace and Injury Occurrence in Recreational Runners: A Secondary Analysis",
+  "authors": "Ramskov D, Rasmussen S, Sorensen H, Parner ET, Lind M, Nielsen R",
+  "year": 2022,
+  "journal": "Journal of Athletic Training",
+  "doi": "10.4085/1062-6050-0165.21",
+  "pmid": "34543419",
+  "url": "https://doi.org/10.4085/1062-6050-0165.21",
+  "design": "prospective-cohort",
+  "population": "Injury-free Danish recreational runners, 24-week follow-up with GPS data, secondary analysis of a randomised-trial dataset",
+  "sampleSize": 586,
+  "evidenceLevel": "B",
+  "topics": ["injury-load"],
+  "findings": [
+    "586 injury-free recreational runners analysed; 133 sustained an RRI over 24 weeks of GPS follow-up.",
+    "Interaction of a relative weekly volume progression above 10% with pace progression: risk difference 8.1% (95% CI -9.3% to 25.6%), not a statistically significant positive interaction on the additive scale.",
+    "Interaction of an absolute weekly volume progression above 5 km with pace progression: risk difference 5.2% (95% CI -12.0% to 22.5%), also not significant.",
+    "The study tests the interaction between volume and pace progression, not the main effect of the 10% rule."
+  ],
+  "limitations": "Abstract-level verification only. Wide confidence intervals mean the study cannot exclude a positive interaction; secondary analysis of a trial dataset; additive-scale interaction only. A null interaction is not evidence that a 10% weekly rule is safe or unsafe.",
+  "implications": [
+    "No evidence here to add a combined pace-and-volume progression rule. Keep intensity progression handled separately from the distance ramp.",
+    "Absolute (5 km) and relative (10%) weekly-increase definitions gave similarly imprecise interaction estimates; either can be used as a convention without evidence preferring one."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (first author Ramskov, 6 authors, online 2021-09-20) and Europe PMC abstract (PMID 34543419, pubYear 2022). CORRECTED THE DOI: the record's doi field 10.1519/1062-6050-0165.21 does not resolve in Crossref; the correct DOI is 10.4085/1062-6050-0165.21 (the url field was already right). Numbers match the abstract. Reworded 'behaved similarly' to 'similarly imprecise' since the abstract reports no comparison between the two definitions.",
+    "checkedAt": "2026-10-22"
+  }
+}

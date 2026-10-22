@@ -1,0 +1,34 @@
+{
+  "id": "suwankan-2024-10km-time-prediction",
+  "title": "Prediction of 10 km running time by physical and training characteristics in recreational runners",
+  "authors": "Suwankan S, Suwankan S, Theanthong A, Kemarat S",
+  "year": 2024,
+  "journal": "Journal of Human Sport and Exercise",
+  "doi": "10.14198/jhse.2024.191.17",
+  "pmid": null,
+  "url": "https://doi.org/10.14198/jhse.2024.191.17",
+  "design": "cross-sectional",
+  "population": "Recreational runners who ran 10 km on a track and reported training characteristics",
+  "sampleSize": 60,
+  "evidenceLevel": "C",
+  "topics": ["volume-performance"],
+  "findings": [
+    "10 km time correlated with training distance (r = -0.605), training days (r = -0.583), training duration (r = -0.446), running experience (r = -0.275), mini-marathon races entered (r = -0.311) and BMI (r = 0.275).",
+    "These variables predicted 57% of the variance in 10 km time.",
+    "Weekly training distance showed the greatest effect on running time.",
+    "The authors conclude that more weekly distance and more training days give a shorter 10 km time."
+  ],
+  "limitations": "Crossref abstract only; full text not read. Self-reported training, correlational, n = 60. Longest run was not among the reported predictors.",
+  "implications": [
+    "For 10 km, weekly volume and training frequency are the reported correlates of performance; raise weekly time and run days before lengthening the long run.",
+    "No evidence in this study that a longer long run improves 10 km time independently of weekly volume (the variable was not examined)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "crossref",
+    "findingsSupported": true,
+    "notes": "Re-fetched 2026-10-22: Crossref record (JHSE 2024, Suwankan S first author) and its abstract; every r value and the 57% figure match. Europe PMC has no entry. Sample of 60 confirmed in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

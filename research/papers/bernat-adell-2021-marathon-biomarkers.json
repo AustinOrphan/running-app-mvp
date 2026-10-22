@@ -1,0 +1,36 @@
+{
+  "id": "bernat-adell-2021-marathon-biomarkers",
+  "title": "Recovery of Inflammation, Cardiac, and Muscle Damage Biomarkers After Running a Marathon",
+  "authors": "Bernat-Adell MD, Collado-Boira EJ, Moles-Julio P, Panizo-Gonzalez N, Martinez-Navarro I, Hernando-Fuster B, Hernando-Domingo C",
+  "year": 2021,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000003167",
+  "pmid": "31045685",
+  "url": "https://doi.org/10.1519/jsc.0000000000003167",
+  "design": "prospective-cohort",
+  "population": "86 marathon runners, repeated blood sampling 24 h before the race, immediately after and at 24, 48, 96 and 144 postrace hours (results quote 192 h)",
+  "sampleSize": 86,
+  "evidenceLevel": "B",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Lactate dehydrogenase increased and differed from baseline at all times (p <= 0.001), normalising after 192 hours (p = 0.667).",
+    "Creatine kinase was elevated significantly up to 96 hours and normalised after 144 hours.",
+    "High-sensitivity troponin T was elevated at the finish, 24 and 48 hours, normalised after 96 hours, but showed a new significant value at 192 hours (p <= 0.001).",
+    "C-reactive protein was significantly elevated at the finish and at 24, 48, 96, 144 and 192 hours.",
+    "Recovery varies by biomarker; greater energy expenditure increased LDH, CK and hs-TNT, and blood levels decreased with longer race times."
+  ],
+  "limitations": "The abstract's methods list sampling to 144 h, while its results report 192 h values (internal inconsistency); biomarkers are not performance or function; no running or training data after the race; recreational marathoners only.",
+  "implications": [
+    "After a marathon, circulating markers do not all normalise inside 7 days (LDH at about 8 days, CRP still elevated at 8 days), so a 7-day full-stop is not justified by biochemistry alone; it is a convention.",
+    "Supports a graded return rather than a binary release: CK clears by about day 6 while CRP stays elevated longer, which argues for capped intensity in week 2 after a marathon.",
+    "The late hs-TNT value at 192 h is unexplained in the abstract; do not build a rule on it."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed author lists match. Abstract re-read (PMID 31045685); LDH 192 h p = 0.667, CK 96/144 h, hs-TNT, CRP and the energy/race-time statements match. Sampling-time inconsistency in the abstract confirmed.",
+    "checkedAt": "2026-10-22"
+  }
+}

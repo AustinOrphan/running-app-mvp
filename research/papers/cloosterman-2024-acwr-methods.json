@@ -1,0 +1,35 @@
+{
+  "id": "cloosterman-2024-acwr-methods",
+  "title": "Comparison of Weekly Training Load and Acute: Chronic Workload Ratio Methods to Estimate Change in Training Load in Running",
+  "authors": "Cloosterman KLA, de Vos RJ, van Oeveren B, Visser E, Bierma-Zeinstra SMA, van Middelkoop M",
+  "year": 2024,
+  "journal": "Journal of Athletic Training",
+  "doi": "10.4085/1062-6050-0430.23",
+  "pmid": "38291782",
+  "url": "https://doi.org/10.4085/1062-6050-0430.23",
+  "design": "cross-sectional",
+  "population": "Dutch recreational runners registered for 10-42.195 km events who shared GPS data (73.3% men, mean age 44.3 y); descriptive epidemiology within an RCT dataset, no injury outcome",
+  "sampleSize": 430,
+  "evidenceLevel": "C",
+  "topics": ["injury-load"],
+  "findings": [
+    "430 runners, 22,839 training sessions, distance-based; a significant load increase was predefined as weekly load progression of 30% or more, or ACWR of 1.5 or more.",
+    "Share of sessions classified as significant increases: weekly load method 33.4% (95% CI 32.8-34.0), coupled rolling average 16.2% (15.7-16.6), uncoupled rolling average 25.8% (25.3-26.4), EWMA 18.9% (18.4-19.4).",
+    "43.0% of the flagged sessions from the weekly method were different from the coupled rolling average and EWMA methods.",
+    "Sessions flagged by the coupled rolling average showed 100% overlap with the uncoupled rolling average and EWMA flags.",
+    "Authors conclude the difference between the weekly method and the ACWR methods is high and that research on the association between these measures and injury is needed to validate a measure of load change in runners."
+  ],
+  "limitations": "Describes how often each method flags a session; no injury outcome, so it says nothing about which flag is right. Distance-only, event-registered Dutch runners.",
+  "implications": [
+    "The reference window and calculation method decide which sessions are flagged: the same 30% / 1.5 cutoffs flag 16%-33% of sessions depending on method. Document the exact window (calendar week, trailing 30 days) for every ramp and spike rule and test it on the same logs.",
+    "A weekly 30% flag fires about 1.8-2 times as often as the coupled rolling-average or EWMA ACWR 1.5 flag in this dataset; consider suppressing the hard ramp after a recent low-volume week (a design choice, not a finding)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (first author Cloosterman, 6 authors, 2024-10-01) and Europe PMC abstract (PMID 38291782). All percentages match. Corrected: 'about twice' narrowed to 1.8-2x against the coupled/EWMA methods; removed the unsupported 'many flags after a rest or taper week' claim (that is the blog author's reasoning, not this paper's); conclusion reworded to the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

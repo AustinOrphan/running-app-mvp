@@ -149,7 +149,7 @@ describe('parameter registry', () => {
     expect(P.k2.twoWeekMultipliers.value).toEqual([0.65, 0.4])
     expect(P.j7.restart15to28.value).toBe(0.75)
     expect(P.h2.longestRunCapHours.value).toBe(6)
-    expect(P.h2.longestRunCapHours.evidence).toEqual([])
+    expect(P.h2.longestRunCapHours.grade).toBe('D')
     expect(P.i11.costRatioMinus20.value).toBe(0.51)
     expect(P.i12.vo2maxDeclinePctPer1000m.range).toEqual([4.6, 7.5])
     expect(P.l6.minBandPct.value).toBe(3)

@@ -177,10 +177,17 @@ export const eMacro = {
       3,
       'D',
       'design-macro',
-      ['kluitenberg-2015-nlstart2run', 'buist-2008-graded-training'],
+      [
+        'kluitenberg-2015-nlstart2run',
+        'buist-2008-graded-training',
+        'pollock-1977-frequency-duration-injury',
+        'kluitenberg-2016-nlstart2run-training-factors',
+        'nhs-2026-couch-to-5k',
+        'clark-2026-couch-to-5k-original',
+      ],
       {
         unit: 'sessions per week',
-        note: 'Default: novice and return programmes start at about three sessions of 20-30 minutes. G-2 governs growth from an established weekly base, so the floor week itself is exempt from G-2; every session still obeys G-1.',
+        note: 'Default: novice and return programmes start at about three sessions of 20-30 minutes, and every published beginner plan uses three days. The ceiling has trial direction (three days a week had fewer injuries than five in a 1977 trial; three versus two was not significant), so the grade stays D. G-2 governs growth from an established weekly base, so the floor week itself is exempt from G-2; every session still obeys G-1.',
       },
     ),
     sessionMin: param(
@@ -210,17 +217,28 @@ export const eMacro = {
       unit: 'min per week',
       note: 'Default: weekly running time to start from when no recent running exists (3 runs of 30 min).',
     }),
-    longRunShareOfWeek: param('macroDesign.longRunShareOfWeek', 0.35, 'D', 'design-macro', [], {
-      note: 'Default: the long run is about this share of the weekly running time.',
-    }),
+    longRunShareOfWeek: param(
+      'macroDesign.longRunShareOfWeek',
+      0.35,
+      'D',
+      'design-macro',
+      [
+        'runningmagazine-2023-daniels-long-run-limit',
+        'higdon-2024-intermediate-5k',
+        'knechtle-2023-nurmi-training-by-distance',
+      ],
+      {
+        note: 'Default: the long run is about this share of the weekly running time. It sits within coach practice (Daniels 30% of weekly distance, Higdon intermediate 5K 35-47%; an easy long run is a larger share of time than of distance). It is a coaching convention, not an injury limit; G-1 is the single-session guard.',
+      },
+    ),
     longRunShareOfWeekUltra: param(
       'macroDesign.longRunShareOfWeekUltra',
       0.45,
       'D',
       'design-macro',
-      [],
+      ['outside-2023-strava-western-states', 'outside-2023-strava-utmb'],
       {
-        note: 'Default: for ultras the long run is about this share of the weekly running time (H2 still caps it).',
+        note: 'Default: for ultras the long run is about this share of the weekly running time (H2 still caps it). The Western States peak week put about 40% of weekly distance in the long run (inferred from two medians); the time share is higher than the distance share because long runs are slower.',
       },
     ),
     trainingPaceFactor: param('macroDesign.trainingPaceFactor', 1.15, 'D', 'design-macro', [], {
@@ -328,19 +346,26 @@ export const eMacro = {
     }),
     ultra50: param('peakLongRunMin.ultra50', 240, 'D', 'design-macro', [], {
       unit: 'min',
-      note: 'Default: peak long-run duration for a 50 km ultra, capped by H2.',
+      note: 'Default: peak long-run duration for a 50 km ultra, capped by H2. With the default weekly ceiling the long-run share (175 min) binds first; no study sets this number.',
     }),
     ultra100k: param('peakLongRunMin.ultra100k', 300, 'D', 'design-macro', [], {
       unit: 'min',
-      note: 'Default: peak long-run duration for 100 km, capped by H2.',
+      note: 'Default: peak long-run duration for 100 km, capped by H2. With the default weekly ceiling the long-run share (216 min) binds first; no study sets this number.',
     }),
-    ultra100mi: param('peakLongRunMin.ultra100mi', 360, 'D', 'design-macro', [], {
-      unit: 'min',
-      note: 'Default: peak long-run duration for 100 miles, capped by H2.',
-    }),
+    ultra100mi: param(
+      'peakLongRunMin.ultra100mi',
+      360,
+      'D',
+      'design-macro',
+      ['outside-2015-orton-koop-100-miles'],
+      {
+        unit: 'min',
+        note: "Default: peak long-run duration for 100 miles, capped by H2. It equals the 6 h cap and the low end of one coach's 6-7 h final long run; the default plan reaches about 270 min, and only high-volume runners approach 360.",
+      },
+    ),
     beyond: param('peakLongRunMin.beyond', 360, 'D', 'design-macro', [], {
       unit: 'min',
-      note: 'Default: peak long-run duration beyond 100 miles, capped by H2.',
+      note: 'Default: peak long-run duration beyond 100 miles, capped by H2. No training data exist beyond 100 miles.',
     }),
   },
   // Session structure defaults (sessions.ts) where the rules give a method but not a size.

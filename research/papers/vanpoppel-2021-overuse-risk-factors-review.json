@@ -1,0 +1,41 @@
+{
+  "id": "vanpoppel-2021-overuse-risk-factors-review",
+  "title": "Risk factors for overuse injuries in short- and long-distance running: A systematic review",
+  "authors": "van Poppel D, van der Worp M, Slabbekoorn A, van den Heuvel SSP, van Middelkoop M, Koes BW, Verhagen AP, Scholten-Peeters GGM",
+  "year": 2021,
+  "journal": "Journal of Sport and Health Science",
+  "doi": "10.1016/j.jshs.2020.06.006",
+  "pmid": "32535271",
+  "url": "https://doi.org/10.1016/j.jshs.2020.06.006",
+  "design": "systematic-review",
+  "population": "Short-distance (20 km per week or less, 10 km per session or less) and long-distance runners in prospective cohorts; searched to February 2019",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["beginners-return", "injury-load", "volume-performance"],
+  "findings": [
+    "29 prospective cohort studies with multivariable analysis (17 short-distance, 11 long-distance, 1 both); risk of bias by QUIPS, certainty by GRADE.",
+    "Short-distance runners: previous injuries not attributed to running were the strongest risk factor (high-quality evidence).",
+    "Short-distance runners: higher BMI, higher age, male sex, no previous running experience and lower running volume were strong risk factors (moderate-quality evidence).",
+    "Long-distance runners: a previous running-related injury was the strongest risk factor (moderate-quality evidence).",
+    "Low-quality evidence was found for all risk models as predictors; injuries appear multifactorial."
+  ],
+  "limitations": "Observational evidence only; 'lower running volume' as a risk factor is likely reverse-causal or confounded for novices; the review gives no dose values, only direction.",
+  "implications": [
+    "Justifies BMI, age, running experience and prior injury as the inputs that scale the starting dose, as direction-only adjustments (grade B for the inputs, D for the sizes).",
+    "Prior injury of any kind (not only running injuries) should lower the starting dose for novices and low-volume returners.",
+    "Because the factors are modest and multifactorial, keep adjustments small and avoid hard cut-offs on age.",
+    "Prior injury is the dominant risk marker in both groups: a plan should ask for injury history and use a more conservative ramp after a recent injury (a design choice supported by direction of evidence, not by a threshold).",
+    "No previous running experience and low volume mark higher risk in short-distance runners, consistent with a separate cautious novice regime; the review gives no numbers for step size.",
+    "Risk-prediction models were low-quality, so the engine should not compute an individual injury probability.",
+    "Low volume and no running experience are associated with more injury in short-distance runners, so a structured novice ramp is justified and very low volume is not automatically safe.",
+    "No long-run length can be derived from this review; use it only to support progression and volume floors, not a session-length value."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (J Sport Health Sci, first author van Poppel, issued 2021-01) and Europe PMC abstract (PMID 32535271). Counts and risk-factor statements match. The last finding was reworded to the abstract's 'low-quality evidence for risk models'.",
+    "checkedAt": "2026-10-22"
+  }
+}

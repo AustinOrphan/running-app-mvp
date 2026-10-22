@@ -1,0 +1,37 @@
+{
+  "id": "nielsen-2014-first-week-distance-obese",
+  "title": "Running more than three kilometers during the first week of a running regimen may be associated with increased risk of injury in obese novice runners",
+  "authors": "Nielsen RO, Bertelsen ML, Parner ET, Sorensen H, Lind M, Rasmussen S",
+  "year": 2014,
+  "journal": "International Journal of Sports Physical Therapy",
+  "doi": null,
+  "pmid": "24944852",
+  "url": "https://pubmed.ncbi.nlm.nih.gov/24944852/",
+  "design": "prospective-cohort",
+  "population": "Healthy novice runners, 749 of 1532 eligible volunteers, BMI at most 30 versus above 30",
+  "sampleSize": 749,
+  "evidenceLevel": "B",
+  "topics": ["beginners-return"],
+  "findings": [
+    "3-week observational explorative prospective cohort; runners were stratified by BMI (30 or less = low; above 30 = high) and week-1 distance (under 3 km, 3 to 6 km, over 6 km); 56 runners were injured.",
+    "BMI above 30 with 3 to 6 km in week 1: cumulative risk difference +14.3% (95% CI 3.3 to 25.3, p<0.01) versus the low-BMI, low-distance reference.",
+    "BMI above 30 with over 6 km in week 1: CRD +16.2% (95% CI 4.4 to 28.0, p<0.01).",
+    "The additive interaction between high distance and BMI was positive but not significant (11.7%, 95% CI -3.6 to 27.0, p=0.13).",
+    "Number of obese runners who would need to change from high to low week-1 distance to avoid one injury: 8.5 (95% CI 4.6 to 52).",
+    "Conclusion: individuals with BMI above 30 may be well advised to begin with an initial distance under 3 km (1.9 miles) in the first week; large-scale trials are needed. Level of evidence 2b."
+  ],
+  "limitations": "Exploratory; only 749 of 1532 eligible runners volunteered; week-1 distance was self-chosen (not randomised, so confounded by who chooses to run far); 3-week window; interaction term not significant; the paper gives a weekly distance, not a per-session dose. No DOI is registered for this record (PubMed and PMC4060311 only).",
+  "implications": [
+    "Cap week-1 running at under 3 km for BMI above 30; scale the floor dose by BMI rather than using one number (grade C).",
+    "The paper gives a week-1 total, not a session split; any per-session figure (for example 3 sessions under 1 km) is the plan's own arithmetic.",
+    "The BMI scaler should apply in the first 1 to 3 weeks only, since the data cover 3 weeks."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Re-fetched the full PubMed abstract (efetch PMID 24944852; Int J Sports Phys Ther 2014 May;9(3):338-45; PMC4060311). All numbers match. Crossref bibliographic search returned no matching record, so DOI null is correct. Edits: removed the '3 x under 1 km' inference from the implications as the paper does not state a session split.",
+    "checkedAt": "2026-10-22"
+  }
+}

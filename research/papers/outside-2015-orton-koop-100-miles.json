@@ -1,0 +1,37 @@
+{
+  "id": "outside-2015-orton-koop-100-miles",
+  "title": "You Can Run 100 Miles on Marathon Training (coaches Eric Orton and Jason Koop)",
+  "authors": "Beresini E",
+  "year": 2015,
+  "journal": "Outside Run (run.outsideonline.com)",
+  "doi": null,
+  "pmid": null,
+  "url": "https://run.outsideonline.com/training/training-plans/ultra-distances/you-can-run-100-miles-marathon-training/",
+  "design": "book-or-guideline",
+  "population": "Coach interviews; no athlete sample.",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Orton: for a 100-mile race, do one longer run once a month and complete five to six long runs before race day, with the final long run four weeks before the event and lasting about six to seven hours.",
+    "Progression is by time on feet, not mileage, and the 10 percent rule is thrown out: perhaps the first long run is two hours, four weeks later three hours, and so forth until six or seven hours.",
+    "Orton prefers a three-hour hard hilly run to an eight-hour easy run; with a strength base athletes 'can go from a two-to-three hour run to run eight hours no problem'.",
+    "Koop: a min/max of nine hours per week for six weeks at peak volume can be successful; match training vertical and hiking share to the race; test fuelling on long runs (hour 17 of a race cannot be predicted from a longest run under half that time).",
+    "Koop: for a first 100-miler the aim is to be able to locomote without much stress on the system. Taper follows the last long run plus a rest week, keeping frequency and intensity while reducing volume.",
+    "No back-to-back prescription in the text read. Page metadata gives publication 2015-10-07 (Erin Beresini) and 'Updated July 10, 2025'."
+  ],
+  "limitations": "Practitioner opinion in a magazine interview; no data, no outcomes; two coaches only.",
+  "implications": [
+    "Named-coach convention for a 100-mile longest run is 6-7 h, above the engine's 240 min feasibility default and at its 6 h cap; shows the cap is conservative relative to some coaching but not to others (Dauwalter 3-4 h, UTMB article).",
+    "Supports time-based progression about every four weeks, one long run a month, the last one four weeks before the race, and a minimum weekly peak (nine hours) for a finish-focused plan.",
+    "Convention only (grade D)."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched the page (HTTP 200) and checked the prescriptions verbatim: one long run a month, five to six long runs, final one four weeks before and about six to seven hours, 2 h then 3 h progression, 10 percent rule, nine hours for six weeks, hour 17 quote, locomote quote. Meta tags give author Erin Beresini and published 2015-10-07; page text says updated July 10, 2025. Corrected finding 1, which had garbled 'the last four weeks before the race' into the timing of the whole set. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "kelly-2023-sex-specific-ultra-review",
+  "title": "Is There Evidence for the Development of Sex-Specific Guidelines for Ultramarathon Coaches and Athletes? A Systematic Review",
+  "authors": "Kelly CPMG",
+  "year": 2023,
+  "journal": "Sports Medicine - Open",
+  "doi": "10.1186/s40798-022-00533-9",
+  "pmid": "36695958",
+  "url": "https://pubmed.ncbi.nlm.nih.gov/36695958/",
+  "design": "systematic-review",
+  "population": "45 studies comparing male and female elite and recreational ultramarathon runners.",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "PRISMA review; 45 studies met inclusion; most observational, only three based on randomised controlled trials.",
+    "Overall quality of evidence was low (GRADE).",
+    "Sex differences were found in predictors of ultramarathon performance, physiological responses to training, racing and recovery, health issues and pacing; some findings contradictory and very few studied specific interventions.",
+    "Most advice for ultramarathons is based on research that largely excluded female athletes; authors conclude sex-specific guidelines could affect performance and health of female runners but there is insufficient high-quality evidence to formulate them."
+  ],
+  "limitations": "Low-quality primary evidence; no training-dose recommendations or long-run values in the abstract.",
+  "implications": [
+    "Any ultra long-run numbers are extrapolated largely from male samples; state this limitation in the rule notes instead of applying sex-specific values."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (Sports Med Open, 2023-01-25, Kelly) and Europe PMC abstract (PMID 36695958). 45 studies, three RCT-based, GRADE low match. Kept for the extrapolation caveat only.",
+    "checkedAt": "2026-10-22"
+  }
+}

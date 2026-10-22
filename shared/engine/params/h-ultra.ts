@@ -50,24 +50,61 @@ export const hUltra = {
     ),
   },
   h2: {
-    longestRunCapHours: param('h2.longestRunCapHours', 6, 'D', 'H2', [], {
-      unit: 'h',
-      note: 'Default: longest single training run is capped at the lesser of this and 60% of expected race duration. No study sets this number; it limits exposure without evidence of benefit.',
-    }),
-    longestRunCapRaceFraction: param('h2.longestRunCapRaceFraction', 0.6, 'D', 'H2', [], {
-      unit: 'fraction of expected race duration',
-      note: 'Default: no study sets this number.',
-    }),
-    raceSimulationMaxHours: param('h2.raceSimulationMaxHours', 8, 'D', 'H2', [], {
-      unit: 'h',
-      note: 'Default: one opt-in race simulation of up to this length is allowed, and only within G-1.',
-    }),
+    longestRunCapHours: param(
+      'h2.longestRunCapHours',
+      6,
+      'D',
+      'H2',
+      [
+        'outside-2023-strava-utmb',
+        'outside-2023-strava-western-states',
+        'outside-2015-orton-koop-100-miles',
+        'viljoen-2022-trail-risk-factors',
+      ],
+      {
+        unit: 'h',
+        note: "Default: longest single training run is capped at the lesser of this and 60% of expected race duration. No study sets this number and no study links any long-run length to injury; the cap lies inside the 3-5 h to 6-7 h range of named-coach conventions and below finishers' race-inclusive longest runs.",
+      },
+    ),
+    longestRunCapRaceFraction: param(
+      'h2.longestRunCapRaceFraction',
+      0.6,
+      'D',
+      'H2',
+      ['outside-2015-orton-koop-100-miles'],
+      {
+        unit: 'fraction of expected race duration',
+        note: 'Default: no study sets this number. It binds only for races expected under 10 h (for example a 50 km goal).',
+      },
+    ),
+    raceSimulationMaxHours: param(
+      'h2.raceSimulationMaxHours',
+      8,
+      'D',
+      'H2',
+      [
+        'outside-2023-strava-western-states',
+        'outside-2023-strava-utmb',
+        'outside-2015-orton-koop-100-miles',
+      ],
+      {
+        unit: 'h',
+        note: 'Default: design intent for one race simulation of up to this length, within G-1 (an entered tune-up race could serve). Not read by any code yet, so the plan and the app do not offer the simulation.',
+      },
+    ),
   },
   h3: {
-    b2bMinGapWeeks: param('h3.b2bMinGapWeeks', 2, 'D', 'H3', ['frandsen-2025-session-spike'], {
-      unit: 'weeks',
-      note: 'Default: at most one back-to-back pair every 2 weeks, in build or specific phases only, never in the taper.',
-    }),
+    b2bMinGapWeeks: param(
+      'h3.b2bMinGapWeeks',
+      2,
+      'D',
+      'H3',
+      ['frandsen-2025-session-spike', 'viljoen-2022-trail-risk-factors'],
+      {
+        unit: 'weeks',
+        note: "Default: at most one back-to-back pair every 2 weeks, in build or specific phases only, never in the taper. No study measures back-to-backs; the review's double-session factor is same-day doubles, which are a different structure.",
+      },
+    ),
     b2bDay2MaxRatioOfDay1: param(
       'h3.b2bDay2MaxRatioOfDay1',
       1.0,
@@ -76,12 +113,12 @@ export const hUltra = {
       ['frandsen-2025-session-spike'],
       {
         unit: 'ratio',
-        note: 'Default: day 2 is no longer than day 1.',
+        note: 'Default: day 2 is no longer than day 1 (the micro-cycle default is 0.6 of day 1). No study measures back-to-backs.',
       },
     ),
     b2bTwoDayRatio: param('h3.b2bTwoDayRatio', 1.1, 'D', 'H3', ['frandsen-2025-session-spike'], {
       unit: 'ratio to the largest 2-day total in the last 30 days',
-      note: 'Default: the pair is no more than 1.10x the largest 2-day total in the last 30 days; extends G-1 by analogy.',
+      note: 'Default: the pair is no more than 1.10x the largest 2-day total in the last 30 days; extends G-1 by analogy, which is the only basis.',
     }),
   },
   h4: {

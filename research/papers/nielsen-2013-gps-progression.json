@@ -1,0 +1,35 @@
+{
+  "id": "nielsen-2013-gps-progression",
+  "title": "Can GPS be used to detect deleterious progression in training volume among runners?",
+  "authors": "Nielsen RO, Cederholm P, Buist I, Sorensen H, Lind M, Rasmussen S",
+  "year": 2013,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0b013e3182711e3c",
+  "pmid": "22990565",
+  "url": "https://doi.org/10.1519/jsc.0b013e3182711e3c",
+  "design": "prospective-cohort",
+  "population": "60 novice runners in a 10-week prospective study with GPS volume tracking and clinical examination of injuries",
+  "sampleSize": 60,
+  "evidenceLevel": "C",
+  "topics": ["injury-load"],
+  "findings": [
+    "60 novice runners over 10 weeks; 13 sustained an injury.",
+    "The injured runners had a significantly higher weekly progression in total training volume in the week before injury origin than in other weeks (86%, 95% CI 12.9-159.9, p=0.026).",
+    "Participants with injuries had a weekly volume increase of 31.6% versus 22.1% among healthy participants, which was not significant.",
+    "GPS volume measurement error was 6.2% or less in open landscape, forest and urban areas.",
+    "Authors say weekly increases may become deleterious above 30% (more than the 10% rule), that no clear evidence for safe progression exists, and that some individuals may tolerate 20-25% for a short time."
+  ],
+  "limitations": "Very small sample with few injuries; within-person comparison of the week before injury with other weeks; the authors' 30% figure is an interpretation, not a tested cut-off. Abstract-level verification only. Different paper from nielsen-2014-weekly-progression and nielsen-2013-novice-predictors in the corpus.",
+  "implications": [
+    "Supports a hard weekly ramp ceiling nearer 30% than 10% for novices, with the 10% a conservative default and 20-25% described as tolerable for some people only; grade C/D.",
+    "The healthy novices averaged a 22.1% weekly increase without injury, so a strict 10% novice rule has no support in this study."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (JSCR, first author Nielsen, 6 authors, 2013-06) and Europe PMC abstract (PMID 22990565). All numbers match. Minor rewording only ('increase of 31.6% versus 22.1%' kept as the abstract's average weekly increase).",
+    "checkedAt": "2026-10-22"
+  }
+}

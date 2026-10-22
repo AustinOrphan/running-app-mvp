@@ -1,0 +1,35 @@
+{
+  "id": "soppelsa-2025-trail-injury-performance",
+  "title": "Analysis of factors influencing injuries and performance in trail running",
+  "authors": "Soppelsa D, Terrier A, Eghbali P, Traverso A, Dietrich G, Vauclair F, Gremeaux V",
+  "year": 2025,
+  "journal": "Injury",
+  "doi": "10.1016/j.injury.2025.112798",
+  "pmid": "41108796",
+  "url": "https://doi.org/10.1016/j.injury.2025.112798",
+  "design": "cross-sectional",
+  "population": "Trail runners answering a 65-question online survey (97 variables), May 2019 to May 2020; 468 of 697 men.",
+  "sampleSize": 697,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "697 trail runners (468 men) were included; sixteen injury types reported.",
+    "Injury risk was higher with higher weight, fewer interval trainings, lower weekly training volume, lower yearly elevation gain, less regular passive recovery and less sleep.",
+    "Number of previous injuries did not affect the risk of a current injury.",
+    "Performance increased with training, passive recovery and sleep; it decreased with age, weight and height.",
+    "Authors state there might be an upper limit where some of these variables become detrimental, and that more research is needed to find the threshold."
+  ],
+  "limitations": "Self-reported survey, causal Bayesian networks on cross-sectional data, no long-run or back-to-back variable in the abstract, unknown threshold.",
+  "implications": [
+    "No support for a rule that more weekly volume or climbing raises injury risk in this sample; low volume was the risk factor, so a volume floor is more defensible than a tight cap.",
+    "The long run is not isolated, so it gives no evidence for the 180/240/270 min feasibility numbers or the 6 h cap."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (Injury, 2025-12, Soppelsa) and Europe PMC abstract (PMID 41108796). All findings match; replaced 'less interval training' with the abstract's 'less interval trainings' wording and filled in the full author list. Relevance is moderate (ultra distance not isolated, trail runners generally).",
+    "checkedAt": "2026-10-22"
+  }
+}

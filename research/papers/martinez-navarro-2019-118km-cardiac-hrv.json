@@ -1,0 +1,34 @@
+{
+  "id": "martinez-navarro-2019-118km-cardiac-hrv",
+  "title": "Cardiac Damage Biomarkers and Heart Rate Variability Following a 118-Km Mountain Race: Relationship with Performance and Recovery",
+  "authors": "Martinez-Navarro I, Sanchez-Gomez JM, Collado-Boira EJ, Hernando B, Panizo N, Hernando C",
+  "year": 2019,
+  "journal": "Journal of Sports Science and Medicine",
+  "doi": null,
+  "pmid": "31827345",
+  "url": "https://pubmed.ncbi.nlm.nih.gov/31827345/",
+  "design": "prospective-cohort",
+  "population": "46 athletes in the Penyagolosa Trails CSP115 race (118 km, 5439 m positive elevation), measured before and after the race",
+  "sampleSize": 46,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "High-sensitive troponin T exceeded the upper reference limit in 50% of finishers and NT-proBNP in 87%.",
+    "Overall and vagally mediated HRV were diminished and cardiac autonomic modulation became less complex and more predictable after the race.",
+    "More pronounced vagal modulation decreases were associated with higher post-exertional NT-proBNP; the rise in hs-TNT and NT-proBNP was greater among faster runners, and pre-race HRV correlated with finishing time.",
+    "Authors conclude an appropriate recovery period after ultra-endurance races appears prudent, particularly for better-performing athletes, and that HRV is a promising tool to assess readiness to perform at maximum level in an ultra-endurance race."
+  ],
+  "limitations": "Only pre and post measurement, no follow-up days, so it does not date any return to normal; no DOI exists in PubMed, Europe PMC or Crossref for this article, so identity rests on the PMID and PMC record (PMC6873135; J Sports Sci Med 2019;18(4):615-622).",
+  "implications": [
+    "Acute cardiac biomarker rise and vagal HRV drop are common after a 118 km race and bigger in faster runners; supports a conservative hold for hard-raced ultras and monitoring sensible warning signs, but gives no day count.",
+    "HRV is shown as a readiness tool for racing, not as a validated signal for shortening a post-race hold; do not use this paper to justify wearable-based early release."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Re-fetched PubMed efetch and esummary (PMID 31827345; title, authors, J Sports Sci Med 2019 Dec, PMC6873135) and Europe PMC (doi null); Crossref bibliographic search returned no match. Abstract read in full; all findings stated there. No DOI exists, so doi stays null.",
+    "checkedAt": "2026-10-22"
+  }
+}

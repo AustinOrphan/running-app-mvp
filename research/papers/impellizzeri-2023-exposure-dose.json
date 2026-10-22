@@ -1,0 +1,34 @@
+{
+  "id": "impellizzeri-2023-exposure-dose",
+  "title": "Understanding Training Load as Exposure and Dose",
+  "authors": "Impellizzeri FM, Shrier I, McLaren SJ, Coutts AJ, McCall A, Slattery K, et al.",
+  "year": 2023,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-023-01833-0",
+  "pmid": "37022589",
+  "url": "https://doi.org/10.1007/s40279-023-01833-0",
+  "design": "narrative-review",
+  "population": "Conceptual paper; no participants",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["injury-load"],
+  "findings": [
+    "Aligns training load and its external and internal subdimensions with exposure, external dose and internal dose as used in occupational medicine and epidemiology.",
+    "States that to optimise training in a causal context a measure of exposure should reflect the mediating mechanisms of the primary outcome.",
+    "States that a dose-response relationship can provide evidence of the validity of a measure, but that causal (explanatory) must be distinguished from non-causal (descriptive and predictive) dose-response relationships.",
+    "States that, however sophisticated a load measure appears, if it cannot be connected to a plausible mediator of a relevant outcome it is likely of little use in practice."
+  ],
+  "limitations": "Conceptual, no empirical data and no running threshold. Abstract-level verification only. Relevance to the question is indirect: it gives a framework for choosing an exposure, not evidence for any running exposure.",
+  "implications": [
+    "For a spike limit, choose the exposure by the injury mechanism; distance or duration for repetitive tissue load is a reasonable convention, and ascent or descent for trail running would be an extension by analogy. The paper does not mention running or elevation; these are the verifier's inferences.",
+    "An untested exposure (duration, vertical gain) can be used as a convention but must be labelled grade D and not as evidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (first author Impellizzeri, 8 authors, 2023-04-06) and Europe PMC abstract (PMID 37022589). Corrected: the 'evidence of validity only if' wording was tightened to the abstract; the earlier implication that the paper 'justifies' extending the guard to duration or vertical gain overstated it and is rewritten as an inference.",
+    "checkedAt": "2026-10-22"
+  }
+}

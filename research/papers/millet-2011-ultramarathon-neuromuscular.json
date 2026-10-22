@@ -1,0 +1,35 @@
+{
+  "id": "millet-2011-ultramarathon-neuromuscular",
+  "title": "Neuromuscular consequences of an extreme mountain ultra-marathon",
+  "authors": "Millet GY, Tomazin K, Verges S, Vincent C, Bonnefoy R, Boisson RC, Gergele L, Feasson L, Martin V",
+  "year": 2011,
+  "journal": "PLoS ONE",
+  "doi": "10.1371/journal.pone.0017059",
+  "pmid": "21364944",
+  "url": "https://doi.org/10.1371/journal.pone.0017059",
+  "design": "prospective-cohort",
+  "population": "Experienced ultra-marathon runners, 166 km mountain race with 9500 m positive and negative elevation change; 22 tested immediately post, 11 followed to day 16",
+  "sampleSize": 22,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Maximal voluntary contraction fell -35% (95% CI -28 to -42%) in knee extensors and -39% (-32 to -46%) in plantar flexors immediately after the race; maximal voluntary activation fell -19% (-7 to -32%), mainly in knee extensors.",
+    "Creatine kinase rose from 144 +/- 94 to 13,633 +/- 12,626 U/L, myoglobin from 32 +/- 22 to 1,432 +/- 1,209 ug/L, CRP from <2.0 to 37.7 +/- 26.5 mg/L.",
+    "Excitation-contraction coupling was impaired (low frequency fatigue, reduced high-frequency doublet force and compound muscle action potential amplitude) in both muscle groups.",
+    "Tested before, immediately after and at 2, 5, 9 and 16 days (n = 11 for follow-up): neuromuscular function had returned to initial values 16 days after the race, with most of the recovery occurring within 9 days."
+  ],
+  "limitations": "Only 11 runners completed follow-up testing (self-selected, experienced, a single race); no running-load control during recovery; the abstract reports no day-by-day numbers for the recovery tests, only the 9-day and 16-day statements.",
+  "implications": [
+    "For a 100 km and 100-mile race, treat neuromuscular recovery as a roughly two-week process: most of it by about day 9, complete by day 16. A return schedule that reaches full training load before about day 14 is not supported by objective function data.",
+    "Keep intensity, downhill and plyometric loading out of the first 9 days after a 100-mile race; the data do not say what running load is safe within that window, so the hold itself rests on convention (see the coach pages) plus this time course.",
+    "Because only the 9-day and 16-day points are reported as recovery milestones, the engine should not claim finer resolution than that for the ramp."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (title, PLoS ONE, 2011-02-22, author list match) and the Europe PMC abstract (PMID 21364944). All numbers re-read in the abstract. Minor wording corrections only: 'maximal voluntary activation' and 'had returned ... 16 days after'.",
+    "checkedAt": "2026-10-22"
+  }
+}

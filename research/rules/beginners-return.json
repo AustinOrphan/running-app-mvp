@@ -1,7 +1,7 @@
 [
   {
     "id": "novice-run-walk-injury-hazard-reference",
-    "statement": "Treat runners with no or little recent running history as the highest injury-risk class. Pooled incidence is 17.8 vs 7.7 per 1000 h of running (novice vs recreational), about 2.3 times per hour of exposure; use for classification and display, not as a causal hazard ratio.",
+    "statement": "Treat runners with no or little recent running history as the highest injury-risk class. Pooled incidence is 17.8 vs 7.7 per 1000 h of running (novice vs recreational), about 2.3 times per hour of exposure; no previous running experience roughly doubles the hazard in an 8-week cohort (HR 2.1-2.6); pooled novice incidence across 36 prospective studies is 14.9%. Use for classification and display, not as a causal hazard ratio.",
     "parameter": "novice_to_recreational_injury_rate_ratio",
     "value": "2.3 (17.8 / 7.7 per 1000 h)",
     "unit": "ratio per hour of running",
@@ -10,32 +10,43 @@
     "confidence": "moderate",
     "evidence": [
       "videbaek-2015-incidence",
+      "buist-2010-rri-risk-factors-4-mile",
+      "fredette-2022-training-parameters-injury-review",
       "kluitenberg-2015-nlstart2run",
       "buist-2008-graded-training"
     ]
   },
   {
     "id": "novice-risk-flags-intake",
-    "statement": "Collect age, BMI, recent non-sport musculoskeletal complaints and running experience at intake. Set soft risk flags (slower start, more walk intervals) for age 45-65, BMI over 30, prior non-running musculoskeletal complaints and no running history. Do not use sex or previous running injury as modifiers. No flag should exclude anyone; no thresholds beyond those quoted are justified.",
+    "statement": "Collect age, BMI, injury and musculoskeletal-complaint history (running and non-running) in the last 12 months, and years of running at intake. Set soft risk flags for age 45 or over (no upper bound), BMI over 30, any injury or musculoskeletal complaint in the last 12 months whether or not it came from running, no running history, and under 2 years of running. Flags only make the start gentler (rule beginners-return-continuous-floor, beginners-return-bmi-first-week); no flag excludes anyone. Sex is recorded for risk copy only and never changes the dose. The factors are supported by a GRADE-rated review of prospective cohorts; the numeric thresholds are C (BMI) or D (age 45, 2 years).",
     "parameter": "risk_flags",
-    "value": "age 45-65; BMI > 30; prior non-sport MSK complaint; no running history",
+    "value": "age >= 45; BMI > 30; any injury or MSK complaint in 12 months; no running history; < 2 years running",
     "unit": "categorical flags",
-    "appliesTo": "Novice runners",
-    "grade": "C",
-    "confidence": "low",
-    "evidence": ["kluitenberg-2015-nlstart2run", "nielsen-2013-novice-predictors"]
+    "appliesTo": "Novice and returning runners at plan start",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "vanpoppel-2021-overuse-risk-factors-review",
+      "kluitenberg-2015-nlstart2run",
+      "relph-2023-couch-to-5k-injury",
+      "buist-2010-rri-risk-factors-4-mile",
+      "linton-2018-uk-novice-recreational-injury",
+      "nielsen-2013-novice-predictors"
+    ]
   },
   {
     "id": "novice-weekly-progression-default",
-    "statement": "Default weekly progression for novices is at most 10% per week of running time, with no more than about 30% growth over any 2-week window. Both numbers are conservative conventions: the 10% rule showed no injury benefit in an RCT and the 30% signal was not statistically significant. UI copy must not claim these prevent injury. At very low volumes use a small absolute minimum step (default one extra minute of running per week, grade D) rather than 10%.",
+    "statement": "Outside the start ladders, novices progress at a soft 10% per week with a hard cap of 30% over any 2 weeks. The ladder weeks are exempt from the soft 10% warning, as the floor week is (a fixed convention programme), but never from the 30% over 2 weeks hard ceiling; weekly time on feet in the ladder stays far below it. Both numbers are conservative conventions: a 10%-rule programme did not lower injuries against a standard 8-week programme, the week-to-week ratio showed no association in a large cohort, and reviews call the evidence conflicting. UI copy must not claim these numbers prevent injury. At very low volumes use the +1 min/week minimum step.",
     "parameter": "max_weekly_load_increase",
-    "value": "10% per week default; 30% over any 2 weeks as hard cap",
-    "unit": "% change in weekly running time or distance",
-    "appliesTo": "Novice runners and returning runners with a long layoff",
+    "value": "10% per week soft; 30% over any 2 weeks hard; ladder weeks exempt from the soft check only",
+    "unit": "% change in weekly running time",
+    "appliesTo": "Novice runners and returning runners after the start week",
     "grade": "D",
     "confidence": "low",
     "evidence": [
       "buist-2008-graded-training",
+      "frandsen-2025-session-spike",
+      "fredette-2022-training-parameters-injury-review",
       "nielsen-2014-weekly-progression",
       "nielsen-2012-training-errors"
     ]
@@ -53,18 +64,21 @@
   },
   {
     "id": "novice-run-walk-start-structure",
-    "statement": "Start novices with run-walk intervals on 3 non-consecutive days per week for the first 6 weeks (NLstart2run program length), lengthening run intervals before walk intervals shrink. No trial establishes injury benefit or the best ratio. Use a conservative, configurable default of short run intervals (about 1 minute) with longer walk intervals; label the ratio grade D.",
+    "statement": "Start a true novice on a 9-rung run-walk ladder, 3 non-consecutive days per week, each session with a 5-min walk before and after. Rung 1 is 1 min run / 2 min walk x 7 (7 min running). Rung 2 is 1.5 / 2 x 6 (9 min). Rung 3 is (1.5 run, 1.5 walk, 3 run, 3 walk) x 2 (9 min). Rung 4 is 3-1.5-5-2.5-3-1.5-5 (16 min). Rung 5 is 5-3-5-3-5, 8-5-8, then 20 min continuous. Rung 6 is 5-3-8-3-5, 10-3-10, then 22 min continuous. Rungs 7, 8 and 9 are 3 x 25, 28 and 30 min continuous. Each rung is one week at most and can be repeated. Rung 1 keeps the engine's 1:2 ratio, slightly gentler than the NHS week 1 (1:1.5); later rungs follow the NHS and original Couch-to-5K shapes, with the more conservative of the two where they differ (22 min at rung 6). No trial shows run-walk beats continuous running or identifies the best ratio; the ladder is a convention (D) chosen because published beginner plans converge on it and a structured plan was associated with fewer first-year injuries than a self-devised one.",
     "parameter": "initial_run_walk_structure",
-    "value": "3 sessions/week, non-consecutive; 6-week run-walk phase; ratio default about 1:2 (unvalidated)",
-    "unit": "sessions per week; weeks; run:walk ratio",
-    "appliesTo": "Novice runners and runners restarting after a long layoff or after a bone stress injury",
+    "value": "3 sessions/week non-consecutive; 9 rungs; rung 1 = 1:2 x 7; first 20 min continuous at rung 5; 3 x 30 min at rung 9",
+    "unit": "sessions per week; rungs (weeks); minutes",
+    "appliesTo": "True novices (A5 novice) and returners entering the ladder",
     "grade": "D",
     "confidence": "low",
     "evidence": [
+      "nhs-2026-couch-to-5k",
+      "clark-2026-couch-to-5k-original",
+      "galloway-2026-beginner-run-walk",
+      "linton-2018-uk-novice-recreational-injury",
       "kluitenberg-2015-nlstart2run",
       "buist-2008-graded-training",
-      "george-2024-tibial-bsi-return-to-run",
-      "hottenrott-2016-run-walk-marathon"
+      "relph-2023-couch-to-5k-injury"
     ]
   },
   {
@@ -80,14 +94,18 @@
   },
   {
     "id": "progression-one-variable-at-a-time",
-    "statement": "Progress either high-intensity running time or total weekly volume in a block, not both at once. Trial data show no difference in specific injury types between intensity-focused and volume-focused progression, so no separate injury-risk model is justified. Treat an 8-week low-intensity preconditioning phase as a conservative option for new runners; its benefit is not tested.",
+    "statement": "Progress either high-intensity running time or total weekly volume in a block, not both at once. Trial data show no difference in specific injury types between intensity-focused and volume-focused progression, so no separate injury-risk model is justified. Do not add a walking or hopping preconditioning block before a novice's first runs for injury prevention: a 4-week walking-and-hopping block did not lower injuries (15.2% vs 16.8%, p=0.69); a runner may still choose to walk first.",
     "parameter": "progression_variable_policy",
-    "value": "one variable at a time; optional 8-week preconditioning",
+    "value": "one variable at a time; no preconditioning block for injury prevention",
     "unit": "policy",
     "appliesTo": "Recreational runners, including new runners",
     "grade": "B",
     "confidence": "low",
-    "evidence": ["ramskov-2018-run-clever", "nielsen-2012-training-errors"]
+    "evidence": [
+      "ramskov-2018-run-clever",
+      "bredeweg-2012-preconditioning-novice-rct",
+      "nielsen-2012-training-errors"
+    ]
   },
   {
     "id": "run-walk-option-marathon",
@@ -118,14 +136,13 @@
   },
   {
     "id": "layoff-restart-volume-tiers",
-    "statement": "Restart after a layoff at a fraction of prior volume and rebuild with the normal progression caps. The evidence supports direction, not magnitudes: under 7 days no reduction; 7-14 days about 90%; 15-28 days about 75%; over 28 days about 50-60%, with run-walk if the runner had under about 6 months of consistent running before the break. These fractions are conservative engineering defaults (grade D). Strength sessions can resume closer to prior loads than running volume.",
+    "statement": "Restart after a non-injury layoff at a fraction of the pre-break week: under 7 days 100%; 7-14 days about 90%; 15-28 days about 75%; over 28 days about 50-60%. When the restart is below the restart floor, the start-path rule decides the first week instead. When the 30-day window holds no run, no session in the first week exceeds the restart fraction times the longest run of the last 90 days: 20 min or more gives the continuous floor at 20 min, under 20 min gives ladder entry at the highest rung whose longest running bout fits under G-1. With no run in 90 days, an experienced runner takes the continuous floor at 20 min and everyone else starts at rung 1. These fractions are conservative engineering defaults (D). Strength sessions can resume closer to prior loads than running volume.",
     "parameter": "restart_volume_fraction",
     "value": "<7 d: 100%; 7-14 d: 90%; 15-28 d: 75%; >28 d: 50-60%",
     "unit": "fraction of pre-break weekly volume",
     "appliesTo": "Runners returning from a layoff of non-injury cause",
     "grade": "D",
     "confidence": "low",
-    "evidenceLevel": "mujika and coyle indicate direction only",
     "evidence": [
       "mujika-2000-detraining-part1",
       "mujika-2000-detraining-part2",
@@ -172,13 +189,156 @@
   },
   {
     "id": "bsi-return-to-run-gating",
-    "statement": "Do not generate running sessions after a tibial bone stress injury until the runner confirms: no bony tenderness, pain-free walking, and, for high-risk sites, clinician clearance (a clinician-entered date). Then start a graduated walk-run programme, increase running distance before speed or intensity, and hold progression when symptoms recur. Interval lengths and step sizes are not evidenced: use conservative grade D defaults.",
+    "statement": "Do not generate running sessions after a bone stress injury until the runner confirms no bony tenderness and pain-free walking, and, for high-risk sites, a clinician-entered clearance date. Then use the staged walk-jog default: walk 30 min; then 30-min sessions of walk 9 / jog 1, 8/2, 7/3, 6/4, 4/6 and 2/8 min (x3 each), jogging well below usual pace with a rest day between sessions; then 30 min continuous easy running; then running on consecutive days. Increase distance before speed. Advance only when the runner is symptom-free during the run, after it and the next day; if symptoms appear, stop, rest a day and go back one stage. The intervals are a clinical convention (D), not trial-tested.",
     "parameter": "return_to_run_gate",
-    "value": "3 athlete-confirmed criteria plus clinician date for high-risk sites; distance before intensity",
-    "unit": "gate conditions",
-    "appliesTo": "Runners returning after tibial bone stress injury (apply cautiously to other lower-limb bone stress injuries)",
+    "value": "gate (no tenderness, pain-free walking, clinician date for high-risk sites); 6 walk-jog stages at 1-8 min jog per 10 min, every other day; then 30 min continuous",
+    "unit": "gate conditions; stages",
+    "appliesTo": "Runners returning after a bone stress injury",
     "grade": "D",
     "confidence": "moderate",
-    "evidence": ["george-2024-tibial-bsi-return-to-run", "hoenig-2023-bsi-return-to-sport"]
+    "evidence": [
+      "george-2024-tibial-bsi-return-to-run",
+      "bjsm-2019-bone-stress-return-to-run",
+      "hoenig-2023-bsi-return-to-sport"
+    ]
+  },
+  {
+    "id": "beginners-return-start-paths",
+    "statement": "When a runner's typical recent week is below the restart floor (3 x 20 min), or the runner has no logged runs, choose the first weeks from history. (a) True novice (experience novice with no run of 20 min or more ever logged, or no runs at all and no declared longest run): the run-walk ladder from rung 1. (b) A continuous run of 20 min or more in the last 30 days (logged, or declared when there are no logs, per A3): the continuous floor. (c) No such run but a run in the last 90 days: the first-week sessions are at most the J7 fraction times the longest run of the last 90 days; 20 min or more gives the continuous floor at 20 min, under 20 min gives ladder entry at the highest rung whose longest running bout is at most 1.10 x that run. (d) No run in 90 days: an experienced runner (trained or recreational experience, 2 or more years of running, no soft flag) takes the continuous floor at 20 min; everyone else starts at rung 1. (e) Recent-injury flag (any running injury in the last 12 months) with a typical week under 60 min or no runs: the injury-return ladder. Having no running experience is associated with about twice the injury hazard, and recent running experience with lower dropout, which supports separate novice and returner paths; how to split them is the engine's design.",
+    "parameter": "start_path",
+    "value": "novice ladder | continuous floor | ladder entry by longest bout | injury-return ladder",
+    "unit": "policy",
+    "appliesTo": "Any new plan whose typical recent week is under 60 min or that has no logged runs",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "buist-2010-rri-risk-factors-4-mile",
+      "vanpoppel-2021-overuse-risk-factors-review",
+      "fokkema-2019-discontinuation-start-to-run",
+      "frandsen-2025-session-spike",
+      "linton-2018-uk-novice-recreational-injury"
+    ]
+  },
+  {
+    "id": "beginners-return-continuous-floor",
+    "statement": "For a returner on the continuous path, the floor week is 3 non-consecutive sessions of N min, where N is the longest continuous run of the last 30 days rounded down to 5 min and clamped between 20 and 30. N above 20 requires at least 2 years of running (a5.trainedMinYears), no soft risk flag (age 45 or over, BMI over 30, any injury in 12 months) and no recent-injury flag; otherwise N = 20. In a 1977 trial, 15-min and 30-min sessions three times a week had similar injury rates while 45-min sessions were much worse, but that trial used hard jogging in young men and did not test 20 min. A floor session never exceeds the runner's own completed run, so G-1 stays inside its reference band. The 30-min ceiling is the only start rule that moves toward more load, and the runner's own completed run bounds it.",
+    "parameter": "restart_floor_session_min",
+    "value": "3 sessions x clamp(30-day longest run, 20, 30) min; 20 min with any flag or < 2 years running",
+    "unit": "sessions; min per session",
+    "appliesTo": "Returning runners whose typical week is under 60 min and who completed a run of 20 min or more in the last 30 days",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "frandsen-2025-session-spike",
+      "pollock-1977-frequency-duration-injury",
+      "linton-2018-uk-novice-recreational-injury",
+      "kluitenberg-2015-nlstart2run"
+    ]
+  },
+  {
+    "id": "beginners-return-floor-ramp-exemption",
+    "statement": "The ladder and floor weeks are exempt from the G-2 soft 10% warning, as a fixed convention programme, but never from the G-2 hard ceiling of 30% over 2 weeks. Every ladder and floor session obeys G-1 as a hard 1.10 x limit on whole-session distance and duration, walk blocks included (a hard limit for these sessions, not the usual warn band). Grounds: a 10%-rule programme gave no injury benefit, the week-to-week ratio showed no association in 5205 runners, while the session spike did. A 10% ramp from a 10-20 min week never reaches a useful dose. Runners with a tightened profile (recent injury, prior BSI, 2 or more BSI factors) get no exemption.",
+    "parameter": "restart_floor_ramp_exemption",
+    "value": "ladder and floor weeks exempt from the G-2 soft check; G-1 hard at 1.10x; hard ceiling stays",
+    "unit": "policy",
+    "appliesTo": "The first week of a new plan for a runner below the floor",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "frandsen-2025-session-spike",
+      "buist-2008-graded-training",
+      "fredette-2022-training-parameters-injury-review"
+    ]
+  },
+  {
+    "id": "beginners-return-bmi-first-week",
+    "statement": "For a novice or ladder runner with BMI over 30 (height and weight in the profile), hold rung 1 for weeks 1-3 and advance in week 4. The trial arm that did better ran 3 km in week 1 (about 1 km per session) and added at most 10% a week for 4 weeks; rung 1 holds the first weeks at a similar dose without needing a pace. The plan sets this dose because heavier novices choose the same first-week dose as lighter ones. The supporting RCT's primary intention-to-treat result was not significant, so this is grade C with low confidence.",
+    "parameter": "noviceLadder.bmiHoldWeeks",
+    "value": "rung 1 held for weeks 1-3; advance in week 4",
+    "unit": "weeks",
+    "appliesTo": "Novices and ladder entrants with BMI > 30, weeks 1-4",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "nielsen-2014-first-week-distance-obese",
+      "bertelsen-2018-start-to-run-distance-rct",
+      "bertelsen-2018-bmi-self-chosen-start",
+      "vanpoppel-2021-overuse-risk-factors-review"
+    ]
+  },
+  {
+    "id": "beginners-return-easy-intensity",
+    "statement": "All ladder, floor and injury-return sessions are easy (zone 1, conversational); no quality sessions, strides or race-pace work until the ladder is complete and 2 further weeks have passed. If the runner rates the previous week hard (mean session RPE 5/10 or more, a default), hold the rung. A higher RPE in the previous week was the clearest injury signal in a large novice cohort; the RPE cut-off is a default.",
+    "parameter": "start_phase_intensity",
+    "value": "easy only; hold rung on mean session RPE >= 5/10 (default)",
+    "unit": "policy; RPE CR10",
+    "appliesTo": "Novices and returners in the start ladders or floor week",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["kluitenberg-2016-nlstart2run-training-factors"]
+  },
+  {
+    "id": "beginners-return-ladder-hold",
+    "statement": "Advance one rung per plan week at most, and only when the week was at least 80% completed (of the planned minutes) with no pain report. Repeat the rung when completion is under 80%, pain is reported, or the mean session RPE is 5/10 or more. A runner may hold any rung indefinitely. Without a rating, the ladder advances on completion and pain reports alone. No gentler rung 0 is offered: a 30 s run / 90 s walk rung would be a speculative default. Grounds: all published beginner plans allow repeating weeks, completion of a fixed 9-week ladder was 27.3% with dropout linked to injury and to the progressive design, and injury is the main reason novices quit.",
+    "parameter": "ladder_advance_rule",
+    "value": ">= 80% completed and no pain to advance; else repeat",
+    "unit": "policy",
+    "appliesTo": "Runners on the run-walk ladder or the injury-return ladder",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "relph-2023-couch-to-5k-injury",
+      "fokkema-2019-discontinuation-start-to-run",
+      "kluitenberg-2016-nlstart2run-training-factors",
+      "nhs-2026-couch-to-5k",
+      "clark-2026-couch-to-5k-original",
+      "galloway-2026-beginner-run-walk"
+    ]
+  },
+  {
+    "id": "beginners-return-injury-ladder",
+    "statement": "A runner with the recent-injury flag (any running injury in the last 12 months) whose typical week is under 60 min, or who has no runs, starts on an injury-return ladder rather than on the floor or the generic start. Gate: pain-free 30-min brisk walk and pain-free single-leg hops, as declared by the runner; bone stress injuries use bsi-return-to-run-gating instead. Levels are 5, 10, 15, 20, 25 and 30 min of continuous easy running, each done twice, with at least one rest day between runs (2-3 runs per week). Enter at the highest level not above the longest pain-free run of the last 30 days. Advance only when symptom-free during the run, after it and the next day (check-in pain 0 and activity pain 0); otherwise stop, rest a day and drop one level. Under G-3 the 1.10 x limit is hard, so each run is the lesser of the level and the G-3 bound (+0.5 km or 1.10 x), and the levels are targets. Recent-injury runners never get the 30-min floor lift. A previous injury is the strongest risk factor in short-distance runners and raised the odds of a new injury on Couch-to-5K, which supports the direction. The levels and spacing are clinical conventions (D), and applying soft-tissue protocols to a generic injury flag is an extrapolation.",
+    "parameter": "injury_return_ladder",
+    "value": "5-30 min continuous in 5-min levels, each x2, >= 1 rest day between runs, 2-3 runs/week",
+    "unit": "min per run; runs per week",
+    "appliesTo": "Runners with the recent-injury flag returning from an injury layoff or below the floor (non-BSI)",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "sanford-2024-return-to-running",
+      "bjsm-2019-bone-stress-return-to-run",
+      "relph-2023-couch-to-5k-injury",
+      "vanpoppel-2021-overuse-risk-factors-review"
+    ]
+  },
+  {
+    "id": "beginners-return-frequency-ceiling",
+    "statement": "During the ladder and the floor week, novices and returners run no more than 3 days per week, on non-consecutive days. A runner may choose 2. Three days a week had far fewer injuries than five in a 1977 trial (12% vs 39%, hard jogging, young men). Running 3 days rather than 2 showed only a non-significant trend toward more risk in novices, so 2 is allowed but not the default. The grade stays D: the 3-versus-2 contrast was not significant and the 3-versus-5 contrast comes from a 1977 trial in another population and intensity.",
+    "parameter": "start_phase_max_run_days",
+    "value": "3 (ceiling); 2 allowed by choice",
+    "unit": "run days per week",
+    "appliesTo": "Novices and returners in the start ladders or floor week",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "pollock-1977-frequency-duration-injury",
+      "kluitenberg-2016-nlstart2run-training-factors",
+      "kluitenberg-2015-nlstart2run"
+    ]
+  },
+  {
+    "id": "beginners-return-zero-history-start",
+    "statement": "A runner with no logged runs and no declared longest recent run starts at ladder rung 1 (about 63 min per week of run-walk blocks), not at a generic 90-min week, unless an experienced runner returns after more than 90 days away (start path d). With a declared longest recent run, the start-path rule applies to the declared value. The previous 90-min default put a runner with no history above one who logged a few short runs (60-min floor), which inverted the risk order.",
+    "parameter": "start_floor_week_min",
+    "value": "60 min per week (rung 1, 3 x about 21 min blocks)",
+    "unit": "min per week",
+    "appliesTo": "Runners with no logged runs in the history window",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "buist-2010-rri-risk-factors-4-mile",
+      "nhs-2026-couch-to-5k",
+      "videbaek-2015-incidence"
+    ]
   }
 ]

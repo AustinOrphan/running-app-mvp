@@ -1,0 +1,35 @@
+{
+  "id": "bjsm-2019-bone-stress-return-to-run",
+  "title": "Table D, Graded Return to Run Program for Bone Stress Injury (adapted from Warden et al 2016), BJSM blog",
+  "authors": "BJSM blog (adapted from Warden et al 2016)",
+  "year": 2019,
+  "journal": "BJSM blog (blogs.bmj.com/bjsm)",
+  "doi": null,
+  "pmid": null,
+  "url": "https://blogs.bmj.com/bjsm/files/2019/05/Table-D-Graded-Return-to-Run-Program-for-Bone-Stress-Injury-adapted-from-Warden-et-al-2016.pdf",
+  "design": "book-or-guideline",
+  "population": "Athletes returning to running after bone stress injury; no outcome data",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["beginners-return"],
+  "findings": [
+    "Monitoring: symptom free during the run, after it and the next day; if symptoms are provoked, stop the session and regress to the previous stage following a rest day.",
+    "Stage 1 (jog at 50% slower than usual pace, rest day between every session): a 30-min walk, then walk 9 / jog 1, 8/2, 7/3, 6/4, 4/6 and 2/8 (each x3 = 30 min), i.e. 6 run-walk sessions.",
+    "Stage 2 (easy running, rest day between): jog 30 min (50%), then run 30 min at 60%, 70%, 80%, 90% and full pace. Stage 3: running on consecutive days 'if appropriate' (2 days on, 1 off).",
+    "Stage 4: gradual progression with weekly volume +10-20%, rest days and energy intake increased with expenditure."
+  ],
+  "limitations": "Expert-opinion protocol for bone stress injury (D); no outcome data; the original Warden source was not fetched; the PDF date comes from the file metadata (created May 2019) and URL path.",
+  "implications": [
+    "For a runner returning from a bone stress injury, the clinical protocol starts at 1 min of jogging in 10, every other day, and reaches 30 min continuous after 6 run-walk sessions; for that specific flag a 3 x 20 floor is far too high.",
+    "The protocol is specific to bone stress injury; whether it applies to a generic 'recent injury' flag is the plan designer's extrapolation, not a finding.",
+    "Post-protocol ramp is +10-20% weekly volume; the ramp rule does not say a floor week is exempt."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-downloaded the one-page PDF and read it with pdftotext. Stages 1-4 and monitoring text match; PDF creation date is 7 May 2019. Softened the implications: protocol applies to bone stress injury only, and the 'floor exempt from ramp' point was not supported by the source. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

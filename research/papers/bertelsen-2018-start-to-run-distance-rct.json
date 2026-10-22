@@ -1,0 +1,35 @@
+{
+  "id": "bertelsen-2018-start-to-run-distance-rct",
+  "title": "The start-to-run distance and running-related injury among obese novice runners: a randomized trial",
+  "authors": "Bertelsen ML, Hansen M, Rasmussen S, Nielsen RO",
+  "year": 2018,
+  "journal": "International Journal of Sports Physical Therapy",
+  "doi": "10.26603/ijspt20180943",
+  "pmid": "30534460",
+  "url": "https://doi.org/10.26603/ijspt20180943",
+  "design": "rct",
+  "population": "Obese novice runners, BMI 30-35, 4-week programme",
+  "sampleSize": 56,
+  "evidenceLevel": "C",
+  "topics": ["beginners-return"],
+  "findings": [
+    "56 novices (BMI 30-35) were randomised to 3 km per week (3 sessions of 1 km, n=29) or 6 km per week (3 sessions of 2 km, n=27), both increasing the weekly distance by 10% per week, for 4 weeks.",
+    "Intention-to-treat cumulative risk difference for injury -16.3% (95% CI -43.8 to 11.3, p=0.25) favouring 3 km, which is not statistically significant.",
+    "Per-protocol cumulative risk difference -31.2% (95% CI -57.0 to -5.2, p=0.02); overuse-symptom risk difference -47.8% (95% CI -81.0 to -14.6, p=0.01).",
+    "Five participants ran much more than prescribed and 15 never uploaded any training, which is why a supplementary per-protocol analysis was performed.",
+    "The study hypothesised 20% fewer injuries with the 3 km start; level of evidence 2b."
+  ],
+  "limitations": "Underpowered; the primary ITT result is not significant; the per-protocol analysis is supplementary and affected by non-adherence and missing data (15 of 56 uploaded nothing); only 4 weeks and only BMI 30-35; session duration and pace are not reported in the abstract.",
+  "implications": [
+    "Supports a BMI-scaled first-week dose of about 3 sessions of about 1 km (roughly 3 km per week) for BMI 30 and above, as a grade C value with a note that the primary ITT test was null.",
+    "1 km at an easy novice pace is a short session (likely well under 20 min; pace is not reported), so 3 x 20 min of continuous running should not be the floor for BMI 30+ novices."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (IJSPT, first author Bertelsen, issued 2018-12) and Europe PMC abstract (PMID 30534460). All numbers match. Edits: dropped the unsupported '3 x 8-10 min' conversion (abstract gives no pace); 'supplementary' per-protocol instead of 'post hoc'.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "viljoen-2024-mac-ultra-injury-rate",
+  "title": "Training for shorter ultra-trail races results in a higher injury rate, a more diverse injury profile, and more severe injuries: 2022 Mac ultra races",
+  "authors": "Viljoen C, du Toit E, van Niekerk T, Mashaba S, Ndaba Z, Verster M, Bellingan A, Ramagole D, Jansen van Rensburg A, et al.",
+  "year": 2024,
+  "journal": "Physical Therapy in Sport",
+  "doi": "10.1016/j.ptsp.2023.10.004",
+  "pmid": "37976906",
+  "url": "https://doi.org/10.1016/j.ptsp.2023.10.004",
+  "design": "cross-sectional",
+  "population": "Entrants of the 2022 Mac ultra races (46, 80, 161 and 322 km); 162 of 245 consented; six-month retrospective injury data.",
+  "sampleSize": 162,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Injury rate 3.09 per 1000 h of running for 46 km participants versus 0.68 for 80 km (p = 0.001) and 1.09 for 161 km (p = 0.028).",
+    "Lower limb accounted for 89% of injuries; muscle/tendon was the most common tissue (56%), muscle injuries the most common pathology (31%).",
+    "Shorter-distance entrants reported the highest injury severity.",
+    "The abstract reports no long-run metric; the 322 km category is not reported in the rate comparison."
+  ],
+  "limitations": "Retrospective, self-reported, single event, rates differ by training exposure and experience, no long-run or back-to-back measure.",
+  "implications": [
+    "Injury rate was highest for the shortest target (46 km) and not higher for 80 or 161 km, so there is no evidence here that training for longer ultras raises injury per hour; target-distance effects are confounded with experience.",
+    "Cannot be used to set a long-run cap; useful only as a caution that shorter-ultra entrants are not low-risk."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (Phys Ther Sport, 2024-01, Viljoen) and Europe PMC abstract (PMID 37976906). Rates, p values, 89%, 56%, 31% match. Rewrote the first implication, which said rate 'did not rise with target distance' (161 km at 1.09 is above 80 km at 0.68); the abstract reports no 322 km rate, so the note about it was reworded.",
+    "checkedAt": "2026-10-22"
+  }
+}

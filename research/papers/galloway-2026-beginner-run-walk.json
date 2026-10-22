@@ -1,0 +1,35 @@
+{
+  "id": "galloway-2026-beginner-run-walk",
+  "title": "Getting Started Running Without Aches and Pains (Jeff Galloway beginner run-walk schedule)",
+  "authors": "Galloway J",
+  "year": 2026,
+  "journal": "jeffgalloway.com",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.jeffgalloway.com/01/getting-started-running-without-aches-and-pains/",
+  "design": "book-or-guideline",
+  "population": "General adult beginners; author's own schedule, no outcome data",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["beginners-return"],
+  "findings": [
+    "3 run days a week (Tue, Thu, Sat or Sun), with Mon off or gentle walking.",
+    "Weeks 1-2 run 5 s / walk 55 s inside a walk-run-walk session: Week 1 Tue walk 10, run-walk 10, walk 10 min; Thu 9 / 12 / 9; Sat or Sun 15 / 14 / 10. Week 2 Tue 7 / 16 / 7; Thu 6 / 18 / 6; Sat or Sun 15 / 20 / 15.",
+    "Weeks 3-4: Tue and Thu use 10 s run / 50 s walk with 10-18 min run-walk blocks; the long day stays at 5 s / 55 s and reaches 25 min (week 3) then 30 min (week 4) of run-walk.",
+    "Page: 'Many new runners stay at the level of week 4 for a month or indefinitely'; others use 15/45 for weeks 5-6, 20/40 for weeks 7-8 and 30/30 for weeks 9-10.",
+    "The page claims 'almost a zero rate of injury' among those who gradually increase this way (author's claim, no data on the page)."
+  ],
+  "limitations": "Author's own page, convention (D), no outcome data; the injury claim is unsupported; undated, so the year is the retrieval year.",
+  "implications": [
+    "Public practice has a much lower floor than C25K: 5 s of running per minute at the start (about 50 s of running in a 10 min block), so the true novice floor can be far below 8 min of running.",
+    "Support for allowing a runner to stay at one level for a month or longer (hold rule) before ramping."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched the page this session and read the week 1-4 schedule and the paragraph on weeks 5-10. Block lengths, run/walk ratios, the stay-at-week-4 quote and the injury claim match. No publication date found in page metadata. Clarified that the run-walk figures are run/walk ratios inside a block, not minutes of running. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

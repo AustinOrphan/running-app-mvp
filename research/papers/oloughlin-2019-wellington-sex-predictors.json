@@ -1,0 +1,33 @@
+{
+  "id": "oloughlin-2019-wellington-sex-predictors",
+  "title": "Different Predictor Variables for Women and Men in Ultra-Marathon Running - The Wellington Urban Ultramarathon 2018",
+  "authors": "O'Loughlin E, Nikolaidis PT, Rosemann T, Knechtle B",
+  "year": 2019,
+  "journal": "International Journal of Environmental Research and Public Health",
+  "doi": "10.3390/ijerph16101844",
+  "pmid": "31137635",
+  "url": "https://pubmed.ncbi.nlm.nih.gov/31137635/",
+  "design": "cross-sectional",
+  "population": "Women and men in the 62-km Wellington Urban Ultramarathon 2018.",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Women are now 20% of all ultra-marathon finishers but predictors of performance have rarely been examined for them.",
+    "For women, weekly running volume in training (km) and 5 km, 10 km and half-marathon personal bests were associated with race time; the prediction equation had r2 = 0.83, adjusted r2 = 0.75, df = 6, and used only the three personal bests.",
+    "For men, age, BMI, years running, running speed in training (min/km), marathon PB and 5 km PB were associated with race time; the equation had r2 = 0.44, adjusted r2 = 0.35, df = 18, and used marathon PB, 5 km PB and training speed.",
+    "Longest run is not examined in the abstract."
+  ],
+  "limitations": "Very small sample (df 6 for women), model fit probably overfitted, single race, no longest-run variable, sample size not stated in the abstract.",
+  "implications": [
+    "Weak hint that weekly volume matters for women while pace-related variables matter for men; no sex-specific long-run rule can be derived."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (IJERPH, 2019-05-24, O'Loughlin) and Europe PMC abstract (PMID 31137635). Corrected the original: r2 0.83 and 0.44 belong to the final prediction equations, and the women's equation contains only the three PBs (weekly volume was associated but is not in the equation). Sample size not in the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

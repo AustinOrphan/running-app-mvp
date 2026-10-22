@@ -1,0 +1,33 @@
+{
+  "id": "taksaudom-2017-66km-predictors",
+  "title": "Race predictors and hemodynamic alteration after an ultra-trail marathon race",
+  "authors": "Taksaudom N, Tongsiri N, Potikul A, Leampriboon C, Tantraworasin A, Chaiyasri A",
+  "year": 2017,
+  "journal": "Open Access Journal of Sports Medicine",
+  "doi": "10.2147/oajsm.s142040",
+  "pmid": "29070954",
+  "url": "https://pubmed.ncbi.nlm.nih.gov/29070954/",
+  "design": "cross-sectional",
+  "population": "Runners in a 66-km trail race; 228 started, 130 completed the questionnaire, 126 had pre-race hemodynamic assessment, 33 post-race.",
+  "sampleSize": 228,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "189 of 228 runners finished (82.9%); average age 37; 71.5% male.",
+    "Univariable predictors of finishing: male gender, longest distance ever run, faster running records and lower diastolic pressure.",
+    "In multivariable analysis only lower diastolic pressure remained significant (DBP 74-84 mmHg adjusted OR 3.81, 95% CI 1.09-13.27; DBP below 74 mmHg adjusted OR 7.74, 95% CI 1.57-38.21).",
+    "The abstract gives no numeric values for longest distance ever run."
+  ],
+  "limitations": "Single race, small questionnaire subset, 'longest distance ever run' is lifetime not a training-block measure, wide confidence intervals, no values in the abstract.",
+  "implications": [
+    "Longest distance ever run lost significance after adjustment, so the evidence does not isolate it as an independent finishing predictor at about 66 km; supports treating long-run targets as feasibility sketches not minimums."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (OAJSM, 2017-10, Taksaudom), Europe PMC and the PubMed abstract (PMID 29070954; the Europe PMC text is garbled after 'diastolic blood pressure', so the DBP <74 mmHg OR 7.74, CI 1.57-38.21 was confirmed from PubMed). 228, 189 (82.9%), 71.5% male and age 37 match.",
+    "checkedAt": "2026-10-22"
+  }
+}

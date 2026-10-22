@@ -1,0 +1,34 @@
+{
+  "id": "rust-2012-100km-vs-marathoners",
+  "title": "Similarities and differences in anthropometry and training between recreational male 100-km ultra-marathoners and marathoners",
+  "authors": "Rüst CA, Knechtle B, Knechtle P, Rosemann T",
+  "year": 2012,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/02640414.2012.697182",
+  "pmid": "22724447",
+  "url": "https://doi.org/10.1080/02640414.2012.697182",
+  "design": "cross-sectional",
+  "population": "166 recreational male 100-km ultra-marathoners and 126 male marathoners.",
+  "sampleSize": 292,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Marathoners completed fewer hours and fewer km per week (both P < 0.001) but ran faster in training (P < 0.001).",
+    "In the 100-km runners, weekly running kilometres were negatively related to race time (P < 0.0001); age (P < 0.0001), body mass (P = 0.011) and body fat (P = 0.019) were positively related.",
+    "In marathoners, body fat (P = 0.002) was positively and training speed (P < 0.0001) negatively associated with marathon time.",
+    "Authors conclude ultra-marathoners rely on volume in running training, marathoners on speed."
+  ],
+  "limitations": "Cross-sectional, self-reported training, men only, performance outcome only, no longest-run or back-to-back variable in the abstract.",
+  "implications": [
+    "Supports weekly volume as the main performance lever for 100 km, which argues against capping weekly load to make room for a very long single run.",
+    "Says nothing about the longest single run, so it cannot validate a 240 min target."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (J Sports Sci, 2012-06-25, Rüst) and Europe PMC abstract (PMID 22724447). N and all P values match; full author list added.",
+    "checkedAt": "2026-10-22"
+  }
+}

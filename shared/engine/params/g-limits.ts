@@ -9,6 +9,12 @@ const RAMP = [
   'damsted-2018-training-load-change',
 ]
 const BSI = ['barrack-2014-bone-stress-triad', 'stennett-2025-bsi-female-offroad-runners']
+const INJURY_FACTOR = [
+  'hulme-2017-risk-protective',
+  'vanderworp-2015-risk-factors',
+  'vanpoppel-2021-overuse-risk-factors-review',
+  'relph-2023-couch-to-5k-injury',
+]
 
 export const gLimits = {
   g1: {
@@ -45,18 +51,49 @@ export const gLimits = {
     }),
   },
   g2: {
-    rampSoft: param('g2.rampSoft', 0.1, 'C', 'g-2', RAMP, {
-      unit: 'fraction per week',
-      note: 'Soft weekly ramp; exceeding it gives a warning.',
-    }),
-    rampCeilingTwoWeeks: param('g2.rampCeilingTwoWeeks', 0.3, 'C', 'g-2', RAMP, {
-      unit: 'fraction over any 2-week window',
-      note: 'Hard ceiling. The stricter 2-week window wins over a per-week 30% ceiling.',
-    }),
-    baselineWeeks: param('g2.baselineWeeks', 2, 'D', 'g-2', RAMP, {
-      unit: 'weeks',
-      note: 'Default: a week is compared with the highest of this many preceding weeks, so the week after a recovery week is not read as a jump.',
-    }),
+    rampSoft: param(
+      'g2.rampSoft',
+      0.1,
+      'D',
+      'g-2',
+      [
+        'buist-2008-graded-training',
+        'knopp-2024-marathon-plans',
+        'fredette-2022-training-parameters-injury-review',
+        'nielsen-2012-training-errors',
+      ],
+      {
+        unit: 'fraction per week',
+        note: 'Default: a convention matching published plans (5-9% average build); no study supports 10% as an injury threshold. Exceeding it gives a warning.',
+      },
+    ),
+    rampCeilingTwoWeeks: param(
+      'g2.rampCeilingTwoWeeks',
+      0.3,
+      'C',
+      'g-2',
+      [
+        ...RAMP,
+        'nielsen-2013-gps-progression',
+        'damsted-2019-weekly-distance-change',
+        'fredette-2022-training-parameters-injury-review',
+      ],
+      {
+        unit: 'fraction over any 2-week window',
+        note: 'Hard ceiling. Weak cohort signals sit at 20-30%; neither a tighter nor a looser ceiling is supported. The stricter 2-week window wins over a per-week 30% ceiling.',
+      },
+    ),
+    baselineWeeks: param(
+      'g2.baselineWeeks',
+      2,
+      'D',
+      'g-2',
+      [...RAMP, 'cloosterman-2024-acwr-methods'],
+      {
+        unit: 'weeks',
+        note: 'Default: a week is compared with the highest of this many preceding weeks, so the week after a recovery week is not read as a jump. The calculation method changes which weeks are flagged (a weekly method flags about twice as many as rolling or EWMA methods).',
+      },
+    ),
     ceilingWindowWeeks: param('g2.ceilingWindowWeeks', 2, 'C', 'g-2', RAMP, {
       unit: 'weeks',
       note: 'The 30% ceiling spans 2 weeks: a week is compared with the highest of the weeks that ended this many weeks earlier (stricter than a per-week 30%).',
@@ -71,14 +108,28 @@ export const gLimits = {
     }),
   },
   g3: {
-    recentInjuryRamp: param<[number, number]>('g3.recentInjuryRamp', [0.05, 0.07], 'D', 'g-3', [], {
-      unit: 'fraction per week',
-      note: 'Default: weekly ramp with the recent-injury flag; the 1.10x session limit becomes a hard limit.',
-    }),
-    recentInjuryRecoveryEveryWeeks: param('g3.recentInjuryRecoveryEveryWeeks', 3, 'D', 'g-3', [], {
-      unit: 'weeks',
-      note: 'Default: with the recent-injury flag a recovery week falls every 3rd week.',
-    }),
+    recentInjuryRamp: param<[number, number]>(
+      'g3.recentInjuryRamp',
+      [0.05, 0.07],
+      'D',
+      'g-3',
+      INJURY_FACTOR,
+      {
+        unit: 'fraction per week',
+        note: 'Default: weekly ramp with the recent-injury flag; the 1.10x session limit becomes a hard limit. The factor is well supported (grade A: previous injury is the strongest marker, odds ratio 7.56 in a Couch-to-5K cohort); the values are unvalidated defaults.',
+      },
+    ),
+    recentInjuryRecoveryEveryWeeks: param(
+      'g3.recentInjuryRecoveryEveryWeeks',
+      3,
+      'D',
+      'g-3',
+      INJURY_FACTOR,
+      {
+        unit: 'weeks',
+        note: 'Default: with the recent-injury flag a recovery week falls every 3rd week. The factor is well supported; the cadence is a default.',
+      },
+    ),
     priorBsiRampMax: param(
       'g3.priorBsiRampMax',
       0.05,

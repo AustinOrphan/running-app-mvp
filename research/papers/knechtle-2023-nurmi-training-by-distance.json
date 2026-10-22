@@ -1,0 +1,34 @@
+{
+  "id": "knechtle-2023-nurmi-training-by-distance",
+  "title": "Differences in training characteristics of recreational endurance runners by race distance - results from the NURMI Study (Step 2)",
+  "authors": "Knechtle B, Tanous D, Thuany M, Motevalli M, Wirnitzer G, Leitzmann C, et al.",
+  "year": 2023,
+  "journal": "Frontiers in Psychology",
+  "doi": "10.3389/fpsyg.2023.1269374",
+  "pmid": "38264416",
+  "url": "https://doi.org/10.3389/fpsyg.2023.1269374",
+  "design": "cross-sectional",
+  "population": "Recreational runners preferring 10 km, half-marathon or marathon/ultra, web survey (German-speaking countries)",
+  "sampleSize": 245,
+  "evidenceLevel": "C",
+  "topics": ["volume-performance"],
+  "findings": [
+    "The abstract states 154 recreational runners; the full text reports 317 completed surveys and 245 analysed after data clearance (91 10-km, 89 half-marathon, 65 marathon/ultra), so the sample size is inconsistent within the paper.",
+    "10 km runners trained the least distance and time in every period reported (Table 3); weekly volume ranged from 18.5 km and 1.0 h (transition/recovery, Period A) to 31.8 km and 4.78 h (competition-trial condition), with a median of 2-3 sessions per week.",
+    "Main competitive period (Period C), 10 km group (mean +/- SD): 26.0 +/- 20.5 km, 3.57 +/- 2.8 h, 3 sessions per week; half-marathon 27.8 km and 3.8 h; marathon/ultra 47.3 km, 6.48 h and 4 sessions.",
+    "The article reports no longest-run or long-run variable for any group; the reported per-day figure for the 10 km group in Period C is 8.79 km and 0.38 h."
+  ],
+  "limitations": "Self-reported survey; standard deviations are about as large as the means; hours imply roughly 7-8 min/km, suggesting hours include non-running training or are overestimated; the per-day hours (0.38 h) do not reconcile with weekly hours divided by sessions (about 71 min), so session length cannot be derived; sample size inconsistent between abstract and tables; goal-distance groups are self-reported preferences.",
+  "implications": [
+    "Typical recreational 10 km runners report about 3 sessions and 3.5-4.8 h per week (self-reported, high variance), which supports a medium tier around 3-5 h/week with 3 run days.",
+    "At 2-3 sessions and under 3 h/week, a long run is necessarily a large share of the week; cap the share, not only the minutes, at low volume. Per-session length cannot be inferred from this source."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched 2026-10-22: Crossref (Frontiers in Psychology, online 2024-01-09, vol 14 = 2023, Knechtle B first author), Europe PMC abstract (PMC10805148, 154 runners) and the PMC full-text XML Table 3, where Period A/C and Condition 4 values were checked against the record (26 km, 3.57 h, 31.8 km, 4.78 h, 18.5 km, 1.0 h all match). Corrected: sample size set to 245 analysed, 'daily 0.38 h' kept but flagged as unreconciled, removed the claim that the average session is 70-90 min, and the Period C marathon/ultra hours added.",
+    "checkedAt": "2026-10-22"
+  }
+}

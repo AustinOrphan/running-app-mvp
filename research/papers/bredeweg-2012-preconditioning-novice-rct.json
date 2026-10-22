@@ -1,0 +1,33 @@
+{
+  "id": "bredeweg-2012-preconditioning-novice-rct",
+  "title": "The effectiveness of a preconditioning programme on preventing running-related injuries in novice runners: a randomised controlled trial",
+  "authors": "Bredeweg SW, Zijlstra S, Bessem B, Buist I",
+  "year": 2012,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2012-091397",
+  "pmid": "22842237",
+  "url": "https://doi.org/10.1136/bjsports-2012-091397",
+  "design": "rct",
+  "population": "Novice runners preparing for a four-mile event (Netherlands)",
+  "sampleSize": 432,
+  "evidenceLevel": "B",
+  "topics": ["beginners-return"],
+  "findings": [
+    "432 novices were allocated to a 4-week preconditioning (PRECON) programme of walking and hopping exercises (n=211) or control (n=221); both groups then did a 9-week running programme.",
+    "Primary outcome, running-related injuries per 100 runners: 15.2% (PRECON) vs 16.8% (control), chi2=0.161, df=1, p=0.69, not significant.",
+    "Authors conclude a 4-week preconditioning programme with walking and hopping exercises had no influence on the incidence of running-related injuries in novice runners."
+  ],
+  "limitations": "Walking-and-hopping preconditioning only (not run-walk); injury needed a restriction of running of at least a week; no arm testing run-walk against continuous running; the control group began running at once, but the start dose of the 9-week programme is not given in the abstract.",
+  "implications": [
+    "A 4-week walking and hopping block before the first run did not lower injury: do not add a preconditioning block before run-walk on the strength of injury prevention (grade B for this one contrast).",
+    "The trial does not test the starting dose or run-walk, so it gives no value for the floor week."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (BJSM, first author Bredeweg, issued 2012-07-28) and Europe PMC abstract (PMID 22842237). Numbers match. Corrected the intervention wording: walking and hopping exercises, not 'walk-only', and removed the overreaching claim that the trial supports starting to run in week 1.",
+    "checkedAt": "2026-10-22"
+  }
+}

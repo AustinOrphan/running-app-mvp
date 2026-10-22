@@ -1,0 +1,34 @@
+{
+  "id": "daniel-2024-217km-sleep-training",
+  "title": "Ultramarathon runners and support crew: The influence of pre-race sleep and training profiles on performance in a 217-km mountain race",
+  "authors": "Daniel NVS, Barreira J, Bastos AM, Dos Santos NE, Franco B, Esteves AM, Belli T",
+  "year": 2024,
+  "journal": "Sleep Medicine",
+  "doi": "10.1016/j.sleep.2024.06.005",
+  "pmid": "38909481",
+  "url": "https://doi.org/10.1016/j.sleep.2024.06.005",
+  "design": "cross-sectional",
+  "population": "38 ultramarathon runners and 59 support crew members in a 217-km mountain race, assessed by questionnaire.",
+  "sampleSize": 38,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "38 runners and 59 crew members answered questionnaires on chronotype, sleep quality, sleepiness, demographics and pre-race training.",
+    "Training frequency was highly correlated with race time (r = -0.59).",
+    "Athletes with good sleep quality trained one day more per week than those without (p < 0.001).",
+    "Finishers had higher sleep latency than non-finishers (p < 0.001).",
+    "The abstract reports no longest-run value."
+  ],
+  "limitations": "Very small runner sample, questionnaire, many comparisons, no longest-run data; relevance to the question is low (training frequency only).",
+  "implications": [
+    "Weakly supports training frequency over single-session size for beyond-100-mile races; no support for a 270 min longest-run number."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (Sleep Med, 2024-08, Daniel) and Europe PMC abstract (PMID 38909481). r = -0.59 and both p < 0.001 values match. Kept as marginally relevant (training frequency in a >100-mile race); no long-run data.",
+    "checkedAt": "2026-10-22"
+  }
+}
