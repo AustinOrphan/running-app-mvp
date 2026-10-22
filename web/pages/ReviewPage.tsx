@@ -138,6 +138,17 @@ function defaultWeek(
   return finished[finished.length - 1] ?? pickerWeeks[pickerWeeks.length - 1] ?? mondayOf(today)
 }
 
+/** The subtitle for a week that has no plan week: why there are no suggestions. */
+function outsidePlanContext(plan: PlanWithWeeks | null, weekStart: string): string {
+  const first = plan?.weeks[0]?.weekStart
+  if (plan === null || first === undefined) {
+    return 'No plan yet. Suggestions appear once a plan exists.'
+  }
+  return weekStart < first
+    ? "Before the plan starts. Suggestions begin with the plan's first week."
+    : 'After the plan ends. There are no suggestions for this week.'
+}
+
 export function ReviewPage() {
   const today = todayIso()
   const thisWeek = mondayOf(today)
@@ -234,7 +245,7 @@ function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }:
     <div className={styles.page}>
       <PageHeader
         title="Review"
-        context={planWeek ? phaseLabel(planWeek.phase) : 'Not in the plan'}
+        context={planWeek ? phaseLabel(planWeek.phase) : outsidePlanContext(plan, selected)}
       />
 
       <div className={styles.picker}>
