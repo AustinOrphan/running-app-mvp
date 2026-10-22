@@ -109,6 +109,16 @@ describe('period totals', () => {
     ])
   })
 
+  test('dismissed duplicates count; confirmed duplicates and cross do not', () => {
+    expect(
+      monthlyTotals([
+        run(5000, 1200, { date: '2026-04-01', duplicateStatus: 'dismissed' }),
+        run(5000, 1200, { date: '2026-04-02', duplicateStatus: 'confirmed' }),
+        makeActivity({ type: 'cross', date: '2026-04-03', distanceM: 20000, durationSec: 3600 }),
+      ]),
+    ).toEqual([{ month: '2026-04', runMin: 20, runM: 5000, runs: 1, longestRunMin: 20 }])
+  })
+
   test('runs without a distance add zero metres', () => {
     expect(yearlyTotals([run(null, 600)])).toEqual([
       { year: '2026', runMin: 10, runM: 0, runs: 1, longestRunMin: 10 },
