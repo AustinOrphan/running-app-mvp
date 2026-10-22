@@ -47,6 +47,12 @@
   font-weight: 500;
 }
 
+.subheading {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
 .list {
   margin: 0;
   padding: 0;

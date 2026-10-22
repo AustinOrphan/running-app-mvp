@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { todayIso } from '../../shared/dates.ts'
 import type { Activity, ActivityType, Units } from '../../shared/types.ts'
@@ -56,10 +56,13 @@ function ActivityRow({
   activity,
   units,
   onEdit,
+  restorable = false,
 }: {
   activity: Activity
   units: Units
   onEdit: () => void
+  /** Offers to undo a confirmed duplicate, so the row counts again. */
+  restorable?: boolean
 }) {
   const resolve = useResolveDuplicate()
   const hasDistance = activity.type !== 'strength'
@@ -89,6 +92,26 @@ function ActivityRow({
           <span className={styles.source}>Duplicate, not counted</span>
         ) : null}
       </button>
+      {restorable && activity.duplicateStatus === 'confirmed' ? (
+        <div className={styles.duplicate}>
+          <div className={styles.duplicateActions}>
+            <Button
+              variant="quiet"
+              loading={resolve.isPending}
+              onClick={() => {
+                resolve.mutate({ id: activity.id, status: 'dismissed' })
+              }}
+            >
+              Restore
+            </Button>
+          </div>
+          {resolve.isError ? (
+            <p role="alert" className={styles.error}>
+              {`Not saved. ${resolve.error instanceof ApiError ? resolve.error.message : 'Something went wrong.'} Try again.`}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       {activity.duplicateStatus === 'possible' ? (
         <div className={styles.duplicate}>
           <span className={styles.badge}>Possible duplicate</span>
@@ -130,6 +153,7 @@ export function ActivitiesPage() {
   const [params, setParams] = useSearchParams()
   const adding = params.get('new') === '1'
   const duplicatesOnly = params.get('duplicates') === '1'
+  const confirmedHeadingId = useId()
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [from, setFrom] = useState('')
@@ -163,6 +187,10 @@ export function ActivitiesPage() {
   const rows = (activities.data ?? []).filter(
     (row) => !duplicatesOnly || row.duplicateStatus === 'possible',
   )
+  // The duplicates view also lists confirmed rows, so a wrong confirmation can be undone.
+  const confirmedRows = duplicatesOnly
+    ? (activities.data ?? []).filter((row) => row.duplicateStatus === 'confirmed')
+    : []
   const loading = activities.isPending || settings.isPending
   const noneAtAll = activities.isSuccess && activities.data.length === 0 && !filtersActive
   // The empty state carries its own Log and Import buttons, so the bar and filters wait for data.
@@ -318,6 +346,33 @@ export function ActivitiesPage() {
       ) : null}
 
       {body}
+
+      {confirmedRows.length > 0 && !loading && !badRange ? (
+        <section aria-labelledby={confirmedHeadingId} className={styles.group}>
+          <h2 id={confirmedHeadingId} className={styles.subheading}>
+            Marked as duplicates
+          </h2>
+          <p className={styles.notice}>These are not counted. Restore a run to count it again.</p>
+          {groupByDate(confirmedRows).map((group) => (
+            <div key={group.date}>
+              <h3 className={styles.date}>{dateHeading(group.date)}</h3>
+              <ul className={styles.list}>
+                {group.rows.map((row) => (
+                  <ActivityRow
+                    key={row.id}
+                    activity={row}
+                    units={units}
+                    restorable
+                    onEdit={() => {
+                      setEditing(row)
+                    }}
+                  />
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      ) : null}
 
       <ActivityForm
         open={adding || editing !== null}
