@@ -252,8 +252,8 @@ export function ActivitiesPage() {
       <PageHeader
         title="Activities"
         context={
-          activities.isSuccess && activities.data.length > 0
-            ? `${activities.data.length} ${activities.data.length === 1 ? 'activity' : 'activities'}`
+          activities.isSuccess && rows.length > 0
+            ? `${rows.length} ${rows.length === 1 ? 'activity' : 'activities'}`
             : undefined
         }
       />

@@ -393,6 +393,8 @@ describe('Activities page', () => {
     expect(await screen.findByText('Possible duplicate')).toBeInTheDocument()
     expect(screen.getByText('30:00')).toBeInTheDocument()
     expect(screen.queryByText('1:00:00')).not.toBeInTheDocument()
+    expect(screen.getByText('1 activity')).toBeInTheDocument()
+    expect(screen.queryByText('2 activities')).not.toBeInTheDocument()
   })
 
   test('a From date after To explains the range and sends no request for it', async () => {
