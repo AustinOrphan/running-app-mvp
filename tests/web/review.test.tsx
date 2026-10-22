@@ -2,17 +2,30 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays, weekStartsBetween } from '../../shared/dates.ts'
+import type { WeeklyDecision } from '../../shared/engine/types.ts'
 import type {
   Activity,
+  PlanSession,
   PlanWeek,
-  PlanWithWeeks,
+  PlanWithSessions,
   WeekRow,
   WeeklyReview,
+  ZoneProposalView,
 } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ReviewPage } from '../../web/pages/ReviewPage.tsx'
 import { makeActivity, makeWeekRow } from '../factories.ts'
 import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+
+// The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
+vi.mock('../../web/components/WhyDrawer.tsx', () => ({
+  WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
+    open ? (
+      <div role="dialog" aria-label="Evidence">
+        {rules.join(',')}
+      </div>
+    ) : null,
+}))
 
 // Wednesday 21 Oct 2026: the current week starts 19 Oct, the last finished week 12 Oct.
 const W = '2026-10-12'
@@ -51,7 +64,7 @@ function planWeek(weekStart: string, over: Partial<PlanWeek> = {}): PlanWeek {
   }
 }
 
-function makePlan(weeks: PlanWeek[]): PlanWithWeeks {
+function makePlan(weeks: PlanWeek[], over: Partial<PlanWithSessions> = {}): PlanWithSessions {
   return {
     id: 'p1',
     userId: 'u1',
@@ -65,7 +78,61 @@ function makePlan(weeks: PlanWeek[]): PlanWithWeeks {
     createdAt: '2026-10-01T00:00:00.000Z',
     updatedAt: '2026-10-01T00:00:00.000Z',
     weeks,
+    sessions: [],
+    feasibility: null,
+    warnings: [],
+    checklist: [],
+    zones: null,
+    ...over,
   }
+}
+
+function makeSession(over: Partial<PlanSession> = {}): PlanSession {
+  return {
+    id: 's1',
+    planId: 'p1',
+    weekStart: W,
+    date: '2026-10-13',
+    order: 0,
+    kind: 'easy',
+    title: 'Easy run',
+    durationMin: 45,
+    distanceM: null,
+    gainM: null,
+    structure: [],
+    target: { zone: 'z2', rpe: [3, 4], hr: null, paceSecPerKm: null, heatNote: null },
+    purpose: 'Aerobic base.',
+    rules: ['e-1'],
+    flags: [],
+    status: 'planned',
+    activityId: null,
+    linkSource: null,
+    execution: null,
+    original: null,
+    updatedAt: '2026-10-01T00:00:00.000Z',
+    ...over,
+  }
+}
+
+function makeProposal(over: Partial<ZoneProposalView> = {}): ZoneProposalView {
+  return {
+    id: 'zp1',
+    boundary: 'thresholdPace',
+    from: 330,
+    to: 320,
+    observations: 3,
+    reason: 'The last 3 threshold sessions felt easier than expected.',
+    rules: ['C8'],
+    ...over,
+  }
+}
+
+/** A version-2 plan: the server's weekly decision arrives on the review row. */
+function v2Plan(sessions: PlanSession[] = []): PlanWithSessions {
+  return makePlan(
+    [planWeek(W, { tid: { z1: 80, z2: 12, z3: 8 } }), planWeek(CURRENT, { index: 2 })],
+    { generatorVersion: 2, paramsVersion: '1', sessions },
+  )
 }
 
 function makeReview(weekStart: string, over: Partial<WeeklyReview> = {}): WeeklyReview {
@@ -91,7 +158,8 @@ function makeReview(weekStart: string, over: Partial<WeeklyReview> = {}): Weekly
 }
 
 interface Fixture {
-  plan?: PlanWithWeeks | null
+  plan?: PlanWithSessions | null
+  proposals?: ZoneProposalView[]
   reviews?: Record<string, Partial<WeeklyReview>>
   weeks?: Record<string, Partial<WeekRow>>
   activities?: Activity[]
@@ -99,7 +167,7 @@ interface Fixture {
   allReviewed?: boolean
 }
 
-const defaultPlan = (): PlanWithWeeks =>
+const defaultPlan = (): PlanWithSessions =>
   makePlan([planWeek(W), planWeek(CURRENT, { baselineRunMin: 400, targetRunMin: 400, index: 2 })])
 
 function routes(fixture: Fixture = {}): MockRoutes {
@@ -120,6 +188,8 @@ function routes(fixture: Fixture = {}): MockRoutes {
         makeWeekRow({ weekStart, ...fixture.weeks?.[weekStart] }),
       ),
     'GET /api/activities': () => fixture.activities ?? [],
+    'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'km' }),
+    'GET /api/zones/proposals': () => fixture.proposals ?? [],
   }
 }
 
@@ -489,5 +559,253 @@ describe('ReviewPage', () => {
       expect(screen.getByText('Week of 27 Jul')).toBeInTheDocument()
     })
     expect(screen.getByRole('button', { name: 'Previous week' })).toBeDisabled()
+  })
+
+  describe('version-2 plans', () => {
+    const decision: WeeklyDecision = {
+      decision: 'hold',
+      signals: [
+        {
+          code: 'completion-low',
+          detail: '210 of 300 planned minutes were run (70%). Volume holds.',
+          rules: ['J5', 'G-6'],
+        },
+        {
+          code: 'sleep-warning',
+          detail: 'Sleep averaged 6.2 h over the last 7 nights.',
+          rules: ['J5'],
+        },
+      ],
+      nextWeekTargetMin: 280,
+    }
+    const decided: Partial<WeeklyReview> & { signals: WeeklyDecision['signals'] } = {
+      suggestedAction: 'hold',
+      suggestedReason: 'Signals ask for a steady week.',
+      suggestedNextMin: decision.nextWeekTargetMin,
+      signals: decision.signals,
+    }
+
+    test("shows the server's weekly decision with each signal, and the Why button passes the signals' rules", async () => {
+      const user = userEvent.setup()
+      renderReview({ plan: v2Plan(), weeks: { [W]: fullWeek }, reviews: { [W]: decided } })
+      await ready()
+
+      const region = screen.getByRole('region', { name: 'Suggested action' })
+      expect(within(region).getByText('Hold')).toBeInTheDocument()
+      expect(within(region).getByText('Signals ask for a steady week.')).toBeInTheDocument()
+      expect(within(region).getByText('Suggested next week: 280 min (4.7 h)')).toBeInTheDocument()
+      const signals = within(region).getByRole('list', { name: 'Signals' })
+      expect(within(signals).getAllByRole('listitem')).toHaveLength(2)
+      expect(within(signals).getByText(/210 of 300 planned minutes/)).toBeInTheDocument()
+
+      await user.click(within(region).getByRole('button', { name: 'Why: weekly decision' }))
+      expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('J5,G-6')
+    })
+
+    test('the suggestion does not change live with the form; the final decision defaults to it and has no Repeat', async () => {
+      const user = userEvent.setup()
+      renderReview({ plan: v2Plan(), weeks: { [W]: fullWeek }, reviews: { [W]: decided } })
+      await ready()
+      await user.click(screen.getByRole('radio', { name: '9' }))
+      const region = screen.getByRole('region', { name: 'Suggested action' })
+      expect(within(region).getByText('Hold')).toBeInTheDocument()
+      expect(within(region).getByText(/updates when the review is saved/)).toBeInTheDocument()
+
+      const decisionGroup = screen.getByRole('radiogroup', { name: 'Final decision' })
+      expect(within(decisionGroup).getByRole('radio', { name: 'Hold' })).toBeChecked()
+      expect(within(decisionGroup).queryByRole('radio', { name: 'Repeat' })).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Next week minutes')).toHaveValue('280')
+    })
+
+    test('with no decision from the server yet, the page says so and still saves', async () => {
+      renderReview({ plan: v2Plan(), weeks: { [W]: fullWeek } })
+      await ready()
+      expect(screen.getByText('The weekly decision is not ready yet.')).toBeInTheDocument()
+    })
+
+    test('lists the sessions of the week with what happened, in words that never say missed or behind', async () => {
+      const user = userEvent.setup()
+      renderReview({
+        plan: v2Plan([
+          makeSession({
+            id: 's1',
+            status: 'completed',
+            activityId: 'a1',
+            execution: {
+              completion: 'completed',
+              intensity: 'on',
+              effort: {
+                score: 0,
+                confidence: 'moderate',
+                parts: { rpeDelta: 0, feel: 3, hrResidualZ: null, paceResidualPct: null },
+              },
+              conditions: { wbgtC: null, heatAdjusted: false, gradeAdjusted: false },
+              flags: [],
+              lines: [
+                '45 min against 45 planned (100%).',
+                'Intensity stayed in the target range.',
+                'Effort matched expectation.',
+              ],
+            },
+          }),
+          makeSession({
+            id: 's2',
+            date: '2026-10-15',
+            title: 'Threshold intervals',
+            status: 'skipped',
+          }),
+          makeSession({
+            id: 's3',
+            date: '2026-10-17',
+            title: 'Long run',
+            status: 'partial',
+            execution: {
+              completion: 'partial',
+              intensity: 'below',
+              effort: {
+                score: 2,
+                confidence: 'low',
+                parts: { rpeDelta: 2, feel: null, hrResidualZ: null, paceResidualPct: null },
+              },
+              conditions: { wbgtC: 24, heatAdjusted: true, gradeAdjusted: false },
+              flags: ['heat'],
+              lines: [
+                '70 min against 100 planned (70%).',
+                'Effort felt much harder than expected.',
+                'Warm conditions (WBGT about 24 C): the heart-rate expectation was raised and pace was not judged.',
+              ],
+            },
+          }),
+          makeSession({ id: 's4', weekStart: CURRENT, date: '2026-10-20', title: 'Later run' }),
+        ]),
+        weeks: { [W]: fullWeek },
+      })
+      await ready()
+
+      const section = screen.getByRole('region', { name: 'Planned sessions' })
+      const items = within(section).getAllByRole('listitem')
+      expect(items).toHaveLength(3)
+      expect(within(items[0] as HTMLElement).getByText('Easy run')).toBeInTheDocument()
+      expect(within(items[0] as HTMLElement).getByText('Completed')).toBeInTheDocument()
+      expect(
+        within(items[0] as HTMLElement).getByText('Effort matched expectation.'),
+      ).toBeInTheDocument()
+      // The engine's lines are the summary; the page adds no second wording of the same facts.
+      expect(within(items[0] as HTMLElement).getAllByText(/target range|target zone/)).toHaveLength(
+        1,
+      )
+      expect(within(items[0] as HTMLElement).queryByText(/^Felt /)).not.toBeInTheDocument()
+      expect(within(items[1] as HTMLElement).getByText('Skipped')).toBeInTheDocument()
+      expect(within(items[2] as HTMLElement).getByText('Partly done')).toBeInTheDocument()
+      expect(within(items[2] as HTMLElement).getAllByText(/harder than expected/)).toHaveLength(1)
+      expect(within(items[2] as HTMLElement).getByText(/WBGT about 24 C/)).toBeInTheDocument()
+      expect(section.textContent).not.toMatch(/missed|behind/i)
+
+      await user.click(
+        within(items[0] as HTMLElement).getByRole('button', { name: 'Why: Easy run' }),
+      )
+      expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('e-1')
+    })
+
+    test('a version-1 plan still uses the live suggestion and has no sessions section', async () => {
+      renderReview({ weeks: { [W]: fullWeek } })
+      await ready()
+      expect(screen.queryByRole('region', { name: 'Planned sessions' })).not.toBeInTheDocument()
+      expect(screen.getByRole('radio', { name: 'Repeat' })).toBeInTheDocument()
+    })
+  })
+
+  describe('zone proposals', () => {
+    test('no proposals, no section', async () => {
+      renderReview({ plan: v2Plan(), weeks: { [W]: fullWeek } })
+      await ready()
+      expect(screen.queryByRole('region', { name: 'Zone proposals' })).not.toBeInTheDocument()
+    })
+
+    test('shows the change, its reason and observations; Accept posts and toasts', async () => {
+      const user = userEvent.setup()
+      let proposals = [makeProposal()]
+      const api = renderReview(
+        { plan: v2Plan(), weeks: { [W]: fullWeek } },
+        {
+          'GET /api/zones/proposals': () => proposals,
+          'POST /api/zones/proposals/zp1/accept': () => {
+            proposals = []
+            return {}
+          },
+        },
+      )
+      await ready()
+
+      const region = await screen.findByRole('region', { name: 'Zone proposals' })
+      expect(within(region).getByText('Threshold pace')).toBeInTheDocument()
+      expect(within(region).getByText('5:30 /km to 5:20 /km')).toBeInTheDocument()
+      expect(
+        within(region).getByText('The last 3 threshold sessions felt easier than expected.'),
+      ).toBeInTheDocument()
+      expect(within(region).getByText('Based on 3 sessions.')).toBeInTheDocument()
+
+      await user.click(within(region).getByRole('button', { name: 'Why: Threshold pace change' }))
+      expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('C8')
+      await user.keyboard('{Escape}')
+
+      await user.click(within(region).getByRole('button', { name: 'Accept Threshold pace change' }))
+      expect(await screen.findByText('Zones updated')).toBeInTheDocument()
+      expect(
+        api.calls.some((c) => c.method === 'POST' && c.url === '/api/zones/proposals/zp1/accept'),
+      ).toBe(true)
+      await waitFor(() => {
+        expect(screen.queryByRole('region', { name: 'Zone proposals' })).not.toBeInTheDocument()
+      })
+    })
+
+    test('Decline posts and toasts; zones stay as they were', async () => {
+      const user = userEvent.setup()
+      let proposals = [makeProposal()]
+      const api = renderReview(
+        { plan: v2Plan(), weeks: { [W]: fullWeek } },
+        {
+          'GET /api/zones/proposals': () => proposals,
+          'POST /api/zones/proposals/zp1/decline': () => {
+            proposals = []
+            return undefined
+          },
+        },
+      )
+      await ready()
+      await user.click(await screen.findByRole('button', { name: 'Decline Threshold pace change' }))
+      expect(await screen.findByText('Proposal declined. Zones are unchanged.')).toBeInTheDocument()
+      expect(api.calls.some((c) => c.url === '/api/zones/proposals/zp1/decline')).toBe(true)
+    })
+
+    test('a failed accept is stated and the proposal stays', async () => {
+      const user = userEvent.setup()
+      renderReview(
+        { plan: v2Plan(), weeks: { [W]: fullWeek }, proposals: [makeProposal()] },
+        {
+          'POST /api/zones/proposals/zp1/accept': () => ({
+            status: 409,
+            body: { error: { code: 'conflict', message: 'The proposal is out of date.' } },
+          }),
+        },
+      )
+      await ready()
+      await user.click(await screen.findByRole('button', { name: 'Accept Threshold pace change' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Zone change not saved. The proposal is out of date.',
+      )
+      expect(screen.getByRole('region', { name: 'Zone proposals' })).toBeInTheDocument()
+    })
+
+    test("a critical speed proposal is shown as a pace, in the runner's units", async () => {
+      renderReview({
+        plan: v2Plan(),
+        weeks: { [W]: fullWeek },
+        proposals: [makeProposal({ boundary: 'cs', from: 4, to: 4.1, reason: 'Efforts agree.' })],
+      })
+      await ready()
+      expect(await screen.findByText('Critical speed')).toBeInTheDocument()
+      expect(screen.getByText('4:10 /km to 4:04 /km')).toBeInTheDocument()
+    })
   })
 })

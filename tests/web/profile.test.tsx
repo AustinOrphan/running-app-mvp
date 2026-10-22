@@ -1,9 +1,21 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import type { AthleteProfile, Availability, Units, Weekday } from '../../shared/types.ts'
+import type { ZoneSet } from '../../shared/engine/types.ts'
+import type { AthleteProfile, Availability, Screening, Units, Weekday } from '../../shared/types.ts'
+import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ProfilePage } from '../../web/pages/ProfilePage.tsx'
 import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+
+// The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
+vi.mock('../../web/components/WhyDrawer.tsx', () => ({
+  WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
+    open ? (
+      <div role="dialog" aria-label="Evidence">
+        {rules.join(',')}
+      </div>
+    ) : null,
+}))
 
 const DAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
@@ -44,9 +56,39 @@ function settings(units: Units) {
   return () => ({ email: 'runner@example.com', displayName: null, units })
 }
 
+function emptyZones(over: Partial<ZoneSet> = {}): ZoneSet {
+  return {
+    hrMax: null,
+    hrRest: null,
+    lt1Hr: null,
+    lt2Hr: null,
+    csMps: null,
+    lt1PaceSecPerKm: null,
+    thresholdPaceSecPerKm: null,
+    hr: null,
+    pace: null,
+    rpe: { z1: [2, 3], z2: [4, 6], z3: [7, 9] },
+    ...over,
+  }
+}
+
+function makeScreening(over: Partial<Screening> = {}): Screening {
+  return {
+    id: 'sc1',
+    date: '2026-09-01',
+    kind: 'reds',
+    answers: {},
+    flags: 0,
+    createdAt: '2026-09-01T09:00:00.000Z',
+    ...over,
+  }
+}
+
 function setup(profile: AthleteProfile, extra: MockRoutes = {}) {
   const api = mockApi({
     'GET /api/settings': settings('km'),
+    'GET /api/zones': () => emptyZones(),
+    'GET /api/screenings': () => [],
     'GET /api/profile': () => profile,
     'PUT /api/profile': ({ body }) => body,
     ...extra,
@@ -327,5 +369,174 @@ describe('ProfilePage', () => {
     renderWithProviders(<ProfilePage />)
     expect(await screen.findByRole('alert')).toHaveTextContent(/did not load/)
     expect(within(document.body).queryByRole('button', { name: 'Save profile' })).toBeNull()
+  })
+
+  describe('zones', () => {
+    test('shows each boundary with its value, range and source, and says so when one is not estimated yet', async () => {
+      const user = userEvent.setup()
+      setup(makeProfile(), {
+        'GET /api/zones': () =>
+          emptyZones({
+            hrMax: { value: 188, band: [182, 194], source: 'hrmax-age', asOf: '2026-10-01' },
+            thresholdPaceSecPerKm: {
+              value: 330,
+              band: [322, 338],
+              source: 'cs',
+              asOf: '2026-10-20',
+            },
+            hr: { z1: [120, 148], z2: [149, 168], z3: [169, 182] },
+            pace: { z1: [420, 360], z2: [359, 335], z3: [334, 300] },
+          }),
+      })
+      const section = await screen.findByRole('region', { name: 'Zones' })
+
+      const hrMax = (await within(section).findByText('Maximum heart rate')).closest('li')
+      expect(within(hrMax as HTMLElement).getByText('188 bpm')).toBeInTheDocument()
+      expect(within(hrMax as HTMLElement).getByText('Range 182 bpm to 194 bpm')).toBeInTheDocument()
+      expect(
+        within(hrMax as HTMLElement).getByText('Estimated from age, as of 2026-10-01'),
+      ).toBeInTheDocument()
+
+      const threshold = within(section).getByText('Threshold pace').closest('li')
+      expect(within(threshold as HTMLElement).getByText('5:30 /km')).toBeInTheDocument()
+      expect(
+        within(threshold as HTMLElement).getByText('From critical speed, as of 2026-10-20'),
+      ).toBeInTheDocument()
+
+      const cs = within(section).getByText('Critical speed').closest('li')
+      expect(within(cs as HTMLElement).getByText('Not estimated yet.')).toBeInTheDocument()
+
+      const z2 = within(section).getByRole('row', { name: /Zone 2/ })
+      expect(within(z2).getByText('149 to 168 bpm')).toBeInTheDocument()
+      expect(within(z2).getByText('5:59 to 5:35 /km')).toBeInTheDocument()
+      expect(within(z2).getByText('4 to 6')).toBeInTheDocument()
+
+      await user.click(within(section).getByRole('button', { name: 'Why: zones' }))
+      expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('C1,C2')
+    })
+
+    test('a failed load is stated and the form still works', async () => {
+      setup(makeProfile(), {
+        'GET /api/zones': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'Something went wrong.' } },
+        }),
+      })
+      expect(await screen.findByText('The zones did not load.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Save profile' })).toBeInTheDocument()
+    })
+  })
+
+  describe('risk profile', () => {
+    test('a bone stress entry is reflected in the risk note, live', async () => {
+      const { user } = setup(makeProfile())
+      await loaded()
+      expect(screen.getByText(/Bone stress history: none listed/)).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Add an injury' }))
+      await user.selectOptions(screen.getByLabelText('Injury 1 type'), 'bone-stress')
+      expect(screen.getByText(/Bone stress history: listed/)).toBeInTheDocument()
+      expect(screen.queryByText(/none listed/)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('energy availability screen', () => {
+    function setupScreening(screenings: Screening[], extra: MockRoutes = {}) {
+      const user = userEvent.setup()
+      const api = mockApi({
+        'GET /api/settings': settings('km'),
+        'GET /api/zones': () => emptyZones(),
+        'GET /api/profile': () => makeProfile(),
+        'GET /api/screenings': () => screenings,
+        ...extra,
+      })
+      renderWithProviders(
+        <ToastProvider>
+          <ProfilePage />
+        </ToastProvider>,
+      )
+      return { api, user }
+    }
+
+    test('with no screen yet it offers to start one', async () => {
+      setupScreening([])
+      const section = await screen.findByRole('region', { name: 'Energy availability screen' })
+      expect(await within(section).findByText(/No screen yet/)).toBeInTheDocument()
+      expect(within(section).getByRole('button', { name: 'Start screen' })).toBeInTheDocument()
+    })
+
+    test('shows the last screen and when the next is due, 12 weeks on', async () => {
+      setupScreening([makeScreening({ date: '2026-09-01', flags: 1 })])
+      const section = await screen.findByRole('region', { name: 'Energy availability screen' })
+      expect(
+        await within(section).findByText(/Last screened Tue 1 Sep\w* 2026: 1 sign\./),
+      ).toBeInTheDocument()
+      expect(within(section).getByText(/Next screen due Tue 24 Nov 2026/)).toBeInTheDocument()
+      expect(within(section).queryByText(/Two or more signs/)).not.toBeInTheDocument()
+      expect(within(section).getByRole('button', { name: 'Screen again' })).toBeInTheDocument()
+    })
+
+    test('two or more signs show the clinician prompt and no diagnosis', async () => {
+      setupScreening([makeScreening({ flags: 2 })])
+      const section = await screen.findByRole('region', { name: 'Energy availability screen' })
+      const prompt = await within(section).findByText(/Two or more signs/)
+      expect(prompt).toHaveTextContent('clinician')
+      expect(prompt).toHaveTextContent('not a diagnosis')
+    })
+
+    test('saving posts every answer as yes or no, toasts and refreshes the last screen', async () => {
+      let screenings: Screening[] = []
+      const { api, user } = setupScreening([], {
+        'GET /api/screenings': () => screenings,
+        'POST /api/screenings': () => {
+          screenings = [makeScreening({ id: 'sc2', date: '2026-10-21', flags: 2 })]
+          return { status: 201, body: screenings[0] }
+        },
+      })
+      await user.click(await screen.findByRole('button', { name: 'Start screen' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Energy availability screen' })
+      await user.click(within(dialog).getByRole('checkbox', { name: /Unintended weight loss/ }))
+      await user.click(
+        within(dialog).getByRole('checkbox', { name: /Tiredness that does not lift/ }),
+      )
+      await user.click(within(dialog).getByRole('button', { name: 'Save screen' }))
+
+      expect(await screen.findByText('Screen saved')).toBeInTheDocument()
+      const post = api.calls.find((c) => c.method === 'POST' && c.url === '/api/screenings')
+      expect(post?.body).toEqual({
+        answers: {
+          unintendedWeightLoss: true,
+          menstrualChanges: false,
+          recurrentInjuryOrIllness: false,
+          persistentFatigue: true,
+          giSymptoms: false,
+          disorderedEating: false,
+        },
+      })
+      await waitFor(() => {
+        expect(
+          screen.queryByRole('dialog', { name: 'Energy availability screen' }),
+        ).not.toBeInTheDocument()
+      })
+      expect(
+        await screen.findByText(/Last screened Wed 21 Oct 2026: 2 signs\./),
+      ).toBeInTheDocument()
+      expect(screen.getByText(/Two or more signs/)).toBeInTheDocument()
+    })
+
+    test('a failed save stays in the sheet with the reason', async () => {
+      const { user } = setupScreening([], {
+        'POST /api/screenings': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'The database is busy.' } },
+        }),
+      })
+      await user.click(await screen.findByRole('button', { name: 'Start screen' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Energy availability screen' })
+      await user.click(within(dialog).getByRole('button', { name: 'Save screen' }))
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+        'Screen not saved. The database is busy.',
+      )
+    })
   })
 })

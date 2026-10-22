@@ -1,4 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
+import { addDays, todayIso } from '../../shared/dates.ts'
+import type { Boundary, ZoneSet } from '../../shared/engine/types.ts'
 import type {
   AthleteProfile,
   Availability,
@@ -8,14 +11,26 @@ import type {
   Weekday,
 } from '../../shared/types.ts'
 import { formatDuration, milesToM } from '../../shared/units.ts'
-import { fieldErrors } from '../api/client.ts'
+import { ApiError, fieldErrors } from '../api/client.ts'
 import { useProfile, useUpdateProfile } from '../api/profile.ts'
+import { useSaveScreening, useScreenings } from '../api/screenings.ts'
 import { useSettings } from '../api/settings.ts'
+import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
+import { ExplainButton } from '../components/ExplainButton.tsx'
 import { Field, Input, Select } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
+import { Sheet } from '../components/Sheet.tsx'
 import { useToast } from '../components/Toast.tsx'
+import { formatLongDate } from '../components/format.ts'
+import {
+  BOUNDARY_SOURCE_LABELS,
+  bpmRangeText,
+  bpmText,
+  paceRangeText,
+  paceText,
+} from '../components/zoneFormat.ts'
 import styles from './ProfilePage.module.css'
 
 const WEEKDAYS: Array<{ value: Weekday; label: string }> = [
@@ -688,6 +703,11 @@ function ProfileForm({ initial, units }: { initial: AthleteProfile; units: Units
               Add an injury
             </Button>
           </div>
+          <p className={styles.note}>
+            {draft.injuries.some((injury) => injury.kind === 'bone-stress')
+              ? 'Bone stress history: listed. The plan adds weekly load more slowly, and pain at one spot on a bone pauses progression until a clinician has seen it.'
+              : 'Bone stress history: none listed. If one applies, add it above; it changes how fast the plan adds load.'}
+          </p>
           {errors['injuries'] !== undefined ? (
             <p className={styles.error}>{errors['injuries']}</p>
           ) : null}
@@ -783,6 +803,248 @@ function ProfileForm({ initial, units }: { initial: AthleteProfile; units: Units
   )
 }
 
+const ZONE_ROWS: Array<{
+  label: string
+  pick: (zones: ZoneSet) => Boundary | null
+  show: (value: number, units: Units) => string
+}> = [
+  { label: 'Maximum heart rate', pick: (z) => z.hrMax, show: (v) => bpmText(v) },
+  { label: 'Easy heart rate limit', pick: (z) => z.lt1Hr, show: (v) => bpmText(v) },
+  { label: 'Threshold heart rate', pick: (z) => z.lt2Hr, show: (v) => bpmText(v) },
+  { label: 'Critical speed', pick: (z) => z.csMps, show: (v, u) => paceText(1000 / v, u) },
+  { label: 'Easy pace limit', pick: (z) => z.lt1PaceSecPerKm, show: (v, u) => paceText(v, u) },
+  { label: 'Threshold pace', pick: (z) => z.thresholdPaceSecPerKm, show: (v, u) => paceText(v, u) },
+]
+
+const ZONE_NAMES = [
+  { key: 'z1', label: 'Zone 1' },
+  { key: 'z2', label: 'Zone 2' },
+  { key: 'z3', label: 'Zone 3' },
+] as const
+
+/** The current zone set: each boundary with the source it came from, then the three zones. */
+function ZonesSection({ units }: { units: Units }) {
+  const headingId = useId()
+  const zones = useZones()
+  let body
+  if (zones.isError) {
+    body = <p className={styles.note}>The zones did not load.</p>
+  } else if (zones.isPending) {
+    body = null
+  } else {
+    const set = zones.data
+    body = (
+      <>
+        <ul className={styles.boundaries}>
+          {ZONE_ROWS.map((row) => {
+            const boundary = row.pick(set)
+            return (
+              <li key={row.label} className={styles.boundary}>
+                <span className={styles.boundaryName}>{row.label}</span>
+                {boundary === null ? (
+                  <span className={styles.note}>Not estimated yet.</span>
+                ) : (
+                  <>
+                    <span className={styles.boundaryValue}>{row.show(boundary.value, units)}</span>
+                    <span className={styles.note}>
+                      {`Range ${row.show(boundary.band[0], units)} to ${row.show(boundary.band[1], units)}`}
+                    </span>
+                    <span className={styles.note}>
+                      {`${BOUNDARY_SOURCE_LABELS[boundary.source]}, as of ${boundary.asOf}`}
+                    </span>
+                  </>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+        <table className={styles.zoneTable}>
+          <thead>
+            <tr>
+              <th scope="col">Zone</th>
+              <th scope="col">Heart rate</th>
+              <th scope="col">Pace</th>
+              <th scope="col">Effort (1-10)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ZONE_NAMES.map(({ key, label }) => (
+              <tr key={key}>
+                <th scope="row">{label}</th>
+                <td>{set.hr ? bpmRangeText(set.hr[key]) : 'Not set'}</td>
+                <td>{set.pace ? paceRangeText(set.pace[key], units) : 'Not set'}</td>
+                <td>{`${String(set.rpe[key][0])} to ${String(set.rpe[key][1])}`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
+    )
+  }
+  return (
+    <section className={styles.section} aria-labelledby={headingId}>
+      <h2 id={headingId} className={styles.heading}>
+        Zones
+      </h2>
+      <p className={styles.note}>
+        Zones are ranges, not single points. They change only when a proposal is accepted on the{' '}
+        <Link to="/review">review page</Link>.
+      </p>
+      {body}
+      <div>
+        <ExplainButton subject="zones" rules={['C1', 'C2']} />
+      </div>
+    </section>
+  )
+}
+
+/** One question per sign of low energy availability [rules n-4]; ticking a box means "yes". */
+const SCREEN_QUESTIONS = [
+  { key: 'unintendedWeightLoss', label: 'Unintended weight loss in the last few months' },
+  { key: 'menstrualChanges', label: 'Missed or absent periods, or other changes to the cycle' },
+  { key: 'recurrentInjuryOrIllness', label: 'Repeated bone stress injuries, or frequent illness' },
+  { key: 'persistentFatigue', label: 'Tiredness that does not lift with rest' },
+  { key: 'giSymptoms', label: 'Stomach or gut symptoms that keep coming back' },
+  { key: 'disorderedEating', label: 'Worry about food, or restricting it to control weight' },
+] as const
+
+/** The screen is repeated every 12 weeks [rules n-4]. */
+const RESCREEN_DAYS = 84
+
+function ScreeningSheet({ onClose }: { onClose: () => void }) {
+  const formId = useId()
+  const toast = useToast()
+  const save = useSaveScreening()
+  const [answers, setAnswers] = useState<Record<string, boolean>>(
+    Object.fromEntries(SCREEN_QUESTIONS.map(({ key }) => [key, false])),
+  )
+  const [failure, setFailure] = useState<string | null>(null)
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    setFailure(null)
+    try {
+      await save.mutateAsync({ answers })
+      toast.show('Screen saved')
+      onClose()
+    } catch (err) {
+      setFailure(
+        `Screen not saved. ${err instanceof ApiError ? err.message : 'The server did not respond.'}`,
+      )
+    }
+  }
+
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title="Energy availability screen"
+      footer={
+        <Button type="submit" form={formId} variant="primary" loading={save.isPending}>
+          Save screen
+        </Button>
+      }
+    >
+      <form
+        id={formId}
+        className={styles.form}
+        onSubmit={(event) => {
+          void submit(event)
+        }}
+      >
+        <fieldset className={styles.screen}>
+          <legend className={styles.note}>Tick any that apply. Leave the rest blank.</legend>
+          {SCREEN_QUESTIONS.map(({ key, label }) => (
+            <label key={key} className={styles.check}>
+              <input
+                type="checkbox"
+                checked={answers[key] === true}
+                onChange={(event) => {
+                  setAnswers((current) => ({ ...current, [key]: event.target.checked }))
+                }}
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+        {failure !== null ? (
+          <p role="alert" className={styles.error}>
+            {failure}
+          </p>
+        ) : null}
+      </form>
+    </Sheet>
+  )
+}
+
+/** The REDs screen: when it was last done, when the next is due, and the entry point. */
+function ScreeningSection() {
+  const headingId = useId()
+  const screenings = useScreenings()
+  const [open, setOpen] = useState(false)
+  const latest = screenings.data?.[0]
+  const nextDue = latest ? addDays(latest.date, RESCREEN_DAYS) : null
+
+  let body
+  if (screenings.isError) {
+    body = <p className={styles.note}>The screens did not load.</p>
+  } else if (screenings.isPending) {
+    body = null
+  } else if (!latest || nextDue === null) {
+    body = (
+      <p className={styles.note}>
+        No screen yet. It asks about six common signs of low energy availability and takes about a
+        minute.
+      </p>
+    )
+  } else {
+    body = (
+      <>
+        <p className={styles.note}>
+          {`Last screened ${formatLongDate(latest.date)}: ${String(latest.flags)} ${latest.flags === 1 ? 'sign' : 'signs'}.`}
+        </p>
+        <p className={styles.note}>
+          {nextDue <= todayIso()
+            ? 'A new screen is due now.'
+            : `Next screen due ${formatLongDate(nextDue)}.`}
+        </p>
+        {latest.flags >= 2 ? (
+          <p className={styles.callout}>
+            Two or more signs came up. Progression holds, and a sports medicine clinician or
+            dietitian can help. This screen is not a diagnosis.
+          </p>
+        ) : null}
+      </>
+    )
+  }
+
+  return (
+    <section className={styles.section} aria-labelledby={headingId}>
+      <h2 id={headingId} className={styles.heading}>
+        Energy availability screen
+      </h2>
+      {body}
+      <div className={styles.row}>
+        <Button
+          onClick={() => {
+            setOpen(true)
+          }}
+        >
+          {latest ? 'Screen again' : 'Start screen'}
+        </Button>
+        <ExplainButton subject="energy availability screen" rules={['n-4']} />
+      </div>
+      {open ? (
+        <ScreeningSheet
+          onClose={() => {
+            setOpen(false)
+          }}
+        />
+      ) : null}
+    </section>
+  )
+}
+
 export function ProfilePage() {
   const profile = useProfile()
   // Pace is typed in the runner's unit; a failed settings load falls back to the stored km.
@@ -801,5 +1063,14 @@ export function ProfilePage() {
   if (profile.isPending || settings.isPending) {
     return <div className="skeleton" aria-busy="true" aria-label="Loading" />
   }
-  return <ProfileForm initial={profile.data} units={settings.data?.units ?? 'km'} />
+  const units = settings.data?.units ?? 'km'
+  return (
+    <>
+      <ProfileForm initial={profile.data} units={units} />
+      <div className={styles.extras}>
+        <ZonesSection units={units} />
+        <ScreeningSection />
+      </div>
+    </>
+  )
 }

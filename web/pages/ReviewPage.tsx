@@ -8,11 +8,14 @@ import {
   type SuggestInput,
   type Suggestion,
 } from '../../shared/domain/review.ts'
+import type { WeeklyDecision } from '../../shared/engine/types.ts'
 import type {
   Activity,
   DataStatus,
+  PlanSession,
+  PlanSessionStatus,
   PlanWeek,
-  PlanWithWeeks,
+  PlanWithSessions,
   SuggestedAction,
   Symptoms,
   WeekRow,
@@ -23,16 +26,20 @@ import { ApiError, fieldErrors } from '../api/client.ts'
 import { useActivities } from '../api/activities.ts'
 import { usePlan } from '../api/plan.ts'
 import { useReviews, useSaveReview, type ReviewPatch } from '../api/reviews.ts'
+import { useSettings } from '../api/settings.ts'
 import { useWeeks } from '../api/weeks.ts'
+import { useAcceptZoneProposal, useDeclineZoneProposal, useZoneProposals } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
+import { ExplainButton } from '../components/ExplainButton.tsx'
 import { Field, Input, Textarea } from '../components/Field.tsx'
 import { Meter } from '../components/Meter.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
-import { formatShortDate, phaseLabel } from '../components/format.ts'
+import { formatShortDate, formatWeekday, phaseLabel } from '../components/format.ts'
+import { PROPOSAL_LABELS, proposalValueText } from '../components/zoneFormat.ts'
 import styles from './ReviewPage.module.css'
 
 /** The picker covers this many finished weeks plus the current one. */
@@ -46,6 +53,21 @@ const DECISION_OPTIONS: Array<{ value: Decision; label: string }> = [
   { value: 'repeat', label: 'Repeat' },
   { value: 'reduce', label: 'Reduce' },
 ]
+
+/**
+ * A review row as a version-2 plan returns it: the server's weekly decision lives in the
+ * `suggested*` fields, and `signals` carries the signals behind it.
+ */
+type ReviewView = WeeklyReview & { signals?: WeeklyDecision['signals'] }
+
+const SESSION_STATUS_LABELS: Record<PlanSessionStatus, string> = {
+  planned: 'Planned',
+  completed: 'Completed',
+  partial: 'Partly done',
+  skipped: 'Skipped',
+  downgraded: 'Eased',
+  moved: 'Moved',
+}
 
 const DATA_OPTIONS: Array<{ value: DataStatus; label: string }> = [
   { value: 'complete', label: 'Data complete' },
@@ -145,7 +167,7 @@ function defaultWeek(
 }
 
 /** The subtitle for a week that has no plan week: why there are no suggestions. */
-function outsidePlanContext(plan: PlanWithWeeks | null, weekStart: string): string {
+function outsidePlanContext(plan: PlanWithSessions | null, weekStart: string): string {
   const first = plan?.weeks[0]?.weekStart
   if (plan === null || first === undefined) {
     return 'No plan yet. Suggestions appear once a plan exists.'
@@ -202,7 +224,7 @@ interface ReviewBodyProps {
   thisWeek: string
   reviews: WeeklyReview[]
   weeks: WeekRow[]
-  plan: PlanWithWeeks | null
+  plan: PlanWithSessions | null
   activities: Activity[]
 }
 
@@ -236,7 +258,10 @@ function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }:
   const index = pickerWeeks.indexOf(selected)
   const planWeek = plan?.weeks.find((week) => week.weekStart === selected) ?? null
   const nextPlanWeek = plan?.weeks.find((week) => week.weekStart === addDays(selected, 7)) ?? null
-  const review = reviewByWeek.get(selected) ?? emptyReview(selected)
+  const review: ReviewView = reviewByWeek.get(selected) ?? emptyReview(selected)
+  const sessions = (plan?.sessions ?? [])
+    .filter((session) => session.weekStart === selected)
+    .sort((a, b) => (a.date === b.date ? a.order - b.order : a.date < b.date ? -1 : 1))
   const row = weeks.find((week) => week.weekStart === selected) ?? emptyWeek(selected)
   const hasPossibleDuplicates = activities.some(
     (activity) => activity.duplicateStatus === 'possible' && mondayOf(activity.date) === selected,
@@ -285,7 +310,11 @@ function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }:
         planWeek={planWeek}
         nextPlanWeek={nextPlanWeek}
         hasPossibleDuplicates={hasPossibleDuplicates}
+        isV2={plan !== null && plan.generatorVersion >= 2}
+        sessions={sessions}
       />
+
+      <ZoneProposals />
 
       <section className={styles.section}>
         <h2>Reviewed weeks</h2>
@@ -316,11 +345,14 @@ function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }:
 interface WeekReviewProps {
   today: string
   weekStart: string
-  review: WeeklyReview
+  review: ReviewView
   row: WeekRow
   planWeek: PlanWeek | null
   nextPlanWeek: PlanWeek | null
   hasPossibleDuplicates: boolean
+  /** Version-2 plans use the server's weekly decision; version-1 plans suggest live from the form. */
+  isV2: boolean
+  sessions: PlanSession[]
 }
 
 function WeekReview({
@@ -331,6 +363,8 @@ function WeekReview({
   planWeek,
   nextPlanWeek,
   hasPossibleDuplicates,
+  isV2,
+  sessions,
 }: WeekReviewProps) {
   const finished = isFinished(weekStart, today)
   const toast = useToast()
@@ -370,14 +404,32 @@ function WeekReview({
         hasPossibleDuplicates,
       }
     : null
-  const suggestion: Suggestion | null = suggestInput ? suggestAction(suggestInput) : null
+  let suggestion: Suggestion | null = null
+  if (isV2) {
+    if (planWeek && review.suggestedAction !== null) {
+      suggestion = {
+        action: review.suggestedAction,
+        reason: review.suggestedReason ?? '',
+        suggestedNextMin: review.suggestedNextMin,
+      }
+    }
+  } else if (suggestInput) {
+    suggestion = suggestAction(suggestInput)
+  }
+  const decisionOptions = isV2
+    ? DECISION_OPTIONS.filter((option) => option.value !== 'repeat')
+    : DECISION_OPTIONS
 
   const suggestedDecision = suggestion && isDecision(suggestion.action) ? suggestion.action : ''
   const suggestedMin = suggestion?.suggestedNextMin ?? null
   const shownDecision = decision ?? suggestedDecision
   // The prefill follows the decision shown, which may differ from the suggested action.
-  const decisionMin =
-    suggestInput && isDecision(shownDecision) ? nextMinutesFor(shownDecision, suggestInput) : null
+  let decisionMin: number | null = null
+  if (isV2) {
+    decisionMin = shownDecision === suggestion?.action ? suggestion.suggestedNextMin : null
+  } else if (suggestInput && isDecision(shownDecision)) {
+    decisionMin = nextMinutesFor(shownDecision, suggestInput)
+  }
   const shownNextMin = nextMin ?? (decisionMin === null ? '' : String(decisionMin))
 
   function chooseDecision(value: string) {
@@ -479,6 +531,8 @@ function WeekReview({
         </label>
       </section>
 
+      {sessions.length > 0 ? <SessionSummaries sessions={sessions} /> : null}
+
       <section className={styles.section}>
         {suggestion ? (
           <section aria-labelledby={headingId} className={styles.suggestion}>
@@ -490,7 +544,27 @@ function WeekReview({
                 {`Suggested next week: ${String(suggestedMin)} min (${minutesToHours1(suggestedMin)} h)`}
               </p>
             ) : null}
+            {isV2 ? (
+              <>
+                {review.signals !== undefined && review.signals.length > 0 ? (
+                  <ul className={styles.signals} aria-label="Signals">
+                    {review.signals.map((signal) => (
+                      <li key={signal.code}>{signal.detail}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                <p className={styles.muted}>The suggestion updates when the review is saved.</p>
+                <div>
+                  <ExplainButton
+                    subject="weekly decision"
+                    rules={decisionRules(review.signals ?? [])}
+                  />
+                </div>
+              </>
+            ) : null}
           </section>
+        ) : isV2 && planWeek ? (
+          <p className={styles.muted}>The weekly decision is not ready yet.</p>
         ) : (
           <p className={styles.muted}>There is no plan for this week.</p>
         )}
@@ -510,7 +584,7 @@ function WeekReview({
           <Group label="Final decision">
             <Segmented<Decision | ''>
               label="Final decision"
-              options={DECISION_OPTIONS}
+              options={decisionOptions}
               value={finished && isDecision(shownDecision) ? shownDecision : ''}
               onChange={chooseDecision}
             />
@@ -554,6 +628,127 @@ function WeekReview({
         </div>
       </section>
     </form>
+  )
+}
+
+/** The rules behind a weekly decision: those its signals cite, else the decision rule itself. */
+function decisionRules(signals: WeeklyDecision['signals']): string[] {
+  const rules = [...new Set(signals.flatMap((signal) => signal.rules))]
+  return rules.length > 0 ? rules : ['J5']
+}
+
+function SessionSummaries({ sessions }: { sessions: PlanSession[] }) {
+  const headingId = useId()
+  return (
+    <section aria-labelledby={headingId} className={styles.section}>
+      <h2 id={headingId}>Planned sessions</h2>
+      <ul className={styles.sessions}>
+        {sessions.map((session) => (
+          <li key={session.id} className={styles.session}>
+            <div className={styles.sessionHead}>
+              <span className={styles.sessionDay}>{formatWeekday(session.date)}</span>
+              <span className={styles.sessionTitle}>{session.title}</span>
+              <span className={styles.muted}>{`${String(session.durationMin)} min`}</span>
+              <span className={styles.sessionStatus}>{SESSION_STATUS_LABELS[session.status]}</span>
+            </div>
+            {/* The engine's lines already cover completion, intensity, effort and conditions. */}
+            {session.execution?.lines.map((line, i) => (
+              <p key={i} className={styles.sessionLine}>
+                {line}
+              </p>
+            ))}
+            {session.execution ? (
+              <div>
+                <ExplainButton subject={session.title} rules={session.rules} />
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** Proposed zone changes. Zones change only when the runner accepts; the section stays mounted so the toast shows. */
+function ZoneProposals() {
+  const headingId = useId()
+  const proposals = useZoneProposals()
+  const settings = useSettings()
+  const accept = useAcceptZoneProposal()
+  const decline = useDeclineZoneProposal()
+  const toast = useToast()
+  const [failure, setFailure] = useState<string | null>(null)
+  const units = settings.data?.units ?? 'mi'
+  const busy = accept.isPending || decline.isPending
+
+  async function decide(id: string, kind: 'accept' | 'decline') {
+    setFailure(null)
+    try {
+      if (kind === 'accept') {
+        await accept.mutateAsync(id)
+        toast.show('Zones updated')
+      } else {
+        await decline.mutateAsync(id)
+        toast.show('Proposal declined. Zones are unchanged.')
+      }
+    } catch (err) {
+      setFailure(
+        `Zone change not saved. ${err instanceof ApiError ? err.message : 'The server did not respond.'}`,
+      )
+    }
+  }
+
+  if (proposals.isError) return <p className={styles.muted}>Zone proposals did not load.</p>
+  const list = proposals.data ?? []
+  if (list.length === 0) return null
+
+  return (
+    <section aria-labelledby={headingId} className={styles.section}>
+      <h2 id={headingId}>Zone proposals</h2>
+      <p className={styles.muted}>
+        Zones change only when you accept. Declining leaves them as they are.
+      </p>
+      <ul className={styles.proposals}>
+        {list.map((proposal) => {
+          const label = PROPOSAL_LABELS[proposal.boundary]
+          return (
+            <li key={proposal.id} className={styles.proposal}>
+              <span className={styles.sessionTitle}>{label}</span>
+              <span className={styles.nextMin}>
+                {`${proposalValueText(proposal.boundary, proposal.from, units)} to ${proposalValueText(proposal.boundary, proposal.to, units)}`}
+              </span>
+              <p className={styles.sessionLine}>{proposal.reason}</p>
+              <p className={styles.sessionLine}>
+                {`Based on ${String(proposal.observations)} ${proposal.observations === 1 ? 'session' : 'sessions'}.`}
+              </p>
+              <div className={styles.actions}>
+                <Button
+                  variant="primary"
+                  disabled={busy}
+                  aria-label={`Accept ${label} change`}
+                  onClick={() => {
+                    void decide(proposal.id, 'accept')
+                  }}
+                >
+                  Accept
+                </Button>
+                <Button
+                  disabled={busy}
+                  aria-label={`Decline ${label} change`}
+                  onClick={() => {
+                    void decide(proposal.id, 'decline')
+                  }}
+                >
+                  Decline
+                </Button>
+                <ExplainButton subject={`${label} change`} rules={proposal.rules} />
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+      {failure !== null ? <p role="alert">{failure}</p> : null}
+    </section>
   )
 }
 
