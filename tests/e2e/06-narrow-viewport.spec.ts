@@ -95,3 +95,88 @@ test('the Stats page does not scroll sideways at 360 px; wide tables scroll insi
   const scrollable = await region.evaluate((el) => el.scrollWidth > el.clientWidth)
   expect(scrollable).toBe(true)
 })
+
+/** True when the element's centre is the element itself or inside it, so nothing sits on top. */
+async function isUncovered(locator: ReturnType<Page['locator']>): Promise<boolean> {
+  return locator.evaluate((el) => {
+    const box = el.getBoundingClientRect()
+    const top = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+    return top !== null && el.contains(top)
+  })
+}
+
+for (const size of [
+  { width: 390, height: 844 },
+  { width: 360, height: 780 },
+]) {
+  const name = `${String(size.width)}x${String(size.height)}`
+
+  test(`the fixed tab bar never covers the end of a long page or a sheet's Save at ${name}`, async () => {
+    const { lastWednesday, planStart, raceDate } = relativeDates()
+    await resetData()
+    for (let i = 0; i < 14; i += 1) {
+      await api.post('/activities', {
+        date: lastWednesday,
+        type: 'run',
+        durationSec: (30 + i) * 60,
+        distanceM: 5000 + i * 100,
+      })
+    }
+    const goal = (await api.post('/goals', {
+      name: 'Tab bar marathon',
+      priority: 'A',
+      targetDate: raceDate,
+      distanceM: 42_195,
+    })) as { id: string }
+    await api.post(`/goals/${goal.id}/activate`)
+    await api.post('/plan/generate', {
+      goalId: goal.id,
+      baselineRunMin: 150,
+      startDate: planStart,
+      strengthPreference: 2,
+    })
+    await page.setViewportSize(size)
+    const navHeight = (await page.getByRole('navigation', { name: 'Primary' }).boundingBox())
+      ?.height
+    expect(navHeight).toBeGreaterThan(0)
+    const limit = size.height - (navHeight ?? 0)
+
+    // Last row of a long Activities list, scrolled as far as the page goes.
+    await page.goto('/activities')
+    const lastRow = page.getByRole('main').getByRole('listitem').last()
+    await expect(lastRow).toBeVisible()
+    await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight)
+    })
+    const rowBox = await lastRow.boundingBox()
+    expect(rowBox, 'last activity row').not.toBeNull()
+    expect((rowBox?.y ?? 0) + (rowBox?.height ?? 0)).toBeLessThanOrEqual(limit)
+    expect(await isUncovered(lastRow)).toBe(true)
+
+    // The Review page's Save button, at the very end of its form.
+    await page.goto(`/review`)
+    await expect(page.getByText(`Week of`).first()).toBeVisible()
+    const save = page.getByRole('button', { name: 'Save review' })
+    await save.scrollIntoViewIfNeeded()
+    await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight)
+    })
+    const saveBox = await save.boundingBox()
+    expect(saveBox, 'Save review').not.toBeNull()
+    expect((saveBox?.y ?? 0) + (saveBox?.height ?? 0)).toBeLessThanOrEqual(limit)
+    expect(await isUncovered(save)).toBe(true)
+
+    // A sheet sits above the tab bar: its Save button is fully on screen and not covered.
+    await page.goto('/activities?new=1')
+    const sheet = page.getByRole('dialog')
+    await expect(sheet).toBeVisible()
+    // Measure after the slide-up animation ends.
+    await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+    const sheetSave = sheet.getByRole('button', { name: 'Save' })
+    await expect(sheetSave).toBeVisible()
+    const sheetBox = await sheetSave.boundingBox()
+    expect(sheetBox, 'sheet Save').not.toBeNull()
+    expect((sheetBox?.y ?? 0) + (sheetBox?.height ?? 0)).toBeLessThanOrEqual(size.height)
+    expect(await isUncovered(sheetSave)).toBe(true)
+  })
+}
