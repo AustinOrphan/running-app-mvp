@@ -19,7 +19,8 @@ export interface GeneratePlanForGoalInput {
 
 /**
  * Builds a plan for one of the caller's goals. The previous active plan is archived and the new
- * one created in a single transaction, so there is never more than one active plan. The reads
+ * one created in a single transaction, so there is never more than one active plan. The goal
+ * becomes the active goal in the same transaction. The reads
  * that decide the inputs (goal, baseline) run before that transaction.
  */
 export async function generatePlanForGoal(
@@ -90,6 +91,9 @@ export async function generatePlanForGoal(
       where: { userId: input.userId, status: 'active' },
       data: { status: 'archived' },
     })
+    // The plan's goal drives the Dashboard countdown, so exactly that goal is active.
+    await tx.goal.updateMany({ where: { userId: input.userId }, data: { isActive: false } })
+    await tx.goal.update({ where: { id: goal.id }, data: { isActive: true } })
     return tx.plan.create({
       data: {
         userId: input.userId,
