@@ -1,5 +1,7 @@
-// Stub from the data-foundation scaffold; Task D2 implements it.
 import type { ParsedActivity } from '../../types.ts'
+import { parseFit } from './fit.ts'
+import { parseGpx } from './gpx.ts'
+import { parseTcx } from './tcx.ts'
 
 export { summarize, localDateTime } from './summarize.ts'
 export type { ActivitySummary } from './summarize.ts'
@@ -13,8 +15,17 @@ export function parseActivityFile(
   bytes: Uint8Array,
   opts: { timezone: string },
 ): ParsedActivity[] {
-  void name
-  void bytes
-  void opts
-  throw new Error('not implemented')
+  const extension = /\.([A-Za-z0-9]+)$/.exec(name)?.[1]?.toLowerCase()
+  switch (extension) {
+    case 'fit':
+      return parseFit(bytes, opts)
+    case 'gpx':
+      return parseGpx(bytes, opts)
+    case 'tcx':
+      return parseTcx(bytes, opts)
+    default:
+      throw new RangeError(
+        `Unsupported file type: ${JSON.stringify(name)} (expected .fit, .gpx or .tcx)`,
+      )
+  }
 }
