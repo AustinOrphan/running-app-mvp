@@ -395,6 +395,24 @@ describe('Activities page', () => {
     expect(screen.queryByText('1:00:00')).not.toBeInTheDocument()
   })
 
+  test('a From date after To explains the range and sends no request for it', async () => {
+    const api = renderPage({ activities: [makeActivity()] })
+    await screen.findByText('30:00')
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-10' } })
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-20' } })
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Use a start date on or before the end date.',
+    )
+    expect(screen.queryByText(/did not load/)).not.toBeInTheDocument()
+    expect(api.calls.some((c) => c.url.includes('from=2026-10-20'))).toBe(false)
+    expect(screen.getByLabelText('From')).toHaveAttribute('max', '2026-10-10')
+    expect(screen.getByLabelText('To')).toHaveAttribute('min', '2026-10-20')
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-01' } })
+    expect(await screen.findByText('30:00')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   test('filters send type, from and to to the server', async () => {
     const user = userEvent.setup()
     const api = renderPage({ activities: [makeActivity()] })

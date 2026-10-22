@@ -139,9 +139,11 @@ export function ActivitiesPage() {
 
   const settings = useSettings()
   const units: Units = settings.data?.units ?? 'mi'
+  // ISO dates compare as strings. A reversed range would be a 400, so it is not sent.
+  const badRange = from !== '' && to !== '' && from > to
   const activities = useActivities({
-    ...(from !== '' ? { from } : {}),
-    ...(to !== '' ? { to } : {}),
+    ...(from !== '' && !badRange ? { from } : {}),
+    ...(to !== '' && !badRange ? { to } : {}),
     ...(typeFilter !== 'all' ? { type: typeFilter } : {}),
   })
 
@@ -187,7 +189,13 @@ export function ActivitiesPage() {
   )
 
   let body
-  if (activities.isError) {
+  if (badRange) {
+    body = (
+      <p role="alert" className={styles.error}>
+        Use a start date on or before the end date.
+      </p>
+    )
+  } else if (activities.isError) {
     body = (
       <p role="alert" className={styles.error}>
         Activities did not load. Reload the page to try again.
@@ -271,6 +279,7 @@ export function ActivitiesPage() {
                 <Input
                   {...control}
                   type="date"
+                  max={to || undefined}
                   value={from}
                   onChange={(e) => {
                     setFrom(e.target.value)
@@ -283,6 +292,7 @@ export function ActivitiesPage() {
                 <Input
                   {...control}
                   type="date"
+                  min={from || undefined}
                   value={to}
                   onChange={(e) => {
                     setTo(e.target.value)
