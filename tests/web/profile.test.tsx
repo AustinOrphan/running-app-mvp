@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import type { AthleteProfile, Availability, Weekday } from '../../shared/types.ts'
+import type { AthleteProfile, Availability, Units, Weekday } from '../../shared/types.ts'
 import { ProfilePage } from '../../web/pages/ProfilePage.tsx'
 import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 
@@ -40,8 +40,13 @@ function makeProfile(over: Partial<AthleteProfile> = {}): AthleteProfile {
 
 type User = ReturnType<typeof userEvent.setup>
 
+function settings(units: Units) {
+  return () => ({ email: 'runner@example.com', displayName: null, units })
+}
+
 function setup(profile: AthleteProfile, extra: MockRoutes = {}) {
   const api = mockApi({
+    'GET /api/settings': settings('km'),
     'GET /api/profile': () => profile,
     'PUT /api/profile': ({ body }) => body,
     ...extra,
@@ -141,6 +146,24 @@ describe('ProfilePage', () => {
     })
   })
 
+  test('pace is shown and entered per mile for a runner using miles', async () => {
+    const { api, user } = setup(makeProfile({ thresholdPaceSecPerKm: 300 }), {
+      'GET /api/settings': settings('mi'),
+    })
+    await loaded()
+    const pace = screen.getByRole('textbox', { name: 'Threshold pace (min:sec per mi)' })
+    // 300 s/km × 1.609344 = 482.8 s/mi.
+    expect(pace).toHaveValue('8:03')
+
+    await type(user, /Threshold pace/, '8:00')
+    await user.click(screen.getByRole('button', { name: 'Save profile' }))
+    await waitFor(() => {
+      expect(puts(api)).toHaveLength(1)
+    })
+    // 480 s/mi ÷ 1.609344 = 298.3 s/km.
+    expect(puts(api)[0]?.body).toMatchObject({ thresholdPaceSecPerKm: 298 })
+  })
+
   test('availability: a day can be switched off and given a time cap', async () => {
     const { api, user } = setup(makeProfile())
     await loaded()
@@ -230,6 +253,17 @@ describe('ProfilePage', () => {
       expect(field).toHaveAccessibleDescription('Threshold heart rate must be below the maximum.')
     })
     expect(field).toHaveValue('160')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+
+    // A later attempt that fails locally shows only its own problem, not the stale server one.
+    await type(user, 'Birth year', 'abc')
+    await user.click(screen.getByRole('button', { name: 'Save profile' }))
+    await waitFor(() => {
+      expect(field).not.toHaveAccessibleDescription(
+        'Threshold heart rate must be below the maximum.',
+      )
+    })
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
   })
 
   test('rejects text in a number field without calling the server', async () => {
@@ -284,6 +318,7 @@ describe('ProfilePage', () => {
 
   test('shows a load failure', async () => {
     mockApi({
+      'GET /api/settings': settings('km'),
       'GET /api/profile': () => ({
         status: 500,
         body: { error: { code: 'internal', message: 'Boom' } },

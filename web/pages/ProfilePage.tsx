@@ -1,7 +1,16 @@
 import { useState, type FormEvent } from 'react'
-import type { AthleteProfile, Availability, Injury, Terrain, Weekday } from '../../shared/types.ts'
+import type {
+  AthleteProfile,
+  Availability,
+  Injury,
+  Terrain,
+  Units,
+  Weekday,
+} from '../../shared/types.ts'
+import { formatDuration, milesToM } from '../../shared/units.ts'
 import { fieldErrors } from '../api/client.ts'
 import { useProfile, useUpdateProfile } from '../api/profile.ts'
+import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { Field, Input, Select } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -80,11 +89,15 @@ function text(value: number | null): string {
   return value === null ? '' : String(value)
 }
 
-function formatPace(secPerKm: number | null): string {
+/** Kilometres in one unit of the runner's distance setting. */
+function kmPerUnit(units: Units): number {
+  return units === 'mi' ? milesToM(1) / 1000 : 1
+}
+
+/** Stored seconds per km shown as `m:ss` per the runner's unit. */
+function formatPace(secPerKm: number | null, units: Units): string {
   if (secPerKm === null) return ''
-  const minutes = Math.floor(secPerKm / 60)
-  const seconds = Math.round(secPerKm % 60)
-  return `${minutes}:${String(seconds).padStart(2, '0')}`
+  return formatDuration(Math.round(secPerKm * kmPerUnit(units)))
 }
 
 function browserTimezone(): string | undefined {
@@ -95,7 +108,7 @@ function browserTimezone(): string | undefined {
   }
 }
 
-function toDraft(profile: AthleteProfile): Draft {
+function toDraft(profile: AthleteProfile, units: Units): Draft {
   // 'UTC' is the server's default for a profile that was never filled in.
   const timezone = profile.timezone === 'UTC' ? (browserTimezone() ?? 'UTC') : profile.timezone
   const availability = {} as Draft['availability']
@@ -113,7 +126,7 @@ function toDraft(profile: AthleteProfile): Draft {
     hrMaxSource: profile.hrMaxSource ?? '',
     hrRest: text(profile.hrRest),
     lthr: text(profile.lthr),
-    pace: formatPace(profile.thresholdPaceSecPerKm),
+    pace: formatPace(profile.thresholdPaceSecPerKm, units),
     availability,
     longRunDay: profile.longRunDay,
     terrain: { ...profile.terrain },
@@ -180,7 +193,8 @@ function parseNumber(
   return number
 }
 
-function parsePace(raw: string, problems: Problems): number | null {
+/** `m:ss` per the runner's unit, returned as whole seconds per km. */
+function parsePace(raw: string, units: Units, problems: Problems): number | null {
   const value = raw.trim()
   if (value === '') return null
   const match = /^(\d{1,2}):([0-5]\d)$/.exec(value)
@@ -188,10 +202,10 @@ function parsePace(raw: string, problems: Problems): number | null {
     problems.add('thresholdPaceSecPerKm', 'Use minutes and seconds, such as 5:30.')
     return null
   }
-  return Number(match[1]) * 60 + Number(match[2])
+  return Math.round((Number(match[1]) * 60 + Number(match[2])) / kmPerUnit(units))
 }
 
-function toProfile(draft: Draft, problems: Problems): AthleteProfile {
+function toProfile(draft: Draft, units: Units, problems: Problems): AthleteProfile {
   const int = { integer: true }
   const availability = {} as Availability
   for (const { value } of WEEKDAYS) {
@@ -226,7 +240,7 @@ function toProfile(draft: Draft, problems: Problems): AthleteProfile {
     hrMaxSource: draft.hrMaxSource === '' ? null : draft.hrMaxSource,
     hrRest: parseNumber(draft.hrRest, 'hrRest', problems, int),
     lthr: parseNumber(draft.lthr, 'lthr', problems, int),
-    thresholdPaceSecPerKm: parsePace(draft.pace, problems),
+    thresholdPaceSecPerKm: parsePace(draft.pace, units, problems),
     runningSinceYear: parseNumber(draft.runningSinceYear, 'runningSinceYear', problems, int),
     injuries,
     availability,
@@ -244,10 +258,10 @@ function emptyInjury(): InjuryDraft {
   return { area: '', side: '', year: '', month: '', kind: 'other', notes: '' }
 }
 
-function ProfileForm({ initial }: { initial: AthleteProfile }) {
+function ProfileForm({ initial, units }: { initial: AthleteProfile; units: Units }) {
   const toast = useToast()
   const update = useUpdateProfile()
-  const [draft, setDraft] = useState<Draft>(() => toDraft(initial))
+  const [draft, setDraft] = useState<Draft>(() => toDraft(initial, units))
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
   const [locationNote, setLocationNote] = useState<string | undefined>()
 
@@ -274,12 +288,16 @@ function ProfileForm({ initial }: { initial: AthleteProfile }) {
   function onSubmit(event: FormEvent) {
     event.preventDefault()
     const problems = new Problems()
-    const profile = toProfile(draft, problems)
+    const profile = toProfile(draft, units, problems)
     setLocalErrors(problems.errors)
-    if (problems.any) return
+    if (problems.any) {
+      // Drop the previous attempt's server errors so only this attempt's problems show.
+      update.reset()
+      return
+    }
     update.mutate(profile, {
       onSuccess: (saved) => {
-        setDraft(toDraft(saved))
+        setDraft(toDraft(saved, units))
         toast.show('Profile saved')
       },
     })
@@ -399,7 +417,7 @@ function ProfileForm({ initial }: { initial: AthleteProfile }) {
           </h2>
           <div className={styles.grid}>
             <Field
-              label="Threshold pace (min:sec per km)"
+              label={`Threshold pace (min:sec per ${units})`}
               hint="The hardest pace held for about an hour, such as 5:30."
               error={errors['thresholdPaceSecPerKm']}
             >
@@ -441,7 +459,10 @@ function ProfileForm({ initial }: { initial: AthleteProfile }) {
                           ...current,
                           availability: {
                             ...current.availability,
-                            [value]: { ...day, available: event.target.checked },
+                            [value]: {
+                              ...current.availability[value],
+                              available: event.target.checked,
+                            },
                           },
                         }))
                       }}
@@ -462,7 +483,10 @@ function ProfileForm({ initial }: { initial: AthleteProfile }) {
                           ...current,
                           availability: {
                             ...current.availability,
-                            [value]: { ...day, maxMin: event.target.value },
+                            [value]: {
+                              ...current.availability[value],
+                              maxMin: event.target.value,
+                            },
                           },
                         }))
                       }}
@@ -744,13 +768,7 @@ function ProfileForm({ initial }: { initial: AthleteProfile }) {
           <p role="alert" className={styles.error}>
             {otherError}
           </p>
-        ) : null}
-        {update.isError && otherError === undefined ? (
-          <p role="alert" className={styles.error}>
-            Profile not saved. Check the fields marked above.
-          </p>
-        ) : null}
-        {Object.keys(localErrors).length > 0 ? (
+        ) : Object.keys(errors).length > 0 ? (
           <p role="alert" className={styles.error}>
             Profile not saved. Check the fields marked above.
           </p>
@@ -767,6 +785,8 @@ function ProfileForm({ initial }: { initial: AthleteProfile }) {
 
 export function ProfilePage() {
   const profile = useProfile()
+  // Pace is typed in the runner's unit; a failed settings load falls back to the stored km.
+  const settings = useSettings()
 
   if (profile.isError) {
     return (
@@ -778,8 +798,8 @@ export function ProfilePage() {
       </>
     )
   }
-  if (profile.isPending) {
+  if (profile.isPending || settings.isPending) {
     return <div className="skeleton" aria-busy="true" aria-label="Loading" />
   }
-  return <ProfileForm initial={profile.data} />
+  return <ProfileForm initial={profile.data} units={settings.data?.units ?? 'km'} />
 }

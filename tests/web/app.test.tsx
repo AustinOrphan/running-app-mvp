@@ -63,6 +63,34 @@ describe('App routing', () => {
         displayName: null,
         units: 'mi',
       }),
+      // The profile page's own data: a profile that was never filled in.
+      'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'mi' }),
+      'GET /api/profile': () => ({
+        birthYear: null,
+        sex: null,
+        heightCm: null,
+        weightKg: null,
+        hrMax: null,
+        hrMaxSource: null,
+        hrRest: null,
+        lthr: null,
+        thresholdPaceSecPerKm: null,
+        runningSinceYear: null,
+        injuries: [],
+        availability: Object.fromEntries(
+          ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day) => [
+            day,
+            { available: true, maxMin: null },
+          ]),
+        ),
+        longRunDay: 'sat',
+        terrain: { trail: false, hills: false, treadmill: false, track: false },
+        strengthPreference: 2,
+        timezone: 'UTC',
+        homeLat: null,
+        homeLng: null,
+        useHomeWeather: true,
+      }),
     })
     renderWithProviders(<App />, { route })
     expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
