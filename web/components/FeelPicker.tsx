@@ -1,5 +1,6 @@
 import type { Feel } from '../../shared/types.ts'
 import styles from './FeelPicker.module.css'
+import { ScalePicker } from './ScalePicker.tsx'
 
 export interface FeelPickerProps {
   value: Feel | null
@@ -39,41 +40,11 @@ export function FeelPicker({ value, onChange }: FeelPickerProps) {
   )
 }
 
-export interface ScaleChipsProps {
-  legend: string
-  min: number
-  max: number
-  value: number | null
-  onChange: (value: number | null) => void
-  hint?: string
-}
-
-/** A row of numbered chips, such as RPE 1 to 10 or pain 0 to 10. Tapping the chosen one clears it. */
-export function ScaleChips({ legend, min, max, value, onChange, hint }: ScaleChipsProps) {
-  const numbers = Array.from({ length: max - min + 1 }, (_, i) => min + i)
-  return (
-    <fieldset className={styles.fieldset}>
-      <legend>{legend}</legend>
-      <div className={styles.scaleChips}>
-        {numbers.map((n) => (
-          <button
-            key={n}
-            type="button"
-            className={`${styles.chip} ${styles.number}`}
-            aria-label={`${legend} ${String(n)}`}
-            aria-pressed={value === n}
-            onClick={() => {
-              onChange(value === n ? null : n)
-            }}
-          >
-            {n}
-          </button>
-        ))}
-      </div>
-      {hint !== undefined ? <p className={styles.hint}>{hint}</p> : null}
-    </fieldset>
-  )
-}
+/** The numbered scale, under its older name; see `ScalePicker`. */
+export {
+  ScalePicker as ScaleChips,
+  type ScalePickerProps as ScaleChipsProps,
+} from './ScalePicker.tsx'
 
 export interface FeedbackValues {
   rpe: number | null
@@ -90,7 +61,7 @@ export interface FeedbackFieldsProps {
 export function FeedbackFields({ value, onChange }: FeedbackFieldsProps) {
   return (
     <div className={styles.fields}>
-      <ScaleChips
+      <ScalePicker
         legend="RPE"
         min={1}
         max={10}
@@ -106,7 +77,7 @@ export function FeedbackFields({ value, onChange }: FeedbackFieldsProps) {
           onChange({ ...value, feel })
         }}
       />
-      <ScaleChips
+      <ScalePicker
         legend="Pain"
         min={0}
         max={10}

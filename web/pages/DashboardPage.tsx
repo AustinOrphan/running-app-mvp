@@ -26,7 +26,7 @@ import buttonStyles from '../components/Button.module.css'
 import { WeeklyHoursChart } from '../components/charts/WeeklyHoursChart.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { Input } from '../components/Field.tsx'
-import { FeedbackFields, ScaleChips, type FeedbackValues } from '../components/FeelPicker.tsx'
+import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
 import {
   formatLongDate,
   formatShortDate,
@@ -35,6 +35,7 @@ import {
 } from '../components/format.ts'
 import { Meter } from '../components/Meter.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
+import { ScalePicker } from '../components/ScalePicker.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { WhyDrawer } from '../components/WhyDrawer.tsx'
@@ -85,6 +86,18 @@ function unratedRecent(activities: Activity[], today: string): Activity[] {
   )
 }
 
+/** "Run Tue 17 Mar, 30:00, 5.00 km" for one unrated run. */
+function activityLine(activity: Activity, units: Units): { type: string; rest: string } {
+  const figures = [
+    formatDuration(activity.durationSec),
+    ...(activity.distanceM === null ? [] : [formatDistance(activity.distanceM, units)]),
+  ].join(', ')
+  return {
+    type: TYPE_LABELS[activity.type],
+    rest: ` ${formatWeekday(activity.date)} ${formatShortDate(activity.date)}, ${figures}`,
+  }
+}
+
 function FeedbackItem({
   activity,
   units,
@@ -98,16 +111,13 @@ function FeedbackItem({
   // Starts from the saved pain so a save that only sets RPE or feel does not clear it.
   const [value, setValue] = useState<FeedbackValues>({ rpe: null, feel: null, pain: activity.pain })
   const touched = value.rpe !== null || value.feel !== null || value.pain !== activity.pain
-  const figures = [
-    formatDuration(activity.durationSec),
-    ...(activity.distanceM === null ? [] : [formatDistance(activity.distanceM, units)]),
-  ].join(', ')
+  const line = activityLine(activity, units)
 
   return (
     <li className={styles.feedbackItem}>
       <p className={styles.feedbackTitle}>
-        <span className={styles.feedbackType}>{TYPE_LABELS[activity.type]}</span>
-        {` ${formatWeekday(activity.date)} ${formatShortDate(activity.date)}, ${figures}`}
+        <span className={styles.feedbackType}>{line.type}</span>
+        {line.rest}
       </p>
       <FeedbackFields value={value} onChange={setValue} />
       <div className={styles.feedbackActions}>
@@ -135,6 +145,38 @@ function FeedbackItem({
   )
 }
 
+/** An older unrated run: one line with a Rate button that opens its form. */
+function FeedbackQueued({
+  activity,
+  units,
+  onRate,
+}: {
+  activity: Activity
+  units: Units
+  onRate: () => void
+}) {
+  const line = activityLine(activity, units)
+  return (
+    <li className={styles.feedbackQueued}>
+      <p className={styles.feedbackQueuedText}>
+        <span className={styles.feedbackType}>{line.type}</span>
+        {line.rest}
+      </p>
+      <Button
+        variant="secondary"
+        aria-label={`Rate ${line.type.toLowerCase()}${line.rest}`}
+        onClick={onRate}
+      >
+        Rate
+      </Button>
+    </li>
+  )
+}
+
+/**
+ * The most recent unrated run in full; the others as a list with a Rate button that opens the
+ * same form in place.
+ */
 function FeedbackCard({
   activities,
   units,
@@ -145,7 +187,12 @@ function FeedbackCard({
   onSaved: () => void
 }) {
   const headingId = useId()
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set())
   if (activities.length === 0) return null
+  const newestFirst = [...activities].sort((a, b) =>
+    a.date < b.date ? 1 : a.date > b.date ? -1 : 0,
+  )
+  const [newest, ...older] = newestFirst
   return (
     <section aria-labelledby={headingId} className={styles.section}>
       <h2 id={headingId} className={styles.heading}>
@@ -153,9 +200,23 @@ function FeedbackCard({
       </h2>
       <p className={styles.caption}>Recent runs without a rating. Rate any or all of it.</p>
       <ul className={styles.feedbackList}>
-        {activities.map((activity) => (
-          <FeedbackItem key={activity.id} activity={activity} units={units} onSaved={onSaved} />
-        ))}
+        {newest === undefined ? null : (
+          <FeedbackItem key={newest.id} activity={newest} units={units} onSaved={onSaved} />
+        )}
+        {older.map((activity) =>
+          opened.has(activity.id) ? (
+            <FeedbackItem key={activity.id} activity={activity} units={units} onSaved={onSaved} />
+          ) : (
+            <FeedbackQueued
+              key={activity.id}
+              activity={activity}
+              units={units}
+              onRate={() => {
+                setOpened(new Set([...opened, activity.id]))
+              }}
+            />
+          ),
+        )}
       </ul>
     </section>
   )
@@ -446,7 +507,7 @@ function CheckinCard({
       </p>
       <div className={styles.checkinFields}>
         {CHECKIN_SCALES.map(([key, legend]) => (
-          <ScaleChips
+          <ScalePicker
             key={key}
             legend={legend}
             min={1}
@@ -467,7 +528,7 @@ function CheckinCard({
           />
           Feeling ill
         </label>
-        <ScaleChips
+        <ScalePicker
           legend="Pain today"
           min={0}
           max={10}

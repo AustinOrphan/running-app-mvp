@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { Activity } from '../../shared/types.ts'
 import { FeelPicker } from '../../web/components/FeelPicker.tsx'
+import { ScalePicker } from '../../web/components/ScalePicker.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
 import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
@@ -46,6 +47,37 @@ describe('FeelPicker', () => {
   })
 })
 
+describe('ScalePicker', () => {
+  test('keeps every step in one row of equal columns, however many there are', () => {
+    const { rerender } = render(
+      <ScalePicker legend="Pain" min={0} max={10} value={null} onChange={() => {}} />,
+    )
+    const group = screen.getByRole('group', { name: 'Pain' })
+    expect(within(group).getAllByRole('button')).toHaveLength(11)
+    const row = within(group).getAllByRole('button')[0]!.parentElement!
+    expect(row.style.getPropertyValue('--steps')).toBe('11')
+    rerender(<ScalePicker legend="RPE" min={1} max={10} value={4} onChange={() => {}} />)
+    const rpe = screen.getByRole('group', { name: 'RPE' })
+    expect(within(rpe).getAllByRole('button')).toHaveLength(10)
+    expect(within(rpe).getByRole('button', { name: 'RPE 4' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  test('reports a number and clears the chosen one on a second tap', async () => {
+    const onChange = vi.fn()
+    const { rerender } = render(
+      <ScalePicker legend="Pain" min={0} max={10} value={null} onChange={onChange} />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Pain 7' }))
+    expect(onChange).toHaveBeenLastCalledWith(7)
+    rerender(<ScalePicker legend="Pain" min={0} max={10} value={7} onChange={onChange} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Pain 7' }))
+    expect(onChange).toHaveBeenLastCalledWith(null)
+  })
+})
+
 function renderDashboard(activities: Activity[], extra: MockRoutes = {}) {
   const api = mockApi({
     'GET /api/goals': () => [],
@@ -80,6 +112,36 @@ describe('Today: How did it go?', () => {
     expect(within(card).getAllByRole('listitem')).toHaveLength(2)
     expect(within(card).getByText(/Tue 17 Mar/)).toBeInTheDocument()
     expect(within(card).getByText(/Thu 12 Mar/)).toBeInTheDocument()
+  })
+
+  test('shows the newest run in full and the others as a list with Rate buttons', async () => {
+    const user = userEvent.setup()
+    const api = renderDashboard(
+      [
+        makeActivity({ id: 'older', date: '2026-03-12', type: 'run', durationSec: 3600 }),
+        makeActivity({ id: 'newest', date: '2026-03-17', type: 'run', durationSec: 1800 }),
+        makeActivity({ id: 'middle', date: '2026-03-14', type: 'race', durationSec: 2400 }),
+      ],
+      { 'PATCH /api/activities/older/feedback': () => ({}) },
+    )
+    const card = await screen.findByRole('region', { name: 'How did it go?' })
+    // one form, for the newest run
+    expect(within(card).getAllByRole('button', { name: 'RPE 6' })).toHaveLength(1)
+    expect(within(card).getAllByRole('button', { name: /^Rate / })).toHaveLength(2)
+    const items = within(card).getAllByRole('listitem')
+    expect(items[0]).toHaveTextContent('Tue 17 Mar')
+    expect(items[1]).toHaveTextContent('Sat 14 Mar')
+    expect(items[2]).toHaveTextContent('Thu 12 Mar')
+
+    await user.click(within(card).getByRole('button', { name: /^Rate run Thu 12 Mar/ }))
+    expect(within(card).getAllByRole('button', { name: 'RPE 6' })).toHaveLength(2)
+    expect(within(card).getAllByRole('button', { name: /^Rate / })).toHaveLength(1)
+    const older = within(card).getAllByRole('listitem')[2]!
+    await user.click(within(older).getByRole('button', { name: 'RPE 3' }))
+    await user.click(within(older).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(api.calls.find((c) => c.method === 'PATCH')?.url).toContain('/older/feedback')
+    })
   })
 
   test('is absent when nothing needs rating', async () => {
