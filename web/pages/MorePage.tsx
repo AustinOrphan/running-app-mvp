@@ -7,7 +7,7 @@ import styles from './MorePage.module.css'
 const links = [
   { to: '/goals', label: 'Goals', note: 'Races you are training for' },
   { to: '/stats', label: 'Stats', note: 'Fastest efforts, monthly and yearly totals' },
-  { to: '/settings', label: 'Settings', note: 'Units, display name, import and export' },
+  { to: '/settings', label: 'Settings', note: 'Units, display name, export' },
 ]
 
 /** The phone-width list for pages that are not in the tab bar, plus the theme choice. */

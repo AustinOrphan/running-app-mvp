@@ -2,6 +2,7 @@ import { fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { Layout, useTheme } from '../../web/components/Layout.tsx'
 import { Nav } from '../../web/components/Nav.tsx'
+import { MorePage } from '../../web/pages/MorePage.tsx'
 import { renderWithProviders } from './helpers.tsx'
 
 function primaryLinks() {
@@ -112,5 +113,17 @@ describe('Layout', () => {
     renderWithProviders(<Layout />)
     expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#main')
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main')
+  })
+})
+
+describe('MorePage', () => {
+  test('the Settings note names only what Settings offers: no import', () => {
+    renderWithProviders(<MorePage />, { route: '/more' })
+    const settings = within(screen.getByRole('navigation', { name: 'More pages' })).getByRole(
+      'link',
+      { name: /^Settings/ },
+    )
+    expect(settings).toHaveTextContent('Units, display name, export')
+    expect(settings).not.toHaveTextContent(/import/i)
   })
 })
