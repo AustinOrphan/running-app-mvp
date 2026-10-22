@@ -25,18 +25,30 @@ describe('fastestEfforts', () => {
     expect(efforts.map((e) => e.targetM)).toEqual([1609.344, 5000, 10000, 21097.5, 42195, 50000])
   })
 
-  test('window: from the target up to 2% above', () => {
+  test('window: from 99.5% of the target up to 102% of it', () => {
     const only5k = (d: number) => fastestEfforts([run(d, 1500)]).filter((e) => e.label === '5K')
     expect(only5k(5000)).toHaveLength(1)
     expect(only5k(5100)).toHaveLength(1)
     expect(only5k(5101)).toHaveLength(0)
-    expect(only5k(4999)).toHaveLength(0)
+    expect(only5k(4975)).toHaveLength(1)
+    expect(only5k(4974)).toHaveLength(0)
     const mile = (d: number) => fastestEfforts([run(d, 400)]).filter((e) => e.label === '1 mi')
     expect(mile(1609.344)).toHaveLength(1)
     expect(mile(1641)).toHaveLength(1)
     expect(mile(1642)).toHaveLength(0)
-    expect(mile(1609)).toHaveLength(1)
-    expect(mile(1608)).toHaveLength(0)
+    expect(mile(1602)).toHaveLength(1)
+    expect(mile(1601)).toHaveLength(0)
+  })
+
+  test('runs logged in whole miles qualify: 13.1 mi for Half, 26.2 mi for Marathon, but 3.08 mi is not a 5K', () => {
+    const labels = (distanceM: number) =>
+      fastestEfforts([run(Math.round(distanceM), 6000)]).map((e) => e.label)
+    const mi = 1609.344
+    expect(labels(13.1 * mi)).toContain('Half')
+    expect(labels(26.2 * mi)).toContain('Marathon')
+    expect(labels(3.1 * mi)).toContain('5K')
+    // 3.08 mi is 4957 m, under the 4975 m floor.
+    expect(labels(3.08 * mi)).not.toContain('5K')
   })
 
   test('pace is whole-run seconds per km, fastest wins, earlier date breaks ties', () => {

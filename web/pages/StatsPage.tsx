@@ -290,7 +290,7 @@ export function StatsPage() {
           <p className={styles.note}>{`No qualifying run yet for ${missing.join(', ')}.`}</p>
         ) : null}
         <p className={styles.note}>
-          A run counts for a distance when it is at least that long and within 2% over it.
+          A run counts for a distance when it is within 0.5% under to 2% over it.
         </p>
       </section>
 

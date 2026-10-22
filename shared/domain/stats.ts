@@ -26,8 +26,10 @@ const EFFORT_TARGETS: ReadonlyArray<{ label: string; targetM: number }> = [
   { label: '50K', targetM: 50000 },
 ]
 
-// A run counts for a distance when it is at least the target and at most 2% longer.
-const WINDOW_PERCENT = 102
+// A run counts for a distance when it is within 99.5% to 102% of the target. The lower edge lets a
+// run logged as 13.1 or 26.2 miles count for the half and the marathon.
+const WINDOW_MIN_PER_MILLE = 995
+const WINDOW_MAX_PER_MILLE = 1020
 
 // `possible` and `confirmed` duplicates are excluded from every statistic.
 function counts(activity: Activity): boolean {
@@ -56,8 +58,9 @@ export function fastestEfforts(activities: Activity[]): FastestEffort[] {
     let best: Activity | null = null
     for (const a of candidates) {
       const d = a.distanceM ?? 0
-      // Distances are stored as whole metres, so the lower bound is the target rounded down.
-      if (d < Math.floor(targetM) || d * 100 > targetM * WINDOW_PERCENT) continue
+      if (d * 1000 < targetM * WINDOW_MIN_PER_MILLE || d * 1000 > targetM * WINDOW_MAX_PER_MILLE) {
+        continue
+      }
       if (best === null || isFasterOrEarlier(a, best)) best = a
     }
     if (best === null || best.distanceM === null) continue
