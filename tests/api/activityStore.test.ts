@@ -407,6 +407,17 @@ describe('storeWellness', () => {
     })
   })
 
+  test('rounds fractional values for the integer columns', async () => {
+    await storeWellness(
+      ctx,
+      user.id,
+      [{ ...empty, date: '2026-03-01', restingHr: 47.6, sleepSec: 27000.4, weightKg: 70.25 }],
+      'apple-health',
+    )
+    const row = await ctx.prisma.wellnessDay.findFirstOrThrow()
+    expect(row).toMatchObject({ restingHr: 48, sleepSec: 27000, weightKg: 70.25 })
+  })
+
   test('rows with no values are not stored', async () => {
     const n = await storeWellness(ctx, user.id, [{ ...empty, date: '2026-03-01' }], 'intervals')
     expect(n).toBe(0)

@@ -190,6 +190,13 @@ const WELLNESS_FIELDS = [
   'vo2max',
 ] as const
 
+/** Wellness columns stored as integers; providers may report fractions (e.g. averaged HR). */
+const WELLNESS_INT_FIELDS = new Set<string>(['restingHr', 'sleepSec', 'sleepScore'])
+
+function wellnessValue(field: (typeof WELLNESS_FIELDS)[number], value: number): number {
+  return WELLNESS_INT_FIELDS.has(field) ? Math.round(value) : value
+}
+
 /**
  * Upserts wellness rows by date and returns how many rows were written. A null field never
  * overwrites a stored value. A row the owner entered by hand (`source 'manual'`) only gains the
@@ -219,13 +226,9 @@ export async function storeWellness(
               userId,
               date: row.date,
               source,
-              restingHr: row.restingHr,
-              hrvRmssd: row.hrvRmssd,
-              hrvSdnn: row.hrvSdnn,
-              sleepSec: row.sleepSec,
-              sleepScore: row.sleepScore,
-              weightKg: row.weightKg,
-              vo2max: row.vo2max,
+              ...Object.fromEntries(
+                incoming.map((field) => [field, wellnessValue(field, row[field] as number)]),
+              ),
             },
           })
           written += 1
@@ -236,7 +239,7 @@ export async function storeWellness(
         const data: Partial<Record<(typeof WELLNESS_FIELDS)[number], number>> = {}
         for (const field of incoming) {
           if (manual && existing[field] !== null) continue
-          data[field] = row[field] as number
+          data[field] = wellnessValue(field, row[field] as number)
         }
         if (Object.keys(data).length === 0) continue
         await tx.wellnessDay.update({
