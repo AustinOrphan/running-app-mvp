@@ -74,9 +74,17 @@ describe('WhyDrawer', () => {
     expect(await within(dialog).findByText('0.75, 0.55, 0.35')).toBeInTheDocument()
     expect(within(dialog).getByText('Evidence grade B')).toBeInTheDocument()
     expect(within(dialog).getByText('Evidence grade D')).toBeInTheDocument()
-    // Grade D says it is a default, in the parameter's own words.
-    expect(within(dialog).getByText(/Default, not evidence/)).toBeInTheDocument()
+    // Grade D says it is a default, and the sentence is the parameter's own note.
+    expect(within(dialog).getByText('Default (no direct study)')).toBeInTheDocument()
     expect(within(dialog).getByText(/no direct evidence/)).toBeInTheDocument()
+    // The rule is named in words, and no raw parameter id is shown.
+    expect(within(dialog).getByRole('heading', { name: 'Taper length' })).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('heading', { name: 'First threshold when untested' }),
+    ).toBeInTheDocument()
+    expect(dialog.textContent).not.toMatch(/k1\.weeklyMultipliers|expectedRpe\.easy/)
+    // a parameter without a note reads as words
+    expect(within(dialog).getByText('Weekly multipliers')).toBeInTheDocument()
     expect(within(dialog).getByText('2 to 4 CR-10')).toBeInTheDocument()
     // The paper behind a grade B parameter, from the bundled corpus.
     expect(

@@ -3,6 +3,7 @@ import { useResearchParams } from '../api/research.ts'
 import { GradeBadge } from './GradeBadge.tsx'
 import { PaperCard } from './PaperCard.tsx'
 import { Sheet } from './Sheet.tsx'
+import { ruleTitle } from './ruleTitles.ts'
 import styles from './WhyDrawer.module.css'
 import { useCorpus, useToggleSet } from './researchCorpus.ts'
 
@@ -39,13 +40,17 @@ function describeParam(param: Param<unknown>): Array<{ label: string; text: stri
   return rows
 }
 
+/** "k1.weeklyMultipliers" as "Weekly multipliers", for a parameter that has no note. */
+function paramLabel(id: string): string {
+  const last = id.split('.').pop() ?? id
+  const words = last.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
 function ParamRow({ param }: { param: Param<unknown> }) {
   return (
     <div className={styles.param}>
-      <div className={styles.paramHead}>
-        <span className={styles.paramId}>{param.id}</span>
-        <GradeBadge grade={param.grade} />
-      </div>
+      <p className={styles.sentence}>{param.note ?? paramLabel(param.id)}</p>
       <dl className={styles.facts}>
         {describeParam(param).map((row) => (
           <div key={row.label} className={styles.fact}>
@@ -54,12 +59,12 @@ function ParamRow({ param }: { param: Param<unknown> }) {
           </div>
         ))}
       </dl>
-      {param.grade === 'D' ? (
-        <p className={styles.note}>
-          <strong>Default, not evidence.</strong> A cautious value chosen by the plan builder.
-        </p>
-      ) : null}
-      {param.note !== undefined ? <p className={styles.note}>{param.note}</p> : null}
+      <div className={styles.paramHead}>
+        <GradeBadge grade={param.grade} />
+        {param.grade === 'D' ? (
+          <span className={styles.defaultTag}>Default (no direct study)</span>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -96,11 +101,12 @@ function DrawerBody({ rules }: { rules: string[] }) {
       {uniqueRules.map((rule) => {
         const matched = params.filter((p) => ruleKey(p.rule) === ruleKey(rule))
         const paperIds = [...new Set(matched.flatMap((p) => p.evidence))].sort()
+        const title = ruleTitle(rule)
         return (
-          <section key={rule} className={styles.rule} aria-label={`Rule ${rule}`}>
-            <h3 className={styles.ruleTitle}>Rule {rule}</h3>
+          <section key={rule} className={styles.rule} aria-label={title ?? `Rule ${rule}`}>
+            <h3 className={styles.ruleTitle}>{title ?? `Rule ${rule}`}</h3>
             {matched.length === 0 ? (
-              <p className={styles.note}>No parameter is recorded for {rule}.</p>
+              <p className={styles.note}>No parameter is recorded for {title ?? rule}.</p>
             ) : (
               matched.map((param) => <ParamRow key={param.id} param={param} />)
             )}
