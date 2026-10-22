@@ -8,11 +8,13 @@ describe('minettiCost (rules I11)', () => {
   })
 
   it('reproduces the measured anchors to within the polynomial fit', () => {
-    // The registry polynomial gives 5.40 at +45% and 0.50 at -20%; the measured anchors are
-    // 5.6 and 0.51.
+    // The registry polynomial gives 5.40 at +45%, 0.50 at -20% and 1.12 at -45%; the measured
+    // anchors are 5.6, 0.51 and 1.15.
     expect(minettiCost(0.45)).toBeCloseTo(P.i11.costRatioPlus45.value, 0)
     expect(Math.abs(minettiCost(0.45) - P.i11.costRatioPlus45.value)).toBeLessThan(0.25)
     expect(Math.abs(minettiCost(-0.2) - P.i11.costRatioMinus20.value)).toBeLessThan(0.02)
+    // 1.12 from the polynomial against the measured 1.15 at -45%.
+    expect(Math.abs(minettiCost(-0.45) - P.i11.costRatioMinus45.value)).toBeLessThan(0.05)
   })
 
   it('has its minimum near -20% and rises again on steeper descents', () => {

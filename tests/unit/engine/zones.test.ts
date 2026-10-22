@@ -114,6 +114,8 @@ describe('buildZones HRmax (rules C3)', () => {
       TODAY,
     )
     expect(z.hrMax!.source).toBe('profile')
+    // Not measured, so it keeps the +-10.8 bpm band of a predicted HRmax (rules C7).
+    expect(z.hrMax!.band).toEqual([174, 196])
   })
 })
 

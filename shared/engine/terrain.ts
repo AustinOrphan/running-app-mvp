@@ -22,9 +22,9 @@ export function minettiCost(grade: number): number {
  * Flat-equivalent speed for a speed on a grade; downhill credit is capped [rules I11].
  *
  * The speed is scaled by the cost ratio. A grade steeper than the downhill floor (-20%, where the
- * curve has its minimum) is treated as the floor, so the saving is never larger than the
- * minimum of the curve and the result is an upper bound on the metabolic credit. Steeper
- * descents therefore never raise the flat-equivalent speed.
+ * curve has its minimum) is treated as the floor: the braking cost the curve adds below -20% is
+ * not counted, so steeper descents never raise the flat-equivalent speed above its value at
+ * the floor.
  */
 export function gradeAdjustedSpeed(speedMps: number, grade: number): number {
   const floor = P.i11.downhillCreditFloorGradePct.value / 100

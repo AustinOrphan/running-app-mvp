@@ -274,6 +274,10 @@ function pad2(n: number): string {
  * of that window; the cooler hour is the start whose hours, over the session's duration, have the
  * lowest mean index (offered for key sessions only, and only when it gains at least
  * `i7.coolerMinGainC`). Both are null when the day stays inside the optimum band.
+ *
+ * Each hour's `time` must be the runner's local wall-clock time (`YYYY-MM-DDTHH:MM...`): the date
+ * and hour are read from the string as written, and no offset or trailing `Z` is converted. UTC
+ * hours (as the Open-Meteo provider returns them) must be converted by the caller first.
  */
 export function trainingHeatAdvice(
   forecastHours: NonNullable<EngineInput['forecast']>,

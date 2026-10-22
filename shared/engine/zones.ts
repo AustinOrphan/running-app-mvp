@@ -56,9 +56,12 @@ function hrMaxBoundary(
   today: string,
 ): { boundary: Boundary; source: HrMaxSource } | null {
   if (profile.hrMax !== null) {
-    const source: HrMaxSource = profile.hrMaxSource === 'measured' ? 'hrmax-observed' : 'profile'
+    const measured = profile.hrMaxSource === 'measured'
+    const source: HrMaxSource = measured ? 'hrmax-observed' : 'profile'
+    // An unmeasured value is a prediction, so it keeps the predicted-HRmax band [rules C7].
+    const halfWidth = measured ? P.c7.bandDefaultBpm.value : P.c3.priorBandBpm.value
     return {
-      boundary: hrBoundary(profile.hrMax, P.c7.bandDefaultBpm.value, source, today),
+      boundary: hrBoundary(profile.hrMax, halfWidth, source, today),
       source,
     }
   }
