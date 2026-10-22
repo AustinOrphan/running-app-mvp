@@ -29,10 +29,11 @@ export interface GuardOptions {
    */
   restartFloor?: { weekStart: string; minutes: number } | null
   /**
-   * For a generated plan: a run above 2.00x the 30-day reference on any dimension is shortened to
-   * that limit (and left out when it would fall under the session minimum) instead of being
-   * flagged `override-required`, because the generator never schedules an override [rules g-1].
-   * Without it, such a run keeps the flag, as an owner edit does.
+   * For a generated plan: a run above the normal band (1.10x the 30-day reference, or the minimum
+   * step) on any dimension is shortened to that limit (and left out when it would fall under the
+   * session minimum) instead of being flagged, because the generator stays in the normal band in
+   * every week [rules g-1, G6]. Without it, such a run keeps `spike-warn` or `override-required`,
+   * as an owner edit does.
    */
   neverOverride?: boolean
 }
@@ -102,7 +103,7 @@ export function nextWeekCap(plannedMin: number, actualLastWeekMin: number, ramp:
  * is not compared and yields an info warning; a recorded 0 (a flat history) is compared, with
  * the minimum step as the allowance. Races are left out of the weekly minutes. Above 1.10x a run gets `spike-warn`,
  * above 2.00x `override-required`, or with `neverOverride` (a generated plan) it is shortened to
- * 2.00x and left out when that falls under the session minimum; with the recent-injury flag 1.10x is a hard limit and the
+ * 1.10x and left out when that falls under the session minimum; with the recent-injury flag 1.10x is a hard limit and the
  * run is shortened. A week above the 2-week 30% ceiling or a tightened ramp is shortened; the
  * soft 10% only warns. Every cut leaves a warning with rule ids.
  */
@@ -377,7 +378,10 @@ export function applyGuards(
   function gainRamp(weekStart: string): void {
     const gain = gainVolume.get(weekStart) ?? 0
     const base = positive(highest(gainVolume, weekStart, 1, P.g2.baselineWeeks.value))
-    if (base === null || gain <= base * (1 + P.h4.weeklyGainRamp.value) + EPS) return
+    if (base === null) return
+    // A step within the minimum step of H4 (100 m) is never a warning on its own.
+    const allowed = base + Math.max(base * P.h4.weeklyGainRamp.value, P.h4.minStepGainM.value)
+    if (gain <= allowed + EPS) return
     warn(`gain|${weekStart}`, {
       code: 'gain-ramp-soft',
       severity: 'warn',
@@ -543,17 +547,17 @@ export function applyGuards(
       })
       return scaled
     }
-    if (level === 2 && options.neverOverride === true) {
-      const factor = Math.min(
-        ...over.filter((c) => c.level === 2).map((c) => c.overrideLimit / c.d.value),
-      )
+    if (options.neverOverride === true) {
+      // A generated plan stays in the normal band (1.10x, or the minimum step) in every week; the
+      // warn band is reached only by an owner edit, which keeps its warning [rules g-1, G6].
+      const factor = Math.min(...over.map((c) => c.warnLimit / c.d.value))
       const scaled = scaleSession(base, factor)
       if (scaled === null) {
         dropPartner(s)
         warn(`g1|${s.date}`, {
           code: 'spike-run-dropped',
           severity: 'info',
-          message: `The run on ${s.date} would be ${text} of the ${where}, and a run that short is not worth scheduling, so it is left out. Runs are never scheduled above ${P.g1.spikeRatioOverride.value}x without an explicit override.`,
+          message: `The run on ${s.date} would be ${text} of the ${where}, and a run that short is not worth scheduling, so it is left out. Generated runs stay within ${P.g1.spikeRatioWarn.value}x.`,
           rules: ['g-1'],
         })
         return null
@@ -561,10 +565,10 @@ export function applyGuards(
       warn(`g1|${s.date}`, {
         code: 'spike-shortened',
         severity: 'warn',
-        message: `The run on ${s.date} would be ${text} of the ${where}, so it is shortened to ${P.g1.spikeRatioOverride.value}x. The minutes cut are not made up.`,
+        message: `The run on ${s.date} would be ${text} of the ${where}, so it is shortened to ${P.g1.spikeRatioWarn.value}x. The minutes cut are not made up.`,
         rules: ['g-1'],
       })
-      // the shortened run may still sit in the warn band, which carries its own flag
+      // rounding down keeps every dimension inside the limit; the check confirms it
       return spikeCheck(scaled)
     }
     const flag: SessionFlag = level === 2 ? 'override-required' : 'spike-warn'

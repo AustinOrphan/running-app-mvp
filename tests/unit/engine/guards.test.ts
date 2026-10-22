@@ -80,10 +80,10 @@ describe('applyGuards: session spike guard (G-1)', () => {
   describe('for a generated plan (neverOverride)', () => {
     const generated = (s: SessionSpec[]) => applyGuards(s, LONG_REF, [], { neverOverride: true })
 
-    it('shortens a run above 2.00x to the 2.00x limit instead of flagging it', () => {
+    it('shortens a run above 1.10x to the normal band instead of flagging it', () => {
       const result = generated([session({ date: '2026-11-03', kind: 'long', durationMin: 210 })])
-      expect(result.sessions[0]!.durationMin).toBe(200)
-      expect(result.sessions[0]!.flags).toEqual(['spike-warn'])
+      expect(result.sessions[0]!.durationMin).toBe(110)
+      expect(result.sessions[0]!.flags).toEqual([])
       const warning = result.warnings.find((w) => w.code === 'spike-shortened')!
       expect(warning.rules).toContain('g-1')
     })
@@ -99,15 +99,53 @@ describe('applyGuards: session spike guard (G-1)', () => {
         }),
       ])
       const s = result.sessions[0]!
-      expect(s.distanceM).toBeLessThanOrEqual(40_000)
+      expect(s.distanceM).toBeLessThanOrEqual(22_000)
+      expect(s.gainM).toBeLessThanOrEqual(440)
       expect(s.durationMin).toBeLessThan(90)
-      expect(s.flags).not.toContain('override-required')
+      expect(s.flags).toEqual([])
     })
 
-    it('leaves a run inside the warn band as it is, with its warning flag', () => {
+    it('shortens a run in the warn band to 1.10x, with no warning flag [rules G6]', () => {
       const result = generated([session({ date: '2026-11-03', kind: 'long', durationMin: 150 })])
-      expect(result.sessions[0]!.durationMin).toBe(150)
-      expect(result.sessions[0]!.flags).toEqual(['spike-warn'])
+      expect(result.sessions[0]!.durationMin).toBe(110)
+      expect(result.sessions[0]!.flags).toEqual([])
+    })
+
+    it('keeps a step within the 0.5 km and 100 m minimums without a warning or a cut', () => {
+      const shortRef = state({
+        longest30d: { distanceM: 3000, durationSec: 1800, gainM: 200, lossM: 200, twoDaySec: 0 },
+      })
+      const one = (over: Partial<SessionSpec>) =>
+        applyGuards([session({ date: '2026-11-03', durationMin: 30, ...over })], shortRef, [], {
+          neverOverride: true,
+        })
+      const within = one({ distanceM: 3500, gainM: 300 })
+      expect(within.sessions[0]).toMatchObject({ distanceM: 3500, gainM: 300, flags: [] })
+      expect(within.warnings).toEqual([])
+      const above = one({ distanceM: 3600 })
+      expect(above.sessions[0]!.distanceM).toBeLessThanOrEqual(3500)
+      expect(above.sessions[0]!.flags).toEqual([])
+    })
+
+    it('holds every week of a multi-week plan to the normal band, not only the first', () => {
+      let duration = 100
+      const sessions = [0, 7, 14, 21, 28, 35].map((offset) => {
+        const s = session({
+          date: addDays('2026-11-03', offset),
+          kind: 'long',
+          durationMin: duration,
+        })
+        duration = Math.round(duration * 1.3)
+        return s
+      })
+      const result = generated(sessions)
+      let reference = 100
+      for (const s of result.sessions) {
+        expect(s.flags).toEqual([])
+        expect(s.durationMin).toBeLessThanOrEqual(Math.floor(reference * 1.1 + 1e-9))
+        reference = Math.max(reference, s.durationMin)
+      }
+      expect(result.sessions.length).toBeGreaterThan(1)
     })
 
     it('leaves a run out when the cut would fall under the session minimum', () => {
@@ -445,6 +483,21 @@ describe('applyGuards: weekly ramp (G-2, G-3)', () => {
       true,
     )
     expect(result.sessions[0]!.gainM).toBe(700)
+  })
+
+  it('does not warn about a weekly gain step within the 100 m minimum', () => {
+    const history = [run('2026-10-28', 60, { elevationGainM: 300 })]
+    const week = (gainM: number) => [
+      session({ date: '2026-11-03', durationMin: 60, gainM }),
+      session({ date: '2026-11-05', durationMin: 60 }),
+    ]
+    const warns = (gainM: number) =>
+      applyGuards(week(gainM), withWeeks([100, 100, 100]), history).warnings.some(
+        (w) => w.code === 'gain-ramp-soft',
+      )
+    // 300 m is 10% of 30 m short of the 100 m step: 400 m is the edge
+    expect(warns(400)).toBe(false)
+    expect(warns(401)).toBe(true)
   })
 })
 
