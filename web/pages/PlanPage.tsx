@@ -1,28 +1,43 @@
-import { useId, useState, type CSSProperties, type FormEvent } from 'react'
+import { Fragment, useId, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { fieldErrors } from '../api/client.ts'
 import { useGoals } from '../api/goals.ts'
 import {
   useGeneratePlan,
   usePlan,
+  usePlanRevisions,
+  useReplan,
   useUpdatePlanWeek,
   type GeneratePlanRequest,
   type PlanWeekPatch,
 } from '../api/plan.ts'
+import { useSettings } from '../api/settings.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
+import { SessionSheet, sessionStatusLabel, sessionSummary } from '../components/SessionSheet.tsx'
 import { Sheet } from '../components/Sheet.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
-import { formatLongDate, formatShortDate, phaseLabel } from '../components/format.ts'
+import { WhyDrawer } from '../components/WhyDrawer.tsx'
+import { formatLongDate, formatShortDate, formatWeekday, phaseLabel } from '../components/format.ts'
 import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
-import type { Goal, PlanPhase, PlanWeek, PlanWithWeeks } from '../../shared/types.ts'
+import type { EngineWarning } from '../../shared/engine/types.ts'
+import type {
+  Goal,
+  PlanPhase,
+  PlanRevision,
+  PlanRevisionReason,
+  PlanSession,
+  PlanWeek,
+  PlanWithSessions,
+  Units,
+} from '../../shared/types.ts'
 import styles from './PlanPage.module.css'
 
 /** Chip intensity: one hue that builds with the phase. Taper and race have no level. */
@@ -478,7 +493,276 @@ function TargetCell({ week }: { week: PlanWeek }) {
   )
 }
 
-function PlanTable({ plan }: { plan: PlanWithWeeks }) {
+const FEASIBILITY_LABELS = {
+  comfortable: 'Comfortable',
+  tight: 'Tight',
+  'not-reachable': 'Not reachable within default limits',
+} as const
+
+const SEVERITY_LABELS: Record<EngineWarning['severity'], string> = {
+  info: 'Note',
+  warn: 'Caution',
+  hold: 'Held back',
+}
+
+const REASON_LABELS: Record<PlanRevisionReason, string> = {
+  generate: 'Plan generated',
+  weekly: 'Weekly update',
+  review: 'After a review',
+  owner: 'Your edit',
+  break: 'Restart after a break',
+}
+
+/** A short "Why" control that opens the shared drawer for the given rule ids. */
+function WhyButton({
+  rules,
+  label,
+  onOpen,
+}: {
+  rules: string[]
+  label: string
+  onOpen: (rules: string[]) => void
+}) {
+  if (rules.length === 0) return null
+  return (
+    <Button
+      variant="quiet"
+      aria-label={label}
+      onClick={() => {
+        onOpen(rules)
+      }}
+    >
+      Why
+    </Button>
+  )
+}
+
+function changeValue(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  return JSON.stringify(value)
+}
+
+function WhatChanged({
+  revisions,
+  onWhy,
+}: {
+  revisions: ReturnType<typeof usePlanRevisions>
+  onWhy: (rules: string[]) => void
+}) {
+  let body
+  if (revisions.isError) {
+    body = (
+      <p role="alert" className={styles.error}>
+        The list of changes did not load.
+      </p>
+    )
+  } else if (revisions.isPending) {
+    body = <Skeleton lines={2} />
+  } else if (revisions.data.length === 0) {
+    body = <p className={styles.muted}>No changes yet. Updates to the plan are listed here.</p>
+  } else {
+    body = (
+      <ol className={styles.revisions}>
+        {revisions.data.map((revision: PlanRevision) => {
+          const rules = [...new Set(revision.changes.flatMap((c) => c.rules))]
+          return (
+            <li key={revision.id}>
+              <p className={styles.revisionHead}>
+                <strong>{REASON_LABELS[revision.reason]}</strong>{' '}
+                <span className={styles.muted}>
+                  {formatShortDate(revision.createdAt.slice(0, 10))}
+                </span>
+              </p>
+              <p>{revision.summary}</p>
+              {revision.changes.length > 0 ? (
+                <ul className={styles.changes}>
+                  {revision.changes.map((change, index) => (
+                    <li key={`${change.weekStart}-${change.field}-${String(index)}`}>
+                      Week of {formatShortDate(change.weekStart)}: {change.field}{' '}
+                      {changeValue(change.from)} to {changeValue(change.to)}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <WhyButton rules={rules} label="Why this update" onOpen={onWhy} />
+            </li>
+          )
+        })}
+      </ol>
+    )
+  }
+  return (
+    <section aria-labelledby="changed-title" className={styles.panel}>
+      <details>
+        <summary id="changed-title">What changed</summary>
+        {body}
+      </details>
+    </section>
+  )
+}
+
+/** Version-2 plans: feasibility, warnings, the plan checks and the revision list. */
+function PlanOverview({
+  plan,
+  onWhy,
+}: {
+  plan: PlanWithSessions
+  onWhy: (rules: string[]) => void
+}) {
+  const revisions = usePlanRevisions()
+  const passed = plan.checklist.filter((item) => item.ok).length
+  const feasibility = plan.feasibility
+
+  return (
+    <div className={styles.overview}>
+      {feasibility !== null ? (
+        <section aria-labelledby="feasibility-title" className={styles.panel}>
+          <h2 id="feasibility-title" className={styles.panelTitle}>
+            Feasibility
+          </h2>
+          <p className={styles.feasibility}>
+            <strong data-feasibility={feasibility.label}>
+              {FEASIBILITY_LABELS[feasibility.label]}
+            </strong>{' '}
+            <span className={styles.muted}>
+              {feasibility.weeksNeeded} weeks needed, {feasibility.weeksAvailable} available.
+            </span>
+          </p>
+          {feasibility.notes.length > 0 ? (
+            <ul className={styles.items}>
+              {feasibility.notes.map((note) => (
+                <li key={note.code}>
+                  <span>{note.message}</span>
+                  <WhyButton rules={note.rules} label="Why this note" onOpen={onWhy} />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+      {plan.warnings.length > 0 ? (
+        <section aria-labelledby="warnings-title" className={styles.panel}>
+          <h2 id="warnings-title" className={styles.panelTitle}>
+            Warnings
+          </h2>
+          <ul className={styles.items}>
+            {plan.warnings.map((warning) => (
+              <li key={`${warning.code}-${warning.message}`}>
+                <span>
+                  <strong>{SEVERITY_LABELS[warning.severity]}</strong> {warning.message}
+                </span>
+                <WhyButton rules={warning.rules} label="Why this warning" onOpen={onWhy} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {plan.checklist.length > 0 ? (
+        <section aria-labelledby="checks-title" className={styles.panel}>
+          <details>
+            <summary id="checks-title">Plan checks</summary>
+            <p className={styles.muted}>
+              {passed} of {plan.checklist.length} checks pass
+            </p>
+            <ul className={styles.items}>
+              {plan.checklist.map((item) => (
+                <li key={item.id}>
+                  <span>
+                    <strong>{item.ok ? 'Passed' : 'Not met'}</strong> {item.detail}
+                  </span>
+                  <WhyButton rules={item.rules} label="Why this check" onOpen={onWhy} />
+                </li>
+              ))}
+            </ul>
+          </details>
+        </section>
+      ) : null}
+      <WhatChanged revisions={revisions} onWhy={onWhy} />
+    </div>
+  )
+}
+
+/** One card per day with sessions; each session opens the session sheet. */
+function DayCards({
+  week,
+  sessions,
+  units,
+  onOpen,
+}: {
+  week: PlanWeek
+  sessions: PlanSession[]
+  units: Units | undefined
+  onOpen: (id: string) => void
+}) {
+  const byDate = new Map<string, PlanSession[]>()
+  for (const session of sessions) {
+    byDate.set(session.date, [...(byDate.get(session.date) ?? []), session])
+  }
+  const dates = [...byDate.keys()].sort()
+  return (
+    <ul className={styles.days} aria-label={`Days of week of ${formatShortDate(week.weekStart)}`}>
+      {dates.map((date) => (
+        <li key={date} className={styles.day}>
+          <p className={styles.dayName}>
+            {formatWeekday(date)} {formatShortDate(date)}
+          </p>
+          {(byDate.get(date) ?? [])
+            .sort((a, b) => a.order - b.order)
+            .map((session) => (
+              <button
+                key={session.id}
+                type="button"
+                className={styles.sessionButton}
+                data-status={session.status}
+                onClick={() => {
+                  onOpen(session.id)
+                }}
+              >
+                <span className={styles.sessionTitle}>{session.title}</span>
+                <span className={styles.sessionMeta}>
+                  {[sessionSummary(session, units), sessionStatusLabel(session.status)]
+                    .filter((part) => part !== '')
+                    .join(', ')}
+                </span>
+              </button>
+            ))}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Mounted only for plans with sessions, so version-1 plans never ask for settings. */
+function DaysRow({
+  week,
+  sessions,
+  onOpen,
+}: {
+  week: PlanWeek
+  sessions: PlanSession[]
+  onOpen: (id: string) => void
+}) {
+  const settings = useSettings()
+  return (
+    <tr className={styles.daysRow} data-days-for={week.weekStart}>
+      <td colSpan={10}>
+        <DayCards week={week} sessions={sessions} units={settings.data?.units} onOpen={onOpen} />
+      </td>
+    </tr>
+  )
+}
+
+function PlanTable({
+  plan,
+  sessions,
+  onOpenSession,
+}: {
+  plan: PlanWithSessions
+  sessions: PlanSession[]
+  onOpenSession: (id: string) => void
+}) {
   const [editing, setEditing] = useState<PlanWeek | null>(null)
   const currentMonday = mondayOf(todayIso())
   const first = plan.weeks[0]?.weekStart ?? plan.startDate
@@ -486,6 +770,23 @@ function PlanTable({ plan }: { plan: PlanWithWeeks }) {
   const to = currentMonday < first ? first : currentMonday > last ? last : currentMonday
   const weeks = useWeeks({ from: first, to })
   const actual = new Map((weeks.data ?? []).map((w) => [w.weekStart, w.runMin]))
+  // The current week opens to its days at first; the owner opens the others.
+  const [open, setOpen] = useState<Set<string>>(() => new Set([currentMonday]))
+  const sessionsByWeek = new Map<string, PlanSession[]>()
+  for (const session of sessions) {
+    sessionsByWeek.set(session.weekStart, [
+      ...(sessionsByWeek.get(session.weekStart) ?? []),
+      session,
+    ])
+  }
+
+  function toggle(weekStart: string) {
+    setOpen((current) => {
+      const next = new Set(current)
+      if (!next.delete(weekStart)) next.add(weekStart)
+      return next
+    })
+  }
 
   return (
     <>
@@ -519,56 +820,74 @@ function PlanTable({ plan }: { plan: PlanWithWeeks }) {
             const isCurrent = week.weekStart === currentMonday
             const runMin = week.weekStart <= currentMonday ? actual.get(week.weekStart) : undefined
             const short = formatShortDate(week.weekStart)
+            const weekSessions = sessionsByWeek.get(week.weekStart) ?? []
+            const expanded = weekSessions.length > 0 && open.has(week.weekStart)
             return (
-              <tr
-                key={week.weekStart}
-                data-week={week.weekStart}
-                data-cutback={cutback ? 'true' : undefined}
-                data-race={race ? 'true' : undefined}
-                data-taper={week.phase === 'taper' ? 'true' : undefined}
-                aria-current={isCurrent ? 'date' : undefined}
-                className={styles.row}
-              >
-                <td className={styles.week}>{short}</td>
-                <td className={styles.phase}>
-                  <PhaseChip phase={week.phase} />
-                  {cutback ? <span className={styles.cutback}>cutback</span> : null}
-                </td>
-                <td className={styles.target} data-cell="target">
-                  <TargetCell week={week} />
-                </td>
-                <td className={styles.actual} data-cell="actual">
-                  {runMin === undefined ? '' : hours(runMin)}
-                </td>
-                <td className={styles.summary}>
-                  Long run {longRunText(week.longRunMin)}, {week.runDays} run days, strength{' '}
-                  {week.strengthSessions}
-                </td>
-                <td className={styles.number} data-cell="long-run">
-                  {longRunText(week.longRunMin)}
-                </td>
-                <td className={styles.number} data-cell="day2">
-                  {week.day2Min === null ? '—' : `${String(week.day2Min)}${NBSP}min`}
-                </td>
-                <td className={styles.number} data-cell="run-days">
-                  {week.runDays}
-                </td>
-                <td className={styles.number} data-cell="strength">
-                  {week.strengthSessions}
-                </td>
-                <td className={styles.focus}>{week.focus}</td>
-                <td className={styles.edit}>
-                  <Button
-                    variant="quiet"
-                    aria-label={`Edit week of ${short}`}
-                    onClick={() => {
-                      setEditing(week)
-                    }}
-                  >
-                    Edit
-                  </Button>
-                </td>
-              </tr>
+              <Fragment key={week.weekStart}>
+                <tr
+                  data-week={week.weekStart}
+                  data-cutback={cutback ? 'true' : undefined}
+                  data-race={race ? 'true' : undefined}
+                  data-taper={week.phase === 'taper' ? 'true' : undefined}
+                  aria-current={isCurrent ? 'date' : undefined}
+                  className={styles.row}
+                >
+                  <td className={styles.week}>{short}</td>
+                  <td className={styles.phase}>
+                    <PhaseChip phase={week.phase} />
+                    {cutback ? <span className={styles.cutback}>cutback</span> : null}
+                  </td>
+                  <td className={styles.target} data-cell="target">
+                    <TargetCell week={week} />
+                  </td>
+                  <td className={styles.actual} data-cell="actual">
+                    {runMin === undefined ? '' : hours(runMin)}
+                  </td>
+                  <td className={styles.summary}>
+                    Long run {longRunText(week.longRunMin)}, {week.runDays} run days, strength{' '}
+                    {week.strengthSessions}
+                  </td>
+                  <td className={styles.number} data-cell="long-run">
+                    {longRunText(week.longRunMin)}
+                  </td>
+                  <td className={styles.number} data-cell="day2">
+                    {week.day2Min === null ? '—' : `${String(week.day2Min)}${NBSP}min`}
+                  </td>
+                  <td className={styles.number} data-cell="run-days">
+                    {week.runDays}
+                  </td>
+                  <td className={styles.number} data-cell="strength">
+                    {week.strengthSessions}
+                  </td>
+                  <td className={styles.focus}>{week.focus}</td>
+                  <td className={styles.edit}>
+                    {weekSessions.length > 0 ? (
+                      <Button
+                        variant="quiet"
+                        aria-label={`Days for week of ${short}`}
+                        aria-expanded={expanded}
+                        onClick={() => {
+                          toggle(week.weekStart)
+                        }}
+                      >
+                        Days
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="quiet"
+                      aria-label={`Edit week of ${short}`}
+                      onClick={() => {
+                        setEditing(week)
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  </td>
+                </tr>
+                {expanded ? (
+                  <DaysRow week={week} sessions={weekSessions} onOpen={onOpenSession} />
+                ) : null}
+              </Fragment>
             )
           })}
         </tbody>
@@ -591,6 +910,10 @@ export function PlanPage() {
   const plan = usePlan()
   const goals = useGoals()
   const [regenerating, setRegenerating] = useState(false)
+  const [openSessionId, setOpenSessionId] = useState<string | null>(null)
+  const [whyRules, setWhyRules] = useState<string[] | null>(null)
+  const replan = useReplan()
+  const toast = useToast()
 
   if (plan.isError || goals.isError) {
     return (
@@ -637,23 +960,67 @@ export function PlanPage() {
     )
   }
 
+  // Version-1 plans carry no sessions; their weekly review logic is unchanged.
+  const hasSessions = plan.data.generatorVersion >= 2
+  const sessions = hasSessions ? plan.data.sessions : []
+  const openSession = sessions.find((s) => s.id === openSessionId)
+
   return (
     <>
       <PageHeader
         title="Plan"
         context={`${plan.data.name}. Race week of ${formatShortDate(plan.data.raceWeekStart)}.`}
         actions={
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setRegenerating(true)
-            }}
-          >
-            Regenerate plan
-          </Button>
+          <>
+            {hasSessions ? (
+              <Button
+                variant="secondary"
+                loading={replan.isPending}
+                onClick={() => {
+                  replan.mutate(undefined, {
+                    onSuccess: () => {
+                      toast.show('Plan updated')
+                    },
+                  })
+                }}
+              >
+                Update plan from latest data
+              </Button>
+            ) : null}
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setRegenerating(true)
+              }}
+            >
+              Regenerate plan
+            </Button>
+          </>
         }
       />
-      <PlanTable plan={plan.data} />
+      {replan.isError ? (
+        <p role="alert" className={styles.error}>
+          The plan was not updated. {replan.error.message}
+        </p>
+      ) : null}
+      {hasSessions ? <PlanOverview plan={plan.data} onWhy={setWhyRules} /> : null}
+      <PlanTable plan={plan.data} sessions={sessions} onOpenSession={setOpenSessionId} />
+      {openSession !== undefined ? (
+        <SessionSheet
+          key={openSession.id}
+          session={openSession}
+          onClose={() => {
+            setOpenSessionId(null)
+          }}
+        />
+      ) : null}
+      <WhyDrawer
+        rules={whyRules ?? []}
+        open={whyRules !== null}
+        onClose={() => {
+          setWhyRules(null)
+        }}
+      />
       {regenerating ? (
         <Sheet
           open
