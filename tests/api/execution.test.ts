@@ -335,6 +335,112 @@ describe('trimming the next quality session', () => {
   })
 })
 
+describe('trims follow the evidence of the session just assessed', () => {
+  const deps = () => ({ prisma: ctx.prisma, config: ctx.config })
+  const statusOf = async (id: string) =>
+    (await ctx.prisma.planSession.findUniqueOrThrow({ where: { id } })).status
+
+  test('a trimmed session that is then run does not reset the one-trim-a-week limit', async () => {
+    const { u, rows } = await planWith('trim-limit@example.com', [
+      { date: addDays(today, -2), kind: 'threshold', min: 50, structure: WORK },
+      { date: addDays(today, -1), kind: 'intervals', min: 50, structure: WORK },
+      { date: addDays(today, 1), kind: 'hills', min: 50, structure: WORK },
+    ])
+    const first = await addRun(u.id, addDays(today, -2), { durationSec: 50 * 60, rpe: 10, feel: 2 })
+    await runExecutionForActivity(deps(), { userId: u.id, activityId: first.id })
+    expect(await statusOf(rows[1]!.id)).toBe('downgraded')
+
+    // The trimmed session is run and scores +2 as well; it becomes completed.
+    const second = await addRun(u.id, addDays(today, -1), {
+      durationSec: 45 * 60,
+      rpe: 10,
+      feel: 2,
+    })
+    await runExecutionForActivity(deps(), { userId: u.id, activityId: second.id })
+    expect(await statusOf(rows[1]!.id)).toBe('completed')
+    // Design 4.3: at most one trim in a week.
+    expect(await statusOf(rows[2]!.id)).toBe('planned')
+  })
+
+  test('a rating entered after the first assessment still trims the next quality session', async () => {
+    const { u, rows } = await planWith('trim-late@example.com', [
+      { date: addDays(today, -2), kind: 'threshold', min: 50, structure: WORK },
+      { date: addDays(today, 1), kind: 'threshold', min: 50, structure: WORK },
+    ])
+    const run = await addRun(u.id, addDays(today, -2), { durationSec: 50 * 60 })
+    await ctx.prisma.activity.update({ where: { id: run.id }, data: { rpe: null } })
+    await runExecutionForActivity(deps(), { userId: u.id, activityId: run.id })
+    const assessed = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
+    expect((JSON.parse(assessed.execution!) as ExecutionAssessment).effort.score).toBeNull()
+    expect(await statusOf(rows[1]!.id)).toBe('planned')
+
+    await ctx.prisma.activity.update({ where: { id: run.id }, data: { rpe: 10, feel: 2 } })
+    await runExecutionForActivity(deps(), { userId: u.id, activityId: run.id })
+    expect(await statusOf(rows[1]!.id)).toBe('downgraded')
+  })
+
+  test('a session without any score never trims on an older +2', async () => {
+    const { u, rows } = await planWith('trim-null@example.com', [
+      { date: addDays(today, -6), kind: 'threshold', min: 50, structure: WORK },
+      { date: addDays(today, -5), kind: 'intervals', min: 50, structure: WORK },
+      { date: addDays(today, -1), kind: 'intervals', min: 50, structure: WORK },
+      { date: addDays(today, 1), kind: 'hills', min: 50, structure: WORK },
+    ])
+    const hard = await addRun(u.id, addDays(today, -6), { durationSec: 50 * 60, rpe: 10, feel: 2 })
+    await runExecutionForActivity(deps(), { userId: u.id, activityId: hard.id })
+    expect(await statusOf(rows[1]!.id)).toBe('downgraded')
+
+    const unrated = await addRun(u.id, addDays(today, -1), { durationSec: 50 * 60 })
+    await ctx.prisma.activity.update({ where: { id: unrated.id }, data: { rpe: null } })
+    await runExecutionForActivity(deps(), { userId: u.id, activityId: unrated.id })
+    const assessed = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[2]!.id } })
+    expect((JSON.parse(assessed.execution!) as ExecutionAssessment).effort.score).toBeNull()
+    expect(await statusOf(rows[3]!.id)).toBe('planned')
+  })
+})
+
+describe('assessing against what came before the run', () => {
+  test('a run far longer than the longest run of the last 30 days is flagged as a spike', async () => {
+    const { u, rows } = await planWith('spike@example.com', [
+      { date: today, kind: 'long', min: 150 },
+    ])
+    await addRun(u.id, addDays(today, -10), { durationSec: 80 * 60 })
+    const run = await addRun(u.id, today, { durationSec: 150 * 60 })
+    await runExecutionForActivity(
+      { prisma: ctx.prisma, config: ctx.config },
+      { userId: u.id, activityId: run.id },
+    )
+    const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
+    expect(row.activityId).toBe(run.id)
+    expect((JSON.parse(row.execution!) as ExecutionAssessment).flags).toContain('spike')
+  })
+})
+
+describe('an owner unlink', () => {
+  test('is remembered: the sweep and a new rating do not link the same run again', async () => {
+    const { u, rows } = await planWith('unlink-kept@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    const deps = { prisma: ctx.prisma, config: ctx.config }
+    const run = await addRun(u.id, today, { durationSec: 58 * 60 })
+    await runExecutionForActivity(deps, { userId: u.id, activityId: run.id })
+    expect(
+      (await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })).activityId,
+    ).toBe(run.id)
+
+    const res = await client(ctx, u)
+      .post(`/api/plan/sessions/${rows[0]!.id}/link`)
+      .send({ activityId: null })
+    expect(res.status).toBe(200)
+
+    await runNightlyMatching(deps, { today })
+    await runExecutionForActivity(deps, { userId: u.id, activityId: run.id })
+    const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
+    expect(row.activityId).toBeNull()
+    expect(row.execution).toBeNull()
+  })
+})
+
 describe('activities already linked elsewhere', () => {
   test('the nightly sweep leaves an activity linked in an archived plan alone and does not throw', async () => {
     const { u, goal, plan, rows } = await planWith('archived-link@example.com', [

@@ -784,9 +784,11 @@ export async function linkPlanSession(
   if (args.activityId === null) {
     const updated = await prisma.planSession.update({
       where: { id: row.id },
+      // 'owner' with no activity records the owner's choice: the matcher leaves such a session
+      // alone, so the unlinked pair is not linked again.
       data: {
         activityId: null,
-        linkSource: null,
+        linkSource: 'owner',
         execution: null,
         status: row.status === 'completed' || row.status === 'partial' ? 'planned' : row.status,
       },

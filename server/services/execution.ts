@@ -5,6 +5,7 @@ import { addDays, daysBetween, todayIso } from '../../shared/dates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { shouldTrimQuality, trimQuality } from '../../shared/engine/adapt.ts'
 import { assessExecution, fitHrModel, matchSessions } from '../../shared/engine/execution.ts'
+import { P } from '../../shared/engine/params/index.ts'
 import { checkinOn, isQualityKind } from '../../shared/engine/readiness.ts'
 import type {
   AthleteState,
@@ -71,6 +72,8 @@ async function trimNextQuality(
 ): Promise<void> {
   if (!isQualityKind(row.kind as PlanSession['kind'])) return
   if (assessment.flags.includes('pain') || assessment.flags.includes('focal-bone-pain')) return
+  // Only this session's own evidence can trigger a trim, never an older score.
+  if (assessment.effort.score === null) return
   const { prisma } = deps
   const done = (
     await prisma.planSession.findMany({
@@ -96,8 +99,9 @@ async function trimNextQuality(
   ).map(toPlanSession)
   const next = upcoming.find((s) => isQualityKind(s.kind))
   if (!next) return
+  // A trimmed session keeps the design-4.3 rule when it is run and its status becomes completed.
   const trimsThisWeek = await prisma.planSession.count({
-    where: { planId: row.planId, weekStart: next.weekStart, status: 'downgraded' },
+    where: { planId: row.planId, weekStart: next.weekStart, rules: { contains: '"design-4.3"' } },
   })
   if (!shouldTrimQuality(scores, trimsThisWeek)) return
   const trimmed = trimQuality(
@@ -121,25 +125,50 @@ async function trimNextQuality(
   })
 }
 
-/** Assesses a linked session and stores the result; the first assessment may trim the next session. */
+/**
+ * How strongly an assessment calls for a trim of the next quality session: 0 for none (no score,
+ * easier than expected, or pain), 1 for a harder-than-expected session, 2 for much harder.
+ */
+function trimLevel(assessment: ExecutionAssessment | null): number {
+  if (assessment === null || assessment.effort.score === null) return 0
+  if (assessment.flags.includes('pain') || assessment.flags.includes('focal-bone-pain')) return 0
+  return assessment.effort.score >= P.trim.triggerScore.value
+    ? 2
+    : assessment.effort.score >= P.trim.repeatedScore.value
+      ? 1
+      : 0
+}
+
+/** Assesses a linked session and stores the result; a rating that calls for it trims the next session. */
 async function assessRow(
   deps: Deps,
   row: PlanSessionRow,
   activity: Activity,
   ctx: Context,
 ): Promise<PlanSessionRow> {
+  // The spike flag compares the run with the longest run before it, so the state leaves this run
+  // out and ends the day before it; the state of today already holds the run itself.
+  const before = estimateState({
+    ...ctx.input,
+    today: addDays(activity.date, -1),
+    activities: ctx.input.activities.filter((a) => a.id !== activity.id),
+  })
   const assessment = assessExecution(sessionSpec(toPlanSession(row)), activity, {
     zones: ctx.zones,
-    state: ctx.state,
+    state: before,
     hrModel: ctx.hrModel,
     checkin: checkinOn(ctx.input, activity.date),
   })
-  const first = row.execution === null
+  const previous =
+    row.execution === null ? null : (JSON.parse(row.execution) as ExecutionAssessment)
   const updated = await deps.prisma.planSession.update({
     where: { id: row.id },
     data: { execution: JSON.stringify(assessment), status: statusOf(assessment) },
   })
-  if (first) await trimNextQuality(deps, updated, assessment)
+  // A rating that arrives after the first assessment counts as well, but an assessment that
+  // already called for a trim does not trim again when it is repeated.
+  const level = trimLevel(assessment)
+  if (level > 0 && level > trimLevel(previous)) await trimNextQuality(deps, updated, assessment)
   return updated
 }
 
