@@ -2,9 +2,10 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { applyGuards } from '../../../shared/engine/guards.ts'
+import { intensityMinutes, placeWeek } from '../../../shared/engine/micro.ts'
 import type { SessionSpec } from '../../../shared/engine/types.ts'
 import type { WeekRow } from '../../../shared/types.ts'
-import { session, state } from './e6-fixtures.ts'
+import { ZONES, profile, session, state, week } from './e6-fixtures.ts'
 
 const row = (weekStart: string, runMin: number): WeekRow => ({
   weekStart,
@@ -58,5 +59,34 @@ describe('applyGuards: running already done this week counts toward its ramp [ru
       .reduce((n, s) => n + s.durationMin, 0)
     expect(nextMin).toBe(240)
     expect(result.warnings.filter((w) => w.code.startsWith('ramp'))).toEqual([])
+  })
+})
+
+describe('placeWeek: zone 2 and 3 together stay under the 25% cap [rules F2]', () => {
+  const specific = week({
+    phase: 'specific',
+    targetRunMin: 270,
+    longRunMin: 94,
+    runDays: 4,
+    qualitySessions: 2,
+    tid: { z1: 80, z2: 15, z3: 5 },
+  })
+  const ctx = { profile: profile(), zones: ZONES, state: state({ age: 36 }), prevSessions: [] }
+
+  it('turns the quality session with the most work into an easy run when two pass the cap', () => {
+    const sessions = placeWeek(specific, ctx)
+    const runs = sessions.filter((s) => s.kind !== 'strength')
+    const total = runs.reduce((n, s) => n + s.durationMin, 0)
+    const hard = runs.reduce((n, s) => n + intensityMinutes(s), 0)
+    expect(hard / total).toBeLessThanOrEqual(0.25)
+    // one quality session is left, not none
+    expect(runs.filter((s) => ['race-pace', 'threshold'].includes(s.kind))).toHaveLength(1)
+  })
+
+  it('leaves a week alone that is already under the cap', () => {
+    const easy = week({ ...specific, targetRunMin: 400, longRunMin: 120, runDays: 5 })
+    const sessions = placeWeek(easy, ctx)
+    const kinds = ['race-pace', 'threshold', 'long-fast-finish']
+    expect(sessions.filter((s) => kinds.includes(s.kind))).toHaveLength(2)
   })
 })
