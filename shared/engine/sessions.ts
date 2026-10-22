@@ -60,7 +60,7 @@ const LIBRARY: Record<SessionKind, LibraryEntry> = {
     rules: ['F-lib'],
   },
   threshold: {
-    zone: 'z3',
+    zone: 'z2',
     purpose: 'Steady work just below critical speed, as one bout or cruise intervals.',
     rules: ['F-lib', 'C5'],
   },
@@ -91,7 +91,7 @@ const LIBRARY: Record<SessionKind, LibraryEntry> = {
   },
   b2b: {
     zone: 'z1',
-    purpose: 'First day of a back-to-back pair: long, easy running on tired legs the next day.',
+    purpose: 'One day of a back-to-back pair: long, easy running, the second day on tired legs.',
     rules: ['H3'],
   },
   strength: {
@@ -132,7 +132,7 @@ const TITLES: Record<SessionKind, string> = {
   strides: 'Easy run with strides',
   hills: 'Hill repeats',
   hike: 'Hike',
-  b2b: 'Back-to-back, day one',
+  b2b: 'Back-to-back run',
   strength: 'Strength',
   mobility: 'Mobility',
   rest: 'Rest',
@@ -200,19 +200,25 @@ interface Built {
   margin?: number
 }
 
-/** Threshold work: continuous or cruise intervals under critical speed [rules C5]. */
+/**
+ * Threshold work: continuous or cruise intervals under critical speed [rules C5]. It is the top of
+ * Z2 (LT1 up to the threshold pace), so it counts toward the Z2 threshold cap [rules E4]. Without
+ * a critical speed the threshold pace of the zone set is the fastest pace allowed.
+ */
 function buildThreshold(minutes: number, zones: ZoneSet, ctx: PrescribeContext): Built {
   const margin = ctx.wellTrained
     ? P.c5.thresholdMarginWellTrainedKmh.value
     : P.c5.thresholdMarginOtherKmh.value
   const cs = zones.csMps?.value ?? null
-  const workPace: PaceRange | null =
-    cs !== null && cs > margin / 3.6
-      ? (() => {
-          const fast = 1000 / (cs - margin / 3.6)
-          return [fast * (1 + P.c7.bandDefaultPacePct.value / 100), fast]
-        })()
-      : (zones.pace?.z3 ?? null)
+  const band = P.c7.bandDefaultPacePct.value / 100
+  const thresholdPace = zones.thresholdPaceSecPerKm?.value ?? null
+  let workPace: PaceRange | null = zones.pace?.z2 ?? null
+  if (cs !== null && cs > margin / 3.6) {
+    const fast = 1000 / (cs - margin / 3.6)
+    workPace = [fast * (1 + band), fast]
+  } else if (thresholdPace !== null && thresholdPace > 0) {
+    workPace = [thresholdPace * (1 + band), thresholdPace]
+  }
   const { warmSec, coolSec, workSec } = frame(minutes)
   if (workSec < 60) return { structure: [], workPace, rules: ['C5'], margin }
   const recoverSec = P.sessionDesign.thresholdRecoverMin.value * 60
@@ -221,25 +227,34 @@ function buildThreshold(minutes: number, zones: ZoneSet, ctx: PrescribeContext):
   const boutSec = Math.floor(netSec / bouts)
   const structure = [
     step('warmup', 1, warmSec, 'z1'),
-    step('work', bouts, boutSec, 'z3'),
+    step('work', bouts, boutSec, 'z2'),
     ...(bouts > 1 ? [step('recover', bouts - 1, recoverSec, 'z1')] : []),
     step('cooldown', 1, coolSec, 'z1'),
   ]
   return { structure, workPace, rules: ['C5'], margin }
 }
 
-/** Intervals above critical speed, each rep within the D-prime budget [rules C6]. */
+/**
+ * Intervals above critical speed, each rep within the D-prime budget [rules C6]. Without a critical
+ * speed the work pace sits the same margin above the fast end of Z3 (the CS-equivalent pace).
+ */
 function buildIntervals(minutes: number, zones: ZoneSet, ctx: PrescribeContext): Built {
   const cs = zones.csMps?.value ?? null
-  let workPace: PaceRange | null = zones.pace?.z3 ?? null
+  const band = P.c7.bandDefaultPacePct.value / 100
+  const above = 1 + P.sessionDesign.intervalSpeedAboveCs.value
+  const csEquivalentPace = zones.pace?.z3[1] ?? null
+  let workPace: PaceRange | null =
+    csEquivalentPace !== null && csEquivalentPace > 0
+      ? [csEquivalentPace / above, (csEquivalentPace / above) * (1 - band)]
+      : null
   let repSec: number = P.sessionDesign.intervalRepSec.value
   if (cs !== null && cs > 0) {
-    const v = cs * (1 + P.sessionDesign.intervalSpeedAboveCs.value)
+    const v = cs * above
     const dPrime = ctx.dPrimeM ?? P.sessionDesign.intervalDefaultDPrimeM.value
     const tte = dPrime / (v - cs)
     repSec = Math.min(repSec, Math.floor(P.c6.repFractionOfTte.value * tte))
     const pace = 1000 / v
-    workPace = [pace, pace * (1 - P.c7.bandDefaultPacePct.value / 100)]
+    workPace = [pace, pace * (1 - band)]
   }
   const { warmSec, coolSec, workSec } = frame(minutes)
   const recoverSec = Math.round(repSec * P.sessionDesign.intervalRecoverFraction.value)
@@ -447,7 +462,7 @@ export function prescribe(
     heatNote =
       'Heat acclimation week: run this one easy and in the warm part of the day; effort, not pace, sets the limit.'
   }
-  if (kind === 'b2b') flags.push('b2b-day1')
+  // 'b2b-day1' and 'b2b-day2' are set by micro.ts, which knows which day of the pair this is
 
   // Targets from the zone set; pace and HR recompute for display when the zones change
   const zoneKey = lib.zone
@@ -467,7 +482,7 @@ export function prescribe(
   }
   if (kind === 'threshold' || kind === 'intervals') {
     pace = built.workPace
-    hr = kind === 'threshold' ? (zones.hr?.z3 ?? null) : null
+    hr = kind === 'threshold' ? (zones.hr?.z2 ?? null) : null
   } else if (kind === 'race-pace') {
     pace = racePace
     hr = zones.hr?.z2 ?? null

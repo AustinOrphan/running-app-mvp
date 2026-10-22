@@ -93,7 +93,7 @@ describe('sessionLibrary', () => {
     expect(sessionLibrary('easy').zone).toBe('z1')
     expect(sessionLibrary('recovery').zone).toBe('z1')
     expect(sessionLibrary('long').zone).toBe('z1')
-    expect(sessionLibrary('threshold').zone).toBe('z3')
+    expect(sessionLibrary('threshold').zone).toBe('z2')
     expect(sessionLibrary('intervals').zone).toBe('z3')
     expect(sessionLibrary('race-pace').zone).toBe('race-pace')
     expect(sessionLibrary('strides').zone).toBe('strides')
@@ -166,9 +166,11 @@ describe('prescribe: steady runs', () => {
     expect(s.rules).toContain('I8')
   })
 
-  it('marks the first day of a back-to-back pair', () => {
+  it('leaves the back-to-back day flags to the placement step', () => {
     const s = prescribe('b2b', 150, zones(), week({ flags: ['b2b'] }))
-    expect(s.flags).toContain('b2b-day1')
+    expect(s.flags).not.toContain('b2b-day1')
+    expect(s.flags).not.toContain('b2b-day2')
+    expect(s.title).not.toMatch(/day one/i)
     expect(s.rules).toContain('H3')
   })
 
@@ -202,7 +204,9 @@ describe('prescribe: threshold', () => {
       kmh(CS) - P.c5.thresholdMarginOtherKmh.value + 1e-9,
     )
     expect(slow).toBeGreaterThan(fast)
-    expect(s.target.zone).toBe('z3')
+    expect(s.target.zone).toBe('z2')
+    expect(s.target.hr).toEqual([140, 155])
+    expect(s.structure.filter((x) => x.kind === 'work').every((x) => x.zone === 'z2')).toBe(true)
     expect(s.rules).toContain('C5')
   })
 
@@ -234,12 +238,30 @@ describe('prescribe: threshold', () => {
     expect(recover?.durationSec).toBe(P.sessionDesign.thresholdRecoverMin.value * 60)
   })
 
-  it('falls back to the Z3 pace band without a critical speed', () => {
-    const s = prescribe('threshold', 60, zones({ csMps: null }), week())
-    expect(s.target.paceSecPerKm).toEqual([310, 285])
+  it('caps the pace at the threshold pace without a critical speed', () => {
+    const threshold = {
+      value: 310,
+      band: [295, 326] as [number, number],
+      source: 'profile' as const,
+      asOf: '2026-01-01',
+    }
+    const s = prescribe(
+      'threshold',
+      60,
+      zones({ csMps: null, thresholdPaceSecPerKm: threshold }),
+      week(),
+    )
+    const [slow, fast] = s.target.paceSecPerKm ?? [0, 0]
+    expect(fast).toBe(310)
+    expect(slow).toBeCloseTo(310 * (1 + P.c7.bandDefaultPacePct.value / 100), 6)
   })
 
-  it('falls back to a plain Z3 run when the session is too short for a structure', () => {
+  it('falls back to the Z2 band without a critical speed or threshold pace', () => {
+    const s = prescribe('threshold', 60, zones({ csMps: null }), week())
+    expect(s.target.paceSecPerKm).toEqual([340, 310])
+  })
+
+  it('falls back to a plain Z2 run when the session is too short for a structure', () => {
     const s = prescribe('threshold', 15, zones(), week())
     expect(s.durationMin).toBe(15)
     expect(totalSec(s)).toBeLessThanOrEqual(15 * 60)
@@ -278,6 +300,13 @@ describe('prescribe: intervals', () => {
     )
     expect(s.target.zone).toBe('z3')
     expect(totalSec(s)).toBeLessThanOrEqual(60 * 60)
+  })
+
+  it('stays faster than the CS-equivalent pace without a critical speed', () => {
+    const s = prescribe('intervals', 60, zones({ csMps: null }), week())
+    const [slow, fast] = s.target.paceSecPerKm ?? [Infinity, Infinity]
+    expect(slow).toBeLessThan(285)
+    expect(fast).toBeLessThan(slow)
   })
 })
 
