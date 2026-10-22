@@ -24,6 +24,10 @@ model User {
   goals         Goal[]
   plans         Plan[]
   reviews       WeeklyReview[]
+  profile       AthleteProfile?
+  wellnessDays  WellnessDay[]
+  integrations  Integration[]
+  importedFiles ImportedFile[]
 }
 
 model Activity {
@@ -39,18 +43,40 @@ model Activity {
   maxHr           Int?
   elevationGainM  Int?
   notes           String?
-  source          String   @default("manual") // 'manual' | 'smashrun' | 'csv'
+  source          String   @default("manual") // provider registry key, or 'manual' | 'smashrun' | 'csv' | 'file'
   providerKey     String?
+  subtype         String? // run/race: road|trail|track|treadmill; cross: bike|hike|walk|swim|ski|elliptical|other
+  startUtc        String? // ISO 8601 with Z
+  utcOffsetMin    Int?
+  movingSec       Int?
+  elevationLossM  Int?
+  avgCadence      Int? // steps per minute
+  avgPowerW       Int?
+  deviceName      String?
+  startLat        Float? // rounded to 0.01 degrees
+  startLng        Float?
+  tempC           Float?
+  dewPointC       Float?
+  windKph         Float?
+  humidityPct     Int?
+  weatherSource   String? // 'open-meteo' | 'provider' | 'manual'
+  hrHistogram     String? // JSON text: HrHistogram
+  decouplingPct   Float?
+  gapDistanceM    Int?
+  feel            Int? // -2 much easier .. +2 much harder than expected
+  pain            Int? // 0-10
   importBatchId   String?
   duplicateOfId   String?
   duplicateStatus String   @default("none") // 'none' | 'possible' | 'confirmed' | 'dismissed'
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  importBatch ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
-  duplicateOf Activity?    @relation("Duplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
-  duplicates  Activity[]   @relation("Duplicates")
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importBatch ImportBatch?    @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  duplicateOf Activity?       @relation("Duplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates  Activity[]      @relation("Duplicates")
+  stream      ActivityStream?
+  file        ActivityFile?
 
   @@unique([userId, providerKey])
   @@index([userId, date])
@@ -59,7 +85,7 @@ model Activity {
 model ImportBatch {
   id               String   @id @default(cuid())
   userId           String
-  source           String // 'smashrun' | 'csv'
+  source           String // provider registry key, or 'smashrun' | 'csv' | 'file'
   fileName         String?
   rowCount         Int
   accepted         Int
@@ -159,4 +185,106 @@ model WeeklyReview {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, weekStart])
+}
+
+model ActivityStream {
+  activityId String  @id
+  sampleSec  Int
+  data       String // JSON text: ActivityStreamData
+  laps       String? // JSON text: Lap[]
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+model ActivityFile {
+  activityId String  @id
+  format     String // 'fit' | 'gpx' | 'tcx'
+  fileName   String?
+  sizeBytes  Int
+  sha256     String
+  gz         Bytes
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+model AthleteProfile {
+  userId                String   @id
+  birthYear             Int?
+  sex                   String? // 'female' | 'male' | 'unspecified'
+  heightCm              Float?
+  weightKg              Float?
+  hrMax                 Int?
+  hrMaxSource           String? // 'measured' | 'estimated'
+  hrRest                Int?
+  lthr                  Int?
+  thresholdPaceSecPerKm Int?
+  runningSinceYear      Int?
+  injuries              String   @default("[]") // JSON text: Injury[]
+  availability          String   @default("{}") // JSON text: Availability
+  longRunDay            String   @default("sat") // 'mon' .. 'sun'
+  terrain               String   @default("{}") // JSON text: Terrain
+  strengthPreference    Int      @default(2) // 0-3
+  timezone              String   @default("UTC") // IANA
+  homeLat               Float?
+  homeLng               Float?
+  useHomeWeather        Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WellnessDay {
+  id         String   @id @default(cuid())
+  userId     String
+  date       String // YYYY-MM-DD
+  restingHr  Int?
+  hrvRmssd   Float?
+  hrvSdnn    Float?
+  sleepSec   Int?
+  sleepScore Int?
+  weightKg   Float?
+  vo2max     Float?
+  notes      String?
+  source     String // provider registry key or 'manual'
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model Integration {
+  id              String    @id @default(cuid())
+  userId          String
+  provider        String // provider registry key
+  status          String // 'connected' | 'needs_auth' | 'error'
+  secret          String // encrypted, see server/crypto.ts
+  config          String // JSON text, no secrets
+  ingestTokenHash String? // SHA-256 of the push token
+  cursor          String? // opaque, provider-defined
+  lastSyncAt      DateTime?
+  lastSyncStatus  String?
+  lastError       String?
+  pausedUntil     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+}
+
+model ImportedFile {
+  id         String   @id @default(cuid())
+  userId     String
+  sha256     String
+  fileName   String?
+  channel    String // 'upload' | 'folder' | 'provider' | 'push'
+  outcome    String // 'imported' | 'duplicate' | 'no-activity' | 'invalid'
+  activityId String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sha256])
 }

@@ -49,4 +49,22 @@ describe('App routing', () => {
     renderWithProviders(<App />)
     expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
   })
+
+  test.each([
+    ['/activities/a1', 'Activity'],
+    ['/integrations', 'Integrations'],
+    ['/profile', 'Profile'],
+  ])('%s renders its page inside the signed-in layout', async (route, heading) => {
+    mockApi({
+      'GET /api/setup': () => ({ needsSetup: false }),
+      'GET /api/auth/me': () => ({
+        id: 'u1',
+        email: 'runner@example.com',
+        displayName: null,
+        units: 'mi',
+      }),
+    })
+    renderWithProviders(<App />, { route })
+    expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
+  })
 })

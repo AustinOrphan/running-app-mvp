@@ -1,9 +1,14 @@
-import type { Activity, ActivitySource } from '../types.ts'
+import type { Activity } from '../types.ts'
 
 /** Two runs on one day from different sources within this distance are one run (0.05 mi). */
 export const DUPLICATE_TOLERANCE_M = 80
 
-const SOURCE_RANK: Record<ActivitySource, number> = { manual: 0, csv: 1, smashrun: 2 }
+const SOURCE_RANK: Record<string, number> = { manual: 0, csv: 1, smashrun: 2 }
+
+/** Sources outside the table rank with csv. */
+function rank(source: string): number {
+  return SOURCE_RANK[source] ?? 1
+}
 
 function isRun(activity: Pick<Activity, 'type'>): boolean {
   return activity.type === 'run' || activity.type === 'race'
@@ -42,7 +47,7 @@ export function pickDuplicate<T extends Pick<Activity, 'id' | 'source'>>(
   a: T,
   b: T,
 ): { duplicate: T; original: T } {
-  return SOURCE_RANK[a.source] <= SOURCE_RANK[b.source]
+  return rank(a.source) <= rank(b.source)
     ? { duplicate: a, original: b }
     : { duplicate: b, original: a }
 }

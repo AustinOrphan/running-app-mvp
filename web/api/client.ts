@@ -128,4 +128,8 @@ export const keys = {
   plan: 'plan',
   reviews: 'reviews',
   weeks: 'weeks',
+  profile: 'profile',
+  wellness: 'wellness',
+  integrations: 'integrations',
+  activityDetail: 'activityDetail',
 } as const

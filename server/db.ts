@@ -5,11 +5,17 @@ import { PrismaClient } from '../generated/prisma/client.ts'
 export { PrismaClient }
 export type {
   Activity,
+  ActivityFile,
+  ActivityStream,
+  AthleteProfile,
   Goal,
   ImportBatch,
+  ImportedFile,
+  Integration,
   Plan,
   PlanWeek,
   WeeklyReview,
+  WellnessDay,
 } from '../generated/prisma/client.ts'
 
 /**
