@@ -447,3 +447,42 @@ Found by the E15 end-to-end work and its review:
 `server/routes/plan.ts`, `server/services/planEngine.ts`, `tests/api/{plan,engine}.test.ts`,
 `web/pages/{PlanPage,DashboardPage}.tsx`, `web/components/format.ts`, `tests/web/*plan*`,
 `tests/e2e/04-plan.spec.ts`.
+
+### Task E20: Visual and copy polish from the screenshot pass
+
+Found by screenshots of every page with synthetic data (phone 390 px and desktop 1280 px,
+light and dark):
+
+1. **The generator stays in the normal band.** Generated runs are capped at the normal band
+   (1.10× the projected 30-day reference) on duration, distance, gain and descent, in every
+   week, not only the current one; the warn band (1.10-2.00×) is reached only by owner
+   edits, which keep their warning. A step within the H4 minimum (100 m of gain) or the G-1
+   minimum (0.5 km) never raises a warning on its own. Re-run the matrix and adequacy tests;
+   a fresh plan for the matrix athletes should carry no `spike-warn` and no `gain-ramp`
+   soft warnings caused by minimum steps. [rules G6: conservative wins]
+2. **Warnings read well.** The Plan page groups warnings by code into one line each
+   ("Climbing above the 10% step in 3 weeks") with a disclosure listing the weeks; dates read
+   "19 Oct", distances and gain follow the units setting (ft and mi for `mi`), through one
+   tested helper that localises engine text (ISO dates, `N m`, `N km`) without changing the
+   engine's messages.
+3. **Why drawer in plain language.** No raw ids: each parameter shows its note as the
+   sentence, then value and unit, grade badge and papers; each rule shows its title from a
+   `RULE_TITLES` map (`g-1` "Session spike guard", `F-lib` "Session library", and so on for
+   every rule id the engine emits, with a test that every emitted id has a title). "Default"
+   reads "Default (no direct study)".
+4. **Scales fit on one row.** The 0-10 pain scale and 1-10 RPE scale never wrap at 360 px or
+   on desktop (one row of equal buttons, sized to fit). Today's "How did it go?" shows the
+   most recent unrated run in full and the others as a list with "Rate" buttons that expand.
+5. **Activity detail on phones.** Chart y-axes have room for their labels (no clipped
+   "1180"); the laps table scrolls horizontally inside its own region with a visible edge
+   fade; all four columns of the summary stay readable at 360 px.
+6. **Review opens on the last finished week** (the Monday before this week's Monday), not two
+   weeks back; a test pins it for every weekday.
+7. **Small fixes:** the stray full stop after "Target" on Goals; the session sheet's linked
+   activity select and Link button use the shared Field and Button components; Profile
+   availability rows keep the minutes input next to the day.
+
+**Files:** `shared/engine/{guards,macro,index}.ts`, `shared/engine/params/*.ts` (only for
+item 1), `tests/unit/engine/*`, `web/pages/{PlanPage,ActivityDetailPage,DashboardPage,ReviewPage,GoalsPage,ProfilePage}.tsx`
+and their CSS modules, `web/components/{WhyDrawer,SessionSheet,FeelPicker,charts/StreamChart}.tsx`
+and CSS, new `web/components/{ScalePicker,engineText,ruleTitles}.ts(x)`, `tests/web/*`.
