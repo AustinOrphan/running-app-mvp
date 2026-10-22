@@ -1,55 +1,28 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test'
 
-/**
- * Playwright configuration for E2E tests
- * @see https://playwright.dev/docs/test-configuration
- */
+const port = 3101
+
 export default defineConfig({
-  testDir: './tests/e2e',
-  testMatch: /\.spec\.ts$/,
-  /* Run tests in files in parallel */
+  testDir: 'tests/e2e',
+  workers: 1,
   fullyParallel: false,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : 1,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'list',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
+  forbidOnly: Boolean(process.env.CI),
+  retries: 0,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
-
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
-
-    /* Screenshot on failure */
-    screenshot: 'only-on-failure',
+    baseURL: `http://localhost:${port}`,
+    trace: 'retain-on-failure',
   },
-
-  /* Configure projects for major browsers */
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-  ],
-
-  /* Run your local dev server before starting the tests */
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run dev:full',
-    url: 'http://localhost:3000',
+    command: 'sh -c "mkdir -p data && rm -f data/e2e.db* && npm run db:migrate && npm start"',
+    url: `http://localhost:${port}/api/health`,
     reuseExistingServer: false,
-    timeout: 120 * 1000,
+    timeout: 60_000,
     env: {
-      DATABASE_URL: 'file:./prisma/test.db',
-      TEST_DATABASE_URL: 'file:./prisma/test.db',
-      NODE_ENV: 'test',
-      RATE_LIMITING_ENABLED: 'false',
+      DATABASE_URL: `file:${process.cwd()}/data/e2e.db`,
+      SESSION_SECRET: 'e2e-test-only-secret-0123456789abcdef!!',
+      PORT: String(port),
     },
   },
-
-  outputDir: './test-results',
-});
+})

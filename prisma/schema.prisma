@@ -1,3 +1,6 @@
+// Enum-like columns are plain strings; zod validates them at the API edge and
+// shared/types.ts narrows them to unions. Dates are YYYY-MM-DD strings.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,274 +11,152 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(uuid())
-  email    String @unique
-  password String
-  name     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String?
+  units        String   @default("mi") // 'mi' | 'km'
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  runs  Run[]
-  goals Goal[]
-  races Race[]
-  trainingPlans TrainingPlan[]
-  runAnalytics RunAnalytics[]
-  locationHeatmap LocationHeatmap[]
-  runTendency RunTendency?
+  activities    Activity[]
+  importBatches ImportBatch[]
+  goals         Goal[]
+  plans         Plan[]
+  reviews       WeeklyReview[]
 }
 
-model Run {
-  id        String   @id @default(uuid())
-  userId    String
-  date      DateTime
-  distance  Float
-  duration  Int
-  tag       String?
-  notes     String?
-  routeGeoJson String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Activity {
+  id              String   @id @default(cuid())
+  userId          String
+  date            String // YYYY-MM-DD, runner's local day
+  startTime       String? // HH:MM
+  type            String // 'run' | 'race' | 'strength' | 'cross'
+  durationSec     Int
+  distanceM       Int?
+  rpe             Int?
+  avgHr           Int?
+  maxHr           Int?
+  elevationGainM  Int?
+  notes           String?
+  source          String   @default("manual") // 'manual' | 'smashrun' | 'csv'
+  providerKey     String?
+  importBatchId   String?
+  duplicateOfId   String?
+  duplicateStatus String   @default("none") // 'none' | 'possible' | 'confirmed' | 'dismissed'
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  completedWorkouts WorkoutTemplate[]
-  detail RunDetail?
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importBatch ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  duplicateOf Activity?    @relation("Duplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates  Activity[]   @relation("Duplicates")
 
-  @@index([userId])
-  @@index([date])
+  @@unique([userId, providerKey])
+  @@index([userId, date])
 }
 
-model RunDetail {
-  id        String   @id @default(uuid())
-  runId     String   @unique
+model ImportBatch {
+  id               String   @id @default(cuid())
+  userId           String
+  source           String // 'smashrun' | 'csv'
+  fileName         String?
+  rowCount         Int
+  accepted         Int
+  skippedDuplicate Int
+  skippedInvalid   Int
+  errors           String // JSON text: ImportReportRow[]
+  createdAt        DateTime @default(now())
 
-  // Heart Rate Data
-  avgHeartRate     Int?
-  maxHeartRate     Int?
-  hrZoneDistribution String?
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activities Activity[]
 
-  // GPS & Elevation
-  routeGeoJson     String?
-  elevationGain    Float?
-  elevationLoss    Float?
-  elevationProfile String?
-
-  // Environmental
-  temperature      Float?
-  humidity         Float?
-  windSpeed        Float?
-  weatherCondition String?
-
-  // Cadence & Form
-  avgCadence       Int?
-  maxCadence       Int?
-  strideLength     Float?
-  verticalOscillation Float?
-  groundContactTime   Int?
-
-  // Performance Metrics
-  trainingLoad     Float?
-  perceivedEffort  Int?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
-
-  @@index([runId])
+  @@index([userId, createdAt])
 }
 
 model Goal {
-  id          String   @id @default(uuid())
-  userId      String
-  title       String
-  description String?
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  priority        String // 'A' | 'B' | 'C'
+  status          String   @default("target") // 'target' | 'considering' | 'done' | 'dropped'
+  targetDate      String // YYYY-MM-DD
+  dateProvisional Boolean  @default(false)
+  distanceM       Int?
+  location        String?
+  successCriteria String?
+  notes           String?
+  url             String?
+  isActive        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  // Goal type and target configuration
-  type        String   // "DISTANCE", "TIME", "FREQUENCY", "PACE", "LONGEST_RUN"
-  period      String   // "WEEKLY", "MONTHLY", "YEARLY", "CUSTOM"
-  targetValue Float
-  targetUnit  String   // "km", "minutes", "runs", "min/km"
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plans Plan[]
 
-  // Time period
-  startDate   DateTime
-  endDate     DateTime
-
-  // Progress tracking
-  currentValue Float    @default(0)
-  isCompleted  Boolean  @default(false)
-  completedAt  DateTime?
-
-  // Metadata
-  color       String?  // Hex color for UI visualization
-  icon        String?  // Icon identifier
-  isActive    Boolean  @default(true)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([type])
-  @@index([period])
-  @@index([isActive])
-}
-
-// Goal types as constants (SQLite doesn't support enums)
-// DISTANCE: Total distance goal (e.g., "Run 100km")
-// TIME: Total time goal (e.g., "Run for 10 hours")
-// FREQUENCY: Frequency goal (e.g., "Run 4 times per week")
-// PACE: Average pace goal (e.g., "Maintain 5:00 min/km pace")
-// LONGEST_RUN: Longest single run goal (e.g., "Run 21km in one session")
-
-// Goal periods as constants
-// WEEKLY, MONTHLY, YEARLY, CUSTOM
-
-model Race {
-  id       String @id @default(uuid())
-  userId   String
-  name     String
-  raceDate DateTime
-  distance Float
-  targetTime Int?
-  actualTime Int?
-  notes    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trainingPlans TrainingPlan[]
-
-  @@index([userId])
-  @@index([raceDate])
-}
-
-model TrainingPlan {
-  id                 String @id @default(uuid())
-  userId             String
-  name               String
-  description        String?
-  startDate          DateTime
-  endDate            DateTime
-  goal               String
-  targetRaceId       String?
-  isActive           Boolean @default(true)
-  difficulty         String @default("intermediate") // beginner, intermediate, advanced
-  weeklyMileageStart Float?
-  weeklyMileageTarget Float?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  targetRace Race? @relation(fields: [targetRaceId], references: [id], onDelete: SetNull)
-  workouts WorkoutTemplate[]
-
-  @@index([userId])
-  @@index([isActive])
-}
-
-model WorkoutTemplate {
-  id             String @id @default(uuid())
-  trainingPlanId String
-  weekNumber     Int
-  dayOfWeek      Int // 0-6, Sunday to Saturday
-  type           String // easy, tempo, interval, long, recovery, race
-  name           String
-  description    String?
-  targetDistance Float?
-  targetDuration Int?
-  targetPace     Float?
-  intensity      String? // easy, moderate, hard, max
-  notes          String?
-  isCompleted    Boolean @default(false)
-  completedRunId String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  trainingPlan TrainingPlan @relation(fields: [trainingPlanId], references: [id], onDelete: Cascade)
-  completedRun Run? @relation(fields: [completedRunId], references: [id], onDelete: SetNull)
-
-  @@index([trainingPlanId])
-  @@index([weekNumber])
-}
-
-model RunAnalytics {
-  id        String   @id @default(uuid())
-  userId    String
-  period    String   // 'daily', 'weekly', 'monthly', 'yearly'
-  startDate DateTime
-  endDate   DateTime
-
-  totalRuns      Int
-  totalDistance  Float
-  totalDuration  Int
-  totalElevation Float?
-  avgPace        Float
-  fastestPace    Float
-  longestRun     Float
-  avgHeartRate   Int?
-  maxHeartRate   Int?
-  totalTrainingLoad Float?
-  avgTrainingLoad   Float?
-  runsPerWeek    Float?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, period, startDate])
-  @@index([userId])
-  @@index([period])
-  @@index([startDate])
-}
-
-model LocationHeatmap {
-  id        String   @id @default(uuid())
-  userId    String
-  gridSize  Float
-  heatmapData String  // JSON
-  popularRoutes String?
-  minLat    Float
-  maxLat    Float
-  minLng    Float
-  maxLng    Float
-  totalRuns Int
-  lastUpdated DateTime
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, gridSize])
   @@index([userId])
 }
 
-model RunTendency {
-  id        String   @id @default(uuid())
-  userId    String   @unique
+model Plan {
+  id               String   @id @default(cuid())
+  userId           String
+  goalId           String
+  name             String
+  startDate        String // Monday, YYYY-MM-DD
+  raceWeekStart    String // Monday, YYYY-MM-DD
+  status           String   @default("active") // 'active' | 'archived'
+  generatorVersion Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  preferredDaysOfWeek String
-  preferredTimeOfDay  String?
-  avgRunsPerWeek      Float
-  preferredDistances  String
-  avgRunDistance      Float
-  longestRunEver      Float
-  avgEasyPace         Float
-  avgTempoPace        Float?
-  avgIntervalPace     Float?
-  homeBaseLocation    String?
-  explorationScore    Float?
-  currentStreak       Int
-  longestStreak       Int
-  avgRestDaysBetween  Float
-  lastAnalyzed DateTime
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal  Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  weeks PlanWeek[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([userId, status])
+}
+
+model PlanWeek {
+  id               String   @id @default(cuid())
+  planId           String
+  weekStart        String // Monday, YYYY-MM-DD
+  index            Int
+  phase            String // see shared/types.ts Phase
+  focus            String?
+  baselineRunMin   Int
+  targetRunMin     Int
+  targetSource     String   @default("baseline") // 'baseline' | 'review' | 'override'
+  longRunMin       Int
+  day2Min          Int?
+  runDays          Int
+  strengthSessions Int
+  overrideNote     String?
+  updatedAt        DateTime @updatedAt
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, weekStart])
+}
+
+model WeeklyReview {
+  id                  String    @id @default(cuid())
+  userId              String
+  weekStart           String // Monday, YYYY-MM-DD
+  dataStatus          String    @default("unconfirmed") // 'unconfirmed' | 'complete' | 'missing'
+  fatigue             Int?
+  symptoms            String? // null = not recorded; 'none' | 'mild' | 'persistent'
+  recoveryConstrained Boolean   @default(false)
+  suggestedAction     String?
+  suggestedReason     String?
+  suggestedNextMin    Int?
+  finalDecision       String?
+  finalNextMin        Int?
+  notes               String?
+  reviewedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@unique([userId, weekStart])
 }

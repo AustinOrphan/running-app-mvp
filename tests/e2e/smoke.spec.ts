@@ -1,31 +1,13 @@
-import { test, expect } from '@austinorphan/e2e-core';
+import { expect, test } from '@playwright/test'
 
-test.describe('Running App MVP Smoke Tests', () => {
-  test('homepage loads successfully', async ({ page }) => {
-    await page.goto('/');
+test('the health endpoint answers ok', async ({ request }) => {
+  const response = await request.get('/api/health')
+  expect(response.ok()).toBe(true)
+  expect(await response.json()).toEqual({ status: 'ok' })
+})
 
-    // Check that the page loads
-    await expect(page.locator('body')).toBeVisible();
-
-    // Check for authentication elements (login/signup or dashboard)
-    const authElement = page.locator('text=Sign In, text=Sign Up, text=Dashboard').first();
-    await expect(authElement).toBeVisible({ timeout: 10000 });
-  });
-
-  test('navigation is functional', async ({ page }) => {
-    await page.goto('/');
-
-    // Check for navigation elements
-    const nav = page.locator('nav, header').first();
-    await expect(nav).toBeVisible();
-  });
-
-  test('application responds to user interaction', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-
-    // Check that the app has interactive elements
-    const interactiveElements = page.locator('button, a, input').first();
-    await expect(interactiveElements).toBeVisible();
-  });
-});
+test('a fresh database redirects to setup', async ({ page }) => {
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/setup$/)
+  await expect(page.getByRole('heading', { name: 'Set up' })).toBeVisible()
+})
