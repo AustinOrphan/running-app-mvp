@@ -15,13 +15,13 @@ declare global {
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 /**
- * Cross-site request forgery guard for the cookie session: a mutating request under /api must be
+ * Cross-site request forgery guard for the cookie session: a mutating request must be
  * same-origin, shown either by `Sec-Fetch-Site: same-origin` or by an `Origin` whose host equals
  * the `Host` header.
  */
 export function sameOriginGuard(): RequestHandler {
   return (req, _res, next) => {
-    if (!MUTATING.has(req.method) || !req.originalUrl.startsWith('/api')) {
+    if (!MUTATING.has(req.method)) {
       next()
       return
     }

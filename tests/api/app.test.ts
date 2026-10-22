@@ -106,6 +106,20 @@ describe('app skeleton', () => {
       .send({})
     expect(same.status).not.toBe(403)
   })
+
+  test('the same-origin guard applies to a differently-cased /API path', async () => {
+    for (const path of ['/API/activities', '/Api/goals', '/API/auth/logout']) {
+      const res = await request(ctx.app).post(path).set('Cookie', user.cookie).send({})
+      expect(res.status, path).toBe(403)
+      const cross = await request(ctx.app)
+        .post(path)
+        .set('Host', 'app.test')
+        .set('Origin', 'http://evil.example')
+        .set('Cookie', user.cookie)
+        .send({})
+      expect(cross.status, path).toBe(403)
+    }
+  })
 })
 
 describe('errorHandler', () => {
