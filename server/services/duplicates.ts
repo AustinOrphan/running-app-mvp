@@ -1,16 +1,31 @@
 import type { PrismaClient } from '../db.ts'
 import { toActivity } from '../serialize.ts'
-import { findPossibleDuplicate, pickDuplicate } from '../../shared/domain/duplicates.ts'
+import {
+  duplicateStatusFor,
+  findPossibleDuplicate,
+  matchActivities,
+  pickDuplicate,
+} from '../../shared/domain/duplicates.ts'
 import type { DuplicateStatus } from '../../shared/types.ts'
 
 const COUNTED_TYPES = ['run', 'race']
 
+/** `date` (YYYY-MM-DD) moved by `days`; calendar arithmetic in UTC, so no DST effects. */
+function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
 /**
- * The near-duplicate pass. For each id (a run or race with a distance) the same-date runs of the
- * same user are compared with `findPossibleDuplicate`; the lower-ranked source of the pair gets
- * `duplicateStatus = 'possible'` and `duplicateOfId` pointing at the other. Rows already
- * `confirmed` or `dismissed` are left alone, and a row already `possible` against the same
- * original is not counted again. Returns how many rows were newly flagged.
+ * The cross-source duplicate pass (spec 2.4). For each id (a run or race) the runs of the same
+ * user that could match are compared with `findPossibleDuplicate`: the same date, or, when the
+ * row has a start instant, the day before and after too. Of each pair the lower-ranked source
+ * gets `duplicateOfId` pointing at the other, whichever row arrived first, and anything that
+ * pointed at the demoted row is re-pointed at the survivor. The status is `confirmed` for two
+ * automated sources matched on start instant, else `possible`. Rows already `confirmed` or
+ * `dismissed` are left alone; a `possible` row against the same original is upgraded to
+ * `confirmed` when it now qualifies. Returns how many rows were newly flagged.
  */
 export async function markDuplicates(
   prisma: Pick<PrismaClient, 'activity'>,
@@ -20,37 +35,48 @@ export async function markDuplicates(
   let flagged = 0
   for (const id of new Set(activityIds)) {
     const row = await prisma.activity.findFirst({ where: { id, userId } })
-    if (!row || !COUNTED_TYPES.includes(row.type) || row.distanceM === null) continue
+    if (!row || !COUNTED_TYPES.includes(row.type)) continue
 
-    const sameDay = await prisma.activity.findMany({
-      where: {
-        userId,
-        date: row.date,
-        id: { not: row.id },
-        type: { in: COUNTED_TYPES },
-        distanceM: { not: null },
-      },
+    const dates = row.startUtc
+      ? [shiftDate(row.date, -1), row.date, shiftDate(row.date, 1)]
+      : [row.date]
+    const others = await prisma.activity.findMany({
+      where: { userId, date: { in: dates }, id: { not: row.id }, type: { in: COUNTED_TYPES } },
     })
     const candidate = toActivity(row)
-    const match = findPossibleDuplicate(candidate, sameDay.map(toActivity))
-    if (!match) continue
+    let remaining = others.map(toActivity)
 
-    const { duplicate, original } = pickDuplicate(candidate, match)
-    if (duplicate.duplicateStatus === 'confirmed' || duplicate.duplicateStatus === 'dismissed') {
-      continue
+    for (;;) {
+      const match = findPossibleDuplicate(candidate, remaining)
+      if (!match) break
+      remaining = remaining.filter((other) => other.id !== match.id)
+      const kind = matchActivities(candidate, match)
+      if (kind === null) continue
+
+      const { duplicate, original } = pickDuplicate(candidate, match)
+      if (duplicate.duplicateStatus === 'confirmed' || duplicate.duplicateStatus === 'dismissed') {
+        continue
+      }
+      if (original.duplicateStatus === 'possible' || original.duplicateStatus === 'confirmed') {
+        continue
+      }
+      const status = duplicateStatusFor(kind, duplicate, original)
+      const wasFlagged = duplicate.duplicateStatus === 'possible'
+      if (wasFlagged && duplicate.duplicateOfId === original.id && status === 'possible') {
+        continue
+      }
+      await prisma.activity.update({
+        where: { id: duplicate.id },
+        data: { duplicateStatus: status, duplicateOfId: original.id },
+      })
+      await prisma.activity.updateMany({
+        where: { userId, duplicateOfId: duplicate.id, id: { not: original.id } },
+        data: { duplicateOfId: original.id },
+      })
+      if (!wasFlagged) flagged += 1
+      // The candidate is now itself a duplicate; it cannot demote anything else.
+      if (duplicate.id === candidate.id) break
     }
-    if (original.duplicateStatus === 'possible' || original.duplicateStatus === 'confirmed') {
-      continue
-    }
-    if (duplicate.duplicateStatus === 'possible' && duplicate.duplicateOfId === original.id) {
-      continue
-    }
-    const wasFlagged = duplicate.duplicateStatus === 'possible'
-    await prisma.activity.update({
-      where: { id: duplicate.id },
-      data: { duplicateStatus: 'possible', duplicateOfId: original.id },
-    })
-    if (!wasFlagged) flagged += 1
   }
   return flagged
 }
