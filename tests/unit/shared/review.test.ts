@@ -41,7 +41,9 @@ describe('suggestAction', () => {
     expect(suggestAction(input({ weekStart: '2026-03-10' })).action).toBe('in_progress')
     expect(suggestAction(input({ weekStart: '2026-03-09' })).action).not.toBe('in_progress')
     // In progress wins over complete data.
-    expect(suggestAction(input({ weekStart: '2026-03-16', today: '2026-03-18' })).action).toBe('in_progress')
+    expect(suggestAction(input({ weekStart: '2026-03-16', today: '2026-03-18' })).action).toBe(
+      'in_progress',
+    )
     expect(suggestAction(input({ review: null })).action).toBe('await_data')
     expect(suggestAction(withReview({ dataStatus: 'unconfirmed' })).action).toBe('await_data')
     expect(suggestAction(withReview({ dataStatus: 'missing' })).action).toBe('await_data')
@@ -122,7 +124,12 @@ describe('suggestAction', () => {
     expect(suggestAction(input({ hasPossibleDuplicates: true })).suggestedNextMin).toBeNull()
     expect(suggestAction(withReview({ fatigue: null })).suggestedNextMin).toBeNull()
 
-    for (const over of [input(), withReview({ fatigue: 6 }), withReview({ fatigue: 9 }), withRunMin(50)]) {
+    for (const over of [
+      input(),
+      withReview({ fatigue: 6 }),
+      withReview({ fatigue: 9 }),
+      withRunMin(50),
+    ]) {
       expect(suggestAction({ ...over, nextBaselineMin: null }).suggestedNextMin).toBeNull()
     }
   })
@@ -161,5 +168,12 @@ describe('suggestAction', () => {
     )
     expect(s.action).toBeDefined()
     expect(Number.isNaN(s.suggestedNextMin ?? 0)).toBe(false)
+
+    // Enough run days, so the percentage comparisons decide the action.
+    const pct = suggestAction(
+      input({ targetRunMin: 0, week: makeWeekRow({ runMin: 0, runDays: 4, runSessions: 4 }) }),
+    )
+    expect(pct.action).toBe('progress')
+    expect(pct.suggestedNextMin).toBe(0)
   })
 })
