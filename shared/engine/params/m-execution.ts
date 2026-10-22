@@ -161,6 +161,65 @@ export const mExecution = {
         note: 'Default: weight of the population prior in the shrinkage estimate, equal to the 3 comparable observations of global3.minObservations.',
       },
     ),
+    minDurationMin: param(
+      'hrModel.minDurationMin',
+      20,
+      'D',
+      'B2',
+      ['navalta-2020-trail-running-hr'],
+      {
+        unit: 'min',
+        note: 'Default: a run shorter than this is not used for the HR-at-pace model.',
+      },
+    ),
+    maxGainPerKm: param(
+      'hrModel.maxGainPerKm',
+      15,
+      'D',
+      'B2',
+      ['navalta-2020-trail-running-hr', 'bent-2020-ppg-inaccuracy'],
+      {
+        unit: 'm of climb per km',
+        note: 'Default: a flat run for the HR model and for HR qualification; wrist HR on hills and trail is rejected (B2).',
+      },
+    ),
+    steadyBandBpm: param(
+      'hrModel.steadyBandBpm',
+      10,
+      'D',
+      'A8',
+      ['roete-2021-functional-overreaching-markers'],
+      {
+        unit: 'bpm either side of the average HR',
+        note: 'Default: a run is steady when most of its time sits within this many bpm of its average HR.',
+      },
+    ),
+    steadyMinShare: param(
+      'hrModel.steadyMinShare',
+      0.7,
+      'D',
+      'A8',
+      ['roete-2021-functional-overreaching-markers'],
+      {
+        unit: 'fraction of time',
+        note: 'Default: the share of time inside the steady band at or above which a run counts as steady.',
+      },
+    ),
+    minHistogramCoverage: param(
+      'hrModel.minHistogramCoverage',
+      0.8,
+      'D',
+      'B2',
+      ['navalta-2020-trail-running-hr', 'bent-2020-ppg-inaccuracy'],
+      {
+        unit: 'fraction of the duration',
+        note: 'Default: HR qualifies only when the histogram covers at least this share of the run duration (sample check).',
+      },
+    ),
+    minResidualSdBpm: param('hrModel.minResidualSdBpm', 2, 'D', 'G3', [], {
+      unit: 'bpm',
+      note: 'Default floor for the residual standard deviation so a tight fit does not inflate the z-score.',
+    }),
     heatPriorPctPerC: param(
       'hrModel.heatPriorPctPerC',
       0.9,
@@ -212,6 +271,10 @@ export const mExecution = {
     }),
   },
   conditions: {
+    assumedShortwaveWm2: param('conditions.assumedShortwaveWm2', 0, 'D', 'I1', [], {
+      unit: 'W/m2',
+      note: 'Default: activities store no solar radiation, so WBGT is computed for shade; the heat adjustment is therefore conservative.',
+    }),
     heatAdjustAboveWbgtC: param(
       'conditions.heatAdjustAboveWbgtC',
       15,
