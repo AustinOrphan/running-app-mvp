@@ -473,7 +473,7 @@ describe('applyGuards: weekly ramp (G-2, G-3)', () => {
   })
 
   it('warns when the weekly gain grows by more than the soft ramp', () => {
-    const history = [run('2026-10-28', 60, { elevationGainM: 500 })]
+    const history = [run('2026-10-21', 60, { elevationGainM: 500 })]
     const plan = [
       session({ date: '2026-11-03', durationMin: 60, gainM: 700 }),
       session({ date: '2026-11-05', durationMin: 60 }),
@@ -486,7 +486,7 @@ describe('applyGuards: weekly ramp (G-2, G-3)', () => {
   })
 
   it('does not warn about a weekly gain step within the 100 m minimum', () => {
-    const history = [run('2026-10-28', 60, { elevationGainM: 300 })]
+    const history = [run('2026-10-21', 60, { elevationGainM: 300 })]
     const week = (gainM: number) => [
       session({ date: '2026-11-03', durationMin: 60, gainM }),
       session({ date: '2026-11-05', durationMin: 60 }),

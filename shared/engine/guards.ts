@@ -1,8 +1,30 @@
 // Safety limits applied to a planned session list: the session spike guard (rules g-1, H4), the
 // weekly ramp (g-2), the tightened profiles (g-3), the ultra caps (H2, H3) and the helper behind
-// "never make up missed volume" (g-6). Pure: no I/O, no clock; `state.asOf` is today.
+// "never make up missed volume" (g-6). Pure: no I/O, no clock; `state.asOf` is today. Every number
+// comes from limits.ts, which the macrocycle and the week placement plan with, so a generated
+// plan passes here unchanged; the cuts remain for owner edits and as a safety net.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity } from '../types.ts'
+import {
+  completedReference,
+  EPS,
+  gainLimit,
+  rampLimits,
+  rampSkipWeeks,
+  recordOf,
+  referenceAt,
+  runningGain,
+  runningMinutes,
+  spikeOverrideLimit,
+  spikeWarnLimit,
+  tightRamp,
+  twoDayReference,
+  ultraRunCapMin,
+  VOLUME_KINDS,
+  weeklyGain,
+  type RampContext,
+  type SpikeReference,
+} from './limits.ts'
 import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
 import type {
@@ -19,62 +41,34 @@ export interface GuardOptions {
   /** Expected race duration for an ultra goal; the H2 caps apply only when this is set. */
   ultraRaceDurationSec?: number | null
   /**
-   * Mondays of the planned recovery and taper weeks. Such a week never sets the baseline of the
-   * 2-week ceiling, so a planned easy week cannot hold the weeks after it down [rules g-2].
+   * Mondays of the planned recovery and taper weeks. Such a week never sets a ramp baseline, so a
+   * planned easy week cannot hold the weeks after it down [rules g-2].
    */
   lowWeeks?: Iterable<string>
   /**
    * The restart floor [design-macro]: the first week of a plan for a runner whose recent weeks are
-   * below it. That one week is exempt from G-2 up to `minutes`, and counts as the baseline of the
-   * 2-week ceiling for the week after it. Every session still obeys G-1.
+   * below it. That one week is exempt from G-2 up to `minutes`, and is a baseline at its floor
+   * minutes for the weeks after it. Every session still obeys G-1.
    */
   restartFloor?: { weekStart: string; minutes: number } | null
   /**
    * For a generated plan: a run above the normal band (1.10x the 30-day reference, or the minimum
    * step) on any dimension is shortened to that limit (and left out when it would fall under the
-   * session minimum) instead of being flagged, because the generator stays in the normal band in
-   * every week [rules g-1, G6]. Without it, such a run keeps `spike-warn` or `override-required`,
-   * as an owner edit does.
+   * session minimum) instead of being flagged [rules g-1, G6]. A generated plan is built inside the
+   * band, so this only catches what the planning missed. Without it, such a run keeps `spike-warn`
+   * or `override-required`, as an owner edit does.
    */
   neverOverride?: boolean
+  /**
+   * Sessions still to run that a re-plan keeps as the owner left them (moved, swapped or trimmed).
+   * They count toward their week and as runs done before later ones, are never changed and are not
+   * returned.
+   */
+  fixed?: SessionSpec[]
 }
 
 /** Run sessions the guards may shorten. Hikes and races are never rewritten. */
-const MUTABLE_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
-  'easy',
-  'recovery',
-  'long',
-  'long-fast-finish',
-  'threshold',
-  'intervals',
-  'race-pace',
-  'strides',
-  'hills',
-  'b2b',
-])
-/**
- * Sessions that count toward the weekly running minutes. A race does not: the weeks before the
- * plan (`state.weeks.runMin`) leave races out too, and a race week must not lose its shake-out runs.
- */
-const VOLUME_KINDS: ReadonlySet<SessionKind> = MUTABLE_KINDS
-const EPS = 1e-9
-
-/** One completed or projected run. */
-interface RunRecord {
-  date: string
-  min: number
-  distanceM: number | null
-  gainM: number | null
-  lossM: number | null
-}
-
-/** Maxima of the 30-day window; null when no run in the window records that dimension. */
-interface Reference {
-  min: number
-  distanceM: number | null
-  gainM: number | null
-  lossM: number | null
-}
+const MUTABLE_KINDS: ReadonlySet<SessionKind> = VOLUME_KINDS
 
 type DimName = 'duration' | 'distance' | 'gain' | 'descent'
 
@@ -106,7 +100,9 @@ export function nextWeekCap(plannedMin: number, actualLastWeekMin: number, ramp:
  * above 2.00x `override-required`, or with `neverOverride` (a generated plan) it is shortened to
  * 1.10x and left out when that falls under the session minimum; with the recent-injury flag 1.10x is a hard limit and the
  * run is shortened. A week above the 2-week 30% ceiling or a tightened ramp is shortened; the
- * soft 10% only warns. Every cut leaves a warning with rule ids.
+ * soft 10% only warns. The current week is measured as what was run plus what is planned, and
+ * when the plan starts after its Monday it is no baseline for the weeks after it. Every cut
+ * leaves a warning with rule ids.
  */
 export function applyGuards(
   sessions: SessionSpec[],
@@ -122,33 +118,24 @@ export function applyGuards(
     warnings.push(warning)
   }
 
-  const items: Array<SessionSpec | null> = sessions
-    .map(cloneSession)
-    .sort((a, b) => (a.date === b.date ? a.order - b.order : a.date < b.date ? -1 : 1))
+  const fixedSet = new Set<SessionSpec>()
+  const items: Array<SessionSpec | null> = [
+    ...sessions.map(cloneSession),
+    ...(options.fixed ?? []).map((s) => {
+      const copy = cloneSession(s)
+      fixedSet.add(copy)
+      return copy
+    }),
+  ].sort((a, b) => (a.date === b.date ? a.order - b.order : a.date < b.date ? -1 : 1))
   const asOf = state.asOf
-  const records = completedRuns(history)
-  const hasHistory = records.length > 0
-  const virtualTwoDay: Array<{ date: string; min: number }> = []
-  if (!hasHistory) {
-    const longest = state.longest30d
-    const date = addDays(asOf, -1)
-    if (longest.durationSec > 0 || longest.distanceM > 0) {
-      // The state stores an unknown maximum as 0, so 0 here reads as "not recorded".
-      records.push({
-        date,
-        min: longest.durationSec / 60,
-        distanceM: longest.distanceM > 0 ? longest.distanceM : null,
-        gainM: longest.gainM > 0 ? longest.gainM : null,
-        lossM: longest.lossM > 0 ? longest.lossM : null,
-      })
-    }
-    if (longest.twoDaySec > 0) virtualTwoDay.push({ date, min: longest.twoDaySec / 60 })
-  }
+  const completed = completedReference(history, state)
+  const records = [...completed.runs]
 
-  const minRun = P.fplace.minRunDayMin.value
-  const modifiable = (s: SessionSpec): boolean => MUTABLE_KINDS.has(s.kind) && s.date >= asOf
+  const modifiable = (s: SessionSpec): boolean =>
+    MUTABLE_KINDS.has(s.kind) && s.date >= asOf && !fixedSet.has(s)
 
-  // Weekly running minutes: what was run for the weeks before the plan, then the final plan.
+  // Weekly running minutes and climbing: what was run for the weeks before the plan, then the
+  // final plan; the current week holds what was run plus what is still planned.
   const volume = new Map<string, number>()
   for (const row of state.weeks) volume.set(row.weekStart, row.runMin)
   const gainVolume = weeklyGain(history)
@@ -159,28 +146,35 @@ export function applyGuards(
     .filter((w) => w >= firstWeek)
     .sort()
 
-  const ultraCapMin = ultraCap(options)
-  const low = new Set(options.lowWeeks ?? [])
+  const ultraCapMin = ultraRunCapMin(options.ultraRaceDurationSec)
   const floor = options.restartFloor ?? null
+  const rampCtx: RampContext = {
+    volumes: volume,
+    skip: rampSkipWeeks(asOf, options.lowWeeks ?? []),
+    floor,
+    typicalWeekMin: state.typicalWeekMin,
+    novice: state.experience === 'novice',
+    tight: tightRamp(state),
+  }
   const pairStarts: string[] = items
     .filter((s): s is SessionSpec => s !== null && s.date < asOf && s.flags.includes('b2b-day1'))
     .map((s) => s.date)
   let noReferenceWarned = false
 
-  // Running already done in the current week counts toward its volume; the plan holds the rest.
   const currentMonday = mondayOf(asOf)
   const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
-  // A week that is under way with no running logged yet holds only the sessions still planned, so
-  // it is no baseline for the weeks after it; the earlier history (or the typical week) sets
-  // their limits instead. With running logged, done plus planned is the whole week.
-  const rampSkip: ReadonlySet<string> =
-    asOf > currentMonday && (doneRow?.runMin ?? 0) === 0 ? new Set([...low, currentMonday]) : low
   const doneThisWeek = (weekStart: string) =>
     weekStart === currentMonday && doneRow !== undefined ? doneRow.runMin : 0
+  const doneGain = gainVolume.get(currentMonday) ?? 0
+  // With running logged for the current week, its sessions before today are in that log.
+  const loggedWeek = (weekStart: string) => weekStart === currentMonday && doneRow !== undefined
+  const ahead = (week: SessionSpec[]) => week.filter((s) => s.date >= asOf)
   const weekMinutes = (weekStart: string, week: SessionSpec[]) =>
-    doneRow !== undefined && weekStart === currentMonday
-      ? doneRow.runMin + weeklyMinutes(week.filter((s) => s.date >= asOf))
-      : weeklyMinutes(week)
+    loggedWeek(weekStart)
+      ? doneThisWeek(weekStart) + runningMinutes(ahead(week))
+      : runningMinutes(week)
+  const weekGain = (weekStart: string, week: SessionSpec[]) =>
+    loggedWeek(weekStart) ? doneGain + runningGain(ahead(week)) : runningGain(week)
 
   const indicesOf = (weekStart: string) =>
     items.flatMap((s, i) => (s !== null && mondayOf(s.date) === weekStart ? [i] : []))
@@ -207,7 +201,12 @@ export function applyGuards(
     // g-1, H3, H4 in date order, so every run sees the runs before it.
     for (const i of indicesOf(weekStart)) {
       const s = items[i]
-      if (s === null || s === undefined || !modifiable(s)) continue
+      if (s === null || s === undefined) continue
+      if (fixedSet.has(s)) {
+        if (MUTABLE_KINDS.has(s.kind) && s.date >= asOf) records.push(recordOf(s))
+        continue
+      }
+      if (!modifiable(s)) continue
       let current: SessionSpec = s
       if (current.flags.includes('b2b-day1')) {
         current = pairChecks(i)
@@ -221,14 +220,14 @@ export function applyGuards(
 
     const final = indicesOf(weekStart).map((i) => items[i]!)
     volume.set(weekStart, weekMinutes(weekStart, final))
-    gainVolume.set(
-      weekStart,
-      final.reduce((sum, s) => sum + (VOLUME_KINDS.has(s.kind) ? (s.gainM ?? 0) : 0), 0),
-    )
+    gainVolume.set(weekStart, weekGain(weekStart, final))
     gainRamp(weekStart)
   }
 
-  return { sessions: items.filter((s): s is SessionSpec => s !== null), warnings }
+  return {
+    sessions: items.filter((s): s is SessionSpec => s !== null && !fixedSet.has(s)),
+    warnings,
+  }
 
   // ---- weekly ramp ----
 
@@ -237,46 +236,12 @@ export function applyGuards(
     const week = indices.map((i) => items[i]!)
     const total = weekMinutes(weekStart, week)
     if (total <= 0) return
-
+    const limits = rampLimits(rampCtx, weekStart)
+    if (limits === null) return
+    const { allowed, isFloorWeek } = limits
     const baselineWeeks = P.g2.baselineWeeks.value
-    const soft = highest(volume, weekStart, 1, baselineWeeks, rampSkip)
-    const typical = state.typicalWeekMin > 0 ? state.typicalWeekMin : null
-    const base = positive(soft) ?? typical
-    if (base === null) return
-    // A recovery or taper week never sets the ceiling baseline; the restart floor week does for
-    // the week right after it, which would otherwise be held to 130% of the weeks before the floor.
-    const floorMin = floor === null ? null : (volume.get(floor.weekStart) ?? null)
-    const afterFloor =
-      floor !== null &&
-      floorMin !== null &&
-      weekStart > floor.weekStart &&
-      daysBetween(floor.weekStart, weekStart) <= 7 * (P.g2.ceilingWindowWeeks.value - 1)
-    const ceilingBase =
-      positive(
-        maxOf(
-          highest(
-            volume,
-            weekStart,
-            P.g2.ceilingWindowWeeks.value,
-            baselineWeeks,
-            rampSkip,
-            P.g2.ceilingLookbackWeeks.value,
-          ),
-          afterFloor ? floorMin : null,
-        ),
-      ) ?? base
-
-    const minStep = state.experience === 'novice' ? P.g2.noviceMinStepMin.value : 0
-    const limitOf = (from: number, ramp: number) => from + Math.max(from * ramp, minStep)
-    const softLimit = limitOf(base, P.g2.rampSoft.value)
-    const ceilingLimit = limitOf(ceilingBase, P.g2.rampCeilingTwoWeeks.value)
-    const tight = tightRamp()
-    const tightLimit = tight === null ? Infinity : limitOf(base, tight)
-    let allowed = Math.min(ceilingLimit, tightLimit)
-    const isFloorWeek = floor !== null && weekStart === floor.weekStart
     if (floor !== null && isFloorWeek) {
       // The floor week is exempt from G-2 up to the floor; it is not exempt from anything else.
-      allowed = Math.max(allowed, floor.minutes)
       warn(`floor|${weekStart}`, {
         code: 'restart-floor',
         severity: 'info',
@@ -286,27 +251,26 @@ export function applyGuards(
     }
     if (total > allowed + 1e-6) {
       // Runs before the plan starts are already in `doneThisWeek`.
-      const fixed =
-        doneRow !== undefined && weekStart === currentMonday
-          ? 0
-          : week
-              .filter((s) => VOLUME_KINDS.has(s.kind) && !modifiable(s))
-              .reduce((sum, s) => sum + s.durationMin, 0)
-      shortenWeek(indices, Math.max(0, allowed - fixed - doneThisWeek(weekStart)), weekStart)
-      const tightened = tightLimit <= ceilingLimit
+      const fixedMin = week
+        .filter(
+          (s) =>
+            VOLUME_KINDS.has(s.kind) && !modifiable(s) && !(loggedWeek(weekStart) && s.date < asOf),
+        )
+        .reduce((sum, s) => sum + s.durationMin, 0)
+      shortenWeek(indices, Math.max(0, allowed - fixedMin - doneThisWeek(weekStart)), weekStart)
       warn(`ramp|${weekStart}`, {
-        code: tightened ? 'ramp-tightened' : 'ramp-ceiling',
+        code: limits.tightened ? 'ramp-tightened' : 'ramp-ceiling',
         severity: 'warn',
-        message: tightened
-          ? `Running time in the week of ${weekStart} is held to ${Math.round(allowed)} min, a ramp of ${Math.round((tight ?? 0) * 100)}% on the highest of the previous ${baselineWeeks} weeks, for the injury profile.`
+        message: limits.tightened
+          ? `Running time in the week of ${weekStart} is held to ${Math.round(allowed)} min, a ramp of ${Math.round((limits.tightRamp ?? 0) * 100)}% on the highest of the previous ${baselineWeeks} weeks, for the injury profile.`
           : `Running time in the week of ${weekStart} is held to ${Math.round(allowed)} min, ${Math.round(P.g2.rampCeilingTwoWeeks.value * 100)}% above the week ${P.g2.ceilingWindowWeeks.value} weeks earlier.`,
-        rules: tightened ? ['g-2', 'g-3'] : ['g-2'],
+        rules: limits.tightened ? ['g-2', 'g-3'] : ['g-2'],
       })
-    } else if (!isFloorWeek && total > softLimit + 1e-6) {
+    } else if (!isFloorWeek && total > limits.soft + 1e-6) {
       warn(`ramp|${weekStart}`, {
         code: 'ramp-soft',
         severity: 'warn',
-        message: `Running time in the week of ${weekStart} is ${Math.round(total)} min, above a ${Math.round(P.g2.rampSoft.value * 100)}% step on the highest of the previous ${baselineWeeks} weeks (${Math.round(base)} min). Keep it if it feels right.`,
+        message: `Running time in the week of ${weekStart} is ${Math.round(total)} min, above a ${Math.round(P.g2.rampSoft.value * 100)}% step on the highest of the previous ${baselineWeeks} weeks (${Math.round(limits.base)} min). Keep it if it feels right.`,
         rules: ['g-2'],
       })
     }
@@ -415,28 +379,15 @@ export function applyGuards(
     }
   }
 
-  /** The lowest weekly ramp of the athlete's profiles, or null for the default profile. */
-  function tightRamp(): number | null {
-    const caps: number[] = []
-    if (state.risk.recentInjury) caps.push(P.g3.recentInjuryRamp.value[1])
-    if (state.risk.priorBsi) caps.push(P.g3.priorBsiRampMax.value)
-    if (state.risk.bsiFactors >= P.g3.bsiFactorsForCap.value) {
-      caps.push(P.g2.rampSoft.value * P.g3.bsiRampFactor.value)
-    }
-    return caps.length === 0 ? null : Math.min(...caps)
-  }
-
   function gainRamp(weekStart: string): void {
     const gain = gainVolume.get(weekStart) ?? 0
-    const base = positive(highest(gainVolume, weekStart, 1, P.g2.baselineWeeks.value))
-    if (base === null) return
     // A step within the minimum step of H4 (100 m) is never a warning on its own.
-    const allowed = base + Math.max(base * P.h4.weeklyGainRamp.value, P.h4.minStepGainM.value)
-    if (gain <= allowed + EPS) return
+    const limit = gainLimit(gainVolume, rampCtx.skip, weekStart)
+    if (limit === null || gain <= limit.allowed + EPS) return
     warn(`gain|${weekStart}`, {
       code: 'gain-ramp-soft',
       severity: 'warn',
-      message: `Climbing in the week of ${weekStart} is ${Math.round(gain)} m, above a ${Math.round(P.h4.weeklyGainRamp.value * 100)}% step on the highest of the previous weeks (${Math.round(base)} m).`,
+      message: `Climbing in the week of ${weekStart} is ${Math.round(gain)} m, above a ${Math.round(P.h4.weeklyGainRamp.value * 100)}% step on the highest of the previous weeks (${Math.round(limit.base)} m).`,
       rules: ['H4'],
     })
   }
@@ -498,10 +449,12 @@ export function applyGuards(
       items[j] = day2
     }
 
-    const cap = twoDayReference(day1.date) * P.h3.b2bTwoDayRatio.value
+    const cap =
+      twoDayReference(records, completed.virtualTwoDay, day1.date) * P.h3.b2bTwoDayRatio.value
     if (cap > 0 && day1.durationMin + day2.durationMin > cap + EPS) {
       const fit = cap - day1.durationMin
-      const scaled = fit >= minRun ? scaleSession(day2, fit / day2.durationMin) : null
+      const scaled =
+        fit >= P.fplace.minRunDayMin.value ? scaleSession(day2, fit / day2.durationMin) : null
       if (scaled === null) {
         return dePair(
           `The pair on ${day1.date} is over ${P.h3.b2bTwoDayRatio.value}x the largest 2-day total of the last ${P.g1.windowDays.value} days and does not fit, so it stays a single long run.`,
@@ -520,30 +473,10 @@ export function applyGuards(
     return day1
   }
 
-  /** Largest total of two consecutive days among the completed and projected runs before `date`. */
-  function twoDayReference(date: string): number {
-    const window = P.g1.windowDays.value
-    const perDay = new Map<string, number>()
-    for (const r of records) {
-      const ago = daysBetween(r.date, date)
-      if (ago >= 1 && ago <= window) perDay.set(r.date, (perDay.get(r.date) ?? 0) + r.min)
-    }
-    let best = 0
-    for (let ago = window; ago >= 2; ago -= 1) {
-      const first = addDays(date, -ago)
-      best = Math.max(best, (perDay.get(first) ?? 0) + (perDay.get(addDays(first, 1)) ?? 0))
-    }
-    for (const entry of virtualTwoDay) {
-      const ago = daysBetween(entry.date, date)
-      if (ago >= 1 && ago <= window) best = Math.max(best, entry.min)
-    }
-    return best
-  }
-
   // ---- session spike guard (g-1, H4) ----
 
   function spikeCheck(s: SessionSpec): SessionSpec | null {
-    const ref = referenceAt(s.date)
+    const ref = referenceAt(records, s.date)
     if (ref.min <= 0 && !noReferenceWarned) {
       noReferenceWarned = true
       warn('spike-none', {
@@ -599,8 +532,9 @@ export function applyGuards(
       return scaled
     }
     if (options.neverOverride === true) {
-      // A generated plan stays in the normal band (1.10x, or the minimum step) in every week; the
-      // warn band is reached only by an owner edit, which keeps its warning [rules g-1, G6].
+      // A generated plan is built inside the normal band (1.10x, or the minimum step); reaching
+      // here means the planning missed it, and the run is shortened rather than flagged. The warn
+      // band is reached only by an owner edit, which keeps its warning [rules g-1, G6].
       const factor = Math.min(...over.map((c) => c.warnLimit / c.d.value))
       const scaled = scaleSession(base, factor)
       if (scaled === null) {
@@ -647,38 +581,19 @@ export function applyGuards(
     )
     if (j >= 0) items[j] = null
   }
-
-  function referenceAt(date: string): Reference {
-    const window = P.g1.windowDays.value
-    const ref: Reference = { min: 0, distanceM: null, gainM: null, lossM: null }
-    const max = (a: number | null, b: number | null) => (b === null ? a : Math.max(a ?? 0, b))
-    for (const r of records) {
-      const ago = daysBetween(r.date, date)
-      if (ago < 1 || ago > window) continue
-      ref.min = Math.max(ref.min, r.min)
-      // A distance of 0 is a run without a recorded distance; a gain of 0 is a flat run.
-      ref.distanceM = max(
-        ref.distanceM,
-        r.distanceM !== null && r.distanceM > 0 ? r.distanceM : null,
-      )
-      ref.gainM = max(ref.gainM, r.gainM)
-      ref.lossM = max(ref.lossM, r.lossM)
-    }
-    return ref
-  }
 }
 
 // ---- helpers ----
 
 function limits(d: Dim): { level: 0 | 1 | 2; warnLimit: number; overrideLimit: number } {
-  const warnLimit = d.ref + Math.max(d.ref * (P.g1.spikeRatioWarn.value - 1), d.minStep)
-  const overrideLimit = Math.max(d.ref * P.g1.spikeRatioOverride.value, warnLimit)
+  const warnLimit = spikeWarnLimit(d.ref, d.minStep)
+  const overrideLimit = spikeOverrideLimit(d.ref, d.minStep)
   const level = d.value > overrideLimit + EPS ? 2 : d.value > warnLimit + EPS ? 1 : 0
   return { level, warnLimit, overrideLimit }
 }
 
 /** The dimensions to compare: a dimension is skipped only when the window holds no record of it. */
-function dimensionsOf(s: SessionSpec, ref: Reference): Dim[] {
+function dimensionsOf(s: SessionSpec, ref: SpikeReference): Dim[] {
   if (ref.min <= 0) return []
   const dims: Dim[] = [{ name: 'duration', value: s.durationMin, ref: ref.min, minStep: 0 }]
   if (s.distanceM !== null && ref.distanceM !== null) {
@@ -696,96 +611,6 @@ function dimensionsOf(s: SessionSpec, ref: Reference): Dim[] {
   }
   return dims
 }
-
-function ultraCap(options: GuardOptions): number | null {
-  const race = options.ultraRaceDurationSec
-  if (race === null || race === undefined || race <= 0) return null
-  return Math.floor(
-    Math.min(
-      P.h2.longestRunCapHours.value * 60,
-      (race / 60) * P.h2.longestRunCapRaceFraction.value,
-    ) + EPS,
-  )
-}
-
-function completedRuns(history: Activity[]): RunRecord[] {
-  return history
-    .filter(
-      (a) =>
-        (a.type === 'run' || a.type === 'race') &&
-        a.duplicateOfId === null &&
-        a.duplicateStatus !== 'possible' &&
-        a.duplicateStatus !== 'confirmed',
-    )
-    .map((a) => ({
-      date: a.date,
-      min: a.durationSec / 60,
-      distanceM: a.distanceM,
-      gainM: a.elevationGainM,
-      lossM: a.elevationLossM,
-    }))
-}
-
-function recordOf(s: SessionSpec): RunRecord {
-  return {
-    date: s.date,
-    min: s.durationMin,
-    distanceM: s.distanceM,
-    gainM: s.gainM,
-    lossM: s.gainM,
-  }
-}
-
-function weeklyGain(history: Activity[]): Map<string, number> {
-  const out = new Map<string, number>()
-  for (const a of history) {
-    if (a.type !== 'run') continue
-    if (
-      a.duplicateOfId !== null ||
-      a.duplicateStatus === 'possible' ||
-      a.duplicateStatus === 'confirmed'
-    )
-      continue
-    const week = mondayOf(a.date)
-    out.set(week, (out.get(week) ?? 0) + (a.elevationGainM ?? 0))
-  }
-  return out
-}
-
-function weeklyMinutes(week: SessionSpec[]): number {
-  return week.reduce((sum, s) => sum + (VOLUME_KINDS.has(s.kind) ? s.durationMin : 0), 0)
-}
-
-/**
- * Highest value among `count` weeks that end `lag` weeks before `weekStart`; null if none is known.
- * Weeks in `skip` (planned recovery and taper weeks) are left out; when all of them are, the window
- * moves back, at most to `lookback` weeks, to the first week that is not.
- */
-function highest(
-  values: Map<string, number>,
-  weekStart: string,
-  lag: number,
-  count: number,
-  skip?: ReadonlySet<string>,
-  lookback = count,
-): number | null {
-  let best: number | null = null
-  for (let k = 0; k < Math.max(count, lookback); k += 1) {
-    const week = addDays(weekStart, -7 * (lag + k))
-    // past the window, only a window that found nothing keeps looking
-    if (k >= count && best !== null) break
-    if (skip?.has(week)) continue
-    const v = values.get(week)
-    if (v !== undefined) best = best === null ? v : Math.max(best, v)
-  }
-  return best
-}
-
-const maxOf = (a: number | null, b: number | null): number | null =>
-  a === null ? b : b === null ? a : Math.max(a, b)
-
-const positive = (value: number | null): number | null =>
-  value !== null && value > 0 ? value : null
 
 function cloneSession(s: SessionSpec): SessionSpec {
   return structuredClone(s)

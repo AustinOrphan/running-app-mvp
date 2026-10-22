@@ -6,8 +6,25 @@
 // Race week is the last week with the race in it: its volume is the shake-out running around the
 // race, not the race itself, and its long run is 0. The weeks after the race (H12) follow it.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
+import {
+  completedReference,
+  gainLimit,
+  rampLimits,
+  rampSkipWeeks,
+  rampStep,
+  referenceBetween,
+  runCaps,
+  tightRamp,
+  ultraRunCapMin,
+  weeklyGain,
+  weeklyRamp,
+  type RampContext,
+  type RunRecord,
+} from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
+import { focalBoneActive } from './readiness.ts'
+import { buildZones } from './zones.ts'
 import type {
   AthleteState,
   EngineInput,
@@ -31,16 +48,8 @@ function median(values: number[]): number {
   return sorted.length % 2 === 1 ? hi : ((sorted[mid - 1] ?? hi) + hi) / 2
 }
 
-/** Weekly ramp that applies to this athlete [rules G-2, G-3]. */
-export function weeklyRamp(state: AthleteState): number {
-  let ramp = P.g2.rampSoft.value
-  if (state.risk.recentInjury) ramp = Math.min(ramp, P.g3.recentInjuryRamp.value[0])
-  if (state.risk.priorBsi) ramp = Math.min(ramp, P.g3.priorBsiRampMax.value)
-  if (state.risk.bsiFactors >= P.g3.bsiFactorsForCap.value) {
-    ramp = Math.min(ramp, P.g2.rampSoft.value * P.g3.bsiRampFactor.value)
-  }
-  return ramp
-}
+/** Weekly ramp that applies to this athlete [rules G-2, G-3]; defined with the other limits. */
+export { weeklyRamp }
 
 /**
  * Two or more flags on the latest energy-availability screening hold progression [rules n-4, J5]:
@@ -48,6 +57,14 @@ export function weeklyRamp(state: AthleteState): number {
  */
 export function redsHold(state: AthleteState): boolean {
   return state.risk.redsFlags >= P.j5.redsHoldFlags.value
+}
+
+/**
+ * Progression holds while either hold applies: two or more REDs flags [rules n-4] or focal bone
+ * pain reported and not yet cleared by a later check-in [rules n-1].
+ */
+export function progressionHold(input: EngineInput, state: AthleteState): boolean {
+  return redsHold(state) || focalBoneActive(input, input.today)
 }
 
 /** Taper length in days [rules K1]; never above the 21-day maximum. */
@@ -132,13 +149,8 @@ export function peakLongRunMin(goal: GoalModel, pace: number): number {
       peak = Math.max(peak, minutesFor(P.d3.marathonMinLongRunKm.value, pace))
     }
   }
-  if (goal.isUltra) {
-    const cap = Math.min(
-      P.h2.longestRunCapHours.value * 60,
-      (P.h2.longestRunCapRaceFraction.value * goal.expectedDurationSec) / 60,
-    )
-    peak = Math.min(peak, floorEps(cap))
-  }
+  const cap = goal.isUltra ? ultraRunCapMin(goal.expectedDurationSec) : null
+  if (cap !== null) peak = Math.min(peak, cap)
   return peak
 }
 
@@ -262,14 +274,14 @@ function carriedPhases(
  * Where a re-plan restarts the loading sequence: the working target of the current week in the plan
  * it replaces, not the typical week, so the Monday re-plan does not flatten the progression. In a
  * recovery week the sequence continues from the work week before it (`paused`). The start is held
- * to the step the recent weeks allow, so missed training still lowers it. A break of a week or more
- * restarts from the typical week.
+ * to the step the recent weeks allow (`stepCap`), so missed training still lowers it. A break of a
+ * week or more restarts from the typical week.
  */
 function replanAnchor(
   input: EngineInput,
   state: AthleteState,
   firstMonday: string,
-  ramp: number,
+  stepCap: number,
 ): { minutes: number; paused: boolean } | null {
   const weeks = input.existing?.weeks
   if (weeks === undefined || state.layoffDays >= P.j7.tier1Days.value) return null
@@ -280,23 +292,8 @@ function replanAnchor(
         .filter((w) => w.weekStart < firstMonday && !w.isRecovery && !w.isTaper)
         .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))[0]
     : current
-  if (work === undefined || work.targetRunMin <= 0) return null
-
-  const recent = Math.max(
-    0,
-    ...state.weeks
-      .filter(
-        (w) =>
-          w.weekStart < firstMonday &&
-          w.weekStart >= addDays(firstMonday, -7 * P.g2.baselineWeeks.value),
-      )
-      .map((w) => w.runMin),
-  )
-  const base = recent > 0 ? recent : state.typicalWeekMin
-  if (base <= 0) return null
-  const minStep = state.experience === 'novice' ? P.g2.noviceMinStepMin.value : 0
-  const limit = floorEps(base + Math.max(base * ramp, minStep))
-  return { minutes: Math.min(work.targetRunMin, limit), paused: current.isRecovery }
+  if (work === undefined || work.targetRunMin <= 0 || !Number.isFinite(stepCap)) return null
+  return { minutes: Math.min(work.targetRunMin, stepCap), paused: current.isRecovery }
 }
 
 /** Quality sessions wanted in a pre-taper week before the run-day cap [rules F2, H1]. */
@@ -314,6 +311,17 @@ function gainShare(phase: PhaseV2): number {
   if (phase === 'base') return P.macroDesign.gainShareBase.value
   if (phase === 'build') return P.macroDesign.gainShareBuild.value
   return P.macroDesign.gainShareSpecific.value
+}
+
+/** The latest restart floor week of the plan a re-plan replaces, before `firstMonday`. */
+export function pastFloor(
+  input: EngineInput,
+  firstMonday: string,
+): { weekStart: string; minutes: number } | null {
+  const week = (input.existing?.weeks ?? [])
+    .filter((w) => w.weekStart < firstMonday && w.flags.includes('restart-floor'))
+    .at(-1)
+  return week === undefined ? null : { weekStart: week.weekStart, minutes: week.targetRunMin }
 }
 
 /** The restart floor week: its minutes, and whether the runner has a recent run to build on. */
@@ -362,11 +370,11 @@ export function macroPlan(
   if (total < 1) return []
 
   const novice = state.experience === 'novice'
-  // A REDs hold stops growth: no ramp and no minimum step, so every loading week stays level.
-  const hold = redsHold(state)
+  // A hold (REDs flags or focal bone pain) stops growth: every loading week, long run and gain
+  // target stays at the current level.
+  const hold = progressionHold(input, state)
   const ramp = hold ? 0 : weeklyRamp(state)
   const pace = trainingPace(state, goal)
-  const minStep = hold ? 0 : P.g2.noviceMinStepMin.value
   const share = goal.isUltra
     ? P.macroDesign.longRunShareOfWeekUltra.value
     : P.macroDesign.longRunShareOfWeek.value
@@ -405,10 +413,53 @@ export function macroPlan(
     return Math.min(maxDays, Math.max(minDays, Math.round(target / sessionMin), byVolume))
   }
 
+  // The limits every week is planned inside (limits.ts), as the guards check them: the weekly ramp
+  // over the previous loading weeks, the 30-day reference of the session spike guard over the
+  // completed runs and the long runs planned before, and the weekly gain ramp [rules g-1, g-2,
+  // H4]. Each planned week enters the baselines as it is drawn; the week placement holds these
+  // targets, so the guards read the same numbers from the placed sessions.
+  const volumes = new Map(state.weeks.map((w) => [w.weekStart, w.runMin]))
+  const pastLow = (input.existing?.weeks ?? [])
+    .filter((w) => w.weekStart < firstMonday && (w.isRecovery || w.isTaper))
+    .map((w) => w.weekStart)
+  const skip = rampSkipWeeks(input.today, pastLow)
+  const rampCtx: RampContext = {
+    volumes,
+    skip,
+    // a restart floor week of the plan being replaced stays the baseline of the weeks after it
+    floor: pastFloor(input, firstMonday),
+    typicalWeekMin: state.typicalWeekMin,
+    novice,
+    tight: tightRamp(state),
+  }
+  /** The most a loading week may hold: the planning limit, at the athlete's own ramp. */
+  const stepCap = (weekStart: string): number => {
+    const lim = rampLimits(rampCtx, weekStart)
+    if (lim === null) return Infinity
+    if (lim.isFloorWeek) return floorEps(lim.plan)
+    return floorEps(Math.min(lim.plan, rampStep(lim.base, ramp, novice)))
+  }
+  const runs: RunRecord[] = [...completedReference(input.activities, state).runs]
+  const gains = weeklyGain(input.activities)
+  const window = P.g1.windowDays.value
+  /** The normal band of the runs within 30 days of every day the week can hold its long run. */
+  const capsOf = (weekStart: string) => {
+    const firstDay = weekStart < input.today ? input.today : weekStart
+    return runCaps(referenceBetween(runs, addDays(weekStart, 6 - window), addDays(firstDay, -1)))
+  }
+
   // Weekly targets, long runs, run days and gain for the pre-taper weeks
   // The floor lifts a small week to a useful one, which is growth; a hold keeps the current level.
-  const restart = hold ? null : restartFloor(input, state)
-  const anchored = restart !== null || hold ? null : replanAnchor(input, state, firstMonday, ramp)
+  // A re-plan continues the plan it replaces; the restart floor lifts only a new plan, or a re-plan
+  // whose continuation would sit below the floor.
+  const continued = hold ? null : replanAnchor(input, state, firstMonday, stepCap(firstMonday))
+  const floorWeek = hold ? null : restartFloor(input, state)
+  const restart =
+    floorWeek !== null && (continued === null || continued.minutes < floorWeek.minutes)
+      ? floorWeek
+      : null
+  if (restart !== null) rampCtx.floor = { weekStart: firstMonday, minutes: restart.minutes }
+  const anchored = restart === null ? continued : null
   const start =
     restart !== null
       ? restart.minutes
@@ -422,9 +473,23 @@ export function macroPlan(
   const hasGain = goal.gainM > 0 && goal.distanceM > 0
   const gainPerKm = hasGain ? goal.gainM / (goal.distanceM / 1000) : 0
   const gainStep = P.h4.minStepGainM.value
+  // A plain long run is prescribed at the middle of the zone 1 pace band when the zones carry pace
+  // (sessions.ts), and otherwise takes the week's long-run distance at the training pace.
+  const z1 = buildZones(input.profile, state, input.today).pace?.z1 ?? null
+  const runPace = z1 === null ? pace : (z1[0] + z1[1]) / 2
+  /** The long run's distance at the training pace, within the distance limit of the week. */
+  const distanceOf = (minutes: number, caps: { distanceM: number }) => {
+    if (minutes <= 0) return null
+    const metres = Math.round((((minutes * 60) / pace) * 1000) / 100) * 100
+    return Number.isFinite(caps.distanceM) ? Math.min(metres, Math.floor(caps.distanceM)) : metres
+  }
+  /** The distance the long run will carry: as prescribed, rounded to 100 m. */
+  const carriedM = (minutes: number, metres: number | null) =>
+    z1 === null ? metres : Math.round((((minutes * 60) / runPace) * 1000) / 100) * 100
 
   const target: number[] = []
   const longRun: number[] = []
+  const longM: Array<number | null> = []
   const runDays: number[] = []
   const gain: Array<number | null> = []
   let lastWork = start
@@ -434,54 +499,95 @@ export function macroPlan(
   let prevDays = 0
   let prevGain = Math.max(gainStep, floorTo10(state.longest30d.gainM))
 
+  /** The week enters the ramp baselines, and its long run the 30-day reference. */
+  const record = (i: number, weekStart: string, low: boolean) => {
+    const t = target[i] as number
+    volumes.set(weekStart, t)
+    if (low) skip.add(weekStart)
+    const g = gain[i] ?? null
+    if (g !== null) gains.set(weekStart, g)
+    const long = longRun[i] as number
+    if (long > 0) {
+      // dated on the first day the week can hold it, so the reference is never overstated
+      const date = weekStart < input.today ? input.today : weekStart
+      const longGain = g === null || t <= 0 ? null : Math.floor((g * long) / t)
+      runs.push({
+        date,
+        min: long,
+        distanceM: carriedM(long, longM[i] ?? null),
+        gainM: longGain,
+        lossM: longGain,
+      })
+    }
+  }
+
   for (let i = 0; i < preCount; i++) {
     const ph = phases[i] as PhasePlan
+    const weekStart = addDays(firstMonday, 7 * i)
+    const caps = capsOf(weekStart)
+    // rounded to 100 m, the distance may be 50 m above the minutes' own
+    const distanceCapMin = Number.isFinite(caps.distanceM)
+      ? floorEps(((caps.distanceM - 50) * runPace) / 60_000)
+      : Infinity
+    const longCap = Math.min(peakLong, caps.min, distanceCapMin)
     const rawLong = floorEps(start * share)
     if (ph.isRecovery) {
       const t = floorEps(lastWork * (1 - cut))
       target.push(t)
-      longRun.push(
-        Math.min(prevLong > 0 ? floorEps(prevLong * (1 - cut)) : rawLong, floorEps(t * share)),
+      const long = Math.min(
+        prevLong > 0 ? floorEps(prevLong * (1 - cut)) : rawLong,
+        floorEps(t * share),
+        longCap,
       )
+      longRun.push(long)
+      longM.push(distanceOf(long, caps))
       runDays.push(prevDays > 0 ? prevDays : daysFor(t))
       gain.push(hasGain ? floorTo10(prevGain * (1 - cut)) : null)
+      record(i, weekStart, true)
       continue
     }
-    const t = haveWork
-      ? Math.min(ceiling, Math.max(floorEps(lastWork * (1 + ramp)), lastWork + minStep))
+    const wanted = haveWork
+      ? Math.min(ceiling, hold ? lastWork : floorEps(rampStep(lastWork, ramp, novice)))
       : start
+    let t = Math.max(0, Math.min(wanted, stepCap(weekStart)))
+    // the restart floor week holds its floor sessions [design-macro]
+    const floorDays = i === 0 && restart !== null ? P.restartFloor.sessions.value : 0
+    const days = Math.max(prevDays, daysFor(t), floorDays)
+    // no run of the week is longer than the long run, so the week holds at most its run days at
+    // the long run's limit [rules g-1, F5]
+    if (Number.isFinite(longCap)) t = Math.min(t, days * longCap)
     haveWork = true
     lastWork = t
     target.push(t)
 
     const raw = floorEps(t * share)
-    const progressive =
-      prevLong > 0
-        ? hold
-          ? prevLong
-          : Math.max(floorEps(prevLong * (1 + ramp)), prevLong + 1)
-        : raw
-    const long = Math.min(raw, progressive, peakLong)
+    const held = hold && prevLong > 0 ? prevLong : Infinity
+    const long = Math.max(0, Math.min(raw, longCap, held))
     longRun.push(long)
+    longM.push(distanceOf(long, caps))
     prevLong = long
 
-    // the restart floor week holds its floor sessions [design-macro]
-    const floorDays = i === 0 && restart !== null ? P.restartFloor.sessions.value : 0
-    prevDays = Math.max(prevDays, daysFor(t), floorDays)
+    prevDays = days
     runDays.push(prevDays)
 
     if (hasGain) {
       const desired = floorTo10(gainPerKm * ((t * 60) / pace) * gainShare(ph.phase))
-      prevGain = Math.min(
-        desired,
-        hold
-          ? prevGain
-          : Math.max(floorEps(prevGain * (1 + P.h4.weeklyGainRamp.value)), prevGain + gainStep),
+      const grown = hold
+        ? prevGain
+        : Math.max(floorEps(prevGain * (1 + P.h4.weeklyGainRamp.value)), prevGain + gainStep)
+      const weekly = gainLimit(gains, skip, weekStart)
+      // the long run takes its share of the week's gain by minutes, within its own limit
+      const perRun =
+        long > 0 && Number.isFinite(caps.gainM) ? floorTo10((caps.gainM * t) / long) : Infinity
+      prevGain = Math.max(
+        0,
+        Math.min(desired, grown, weekly === null ? Infinity : floorTo10(weekly.allowed), perRun),
       )
       gain.push(prevGain)
     } else {
       gain.push(null)
     }
+    record(i, weekStart, false)
   }
 
   // The reference week for the taper and the post-race weeks is the peak before the taper
@@ -493,16 +599,21 @@ export function macroPlan(
   let prevTarget = preCount > 0 ? (target[preCount - 1] as number) : start
   let prevTaperLong = refLong
   for (let k = 0; k < taperCount; k++) {
+    const i = preCount + k
+    const weekStart = addDays(firstMonday, 7 * i)
+    const caps = capsOf(weekStart)
     const t = Math.max(0, Math.min(floorEps(reference * (mult[k] ?? 0)), prevTarget - 1))
     prevTarget = t
     target.push(t)
     const isRace = k === taperCount - 1
-    const long = isRace ? 0 : Math.min(prevTaperLong, floorEps(t * share))
+    const long = isRace ? 0 : Math.max(0, Math.min(prevTaperLong, floorEps(t * share), caps.min))
     longRun.push(long)
+    longM.push(distanceOf(long, caps))
     prevTaperLong = isRace ? prevTaperLong : long
     const cutDays = (P.k3.runDaysMaxCutPct.value / 100) * ((k + 1) / taperCount)
     runDays.push(Math.ceil(refDays * (1 - cutDays) - EPS))
     gain.push(refGain === null ? null : floorTo10(refGain * (t / Math.max(reference, 1))))
+    record(i, weekStart, true)
   }
 
   // Strength: a heavy block in base and early build, then maintenance
@@ -594,7 +705,7 @@ export function macroPlan(
       focus: ph.isRecovery ? 'Recovery week: lighter volume, frequency kept' : FOCUS[ph.phase],
       targetRunMin: t,
       longRunMin: long,
-      longRunM: long > 0 ? Math.round((((long * 60) / pace) * 1000) / 100) * 100 : null,
+      longRunM: long > 0 ? (longM[i] ?? null) : null,
       gainTargetM: gain[i] ?? null,
       runDays: days,
       qualitySessions: quality,

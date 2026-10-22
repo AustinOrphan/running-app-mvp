@@ -416,6 +416,33 @@ describe('reviews of version-2 plans use the weekly decision and re-plan', () =>
     expect(illMin).toBeLessThan(cleanMin)
   })
 
+  test('a hold decision trims the next quality session of the week after it, stored as eased', async () => {
+    const { u, plan } = await generatedPlan('replan-hold@example.com')
+    const quality = ['threshold', 'intervals', 'hills', 'race-pace', 'long-fast-finish']
+    // The first week after this one that holds a quality session; every week before it is run in
+    // full, and the week just before it at half, so the decision for it is a hold.
+    const target = plan.weeks.find(
+      (w) =>
+        w.weekStart > thisMonday &&
+        plan.sessions.some((s) => s.weekStart === w.weekStart && quality.includes(s.kind)),
+    )!.weekStart
+    for (let week = thisMonday; week < target; week = addDays(week, 7)) {
+      await runWeek(u.id, plan, week, week === addDays(target, -7) ? 0.5 : 1)
+    }
+    // noon local time on that Monday
+    vi.setSystemTime(new Date(`${target}T12:00:00`))
+    const res = await client(ctx, u).post('/api/plan/replan').send({})
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    expect((res.body as PlanRevision).summary).toMatch(/decision: hold/)
+    const rows = await ctx.prisma.planSession.findMany({
+      where: { planId: plan.id, weekStart: target },
+    })
+    const trimmed = rows.filter((r) => (JSON.parse(r.rules) as string[]).includes('design-4.3'))
+    expect(trimmed).toHaveLength(1)
+    expect(trimmed[0]!.status).toBe('downgraded')
+    expect(quality).toContain(trimmed[0]!.kind)
+  })
+
   test('a re-plan that cannot run does not fail the save', async () => {
     const { u, plan, goal } = await generatedPlan('review-noreplan@example.com')
     await runWeek(u.id, plan, thisMonday, 1)

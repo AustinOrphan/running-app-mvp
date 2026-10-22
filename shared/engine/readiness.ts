@@ -281,7 +281,7 @@ export function illnessPhase(
  * active over days without a check-in and ends only with a later check-in that does not report it;
  * a day with sleep or heart rate data alone is not a check-in.
  */
-function focalBoneActive(input: EngineInput, date: string): boolean {
+export function focalBoneActive(input: EngineInput, date: string): boolean {
   let newest: WellnessRow | null = null
   for (const row of input.wellness) {
     if (row.date > date || checkinOfRow(row) === null) continue

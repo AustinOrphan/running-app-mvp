@@ -375,9 +375,16 @@ describe('macroPlan: weekly targets and ramp', () => {
     expect(at(work, 1)).toBeGreaterThanOrEqual(at(work, 0) + P.g2.noviceMinStepMin.value)
   })
 
-  it('holds a runner already above the peak table at the current volume', () => {
+  // Task E21: no run is longer than the long run, which the 5 km table caps at 60 min, so six run
+  // days hold at most 360 min; the weeks hold there instead of drawing 400 that cannot be placed.
+  it('holds a runner already above the peak table at the most the run days can place', () => {
     const work = workWeeks(plan(goal('5k', 20), state({ typicalWeekMin: 400 })))
-    expect(work.every((w) => w.targetRunMin === 400)).toBe(true)
+    const most = Math.min(
+      400,
+      Math.max(...work.map((w) => w.runDays)) * P.peakLongRunMin['5k'].value,
+    )
+    expect(most).toBeGreaterThan(P.peakWeeklyMin['5k'].value)
+    expect(work.every((w) => w.targetRunMin === most)).toBe(true)
   })
 
   it('starts from the floor when there is no recent running', () => {
