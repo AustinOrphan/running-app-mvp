@@ -279,7 +279,11 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
             action: {
               label: 'Undo',
               onClick: () => {
-                create.mutate(activityToInput(target))
+                // The sheet has closed by now, so a failed restore can only be reported in a toast.
+                create.mutateAsync(activityToInput(target)).catch((err: unknown) => {
+                  const reason = err instanceof ApiError ? err.message : 'Something went wrong.'
+                  toast.show(`Activity not restored. ${reason}`)
+                })
               },
             },
           }

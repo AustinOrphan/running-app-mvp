@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { todayIso } from '../../shared/dates.ts'
 import type { Activity, ActivityType, Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
 import { useActivities, useResolveDuplicate } from '../api/activities.ts'
@@ -37,9 +38,7 @@ const EN_DASH = '–'
 function dateHeading(date: string): string {
   const base = `${formatWeekday(date)} ${formatShortDate(date)}`
   // Older years carry the year so a long list stays unambiguous.
-  return date.slice(0, 4) === new Date().getFullYear().toString()
-    ? base
-    : `${base} ${date.slice(0, 4)}`
+  return date.slice(0, 4) === todayIso().slice(0, 4) ? base : `${base} ${date.slice(0, 4)}`
 }
 
 /** Consecutive rows with the same date; the API already sorts newest first. */
