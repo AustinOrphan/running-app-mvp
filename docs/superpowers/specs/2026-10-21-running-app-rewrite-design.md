@@ -210,7 +210,7 @@ one-sentence reason.
 3. `await_data` — past week whose `dataStatus` is not `complete`.
 4. `review_duplicates` — the week has `possible` duplicates.
 5. `reduce` — fatigue ≥ 8, or symptoms `persistent`, or recovery constrained.
-6. `repeat` — run minutes < 70% of target, or run days < 3 (or a confirmed zero-run week).
+6. `repeat` — run minutes < 70% of target, or run days < min(3, planned run days) (or a confirmed zero-run week).
 7. `needs_recovery_review` — fatigue or symptoms not recorded.
 8. `hold` — symptoms `mild`, or fatigue 6–7, or 70–85% of target **(call: the sheet leaves
    this band undefined)**.

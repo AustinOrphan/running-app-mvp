@@ -7,6 +7,8 @@ export interface SuggestInput {
   phase: Phase
   targetRunMin: number
   baselineRunMin: number
+  /** Run days the plan week asks for; a cutback week may plan fewer than 3. */
+  plannedRunDays: number
   nextBaselineMin: number | null
   week: WeekRow
   review: Pick<WeeklyReview, 'dataStatus' | 'fatigue' | 'symptoms' | 'recoveryConstrained'> | null
@@ -49,7 +51,8 @@ function chooseAction(input: SuggestInput): { action: SuggestedAction; reason?: 
   if (input.phase === 'taper' || input.phase === 'race') {
     return { action: 'hold', reason: TAPER_REASON }
   }
-  if (week.runMin * 100 < 70 * targetRunMin || week.runDays < 3) return { action: 'repeat' }
+  if (week.runMin * 100 < 70 * targetRunMin || week.runDays < Math.min(3, input.plannedRunDays))
+    return { action: 'repeat' }
   if (review.fatigue === null || review.symptoms === null) {
     return { action: 'needs_recovery_review' }
   }
