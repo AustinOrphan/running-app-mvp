@@ -75,6 +75,16 @@ describe('SessionSheet', () => {
     expect(steps).toContain('Cool-down 10 min, Zone 1')
   })
 
+  test('a single work step starts with a capital letter', async () => {
+    renderSheet(
+      makeSession({
+        structure: [{ kind: 'work', reps: 1, durationSec: 1200, distanceM: null, zone: 'z3' }],
+      }),
+    )
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Work 20 min, Zone 3')).toBeInTheDocument()
+  })
+
   test('converts distance and pace to miles when the runner uses miles', async () => {
     renderSheet(makeSession(), { 'GET /api/settings': () => ({ ...settings, units: 'mi' }) })
     const dialog = await screen.findByRole('dialog')

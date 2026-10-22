@@ -572,7 +572,7 @@ function WhatChanged({
               <p className={styles.revisionHead}>
                 <strong>{REASON_LABELS[revision.reason]}</strong>{' '}
                 <span className={styles.muted}>
-                  {formatShortDate(revision.createdAt.slice(0, 10))}
+                  {formatShortDate(todayIso(new Date(revision.createdAt)))}
                 </span>
               </p>
               <p>{revision.summary}</p>
@@ -632,8 +632,8 @@ function PlanOverview({
           </p>
           {feasibility.notes.length > 0 ? (
             <ul className={styles.items}>
-              {feasibility.notes.map((note) => (
-                <li key={note.code}>
+              {feasibility.notes.map((note, index) => (
+                <li key={`${note.code}-${String(index)}`}>
                   <span>{note.message}</span>
                   <WhyButton rules={note.rules} label="Why this note" onOpen={onWhy} />
                 </li>
@@ -770,7 +770,7 @@ function PlanTable({
   const to = currentMonday < first ? first : currentMonday > last ? last : currentMonday
   const weeks = useWeeks({ from: first, to })
   const actual = new Map((weeks.data ?? []).map((w) => [w.weekStart, w.runMin]))
-  // The current week opens to its days at first; the owner opens the others.
+  // The current week opens to its days at first; other weeks open on request.
   const [open, setOpen] = useState<Set<string>>(() => new Set([currentMonday]))
   const sessionsByWeek = new Map<string, PlanSession[]>()
   for (const session of sessions) {

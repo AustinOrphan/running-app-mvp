@@ -146,7 +146,7 @@ function stepText(step: Step): string {
         : ''
   const zone = ZONE_LABELS[step.zone]
   if (step.reps > 1) return `${String(step.reps)} x ${label} ${amount}, ${zone}`
-  return `${label} ${amount}, ${zone}`
+  return `${label.charAt(0).toUpperCase()}${label.slice(1)} ${amount}, ${zone}`
 }
 
 function rangeText(range: [number, number], unit: string): string {
