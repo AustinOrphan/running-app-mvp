@@ -276,12 +276,27 @@ export function illnessPhase(
   return { phase: 'clear', since }
 }
 
+/**
+ * True while the newest check-in on or before `date` reports focal bone pain [rules n-1]. It stays
+ * active over days without a check-in and ends only with a later check-in that does not report it;
+ * a day with sleep or heart rate data alone is not a check-in.
+ */
+function focalBoneActive(input: EngineInput, date: string): boolean {
+  let newest: WellnessRow | null = null
+  for (const row of input.wellness) {
+    if (row.date > date || checkinOfRow(row) === null) continue
+    if (newest === null || row.date > newest.date) newest = row
+  }
+  return newest?.painFocalBone === true
+}
+
 function recentPain(input: EngineInput, date: string): number | null {
   let worst: number | null = null
   const consider = (v: number | null | undefined) => {
     if (typeof v === 'number' && (worst === null || v > worst)) worst = v
   }
   consider(checkinOn(input, date)?.painScore)
+  consider(checkinOn(input, addDays(date, -1))?.painScore)
   for (const a of input.activities) {
     if (a.date === date || a.date === addDays(date, -1)) consider(a.pain)
   }
@@ -290,8 +305,7 @@ function recentPain(input: EngineInput, date: string): number | null {
 
 function redFlagsOn(ctx: Ctx, date: string, streak: number): RedFlag[] {
   const flags: RedFlag[] = []
-  const checkin = checkinOn(ctx.input, date)
-  if (checkin?.painFocalBone) {
+  if (focalBoneActive(ctx.input, date)) {
     flags.push({
       code: 'focal-bone-pain',
       message:
@@ -421,7 +435,7 @@ export function todayAdvice(
 ): TodayView['sessions'] {
   const ctx = makeCtx(input)
   const date = input.today
-  const checkin = checkinOn(input, date)
+  const focalBone = focalBoneActive(input, date)
   const illness = illnessPhase(input, date)
   const counts = flagCounts(ctx, date)
   const masters = mastersGate(ctx, date)
@@ -442,7 +456,7 @@ export function todayAdvice(
       } else if (illness.phase === 'easy-only' && quality) {
         raise('downgrade-easy', 'Returning from illness: easy running only for three days.')
       }
-      if (checkin?.painFocalBone && !NOT_RUNNING.has(s.kind)) {
+      if (focalBone && !NOT_RUNNING.has(s.kind)) {
         raise('rest', 'Focal bone pain was reported: no running until it has been assessed.')
       }
       if (quality && painFlag) {

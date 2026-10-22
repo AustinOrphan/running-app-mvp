@@ -218,6 +218,33 @@ describe('pain red flags (n-1, n-2)', () => {
     expect(readinessSnapshot(i, TODAY).redFlags.map((f) => f.code)).toContain('focal-bone-pain')
   })
 
+  it('keeps resting and flagging focal bone pain the day after, with no new check-in', () => {
+    const i = input({
+      wellness: [wellnessDay(YESTERDAY, { painScore: 8, painFocalBone: true })],
+    })
+    expect(adviceFor(i, 'threshold', 'easy')).toEqual(['rest', 'rest'])
+    const codes = readinessSnapshot(i, TODAY).redFlags.map((f) => f.code)
+    expect(codes).toContain('focal-bone-pain')
+    expect(codes).toContain('pain')
+  })
+
+  it('keeps focal bone pain active over days without a check-in and clears it on a later one', () => {
+    const since = (daysAgo: number) =>
+      wellnessDay(addDays(TODAY, -daysAgo), { painScore: 2, painFocalBone: true })
+    const days = input({ wellness: [since(6)] })
+    expect(adviceFor(days, 'easy')).toEqual(['rest'])
+    // a day with sleep data only is not a check-in and clears nothing
+    const synced = input({
+      wellness: [since(6), wellnessDay(YESTERDAY, { restingHr: 52, hrvRmssd: 60 })],
+    })
+    expect(adviceFor(synced, 'easy')).toEqual(['rest'])
+    const cleared = input({
+      wellness: [since(6), wellnessDay(YESTERDAY, { ...NORMAL, painFocalBone: false })],
+    })
+    expect(adviceFor(cleared, 'easy')).toEqual(['as-planned'])
+    expect(readinessSnapshot(cleared, TODAY).redFlags).toEqual([])
+  })
+
   it('does not rest strength work for bone pain', () => {
     const i = input({ wellness: [wellnessDay(TODAY, { painScore: 2, painFocalBone: true })] })
     const rows = todayAdvice(i, [{ ...spec(TODAY, 'strength'), id: 's' }])
