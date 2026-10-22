@@ -267,11 +267,14 @@ function EditWeekSheet({ week, onClose }: { week: PlanWeek; onClose: () => void 
     if (longRunMin === null || runDayCount === null || strengthCount === null) return
 
     const patch: PlanWeekPatch = {}
-    if (targetChanged) patch.targetRunMin = targetMin
-    if (
-      targetMin !== week.baselineRunMin &&
-      (targetChanged || trimmedNote !== (week.overrideNote ?? ''))
-    ) {
+    const noteChanged = trimmedNote !== (week.overrideNote ?? '')
+    // The server accepts a note on its own only for an override; a note on a review-sourced target
+    // turns that target into an override, so the target goes with it.
+    const pinsTarget = week.targetSource !== 'override' && trimmedNote !== ''
+    if (targetChanged || (targetMin !== week.baselineRunMin && noteChanged && pinsTarget)) {
+      patch.targetRunMin = targetMin
+    }
+    if (targetMin !== week.baselineRunMin && (targetChanged || noteChanged)) {
       patch.overrideNote = trimmedNote
     }
     if (longRunMin !== week.longRunMin) patch.longRunMin = longRunMin
@@ -476,6 +479,11 @@ function PlanTable({ plan }: { plan: PlanWithWeeks }) {
 
   return (
     <>
+      {weeks.isError ? (
+        <p role="alert" className={styles.error}>
+          Actual hours did not load. Reload the page to try again.
+        </p>
+      ) : null}
       <table className={styles.table}>
         <caption className="visually-hidden">Weekly plan, target and actual run hours</caption>
         <thead>

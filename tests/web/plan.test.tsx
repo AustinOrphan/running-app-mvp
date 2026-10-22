@@ -339,6 +339,38 @@ describe('Plan page', () => {
     })
   })
 
+  test('a note on a review-sourced week pins its target as an override; a failed weeks load is stated', async () => {
+    const user = userEvent.setup()
+    const weeks = phases.map((_, i) => makeWeek(i))
+    weeks[5] = makeWeek(5, { targetRunMin: 390, targetSource: 'review' })
+    const { calls } = mockApi(
+      routes(makePlan(weeks), {
+        'GET /api/weeks': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'Something went wrong.' } },
+        }),
+        'PUT /api/plan/weeks/2027-02-01': () => makeWeek(5),
+      }),
+    )
+    renderWithProviders(<PlanPage />)
+    await screen.findByText('Focus 0')
+    expect(
+      await screen.findByText('Actual hours did not load. Reload the page to try again.'),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Edit week of 1 Feb' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit week of 1 Feb' })
+    await user.type(within(dialog).getByLabelText('Override note'), 'Keep it here')
+    await user.click(within(dialog).getByRole('button', { name: 'Save week' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({
+      targetRunMin: 390,
+      overrideNote: 'Keep it here',
+    })
+  })
+
   test('Regenerate plan explains that edited weeks are not carried over and reviews are kept, then posts generate', async () => {
     const user = userEvent.setup()
     const { calls } = mockApi(
