@@ -3,6 +3,7 @@
 // "never make up missed volume" (g-6). Pure: no I/O, no clock; `state.asOf` is today.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity } from '../types.ts'
+import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
 import type {
   AthleteState,
@@ -313,7 +314,8 @@ export function applyGuards(
   /**
    * Brings the movable runs of a week down to `budget` minutes. Runs shrink in proportion but not
    * below the session minimum; when even the minimums do not fit, the shortest easy run goes first,
-   * then the shortest other run. A long run (or either day of a pair) is scaled, never removed
+   * then the shortest other run, except that a quality run goes first when the easy run is what
+   * keeps the week under the F2 cap on the share above zone 1. A long run (or either day of a pair) is scaled, never removed
    * unless the budget is under the shortest run a day can hold.
    */
   function shortenWeek(indices: number[], budget: number, weekStart: string): void {
@@ -329,6 +331,30 @@ export function applyGuards(
       const y = items[b]!
       return x.durationMin - y.durationMin || (x.date < y.date ? 1 : -1)
     }
+    // The share of the week above zone 1 if `replace` were applied: a run mapped to null is gone.
+    const hardShare = (replace: Map<number, SessionSpec | null>): number => {
+      let hard = 0
+      let all = 0
+      for (const i of indices) {
+        const s = replace.has(i) ? replace.get(i) : items[i]
+        if (s === null || s === undefined || !VOLUME_KINDS.has(s.kind)) continue
+        hard += intensityMinutes(s)
+        all += s.durationMin
+      }
+      return all > 0 ? (hard / all) * 100 : 0
+    }
+    const overCap = (replace: Map<number, SessionSpec | null>) =>
+      hardShare(replace) > P.f2.z2z3ShareMax.value + EPS
+    const dropRun = (i: number) => {
+      const gone = items[i]!
+      items[i] = null
+      warn(`drop|${gone.date}|${gone.kind}`, {
+        code: 'ramp-run-dropped',
+        severity: 'info',
+        message: `The ${gone.kind} run of ${gone.durationMin} min on ${gone.date} is left out so the week of ${weekStart} stays within its weekly ramp.`,
+        rules: ['g-2'],
+      })
+    }
     for (;;) {
       const ids = indices.filter((i) => items[i] !== null && modifiable(items[i]!))
       if (ids.length === 0) return
@@ -337,18 +363,45 @@ export function applyGuards(
       const total = sizes.reduce((a, b) => a + b, 0)
       if (total <= budget + EPS) return
       const minTotal = mins.reduce((a, b) => a + b, 0)
+      // The quality run with the most hard minutes goes first when a cut would leave the week
+      // above the F2 cap on the share above zone 1: shrinking keeps the work, so the week turns
+      // mostly hard while the easy volume is the part that goes [rules F2].
+      const quality = ids
+        .filter(
+          (i) => !isAnchor(items[i]!) && !isEasy(items[i]!) && intensityMinutes(items[i]!) > 0,
+        )
+        .sort(
+          (a, b) => intensityMinutes(items[b]!) - intensityMinutes(items[a]!) || dropOrder(a, b),
+        )
       if (minTotal <= budget + EPS) {
         const extra = budget - minTotal
         const above = total - minTotal
+        const scaled = new Map<number, SessionSpec | null>()
         ids.forEach((i, k) => {
           const keep = mins[k]! + Math.floor((extra * (sizes[k]! - mins[k]!)) / above + EPS)
-          items[i] = scaleSession(items[i]!, keep / sizes[k]!, 0)
+          scaled.set(i, scaleSession(items[i]!, keep / sizes[k]!, 0))
         })
+        if (quality.length > 0 && overCap(scaled)) {
+          dropRun(quality[0]!)
+          continue
+        }
+        for (const [i, spec] of scaled) items[i] = spec
         return
       }
-      const drop =
-        [...ids].filter((i) => !isAnchor(items[i]!) && isEasy(items[i]!)).sort(dropOrder)[0] ??
-        [...ids].filter((i) => !isAnchor(items[i]!)).sort(dropOrder)[0]
+      // An easy run goes first, unless the week left would be over the cap even at the session
+      // minimums: then the quality run goes instead.
+      const easyDrop = [...ids]
+        .filter((i) => !isAnchor(items[i]!) && isEasy(items[i]!))
+        .sort(dropOrder)[0]
+      let drop: number | undefined = easyDrop
+      if (easyDrop !== undefined && quality.length > 0) {
+        const atMinimum = new Map<number, SessionSpec | null>([[easyDrop, null]])
+        ids.forEach((i, k) => {
+          if (i !== easyDrop) atMinimum.set(i, scaleSession(items[i]!, mins[k]! / sizes[k]!, 0))
+        })
+        if (overCap(atMinimum)) drop = quality[0]
+      }
+      drop ??= [...ids].filter((i) => !isAnchor(items[i]!)).sort(dropOrder)[0]
       if (drop === undefined) {
         // Only long runs are left: scale them to the budget, and drop one only when the budget is
         // under the shortest run a day can hold.
@@ -357,14 +410,7 @@ export function applyGuards(
         }
         return
       }
-      const gone = items[drop]!
-      items[drop] = null
-      warn(`drop|${gone.date}|${gone.kind}`, {
-        code: 'ramp-run-dropped',
-        severity: 'info',
-        message: `The ${gone.kind} run of ${gone.durationMin} min on ${gone.date} is left out so the week of ${weekStart} stays within its weekly ramp.`,
-        rules: ['g-2'],
-      })
+      dropRun(drop)
     }
   }
 
