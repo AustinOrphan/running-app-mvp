@@ -33,6 +33,7 @@ const toMinutes = (sec: number) => Math.round(sec / 60)
  * Pass every activity up to the last requested week, not only the requested
  * range: `avg4wRunMin` and `streak3Plus` look back before the first row.
  * Activities flagged as `possible` or `confirmed` duplicates are excluded.
+ * Throws RangeError for a malformed date or a week start that is not a Monday.
  */
 export function aggregateWeeks(activities: Activity[], weekStarts: string[]): WeekRow[] {
   const buckets = new Map<string, WeekTotals>()
@@ -72,6 +73,9 @@ export function aggregateWeeks(activities: Activity[], weekStarts: string[]): We
   const sessionsOf = (week: string) => buckets.get(week)?.runSessions ?? 0
 
   return weekStarts.map((weekStart) => {
+    if (mondayOf(weekStart) !== weekStart) {
+      throw new RangeError(`weekStart is not a Monday: ${JSON.stringify(weekStart)}`)
+    }
     const totals = buckets.get(weekStart) ?? emptyTotals()
     const runMin = toMinutes(totals.runSec)
     const longestRunMin = toMinutes(totals.longestRunSec)
