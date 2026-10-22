@@ -42,6 +42,10 @@ export const lPredict = {
         note: 'Validated extrapolation reaches 60 min.',
       },
     ),
+    sameDistanceTolerancePct: param('l1.sameDistanceTolerancePct', 5, 'D', 'L1', [], {
+      unit: '% of target distance',
+      note: 'Default: a race within this much of the target distance anchors it directly at any distance, including a marathon or an ultra (L4 anchors on the marathon PB and prior ultra results).',
+    }),
     refitWindowWeeks: param<[number, number]>(
       'l1.refitWindowWeeks',
       [8, 12],
@@ -136,6 +140,28 @@ export const lPredict = {
         note: 'Target pace prior at a duration of 360 min.',
       },
     ),
+    csFractionShortMin: param(
+      'l2.csFractionShortMin',
+      150,
+      'C',
+      'L2',
+      ['smyth-2020-cs-training-data'],
+      {
+        unit: 'min',
+        note: 'Duration at which the target pace prior is the 150 min fraction.',
+      },
+    ),
+    csFractionLongMin: param(
+      'l2.csFractionLongMin',
+      360,
+      'C',
+      'L2',
+      ['smyth-2020-cs-training-data'],
+      {
+        unit: 'min',
+        note: 'Duration at which the target pace prior is the 360 min fraction.',
+      },
+    ),
     csFractionLowDecoupling: param(
       'l2.csFractionLowDecoupling',
       0.88,
@@ -166,17 +192,61 @@ export const lPredict = {
       unit: 'ratio',
       note: 'Decoupling band: high at 1.2 or more; moderate between.',
     }),
+    marathonDistanceM: param('l2.marathonDistanceM', 42195, 'D', 'L2', [], {
+      unit: 'm',
+      note: 'Default reference: the marathon distance, used to express ability as a marathon time.',
+    }),
+    csFractionAt60Min: param('l2.csFractionAt60Min', 1.0, 'D', 'L2', [], {
+      unit: 'fraction of CS',
+      note: 'Default: the target pace prior joins the critical-speed fit at 60 min (the validated extrapolation limit) at 1.0 of CS and falls linearly to the 150 min value.',
+    }),
     decouplingOnset: param('l2.decouplingOnset', 1.025, 'C', 'L2', SMYTH_DURABILITY, {
       unit: 'ratio',
     }),
   },
   l3: {
+    singleSourceWideningPct: param('l3.singleSourceWideningPct', 50, 'D', 'L3', [], {
+      unit: '%',
+      note: 'Default: the interval half-width grows by this much when only one source supports the prediction (the rule asks for two or more).',
+    }),
     minSources: param('l3.minSources', 2, 'C', 'L3', ['keogh-2019-marathon-prediction-equations'], {
       unit: 'sources',
       note: 'Use at least 2 sources for any prediction (grade A/C as stated; the lower grade is used).',
     }),
   },
+  l4: {
+    csFractionFloor: param('l4.csFractionFloor', 0.5, 'D', 'L4', [], {
+      unit: 'fraction of CS',
+      note: 'Default: the target pace prior keeps falling past 360 min at the 150-360 min slope, down to this floor.',
+    }),
+    ultraMinHalfWidthPct: param('l4.ultraMinHalfWidthPct', 15, 'D', 'L4', [], {
+      unit: '% of predicted time',
+      note: 'Default: ultra predictions show a wide range; the half-width is at least this.',
+    }),
+  },
   l5: {
+    gainEquivalentM: param(
+      'l5.gainEquivalentM',
+      10,
+      'D',
+      'L5',
+      ['dewaal-2021-trail-physiology-sr'],
+      {
+        unit: 'flat m per m of gain',
+        note: 'Default: 100 m of gain counts as 1 km of flat distance (the km-effort convention); road CS and race anchors are flat-equivalent.',
+      },
+    ),
+    gainWideningPctPerMPerKm: param(
+      'l5.gainWideningPctPerMPerKm',
+      1,
+      'D',
+      'L5',
+      ['dewaal-2021-trail-physiology-sr'],
+      {
+        unit: '% per m of gain per km',
+        note: 'Default: the trail widening grows by this much per metre of gain per kilometre.',
+      },
+    ),
     trailIntervalWideningPct: param(
       'l5.trailIntervalWideningPct',
       50,
