@@ -13,7 +13,7 @@ const COUNTED_TYPES = ['run', 'race']
  * original is not counted again. Returns how many rows were newly flagged.
  */
 export async function markDuplicates(
-  prisma: PrismaClient,
+  prisma: Pick<PrismaClient, 'activity'>,
   userId: string,
   activityIds: string[],
 ): Promise<number> {

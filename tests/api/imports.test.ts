@@ -388,4 +388,18 @@ describe('atomicity', () => {
     expect(await ctx.prisma.importBatch.count()).toBe(0)
     expect(markDuplicates).not.toHaveBeenCalled()
   })
+
+  test('a failure in the duplicate pass rolls the import back instead of leaving unflagged rows', async () => {
+    vi.mocked(markDuplicates).mockRejectedValueOnce(new Error('SQLITE_BUSY'))
+    const res = await upload('smashrun', { fileName: 'sample.csv', text: FIXTURE })
+    expect(res.status).toBe(500)
+    expect(markDuplicates).toHaveBeenCalledTimes(1)
+    expect(await ctx.prisma.activity.count()).toBe(0)
+    expect(await ctx.prisma.importBatch.count()).toBe(0)
+
+    // A retry then imports everything, and the pass runs.
+    const retry = await upload('smashrun', { fileName: 'sample.csv', text: FIXTURE })
+    expect(retry.status).toBe(201)
+    expect(retry.body.accepted).toBe(3)
+  })
 })
