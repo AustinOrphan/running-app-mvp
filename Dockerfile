@@ -40,4 +40,5 @@ USER node
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://localhost:' + (process.env.PORT || 3001) + '/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server/index.js"]
+# exec replaces the shell, so node is PID 1 and receives SIGTERM for its graceful shutdown.
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/server/index.js"]
