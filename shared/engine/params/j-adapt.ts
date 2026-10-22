@@ -3,6 +3,7 @@
 import { param, type ParamGroups } from './define.ts'
 
 const HRV_RCT = ['kiviniemi-2007-hrv-guided-rct']
+const SUBJECTIVE = ['saw-2016-subjective-vs-objective-monitoring']
 const RESTART = [
   'mujika-2000-detraining-part1',
   'coyle-1984-detraining-time-course',
@@ -22,6 +23,20 @@ export const jAdapt = {
         note: 'Default: flag easy runs that leave Z1 by more than this.',
       },
     ),
+  },
+  j2: {
+    normalScore: param('j2.normalScore', 3, 'D', 'design-3.2', SUBJECTIVE, {
+      unit: 'check-in score',
+      note: 'Default: the check-in scale runs 1-5 with 3 as normal (design 3.2). Fatigue, soreness and stress are worse when higher; sleep quality and mood are worse when lower.',
+    }),
+    poorItemBadness: param('j2.poorItemBadness', 2, 'D', 'J2', SUBJECTIVE, {
+      unit: 'points from normal',
+      note: 'Default: one check-in item this far from normal in the worse direction makes the subjective score poor.',
+    }),
+    poorTotalBadness: param('j2.poorTotalBadness', 3, 'D', 'J2', SUBJECTIVE, {
+      unit: 'points from normal, summed',
+      note: 'Default: the five items together this far from normal in the worse direction make the subjective score poor.',
+    }),
   },
   j3: {
     persistenceDays: param(
@@ -93,6 +108,14 @@ export const jAdapt = {
         unit: 'nights',
       },
     ),
+    lookbackDays: param('j4.lookbackDays', 21, 'D', 'J4', HRV_RCT, {
+      unit: 'days',
+      note: 'Default: the most recent valid readings within this many days before the date form the baseline (35 days with a menstrual-cycle baseline).',
+    }),
+    restingHrAboveBpm: param('j4.restingHrAboveBpm', 5, 'D', 'J4', SUBJECTIVE, {
+      unit: 'bpm above the baseline mean',
+      note: 'Default: resting HR this far above its rolling mean is a corroborating flag. No study in the corpus sets a threshold; it never acts without a persistent or subjective signal (J2, J3).',
+    }),
     cycleBaselineDays: param(
       'j4.cycleBaselineDays',
       35,
@@ -146,6 +169,44 @@ export const jAdapt = {
       unit: 'flags',
       note: 'Default: 2 or more REDs flags hold progression and show a clinician prompt.',
     }),
+    sleepMinNights: param(
+      'j5.sleepMinNights',
+      4,
+      'D',
+      'J5',
+      ['walsh-2021-sleep-athlete-consensus'],
+      {
+        unit: 'nights',
+        note: 'Default: a sleep average needs at least this many recorded nights in the 7.',
+      },
+    ),
+    efficiencyDeclinePct: param(
+      'j5.efficiencyDeclinePct',
+      2,
+      'D',
+      'J5',
+      ['roete-2021-functional-overreaching-markers'],
+      {
+        unit: '% trend',
+        note: 'Default: an efficiency-index trend this far below zero counts as an efficiency decline.',
+      },
+    ),
+    subjectivePoorDays: param('j5.subjectivePoorDays', 4, 'D', 'J5', SUBJECTIVE, {
+      unit: 'days in the week',
+      note: 'Default: this many days with a poor subjective score in one week count as a subjective decline.',
+    }),
+    harderEffortSessions: param('j5.harderEffortSessions', 2, 'D', 'J5', SUBJECTIVE, {
+      unit: 'sessions in the week',
+      note: 'Default: this many sessions in a week with an effort score of +1 or more count as a subjective decline (design 4.3).',
+    }),
+    harderEffortScore: param('j5.harderEffortScore', 1, 'D', 'J5', SUBJECTIVE, {
+      unit: 'effort score',
+      note: 'Default: the effort score that counts as harder than expected.',
+    }),
+    reviewFatigueDecline: param('j5.reviewFatigueDecline', 6, 'D', 'J5', SUBJECTIVE, {
+      unit: '0-10 review fatigue',
+      note: 'Default: a weekly-review fatigue rating at or above this, or persistent symptoms, counts toward a subjective decline (same cut as the version 1 review).',
+    }),
     reduceSignals: param(
       'j5.reduceSignals',
       2,
@@ -181,6 +242,32 @@ export const jAdapt = {
     ),
   },
   j6: {
+    mastersAgeYears: param(
+      'j6.mastersAgeYears',
+      40,
+      'D',
+      'J6',
+      ['borges-2018-masters-hiit-recovery'],
+      {
+        unit: 'years',
+        note: 'Default: the masters recovery gate applies from this age.',
+      },
+    ),
+    medianDays: param('j6.medianDays', 28, 'D', 'J6', ['borges-2018-masters-hiit-recovery'], {
+      unit: 'days',
+      note: 'Default: the own median of each check-in item is taken over this many days; at least 7 check-ins are needed.',
+    }),
+    medianMinCheckins: param(
+      'j6.medianMinCheckins',
+      7,
+      'D',
+      'J6',
+      ['borges-2018-masters-hiit-recovery'],
+      {
+        unit: 'check-ins',
+        note: 'Default: fewer check-ins than this give no own median, so the gate stays off.',
+      },
+    ),
     recoveryHours: param('j6.recoveryHours', 48, 'D', 'J6', ['borges-2018-masters-hiit-recovery'], {
       unit: 'h',
       note: 'Default: soreness, fatigue or motivation still worse than the own median this long after a hard session defers or converts the next quality session.',
@@ -412,6 +499,30 @@ export const jAdapt = {
       {
         unit: 'h',
         note: 'Show a stronger EAH alert for events over this duration or in heat.',
+      },
+    ),
+  },
+  zoneProposal: {
+    windowDays: param(
+      'zoneProposal.windowDays',
+      56,
+      'D',
+      'C8',
+      ['hecksteden-2015-individual-response'],
+      {
+        unit: 'days',
+        note: 'Default: threshold and interval sessions this recent count as observations.',
+      },
+    ),
+    paceStepPct: param(
+      'zoneProposal.paceStepPct',
+      2,
+      'D',
+      'C8',
+      ['hecksteden-2015-individual-response'],
+      {
+        unit: '% of pace',
+        note: 'Default: a proposed threshold-pace change moves the pace by this much; the owner confirms or declines.',
       },
     ),
   },
