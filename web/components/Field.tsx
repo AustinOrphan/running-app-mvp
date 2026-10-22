@@ -25,10 +25,11 @@ export interface FieldProps {
 export function Field({ label, hint, error, children }: FieldProps) {
   const id = useId()
   const messageId = `${id}-message`
-  const message = error ?? hint
+  const hasError = error !== undefined && error !== ''
+  const message = hasError ? error : hint
   const control: FieldControlProps = { id }
   if (message !== undefined && message !== '') control['aria-describedby'] = messageId
-  if (error !== undefined && error !== '') control['aria-invalid'] = true
+  if (hasError) control['aria-invalid'] = true
 
   return (
     <div className={styles.field}>
@@ -39,7 +40,7 @@ export function Field({ label, hint, error, children }: FieldProps) {
       {message !== undefined && message !== '' ? (
         <p
           id={messageId}
-          className={error !== undefined && error !== '' ? styles.error : styles.hint}
+          className={hasError ? styles.error : styles.hint}
         >
           {message}
         </p>

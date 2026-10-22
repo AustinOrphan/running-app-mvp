@@ -155,7 +155,11 @@ function isCurrent(pathname: string, paths: string[]): boolean {
   )
 }
 
-/** A bottom tab bar below 900px and a left rail from 900px; the same five items in both. */
+/**
+ * A bottom tab bar below 900px and a left rail from 900px; the same five items in both. Only the
+ * primary item carries `aria-current`, so exactly one link is announced as the current page; the
+ * rail's Goals, Stats and Settings links mark themselves with `data-current` for styling only.
+ */
 export function Nav() {
   const { pathname } = useLocation()
   const { theme, setTheme } = useTheme()
@@ -190,7 +194,7 @@ export function Nav() {
               <Link
                 to={item.to}
                 className={styles.sublink}
-                aria-current={isCurrent(pathname, [item.to]) ? 'page' : undefined}
+                data-current={isCurrent(pathname, [item.to]) ? 'true' : undefined}
               >
                 {item.label}
               </Link>
