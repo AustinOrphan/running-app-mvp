@@ -395,3 +395,26 @@ Gaps reported by E10 and confirmed in review:
 **Files:** `server/routes/{goals,reviews,activities}.ts`, `server/services/{reviews,planEngine,execution,engineInput}.ts`,
 `shared/engine/{types,athlete}.ts` (the optional field only), `web/pages/{GoalsPage,ReviewPage}.tsx`,
 their tests.
+
+### Task E18: Follow-ups from E16 and E17
+
+1. **REDs hold at build time** [rules §n.4]: when `state.risk.redsFlags` is 2 or more,
+   `buildPlan` and `replan` hold progression (weekly targets stay at the current level, no
+   ramp growth, no new back-to-backs) and add a `hold` warning with a clinician prompt; the
+   checklist and matrix gain a case. Lives in `shared/engine/{index,macro}.ts` and their
+   tests (no limit is relaxed).
+2. **Readable "What changed"**: PlanChange fields render as words ("Weekly running time",
+   "Long run", "Run days", "Phase", "Recovery week", "Strength sessions", "Quality sessions",
+   "Gain target", "Planned minutes") with units, on the Plan and Review pages, through one
+   shared helper in `web/components/`.
+3. **Fresh revisions after a review save**: `useSaveReview` also invalidates the plan and
+   plan-revisions queries; move `SavedReview`, `ReviewView` and the signals type into
+   `shared/types.ts` and use them on both sides.
+4. **Re-match on a date change**: editing a linked activity's date (or type) unlinks it from
+   a session it no longer fits and runs matching again; an owner link (`linkSource 'owner'`)
+   on the same date stays.
+
+**Files:** `shared/engine/{index,macro,checklist}.ts`, `tests/unit/engine/*`,
+`web/components/planChanges.ts`, `web/pages/{PlanPage,ReviewPage}.tsx`, `web/api/reviews.ts`,
+`shared/types.ts`, `server/services/{reviews,execution}.ts`, `server/routes/activities.ts`,
+their tests.
