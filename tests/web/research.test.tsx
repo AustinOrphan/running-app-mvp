@@ -14,7 +14,7 @@ const taperParam: Param<unknown> = {
   id: 'k1.weeklyMultipliers',
   value: [0.75, 0.55, 0.35],
   grade: 'B',
-  rule: 'k-1',
+  rule: 'K1',
   evidence: ['bosquet-2007-taper-meta-analysis'],
 }
 const defaultParam: Param<unknown> = {
@@ -23,7 +23,7 @@ const defaultParam: Param<unknown> = {
   range: [2, 4],
   unit: 'CR-10',
   grade: 'D',
-  rule: 'c-4',
+  rule: 'C4',
   evidence: [],
   note: 'Default chosen for the plan; no direct evidence.',
 }
@@ -69,7 +69,7 @@ const SLOW = { timeout: 8000 }
 describe('WhyDrawer', () => {
   test('requests nothing while closed', () => {
     const { calls } = mockApi({})
-    renderWithProviders(<WhyDrawer rules={['k-1']} open={false} onClose={() => {}} />)
+    renderWithProviders(<WhyDrawer rules={['K1']} open={false} onClose={() => {}} />)
     expect(calls).toHaveLength(0)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
@@ -77,11 +77,11 @@ describe('WhyDrawer', () => {
   test('shows each rule with its parameters, grades and papers', async () => {
     mockApi({ 'GET /api/research/params': () => registry })
     const user = userEvent.setup()
-    renderWithProviders(<Harness rules={['K1', 'c-4']} />)
+    renderWithProviders(<Harness rules={['k1', 'c4']} />)
     await user.click(screen.getByRole('button', { name: 'Why' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
-    // Rule ids match regardless of case and hyphens, as in explain().
+    // Rule ids match regardless of case, as in paramsForRule().
     expect(await within(dialog).findByText('0.75, 0.55, 0.35')).toBeInTheDocument()
     expect(within(dialog).getByText('Evidence grade B')).toBeInTheDocument()
     expect(within(dialog).getByText('Evidence grade D')).toBeInTheDocument()
@@ -105,9 +105,10 @@ describe('WhyDrawer', () => {
         SLOW,
       ),
     ).toBeInTheDocument()
-  })
+    // The wait for the corpus is 8 s, so the test must allow more than the 5 s default.
+  }, 15_000)
 
-  test('the effort assessment says that an adjustment needs a rating', async () => {
+  test('the effort assessment says that an effort verdict needs a rating', async () => {
     mockApi({ 'GET /api/research/params': () => registry })
     const user = userEvent.setup()
     renderWithProviders(<Harness rules={['J2', 'K1']} />)
@@ -118,11 +119,72 @@ describe('WhyDrawer', () => {
     expect(within(effort).getByText(/the weight of the RPE part/)).toBeInTheDocument()
     expect(
       within(effort).getByText(
-        'An adjustment needs a rating of effort or feel: without one, the effort read rests on heart rate and pace alone, stays at low confidence, and never changes the plan.',
+        'An effort verdict needs a rating of effort or feel: without one it rests on heart rate and pace alone, stays at low confidence, and never changes the plan on its own.',
       ),
     ).toBeInTheDocument()
+    // The sentence speaks about the effort verdict only: check-ins, pain, illness and completion
+    // change the plan without a rating.
+    expect(dialog.textContent).not.toMatch(/An adjustment needs a rating/)
     // Only the effort parameters bring the sentence; another rule in the same drawer does not.
-    expect(within(dialog).getAllByText(/An adjustment needs a rating/)).toHaveLength(1)
+    expect(within(dialog).getAllByText(/An effort verdict needs a rating/)).toHaveLength(1)
+  })
+
+  test('prints the novice ladder one rung and session to a line, not as a flat list', async () => {
+    const ladder: Param<unknown> = {
+      id: 'noviceLadder.rungs',
+      value: [[[1, 2, 1, 2, 1]], [[3, 1.5, 5, 2.5, 3, 1.5, 5]], [[5, 3, 5], [8, 5, 8], [20]]],
+      grade: 'D',
+      rule: 'E6',
+      evidence: [],
+      unit: 'min of running and walking per session',
+      note: 'Default: nine rungs.',
+    }
+    mockApi({ 'GET /api/research/params': () => ({ version: 'v', params: [ladder, taperParam] }) })
+    const user = userEvent.setup()
+    renderWithProviders(<Harness rules={['E6']} />)
+    await user.click(screen.getByRole('button', { name: 'Why' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    const line = async (label: string) =>
+      (await within(dialog).findByText(label)).nextElementSibling?.textContent
+    expect(await line('Rung 1')).toBe('1 run, 2 walk, 1 run, 2 walk, 1 run')
+    expect(await line('Rung 2')).toBe('3 run, 1.5 walk, 5 run, 2.5 walk, 3 run, 1.5 walk, 5 run')
+    // A rung with several sessions has a line for each.
+    expect(await line('Rung 3, session 1')).toBe('5 run, 3 walk, 5 run')
+    expect(await line('Rung 3, session 2')).toBe('8 run, 5 walk, 8 run')
+    expect(await line('Rung 3, session 3')).toBe('20 run')
+    expect(await line('Unit')).toBe('min of running and walking per session')
+    // No flat run of numbers.
+    expect(dialog.textContent).not.toMatch(/1, 2, 1, 2/)
+    expect(within(dialog).queryByText('Value')).not.toBeInTheDocument()
+  })
+
+  test('keeps the tightened profiles apart from the third global principle', async () => {
+    const injury: Param<unknown> = {
+      id: 'injuryReturn.levelsMin',
+      value: [5, 7],
+      grade: 'D',
+      rule: 'g-3',
+      evidence: [],
+      note: 'Default: the injury-return levels.',
+    }
+    const prior: Param<unknown> = {
+      id: 'global3.minObservations',
+      value: 8,
+      grade: 'D',
+      rule: 'G3',
+      evidence: [],
+      note: 'Default: observations before a personal model replaces the prior.',
+    }
+    mockApi({ 'GET /api/research/params': () => ({ version: 'v', params: [prior, injury] }) })
+    const user = userEvent.setup()
+    renderWithProviders(<Harness rules={['g-3']} />)
+    await user.click(screen.getByRole('button', { name: 'Why' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    const section = await within(dialog).findByRole('region', { name: 'Tightened profiles' })
+    expect(within(section).getByText('Default: the injury-return levels.')).toBeInTheDocument()
+    expect(dialog.textContent).not.toMatch(/observations before a personal model/)
   })
 
   test('says so when a rule has no parameter', async () => {
@@ -141,7 +203,7 @@ describe('WhyDrawer', () => {
       }),
     })
     const user = userEvent.setup()
-    renderWithProviders(<Harness rules={['k-1']} />)
+    renderWithProviders(<Harness rules={['K1']} />)
     await user.click(screen.getByRole('button', { name: 'Why' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not be loaded/i)
   })

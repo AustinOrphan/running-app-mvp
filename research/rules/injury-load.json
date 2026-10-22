@@ -165,9 +165,9 @@
   },
   {
     "id": "injury-previous-injury-flag",
-    "statement": "Collect injury history at onboarding and mark runners with a recent running injury as higher risk; the flag selects the conservative profile. Previous injury is the best-supported risk factor across reviews and in a Couch-to-5k cohort.",
+    "statement": "Collect injury history at onboarding and mark runners with a recent injury as higher risk; the flag selects the conservative profile. The flag is true for any injury listed in the profile for the last 12 months, running-related or not, because the profile records no running-related field. Previous injury is the best-supported risk factor across reviews and in a Couch-to-5k cohort.",
     "parameter": null,
-    "value": "true if any running-related injury in the last 12 months (window is an engineering choice)",
+    "value": "true if any injury is listed in the profile for the last 12 months, running-related or not (window is an engineering choice)",
     "unit": "boolean / months",
     "appliesTo": "All runners",
     "grade": "A",

@@ -42,6 +42,7 @@ import { Segmented } from '../components/Segmented.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { formatShortDate, formatWeekday, weekPhaseLabel } from '../components/format.ts'
+import { localiseEngineText } from '../components/engineText.ts'
 import { describeChange } from '../components/planChanges.ts'
 import { PROPOSAL_LABELS, proposalValueText } from '../components/zoneFormat.ts'
 import styles from './ReviewPage.module.css'
@@ -556,7 +557,7 @@ function WeekReview({
                 {review.signals !== undefined && review.signals.length > 0 ? (
                   <ul className={styles.signals} aria-label="Signals">
                     {review.signals.map((signal) => (
-                      <li key={signal.code}>{signal.detail}</li>
+                      <li key={signal.code}>{localiseEngineText(signal.detail, units)}</li>
                     ))}
                   </ul>
                 ) : null}

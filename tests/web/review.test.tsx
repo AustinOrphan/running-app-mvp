@@ -617,6 +617,41 @@ describe('ReviewPage', () => {
       expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('J5,G-6')
     })
 
+    test("puts the signals' dates and distances in the reader's words, as the plan page does", async () => {
+      const postRace: typeof decided = {
+        ...decided,
+        signals: [
+          {
+            code: 'post-race',
+            detail: 'After the race: rest, no running until 2027-05-23. Longest run 16 km.',
+            rules: ['H12'],
+          },
+        ],
+      }
+      renderReview(
+        { plan: v2Plan(), weeks: { [W]: fullWeek }, reviews: { [W]: postRace } },
+        {
+          'GET /api/settings': () => ({
+            email: 'runner@example.com',
+            displayName: null,
+            units: 'mi',
+          }),
+        },
+      )
+      await ready()
+
+      const signals = within(screen.getByRole('region', { name: 'Suggested action' })).getByRole(
+        'list',
+        { name: 'Signals' },
+      )
+      await waitFor(() => {
+        expect(signals).toHaveTextContent(
+          'After the race: rest, no running until 23 May. Longest run 9.9 mi.',
+        )
+      })
+      expect(signals.textContent).not.toMatch(/2027-05-23/)
+    })
+
     test('the suggestion does not change live with the form; the final decision defaults to it and has no Repeat', async () => {
       const user = userEvent.setup()
       renderReview({ plan: v2Plan(), weeks: { [W]: fullWeek }, reviews: { [W]: decided } })

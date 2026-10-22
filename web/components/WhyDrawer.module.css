@@ -62,6 +62,10 @@
   line-height: var(--lh-sm);
 }
 
+.factWide {
+  flex-basis: 100%;
+}
+
 .fact dt {
   color: var(--text-muted);
 }

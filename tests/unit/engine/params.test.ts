@@ -111,6 +111,20 @@ describe('parameter registry', () => {
     expect(paramsForRule('G-1').map((p) => p.id)).not.toContain('global3.minObservations')
   })
 
+  it('matches a rule id without regard to case, but not to hyphens', () => {
+    const ids = (rule: string) => paramsForRule(rule).map((p) => p.id)
+    // g-3 (tightened profiles) and G3 (priors, not optima) are different rules.
+    expect(ids('g-3')).toContain('injuryReturn.levelsMin')
+    expect(ids('g-3')).not.toContain('global3.minObservations')
+    expect(ids('G3')).toContain('global3.minObservations')
+    expect(ids('G3')).not.toContain('injuryReturn.levelsMin')
+    expect(ids('G-3')).toEqual(ids('g-3'))
+    expect(ids('h12')).toEqual(ids('H12'))
+    // Without the hyphen it is another rule id, and no parameter carries that id.
+    expect(ids('g1')).toEqual([])
+    expect(ids('G1')).toEqual([])
+  })
+
   it('has an expected RPE range for every session kind', () => {
     const kinds: SessionKind[] = [
       'easy',

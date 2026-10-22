@@ -225,7 +225,7 @@ function Assessment({
       {/* The rating controls are on the activity page. */}
       {!hasSubjectivePart(effort.parts) ? (
         <p className={styles.note} role="note">
-          {unratedEffortNote(effort.score)}
+          {unratedEffortNote(effort.score, execution.completion)}
           {activityId !== null ? (
             <>
               {' '}

@@ -147,17 +147,14 @@ export const RULE_TITLES: Record<string, string> = {
   'design-4.3': 'Trimming the next quality session',
 }
 
-/** Case, hyphen and spelling aside, the same lookup the drawer uses for parameters. */
-const loose = (id: string) => id.toLowerCase().replace(/-/g, '')
-
 /**
- * The title of a rule id: an exact match first (`g-1` and `G1` are different rules), then a match
- * that ignores case and hyphens, else null.
+ * The title of a rule id: an exact match first, then a match that ignores case but not hyphens
+ * (the lookup the drawer uses for parameters), else null. `g-1` and `G1` are different rules.
  */
 export function ruleTitle(id: string): string | null {
   const exact = RULE_TITLES[id]
   if (exact !== undefined) return exact
-  const key = loose(id)
-  const found = Object.keys(RULE_TITLES).find((candidate) => loose(candidate) === key)
+  const key = id.toLowerCase()
+  const found = Object.keys(RULE_TITLES).find((candidate) => candidate.toLowerCase() === key)
   return found === undefined ? null : (RULE_TITLES[found] ?? null)
 }

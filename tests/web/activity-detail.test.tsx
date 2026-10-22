@@ -413,6 +413,47 @@ describe('ActivityDetailPage', () => {
       expect(within(section).queryByText(RATING_CAVEAT)).not.toBeInTheDocument()
     })
 
+    describe('an activity of a different kind than its session', () => {
+      const FEEL_ASK = 'Rate how this activity felt so the plan can adjust.'
+      const modified = (parts: Partial<ExecutionAssessment['effort']['parts']> = {}) => ({
+        ...makeExecution(null, { hrResidualZ: null, ...parts }),
+        completion: 'modified' as const,
+        intensity: 'unknown' as const,
+      })
+
+      test('asks for a feel rating only', async () => {
+        renderDetail({ plan: planWith(modified()) })
+        const section = await screen.findByRole('region', { name: 'How did it go?' })
+        expect(await within(section).findByText(FEEL_ASK)).toBeInTheDocument()
+        expect(within(section).queryByText(RATING_ASK)).not.toBeInTheDocument()
+      })
+
+      test('still asks when only an RPE is stored, because the engine ignores it there', async () => {
+        const base = makeDetail()
+        renderDetail({
+          detail: { ...base, activity: { ...base.activity, rpe: 6, feel: null } },
+          plan: planWith(modified()),
+        })
+        const section = await screen.findByRole('region', { name: 'How did it go?' })
+        expect(await within(section).findByText(FEEL_ASK)).toBeInTheDocument()
+      })
+
+      test('has no note once a feel is stored', async () => {
+        const base = makeDetail()
+        const api = renderDetail({
+          detail: { ...base, activity: { ...base.activity, rpe: null, feel: 0 } },
+          plan: planWith(modified({ feel: 0 })),
+        })
+        const section = await screen.findByRole('region', { name: 'How did it go?' })
+        await waitFor(() => {
+          expect(api.calls.some((c) => c.url === '/api/plan')).toBe(true)
+        })
+        await settle()
+        expect(within(section).queryByText(FEEL_ASK)).not.toBeInTheDocument()
+        expect(within(section).queryByText(RATING_ASK)).not.toBeInTheDocument()
+      })
+    })
+
     test('has no note when the activity is not linked to an assessed session', async () => {
       const api = renderDetail({ plan: planWith(null) })
       const section = await screen.findByRole('region', { name: 'How did it go?' })

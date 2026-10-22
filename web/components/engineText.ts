@@ -111,6 +111,24 @@ export function groupWarnings(
 export const RATING_PROMPT = 'Rate this activity (effort or feel) so the plan can adjust.'
 
 /**
+ * The ask for an activity of a different kind than its planned session (completion `modified`):
+ * it has no expected effort to set an RPE against, so only the feel rating counts.
+ */
+export const FEEL_PROMPT = 'Rate how this activity felt so the plan can adjust.'
+
+/**
+ * Whether the owner's rating of an activity counts toward its effort verdict, the same test as
+ * `hasSubjectivePart` in shared/engine/execution.ts: an RPE counts unless the activity is of a
+ * different kind than the planned session, and a feel always counts.
+ */
+export function ratingCounts(
+  completion: ExecutionAssessment['completion'],
+  rating: { rpe: number | null; feel: number | null },
+): boolean {
+  return rating.feel !== null || (completion !== 'modified' && rating.rpe !== null)
+}
+
+/**
  * What an effort verdict is without a rating (`hasSubjectivePart` in shared/engine/execution.ts):
  * a guess from heart rate and pace, held to low confidence, that never trims a session, proposes
  * a zone change or counts toward the weekly decision.
@@ -119,13 +137,21 @@ const UNRATED_CAVEAT =
   "Without a rating, the plan's read of this activity stays a low-confidence guess from heart rate and pace, and the plan never changes because of it."
 
 /**
- * The note beside an effort verdict that has no RPE and no feel behind it. With no score there is
- * no verdict to call a guess, so only the ask remains.
+ * The note beside an effort verdict that has no rating behind it. With no score there is no
+ * verdict to call a guess, so only the ask remains.
  */
-export function unratedEffortNote(score: ExecutionAssessment['effort']['score']): string {
-  return score === null ? RATING_PROMPT : `${RATING_PROMPT} ${UNRATED_CAVEAT}`
+export function unratedEffortNote(
+  score: ExecutionAssessment['effort']['score'],
+  completion: ExecutionAssessment['completion'],
+): string {
+  const ask = completion === 'modified' ? FEEL_PROMPT : RATING_PROMPT
+  return score === null ? ask : `${ask} ${UNRATED_CAVEAT}`
 }
 
-/** One line for the why drawer, where the effort assessment's parameters are explained. */
+/**
+ * One line for the why drawer, where the effort assessment's parameters are explained. It speaks
+ * about the effort verdict only: check-ins, pain, illness and completion change the plan without
+ * a rating.
+ */
 export const RATING_WHY_NOTE =
-  'An adjustment needs a rating of effort or feel: without one, the effort read rests on heart rate and pace alone, stays at low confidence, and never changes the plan.'
+  'An effort verdict needs a rating of effort or feel: without one it rests on heart rate and pace alone, stays at low confidence, and never changes the plan on its own.'

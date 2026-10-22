@@ -195,6 +195,32 @@ describe('SessionSheet', () => {
       expect(note).not.toHaveTextContent(/low-confidence guess/)
     })
 
+    test('an activity of a different kind asks for a feel rating only', async () => {
+      renderSheet(
+        makeSession({
+          status: 'completed',
+          activityId: 'act1',
+          execution: {
+            ...unrated,
+            completion: 'modified',
+            intensity: 'unknown',
+            effort: {
+              score: null,
+              confidence: 'low',
+              parts: { rpeDelta: null, feel: null, hrResidualZ: null, paceResidualPct: null },
+            },
+          },
+        }),
+      )
+      const dialog = await screen.findByRole('dialog')
+      const note = within(dialog).getByRole('note')
+      expect(note).toHaveTextContent('Rate how this activity felt so the plan can adjust.')
+      expect(note).not.toHaveTextContent(/effort or feel/)
+      expect(
+        within(note).getByRole('link', { name: 'Open the activity to rate it.' }),
+      ).toHaveAttribute('href', '/activities/act1')
+    })
+
     test.each([
       ['an RPE', { rpeDelta: 1, feel: null }],
       ['a feel', { rpeDelta: null, feel: 1 }],
