@@ -52,6 +52,7 @@ export function ingestRouter(deps: Deps): Router {
     let batchId: string | null = null
     const counts = { skippedDuplicate: 0, skippedInvalid: 0 }
     const report: ImportReportRow[] = []
+    const failed: Array<{ providerKey: string; reason: string }> = []
     if (activities.length > 0) {
       const batch = await prisma.importBatch.create({
         data: {
@@ -77,11 +78,11 @@ export function ingestRouter(deps: Deps): Router {
           else accepted += 1
         } catch (error) {
           counts.skippedInvalid += 1
+          const reason = error instanceof Error ? error.message : String(error)
+          if (failed.length < MAX_REPORT_ROWS)
+            failed.push({ providerKey: parsed.providerKey, reason })
           if (report.length < MAX_REPORT_ROWS) {
-            report.push({
-              line: null,
-              reason: `${parsed.providerKey}: ${error instanceof Error ? error.message : String(error)}`,
-            })
+            report.push({ line: null, reason: `${parsed.providerKey}: ${reason}` })
           }
         }
       }
@@ -92,11 +93,25 @@ export function ingestRouter(deps: Deps): Router {
     }
     const wellnessRows = await storeWellness(deps, row.userId, wellness, provider)
 
+    // A push where every activity failed to store is a failed sync, not a connected one.
+    const allFailed = activities.length > 0 && counts.skippedInvalid === activities.length
     await prisma.integration.update({
       where: { id: row.id },
-      data: { status: 'connected', lastSyncAt: new Date(), lastSyncStatus: 'ok', lastError: null },
+      data: allFailed
+        ? {
+            status: 'error',
+            lastSyncAt: new Date(),
+            lastSyncStatus: 'error',
+            lastError: `Every pushed activity failed to store: ${failed[0]?.reason ?? 'unknown error'}`,
+          }
+        : {
+            status: 'connected',
+            lastSyncAt: new Date(),
+            lastSyncStatus: 'ok',
+            lastError: null,
+          },
     })
-    res.json({ activities: accepted, wellness: wellnessRows, ignored })
+    res.json({ activities: accepted, wellness: wellnessRows, ignored, failed })
   })
 
   return router
