@@ -39,6 +39,10 @@ export const aState = {
         note: 'Default: EWMA time constant is a user-adjustable convention shown as a descriptive trend.',
       },
     ),
+    dailyWindowDays: param('a2.dailyWindowDays', 90, 'D', 'A2', ['murray-2017-ewma-acwr'], {
+      unit: 'days',
+      note: 'Default: length of the daily load series that estimateState returns for display; the EWMA itself runs over the whole history.',
+    }),
   },
   a3: {
     longestRunWindowDays: param(
@@ -95,6 +99,52 @@ export const aState = {
       unit: 'ratio',
       note: 'Novices carry about 2.3 times the injury rate per hour.',
     }),
+    historyWindowDays: param('a5.historyWindowDays', 365, 'D', 'A5', ['videbaek-2015-incidence'], {
+      unit: 'days',
+      note: 'Default: the history window the engine receives; the layoff of a runner with no logged run is set to this length.',
+    }),
+    noviceLayoffDays: param('a5.noviceLayoffDays', 120, 'D', 'A5', ['videbaek-2015-incidence'], {
+      unit: 'days',
+      note: 'Default: no running in about four months counts as novice; the rule leaves the exact definition to the engine.',
+    }),
+    returningLayoffDays: param(
+      'a5.returningLayoffDays',
+      28,
+      'D',
+      'A5',
+      ['videbaek-2015-incidence'],
+      {
+        unit: 'days',
+        note: 'Default: a layoff of four weeks or more, but shorter than the novice cut-off, counts as returning.',
+      },
+    ),
+    noviceMinRunWeeks: param('a5.noviceMinRunWeeks', 4, 'D', 'A5', ['videbaek-2015-incidence'], {
+      unit: 'weeks with a run (of the last 16)',
+      note: 'Default: fewer weeks with a run than this, with under a year of running, counts as novice.',
+    }),
+    noviceMaxYears: param('a5.noviceMaxYears', 1, 'D', 'A5', ['videbaek-2015-incidence'], {
+      unit: 'years',
+      note: 'Default: under this many years of running, with few recent run weeks, counts as novice.',
+    }),
+    trainedMinYears: param('a5.trainedMinYears', 2, 'D', 'A5', ['videbaek-2015-incidence'], {
+      unit: 'years',
+      note: 'Default: trained needs at least this many years of regular running.',
+    }),
+    trainedMinWeeklyMin: param(
+      'a5.trainedMinWeeklyMin',
+      240,
+      'D',
+      'A5',
+      ['videbaek-2015-incidence'],
+      {
+        unit: 'min per week (mean of the last 16 weeks)',
+        note: 'Default: trained needs at least four hours of running per week on average.',
+      },
+    ),
+    typicalWeekCount: param('a5.typicalWeekCount', 4, 'D', 'A5', ['videbaek-2015-incidence'], {
+      unit: 'weeks',
+      note: 'Default: the typical week is the median of this many recent complete weeks that contain a run.',
+    }),
   },
   a6: {
     csMinEfforts: param('a6.csMinEfforts', 3, 'C', 'A6', ['smyth-2020-cs-training-data'], {
@@ -117,6 +167,82 @@ export const aState = {
       'A6',
       ['blythe-2016-individual-prediction', 'vickers-2016-race-times'],
       { unit: 'races at different distances' },
+    ),
+    csBandInnerEdgesM: param<number[]>(
+      'a6.csBandInnerEdgesM',
+      [1000, 2000, 3500],
+      'D',
+      'A6',
+      ['smyth-2020-cs-training-data'],
+      {
+        unit: 'm',
+        note: 'Default: inner edges of the distance bands (with 400 m and 5000 m as outer edges); the fastest effort of each band is a CS input, so one easy run cannot stand in for several distances.',
+      },
+    ),
+    csMinTimeSpreadRatio: param(
+      'a6.csMinTimeSpreadRatio',
+      2,
+      'D',
+      'A6',
+      ['smyth-2020-cs-training-data'],
+      {
+        unit: 'ratio of longest to shortest effort time',
+        note: 'Default: the linear distance-time fit needs efforts whose durations differ by at least this ratio, or the slope is not identified.',
+      },
+    ),
+    exponentMinDistanceRatio: param(
+      'a6.exponentMinDistanceRatio',
+      1.5,
+      'D',
+      'A6',
+      ['blythe-2016-individual-prediction', 'vickers-2016-race-times'],
+      {
+        unit: 'ratio of longest to shortest race distance',
+        note: 'Default: races count as different distances when the longest is at least this many times the shortest.',
+      },
+    ),
+    exponentPlausible: param<[number, number]>(
+      'a6.exponentPlausible',
+      [1.0, 1.2],
+      'D',
+      'A6',
+      ['blythe-2016-individual-prediction', 'vickers-2016-race-times'],
+      {
+        note: 'Default: a fitted personal exponent outside this range is treated as noise and not used.',
+      },
+    ),
+    vo2maxWindowDays: param(
+      'a6.vo2maxWindowDays',
+      90,
+      'D',
+      'A6',
+      ['molinagarcia-2022-wearable-vo2max'],
+      {
+        unit: 'days',
+        note: 'Default: window of device VO2max readings used for the smoothed trend.',
+      },
+    ),
+    vo2maxMinReadings: param(
+      'a6.vo2maxMinReadings',
+      4,
+      'D',
+      'A6',
+      ['molinagarcia-2022-wearable-vo2max'],
+      {
+        unit: 'readings',
+        note: 'Default: fewest device readings that give a trend.',
+      },
+    ),
+    vo2maxTrendPerDays: param(
+      'a6.vo2maxTrendPerDays',
+      30,
+      'D',
+      'A6',
+      ['molinagarcia-2022-wearable-vo2max'],
+      {
+        unit: 'days',
+        note: 'Default: the trend is reported as ml/kg/min change per this many days.',
+      },
     ),
     deviceVo2maxLimitsOfAgreement: param(
       'a6.deviceVo2maxLimitsOfAgreement',
@@ -225,6 +351,89 @@ export const aState = {
       { unit: 'min', note: 'Default: no drift-based fitness inference beyond this duration.' },
     ),
   },
+  a8: {
+    recentWeeks: param(
+      'a8.recentWeeks',
+      4,
+      'D',
+      'A8',
+      [
+        'roete-2021-functional-overreaching-markers',
+        'nuuttila-2021-intensity-vs-volume-monitoring',
+      ],
+      {
+        unit: 'weeks',
+        note: 'Default: the current efficiency is the median of qualifying runs in this many recent weeks.',
+      },
+    ),
+    priorWeeks: param(
+      'a8.priorWeeks',
+      4,
+      'D',
+      'A8',
+      [
+        'roete-2021-functional-overreaching-markers',
+        'nuuttila-2021-intensity-vs-volume-monitoring',
+      ],
+      {
+        unit: 'weeks',
+        note: 'Default: the trend compares the current window with this many weeks before it.',
+      },
+    ),
+    minRunsPerWindow: param(
+      'a8.minRunsPerWindow',
+      3,
+      'D',
+      'A8',
+      [
+        'roete-2021-functional-overreaching-markers',
+        'nuuttila-2021-intensity-vs-volume-monitoring',
+      ],
+      {
+        unit: 'runs',
+        note: 'Default: fewest qualifying runs in a window that give an efficiency value; no cut-off is validated.',
+      },
+    ),
+    minDurationMin: param(
+      'a8.minDurationMin',
+      20,
+      'D',
+      'A8',
+      ['roete-2021-functional-overreaching-markers'],
+      {
+        unit: 'min',
+        note: 'Default: shorter runs are too brief for heart rate to settle.',
+      },
+    ),
+    maxDurationMin: param(
+      'a8.maxDurationMin',
+      90,
+      'D',
+      'A8',
+      ['nuuttila-2025-recreational-runners-durability'],
+      {
+        unit: 'min',
+        note: 'Default: longer runs are left out so cardiac drift does not move the index (drift is about 5.5% at 90 min).',
+      },
+    ),
+  },
+  acclim: {
+    exposureTempC: param('acclim.exposureTempC', 25, 'D', 'I8', ['racinais-2015-heat-consensus'], {
+      unit: 'C',
+      note: 'Default: a run at this air temperature or warmer counts as a heat exposure day (same cut-off as a7.heatExcludeC).',
+    }),
+    exposureMinDurationMin: param(
+      'acclim.exposureMinDurationMin',
+      30,
+      'D',
+      'I8',
+      ['racinais-2015-heat-consensus'],
+      {
+        unit: 'min',
+        note: 'Default: a hot run shorter than this does not count as a heat exposure day.',
+      },
+    ),
+  },
   a9: {
     recentInjuryWindowMonths: param(
       'a9.recentInjuryWindowMonths',
@@ -264,6 +473,25 @@ export const aState = {
       ['kluitenberg-2015-nlstart2run', 'nielsen-2013-novice-predictors'],
       { unit: 'years', note: 'Novice soft flag: age 45-65.' },
     ),
+    bsiWeeklyHours: param('a9.bsiWeeklyHours', 12, 'B', 'A9', ['barrack-2014-bone-stress-triad'], {
+      unit: 'h per week',
+      note: 'Purposeful exercise of 12 h per week or more is one BSI factor.',
+    }),
+    bsiWeeklyWindowWeeks: param(
+      'a9.bsiWeeklyWindowWeeks',
+      4,
+      'D',
+      'A9',
+      ['barrack-2014-bone-stress-triad'],
+      {
+        unit: 'weeks',
+        note: 'Default: weekly hours are averaged over this many recent weeks of running.',
+      },
+    ),
+    bsiBmiBelow: param('a9.bsiBmiBelow', 21, 'B', 'A9', ['barrack-2014-bone-stress-triad'], {
+      unit: 'kg/m2',
+      note: 'BMI below 21 is one BSI factor in female athletes; the source warns against applying it to males or older athletes.',
+    }),
     noviceFlagBmiAbove: param(
       'a9.noviceFlagBmiAbove',
       30,
