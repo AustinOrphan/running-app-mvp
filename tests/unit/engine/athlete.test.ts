@@ -510,6 +510,16 @@ describe('estimateState: durability', () => {
     expect(s.durability).toEqual({ decouplingMedianPct: null, samples: 2 })
     expect(estimateState(input([])).durability).toEqual({ decouplingMedianPct: null, samples: 0 })
   })
+
+  test('runs shorter than 90 minutes are not long runs, however many are comparable', () => {
+    const easy = [2, 4, 6, 8, 10].map((n) => long(n, 3, { durationSec: 3000 }))
+    expect(estimateState(input(easy)).durability).toEqual({
+      decouplingMedianPct: null,
+      samples: 0,
+    })
+    const mixed = [...easy, long(5, 4), long(12, 6), long(19, 5, { durationSec: 5700 })]
+    expect(estimateState(input(mixed)).durability).toEqual({ decouplingMedianPct: 5, samples: 3 })
+  })
 })
 
 describe('estimateState: heat acclimation credit', () => {

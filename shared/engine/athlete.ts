@@ -290,7 +290,10 @@ function vo2maxTrend(input: EngineInput, today: string): number | null {
   return (-sxy / sxx) * P.a6.vo2maxTrendPerDays.value
 }
 
-/** Median decoupling of the largest group of comparable, cool, sub-180-minute long runs [A7]. */
+/**
+ * Median decoupling of the largest group of comparable, cool long runs [A7]. A long run lasts
+ * from the reference duration of the durability prior (90 min) up to the drift inference limit.
+ */
 function durabilityOf(runs: Activity[]): AthleteState['durability'] {
   const candidates = runs.filter(
     (a) =>
@@ -298,6 +301,7 @@ function durabilityOf(runs: Activity[]): AthleteState['durability'] {
       a.decouplingPct !== null &&
       a.tempC !== null &&
       a.tempC < P.a7.heatExcludeC.value &&
+      a.durationSec >= P.a7.thresholdDropAfterMin.value * 60 &&
       a.durationSec <= P.a7.driftInferenceLimitMin.value * 60,
   )
   let best: Activity[] = []
