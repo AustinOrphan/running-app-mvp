@@ -36,6 +36,7 @@ export { assessExecution, matchSessions } from './execution.ts'
 export { PARAMS_VERSION, P } from './params/index.ts'
 export { predictRace } from './predict.ts'
 export { todayAdvice } from './readiness.ts'
+export { weeklyRamp } from './macro.ts'
 
 const WEEKDAYS: readonly Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 /** Session kinds that do not use a run day. */

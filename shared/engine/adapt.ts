@@ -328,8 +328,10 @@ export function weeklyDecision(
     input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))?.targetRunMin ??
     Math.round(plannedThis * (1 + ramp))
   let nextWeekTargetMin: number
-  if (decision === 'progress') nextWeekTargetMin = nextWeekCap(nextPlanned, actual, ramp)
-  else if (decision === 'hold') nextWeekTargetMin = nextWeekCap(plannedThis, actual, ramp)
+  // Whole minutes, rounded down so the number never passes the cap.
+  const whole = (minutes: number) => Math.floor(minutes + 1e-9)
+  if (decision === 'progress') nextWeekTargetMin = whole(nextWeekCap(nextPlanned, actual, ramp))
+  else if (decision === 'hold') nextWeekTargetMin = whole(nextWeekCap(plannedThis, actual, ramp))
   else {
     nextWeekTargetMin = Math.round(
       nextWeekCap(plannedThis, actual, ramp) * (1 - P.e3.recoveryWeekCutPct.value / 100),

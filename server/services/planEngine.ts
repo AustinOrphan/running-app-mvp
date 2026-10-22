@@ -9,6 +9,7 @@ import {
   replan,
   todayAdvice,
   weeklyDecision,
+  weeklyRamp,
   zoneProposals,
 } from '../../shared/engine/index.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -314,6 +315,10 @@ export async function weeklyDecisions(
     { userId: args.userId, today: args.today, goalId: plan.goalId },
     { existing: true },
   )
+  // The tightened ramp of an injury or bone-stress profile caps the suggested week too. The first
+  // hot days (heatFirstDays) and the sleep-efficiency drop are not derived from the data yet, so
+  // those two holds of rule J5 do not fire.
+  const ramp = weeklyRamp(estimateState(input))
   for (const weekStart of args.weekStarts) {
     if (!input.existing?.weeks.some((w) => w.weekStart === weekStart)) continue
     decisions.set(
@@ -321,6 +326,7 @@ export async function weeklyDecisions(
       weeklyDecision(input, weekStart, {
         executions: await executionRecords(deps.prisma, plan.id, weekStart),
         redsFlags: input.screeningFlags,
+        ramp,
       }),
     )
   }
@@ -357,12 +363,14 @@ export async function replanActivePlan(
   // The decision for the week that just finished goes into the summary and, after a reduce or a
   // hold, caps the week that follows it; the owner's or review's lower target caps its week too
   // and takes the place of the decision's number [rules g-2, J5].
+  const state = estimateState(input)
   const currentMonday = mondayOf(today)
   const lastWeek = addDays(currentMonday, -7)
   const decision = input.existing?.weeks.some((w) => w.weekStart === lastWeek)
     ? weeklyDecision(input, lastWeek, {
         executions: await executionRecords(prisma, plan.id, lastWeek),
         redsFlags: input.screeningFlags,
+        ramp: weeklyRamp(state),
       })
     : null
   const weekCaps: Record<string, number> = {}
@@ -381,7 +389,6 @@ export async function replanActivePlan(
   const blocked = failedChecklist(draft.checklist)
   if (blocked) throw blocked
 
-  const state = estimateState(input)
   const reason: PlanRevisionReason =
     args.reason === 'weekly' && state.layoffDays >= P.j7.tier1Days.value ? 'break' : args.reason
   const summary = [

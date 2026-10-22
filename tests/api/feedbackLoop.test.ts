@@ -338,6 +338,34 @@ describe('reviews of version-2 plans use the weekly decision and re-plan', () =>
     expect(await runMinutes(plan.id, thisMonday, '2026-10-28')).toBeLessThanOrEqual(200)
   })
 
+  test('the suggested next week follows the ramp of the profile: 5% over the week run after a bone stress injury', async () => {
+    const clean = await generatedPlan('review-ramp-clean@example.com')
+    const bsi = await generatedPlan('review-ramp-bsi@example.com')
+    const injuries = JSON.stringify([
+      { area: 'tibia', side: 'left', year: 2025, month: 4, kind: 'bone-stress', notes: null },
+    ])
+    await ctx.prisma.athleteProfile.upsert({
+      where: { userId: bsi.u.id },
+      create: { userId: bsi.u.id, injuries },
+      update: { injuries },
+    })
+    const suggested = async ({ u, plan }: typeof clean) => {
+      await runWeek(u.id, plan, thisMonday, 0.5)
+      const acts = await ctx.prisma.activity.findMany({
+        where: { userId: u.id, date: { gte: thisMonday } },
+      })
+      const actual = acts.reduce((sum, a) => sum + a.durationSec / 60, 0)
+      vi.setSystemTime(new Date(2026, 9, 28, 12))
+      const res = await client(ctx, u).get(`/api/reviews?from=${thisMonday}&to=${thisMonday}`)
+      vi.setSystemTime(WEDNESDAY)
+      return { actual, next: (res.body as ReviewView[])[0]!.suggestedNextMin }
+    }
+    const a = await suggested(clean)
+    const b = await suggested(bsi)
+    expect(a.next).toBe(Math.floor(a.actual * 1.1 + 1e-9))
+    expect(b.next).toBe(Math.floor(b.actual * 1.05 + 1e-9))
+  })
+
   test('a decided lower target for next week sizes the sessions, not only the week row', async () => {
     const { u, plan } = await generatedPlan('review-sessions@example.com')
     await runWeek(u.id, plan, thisMonday, 1)
