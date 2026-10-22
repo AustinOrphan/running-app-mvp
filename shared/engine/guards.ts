@@ -144,6 +144,16 @@ export function applyGuards(
     .map((s) => s.date)
   let noReferenceWarned = false
 
+  // Running already done in the current week counts toward its volume; the plan holds the rest.
+  const currentMonday = mondayOf(asOf)
+  const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
+  const doneThisWeek = (weekStart: string) =>
+    weekStart === currentMonday && doneRow !== undefined ? doneRow.runMin : 0
+  const weekMinutes = (weekStart: string, week: SessionSpec[]) =>
+    doneRow !== undefined && weekStart === currentMonday
+      ? doneRow.runMin + weeklyMinutes(week.filter((s) => s.date >= asOf))
+      : weeklyMinutes(week)
+
   const indicesOf = (weekStart: string) =>
     items.flatMap((s, i) => (s !== null && mondayOf(s.date) === weekStart ? [i] : []))
 
@@ -182,7 +192,7 @@ export function applyGuards(
     }
 
     const final = indicesOf(weekStart).map((i) => items[i]!)
-    volume.set(weekStart, weeklyMinutes(final))
+    volume.set(weekStart, weekMinutes(weekStart, final))
     gainVolume.set(
       weekStart,
       final.reduce((sum, s) => sum + (VOLUME_KINDS.has(s.kind) ? (s.gainM ?? 0) : 0), 0),
@@ -197,7 +207,7 @@ export function applyGuards(
   function rampWeek(weekStart: string): void {
     const indices = indicesOf(weekStart)
     const week = indices.map((i) => items[i]!)
-    const total = weeklyMinutes(week)
+    const total = weekMinutes(weekStart, week)
     if (total <= 0) return
 
     const baselineWeeks = P.g2.baselineWeeks.value
@@ -217,11 +227,16 @@ export function applyGuards(
     const allowed = Math.min(ceilingLimit, tightLimit)
 
     if (total > allowed + 1e-6) {
-      const fixed = week
-        .filter((s) => VOLUME_KINDS.has(s.kind) && !modifiable(s))
-        .reduce((sum, s) => sum + s.durationMin, 0)
+      // Runs before the plan starts are already in `doneThisWeek`.
+      const fixed =
+        doneRow !== undefined && weekStart === currentMonday
+          ? 0
+          : week
+              .filter((s) => VOLUME_KINDS.has(s.kind) && !modifiable(s))
+              .reduce((sum, s) => sum + s.durationMin, 0)
       const movable = week.filter((s) => modifiable(s)).reduce((sum, s) => sum + s.durationMin, 0)
-      const factor = movable > 0 ? Math.max(0, allowed - fixed) / movable : 0
+      const factor =
+        movable > 0 ? Math.max(0, allowed - fixed - doneThisWeek(weekStart)) / movable : 0
       for (const i of indices) {
         const s = items[i]!
         if (modifiable(s)) items[i] = scaleSession(s, factor)
