@@ -26,6 +26,24 @@ build runs `prisma migrate deploy` as a smoke test.
   SQLite schema and committed migrations.
 - `tests/unit`, `tests/api`, `tests/web` (Vitest) and `tests/e2e` (Playwright).
 
+## Providers
+
+- Every data source is one module in `server/providers/<key>.ts`, registered in
+  `server/providers/registry.ts` with its `ProviderInfo` (key, label, channels, wellness,
+  `experimental`). A provider implements only the channels it declares: `pull`, `push` or `upload`;
+  `folder` has no module because the scheduler scans it. Adding a source means one module plus one
+  registry entry.
+- A provider returns `ParsedActivity` and `WellnessInput` values; it never writes to the database.
+  `server/services/activityStore.ts` is the only writer of imported activities, and
+  `server/services/sync.ts` drives pull providers.
+- Network access goes only through `ctx.fetch`, never a global `fetch` or an HTTP client of its own,
+  so tests inject synthetic responses and no test touches the network.
+- Secrets (API keys, client secrets, tokens) are encrypted and decrypted only through
+  `server/crypto.ts`, stored in `Integration.secret`, and never logged or returned by the API.
+  Refreshed tokens are saved through `ctx.saveSecret`. No new environment variables.
+- Files are parsed through `ctx.parseFile`, not by importing the parsers directly. Fixtures are
+  synthetic; FIT test files are built with `tests/fixtures/fit/buildFit.ts`.
+
 ## Conventions
 
 - Relative imports carry the `.ts` or `.tsx` extension. No path aliases.
@@ -53,6 +71,8 @@ build runs `prisma migrate deploy` as a smoke test.
   and call `resetData()` and `signedInApi()` from `tests/e2e/helpers.ts` so each spec stands on
   its own. `01-auth.spec.ts` owns the empty database and must stay first. No sleeps; rely on
   auto-waiting assertions.
+  `signedInApi()` signs in with a minted session cookie once the account exists, because the
+  sign-in route allows 10 attempts per window and the suite would exhaust it.
 
 ## Public repository
 
