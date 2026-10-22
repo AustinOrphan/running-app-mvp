@@ -52,6 +52,7 @@ const CHECKLIST_IDS = [
   'spacing',
   'ultra-caps',
   'race-day',
+  'reds-hold',
 ]
 
 const all = athletes()
@@ -608,5 +609,39 @@ describe('plan adequacy: sparse history, first 100-mile', () => {
             .length,
       )
     expect(Math.min(...counts)).toBeGreaterThanOrEqual(2)
+  })
+})
+
+describe('plan matrix: REDs hold', () => {
+  const a = all.find((x) => x.id === 'reds-hold')!
+  const plan = planOf(a)
+  const open = buildPlan({ ...a.input, screeningFlags: 0 })
+  const peak = (p: PlanDraft) => Math.max(...planWeeks(p).map((w) => w.targetRunMin))
+
+  it('reads the screening into the state and warns with a clinician prompt', () => {
+    expect(estimateState(a.input).risk.redsFlags).toBe(2)
+    const warning = plan.warnings.find((w) => w.code === 'reds-hold')
+    expect(warning?.severity).toBe('hold')
+    expect(warning?.message).toMatch(/clinician/i)
+    expect(warning?.rules).toContain('n-4')
+    expect(open.warnings.some((w) => w.code === 'reds-hold')).toBe(false)
+  })
+
+  it('holds the weekly level and plans no back-to-back, where the same athlete otherwise grows', () => {
+    expect(peak(open)).toBeGreaterThan(peak(plan))
+    const loading = planWeeks(plan).filter(
+      (w) => !w.isRecovery && !w.isTaper && !w.flags.includes('post-race'),
+    )
+    const first = loading[0]!.targetRunMin
+    for (const w of loading) expect(w.targetRunMin, w.weekStart).toBeLessThanOrEqual(first)
+    expect(open.sessions.some((s) => s.flags.includes('b2b-day1'))).toBe(true)
+    expect(plan.sessions.some((s) => s.flags.includes('b2b-day1'))).toBe(false)
+    expect(plan.sessions.some((s) => s.kind === 'b2b')).toBe(false)
+  })
+
+  it('passes every checklist item, the hold item included', () => {
+    const item = plan.checklist.find((c) => c.id === 'reds-hold')!
+    expect(item.ok).toBe(true)
+    expect(item.detail).toMatch(/hold/i)
   })
 })

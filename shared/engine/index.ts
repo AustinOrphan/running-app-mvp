@@ -11,7 +11,7 @@ import { feasibility } from './goal.ts'
 import { applyGuards } from './guards.ts'
 import { heatWarning } from './heat.ts'
 import { isDuplicate } from './load.ts'
-import { macroPlan } from './macro.ts'
+import { macroPlan, redsHold } from './macro.ts'
 import { placeWeek } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
 import { predictRace } from './predict.ts'
@@ -221,6 +221,14 @@ function generate(
       severity: 'info',
       message: `${shortOfDays.length} week(s), from the week of ${first.weekStart}, have fewer open run days (${first.open}) than the ${first.wanted} planned, so those weeks hold the runs on the days that are open.`,
       rules: ['F5'],
+    })
+  }
+  if (redsHold(state)) {
+    warnings.push({
+      code: 'reds-hold',
+      severity: 'hold',
+      message: `${state.risk.redsFlags} signs on the energy-availability screening. Progression holds: weekly running stays at the current level, with no ramp and no new back-to-back runs. A clinician or sports dietitian can help look at this; consider booking one before adding load.`,
+      rules: ['n-4', 'J5'],
     })
   }
   if (goal.raceWbgtC !== null) {

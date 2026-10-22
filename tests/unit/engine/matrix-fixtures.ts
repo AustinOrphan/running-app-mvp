@@ -393,7 +393,48 @@ export function athletes(): MatrixAthlete[] {
         startTime: '06:00',
       }),
     ),
+    redsHeld(),
   ]
+}
+
+/**
+ * The 50 km trail athlete again, with two signs on the latest energy-availability screening
+ * [rules n-4]: progression holds, so the plan stays at the current level.
+ */
+function redsHeld(): MatrixAthlete {
+  const trail = build(
+    'reds-hold',
+    'REDs hold, 50 km trail',
+    baseProfile({
+      birthYear: 1986,
+      longRunDay: 'sat',
+      terrain: { trail: true, hills: true, treadmill: false, track: false },
+    }),
+    [
+      {
+        fromWeek: 1,
+        toWeek: 12,
+        runs: [
+          { dow: 1, min: 50, gainM: 150 },
+          { dow: 3, min: 60, gainM: 250 },
+          { dow: 4, min: 45, gainM: 100 },
+          { dow: 5, min: 130, gainM: 600 },
+        ],
+        paceSecPerKm: 400,
+      },
+    ],
+    goalOf({
+      name: 'Synthetic 50 km trail',
+      targetDate: '2027-03-06',
+      distanceM: 50_000,
+      gainM: 2200,
+      lossM: 2200,
+      surface: 'trail',
+      goalType: 'finish',
+      startTime: '07:00',
+    }),
+  )
+  return { ...trail, input: { ...trail.input, screeningFlags: 2 } }
 }
 
 /**
