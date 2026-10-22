@@ -339,26 +339,38 @@ export interface RawPoint {
   pwr?: number | null
 }
 
+/** Longest stretch, in seconds, a heart rate stands in for samples that recorded none. */
+export const MAX_HR_FILL_SEC = 10
+
 /**
  * Turns points with possibly missing values into aligned sample arrays. A channel nothing
  * recorded is null; otherwise gaps repeat the last value, and a gap at the start takes the first
- * value that exists. Heart rates at or below zero count as missing.
+ * value that exists. Heart rates at or below zero count as missing, and a heart rate is carried
+ * across a gap of at most `MAX_HR_FILL_SEC` only: beyond that the sample holds 0, which every
+ * consumer reads as no heart rate, so a dropped strap is not reported as a steady heart rate.
  */
 export function fillSamples(points: ReadonlyArray<RawPoint>): Samples {
   const column = (
     pick: (p: RawPoint) => number | null | undefined,
     valid: (v: number) => boolean,
+    maxFillSec = Number.POSITIVE_INFINITY,
   ) => {
     const raw = points.map((p) => {
       const v = pick(p)
       return typeof v === 'number' && Number.isFinite(v) && valid(v) ? v : null
     })
-    const firstKnown = raw.find((v): v is number => v !== null)
-    if (firstKnown === undefined) return null
-    let last = firstKnown
-    return raw.map((v) => {
-      if (v !== null) last = v
-      return last
+    const firstKnown = raw.findIndex((v) => v !== null)
+    if (firstKnown < 0) return null
+    let last = raw[firstKnown]!
+    let lastT = points[firstKnown]!.t
+    return raw.map((v, i) => {
+      const t = points[i]!.t
+      if (v !== null) {
+        last = v
+        lastT = t
+        return v
+      }
+      return Math.abs(t - lastT) <= maxFillSec ? last : 0
     })
   }
   return {
@@ -370,6 +382,7 @@ export function fillSamples(points: ReadonlyArray<RawPoint>): Samples {
     hr: column(
       (p) => p.hr,
       (v) => v > 0,
+      MAX_HR_FILL_SEC,
     ),
     alt: column(
       (p) => p.alt,
@@ -430,12 +443,12 @@ function buildStream(s: Samples): ActivitySummary['stream'] {
   const buckets = Math.floor(maxT / sampleSec) + 1
   const bucketOf = (i: number): number => Math.max(0, Math.floor(s.t[i]! / sampleSec))
 
-  const means = (values: number[] | null): number[] | null => {
+  const means = (values: number[] | null, keep = (_v: number) => true): number[] | null => {
     if (!values) return null
     const sum = new Array<number>(buckets).fill(0)
     const count = new Array<number>(buckets).fill(0)
     for (let i = 0; i < n; i++) {
-      if (!inRange(i)) continue
+      if (!inRange(i) || !keep(values[i]!)) continue
       const b = bucketOf(i)
       sum[b]! += values[i]!
       count[b]! += 1
@@ -458,7 +471,7 @@ function buildStream(s: Samples): ActivitySummary['stream'] {
     sampleSec,
     t: Array.from({ length: buckets }, (_, b) => b * sampleSec),
     d,
-    hr: means(s.hr),
+    hr: means(s.hr, (v) => v > 0),
     alt: means(s.alt),
     cad: means(s.cad),
     pwr: means(s.pwr),
