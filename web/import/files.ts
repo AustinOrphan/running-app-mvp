@@ -92,6 +92,15 @@ async function* zipEntries(
       skipped.push({ name: path, reason: UNSUPPORTED_REASON })
       return
     }
+    // fflate reads stored (0) and deflated (8) entries; starting any other kind throws out of
+    // `push` and would end the whole archive, so such an entry is listed and left unread.
+    if (file.compression !== 0 && file.compression !== 8) {
+      skipped.push({
+        name: path,
+        reason: `could not be unzipped (compression method ${file.compression})`,
+      })
+      return
+    }
     const chunks: Uint8Array[] = []
     file.ondata = (err, data, final) => {
       if (err) {

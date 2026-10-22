@@ -7,6 +7,8 @@ import { describe, expect, test } from 'vitest'
 import type { ImportBatch, ParsedActivity } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { processAppleExport } from '../../web/import/appleExport.ts'
+import { batchParsed, MAX_PARSED_ACTIVITIES, uploadParsed } from '../../web/import/parsed.ts'
+import { mergeReport } from '../../web/import/report.ts'
 import {
   MAX_BATCH_BASE64_CHARS,
   MAX_BATCH_FILES,
@@ -162,9 +164,97 @@ describe('uploadActivityFiles', () => {
     expect(summary.skipped.map((s) => s.name).sort()).toEqual(['bad.fit.gz', 'broken.zip'])
   })
 
+  test('lists an entry with an unreadable compression method and reads the rest', async () => {
+    const zip = zipSync({
+      'odd.fit': [bytesOf(7, 7), { level: 0 }],
+      'good.fit': [bytesOf(1, 2), { level: 0 }],
+    })
+    // The first local header's method field (offset 8) set to 9, Deflate64.
+    zip[8] = 9
+    const sent: string[] = []
+    const summary = await uploadActivityFiles([fileOf('mixed.zip', zip)], (request) => {
+      sent.push(...request.files.map((f) => f.name))
+      return Promise.resolve(batch())
+    })
+    expect(sent).toEqual(['mixed.zip/good.fit'])
+    expect(summary.skipped).toEqual([
+      { name: 'mixed.zip/odd.fit', reason: 'could not be unzipped (compression method 9)' },
+    ])
+  })
+
   test('toBase64 handles large arrays', () => {
     const data = new Uint8Array(200_000).map((_, i) => i % 251)
     expect(fromBase64(toBase64(data))).toEqual(data)
+  })
+})
+
+describe('uploadParsed', () => {
+  function activity(i: number): ParsedActivity {
+    return { providerKey: `apple:${i}` } as unknown as ParsedActivity
+  }
+
+  test('sends activities 200 at a time, then wellness 500 at a time, on one batch', async () => {
+    const activities = Array.from({ length: 450 }, (_, i) => activity(i))
+    const wellness = Array.from({ length: 501 }, (_, i) => ({
+      date: `2026-01-${String((i % 28) + 1).padStart(2, '0')}`,
+      restingHr: 50,
+      hrvRmssd: null,
+      hrvSdnn: null,
+      sleepSec: null,
+      sleepScore: null,
+      weightKg: null,
+      vo2max: null,
+    }))
+    const requests: Array<{ batchId?: string; activities: number; wellness: number }> = []
+    let rows = 0
+    const summary = await uploadParsed('apple-health', activities, wellness, (request) => {
+      requests.push({
+        ...(request.batchId === undefined ? {} : { batchId: request.batchId }),
+        activities: request.activities.length,
+        wellness: request.wellness.length,
+      })
+      expect(request.source).toBe('apple-health')
+      rows += request.activities.length + request.wellness.length
+      // The server answers with the batch's running totals.
+      return Promise.resolve(batch({ rowCount: rows, accepted: rows }))
+    })
+    expect(MAX_PARSED_ACTIVITIES).toBe(200)
+    expect(requests).toEqual([
+      { activities: 200, wellness: 0 },
+      { batchId: 'b1', activities: 200, wellness: 0 },
+      { batchId: 'b1', activities: 50, wellness: 0 },
+      { batchId: 'b1', activities: 0, wellness: 500 },
+      { batchId: 'b1', activities: 0, wellness: 1 },
+    ])
+    expect(summary.batch?.accepted).toBe(951)
+    expect(summary.wellnessDays).toBe(501)
+  })
+
+  test('starts a new request before the JSON passes about 8 MB', () => {
+    // About 3 million characters each, so two fit in a request and a third does not.
+    const heavy = {
+      providerKey: 'apple:x',
+      samples: { t: new Array(1_500_000).fill(1) },
+    } as unknown as ParsedActivity
+    expect(batchParsed([heavy, heavy, heavy, heavy]).map((b) => b.length)).toEqual([2, 2])
+  })
+})
+
+describe('mergeReport', () => {
+  test('replaces the report with running totals of the same batch', () => {
+    const first = batch({ rowCount: 2, accepted: 2 })
+    expect(mergeReport(first, batch({ rowCount: 5, accepted: 4 }))).toEqual(
+      batch({ rowCount: 5, accepted: 4 }),
+    )
+  })
+
+  test('adds a response for another batch to the report', () => {
+    const merged = mergeReport(
+      batch({ rowCount: 2, accepted: 1, errors: [{ line: null, reason: 'a' }] }),
+      batch({ id: 'b2', rowCount: 3, accepted: 2, errors: [{ line: null, reason: 'b' }] }),
+    )
+    expect(merged).toMatchObject({ id: 'b1', rowCount: 5, accepted: 3 })
+    expect(merged.errors.map((e) => e.reason)).toEqual(['a', 'b'])
   })
 })
 

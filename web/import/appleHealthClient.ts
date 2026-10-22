@@ -36,7 +36,12 @@ export function startAppleExport(
   const worker = new Worker(new URL('./appleHealth.worker.ts', import.meta.url), {
     type: 'module',
   })
+  let stop: () => void = () => {}
   const result = new Promise<AppleExportResult>((resolve, reject) => {
+    stop = () => {
+      worker.terminate()
+      reject(new DOMException('Import cancelled.', 'AbortError'))
+    }
     worker.onmessage = (event: MessageEvent<AppleWorkerReply>) => {
       const reply = event.data
       if (reply.type === 'progress') {
@@ -47,17 +52,13 @@ export function startAppleExport(
       if (reply.type === 'done') resolve(reply.result)
       else reject(new Error(reply.message))
     }
-    worker.onerror = () => {
+    worker.onerror = (event: ErrorEvent) => {
       worker.terminate()
-      reject(new Error('The export could not be read.'))
+      reject(new Error(event.message || 'The export could not be read.'))
     }
     const request: AppleWorkerRequest = { file, timezone }
     worker.postMessage(request)
   })
-  return {
-    result,
-    cancel: () => {
-      worker.terminate()
-    },
-  }
+  // A terminated worker never answers, so cancelling settles the promise itself.
+  return { result, cancel: () => stop() }
 }
