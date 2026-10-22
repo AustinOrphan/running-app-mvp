@@ -651,8 +651,8 @@ function PlanOverview({
                     <details className={styles.warningDetails}>
                       <summary>Show each one</summary>
                       <ul>
-                        {group.details.map((detail) => (
-                          <li key={detail}>{detail}</li>
+                        {group.details.map((detail, index) => (
+                          <li key={`${String(index)}-${detail}`}>{detail}</li>
                         ))}
                       </ul>
                     </details>
