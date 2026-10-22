@@ -1,4 +1,4 @@
-import type { Phase } from '../../shared/types.ts'
+import type { PlanPhase } from '../../shared/types.ts'
 
 const parts = new Intl.DateTimeFormat('en-GB', {
   weekday: 'short',
@@ -36,7 +36,7 @@ export function formatLongDate(iso: string): string {
   return `${weekday} ${day} ${month} ${year}`
 }
 
-const phaseLabels: Record<Phase, string> = {
+const phaseLabels: Record<PlanPhase, string> = {
   restart: 'Restart',
   base1: 'Base 1',
   base2: 'Base 2',
@@ -45,8 +45,10 @@ const phaseLabels: Record<Phase, string> = {
   peak: 'Peak',
   taper: 'Taper',
   race: 'Race week',
+  base: 'Base',
+  build: 'Build',
 }
 
-export function phaseLabel(phase: Phase): string {
+export function phaseLabel(phase: PlanPhase): string {
   return phaseLabels[phase]
 }

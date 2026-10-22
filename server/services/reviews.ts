@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../db.ts'
 import { addDays, mondayOf } from '../../shared/dates.ts'
+import { toV1Phase } from '../../shared/domain/plan.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { suggestAction, type Suggestion } from '../../shared/domain/review.ts'
 import type { PlanWeek, WeekRow, WeeklyReview } from '../../shared/types.ts'
@@ -88,7 +89,7 @@ function suggestFor(
   return suggestAction({
     today,
     weekStart,
-    phase: planWeek.phase,
+    phase: toV1Phase(planWeek.phase),
     targetRunMin: planWeek.targetRunMin,
     baselineRunMin: planWeek.baselineRunMin,
     plannedRunDays: planWeek.runDays,

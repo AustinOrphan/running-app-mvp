@@ -218,6 +218,8 @@ export interface WeekRow {
 }
 export type Phase =
   'restart' | 'base1' | 'base2' | 'endurance' | 'specific' | 'peak' | 'taper' | 'race'
+/** Phases a stored plan week may carry: version-1 plans use `Phase`; version-2 plans add `base` and `build`. */
+export type PlanPhase = Phase | 'base' | 'build'
 export type DistanceClass = 'short' | 'half' | 'marathon' | 'ultra50' | 'ultra100'
 export type TargetSource = 'baseline' | 'review' | 'override'
 export interface PlanWeek {
@@ -225,8 +227,7 @@ export interface PlanWeek {
   planId: string
   weekStart: string
   index: number
-  /** Version-2 plans store a `PhaseV2` value here; the Plan page (E12) widens this type. */
-  phase: Phase
+  phase: PlanPhase
   focus: string | null
   baselineRunMin: number
   targetRunMin: number

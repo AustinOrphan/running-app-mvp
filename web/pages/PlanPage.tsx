@@ -22,16 +22,18 @@ import { formatLongDate, formatShortDate, phaseLabel } from '../components/forma
 import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
-import type { Goal, Phase, PlanWeek, PlanWithWeeks } from '../../shared/types.ts'
+import type { Goal, PlanPhase, PlanWeek, PlanWithWeeks } from '../../shared/types.ts'
 import styles from './PlanPage.module.css'
 
 /** Chip intensity: one hue that builds with the phase. Taper and race have no level. */
-export function phaseLevel(phase: Phase): number | null {
+export function phaseLevel(phase: PlanPhase): number | null {
+  if (phase === 'base') return 1
+  if (phase === 'build') return 3
   const position = BUILD_PHASES.indexOf(phase)
   return position === -1 ? null : position + 1
 }
 
-export function PhaseChip({ phase }: { phase: Phase }) {
+export function PhaseChip({ phase }: { phase: PlanPhase }) {
   const level = phaseLevel(phase)
   const style = level === null ? undefined : ({ '--phase-level': level } as CSSProperties)
   return (

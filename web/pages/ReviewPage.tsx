@@ -1,6 +1,7 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { addDays, mondayOf, todayIso, weekStartsBetween } from '../../shared/dates.ts'
+import { toV1Phase } from '../../shared/domain/plan.ts'
 import {
   nextMinutesFor,
   suggestAction,
@@ -354,7 +355,7 @@ function WeekReview({
     ? {
         today,
         weekStart,
-        phase: planWeek.phase,
+        phase: toV1Phase(planWeek.phase),
         targetRunMin: planWeek.targetRunMin,
         baselineRunMin: planWeek.baselineRunMin,
         plannedRunDays: planWeek.runDays,
