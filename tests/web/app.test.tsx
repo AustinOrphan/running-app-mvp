@@ -63,6 +63,7 @@ describe('App routing', () => {
         displayName: null,
         units: 'mi',
       }),
+      'GET /api/integrations': () => [],
     })
     renderWithProviders(<App />, { route })
     expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
