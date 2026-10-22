@@ -538,6 +538,20 @@ describe('garmin connect: activities', () => {
     expect(await garminProvider.fetchActivity(ref, empty.ctx)).toBeNull()
   })
 
+  it('throws RangeError for a download that is neither a readable ZIP nor a FIT', async () => {
+    const truncated = zipWith({ 'a.fit': 'FITDATA' }).subarray(0, 20)
+    for (const body of [new Uint8Array(truncated), new TextEncoder().encode('<html>oops</html>')]) {
+      const h = makeCtx(
+        {
+          [`GET ${API}/download-service/files/activity/1001`]: () => new Response(body),
+        },
+        { secret: secretFor('bad') },
+      )
+      await expect(garminProvider.fetchActivity(ref, h.ctx)).rejects.toBeInstanceOf(RangeError)
+      expect(h.parseFile).not.toHaveBeenCalled()
+    }
+  })
+
   it('pauses for six hours on 429 or 403 with a cursor that re-includes the activity', async () => {
     for (const status of [429, 403]) {
       const h = makeCtx(
@@ -658,6 +672,19 @@ describe('garmin connect: wellness', () => {
     expect(days).toHaveLength(30)
     expect(dates[0]).toBe('2026-09-23')
     expect(dates.at(-1)).toBe('2026-10-22')
+  })
+
+  it('skips days without data but fails on a server error', async () => {
+    const h = makeCtx(
+      {
+        [`${sleepUrl}?date=2026-10-20`]: () => new Response(null, { status: 204 }),
+        [`${sleepUrl}?date=2026-10-21`]: () => new Response('boom', { status: 500 }),
+      },
+      { secret: secretFor('wellfail') },
+    )
+    await expect(garminProvider.listWellness?.('2026-10-20', '2026-10-21', h.ctx)).rejects.toThrow(
+      /HTTP 500/,
+    )
   })
 
   it('pauses on 429 while reading wellness', async () => {

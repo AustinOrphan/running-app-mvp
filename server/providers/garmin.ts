@@ -357,12 +357,17 @@ function basename(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1)
 }
 
-/** The first `.fit` in Garmin's ZIP, or the bytes themselves when Garmin sent a bare FIT. */
+/**
+ * The first `.fit` in Garmin's ZIP, or the bytes themselves when Garmin sent a bare FIT; null when
+ * the ZIP holds no FIT. A download that is neither a ZIP nor a FIT, or a ZIP that cannot be opened,
+ * throws `RangeError`, as the parser does for an unreadable file.
+ */
 function extractFit(id: string, bytes: Uint8Array): { name: string; bytes: Uint8Array } | null {
   const isZip = bytes[0] === 0x50 && bytes[1] === 0x4b
   if (!isZip) {
-    const bareFit = String.fromCharCode(...bytes.subarray(8, 12)) === '.FIT'
-    return bareFit ? { name: `${id}.fit`, bytes } : null
+    if (String.fromCharCode(...bytes.subarray(8, 12)) === '.FIT')
+      return { name: `${id}.fit`, bytes }
+    throw new RangeError(`Garmin download for ${id} is neither a ZIP nor a FIT file.`)
   }
   let taken = false
   let files: Record<string, Uint8Array>
@@ -375,8 +380,9 @@ function extractFit(id: string, bytes: Uint8Array): { name: string; bytes: Uint8
         return true
       },
     })
-  } catch {
-    return null
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    throw new RangeError(`Garmin download for ${id} is not a readable ZIP: ${reason}`)
   }
   const entry = Object.entries(files)[0]
   return entry ? { name: basename(entry[0]), bytes: entry[1] } : null
@@ -420,8 +426,10 @@ function positive(value: unknown): number | null {
   return n !== null && n > 0 ? n : null
 }
 
-async function json(res: Response): Promise<Record<string, unknown> | null> {
-  if (!res.ok) return null
+/** A wellness answer's body; null for a day without data (404 or 204), throws on other failures. */
+async function json(res: Response, what: string): Promise<Record<string, unknown> | null> {
+  if (res.status === 404 || res.status === 204) return null
+  if (!res.ok) throw new Error(`Garmin ${what} request failed (HTTP ${res.status}).`)
   return record(await res.json().catch(() => null))
 }
 
@@ -437,6 +445,7 @@ async function listWellness(from: string, to: string, ctx: ProviderCtx): Promise
       const date = isoDay(ms)
       const sleepBody = await json(
         await apiGet(ctx, `/sleep-service/sleep/dailySleepData?date=${date}`),
+        'sleep',
       )
       if (!sleepBody) continue
       const dto = record(sleepBody.dailySleepDTO)
@@ -445,7 +454,7 @@ async function listWellness(from: string, to: string, ctx: ProviderCtx): Promise
       const restingHr = positive(sleepBody.restingHeartRate)
       let hrv = positive(sleepBody.avgOvernightHrv)
       if (hrv === null && (sleepSec !== null || restingHr !== null)) {
-        const hrvBody = await json(await apiGet(ctx, `/hrv-service/hrv/${date}`))
+        const hrvBody = await json(await apiGet(ctx, `/hrv-service/hrv/${date}`), 'HRV')
         hrv = positive(record(hrvBody?.hrvSummary).lastNightAvg)
       }
       if (sleepSec === null && restingHr === null && hrv === null) continue
