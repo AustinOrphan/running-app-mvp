@@ -533,6 +533,10 @@ export const hUltra = {
         note: 'Default: with this many check-ins before the race, a post-race check-in also counts as poor when it is worse than the own pre-race median by the J2 margin; the personal comparison only adds caution.',
       },
     ),
+    gateStaleDays: param('h12.gateStaleDays', 3, 'D', 'H12', [], {
+      unit: 'days',
+      note: 'Default: a check-in older than this many days before a stage boundary neither delays nor releases it, so a poor rating followed by no ratings holds a step for at most this long; with no recent check-in the default schedule runs.',
+    }),
     gateEscalationDays: param(
       'h12.gateEscalationDays',
       14,

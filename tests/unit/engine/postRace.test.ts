@@ -229,6 +229,17 @@ describe('the check-in gate', () => {
     expect(w.quietUntil).toBe(day(20))
   })
 
+  it('stops holding a boundary once a poor check-in is older than the stale window', () => {
+    // a sore day 7 with no check-in after it: the step-2 boundary (day 9) waits until day 7 falls
+    // out of the 3-day window before it, then the default schedule resumes instead of waiting for
+    // two clean check-ins that never come
+    expect(P.h12.gateStaleDays.value).toBe(3)
+    const w = marathon(daily(7, { 7: { soreness: 5 } }), day(20))
+    expect(w.stages[1]!.from).toBe(day(11))
+    expect(w.extensionDays).toBe(2)
+    expect(w.quietUntil).toBe(day(18))
+  })
+
   it('never advances a stage: good check-ins leave the default dates', () => {
     const w = marathon(daily(20, { 3: { mood: 5, fatigue: 1, soreness: 1 } }), day(20))
     expect(w.stages[1]!.from).toBe(day(9))

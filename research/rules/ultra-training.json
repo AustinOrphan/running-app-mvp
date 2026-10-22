@@ -181,7 +181,7 @@
   {
     "id": "ultra-peak-timing-recovery",
     "statement": "Place peak training volume about 3 weeks before the goal race (elite n = 1 structure; also the modal peak-week timing of Western States and UTMB finishers on Strava), and follow 100 km or longer races, including tune-up races, with the day-counted post-race window of H12 (hold, then 7-day steps scaled by race class). No day count is evidenced beyond the time courses cited in H12.",
-    "parameter": "h12.holdDays",
+    "parameter": "h12HoldDays",
     "value": "see H12: hold 7 days (100 km class) to 14 days (beyond 170 km), then 7-day steps",
     "unit": "days",
     "appliesTo": "Races of 100 km or longer",

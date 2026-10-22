@@ -214,9 +214,9 @@ function holdsStage(checkin: Checkin, own: ItemMedians | null): boolean {
  * the last step.
  *
  * Check-in gate, delay only: a stage boundary b moves one day later while the last 2 check-ins
- * before it (after the race, and none after `today`) are not clean, tested day by day up to
- * `today`; the boundaries after it move by the same days. Without check-ins the default schedule
- * runs. Nothing here shortens or advances a stage.
+ * of the `gateStaleDays` before it (after the race, and none after `today`) are not clean, tested
+ * day by day up to `today`; the boundaries after it move by the same days. Without recent
+ * check-ins the default schedule runs. Nothing here shortens or advances a stage.
  */
 export function postRaceWindow(
   race: PostRaceRace,
@@ -232,9 +232,12 @@ export function postRaceWindow(
   const after = checkins
     .filter((c) => c.date > race.date && c.date <= today)
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+  // Only recent check-ins speak for a boundary: one older than the stale window neither delays
+  // nor releases it, so a poor rating followed by silence holds a step for a few days, not for
+  // good. With no recent check-in the default schedule runs.
   const clean = (boundary: string): boolean =>
     after
-      .filter((c) => c.date < boundary)
+      .filter((c) => c.date < boundary && c.date >= addDays(boundary, -P.h12.gateStaleDays.value))
       .slice(0, P.h12.advanceCleanCheckins.value)
       .every((c) => !holdsStage(c, own))
 

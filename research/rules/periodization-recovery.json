@@ -209,7 +209,7 @@
   {
     "id": "periodization-post-race-marathon-return",
     "statement": "After a marathon-class race (32-42.2 km): no running on days 0-1; from day 2 (at least 48 h after the finish), up to 3 easy runs in the first 7-day step, on non-consecutive days, each at most 40 min at or below first-threshold heart rate (Z1, conversational). Easy running at this dose did not slow CK or LDH recovery and improved squat-jump recovery at 96 h against rest. The step volume fractions (0.5 then 0.75 of the reference week) are defaults.",
-    "parameter": "h12.holdDays.marathon",
+    "parameter": "h12HoldDays.marathon",
     "value": "2 days hold; first step at most 3 runs of at most 40 min",
     "unit": "days; min per run",
     "appliesTo": "Marathon-class races; recreational runners finishing in about 3-4 h (RCT population)",
@@ -224,7 +224,7 @@
   {
     "id": "periodization-post-race-ultra-hold",
     "statement": "Hold running after an ultra for 4 days (50 km class, above 42.2 to 80.5 km), 7 days (100 km class, to 130 km), 10 days (100-mile class, to 170 km) or 14 days (beyond 170 km). These are defaults: the 100-mile value follows the one-day-per-10-miles convention and sits inside the measured time course (neuromuscular function mostly back by day 9, fully by day 16 after 166 km; 400 m speed still 12% down at day 5 after 161 km); damage did not scale with distance up to 330 km, so the 14-day value for longer events is a judgement cap. Walking and light cross-training are allowed during the hold.",
-    "parameter": "h12.holdDays",
+    "parameter": "h12HoldDays",
     "value": "ultra50 4; ultra100k 7; ultra100mi 10; beyond 14",
     "unit": "days",
     "appliesTo": "Ultra goal races by D1 class",

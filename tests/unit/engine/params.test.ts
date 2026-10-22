@@ -171,7 +171,8 @@ describe('parameter registry', () => {
       P.h12.advanceCleanCheckins.value,
       P.h12.ownBaselineMinCheckins.value,
       P.h12.gateEscalationDays.value,
-    ]).toEqual([2, 14, 14])
+      P.h12.gateStaleDays.value,
+    ]).toEqual([2, 14, 14, 3])
     expect(P.macroDesign.postRaceMarathonFractions.value).toEqual([0.5, 0.75])
     expect(P.macroDesign.postRaceLongFractions.value).toEqual([0.25, 0.5, 0.75])
     expect(P.macroDesign.postRaceReducedFraction.value).toBe(0.5)
@@ -179,6 +180,6 @@ describe('parameter registry', () => {
     expect(hold.marathon.grade).toBe('B')
     expect(P.h12.step1RunMaxMin.grade).toBe('B')
     expect(P.h12.modifierMultiplier.grade).toBe('D')
-    expect(paramsForRule('H12')).toHaveLength(18)
+    expect(paramsForRule('H12')).toHaveLength(19)
   })
 })
