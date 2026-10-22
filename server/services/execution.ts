@@ -209,6 +209,9 @@ async function matchAndAssess(
   }
 }
 
+/** Which edit of a stored activity asks whether its link still fits: its date, or only its type. */
+export type Reconsider = 'date' | 'type'
+
 /**
  * Whether a stored activity still fits the session it fulfils: the same test the matcher applies,
  * so the kinds are compatible and the dates are at most a day apart [design 4.1].
@@ -239,11 +242,12 @@ async function unlink(deps: Deps, row: PlanSessionRow): Promise<void> {
 /**
  * After an activity is stored: match it to a planned session and assess the execution. With
  * `reconsider` (its date or type was edited) a linked activity that no longer fits its session is
- * unlinked, the owner's link included, and matching runs again over the freed session.
+ * unlinked and matching runs again over the freed session. An owner link is reconsidered only when
+ * the date changed: on the same date it stays whatever the type [design 4.1, plan E18].
  */
 export async function runExecutionForActivity(
   deps: Deps,
-  args: { userId: string; activityId: string; reconsider?: boolean },
+  args: { userId: string; activityId: string; reconsider?: Reconsider | undefined },
 ): Promise<void> {
   const { prisma } = deps
   const today = todayIso()
@@ -259,7 +263,11 @@ export async function runExecutionForActivity(
   // Dates around a session freed below, whose neighbours may now fulfil it.
   let freed: string | null = null
   if (linked) {
-    if (!args.reconsider || stillFits(linked, toActivity(activity))) {
+    const keep =
+      args.reconsider === undefined ||
+      (args.reconsider === 'type' && linked.linkSource === 'owner') ||
+      stillFits(linked, toActivity(activity))
+    if (keep) {
       await assessSessionById(deps, { userId: args.userId, sessionId: linked.id })
       return
     }
@@ -299,7 +307,7 @@ export async function runExecutionForActivity(
  */
 export async function runExecutionQuietly(
   deps: Deps,
-  args: { userId: string; activityId: string; reconsider?: boolean },
+  args: { userId: string; activityId: string; reconsider?: Reconsider | undefined },
 ): Promise<void> {
   try {
     await runExecutionForActivity(deps, args)

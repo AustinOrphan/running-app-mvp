@@ -522,6 +522,12 @@ describe('execution runs as soon as an activity is stored, edited, rated or link
       activityId: created.id,
       linkSource: 'owner',
     })
+    // a type edit on the same date keeps the owner's link, even to a kind the matcher would refuse
+    await c.put(`/api/activities/${created.id}`).send(manualRun(today, { type: 'strength' }))
+    expect(await sessionRow(sessionIds[0]!)).toMatchObject({
+      activityId: created.id,
+      linkSource: 'owner',
+    })
     // a date edit out of reach unlinks it
     await c.put(`/api/activities/${created.id}`).send(manualRun(addDays(today, -5)))
     expect(await sessionRow(sessionIds[0]!)).toMatchObject({ activityId: null, linkSource: null })

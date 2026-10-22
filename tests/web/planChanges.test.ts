@@ -32,6 +32,7 @@ describe('describeChange', () => {
     expect(describeChange(change('phase', 'build', 'specific')).text).toBe(
       'Phase Build to Specific',
     )
+    expect(describeChange(change('phase', 'base1', 'race')).text).toBe('Phase Base 1 to Race week')
     expect(describeChange(change('isRecovery', false, true)).text).toBe('Recovery week no to yes')
   })
 
