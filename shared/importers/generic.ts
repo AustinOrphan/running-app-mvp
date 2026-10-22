@@ -1,6 +1,7 @@
 // Server and tests only: uses node:crypto, so web/ must not import this file.
 import { createHash } from 'node:crypto'
 import { isIsoDate } from '../dates.ts'
+import { MAX_DISTANCE_M, MAX_DURATION_SEC, MAX_NOTES } from '../limits.ts'
 import { milesToM } from '../units.ts'
 import { parseCsv } from './csv.ts'
 import type { ImportRow, RowError } from './csv.ts'
@@ -57,17 +58,27 @@ export function parseGenericCsv(text: string): { rows: ImportRow[]; errors: RowE
       errors.push({ line, reason: 'miles must be positive' })
       return
     }
+    const durationSec = Math.round(minutes * 60)
+    if (durationSec > MAX_DURATION_SEC) {
+      errors.push({ line, reason: 'minutes out of range' })
+      return
+    }
+    const distanceM = Math.round(milesToM(miles))
+    if (distanceM > MAX_DISTANCE_M) {
+      errors.push({ line, reason: 'miles out of range' })
+      return
+    }
     const key = createHash('sha1').update(`${date}|${minutes}|${miles}`).digest('hex')
     rows.push({
       providerKey: `csv:${key}`,
       date,
       startTime: null,
-      durationSec: Math.round(minutes * 60),
-      distanceM: Math.round(milesToM(miles)),
+      durationSec,
+      distanceM,
       avgHr: null,
       maxHr: null,
       elevationGainM: null,
-      notes: cell(record, 'notes') || null,
+      notes: cell(record, 'notes').slice(0, MAX_NOTES) || null,
     })
   })
   return { rows, errors }

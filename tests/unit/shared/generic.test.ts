@@ -3,6 +3,31 @@ import { describe, expect, test } from 'vitest'
 import { parseGenericCsv } from '../../../shared/importers/generic.ts'
 
 describe('parseGenericCsv', () => {
+  test('rows beyond the activity limits are row errors, not rows', () => {
+    const { rows, errors } = parseGenericCsv(
+      [
+        'date,minutes,miles,notes',
+        '2026-01-01,1e12,1e9,x',
+        '2026-01-02,3000,5,x',
+        '2026-01-03,60,700,x',
+        '2026-01-04,2880,621,edge',
+      ].join('\n'),
+    )
+    expect(errors).toEqual([
+      { line: 2, reason: 'minutes out of range' },
+      { line: 3, reason: 'minutes out of range' },
+      { line: 4, reason: 'miles out of range' },
+    ])
+    expect(rows.map((row) => row.date)).toEqual(['2026-01-04'])
+  })
+
+  test('notes are cut to the activity notes limit', () => {
+    const { rows } = parseGenericCsv(
+      `date,minutes,miles,notes\n2026-01-01,30,3,${'n'.repeat(5000)}\n`,
+    )
+    expect(rows[0]?.notes).toHaveLength(2000)
+  })
+
   test('date,type,minutes,miles,notes with any header case', () => {
     const { rows, errors } = parseGenericCsv(
       'Date,TYPE,Minutes,Miles,Notes\n2026-03-02,run,45,5,Hill repeats\n',
