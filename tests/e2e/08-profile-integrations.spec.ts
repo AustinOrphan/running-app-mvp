@@ -43,6 +43,12 @@ test('the integrations page lists every provider without calling out to any of t
 }) => {
   await signedInApi(page, baseURL ?? '')
   await resetData()
+  const origin = new URL(baseURL ?? '').origin
+  const offOrigin: string[] = []
+  page.on('request', (request) => {
+    const url = new URL(request.url())
+    if (url.protocol.startsWith('http') && url.origin !== origin) offOrigin.push(request.url())
+  })
   await page.goto('/more')
   await page.getByRole('link', { name: /^Integrations/ }).click()
   await expect(page.getByRole('heading', { name: 'Integrations', level: 1 })).toBeVisible()
@@ -66,4 +72,7 @@ test('the integrations page lists every provider without calling out to any of t
   await expect(
     page.getByRole('region', { name: 'Watched folder' }).getByLabel('Folder path'),
   ).toBeVisible()
+
+  // The page itself requests nothing outside the app's own origin.
+  expect(offOrigin).toEqual([])
 })
