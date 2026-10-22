@@ -122,3 +122,60 @@ describe('findPossibleDuplicate with start instants', () => {
     expect(findPossibleDuplicate(candidate, [other])).toBe(other)
   })
 })
+
+describe('findPossibleDuplicate within one source', () => {
+  test('an Apple Health export row and a push row with the same start match', () => {
+    const exported = makeActivity({
+      id: 'export',
+      source: 'apple-health',
+      providerKey: `apple:export:${T0}`,
+      startUtc: T0,
+      distanceM: 5000,
+    })
+    const pushed = makeActivity({
+      id: 'push',
+      source: 'apple-health',
+      providerKey: 'apple:6f1c',
+      startUtc: at(20),
+      distanceM: 5010,
+    })
+    expect(findPossibleDuplicate(pushed, [exported])).toBe(exported)
+    expect(duplicateStatusFor('start', pushed, exported)).toBe('confirmed')
+    expect(pickDuplicate(pushed, exported).duplicate).toBe(pushed)
+  })
+
+  test('a FIT and a GPX file of the same run match', () => {
+    const fit = makeActivity({
+      id: 'fit',
+      source: 'file',
+      providerKey: 'fit:1234-abcd',
+      startUtc: T0,
+      distanceM: 8000,
+    })
+    const gpx = makeActivity({
+      id: 'gpx',
+      source: 'file',
+      providerKey: 'sha:0123456789abcdef',
+      startUtc: at(3),
+      distanceM: 7990,
+    })
+    expect(findPossibleDuplicate(gpx, [fit])).toBe(fit)
+  })
+
+  test('two runs of one source that start apart are two runs', () => {
+    const morning = makeActivity({ id: 'am', source: 'file', startUtc: T0, distanceM: 5000 })
+    const evening = makeActivity({
+      id: 'pm',
+      source: 'file',
+      startUtc: at(10 * 3600),
+      distanceM: 5000,
+    })
+    expect(findPossibleDuplicate(evening, [morning])).toBeNull()
+  })
+
+  test('same-source runs without a start instant on one day are not matched on date alone', () => {
+    const a = makeActivity({ id: 'a', source: 'csv', distanceM: 5000 })
+    const b = makeActivity({ id: 'b', source: 'csv', distanceM: 5010 })
+    expect(findPossibleDuplicate(b, [a])).toBeNull()
+  })
+})

@@ -80,9 +80,11 @@ function closeness(a: Activity, b: Activity): number {
 }
 
 /**
- * The run, from another source, that `candidate` probably repeats (see matchActivities). A match
- * on start instant beats a same-date match; then the closest, ties to the earlier row in
- * `others`. Rows already flagged `possible` or `confirmed` are skipped; `dismissed` rows still
+ * The run that `candidate` probably repeats (see matchActivities). A run from the same source
+ * counts only on a start-instant match: importers of one source give the same run different
+ * provider keys (an Apple Health export and its push, a FIT and a GPX file), but two runs of
+ * similar length on one day are not one. A match on start instant beats a same-date match; then
+ * the closest, ties to the earlier row in `others`. Rows already flagged `possible` or `confirmed` are skipped; `dismissed` rows still
  * match.
  */
 export function findPossibleDuplicate(candidate: Activity, others: Activity[]): Activity | null {
@@ -92,10 +94,10 @@ export function findPossibleDuplicate(candidate: Activity, others: Activity[]): 
   let bestGap = Infinity
   for (const other of others) {
     if (other.id === candidate.id) continue
-    if (other.source === candidate.source || !isRun(other)) continue
+    if (!isRun(other)) continue
     if (other.duplicateStatus === 'possible' || other.duplicateStatus === 'confirmed') continue
     const kind = matchActivities(candidate, other)
-    if (kind === null) continue
+    if (kind === null || (kind === 'date' && other.source === candidate.source)) continue
     const kindRank = kind === 'start' ? 0 : 1
     const gap = closeness(candidate, other)
     if (kindRank < bestKind || (kindRank === bestKind && gap < bestGap)) {
