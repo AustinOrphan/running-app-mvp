@@ -103,22 +103,24 @@ export function importsRouter(deps: Deps): Router {
             })),
           })
         }
+        // Inside the transaction, so a failure here rolls the whole import back and the client's
+        // "nothing was imported" holds.
+        if (fresh.length > 0) {
+          const inserted = await tx.activity.findMany({
+            where: { userId, importBatchId: created.id },
+            select: { id: true },
+          })
+          await markDuplicates(
+            tx,
+            userId,
+            inserted.map((row) => row.id),
+          )
+        }
         return created
       },
       { timeout: 60_000 },
     )
 
-    if (fresh.length > 0) {
-      const created = await prisma.activity.findMany({
-        where: { userId, importBatchId: batch.id },
-        select: { id: true },
-      })
-      await markDuplicates(
-        prisma,
-        userId,
-        created.map((row) => row.id),
-      )
-    }
     return toImportBatch(batch)
   }
 
