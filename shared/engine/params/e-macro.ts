@@ -3,6 +3,15 @@
 // rules give their detail.
 import { param, type ParamGroups } from './define.ts'
 
+/**
+ * One rung of the run-walk ladder: the sessions of a week, each a list of run and walk minutes in
+ * order, starting with a run.
+ */
+export type Rung = number[][]
+
+/** `unit` repeated `n` times, as one flat list. */
+const times = (n: number, unit: number[]): number[] => Array.from({ length: n }, () => unit).flat()
+
 const TID_PRIOR = ['esteve-lanao-2007-tid-runners', 'sperlich-2023-tid-phases']
 const TID_FLOOR = [
   'haugen-2022-world-class-runners',
@@ -170,13 +179,15 @@ export const eMacro = {
       note: 'Default: one maintenance session per week after the strength block.',
     }),
   },
-  // The restart floor: the first week of a plan for a runner whose recent weeks are below it.
+  // The start paths [E6]: the first weeks of a plan for a runner whose typical week is under
+  // `sessions` x `sessionMin` minutes, or who has no logged run. The floor is 3 sessions of
+  // 20-30 min; the run-walk ladder and the injury-return ladder follow.
   restartFloor: {
     sessions: param(
       'restartFloor.sessions',
       3,
       'D',
-      'design-macro',
+      'E6',
       [
         'kluitenberg-2015-nlstart2run',
         'buist-2008-graded-training',
@@ -187,24 +198,216 @@ export const eMacro = {
       ],
       {
         unit: 'sessions per week',
-        note: 'Default: novice and return programmes start at about three sessions of 20-30 minutes, and every published beginner plan uses three days. The ceiling has trial direction (three days a week had fewer injuries than five in a 1977 trial; three versus two was not significant), so the grade stays D. G-2 governs growth from an established weekly base, so the floor week itself is exempt from G-2; every session still obeys G-1.',
+        note: 'Default: novice and return programmes start at about three sessions of 20-30 minutes, and every published beginner plan uses three days. The ceiling has trial direction (three days a week had fewer injuries than five in a 1977 trial; three versus two was not significant), so the grade stays D. G-2 governs growth from an established weekly base, so the first week of a start path is exempt from G-2 up to its minutes; every session still obeys G-1.',
       },
     ),
     sessionMin: param(
       'restartFloor.sessionMin',
       20,
       'D',
-      'design-macro',
+      'E6',
       ['kluitenberg-2015-nlstart2run', 'buist-2008-graded-training'],
       {
         unit: 'min per session',
-        note: 'Default: novice and return programmes start at about three sessions of 20-30 minutes; the low end is the floor.',
+        note: 'Default: novice and return programmes start at about three sessions of 20-30 minutes; the low end is the floor, and a typical week under 3 x this length starts a start path.',
       },
     ),
-    lookbackDays: param('restartFloor.lookbackDays', 90, 'D', 'design-macro', [], {
-      unit: 'days',
-      note: 'Default: the floor sessions are plain runs when the runner completed a run of at least the floor session length within this many days, and run-walk otherwise.',
-    }),
+    sessionMaxMin: param(
+      'restartFloor.sessionMaxMin',
+      30,
+      'D',
+      'E6',
+      [
+        'pollock-1977-frequency-duration-injury',
+        'frandsen-2025-session-spike',
+        'linton-2018-uk-novice-recreational-injury',
+      ],
+      {
+        unit: 'min per session',
+        note: 'Default: a returner with a continuous run of 20 minutes or more in the last 30 days restarts at 3 sessions of that run, rounded down to 5 minutes, up to this length. This is the only start rule that moves toward more load; the runner own completed run bounds it, and it needs at least 2 years of running, no soft flag and no recent injury. A 1977 trial found similar injury rates at 15 and 30 minutes three times a week (young men, hard jogging), so the grade stays D.',
+      },
+    ),
+    sessionStepMin: param(
+      'restartFloor.sessionStepMin',
+      5,
+      'D',
+      'E6',
+      ['frandsen-2025-session-spike'],
+      {
+        unit: 'min',
+        note: 'Default: the longest continuous run is rounded down to a multiple of this before it sets the floor session length.',
+      },
+    ),
+    lookbackDays: param(
+      'restartFloor.lookbackDays',
+      30,
+      'D',
+      'E6',
+      ['frandsen-2025-session-spike'],
+      {
+        unit: 'days',
+        note: 'Default: the floor follows the longest continuous run within this many days, the window of the session spike guard (G-1). It was 90 days before the second evidence pass.',
+      },
+    ),
+    fallbackLookbackDays: param(
+      'restartFloor.fallbackLookbackDays',
+      90,
+      'D',
+      'E6',
+      ['frandsen-2025-session-spike', 'coyle-1984-detraining-time-course'],
+      {
+        unit: 'days',
+        note: 'Default: with no run in the 30-day window, G-1 has no reference, so the first week uses the J7 fraction times the longest run of this many days (E6 paths 3 and 4).',
+      },
+    ),
+  },
+  // The run-walk ladder for a true novice and for a returner whose longest run is under 20 min
+  // [E6]. Each rung is the runs of one week: up to three sessions, each a list of run and walk
+  // minutes in order, starting with a run (an odd-length list ends on a run, an even-length one
+  // on a walk). A rung with fewer than three sessions repeats them.
+  noviceLadder: {
+    rungs: param<Rung[]>(
+      'noviceLadder.rungs',
+      [
+        [times(7, [1, 2])],
+        [times(6, [1.5, 2])],
+        [times(2, [1.5, 1.5, 3, 3])],
+        [[3, 1.5, 5, 2.5, 3, 1.5, 5]],
+        [[5, 3, 5, 3, 5], [8, 5, 8], [20]],
+        [[5, 3, 8, 3, 5], [10, 3, 10], [22]],
+        [[25]],
+        [[28]],
+        [[30]],
+      ],
+      'D',
+      'E6',
+      [
+        'nhs-2026-couch-to-5k',
+        'clark-2026-couch-to-5k-original',
+        'galloway-2026-beginner-run-walk',
+        'linton-2018-uk-novice-recreational-injury',
+      ],
+      {
+        unit: 'min of running and walking per session',
+        note: 'Default: nine rungs, three non-consecutive days a week. The shape adapts the NHS and the original Couch-to-5K plans, with 1 min run and 2 min walk kept at rung 1 (slightly gentler than the NHS week 1) and 22 min at rung 6; 3 x 30 min of continuous running at rung 9. No study compares run-walk starts with continuous starts. Time on feet in a week: about 63, 63, 54, 64.5, 62, 69, 75, 84 and 90 min.',
+      },
+    ),
+    walkFrameMin: param(
+      'noviceLadder.walkFrameMin',
+      5,
+      'D',
+      'E6',
+      ['nhs-2026-couch-to-5k', 'clark-2026-couch-to-5k-original'],
+      {
+        unit: 'min',
+        note: 'Default: a walk of this length before and after every ladder session, as in the published beginner plans; the walks are not counted in the session or the week.',
+      },
+    ),
+    advanceMinCompletion: param(
+      'noviceLadder.advanceMinCompletion',
+      0.8,
+      'D',
+      'E6',
+      [
+        'relph-2023-couch-to-5k-injury',
+        'fokkema-2019-discontinuation-start-to-run',
+        'nhs-2026-couch-to-5k',
+      ],
+      {
+        unit: 'fraction of planned minutes',
+        note: 'Default: the ladder advances one rung only after a week with at least this share of the planned minutes and no pain; otherwise the rung repeats. It matches the weekly hold threshold of J5.',
+      },
+    ),
+    holdRpe: param(
+      'noviceLadder.holdRpe',
+      5,
+      'D',
+      'E6',
+      ['kluitenberg-2016-nlstart2run-training-factors'],
+      {
+        unit: 'RPE 0-10',
+        note: 'Default: a mean session RPE at or above this holds the rung when sessions carry ratings. The direction (harder starts, more injuries) is grade C; the 5/10 cut-off is an engine default. Without ratings the ladder advances on completion and pain alone.',
+      },
+    ),
+    bmiHoldWeeks: param(
+      'noviceLadder.bmiHoldWeeks',
+      3,
+      'C',
+      'E6',
+      [
+        'nielsen-2014-first-week-distance-obese',
+        'bertelsen-2018-start-to-run-distance-rct',
+        'bertelsen-2018-bmi-self-chosen-start',
+      ],
+      {
+        unit: 'weeks',
+        note: 'Weeks held at rung 1 for a runner with a BMI above 30 (height and weight in the profile); the ladder advances in the week after. It copies the tested arm of one trial; the intention-to-treat result of that trial was not significant, so confidence is low.',
+      },
+    ),
+    quietWeeksAfter: param(
+      'noviceLadder.quietWeeksAfter',
+      2,
+      'D',
+      'E6',
+      ['kluitenberg-2016-nlstart2run-training-factors'],
+      {
+        unit: 'weeks',
+        note: 'Default: no quality sessions or strides during the ladder and for this many weeks after it ends. The direction (harder training early, more injuries) is grade C; the length is an engine default.',
+      },
+    ),
+  },
+  // The injury-return ladder [G-3]: continuous easy running in levels, for a runner with the
+  // recent-injury flag and a typical week under the floor or no runs.
+  injuryReturn: {
+    levelsMin: param<number[]>(
+      'injuryReturn.levelsMin',
+      [5, 10, 15, 20, 25, 30],
+      'D',
+      'g-3',
+      [
+        'sanford-2024-return-to-running',
+        'bjsm-2019-bone-stress-return-to-run',
+        'relph-2023-couch-to-5k-injury',
+        'vanpoppel-2021-overuse-risk-factors-review',
+      ],
+      {
+        unit: 'min of continuous easy running per run',
+        note: 'Default: the levels are clinical conventions, and applying soft-tissue protocols to a generic injury flag is an extrapolation. Each run is the lesser of the level and the hard G-3 limit of 1.10x the longest run (G-1), so progress is slower than the source protocol.',
+      },
+    ),
+    repeatsPerLevel: param(
+      'injuryReturn.repeatsPerLevel',
+      2,
+      'D',
+      'g-3',
+      ['sanford-2024-return-to-running', 'bjsm-2019-bone-stress-return-to-run'],
+      {
+        unit: 'runs',
+        note: 'Default: each level is run this many times, one week of runs per level, before the next level.',
+      },
+    ),
+    restDaysBetween: param(
+      'injuryReturn.restDaysBetween',
+      1,
+      'D',
+      'g-3',
+      ['sanford-2024-return-to-running', 'bjsm-2019-bone-stress-return-to-run'],
+      {
+        unit: 'days',
+        note: 'Default: at least this many rest days between two runs of the ladder.',
+      },
+    ),
+    advanceMaxPain: param(
+      'injuryReturn.advanceMaxPain',
+      0,
+      'D',
+      'g-3',
+      ['sanford-2024-return-to-running'],
+      {
+        unit: 'pain score 0-10',
+        note: 'Default: a level counts as symptom-free when the pain on the activity and on the next check-in is at most this score. Any more pain drops the ladder by one level.',
+      },
+    ),
   },
   // Engine defaults that the rules leave open. Every one is grade D with no evidence: they size
   // the plan around the rules' limits and are labelled as defaults wherever they are shown.
@@ -213,10 +416,17 @@ export const eMacro = {
       unit: 'weeks',
       note: 'Default: the build phase lasts up to this many weeks; base takes the remainder (E2).',
     }),
-    startFloorWeekMin: param('macroDesign.startFloorWeekMin', 90, 'D', 'design-macro', [], {
-      unit: 'min per week',
-      note: 'Default: weekly running time to start from when no recent running exists (3 runs of 30 min).',
-    }),
+    startFloorWeekMin: param(
+      'macroDesign.startFloorWeekMin',
+      60,
+      'D',
+      'E6',
+      ['nhs-2026-couch-to-5k', 'clark-2026-couch-to-5k-original'],
+      {
+        unit: 'min per week',
+        note: 'Default: weekly running time to start from when no recent running exists and no start path applies (a progression hold or a tightened profile): about rung 1 of the ladder, 3 sessions of 20 min. It was 90 min (3 x 30) before the second evidence pass.',
+      },
+    ),
     longRunShareOfWeek: param(
       'macroDesign.longRunShareOfWeek',
       0.35,

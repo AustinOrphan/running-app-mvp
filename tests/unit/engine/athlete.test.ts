@@ -288,19 +288,85 @@ describe('estimateState: experience, risk and flags', () => {
     expect(estimateState(input([], { profile: { sex: 'male' } })).risk.bsiFactors).toBe(0)
   })
 
-  test('soft flags apply to novices only', () => {
+  test('soft flags apply to every runner: age from 45 with no upper bound, BMI, injury, no history', () => {
     const novice = estimateState(
       input([], {
         profile: { birthYear: 1970, heightCm: 170, weightKg: 95, runningSinceYear: null },
       }),
     )
     expect(novice.experience).toBe('novice')
-    expect(novice.risk.noviceFlags).toEqual(['age-45-65', 'bmi-over-30', 'no-running-history'])
+    expect(novice.risk.noviceFlags).toEqual(['age-45-plus', 'bmi-over-30', 'no-running-history'])
     const trainedActs = Array.from({ length: 112 }, (_, i) => run(i, { durationSec: 3000 }))
     const trained = estimateState(
       input(trainedActs, { profile: { birthYear: 1970, heightCm: 170, weightKg: 95 } }),
     )
-    expect(trained.risk.noviceFlags).toEqual([])
+    expect(trained.risk.noviceFlags).toEqual(['age-45-plus', 'bmi-over-30'])
+    // 65 was only the enrolment limit of the source cohort: nobody ages out of the flag
+    const old = estimateState(input(trainedActs, { profile: { birthYear: 1950 } }))
+    expect(old.age).toBe(76)
+    expect(old.risk.noviceFlags).toEqual(['age-45-plus'])
+    const young = estimateState(input(trainedActs, { profile: { birthYear: 1990 } }))
+    expect(young.risk.noviceFlags).toEqual([])
+  })
+
+  test('an injury of any kind in the last 12 months is a soft flag; an older one is not', () => {
+    const injury = (year: number, month: number, kind: 'joint' | 'muscle') => ({
+      area: 'knee',
+      side: 'left' as const,
+      year,
+      month,
+      kind,
+      notes: null,
+    })
+    const acts = Array.from({ length: 112 }, (_, i) => run(i, { durationSec: 3000 }))
+    const recent = estimateState(input(acts, { profile: { injuries: [injury(2026, 2, 'joint')] } }))
+    expect(recent.risk.recentInjury).toBe(true)
+    expect(recent.risk.noviceFlags).toEqual(['injury-last-12-months'])
+    const muscle = estimateState(
+      input(acts, { profile: { injuries: [injury(2025, 12, 'muscle')] } }),
+    )
+    expect(muscle.risk.noviceFlags).toEqual(['injury-last-12-months'])
+    const old = estimateState(input(acts, { profile: { injuries: [injury(2024, 3, 'joint')] } }))
+    expect(old.risk.recentInjury).toBe(false)
+    expect(old.risk.noviceFlags).toEqual([])
+  })
+})
+
+describe('estimateState: low frequency [rules A5]', () => {
+  // the typical week must sit at or above the start-path floor: 3 x 20 = 60 min
+  const weekly = (runsPerWeek: number, minutes: number) =>
+    Array.from({ length: 6 }, (_, w) =>
+      Array.from({ length: runsPerWeek }, (_, k) =>
+        makeActivity({
+          id: `lf-${String(w)}-${String(k)}`,
+          date: addDays('2026-06-14', -7 * w - 2 * k),
+          type: 'run',
+          durationSec: minutes * 60,
+        }),
+      ),
+    ).flat()
+
+  test('under 2 completed runs a week over the last 4 weeks, above the floor, is low frequency', () => {
+    const one = estimateState(input(weekly(1, 70)))
+    expect(one.typicalWeekMin).toBe(70)
+    expect(one.lowFrequency).toBe(true)
+    expect(estimateState(input(weekly(2, 40))).lowFrequency).toBe(false)
+    expect(estimateState(input(weekly(3, 30))).lowFrequency).toBe(false)
+  })
+
+  test('a typical week under the floor has a start path instead, and no runs is not low frequency', () => {
+    expect(estimateState(input(weekly(1, 40))).lowFrequency).toBe(false)
+    expect(estimateState(input([])).lowFrequency).toBe(false)
+  })
+
+  test('counts 8 runs in 28 days as 2 a week: not low frequency', () => {
+    const eight = Array.from({ length: 8 }, (_, i) =>
+      run(3 * i, { id: `eight-${String(i)}`, durationSec: 1800 }),
+    )
+    const seven = eight.slice(0, 7)
+    const base = weekly(1, 70).filter((a) => a.date < addDays(TODAY, -28))
+    expect(estimateState(input([...base, ...eight])).lowFrequency).toBe(false)
+    expect(estimateState(input([...base, ...seven])).lowFrequency).toBe(true)
   })
 })
 

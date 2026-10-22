@@ -56,6 +56,7 @@ export const RULE_TITLES: Record<string, string> = {
   E3: 'Recovery weeks',
   E4: 'Intensity distribution by phase',
   E5: 'Fixed blocks',
+  E6: 'Start of a plan',
   // (f) microcycle
   F1: 'Spacing after hard work',
   F2: 'Quality sessions',

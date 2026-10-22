@@ -13,6 +13,8 @@ import { heatWarning } from './heat.ts'
 import {
   completedReference,
   gainLimit,
+  isProgramme,
+  noviceRamp,
   rampLimits,
   rampSkipWeeks,
   recordOf,
@@ -33,6 +35,7 @@ import { P, PARAMS_VERSION } from './params/index.ts'
 import { predictRace } from './predict.ts'
 import { focalBoneActive, isQualityKind } from './readiness.ts'
 import { prescribe } from './sessions.ts'
+import { isProgrammeWeek, startExemptions, startKind } from './startWeeks.ts'
 import type {
   AthleteState,
   EngineInput,
@@ -239,7 +242,11 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
 
   // The limits, from the completed runs and weeks, then each week as it is placed.
   const completed = completedReference(input.activities, state)
+  // The 30-day reference of every run: the completed runs and the planned ones before it. The
+  // sessions of a start-path programme are compared with the completed runs and the plain runs
+  // only (`plain`); the runs after a programme see its sessions too [rules E6, g-1].
   const records: RunRecord[] = [...completed.runs]
+  const plain: RunRecord[] = [...completed.runs]
   const volumes = new Map(state.weeks.map((w) => [w.weekStart, w.runMin]))
   const gains = weeklyGain(input.activities)
   const floorWeek = [...pastWeeks, ...macro].filter((w) => w.flags.includes('restart-floor')).at(-1)
@@ -253,8 +260,9 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       floorWeek === undefined
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
+    exempt: startExemptions([...pastWeeks, ...macro]),
     typicalWeekMin: state.typicalWeekMin,
-    novice: state.experience === 'novice',
+    novice: noviceRamp(state),
     tight: tightRamp(state),
   }
   const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
@@ -354,7 +362,10 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
             zones,
             state,
             prevSessions: history,
-            limits: { runs: records, virtualTwoDay: completed.virtualTwoDay },
+            limits: {
+              runs: isProgrammeWeek(week.flags) ? plain : records,
+              virtualTwoDay: completed.virtualTwoDay,
+            },
           })
         : []
     // A hold trims the week's next quality session, once a week [rules J5, design 4.3].
@@ -405,7 +416,11 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     const ahead = [...inside, ...keptToRun].filter((s) => s.date >= today)
     volumes.set(week.weekStart, done.minutes + runningMinutes(ahead))
     gains.set(week.weekStart, done.gain + runningGain(ahead))
-    for (const s of ahead.sort(bySlot)) if (VOLUME_KINDS.has(s.kind)) records.push(recordOf(s))
+    for (const s of ahead.sort(bySlot)) {
+      if (!VOLUME_KINDS.has(s.kind)) continue
+      records.push(recordOf(s))
+      if (!isProgramme(s)) plain.push(recordOf(s))
+    }
   }
 
   // Guards over the whole plan: the check, which finds nothing to cut in a plan placed as above.
@@ -413,7 +428,11 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     ultraRaceDurationSec: goal.isUltra ? goal.expectedDurationSec : null,
     neverOverride: true,
     lowWeeks,
-    restartFloor: rampCtx.floor,
+    startPath:
+      rampCtx.floor === null || floorWeek === undefined
+        ? null
+        : { ...rampCtx.floor, kind: startKind(floorWeek.flags) ?? 'floor' },
+    exempt: rampCtx.exempt,
     fixed: kept.filter((s) => keep.toRun.has(s) && s.date >= today),
   })
 

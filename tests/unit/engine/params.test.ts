@@ -77,9 +77,11 @@ describe('parameter registry', () => {
   })
 
   it('has finite numeric values, ordered ranges and values inside their range', () => {
+    // a value is a number or a list of numbers, nested as deep as the data needs (the ladder rungs)
+    const finite = (v: unknown): boolean =>
+      Array.isArray(v) ? v.every(finite) : typeof v === 'number' && Number.isFinite(v)
     for (const p of all) {
-      const values = Array.isArray(p.value) ? (p.value as unknown[]) : [p.value]
-      for (const v of values) expect(Number.isFinite(v), p.id).toBe(true)
+      expect(finite(p.value), p.id).toBe(true)
       if (p.range) {
         expect(p.range[0], p.id).toBeLessThanOrEqual(p.range[1] as number)
         if (typeof p.value === 'number') {

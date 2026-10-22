@@ -150,13 +150,13 @@ export const fMicro = {
     ),
     runWalkWeeks: param(
       'flib.runWalkWeeks',
-      6,
+      9,
       'D',
       'F-lib',
       ['kluitenberg-2015-nlstart2run', 'hottenrott-2016-run-walk-marathon'],
       {
         unit: 'weeks',
-        note: 'Default: novice run-walk programme lasts 6 weeks.',
+        note: 'Default: the novice run-walk ladder (E6) has nine rungs, one plan week each; a repeated rung makes it longer.',
       },
     ),
     runWalkRunUnits: param(
@@ -167,7 +167,7 @@ export const fMicro = {
       ['kluitenberg-2015-nlstart2run', 'hottenrott-2016-run-walk-marathon'],
       {
         unit: 'parts run',
-        note: 'Default: run:walk ratio 1:2, run part.',
+        note: 'Default: run:walk ratio 1:2, run part; the ratio of rung 1 of the novice ladder (E6), which holds the other rungs as data.',
       },
     ),
     runWalkWalkUnits: param(
@@ -178,7 +178,7 @@ export const fMicro = {
       ['kluitenberg-2015-nlstart2run', 'hottenrott-2016-run-walk-marathon'],
       {
         unit: 'parts walk',
-        note: 'Default: run:walk ratio 1:2, walk part.',
+        note: 'Default: run:walk ratio 1:2, walk part; the ratio of rung 1 of the novice ladder (E6), which holds the other rungs as data.',
       },
     ),
   },

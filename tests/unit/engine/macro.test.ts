@@ -61,6 +61,7 @@ function state(over: Partial<AthleteState> = {}): AthleteState {
     efficiency: { current: null, trendPct: null, samples: 0 },
     durability: { decouplingMedianPct: null, samples: 0 },
     risk: { recentInjury: false, priorBsi: false, bsiFactors: 0, redsFlags: 0, noviceFlags: [] },
+    lowFrequency: false,
     heatAcclimation: 0,
     ...over,
   }
@@ -369,9 +370,19 @@ describe('macroPlan: weekly targets and ramp', () => {
   })
 
   it('moves a novice up by at least one minute a week', () => {
+    // a typical week at the start-path floor: no ladder, so the ramp itself steps by time
     const work = workWeeks(
-      plan(goal('10k', 20), state({ experience: 'novice', typicalWeekMin: 10 })),
+      plan(goal('10k', 20), state({ experience: 'novice', typicalWeekMin: 60 })),
     )
+    expect(at(work, 1)).toBeGreaterThanOrEqual(at(work, 0) + P.g2.noviceMinStepMin.value)
+  })
+
+  it('gives a low-frequency runner the same minimum step and the 2:1 cadence', () => {
+    const plain = plan(goal('10k', 24), state({ typicalWeekMin: 30 * 2, lowFrequency: false }))
+    const low = plan(goal('10k', 24), state({ typicalWeekMin: 30 * 2, lowFrequency: true }))
+    const firstRecovery = (weeks: WeekDraft[]) => weeks.findIndex((w) => w.isRecovery)
+    expect(firstRecovery(low)).toBeLessThan(firstRecovery(plain))
+    const work = workWeeks(low)
     expect(at(work, 1)).toBeGreaterThanOrEqual(at(work, 0) + P.g2.noviceMinStepMin.value)
   })
 
@@ -387,8 +398,20 @@ describe('macroPlan: weekly targets and ramp', () => {
     expect(work.every((w) => w.targetRunMin === most)).toBe(true)
   })
 
-  it('starts from the floor when there is no recent running', () => {
-    const work = workWeeks(plan(goal('half', 20), state({ typicalWeekMin: 0 })))
+  it('starts on rung 1 of the run-walk ladder when there is no recent running', () => {
+    const weeks = plan(goal('half', 20), state({ typicalWeekMin: 0, yearsRunning: null }))
+    expect(weeks[0]!.targetRunMin).toBe(63)
+    expect(weeks[0]!.flags).toEqual(
+      expect.arrayContaining(['restart-floor', 'run-walk', 'ladder-1']),
+    )
+  })
+
+  it('starts from the start floor week when a hold stops the ladder', () => {
+    const held = state({
+      typicalWeekMin: 0,
+      risk: { recentInjury: false, priorBsi: false, bsiFactors: 0, redsFlags: 2, noviceFlags: [] },
+    })
+    const work = workWeeks(plan(goal('half', 20), held))
     expect(at(work, 0)).toBe(P.macroDesign.startFloorWeekMin.value)
   })
 
@@ -695,28 +718,49 @@ describe('macroPlan: restart floor and run days', () => {
     return macroPlan({ ...input(g), activities }, st, g, FEASIBLE)
   }
 
-  it('starts at 3 sessions of 20 min when the typical week is below that, and grows from it', () => {
+  it('starts at 3 sessions of the longest recent run, held to 30 min, and grows from it', () => {
     const weeks = floorPlan(state({ typicalWeekMin: 27 }), [recentRun(30)])
     expect(FLOOR).toBe(60)
-    expect(weeks[0]!.targetRunMin).toBe(FLOOR)
+    // 8 years of running, no flag, a 30-min run 20 days ago: 3 x 30
+    expect(weeks[0]!.targetRunMin).toBe(90)
     expect(weeks[0]!.runDays).toBe(P.restartFloor.sessions.value)
+    expect(weeks[0]!.longRunMin).toBe(30)
     expect(weeks[0]!.flags).toContain('restart-floor')
     expect(weeks[0]!.flags).not.toContain('run-walk')
-    expect(weeks[1]!.targetRunMin).toBeLessThanOrEqual(Math.floor(FLOOR * 1.1 + 1e-9))
+    expect(weeks[0]!.qualitySessions).toBe(0)
+    expect(weeks[1]!.targetRunMin).toBeLessThanOrEqual(Math.floor(90 * 1.1 + 1e-9))
     expect(weeks.slice(1).some((w) => w.flags.includes('restart-floor'))).toBe(false)
   })
 
-  it('makes the floor sessions run-walk when no run of 20 min was completed in 90 days', () => {
-    const none = floorPlan(state({ typicalWeekMin: 27 }), [recentRun(15), recentRun(30, 120)])
-    expect(none[0]!.flags).toEqual(expect.arrayContaining(['restart-floor', 'run-walk']))
+  it('starts at 3 x 20 when the longest recent run is 20 to 24 min, or a flag holds the lift back', () => {
+    const twenty = floorPlan(state({ typicalWeekMin: 27 }), [recentRun(24)])
+    expect(twenty[0]!.targetRunMin).toBe(FLOOR)
+    const flagged = state({
+      typicalWeekMin: 27,
+      risk: {
+        recentInjury: false,
+        priorBsi: false,
+        bsiFactors: 0,
+        redsFlags: 0,
+        noviceFlags: ['age-45-plus'],
+      },
+    })
+    expect(floorPlan(flagged, [recentRun(30)])[0]!.targetRunMin).toBe(FLOOR)
+    expect(
+      floorPlan(state({ typicalWeekMin: 27, yearsRunning: 1 }), [recentRun(30)])[0]!.targetRunMin,
+    ).toBe(FLOOR)
   })
 
-  it('leaves a typical week at or above the floor, no recent running, and tightened profiles alone', () => {
+  it('enters the ladder below 20 min of running in 90 days, with the run-walk flag', () => {
+    const none = floorPlan(state({ typicalWeekMin: 27 }), [recentRun(15), recentRun(30, 120)])
+    expect(none[0]!.flags).toEqual(
+      expect.arrayContaining(['restart-floor', 'run-walk', 'ladder-4']),
+    )
+  })
+
+  it('leaves a typical week at or above the floor and tightened profiles alone', () => {
     expect(floorPlan(state({ typicalWeekMin: FLOOR }), [recentRun(30)])[0]!.flags).not.toContain(
       'restart-floor',
-    )
-    expect(floorPlan(state({ typicalWeekMin: 0 }), [])[0]!.targetRunMin).toBe(
-      P.macroDesign.startFloorWeekMin.value,
     )
     const tight = state({
       typicalWeekMin: 27,

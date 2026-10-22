@@ -9,6 +9,7 @@ import type { Activity } from '../types.ts'
 import { efficiencyIndex } from './athlete.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
+import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import {
   checkinOn,
@@ -144,6 +145,70 @@ function formatPace(secPerKm: number): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
 }
 
+/** Planned running minutes of a week: its planned sessions, else its target; null when unknown. */
+function plannedWeekMin(input: EngineInput, weekStart: string): number | null {
+  const weekEnd = addDays(weekStart, 6)
+  const sessions = (input.existing?.sessions ?? []).filter(
+    (s) => s.date >= weekStart && s.date <= weekEnd && RUN_KINDS.has(s.kind),
+  )
+  if (sessions.length > 0) return minutes(sessions)
+  return input.existing?.weeks.find((w) => w.weekStart === weekStart)?.targetRunMin ?? null
+}
+
+/**
+ * The worst pain reported in a week up to `asOf`, on a check-in or an activity. Focal bone pain
+ * counts as the flag score [rules n-1, n-2].
+ */
+function worstPainIn(input: EngineInput, weekStart: string, asOf: string): number {
+  const weekEnd = addDays(weekStart, 6)
+  let worst = 0
+  for (let k = 0; k < 7; k++) {
+    const date = addDays(weekStart, k)
+    if (date > asOf) break
+    const checkin = checkinOn(input, date)
+    if (checkin?.painScore != null) worst = Math.max(worst, checkin.painScore)
+    if (checkin?.painFocalBone) worst = Math.max(worst, P.pain.flagScore.value)
+  }
+  for (const a of input.activities) {
+    if (a.date >= weekStart && a.date <= weekEnd && a.pain !== null) worst = Math.max(worst, a.pain)
+  }
+  return worst
+}
+
+/** What a finished week shows to the start paths [rules E6, G-3]: completion, pain and effort. */
+export interface WeekEvidence {
+  plannedMin: number | null
+  actualMin: number
+  /** Minutes run over minutes planned; null when nothing was planned. */
+  share: number | null
+  worstPain: number
+  /** Mean RPE of the week's runs that carry one; null without ratings. */
+  meanRpe: number | null
+  runs: number
+}
+
+export function weekEvidence(input: EngineInput, weekStart: string): WeekEvidence {
+  const weekEnd = addDays(weekStart, 6)
+  const actualMin = aggregateWeeks(input.activities, [weekStart])[0]!.runMin
+  const plannedMin = plannedWeekMin(input, weekStart)
+  const runs = input.activities.filter(
+    (a) =>
+      (a.type === 'run' || a.type === 'race') &&
+      !isDuplicate(a) &&
+      a.date >= weekStart &&
+      a.date <= weekEnd,
+  )
+  const rated = runs.filter((a) => a.rpe !== null)
+  return {
+    plannedMin,
+    actualMin,
+    share: plannedMin !== null && plannedMin > 0 ? actualMin / plannedMin : null,
+    worstPain: worstPainIn(input, weekStart, weekEnd),
+    meanRpe: rated.length === 0 ? null : rated.reduce((sum, a) => sum + a.rpe!, 0) / rated.length,
+    runs: runs.length,
+  }
+}
+
 /** Progress, hold or reduce from execution, check-ins, efficiency, sleep and HRV [rules J5, G-6]. */
 export function weeklyDecision(
   input: EngineInput,
@@ -161,8 +226,7 @@ export function weeklyDecision(
   const weekSessions = (input.existing?.sessions ?? []).filter(
     (s) => s.date >= weekStart && s.date <= weekEnd && RUN_KINDS.has(s.kind),
   )
-  const plannedFull =
-    weekSessions.length > 0 ? minutes(weekSessions) : (draft?.targetRunMin ?? null)
+  const plannedFull = plannedWeekMin(input, weekStart)
   const plannedDue =
     weekSessions.length > 0
       ? minutes(weekSessions.filter((s) => s.date < input.today))
@@ -212,21 +276,15 @@ export function weeklyDecision(
   let poorDays = 0
   let hrvDays = 0
   let illnessDay: string | null = null
-  let worstPain = 0
   for (let k = 0; k < 7; k++) {
     const date = addDays(weekStart, k)
     if (date > asOf) break
     const checkin = checkinOn(input, date)
     if (poorSubjective(checkin)) poorDays += 1
     if (checkin?.illness && illnessDay === null) illnessDay = date
-    if (checkin?.painScore != null) worstPain = Math.max(worstPain, checkin.painScore)
-    if (checkin?.painFocalBone) worstPain = Math.max(worstPain, P.pain.flagScore.value)
     if (hrvFlaggedOn(input, date)) hrvDays += 1
   }
-  for (const a of input.activities) {
-    if (a.date >= weekStart && a.date <= weekEnd && a.pain !== null)
-      worstPain = Math.max(worstPain, a.pain)
-  }
+  const worstPain = worstPainIn(input, weekStart, asOf)
   const weekObs = observations(input, ctx.executions).filter(
     (o) => o.date >= weekStart && o.date <= weekEnd,
   )

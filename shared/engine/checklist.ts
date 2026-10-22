@@ -7,11 +7,19 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
 import { breakRestart } from './adapt.ts'
 import { estimateState } from './athlete.ts'
-import { rampLimits, rampSkipWeeks, tightRamp, ultraRunCapMin, type RampContext } from './limits.ts'
+import {
+  noviceRamp,
+  rampLimits,
+  rampSkipWeeks,
+  tightRamp,
+  ultraRunCapMin,
+  type RampContext,
+} from './limits.ts'
 import { redsHold } from './macro.ts'
 import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
 import { focalBoneActive } from './readiness.ts'
+import { injuryLevel, ladderRung, rungCount, startExemptions } from './startWeeks.ts'
 import type {
   AthleteState,
   ChecklistResult,
@@ -66,6 +74,10 @@ const result = (id: string, ok: boolean, detail: string, rules: string[]): Check
 
 const isRecoveryOnly = (w: WeekDraft) => w.flags.includes('post-race')
 
+/** A ladder or injury-return week of a start path [rules E6, g-3]. */
+const isStartPathWeek = (w: WeekDraft) =>
+  ladderRung(w.flags) !== null || w.flags.includes('injury-return')
+
 function sortedWeeks(draft: PlanDraft): WeekDraft[] {
   return [...draft.weeks].sort((a, b) => (a.weekStart < b.weekStart ? -1 : 1))
 }
@@ -104,9 +116,12 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
   const ahead = toRun(draft, input)
   let soft = 0
   // The same limits the guards apply (limits.ts): a recovery or taper week, and the current week
-  // when the plan starts after its Monday, set no baseline; the restart floor week is exempt from
-  // G-2 up to the floor and is a baseline at its floor minutes [design-macro].
-  const floorWeek = draft.weeks.find((w) => w.flags.includes('restart-floor'))
+  // when the plan starts after its Monday, set no baseline; the first week of a start path is
+  // exempt from G-2 up to its minutes and is a baseline at those minutes, and its later weeks are
+  // exempt from the soft ramp only [rules E6].
+  const floorWeek = sortedWeeks(draft)
+    .filter((w) => w.flags.includes('restart-floor'))
+    .at(-1)
   const ctx: RampContext = {
     volumes: volume,
     skip: rampSkipWeeks(
@@ -117,8 +132,9 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
       floorWeek === undefined
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
+    exempt: startExemptions(draft.weeks),
     typicalWeekMin: state.typicalWeekMin,
-    novice: state.experience === 'novice',
+    novice: noviceRamp(state),
     tight: tightRamp(state),
   }
   for (const weekStart of starts) {
@@ -134,7 +150,7 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
       failures.push(
         `week of ${weekStart}: ${Math.round(total)} min is above ${Math.round(limits.allowed)} min`,
       )
-    } else if (!limits.isFloorWeek && total > limits.soft + EPS) soft += 1
+    } else if (!limits.exempt && total > limits.soft + EPS) soft += 1
   }
   if (failures.length > 0) return result('progression', false, failures.join('; '), rules)
   return result(
@@ -154,21 +170,37 @@ function recoveryCadence(
   input: EngineInput,
 ): ChecklistResult {
   const rules = ['E3', 'g-3']
-  let cycle: number = P.e3.defaultCycleWorkWeeks.value
-  if (
+  const flagged = P.e3.flaggedCycleWorkWeeks.value
+  const usual = P.e3.defaultCycleWorkWeeks.value
+  const forced =
     state.risk.recentInjury ||
     input.options.recoveryCycle === '2:1' ||
     (input.options.recoveryCycle !== '3:1' && state.experience === 'novice')
-  ) {
-    cycle = P.e3.flaggedCycleWorkWeeks.value
-  }
+  const cycle: number =
+    forced || (input.options.recoveryCycle !== '3:1' && noviceRamp(state)) ? flagged : usual
+  // A runner whose logged frequency has just fallen under 2 a week gets the 2:1 cadence from the
+  // current week on [rules A5]; the weeks before it were planned, and are checked, at 3:1.
+  const switched = cycle !== (forced ? flagged : usual)
+  const currentMonday = mondayOf(input.today)
   const failures: string[] = []
   // The plan never opens with a recovery week, so its first block may run one week longer (macro).
   let first = true
   let run = 0
   let lastLoad: WeekDraft | null = null
   for (const week of sortedWeeks(draft)) {
+    if (switched && week.weekStart === currentMonday) {
+      run = 0
+      first = true
+    }
+    const limit = switched && week.weekStart < currentMonday ? usual : cycle
     if (week.isTaper || week.phase === 'taper' || week.phase === 'race' || isRecoveryOnly(week)) {
+      run = 0
+      lastLoad = null
+      continue
+    }
+    // The weeks of a start path follow their own steps and repeats [rules E6]: they carry no
+    // recovery week, and the weeks after them open a new block.
+    if (isStartPathWeek(week)) {
       run = 0
       lastLoad = null
       continue
@@ -188,8 +220,8 @@ function recoveryCadence(
     }
     run += 1
     lastLoad = week
-    if (run > cycle + (first ? 1 : 0)) {
-      failures.push(`${run} loading weeks in a row at ${week.weekStart}; the cycle is ${cycle}:1`)
+    if (run > limit + (first ? 1 : 0)) {
+      failures.push(`${run} loading weeks in a row at ${week.weekStart}; the cycle is ${limit}:1`)
     }
   }
   return result(
@@ -275,10 +307,36 @@ function taper(draft: PlanDraft): ChecklistResult {
   )
 }
 
-/** F5, E1: a novice plan keeps three non-consecutive run days and no hard work in the run-walk weeks. */
+/** Sessions a start-path week never holds: hard work, back-to-back runs and strides. */
+const NO_QUALITY_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([...HARD_KINDS, 'strides'])
+
+/**
+ * The Mondays within the quiet weeks after the ladder ends [rules E6]: no quality sessions and no
+ * strides for `noviceLadder.quietWeeksAfter` weeks after the last ladder week.
+ */
+function quietWeeks(weeks: WeekDraft[]): Set<string> {
+  const last = weeks
+    .filter((w) => ladderRung(w.flags) !== null)
+    .map((w) => w.weekStart)
+    .sort()
+    .at(-1)
+  const out = new Set<string>()
+  if (last === undefined) return out
+  for (let k = 1; k <= P.noviceLadder.quietWeeksAfter.value; k++) out.add(addDays(last, 7 * k))
+  return out
+}
+
+/**
+ * F5, E1, E6: a novice plan keeps three non-consecutive run days; the ladder, floor and
+ * injury-return weeks, and the quiet weeks after the ladder, hold no hard work and no strides.
+ */
 function levelDifferentiation(draft: PlanDraft, state: AthleteState): ChecklistResult {
-  const rules = ['F5', 'G1']
-  if (state.experience !== 'novice') {
+  const rules = ['F5', 'G1', 'E6']
+  const novice = state.experience === 'novice'
+  const fixedWeeks = draft.weeks.filter(
+    (w) => isStartPathWeek(w) || w.flags.includes('restart-floor'),
+  )
+  if (!novice && fixedWeeks.length === 0) {
     return result(
       'level-differentiation',
       true,
@@ -287,7 +345,10 @@ function levelDifferentiation(draft: PlanDraft, state: AthleteState): ChecklistR
     )
   }
   const failures: string[] = []
+  const quiet = quietWeeks(draft.weeks)
+  const fixed = new Set(fixedWeeks.map((w) => w.weekStart))
   for (const week of sortedWeeks(draft)) {
+    if (!novice && !fixed.has(week.weekStart)) continue
     const days = [
       ...new Set(
         draft.sessions
@@ -309,19 +370,60 @@ function levelDifferentiation(draft: PlanDraft, state: AthleteState): ChecklistR
         break
       }
     }
-    if (week.index < P.flib.runWalkWeeks.value) {
+    // a taper or race week keeps its strides: the ladder was cut short by the race
+    const afterLadder = quiet.has(week.weekStart) && !week.isTaper && week.phase !== 'race'
+    const earlyNovice = novice && week.index < P.flib.runWalkWeeks.value
+    if (fixed.has(week.weekStart) || afterLadder || earlyNovice) {
       const hard = draft.sessions.find(
-        (s) => mondayOf(s.date) === week.weekStart && HARD_KINDS.has(s.kind),
+        (s) => mondayOf(s.date) === week.weekStart && NO_QUALITY_KINDS.has(s.kind),
       )
-      if (hard !== undefined)
-        failures.push(`week of ${week.weekStart}: ${hard.kind} in a run-walk week`)
+      if (hard !== undefined) {
+        failures.push(`week of ${week.weekStart}: ${hard.kind} in a week of easy running only`)
+      }
     }
   }
   return result(
     'level-differentiation',
     failures.length === 0,
     failures.length === 0
-      ? `Novice plan: at most ${P.f5.noviceRunDays.value} non-consecutive run days and no hard work while run-walking.`
+      ? `At most ${P.f5.noviceRunDays.value} non-consecutive run days in a novice or start-path week, and no hard work or strides on the ${rungCount()}-step run-walk ladder, in the starting weeks or in the ${P.noviceLadder.quietWeeksAfter.value} weeks after the ladder.`
+      : failures.join('; '),
+    rules,
+  )
+}
+
+/**
+ * E6, G-3: the ladder rises one rung at most from one week to the next and never past its last
+ * rung; the injury-return ladder rises one level at most.
+ */
+function ladderSteps(draft: PlanDraft): ChecklistResult {
+  const rules = ['E6', 'g-3']
+  const failures: string[] = []
+  const weeks = sortedWeeks(draft)
+  for (const [i, week] of weeks.entries()) {
+    const rung = ladderRung(week.flags)
+    const level = injuryLevel(week.flags)
+    if (rung !== null && (rung < 1 || rung > rungCount())) {
+      failures.push(`week of ${week.weekStart}: rung ${rung} is outside the ${rungCount()} rungs`)
+    }
+    const before = weeks[i - 1]
+    if (before === undefined || daysBetween(before.weekStart, week.weekStart) !== 7) continue
+    const rungBefore = ladderRung(before.flags)
+    if (rung !== null && rungBefore !== null && rung > rungBefore + 1) {
+      failures.push(`week of ${week.weekStart}: rung ${rung} follows rung ${rungBefore}`)
+    }
+    const levelBefore = injuryLevel(before.flags)
+    if (level !== null && levelBefore !== null && level > levelBefore + 1) {
+      failures.push(
+        `week of ${week.weekStart}: level ${level + 1} follows level ${levelBefore + 1}`,
+      )
+    }
+  }
+  return result(
+    'ladder-steps',
+    failures.length === 0,
+    failures.length === 0
+      ? `The ladder rises one step a week at most, over ${rungCount()} rungs.`
       : failures.join('; '),
     rules,
   )
@@ -339,8 +441,12 @@ function breakRestartItem(
   }
   const { restartMin, fraction } = breakRestart(state.layoffDays, state.typicalWeekMin)
   const first = sortedWeeks(draft).find((w) => w.weekStart >= mondayOf(input.today))
-  // The restart floor week starts above the restart volume by design [design-macro].
-  const floorMin = first?.flags.includes('restart-floor') ? first.targetRunMin : 0
+  // The first week of a start path, and a ladder week that carries on from the weeks before the
+  // break, start above the restart volume by design [rules E6].
+  const floorMin =
+    first !== undefined && (first.flags.includes('restart-floor') || isStartPathWeek(first))
+      ? first.targetRunMin
+      : 0
   const limit = Math.max(restartMin * (1 + P.g2.rampSoft.value) + 1, floorMin + 1)
   const done = state.weeks.find((w) => w.weekStart === mondayOf(input.today))?.runMin ?? 0
   const planned =
@@ -599,6 +705,7 @@ export function runChecklist(draft: PlanDraft, input: EngineInput): ChecklistRes
     tid(draft),
     taper(draft),
     levelDifferentiation(draft, state),
+    ladderSteps(draft),
     breakRestartItem(draft, input, state),
     spikeGuard(draft, state),
     availability(draft, input),

@@ -145,6 +145,28 @@ export const aState = {
       unit: 'weeks',
       note: 'Default: the typical week is the median of this many recent complete weeks that contain a run.',
     }),
+    lowFrequencyRunsPerWeek: param(
+      'a5.lowFrequencyRunsPerWeek',
+      2,
+      'D',
+      'A5',
+      ['abrahamson-2025-self-reported-characteristics'],
+      {
+        unit: 'runs per week',
+        note: 'Default: a runner above the start-path floor whose completed runs average under this many a week gets the novice ramp handling (time-based steps) and the 2:1 recovery cadence. The cut-off is a design default.',
+      },
+    ),
+    lowFrequencyWindowWeeks: param(
+      'a5.lowFrequencyWindowWeeks',
+      4,
+      'D',
+      'A5',
+      ['abrahamson-2025-self-reported-characteristics'],
+      {
+        unit: 'weeks',
+        note: 'Default: the completed runs are averaged over this many weeks up to today.',
+      },
+    ),
   },
   a6: {
     csMinEfforts: param('a6.csMinEfforts', 3, 'C', 'A6', ['smyth-2020-cs-training-data'], {
@@ -471,14 +493,6 @@ export const aState = {
         unit: 'years',
         note: 'Soft start flag: age 45 or over, with no upper bound (65 was only the enrolment limit of the source cohort). The flag only makes the start gentler (E6).',
       },
-    ),
-    noviceFlagAgeMax: param(
-      'a9.noviceFlagAgeMax',
-      65,
-      'C',
-      'A9',
-      ['kluitenberg-2015-nlstart2run', 'nielsen-2013-novice-predictors'],
-      { unit: 'years', note: 'Novice soft flag: age 45-65.' },
     ),
     bsiWeeklyHours: param('a9.bsiWeeklyHours', 12, 'B', 'A9', ['barrack-2014-bone-stress-triad'], {
       unit: 'h per week',
