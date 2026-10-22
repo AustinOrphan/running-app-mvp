@@ -368,3 +368,12 @@ A fresh reader of sections 1–6 raised these; each answer refines the section n
     rate-limited to 10 attempts per 15 minutes per IP (in memory). Password reset is a CLI
     script `npm run reset-password -- <email>` that prompts for a new password. Rotating
     `SESSION_SECRET` logs the owner out; documented in the README.
+13. **Smashrun format, verified (4.5, 7.7).** The web does not document the export; a real
+    row from the owner's inbox does: `Start Date` is `YY/MM/DD H:MM` local (single-digit
+    hours occur), `Start Date (utc)` is ISO 8601 `Z`, `Duration (ms)` is milliseconds and
+    `Distance` is in the account's unit (miles for the owner). Therefore: map columns by
+    header name, fall back to the 26-column order only when no header is present, read the
+    calendar date and start time from `Start Date` and fall back to the UTC column converted
+    with the runner's local offset, and take the file's distance unit from a request field
+    `distanceUnit: 'mi'|'km'` defaulting to the user's units setting. `providerKey` is
+    `smashrun:<Run Id>` because the `Key` column's format has changed between exports.
