@@ -422,3 +422,25 @@ describe('hold and reduce decisions reach the sessions [rules J5]', () => {
     expect(failed(reduced)).toEqual([])
   })
 })
+
+describe('a 30-day longest run too short for a run day [rules g-1, F5]', () => {
+  const a = all.find((x) => x.id === 'half')!
+  const short = a.input.activities.map((x) => ({
+    ...x,
+    durationSec: 13 * 60,
+    movingSec: 13 * 60,
+    distanceM: 2300,
+  }))
+  const plan = buildPlan({ ...a.input, activities: short })
+
+  it('leaves the weeks it cannot fill empty and says so', () => {
+    const empty = plan.weeks.filter(
+      (w) => w.targetRunMin > 0 && minutesIn(plan.sessions, w.weekStart) === 0,
+    )
+    expect(empty.length).toBeGreaterThan(0)
+    const warning = plan.warnings.find((w) => w.code === 'spike-run-dropped')
+    expect(warning?.severity).toBe('info')
+    expect(warning?.rules).toContain('g-1')
+    expect(warning?.message).toContain(empty[0]!.weekStart)
+  })
+})

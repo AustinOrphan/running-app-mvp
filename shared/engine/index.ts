@@ -16,6 +16,8 @@ import {
   rampLimits,
   rampSkipWeeks,
   recordOf,
+  referenceAt,
+  runCaps,
   runningGain,
   runningMinutes,
   tightRamp,
@@ -262,6 +264,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
   // Micro: each week to days; weeks see the sessions placed before them.
   const placed: SessionSpec[] = []
   const shortOfDays: Array<{ weekStart: string; open: number; wanted: number }> = []
+  const tooShort: Array<{ weekStart: string; room: number }> = []
   const history: SessionSpec[] = [...kept]
   const raceMonday = mondayOf(goal.date)
   for (let w = 0; w < macro.length; w++) {
@@ -378,6 +381,20 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     ) {
       shortOfDays.push({ weekStart: week.weekStart, open, wanted: planWeek.runDays })
     }
+    // A week with a target but no run placed because 1.10x the 30-day reference is under the run
+    // day minimum on every day left: the limit is hit, so the plan says so [rules g-1, F5].
+    if (planWeek.targetRunMin > 0 && runningMinutes(sessions) === 0) {
+      const room = Math.max(
+        0,
+        ...[0, 1, 2, 3, 4, 5, 6]
+          .map((i) => addDays(week.weekStart, i))
+          .filter((date) => date >= today)
+          .map((date) => runCaps(referenceAt(records, date)).min),
+      )
+      if (room < P.fplace.minRunDayMin.value) {
+        tooShort.push({ weekStart: week.weekStart, room })
+      }
+    }
     // The race day holds the race and the rest of race week is the start of recovery; the weeks
     // after it keep their own (reduced) sessions.
     const inside = sessions.filter((s) => s.date < goal.date || mondayOf(s.date) > raceMonday)
@@ -416,6 +433,15 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       severity: 'info',
       message: `${shortOfDays.length} week(s), from the week of ${first.weekStart}, have fewer open run days (${first.open}) than the ${first.wanted} planned, so those weeks hold the runs on the days that are open.`,
       rules: ['F5'],
+    })
+  }
+  if (tooShort.length > 0) {
+    const first = tooShort[0]!
+    warnings.push({
+      code: 'spike-run-dropped',
+      severity: 'info',
+      message: `${tooShort.length} week(s), from the week of ${first.weekStart}, hold no run: ${P.g1.spikeRatioWarn.value}x the longest run of the last ${P.g1.windowDays.value} days is ${first.room} min, under the ${P.fplace.minRunDayMin.value}-minute run day minimum, so those runs are left out.`,
+      rules: ['g-1', 'F5'],
     })
   }
   if (redsHold(state)) {
