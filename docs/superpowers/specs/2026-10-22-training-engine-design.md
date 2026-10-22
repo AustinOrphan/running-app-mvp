@@ -336,31 +336,54 @@ the why drawer), so no API is needed for papers.
 WBGT implementation details within the Liljegren method; chart choices; component layout;
 exact copy within the tone rules.
 
-## 10. Decisions made during the build (for the owner to confirm)
+## 10. Decisions made during the build (confirmed 2026-10-22)
 
-Each was a builder call made while validating plans against a real, sparse history; each is
-a grade D default in `shared/engine/params` unless stated.
+Each was a builder call made while validating plans against a real, sparse history. The owner
+reviewed the eight on 2026-10-22 and asked for research on 1, 2, 4, 5 and 6 before settling them;
+that second evidence pass (five questions, 70 new sources, `research/README.md` method entry 7)
+produced the rules E6, D7 and the day-counted H12 in `research/engine-rules.md`. The outcome of
+each item, and the builder calls the second pass added, are recorded here. Every value is a grade
+D default in `shared/engine/params` unless stated.
 
-1. **Restart floor.** A runner below three 20-minute sessions a week who has run at least 20
-   minutes in the last 90 days restarts at 3 × 20 minutes; that floor week is exempt from
-   the weekly ramp (G-2 governs growth from an established base) but not from the session
-   spike guard. Tightened injury profiles get no floor.
-2. **Generated runs stay in the normal band.** The generator plans every run at or below 1.10×
-   the projected 30-day maximum on duration, distance, gain and descent; the 1.10-2.00× warn
-   band is reachable only by the owner's own edits. Planning and checking share one limit
-   module (`shared/engine/limits.ts`), so a generated plan needs no trimming.
-3. **Baselines.** Recovery, taper and the part current week never lower a ramp baseline; when
-   every week of the 2-week window is one of those, the baseline looks back up to 6 weeks to
-   the last loading week. The restart floor week counts at its floor minutes.
-4. **Post-race.** After 100 km or more: a week without running, then one week at 25% of the
-   pre-taper peak; a new plan after the race restarts from the J7 table.
-5. **Ultra feasibility target.** Feasibility measures the longest single run against 180 min
-   (50 km), 240 min (100 km and 100 miles) or 270 min (beyond), capped by H2; back-to-backs
-   add time on feet beyond it.
-6. **Run length cap follows the long run.** No run is placed longer than the week's long run,
-   so a very high-volume 5 km runner (above 6 days × the 60-minute 5 km long-run default) is
-   held at that product; raise `peakLongRunMin.5k` if that is too low.
-7. **No guessed trims.** An effort score with no RPE and no feel is capped at ±1 and never
-   triggers a session trim or a zone proposal.
-8. **Multi-day files.** Activities up to 240 hours parse (200-mile races); longer files are
-   rejected as corrupt.
+1. **Starting dose: depends on the person (E6).** The single 3 × 20 floor became four start
+   paths chosen from history: a 9-rung run-walk ladder in the shape of Couch to 5K for true
+   novices; 3 × 20 to 3 × 30 for returners with a continuous run of that length in the last
+   30 days (the 30-minute lift needs 2 years of running and no soft flag); ladder entry by the
+   longest recent bout for returners without one; an injury-return ladder (5 to 30 min, each
+   level twice) for the recent-injury flag. Builder calls: an experienced runner with no run in
+   90 days restarts at 3 × 20 rather than at rung 1; ladder and floor weeks are exempt from the
+   G-2 soft 10% warning (a fixed convention programme) but not from the 30% hard ceiling; the
+   BMI > 30 rule holds rung 1 for three weeks instead of converting the trial's 3 km to minutes;
+   no "rung 0".
+2. **Generated runs stay in the normal band: kept (G-1).** The second pass found no study that
+   supports another threshold or window. Duration stays grade D. A completed race of marathon
+   distance or longer no longer counts toward the 30-day reference (one rule for the check and
+   the generator; shorter races count as hard runs). The 10% weekly ramp is relabelled grade D.
+   A logged average under 2 runs a week over 4 weeks selects the novice ramp handling and the
+   2:1 cadence.
+3. **Baselines: kept.** Recovery, taper and the part current week never lower a ramp baseline;
+   when every week of the 2-week window is one of those, the baseline looks back up to 6 weeks
+   to the last loading week. The restart floor week counts at its floor minutes.
+4. **Post-race: a day-counted window by race class (H12).** Holds of 2 (marathon, grade B from
+   one RCT), 4, 7, 10 and 14 days (50 km, 100 km, 100 miles, beyond), then 7-day steps at 0.5
+   and 0.75 of the pre-taper reference week (marathon and 50 km) or 0.25, 0.5 and 0.75 (100 km
+   and longer), run caps of 40, 60 and 90 min, no quality session until the steps end, one ×1.5
+   modifier for steep descent, age 40+ or a first finish in the class, and a check-in gate that
+   can only delay a step. The window also governs the first weeks of a new plan built inside it.
+   Builder call: the gate is computed from the check-ins each time, not stored.
+5. **Ultra feasibility target: kept (D4).** 180, 240, 240 and 270 min stay; no source links a
+   longest-run length to finishing. Builder call: the target is reconciled with what the
+   planner schedules (the lesser of the class value, the H2 cap and the long-run share of the
+   peak week), and for ultras the weekly path to the class peak also counts, from the start
+   week the generator uses; labels only.
+6. **Run length cap follows the long run: kept, with tiered caps (D7).** The 5 km cap is 60, 75
+   or 90 min and the 10 km cap 75, 90 or 100 min by the completed typical week (under 180,
+   180-360, over 360 min), never above 16 km. Conventions from published plans; not injury
+   limits.
+7. **No guessed trims: kept, and said in the app.** An effort score with no RPE and no feel is
+   capped at ±1, never triggers a session trim, a zone proposal or a weekly hold, and the
+   activity page, session sheet, why drawer and Today card say that a rating is what lets the
+   plan adjust.
+8. **Activity length: one limit of 150 hours.** Manual entry, imports and file parsing share
+   `MAX_DURATION_SEC` (the Cocodona 250 cutoff is 125 h and six-day races last 144 h); longer
+   files are rejected as corrupt.
