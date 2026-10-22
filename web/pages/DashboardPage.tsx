@@ -457,7 +457,7 @@ interface CheckinDraft {
   painFocalBone: boolean
 }
 
-function draftFrom(checkin: Checkin | null): CheckinDraft {
+function draftFrom(checkin: Checkin | null, boneActive: boolean): CheckinDraft {
   return {
     fatigue: checkin?.fatigue ?? null,
     soreness: checkin?.soreness ?? null,
@@ -467,7 +467,8 @@ function draftFrom(checkin: Checkin | null): CheckinDraft {
     illness: checkin?.illness ?? false,
     painScore: checkin?.painScore ?? null,
     painArea: checkin?.painArea ?? '',
-    painFocalBone: checkin?.painFocalBone ?? false,
+    // Reported bone tenderness stays ticked until the runner unticks it [rules n-1].
+    painFocalBone: checkin?.painFocalBone ?? boneActive,
   }
 }
 
@@ -482,15 +483,18 @@ const CHECKIN_SCALES = [
 function CheckinCard({
   date,
   checkin,
+  boneActive,
   onSaved,
 }: {
   date: string
   checkin: Checkin | null
+  /** The engine still counts an earlier report of point tenderness on a bone. */
+  boneActive: boolean
   onSaved: (message: string) => void
 }) {
   const headingId = useId()
   const save = useSaveCheckin()
-  const initial = draftFrom(checkin)
+  const initial = draftFrom(checkin, boneActive)
   const [draft, setDraft] = useState<CheckinDraft>(initial)
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial)
   const area = draft.painArea.trim()
@@ -783,6 +787,9 @@ export function DashboardPage() {
             key={todayView.data.date}
             date={todayView.data.date}
             checkin={todayView.data.checkin}
+            boneActive={todayView.data.readiness.redFlags.some(
+              (flag) => flag.code === 'focal-bone-pain',
+            )}
             onSaved={(message) => {
               toast.show(message)
             }}

@@ -593,6 +593,34 @@ describe('check-ins', () => {
   })
 })
 
+describe('check-ins: bone tenderness', () => {
+  test('stays reported on later days until an explicit false is saved', async () => {
+    const u = await seedUser(ctx, { email: 'bone@example.com' })
+    const c = client(ctx, u)
+    const earlier = addDays(today, -3)
+    await c.put(`/api/checkins/${earlier}`).send({ painScore: 2, painFocalBone: true })
+
+    // A later check-in that does not mention the bone keeps the report.
+    const carried = await c.put(`/api/checkins/${today}`).send({ fatigue: 3 })
+    expect(carried.body).toMatchObject({ fatigue: 3, painFocalBone: true })
+
+    // Only an explicit false clears it, and it then stays clear.
+    const cleared = await c.put(`/api/checkins/${today}`).send({ painFocalBone: false })
+    expect(cleared.body).toMatchObject({ painFocalBone: false })
+    const tomorrow = addDays(today, 1)
+    const next = await c.put(`/api/checkins/${tomorrow}`).send({ fatigue: 3 })
+    expect(next.body).toMatchObject({ painFocalBone: false })
+  })
+
+  test('is not invented when no earlier check-in reported it', async () => {
+    const u = await seedUser(ctx, { email: 'bone-none@example.com' })
+    const c = client(ctx, u)
+    await c.put(`/api/checkins/${addDays(today, -2)}`).send({ fatigue: 3 })
+    const saved = await c.put(`/api/checkins/${today}`).send({ fatigue: 4 })
+    expect(saved.body).toMatchObject({ painFocalBone: false })
+  })
+})
+
 describe('screenings', () => {
   test('flags count the questions answered yes, newest first', async () => {
     const u = await seedUser(ctx, { email: 'screen@example.com' })
