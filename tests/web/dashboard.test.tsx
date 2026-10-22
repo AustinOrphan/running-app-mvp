@@ -165,6 +165,39 @@ describe('DashboardPage', () => {
     expect(within(hero).getByText('Base 2, week 5 of 18')).toBeInTheDocument()
   })
 
+  test('the under-target figure appears once: the headline states it and the meter adds no caption', async () => {
+    const { hero } = await renderDashboard({
+      weeks: windowWeeks({ [THIS_WEEK]: { runMin: 186, runSessions: 2, runDays: 2 } }),
+    })
+    expect(within(hero).getByText('3.1')).toBeInTheDocument()
+    expect(within(hero).getAllByText(/h of 7\.5 h target/)).toHaveLength(1)
+    expect(within(hero).getByRole('meter', { name: 'Run time this week' })).toBeInTheDocument()
+  })
+
+  test("with a plan, the countdown and goal name come from the plan's goal, not the active goal", async () => {
+    await renderDashboard({
+      goals: [
+        makeGoal({ id: 'g1', name: 'Example Half', targetDate: '2026-06-13', isActive: false }),
+        makeGoal({ id: 'g2', name: 'Example Ten', targetDate: '2026-04-18', isActive: true }),
+      ],
+    })
+    expect(phrase('87 days to the race')).toBeInTheDocument()
+    expect(screen.getByText('Example Half, Sat 13 Jun 2026')).toBeInTheDocument()
+    expect(screen.queryByText(/Example Ten/)).not.toBeInTheDocument()
+  })
+
+  test('without a plan, the countdown uses the active goal', async () => {
+    await renderDashboard({
+      plan: null,
+      goals: [
+        makeGoal({ id: 'g1', name: 'Example Half', targetDate: '2026-06-13', isActive: false }),
+        makeGoal({ id: 'g2', name: 'Example Ten', targetDate: '2026-04-18', isActive: true }),
+      ],
+    })
+    expect(phrase('31 days to the race')).toBeInTheDocument()
+    expect(screen.getByText('Example Ten, Sat 18 Apr 2026')).toBeInTheDocument()
+  })
+
   test('"87 days to the race" from daysBetween and "34 min a day left, through Sunday" with the caption "advisory" from remainingPlan', async () => {
     await renderDashboard({
       weeks: windowWeeks({ [THIS_WEEK]: { runMin: 280, runSessions: 2, runDays: 2 } }),

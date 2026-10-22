@@ -101,7 +101,11 @@ export function DashboardPage() {
   const planWeek = planIndex >= 0 ? planWeeks[planIndex] : undefined
   const planWeekStarts = new Set(planWeeks.map((w) => w.weekStart))
 
-  const goal = goals.data.find((g) => g.isActive)
+  // The plan belongs to one goal; "Make active" on another goal must not change its countdown.
+  const goal =
+    plan.data === null
+      ? goals.data.find((g) => g.isActive)
+      : goals.data.find((g) => g.id === plan.data?.goalId)
   const daysToRace = goal ? daysBetween(today, goal.targetDate) : null
   const showRace = goal !== undefined && daysToRace !== null && daysToRace >= 0
   const perDay =
@@ -161,7 +165,12 @@ export function DashboardPage() {
         </p>
         {planWeek === undefined ? null : (
           <>
-            <Meter valueMin={runMin} targetMin={planWeek.targetRunMin} label="Run time this week" />
+            <Meter
+              valueMin={runMin}
+              targetMin={planWeek.targetRunMin}
+              label="Run time this week"
+              hideUnderCaption
+            />
             <p className={styles.muted}>
               {`${phaseLabel(planWeek.phase)}, week ${String(planIndex + 1)} of ${String(planWeeks.length)}`}
             </p>
