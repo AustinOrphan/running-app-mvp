@@ -14,6 +14,11 @@ export interface ActivitySummary {
 type Samples = ParsedActivity['samples']
 
 export const STREAM_SAMPLE_SEC = 10
+/**
+ * Longest activity the importers accept, in seconds. A longer elapsed time or sample time means a
+ * corrupt timestamp, and the stream's bucket arrays are sized from the last sample time.
+ */
+export const MAX_ACTIVITY_SEC = 48 * 3600
 /** Heart-rate histogram range: 1 bpm bins from 40 to 220 inclusive. */
 export const HR_HIST_START = 40
 export const HR_HIST_END = 220
@@ -408,8 +413,10 @@ function buildStream(s: Samples): ActivitySummary['stream'] {
       cad: null,
       pwr: null,
     }
+  // A sample past the cap is a corrupt timestamp: it neither sizes the stream nor lands in it.
+  const inRange = (i: number): boolean => s.t[i]! <= MAX_ACTIVITY_SEC
   let maxT = 0
-  for (const v of s.t) maxT = Math.max(maxT, v)
+  for (let i = 0; i < n; i++) if (inRange(i)) maxT = Math.max(maxT, s.t[i]!)
   const buckets = Math.floor(maxT / STREAM_SAMPLE_SEC) + 1
   const bucketOf = (i: number): number => Math.max(0, Math.floor(s.t[i]! / STREAM_SAMPLE_SEC))
 
@@ -418,6 +425,7 @@ function buildStream(s: Samples): ActivitySummary['stream'] {
     const sum = new Array<number>(buckets).fill(0)
     const count = new Array<number>(buckets).fill(0)
     for (let i = 0; i < n; i++) {
+      if (!inRange(i)) continue
       const b = bucketOf(i)
       sum[b]! += values[i]!
       count[b]! += 1
@@ -429,7 +437,7 @@ function buildStream(s: Samples): ActivitySummary['stream'] {
   let d: number[] | null = null
   if (s.d) {
     const ends = new Array<number | null>(buckets).fill(null)
-    for (let i = 0; i < n; i++) ends[bucketOf(i)] = s.d[i]!
+    for (let i = 0; i < n; i++) if (inRange(i)) ends[bucketOf(i)] = s.d[i]!
     let last = s.d[0]!
     d = ends.map((v) => {
       if (v !== null) last = v

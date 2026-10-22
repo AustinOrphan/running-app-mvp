@@ -76,6 +76,24 @@ describe('summarize stream', () => {
     expect(JSON.parse(JSON.stringify(stream.hr))).toEqual([110, null, null, 135])
   })
 
+  test('a sample with a corrupt time neither sizes the stream nor lands in it', () => {
+    const t = [0, 10, 20, 30, 100_000_000]
+    const a = parsed({
+      samples: {
+        t,
+        d: [0, 10, 20, 30, 40],
+        hr: [100, 110, 120, 130, 140],
+        alt: null,
+        cad: null,
+        pwr: null,
+      },
+    })
+    const { stream } = summarize(a)
+    expect(stream.t).toEqual([0, 10, 20, 30])
+    expect(stream.d).toEqual([0, 10, 20, 30])
+    expect(stream.hr).toEqual([100, 110, 120, 130])
+  })
+
   test('an activity with no samples has an empty stream', () => {
     const { stream, hrHistogram, decouplingPct, gapDistanceM } = summarize(parsed())
     expect(stream).toEqual({

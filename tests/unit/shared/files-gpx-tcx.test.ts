@@ -165,3 +165,28 @@ describe('parseActivityFile', () => {
     expect(parseActivityFile('dir/B.TCX', tcxBytes, { timezone: 'UTC' })).toHaveLength(1)
   })
 })
+
+describe('parseActivityFile with a corrupt timestamp', () => {
+  const point = (time: string, lat: number) =>
+    `<trkpt lat="${lat}" lon="0"><ele>10</ele><time>${time}</time></trkpt>`
+  const gpx = (...times: string[]) =>
+    `<?xml version="1.0"?><gpx version="1.1" creator="x" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>${times
+      .map((t, i) => point(t, i / 10000))
+      .join('')}</trkseg></trk></gpx>`
+  const normal = [0, 10, 20, 30].map((s) => `2026-01-05T20:00:${String(s).padStart(2, '0')}Z`)
+
+  test('rejects a file with a point dated far after the others', () => {
+    const bytes = new TextEncoder().encode(gpx(...normal, '2099-01-05T20:00:40Z'))
+    expect(() => parseActivityFile('stray.gpx', bytes, { timezone: 'UTC' })).toThrow(RangeError)
+  })
+
+  test('rejects a file with a point dated far before the others', () => {
+    const bytes = new TextEncoder().encode(gpx('1970-01-01T00:00:00Z', ...normal))
+    expect(() => parseActivityFile('stray.gpx', bytes, { timezone: 'UTC' })).toThrow(/48 hours/)
+  })
+
+  test('accepts a long but plausible activity', () => {
+    const bytes = new TextEncoder().encode(gpx(normal[0]!, '2026-01-07T19:00:00Z'))
+    expect(parseActivityFile('long.gpx', bytes, { timezone: 'UTC' })).toHaveLength(1)
+  })
+})
