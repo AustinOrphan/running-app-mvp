@@ -367,3 +367,31 @@ single session per week. Causes and required behaviour:
 **Files:** `shared/engine/{guards,macro,micro,index,checklist}.ts`, `shared/engine/params/{e-macro,f-micro,g-limits}.ts`,
 `tests/unit/engine/{matrix,matrix-fixtures,guards,macro,micro,orchestration}.test.ts` (and
 fixtures). Engine purity and the parameter rules apply.
+
+### Task E17: Close the feedback loop — goals, reviews, execution triggers, screening
+
+Gaps reported by E10 and confirmed in review:
+
+1. **Goal fields.** `server/routes/goals.ts` rejects the design §3.1 fields. Accept and
+   validate `gainM`, `lossM` (0-30 000), `surface`, `goalType`, `targetTimeSec`
+   (required when `goalType` is `time`), `startTime` (HH:MM), `raceLat/raceLng` (rounded to
+   0.01°), `supportLevel`; defaults per the design (`finish` above 42.2 km). Check that
+   `web/pages/GoalsPage.tsx` sends them; API tests.
+2. **Weekly decision for version-2 plans.** For a plan with `generatorVersion` 2,
+   `GET /api/reviews` returns the engine's `weeklyDecision` (decision, signals with rules,
+   next-week target) in place of the version-1 suggestion, and saving a review of a finished
+   week triggers `replanActivePlan` and returns the new `PlanRevision` summary. Version-1
+   plans keep the version-1 logic. Make the Review page show the version-2 decision and the
+   "What changed" summary after saving.
+3. **Execution triggers.** Matching and assessment run immediately (not only nightly) after a
+   manual create or edit in `server/routes/activities.ts`, after `PATCH
+   /api/activities/:id/feedback`, and after linking. A feedback change re-assesses the linked
+   session. Pain ≥ 4 or focal bone pain shows on Today's red flags at once.
+4. **Screening into state.** Add an optional `screeningFlags?: number` to `EngineInput`;
+   `estimateState` sets `risk.redsFlags` from it; `engineInput.ts` fills it from the latest
+   REDs screening; buildPlan, replan and the weekly decision then see it. Two or more flags
+   hold progression [rules §n.4].
+
+**Files:** `server/routes/{goals,reviews,activities}.ts`, `server/services/{reviews,planEngine,execution,engineInput}.ts`,
+`shared/engine/{types,athlete}.ts` (the optional field only), `web/pages/{GoalsPage,ReviewPage}.tsx`,
+their tests.
