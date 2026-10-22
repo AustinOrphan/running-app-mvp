@@ -12,6 +12,7 @@ import type { WeeklyDecision } from '../../shared/engine/types.ts'
 import type {
   Activity,
   DataStatus,
+  PlanRevision,
   PlanSession,
   PlanSessionStatus,
   PlanWeek,
@@ -59,6 +60,24 @@ const DECISION_OPTIONS: Array<{ value: Decision; label: string }> = [
  * `suggested*` fields, and `signals` carries the signals behind it.
  */
 type ReviewView = WeeklyReview & { signals?: WeeklyDecision['signals'] }
+
+/**
+ * What saving a review of a version-2 plan returns beyond the review: the revision the re-plan
+ * wrote, or why a re-plan that was due did not run.
+ */
+type SavedReview = WeeklyReview & { revision?: PlanRevision | null; replanError?: string }
+
+/** The re-plan that followed a save, as the page shows it. */
+interface ReplanOutcome {
+  revision: PlanRevision | null
+  error: string | null
+}
+
+function changeValue(value: unknown): string {
+  return typeof value === 'string' || typeof value === 'number'
+    ? String(value)
+    : JSON.stringify(value)
+}
 
 const SESSION_STATUS_LABELS: Record<PlanSessionStatus, string> = {
   planned: 'Planned',
@@ -371,6 +390,7 @@ function WeekReview({
   const save = useSaveReview()
   const headingId = useId()
   const noteId = useId()
+  const changedId = useId()
 
   const [dataStatus, setDataStatus] = useState<DataStatus>(review.dataStatus)
   const [fatigue, setFatigue] = useState(review.fatigue === null ? '' : String(review.fatigue))
@@ -384,6 +404,7 @@ function WeekReview({
   const [notes, setNotes] = useState(review.notes ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState<string | null>(null)
+  const [replanned, setReplanned] = useState<ReplanOutcome | null>(null)
 
   const suggestInput: SuggestInput | null = planWeek
     ? {
@@ -420,6 +441,8 @@ function WeekReview({
     ? DECISION_OPTIONS.filter((option) => option.value !== 'repeat')
     : DECISION_OPTIONS
 
+  const changedRules = [...new Set(replanned?.revision?.changes.flatMap((c) => c.rules) ?? [])]
+
   const suggestedDecision = suggestion && isDecision(suggestion.action) ? suggestion.action : ''
   const suggestedMin = suggestion?.suggestedNextMin ?? null
   const shownDecision = decision ?? suggestedDecision
@@ -442,6 +465,7 @@ function WeekReview({
     event.preventDefault()
     setErrors({})
     setFailure(null)
+    setReplanned(null)
 
     const patch: ReviewPatch = {
       dataStatus,
@@ -461,7 +485,10 @@ function WeekReview({
     }
 
     try {
-      await save.mutateAsync({ weekStart, patch })
+      const saved: SavedReview = await save.mutateAsync({ weekStart, patch })
+      if (isV2 && (saved.revision != null || saved.replanError !== undefined)) {
+        setReplanned({ revision: saved.revision ?? null, error: saved.replanError ?? null })
+      }
       toast.show(`Week of ${formatShortDate(weekStart)} saved`)
     } catch (err) {
       const issues = fieldErrors(err)
@@ -627,6 +654,36 @@ function WeekReview({
           </Button>
         </div>
       </section>
+
+      {replanned !== null ? (
+        <section aria-labelledby={changedId} className={`${styles.section} ${styles.suggestion}`}>
+          <h2 id={changedId}>What changed</h2>
+          {replanned.revision !== null ? (
+            <>
+              <p>{replanned.revision.summary}</p>
+              {replanned.revision.changes.length > 0 ? (
+                <ul className={styles.signals}>
+                  {replanned.revision.changes.map((change, index) => (
+                    <li key={`${change.weekStart}-${change.field}-${String(index)}`}>
+                      Week of {formatShortDate(change.weekStart)}: {change.field}{' '}
+                      {changeValue(change.from)} to {changeValue(change.to)}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {changedRules.length > 0 ? (
+                <div>
+                  <ExplainButton subject="plan update" rules={changedRules} />
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p>
+              The review is saved. The plan was not re-planned: {replanned.error ?? 'try again.'}
+            </p>
+          )}
+        </section>
+      ) : null}
     </form>
   )
 }
