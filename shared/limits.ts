@@ -38,3 +38,10 @@ export const FUEL_SERVING_KCAL_MAX = 1500
 /** Largest fluid and sodium totals a log may record (a 150-hour event is the longest activity). */
 export const FUEL_FLUID_MAX_ML = 100_000
 export const FUEL_SODIUM_MAX_MG = 200_000
+
+/**
+ * Days either side of a race result's date within which a run or race activity may be linked to
+ * the result (phase 3a design 11.4). The server enforces it and the result sheet lists activities
+ * inside it.
+ */
+export const RESULT_ACTIVITY_WINDOW_DAYS = 3

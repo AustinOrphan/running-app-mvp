@@ -1,10 +1,12 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { isIsoDate, todayIso } from '../../shared/dates.ts'
+import { MAX_DURATION_SEC } from '../../shared/limits.ts'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { toGoal } from '../serialize.ts'
 import { activateGoal } from '../services/planSwitch.ts'
+import { deleteRaceResult, saveRaceResult } from '../services/raceResults.ts'
 import { warmWeatherCaches } from '../services/weatherCache.ts'
 
 /** Trimmed text; an empty string becomes null. */
@@ -120,6 +122,41 @@ const goalPatch = z.object({
 
 /** `replacePlan` agrees to build the plan for this goal when the plan follows another goal. */
 const activateBody = z.strictObject({ replacePlan: z.boolean().default(false) })
+
+/** A full replacement of a goal's race result (design 11.4): every field is sent each time. */
+const resultBody = z
+  .object({
+    outcome: z.enum(['finished', 'did-not-finish']),
+    timeSec: z
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_DURATION_SEC)
+      .nullish()
+      .transform((value) => value ?? null),
+    date: goalFields.shape.targetDate,
+    distanceM: goalFields.shape.distanceM.transform((value) => value ?? null),
+    gainM: metres.transform((value) => value ?? null),
+    activityId: z
+      .string()
+      .min(1)
+      .nullish()
+      .transform((value) => value ?? null),
+    note: optionalText(2000),
+  })
+  .superRefine((body, ctx) => {
+    if (body.outcome === 'finished' && body.timeSec === null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['timeSec'],
+        message: 'Enter the official finish time.',
+      })
+    }
+    // A date that is not a real day has its own issue; it is not also called a future date.
+    if (isIsoDate(body.date) && body.date > todayIso()) {
+      ctx.addIssue({ code: 'custom', path: ['date'], message: 'Use a race date that has passed.' })
+    }
+  })
 
 /** The fields the race climate is read for: place, date, start time, length and whether it is open. */
 const CLIMATE_FIELDS = [
@@ -262,6 +299,21 @@ export function goalsRouter(deps: Deps): Router {
       throw conflict('This goal has an active plan. Generate a plan for another goal first.')
     }
     await prisma.goal.delete({ where: { id: req.params.id } })
+    res.status(204).end()
+  })
+
+  // The result of a goal's race: one per goal, replaced as a whole. The record that compares it with
+  // the weekly predictions is GET /api/predictions/record.
+  router.put('/:id/result', async (req, res) => {
+    const body = parse(resultBody, req.body)
+    const goal = await ownedGoal(req.userId, req.params.id)
+    const { result, created } = await saveRaceResult(deps, { userId: req.userId, goal, body })
+    res.status(created ? 201 : 200).json(result)
+  })
+
+  router.delete('/:id/result', async (req, res) => {
+    await ownedGoal(req.userId, req.params.id)
+    await deleteRaceResult(deps, { userId: req.userId, goalId: req.params.id })
     res.status(204).end()
   })
 

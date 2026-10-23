@@ -24,6 +24,7 @@ import { fakeFetch } from '../fakeFetch.ts'
 import {
   client,
   createTestCtx,
+  expectNoRefusedFetches,
   noNetwork,
   seedUser,
   type TestCtx,
@@ -54,11 +55,11 @@ afterEach(async () => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.setSystemTime(NOON)
-  ctx.fetch = noNetwork()
   await ctx.prisma.forecastCache.deleteMany()
   await ctx.prisma.climateCache.deleteMany()
   // Each test seeds its own runner.
   await ctx.prisma.user.deleteMany()
+  expectNoRefusedFetches(ctx)
 })
 
 // ---------------------------------------------------------------------------------------------
@@ -205,7 +206,7 @@ async function fillForecast(userId: string): Promise<void> {
     },
   })
   await refreshWeatherCaches(ctx, userId)
-  ctx.fetch = noNetwork()
+  ctx.fetch = noNetwork(ctx.refusedFetches)
 }
 
 async function zonesOf(u: TestUser): Promise<ZoneSet> {
@@ -1141,7 +1142,7 @@ describe('GET /api/today: cost', () => {
     expect((await getToday(u, `?date=${tomorrow}`)).status).toBe(200)
 
     // A forecast older than the refresh interval is read as it is and not refreshed.
-    ctx.fetch = noNetwork()
+    ctx.fetch = noNetwork(ctx.refusedFetches)
     await fillForecast(u.id)
     ctx.fetch = silent
     vi.setSystemTime(new Date(NOON.getTime() + 3 * 60 * 60_000))
