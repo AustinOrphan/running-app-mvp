@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { Checkin, TodayView } from '../../shared/types.ts'
 import { getOutbox } from '../../web/pwa/outbox.ts'
 import { makeActivity } from '../factories.ts'
-import { explainOf, expectCleanCopy } from './helpers.tsx'
+import { explainOf, expectCleanCopy, type MockRoutes } from './helpers.tsx'
+import { AVAILABLE, makeBrief, makeDiff, makeLine, makeRevision } from './plan-fixtures.ts'
 import {
   makeCoach,
   makeHeat,
@@ -980,34 +981,91 @@ describe('Today: Done', () => {
 })
 
 describe('Today: Not today', () => {
-  test('skipping the session saves it and puts focus on the title', async () => {
+  const HASH = '1'.repeat(64)
+
+  /** The one row a skip of today's run writes. */
+  function skipDiff() {
+    return makeDiff([
+      makeLine({
+        externalId: 'x1',
+        sessionId: 's1',
+        date: TODAY,
+        before: makeBrief({ date: TODAY, title: 'Easy run', durationMin: 45 }),
+        after: makeBrief({ date: TODAY, title: 'Easy run', durationMin: 45 }),
+        fields: ['status'],
+      }),
+    ])
+  }
+
+  /** A dry run and a commit of skipping the run, as the adjust route answers them. */
+  function skipRoutes(): MockRoutes {
+    return {
+      'POST /api/plan/sessions/s1/adjust': (req) => {
+        const body = req.body as { dryRun?: boolean }
+        return {
+          allowed: true,
+          guards: [],
+          diff: skipDiff(),
+          session: makeSession({ status: 'skipped' }),
+          revision:
+            body.dryRun === true
+              ? null
+              : makeRevision({
+                  id: 'r5',
+                  reason: 'owner',
+                  auto: false,
+                  summary: 'Skipped Easy run on Wed 18 Mar.',
+                  diff: skipDiff(),
+                  undo: AVAILABLE,
+                  seenAt: null,
+                }),
+          hash: HASH,
+        }
+      },
+      'POST /api/plan/revisions/r5/seen': () => ({ status: 204, body: undefined }),
+    }
+  }
+
+  test('skipping the session is checked, saved and puts focus on the title', async () => {
     const user = userEvent.setup()
-    const { api } = render(withEasyRun(), {
-      'PUT /api/plan/sessions/s1': () => makeSession({ status: 'skipped' }),
-    })
+    const { api } = render(withEasyRun(), skipRoutes())
     const card = await screen.findByRole('article', { name: 'Easy run' })
     await user.click(within(card).getByRole('button', { name: 'Not today' }))
     const sheet = await screen.findByRole('dialog', { name: 'Not today' })
     await user.click(within(sheet).getByRole('button', { name: 'Skip session' }))
-    await user.click(within(sheet).getByRole('button', { name: 'Yes, skip it' }))
-    expect(await screen.findByText('Session skipped')).toBeInTheDocument()
-    expect(api.calls.find((call) => call.method === 'PUT')?.body).toEqual({ skip: true })
+    await within(sheet).findByText('What would change')
+    await user.click(within(sheet).getByRole('button', { name: 'Apply change' }))
+    expect(await screen.findByText('Skipped Easy run on Wed 18 Mar.')).toBeInTheDocument()
+    const sent = api.calls.filter((call) => call.url === '/api/plan/sessions/s1/adjust')
+    expect(sent.map((call) => call.body)).toEqual([
+      { adjustment: { type: 'skip' }, dryRun: true },
+      { adjustment: { type: 'skip' }, expectHash: HASH },
+    ])
+    expect(api.calls.some((call) => call.method === 'PUT')).toBe(false)
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Not today' })).not.toBeInTheDocument()
     })
     expect(screen.getByRole('heading', { level: 2, name: 'Easy run' })).toHaveFocus()
   })
 
-  test('asking to skip moves focus into the question, and dropping it moves focus back', async () => {
+  test('asking to skip checks the change first, and dropping it puts focus on the section', async () => {
     const user = userEvent.setup()
-    render(withEasyRun())
+    const { api } = render(withEasyRun(), skipRoutes())
     const card = await screen.findByRole('article', { name: 'Easy run' })
     await user.click(within(card).getByRole('button', { name: 'Not today' }))
     const sheet = await screen.findByRole('dialog', { name: 'Not today' })
     await user.click(within(sheet).getByRole('button', { name: 'Skip session' }))
-    expect(within(sheet).getByRole('button', { name: 'Yes, skip it' })).toHaveFocus()
-    await user.click(within(sheet).getByRole('button', { name: 'Keep it' }))
-    expect(within(sheet).getByRole('button', { name: 'Skip session' })).toHaveFocus()
+    await within(sheet).findByText('What would change')
+    await user.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => {
+      expect(within(sheet).getByRole('heading', { name: 'Change this session' })).toHaveFocus()
+    })
+    expect(within(sheet).getByRole('button', { name: 'Skip session' })).toBeInTheDocument()
+    expect(
+      api.calls
+        .filter((call) => call.url === '/api/plan/sessions/s1/adjust')
+        .every((call) => (call.body as { dryRun?: boolean }).dryRun === true),
+    ).toBe(true)
   })
 
   test('closing it without a change gives focus back to the button', async () => {

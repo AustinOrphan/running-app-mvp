@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { PlanSession } from '../../shared/types.ts'
@@ -12,7 +12,14 @@ import {
   renderWithProviders,
   type MockRoutes,
 } from './helpers.tsx'
-import { makeSession, settings } from './plan-fixtures.ts'
+import {
+  makeBrief,
+  makeDiff,
+  makeLine,
+  makeRevision,
+  makeSession,
+  settings,
+} from './plan-fixtures.ts'
 import { sheetRoutes } from './wrist-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -296,98 +303,118 @@ describe('SessionSheet', () => {
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ activityId: 'act2' })
   })
 
-  test('move sends the new date and closes; a 409 reason is shown inline and the sheet stays', async () => {
+  test('holds the change section: a move is asked about, applied with its hash, and the sheet stays', async () => {
     const user = userEvent.setup()
-    let attempts = 0
+    const dry = {
+      allowed: true,
+      guards: [],
+      diff: makeDiff([
+        makeLine({
+          externalId: 'x1',
+          sessionId: 's1',
+          date: '2027-01-15',
+          before: makeBrief({ date: '2027-01-13' }),
+          after: makeBrief({ date: '2027-01-15' }),
+          fields: ['date'],
+        }),
+      ]),
+      session: makeSession({ date: '2027-01-15', status: 'moved' }),
+      revision: null,
+      hash: '1'.repeat(64),
+    }
     const { calls, onClose } = renderSheet(makeSession(), {
-      'PUT /api/plan/sessions/s1': () => {
-        attempts += 1
-        if (attempts === 1) {
-          return {
-            status: 409,
-            body: {
-              error: { code: 'conflict', message: 'That day is next to another hard session.' },
+      'POST /api/plan/sessions/s1/adjust': ({ body }) =>
+        (body as { dryRun?: boolean }).dryRun === true
+          ? dry
+          : {
+              ...dry,
+              revision: makeRevision({
+                id: 'r5',
+                reason: 'owner',
+                auto: false,
+                summary: 'Moved Threshold intervals from Wed 13 Jan to Fri 15 Jan.',
+                seenAt: null,
+              }),
             },
-          }
-        }
-        return makeSession({ date: '2027-01-15', status: 'moved' })
-      },
+      'POST /api/plan/revisions/r5/seen': () => ({ status: 204, body: undefined }),
     })
     const dialog = await screen.findByRole('dialog')
-    const date = within(dialog).getByLabelText('Move to')
-    expect(date).toHaveValue('2027-01-13')
-    const move = within(dialog).getByRole('button', { name: 'Move session' })
-    expect(move).toBeDisabled()
-    await user.clear(date)
-    await user.type(date, '2027-01-14')
-    await user.click(move)
+    const section = within(dialog).getByRole('region', { name: 'Change this session' })
+    expect(within(section).getByLabelText('Move to')).toHaveValue('2027-01-13')
+    fireEvent.change(within(section).getByLabelText('Move to'), { target: { value: '2027-01-15' } })
+    await user.click(await within(section).findByRole('button', { name: 'Apply change' }))
     expect(
-      await within(dialog).findByText('That day is next to another hard session.'),
-    ).toBeInTheDocument()
+      await screen.findAllByText(/^Moved Threshold intervals from Wed 13 Jan/),
+    ).not.toHaveLength(0)
+    const writes = calls.filter(
+      (c) =>
+        c.url === '/api/plan/sessions/s1/adjust' &&
+        (c.body as { dryRun?: boolean }).dryRun !== true,
+    )
+    expect(writes.map((c) => c.body)).toEqual([
+      { adjustment: { type: 'move', date: '2027-01-15' }, expectHash: '1'.repeat(64) },
+    ])
+    expect(calls.filter((c) => c.method === 'PUT')).toEqual([])
+    // The sheet shows what was done and stays open for the undo.
     expect(onClose).not.toHaveBeenCalled()
-
-    await user.clear(date)
-    await user.type(date, '2027-01-15')
-    await user.click(move)
-    await waitFor(() => {
-      expect(onClose).toHaveBeenCalled()
-    })
-    const puts = calls.filter((c) => c.method === 'PUT')
-    expect(puts.map((p) => p.body)).toEqual([{ date: '2027-01-14' }, { date: '2027-01-15' }])
-    expect(await screen.findByText('Session moved to Fri 15 Jan')).toBeInTheDocument()
+    expect(within(dialog).getByRole('group', { name: 'Applied change' })).toBeInTheDocument()
   })
 
-  test('skip asks for confirmation, then sends { skip: true } and shows a toast', async () => {
+  test('a skip waits for the confirmation and says it is not made up later', async () => {
     const user = userEvent.setup()
     const { calls, onClose } = renderSheet(makeSession(), {
-      'PUT /api/plan/sessions/s1': () => makeSession({ status: 'skipped' }),
+      'POST /api/plan/sessions/s1/adjust': () => ({
+        allowed: true,
+        guards: [],
+        diff: makeDiff([]),
+        session: makeSession({ status: 'skipped' }),
+        revision: null,
+        hash: '1'.repeat(64),
+      }),
     })
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText(/not made up later/)).toBeInTheDocument()
+    expect(within(dialog).getByText('A skipped session is not made up later.')).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Skip session' }))
-    // Nothing is sent until the runner confirms.
-    expect(calls.some((c) => c.method === 'PUT')).toBe(false)
-    expect(within(dialog).getByText(/Skip this session\?/)).toBeInTheDocument()
-    await user.click(within(dialog).getByRole('button', { name: 'Yes, skip it' }))
-    await waitFor(() => {
-      expect(onClose).toHaveBeenCalled()
-    })
-    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ skip: true })
-    expect(await screen.findByText('Session skipped')).toBeInTheDocument()
-  })
-
-  test('keeping the session at the confirmation sends nothing', async () => {
-    const user = userEvent.setup()
-    const { calls, onClose } = renderSheet(makeSession())
-    const dialog = await screen.findByRole('dialog')
-    await user.click(within(dialog).getByRole('button', { name: 'Skip session' }))
-    await user.click(within(dialog).getByRole('button', { name: 'Keep it' }))
+    await within(dialog).findByText('This would not change the plan.')
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(within(dialog).getByRole('button', { name: 'Skip session' })).toBeInTheDocument()
-    expect(within(dialog).queryByText(/Skip this session\?/)).not.toBeInTheDocument()
-    expect(calls.some((c) => c.method === 'PUT')).toBe(false)
+    // Keeping the session writes nothing: every call to the adjust route was a dry run.
+    const asked = calls.filter((c) => c.url === '/api/plan/sessions/s1/adjust')
+    expect(asked.length).toBeGreaterThan(0)
+    expect(asked.every((c) => (c.body as { dryRun?: boolean }).dryRun === true)).toBe(true)
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  test('a skipped session can be restored with { skip: false }', async () => {
+  test('a skipped session can be restored', async () => {
     const user = userEvent.setup()
-    const { calls, onClose } = renderSheet(makeSession({ status: 'skipped' }), {
-      'PUT /api/plan/sessions/s1': () => makeSession({ status: 'planned' }),
+    const { calls } = renderSheet(makeSession({ status: 'skipped' }), {
+      'POST /api/plan/sessions/s1/adjust': () => ({
+        allowed: true,
+        guards: [],
+        diff: makeDiff([]),
+        session: makeSession(),
+        revision: null,
+        hash: '1'.repeat(64),
+      }),
     })
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).queryByRole('button', { name: 'Skip session' })).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Restore session' }))
     await waitFor(() => {
-      expect(onClose).toHaveBeenCalled()
+      expect(calls.some((c) => c.url === '/api/plan/sessions/s1/adjust')).toBe(true)
     })
-    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ skip: false })
-    expect(await screen.findByText('Session restored')).toBeInTheDocument()
+    expect(calls.find((c) => c.url === '/api/plan/sessions/s1/adjust')?.body).toEqual({
+      adjustment: { type: 'restore' },
+      dryRun: true,
+    })
   })
 
   test('a completed session cannot be moved or skipped', async () => {
     renderSheet(makeSession({ status: 'completed', activityId: 'act1', linkSource: 'auto' }))
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByRole('button', { name: 'Move session' })).toBeDisabled()
-    expect(within(dialog).getByRole('button', { name: 'Skip session' })).toBeDisabled()
+    expect(within(dialog).queryByLabelText('Move to')).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Skip session' })).not.toBeInTheDocument()
+    expect(within(dialog).getByText(/so it stays as it is/)).toBeInTheDocument()
   })
 
   test('an eased session shows what it was before', async () => {

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { PlanSession } from '../../../shared/types.ts'
-import { SessionChanges } from '../SessionChanges.tsx'
+import { AdjustSection } from '../disruption/AdjustSection.tsx'
 import { Sheet } from '../Sheet.tsx'
 
 export interface NotTodaySheetProps {
@@ -19,14 +19,14 @@ export interface NotTodaySheetProps {
 
 /**
  * What "Not today" opens: move the session to another day or skip it ("A skipped session is not
- * made up later."), through `SessionChanges`, which checks a move against spacing and the weekly
- * limits before it saves.
+ * made up later."), through `AdjustSection`, which asks the server whether the change is allowed
+ * (spacing, the weekly limits) before it saves, and closes the sheet once a change is applied.
  */
 export function NotTodaySheet({ session, onClose, onChanged, children }: NotTodaySheetProps) {
   return (
     <Sheet open onClose={onClose} title="Not today">
       {children}
-      <SessionChanges session={session} onClose={onChanged} />
+      <AdjustSection session={session} onApplied={onChanged} />
     </Sheet>
   )
 }

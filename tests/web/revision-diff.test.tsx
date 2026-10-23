@@ -573,6 +573,8 @@ describe('UndoControl, when the update can be undone', () => {
     const keys = invalidate.mock.calls.map(
       ([filter]) => (filter as { queryKey: string[] }).queryKey[0],
     )
+    // The windows and the reviews are read again too: undoing the update that added a window
+    // withdraws it, and an undo moves the plan targets the reviews read.
     expect(keys.sort()).toEqual([
       'brief',
       'disruptions',

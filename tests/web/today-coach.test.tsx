@@ -237,7 +237,7 @@ describe('Today: the hero variants', () => {
     const card = await screen.findByRole('article', { name: 'Easy run' })
     await user.click(within(card).getByRole('button', { name: 'Not today' }))
     const sheet = await screen.findByRole('dialog', { name: 'Not today' })
-    expect(within(sheet).getByRole('button', { name: 'Move session' })).toBeInTheDocument()
+    expect(within(sheet).getByLabelText('Move to')).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: 'Skip session' })).toBeInTheDocument()
     expect(within(sheet).getByText('A skipped session is not made up later.')).toBeInTheDocument()
   })

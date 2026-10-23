@@ -1,8 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useCallback, useRef } from 'react'
-import type { EngineInput, SessionKind } from '../../shared/engine/types.ts'
+import type { EngineInput } from '../../shared/engine/types.ts'
 import type {
+  AdjustResult,
   ArchivedPlanView,
+  PlanAction,
+  PlanAdjustment,
+  PlanGuardView,
   PlanPreview,
   PlanRevisionView,
   PlanSession,
@@ -12,7 +16,7 @@ import type {
   SessionWorkoutView,
   UndoResult,
 } from '../../shared/types.ts'
-import { api, invalidateNewPlan, keys } from './client.ts'
+import { ApiError, api, fieldErrors, invalidateNewPlan, keys } from './client.ts'
 
 export interface GeneratePlanRequest {
   goalId: string
@@ -21,13 +25,6 @@ export interface GeneratePlanRequest {
   strengthPreference?: 0 | 1 | 2
   /** Version-2 engine options: recovery cycle, strength sessions, TID model. */
   options?: EngineInput['options']
-}
-
-/** Owner edits of one session: move it, swap its kind within the week, or skip it. */
-export interface PlanSessionPatch {
-  date?: string
-  kind?: SessionKind
-  skip?: boolean
 }
 
 export interface PlanWeekPatch {
@@ -44,10 +41,11 @@ export interface PlanWeekPatch {
  * The active plan, or null before one is generated. Version-2 plans carry sessions, feasibility,
  * warnings, the checklist and zones; a version-1 plan has empty sessions.
  */
-export function usePlan() {
+export function usePlan(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: [keys.plan],
     queryFn: () => api<PlanWithSessions | null>('GET', '/plan'),
+    enabled: options.enabled ?? true,
   })
 }
 
@@ -74,6 +72,115 @@ export function usePreviewUndo() {
   })
 }
 
+/** The cache key of the preview of one action. It sits under the plan's key, beside the dry runs. */
+export function planPreviewKey(action: PlanAction | null) {
+  return [keys.plan, 'preview', action] as const
+}
+
+/**
+ * Whether a query holds a preview or a dry run. A write that has just applied what such a query
+ * showed leaves it alone: asked again, it would read "nothing to change".
+ */
+export function isPreviewQuery(queryKey: readonly unknown[]): boolean {
+  return queryKey[0] === keys.plan && (queryKey[1] === 'preview' || queryKey[1] === 'adjust')
+}
+
+/**
+ * What an action would do, from the code that commits it (`POST /api/plan/preview`): the diff, a
+ * summary, the warnings, why it cannot be applied, and the hash the commit sends back as
+ * `expectHash`. Writes nothing. Nothing is asked for without an action, and a result is not kept
+ * once the sheet that asked for it is gone.
+ */
+export function usePlanPreview(action: PlanAction | null) {
+  return useQuery({
+    queryKey: planPreviewKey(action),
+    queryFn: () => api<PlanPreview>('POST', '/plan/preview', action),
+    enabled: action !== null,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  })
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+/** The newer preview a 409 `stale-preview` carries, or null for any other answer. */
+export function stalePreviewOf(details: unknown): PlanPreview | null {
+  if (!isRecord(details) || details['code'] !== 'stale-preview') return null
+  const preview = details['preview']
+  return isRecord(preview) && typeof preview['hash'] === 'string'
+    ? (preview as unknown as PlanPreview)
+    : null
+}
+
+/**
+ * What a failed request means for the preview the runner was reading: the plan moved (`stale`, with
+ * the new preview), a guard or the plan checks refuse the action (`refused`, `blocked`), the body was
+ * not accepted (`invalid`, by field), the server was not reached (`offline`), or something else.
+ */
+export type CommitFailure =
+  | { kind: 'stale'; preview: PlanPreview }
+  | { kind: 'refused'; message: string; guards: PlanGuardView[] }
+  | { kind: 'blocked'; message: string }
+  | { kind: 'invalid'; message: string; fields: Record<string, string> }
+  | { kind: 'offline' }
+  | { kind: 'error'; message: string }
+
+export function commitFailure(error: unknown): CommitFailure {
+  if (!(error instanceof ApiError)) return { kind: 'error', message: 'Something went wrong.' }
+  if (error.status === 0) return { kind: 'offline' }
+  if (error.status === 409) {
+    const preview = stalePreviewOf(error.details)
+    if (preview !== null) return { kind: 'stale', preview }
+    const guards = isRecord(error.details) ? error.details['guards'] : undefined
+    if (Array.isArray(guards)) {
+      return { kind: 'refused', message: error.message, guards: guards as PlanGuardView[] }
+    }
+    return { kind: 'blocked', message: error.message }
+  }
+  if (error.status === 422) return { kind: 'blocked', message: error.message }
+  if (error.code === 'validation') {
+    return { kind: 'invalid', message: error.message, fields: fieldErrors(error) }
+  }
+  return { kind: 'error', message: error.message }
+}
+
+/**
+ * Every query that reads the plan or what a change to it moves: the plan and its sessions (the
+ * session workout sits under its key), the revision list, the rest windows, the reviews, the weekly
+ * brief, the athlete state and Today.
+ */
+const PLAN_READER_KEYS = [
+  keys.plan,
+  keys.planRevisions,
+  keys.disruptions,
+  keys.reviews,
+  keys.brief,
+  keys.state,
+  keys.today,
+] as const
+
+/**
+ * Reads those queries again after a write to the plan (an undo, a re-plan, an adjusted session, a
+ * rest window). `skip` leaves out the queries it names (the dry run of the edit that was just
+ * applied, which would read "nothing to change").
+ */
+export function invalidatePlanReaders(
+  queryClient: QueryClient,
+  skip?: (queryKey: readonly unknown[]) => boolean,
+): Promise<unknown> {
+  return Promise.all(
+    PLAN_READER_KEYS.map((key) =>
+      queryClient.invalidateQueries({
+        queryKey: [key],
+        predicate: skip === undefined ? undefined : (query) => !skip(query.queryKey),
+      }),
+    ),
+  )
+}
+
 /**
  * Undoes a revision the preview was made for. A 409 carries `reasons` or a newer preview
  * (`stale-preview`); a 422 carries the checklist the restored plan fails. A success changes the plan
@@ -86,18 +193,8 @@ export function useUndoRevision() {
   return useMutation({
     mutationFn: ({ id, expectHash }: { id: string; expectHash: string }) =>
       api<UndoResult>('POST', `/plan/revisions/${encodeURIComponent(id)}/undo`, { expectHash }),
-    onSuccess: () =>
-      Promise.all(
-        [
-          keys.plan,
-          keys.planRevisions,
-          keys.brief,
-          keys.state,
-          keys.today,
-          keys.disruptions,
-          keys.reviews,
-        ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
-      ),
+    // Undoing a window withdraws it, so the banner reads the windows again.
+    onSuccess: () => invalidatePlanReaders(queryClient),
   })
 }
 
@@ -155,32 +252,86 @@ export function useRestorePlan() {
   })
 }
 
-/** Re-plans from the updated state; the past and completed sessions stay. */
+/**
+ * Re-plans from the updated state; the past and completed sessions stay. `expectHash` is the hash of
+ * the preview the runner read: a plan that has moved since answers 409 with a newer preview.
+ */
 export function useReplan() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () => api<PlanRevisionView>('POST', '/plan/replan'),
-    onSuccess: () =>
-      Promise.all(
-        [keys.plan, keys.planRevisions, keys.reviews, keys.today].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
-        ),
+    mutationFn: (expectHash?: string) =>
+      api<PlanRevisionView>(
+        'POST',
+        '/plan/replan',
+        expectHash === undefined ? undefined : { expectHash },
       ),
+    onSuccess: () => invalidatePlanReaders(queryClient, isPreviewQuery),
   })
 }
 
-/** A move that would break spacing or a limit comes back as a 409 with the reason. */
-export function useUpdatePlanSession() {
+/** What a dry run of an owner edit says: the guards, the diff and the hash the commit sends back. */
+export type AdjustPreview = Pick<AdjustResult, 'allowed' | 'guards' | 'diff' | 'hash'>
+
+/** The newer preview of a stale commit, in the shape of a dry run. */
+export function adjustPreviewOf(preview: PlanPreview): AdjustPreview {
+  return {
+    allowed: !preview.blocked,
+    guards: preview.guards,
+    diff: preview.diff,
+    hash: preview.hash,
+  }
+}
+
+/** The cache key of one dry run. It sits under the plan's key, beside the previews. */
+export function adjustPreviewKey(sessionId: string, adjustment: PlanAdjustment | null) {
+  return [keys.plan, 'adjust', sessionId, adjustment] as const
+}
+
+/**
+ * The live dry run of an owner edit of one session (`POST /api/plan/sessions/:id/adjust` with
+ * `dryRun`): the guards that would refuse or qualify it, and the diff it would write. Writes
+ * nothing. Nothing is asked for without an adjustment, and a result is not kept once the control
+ * that asked for it is gone.
+ */
+export function useAdjustPreview(sessionId: string, adjustment: PlanAdjustment | null) {
+  return useQuery({
+    queryKey: adjustPreviewKey(sessionId, adjustment),
+    queryFn: async (): Promise<AdjustPreview> => {
+      const { allowed, guards, diff, hash } = await api<AdjustResult>(
+        'POST',
+        `/plan/sessions/${encodeURIComponent(sessionId)}/adjust`,
+        { adjustment, dryRun: true },
+      )
+      return { allowed, guards, diff, hash }
+    },
+    enabled: adjustment !== null,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  })
+}
+
+/**
+ * Applies an owner edit of one session that a dry run was made for. A 409 carries `details.guards`
+ * when a guard now refuses it, or a newer preview (`stale-preview`) when the plan moved.
+ */
+export function useAdjustSession() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: PlanSessionPatch }) =>
-      api<PlanSession>('PUT', `/plan/sessions/${encodeURIComponent(id)}`, patch),
-    onSuccess: () =>
-      Promise.all(
-        [keys.plan, keys.planRevisions, keys.today].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
-        ),
-      ),
+    mutationFn: ({
+      id,
+      adjustment,
+      expectHash,
+    }: {
+      id: string
+      adjustment: PlanAdjustment
+      expectHash: string
+    }) =>
+      api<AdjustResult>('POST', `/plan/sessions/${encodeURIComponent(id)}/adjust`, {
+        adjustment,
+        expectHash,
+      }),
+    onSuccess: () => invalidatePlanReaders(queryClient, isPreviewQuery),
   })
 }
 

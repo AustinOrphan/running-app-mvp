@@ -21,7 +21,8 @@ import {
   formatWeekday,
   phaseLabel,
 } from '../../web/components/format.ts'
-import { expectCleanCopy, renderWithProviders } from './helpers.tsx'
+import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
+import { settings } from './plan-fixtures.ts'
 import { makeSession } from './today-fixtures.ts'
 
 afterEach(() => {
@@ -235,6 +236,7 @@ describe('ScalePicker', () => {
 
 describe('NotTodaySheet', () => {
   test('hosts the move and skip controls and takes what a later epic puts above them', () => {
+    mockApi({ 'GET /api/settings': () => settings })
     const onChanged = vi.fn()
     renderWithProviders(
       <NotTodaySheet session={makeSession()} onClose={() => {}} onChanged={onChanged}>
@@ -245,13 +247,15 @@ describe('NotTodaySheet', () => {
     const extra = within(sheet).getByText('Not 100% today?')
     const heading = within(sheet).getByRole('heading', { name: 'Change this session' })
     expect(extra.compareDocumentPosition(heading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(within(sheet).getByRole('button', { name: 'Move session' })).toBeInTheDocument()
+    expect(within(sheet).getByLabelText('Move to')).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Skip session' })).toBeInTheDocument()
     expect(within(sheet).getByText('A skipped session is not made up later.')).toBeInTheDocument()
     expect(onChanged).not.toHaveBeenCalled()
   })
 
   test('Close and Escape end it without calling onChanged', async () => {
     const user = userEvent.setup()
+    mockApi({ 'GET /api/settings': () => settings })
     const onClose = vi.fn()
     const onChanged = vi.fn()
     renderWithProviders(

@@ -61,6 +61,7 @@ function routes(plan: PlanWithSessions, wrist: WristStatus, extra: MockRoutes = 
     'GET /api/settings': () => settings,
     'GET /api/weeks': () => [] as WeekRow[],
     'GET /api/plan/revisions': () => [makeRevision()],
+    'GET /api/plan/disruptions': () => [],
     'GET /api/activities': () => activityPage([]),
     'GET /api/wrist/status': () => wrist,
     ...workoutRoutes(plan.sessions),

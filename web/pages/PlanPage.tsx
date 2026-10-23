@@ -10,18 +10,19 @@ import {
 import { Link } from 'react-router-dom'
 import { fieldErrors } from '../api/client.ts'
 import { ruleTarget, type WhyTarget } from '../api/explain.ts'
+import { useDisruptions } from '../api/disruptions.ts'
 import { useGoals } from '../api/goals.ts'
 import {
   useGeneratePlan,
   useMarkRevisionsSeen,
   usePlan,
   usePlanRevisions,
-  useReplan,
   useUpdatePlanWeek,
   type GeneratePlanRequest,
   type PlanWeekPatch,
 } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
+import { useToday } from '../api/today.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { useWristStatus, weekZipHref } from '../api/wrist.ts'
 import { Button } from '../components/Button.tsx'
@@ -36,6 +37,9 @@ import { useToast } from '../components/Toast.tsx'
 import { WhyDrawer } from '../components/WhyDrawer.tsx'
 import { WristChip } from '../components/WristStatus.tsx'
 import { WristStrip, weekHasRuns } from '../components/WristStrip.tsx'
+import { DisruptionBanners } from '../components/disruption/DisruptionBanner.tsx'
+import { NotFullSheet } from '../components/disruption/NotFullSheet.tsx'
+import { ReplanSheet } from '../components/disruption/ReplanSheet.tsx'
 import {
   formatLongDate,
   formatShortDate,
@@ -53,6 +57,7 @@ import { minutesToHours1 } from '../../shared/units.ts'
 import { groupWarnings, localiseEngineText } from '../components/engineText.ts'
 import type { EngineWarning } from '../../shared/engine/types.ts'
 import type {
+  DisruptionView,
   Goal,
   PlanPhase,
   PlanSession,
@@ -721,6 +726,19 @@ function PlanOverview({
   )
 }
 
+/**
+ * What a session card says under its title: its length, its status, and "Rest window" for a day a
+ * window holds. A held day is planned rest, so the status adds nothing there; a session the window
+ * back-dated to skipped says both.
+ */
+function sessionMeta(session: PlanSession, units: Units | undefined): string {
+  const held = session.flags.includes('rest-window')
+  const parts = [sessionSummary(session, units)]
+  if (!(held && session.status === 'planned')) parts.push(sessionStatusLabel(session.status))
+  if (held) parts.push('Rest window')
+  return parts.filter((part) => part !== '').join(', ')
+}
+
 /** One card per day with sessions; each session opens the session sheet. */
 function DayCards({
   week,
@@ -761,11 +779,7 @@ function DayCards({
                 }}
               >
                 <span className={styles.sessionTitle}>{session.title}</span>
-                <span className={styles.sessionMeta}>
-                  {[sessionSummary(session, units), sessionStatusLabel(session.status)]
-                    .filter((part) => part !== '')
-                    .join(', ')}
-                </span>
+                <span className={styles.sessionMeta}>{sessionMeta(session, units)}</span>
                 {wrist.has(session.id) ? <WristChip item={wrist.get(session.id)!} /> : null}
               </button>
             ))}
@@ -904,6 +918,12 @@ function PlanTable({
                   <td className={styles.phase}>
                     <PhaseChip phase={week.phase} flags={week.flags} />
                     {cutback ? <span className={styles.cutback}>cutback</span> : null}
+                    {week.flags.includes('disrupted') ? (
+                      <span className={styles.windowChip}>Rest window</span>
+                    ) : null}
+                    {week.flags.includes('disruption-return') ? (
+                      <span className={styles.windowChip}>Return week</span>
+                    ) : null}
                   </td>
                   <td className={styles.target} data-cell="target">
                     <TargetCell week={week} />
@@ -973,6 +993,33 @@ function PlanTable({
   )
 }
 
+/**
+ * The windows that are not over, as banners above the plan. Nothing renders until there is one;
+ * the server's day is asked for only then. After that the banners stay mounted even when the list
+ * empties, because removing a window empties it and its sheet has to stay to show the undo.
+ */
+function PlanWindows() {
+  const windows = useDisruptions()
+  const [engaged, setEngaged] = useState(false)
+  const live = (windows.data ?? []).filter((window) => window.phase !== 'done')
+  if (live.length > 0 && !engaged) setEngaged(true)
+  if (live.length === 0 && !engaged) return null
+  return <PlanBanners windows={live} />
+}
+
+function PlanBanners({ windows }: { windows: DisruptionView[] }) {
+  const today = useToday()
+  const settings = useSettings()
+  if (today.data === undefined) return null
+  return (
+    <DisruptionBanners
+      windows={windows}
+      today={today.data.date}
+      units={settings.data?.units ?? 'km'}
+    />
+  )
+}
+
 /** Weekly targets from the start date to race week; every week stays editable. */
 export function PlanPage() {
   const plan = usePlan()
@@ -980,8 +1027,8 @@ export function PlanPage() {
   const [regenerating, setRegenerating] = useState(false)
   const [openSessionId, setOpenSessionId] = useState<string | null>(null)
   const [why, setWhy] = useState<WhyTarget | null>(null)
-  const replan = useReplan()
-  const toast = useToast()
+  const [notFull, setNotFull] = useState(false)
+  const [updating, setUpdating] = useState(false)
 
   if (plan.isError || goals.isError) {
     return (
@@ -1041,19 +1088,24 @@ export function PlanPage() {
         actions={
           <>
             {hasSessions ? (
-              <Button
-                variant="secondary"
-                loading={replan.isPending}
-                onClick={() => {
-                  replan.mutate(undefined, {
-                    onSuccess: () => {
-                      toast.show('Plan updated')
-                    },
-                  })
-                }}
-              >
-                Update plan from latest data
-              </Button>
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setNotFull(true)
+                  }}
+                >
+                  Not 100%
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setUpdating(true)
+                  }}
+                >
+                  Update plan from latest data
+                </Button>
+              </>
             ) : null}
             <Button
               variant="secondary"
@@ -1066,11 +1118,7 @@ export function PlanPage() {
           </>
         }
       />
-      {replan.isError ? (
-        <p role="alert" className={styles.error}>
-          The plan was not updated. {replan.error.message}
-        </p>
-      ) : null}
+      {hasSessions ? <PlanWindows /> : null}
       {hasSessions ? <WristStrip sessions={sessions} /> : null}
       {hasSessions ? <PlanOverview plan={plan.data} onWhy={setWhy} /> : null}
       <PlanTable plan={plan.data} sessions={sessions} onOpenSession={setOpenSessionId} />
@@ -1091,6 +1139,20 @@ export function PlanPage() {
           setWhy(null)
         }}
       />
+      {notFull ? (
+        <NotFullSheet
+          onClose={() => {
+            setNotFull(false)
+          }}
+        />
+      ) : null}
+      {updating ? (
+        <ReplanSheet
+          onClose={() => {
+            setUpdating(false)
+          }}
+        />
+      ) : null}
       {regenerating ? (
         <Sheet
           open

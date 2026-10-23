@@ -299,6 +299,131 @@ test('the Goals question for Make active fits at 360 px and clears the tab bar',
   await expect(question).toBeHidden()
 })
 
+test('the Not 100% sheet and the window banner fit at 360 px, with every button reachable', async () => {
+  const { lastWednesday, thisMonday, today } = relativeDates()
+  await resetData()
+  for (let i = 0; i < 8; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (35 + i) * 60,
+      distanceM: 6000 + i * 300,
+    })
+  }
+  const goal = (await api.post('/goals', {
+    name: 'Narrow window half',
+    priority: 'A',
+    targetDate: addDays(thisMonday, 7 * 14 + 5),
+    distanceM: 21_097,
+    goalType: 'finish',
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id })
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/plan')
+
+  await page.getByRole('button', { name: 'Not 100%' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Not 100%' })
+  await expect(sheet).toBeVisible()
+  // Measure after the slide-up animation ends.
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+
+  const navHeight = (await page.getByRole('navigation', { name: 'Primary' }).boundingBox())?.height
+  expect(navHeight).toBeGreaterThan(0)
+  const viewport = page.viewportSize()
+  const width = viewport?.width ?? 0
+  const height = viewport?.height ?? 0
+  /** The sheet is inside the screen, does not scroll sideways, and its buttons can be tapped. */
+  async function expectReachable(buttons: string[]) {
+    expect(await pageOverflow(), 'the page').toBeLessThanOrEqual(0)
+    expect(
+      await sheet.evaluate((el) => el.scrollWidth - el.clientWidth),
+      'the sheet',
+    ).toBeLessThanOrEqual(0)
+    // Nothing inside the sheet reaches past the right edge of the screen.
+    const outside = await sheet.evaluate((el) =>
+      [...el.querySelectorAll('*')]
+        .filter((node) => {
+          const box = node.getBoundingClientRect()
+          return box.width > 0 && box.right > window.innerWidth + 0.5
+        })
+        .map((node) => `${node.tagName.toLowerCase()} "${node.textContent?.slice(0, 40) ?? ''}"`),
+    )
+    expect(outside, 'past the right edge').toEqual([])
+    for (const name of buttons) {
+      const button = sheet.getByRole('button', { name, exact: true })
+      await expect(button, name).toBeVisible()
+      const box = await button.boundingBox()
+      expect(box, name).not.toBeNull()
+      expect((box?.x ?? 0) + (box?.width ?? 0), `${name} right edge`).toBeLessThanOrEqual(
+        width + 0.5,
+      )
+      expect((box?.y ?? 0) + (box?.height ?? 0), `${name} bottom edge`).toBeLessThanOrEqual(height)
+      expect(await isUncovered(button), name).toBe(true)
+    }
+  }
+
+  // Step 1: five reasons, each a whole row.
+  await expectReachable(['Cancel', 'Next'])
+  for (const radio of await sheet.getByRole('radio').all()) {
+    const box = await radio.locator('xpath=ancestor::label').boundingBox()
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width + 0.5)
+  }
+
+  // Step 2, the longest: a niggle with its scale, notice, mode and the caps.
+  await sheet.getByRole('radio', { name: /A niggle or pain/ }).check()
+  await sheet.getByRole('button', { name: 'Next' }).click()
+  await expect(sheet.getByRole('heading', { name: 'When' })).toBeVisible()
+  await sheet.getByRole('radio', { name: 'Short easy runs' }).click()
+  await sheet.getByLabel('Until').fill(addDays(today, 2))
+  await sheet.getByRole('button', { name: 'Pain (0 to 10) 10' }).scrollIntoViewIfNeeded()
+  for (const rating of ['0', '10']) {
+    const pain = await sheet.getByRole('button', { name: `Pain (0 to 10) ${rating}` }).boundingBox()
+    expect((pain?.x ?? 0) + (pain?.width ?? 0), `pain ${rating}`).toBeLessThanOrEqual(width + 0.5)
+    expect(pain?.x ?? -1, `pain ${rating}`).toBeGreaterThanOrEqual(0)
+  }
+  await expectReachable(['Cancel', 'Back', 'Next'])
+
+  // Step 3: the preview, whose rows and buttons stay inside the screen.
+  await sheet.getByRole('button', { name: 'Next' }).click()
+  await expect(sheet.getByRole('heading', { name: 'What would change' })).toBeVisible()
+  await expectReachable(['Cancel', 'Back', 'Apply to my plan'])
+  await sheet.getByRole('button', { name: 'Cancel' }).click()
+  await expect(sheet).toBeHidden()
+
+  // A window in force: the banner wraps inside the screen and its three buttons stay in reach.
+  await api.post('/plan/disruptions', {
+    reason: 'illness-above-neck',
+    mode: 'rest',
+    startDate: addDays(today, -1),
+    endDate: addDays(today, 1),
+  })
+  await page.goto('/plan')
+  const banner = page.getByRole('region', { name: 'Rest window' })
+  await expect(banner).toBeVisible()
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+  const bannerBox = await banner.boundingBox()
+  expect((bannerBox?.x ?? 0) + (bannerBox?.width ?? 0)).toBeLessThanOrEqual(width + 0.5)
+  for (const name of ["I'm better", 'Extend', 'Remove window']) {
+    const button = banner.getByRole('button', { name })
+    const box = await button.boundingBox()
+    expect((box?.x ?? 0) + (box?.width ?? 0), name).toBeLessThanOrEqual(width + 0.5)
+    expect(await isUncovered(button), name).toBe(true)
+  }
+
+  // Its sheets fit too: Extend asks for a date and shows the preview above its two buttons.
+  await banner.getByRole('button', { name: 'Extend' }).click()
+  const extend = page.getByRole('dialog', { name: 'Extend this window' })
+  await expect(extend.getByRole('button', { name: 'Apply to my plan' })).toBeEnabled()
+  await extend.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+  for (const name of ['Cancel', 'Apply to my plan']) {
+    const box = await extend.getByRole('button', { name }).boundingBox()
+    expect((box?.x ?? 0) + (box?.width ?? 0), name).toBeLessThanOrEqual(width + 0.5)
+    expect((box?.y ?? 0) + (box?.height ?? 0), name).toBeLessThanOrEqual(height)
+  }
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+})
+
 for (const size of [
   { width: 390, height: 844 },
   { width: 360, height: 780 },
