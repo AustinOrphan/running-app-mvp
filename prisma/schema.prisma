@@ -181,6 +181,8 @@ model PlanWeek {
   tid              String? // JSON text: { z1, z2, z3 } targets, percent of running time
   flags            String   @default("[]") // JSON text: string[] (recovery, taper, strength, gut-training, heat-acclimation)
   gainTargetM      Int?
+  qualitySessions  Int      @default(0) // the engine's count for the week; a re-plan diffs it
+  isRecovery       Boolean  @default(false) // the engine's flag; post-race weeks carry no 'recovery' flag
 
   plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
 

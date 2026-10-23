@@ -72,6 +72,8 @@ export function makeV2Week(index: number, over: Partial<PlanWeek> = {}): PlanWee
     tid: { z1: 80, z2: 10, z3: 10 },
     flags: [],
     gainTargetM: null,
+    qualitySessions: 0,
+    isRecovery: false,
     updatedAt: '2027-01-01T10:00:00.000Z',
     ...over,
   }
