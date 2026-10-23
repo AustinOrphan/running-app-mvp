@@ -1,15 +1,10 @@
 import { Fragment, useId, useState } from 'react'
 import { formatQuantity } from '../../../shared/copy/quantity.ts'
+import { sessionStatusLabel } from '../../../shared/copy/sessionStatus.ts'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { isToRun } from '../../../shared/domain/sessionStatus.ts'
-import type {
-  PlanSession,
-  PlanSessionStatus,
-  TodayHeat,
-  TodayHero,
-  Units,
-} from '../../../shared/types.ts'
+import type { PlanSession, TodayHeat, TodayHero, Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
 import { SessionSheet } from '../SessionSheet.tsx'
 import { WhyDrawer } from '../WhyDrawer.tsx'
@@ -19,16 +14,6 @@ import { SessionActions } from './SessionActions.tsx'
 import styles from './SessionHero.module.css'
 import { SessionTargets } from './SessionTargets.tsx'
 import { TodaySlot } from './TodaySlot.tsx'
-
-const STATUS_LABELS: Record<PlanSessionStatus, string | null> = {
-  planned: null,
-  completed: 'Completed',
-  partial: 'Partly done',
-  skipped: 'Skipped',
-  downgraded: 'Adjusted',
-  moved: 'Moved',
-  adjusted: 'Shortened',
-}
 
 const minutes = (min: number) => ({ kind: 'minutes', min }) as const
 
@@ -94,7 +79,7 @@ export function SessionHero({ hero, heat, next, units }: SessionHeroProps) {
   const rest = advice === 'rest' || session.kind === 'rest'
   const shown = eased ?? session
   const planned = { title: session.title, duration: minutes(session.durationMin) }
-  const status = STATUS_LABELS[session.status]
+  const status = session.status === 'planned' ? null : sessionStatusLabel(session.status)
   const toRun = isToRun(session.status)
   const rules = [...new Set([...shown.rules, ...(advice === 'as-planned' ? [] : ['J3'])])]
   const showNext = rest || !toRun

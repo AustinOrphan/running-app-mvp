@@ -278,9 +278,10 @@ The disclaimer, in full (the Today page shows a shortened form with a link to th
 
 ### How evidence and defaults are shown
 
-The "Why this session" and "Why" buttons on Today, Plan, Goals and Review open one drawer. For each
-rule behind a number it shows the value and its range, a grade badge, the papers with their findings
-and DOI links, and a plain note when the value is a default. Grades:
+The "Explain" and "Why this session" buttons of a Today session, and the "Why" buttons on Today,
+Plan, Goals and Review, open one drawer. For each rule behind a number it shows the value and its
+range, a grade badge, the papers with their findings and DOI links, and a plain note when the value
+is a default. Grades:
 
 | Grade | Meaning                                                                      |
 | ----- | ---------------------------------------------------------------------------- |

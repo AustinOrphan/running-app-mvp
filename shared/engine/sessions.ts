@@ -153,6 +153,11 @@ const TITLES: Record<SessionKind, string> = {
   cross: 'Cross-training',
 }
 
+/** The title a session of `kind` carries in the plan: "Long run, fast finish" for `long-fast-finish`. */
+export function sessionTitle(kind: SessionKind): string {
+  return TITLES[kind]
+}
+
 /** Kinds that are runs, so a distance and a gain share can be shown. */
 const RUN_KINDS = new Set<SessionKind>([
   'easy',

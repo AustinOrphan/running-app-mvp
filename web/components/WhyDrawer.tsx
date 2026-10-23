@@ -292,6 +292,10 @@ function DrawerBody({
   // drawer shows the server's default until it arrives, as the pages do, so a slow or failing
   // settings request never holds the figures back.
   const units: Units = settings.data?.units ?? DEFAULT_UNITS
+  // The registry and the papers do not depend on the figures, so they are asked for now and the
+  // three requests overlap. `RuleSections` reads the same queries once the figures are in.
+  useResearchParams()
+  useCorpus()
 
   // Wait for the figures, so the rule section does not gain rules after it has been read.
   if (view.isPending) {

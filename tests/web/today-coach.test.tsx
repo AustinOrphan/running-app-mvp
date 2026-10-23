@@ -212,6 +212,19 @@ describe('Today: the hero variants', () => {
     expect(within(card).getByText('Also today: Strength (30 min).')).toBeInTheDocument()
   })
 
+  test('an eased session reads the same on the hero chip and in its sheet', async () => {
+    const user = userEvent.setup()
+    renderToday(dayOf({ session: makeSession({ status: 'downgraded' }) }), {
+      'GET /api/activities': () => activityPage([]),
+    })
+    const card = await screen.findByRole('article', { name: 'Easy run' })
+    expect(within(card).getByText('Eased')).toBeInTheDocument()
+    expect(within(card).queryByText('Adjusted')).not.toBeInTheDocument()
+    await user.click(within(card).getByRole('button', { name: 'Not today' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Easy run' })
+    expect(within(sheet).getByText('Eased')).toBeInTheDocument()
+  })
+
   test('Not today opens the session sheet until the Not today sheet replaces it', async () => {
     const user = userEvent.setup()
     renderToday(dayOf(), { 'GET /api/activities': () => activityPage([]) })

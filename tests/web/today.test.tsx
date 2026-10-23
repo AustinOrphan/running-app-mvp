@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
@@ -154,6 +156,33 @@ describe('Today: heat, readiness and red flags', () => {
     const card = await screen.findByRole('article', { name: 'Easy run' })
     expect(within(card).queryByText(/Cooler start/)).not.toBeInTheDocument()
     expect(within(card).queryByText('What to know today')).not.toBeInTheDocument()
+  })
+
+  test('the disclosure is a group the runner opens and closes by its summary', async () => {
+    const user = userEvent.setup()
+    window.localStorage.removeItem('rl_today_more')
+    render(withEasyRun({ heat: warm }))
+    const card = await screen.findByRole('article', { name: 'Easy run' })
+    const group = within(card).getByRole('group')
+    expect(group).not.toHaveAttribute('open')
+    await user.click(within(group).getByText('What to know today'))
+    expect(group).toHaveAttribute('open')
+    expect(within(group).getByRole('button', { name: 'Why: the heat note' })).toBeVisible()
+    await user.click(within(group).getByText('What to know today'))
+    expect(group).not.toHaveAttribute('open')
+    window.localStorage.removeItem('rl_today_more')
+  })
+
+  test('the summary row keeps the browser marker, the one cue that the line opens', () => {
+    // jsdom draws no marker, so the stylesheet is read: `display: flex` or `list-style: none` on
+    // the summary removes the marker in Chromium and Firefox.
+    const css = readFileSync(
+      join(process.cwd(), 'web/components/today/KnowToday.module.css'),
+      'utf8',
+    )
+    const rule = /\.summary\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(rule).toMatch(/display:\s*list-item/)
+    expect(rule).not.toMatch(/list-style/)
   })
 
   test('the disclosure keeps its state on this device', async () => {

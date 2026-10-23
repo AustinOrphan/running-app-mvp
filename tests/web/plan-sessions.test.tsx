@@ -463,6 +463,41 @@ describe('Plan page, What changed', () => {
     expect(calls.some((c) => c.url.includes('/seen'))).toBe(false)
   })
 
+  test('words an update in miles, the account default, while the settings are not known', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/settings': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'The settings could not be read.' } },
+        }),
+        'GET /api/plan/revisions': () => [
+          unseenUpdate({
+            seenAt: '2027-01-11T13:00:00.000Z',
+            diff: makeDiff([
+              makeLine({
+                externalId: 'x1',
+                date: '2027-01-14',
+                before: makeBrief({ distanceM: 8000 }),
+                after: makeBrief({ distanceM: 16_093 }),
+                fields: ['distanceM'],
+              }),
+            ]),
+          }),
+        ],
+      }),
+    )
+    renderPlan()
+    const changed = await screen.findByRole('region', { name: 'What changed' })
+    await user.click(within(changed).getByText('What changed'))
+    expect(
+      await within(changed).findByText(
+        'Thu 14 Jan: Threshold intervals 40 min, 5 mi to Threshold intervals 40 min, 10 mi',
+      ),
+    ).toBeInTheDocument()
+    expect(changed).not.toHaveTextContent(/\bkm\b/)
+  })
+
   test('opens the why drawer with the rules of an update', async () => {
     const user = userEvent.setup()
     mockApi(

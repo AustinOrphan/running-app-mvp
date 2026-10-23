@@ -7,10 +7,11 @@ import type {
   Step,
   ZoneKey,
 } from '../../shared/engine/types.ts'
+import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { addDays } from '../../shared/dates.ts'
 import { hasSubjectivePart } from '../../shared/engine/execution.ts'
 import { formatDistance, formatPace } from '../../shared/units.ts'
-import type { ActivityListItem, PlanSession, PlanSessionStatus, Units } from '../../shared/types.ts'
+import type { ActivityListItem, PlanSession, Units } from '../../shared/types.ts'
 import { useActivities } from '../api/activities.ts'
 import { useLinkPlanSession } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
@@ -51,16 +52,6 @@ const STEP_LABELS: Record<Step['kind'], string> = {
   recover: 'recover',
   cooldown: 'Cool-down',
   steady: 'Steady',
-}
-
-const STATUS_LABELS: Record<PlanSessionStatus, string> = {
-  planned: 'Planned',
-  completed: 'Completed',
-  partial: 'Partly completed',
-  skipped: 'Skipped',
-  downgraded: 'Eased',
-  moved: 'Moved',
-  adjusted: 'Shortened',
 }
 
 const FLAG_LABELS: Record<SessionFlag, string> = {
@@ -109,10 +100,6 @@ const ASSESSMENT_FLAG_LABELS: Record<ExecutionAssessment['flags'][number], strin
 }
 
 const NBSP = ' '
-
-export function sessionStatusLabel(status: PlanSessionStatus): string {
-  return STATUS_LABELS[status]
-}
 
 /** Duration, distance and the like for a one-line summary; rest days have none. */
 export function sessionSummary(session: PlanSession, units: Units | undefined): string {
@@ -358,7 +345,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
         <div className={styles.body}>
           <p className={styles.context}>
             {formatLongDate(session.date)}. {sessionKindLabel(session.kind)}.{' '}
-            <span data-status={session.status}>{STATUS_LABELS[session.status]}</span>
+            <span data-status={session.status}>{sessionStatusLabel(session.status)}</span>
           </p>
           {original !== null ? (
             <p className={styles.muted}>

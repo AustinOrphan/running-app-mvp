@@ -288,8 +288,8 @@ export const ADJUST_TEMPLATES = {
   'adjust.other-week': tpl('A session moves within its own week. Re-plan to change weeks.'),
   'adjust.past-date': tpl('A session cannot move to a day that has passed.'),
   'adjust.no-partner': tpl(
-    'There is no {kind} session left this week to swap with. A swap never adds a session or raises load.',
-    { kind: 'text' },
+    'There is no {title} left this week to swap with. A swap never adds a session or raises load.',
+    { title: 'text' },
   ),
   'adjust.partner-unavailable': tpl(
     'That session cannot be swapped with. It must be in the same week, still to run and not linked to an activity.',

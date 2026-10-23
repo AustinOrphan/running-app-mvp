@@ -28,7 +28,7 @@ import { EmptyState } from '../components/EmptyState.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
-import { SessionSheet, sessionStatusLabel, sessionSummary } from '../components/SessionSheet.tsx'
+import { SessionSheet, sessionSummary } from '../components/SessionSheet.tsx'
 import { Sheet } from '../components/Sheet.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
@@ -41,6 +41,7 @@ import {
 } from '../components/format.ts'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { newMarker } from '../../shared/copy/revisionView.ts'
+import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { distanceClassOf } from '../../shared/engine/goal.ts'
 import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
@@ -629,7 +630,7 @@ function PlanOverview({
   onWhy: (why: WhyTarget) => void
 }) {
   const revisions = usePlanRevisions()
-  const units = useSettings().data?.units ?? 'km'
+  const units = useSettings().data?.units ?? 'mi'
   const passed = plan.checklist.filter((item) => item.ok).length
   const feasibility = plan.feasibility
 

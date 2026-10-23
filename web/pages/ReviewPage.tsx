@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { addDays, mondayOf, todayIso, weekStartsBetween } from '../../shared/dates.ts'
 import { toV1Phase } from '../../shared/domain/plan.ts'
 import {
@@ -13,7 +14,6 @@ import type {
   DataStatus,
   PlanRevisionView,
   PlanSession,
-  PlanSessionStatus,
   PlanWeek,
   PlanWithSessions,
   ReviewSignals,
@@ -65,16 +65,6 @@ const DECISION_OPTIONS: Array<{ value: Decision; label: string }> = [
 interface ReplanOutcome {
   revision: PlanRevisionView | null
   error: string | null
-}
-
-const SESSION_STATUS_LABELS: Record<PlanSessionStatus, string> = {
-  planned: 'Planned',
-  completed: 'Completed',
-  partial: 'Partly done',
-  skipped: 'Skipped',
-  downgraded: 'Eased',
-  moved: 'Moved',
-  adjusted: 'Shortened',
 }
 
 const DATA_OPTIONS: Array<{ value: DataStatus; label: string }> = [
@@ -687,7 +677,7 @@ function SessionSummaries({ sessions }: { sessions: PlanSession[] }) {
               <span className={styles.sessionDay}>{formatWeekday(session.date)}</span>
               <span className={styles.sessionTitle}>{session.title}</span>
               <span className={styles.muted}>{`${String(session.durationMin)} min`}</span>
-              <span className={styles.sessionStatus}>{SESSION_STATUS_LABELS[session.status]}</span>
+              <span className={styles.sessionStatus}>{sessionStatusLabel(session.status)}</span>
             </div>
             {/* The engine's lines already cover completion, intensity, effort and conditions. */}
             {session.execution?.lines.map((line, i) => (

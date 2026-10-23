@@ -1,8 +1,16 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { WeekStripMark } from '../../shared/types.ts'
-import { activityPage, explainOf, expectCleanCopy } from './helpers.tsx'
+import type { PlanPreview, UndoResult, WeekStripMark } from '../../shared/types.ts'
+import { ToastProvider } from '../../web/components/Toast.tsx'
+import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
+import {
+  activityPage,
+  explainOf,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+} from './helpers.tsx'
 import {
   makeCoach,
   makeHero,
@@ -11,8 +19,8 @@ import {
   makeStrip,
   makeToday,
 } from './today-fixtures.ts'
-import { makeRevision } from './plan-fixtures.ts'
-import { renderToday, startToday } from './today-render.tsx'
+import { AVAILABLE, makeDiff, makeRevision } from './plan-fixtures.ts'
+import { renderToday, settingsOf, startToday } from './today-render.tsx'
 
 // Stands in for the real drawer so the wiring is visible: which rules it was opened with.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -298,6 +306,80 @@ describe('Today: the change line', () => {
       'href',
       '/plan',
     )
+  })
+
+  test('the sheet gives the label of every reason the line can carry, before the list arrives', async () => {
+    const user = userEvent.setup()
+    renderToday(makeToday({ coach: makeCoach({ change: { ...change, reason: 'break' } }) }), {
+      'GET /api/plan/revisions': () => [],
+    })
+    await user.click(await screen.findByRole('button', { name: 'Details of this update' }))
+    const sheet = await screen.findByRole('dialog', { name: 'What changed' })
+    expect(within(sheet).getByText('Restart after a break')).toBeInTheDocument()
+  })
+
+  test('undoing the only update from its sheet leaves focus on the page, not on the body', async () => {
+    const user = userEvent.setup()
+    let undone = false
+    const revision = makeRevision({
+      id: change.id,
+      createdAt: change.createdAt,
+      reason: change.reason,
+      summary: change.summary,
+      changes: [],
+      diff: makeDiff([]),
+      undo: AVAILABLE,
+      seenAt: change.createdAt,
+    })
+    const preview: PlanPreview = {
+      action: { type: 'undo', revisionId: change.id },
+      diff: makeDiff([]),
+      summary: 'Undid: nothing.',
+      warnings: [],
+      blocked: false,
+      guards: [],
+      reasons: [],
+      hash: 'a'.repeat(64),
+      today: '2026-03-18',
+    }
+    const result: UndoResult = {
+      revision: makeRevision({ id: 'rev2', reason: 'undo', undoOf: change.id }),
+      target: { ...revision, undo: { available: false, reasons: [], undoneAt: change.createdAt } },
+    }
+    // The server stops reporting an undone update, and the undo itself is not a weekly update, so
+    // the line (and the sheet it opens) goes once Today is read again.
+    mockApi({
+      'GET /api/today': () => makeToday({ coach: makeCoach({ change: undone ? null : change }) }),
+      'GET /api/settings': () => settingsOf('mi'),
+      'GET /api/plan/revisions': () => [
+        undone ? { ...revision, undo: result.target.undo } : revision,
+      ],
+      'POST /api/plan/preview': () => preview,
+      'POST /api/plan/revisions/rev1/undo': () => {
+        undone = true
+        return result
+      },
+    })
+    // Layout supplies the landmark in the app.
+    renderWithProviders(
+      <ToastProvider>
+        <main id="main" tabIndex={-1}>
+          <DashboardPage />
+        </main>
+      </ToastProvider>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Details of this update' }))
+    const sheet = await screen.findByRole('dialog', { name: 'What changed' })
+    await user.click(await within(sheet).findByRole('button', { name: 'Undo update' }))
+    const confirm = await within(sheet).findByRole('dialog', { name: 'Undo this update' })
+    await user.click(await within(confirm).findByRole('button', { name: 'Undo update' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'What changed' })).not.toBeInTheDocument()
+    })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveFocus()
   })
 
   test('no update, no line and no slot', async () => {

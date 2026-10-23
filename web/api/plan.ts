@@ -76,7 +76,9 @@ export function usePreviewUndo() {
 /**
  * Undoes a revision the preview was made for. A 409 carries `reasons` or a newer preview
  * (`stale-preview`); a 422 carries the checklist the restored plan fails. A success changes the plan
- * and the revision list, and the brief, the athlete state and Today read both.
+ * and the revision list, and the brief, the athlete state and Today read both. An undo can restore
+ * or withdraw a rest window, and it moves the plan targets that the reviews read, so the window list
+ * and the reviews are refreshed as they are after any other change to the plan.
  */
 export function useUndoRevision() {
   const queryClient = useQueryClient()
@@ -85,9 +87,15 @@ export function useUndoRevision() {
       api<UndoResult>('POST', `/plan/revisions/${encodeURIComponent(id)}/undo`, { expectHash }),
     onSuccess: () =>
       Promise.all(
-        [keys.plan, keys.planRevisions, keys.brief, keys.state, keys.today].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
-        ),
+        [
+          keys.plan,
+          keys.planRevisions,
+          keys.brief,
+          keys.state,
+          keys.today,
+          keys.disruptions,
+          keys.reviews,
+        ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
       ),
   })
 }
