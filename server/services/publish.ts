@@ -27,17 +27,15 @@
 import { createHash } from 'node:crypto'
 import { addDays, daysBetween, isIsoDate, todayIso } from '../../shared/dates.ts'
 import { publishSentence, wristSentence } from '../../shared/copy/publish.ts'
-import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { workoutExternalId } from '../../shared/domain/sessionIdentity.ts'
 import type {
   PlanSession,
   SyncStatus,
   SyncTrigger,
-  WristItem,
   WristSettings,
   WristStatus,
 } from '../../shared/types.ts'
-import { publishable } from '../../shared/workouts/labels.ts'
+import { PUBLISH_HORIZON_DAYS } from '../../shared/workouts/horizon.ts'
 import type { WorkoutPlan } from '../../shared/workouts/types.ts'
 import type { Deps } from '../app.ts'
 import { SecretError, userTagOf } from '../crypto.ts'
@@ -58,7 +56,8 @@ import {
   type RemoteWorkout,
   type UpsertOutcome,
 } from '../providers/types.ts'
-import { toWristItem, wristItemStatus } from '../serialize.ts'
+import { ON_WATCH_DELAY_MS } from '../serialize.ts'
+import { readWristItems } from './wristItems.ts'
 import { athleteKey, loadAthleteContext } from './athleteState.ts'
 import { CALENDAR_CHANNEL } from './calendar.ts'
 import { dataVersionKey, openTransactions } from '../dataVersion.ts'
@@ -73,8 +72,8 @@ import { forecastStamp } from './weatherCache.ts'
 export const CHANNEL = 'intervals'
 /** The provider key: the registry entry, the integration row and the `SyncRun.provider`. */
 const PROVIDER = 'intervals'
-/** Days published, today included: today to +13. */
-export const PUBLISH_HORIZON_DAYS = 14
+/** Days published, today included: today to +13 (`shared/workouts/horizon.ts`). */
+export { PUBLISH_HORIZON_DAYS }
 /** A run happens at least this often while publishing is on (design 4.4). */
 export const PUBLISH_BACKSTOP_MS = 30 * 60_000
 /** How long a reference read is kept (design 6.8). */
@@ -1287,68 +1286,15 @@ export async function wristStatus(
   ])
   const enabled = channel?.enabled === true
   const garminLinked = channel?.garminLinked === true
-  const sessions = context.planSessions.filter(
-    (s) => s.date >= range.from && s.date <= range.to && publishable(s.kind),
-  )
-  const rows = await prisma.wristPublication.findMany({
-    where: {
-      userId,
-      channel: CHANNEL,
-      OR: [
-        { date: { gte: range.from, lte: range.to } },
-        { externalId: { in: sessions.map((s) => s.externalId) } },
-      ],
-    },
+  const items = await readWristItems(prisma, {
+    userId,
+    planSessions: context.planSessions,
+    range,
+    today,
+    enabled,
+    garminLinked,
+    now,
   })
-  const sessionByExt = new Map(context.planSessions.map((s) => [s.externalId, s]))
-  const items: Array<{ item: WristItem; order: number }> = []
-  const seen = new Set<string>()
-  for (const row of rows) {
-    const session = sessionByExt.get(row.externalId)
-    seen.add(row.externalId)
-    const date = session?.date ?? row.date
-    if (date < range.from || date > range.to) continue
-    items.push({
-      item: toWristItem(row, {
-        sessionId: session?.id ?? null,
-        date,
-        status: wristItemStatus(row, { garminLinked, now, sessionDate: session?.date ?? null }),
-      }),
-      order: session?.order ?? 0,
-    })
-  }
-  if (enabled) {
-    const last = addDays(today, PUBLISH_HORIZON_DAYS - 1)
-    for (const session of sessions) {
-      if (seen.has(session.externalId)) continue
-      if (session.date < today || session.date > last) continue
-      if (!isToRun(session.status)) continue
-      items.push({
-        item: {
-          externalId: session.externalId,
-          sessionId: session.id,
-          date: session.date,
-          kind: session.kind,
-          title: '',
-          variant: 'planned',
-          status: 'not-sent',
-          failCode: null,
-          failMessage: null,
-          deviceMessage: null,
-          warnings: [],
-          retryAt: null,
-          sentAt: null,
-        },
-        order: session.order,
-      })
-    }
-  }
-  items.sort(
-    (a, b) =>
-      a.item.date.localeCompare(b.item.date) ||
-      a.order - b.order ||
-      a.item.externalId.localeCompare(b.item.externalId),
-  )
   return {
     from: range.from,
     to: range.to,
@@ -1364,7 +1310,7 @@ export async function wristStatus(
       enabled: calendar?.enabled === true,
       tokenCreatedAt: calendar?.tokenCreatedAt?.toISOString() ?? null,
     },
-    items: items.map(({ item }) => item),
+    items,
   }
 }
 
@@ -1372,21 +1318,41 @@ export async function wristStatus(
 // Today
 // ---------------------------------------------------------------------------------------------
 
-// A note about tomorrow's run reads `WristPublication`, which the data version does not cover, so
-// the page's tag follows these rows too (see `registerTodayStamp`).
+// A note about tomorrow's run and Today's watch line read `WristPublication` and the channel's
+// switches, which the data version does not cover, so the page's tag follows them too (see
+// `registerTodayStamp`).
 registerHealthNoteProducer(tomorrowNotOnWatch)
 registerTodayStamp(async ({ deps, userId }) => {
-  const groups = await deps.prisma.wristPublication.groupBy({
-    by: ['state'],
-    where: { userId, channel: CHANNEL },
-    _count: { _all: true },
-    _max: { updatedAt: true },
-  })
+  const { prisma } = deps
+  const [groups, channel, recent] = await Promise.all([
+    prisma.wristPublication.groupBy({
+      by: ['state'],
+      where: { userId, channel: CHANNEL },
+      _count: { _all: true },
+      _max: { updatedAt: true },
+    }),
+    prisma.deliveryChannel.findUnique({
+      where: { userId_channel: { userId, channel: CHANNEL } },
+      select: { enabled: true, garminLinked: true },
+    }),
+    // "On your watch" appears 15 minutes after a send, with no write: the sends still inside that
+    // time are counted, so the tag moves when the last of them leaves it.
+    prisma.wristPublication.count({
+      where: {
+        userId,
+        channel: CHANNEL,
+        state: 'sent',
+        sentAt: { gt: new Date(Date.now() - ON_WATCH_DELAY_MS) },
+      },
+    }),
+  ])
   // The count of each state and the newest write of each: a row that changes state or content
-  // moves it, even when two writes share a millisecond. Turning publishing off marks every row
-  // withdrawn, so the channel's own switch needs no read here.
-  return `wrist:${groups
+  // moves it, even when two writes share a millisecond. The switches matter because turning
+  // sending on, or ticking the Garmin upload, changes what the line says with no row written.
+  const rows = groups
     .map((g) => `${g.state}=${String(g._count._all)}@${String(g._max.updatedAt?.getTime() ?? 0)}`)
     .sort()
-    .join(',')}`
+    .join(',')
+  const switches = `${channel?.enabled === true ? 'on' : 'off'}${channel?.garminLinked === true ? '+garmin' : ''}`
+  return `wrist:${rows}:${switches}:recent=${String(recent)}`
 })

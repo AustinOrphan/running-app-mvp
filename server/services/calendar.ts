@@ -12,6 +12,8 @@
 import { workoutExternalId } from '../../shared/domain/sessionIdentity.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { addDays } from '../../shared/dates.ts'
+import type { CalendarTokenIssued } from '../../shared/types.ts'
+import { CALENDAR_DAYS } from '../../shared/workouts/horizon.ts'
 import { publicTitle, publishable } from '../../shared/workouts/labels.ts'
 import type { Deps } from '../app.ts'
 import { hashToken, newToken, tokensEqual, userTagOf } from '../crypto.ts'
@@ -20,7 +22,7 @@ import { icsOutline, icsUid, renderIcs, type IcsEvent } from './ics.ts'
 import { buildDeliverables } from './workouts.ts'
 
 /** The days of the feed, today included: the calendar shows a month, the watch gets two weeks. */
-export const CALENDAR_DAYS = 28
+export { CALENDAR_DAYS }
 
 /** `DeliveryChannel.channel` of the feed. */
 export const CALENDAR_CHANNEL = 'calendar'
@@ -40,13 +42,7 @@ export function calendarPath(token: string): string {
 // The token
 // ---------------------------------------------------------------------------------------------
 
-export interface IssuedCalendarToken {
-  /** The only time the token exists in the clear. */
-  token: string
-  /** The feed's path on this server; the client adds its own origin. */
-  path: string
-  createdAt: string
-}
+export type IssuedCalendarToken = CalendarTokenIssued
 
 /**
  * Makes the user's feed token, or replaces it: the old link stops working at once, because only
