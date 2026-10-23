@@ -632,6 +632,18 @@ function limits(d: Dim): { level: 0 | 1 | 2; warnLimit: number; overrideLimit: n
   return { level, warnLimit, overrideLimit }
 }
 
+/**
+ * How far a planned run is above a 30-day reference on any dimension [rules g-1, H4]: 0 inside the
+ * normal band, 1 above 1.10x (or the minimum step), 2 above 2.00x. 0 when the reference holds no
+ * run. The session spike check of an owner edit (`adjustCheck`) reads the same numbers.
+ */
+export function spikeLevelOf(s: SessionSpec, ref: SpikeReference): 0 | 1 | 2 {
+  return dimensionsOf(s, ref).reduce<0 | 1 | 2>((level, d) => {
+    const next = limits(d).level
+    return next > level ? next : level
+  }, 0)
+}
+
 /** The dimensions to compare: a dimension is skipped only when the window holds no record of it. */
 function dimensionsOf(s: SessionSpec, ref: SpikeReference): Dim[] {
   if (ref.min <= 0) return []
@@ -673,7 +685,7 @@ function runMinimum(s: SessionSpec): number {
 }
 
 /** The smallest size a guard cuts a run to; a run already under the session minimum may go to the run day minimum. */
-function minSize(s: SessionSpec): number {
+export function minSize(s: SessionSpec): number {
   if (isStartSession(s)) return runMinimum(s)
   return s.durationMin >= runMinimum(s) ? runMinimum(s) : P.fplace.minRunDayMin.value
 }
@@ -682,7 +694,7 @@ function minSize(s: SessionSpec): number {
  * Shortens a session to `factor` of its size, rounding down; null when it falls under `minMin`
  * (by default the session minimum of the run, or the run day minimum for a run already under it).
  */
-function scaleSession(s: SessionSpec, factor: number, minMin?: number): SessionSpec | null {
+export function scaleSession(s: SessionSpec, factor: number, minMin?: number): SessionSpec | null {
   if (factor >= 1) return s
   const down = (v: number) => Math.floor(Math.max(0, v) * factor + EPS)
   const durationMin = down(s.durationMin)

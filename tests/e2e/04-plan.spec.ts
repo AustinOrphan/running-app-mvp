@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
+import type { AdjustResult, PlanWithSessions } from '../../shared/types.ts'
 import { relativeDates, resetData, signedInApi, toast } from './helpers.ts'
 
 test('create a goal, activate it, generate a plan and edit one week with a note', async ({
@@ -7,7 +8,7 @@ test('create a goal, activate it, generate a plan and edit one week with a note'
   baseURL,
 }) => {
   const { thisMonday, raceDate } = relativeDates()
-  await signedInApi(page, baseURL ?? '')
+  const api = await signedInApi(page, baseURL ?? '')
   await resetData()
 
   // Goal
@@ -71,4 +72,79 @@ test('create a goal, activate it, generate a plan and edit one week with a note'
   await expect(reloaded.getByRole('note')).toHaveText(
     'Visiting family, one long day instead of two',
   )
+
+  // Owner edits of one session go through one guarded action. The session sheet still moves and
+  // skips through the older route, which now delegates to it; shortening has no control yet (E5-7),
+  // so it goes through the API and the page shows what it left.
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  const isRun = (s: PlanSessionLike) => !['strength', 'mobility', 'rest', 'cross'].includes(s.kind)
+  const inWeek = plan.sessions.filter((s) => s.weekStart === week)
+  const moving = inWeek.find((s) => s.kind === 'easy')
+  if (moving === undefined) throw new Error(`The plan has no easy run in the week of ${week}.`)
+  // a day without a run, with no hard session on it or next to it
+  const free = [0, 1, 2, 3, 4, 5, 6]
+    .map((i) => addDays(week, i))
+    .find((date) =>
+      inWeek.every(
+        (s) =>
+          !(isRun(s) && s.date === date) &&
+          !(HARD.includes(s.kind) && Math.abs(Date.parse(s.date) - Date.parse(date)) <= 86_400_000),
+      ),
+    )
+  if (free === undefined) throw new Error(`The week of ${week} has no free day.`)
+
+  // A move through the sheet.
+  await page.goto('/plan')
+  await row.getByRole('button', { name: /^Days for week of/ }).click()
+  await page
+    .locator(`tr[data-days-for="${week}"] button[data-status="planned"]`)
+    .filter({ hasText: moving.title })
+    .first()
+    .click()
+  const sheet = page.getByRole('dialog', { name: moving.title })
+  await sheet.getByLabel('Move to').fill(free)
+  await sheet.getByRole('button', { name: 'Move session' }).click()
+  await expect(toast(page, /^Session moved to /)).toBeVisible()
+
+  // A shorten through the action, on the first easy run that is long enough to lose five minutes:
+  // the page reads it as shortened.
+  const shortening = plan.sessions.find(
+    (s) => s.weekStart > thisMonday && s.kind === 'easy' && s.durationMin >= 30,
+  )
+  if (shortening === undefined) throw new Error('The plan has no easy run of 30 minutes.')
+  const shorter = shortening.durationMin - 5
+  const done = (await api.post(`/plan/sessions/${shortening.id}/adjust`, {
+    adjustment: { type: 'shorten', durationMin: shorter },
+  })) as AdjustResult
+  expect(done.session).toMatchObject({ status: 'adjusted', durationMin: shorter })
+  expect(done.revision?.summary).toMatch(/^Shortened /)
+  await page.reload()
+  await page
+    .locator(`tr[data-week="${shortening.weekStart}"]`)
+    .getByRole('button', { name: /^Days for week of/ })
+    .click()
+  const shortened = page.locator(
+    `tr[data-days-for="${shortening.weekStart}"] button[data-status="adjusted"]`,
+  )
+  await expect(shortened).toHaveCount(1)
+  await expect(shortened).toContainText('Shortened')
+  await expect(shortened).toContainText(`${String(shorter)}`)
+
+  // A move onto a day that already has a run is refused with its rule (a dry run: 200, allowed false).
+  const crowded = plan.sessions.find(
+    (s) => s.weekStart === shortening.weekStart && isRun(s) && s.id !== shortening.id,
+  )
+  if (crowded === undefined) throw new Error('The week has no other run.')
+  const refused = await page.request.post(`/api/plan/sessions/${shortening.id}/adjust`, {
+    headers: { Origin: baseURL ?? '' },
+    data: { adjustment: { type: 'move', date: crowded.date }, dryRun: true },
+  })
+  expect(refused.ok()).toBe(true)
+  const result = (await refused.json()) as AdjustResult
+  expect(result.allowed).toBe(false)
+  expect(result.guards[0]?.message).toMatch(/already has a run/)
 })
+
+/** Kinds that need an easy day on either side of them [rule F1]. */
+const HARD = ['threshold', 'intervals', 'race-pace', 'hills', 'long-fast-finish', 'b2b', 'race']
+type PlanSessionLike = Pick<PlanWithSessions['sessions'][number], 'kind' | 'date'>

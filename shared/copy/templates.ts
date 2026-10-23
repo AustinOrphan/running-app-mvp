@@ -11,7 +11,7 @@ import type { Units } from '../types.ts'
 import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
 import { GOALS_TEMPLATES } from './goals.ts'
-import { REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
+import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
 import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
 import { PUBLISH_TEMPLATES } from './publish.ts'
 import { STANDOUT_TEMPLATES } from './standoutTemplates.ts'
@@ -27,6 +27,7 @@ export const TEMPLATES = {
   ...DATA_IN_USE_TEMPLATES,
   ...FUEL_TEMPLATES,
   ...WINDOW_TEMPLATES,
+  ...ADJUST_TEMPLATES,
   ...ACTIVITY_LIST_TEMPLATES,
   ...EXPLAIN_TEMPLATES,
   ...PUBLISH_TEMPLATES,
