@@ -7,6 +7,7 @@ import { addDays } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity } from '../types.ts'
 import { efficiencyIndex } from './athlete.ts'
+import { restartFraction } from './disruption.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
 import { isDuplicate } from './load.ts'
@@ -581,11 +582,7 @@ export function breakRestart(
   layoffDays: number,
   preBreakWeekMin: number,
 ): { restartMin: number; fraction: number } {
-  let fraction: number
-  if (layoffDays < P.j7.tier1Days.value) fraction = P.j7.restartUnder7.value
-  else if (layoffDays <= P.j7.tier2Days.value) fraction = P.j7.restart7to14.value
-  else if (layoffDays <= P.j7.tier3Days.value) fraction = P.j7.restart15to28.value
-  else fraction = P.j7.restartOver28.value
+  const fraction = restartFraction(layoffDays)
   return { restartMin: Math.round(preBreakWeekMin * fraction), fraction }
 }
 

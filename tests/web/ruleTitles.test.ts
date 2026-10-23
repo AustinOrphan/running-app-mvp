@@ -64,6 +64,13 @@ describe('RULE_TITLES', () => {
     for (const p of paramsForRule('L7')) expect(ruleTitle(p.rule), p.id).not.toBeNull()
   })
 
+  test('titles the disruption rule, and its Params resolve to it', () => {
+    expect(RULE_TITLES['J9']).toBe('Rest windows and returns')
+    expect(ruleTitle('j9')).toBe('Rest windows and returns')
+    expect(paramsForRule('J9')).toHaveLength(3)
+    for (const p of paramsForRule('J9')) expect(ruleTitle(p.rule), p.id).not.toBeNull()
+  })
+
   test('tells g-1 from G1, ignoring case but not hyphens', () => {
     expect(ruleTitle('g-1')).not.toBe(ruleTitle('G1'))
     expect(ruleTitle('G-1')).toBe('Session spike guard')

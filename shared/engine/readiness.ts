@@ -18,6 +18,7 @@ import type {
   ReadinessVerdict,
   TodayView,
 } from '../types.ts'
+import { illnessGate, type IllnessGate } from './disruption.ts'
 import { P } from './params/index.ts'
 import type {
   Checkin,
@@ -307,30 +308,17 @@ function declineStreakDays(ctx: Ctx, date: string): number {
   return streak
 }
 
-export type IllnessPhase = 'clear' | 'rest' | 'easy-only'
+export type { IllnessPhase } from './disruption.ts'
 
 /**
- * Return-from-illness gate [rules n-3]: rest through the symptom-free day, easy running for the
- * next easy days, intensity after. A day without an illness report counts as symptom-free;
- * illness is never inferred from HRV or resting HR.
+ * Return-from-illness gate [rules n-3] from the check-ins: rest through the symptom-free day, easy
+ * running for the next easy days, intensity after. A day without an illness report counts as
+ * symptom-free; illness is never inferred from HRV or resting HR. The gate itself is
+ * `illnessGate`, the only implementation of n-3, which rest windows share.
  */
-export function illnessPhase(
-  input: EngineInput,
-  date: string,
-): { phase: IllnessPhase; since: number | null } {
-  let last: string | null = null
-  for (const row of input.wellness) {
-    if (row.illness === true && row.date <= date && (last === null || row.date > last)) {
-      last = row.date
-    }
-  }
-  if (last === null) return { phase: 'clear', since: null }
-  const since = daysBetween(last, date)
-  const free = P.n3.illnessSymptomFreeDays.value
-  const easy = P.n3.illnessEasyDaysBeforeIntensity.value
-  if (since <= free) return { phase: 'rest', since }
-  if (since <= free + easy) return { phase: 'easy-only', since }
-  return { phase: 'clear', since }
+export function illnessPhase(input: EngineInput, date: string): IllnessGate {
+  const illnessDays = input.wellness.filter((row) => row.illness === true).map((row) => row.date)
+  return illnessGate(illnessDays, date)
 }
 
 /**
