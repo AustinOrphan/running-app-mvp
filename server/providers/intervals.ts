@@ -10,7 +10,7 @@ import {
   type RemoteActivityRef,
 } from './types.ts'
 
-const BASE_URL = 'https://intervals.icu/api/v1'
+export const BASE_URL = 'https://intervals.icu/api/v1'
 /** Longest span asked for in one activities request. */
 const WINDOW_DAYS = 180
 const DAY_MS = 24 * 3600 * 1000
@@ -70,7 +70,8 @@ function isoUtc(value: string | null | undefined): string | null {
   return new Date(ms).toISOString().replace(/\.000Z$/, 'Z')
 }
 
-function credentials(ctx: ProviderCtx): { athleteId: string; apiKey: string } {
+/** @throws Error when the integration holds no athlete id or key. */
+export function credentials(ctx: ProviderCtx): { athleteId: string; apiKey: string } {
   const { athleteId } = ctx.config
   const { apiKey } = ctx.secret
   if (typeof athleteId !== 'string' || typeof apiKey !== 'string' || apiKey === '') {
@@ -79,7 +80,7 @@ function credentials(ctx: ProviderCtx): { athleteId: string; apiKey: string } {
   return { athleteId, apiKey }
 }
 
-function authHeader(apiKey: string): string {
+export function authHeader(apiKey: string): string {
   return `Basic ${Buffer.from(`API_KEY:${apiKey}`).toString('base64')}`
 }
 

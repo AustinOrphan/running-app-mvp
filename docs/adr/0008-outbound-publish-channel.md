@@ -1,6 +1,6 @@
 # 0008. An outbound publish channel for planned sessions, with intervals.icu as the first target
 
-Status: Proposed 2026-10-22
+Status: Accepted 2026-10-23
 
 Extends ADR 0006.
 

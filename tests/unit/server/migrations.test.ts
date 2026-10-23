@@ -355,6 +355,39 @@ function seedSyncState(db: DatabaseSync): void {
   })
 }
 
+/**
+ * The previous release's accounts: two runners, each with a connected intervals.icu integration,
+ * one with an activity. The wrist-delivery tables must leave all of it alone.
+ */
+function seedWristDelivery(db: DatabaseSync): void {
+  for (const id of ['u1', 'u2']) {
+    insert(db, 'User', {
+      id,
+      email: `${id}@example.com`,
+      passwordHash: 'not-a-real-hash',
+      updatedAt: STAMP,
+    })
+    insert(db, 'Integration', {
+      id: `i-${id}`,
+      userId: id,
+      provider: 'intervals',
+      status: 'connected',
+      secret: 'v1.not.a.real.secret',
+      config: JSON.stringify({ athleteId: 'i1001' }),
+      updatedAt: STAMP,
+    })
+  }
+  insert(db, 'Activity', {
+    id: 'a1',
+    userId: 'u1',
+    date: '2026-10-06',
+    type: 'run',
+    durationSec: 2700,
+    distanceM: 8000,
+    updatedAt: STAMP,
+  })
+}
+
 function verifySyncLog(db: DatabaseSync, before: Snapshot): void {
   expectNothingLost(before, db)
   expectConsistent(db)
@@ -401,6 +434,102 @@ function verifySyncLog(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, 'SELECT count(*) AS n FROM "Integration"')).toEqual([{ n: 2 }])
 }
 
+function verifyWristDelivery(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Both tables are new and empty; no existing row is given a delivery channel.
+  for (const table of ['DeliveryChannel', 'WristPublication']) {
+    expect(rowsOf(db, `SELECT count(*) AS n FROM "${table}"`), table).toEqual([{ n: 0 }])
+  }
+  expectIndex(db, 'DeliveryChannel', ['userId', 'channel'], true)
+  expectIndex(db, 'DeliveryChannel', ['tokenHash'], true)
+  expectIndex(db, 'WristPublication', ['userId', 'channel', 'externalId'], true)
+  expectIndex(db, 'WristPublication', ['userId', 'channel', 'date'], false)
+  const keys = (table: string) =>
+    rowsOf(db, `PRAGMA foreign_key_list("${table}")`).map((k) => ({
+      from: k.from,
+      table: k.table,
+      onDelete: k.on_delete,
+    }))
+  expect(keys('DeliveryChannel')).toEqual([{ from: 'userId', table: 'User', onDelete: 'CASCADE' }])
+  // Publications join PlanSession by externalId and have no foreign key to it.
+  expect(keys('WristPublication')).toEqual([{ from: 'userId', table: 'User', onDelete: 'CASCADE' }])
+
+  // The defaults: publishing is off until the runner turns it on.
+  insert(db, 'DeliveryChannel', { id: 'c1', userId: 'u1', channel: 'intervals', updatedAt: STAMP })
+  expect(rowsOf(db, `SELECT enabled, garminLinked, tokenHash FROM "DeliveryChannel"`)).toEqual([
+    { enabled: 0, garminLinked: 0, tokenHash: null },
+  ])
+  insert(db, 'WristPublication', {
+    id: 'w1',
+    userId: 'u1',
+    channel: 'intervals',
+    externalId: 'rl-abc123-ext1',
+    date: '2026-10-12',
+    kind: 'easy',
+    title: 'Easy run, 45 min',
+    state: 'pending',
+    desiredHash: 'h1',
+    updatedAt: STAMP,
+  })
+  expect(
+    rowsOf(db, `SELECT variant, warnings, attempts, remoteId FROM "WristPublication"`),
+  ).toEqual([{ variant: 'planned', warnings: '[]', attempts: 0, remoteId: null }])
+
+  // One row per user and channel; one publication per session identity; the feed token hash is
+  // unique, and rows without a token do not collide.
+  expect(() =>
+    insert(db, 'DeliveryChannel', {
+      id: 'c1b',
+      userId: 'u1',
+      channel: 'intervals',
+      updatedAt: STAMP,
+    }),
+  ).toThrow(/UNIQUE/)
+  insert(db, 'DeliveryChannel', {
+    id: 'c2',
+    userId: 'u1',
+    channel: 'calendar',
+    tokenHash: 'a'.repeat(64),
+    updatedAt: STAMP,
+  })
+  expect(() =>
+    insert(db, 'DeliveryChannel', {
+      id: 'c3',
+      userId: 'u2',
+      channel: 'calendar',
+      tokenHash: 'a'.repeat(64),
+      updatedAt: STAMP,
+    }),
+  ).toThrow(/UNIQUE/)
+  insert(db, 'DeliveryChannel', { id: 'c4', userId: 'u2', channel: 'intervals', updatedAt: STAMP })
+  insert(db, 'DeliveryChannel', { id: 'c5', userId: 'u2', channel: 'calendar', updatedAt: STAMP })
+  expect(() =>
+    insert(db, 'WristPublication', {
+      id: 'w1b',
+      userId: 'u1',
+      channel: 'intervals',
+      externalId: 'rl-abc123-ext1',
+      date: '2026-10-13',
+      kind: 'easy',
+      title: 'Easy run, 45 min',
+      state: 'pending',
+      desiredHash: 'h2',
+      updatedAt: STAMP,
+    }),
+  ).toThrow(/UNIQUE/)
+
+  // Deleting a runner deletes the runner's delivery rows and nobody else's.
+  db.exec(`DELETE FROM "User" WHERE id = 'u1'`)
+  expect(rowsOf(db, `SELECT id FROM "DeliveryChannel" ORDER BY id`)).toEqual([
+    { id: 'c4' },
+    { id: 'c5' },
+  ])
+  expect(rowsOf(db, `SELECT count(*) AS n FROM "WristPublication"`)).toEqual([{ n: 0 }])
+  expect(rowsOf(db, `SELECT id FROM "Integration"`)).toEqual([{ id: 'i-u2' }])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -411,6 +540,11 @@ const CASES: FixtureCase[] = [
     migration: 'foundation_sync_log',
     seed: seedSyncState,
     verify: verifySyncLog,
+  },
+  {
+    migration: 'wrist_delivery',
+    seed: seedWristDelivery,
+    verify: verifyWristDelivery,
   },
 ]
 

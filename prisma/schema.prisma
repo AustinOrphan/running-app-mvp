@@ -19,18 +19,20 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  activities    Activity[]
-  importBatches ImportBatch[]
-  goals         Goal[]
-  plans         Plan[]
-  reviews       WeeklyReview[]
-  profile       AthleteProfile?
-  wellnessDays  WellnessDay[]
-  integrations  Integration[]
-  importedFiles ImportedFile[]
-  predictions   PredictionLog[]
-  screenings    Screening[]
-  syncRuns      SyncRun[]
+  activities        Activity[]
+  importBatches     ImportBatch[]
+  goals             Goal[]
+  plans             Plan[]
+  reviews           WeeklyReview[]
+  profile           AthleteProfile?
+  wellnessDays      WellnessDay[]
+  integrations      Integration[]
+  importedFiles     ImportedFile[]
+  predictions       PredictionLog[]
+  screenings        Screening[]
+  syncRuns          SyncRun[]
+  deliveryChannels  DeliveryChannel[]
+  wristPublications WristPublication[]
 }
 
 model Activity {
@@ -427,4 +429,55 @@ model ImportedFile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, sha256])
+}
+
+// One row per user and delivery channel (settings, the scheduler's state, the calendar feed's token
+// hash). Non-state: a publish run writes it, and a state write would trigger the next run.
+model DeliveryChannel {
+  id             String    @id @default(cuid())
+  userId         String
+  channel        String // 'intervals' | 'calendar'
+  enabled        Boolean   @default(false)
+  garminLinked   Boolean   @default(false) // intervals: the runner ticked the Garmin upload
+  dataKey        String? // intervals: the composed change key the last run saw
+  lastRunAt      DateTime?
+  pausedUntil    DateTime?
+  referenceJson  String? // intervals: { maxHr, lthr, thresholdPaceMps, readAt }, 6 h cache
+  tokenHash      String?   @unique // calendar: SHA-256 of the feed token; the token is never stored
+  tokenCreatedAt DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel])
+}
+
+// What the remote holds, or should hold, for one session identity. Joined to PlanSession by
+// externalId with no foreign key, so a regenerate that carries the identity keeps the row. Non-state.
+model WristPublication {
+  id            String    @id @default(cuid())
+  userId        String
+  channel       String // 'intervals'
+  externalId    String // PlanSession.externalId
+  date          String // YYYY-MM-DD
+  kind          String
+  variant       String    @default("planned") // 'planned' | 'eased'
+  title         String // the allowlisted public title sent
+  remoteId      String?
+  state         String // 'pending' | 'sent' | 'failed' | 'withdrawn' | 'owner-removed'
+  desiredHash   String
+  sentHash      String?
+  failCode      String?
+  failMessage   String? // sanitised, max 200
+  deviceMessage String? // sanitised, max 200
+  warnings      String    @default("[]") // JSON text: string[]
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime?
+  sentAt        DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel, externalId])
+  @@index([userId, channel, date])
 }

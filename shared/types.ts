@@ -192,7 +192,7 @@ export interface ProviderInfo {
   key: string
   label: string
   experimental: boolean
-  channels: Array<'pull' | 'push' | 'upload' | 'folder'>
+  channels: Array<'pull' | 'push' | 'upload' | 'folder' | 'publish'>
   wellness: boolean
   docsUrl: string
 }
