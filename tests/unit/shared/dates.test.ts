@@ -9,6 +9,7 @@ import {
   formatWeekdayDate,
   formatWeekdayName,
   isIsoDate,
+  isoDateInZone,
   mondayOf,
   todayIso,
   weekStartsBetween,
@@ -85,5 +86,79 @@ describe('date formatting', () => {
       expect(() => formatShortDate(bad), bad).toThrow(RangeError)
       expect(() => formatWeekdayName(bad), bad).toThrow(RangeError)
     }
+  })
+})
+
+describe('isoDateInZone', () => {
+  const at = (iso: string) => new Date(iso)
+
+  test('reads the calendar date of an instant in the zone asked for', () => {
+    const now = at('2026-10-22T03:30:00Z')
+    expect(isoDateInZone(now, 'UTC')).toBe('2026-10-22')
+    expect(isoDateInZone(now, 'America/Chicago')).toBe('2026-10-21') // 22:30 CDT
+    expect(isoDateInZone(now, 'Pacific/Pago_Pago')).toBe('2026-10-21') // 16:30, UTC-11
+    expect(isoDateInZone(now, 'Asia/Kolkata')).toBe('2026-10-22') // 09:00, UTC+5:30
+    expect(isoDateInZone(now, 'Pacific/Kiritimati')).toBe('2026-10-22') // 17:30, UTC+14
+  })
+
+  test('changes the day exactly at local midnight, in a zone with whole-hour offset', () => {
+    // Chicago is on daylight time (UTC-5) until 2026-11-01.
+    expect(isoDateInZone(at('2026-10-22T04:59:59Z'), 'America/Chicago')).toBe('2026-10-21')
+    expect(isoDateInZone(at('2026-10-22T05:00:00Z'), 'America/Chicago')).toBe('2026-10-22')
+  })
+
+  test('changes the day exactly at local midnight, in a zone with a half-hour offset', () => {
+    expect(isoDateInZone(at('2026-10-21T18:29:59Z'), 'Asia/Kolkata')).toBe('2026-10-21')
+    expect(isoDateInZone(at('2026-10-21T18:30:00Z'), 'Asia/Kolkata')).toBe('2026-10-22')
+  })
+
+  test('follows the daylight saving change: the 25-hour day, and midnight on standard time', () => {
+    // Clocks in Chicago go back at 07:00 UTC on 2026-11-01 (02:00 CDT becomes 01:00 CST).
+    expect(isoDateInZone(at('2026-11-01T04:59:59Z'), 'America/Chicago')).toBe('2026-10-31')
+    expect(isoDateInZone(at('2026-11-01T05:00:00Z'), 'America/Chicago')).toBe('2026-11-01')
+    expect(isoDateInZone(at('2026-11-01T06:30:00Z'), 'America/Chicago')).toBe('2026-11-01')
+    expect(isoDateInZone(at('2026-11-01T07:30:00Z'), 'America/Chicago')).toBe('2026-11-01')
+    // Midnight now arrives at 06:00 UTC.
+    expect(isoDateInZone(at('2026-11-02T05:59:59Z'), 'America/Chicago')).toBe('2026-11-01')
+    expect(isoDateInZone(at('2026-11-02T06:00:00Z'), 'America/Chicago')).toBe('2026-11-02')
+  })
+
+  test('crosses the new year and a leap day', () => {
+    expect(isoDateInZone(at('2027-01-01T04:59:59Z'), 'America/New_York')).toBe('2026-12-31')
+    expect(isoDateInZone(at('2027-01-01T05:00:00Z'), 'America/New_York')).toBe('2027-01-01')
+    expect(isoDateInZone(at('2028-02-29T10:00:00Z'), 'Pacific/Auckland')).toBe('2028-02-29')
+    expect(isoDateInZone(at('2028-02-28T11:00:00Z'), 'Pacific/Auckland')).toBe('2028-02-29')
+  })
+
+  test('is the same whatever zone the machine is in', () => {
+    const now = at('2026-10-22T03:30:00Z')
+    const machineZone = process.env.TZ
+    try {
+      const local: string[] = []
+      for (const zone of ['Pacific/Pago_Pago', 'UTC', 'Pacific/Kiritimati']) {
+        process.env.TZ = zone
+        local.push(todayIso(now))
+        expect(isoDateInZone(now, 'America/Chicago'), `machine in ${zone}`).toBe('2026-10-21')
+        expect(isoDateInZone(now, 'Asia/Kolkata'), `machine in ${zone}`).toBe('2026-10-22')
+      }
+      // The machine's own day really did move, so the assertions above are not vacuous.
+      expect(local).toEqual(['2026-10-21', '2026-10-22', '2026-10-22'])
+    } finally {
+      if (machineZone === undefined) delete process.env.TZ
+      else process.env.TZ = machineZone
+    }
+  })
+
+  test('returns a padded YYYY-MM-DD that the other date helpers accept', () => {
+    const date = isoDateInZone(at('2026-01-05T12:00:00Z'), 'Europe/London')
+    expect(date).toBe('2026-01-05')
+    expect(isIsoDate(date)).toBe(true)
+    expect(mondayOf(date)).toBe('2026-01-05')
+  })
+
+  test('throws a RangeError for an unknown zone or an invalid instant', () => {
+    expect(() => isoDateInZone(at('2026-10-22T03:30:00Z'), 'Mars/Olympus_Mons')).toThrow(RangeError)
+    expect(() => isoDateInZone(at('2026-10-22T03:30:00Z'), '')).toThrow(RangeError)
+    expect(() => isoDateInZone(new Date(Number.NaN), 'UTC')).toThrow(RangeError)
   })
 })

@@ -16,3 +16,6 @@ export const KEY_LOOKAHEAD_DAYS = 7
 
 /** The longest rendered template: one sentence a reader takes in at a glance. */
 export const COPY_MAX_CHARS = 160
+
+/** Readiness signals Today names under the verdict, noted ones first. */
+export const SIGNAL_LIMIT = 3

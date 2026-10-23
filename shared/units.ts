@@ -63,3 +63,34 @@ export function formatClimb(gainM: number, units: Units): string {
     ? `${String(Math.round(gainM * FEET_PER_METRE))} ft`
     : `${String(Math.round(gainM))} m`
 }
+
+/** A finish estimate from this length on is rounded to `COARSE_ESTIMATE_STEP_SEC`. */
+const COARSE_ESTIMATE_FROM_SEC = 6 * 3600
+const COARSE_ESTIMATE_STEP_SEC = 600
+const FINE_ESTIMATE_STEP_SEC = 60
+
+/**
+ * A predicted time at the precision it deserves: whole minutes, and ten-minute steps from six
+ * hours, where the range around it is wide enough that minutes would be noise. This is display
+ * rounding; the engine's numbers are untouched. Not finite or negative gives NaN.
+ */
+export function roundEstimateSec(sec: number): number {
+  if (!Number.isFinite(sec) || sec < 0) return Number.NaN
+  const step = sec >= COARSE_ESTIMATE_FROM_SEC ? COARSE_ESTIMATE_STEP_SEC : FINE_ESTIMATE_STEP_SEC
+  return Math.round(sec / step) * step
+}
+
+/**
+ * A predicted time as a person says it: "48 min", "3 h 47 min", "31 h 50 min", "28 h". Rounded by
+ * `roundEstimateSec`. Not finite or negative gives a dash. The copy system prints the same text
+ * from a `duration` quantity whose seconds went through `roundEstimateSec`.
+ */
+export function formatEstimate(sec: number): string {
+  const rounded = roundEstimateSec(sec)
+  if (Number.isNaN(rounded)) return NO_VALUE
+  const totalMin = rounded / 60
+  const hours = Math.floor(totalMin / 60)
+  const minutes = totalMin % 60
+  if (hours === 0) return `${String(minutes)} min`
+  return minutes === 0 ? `${String(hours)} h` : `${String(hours)} h ${String(minutes)} min`
+}

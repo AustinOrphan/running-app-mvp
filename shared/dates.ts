@@ -67,6 +67,28 @@ export function todayIso(now: Date = new Date()): string {
   return `${year}-${month}-${day}`
 }
 
+/**
+ * The calendar date of `now` in the IANA zone `tz` ("America/Chicago"), as `YYYY-MM-DD`. Unlike
+ * `todayIso` it never reads the machine's zone, so a phone in one zone can compute the server's
+ * day in another. Throws a RangeError for an unknown zone or an invalid `now`.
+ */
+export function isoDateInZone(now: Date, tz: string): string {
+  if (Number.isNaN(now.getTime())) throw new RangeError('Invalid date')
+  let parts: Intl.DateTimeFormatPart[]
+  try {
+    parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(now)
+  } catch {
+    throw new RangeError(`Invalid time zone: ${JSON.stringify(tz)}`)
+  }
+  const part = (type: 'year' | 'month' | 'day') => parts.find((p) => p.type === type)?.value ?? ''
+  return `${part('year').padStart(4, '0')}-${part('month')}-${part('day')}`
+}
+
 /** Mondays from mondayOf(from) to mondayOf(to), inclusive; empty when `from` is after `to`. */
 export function weekStartsBetween(from: string, to: string): string[] {
   const first = mondayOf(from)
