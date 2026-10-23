@@ -111,6 +111,17 @@ describe('StatsPage', () => {
     expect(cellTexts(fiveK)).toEqual(['23:00', '7:20 /mi', '3.14 mi', '3 Feb 2026'])
   })
 
+  test('the tables show at once and the two charts arrive with their own code', async () => {
+    mockStats()
+    renderWithProviders(<StatsPage />)
+    const monthly = await screen.findByRole('table', { name: 'Monthly totals' })
+    expect(within(monthly).getByRole('row', { name: /Feb 2026/ })).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: 'Run hours per month' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('img', { name: 'Run hours per week, last 12 weeks' }),
+    ).toBeInTheDocument()
+  })
+
   test('reads the statistics from the server and requests no activities', async () => {
     const { calls } = mockStats()
     const { container } = renderWithProviders(<StatsPage />)

@@ -201,8 +201,9 @@ describe('The prediction track record', () => {
     expect(race).toHaveTextContent(
       'The last prediction, made 12 days before the race, was 3 h 52 min (3 h 40 min to 4 h 4 min). The result was 4 min 10 s slower than predicted (1.8%), inside the range.',
     )
+    // The chart loads as its own chunk, after the headline and the table.
     expect(
-      within(race).getByRole('img', {
+      await within(race).findByRole('img', {
         name: 'Weekly predicted finish times and ranges for Autumn 10K, against the result',
       }),
     ).toBeInTheDocument()

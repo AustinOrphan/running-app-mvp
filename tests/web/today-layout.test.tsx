@@ -351,6 +351,23 @@ describe('useServerToday', () => {
     expect(api.calls).toHaveLength(3)
   })
 
+  test("a payload dated after the device's own day sets no timer and asks for nothing more", async () => {
+    // The device's clock runs a day behind the server's: it is 23:30 on 21 Oct in Chicago, and
+    // the server answers with 22 Oct. Asking again cannot end that, so there is no loop.
+    vi.setSystemTime(new Date('2026-10-22T04:30:00Z'))
+    const api = mockApi({
+      'GET /api/today': () => makeToday({ date: '2026-10-22', tz: ZONE, coach: makeCoach() }),
+    })
+    renderWithProviders(<Probe />)
+    await advance(0)
+    expect(screen.getByText('Day 2026-10-22')).toBeInTheDocument()
+    expect(api.calls).toHaveLength(1)
+
+    await advance(3 * 24 * 60 * 60_000)
+    expect(api.calls).toHaveLength(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   test('an unknown zone leaves the page as it is and sets no timer', async () => {
     vi.setSystemTime(new Date('2026-10-22T04:30:00Z'))
     const api = mockApi({
@@ -451,9 +468,11 @@ describe('RecentWeeks: the chart and its data', () => {
     expect(weeks[0]?.url).toBe('/api/weeks?from=2025-12-29&to=2026-03-16')
   })
 
-  test('takes the chart through a dynamic import, so the page does not carry it', () => {
+  test('takes the chart through the lazy wrapper, so the page does not carry it', () => {
     const source = readFileSync(join('web', 'components', 'today', 'RecentWeeks.tsx'), 'utf8')
-    expect(source).not.toMatch(/^import .*WeeklyHoursChart/m)
-    expect(source).toMatch(/import\('\.\.\/charts\/WeeklyHoursChart\.tsx'\)/)
+    expect(source).not.toMatch(/^import .*charts\/WeeklyHoursChart\.tsx/m)
+    expect(source).toMatch(/from '\.\.\/charts\/lazyCharts\.tsx'/)
+    const lazy = readFileSync(join('web', 'components', 'charts', 'lazyCharts.tsx'), 'utf8')
+    expect(lazy).toMatch(/import\('\.\/WeeklyHoursChart\.tsx'\)/)
   })
 })

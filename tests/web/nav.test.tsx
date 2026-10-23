@@ -132,6 +132,16 @@ describe('MorePage', () => {
     expect(settings).not.toHaveTextContent(/import/i)
   })
 
+  test('every link and note in the navigation passes the copy lint', () => {
+    renderWithProviders(<MorePage />, { route: '/more' })
+    const nav = screen.getByRole('navigation', { name: 'More pages' })
+    expectCleanCopy(nav)
+    // The Research note is the template's words, in the same wording as the Research page.
+    expect(within(nav).getByRole('link', { name: /^Research/ })).toHaveTextContent(
+      'The papers and rules the plan rests on',
+    )
+  })
+
   test('links to Integrations and Profile', () => {
     renderWithProviders(<MorePage />, { route: '/more' })
     const nav = within(screen.getByRole('navigation', { name: 'More pages' }))

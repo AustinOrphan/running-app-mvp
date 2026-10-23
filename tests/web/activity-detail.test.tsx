@@ -169,9 +169,10 @@ describe('ActivityDetailPage', () => {
 
   test('pace, heart rate and elevation charts share the page', async () => {
     renderDetail()
+    // The charts load as their own chunk, so each is waited for.
     expect(await screen.findByRole('img', { name: /^Pace, average/ })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /^Heart rate, average/ })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /^Elevation, from/ })).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: /^Heart rate, average/ })).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: /^Elevation, from/ })).toBeInTheDocument()
   })
 
   test('a stream without distance still charts heart rate against time', async () => {

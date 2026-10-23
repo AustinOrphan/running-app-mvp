@@ -402,6 +402,14 @@ describe('ResearchPage', () => {
     expect(paper).toHaveAttribute('aria-expanded', 'true')
   })
 
+  test('the heading and the line under it pass the copy lint', () => {
+    renderWithProviders(<ResearchPage />)
+    const header = screen.getByRole('heading', { level: 1, name: 'Research' }).closest('header')
+    expect(header).not.toBeNull()
+    expectCleanCopy(header as HTMLElement)
+    expect(header).toHaveTextContent('The papers and rules the plan rests on')
+  })
+
   test('says that the research is decision support and not medical advice', () => {
     renderWithProviders(<ResearchPage />)
     expect(screen.getByText(/not medical advice/i)).toBeInTheDocument()

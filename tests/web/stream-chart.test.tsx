@@ -1,13 +1,12 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, test } from 'vitest'
 import type { ActivityStreamData } from '../../shared/types.ts'
+import { StreamChart, yAxisWidth } from '../../web/components/charts/StreamChart.tsx'
 import {
   buildSeries,
-  StreamChart,
   streamXAxis,
-  yAxisWidth,
   type StreamData,
-} from '../../web/components/charts/StreamChart.tsx'
+} from '../../web/components/charts/streamSeries.ts'
 
 /** Twelve 10-second buckets at 3 m/s: 30 m per bucket, 5:33 per km. */
 function makeStream(over: Partial<Record<keyof ActivityStreamData, unknown>> = {}): StreamData {

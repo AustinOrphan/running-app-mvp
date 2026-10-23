@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ZoneSet } from '../../shared/engine/types.ts'
 import type { ZoneProposalView } from '../../shared/types.ts'
-import { api, keys } from './client.ts'
+import { api, invalidatePlanReaders, keys } from './client.ts'
 
 /** The current zone set with the source of each boundary. */
 export function useZones() {
@@ -25,13 +25,10 @@ function useDecideProposal(decision: 'accept' | 'decline') {
     mutationFn: (id: string) =>
       api<ZoneSet | undefined>('POST', `/zones/proposals/${encodeURIComponent(id)}/${decision}`),
     // Accepting changes the zone set, and future sessions follow the zone set. Both answers are
-    // written to the revision log, which the plan page lists as "What changed".
+    // written to the revision log, which the plan page lists as "What changed" and the weekly brief
+    // lists as "Since this brief", so the readers of the plan are read again as well.
     onSuccess: () =>
-      Promise.all(
-        [keys.zones, keys.zoneProposals, keys.plan, keys.planRevisions, keys.today].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
-        ),
-      ),
+      invalidatePlanReaders(queryClient, undefined, [keys.zones, keys.zoneProposals]),
   })
 }
 

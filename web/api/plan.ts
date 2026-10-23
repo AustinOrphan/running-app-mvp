@@ -315,12 +315,10 @@ export function useLinkPlanSession() {
   return useMutation({
     mutationFn: ({ id, activityId }: { id: string; activityId: string | null }) =>
       api<PlanSession>('POST', `/plan/sessions/${encodeURIComponent(id)}/link`, { activityId }),
+    // The session the run fulfils counts as done on the plan, the watch status and Today, and a
+    // changed session that now has a run linked can no longer be undone (the brief's undo).
     onSuccess: () =>
-      Promise.all(
-        [keys.plan, keys.today, keys.reviews, keys.activities, keys.activityDetail].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
-        ),
-      ),
+      invalidatePlanReaders(queryClient, undefined, [keys.activities, keys.activityDetail]),
   })
 }
 

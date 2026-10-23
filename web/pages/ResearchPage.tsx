@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { GradeBadge } from '../components/GradeBadge.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -15,6 +17,9 @@ import {
   type CorpusTopic,
 } from '../components/researchCorpus.ts'
 import styles from './ResearchPage.module.css'
+
+/** The line under the heading; it holds no quantity, so the units do not matter. */
+const RESEARCH_CONTEXT = render(TEMPLATES['research.context'], {}, 'km')
 
 type GradeFilter = 'all' | 'A' | 'B' | 'C' | 'D'
 
@@ -387,7 +392,7 @@ export function ResearchPage() {
 
   return (
     <>
-      <PageHeader title="Research" context="The papers and rules behind the plan" />
+      <PageHeader title="Research" context={RESEARCH_CONTEXT} />
       <p className={styles.intro}>
         Every rule in the plan comes from published research, and each carries a grade for how
         strong its support is. This is decision support for one runner, not medical advice.
