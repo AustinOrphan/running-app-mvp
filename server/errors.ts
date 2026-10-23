@@ -29,8 +29,9 @@ export function notFound(message = 'Not found.'): HttpError {
   return new HttpError(404, 'not_found', message)
 }
 
-export function conflict(message: string): HttpError {
-  return new HttpError(409, 'conflict', message)
+/** `details` reaches the client body, e.g. `{ requires }`, `{ reasons }` or `{ code: 'stale-preview' }`. */
+export function conflict(message: string, details?: unknown): HttpError {
+  return new HttpError(409, 'conflict', message, details)
 }
 
 /** Validates `data` with `schema`; throws a `validation` HttpError listing every issue. */
