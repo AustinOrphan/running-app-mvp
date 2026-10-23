@@ -1,6 +1,7 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { fieldErrors } from '../api/client.ts'
 import {
+  replacePlanRequired,
   useActivateGoal,
   useCreateGoal,
   useDeleteGoal,
@@ -8,9 +9,10 @@ import {
   useUpdateGoal,
   type GoalInput,
 } from '../api/goals.ts'
-import { usePlan } from '../api/plan.ts'
+import { useArchivedPlans, usePlan, useRestorePlan } from '../api/plan.ts'
 import { usePredictions } from '../api/predictions.ts'
 import { useSettings } from '../api/settings.ts'
+import { ActivateConfirm } from '../components/ActivateConfirm.tsx'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { localiseEngineText } from '../components/engineText.ts'
@@ -23,6 +25,14 @@ import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { formatLongDate } from '../components/format.ts'
 import {
+  RESTORE_BUTTON_LABEL,
+  RESTORE_DONE_TEXT,
+  RESTORE_NOT_UPDATED_TEXT,
+  activateBuiltText,
+  restoreNoteText,
+} from '../../shared/copy/goals.ts'
+import { todayIso } from '../../shared/dates.ts'
+import {
   formatDistance,
   formatDuration,
   kmToM,
@@ -31,6 +41,8 @@ import {
   mToMiles,
 } from '../../shared/units.ts'
 import type {
+  ActivateRequiresPlan,
+  ArchivedPlanView,
   Goal,
   GoalPriority,
   GoalStatus,
@@ -648,17 +660,78 @@ function GoalOutlook({ goal }: { goal: Goal }) {
 interface GoalRowProps {
   goal: Goal
   units: Units
+  /** The newest archived plan of this goal that can come back, when the goal's plan is gone. */
+  archived: ArchivedPlanView | null
   onEdit: () => void
 }
 
-function GoalRow({ goal, units, onEdit }: GoalRowProps) {
+function GoalRow({ goal, units, archived, onEdit }: GoalRowProps) {
   const nameId = useId()
+  const noteId = useId()
   const activate = useActivateGoal()
   const remove = useDeleteGoal()
+  const restore = useRestorePlan()
   const toast = useToast()
   const [confirming, setConfirming] = useState(false)
+  /** Set while the plan follows another goal and the runner is asked before it is replaced. */
+  const [replacing, setReplacing] = useState<ActivateRequiresPlan | null>(null)
+  const activateButton = useRef<HTMLButtonElement>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
+  const returnFocus = useRef(false)
   const preset = presetFor(goal.distanceM)
-  const error = activate.error ?? remove.error
+  // The 409 that opens the question is not an error to show.
+  const asksToReplace = replacePlanRequired(activate.error) !== null
+  const error = (asksToReplace ? null : activate.error) ?? remove.error ?? restore.error
+
+  // The button that opened the question is rendered again once it closes; focus goes back to it.
+  useEffect(() => {
+    if (replacing === null && returnFocus.current) {
+      returnFocus.current = false
+      activateButton.current?.focus()
+    }
+  }, [replacing])
+
+  function makeActive() {
+    activate.mutate(
+      { id: goal.id },
+      {
+        onError: (failure) => {
+          const needed = replacePlanRequired(failure)
+          if (needed !== null) setReplacing(needed)
+        },
+      },
+    )
+  }
+
+  function cancelReplace() {
+    returnFocus.current = true
+    setReplacing(null)
+    activate.reset()
+  }
+
+  function buildPlan() {
+    activate.mutate(
+      { id: goal.id, replacePlan: true },
+      {
+        onSuccess: () => {
+          setReplacing(null)
+          toast.show(activateBuiltText(goal.name))
+          // The button that opened the question is gone: the goal is active now.
+          heading.current?.focus()
+        },
+      },
+    )
+  }
+
+  function restorePlan(plan: ArchivedPlanView) {
+    restore.mutate(plan.id, {
+      onSuccess: (result) => {
+        toast.show(result.replanned ? RESTORE_DONE_TEXT : RESTORE_NOT_UPDATED_TEXT)
+        // The note and its button are gone once the plan is back; focus goes to the goal.
+        heading.current?.focus()
+      },
+    })
+  }
 
   const details = [
     `${formatLongDate(goal.targetDate)}${goal.dateProvisional ? ' (provisional)' : ''}`,
@@ -669,7 +742,7 @@ function GoalRow({ goal, units, onEdit }: GoalRowProps) {
   return (
     <article className={styles.goal} aria-labelledby={nameId}>
       <div className={styles.head}>
-        <h2 id={nameId} className={styles.name}>
+        <h2 id={nameId} ref={heading} tabIndex={-1} className={styles.name}>
           {goal.name}
         </h2>
         <span className={styles.priority}>Priority {goal.priority}</span>
@@ -715,33 +788,59 @@ function GoalRow({ goal, units, onEdit }: GoalRowProps) {
             Cancel
           </Button>
         </div>
+      ) : replacing !== null ? (
+        <ActivateConfirm
+          currentGoal={replacing.planGoalName}
+          nextGoal={goal.name}
+          loading={activate.isPending}
+          onConfirm={buildPlan}
+          onCancel={cancelReplace}
+        />
       ) : (
-        <div className={styles.actions}>
-          {goal.isActive ? null : (
+        <>
+          <div className={styles.actions}>
+            {goal.isActive ? null : (
+              <Button
+                ref={activateButton}
+                variant="secondary"
+                aria-describedby={nameId}
+                loading={activate.isPending}
+                onClick={makeActive}
+              >
+                Make active
+              </Button>
+            )}
+            <Button variant="quiet" aria-label={`Edit ${goal.name}`} onClick={onEdit}>
+              Edit
+            </Button>
             <Button
-              variant="secondary"
-              aria-describedby={nameId}
-              loading={activate.isPending}
+              variant="quiet"
+              aria-label={`Delete ${goal.name}`}
               onClick={() => {
-                activate.mutate(goal.id)
+                setConfirming(true)
               }}
             >
-              Make active
+              Delete
             </Button>
-          )}
-          <Button variant="quiet" aria-label={`Edit ${goal.name}`} onClick={onEdit}>
-            Edit
-          </Button>
-          <Button
-            variant="quiet"
-            aria-label={`Delete ${goal.name}`}
-            onClick={() => {
-              setConfirming(true)
-            }}
-          >
-            Delete
-          </Button>
-        </div>
+          </div>
+          {archived !== null ? (
+            <div className={styles.restore}>
+              <p id={noteId} className={styles.note}>
+                {restoreNoteText(archived.goalName, todayIso(new Date(archived.archivedAt)))}
+              </p>
+              <Button
+                variant="secondary"
+                aria-describedby={noteId}
+                loading={restore.isPending}
+                onClick={() => {
+                  restorePlan(archived)
+                }}
+              >
+                {RESTORE_BUTTON_LABEL}
+              </Button>
+            </div>
+          ) : null}
+        </>
       )}
       {error ? (
         <p role="alert" className={styles.error}>
@@ -756,8 +855,16 @@ function GoalRow({ goal, units, onEdit }: GoalRowProps) {
 export function GoalsPage() {
   const goals = useGoals()
   const settings = useSettings()
+  const plan = usePlan()
+  const archivedPlans = useArchivedPlans()
   const units: Units = settings.data?.units ?? 'mi'
   const [editing, setEditing] = useState<Goal | 'new' | null>(null)
+
+  /** The newest archived plan of a goal that can come back, unless the goal has the plan now. */
+  function restorableFor(goal: Goal): ArchivedPlanView | null {
+    if (plan.data?.goalId === goal.id) return null
+    return archivedPlans.data?.find((p) => p.goalId === goal.id && p.restorable) ?? null
+  }
 
   function openNew() {
     setEditing('new')
@@ -792,6 +899,7 @@ export function GoalsPage() {
             key={goal.id}
             goal={goal}
             units={units}
+            archived={restorableFor(goal)}
             onEdit={() => {
               setEditing(goal)
             }}

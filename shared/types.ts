@@ -584,6 +584,34 @@ export interface PlanWithSessions extends PlanWithWeeks {
   checklist: ChecklistResult[]
   zones: ZoneSet | null
 }
+/** The `details` of the 409 that `POST /api/goals/:id/activate` answers while a plan follows another goal. */
+export interface ActivateRequiresPlan {
+  requires: 'replacePlan'
+  planGoalId: string
+  planGoalName: string
+}
+/** One archived plan, for `GET /api/plan/archived`; `reason` says why it is not `restorable`. */
+export interface ArchivedPlanView {
+  id: string
+  goalId: string
+  goalName: string
+  /** Monday of the race week, YYYY-MM-DD. */
+  raceWeekStart: string
+  /** When the plan was archived: an ISO 8601 instant. */
+  archivedAt: string
+  restorable: boolean
+  reason: string | null
+}
+/**
+ * What `POST /api/plan/archived/:id/restore` answers. The plan is restored either way; `replanned`
+ * is false when the update that follows a restore was blocked, and `message` says why.
+ */
+export interface RestorePlanResult {
+  planId: string
+  goalId: string
+  replanned: boolean
+  message: string | null
+}
 /** Why a runner reports a window of rest or limited running [rule J9]. */
 export type DisruptionReason =
   'illness-above-neck' | 'illness-below-neck' | 'niggle' | 'short-on-time' | 'travel'

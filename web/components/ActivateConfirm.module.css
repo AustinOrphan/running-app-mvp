@@ -1,0 +1,21 @@
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--prose-max);
+  margin-top: var(--space-3);
+}
+
+.text {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  overflow-wrap: anywhere;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

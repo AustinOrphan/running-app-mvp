@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { EngineInput, SessionKind } from '../../shared/engine/types.ts'
-import type { PlanRevision, PlanSession, PlanWeek, PlanWithSessions } from '../../shared/types.ts'
-import { api, keys } from './client.ts'
+import type {
+  ArchivedPlanView,
+  PlanRevision,
+  PlanSession,
+  PlanWeek,
+  PlanWithSessions,
+  RestorePlanResult,
+} from '../../shared/types.ts'
+import { api, invalidateNewPlan, keys } from './client.ts'
 
 export interface GeneratePlanRequest {
   goalId: string
@@ -45,6 +52,24 @@ export function usePlanRevisions() {
   return useQuery({
     queryKey: [keys.planRevisions],
     queryFn: () => api<PlanRevision[]>('GET', '/plan/revisions'),
+  })
+}
+
+/** The plans a newer one replaced (up to five), with whether each can be restored. */
+export function useArchivedPlans() {
+  return useQuery({
+    queryKey: [keys.planArchived],
+    queryFn: () => api<ArchivedPlanView[]>('GET', '/plan/archived'),
+  })
+}
+
+/** Brings an archived plan back as the active plan, and its goal as the active goal. */
+export function useRestorePlan() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<RestorePlanResult>('POST', `/plan/archived/${encodeURIComponent(id)}/restore`),
+    onSuccess: () => invalidateNewPlan(queryClient),
   })
 }
 
@@ -103,6 +128,8 @@ export function useGeneratePlan() {
       // not awaited: once the plan arrives the page swaps the form out, and the caller's success
       // callback (the toast) only runs if this promise settles before that unmount.
       void queryClient.invalidateQueries({ queryKey: [keys.goals] })
+      // The plan it replaces is archived, so the list of archived plans changes too.
+      void queryClient.invalidateQueries({ queryKey: [keys.planArchived] })
       return Promise.all(
         [keys.plan, keys.reviews].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
       )
