@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import {
   fetchArchive,
   fetchClimateHours,
@@ -31,6 +31,7 @@ describe('fetchForecast and fetchArchive', () => {
           relative_humidity_2m: [55.4, 60.6],
           dew_point_2m: [4.04, 5.5],
           wind_speed_10m: [10.26, 12],
+          shortwave_radiation: [812.46, null],
         },
       }),
     )
@@ -48,9 +49,25 @@ describe('fetchForecast and fetchArchive', () => {
       wind_speed_unit: 'kmh',
     })
     expect(url.searchParams.get('hourly')).toContain('dew_point_2m')
+    // Radiation is what turns the air temperature into a WBGT.
+    expect(url.searchParams.get('hourly')).toContain('shortwave_radiation')
     expect(hours).toEqual([
-      { time: '2026-03-02T07:00:00Z', tempC: 12.3, dewPointC: 4, humidityPct: 55, windKph: 10.3 },
-      { time: '2026-03-02T08:00:00Z', tempC: 13.1, dewPointC: 5.5, humidityPct: 61, windKph: 12 },
+      {
+        time: '2026-03-02T07:00:00Z',
+        tempC: 12.3,
+        dewPointC: 4,
+        humidityPct: 55,
+        windKph: 10.3,
+        shortwaveWm2: 812.5,
+      },
+      {
+        time: '2026-03-02T08:00:00Z',
+        tempC: 13.1,
+        dewPointC: 5.5,
+        humidityPct: 61,
+        windKph: 12,
+        shortwaveWm2: null,
+      },
     ])
   })
 
@@ -76,26 +93,76 @@ describe('fetchForecast and fetchArchive', () => {
     expect(`${url.origin}${url.pathname}`).toBe(ARCHIVE)
     expect(url.searchParams.get('start_date')).toBe('2026-03-02')
     expect(url.searchParams.get('end_date')).toBe('2026-03-03')
+    // The activity backfill does not ask for radiation.
+    expect(url.searchParams.get('hourly')).not.toContain('shortwave_radiation')
     expect(hours).toEqual([
-      { time: '2026-03-02T07:00:00Z', tempC: 10, dewPointC: null, humidityPct: null, windKph: 5 },
+      {
+        time: '2026-03-02T07:00:00Z',
+        tempC: 10,
+        dewPointC: null,
+        humidityPct: null,
+        windKph: 5,
+        shortwaveWm2: null,
+      },
       {
         time: '2026-03-02T09:00:00Z',
         tempC: null,
         dewPointC: null,
         humidityPct: null,
         windKph: null,
+        shortwaveWm2: null,
       },
     ])
   })
 
-  test('every request carries a time limit signal', async () => {
-    const { calls, fetchFn } = recorder(() => Response.json({ hourly: { time: [] } }))
-    await fetchForecast(fetchFn, { lat: 1, lng: 2 })
-    await fetchClimateHours(fetchFn, { lat: 1, lng: 2, start: '2025-06-01', end: '2025-06-03' })
-    expect(REQUEST_TIMEOUT_MS).toBeGreaterThan(0)
-    for (const call of calls) {
-      expect(call.signal).toBeInstanceOf(AbortSignal)
-      expect(call.signal?.aborted).toBe(false)
+  test('every request is cut off after REQUEST_TIMEOUT_MS: the signal fires then and a fetch that honours it rejects', async () => {
+    expect(REQUEST_TIMEOUT_MS).toBe(20_000)
+    vi.useFakeTimers()
+    // `AbortSignal.timeout` runs on Node's own timer, which fake timers do not move; this stand-in
+    // fires on the faked clock after the same number of milliseconds the provider asked for.
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) => {
+      const controller = new AbortController()
+      setTimeout(() => {
+        controller.abort(new DOMException('The operation timed out.', 'TimeoutError'))
+      }, ms)
+      return controller.signal
+    })
+    try {
+      const signals: AbortSignal[] = []
+      // A fetch that hangs until its signal fires, as a stalled connection does.
+      const hanging: typeof fetch = (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal
+          if (!signal) return
+          signals.push(signal)
+          signal.addEventListener('abort', () => {
+            reject(signal.reason as Error)
+          })
+        })
+      const where = { lat: 1, lng: 2, start: '2025-06-01', end: '2025-06-03' }
+      const reads = [
+        fetchForecast(hanging, { lat: 1, lng: 2 }),
+        fetchArchive(hanging, where),
+        fetchClimateHours(hanging, where),
+      ].map((read) =>
+        read.then(
+          () => 'answered',
+          (error: unknown) => error,
+        ),
+      )
+
+      expect(signals).toHaveLength(3)
+      await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS - 1)
+      expect(signals.map((signal) => signal.aborted)).toEqual([false, false, false])
+      await vi.advanceTimersByTimeAsync(1)
+      expect(signals.map((signal) => signal.aborted)).toEqual([true, true, true])
+      for (const outcome of await Promise.all(reads)) {
+        expect(outcome).toMatchObject({ name: 'TimeoutError' })
+      }
+      expect(timeout.mock.calls).toEqual([[20_000], [20_000], [20_000]])
+    } finally {
+      timeout.mockRestore()
+      vi.useRealTimers()
     }
   })
 

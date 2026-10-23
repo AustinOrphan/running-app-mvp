@@ -486,6 +486,43 @@ describe('GET /api/activities pages', () => {
     vi.restoreAllMocks()
   })
 
+  test('a row inserted between the page read and the count does not end the list one row early', async () => {
+    // Rows 1..6, page 2 of 3 (offset 3). A sync adds a newer run right after the first of the two
+    // reads: the last old row slides to index 6, and `total` must say so for it to be offered.
+    await seedDays(6)
+    const { loadActivityPage } = await import('../../server/serialize.ts')
+    let reads = 0
+    const interleaved = {
+      activity: {
+        count: async (args: Parameters<typeof ctx.prisma.activity.count>[0]) => {
+          reads += 1
+          if (reads === 2) await insertNewer()
+          return ctx.prisma.activity.count(args)
+        },
+        findMany: async (args: Parameters<typeof ctx.prisma.activity.findMany>[0]) => {
+          reads += 1
+          if (reads === 2) await insertNewer()
+          return ctx.prisma.activity.findMany(args)
+        },
+      },
+    } as unknown as Pick<typeof ctx.prisma, 'activity'>
+    async function insertNewer() {
+      await ctx.prisma.activity.create({
+        data: { userId: user.id, date: '2026-03-20', type: 'run', durationSec: 1800 },
+      })
+    }
+
+    const result = await loadActivityPage(interleaved, user.id, { limit: 3, offset: 3 })
+    expect(result.items).toHaveLength(3)
+    expect(result.total).toBe(7)
+    expect(result.nextOffset).toBe(6)
+
+    // The page it points at holds the one row that would have been dropped.
+    const last = await page('limit=3&offset=6')
+    expect(last.body.items.map((a) => a.date)).toEqual(['2026-03-01'])
+    expect(last.body.nextOffset).toBeNull()
+  })
+
   test('limit and offset walk the list: every row once, nextOffset points at the next page', async () => {
     await seedDays(7)
     const seen: string[] = []

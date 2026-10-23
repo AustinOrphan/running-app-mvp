@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import type { Activity, ImportBatch, Units } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
@@ -529,6 +529,62 @@ describe('Activities page: paging', () => {
       '/api/activities?limit=50&offset=50',
       '/api/activities?limit=50&offset=100',
     ])
+    expectCleanCopy(document.body)
+  })
+
+  /** Holds back every request made from now on until the returned function is called. */
+  function holdRequests(): () => void {
+    const served = globalThis.fetch
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      await gate
+      return served(input, init)
+    })
+    return release
+  }
+
+  test('the last page hands focus to the count line, which reads the whole list', async () => {
+    const user = userEvent.setup()
+    renderPage({ activities: history(70) })
+
+    const status = await screen.findByText('Showing 50 of 70 activities')
+    const release = holdRequests()
+    await user.click(screen.getByRole('button', { name: 'Show 20 more' }))
+    // The page is on its way, with the button disabled and the keyboard's place lost.
+    expect(screen.getByRole('button', { name: 'Show 20 more' })).toBeDisabled()
+
+    release()
+    await waitFor(() => {
+      expect(status).toHaveTextContent(/^70 activities$/)
+    })
+    expect(screen.queryByRole('button', { name: /^Show \d+ more$/ })).not.toBeInTheDocument()
+    // The button that held focus is gone; focus must land on the count line, not the document.
+    expect(status).toHaveAttribute('role', 'status')
+    expect(status).toHaveFocus()
+    expectCleanCopy(document.body)
+  })
+
+  test('the count line stays mounted while a filter reloads, so its new text is announced', async () => {
+    const user = userEvent.setup()
+    renderPage({ activities: history(120) })
+    const status = await screen.findByText('Showing 50 of 120 activities')
+
+    const release = holdRequests()
+    await user.click(screen.getByRole('radio', { name: 'Race' }))
+    expect(await screen.findByRole('group', { name: 'Loading' })).toBeInTheDocument()
+    // The same element, empty: a live region that is replaced is not announced reliably.
+    expect(status).toBeInTheDocument()
+    expect(status).toHaveAttribute('role', 'status')
+    expect(status).toBeEmptyDOMElement()
+
+    release()
+    await waitFor(() => {
+      expect(status).toHaveTextContent('Showing 50 of 120 activities')
+    })
+    expect(status).toBeInTheDocument()
     expectCleanCopy(document.body)
   })
 

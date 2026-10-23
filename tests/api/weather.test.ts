@@ -6,7 +6,7 @@ import { fakeFetch } from '../fakeFetch.ts'
 import {
   client,
   createTestCtx,
-  noNetwork,
+  expectNoRefusedFetches,
   seedUser,
   type TestCtx,
   type TestUser,
@@ -37,7 +37,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await settleWeatherCache()
   vi.useRealTimers()
-  ctx.fetch = noNetwork()
+  expectNoRefusedFetches(ctx)
 })
 
 /** Hours of every date from `start` to `end` inclusive, as Open-Meteo writes them (GMT). */
@@ -64,6 +64,7 @@ function openMeteoBody(times: string[]) {
       relative_humidity_2m: times.map((t) => 50 + hour(t)),
       dew_point_2m: times.map((t) => hour(t) - 5),
       wind_speed_10m: times.map((t) => hour(t) * 2),
+      shortwave_radiation: times.map((t) => hour(t) * 10),
     },
   }
 }
@@ -499,6 +500,7 @@ describe('GET /api/weather/forecast', () => {
     expect(calls[0]!.searchParams.get('longitude')).toBe('-30.1')
     expect(calls[0]!.searchParams.get('forecast_days')).toBe('7')
     expect(calls[0]!.searchParams.get('past_days')).toBeNull()
+    expect(calls[0]!.searchParams.get('hourly')).toContain('shortwave_radiation')
     expect(view).toMatchObject({ fetchedAt: NOW.toISOString(), stale: false })
     expect(view.hours).toHaveLength(168)
     expect(view.hours[0]).toEqual({
@@ -507,8 +509,13 @@ describe('GET /api/weather/forecast', () => {
       dewPointC: -5,
       humidityPct: 50,
       windKph: 0,
+      shortwaveWm2: 0,
     })
-    expect(view.hours[13]).toMatchObject({ time: '2026-03-20T13:00:00Z', tempC: 13 })
+    expect(view.hours[13]).toMatchObject({
+      time: '2026-03-20T13:00:00Z',
+      tempC: 13,
+      shortwaveWm2: 130,
+    })
   })
 
   test('a filled cell answers from the cache without a request, fresh for an hour', async () => {

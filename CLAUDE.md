@@ -111,7 +111,10 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
 ## Testing
 
 - API tests use `tests/api/helpers.ts` (own SQLite file per context, seeded user and cookie).
-  `ctx.fetch` starts as `noNetwork()`, which rejects and names the URL; set it to a `fakeFetch`.
+  `ctx.fetch` starts as `noNetwork()`, which rejects, names the URL and records it in
+  `ctx.refusedFetches` (the weather layer swallows the rejection); end an `afterEach` with
+  `expectNoRefusedFetches(ctx)` so an unplanned call still fails the test, and set `ctx.fetch` to a
+  `fakeFetch` to plan calls.
 - Page tests use `tests/web/helpers.tsx`; query by role and accessible name.
 - E2E specs in `tests/e2e` drive the UI by role and label, use dates computed from the clock,
   and call `resetData()` and `signedInApi()` from `tests/e2e/helpers.ts` so each spec stands on

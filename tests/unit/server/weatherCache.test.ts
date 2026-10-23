@@ -164,6 +164,7 @@ function forecastRoute(calls: URL[], status = 200): FakeRoute {
         relative_humidity_2m: times.map(() => 60),
         dew_point_2m: times.map(() => 8),
         wind_speed_10m: times.map(() => 10),
+        shortwave_radiation: times.map((t) => hourOf(t) * 20),
       },
     })
   }
@@ -228,6 +229,29 @@ describe('cells and keys', () => {
     // The race's own coordinates win over home.
     expect(climateKeyFor(race, { lat: 10, lng: 20, use: true })?.latE2).toBe(4013)
   })
+
+  test('a place is a pair: one race coordinate never combines with a home one', () => {
+    const home = { lat: 10, lng: 20, use: true }
+    const onlyLat = { ...race, raceLng: null }
+    const onlyLng = { ...race, raceLat: null }
+    // Home stands in for the whole place, not for the missing half.
+    for (const half of [onlyLat, onlyLng]) {
+      expect(climateKeyFor(half, home)).toMatchObject({ latE2: 1000, lngE2: 2000 })
+    }
+    // With no usable home either, there is no place at all.
+    for (const half of [onlyLat, onlyLng]) {
+      expect(climateKeyFor(half, noHome)).toBeNull()
+      expect(climateKeyFor(half, { ...home, use: false })).toBeNull()
+      expect(climateKeyFor(half, { lat: 10, lng: null, use: true })).toBeNull()
+      expect(climateKeyFor(half, { lat: null, lng: 20, use: true })).toBeNull()
+    }
+    // A home with one coordinate is no place either.
+    const open = { ...race, raceLat: null, raceLng: null }
+    expect(climateKeyFor(open, { lat: 10, lng: null, use: true })).toBeNull()
+    expect(climateKeyFor(open, { lat: null, lng: 20, use: true })).toBeNull()
+    // A complete race place does not need home.
+    expect(climateKeyFor(race, { lat: 10, lng: null, use: true })).toMatchObject({ latE2: 4013 })
+  })
 })
 
 // ---------------------------------------------------------------------------------------------
@@ -249,6 +273,34 @@ describe('the home forecast', () => {
     const row = await prisma.forecastCache.findFirstOrThrow()
     expect(row).toMatchObject({ latE1: 205, lngE1: -301, fetchedAt: NOW, failedAt: null })
     expect(JSON.parse(row.hours)).toHaveLength(168)
+  })
+
+  test('stores the shortwave radiation of each hour, and reads a row written without it as null', async () => {
+    const user = await seedUser({ lat: 20.5, lng: -30.12 })
+    const calls: URL[] = []
+    deps.fetch = fakeFetch({ [`GET ${FORECAST}`]: forecastRoute(calls) })
+    await refreshWeatherCaches(deps, user.id, { now: NOW })
+
+    expect(calls[0]!.searchParams.get('hourly')).toContain('shortwave_radiation')
+    const fresh = await cachedForecast(prisma, user.id, NOW)
+    expect(fresh?.hours[14]?.time).toContain('T14:00')
+    expect(fresh?.hours[14]?.shortwaveWm2).toBe(280)
+
+    // A row from before the field existed has no key; the hours read as null, not undefined.
+    const row = await prisma.forecastCache.findFirstOrThrow()
+    const stored = JSON.parse(row.hours) as Array<Record<string, unknown>>
+    const old = stored.map((hour) => {
+      const { shortwaveWm2: _dropped, ...rest } = hour
+      return rest
+    })
+    await prisma.forecastCache.update({
+      where: { id: row.id },
+      data: { hours: JSON.stringify(old) },
+    })
+    const aged = await cachedForecast(prisma, user.id, NOW)
+    expect(aged?.hours).toHaveLength(168)
+    expect(aged?.hours.every((hour) => hour.shortwaveWm2 === null)).toBe(true)
+    expect(aged?.hours[0]).toMatchObject({ tempC: 0, humidityPct: 60 })
   })
 
   test('is read again only after 60 minutes', async () => {
@@ -679,24 +731,97 @@ describe('ensureClimate', () => {
     expect(calls).toHaveLength(3)
   })
 
-  test('waits at most the given time, and the read carries on and fills the cache', async () => {
-    const user = await seedUser()
-    const goal = await seedGoal(user.id)
+  /** An archive route that answers when the test lets it; `entered` lists the reads begun. */
+  function gatedArchive() {
+    let open!: () => void
+    const gate = new Promise<void>((resolve) => {
+      open = resolve
+    })
+    const entered: URL[] = []
     const route = archiveRoute([])
-    deps.fetch = fakeFetch({
+    const fetchFn = fakeFetch({
       [`GET ${ARCHIVE}`]: async (req) => {
-        await new Promise((resolve) => setTimeout(resolve, 60))
+        entered.push(new URL(req.url))
+        await gate
         return route(req)
       },
     })
+    return { fetchFn, open, entered }
+  }
 
-    const started = Date.now()
+  test('waits at most the given time, and the read carries on and fills the cache', async () => {
+    const user = await seedUser()
+    const goal = await seedGoal(user.id)
+    const { fetchFn, open, entered } = gatedArchive()
+    deps.fetch = fetchFn
+
+    // The gate stays closed, so only the wait running out can end this call.
     await ensureClimate(deps, { userId: user.id, goalId: goal.id, now: NOW, waitMs: 20 })
-    expect(Date.now() - started).toBeLessThan(150)
+    expect(entered).toHaveLength(1)
     expect(await prisma.climateCache.count()).toBe(0)
 
+    open()
     await settleWeatherCache()
+    expect(entered).toHaveLength(3)
     expect((await prisma.climateCache.findFirstOrThrow()).complete).toBe(true)
+  })
+
+  test('a cell that holds a value does not make the plan wait: it is read and refreshed after', async () => {
+    const user = await seedUser()
+    const goal = await seedGoal(user.id)
+    deps.fetch = fakeFetch({ [`GET ${ARCHIVE}`]: archiveRoute([]) })
+    await ensureClimate(deps, { userId: user.id, goalId: goal.id, now: NOW })
+    const stored = await prisma.climateCache.findFirstOrThrow()
+    expect(stored).toMatchObject({ complete: true, fetchedAt: NOW })
+
+    // 30 days on the row is due again. The gate stays closed and the wait is a minute: the call
+    // returns at once only if it does not wait on the refresh.
+    const { fetchFn, open, entered } = gatedArchive()
+    deps.fetch = fetchFn
+    const due = later(CLIMATE_REFRESH_MS)
+    await ensureClimate(deps, { userId: user.id, goalId: goal.id, now: due, waitMs: 60_000 })
+    expect(entered).toHaveLength(1)
+    expect(await readClimate(prisma, goal, { lat: null, lng: null, use: false })).toEqual({
+      wbgtC: stored.wbgtC,
+      source: 'climatology',
+    })
+    expect((await prisma.climateCache.findFirstOrThrow()).fetchedAt).toEqual(NOW)
+
+    open()
+    await settleWeatherCache()
+    expect((await prisma.climateCache.findFirstOrThrow()).fetchedAt).toEqual(due)
+  })
+
+  test('an incomplete cell that holds a value is not waited for either', async () => {
+    const user = await seedUser()
+    const goal = await seedGoal(user.id)
+    // One of three years fails: the row keeps the two that answered and is incomplete.
+    const route = archiveRoute([])
+    deps.fetch = fakeFetch({
+      [`GET ${ARCHIVE}`]: (req) =>
+        new URL(req.url).searchParams.get('start_date')!.startsWith('2024')
+          ? new Response('busy', { status: 500 })
+          : route(req),
+    })
+    await ensureClimate(deps, { userId: user.id, goalId: goal.id, now: NOW })
+    expect(await prisma.climateCache.findFirstOrThrow()).toMatchObject({
+      complete: false,
+      yearsRead: 2,
+    })
+
+    const { fetchFn, open, entered } = gatedArchive()
+    deps.fetch = fetchFn
+    const retry = later(BACKOFF_MS)
+    await ensureClimate(deps, { userId: user.id, goalId: goal.id, now: retry, waitMs: 60_000 })
+    expect(entered).toHaveLength(1)
+    expect(await readClimate(prisma, goal, { lat: null, lng: null, use: false })).not.toBeNull()
+
+    open()
+    await settleWeatherCache()
+    expect(await prisma.climateCache.findFirstOrThrow()).toMatchObject({
+      complete: true,
+      yearsRead: 3,
+    })
   })
 
   test('never throws, and leaves a failed cell alone until the back-off ends', async () => {

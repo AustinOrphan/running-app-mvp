@@ -974,6 +974,8 @@ describe('the API key and the network', () => {
     await intervalsPublish.reference(ctx)
     await intervalsPublish.upsert([outbound(1), outbound(2, { remoteId: '2' })], REF, ctx)
     await intervalsPublish.list({ from: '2026-03-10', to: '2026-03-12' }, ctx)
+    // The bulk delete is the PUT route above, so every call the provider makes is driven here.
+    await intervalsPublish.withdraw([{ externalId: 'e', remoteId: '1' }], ctx)
     expect(global).not.toHaveBeenCalled()
   })
 
@@ -983,6 +985,9 @@ describe('the API key and the network', () => {
       'utf8',
     )
     expect(source).not.toMatch(/(?<![.\w])fetch\s*\(/)
+    // The line above skips a call written `globalThis.fetch(`; any other mention of the word, in a
+    // call, a global lookup (`globalThis.fetch`, `window.fetch`) or an alias, must be `ctx.fetch`.
+    expect(source.match(/(?<!ctx\.)\bfetch\b/g)).toBeNull()
     expect(source).not.toMatch(/console\.|logger|pino|process\.env/)
     expect(source).not.toMatch(/prisma|PrismaClient/i)
   })

@@ -103,18 +103,26 @@ export function forecastCellOf(lat: number, lng: number): ForecastCell {
   return { latE1: steps(lat, 10), lngE1: steps(lng, 10) }
 }
 
-/** The key of a goal's race climate, or null while it has no place (own coordinates, else home). */
+/**
+ * The key of a goal's race climate, or null while it has no place: the race's own coordinates when
+ * both are set, else home when the profile allows it and both home coordinates are set. A place is
+ * a pair, so one race coordinate never combines with a home one into a point that is neither.
+ */
 export function climateKeyFor(goal: ClimateGoal, home: ClimateHome): ClimateKey | null {
-  const lat = goal.raceLat ?? (home.use ? home.lat : null)
-  const lng = goal.raceLng ?? (home.use ? home.lng : null)
-  if (lat === null || lng === null) return null
+  let place: { lat: number; lng: number } | null = null
+  if (goal.raceLat !== null && goal.raceLng !== null) {
+    place = { lat: goal.raceLat, lng: goal.raceLng }
+  } else if (home.use && home.lat !== null && home.lng !== null) {
+    place = { lat: home.lat, lng: home.lng }
+  }
+  if (place === null) return null
   const startMatch = goal.startTime === null ? null : /^(\d{2}):\d{2}$/.exec(goal.startTime)
   const startHour = startMatch ? Number(startMatch[1]) : DEFAULT_START_HOUR
   const durationSec = goal.targetTimeSec ?? (goal.distanceM ?? 0) * ROUGH_SEC_PER_M
   const windowHours = Math.min(MAX_WINDOW_HOURS, Math.max(1, Math.ceil(durationSec / 3600)))
   return {
-    latE2: steps(lat, 100),
-    lngE2: steps(lng, 100),
+    latE2: steps(place.lat, 100),
+    lngE2: steps(place.lng, 100),
     monthDay: goal.targetDate.slice(5),
     startHour,
     windowHours,
@@ -222,10 +230,18 @@ async function homeCellOf(prisma: PrismaClient, userId: string): Promise<Forecas
     : null
 }
 
+/** The stored hours. Rows written before the forecast carried radiation read it as null. */
 function parseHours(text: string): WeatherHour[] {
   try {
     const parsed = JSON.parse(text) as unknown
-    return Array.isArray(parsed) ? (parsed as WeatherHour[]) : []
+    if (!Array.isArray(parsed)) return []
+    return (parsed as Array<Partial<WeatherHour>>).map(
+      (hour) =>
+        ({
+          ...hour,
+          shortwaveWm2: typeof hour.shortwaveWm2 === 'number' ? hour.shortwaveWm2 : null,
+        }) as WeatherHour,
+    )
   } catch {
     return []
   }
@@ -524,7 +540,10 @@ export async function readClimate(
  * Plan generation's wait: fills the goal's race climate when it is missing, incomplete or old,
  * for at most `waitMs`, so a plan on a cold cache carries the race heat. Never throws and never
  * waits when the cell is fresh, the goal has no place or the last attempt failed within the
- * back-off; a read that outlives the wait carries on and fills the cache for the next plan.
+ * back-off. A cell that already holds a value is refreshed in the background and the plan reads
+ * that value (as `readClimate` does for any stale or incomplete row); only a cell with nothing
+ * usable is waited for. A read that outlives the wait carries on and fills the cache for the next
+ * plan.
  */
 export async function ensureClimate(
   deps: Deps,
@@ -548,6 +567,7 @@ export async function ensureClimate(
   if (!climateDue(row, now) || backedOff(row, now)) return
   const attempt = refreshClimate(prisma, fetchOf(deps), key, now)
   inBackground(attempt)
+  if (row?.wbgtC != null) return
   await within(
     attempt.catch(() => undefined),
     args.waitMs ?? CLIMATE_WAIT_MS,
