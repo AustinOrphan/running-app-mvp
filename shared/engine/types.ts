@@ -346,6 +346,12 @@ export interface EngineInput {
     recoveryCycle?: '3:1' | '2:1'
     strengthSessions?: 0 | 1 | 2
     tidModel?: 'pyramidal' | 'polarized'
+    /**
+     * `false` leaves the gut-training block out of the plan: no `gut-training` week flag and no
+     * `fuel-practice` session flag [rules H7]. Absent or `true` keeps the block. The server sets
+     * `false` for a diagnosed gut condition or when the runner opts out; only flags differ.
+     */
+    gutTraining?: boolean
   }
   /** Signs from the latest REDs screening [rules n-4]; absent means no screening. */
   screeningFlags?: number

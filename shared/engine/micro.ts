@@ -167,6 +167,7 @@ export function placeWeek(
 
   const specs = fitDistances(runs, slots, caps, ctx.zones, week)
   const afterRace = week.flags.includes('post-race')
+  const fuelRuns = fuelPracticeRuns(runs, specs, week)
   const sessions: SessionSpec[] = []
   for (const [i, run] of runs.entries()) {
     const spec = specs[i]!
@@ -174,18 +175,26 @@ export function placeWeek(
     const specFlags = run.flags.includes('b2b-day2')
       ? spec.flags.filter((f) => f !== 'b2b-day1')
       : spec.flags
-    const flags = unique([...specFlags, ...run.flags])
+    // fuel practice changes the flags and the rule list of a run, never its minutes or targets [H7]
+    const fuel = fuelRuns.has(i)
+    const flags = unique<SessionFlag>([
+      ...(fuel ? (['fuel-practice'] as const) : []),
+      ...specFlags,
+      ...run.flags,
+    ])
+    const rules = fuel ? unique([...spec.rules, 'H7']) : spec.rules
     sessions.push({
       ...spec,
       date: slots[run.day]!.date,
       order: 0,
       flags,
+      rules,
       // a run of the post-race weeks says so [rules H12]
       ...(afterRace
         ? {
             title: afterRaceTitle(spec.durationMin),
             flags: unique<SessionFlag>([...flags, 'post-race']),
-            rules: unique([...spec.rules, 'H12']),
+            rules: unique([...rules, 'H12']),
           }
         : {}),
     })
@@ -201,6 +210,46 @@ export function placeWeek(
     sessions.push({ ...spec, date: slots[day]!.date, order: hasRun ? 1 : 0 })
   }
   return sessions.sort((a, b) => (a.date === b.date ? a.order - b.order : a.date < b.date ? -1 : 1))
+}
+
+// ---- fuel practice [rule H7] ----
+
+/** The long run, its fast-finish form and the days of a back-to-back pair. */
+const LONG_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
+  'long',
+  'long-fast-finish',
+  'b2b',
+])
+
+/**
+ * Runs that can carry fuel practice: the long runs, and easy and race-pace running, where eating
+ * at the target rate is possible. Threshold, interval and hill work, strides, a hike and the race
+ * are left out.
+ */
+const FUEL_PRACTICE_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
+  ...LONG_KINDS,
+  'easy',
+  'race-pace',
+])
+
+/**
+ * The runs of a gut-training week that practise race-day fuel: up to `h7.gutBlockSessionsPerWeek`
+ * runs of at least `h7.gutTrainingSessionMinMin` minutes, the long runs first (both days of a
+ * back-to-back pair), then the longest of the others, the earlier day on a tie. The choice reads
+ * the final minutes and changes no minutes, days or zones. Indices point into `runs`.
+ */
+function fuelPracticeRuns(runs: RunPlan[], specs: SessionSpec[], week: WeekDraft): Set<number> {
+  if (!week.flags.includes('gut-training')) return new Set()
+  const minutes = (i: number) => specs[i]!.durationMin
+  const rank = (i: number) => (LONG_KINDS.has(runs[i]!.kind) ? 0 : 1)
+  const eligible = runs
+    .map((_, i) => i)
+    .filter(
+      (i) =>
+        FUEL_PRACTICE_KINDS.has(runs[i]!.kind) && minutes(i) >= P.h7.gutTrainingSessionMinMin.value,
+    )
+    .sort((a, b) => rank(a) - rank(b) || minutes(b) - minutes(a) || a - b)
+  return new Set(eligible.slice(0, P.h7.gutBlockSessionsPerWeek.value))
 }
 
 // ---- intensity cap [rules F2] ----
@@ -309,7 +358,6 @@ function planRuns(
   const prevRunYesterday = before.some((s) => RUN_KINDS.has(s.kind) && offsetOf(s.date) === -1)
   const flagText = week.flags.join(' ')
   const wantsPair = /b2b|back-to-back/i.test(flagText)
-  const fuel = /gut|fuel/i.test(flagText)
   const night = /night|dark/i.test(flagText)
   const heat = /heat/i.test(flagText)
   const preferred = WEEKDAYS.indexOf(profile.longRunDay)
@@ -384,7 +432,6 @@ function planRuns(
   }
   if (fixed.length > 0) {
     const first = fixed[0]!
-    if (fuel) first.flags.push('fuel-practice')
     if (night) first.flags.push('night')
   }
 

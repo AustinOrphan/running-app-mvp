@@ -147,7 +147,7 @@ describe('prescribe: steady runs', () => {
     expect(prescribe('race', 100, zones(), w).gainM).toBeNull()
   })
 
-  it('marks a long run for fuel practice, night and downhill from the week flags', () => {
+  it('marks a long run for night and downhill from the week flags', () => {
     const plain = prescribe('long', 120, zones(), week())
     expect(plain.flags).toEqual([])
     const flagged = prescribe(
@@ -156,8 +156,16 @@ describe('prescribe: steady runs', () => {
       zones(),
       week({ flags: ['gut-training', 'night', 'downhill'] }),
     )
-    expect(flagged.flags).toEqual(expect.arrayContaining(['fuel-practice', 'night', 'downhill']))
-    expect(flagged.rules).toEqual(expect.arrayContaining(['H7', 'H6', 'H5']))
+    expect(flagged.flags).toEqual(expect.arrayContaining(['night', 'downhill']))
+    expect(flagged.rules).toEqual(expect.arrayContaining(['H6', 'H5']))
+  })
+
+  it('leaves fuel practice to the placement, which counts the runs of the week [rule H7]', () => {
+    for (const kind of ['long', 'long-fast-finish', 'b2b', 'easy'] as const) {
+      const s = prescribe(kind, 120, zones(), week({ flags: ['gut-training'] }))
+      expect(s.flags, kind).not.toContain('fuel-practice')
+      expect(s.rules, kind).not.toContain('H7')
+    }
   })
 
   it('flags an easy run in a heat acclimation week and explains it', () => {
@@ -322,12 +330,11 @@ describe('prescribe: other quality and special sessions', () => {
   })
 
   it('finishes a long fast-finish run with the last fifth at race pace', () => {
-    const s = prescribe('long-fast-finish', 150, zones(), week({ flags: ['gut-training'] }))
+    const s = prescribe('long-fast-finish', 150, zones(), week())
     const last = s.structure.at(-1)
     expect(last?.zone).toBe('race-pace')
     expect(last?.durationSec).toBe(Math.round(150 * 60 * P.flib.fastFinishFraction.value))
     expect(totalSec(s)).toBe(150 * 60)
-    expect(s.flags).toContain('fuel-practice')
   })
 
   it('anchors race-pace work on the goal pace when given, else on Z2', () => {
