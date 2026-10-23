@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { workoutExternalId } from '../../shared/domain/sessionIdentity.ts'
+import { userTagOf } from '../../server/crypto.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import {
   DELIVERY_VERSION,
@@ -9,7 +10,6 @@ import {
   isPublishing,
   publishChangeKey,
   publishForUser,
-  userTagOf,
   type PublishOptions,
 } from '../../server/services/publish.ts'
 import { settleBackground } from '../../server/services/sync.ts'

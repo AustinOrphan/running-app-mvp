@@ -6,11 +6,11 @@
 // and compares the figures with the resolver's. A second implementation of the rules, or a number
 // typed into a surface, fails here.
 //
-// Registered now:  hero (Today, E2-5: the rendered `SessionTargets`), FIT workout file (E1-3). The
-// fuel line (E6-5) is a different figure and is read by its own adapters in the last section of
-// this file.
+// Registered now:  hero (Today, E2-5: the rendered `SessionTargets`), FIT workout file (E1-3), ICS
+// outline (E1-6). The fuel line (E6-5) is a different figure and is read by its own adapters in the
+// last section of this file.
 // To be registered by the task that builds the surface:
-//   session sheet, intervals.icu description, ICS outline             E1-7, E1-6
+//   session sheet, intervals.icu description                          E1-7
 //   weekly brief key session                                          E4-5
 // To add one: write a `SurfaceAdapter` whose `read` renders from `resolveTargets` (or from the
 // shared builder that calls it) and parses the figures back, then append it to `SURFACES`.
@@ -20,7 +20,9 @@
 // surface: it has no effort figure and carries only the primary figure of its steps (nothing on a
 // hot day), and the matrix then requires that its lead is the resolver's and that every figure it
 // does carry equals the resolver's. A surface that has no page for a kind (a strength day has no
-// workout file) lists the kinds it `covers`.
+// workout file) lists the kinds it `covers`. A surface that is read by people other than the
+// runner (the calendar feed) carries no figure at all, only the words that say how the session is
+// run; it sets `figures: false`, so its lead must still be the resolver's and every figure null.
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -45,6 +47,7 @@ import type {
 } from '../../../shared/engine/types.ts'
 import { formatDuration, formatPace } from '../../../shared/units.ts'
 import type { PlanSessionStatus, Units } from '../../../shared/types.ts'
+import { icsOutline, icsUid, renderIcs } from '../../../server/services/ics.ts'
 import { publishable } from '../../../shared/workouts/labels.ts'
 import { toWorkoutPlan } from '../../../shared/workouts/plan.ts'
 import type { WorkoutPlan } from '../../../shared/workouts/types.ts'
@@ -78,6 +81,8 @@ interface SurfaceAdapter {
   covers?(kind: SessionKind): boolean
   /** Shows a target per step, not every figure: see the header. */
   partial?: boolean
+  /** False for a surface that carries no figure, only its lead in words: see the header. */
+  figures?: boolean
   read(session: SessionSpec, ctx: SurfaceContext): SurfaceReading
 }
 
@@ -217,8 +222,71 @@ const fit: SurfaceAdapter = {
   },
 }
 
+// ---------------------------------------------------------------------------------------------
+// The private calendar feed (E1-6): the DESCRIPTION of the event of a session, read back from the
+// iCalendar text. It says how the session is run in words ("by effort", "at target pace", "kept
+// easy", "kept steady") and carries no figure, because whoever holds the link reads it. The lead is
+// the only thing it has in common with the resolver, so that is what the matrix checks, along
+// with the absence of every figure and of every digit.
+// ---------------------------------------------------------------------------------------------
+
+const ICS_STAMP = '2026-07-10T06:30:00Z'
+
+/** The description of the one event of a feed: unfolded, with the text escapes undone. */
+function icsDescription(feed: string): string {
+  const line = feed
+    .replaceAll('\r\n ', '')
+    .split('\r\n')
+    .find((candidate) => candidate.startsWith('DESCRIPTION:'))
+  if (line === undefined) throw new Error('The event has no description')
+  return line
+    .slice('DESCRIPTION:'.length)
+    .replace(/\\(.)/g, (_all, char: string) => (char === 'n' ? '\n' : char))
+}
+
+function readOutline(words: string): SurfaceReading {
+  const lead: SurfaceReading['lead'] | null = words.includes('by effort')
+    ? 'effort'
+    : words.includes('at target pace')
+      ? 'pace'
+      : words.includes('kept easy')
+        ? 'hr-ceiling'
+        : words.includes('kept steady')
+          ? 'hr-band'
+          : null
+  if (lead === null) throw new Error('The outline leads with nothing')
+  return { lead, hrCeiling: null, hrRange: null, paceSecPerUnit: null, effort: null }
+}
+
+const ics: SurfaceAdapter = {
+  name: 'ics',
+  covers: publishable,
+  partial: true,
+  figures: false,
+  read(session, ctx) {
+    const targets = resolveTargets(session, ctx.zones, { hot: ctx.hot })
+    const plan = toWorkoutPlan(session, targets, { units: ctx.units })
+    const feed = renderIcs({
+      timeZone: null,
+      stamp: ICS_STAMP,
+      events: [
+        {
+          uid: icsUid('rl-aaaaaa-session'),
+          date: session.date,
+          title: plan.title,
+          description: icsOutline(plan),
+        },
+      ],
+    })
+    const words = icsDescription(feed)
+    // a number written in a calendar is a number typed into a surface
+    expect(words, `${session.kind} outline`).not.toMatch(/\d/)
+    return readOutline(words)
+  },
+}
+
 /** The registry. Later tasks append their adapters here. */
-const SURFACES: readonly SurfaceAdapter[] = [hero, fit]
+const SURFACES: readonly SurfaceAdapter[] = [hero, fit, ics]
 
 // ---------------------------------------------------------------------------------------------
 
@@ -260,6 +328,11 @@ function figureAgrees(
 
 /** Whether a reading is what the resolver says: all of it, or for a partial surface what it carries. */
 function agrees(adapter: SurfaceAdapter, got: SurfaceReading, expected: SurfaceReading): boolean {
+  if (adapter.figures === false) {
+    return (
+      got.lead === expected.lead && [...CARRIED, 'effort' as const].every((k) => got[k] === null)
+    )
+  }
   if (adapter.partial !== true) return JSON.stringify(got) === JSON.stringify(expected)
   return (
     got.lead === expected.lead && CARRIED.every((key) => figureAgrees(key, got[key], expected[key]))
@@ -299,6 +372,7 @@ describe('cross-surface targets', () => {
     expect(new Set(names).size).toBe(names.length)
     expect(names).toContain('hero')
     expect(names).toContain('fit')
+    expect(names).toContain('ics')
   })
 
   it.each(SURFACES.map((s) => [s.name, s] as const))(
@@ -316,6 +390,8 @@ describe('cross-surface targets', () => {
     // the file of a run or a hike; no workout for strength, mobility, rest, cross-training or a race
     expect(covered(fit)).toHaveLength(11)
     expect(covered(fit).every((kind) => publishable(kind))).toBe(true)
+    // the calendar outlines the same runs; a race or a strength day has a title and no outline
+    expect(covered(ics)).toEqual(covered(fit))
   })
 
   it('leads with effort on a hot day on every surface, and with the stored figure otherwise', () => {
@@ -341,7 +417,7 @@ describe('cross-surface targets', () => {
       const eased = easedSession(prescribed('intervals', zones), zones)
       const reading = adapter.read(eased, { zones, hot: false, units: 'mi' })
       expect(reading.lead).toBe('hr-ceiling')
-      expect(reading.hrCeiling).toBe(zones.hr!.z1[1])
+      expect(reading.hrCeiling).toBe(adapter.figures === false ? null : zones.hr!.z1[1])
     }
   })
 
@@ -404,6 +480,27 @@ describe('cross-surface targets', () => {
       read: (session, ctx) => ({ ...fit.read(session, ctx), lead: 'effort' }),
     }
     expect(mismatchesOf(effortOnly).length).toBeGreaterThan(0)
+  })
+
+  it('fails when the calendar outline loses its lead or carries a figure', () => {
+    const wrongLead: SurfaceAdapter = {
+      ...ics,
+      name: 'effort-ics',
+      read: (session, ctx) => ({ ...ics.read(session, ctx), lead: 'effort' }),
+    }
+    expect(mismatchesOf(wrongLead).length).toBeGreaterThan(0)
+    const withCeiling: SurfaceAdapter = {
+      ...ics,
+      name: 'ceiling-ics',
+      read: (session, ctx) => ({ ...ics.read(session, ctx), hrCeiling: 140 }),
+    }
+    expect(mismatchesOf(withCeiling).length).toBeGreaterThan(0)
+    const withEffort: SurfaceAdapter = {
+      ...ics,
+      name: 'rpe-ics',
+      read: (session, ctx) => ({ ...ics.read(session, ctx), effort: [3, 4] }),
+    }
+    expect(mismatchesOf(withEffort).length).toBeGreaterThan(0)
   })
 
   it('reads the workout file back to within a second of pace in both units', () => {

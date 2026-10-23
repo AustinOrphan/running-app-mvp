@@ -11,6 +11,7 @@ import type { Config } from './config.ts'
 import { apiNotFound, errorHandler } from './errors.ts'
 import { createLogger } from './logger.ts'
 import { activitiesRouter } from './routes/activities.ts'
+import { calendarRouter, redactedRequest } from './routes/calendar.ts'
 import { checkinsRouter } from './routes/checkins.ts'
 import { explainRouter } from './routes/explain.ts'
 import { fuelRouter } from './routes/fuel.ts'
@@ -72,6 +73,8 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use(
     pinoHttp({
       logger,
+      // The private calendar feed carries its token in the path; the log names the route instead.
+      serializers: { req: redactedRequest },
       genReqId: (req, res) => {
         const incoming = req.headers['x-request-id']
         const id =
@@ -94,6 +97,10 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   // Phone automations send neither an Origin header nor a cookie; the router checks a bearer
   // token itself, so it sits before the same-origin guard and the session check.
   app.use('/api/ingest', ingestRouter(deps))
+
+  // The private calendar feed is opened by a calendar app, which sends no cookie, no Origin and no
+  // body; the router checks its own token and reads nothing from the request but the path.
+  app.use('/api/calendar', calendarRouter(deps))
 
   app.use('/api', sameOriginGuard())
 
@@ -123,8 +130,8 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/profile', profileRouter(deps))
   app.use('/api/wellness', wellnessRouter(deps))
   app.use('/api/integrations', integrationsRouter(deps))
-  app.use('/api/jobs', jobsRouter(deps))
   app.use('/api/wrist', wristRouter(deps))
+  app.use('/api/jobs', jobsRouter(deps))
   app.use('/api/weather', weatherRouter(deps))
   app.use('/api/today', todayRouter(deps))
   app.use('/api/checkins', checkinsRouter(deps))

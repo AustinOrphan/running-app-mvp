@@ -40,7 +40,7 @@ import type {
 import { publishable } from '../../shared/workouts/labels.ts'
 import type { WorkoutPlan } from '../../shared/workouts/types.ts'
 import type { Deps } from '../app.ts'
-import { SecretError } from '../crypto.ts'
+import { SecretError, userTagOf } from '../crypto.ts'
 import type { DeliveryChannel, WristPublication } from '../db.ts'
 import { conflict, notFound } from '../errors.ts'
 import { createLogger } from '../logger.ts'
@@ -109,14 +109,6 @@ const RECONNECT_CODES: ReadonlySet<string> = new Set<PublishFailCode>(['auth', '
 // ---------------------------------------------------------------------------------------------
 // Identity and change detection
 // ---------------------------------------------------------------------------------------------
-
-/**
- * The first 6 hex characters of the SHA-256 of the user id: the part of a published id that keeps
- * two installs writing to one intervals.icu account from overwriting each other (design 4.1).
- */
-export function userTagOf(userId: string): string {
-  return createHash('sha256').update(userId).digest('hex').slice(0, 6)
-}
 
 /**
  * What an event holds, as a hash: the delivery version, the day, the name and the text. A move
