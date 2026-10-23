@@ -377,6 +377,9 @@ export async function recordPlanWrite(
       summary: record.summary,
       changes: JSON.stringify(record.changes),
       auto: record.auto ?? false,
+      // The one seen marker (ADR 0007): a revision the runner asked for is seen when it is written;
+      // one the scheduler wrote waits until a surface that shows it stamps it (`markRevisionSeen`).
+      seenAt: record.auto ? null : new Date(),
       decision: record.decision ? JSON.stringify(record.decision) : null,
       diff: record.diff ? JSON.stringify(record.diff) : null,
       undo: record.undo ? JSON.stringify(record.undo) : null,

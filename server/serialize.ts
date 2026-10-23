@@ -40,8 +40,10 @@ import type {
   WeeklyDecision,
 } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
+import { mondayOf, todayIso } from '../shared/dates.ts'
 import { countsLine } from '../shared/engine/fuelCopy.ts'
 import { P } from '../shared/engine/params/index.ts'
+import { causesOf } from '../shared/engine/revisionDiff.ts'
 import { revisionUndoReason } from '../shared/engine/undoGuard.ts'
 import type {
   Activity,
@@ -459,18 +461,45 @@ function ownUndoState(row: PlanRevisionRow, now: Date): UndoState {
 /** A revision row without its undo payload, as a list reads it: the payload is not selected. */
 export type PlanRevisionListRow = Omit<PlanRevisionRow, 'undo'>
 
-/** A revision as the API serves it, with the undo state computed by the caller. */
-export function revisionView(row: PlanRevisionListRow, undo: UndoState): PlanRevisionView {
+/**
+ * A revision as the API serves it, with the undo state computed by the caller. `ownerWeeks` are
+ * the Mondays of the plan's weeks whose target the runner set (`targetSource` override or review),
+ * which a re-plan keeps; a caller that has not read them gets causes without that one.
+ */
+export function revisionView(
+  row: PlanRevisionListRow,
+  undo: UndoState,
+  ownerWeeks?: ReadonlySet<string>,
+): PlanRevisionView {
+  const reason = row.reason as PlanRevisionReason
+  const decision = parseJson<WeeklyDecision | null>(row.decision, null)
+  const changes = parseJson<PlanChange[]>(row.changes, [])
+  const diff = parseJson<PlanDiff | null>(row.diff, null)
+  const writtenOn = todayIso(row.createdAt)
   return {
     id: row.id,
     planId: row.planId,
     createdAt: row.createdAt.toISOString(),
-    reason: row.reason as PlanRevisionReason,
+    reason,
     summary: row.summary,
-    changes: parseJson<PlanChange[]>(row.changes, []),
+    changes,
     auto: row.auto,
-    decision: parseJson<WeeklyDecision | null>(row.decision, null),
-    diff: parseJson<PlanDiff | null>(row.diff, null),
+    decision,
+    diff,
+    causes:
+      diff === null
+        ? null
+        : causesOf(diff, {
+            reason,
+            decision,
+            writtenOn,
+            disruptionId: row.disruptionId,
+            changeFields: changes.map((change) => change.field),
+            // The engine keeps a runner's target only for the week it was written in and later.
+            ownerWeeks: new Set(
+              [...(ownerWeeks ?? [])].filter((week) => week >= mondayOf(writtenOn)),
+            ),
+          }),
     undo,
     seenAt: row.seenAt?.toISOString() ?? null,
     undoOf: row.undoOf,

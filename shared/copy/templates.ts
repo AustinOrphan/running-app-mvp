@@ -12,6 +12,7 @@ import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
 import { GOALS_TEMPLATES } from './goals.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
+import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
 import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
 import { PUBLISH_TEMPLATES } from './publish.ts'
 import { STANDOUT_TEMPLATES } from './standoutTemplates.ts'
@@ -23,6 +24,7 @@ import { TRACK_RECORD_TEMPLATES } from './trackRecord.ts'
 
 export const TEMPLATES = {
   ...REVISION_TEMPLATES,
+  ...REVISION_VIEW_TEMPLATES,
   ...TODAY_TEMPLATES,
   ...DATA_IN_USE_TEMPLATES,
   ...FUEL_TEMPLATES,

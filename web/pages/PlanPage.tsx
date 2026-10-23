@@ -1,9 +1,18 @@
-import { Fragment, useId, useState, type CSSProperties, type FormEvent } from 'react'
+import {
+  Fragment,
+  useEffect,
+  useId,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+  type SyntheticEvent,
+} from 'react'
 import { Link } from 'react-router-dom'
 import { fieldErrors } from '../api/client.ts'
 import { useGoals } from '../api/goals.ts'
 import {
   useGeneratePlan,
+  useMarkRevisionsSeen,
   usePlan,
   usePlanRevisions,
   useReplan,
@@ -29,7 +38,8 @@ import {
   formatWeekday,
   weekPhaseLabel,
 } from '../components/format.ts'
-import { describeChange } from '../components/planChanges.ts'
+import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
+import { newMarker } from '../../shared/copy/revisionView.ts'
 import { distanceClassOf } from '../../shared/engine/goal.ts'
 import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
@@ -39,8 +49,6 @@ import type { EngineWarning } from '../../shared/engine/types.ts'
 import type {
   Goal,
   PlanPhase,
-  PlanRevision,
-  PlanRevisionReason,
   PlanSession,
   PlanWeek,
   PlanWithSessions,
@@ -506,17 +514,6 @@ const SEVERITY_LABELS: Record<EngineWarning['severity'], string> = {
   hold: 'Held back',
 }
 
-const REASON_LABELS: Record<PlanRevisionReason, string> = {
-  generate: 'Plan generated',
-  weekly: 'Weekly update',
-  review: 'After a review',
-  owner: 'Your edit',
-  break: 'Restart after a break',
-  disruption: 'Time off',
-  undo: 'Undo',
-  'goal-switch': 'New goal',
-}
-
 /** A short "Why" control that opens the shared drawer for the given rule ids. */
 function WhyButton({
   rules,
@@ -541,15 +538,45 @@ function WhyButton({
   )
 }
 
+/**
+ * The revision list. Every revision is the shared `RevisionDiff`. A revision the scheduler wrote
+ * and the runner has not opened is marked "New" on the summary of the closed panel; opening the
+ * panel stamps those revisions as seen, and they keep their marker until the panel is closed so
+ * the runner can find them.
+ */
 function WhatChanged({
   revisions,
   units,
   onWhy,
 }: {
   revisions: ReturnType<typeof usePlanRevisions>
-  units: Units | undefined
+  units: Units
   onWhy: (rules: string[]) => void
 }) {
+  const markSeen = useMarkRevisionsSeen()
+  const [open, setOpen] = useState(false)
+  // The revisions that were unseen when the panel opened, which keep their marker until it closes.
+  const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set())
+  const data = revisions.data
+
+  useEffect(() => {
+    if (!open || data === undefined) return
+    markSeen(data.filter((revision) => revision.seenAt === null).map((revision) => revision.id))
+  }, [open, data, markSeen])
+
+  function onToggle(event: SyntheticEvent<HTMLDetailsElement>) {
+    const opened = event.currentTarget.open
+    setOpen(opened)
+    setFresh(
+      new Set(
+        opened && data !== undefined
+          ? data.filter((revision) => revision.seenAt === null).map((revision) => revision.id)
+          : [],
+      ),
+    )
+  }
+
+  const waiting = !open && data?.some((revision) => revision.seenAt === null) === true
   let body
   if (revisions.isError) {
     body = (
@@ -557,45 +584,33 @@ function WhatChanged({
         The list of changes did not load.
       </p>
     )
-  } else if (revisions.isPending) {
+  } else if (data === undefined) {
     body = <Skeleton lines={2} />
-  } else if (revisions.data.length === 0) {
+  } else if (data.length === 0) {
     body = <p className={styles.muted}>No changes yet. Updates to the plan are listed here.</p>
   } else {
     body = (
       <ol className={styles.revisions}>
-        {revisions.data.map((revision: PlanRevision) => {
-          const rules = [...new Set(revision.changes.flatMap((c) => c.rules))]
-          return (
-            <li key={revision.id}>
-              <p className={styles.revisionHead}>
-                <strong>{REASON_LABELS[revision.reason]}</strong>{' '}
-                <span className={styles.muted}>
-                  {formatShortDate(todayIso(new Date(revision.createdAt)))}
-                </span>
-              </p>
-              <p>{localiseEngineText(revision.summary, units)}</p>
-              {revision.changes.length > 0 ? (
-                <ul className={styles.changes}>
-                  {revision.changes.map((change, index) => (
-                    <li key={`${change.weekStart}-${change.field}-${String(index)}`}>
-                      Week of {formatShortDate(change.weekStart)}:{' '}
-                      {describeChange(change, units).text}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              <WhyButton rules={rules} label="Why this update" onOpen={onWhy} />
-            </li>
-          )
-        })}
+        {data.map((revision) => (
+          <li key={revision.id}>
+            <RevisionDiff
+              revision={revision}
+              units={units}
+              onWhy={onWhy}
+              isNew={fresh.has(revision.id) || (open && revision.seenAt === null)}
+            />
+          </li>
+        ))}
       </ol>
     )
   }
   return (
     <section aria-labelledby="changed-title" className={styles.panel}>
-      <details>
-        <summary id="changed-title">What changed</summary>
+      <details onToggle={onToggle}>
+        <summary>
+          <span id="changed-title">What changed</span>
+          {waiting ? <span className={styles.newMarker}>{newMarker(units)}</span> : null}
+        </summary>
         {body}
       </details>
     </section>
@@ -611,7 +626,7 @@ function PlanOverview({
   onWhy: (rules: string[]) => void
 }) {
   const revisions = usePlanRevisions()
-  const units = useSettings().data?.units
+  const units = useSettings().data?.units ?? 'km'
   const passed = plan.checklist.filter((item) => item.ok).length
   const feasibility = plan.feasibility
 

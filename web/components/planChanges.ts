@@ -104,7 +104,10 @@ function zoneField(field: string, units: Units): { label: string; format: Format
 }
 
 /**
- * One plan change as words, for the Plan and Review pages. A whole week that appears or goes
+ * One plan change as words: the legacy renderer for a revision whose `diff` is null (written before
+ * the revision model, and the zone decisions, which change no plan row). Every revision with a diff
+ * is worded by `shared/copy/revisionView.ts` through `RevisionDiff`; no other formatter of plan
+ * changes exists. A whole week that appears or goes
  * (field `week`, the values being its phase) reads as added or removed; session and zone changes
  * (`session.*`, `zones.*`) are named too, zone values in `units`; a field the helper does not know
  * keeps its name and a plain value.

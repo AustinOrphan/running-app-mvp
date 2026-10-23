@@ -1,17 +1,34 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { Goal, PlanWithSessions, PlanWithWeeks, WeekRow } from '../../shared/types.ts'
+import type {
+  Goal,
+  PlanRevisionView,
+  PlanWithSessions,
+  PlanWithWeeks,
+  WeekRow,
+} from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeActivity } from '../factories.ts'
-import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import {
+  activityPage,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
+import {
+  AVAILABLE,
+  makeBrief,
+  makeDiff,
+  makeLine,
   makeRevision,
   makeSession,
   makeV1Plan,
   makeV2Plan,
   makeV2Week,
+  makeWeekLine,
   settings,
 } from './plan-fixtures.ts'
 
@@ -296,6 +313,135 @@ describe('Plan page, version-2 plans', () => {
       expect(calls.some((c) => c.method === 'POST' && c.url === '/api/plan/replan')).toBe(true)
     })
     expect(await screen.findByText('Plan updated')).toBeInTheDocument()
+  })
+})
+
+/** A weekly update the runner has not opened: a diff, its cause and an undo. */
+function unseenUpdate(over: Partial<PlanRevisionView> = {}): PlanRevisionView {
+  return makeRevision({
+    id: 'r9',
+    createdAt: '2027-01-11T12:00:00.000Z',
+    reason: 'weekly',
+    auto: true,
+    summary: "2 changes across 1 week. Last week's decision: hold, next week up to 270 min.",
+    decision: { decision: 'hold', signals: [], nextWeekTargetMin: 270 },
+    diff: makeDiff(
+      [
+        makeLine({
+          externalId: 'x1',
+          date: '2027-01-14',
+          before: makeBrief({ durationMin: 40 }),
+          after: makeBrief({ kind: 'easy', title: 'Easy run', durationMin: 30 }),
+          fields: ['kind', 'durationMin'],
+        }),
+      ],
+      [makeWeekLine()],
+    ),
+    causes: { sessions: { x1: ['decision-hold'] }, weeks: { '2027-01-11': ['decision-hold'] } },
+    undo: AVAILABLE,
+    seenAt: null,
+    ...over,
+  })
+}
+
+describe('Plan page, What changed', () => {
+  test('lists a revision through the shared components: reason, cause, rows and undo', async () => {
+    mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/plan/revisions': () => [unseenUpdate()],
+        'POST /api/plan/revisions/r9/seen': () => ({ status: 204, body: undefined }),
+      }),
+    )
+    renderPlan()
+    const changed = await screen.findByRole('region', { name: 'What changed' })
+    await userEvent.setup().click(within(changed).getByText('What changed'))
+    expect(within(changed).getByText('Weekly update')).toBeInTheDocument()
+    expect(
+      within(changed).getByText('Week of 11 Jan: running time 300 min to 270 min'),
+    ).toBeInTheDocument()
+    expect(
+      within(changed).getByText('Thu 14 Jan: Threshold intervals 40 min to Easy run 30 min'),
+    ).toBeInTheDocument()
+    expect(
+      within(changed).getByText(
+        'Last week called for holding steady, so the plan did not step up.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(changed).getByRole('button', { name: 'Undo update' })).toBeInTheDocument()
+    expectCleanCopy(changed)
+  })
+
+  test('marks the closed panel New for a revision nobody opened, and stamps it when the panel opens', async () => {
+    const user = userEvent.setup()
+    let seen = false
+    const { calls } = mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/plan/revisions': () => [
+          unseenUpdate({ seenAt: seen ? '2027-01-13T12:00:00.000Z' : null }),
+          makeRevision({ id: 'old', seenAt: '2027-01-09T12:00:00.000Z' }),
+        ],
+        'POST /api/plan/revisions/r9/seen': () => {
+          seen = true
+          return { status: 204, body: undefined }
+        },
+      }),
+    )
+    renderPlan()
+    const changed = await screen.findByRole('region', { name: 'What changed' })
+    // The panel is closed: the marker sits on its summary, where the runner will see it.
+    await waitFor(() => {
+      expect(within(changed).getByText('New')).toBeInTheDocument()
+    })
+    expect(calls.some((c) => c.url.includes('/seen'))).toBe(false)
+
+    await user.click(within(changed).getByText('What changed'))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.url.includes('/seen')).map((c) => c.url)).toEqual([
+        '/api/plan/revisions/r9/seen',
+      ])
+    })
+    // Only the revision that was unseen is sent, and the marker stays on it while the panel is open.
+    const revision = changed.querySelector('[data-revision="r9"]') as HTMLElement
+    await waitFor(() => {
+      expect(within(revision).getByText('New')).toBeInTheDocument()
+    })
+    expect(changed.querySelector('[data-revision="old"]')).not.toHaveTextContent('New')
+
+    // Closing and opening again: it was seen, so nothing is marked and nothing is sent again.
+    await user.click(within(changed).getByText('What changed'))
+    await user.click(within(changed).getByText('What changed'))
+    expect(within(changed).queryByText('New')).not.toBeInTheDocument()
+    expect(calls.filter((c) => c.url.includes('/seen'))).toHaveLength(1)
+  })
+
+  test('sends nothing for a panel whose revisions were all seen', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/plan/revisions': () => [unseenUpdate({ seenAt: '2027-01-11T13:00:00.000Z' })],
+      }),
+    )
+    renderPlan()
+    const changed = await screen.findByRole('region', { name: 'What changed' })
+    await user.click(within(changed).getByText('What changed'))
+    await within(changed).findByText('Weekly update')
+    expect(within(changed).queryByText('New')).not.toBeInTheDocument()
+    expect(calls.some((c) => c.url.includes('/seen'))).toBe(false)
+  })
+
+  test('opens the why drawer with the rules of an update', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/plan/revisions': () => [unseenUpdate({ seenAt: '2027-01-11T13:00:00.000Z' })],
+        'POST /api/plan/revisions/r9/seen': () => ({ status: 204, body: undefined }),
+      }),
+    )
+    renderPlan()
+    const changed = await screen.findByRole('region', { name: 'What changed' })
+    await user.click(within(changed).getByText('What changed'))
+    await user.click(await within(changed).findByRole('button', { name: 'Why this update' }))
+    expect(await screen.findByLabelText('Why drawer')).toHaveTextContent('j-5,J5')
   })
 })
 
