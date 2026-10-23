@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { wristChipLabel } from '../../shared/copy/publish.ts'
@@ -18,7 +18,6 @@ import {
   makeWorkoutView,
   makeWristItem,
   makeWristStatus,
-  refocus,
   sendingOn,
   wristRoutes,
 } from './wrist-fixtures.ts'
@@ -137,30 +136,27 @@ describe('the chip', () => {
 })
 
 describe("Today's line", () => {
-  function renderLine(status: WristStatus | null, extra: MockRoutes = {}) {
-    const api = mockApi({
-      ...(status === null ? {} : wristRoutes(status)),
-      ...extra,
-    })
-    // nothing but the session id: the line reads the status itself
-    const view = renderWithProviders(<WristLine sessionId="s1" />)
-    return { ...api, container: view.container }
+  // The line is given the hero's item from the Today payload and asks for nothing; the mount that
+  // picks the item, and what happens offline, is in TodayWrist.test.tsx.
+  function renderLine(item: WristItem | undefined) {
+    return render(<WristLine item={item} />)
   }
 
-  test('says "On your watch." and "Sent to intervals.icu."', async () => {
-    renderLine(sendingOn([makeWristItem({ status: 'on-watch' })]))
-    expect(await screen.findByText('On your watch.')).toBeInTheDocument()
+  test('says "On your watch." and "Sent to intervals.icu."', () => {
+    renderLine(makeWristItem({ status: 'on-watch' }))
+    expect(screen.getByText('On your watch.')).toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  test('says "Sent to intervals.icu." before the watch has had it', async () => {
-    renderLine(sendingOn([makeWristItem({ status: 'sent' })]))
-    expect(await screen.findByText('Sent to intervals.icu.')).toBeInTheDocument()
+  test('says "Sent to intervals.icu." before the watch has had it', () => {
+    renderLine(makeWristItem({ status: 'sent' }))
+    expect(screen.getByText('Sent to intervals.icu.')).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  test('says the watch has the easy version of an eased run', async () => {
-    renderLine(sendingOn([makeWristItem({ status: 'on-watch', variant: 'eased' })]))
-    expect(await screen.findByText('The watch has the easy version of this run.')).toBeVisible()
+  test('says the watch has the easy version of an eased run', () => {
+    renderLine(makeWristItem({ status: 'on-watch', variant: 'eased' }))
+    expect(screen.getByText('The watch has the easy version of this run.')).toBeVisible()
     // the reason is never named
     expect(document.body.textContent).not.toMatch(/readiness|signal|pain|illness/i)
   })
@@ -174,18 +170,18 @@ describe("Today's line", () => {
       'Not on the watch yet: reconnect intervals.icu.',
     ],
     ['removed', { status: 'removed' }, 'Not on the watch yet: removed in intervals.icu.'],
-  ] as const)('%s: a short reason, and the workout file one tap away', async (_n, over, line) => {
-    renderLine(sendingOn([makeWristItem(over)]))
-    expect(await screen.findByText(line)).toBeInTheDocument()
+  ] as const)('%s: a short reason, and the workout file one tap away', (_n, over, line) => {
+    renderLine(makeWristItem(over))
+    expect(screen.getByText(line)).toBeInTheDocument()
     const link = screen.getByRole('link', { name: 'Download the workout file' })
     expect(link).toHaveAttribute('href', '/api/plan/sessions/s1/workout.fit')
     expect(link).toHaveAttribute('download')
     expectCleanCopy(document.body)
   })
 
-  test('is one line: the sentence gives way, the link does not', async () => {
-    renderLine(sendingOn([makeWristItem({ status: 'waiting' })]))
-    const text = await screen.findByText('Not on the watch yet: waiting to send.')
+  test('is one line: the sentence gives way, the link does not', () => {
+    renderLine(makeWristItem({ status: 'waiting' }))
+    const text = screen.getByText('Not on the watch yet: waiting to send.')
     const line = text.parentElement!
     expect(line.tagName).toBe('P')
     expect(line.children).toHaveLength(2)
@@ -194,71 +190,29 @@ describe("Today's line", () => {
   })
 
   test.each([
-    ['sending is off', makeWristStatus()],
-    ['the run was taken off the watch', sendingOn([makeWristItem({ status: 'withdrawn' })])],
-    ['another session is meant', sendingOn([makeWristItem({ sessionId: 's2' })])],
-  ])('says nothing when %s', async (_name, status) => {
-    const { calls, container } = renderLine(status)
-    await waitFor(() => {
-      expect(calls.some((c) => c.url === '/api/wrist/status')).toBe(true)
-    })
-    await act(async () => {
-      await Promise.resolve()
-    })
+    ['there is no item', undefined],
+    ['the run was taken off the watch', makeWristItem({ status: 'withdrawn' })],
+    ['the plan no longer holds the session', makeWristItem({ sessionId: null })],
+  ])('says nothing when %s', (_name, item) => {
+    const { container } = renderLine(item)
     expect(container).toBeEmptyDOMElement()
   })
 
-  test('says nothing offline, and asks nothing', async () => {
-    setOnline(false)
-    const { calls } = renderLine(sendingOn([makeWristItem({ status: 'on-watch' })]))
-    await act(async () => {
-      await Promise.resolve()
-    })
-    expect(calls).toEqual([])
-    expect(screen.queryByText('On your watch.')).not.toBeInTheDocument()
-  })
-
-  test('says nothing when the server cannot be read, and drops a status it showed before', async () => {
-    let fail = false
-    const api = mockApi({
-      'GET /api/wrist/status': () =>
-        fail
-          ? { status: 500, body: { error: { code: 'internal', message: 'Down.' } } }
-          : sendingOn([makeWristItem({ status: 'on-watch' })]),
-    })
-    renderWithProviders(<WristLine sessionId="s1" />)
-    expect(await screen.findByText('On your watch.')).toBeInTheDocument()
-    fail = true
-    await refocus()
-    await waitFor(() => {
-      expect(screen.queryByText('On your watch.')).not.toBeInTheDocument()
-    })
-    expect(api.calls.length).toBeGreaterThan(1)
-  })
-
-  test('announces a change of state, and only a change', async () => {
-    let status = sendingOn([makeWristItem({ status: 'waiting' })])
-    mockApi({ 'GET /api/wrist/status': () => status })
-    renderWithProviders(<WristLine sessionId="s1" />)
-    const loaded = await screen.findByText('Not on the watch yet: waiting to send.')
+  test('announces a change of state, and only a change', () => {
+    const view = renderLine(makeWristItem({ status: 'waiting' }))
+    const loaded = screen.getByText('Not on the watch yet: waiting to send.')
     // the page loaded with this state: nothing to announce
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(loaded.parentElement).not.toHaveAttribute('role')
 
-    status = sendingOn([makeWristItem({ status: 'on-watch' })])
-    await refocus()
-    const live = await screen.findByRole('status')
-    expect(live).toHaveTextContent('On your watch.')
+    view.rerender(<WristLine item={makeWristItem({ status: 'on-watch' })} />)
+    expect(screen.getByRole('status')).toHaveTextContent('On your watch.')
   })
 
-  test('keeps quiet when a refresh brings the same state', async () => {
-    mockApi({ 'GET /api/wrist/status': () => sendingOn([makeWristItem({ status: 'sent' })]) })
-    renderWithProviders(<WristLine sessionId="s1" />)
-    await screen.findByText('Sent to intervals.icu.')
-    await refocus()
-    await act(async () => {
-      await Promise.resolve()
-    })
+  test('keeps quiet when a refresh brings the same state', () => {
+    const view = renderLine(makeWristItem({ status: 'sent' }))
+    view.rerender(<WristLine item={makeWristItem({ status: 'sent' })} />)
+    expect(screen.getByText('Sent to intervals.icu.')).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })

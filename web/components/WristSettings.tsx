@@ -1,24 +1,61 @@
-import { useId } from 'react'
-import { daysBetween } from '../../shared/dates.ts'
-import { wristPlain, wristSendLabel } from '../../shared/copy/publish.ts'
-import { useSetPublishing, useWristStatus } from '../api/wrist.ts'
+import { useId, useState } from 'react'
+import { daysBetween, todayIso } from '../../shared/dates.ts'
+import { wristLastSend, wristPlain, wristSendLabel } from '../../shared/copy/publish.ts'
+import {
+  isRemoveFailed,
+  useDisconnectIntervals,
+  useSendAgain,
+  useSetPublishing,
+  useWristStatus,
+} from '../api/wrist.ts'
+import { Button } from './Button.tsx'
+import { clockTime } from './WristStatus.tsx'
 import styles from './WristSettings.module.css'
 
+/** "Last send to intervals.icu: 13 Jan at 11:00.", or that nothing has been sent yet. */
+function lastSendLine(lastRunAt: string | null): string {
+  const at = lastRunAt === null ? new Date(Number.NaN) : new Date(lastRunAt)
+  if (lastRunAt === null || Number.isNaN(at.getTime())) {
+    return wristPlain('publish.settings.never-sent')
+  }
+  return wristLastSend(todayIso(at), clockTime(lastRunAt))
+}
+
 /**
- * The switch that turns sending to the watch on, on the intervals.icu card of the Integrations
- * page, and the tick for intervals.icu's own Garmin upload. "Turn it on under Integrations" and
- * "Sending to your watch is off" send the runner here. Sending is off until the runner turns it on.
+ * The settings of sending to the watch, on the intervals.icu card of the Integrations page: the
+ * switch that turns it on (off until the runner does), the tick for intervals.icu's own Garmin
+ * upload, the last send with "Send now", and the offer to take the sessions already sent out of
+ * intervals.icu when sending is turned off. "Turn it on under Integrations" and "Sending to your
+ * watch is off" send the runner here.
+ *
  * Both choices are the server's to keep, so the boxes show what it reports, not what was clicked;
- * offline, or while the status cannot be read, they are left out.
+ * offline, or while the status cannot be read, the section is left out.
  */
 export function WristSettings() {
   const headingId = useId()
   const helpId = useId()
+  const offerId = useId()
   const { status } = useWristStatus()
   const save = useSetPublishing()
+  const send = useSendAgain()
+  // The offer that comes with turning sending off; its box starts unticked.
+  const [offer, setOffer] = useState<{ removeSent: boolean } | null>(null)
   if (status === undefined) return null
-  const { enabled, garminLinked } = status.settings
+  const { enabled, garminLinked, lastRunAt, running } = status.settings
   const days = daysBetween(status.from, status.to) + 1
+  // Only a session intervals.icu is known to hold is worth an offer to remove.
+  const holdsSent = status.items.some((i) => i.status === 'sent' || i.status === 'on-watch')
+
+  function onSendChange(checked: boolean) {
+    if (checked) {
+      save.mutate({ enabled: true, garminLinked })
+    } else if (holdsSent) {
+      save.reset()
+      setOffer({ removeSent: false })
+    } else {
+      save.mutate({ enabled: false, garminLinked })
+    }
+  }
 
   return (
     <fieldset className={styles.settings} aria-labelledby={headingId} aria-busy={save.isPending}>
@@ -29,17 +66,64 @@ export function WristSettings() {
         <input
           type="checkbox"
           checked={enabled}
+          disabled={save.isPending}
           onChange={(event) => {
-            save.mutate({ enabled: event.target.checked, garminLinked })
+            onSendChange(event.target.checked)
           }}
         />
         {wristSendLabel(days)}
       </label>
+      {enabled && offer !== null ? (
+        <div role="group" aria-labelledby={offerId} className={styles.offer}>
+          <p id={offerId} className={styles.note}>
+            {wristPlain('publish.settings.off-offer')}
+          </p>
+          <label className={styles.check}>
+            <input
+              type="checkbox"
+              checked={offer.removeSent}
+              onChange={(event) => {
+                setOffer({ removeSent: event.target.checked })
+              }}
+            />
+            {wristPlain('publish.settings.remove-sent')}
+          </label>
+          <div className={styles.actions}>
+            <Button
+              variant="primary"
+              loading={save.isPending}
+              onClick={() => {
+                save.mutate(
+                  { enabled: false, garminLinked, removeSent: offer.removeSent },
+                  {
+                    onSuccess: () => {
+                      setOffer(null)
+                    },
+                  },
+                )
+              }}
+            >
+              {wristPlain('publish.settings.turn-off')}
+            </Button>
+            <Button
+              variant="quiet"
+              disabled={save.isPending}
+              onClick={() => {
+                save.reset()
+                setOffer(null)
+              }}
+            >
+              {wristPlain('publish.settings.keep')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <label className={styles.check}>
         <input
           type="checkbox"
           checked={garminLinked}
           aria-describedby={helpId}
+          disabled={save.isPending}
           onChange={(event) => {
             save.mutate({ enabled, garminLinked: event.target.checked })
           }}
@@ -49,11 +133,132 @@ export function WristSettings() {
       <p id={helpId} className={styles.note}>
         {wristPlain('publish.settings.garmin-help')}
       </p>
+      {enabled ? (
+        <div className={styles.actions}>
+          <p className={styles.note}>
+            {running ? wristPlain('publish.settings.sending-now') : lastSendLine(lastRunAt)}
+          </p>
+          <Button
+            variant="secondary"
+            loading={send.isPending}
+            disabled={running}
+            onClick={() => {
+              send.mutate({})
+            }}
+          >
+            {wristPlain('publish.settings.send-now')}
+          </Button>
+        </div>
+      ) : null}
+      <p className={styles.note}>{wristPlain('publish.settings.dormant')}</p>
       {save.isError ? (
         <p role="alert" className={styles.error}>
           {save.error.message}
         </p>
       ) : null}
+      {send.isError ? (
+        <p role="alert" className={styles.error}>
+          {send.error.message}
+        </p>
+      ) : null}
     </fieldset>
+  )
+}
+
+/**
+ * Disconnect on the intervals.icu card. While sending is on, intervals.icu holds sessions the app
+ * sent, so Disconnect first asks whether to take them out too ("Also remove the sessions already
+ * sent", unticked). The removal needs the key, so when it fails the server keeps the connection
+ * (409 `remove-failed`) and says so; the way out is "Disconnect without removing them". With
+ * sending off there is nothing to ask and Disconnect acts at once.
+ */
+export function DisconnectIntervals({ onDisconnected }: { onDisconnected: () => void }) {
+  const offerId = useId()
+  const { status } = useWristStatus()
+  const disconnect = useDisconnectIntervals()
+  const [choosing, setChoosing] = useState(false)
+  const [removeSent, setRemoveSent] = useState(false)
+  // Only a status that says sending is off lets Disconnect act at once: when the status cannot be
+  // read, sessions may be on intervals.icu, so the choice is offered.
+  const mayHoldSent = status?.settings.enabled !== false
+
+  function run(remove: boolean) {
+    disconnect.mutate({ removeSent: remove }, { onSuccess: onDisconnected })
+  }
+  const label = wristPlain('publish.disconnect.button')
+  const failure = disconnect.isError ? (
+    <p role="alert" className={styles.error}>
+      {isRemoveFailed(disconnect.error)
+        ? disconnect.error.message
+        : wristPlain('publish.disconnect.failed')}
+    </p>
+  ) : null
+
+  if (!choosing) {
+    return (
+      <>
+        <Button
+          variant="quiet"
+          loading={disconnect.isPending}
+          onClick={() => {
+            if (mayHoldSent) setChoosing(true)
+            else run(false)
+          }}
+        >
+          {label}
+        </Button>
+        {failure}
+      </>
+    )
+  }
+  return (
+    <div role="group" aria-labelledby={offerId} className={styles.offer}>
+      <p id={offerId} className={styles.note}>
+        {wristPlain('publish.disconnect.offer')}
+      </p>
+      <label className={styles.check}>
+        <input
+          type="checkbox"
+          checked={removeSent}
+          onChange={(event) => {
+            setRemoveSent(event.target.checked)
+          }}
+        />
+        {wristPlain('publish.settings.remove-sent')}
+      </label>
+      {failure}
+      <div className={styles.actions}>
+        <Button
+          variant="primary"
+          loading={disconnect.isPending}
+          onClick={() => {
+            run(removeSent)
+          }}
+        >
+          {label}
+        </Button>
+        {isRemoveFailed(disconnect.error) ? (
+          <Button
+            variant="secondary"
+            disabled={disconnect.isPending}
+            onClick={() => {
+              run(false)
+            }}
+          >
+            {wristPlain('publish.disconnect.without')}
+          </Button>
+        ) : null}
+        <Button
+          variant="quiet"
+          disabled={disconnect.isPending}
+          onClick={() => {
+            disconnect.reset()
+            setChoosing(false)
+          }}
+        >
+          {wristPlain('publish.disconnect.cancel')}
+        </Button>
+      </div>
+    </div>
   )
 }

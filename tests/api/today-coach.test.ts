@@ -1245,14 +1245,17 @@ describe('GET /api/today: the validator', () => {
     const res = await getToday(u).set('If-None-Match', tag)
     expect(res.status).toBe(304)
     // The user lookup of the auth middleware, the forecast stamp (home, then the cache row), the
-    // job notes' stamp and the publications' stamp (E1: the notes read a table the data version
-    // does not cover).
+    // job notes' stamp and the publications' stamp (E1: the notes and the watch line read tables
+    // the data version does not cover: the rows by state, the channel's two switches and the sends
+    // still inside the 15 minutes before "On your watch").
     expect(log.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
+        'deliveryChannel.findUnique',
         'forecastCache.findUnique',
         'syncRun.findFirst',
         'user.findUnique',
+        'wristPublication.count',
         'wristPublication.groupBy',
       ].sort(),
     )
@@ -1291,12 +1294,15 @@ describe('GET /api/today: cost', () => {
     expect((await getToday(u)).status).toBe(200)
     // The session lookup of the auth middleware, the forecast stamp (home, then the cache row), the
     // cached forecast hours, the stamp of the job notes, the three reads of the job notes themselves
-    // (the latest runs, the last weekly revision, the plans due) and E1's two reads of the
-    // publications table (the page tag's stamp and the note about tomorrow's run, which has a
-    // session here): nothing else.
+    // (the latest runs, the last weekly revision, the plans due) and E1's reads of the publisher's
+    // tables: the page tag's stamp (the rows by state, the channel's switches, the recent sends),
+    // the watch slot's read of the channel (today has a run) and the note about tomorrow's run
+    // (which has a session here): nothing else.
     expect(warm.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
+        'deliveryChannel.findUnique',
+        'deliveryChannel.findUnique',
         'forecastCache.findUnique',
         'forecastCache.findUnique',
         'plan.findMany',
@@ -1304,22 +1310,25 @@ describe('GET /api/today: cost', () => {
         'syncRun.findFirst',
         'syncRun.groupBy',
         'user.findUnique',
+        'wristPublication.count',
         'wristPublication.findMany',
         'wristPublication.groupBy',
       ].sort(),
     )
     expect(warm.count('activity.findMany')).toBe(0)
     expect(warm.count('plan.findFirst')).toBe(0)
-    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 26
+    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 29
     // reads: the session lookup, the forecast stamp (the profile and the cache row), the job-notes
-    // stamp, the publications' stamp, the snapshot's eleven (the eleventh is the runner's active
-    // rest windows), the cached forecast, the race climate, the change line, the three reads of the
-    // job notes, the note about tomorrow's run (the publications) and the fuel replay's three (the
-    // switches, the logs, the weeks of every plan; its session lookup is skipped without a log).
-    // Warm is 10, the ten of the list above, and the data version is read five times (the tag, the
-    // snapshot, the change-line memo and the fuel replay's memo once for each of the two fuel slots).
-    expect(coldTotal).toBe(26)
-    expect(warm.models).toHaveLength(10)
+    // stamp, the publications' stamp (three: the rows by state, the channel, the recent sends), the
+    // snapshot's eleven (the eleventh is the runner's active rest windows), the cached forecast,
+    // the race climate, the change line, the three reads of the job notes, the watch slot's read of
+    // the channel, the note about tomorrow's run (the publications) and the fuel replay's three
+    // (the switches, the logs, the weeks of every plan; its session lookup is skipped without a
+    // log). Warm is 13, the thirteen of the list above, and the data version is read five times
+    // (the tag, the snapshot, the change-line memo and the fuel replay's memo once for each of the
+    // two fuel slots).
+    expect(coldTotal).toBe(29)
+    expect(warm.models).toHaveLength(13)
     expect(warm.raw).toBe(5)
   })
 

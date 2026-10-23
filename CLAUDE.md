@@ -35,9 +35,19 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
 
 - Every data source is one module in `server/providers/<key>.ts`, registered in
   `server/providers/registry.ts` with its `ProviderInfo` (key, label, channels, wellness,
-  `experimental`). A provider implements only the channels it declares: `pull`, `push` or `upload`;
-  `folder` has no module because the scheduler scans it. Adding a source means one module plus one
-  registry entry.
+  `experimental`). A provider implements only the channels it declares: `pull`, `push`, `upload` or
+  `publish`; `folder` has no module because the scheduler scans it. Adding a source means one module
+  plus one registry entry.
+- `publish` is the one outbound channel (ADR 0008): a `PublishProvider` beside the provider's other
+  channels in its module (only intervals.icu, `server/providers/intervalsPublish.ts`) keeps the next
+  14 days of run sessions in the runner's calendar. It is off until the runner turns it on, never
+  writes to the database and never goes through the experimental Garmin provider.
+  `server/services/publish.ts` owns the `WristPublication` rows and the `DeliveryChannel` settings.
+  `buildDeliverables` (`server/services/workouts.ts`) is the one builder of what goes out: the
+  intervals.icu events, the FIT files and the calendar feed render the same `WorkoutPlan`. The
+  calendar feed is not a provider (a route behind a hashed token on `DeliveryChannel`, no registry
+  entry). How a session stands on its way to the watch is read only through `readWristItems`
+  (`server/services/wristItems.ts`), for the Plan page, the settings and Today's `watch` slot alike.
 - A provider returns `ParsedActivity` and `WellnessInput` values; it never writes to the database.
   `server/services/activityStore.ts` is the only writer of imported activities, and
   `server/services/sync.ts` drives pull providers.
