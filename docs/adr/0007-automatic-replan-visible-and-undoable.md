@@ -1,6 +1,6 @@
 # 0007. The weekly re-plan stays automatic, and every re-plan is visible and undoable
 
-Status: Accepted 2026-10-23
+Status: Accepted 2026-10-23 (#546)
 
 ## Context
 
