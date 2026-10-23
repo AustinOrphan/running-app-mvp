@@ -231,8 +231,8 @@ describe('global rate limit', () => {
     }
   })
 
-  test('the default allows 1000 requests per window and blocks the 1001st', async () => {
-    const fresh = await createTestCtx()
+  test('in production the default allows 1000 requests per window and blocks the 1001st', async () => {
+    const fresh = await createTestCtx({ nodeEnv: 'production' })
     try {
       const agent = client(fresh)
       for (let i = 0; i < 1000; i++) {
@@ -245,4 +245,18 @@ describe('global rate limit', () => {
       await fresh.close()
     }
   }, 60_000)
+
+  test('outside production the default is 20000, so the e2e suite does not reach it', async () => {
+    // The Playwright server runs with NODE_ENV=development and spends about 950 requests today.
+    for (const nodeEnv of ['development', 'test'] as const) {
+      const fresh = await createTestCtx({ nodeEnv })
+      try {
+        const res = await client(fresh).get('/api/health')
+        expect(res.headers['ratelimit-policy'], nodeEnv).toBe('20000;w=900')
+        expect(remainingBudget(res), nodeEnv).toBe(19_999)
+      } finally {
+        await fresh.close()
+      }
+    }
+  })
 })

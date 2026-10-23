@@ -616,26 +616,43 @@ describe('useOutboxReplay', () => {
     })
   })
 
-  test('clears the queue on a 401 and stops listening when it unmounts', async () => {
-    const { outbox, store, online, send } = rig()
+  test('clears the queue on a 401', async () => {
+    const { outbox, store, online } = rig()
     online.value = false
     await outbox.save(URL, { fatigue: 4 })
-    const { unmount } = mount(outbox)
+    mount(outbox)
     act(() => {
       window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
     })
     await waitFor(async () => {
       expect(await store.read()).toEqual([])
     })
+  })
+
+  test('stops listening when it unmounts: online, foreground and 401 leave a queued entry alone', async () => {
+    const { outbox, store, online, send } = rig()
+    const { unmount } = mount(outbox)
     unmount()
+
+    // Queued while offline, so that a listener left behind has an entry to send or to clear.
+    online.value = false
+    await outbox.save(URL, { fatigue: 4 })
+    expect(await store.read()).toHaveLength(1)
+    const flush = vi.spyOn(outbox, 'flush')
+    const clear = vi.spyOn(outbox, 'clear')
+    send.mockClear()
+
     online.value = true
-    send.mockClear()
-    await outbox.save(URL, { fatigue: 2 })
-    send.mockClear()
-    act(() => {
-      window.dispatchEvent(new Event('online'))
-    })
+    window.dispatchEvent(new Event('online'))
+    document.dispatchEvent(new Event('visibilitychange'))
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+    // The memory store resolves in microtasks, so one turn of the event loop lets a flush finish.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(flush).not.toHaveBeenCalled()
+    expect(clear).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()
+    expect(await store.read()).toHaveLength(1)
   })
 })
 

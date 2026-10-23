@@ -399,21 +399,38 @@ describe('Today: the one-row check-in', () => {
 
   test('the fold holds until the server shows the answer, whatever the next read says', async () => {
     const user = userEvent.setup()
-    let stored: Checkin | null = null
-    render(makeToday(), {
-      'GET /api/today': () => makeToday({ checkin: stored }),
+    let saved = false
+    // The server has not caught up: the read that follows the save still holds no answer. It does
+    // carry a signal, so the list of signals shows when that read has landed on the page.
+    const afterSave = makeToday({
+      coach: makeCoach({
+        verdict: { code: 'low-plan-stays', template: 'today.verdict.low-plan-stays', slots: {} },
+        signals: [
+          {
+            code: 'resting-hr',
+            noted: false,
+            template: 'today.signal.resting-hr-only',
+            slots: { latest: { kind: 'bpm', bpm: 58 } },
+          },
+        ],
+      }),
+    })
+    const { api } = render(makeToday(), {
+      'GET /api/today': () => (saved ? afterSave : makeToday()),
       [CHECKIN_ROUTE]: () => {
-        stored = savedCheckin({ fatigue: 4 })
-        return stored
+        saved = true
+        return savedCheckin({ fatigue: 4 })
       },
     })
     const read = await screen.findByRole('region', { name: 'Readiness' })
     await user.click(within(read).getByRole('radio', { name: 'Tired' }))
-    await waitFor(() => {
-      expect(stored).not.toBeNull()
-    })
-    // The refetch carries the saved check-in; the line reads the same before and after it.
-    expect(await within(read).findByText('Checked in: tired.')).toBeInTheDocument()
+    expect(await within(read).findByRole('list', { name: 'Readiness signals' })).toBeVisible()
+
+    const reads = api.calls.filter((call) => call.method === 'GET' && call.url === '/api/today')
+    expect(reads).toHaveLength(2)
+    // The queued write is gone and the read says no answer, yet the row stays folded.
+    expect(getOutbox().getState().entries).toEqual([])
+    expect(within(read).getByText('Checked in: tired.')).toBeInTheDocument()
     expect(within(read).queryByRole('radiogroup')).not.toBeInTheDocument()
   })
 

@@ -949,8 +949,9 @@ Size M. Depends on: E2-5. Contract: spec 7.6.
   URL, replays on `online` and foreground, drops 4xx with one message and entries older than 7 days,
   and is cleared on logout and any 401; the check-in sheet keeps pain, illness and bone tenderness
   one tap away with n-1 inheritance unchanged and 44 px targets; Done posts one prefilled run, keeps
-  a draft offline and disables Save with the offline sentence; Not today hosts `SessionChanges` and
-  takes `children` for E5; 360 px chips fit with no horizontal scroll.
+  a draft offline and disables Save with the offline sentence; Not today hosts `AdjustSection` (E5-7
+  replaced the `SessionChanges` section that E2-1 extracted) and takes `children` for E5; 360 px
+  chips fit with no horizontal scroll.
 
 ### Task E1-7: Wrist status on Plan, session-sheet targets and downloads, the watch line
 
@@ -1161,9 +1162,11 @@ Size S. Depends on: E5-7, E2-7, E1-5. Contract: spec 9.6.
   `web/components/disruption/DisruptionBanner.tsx`, `web/api/today.ts`,
   `server/services/todaySlots.ts`, `tests/web/{today,dashboard}.test.tsx`,
   `tests/api/wristPublish.test.ts`, `tests/e2e/NN-disruptions.spec.ts`, `docs/STATUS.md`.
-- **Acceptance:** Not today opens `NotFullSheet` with today's server date while the skip stays in
-  the session sheet; the banner fills the `disruption` slot only with a window, within its 64 px
-  budget, and E2-7's worst-case test still passes; the "Set a rest window and a return plan?" prompt
+- **Acceptance:** the Not today sheet hosts `AdjustSection` (move, swap, shorten, skip, as in the
+  session sheet), and the "Not 100%" entry on Today opens `NotFullSheet` with today's server date
+  (this task places the entry; the sheet's `children` slot is free for it); the banner fills the
+  `disruption` slot only with a window, within its 64 px budget, and E2-7's worst-case test still
+  passes; the "Set a rest window and a return plan?" prompt
   appears after an illness or pain check-in with no window and creates nothing; a window created
   through the API withdraws held days on the next `publishForUser` and its undo upserts them again;
   Today, the session sheet and the publish set agree on a rest-window day; STATUS lists the E5

@@ -4,9 +4,11 @@ import type { PlanSession, PlanWithSessions } from '../../shared/types.ts'
 import { relativeDates, resetData, signedInApi, toast, type Api } from './helpers.ts'
 
 // Today as the runner uses it: Not today and Done on the session's hero, then the one-tap check-in
-// that survives a lost connection and a reload. The server counts every request, assets included,
-// against one budget of 1000 per 15 minutes for the whole e2e run, so the specs share one signed-in
-// page (its cache keeps the assets), one plan, and as few page loads as the flows need.
+// that survives a lost connection and a reload. The e2e server runs with NODE_ENV=development, which
+// allows 20000 `/api` requests per 15 minutes per IP (1000 in production; static files are outside
+// the count) and the whole suite spends about 940 of them, so the specs share one signed-in page
+// (its cache keeps the assets), one plan, and as few page loads as the flows need to keep the run
+// short and the count low.
 test.describe.configure({ mode: 'serial' })
 
 const RUN_KINDS = ['easy', 'recovery', 'long', 'threshold', 'intervals', 'hills', 'race-pace']
@@ -121,8 +123,9 @@ test('Not today skips the session and says it is not made up later', async () =>
   await expect(card.getByRole('heading', { level: 2 })).toBeFocused()
   const after = (await api.get('/plan')) as PlanWithSessions
   expect(after.sessions.find((session) => session.id === planned.id)?.status).toBe('skipped')
-  // The runner puts it back (the Plan page offers this), so Done has a session to work on.
-  await api.put(`/plan/sessions/${planned.id}`, { skip: false })
+  // Put it back with the action behind the session sheet's Restore session, so that Done has a
+  // session to work on.
+  await api.post(`/plan/sessions/${planned.id}/adjust`, { adjustment: { type: 'restore' } })
 })
 
 test('Done with no connection keeps a draft and turns Save off, then logs the run once', async () => {

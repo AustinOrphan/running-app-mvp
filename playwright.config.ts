@@ -26,7 +26,8 @@ export default defineConfig({
       SESSION_SECRET: 'e2e-test-only-secret-0123456789abcdef!!',
       PORT: String(E2E_PORT),
       // The readiness line above is an info-level log; `NODE_ENV=test` or a quieter `LOG_LEVEL`
-      // inherited from the shell would silence it.
+      // inherited from the shell would silence it. Any NODE_ENV but `production` also gives the
+      // `/api` limiter its 20000-request budget (`apiLimitFor`); the suite spends about 940.
       NODE_ENV: 'development',
       LOG_LEVEL: 'info',
     },
