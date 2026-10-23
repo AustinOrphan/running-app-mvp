@@ -237,7 +237,8 @@ describe('body limits', () => {
     expect(res.status).toBe(413)
   })
 
-  test.each(['/api/imports/files', '/api/imports/parsed', '/api/ingest/apple-health'])(
+  // The ingest route has its own limits, behind its push token: see bodyParsers.test.ts.
+  test.each(['/api/imports/files', '/api/imports/parsed'])(
     'a 2 MB body is not rejected as too large on %s',
     async (path) => {
       const res = await client(ctx, user).post(path).send(big)

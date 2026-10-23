@@ -72,6 +72,44 @@ Last update: 2026-10-23.
   0's registry and `main`'s) are reconciled to `2026-10-22.4` on `wave/3a-0`, and wave 1 moves on
   to `2026-10-23.1`.
 
+- **Phase 3a wave 3 (branch `feat/coach-phase3`, PR from `wave/3a-3`, 2026-10-23):** the services
+  and routes on top of the wave-2 stores. R0-2: undo, preview and seen (`server/services/revisions.ts`,
+  `planActions.ts`, `shared/engine/undoGuard.ts`): `computeAction` is the one builder of a preview and
+  its commit; `POST /api/plan/preview`, `POST /api/plan/revisions/:id/undo` (409 with the reason codes,
+  422 with the checklist, stale-preview by head revision or midnight), `POST .../seen`; a linked run
+  is checked before the hash (the wave-2 finding) and the listing no longer reads undo payloads.
+  E3-8: every body and query is parsed after authentication (`server/app.ts`; the ingest token path
+  has its own parser; 16 KB on setup and sign-in), "Make active" builds the plan on the chosen goal
+  with a `goal-switch` revision and a confirm dialog, archived plans can be restored with their ids,
+  the catch-up skips a plan generated after the slot, `latestJobRuns` reads one row per job, four
+  foundation e2e specs and two 360 px cases, ADR 0009's measured timings (today 10.4/2.1 ms cold/warm
+  on a synthetic three-year history). E2-4: Today is one coach payload (`server/services/today.ts`:
+  hero, eased session, targets, heat, week strip, race, change line, health notes, slots; an ETag with
+  registered stamps; 16 reads cold, 4 warm, 3 on a 304; a future date is a read-only preview). E1-3:
+  the FIT workout writer (round-trips through the project's parser; golden files), `buildDeliverables`
+  as the one builder for every delivery, per-session and per-week downloads, the workout fragments as
+  templates (`shared/copy/workouts.ts`), the publisher reconciled to them. E5-4: disruption windows in
+  the engine (`EngineInput.disruptions`; held days become rest sessions with `rest-window`; return
+  fractions; overlapping windows count as one layoff; a 16th checklist item `disruption-window`; the
+  `adjusted` status; byte-identical output with no windows; a 576-window seeded sweep). E4-7: "What
+  stood out" (`server/services/insight.ts`: eleven findings per run, at most three shown, stored on
+  first read as `ActivityInsight` (non-state) and refreshed by the pipeline hook after a store, link,
+  rating or edit; the run card; migration `activity_insight`). E6-4: the fuel schema (`FuelProduct`,
+  `FuelLog`, `FuelSettings`, state; migration `fuel_lab`), products, settings and the log API, each
+  log carrying a snapshot of its products and the replayed ladder. E10s-3: race results
+  (`PUT`/`DELETE /api/goals/:id/result` in one transaction with the activity retyped to a race and the
+  weekly predictions scored) and the track-record read model (`GET /api/predictions/record`, memoised).
+  `PARAMS_VERSION` is `2026-10-23.2`. Gates on the merged branch: `npm run check` (173 files, 6629 tests),
+  `npm run build`, `npm run test:e2e` (25), `docker build .` (eleven migrations apply), owner
+  validation byte-identical to wave 2. Adversarial review: see below.
+- Wave 3 left for later tasks: `server/services/fuelLine.ts` is a stub until E6-5 (no delivery
+  carries a fuel line yet); no route writes the `adjusted` status until E5-6; a 3-day window drawn
+  mid-week lowers a ramp-limited plan's later weeks by about 10% until the next Monday re-plan
+  (E5-4; window-lowered weeks could be ramp-skip weeks); `isHotForSteering` has no production caller
+  that changes a session until E2-5/E1-5 read it; the StandoutCard's Why button passes rule ids until
+  E4-3 gives it `{ subject: 'activity', id }`; an undo revision and its target keep `seenAt` null
+  (E4-4 decides); the FIT files' watch behaviour (manufacturer 255, repeat steps, string caps) and
+  the hike as sport running await the owner's watch check; the prediction job still records idle runs.
 - **Phase 3a wave 2 (branch `feat/coach-phase3`, PR from `wave/3a-2`, 2026-10-23):** the stores
   and engines the surfaces will show. R0-1: the revision foundation (`server/services/replan.ts`:
   `computeReplan` reads only, `applyReplan` and `recordPlanWrite` are the only writers of a re-plan
@@ -140,14 +178,13 @@ check` (142 files, 4337 tests), `npm run build`, `npm run test:e2e` (18), `docke
   applies), owner validation identical to wave 0. One merge interaction was caught by the gates
   and fixed (the sync-history page test did not expect the Integrations page's new state read).
   Adversarial review: see below.
-- Wave 1 left for later tasks: `shared/workouts/*` keeps a few fixed fragments ("Warm up", "heart
-  rate under") as literals rather than templates (E1-3 to decide); `TODAY_TEMPLATES` verdicts can
+- Wave 1 left for later tasks: `TODAY_TEMPLATES` verdicts can
   name a session on a day with none (E2-4); `median` now exists three times in `shared/engine`
   (`athlete.ts`, `readiness.ts`, `backtest.ts`); idle folder scans every 5 minutes fill the
   200-row `SyncRun` cap in about 17 hours (E3-8 or the next boundary decides whether idle
-  scheduled runs are recorded); a plan generated after the Monday slot gets one redundant
-  catch-up re-plan; the fast finish of a long run, the easy part of a strides session and quality
-  warm-ups are published as open steps because `resolveTargets` holds no band for them.
+  scheduled runs are recorded); the fast finish of a long run, the easy part of a strides session
+  and quality warm-ups are published as open steps because `resolveTargets` holds no band for
+  them.
 - **Session identity (E3-7, the contract for the publish channel in E1):** a session's `externalId`
   is its only durable identity, kept by owner moves, swaps, skips and restores and by every
   re-plan that leaves it on the same day and kind (`pairSessions` in
@@ -155,6 +192,54 @@ check` (142 files, 4337 tests), `npm run build`, `npm run test:e2e` (18), `docke
   and new when a re-plan changes its day or kind, so E1 publishes under
   `workoutExternalId(externalId, userTag)`, creates the new event before it withdraws the old one
   and derives no id from the date, the kind or the order.
+
+## Wave 3 adversarial review (2026-10-23)
+
+Six lenses over the wave-3 diff against the wave-2 tip (135 files); 25 findings, each tried by two
+independent refuters: 15 confirmed, 10 disputed. The two mediums were an engine double charge and a
+fuel gate tested far from its boundary.
+
+Fixed on the integration branch before `wave/3a-3` was cut (`task/3a-W3-fix-engine`,
+`task/3a-W3-fix-server`, `task/3a-W3-fix-tests`):
+
+1. A re-plan with the rest window its plan already carried took the held days' minutes out of the
+   current week a second time; a ruled day the replaced plan already keeps to now costs nothing
+   more. Repeated re-plans of the same window are stable in the pinned cases; 39 of 576 seeded
+   window combinations still drift a little between re-plans (a reduced week placed under its
+   target feeds the next baseline), recorded below.
+2. The fuel ladder replay lost gut-block credit for runs linked to an archived plan's sessions after
+   "Make active"; it reads each logged run's session flags from any plan.
+3. Plan-check refusals (undo, Make active) reached the runner with raw checklist ids; they are plain
+   sentences with the ids in `details`.
+4. Today's "sync paused" and "weekly update not run" health notes had no producer; both are
+   registered, with a stamp so the ETag moves.
+5. The standout pain sentence said the pain came "with this run" when the day's check-in supplied
+   it; a strides session's FIT name was cut to "Easy run with" (short FIT names per kind); one
+   cool-down step name bypassed the workout templates; the disruption-window check read
+   "3 day(s)".
+6. The second fuel opt-in gate is tested at its boundary; nothing had made the Today hero hot from
+   the cached forecast (it does now, with solar radiation in the fixture); `applyUndo`'s stale-row
+   guards and dropped-link branch, the insight pipeline claims, `syncActuals`' pre-race boundary
+   (one shared predicate) and the goals suite's network guard are covered; `loadForecast` builds
+   one `Intl.DateTimeFormat` per zone (Today warm read 7.9 ms → 2.7 ms with a cached home
+   forecast); the Build-plan button wraps a long goal name at 360 px.
+
+Accepted from the disputed list and fixed with them: a stored run insight recomputes when the day's
+check-in pain score or bone flag changes; race-result validation messages are templates; the
+Today query-count guards see `findFirstOrThrow`, `findUniqueOrThrow` and `$queryRaw`; the
+disruption sweep's wall-clock assertion names its margin; one fixture carried the owner's real race
+date and now carries a synthetic one.
+
+Disputed and recorded (not fixed; reason in brackets):
+
+- `explain.ts` keeps a second snapshot-to-input builder beside `inputFromContext` [one narrow
+  read; E4-8's pass].
+- The track-record memo reads `PredictionLog`, a non-state model [sound while no prediction is
+  logged after a result; the header says so].
+- A restored plan keeps its old `createdAt`, so the catch-up may re-plan it once more [a no-op
+  diff].
+- Server re-plan pairing calls `keptByReplan` without the hold dates [E5-5 passes them in wave 4].
+- `MOVABLE_STATUSES` and the `adjusted` status [E5-6 in wave 4].
 
 ## Wave 2 adversarial review (2026-10-23)
 
@@ -187,7 +272,8 @@ Fixed on the integration branch before `wave/3a-2` was cut (`task/3a-W2-fix-revi
 
 Accepted from the disputed list and fixed with them: `safeMessage`-style publish failure
 sentences are templates (`shared/copy/publish.ts`); a null `external_id` echo falls back to
-positional matching; the `noNetwork` guard records refused calls and every suite asserts none;
+positional matching; the `noNetwork` guard records refused calls and ten of the 43 API suites
+assert none with `expectNoRefusedFetches` (the others are not yet probed);
 the publisher's global-fetch guard covers `withdraw` and `globalThis.fetch`; `ensureClimate`
 returns at once when a usable climate value exists.
 
@@ -243,10 +329,9 @@ are no longer recorded, so the 200-row log holds real syncs.
 
 Disputed and recorded (not fixed; reason in brackets):
 
-- A plan generated after the Monday slot counts as "weekly update due" and gets one redundant
-  catch-up re-plan; the catch-up and the 03:00 job can both re-plan one plan in a week [an
-  in-process guard serialises them; R0-1's revision model makes the second a no-op diff; revisit
-  at E3-8].
+- The catch-up and the 03:00 job can both re-plan one plan in a week [an in-process guard
+  serialises them; R0-1's revision model makes the second a no-op diff]. A plan built after the
+  slot is no longer due (E3-8).
 - `GET /api/state` can answer 304 for a body the race-climate path would now build differently,
   and a cold read waits on up to three sequential Open-Meteo calls with no timeout [E3-3 replaces
   `raceClimate.ts` with the cache in the same wave 2].
@@ -256,9 +341,7 @@ Disputed and recorded (not fixed; reason in brackets):
   wording [E1-7's cross-surface adapter reconciles them].
 - The Monday re-plan identity test runs a no-op re-plan; the overlap test has one assertion that
   cannot fail; a 50 ms real-time sleep precedes the single-flight assertion; the Vary-header test
-  only re-checks the header [test-strength notes; R0-1 and E3-8 add the changed-plan case].
-- `latestJobRuns` reads every job row for one per job and the index does not cover its filter
-  [small table after idle runs stopped; E3-8].
+  only re-checks the header [test-strength notes; E3-8 added the changed-plan case].
 
 ## Wave 0 adversarial review (2026-10-23)
 
@@ -346,15 +429,13 @@ stored, and a check-in older than 3 days neither delays nor releases a step).
    42,195 m.
 7. A session the engine trims after a hold decision is stored without its untrimmed version.
 8. Lower-ranked review findings not yet addressed: nested sheets share the Escape key; Apple
-   Health push skips the range checks the parsed import applies; the JSON body parsers for ingest
-   and imports run before authentication; Goals reads "1:45" as minutes and seconds; a few engine tests assert
-   conditionally.
+   Health push skips the range checks the parsed import applies; Goals reads "1:45" as minutes
+   and seconds; a few engine tests assert conditionally.
 9. Behind a reverse proxy, rate limits key on the proxy's address (no trust-proxy setting by
    design: the environment variables are fixed).
-10. "Make active" on a goal other than the plan's goal leaves the plan on the old goal.
-11. Spec non-goals still open: readiness and race-decision gates as stored decisions, long-run lab
+10. Spec non-goals still open: readiness and race-decision gates as stored decisions, long-run lab
     and fueling logs, strength programming; Polar, WHOOP, Oura and Google Health providers.
-12. Enable branch protection on `main` requiring the `ci` and `analyze` checks.
+11. Enable branch protection on `main` requiring the `ci` and `analyze` checks.
 
 ## Clean-up after the merges
 

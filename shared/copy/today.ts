@@ -82,6 +82,12 @@ export const TODAY_TEMPLATES = {
     { distance: 'distance', grade: 'text' },
   ),
 
+  // The notes of the data-health block that come from the job log (spec 4.7 and 7.4).
+  'today.health.sync-paused': tpl(
+    "Sync is paused to stay within the service's limits, and picks up again on its own.",
+  ),
+  'today.health.update-not-run': tpl("This week's plan update has not run yet."),
+
   // The days of the week strip, as their accessible names.
   'today.week.done': tpl('Done', {}, { shape: 'label' }),
   'today.week.partial': tpl('Partly done', {}, { shape: 'label' }),

@@ -2,7 +2,8 @@
 // how the session went against expectation. Pure; every threshold is a parameter in
 // params/m-execution.ts.
 import { daysBetween } from '../dates.ts'
-import type { Activity, Checkin } from '../types.ts'
+import { isToRun } from '../domain/sessionStatus.ts'
+import type { Activity, Checkin, PlanSessionStatus } from '../types.ts'
 import { liljegrenWbgt } from './heat.ts'
 import { P } from './params/index.ts'
 import type {
@@ -91,7 +92,7 @@ type MatchSession = SessionSpec & {
   id: string
   activityId: string | null
   linkSource: string | null
-  /** Present on stored sessions; adjacent-day matches need 'planned' (or no status). */
+  /** Present on stored sessions; an adjacent-day match needs one still to run (`isToRun`). */
   status?: string
 }
 
@@ -128,7 +129,12 @@ export function matchSessions(
         if (takenActivities.has(activity.id) || !compatible(session.kind, activity)) continue
         const offset = Math.abs(daysBetween(session.date, activity.date))
         if (offset < minOffset || offset > maxOffset) continue
-        if (offset > 0 && session.status !== undefined && session.status !== 'planned') continue
+        if (
+          offset > 0 &&
+          session.status !== undefined &&
+          !isToRun(session.status as PlanSessionStatus)
+        )
+          continue
         pairs.push({ session, activity, score: matchScore(session.durationMin, activity, offset) })
       }
     }
@@ -293,6 +299,27 @@ function leastSquares(rows: number[][], y: number[]): number[] | null {
   return beta !== null && beta.every(Number.isFinite) ? beta : null
 }
 
+/** One run as the HR-at-pace model reads it: speed, degrees of heat excess and average heart rate. */
+interface ModelPoint {
+  v: number
+  h: number
+  hr: number
+}
+
+/**
+ * The point a run adds to the HR-at-pace model, or null when the model does not describe the run:
+ * a counted run (a race is not one) with an average heart rate, long enough, flat, with a sampled
+ * and steady histogram [rules B2, A8].
+ */
+function modelPoint(a: Activity): ModelPoint | null {
+  if (a.type !== 'run' || !counts(a) || a.avgHr === null) return null
+  if (a.durationSec < P.hrModel.minDurationMin.value * SEC_PER_MIN) return null
+  if (!hrDataUsable(a) || steadyShare(a) < P.hrModel.steadyMinShare.value) return null
+  const v = speedMps(a)
+  if (v === null) return null
+  return { v, h: heatExcessC(wbgtOf(a)), hr: a.avgHr }
+}
+
 /**
  * Fits HR against grade-adjusted speed on the steady flat runs of the last
  * `hrModel.windowWeeks` weeks, with a heat term that starts at the prior and moves towards the
@@ -301,16 +328,12 @@ function leastSquares(rows: number[][], y: number[]): number[] | null {
  */
 export function fitHrModel(activities: Activity[], today: string): HrModel | null {
   const windowDays = P.hrModel.windowWeeks.value * 7
-  const points: Array<{ v: number; h: number; hr: number }> = []
+  const points: ModelPoint[] = []
   for (const a of activities) {
-    if (a.type !== 'run' || !counts(a) || a.avgHr === null) continue
     const age = daysBetween(a.date, today)
     if (age < 0 || age >= windowDays) continue
-    if (a.durationSec < P.hrModel.minDurationMin.value * SEC_PER_MIN) continue
-    if (!hrDataUsable(a) || steadyShare(a) < P.hrModel.steadyMinShare.value) continue
-    const v = speedMps(a)
-    if (v === null) continue
-    points.push({ v, h: heatExcessC(wbgtOf(a)), hr: a.avgHr })
+    const point = modelPoint(a)
+    if (point !== null) points.push(point)
   }
   const n = points.length
   if (n < P.hrModel.minQualifyingRuns.value) return null
@@ -351,6 +374,25 @@ export function fitHrModel(activities: Activity[], today: string): HrModel | nul
     slopeBpmPerMps: slope,
     heatBpmPerC: heat,
     residualSdBpm: Math.max(sd, P.hrModel.minResidualSdBpm.value),
+  }
+}
+
+/**
+ * A run's average heart rate against the model's expectation for its speed and weather, in beats
+ * per minute, with the degrees of heat excess the expectation allowed for. Null when the model
+ * does not describe the run (`modelPoint`). The run may be one of the runs the model was fitted
+ * on; that only pulls the gap towards zero, so a gap that is stated is not an artefact of it.
+ */
+export function hrAgainstModel(
+  model: HrModel,
+  activity: Activity,
+): { actualBpm: number; expectedBpm: number; heatExcessC: number } | null {
+  const point = modelPoint(activity)
+  if (point === null) return null
+  return {
+    actualBpm: point.hr,
+    expectedBpm: model.interceptBpm + model.slopeBpmPerMps * point.v + model.heatBpmPerC * point.h,
+    heatExcessC: point.h,
   }
 }
 

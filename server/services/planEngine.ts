@@ -4,8 +4,10 @@ import { randomUUID } from 'node:crypto'
 import { addDays, daysBetween, isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
 import {
   acceptedZoneSummary,
+  checklistRefusedMessage,
   declinedZoneSummary,
   generatedSummary,
+  goalSwitchSummary,
   movedSummary,
   restoredSummary,
   skippedSummary,
@@ -14,11 +16,9 @@ import {
 import { carryExternalIds, pairSessions } from '../../shared/domain/sessionIdentity.ts'
 import { type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
-import { weatherIndex, trainingHeatAdvice } from '../../shared/engine/heat.ts'
 import {
   buildPlan,
   keptByReplan,
-  todayAdvice,
   weeklyDecision,
   weeklyRamp,
   zoneProposals,
@@ -42,9 +42,9 @@ import {
   type ZoneOutcome,
 } from '../../shared/engine/zoneChange.ts'
 import type {
+  PlanRevisionReason,
   PlanSession,
   PlanWithSessions,
-  TodayView,
   ZoneProposalView,
 } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
@@ -63,7 +63,6 @@ import {
   toPlanSession,
   toPlanWeek,
 } from '../serialize.ts'
-import { loadAthleteContext } from './athleteState.ts'
 import { assessSessionById } from './execution.ts'
 import { currentZones, gatherContextInput, gatherEngineInput, sessionSpec } from './engineInput.ts'
 import { ensureClimate } from './weatherCache.ts'
@@ -76,6 +75,8 @@ export const WRITE_TIMEOUT_MS = 60_000
 
 // Re-plans and revisions are written by `replan.ts` (ADR 0007); the old name stays importable here.
 export { replanActivePlan } from './replan.ts'
+// Today is composed in `today.ts` from the athlete snapshot; the old name stays importable here.
+export { todayView } from './today.ts'
 
 function json(value: unknown): string {
   return JSON.stringify(value)
@@ -173,18 +174,23 @@ export function sessionRow(planId: string, spec: SessionSpec, externalId: string
 export function failedChecklist(checklist: ChecklistResult[]): HttpError | null {
   const failed = checklist.filter((item) => !item.ok)
   if (failed.length === 0) return null
-  return new HttpError(
-    422,
-    'validation',
-    `The plan did not pass the quality checklist (${failed.map((item) => item.id).join(', ')}), so it was not published.`,
-    { checklist },
-  )
+  return new HttpError(422, 'validation', checklistRefusedMessage(), { checklist })
 }
 
-/** Runs `buildPlan`, the checklist, persists plan, weeks, sessions and a 'generate' revision. */
+/**
+ * Runs `buildPlan`, the checklist, persists plan, weeks, sessions and one revision: 'generate', or
+ * 'goal-switch' when Make active builds the plan for another goal. Nothing is written unless the
+ * plan passes the checklist, so a refusal leaves the goals and the current plan as they were.
+ */
 export async function generateEnginePlan(
   deps: Deps,
-  args: { userId: string; goalId: string; today: string; options?: EngineInput['options'] },
+  args: {
+    userId: string
+    goalId: string
+    today: string
+    options?: EngineInput['options']
+    reason?: Extract<PlanRevisionReason, 'generate' | 'goal-switch'>
+  },
 ): Promise<PlanWithSessions> {
   const { prisma } = deps
   const { userId, today } = args
@@ -251,11 +257,16 @@ export async function generateEnginePlan(
         data: draft.sessions.map((spec, i) => sessionRow(plan.id, spec, carried[i] ?? undefined)),
       })
       // A new plan has no earlier rows to diff against, so its revision carries no diff.
+      const switched = args.reason === 'goal-switch'
       await recordPlanWrite(tx, {
         planId: plan.id,
         userId,
-        reason: 'generate',
-        summary: generatedSummary(goal.name, draft.weeks.length, draft.sessions.length),
+        reason: switched ? 'goal-switch' : 'generate',
+        summary: (switched ? goalSwitchSummary : generatedSummary)(
+          goal.name,
+          draft.weeks.length,
+          draft.sessions.length,
+        ),
         changes: [],
         diff: null,
         undo: null,
@@ -971,87 +982,4 @@ export async function decideZoneProposal(
       undo: null,
     })
   }
-}
-
-// ---------------------------------------------------------------------------------------------
-// Today
-// ---------------------------------------------------------------------------------------------
-
-const UNRATED_DAYS = 7
-const UNRATED_LIMIT = 5
-const NO_HEAT_NOTE: ReadonlySet<SessionKind> = new Set<SessionKind>([
-  'strength',
-  'mobility',
-  'rest',
-])
-
-/** Today's sessions with downgrade-only advice, the heat note, check-in, readiness and unrated runs. */
-export async function todayView(
-  deps: Deps,
-  args: { userId: string; today: string },
-): Promise<TodayView> {
-  const { prisma } = deps
-  const { userId, today } = args
-  // The active version-2 plan and readiness come from the snapshot the input below is built on.
-  const context = await loadAthleteContext(deps, { userId, today })
-  const plan = context.plan
-  const input = await gatherContextInput(
-    deps,
-    { userId, today, goalId: plan?.goalId ?? null },
-    { existing: true, forecast: true },
-  )
-  const rows = plan
-    ? await prisma.planSession.findMany({
-        where: { planId: plan.id, date: today },
-        orderBy: { order: 'asc' },
-      })
-    : []
-  const sessions = rows.map(toPlanSession)
-  const advice = todayAdvice(
-    input,
-    sessions.map((s) => ({ ...sessionSpec(s), id: s.id })),
-  ).map((entry, i) => ({ ...entry, session: sessions[i]! }))
-
-  // The snapshot's readiness is shared and frozen, so the screening note goes on a copy.
-  const readiness: TodayView['readiness'] = {
-    ...context.readiness,
-    redFlags: [...context.readiness.redFlags],
-  }
-  const reds = input.screeningFlags ?? 0
-  if (reds >= P.j5.redsHoldFlags.value) {
-    readiness.redFlags.push({
-      code: 'reds-screen',
-      message: `The energy-availability screen showed ${reds} signs. Progression is on hold; a clinician or sports dietitian can help.`,
-      rules: ['n-4', 'J5'],
-    })
-  }
-
-  // The heat note describes the main run of the day; a day with no run has none.
-  let heat: TodayView['heat'] = { wbgtC: null, note: null, coolerHour: null }
-  const main = sessions.find((s) => !NO_HEAT_NOTE.has(s.kind))
-  if (main && input.forecast) {
-    const { note, coolerHour } = trainingHeatAdvice(input.forecast, sessionSpec(main))
-    let peak: number | null = null
-    for (const hour of input.forecast) {
-      if (hour.time.slice(0, 10) !== today) continue
-      const h = Number(hour.time.slice(11, 13))
-      if (h < P.i7.windowStartHour.value || h >= P.i7.windowEndHour.value) continue
-      const index = weatherIndex(hour)
-      if (index.index === 'wbgt' && (peak === null || index.value > peak)) peak = index.value
-    }
-    heat = { wbgtC: peak, note, coolerHour }
-  }
-
-  const unrated = input.activities
-    .filter(
-      (a) =>
-        (a.type === 'run' || a.type === 'race') &&
-        a.feel === null &&
-        (a.duplicateStatus === 'none' || a.duplicateStatus === 'dismissed') &&
-        a.date >= addDays(today, -UNRATED_DAYS),
-    )
-    .reverse()
-    .slice(0, UNRATED_LIMIT)
-
-  return { date: today, sessions: advice, heat, checkin: readiness.checkin, readiness, unrated }
 }

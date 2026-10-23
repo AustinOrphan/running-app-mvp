@@ -68,7 +68,7 @@ let counter = 0
 
 /** A user with an active version-2 plan; `over` adjusts the plan or the goal's date. */
 async function planFor(
-  over: { generatorVersion?: number; status?: string; goalDate?: string } = {},
+  over: { generatorVersion?: number; status?: string; goalDate?: string; createdAt?: Date } = {},
 ): Promise<Fixture> {
   counter += 1
   const user = await seedUser(ctx, { email: `runner${String(counter)}@example.com` })
@@ -90,6 +90,8 @@ async function planFor(
       raceWeekStart: mondayOf(goal.targetDate),
       generatorVersion: over.generatorVersion ?? 2,
       status: over.status ?? 'active',
+      // Built last week by default, before this week's Monday slot.
+      createdAt: over.createdAt ?? at(14, 12),
     },
   })
   return { user, planId: plan.id }
@@ -188,6 +190,75 @@ describe('the weekly catch-up', () => {
     await runReplanJob(deps(), { now: new Date(), catchUp: true })
 
     expect(new Set(replannedUsers())).toEqual(new Set([lastWeek.user.id, otherReasons.user.id]))
+  })
+
+  test('a plan built after this week s slot is not due: it was made from this week s data', async () => {
+    const afterSlot = await planFor({ createdAt: at(19, 3, 1) })
+    const atSlot = await planFor({ createdAt: at(19, 3, 0) })
+    const beforeSlot = await planFor({ createdAt: at(19, 2, 59) })
+    replanWritesARevision()
+
+    // The flag on /api/jobs follows the same rule, so Today does not report an update that is not owed.
+    const due = async (fixture: Fixture) =>
+      ((await client(ctx, fixture.user).get('/api/jobs')).body as JobsView).weeklyUpdate.due
+    expect(await due(afterSlot)).toBe(false)
+    expect(await due(atSlot)).toBe(false)
+    expect(await due(beforeSlot)).toBe(true)
+
+    await runReplanJob(deps(), { now: new Date(), catchUp: true })
+    expect(replannedUsers()).toEqual([beforeSlot.user.id])
+
+    // The 03:00 job itself still re-plans every version-2 plan.
+    vi.mocked(replanActivePlan).mockClear()
+    await runReplanJob(deps(), { now: new Date() })
+    expect(new Set(replannedUsers())).toEqual(
+      new Set([afterSlot.user.id, atSlot.user.id, beforeSlot.user.id]),
+    )
+  })
+
+  test('a plan generated after the slot gets no catch-up re-plan (end to end)', async () => {
+    counter += 1
+    const user = await seedUser(ctx, { email: `fresh${String(counter)}@example.com` })
+    const goal = await ctx.prisma.goal.create({
+      data: {
+        userId: user.id,
+        name: 'Synthetic half',
+        priority: 'A',
+        targetDate: addDays(MONDAY, 7 * 14 + 5),
+        distanceM: 21_097,
+        goalType: 'finish',
+      },
+    })
+    for (let w = 1; w <= 12; w += 1) {
+      for (const dow of [1, 3, 5, 6]) {
+        const date = addDays(MONDAY, -7 * w + dow)
+        await ctx.prisma.activity.create({
+          data: {
+            userId: user.id,
+            type: 'run',
+            date,
+            durationSec: 45 * 60,
+            distanceM: 8000,
+            source: 'manual',
+            startUtc: `${date}T07:00:00Z`,
+          },
+        })
+      }
+    }
+    // The server was down at 03:00 on Monday; the runner generates the plan at 09:00.
+    vi.setSystemTime(at(19, 9))
+    const generated = await client(ctx, user).post('/api/plan/generate').send({ goalId: goal.id })
+    expect(generated.status, JSON.stringify(generated.body)).toBe(201)
+    vi.setSystemTime(at(19, 15))
+
+    expect(((await client(ctx, user).get('/api/jobs')).body as JobsView).weeklyUpdate.due).toBe(
+      false,
+    )
+    await runReplanJob(deps(), { now: new Date(), catchUp: true })
+    expect(vi.mocked(replanActivePlan)).not.toHaveBeenCalled()
+    expect(await jobRuns(user.id)).toEqual([])
+    const reasons = (await ctx.prisma.planRevision.findMany()).map((revision) => revision.reason)
+    expect(reasons).toEqual(['generate'])
   })
 
   test('waits for the slot: nothing is due before Monday 03:00', async () => {
@@ -555,6 +626,51 @@ describe('GET /api/jobs', () => {
     expect(((await client(ctx, user).get('/api/jobs')).body as JobsView).weeklyUpdate.due).toBe(
       false,
     )
+  })
+
+  test('answers the newest run of each job without reading the whole log, and keeps one of a tie', async () => {
+    const { user } = await planFor()
+    const base = at(20, 6).getTime()
+    const run = (provider: string, minute: number, status: string, message: string) => ({
+      userId: user.id,
+      provider,
+      channel: 'job',
+      trigger: 'schedule',
+      status,
+      message,
+      startedAt: new Date(base + minute * 60_000),
+      finishedAt: new Date(base + minute * 60_000),
+    })
+    await ctx.prisma.syncRun.createMany({
+      data: [
+        ...Array.from({ length: 40 }, (_, i) =>
+          run('weather', i + 100, 'ok', `weather ${String(i)}`),
+        ),
+        ...Array.from({ length: 40 }, (_, i) => run('sync', i, 'ok', `sync ${String(i)}`)),
+        // A run of another channel under a job's name is not a job run.
+        { ...run('sync', 90, 'ok', 'a pull'), channel: 'pull' },
+        // Two runs of one job in the same millisecond: the later row (by id) is the latest.
+        run('matching', 5, 'ok', 'first'),
+        run('matching', 5, 'error', 'second'),
+      ],
+    })
+    // Another user's runs never show.
+    await ctx.prisma.syncRun.create({
+      data: { ...run('weather', 99, 'error', 'theirs'), userId: (await planFor()).user.id },
+    })
+
+    const rows = vi.spyOn(ctx.prisma.syncRun, 'findMany')
+    const jobs = ((await client(ctx, user).get('/api/jobs')).body as JobsView).jobs
+    expect(jobs.map((job) => [job.provider, job.message])).toEqual([
+      ['weather', 'weather 39'],
+      ['sync', 'sync 39'],
+      ['matching', expect.stringMatching(/^(first|second)$/)],
+    ])
+    // Prisma answers `distinct` by reading every matching row and keeping one per job in memory, so
+    // the read must name each job's newest start time instead.
+    expect(rows).toHaveBeenCalledTimes(1)
+    expect(rows.mock.calls[0]?.[0]).not.toHaveProperty('distinct')
+    rows.mockRestore()
   })
 
   test('is not due for a user without a plan, and lists no jobs', async () => {

@@ -199,6 +199,36 @@ export const FUEL_TEMPLATES = {
   'fuel.disclaimer': tpl(
     'Fuel targets are decision support for one runner, not medical advice. A rehearsal in training does not promise how a race will go.',
   ),
+
+  // What the fuel API says when it refuses a request (design 10.4): the message of a 400 or a 409.
+  'fuel.api.advanced-locked': tpl('This opens after a run at {rate} g/h goes well.', {
+    rate: 'count',
+  }),
+  'fuel.api.score': tpl('Use a whole number from {min} to {max}.', {
+    min: 'count',
+    max: 'count',
+  }),
+  'fuel.api.product-unknown': tpl('Choose a product from your list.'),
+  'fuel.api.item-product-only': tpl(
+    'A product from your list already has its name and amounts. Leave this field out.',
+  ),
+  'fuel.api.item-needs-food': tpl('Give the name and the carbohydrate of this food.'),
+  'fuel.api.product-not-found': tpl('That product is not on your list.'),
+  'fuel.api.product-name-taken': tpl(
+    'A product called {name} is already on your list. Choose another name.',
+    { name: 'text' },
+  ),
+  'fuel.api.products-full': tpl(
+    'Your list holds up to {max} products. Archive one to add another.',
+    {
+      max: 'count',
+    },
+  ),
+  'fuel.api.product-archived': tpl('An archived product cannot be changed. Add it again instead.'),
+  'fuel.api.not-a-run': tpl('Fuel logs are for runs, and this activity is not a run.'),
+  'fuel.api.log-exists': tpl(
+    'This run already has a fuel log. Remove it before marking the run as not logged.',
+  ),
 } satisfies Record<string, Template>
 
 export type FuelTemplateId = keyof typeof FUEL_TEMPLATES
@@ -460,4 +490,57 @@ export function stepNote(step: LadderStep): string {
         ? say(T['fuel.step.fall-back-same'], { score, max, rate, target })
         : say(T['fuel.step.fall-back'], { score, max, rate, target })
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// What the fuel API says when it refuses a request
+// ---------------------------------------------------------------------------------------------
+
+/** The advanced tier opens after a run at the second tier went well (400 on `optInAdvanced`). */
+export function advancedLockedMessage(): string {
+  return say(T['fuel.api.advanced-locked'], { rate: count(P.h7.carbTier2GPerH.value) })
+}
+
+/** A gut or nausea score outside the scale. */
+export function scoreMessage(): string {
+  return say(T['fuel.api.score'], { min: count(0), max: count(P.h7.gutSymptomScaleMax.value) })
+}
+
+/** A log item names a product that is not on the runner's list. */
+export function productUnknownMessage(): string {
+  return say(T['fuel.api.product-unknown'], {})
+}
+
+/** A log item names a product and also gives amounts of its own. */
+export function itemProductOnlyMessage(): string {
+  return say(T['fuel.api.item-product-only'], {})
+}
+
+/** A log item for "something else" lacks its name or carbohydrate. */
+export function itemNeedsFoodMessage(): string {
+  return say(T['fuel.api.item-needs-food'], {})
+}
+
+export function productNotFoundMessage(): string {
+  return say(T['fuel.api.product-not-found'], {})
+}
+
+export function productNameTakenMessage(name: string): string {
+  return say(T['fuel.api.product-name-taken'], { name })
+}
+
+export function productsFullMessage(max: number): string {
+  return say(T['fuel.api.products-full'], { max: count(max) })
+}
+
+export function productArchivedMessage(): string {
+  return say(T['fuel.api.product-archived'], {})
+}
+
+export function notARunMessage(): string {
+  return say(T['fuel.api.not-a-run'], {})
+}
+
+export function logExistsMessage(): string {
+  return say(T['fuel.api.log-exists'], {})
 }

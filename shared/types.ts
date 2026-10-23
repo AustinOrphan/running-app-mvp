@@ -6,8 +6,11 @@ import type {
   ChecklistResult,
   ExecutionAssessment,
   Feasibility,
+  FuelItem,
   Grade,
   InputFact,
+  LadderResult,
+  LadderStep,
   Param,
   PlanChange,
   Prediction,
@@ -341,7 +344,11 @@ export interface PlanWeek {
   overrideNote: string | null
   /** Version-2 plans only: TID targets in percent of running time. */
   tid: { z1: number; z2: number; z3: number } | null
-  /** Version-2 plans only: recovery, taper, strength, gut-training, heat-acclimation. */
+  /**
+   * Version-2 plans only: recovery, taper, strength, gut-training, heat-acclimation, and the two a
+   * rest window sets: `disrupted` (a window touches a day of the week) and `disruption-return` (the
+   * week is held to the J7 restart fraction).
+   */
   flags: string[]
   gainTargetM: number | null
   /** Version-2 plans only: the engine's count of quality sessions for the week. */
@@ -460,7 +467,7 @@ export interface PlanWithWeeks extends Plan {
   weeks: PlanWeek[]
 }
 export type PlanSessionStatus =
-  'planned' | 'completed' | 'partial' | 'skipped' | 'downgraded' | 'moved'
+  'planned' | 'completed' | 'partial' | 'skipped' | 'downgraded' | 'moved' | 'adjusted'
 /** One prescribed day-level session; JSON columns are parsed. */
 export interface PlanSession {
   id: string
@@ -560,6 +567,8 @@ export interface UndoReason {
   weekStart?: string
   disruptionId?: string
   rules?: string[]
+  /** For `checklist`: the ids of the checks the restored plan does not pass, for tools and tests. */
+  items?: string[]
 }
 export interface UndoState {
   available: boolean
@@ -581,12 +590,79 @@ export interface PlanRevisionView extends PlanRevision {
   /** The rest window this revision created, changed or removed. */
   disruptionId: string | null
 }
+/**
+ * What `POST /api/plan/preview` takes and `computeAction` builds (design 4.2). A discriminated
+ * union on `type`: phase 3a adds the rest-window and adjust actions to it, each with its own
+ * commit route and the same preview.
+ */
+export type PlanAction = { type: 'replan' } | { type: 'undo'; revisionId: string }
+/** A guard that refuses or qualifies an action (the move, swap and shorten guards of E5). */
+export interface PlanGuardView {
+  code: string
+  message: string
+  rules: string[]
+}
+/**
+ * What an action would do, from the same code that commits it (design 4.2). A refusal is
+ * information, not an error: `blocked` says the commit would be refused and `reasons` says why.
+ * `hash` covers `{ diff, headRevisionId, today }`; a commit that sends it back (`expectHash`) is
+ * refused with `stale-preview` when any of the three has moved.
+ */
+export interface PlanPreview {
+  action: PlanAction
+  /** Empty when the action would change nothing, and when it is refused for a structural reason. */
+  diff: PlanDiff
+  summary: string
+  /** The engine's warnings for the plan the action leaves behind. */
+  warnings: EngineWarning[]
+  blocked: boolean
+  /** Guards of an adjust action; empty for re-plan and undo. */
+  guards: PlanGuardView[]
+  /** Why the commit would be refused: the structural undo reasons, or the checklist. */
+  reasons: UndoReason[]
+  hash: string
+  /** The local day the preview was built for. */
+  today: string
+}
+/** The answer to an undo: the revision it wrote and the revision it reverted, as they now stand. */
+export interface UndoResult {
+  revision: PlanRevisionView
+  target: PlanRevisionView
+}
 export interface PlanWithSessions extends PlanWithWeeks {
   sessions: PlanSession[]
   feasibility: Feasibility | null
   warnings: EngineWarning[]
   checklist: ChecklistResult[]
   zones: ZoneSet | null
+}
+/** The `details` of the 409 that `POST /api/goals/:id/activate` answers while a plan follows another goal. */
+export interface ActivateRequiresPlan {
+  requires: 'replacePlan'
+  planGoalId: string
+  planGoalName: string
+}
+/** One archived plan, for `GET /api/plan/archived`; `reason` says why it is not `restorable`. */
+export interface ArchivedPlanView {
+  id: string
+  goalId: string
+  goalName: string
+  /** Monday of the race week, YYYY-MM-DD. */
+  raceWeekStart: string
+  /** When the plan was archived: an ISO 8601 instant. */
+  archivedAt: string
+  restorable: boolean
+  reason: string | null
+}
+/**
+ * What `POST /api/plan/archived/:id/restore` answers. The plan is restored either way; `replanned`
+ * is false when the update that follows a restore was blocked, and `message` says why.
+ */
+export interface RestorePlanResult {
+  planId: string
+  goalId: string
+  replanned: boolean
+  message: string | null
 }
 /** Why a runner reports a window of rest or limited running [rule J9]. */
 export type DisruptionReason =
@@ -602,13 +678,35 @@ export type DisruptionMode = 'rest' | 'limited'
 export type DisruptionPhase =
   'upcoming' | 'resting' | 'rest-gate' | 'easy-only' | 'limited' | 'returning' | 'done'
 export type TodayAdvice = 'as-planned' | 'downgrade-easy' | 'rest'
+/**
+ * The heat read of the day's main run. Every field is null (and `hotForSteering` false) when the
+ * run has no forecast or the day stays inside the optimum band. `wbgtC` is the peak when it is a
+ * WBGT reading; `index` says which index the peak is on, `coolerValue` is that index around the
+ * cooler start.
+ */
+export interface TodayHeat {
+  wbgtC: number | null
+  note: string | null
+  coolerHour: string | null
+  /** Hour of day, 0-23, of the warmest hour inside the daylight window. */
+  peakHour: number | null
+  coolerValue: number | null
+  index: 'wbgt' | 'air-temperature' | null
+  /** The one test every surface steers by (`isHotForSteering`). */
+  hotForSteering: boolean
+}
 export interface TodayView {
+  /** The viewed day: today, or a day ahead for a preview (`coach.preview`). */
   date: string
+  /** The server's IANA zone: "today" is its calendar day, whatever the device clock says. */
+  tz: string
   sessions: Array<{ session: PlanSession; advice: TodayAdvice; reasons: string[] }>
-  heat: { wbgtC: number | null; note: string | null; coolerHour: string | null }
+  heat: TodayHeat
   checkin: Checkin | null
   readiness: ReadinessSnapshot
   unrated: Activity[]
+  /** The coach view: readiness, hero, week, race, change line, health and slots. */
+  coach: TodayCoach
 }
 // ---- Today as a coach (phase 3a, section 7) ----------------------------------------------------
 // The pure pieces are `readinessSignals`, `readinessVerdict`, `rangeLabel`, `weekStrip` and
@@ -691,9 +789,10 @@ export interface TodayRace {
   targetDate: string
   dateProvisional: boolean
   daysToRace: number
-  /** Null when the athlete's state supports no source. */
+  /** Null when the athlete's state supports no source, or the goal has no distance. */
   prediction: Pick<Prediction, 'method' | 'predictedSec' | 'lowSec' | 'highSec'> | null
-  range: RangeLabel
+  /** How wide the range has to be; null when the goal has no distance. */
+  range: RangeLabel | null
 }
 /** The newest weekly, break or review update of the last seven days, as the plan stored it. */
 export interface ChangeLine {
@@ -776,14 +875,22 @@ export interface RaceResultView {
   note: string | null
   /** Weekly predictions scored against this result; 0 for a did-not-finish. */
   scoredPredictions: number
-  /** Saving this result retyped the linked activity to a race. */
+  /** This save retyped the linked activity from a run to a race; false when it was a race already. */
   activityMarkedAsRace: boolean
 }
-/** One goal race in the track record: its result and the scored weekly predictions. */
+/**
+ * One goal race in the track record: its result and the scored weekly predictions. The stored
+ * fields of the result (`gainM`, `activityId`, `note`; the finish time is `resultSec`) are here so
+ * a sheet that edits the result starts from them without a second request.
+ */
 export interface TrackRecordRace extends RaceScore {
   goalId: string
   goalName: string
   distanceM: number
+  gainM: number | null
+  /** The activity the result is linked to, or null when it is not linked. */
+  activityId: string | null
+  note: string | null
 }
 /** GET /api/predictions/record: races newest first, and the summary across them (design 11.4). */
 export interface TrackRecordView {
@@ -850,6 +957,77 @@ export interface ForecastView {
 export interface ResearchParams {
   version: string
   params: Array<Param<unknown>>
+}
+// ---- Fuel lab (phase 3a, section 10; ADR 0011) ------------------------------------------------
+
+export type FuelProductKind = 'gel' | 'drink' | 'chew' | 'bar' | 'food' | 'electrolyte' | 'other'
+
+/** One product of the runner's own list, with the amounts in one serving. */
+export interface FuelProduct {
+  id: string
+  name: string
+  kind: FuelProductKind
+  /** What one serving is, such as "1 gel" or "500 mL bottle". */
+  servingLabel: string
+  /** Grams of carbohydrate in one serving. */
+  carbsG: number
+  sodiumMg: number | null
+  kcal: number | null
+  /** More than one transportable carbohydrate, such as glucose and fructose. */
+  multiCarb: boolean
+  /** Archived products stay readable in old logs and leave the pick list. */
+  archived: boolean
+}
+
+/** The fuel switches. A change reaches the plan at the next weekly re-plan. */
+export interface FuelSettings {
+  /** Opens the rungs from the first higher tier up to the second. */
+  optIn90: boolean
+  /** Opens the rungs above the second tier; needs `optIn90` and a tolerated run at the second tier. */
+  optInAdvanced: boolean
+  /** A diagnosed gut condition: the ladder stays at the floor and the gut-training block is removed. */
+  giDisease: boolean
+  /** The gut-training block before the taper. */
+  gutBlock: boolean
+}
+
+/** One thing eaten on a run as the log kept it when saved; a later product edit leaves it alone. */
+export interface FuelLogItem extends FuelItem {
+  /** The product it was taken from; null for "something else". */
+  productId: string | null
+}
+
+/** A fuel log as the API serves it. */
+export interface FuelLogView {
+  id: string
+  activityId: string
+  /** "Not this time": the run does not count toward the ladder. */
+  skipped: boolean
+  items: FuelLogItem[]
+  fluidMl: number | null
+  /** Sodium the runner reports taking, in milligrams, beyond what the products add up to. */
+  sodiumMg: number | null
+  /** 0 to 4; null only for a skipped log. */
+  gut: number | null
+  /** 0 to 4. */
+  nausea: number | null
+  /** The runner's own answer to "it was hot"; null means the run's weather decides on every replay. */
+  hot: boolean | null
+  notes: string | null
+  /** What the replay made of this run, derived on every read and never stored. */
+  step: LadderStep
+  /** "Counted toward your ladder." or the reason this run did not count. */
+  counts: string
+}
+
+/** The answer to a write on a fuel log: the log, the ladder replayed after it and the toast. */
+export interface FuelLogResult {
+  /** Null after a delete. */
+  log: FuelLogView | null
+  /** The replayed ladder; `steps` holds the latest few. */
+  ladder: LadderResult
+  /** What the run did to the ladder, such as "Tolerated at 60 g/h. Next long run: 70 g/h."; null after a delete. */
+  message: string | null
 }
 export interface Screening {
   id: string

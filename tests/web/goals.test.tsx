@@ -2,8 +2,15 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test, vi } from 'vitest'
 import { GoalsPage } from '../../web/pages/GoalsPage.tsx'
-import type { Goal, PlanWithSessions, PredictionView, UserSettings } from '../../shared/types.ts'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { ToastProvider } from '../../web/components/Toast.tsx'
+import type {
+  ArchivedPlanView,
+  Goal,
+  PlanWithSessions,
+  PredictionView,
+  UserSettings,
+} from '../../shared/types.ts'
+import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 
 // The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -53,6 +60,7 @@ function routes(goals: Goal[], user: UserSettings, extra: MockRoutes = {}): Mock
     'GET /api/goals': () => goals,
     'GET /api/settings': () => user,
     'GET /api/plan': () => null,
+    'GET /api/plan/archived': () => [],
     'GET /api/predictions': () => ({ prediction: null, log: [] }),
     ...extra,
   }
@@ -497,5 +505,320 @@ describe('Goals page', () => {
     const card = await screen.findByRole('article', { name: 'Spring half' })
     expect(await within(card).findByText(/No prediction yet/)).toBeInTheDocument()
     expect(within(card).queryByText('Tight')).not.toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Make active while a plan follows another goal, and restoring an archived plan (design 5.7)
+// ---------------------------------------------------------------------------------------------
+
+function archivedPlan(over: Partial<ArchivedPlanView> = {}): ArchivedPlanView {
+  return {
+    id: 'p2',
+    goalId: 'g2',
+    goalName: 'Autumn 10K',
+    raceWeekStart: '2026-12-28',
+    archivedAt: '2026-10-22T12:00:00.000Z',
+    restorable: true,
+    reason: null,
+    ...over,
+  }
+}
+
+const mustReplace = {
+  status: 409,
+  body: {
+    error: {
+      code: 'conflict',
+      message: 'The plan follows Spring half. Making Autumn 10K active builds a new plan for it.',
+      details: { requires: 'replacePlan', planGoalId: 'g1', planGoalName: 'Spring half' },
+    },
+  },
+}
+
+function renderWithToasts() {
+  return renderWithProviders(
+    <ToastProvider>
+      <GoalsPage />
+    </ToastProvider>,
+  )
+}
+
+/** The question that "Make active" opens, found by its text. */
+const confirmText = () =>
+  screen.findByText(/^The plan follows Spring half\. Making Autumn 10K active builds a new plan/)
+
+describe('Make active while a plan follows another goal', () => {
+  function twoGoals(extra: MockRoutes = {}, nextName = 'Autumn 10K') {
+    let goals = [
+      makeGoal({ id: 'g1', name: 'Spring half', isActive: true }),
+      makeGoal({ id: 'g2', name: nextName, priority: 'B', distanceM: 10_000 }),
+    ]
+    const mock = mockApi(
+      routes([], miUser, {
+        'GET /api/goals': () => goals,
+        'GET /api/plan': () => makePlan({ goalId: 'g1' }),
+        'POST /api/goals/g2/activate': ({ body }) => {
+          if ((body as { replacePlan?: boolean } | undefined)?.replacePlan !== true) {
+            return mustReplace
+          }
+          goals = goals.map((g) => ({ ...g, isActive: g.id === 'g2' }))
+          return goals[1]
+        },
+        ...extra,
+      }),
+    )
+    return mock
+  }
+
+  test('opens a question with focus on its text; Cancel and Escape close it and return focus', async () => {
+    const user = userEvent.setup()
+    const { calls } = twoGoals()
+    renderWithToasts()
+
+    await user.click(await screen.findByRole('button', { name: 'Make active' }))
+    const text = await confirmText()
+    expect(text).toHaveTextContent(
+      'The plan follows Spring half. Making Autumn 10K active builds a new plan for it. The current plan is archived, not deleted, and targets you set by hand do not carry over.',
+    )
+    expect(text).toHaveFocus()
+    // The group is named by the text, and the 409 that opened it is not shown as an error.
+    expect(
+      screen.getByRole('group', { name: /^The plan follows Spring half\./ }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Make active' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Build plan for Autumn 10K' })).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByText(/The plan follows Spring half/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Make active' })).toHaveFocus()
+
+    await user.click(screen.getByRole('button', { name: 'Make active' }))
+    expect(await confirmText()).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByText(/The plan follows Spring half/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Make active' })).toHaveFocus()
+
+    // Closing the question built nothing.
+    const posts = calls.filter((c) => c.method === 'POST')
+    expect(posts.map((c) => c.body)).toEqual([undefined, undefined])
+  })
+
+  test('Build plan asks again with replacePlan, then says so and moves focus to the goal', async () => {
+    const user = userEvent.setup()
+    const { calls } = twoGoals()
+    renderWithToasts()
+
+    await user.click(await screen.findByRole('button', { name: 'Make active' }))
+    await confirmText()
+    await user.click(screen.getByRole('button', { name: 'Build plan for Autumn 10K' }))
+
+    expect(await screen.findByText('Plan built for Autumn 10K.')).toBeInTheDocument()
+    expect(screen.queryByText(/The plan follows Spring half/)).not.toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'POST').map((c) => c.body)).toEqual([
+      undefined,
+      { replacePlan: true },
+    ])
+    const card = await screen.findByRole('article', { name: 'Autumn 10K' })
+    await waitFor(() => {
+      expect(within(card).getByText('Active goal')).toBeInTheDocument()
+    })
+    expect(within(card).getByRole('heading', { name: 'Autumn 10K' })).toHaveFocus()
+    expect(screen.getAllByText('Active goal')).toHaveLength(1)
+  })
+
+  test('a plan that cannot be built keeps the question open with the server s words', async () => {
+    const user = userEvent.setup()
+    twoGoals({
+      'POST /api/goals/g2/activate': ({ body }) =>
+        (body as { replacePlan?: boolean } | undefined)?.replacePlan === true
+          ? {
+              status: 400,
+              body: {
+                error: { code: 'validation', message: 'Add a distance to this goal first.' },
+              },
+            }
+          : mustReplace,
+    })
+    renderWithToasts()
+
+    await user.click(await screen.findByRole('button', { name: 'Make active' }))
+    await confirmText()
+    await user.click(screen.getByRole('button', { name: 'Build plan for Autumn 10K' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Add a distance to this goal first.')
+    expect(screen.getByText(/The plan follows Spring half/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+    expect(screen.queryByText('Plan built for Autumn 10K.')).not.toBeInTheDocument()
+    // Cancelling clears the message.
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  test('a goal with no plan to move is made active at once, with no question', async () => {
+    const user = userEvent.setup()
+    let goals = [makeGoal({ id: 'g2', name: 'Autumn 10K' })]
+    const { calls } = mockApi(
+      routes([], miUser, {
+        'GET /api/goals': () => goals,
+        'POST /api/goals/g2/activate': () => {
+          goals = goals.map((g) => ({ ...g, isActive: true }))
+          return goals[0]
+        },
+      }),
+    )
+    renderWithToasts()
+
+    await user.click(await screen.findByRole('button', { name: 'Make active' }))
+    expect(await screen.findByText('Active goal')).toBeInTheDocument()
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1)
+  })
+
+  test('the question and its buttons read cleanly', async () => {
+    const user = userEvent.setup()
+    twoGoals()
+    const { container } = renderWithToasts()
+    await user.click(await screen.findByRole('button', { name: 'Make active' }))
+    await confirmText()
+    expectCleanCopy(container)
+  })
+
+  test('a goal name of the longest length reaches the question and the build button whole, and reads cleanly', async () => {
+    const user = userEvent.setup()
+    // 200 characters is the longest name the server takes; the last word has no break in it.
+    const stem = 'Autumn 10K around the reservoir and back along the river path '
+    const nextName =
+      stem + 'Supercalifragilisticexpialidocious'.repeat(5).slice(0, 200 - stem.length)
+    expect(nextName).toHaveLength(200)
+    twoGoals({}, nextName)
+    const { container } = renderWithToasts()
+
+    await user.click(await screen.findByRole('button', { name: 'Make active' }))
+    const question = await screen.findByRole('group', { name: /^The plan follows Spring half\./ })
+    expect(question).toHaveTextContent(`Making ${nextName} active builds a new plan`)
+    expect(
+      within(question).getByRole('button', { name: `Build plan for ${nextName}` }),
+    ).toBeEnabled()
+    expect(within(question).getByRole('button', { name: 'Cancel' })).toBeEnabled()
+    expectCleanCopy(container)
+  })
+})
+
+describe('Restore this plan', () => {
+  function withArchive(archived: ArchivedPlanView[], extra: MockRoutes = {}) {
+    const goals = [
+      makeGoal({ id: 'g1', name: 'Spring half', isActive: false }),
+      makeGoal({ id: 'g2', name: 'Autumn 10K', isActive: true, priority: 'B' }),
+    ]
+    return mockApi(
+      routes([], miUser, {
+        'GET /api/goals': () => goals,
+        'GET /api/plan': () => makePlan({ id: 'p2', goalId: 'g2' }),
+        'GET /api/plan/archived': () => archived,
+        ...extra,
+      }),
+    )
+  }
+
+  test('notes the archive under the goal it belongs to, in the runner s words', async () => {
+    withArchive([archivedPlan({ id: 'p1', goalId: 'g1', goalName: 'Spring half' })])
+    const { container } = renderWithToasts()
+
+    const card = await screen.findByRole('article', { name: 'Spring half' })
+    expect(
+      await within(card).findByText('The plan for Spring half was archived on 22 Oct.'),
+    ).toBeInTheDocument()
+    expect(
+      within(card).getByRole('button', { name: 'Restore this plan' }),
+    ).toHaveAccessibleDescription('The plan for Spring half was archived on 22 Oct.')
+    // The goal that has the plan now offers nothing to restore.
+    const active = screen.getByRole('article', { name: 'Autumn 10K' })
+    expect(within(active).queryByRole('button', { name: 'Restore this plan' })).toBeNull()
+    expectCleanCopy(container)
+  })
+
+  test('offers nothing for a plan that cannot come back, or for a goal that has the plan', async () => {
+    withArchive([
+      archivedPlan({
+        id: 'p1',
+        goalId: 'g1',
+        restorable: false,
+        reason: 'The race date has passed.',
+      }),
+      archivedPlan({ id: 'p3', goalId: 'g2' }),
+    ])
+    renderWithToasts()
+    await screen.findByRole('article', { name: 'Spring half' })
+    await waitFor(() => {
+      expect(screen.getByRole('article', { name: 'Autumn 10K' })).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('button', { name: 'Restore this plan' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/was archived on/)).not.toBeInTheDocument()
+  })
+
+  test('restores the plan and says so', async () => {
+    const user = userEvent.setup()
+    const { calls } = withArchive(
+      [archivedPlan({ id: 'p1', goalId: 'g1', goalName: 'Spring half' })],
+      {
+        'POST /api/plan/archived/p1/restore': () => ({
+          planId: 'p1',
+          goalId: 'g1',
+          replanned: true,
+          message: null,
+        }),
+      },
+    )
+    renderWithToasts()
+
+    await user.click(await screen.findByRole('button', { name: 'Restore this plan' }))
+    expect(await screen.findByText('Plan restored.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Spring half' })).toHaveFocus()
+    expect(calls.filter((c) => c.method === 'POST').map((c) => c.url)).toEqual([
+      '/api/plan/archived/p1/restore',
+    ])
+  })
+
+  test('says when the restored plan could not be brought up to date', async () => {
+    const user = userEvent.setup()
+    withArchive([archivedPlan({ id: 'p1', goalId: 'g1', goalName: 'Spring half' })], {
+      'POST /api/plan/archived/p1/restore': () => ({
+        planId: 'p1',
+        goalId: 'g1',
+        replanned: false,
+        message: 'The plan did not pass the quality checklist (G-1), so it was not published.',
+      }),
+    })
+    renderWithToasts()
+
+    await user.click(await screen.findByRole('button', { name: 'Restore this plan' }))
+    expect(
+      await screen.findByText(
+        'Plan restored as it was archived. Bringing it up to date did not pass the plan checks.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  test('shows the server s refusal when the plan can no longer come back', async () => {
+    const user = userEvent.setup()
+    withArchive([archivedPlan({ id: 'p1', goalId: 'g1', goalName: 'Spring half' })], {
+      'POST /api/plan/archived/p1/restore': () => ({
+        status: 409,
+        body: {
+          error: {
+            code: 'conflict',
+            message: 'The race date has passed, so this plan cannot be restored.',
+          },
+        },
+      }),
+    })
+    renderWithToasts()
+
+    await user.click(await screen.findByRole('button', { name: 'Restore this plan' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The race date has passed, so this plan cannot be restored.',
+    )
   })
 })

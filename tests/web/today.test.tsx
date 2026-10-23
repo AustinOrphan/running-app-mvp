@@ -6,7 +6,7 @@ import { ToastProvider } from '../../web/components/Toast.tsx'
 import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
 import { makeActivity } from '../factories.ts'
 import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
-import { makeSession, makeToday, TODAY } from './today-fixtures.ts'
+import { makeHeat, makeSession, makeToday, TODAY } from './today-fixtures.ts'
 
 // Stands in for the real drawer (Task E14) so the wiring is visible: which rules it was opened with.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -136,7 +136,11 @@ describe('Today: heat, readiness and red flags', () => {
     const user = userEvent.setup()
     renderToday(
       makeToday({
-        heat: { wbgtC: 24.6, note: 'Run by effort and keep drinking.', coolerHour: '06:00' },
+        heat: makeHeat({
+          wbgtC: 24.6,
+          note: 'Run by effort and keep drinking.',
+          coolerHour: '06:00',
+        }),
       }),
     )
     const heat = await screen.findByRole('region', { name: 'Heat' })

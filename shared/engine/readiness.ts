@@ -18,7 +18,7 @@ import type {
   ReadinessVerdict,
   TodayView,
 } from '../types.ts'
-import { illnessGate, type IllnessGate } from './disruption.ts'
+import { illnessDays, illnessGate, type IllnessGate } from './disruption.ts'
 import { P } from './params/index.ts'
 import type {
   Checkin,
@@ -79,7 +79,7 @@ function median(values: number[]): number {
 }
 
 /** The check-in recorded on a date, or null when the day has none of the check-in fields. */
-export function checkinOn(input: EngineInput, date: string): Checkin | null {
+export function checkinOn(input: Pick<EngineInput, 'wellness'>, date: string): Checkin | null {
   const row = input.wellness.find((w) => w.date === date)
   return row ? checkinOfRow(row) : null
 }
@@ -335,14 +335,14 @@ function declineStreakDays(ctx: Ctx, date: string): number {
 export type { IllnessPhase } from './disruption.ts'
 
 /**
- * Return-from-illness gate [rules n-3] from the check-ins: rest through the symptom-free day, easy
- * running for the next easy days, intensity after. A day without an illness report counts as
- * symptom-free; illness is never inferred from HRV or resting HR. The gate itself is
- * `illnessGate`, the only implementation of n-3, which rest windows share.
+ * Return-from-illness gate [rules n-3] from the check-ins and the illness windows: rest through
+ * the symptom-free day, easy running for the next easy days, intensity after. A day without an
+ * illness report counts as symptom-free; illness is never inferred from HRV or resting HR. The
+ * gate itself is `illnessGate`, the only implementation of n-3, and `illnessDays` is the one list
+ * of illness days (check-ins and windows) it reads.
  */
 export function illnessPhase(input: EngineInput, date: string): IllnessGate {
-  const illnessDays = input.wellness.filter((row) => row.illness === true).map((row) => row.date)
-  return illnessGate(illnessDays, date)
+  return illnessGate(illnessDays(input), date)
 }
 
 /**

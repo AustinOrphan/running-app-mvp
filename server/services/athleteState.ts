@@ -5,6 +5,7 @@
 // and midnight, all make the next read build a fresh picture. Nothing here raises the data version.
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
+import { fitHrModel, type HrModel } from '../../shared/engine/execution.ts'
 import { goalModel } from '../../shared/engine/goal.ts'
 import { isDuplicate } from '../../shared/engine/load.ts'
 import { P, PARAMS_VERSION } from '../../shared/engine/params/index.ts'
@@ -97,6 +98,13 @@ export interface AthleteContext {
   readonly goal: Goal | null
   /** The active version-2 plan, without its weeks and sessions. */
   readonly plan: Plan | null
+  /**
+   * The active plan's sessions as the API serves them (identity, execution and the original
+   * prescription included), by date then order. Empty without a version-2 plan. `existing()` holds
+   * the same rows in the engine's shape (with the `externalId` the workout builder needs): the
+   * surfaces that serve rows read this, the engine and the workout files read that.
+   */
+  readonly planSessions: PlanSession[]
   /** The state the engine estimates from the data above (it does not depend on a goal). */
   readonly state: AthleteState
   readonly zones: ZoneSet
@@ -173,6 +181,7 @@ export function existingFrom(
   const sessions = sessionRows.map((s) => ({
     ...sessionSpec(s),
     id: s.id,
+    externalId: s.externalId,
     status: s.status,
     activityId: s.activityId,
     linkSource: s.linkSource,
@@ -448,10 +457,9 @@ async function buildContext(
   const reviews = reviewRows.map(toWeeklyReview)
   const screeningFlags = screening?.flags ?? 0
   const zoneChanges = zoneChangesOf(revisions)
+  const planSessions = planRow ? planRow.sessions.map(toPlanSession) : []
   const existing = deepFreeze(
-    planRow
-      ? existingFrom(planRow.weeks.map(toPlanWeek), planRow.sessions.map(toPlanSession))
-      : null,
+    planRow ? existingFrom(planRow.weeks.map(toPlanWeek), planSessions) : null,
   )
 
   const base: EngineInput = {
@@ -508,6 +516,7 @@ async function buildContext(
     goals,
     goal,
     plan: planRow ? toPlan(planRow) : null,
+    planSessions,
     state,
     zones,
     readiness,
@@ -594,6 +603,18 @@ export async function memoByVersion<T>(
     async () => deepFreeze(await compute()),
   )
   return value as T
+}
+
+/**
+ * The runner's heart-rate-at-pace model for a snapshot (null with too few steady flat runs), fitted
+ * once per data version and shared by every reader: Explain and the run insights.
+ */
+export function hrModelOf(deps: SnapshotDeps, context: AthleteContext): Promise<HrModel | null> {
+  return memoByVersion(
+    deps,
+    { userId: context.userId, today: context.asOf, name: 'hr-model' },
+    () => fitHrModel(context.activities, context.asOf),
+  )
 }
 
 /** The body of `GET /api/state` for a snapshot. */

@@ -565,6 +565,43 @@ describe('prediction and the stored plan', () => {
     expect(ctx.existing()).toBe(existing)
   })
 
+  test('planSessions are the stored sessions as the API serves them, by date then order, frozen', async () => {
+    const user = await seedUser()
+    const goal = await prisma.goal.create({ data: goalRow(user.id) })
+    const plan = await prisma.plan.create({ data: planRow(user.id, goal.id) })
+    const session = (date: string, order: number, kind: string) => ({
+      planId: plan.id,
+      externalId: `ext-${date}-${String(order)}`,
+      weekStart: '2026-10-19',
+      date,
+      order,
+      kind,
+      title: kind,
+      durationMin: 40,
+      structure: '[]',
+      target: '{"zone":"z1","rpe":[2,3],"hr":null,"paceSecPerKm":null,"heatNote":null}',
+      purpose: 'Synthetic.',
+    })
+    await prisma.planSession.createMany({
+      data: [
+        session('2026-10-22', 0, 'long'),
+        session('2026-10-21', 1, 'strength'),
+        session('2026-10-21', 0, 'easy'),
+      ],
+    })
+    const ctx = await load(user.id)
+    expect(ctx.planSessions.map((s) => [s.date, s.order, s.externalId])).toEqual([
+      ['2026-10-21', 0, 'ext-2026-10-21-0'],
+      ['2026-10-21', 1, 'ext-2026-10-21-1'],
+      ['2026-10-22', 0, 'ext-2026-10-22-0'],
+    ])
+    expect(Object.isFrozen(ctx.planSessions)).toBe(true)
+    expect(Object.isFrozen(ctx.planSessions[0])).toBe(true)
+
+    const bare = await seedUser('bare@example.com')
+    expect((await load(bare.id)).planSessions).toEqual([])
+  })
+
   test('a version-1 plan is not the stored plan the engine keeps', async () => {
     const user = await seedUser()
     const goal = await prisma.goal.create({ data: goalRow(user.id) })

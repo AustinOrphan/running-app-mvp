@@ -3,11 +3,21 @@
 // differentiation, the session spike guard, availability, spacing, ultra caps and race day.
 // It re-reads the finished plan; it never repairs one. A failed item blocks publishing with its
 // detail, so each detail names the week or date at fault.
+import { windowCheckLine } from '../copy/revision.ts'
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
 import { breakRestart } from './adapt.ts'
 import { estimateState } from './athlete.ts'
 import {
+  dayRuleOn,
+  disruptionPlan,
+  disruptionWeekCap,
+  holdReference,
+  isDisruptedWeek,
+  returnWeeks,
+} from './disruption.ts'
+import {
+  injuryTight,
   noviceRamp,
   rampLimits,
   rampSkipWeeks,
@@ -100,9 +110,18 @@ function toRun(draft: PlanDraft, input: EngineInput): SessionSpec[] {
   return draft.sessions.filter((s) => s.date >= input.today && !finished.has(slotKey(s)))
 }
 
+/** A run a rest window skipped was not run: the week does not count it [rule J9]. */
+const ranOrPlanned = (s: SessionSpec) => !s.flags.includes('rest-window')
+
 function weekMinutes(sessions: SessionSpec[], weekStart: string, from: string): number {
   return sessions
-    .filter((s) => mondayOf(s.date) === weekStart && s.date >= from && VOLUME_KINDS.has(s.kind))
+    .filter(
+      (s) =>
+        mondayOf(s.date) === weekStart &&
+        s.date >= from &&
+        VOLUME_KINDS.has(s.kind) &&
+        ranOrPlanned(s),
+    )
     .reduce((sum, s) => sum + s.durationMin, 0)
 }
 
@@ -142,7 +161,7 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
       floorWeek === undefined
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
-    exempt: startExemptions(draft.weeks),
+    exempt: startExemptions(draft.weeks, returnWeeks(disruptionPlan(input.disruptions ?? []))),
     typicalWeekMin: state.typicalWeekMin,
     novice: noviceRamp(state),
     tight: tightRamp(state),
@@ -213,7 +232,15 @@ function recoveryCadence(
       first = true
     }
     const limit = switched && week.weekStart < currentMonday ? usual : cycle
-    if (week.isTaper || week.phase === 'taper' || week.phase === 'race' || isRecoveryOnly(week)) {
+    // a taper, race or post-race week, and a week a rest window touched, neither counts as a
+    // loading week nor is held to the cut [rules E3, J9]
+    if (
+      week.isTaper ||
+      week.phase === 'taper' ||
+      week.phase === 'race' ||
+      isRecoveryOnly(week) ||
+      isDisruptedWeek(week.flags)
+    ) {
       run = 0
       lastLoad = null
       continue
@@ -266,7 +293,7 @@ function tid(draft: PlanDraft): ChecklistResult {
     else if (z1 < P.e4.z1Floor.value) failures.push(`week of ${week.weekStart}: Z1 is ${z1}%`)
     else if (z2 > z1) failures.push(`week of ${week.weekStart}: Z2 is above Z1`)
     const sessions = draft.sessions.filter(
-      (s) => mondayOf(s.date) === week.weekStart && VOLUME_KINDS.has(s.kind),
+      (s) => mondayOf(s.date) === week.weekStart && VOLUME_KINDS.has(s.kind) && ranOrPlanned(s),
     )
     const total = sessions.reduce((sum, s) => sum + s.durationMin, 0)
     const hard = sessions.reduce((sum, s) => sum + intensityMinutes(s), 0)
@@ -376,6 +403,8 @@ function levelDifferentiation(
   const fixed = new Set(fixedWeeks.map((w) => w.weekStart))
   for (const week of sortedWeeks(draft)) {
     if (!novice && !fixed.has(week.weekStart)) continue
+    // the days a rest window holds change the run days of the week [rule J9]
+    if (isDisruptedWeek(week.flags)) continue
     const days = [
       ...new Set(
         draft.sessions
@@ -452,6 +481,7 @@ function ladderSteps(draft: PlanDraft, input: EngineInput): ChecklistResult {
   for (const week of weeks) {
     // a part week (its Monday has passed) may have no day left to run on
     if (!isStartPathWeek(week) || week.targetRunMin <= 0 || week.weekStart < input.today) continue
+    if (isDisruptedWeek(week.flags)) continue
     const runs = draft.sessions.filter(
       (s) => mondayOf(s.date) === week.weekStart && VOLUME_KINDS.has(s.kind) && s.durationMin > 0,
     )
@@ -513,7 +543,7 @@ function spikeGuard(draft: PlanDraft, state: AthleteState): ChecklistResult {
   const rules = ['g-1', 'g-3']
   const over = draft.sessions.filter((s) => s.flags.includes('override-required'))
   const failures = over.map((s) => `${s.date} ${s.kind} needs an explicit override`)
-  if (state.risk.recentInjury) {
+  if (injuryTight(state)) {
     for (const s of draft.sessions) {
       if (s.flags.includes('spike-warn'))
         failures.push(`${s.date} ${s.kind} is above the hard limit`)
@@ -779,9 +809,94 @@ function bonePainHoldItem(draft: PlanDraft, input: EngineInput): ChecklistResult
   )
 }
 
+/** Statuses of a session the runner edited: the item checks what the engine placed, not these. */
+const RUNNER_EDITED: ReadonlySet<string> = new Set(['moved', 'skipped', 'adjusted', 'downgraded'])
+
+/**
+ * J9, J7, G-6: the rest windows hold. No run, hike or strength session falls on a held day and each
+ * held day from today carries a session (the rest session, or the race), no run is above the cap of
+ * its day, no quality session sits on a day a window keeps easy, and a week held to the restart
+ * fraction stays within it. Present only when windows exist. A session the runner moved, shortened
+ * or eased is theirs and is not checked.
+ */
+function disruptionWindowItem(
+  draft: PlanDraft,
+  input: EngineInput,
+  state: AthleteState,
+): ChecklistResult | null {
+  const plan = disruptionPlan(input.disruptions ?? [])
+  if (plan.days.length === 0) return null
+  const rules = ['J9', 'J7', 'g-6']
+  const failures: string[] = []
+  const edited = new Set(
+    (input.existing?.sessions ?? [])
+      .filter((s) => s.date >= input.today && RUNNER_EDITED.has(s.status))
+      .map(slotKey),
+  )
+  const ahead = toRun(draft, input)
+  for (const s of ahead) {
+    const rule = dayRuleOn(plan, s.date)
+    if (rule === null || s.kind === 'race' || edited.has(slotKey(s))) continue
+    if (rule.held) {
+      if (RUN_KINDS.has(s.kind) || s.kind === 'strength') {
+        failures.push(`${s.date} ${s.kind} falls on a day a rest window holds`)
+      }
+    } else if (VOLUME_KINDS.has(s.kind)) {
+      if (rule.maxRunMin !== null && s.durationMin > rule.maxRunMin + EPS) {
+        failures.push(
+          `${s.date} ${s.kind} runs ${s.durationMin} min on a ${rule.maxRunMin} min day`,
+        )
+      } else if (!rule.quality && NO_QUALITY_KINDS.has(s.kind)) {
+        failures.push(`${s.date} ${s.kind} is hard work on a day windows keep easy`)
+      }
+    }
+  }
+  for (const rule of plan.days) {
+    if (!rule.held || rule.date < input.today || rule.date >= input.goal.date) continue
+    if (!draft.sessions.some((s) => s.date === rule.date)) {
+      failures.push(`${rule.date} is a day a rest window holds and carries no rest session`)
+    }
+  }
+  // the weeks held to the restart fraction, against the reference week of the hold
+  const volume = new Map<string, number>()
+  for (const row of state.weeks) volume.set(row.weekStart, row.runMin)
+  const currentMonday = mondayOf(input.today)
+  const starts = [...new Set(draft.sessions.map((s) => mondayOf(s.date)))].sort()
+  const huge = Number.MAX_SAFE_INTEGER
+  for (const weekStart of starts) {
+    if (weekStart < currentMonday) continue
+    const done = weekStart === currentMonday ? (volume.get(weekStart) ?? 0) : 0
+    const total = done + weekMinutes(ahead, weekStart, input.today)
+    volume.set(weekStart, total)
+    const returning = plan.holds.filter(
+      (h) => h.fraction < 1 && (h.returnWeekStart === weekStart || h.fullWeekStart === weekStart),
+    )
+    // a start-path week is set by its programme, not by the share of the week before [rules J7, E6]
+    const week = draft.weeks.find((w) => w.weekStart === weekStart)
+    const programme =
+      week !== undefined && (isStartPathWeek(week) || week.flags.includes('restart-floor'))
+    if (returning.length === 0 || programme) continue
+    const reference = Math.min(...returning.map((h) => holdReference(h, (ws) => volume.get(ws))))
+    if (!(reference > 0)) continue
+    const cap = disruptionWeekCap(plan, weekStart, { referenceMin: reference, baselineMin: huge })
+    if (cap?.capMin != null && total > cap.capMin + 1) {
+      failures.push(
+        `week of ${weekStart}: ${Math.round(total)} min is above ${cap.capMin} min, the share of the week before the break that a return allows`,
+      )
+    }
+  }
+  return result(
+    'disruption-window',
+    failures.length === 0,
+    failures.length === 0 ? windowCheckLine(plan.days.length) : failures.join('; '),
+    rules,
+  )
+}
+
 /** The plan quality checklist run before publishing [rules G1]. */
 export function runChecklist(draft: PlanDraft, input: EngineInput): ChecklistResult[] {
   const state = estimateState(input)
+  const windows = disruptionWindowItem(draft, input, state)
   return [
     progression(draft, input, state),
     recoveryCadence(draft, state, input),
@@ -798,5 +913,6 @@ export function runChecklist(draft: PlanDraft, input: EngineInput): ChecklistRes
     postRaceWindowItem(draft, input),
     redsHoldItem(draft, input, state),
     bonePainHoldItem(draft, input),
+    ...(windows === null ? [] : [windows]),
   ]
 }

@@ -5,14 +5,16 @@ import type { PlanWeek } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound, parse, validationError } from '../errors.ts'
 import { toPlanWeek } from '../serialize.ts'
+import { commitReplan, commitUndo, previewAction } from '../services/planActions.ts'
 import {
   generateEnginePlan,
   linkPlanSession,
   loadPlanWithSessions,
-  replanActivePlan,
   updatePlanSession,
 } from '../services/planEngine.ts'
-import { listRevisions } from '../services/replan.ts'
+import { listArchivedPlans, restoreArchivedPlan } from '../services/planSwitch.ts'
+import { listRevisions, markRevisionSeen } from '../services/revisions.ts'
+import { sessionWorkoutFile, weekWorkoutZip } from '../services/workouts.ts'
 
 /** A week's baseline can be at most a full week of minutes. */
 const MAX_WEEK_MIN = 7 * 24 * 60
@@ -62,12 +64,35 @@ const sessionPatch = z
 
 const linkBody = z.strictObject({ activityId: z.string().min(1).nullable() })
 
+const sessionParams = z.strictObject({ id: z.string().min(1).max(64) })
+
+/** A Monday as YYYY-MM-DD, the start of a plan week (ADR 0003). */
+const weekStartParams = z.strictObject({
+  weekStart: z
+    .string()
+    .refine(
+      (value) => isIsoDate(value) && mondayOf(value) === value,
+      'Use the Monday of the week as YYYY-MM-DD.',
+    ),
+})
+
 /** A page of the revision log; revisions with an empty diff are hidden unless asked for. */
 const revisionsQuery = z.strictObject({
   limit: z.coerce.number().int().min(1).max(200).default(50),
   before: z.string().min(1).max(64).optional(),
   include: z.literal('empty').optional(),
 })
+
+/** The hash of a preview, sent back with its commit so that a plan that has moved is refused. */
+const expectHash = z.string().length(64).optional()
+const replanBody = z.strictObject({ expectHash })
+const undoBody = z.strictObject({ expectHash })
+
+/** What a preview can be asked of; the rest-window and adjust actions join it in E5. */
+const previewBody = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('replan') }),
+  z.strictObject({ type: z.literal('undo'), revisionId: z.string().min(1).max(64) }),
+])
 
 const weekBody = z
   .object({
@@ -117,9 +142,34 @@ export function planRouter(deps: Deps): Router {
   })
 
   router.post('/replan', async (req, res) => {
+    const body = parse(replanBody, req.body ?? {})
     res.json(
-      await replanActivePlan(deps, { userId: req.userId, reason: 'owner', today: todayIso() }),
+      await commitReplan(deps, {
+        userId: req.userId,
+        today: todayIso(),
+        expectHash: body.expectHash,
+      }),
     )
+  })
+
+  router.get('/archived', async (req, res) => {
+    res.json(await listArchivedPlans(deps, { userId: req.userId, today: todayIso() }))
+  })
+
+  router.post('/archived/:id/restore', async (req, res) => {
+    res.json(
+      await restoreArchivedPlan(deps, {
+        userId: req.userId,
+        planId: req.params.id,
+        today: todayIso(),
+      }),
+    )
+  })
+
+  // What an action would do, from the code that commits it. A refusal is information (200).
+  router.post('/preview', async (req, res) => {
+    const action = parse(previewBody, req.body)
+    res.json(await previewAction(deps, { userId: req.userId, action, today: todayIso() }))
   })
 
   router.get('/revisions', async (req, res) => {
@@ -132,6 +182,23 @@ export function planRouter(deps: Deps): Router {
         includeEmpty: query.include === 'empty',
       }),
     )
+  })
+
+  router.post('/revisions/:id/undo', async (req, res) => {
+    const body = parse(undoBody, req.body ?? {})
+    res.json(
+      await commitUndo(deps, {
+        userId: req.userId,
+        revisionId: req.params.id,
+        today: todayIso(),
+        expectHash: body.expectHash,
+      }),
+    )
+  })
+
+  router.post('/revisions/:id/seen', async (req, res) => {
+    await markRevisionSeen(deps, { userId: req.userId, revisionId: req.params.id })
+    res.status(204).end()
   })
 
   router.put('/sessions/:id', async (req, res) => {
@@ -151,6 +218,40 @@ export function planRouter(deps: Deps): Router {
     res.json(
       await linkPlanSession(deps, { userId: req.userId, sessionId: req.params.id, activityId }),
     )
+  })
+
+  // The FIT workout file of one session, as it would go to the watch today. The two download
+  // routes are never cached: the file holds today's version of the session.
+  router.get('/sessions/:id/workout.fit', async (req, res) => {
+    const { id } = parse(sessionParams, req.params)
+    res.set('Cache-Control', 'no-store')
+    const file = await sessionWorkoutFile(deps, {
+      userId: req.userId,
+      sessionId: id,
+      today: todayIso(),
+      now: new Date(),
+    })
+    res
+      .status(200)
+      .type('application/octet-stream')
+      .set('Content-Disposition', `attachment; filename="${file.fileName}"`)
+      .send(Buffer.from(file.bytes))
+  })
+
+  router.get('/weeks/:weekStart/workouts.zip', async (req, res) => {
+    const { weekStart } = parse(weekStartParams, req.params)
+    res.set('Cache-Control', 'no-store')
+    const file = await weekWorkoutZip(deps, {
+      userId: req.userId,
+      weekStart,
+      today: todayIso(),
+      now: new Date(),
+    })
+    res
+      .status(200)
+      .type('application/zip')
+      .set('Content-Disposition', `attachment; filename="${file.fileName}"`)
+      .send(Buffer.from(file.bytes))
   })
 
   router.put('/weeks/:weekStart', async (req, res) => {

@@ -28,6 +28,11 @@ export const STATE_MODELS = [
   'PlanSession',
   'PlanRevision',
   'RaceResult',
+  // The fuel ladder is replayed from the logs under the settings (ADR 0011) and its target reaches
+  // the watch line and Today, so a write to any of the three must drop a memo (design 10.3).
+  'FuelProduct',
+  'FuelLog',
+  'FuelSettings',
   // The snapshot's prediction reads the race climate, so a refresh must drop a memoised prediction.
   'ClimateCache',
 ] as const
@@ -52,6 +57,11 @@ export const NON_STATE_MODELS = [
   // Written on a read path (a stale or empty forecast is refreshed there) and read by no snapshot
   // or memo; a deliverable that depends on it composes `forecastStamp` into its change key.
   'ForecastCache',
+  // What stood out on a run. Derived from state, written on a read path (the first read of a run
+  // computes it) and by the pipeline after a store, and read by no snapshot, memo or deliverable:
+  // Explain reads it straight from the table. As state, each lazy write would drop the snapshot it
+  // was computed from. `server/services/insight.ts` is its only writer.
+  'ActivityInsight',
 ] as const
 
 const STATE_SET: ReadonlySet<string> = new Set(STATE_MODELS)

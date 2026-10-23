@@ -2,10 +2,12 @@
 // target each, and a plain-text outline whose numbers are the numbers of the steps. Pure and
 // deterministic. Targets are never derived here: `resolveTargets` (design 4.6) supplies the
 // ceiling, band and pace, and this module only chooses which step carries which.
-import { formatQuantity, quantityParts } from '../copy/quantity.ts'
+import { formatQuantity, formatRange } from '../copy/quantity.ts'
+import { render } from '../copy/template.ts'
+import { WORKOUT_TEMPLATES } from '../copy/workouts.ts'
 import { P } from '../engine/params/index.ts'
 import { isLadderSession } from '../engine/startWeeks.ts'
-import type { Quantity, ResolvedTargets, SessionKind, SessionSpec, Step } from '../engine/types.ts'
+import type { ResolvedTargets, SessionKind, SessionSpec, Step } from '../engine/types.ts'
 import type { Units } from '../types.ts'
 import { publicTitle, publishable } from './labels.ts'
 import type { StepTarget, WorkoutNode, WorkoutOptions, WorkoutPlan, WorkoutStep } from './types.ts'
@@ -21,39 +23,49 @@ const WORK_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'hills',
 ])
 
-const EASED_LINE = 'Eased for today'
+/** The line of an eased day, the same on every surface; the reason is never named. */
+export function easedLine(units: Units): string {
+  return render(WORKOUT_TEMPLATES['workout.eased'], {}, units)
+}
 
 interface Context {
   session: WorkoutSource
   targets: ResolvedTargets
   /** A run-walk ladder session: its breaks and the two framing steps are walks, not runs. */
   walking: boolean
+  units: Units
 }
 
 const isWalk = (step: Step, ctx: Context): boolean =>
   ctx.walking && (step.kind === 'recover' || step.kind === 'warmup' || step.kind === 'cooldown')
 
-/** A short name for a step; the same on every surface. */
-function labelOf(step: Step, kind: SessionKind, walk: boolean): string {
-  if (walk) return 'Walk'
+type StepName = Extract<keyof typeof WORKOUT_TEMPLATES, `workout.step.${string}`>
+
+/** The template of a step's name: which word a step takes is decided here, the words in the copy. */
+function nameOf(step: Step, kind: SessionKind, walk: boolean): StepName {
+  if (walk) return 'workout.step.walk'
   switch (step.kind) {
     case 'warmup':
-      return 'Warm up'
+      return 'workout.step.warm-up'
     case 'cooldown':
-      return 'Cool down'
+      return 'workout.step.cool-down'
     case 'recover':
-      return 'Recover'
+      return 'workout.step.recover'
     case 'steady':
-      return kind === 'hike' ? 'Hike' : 'Run'
+      return kind === 'hike' ? 'workout.step.hike' : 'workout.step.run'
     case 'work':
-      if (step.zone === 'race-pace') return 'Race pace'
-      if (step.zone === 'strides') return 'Stride'
-      if (kind === 'hills') return 'Hill'
-      if (kind === 'intervals') return 'Fast'
-      if (kind === 'threshold') return 'Threshold'
-      return 'Run'
+      if (step.zone === 'race-pace') return 'workout.step.race-pace'
+      if (step.zone === 'strides') return 'workout.step.stride'
+      if (kind === 'hills') return 'workout.step.hill'
+      if (kind === 'intervals') return 'workout.step.fast'
+      if (kind === 'threshold') return 'workout.step.threshold'
+      return 'workout.step.run'
   }
 }
+
+/** A short name for a step; the same on every surface. */
+const labelOf = (step: Step, walk: boolean, ctx: Context): string =>
+  render(WORKOUT_TEMPLATES[nameOf(step, ctx.session.kind, walk)], {}, ctx.units)
 
 /**
  * The target of one step, from the resolved targets of the session [rule O1]:
@@ -92,7 +104,7 @@ function toStep(step: Step, ctx: Context): WorkoutStep {
   return {
     type: 'step',
     intent: step.kind,
-    label: labelOf(step, ctx.session.kind, walk),
+    label: labelOf(step, walk, ctx),
     walk,
     durationSec,
     target: targetOf(step, durationSec, walk, ctx),
@@ -147,48 +159,90 @@ function totalOf(nodes: WorkoutNode[]): number {
 /**
  * The engine floors the length of a bout or a rep to whole seconds and fits whole reps into the
  * minutes, so its steps can add up to a little less than the session. The rest goes to the end of
- * the last cool-down, so the workout lasts the planned minutes.
+ * the last cool-down, so the workout lasts the planned minutes. Without a cool-down at the end the
+ * rest becomes one, named from the copy like every other step.
  */
-function fillToMinutes(nodes: WorkoutNode[], missingSec: number): void {
+function fillToMinutes(nodes: WorkoutNode[], missingSec: number, ctx: Context): void {
   const last = nodes[nodes.length - 1]
   if (last?.type === 'step' && last.intent === 'cooldown') {
     last.durationSec += missingSec
     return
   }
+  const cooldown: Step = {
+    kind: 'cooldown',
+    reps: 1,
+    durationSec: missingSec,
+    distanceM: null,
+    zone: ctx.targets.zone,
+  }
   nodes.push({
     type: 'step',
     intent: 'cooldown',
-    label: 'Cool down',
+    label: labelOf(cooldown, false, ctx),
     walk: false,
     durationSec: missingSec,
     target: { kind: 'open' },
   })
 }
 
-/** Two quantities of one kind as a range that prints the unit once: "4:10 to 4:00 /km". */
-function rangeText(first: Quantity, second: Quantity, units: Units): string {
-  const from = quantityParts(first, units)
-  const to = quantityParts(second, units)
-  if (from === null || to === null) {
-    return `${formatQuantity(first, units)} to ${formatQuantity(second, units)}`
-  }
-  return `${from.num} to ${to.num}${to.suffix}`
-}
-
-function targetText(step: WorkoutStep, effortLed: boolean, units: Units): string | null {
-  const target = step.target
+/**
+ * The words of a step's figure, "heart rate under 142 bpm" or "pace 4:10 to 4:00 /km"; null for an
+ * open step. The description and the intervals.icu header both take it, so a figure is worded once.
+ */
+export function targetPhrase(target: StepTarget, units: Units): string | null {
   switch (target.kind) {
     case 'hr-ceiling':
-      return `heart rate under ${formatQuantity({ kind: 'bpm', bpm: target.ceilingBpm }, units)}`
+      return render(
+        WORKOUT_TEMPLATES['workout.target.hr-ceiling'],
+        { limit: { kind: 'bpm', bpm: target.ceilingBpm } },
+        units,
+      )
     case 'hr-band':
-      return `heart rate ${rangeText({ kind: 'bpm', bpm: target.lowBpm }, { kind: 'bpm', bpm: target.highBpm }, units)}`
+      return render(
+        WORKOUT_TEMPLATES['workout.target.hr-band'],
+        {
+          range: formatRange(
+            { kind: 'bpm', bpm: target.lowBpm },
+            { kind: 'bpm', bpm: target.highBpm },
+            units,
+          ),
+        },
+        units,
+      )
     case 'pace':
-      return `pace ${rangeText({ kind: 'pace', secPerKm: target.slowSecPerKm }, { kind: 'pace', secPerKm: target.fastSecPerKm }, units)}`
+      return render(
+        WORKOUT_TEMPLATES['workout.target.pace'],
+        {
+          range: formatRange(
+            { kind: 'pace', secPerKm: target.slowSecPerKm },
+            { kind: 'pace', secPerKm: target.fastSecPerKm },
+            units,
+          ),
+        },
+        units,
+      )
     case 'open':
-      return effortLed && !step.walk && (step.intent === 'work' || step.intent === 'steady')
-        ? 'by effort'
-        : null
+      return null
   }
+}
+
+/** The cue of a step run by effort, "by effort". */
+export function effortPhrase(units: Units): string {
+  return render(WORKOUT_TEMPLATES['workout.target.effort'], {}, units)
+}
+
+/**
+ * Whether a step is the running that the session's targets are about: the work of a quality
+ * session, the run of an easy one. On a day steered by effort these are the steps run by effort;
+ * warm-ups, cool-downs, recoveries and walks are not.
+ */
+export const isEffortStep = (step: WorkoutStep): boolean =>
+  !step.walk && (step.intent === 'work' || step.intent === 'steady')
+
+function targetText(step: WorkoutStep, effortLed: boolean, units: Units): string | null {
+  const phrase = targetPhrase(step.target, units)
+  if (phrase !== null) return phrase
+  return effortLed && isEffortStep(step) ? effortPhrase(units) : null
 }
 
 function stepText(step: WorkoutStep, effortLed: boolean, units: Units): string {
@@ -200,7 +254,11 @@ function stepText(step: WorkoutStep, effortLed: boolean, units: Units): string {
 function nodeText(node: WorkoutNode, effortLed: boolean, units: Units): string {
   if (node.type === 'step') return stepText(node, effortLed, units)
   const body = node.steps.map((step) => stepText(step, effortLed, units)).join('; ')
-  return `${String(node.count)} x: ${body}`
+  return render(
+    WORKOUT_TEMPLATES['workout.repeat'],
+    { count: { kind: 'count', n: node.count }, steps: body },
+    units,
+  )
 }
 
 /**
@@ -222,6 +280,7 @@ export function toWorkoutPlan(
     session,
     targets,
     walking: isLadderSession(session) || session.flags.includes('run-walk'),
+    units: options.units,
   }
   const plannedSec = Math.round(session.durationMin * 60)
 
@@ -240,13 +299,13 @@ export function toWorkoutPlan(
   const nodes = toNodes(engineSteps, ctx)
   // the walks that frame a ladder session sit outside its minutes, so only other sessions fill up
   const missingSec = plannedSec - totalOf(nodes)
-  if (missingSec > 0 && !isLadderSession(session)) fillToMinutes(nodes, missingSec)
+  if (missingSec > 0 && !isLadderSession(session)) fillToMinutes(nodes, missingSec, ctx)
 
   const eased = options.eased ?? false
   const fuelLine = options.fuelLine?.trim() ? options.fuelLine.trim() : null
   const effortLed = targets.mode === 'effort'
   const lines = [
-    ...(eased ? [EASED_LINE] : []),
+    ...(eased ? [easedLine(options.units)] : []),
     ...(targets.hot && targets.hotNote !== null ? [targets.hotNote] : []),
     ...nodes.map((node) => nodeText(node, effortLed, options.units)),
     ...(fuelLine === null ? [] : [fuelLine]),

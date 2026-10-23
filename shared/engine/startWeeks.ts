@@ -338,11 +338,24 @@ export function stepAt(path: StepPath, i: number): number | null {
   return stepSchedule(path, i + 1).steps[i] ?? null
 }
 
-/** The weeks of a start path that follow a fixed programme, and what each is exempt from. */
-export function startExemptions(weeks: readonly WeekDraft[]): Map<string, RampExemption> {
+/**
+ * The weeks of a start path that follow a fixed programme, and what each is exempt from.
+ * `returnWeeks` are the Mondays a rest window sends back at the J7 fraction (`returnWeeks` in
+ * disruption.ts): the programme sets those weeks, so the weekly ramp, measured on the weeks of the
+ * hold, does not cut them [rules J7, E6, J9].
+ */
+export function startExemptions(
+  weeks: readonly WeekDraft[],
+  returnWeeks: readonly string[] = [],
+): Map<string, RampExemption> {
   const out = new Map<string, RampExemption>()
   for (const w of weeks) {
-    if (ladderRung(w.flags) !== null) out.set(w.weekStart, 'soft')
+    const programme =
+      ladderRung(w.flags) !== null ||
+      w.flags.includes('injury-return') ||
+      w.flags.includes('restart-floor')
+    if (programme && returnWeeks.includes(w.weekStart)) out.set(w.weekStart, 'ramp')
+    else if (ladderRung(w.flags) !== null) out.set(w.weekStart, 'soft')
     else if (w.flags.includes('injury-return')) out.set(w.weekStart, 'ramp')
   }
   return out

@@ -285,8 +285,10 @@ const WEEKLY_REASONS = ['weekly', 'break']
 
 /**
  * Users whose weekly update is due: an active version-2 plan whose goal date has not passed, this
- * week's `REPLAN_SLOT` has come, and no `weekly` or `break` revision exists since it. `userId`
- * narrows the answer to one user.
+ * week's `REPLAN_SLOT` has come, the plan is older than the slot, and no `weekly` or `break`
+ * revision exists since it. A plan built after the slot (generated, switched to another goal) was
+ * made from this week's data, so the update has nothing left to do for it. `userId` narrows the
+ * answer to one user.
  */
 async function usersDueForWeeklyUpdate(
   prisma: PrismaClient,
@@ -301,6 +303,7 @@ async function usersDueForWeeklyUpdate(
       status: 'active',
       generatorVersion: { gte: 2 },
       goal: { targetDate: { gte: todayIso(now) } },
+      createdAt: { lt: start },
       revisions: { none: { reason: { in: WEEKLY_REASONS }, createdAt: { gte: start } } },
     },
     select: { userId: true },

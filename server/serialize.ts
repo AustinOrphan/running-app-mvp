@@ -1,6 +1,9 @@
 import type {
   Activity as ActivityRow,
   AthleteProfile as AthleteProfileRow,
+  FuelLog as FuelLogRow,
+  FuelProduct as FuelProductRow,
+  FuelSettings as FuelSettingsRow,
   Goal as GoalRow,
   ImportBatch as ImportBatchRow,
   Integration as IntegrationRow,
@@ -9,17 +12,24 @@ import type {
   PlanSession as PlanSessionRow,
   PlanWeek as PlanWeekRow,
   PredictionLog as PredictionLogRow,
+  RaceResult as RaceResultRow,
   Screening as ScreeningRow,
   PrismaClient,
   WeeklyReview as WeeklyReviewRow,
   WellnessDay as WellnessDayRow,
 } from './db.ts'
-import type { CourseSnapshot, LoggedPrediction } from '../shared/engine/backtest.ts'
+import type {
+  CourseSnapshot,
+  LoggedPrediction,
+  RaceOutcome,
+  RaceResultInput,
+} from '../shared/engine/backtest.ts'
 import type {
   ChecklistResult,
   EngineWarning,
   ExecutionAssessment,
   Feasibility,
+  LadderStep,
   PlanChange,
   SessionFlag,
   SessionKind,
@@ -29,19 +39,27 @@ import type {
   WeeklyDecision,
 } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
+import { countsLine } from '../shared/engine/fuelCopy.ts'
 import { P } from '../shared/engine/params/index.ts'
+import { revisionUndoReason } from '../shared/engine/undoGuard.ts'
 import type {
   Activity,
   ActivityCore,
   ActivityListItem,
   ActivityListPage,
   ActivityType,
+  ChangeLine,
   Checkin,
   AthleteProfile,
   Availability,
   DataStatus,
   DuplicateStatus,
   Feel,
+  FuelLogItem,
+  FuelLogView,
+  FuelProduct,
+  FuelProductKind,
+  FuelSettings,
   Goal,
   GoalPriority,
   GoalStatus,
@@ -61,6 +79,7 @@ import type {
   PlanSessionStatus,
   PlanWeek,
   PredictionView,
+  RaceResultView,
   Screening,
   SupportLevel,
   ProviderInfo,
@@ -68,7 +87,6 @@ import type {
   Symptoms,
   TargetSource,
   Terrain,
-  UndoReasonCode,
   UndoState,
   Weekday,
   WeeklyReview,
@@ -407,24 +425,25 @@ export function toPlanSession(row: PlanSessionRow): PlanSession {
   }
 }
 
-const DAY_MS = 86_400_000
-
 /**
  * Whether a revision can be undone, as far as the revision itself says: it has a payload, is not
- * undone, is not an undo and is younger than the undo window. The checks that read other rows (a
- * touched row edited since, a run linked, a safety rule, the plan, the checklist) come with the
- * undo itself; until then `available` means only that none of these four reasons applies.
+ * undone, is not an undo and is younger than the undo window. The structural checks that read
+ * other rows (`undoStates` in `services/revisions.ts`) refine it; a caller that holds no rows gets
+ * this, so `available` then means only that none of those reasons applies.
  */
-function undoStateOf(row: PlanRevisionRow, now: Date): UndoState {
+function ownUndoState(row: PlanRevisionRow, now: Date): UndoState {
   const days = P.revision.undoWindowDays.value
-  let code: Extract<
-    UndoReasonCode,
-    'already-undone' | 'is-undo' | 'not-undoable' | 'window-passed'
-  > | null = null
-  if (row.undoneAt !== null) code = 'already-undone'
-  else if (row.reason === 'undo') code = 'is-undo'
-  else if (row.undo === null) code = 'not-undoable'
-  else if (now.getTime() - row.createdAt.getTime() >= days * DAY_MS) code = 'window-passed'
+  const code = revisionUndoReason(
+    {
+      reason: row.reason,
+      hasPayload: row.undo !== null,
+      undone: row.undoneAt !== null,
+      createdAtMs: row.createdAt.getTime(),
+      planActive: true,
+    },
+    now.getTime(),
+    days,
+  )
   return {
     available: code === null,
     reasons: code === null ? [] : [{ code, message: undoReasonMessage(code, days) }],
@@ -432,8 +451,11 @@ function undoStateOf(row: PlanRevisionRow, now: Date): UndoState {
   }
 }
 
-/** A revision as the API serves it. The undo payload never leaves the server. */
-export function toPlanRevision(row: PlanRevisionRow, now: Date = new Date()): PlanRevisionView {
+/** A revision row without its undo payload, as a list reads it: the payload is not selected. */
+export type PlanRevisionListRow = Omit<PlanRevisionRow, 'undo'>
+
+/** A revision as the API serves it, with the undo state computed by the caller. */
+export function revisionView(row: PlanRevisionListRow, undo: UndoState): PlanRevisionView {
   return {
     id: row.id,
     planId: row.planId,
@@ -444,10 +466,33 @@ export function toPlanRevision(row: PlanRevisionRow, now: Date = new Date()): Pl
     auto: row.auto,
     decision: parseJson<WeeklyDecision | null>(row.decision, null),
     diff: parseJson<PlanDiff | null>(row.diff, null),
-    undo: undoStateOf(row, now),
+    undo,
     seenAt: row.seenAt?.toISOString() ?? null,
     undoOf: row.undoOf,
     disruptionId: row.disruptionId,
+  }
+}
+
+/**
+ * A full revision row as the API serves it. The undo payload never leaves the server, and only the
+ * revision's own reasons are known without the rows it touched: this is the view right after a
+ * write, inside its transaction. `viewRevisions` in `services/revisions.ts` adds the structural
+ * checks.
+ */
+export function toPlanRevision(row: PlanRevisionRow, now: Date = new Date()): PlanRevisionView {
+  return revisionView(row, ownUndoState(row, now))
+}
+
+/** The three columns of a revision that the Today change line reads. */
+export type ChangeLineRow = Pick<PlanRevisionRow, 'id' | 'createdAt' | 'reason' | 'summary'>
+
+/** A revision as the Today change line shows it: its stored summary and nothing else. */
+export function toChangeLine(row: ChangeLineRow): ChangeLine {
+  return {
+    id: row.id,
+    createdAt: row.createdAt.toISOString(),
+    reason: row.reason as PlanRevisionReason,
+    summary: row.summary,
   }
 }
 
@@ -486,6 +531,58 @@ export function toScreening(row: ScreeningRow): Screening {
     answers: parseJson<Screening['answers']>(row.answers, {}),
     flags: row.flags,
     createdAt: row.createdAt.toISOString(),
+  }
+}
+
+export function toFuelProduct(row: FuelProductRow): FuelProduct {
+  return {
+    id: row.id,
+    name: row.name,
+    kind: row.kind as FuelProductKind,
+    servingLabel: row.servingLabel,
+    carbsG: row.carbsG,
+    sodiumMg: row.sodiumMg,
+    kcal: row.kcal,
+    multiCarb: row.multiCarb,
+    archived: row.archived,
+  }
+}
+
+/** The switches before the runner has saved any: no opt-in, no condition, the block on. */
+export function defaultFuelSettings(): FuelSettings {
+  return { optIn90: false, optInAdvanced: false, giDisease: false, gutBlock: true }
+}
+
+export function toFuelSettings(row: FuelSettingsRow | null): FuelSettings {
+  if (row === null) return defaultFuelSettings()
+  return {
+    optIn90: row.optIn90,
+    optInAdvanced: row.optInAdvanced,
+    giDisease: row.giDisease,
+    gutBlock: row.gutBlock,
+  }
+}
+
+/** The items snapshot of a log row. */
+export function parseFuelItems(text: string): FuelLogItem[] {
+  return parseJson<FuelLogItem[]>(text, [])
+}
+
+/** A fuel log with the step the replay gave its run. */
+export function toFuelLogView(row: FuelLogRow, step: LadderStep): FuelLogView {
+  return {
+    id: row.id,
+    activityId: row.activityId,
+    skipped: row.skipped,
+    items: parseFuelItems(row.items),
+    fluidMl: row.fluidMl,
+    sodiumMg: row.sodiumMg,
+    gut: row.gut,
+    nausea: row.nausea,
+    hot: row.hotOverride,
+    notes: row.notes,
+    step,
+    counts: countsLine(step),
   }
 }
 
@@ -528,6 +625,37 @@ export function toLoggedPrediction(row: PredictionLogRow): LoggedPrediction {
     lowSec: row.lowSec,
     highSec: row.highSec,
     course,
+  }
+}
+
+/** A stored race result as the back-test scorer reads it. */
+export function toRaceResultInput(row: RaceResultRow): RaceResultInput {
+  return {
+    date: row.date,
+    outcome: row.outcome as RaceOutcome,
+    timeSec: row.timeSec,
+    distanceM: row.distanceM,
+    gainM: row.gainM,
+  }
+}
+
+/** A stored race result with what saving it did: the weeks compared and whether it retyped a run. */
+export function toRaceResultView(
+  row: RaceResultRow,
+  saved: Pick<RaceResultView, 'scoredPredictions' | 'activityMarkedAsRace'>,
+): RaceResultView {
+  return {
+    id: row.id,
+    goalId: row.goalId,
+    activityId: row.activityId,
+    date: row.date,
+    distanceM: row.distanceM,
+    gainM: row.gainM,
+    outcome: row.outcome as RaceOutcome,
+    timeSec: row.timeSec,
+    note: row.note,
+    scoredPredictions: saved.scoredPredictions,
+    activityMarkedAsRace: saved.activityMarkedAsRace,
   }
 }
 

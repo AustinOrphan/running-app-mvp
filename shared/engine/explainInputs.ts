@@ -172,6 +172,9 @@ function activitySource(a: Activity): SourceRef {
   }
 }
 
+// The fact constructor and the quantity helpers, shared with the run insights (`standout.ts`).
+export { activitySource, bpm, climb, count, distance, duration, exact, make, minutes, percent }
+
 const profileSource = (ctx: ExplainContext): SourceRef => ({
   kind: 'profile',
   id: 'profile',
@@ -971,6 +974,7 @@ export const SIGNAL_WORDS: Readonly<Record<string, string>> = {
   heat: 'the first hot days of the season',
   'completion-low': 'less running than planned so far',
   'sleep-warning': 'short sleep',
+  disruption: 'days covered by a rest window',
 }
 const SIGNAL_FALLBACK_WORDS = 'a sign the plan watches'
 const POST_RACE_SIGNALS: ReadonlySet<string> = new Set(['post-race-stage', 'post-race-delayed'])

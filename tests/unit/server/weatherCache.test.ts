@@ -33,7 +33,7 @@ import { fakeFetch, type FakeRoute } from '../../fakeFetch.ts'
 const ARCHIVE = 'https://archive-api.open-meteo.com/v1/archive'
 const FORECAST = 'https://api.open-meteo.com/v1/forecast'
 const MINUTE = 60_000
-// A Friday, local noon; the race below is on 2027-06-12.
+// A Friday, local noon; the race below is on 2027-06-26.
 const NOW = new Date(2026, 9, 23, 12)
 const later = (ms: number): Date => new Date(NOW.getTime() + ms)
 
@@ -89,7 +89,7 @@ function seedGoal(userId: string, over: Record<string, unknown> = {}) {
       name: 'Synthetic half',
       priority: 'A',
       status: 'target',
-      targetDate: '2027-06-12',
+      targetDate: '2027-06-26',
       distanceM: 21_097,
       goalType: 'time',
       targetTimeSec: 7200,
@@ -189,7 +189,7 @@ describe('cells and keys', () => {
   })
 
   const race: ClimateGoal = {
-    targetDate: '2027-06-12',
+    targetDate: '2027-06-26',
     startTime: '07:30',
     targetTimeSec: 7200,
     distanceM: 21_097,
@@ -202,7 +202,7 @@ describe('cells and keys', () => {
     expect(climateKeyFor(race, noHome)).toEqual({
       latE2: 4013,
       lngE2: -10523,
-      monthDay: '06-12',
+      monthDay: '06-26',
       startHour: 7,
       windowHours: 2,
     })
@@ -416,6 +416,20 @@ describe('the home forecast', () => {
     expect(await cachedForecast(prisma, user.id, later(FORECAST_USABLE_MS))).not.toBeNull()
     expect(await cachedForecast(prisma, user.id, later(FORECAST_USABLE_MS + 1))).toBeNull()
   })
+
+  test('a caller that holds the profile passes its home and the profile is not read again', async () => {
+    const user = await seedUser({ lat: 20.5, lng: -30.12 })
+    deps.fetch = fakeFetch({ [`GET ${FORECAST}`]: forecastRoute([]) })
+    await refreshWeatherCaches(deps, user.id, { now: NOW })
+
+    const profileRead = vi.spyOn(prisma.athleteProfile, 'findUnique')
+    const home = { homeLat: 20.5, homeLng: -30.12 }
+    expect((await cachedForecast(prisma, user.id, NOW, home))?.hours).toHaveLength(168)
+    // Another cell holds nothing, and a profile without a home has no forecast at all.
+    expect(await cachedForecast(prisma, user.id, NOW, { homeLat: 41, homeLng: 2 })).toBeNull()
+    expect(await cachedForecast(prisma, user.id, NOW, { homeLat: null, homeLng: null })).toBeNull()
+    expect(profileRead).not.toHaveBeenCalled()
+  })
 })
 
 // ---------------------------------------------------------------------------------------------
@@ -481,13 +495,13 @@ describe('the race climate', () => {
     const outcome = await refreshWeatherCaches(deps, user.id, { now: NOW })
 
     expect(outcome).toEqual({ refreshed: 1, failed: 0, error: null })
-    // 2026-06-12 is already in the archive on 2026-10-23, so the years are 2026, 2025 and 2024.
+    // 2026-06-26 is already in the archive on 2026-10-23, so the years are 2026, 2025 and 2024.
     expect(
       calls.map((url) => [url.searchParams.get('start_date'), url.searchParams.get('end_date')]),
     ).toEqual([
-      ['2026-06-11', '2026-06-13'],
-      ['2025-06-11', '2025-06-13'],
-      ['2024-06-11', '2024-06-13'],
+      ['2026-06-25', '2026-06-27'],
+      ['2025-06-25', '2025-06-27'],
+      ['2024-06-25', '2024-06-27'],
     ])
     expect(calls[0]!.searchParams.get('latitude')).toBe('40.12')
     expect(calls[0]!.searchParams.get('longitude')).toBe('-105.23')
@@ -497,7 +511,7 @@ describe('the race climate', () => {
     expect(row).toMatchObject({
       latE2: 4012,
       lngE2: -10523,
-      monthDay: '06-12',
+      monthDay: '06-26',
       startHour: 7,
       windowHours: 2,
       samples: 3 * 3 * 2,
@@ -694,7 +708,7 @@ describe('the race climate', () => {
       [`GET ${ARCHIVE}`]: () =>
         Response.json({
           hourly: {
-            time: ['2025-06-12T07:00', '2025-06-12T08:00'],
+            time: ['2025-06-26T07:00', '2025-06-26T08:00'],
             temperature_2m: [null, null],
           },
         }),

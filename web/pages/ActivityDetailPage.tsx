@@ -13,6 +13,7 @@ import { ratingCounts, unratedEffortNote } from '../components/engineText.ts'
 import { formatLongDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
+import { StandoutCard } from '../components/StandoutCard.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { ActivityForm, sourceLabel, TYPE_LABELS } from './ActivityForm.tsx'
 import styles from './ActivityDetailPage.module.css'
@@ -489,6 +490,9 @@ export function ActivityDetailPage() {
       ) : null}
       <Weather activity={activity} units={units} />
       <HeartRate activity={activity} />
+      {activity.type === 'run' || activity.type === 'race' ? (
+        <StandoutCard activityId={activity.id} units={units} />
+      ) : null}
       {/* Keyed on the stored values, so the pickers start again from them when they change. */}
       <Feedback
         key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}`}

@@ -67,6 +67,14 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
   `generated/`.
 - Distance in metres, duration in seconds, plan targets in minutes, dates as `YYYY-MM-DD`
   strings in the runner's local day, weeks start Monday (ADR 0003).
+- Request order (`server/app.ts`, phase 3a design 4.8): authentication comes before any body or
+  query parsing. The only JSON parsers ahead of `requireAuth` are the 16 KB parser on `/api/setup`
+  and `/api/auth` and the one a token-checked router starts after it has verified its token
+  (`/api/ingest/:provider`, 16 MB; the calendar feed `GET /api/calendar/:token/plan.ics` takes no
+  body). Every other parser is mounted below `requireAuth`, and a new route that takes a large body
+  gets its parser there, so an anonymous request is a 401 before any byte is read. Tests that send
+  a large body to a route that answers early use a plain `http.request`, as `bodyParsers.test.ts`
+  does (supertest sends `Connection: close` and reports `EPIPE`).
 - Server errors are thrown as `HttpError` (`server/errors.ts`) and reach the client as
   `{ error: { code, message, details? } }`. Zod parses every body and query.
 - Server data hooks live in `web/api/<resource>.ts`; pages only consume them. Domain rules go in

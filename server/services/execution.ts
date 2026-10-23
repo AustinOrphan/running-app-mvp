@@ -26,6 +26,7 @@ import { notFound } from '../errors.ts'
 import { createLogger } from '../logger.ts'
 import { isTrimmed, toActivity, toPlanSession } from '../serialize.ts'
 import { gatherContextInput, sessionSpec } from './engineInput.ts'
+import { refreshInsightsQuietly, refreshRecentInsights } from './insight.ts'
 
 /** How far back the nightly sweep looks, in days. */
 const SWEEP_DAYS = 7
@@ -181,8 +182,8 @@ async function assessRow(
   return updated
 }
 
-/** Re-assesses one linked session, for example after the owner links an activity by hand. */
-export async function assessSessionById(
+/** Re-assesses one linked session without the pipeline that follows an assessment. */
+async function assessLinked(
   deps: Deps,
   args: { userId: string; sessionId: string },
 ): Promise<PlanSession> {
@@ -200,18 +201,34 @@ export async function assessSessionById(
 }
 
 /**
+ * Re-assesses one linked session, for example after the owner links an activity by hand, then
+ * describes the run again, since its completion and effort findings rest on the assessment.
+ */
+export async function assessSessionById(
+  deps: Deps,
+  args: { userId: string; sessionId: string },
+): Promise<PlanSession> {
+  const session = await assessLinked(deps, args)
+  if (session.activityId !== null) {
+    await refreshInsightsQuietly(deps, { userId: args.userId, activityIds: [session.activityId] })
+  }
+  return session
+}
+
+/**
  * Matches the unlinked activities in `activities` to the plan's unlinked sessions, then assesses
- * every linked session whose activity is in the set. Owner links are never changed.
+ * every linked session whose activity is in the set. Owner links are never changed. Returns the
+ * ids of the activities it assessed.
  */
 async function matchAndAssess(
   deps: Deps,
   args: { userId: string; planId: string; goalId: string; today: string },
   select: (activity: Activity) => boolean,
-): Promise<void> {
+): Promise<string[]> {
   const { prisma } = deps
   const ctx = await buildContext(deps, args)
   const activities = ctx.input.activities.filter(select)
-  if (activities.length === 0) return
+  if (activities.length === 0) return []
   const dates = activities.map((a) => a.date).sort()
   const from = addDays(dates[0]!, -MATCH_SPREAD_DAYS)
   const to = addDays(dates[dates.length - 1]!, MATCH_SPREAD_DAYS)
@@ -254,10 +271,14 @@ async function matchAndAssess(
     )
   }
   const byId = new Map(activities.map((a) => [a.id, a]))
+  const assessed: string[] = []
   for (const row of linked.values()) {
     const activity = row.activityId === null ? undefined : byId.get(row.activityId)
-    if (activity) await assessRow(deps, row, activity, ctx)
+    if (!activity) continue
+    await assessRow(deps, row, activity, ctx)
+    assessed.push(activity.id)
   }
+  return assessed
 }
 
 /** Which edit of a stored activity asks whether its link still fits: its date, or only its type. */
@@ -291,21 +312,19 @@ async function unlink(deps: Deps, row: PlanSessionRow): Promise<void> {
 }
 
 /**
- * After an activity is stored: match it to a planned session and assess the execution. With
- * `reconsider` (its date or type was edited) a linked activity that no longer fits its session is
- * unlinked and matching runs again over the freed session. An owner link is reconsidered only when
- * the date changed: on the same date it stays whatever the type [design 4.1, plan E18].
+ * Matches an activity to a planned session and assesses the execution (the body of
+ * `runExecutionForActivity`). Returns the ids of the other activities it assessed.
  */
-export async function runExecutionForActivity(
+async function matchActivity(
   deps: Deps,
   args: { userId: string; activityId: string; reconsider?: Reconsider | undefined },
-): Promise<void> {
+): Promise<string[]> {
   const { prisma } = deps
   const today = todayIso()
   const activity = await prisma.activity.findFirst({
     where: { id: args.activityId, userId: args.userId },
   })
-  if (!activity) return
+  if (!activity) return []
   // An activity that already fulfils a session is assessed again whatever its age: an edit or a
   // new rating changes the assessment. Linked sessions of any plan count.
   const linked = await prisma.planSession.findFirst({
@@ -319,14 +338,14 @@ export async function runExecutionForActivity(
       (args.reconsider === 'type' && linked.linkSource === 'owner') ||
       stillFits(linked, toActivity(activity))
     if (keep) {
-      await assessSessionById(deps, { userId: args.userId, sessionId: linked.id })
-      return
+      await assessLinked(deps, { userId: args.userId, sessionId: linked.id })
+      return []
     }
     await unlink(deps, linked)
     freed = linked.date
   }
   const plan = await activePlan(deps, args.userId)
-  if (!plan) return
+  if (!plan) return []
   // Imports of old history reach here too; only recent activities can fulfil a session.
   let eligible = activity.date >= addDays(today, -SWEEP_DAYS) && activity.date <= addDays(today, 1)
   if (eligible) {
@@ -342,14 +361,38 @@ export async function runExecutionForActivity(
     eligible = near > 0
   }
   const freedDate = linked?.planId === plan.id ? freed : null
-  if (!eligible && freedDate === null) return
-  await matchAndAssess(
+  if (!eligible && freedDate === null) return []
+  return matchAndAssess(
     deps,
     { userId: args.userId, planId: plan.id, goalId: plan.goalId, today },
     (a) =>
       (eligible && a.id === activity.id) ||
       (freedDate !== null && Math.abs(daysBetween(freedDate, a.date)) <= MATCH_SPREAD_DAYS),
   )
+}
+
+/**
+ * After an activity is stored: match it to a planned session and assess the execution, then
+ * describe it (what stood out, `insight.ts`) together with every other run the matching assessed,
+ * since their findings rest on the assessment. With `reconsider` (its date or type was edited) a
+ * linked activity that no longer fits its session is unlinked and matching runs again over the
+ * freed session. An owner link is reconsidered only when the date changed: on the same date it
+ * stays whatever the type [design 4.1, plan E18]. The runs are described even when matching
+ * throws, and a failure to describe one never reaches the caller.
+ */
+export async function runExecutionForActivity(
+  deps: Deps,
+  args: { userId: string; activityId: string; reconsider?: Reconsider | undefined },
+): Promise<void> {
+  let assessed: string[] = []
+  try {
+    assessed = await matchActivity(deps, args)
+  } finally {
+    await refreshInsightsQuietly(deps, {
+      userId: args.userId,
+      activityIds: [args.activityId, ...assessed],
+    })
+  }
 }
 
 /**
@@ -387,5 +430,7 @@ export async function runNightlyMatching(
       // One user's failure must not stop the sweep for the others.
       args.onError?.(error, plan.userId)
     }
+    // The runs of the window are described again, whatever matching did; this never throws.
+    await refreshRecentInsights(deps, { userId: plan.userId, today: args.today })
   }
 }

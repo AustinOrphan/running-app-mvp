@@ -1,0 +1,34 @@
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--prose-max);
+  margin-top: var(--space-3);
+}
+
+.text {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  overflow-wrap: anywhere;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/*
+ * The build button names the goal, which can run to 200 characters. Button sets a line height of 1
+ * and no vertical padding, so a name that wraps would sit flush against the edges, and a word with
+ * no break would push the page sideways. The selector is two classes deep to outrank Button.
+ */
+.buttons .action {
+  max-width: 100%;
+  padding-block: var(--space-2);
+  line-height: var(--lh-base);
+  overflow-wrap: anywhere;
+  text-align: center;
+}

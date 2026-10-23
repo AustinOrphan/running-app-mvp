@@ -13,6 +13,7 @@ import { createLogger } from './logger.ts'
 import { activitiesRouter } from './routes/activities.ts'
 import { checkinsRouter } from './routes/checkins.ts'
 import { explainRouter } from './routes/explain.ts'
+import { fuelRouter } from './routes/fuel.ts'
 import { goalsRouter } from './routes/goals.ts'
 import { healthRouter } from './routes/health.ts'
 import { importsRouter } from './routes/imports.ts'
@@ -83,15 +84,10 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   // Before the routers and static serving, so API calls and the index fallback share one budget.
   app.use(createGlobalLimiter({ max: opts.globalLimit }))
 
-  // File imports, client-parsed exports and phone pushes carry up to 16 MB of JSON. CSV imports
-  // carry the whole file as text. The parsers run in order and each skips a body that an earlier
-  // one already read, so the general 1 MB parser below only sees every other route.
-  app.use(
-    ['/api/imports/files', '/api/imports/parsed', '/api/ingest'],
-    express.json({ limit: '16mb' }),
-  )
-  app.use('/api/imports', express.json({ limit: '10mb' }))
-  app.use(express.json({ limit: '1mb' }))
+  // Request pipeline (phase 3a design 4.8): no JSON body is read before the caller is known. The
+  // only parsers ahead of authentication are the 16 KB one on sign-in and setup, and the 16 MB one
+  // that the ingest router starts after it has checked the push token. Every other parser sits
+  // below `requireAuth`, so an anonymous request is refused with 401 before a byte is buffered.
   app.use(cookieParser())
 
   // Phone automations send neither an Origin header nor a cookie; the router checks a bearer
@@ -100,13 +96,23 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
 
   app.use('/api', sameOriginGuard())
 
+  app.use(['/api/setup', '/api/auth'], express.json({ limit: '16kb' }))
   app.use('/api', healthRouter(deps))
   app.use('/api', authRouter(deps))
   app.use('/api', requireAuth(deps))
+
+  // File imports and client-parsed exports carry up to 16 MB of JSON. CSV imports carry the whole
+  // file as text. The parsers run in order and each skips a body that an earlier one already read,
+  // so the general 1 MB parser only sees every other route.
+  app.use(['/api/imports/files', '/api/imports/parsed'], express.json({ limit: '16mb' }))
+  app.use('/api/imports', express.json({ limit: '10mb' }))
+  app.use('/api', express.json({ limit: '1mb' }))
+
   app.use('/api/settings', settingsRouter(deps))
   app.use('/api/state', stateRouter(deps))
   app.use('/api/stats', statsRouter(deps))
   app.use('/api/explain', explainRouter(deps))
+  app.use('/api/fuel', fuelRouter(deps))
   app.use('/api/activities', activitiesRouter(deps))
   app.use('/api/imports', importsRouter(deps))
   app.use('/api/goals', goalsRouter(deps))

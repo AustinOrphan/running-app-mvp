@@ -181,3 +181,16 @@ export function formatQuantity(q: Quantity, units: Units): string {
   const parts = quantityParts(q, units)
   return parts === null ? NO_VALUE : `${parts.num}${parts.suffix}`
 }
+
+/**
+ * Two quantities of one kind as a range that prints the unit once: "4:10 to 4:00 /km", "140 to 150
+ * bpm". A pair that cannot be shown as parts reads in full, with a dash for what cannot be shown.
+ */
+export function formatRange(first: Quantity, second: Quantity, units: Units): string {
+  const from = quantityParts(first, units)
+  const to = quantityParts(second, units)
+  if (from === null || to === null) {
+    return `${formatQuantity(first, units)} to ${formatQuantity(second, units)}`
+  }
+  return `${from.num} to ${to.num}${to.suffix}`
+}

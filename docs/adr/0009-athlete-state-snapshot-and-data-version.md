@@ -102,7 +102,36 @@ Alternatives:
 - A forecast-dependent deliverable (the watch publisher) composes its change key from the data
   version, the day and the forecast's fetch time, because the forecast cache is non-state.
 - The global counter invalidates every user's snapshot on any state write; irrelevant for one runner.
-- Request handlers never wait on Open-Meteo; plan generation may wait up to 8 seconds once for race
-  climate on a cold cache. Until the weather cache replaces it, the goal model reads the race climate
-  through `server/services/raceClimate.ts`, so a cold prediction can wait on the archive as it did
-  before.
+- Request handlers read the weather caches and never wait on Open-Meteo, with two bounded
+  exceptions: `GET /api/weather/forecast` on an empty cell (5 seconds, because the runner asked for
+  the forecast) and plan generation on a cold race climate (8 seconds, once).
+
+## Measured
+
+Recorded 2026-10-23 with task E3-8, once every part of the foundation was in place. The numbers are
+a record, not a gate: no test asserts a time. The requests ran in process through the Express app
+(supertest, no network hop) on one macOS machine with Node 24 and better-sqlite3, against a synthetic
+history of three years: 624 runs, each with a heart-rate histogram, 60 wellness days and a 136-session
+marathon plan. Each figure is the median of 15 requests, in milliseconds. A cold request is the first
+after a write to a state model, so it builds the snapshot; a warm request is the next one.
+
+| Route                  | Cold | Warm |
+| ---------------------- | ---- | ---- |
+| `GET /api/today`       | 10.4 | 2.1  |
+| `GET /api/plan`        | 11.3 | 3.7  |
+| `GET /api/predictions` | 10.1 | 3.2  |
+| `GET /api/zones`       | 8.4  | 1.3  |
+| `GET /api/state`       | 8.8  | 1.3  |
+| `GET /api/stats`       | 2.6  | 1.1  |
+
+`GET /api/state` with the current tag is a 304 in 0.9 ms. A page of 50 activities
+(`GET /api/activities?limit=50`) takes 2.0 ms. The warm Today read measured with the snapshot alone
+(task E3-2, a three-year synthetic history) fell from about 8.5 ms to about 2 ms; the table shows
+the same warm figure after the weather cache, the session identity and the sync log were added. As
+the design expected, the gain is the cache, not parallel queries: better-sqlite3 is synchronous.
+
+The table does not say whether a home forecast was cached. With a home location and a filled
+seven-day forecast cell (168 hours), a rebuilt `GET /api/today` (no tag, warm snapshot) measured
+7.9 ms while `localWallTime` built a formatter for every forecast hour, and 2.7 ms once one
+formatter per zone is cached (recorded 2026-10-23 with the review fixes of wave 3; median of 50
+requests, a synthetic plan with one session, the same machine and method).

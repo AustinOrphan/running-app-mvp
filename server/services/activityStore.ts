@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 import type { Deps } from '../app.ts'
+import type { PrismaClient } from '../db.ts'
 import { loadProfile } from '../serialize.ts'
 import { createLogger } from '../logger.ts'
 import { markDuplicates } from './duplicates.ts'
@@ -268,4 +269,23 @@ export async function storeWellness(
     },
     { timeout: WRITE_TIMEOUT_MS },
   )
+}
+
+/**
+ * Marks a stored run as a race, which is what linking it to a race result does (phase 3a design
+ * 11.4), and returns whether the type changed. The type is the owner's field, so a later import of
+ * the same activity leaves it alone (`storeParsed`). A run and a race both count as runs for
+ * duplicates, session matching and totals, so no duplicate pass follows. An activity of another
+ * user, of another type or one that is a race already changes nothing.
+ */
+export async function markActivityAsRace(
+  db: Pick<PrismaClient, 'activity'>,
+  userId: string,
+  activityId: string,
+): Promise<boolean> {
+  const { count } = await db.activity.updateMany({
+    where: { id: activityId, userId, type: 'run' },
+    data: { type: 'race' },
+  })
+  return count > 0
 }

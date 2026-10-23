@@ -1,9 +1,13 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { isIsoDate } from '../../shared/dates.ts'
+import { resultRefusal } from '../../shared/copy/trackRecord.ts'
+import { isIsoDate, todayIso } from '../../shared/dates.ts'
+import { MAX_DURATION_SEC } from '../../shared/limits.ts'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { toGoal } from '../serialize.ts'
+import { activateGoal } from '../services/planSwitch.ts'
+import { deleteRaceResult, saveRaceResult } from '../services/raceResults.ts'
 import { warmWeatherCaches } from '../services/weatherCache.ts'
 
 /** Trimmed text; an empty string becomes null. */
@@ -116,6 +120,44 @@ const goalPatch = z.object({
   raceLng: goalFields.shape.raceLng,
   supportLevel: goalFields.shape.supportLevel.unwrap().optional(),
 })
+
+/** `replacePlan` agrees to build the plan for this goal when the plan follows another goal. */
+const activateBody = z.strictObject({ replacePlan: z.boolean().default(false) })
+
+/** A full replacement of a goal's race result (design 11.4): every field is sent each time. */
+const resultBody = z
+  .object({
+    outcome: z.enum(['finished', 'did-not-finish']),
+    timeSec: z
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_DURATION_SEC)
+      .nullish()
+      .transform((value) => value ?? null),
+    date: goalFields.shape.targetDate,
+    distanceM: goalFields.shape.distanceM.transform((value) => value ?? null),
+    gainM: metres.transform((value) => value ?? null),
+    activityId: z
+      .string()
+      .min(1)
+      .nullish()
+      .transform((value) => value ?? null),
+    note: optionalText(2000),
+  })
+  .superRefine((body, ctx) => {
+    if (body.outcome === 'finished' && body.timeSec === null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['timeSec'],
+        message: resultRefusal('time-required'),
+      })
+    }
+    // A date that is not a real day has its own issue; it is not also called a future date.
+    if (isIsoDate(body.date) && body.date > todayIso()) {
+      ctx.addIssue({ code: 'custom', path: ['date'], message: resultRefusal('date-passed') })
+    }
+  })
 
 /** The fields the race climate is read for: place, date, start time, length and whether it is open. */
 const CLIMATE_FIELDS = [
@@ -261,16 +303,32 @@ export function goalsRouter(deps: Deps): Router {
     res.status(204).end()
   })
 
-  router.post('/:id/activate', async (req, res) => {
+  // The result of a goal's race: one per goal, replaced as a whole. The record that compares it with
+  // the weekly predictions is GET /api/predictions/record.
+  router.put('/:id/result', async (req, res) => {
+    const body = parse(resultBody, req.body)
     const goal = await ownedGoal(req.userId, req.params.id)
-    if (goal.status === 'done' || goal.status === 'dropped') {
-      throw conflict('A finished or dropped goal cannot be the active goal.')
-    }
-    const activated = await prisma.$transaction(async (tx) => {
-      await tx.goal.updateMany({ where: { userId: req.userId }, data: { isActive: false } })
-      return tx.goal.update({ where: { id: goal.id }, data: { isActive: true } })
-    })
-    res.json(toGoal(activated))
+    const { result, created } = await saveRaceResult(deps, { userId: req.userId, goal, body })
+    res.status(created ? 201 : 200).json(result)
+  })
+
+  router.delete('/:id/result', async (req, res) => {
+    await ownedGoal(req.userId, req.params.id)
+    await deleteRaceResult(deps, { userId: req.userId, goalId: req.params.id })
+    res.status(204).end()
+  })
+
+  router.post('/:id/activate', async (req, res) => {
+    // A body is optional: the plain call has none.
+    const { replacePlan } = parse(activateBody, req.body ?? {})
+    res.json(
+      await activateGoal(deps, {
+        userId: req.userId,
+        goalId: req.params.id,
+        replacePlan,
+        today: todayIso(),
+      }),
+    )
   })
 
   return router

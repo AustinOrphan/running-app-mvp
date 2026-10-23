@@ -135,6 +135,7 @@ export const keys = {
   jobs: 'jobs',
   activityDetail: 'activityDetail',
   planRevisions: 'planRevisions',
+  planArchived: 'planArchived',
   today: 'today',
   checkins: 'checkins',
   zones: 'zones',
@@ -145,3 +146,19 @@ export const keys = {
   state: 'state',
   stats: 'stats',
 } as const
+
+/** Everything that reads the plan or the goal it follows, after a new plan replaces the old one. */
+export function invalidateNewPlan(queryClient: QueryClient): Promise<unknown> {
+  return Promise.all(
+    [
+      keys.goals,
+      keys.plan,
+      keys.planRevisions,
+      keys.planArchived,
+      keys.reviews,
+      keys.today,
+      keys.predictions,
+      keys.state,
+    ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+  )
+}

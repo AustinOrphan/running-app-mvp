@@ -8,6 +8,7 @@ const EXPECTED: Record<PlanSessionStatus, boolean> = {
   planned: true,
   moved: true,
   downgraded: true,
+  adjusted: true,
   completed: false,
   partial: false,
   skipped: false,
@@ -18,8 +19,8 @@ describe('isToRun', () => {
     expect(isToRun(status as PlanSessionStatus)).toBe(toRun)
   })
 
-  it('is true exactly for the sessions still to be run: planned, moved and downgraded', () => {
+  it('is true exactly for the sessions still to be run: planned, moved, downgraded and adjusted', () => {
     const toRun = (Object.keys(EXPECTED) as PlanSessionStatus[]).filter(isToRun)
-    expect(toRun.sort()).toEqual(['downgraded', 'moved', 'planned'])
+    expect(toRun.sort()).toEqual(['adjusted', 'downgraded', 'moved', 'planned'])
   })
 })

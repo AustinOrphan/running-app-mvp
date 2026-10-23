@@ -7,9 +7,16 @@
 // race climate are read from the weather cache (`weatherCache.ts`): nothing here waits on the
 // network, and a cell the weather job has not filled yet gives no forecast and no race heat.
 import type { Deps } from '../app.ts'
-import { todayIso } from '../../shared/dates.ts'
-import type { EngineInput, ZoneSet } from '../../shared/engine/types.ts'
-import { goalModelFor, loadAthleteContext, neutralGoal } from './athleteState.ts'
+import { localWallTime, todayIso } from '../../shared/dates.ts'
+import type { EngineInput, GoalModel, ZoneSet } from '../../shared/engine/types.ts'
+import type { AthleteProfile } from '../../shared/types.ts'
+import type { PrismaClient } from '../db.ts'
+import {
+  goalModelFor,
+  loadAthleteContext,
+  neutralGoal,
+  type AthleteContext,
+} from './athleteState.ts'
 import { cachedForecast } from './weatherCache.ts'
 
 export { existingFrom, neutralGoal, sessionSpec } from './athleteState.ts'
@@ -30,41 +37,24 @@ export type GatherArgs = {
   options?: EngineInput['options']
 }
 
-/** The wall-clock time `YYYY-MM-DDTHH:00:00` of an instant in an IANA time zone (UTC if unknown). */
-export function localWallTime(iso: string, timeZone: string): string {
-  const ms = Date.parse(iso)
-  if (Number.isNaN(ms)) return iso
-  const parts = (zone: string) =>
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: zone,
-      hourCycle: 'h23',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-    }).formatToParts(ms)
-  let list: Intl.DateTimeFormatPart[]
-  try {
-    list = parts(timeZone)
-  } catch {
-    list = parts('UTC')
-  }
-  const get = (type: string) => list.find((part) => part.type === type)?.value ?? '00'
-  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:00:00`
-}
-
 /**
  * The cached home forecast in the engine's shape, with hours in the runner's local time. Null
- * without a home, without a filled cell, or when the forecast is older than 24 hours.
+ * without a home, without a filled cell, or when the forecast is older than 24 hours. The home
+ * comes from the profile the caller holds, so no extra read of it.
  */
-async function loadForecast(deps: Deps, userId: string, timeZone: string) {
-  const cached = await cachedForecast(deps.prisma, userId)
+export async function loadForecast(
+  prisma: PrismaClient,
+  userId: string,
+  profile: Pick<AthleteProfile, 'homeLat' | 'homeLng' | 'timezone'>,
+  now: Date = new Date(),
+): Promise<NonNullable<EngineInput['forecast']> | null> {
+  const cached = await cachedForecast(prisma, userId, now, profile)
   if (!cached) return null
   const hours: NonNullable<EngineInput['forecast']> = []
   for (const hour of cached.hours) {
     if (hour.tempC === null || hour.dewPointC === null) continue
     hours.push({
-      time: localWallTime(hour.time, timeZone),
+      time: localWallTime(hour.time, profile.timezone),
       tempC: hour.tempC,
       dewPointC: hour.dewPointC,
       humidityPct: hour.humidityPct ?? 50,
@@ -87,6 +77,36 @@ export async function acceptedZoneChanges(
   return (await loadAthleteContext(deps, { userId, today: todayIso() })).zoneChanges
 }
 
+/**
+ * The engine input for a snapshot already in hand: the athlete's data as it is, the given goal
+ * model (a neutral one for reads about the athlete) and the parts a caller asks for. `existing` and
+ * the forecast are added only when asked for. Pure; the arrays are the snapshot's frozen ones.
+ * `assemble` below is this plus the per-call parts.
+ */
+export function inputFromContext(
+  context: AthleteContext,
+  parts: {
+    goal?: GoalModel | null
+    forecast?: EngineInput['forecast']
+    existing?: boolean
+    options?: EngineInput['options']
+  } = {},
+): EngineInput {
+  return {
+    today: context.asOf,
+    profile: context.profile,
+    activities: context.activities,
+    wellness: context.wellness,
+    reviews: context.reviews,
+    goal: parts.goal ?? neutralGoal(context.asOf),
+    forecast: parts.forecast ?? null,
+    existing: parts.existing === true ? context.existing() : null,
+    options: parts.options ?? {},
+    screeningFlags: context.screeningFlags,
+    zoneChanges: context.zoneChanges,
+  }
+}
+
 async function assemble(
   deps: Deps,
   args: { userId: string; today: string; goalId: string | null; options?: EngineInput['options'] },
@@ -99,19 +119,12 @@ async function assemble(
       ? null
       : await goalModelFor(context, args.goalId, { climate: opts.climate !== false })
 
-  return {
-    today,
-    profile: context.profile,
-    activities: context.activities,
-    wellness: context.wellness,
-    reviews: context.reviews,
-    goal: goal ?? neutralGoal(today),
-    forecast: opts.forecast ? await loadForecast(deps, userId, context.profile.timezone) : null,
-    existing: opts.existing ? context.existing() : null,
-    options: args.options ?? {},
-    screeningFlags: context.screeningFlags,
-    zoneChanges: context.zoneChanges,
-  }
+  return inputFromContext(context, {
+    goal,
+    forecast: opts.forecast ? await loadForecast(deps.prisma, userId, context.profile) : null,
+    existing: opts.existing === true,
+    ...(args.options === undefined ? {} : { options: args.options }),
+  })
 }
 
 /**

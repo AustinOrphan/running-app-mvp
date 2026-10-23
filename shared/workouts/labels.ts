@@ -9,6 +9,8 @@ import type { SessionKind, SessionSpec } from '../engine/types.ts'
 
 interface PublicTitle {
   title: string
+  /** The kind's name where a name field is short (15 bytes in a FIT file) and the title is longer. */
+  short?: string
   /** The length follows the title ("Easy run, 45 min"); a race or a rest day has none. */
   withLength: boolean
 }
@@ -22,10 +24,10 @@ export const PUBLIC_TITLES: Readonly<Record<SessionKind, PublicTitle>> = {
   threshold: { title: 'Threshold run', withLength: true },
   intervals: { title: 'Intervals', withLength: true },
   'race-pace': { title: 'Race-pace run', withLength: true },
-  strides: { title: 'Easy run with strides', withLength: true },
+  strides: { title: 'Easy run with strides', short: 'Easy + strides', withLength: true },
   hills: { title: 'Hill repeats', withLength: true },
   hike: { title: 'Hike', withLength: true },
-  b2b: { title: 'Back-to-back run', withLength: true },
+  b2b: { title: 'Back-to-back run', short: 'Back-to-back', withLength: true },
   strength: { title: 'Strength', withLength: true },
   mobility: { title: 'Mobility', withLength: true },
   rest: { title: 'Rest day', withLength: false },
@@ -76,4 +78,40 @@ export function publicTitle(
     return entry.title
   }
   return `${entry.title}, ${formatQuantity({ kind: 'duration', sec: session.durationMin * 60 }, 'km')}`
+}
+
+/**
+ * The title of a workout for a short name field: the kind's short name in place of its title where
+ * the list has one ("Easy + strides"), then the length as in `publicTitle`. A title that is not the
+ * allowlisted one of its kind is returned as it is. The field cuts the length when it does not fit.
+ */
+export function shortTitle(kind: SessionKind, title: string): string {
+  const { title: base, short } = PUBLIC_TITLES[kind]
+  return short !== undefined && title.startsWith(base)
+    ? `${short}${title.slice(base.length)}`
+    : title
+}
+
+/**
+ * The kind of a session as it appears in the name of a workout file: lower case words joined by
+ * hyphens, one per kind, never the title and never anything the engine wrote. A long run with a
+ * fast finish is a long run on the watch, as in `PUBLIC_TITLES`. Exhaustive, like the titles.
+ */
+export const FILE_SLUGS: Readonly<Record<SessionKind, string>> = {
+  easy: 'easy-run',
+  recovery: 'recovery-run',
+  long: 'long-run',
+  'long-fast-finish': 'long-run',
+  threshold: 'threshold-run',
+  intervals: 'intervals',
+  'race-pace': 'race-pace-run',
+  strides: 'easy-run-with-strides',
+  hills: 'hill-repeats',
+  hike: 'hike',
+  b2b: 'back-to-back-run',
+  strength: 'strength',
+  mobility: 'mobility',
+  rest: 'rest-day',
+  race: 'race-day',
+  cross: 'cross-training',
 }

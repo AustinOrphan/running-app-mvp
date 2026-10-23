@@ -3,6 +3,7 @@
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity, AthleteProfile, WeekRow } from '../types.ts'
+import { injuryReports } from './disruption.ts'
 import { countsTowardReference } from './limits.ts'
 import {
   criticalSpeed,
@@ -331,30 +332,41 @@ function vo2maxTrend(input: EngineInput, today: string): number | null {
 }
 
 /**
- * The largest group of comparable, cool long runs that durability is read from [A7]. A long run
- * lasts from the reference duration of the durability prior (90 min) up to the drift inference
- * limit; runs are comparable when their duration and temperature are close. On a tie the group
- * anchored on the newer run wins.
+ * Whether a run is one durability can be read from [A7]: a cool long run with a drift reading. A
+ * long run lasts from the reference duration of the durability prior (90 min) up to the drift
+ * inference limit.
+ */
+export function isDurabilityCandidate(a: Activity): boolean {
+  return (
+    a.type === 'run' &&
+    a.decouplingPct !== null &&
+    a.tempC !== null &&
+    a.tempC < P.a7.heatExcludeC.value &&
+    a.durationSec >= P.a7.thresholdDropAfterMin.value * 60 &&
+    a.durationSec <= P.a7.driftInferenceLimitMin.value * 60
+  )
+}
+
+/** Whether two durability candidates are comparable [A7]: close in duration and in temperature. */
+export function comparableLongRuns(anchor: Activity, other: Activity): boolean {
+  return (
+    Math.abs(other.durationSec - anchor.durationSec) <=
+      P.a7.comparableDurationTolerance.value * anchor.durationSec &&
+    Math.abs((other.tempC as number) - (anchor.tempC as number)) <=
+      P.a7.comparableTempToleranceC.value
+  )
+}
+
+/**
+ * The largest group of comparable, cool long runs that durability is read from [A7]. Runs are
+ * comparable when their duration and temperature are close (`comparableLongRuns`). On a tie the
+ * group anchored on the newer run wins.
  */
 export function durabilityRuns(runs: Activity[]): Activity[] {
-  const candidates = runs.filter(
-    (a) =>
-      a.type === 'run' &&
-      a.decouplingPct !== null &&
-      a.tempC !== null &&
-      a.tempC < P.a7.heatExcludeC.value &&
-      a.durationSec >= P.a7.thresholdDropAfterMin.value * 60 &&
-      a.durationSec <= P.a7.driftInferenceLimitMin.value * 60,
-  )
+  const candidates = runs.filter(isDurabilityCandidate)
   let best: Activity[] = []
   for (const anchor of candidates) {
-    const group = candidates.filter(
-      (a) =>
-        Math.abs(a.durationSec - anchor.durationSec) <=
-          P.a7.comparableDurationTolerance.value * anchor.durationSec &&
-        Math.abs((a.tempC as number) - (anchor.tempC as number)) <=
-          P.a7.comparableTempToleranceC.value,
-    )
+    const group = candidates.filter((a) => comparableLongRuns(anchor, a))
     const newer = group.length === best.length && anchor.date > (best[0]?.date ?? '')
     if (group.length > best.length || newer) best = group
   }
@@ -438,7 +450,17 @@ function riskOf(
   }
   const screened = input.screeningFlags ?? 0
   const redsFlags = Number.isFinite(screened) ? Math.max(0, Math.floor(screened)) : 0
-  return { recentInjury, priorBsi, bsiFactors, redsFlags, noviceFlags }
+  // A window's injury report tightens the profile from the report until its ladder is over: the
+  // plan is drawn tight while the report is active or still ahead [rules J9, n-2].
+  const reported = injuryReports(input.disruptions ?? []).some((r) => r.until >= today)
+  return {
+    recentInjury,
+    ...(reported ? { injuryReport: true } : {}),
+    priorBsi,
+    bsiFactors,
+    redsFlags,
+    noviceFlags,
+  }
 }
 
 /**

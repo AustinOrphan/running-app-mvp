@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { assertCleanCopy } from '../../../shared/copy/lint.ts'
 import { formatQuantity } from '../../../shared/copy/quantity.ts'
+import { tpl } from '../../../shared/copy/template.ts'
+import { WORKOUT_TEMPLATES } from '../../../shared/copy/workouts.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { easedSession } from '../../../shared/engine/readiness.ts'
 import { prescribe, type PrescribeContext } from '../../../shared/engine/sessions.ts'
@@ -10,7 +12,12 @@ import type { SessionKind, SessionSpec, Step, ZoneSet } from '../../../shared/en
 import type { Units } from '../../../shared/types.ts'
 import { formatPace } from '../../../shared/units.ts'
 import { publicTitle, publishable } from '../../../shared/workouts/labels.ts'
-import { toWorkoutPlan } from '../../../shared/workouts/plan.ts'
+import {
+  easedLine,
+  effortPhrase,
+  targetPhrase,
+  toWorkoutPlan,
+} from '../../../shared/workouts/plan.ts'
 import type {
   StepTarget,
   WorkoutNode,
@@ -619,5 +626,72 @@ describe('toWorkoutPlan: contract', () => {
     })
     expect(plan.eased).toBe(false)
     expect(plan.fuelLine).toBeNull()
+  })
+})
+
+describe('the words of a workout', () => {
+  it('words a figure once, for the description and the intervals.icu header', () => {
+    expect(targetPhrase({ kind: 'hr-ceiling', floorBpm: 40, ceilingBpm: 142 }, 'km')).toBe(
+      'heart rate under 142 bpm',
+    )
+    expect(targetPhrase({ kind: 'hr-band', lowBpm: 140, highBpm: 155 }, 'mi')).toBe(
+      'heart rate 140 to 155 bpm',
+    )
+    expect(targetPhrase({ kind: 'pace', slowSecPerKm: 250, fastSecPerKm: 240 }, 'km')).toBe(
+      'pace 4:10 to 4:00 /km',
+    )
+    expect(targetPhrase({ kind: 'pace', slowSecPerKm: 250, fastSecPerKm: 240 }, 'mi')).toBe(
+      'pace 6:42 to 6:26 /mi',
+    )
+    expect(targetPhrase({ kind: 'open' }, 'km')).toBeNull()
+  })
+
+  it('takes the name of every step from the copy templates', () => {
+    const names = new Set(
+      Object.entries(WORKOUT_TEMPLATES)
+        .filter(([id]) => id.startsWith('workout.step.'))
+        .map(([, template]) => template.text),
+    )
+    let seen = 0
+    for (const kind of PUBLISHABLE) {
+      for (const step of allSteps(planOf(make(kind, 75)))) {
+        expect(names.has(step.label), `${kind}: ${step.label}`).toBe(true)
+        seen += 1
+      }
+    }
+    for (const step of allSteps(planOf(ladder(2, rungSessions(2)[0]!)))) {
+      expect(names.has(step.label), step.label).toBe(true)
+    }
+    // a run-walk block that leaves minutes over gets a cool-down of its own
+    const filled = allSteps(planOf(make('easy', 50, zones, { runWalk: true })))
+    expect(filled.at(-1)?.intent).toBe('cooldown')
+    for (const step of filled) expect(names.has(step.label), step.label).toBe(true)
+    expect(seen).toBeGreaterThan(PUBLISHABLE.length)
+  })
+
+  it('names the cool-down that fills the minutes from the copy, so a change of the copy reaches it', () => {
+    const original = WORKOUT_TEMPLATES['workout.step.cool-down']
+    WORKOUT_TEMPLATES['workout.step.cool-down'] = tpl('Ease out', {}, { shape: 'label' })
+    try {
+      const plan = planOf(make('easy', 50, zones, { runWalk: true }))
+      const last = allSteps(plan).at(-1)!
+      expect(last.intent).toBe('cooldown')
+      expect(last.label).toBe('Ease out')
+      expect(plan.description.split('\n').at(-1)).toMatch(/^Ease out /)
+    } finally {
+      WORKOUT_TEMPLATES['workout.step.cool-down'] = original
+    }
+  })
+
+  it('writes the eased line from the copy, with no reason', () => {
+    expect(easedLine('km')).toBe('Eased for today')
+    expect(easedLine('mi')).toBe(easedLine('km'))
+    const eased = planOf(make('intervals', 60), { eased: true })
+    expect(eased.description.split('\n')[0]).toBe(easedLine('km'))
+  })
+
+  it('words the effort cue once', () => {
+    expect(effortPhrase('km')).toBe('by effort')
+    expect(planOf(make('hills', 60)).description).toContain(`, ${effortPhrase('km')}`)
   })
 })

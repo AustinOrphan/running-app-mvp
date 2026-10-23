@@ -1,7 +1,13 @@
 import { describe, expect, test } from 'vitest'
-import { formatNumber, formatQuantity, quantityIssue } from '../../../shared/copy/quantity.ts'
+import {
+  formatNumber,
+  formatQuantity,
+  formatRange,
+  quantityIssue,
+} from '../../../shared/copy/quantity.ts'
 import type { Quantity } from '../../../shared/engine/types.ts'
 import type { Units } from '../../../shared/types.ts'
+import { NO_VALUE } from '../../../shared/units.ts'
 
 const UNITS: Units[] = ['km', 'mi']
 
@@ -156,6 +162,26 @@ describe('formatQuantity', () => {
   test('an unknown date style falls back to the short form', () => {
     const q = { kind: 'date', iso: '2026-10-19', style: 'odd' } as unknown as Quantity
     expect(formatQuantity(q, 'km')).toBe('19 Oct')
+  })
+})
+
+describe('formatRange', () => {
+  test('prints the unit once', () => {
+    const pace = (secPerKm: number): Quantity => ({ kind: 'pace', secPerKm })
+    expect(formatRange(pace(250), pace(240), 'km')).toBe('4:10 to 4:00 /km')
+    expect(formatRange(pace(250), pace(240), 'mi')).toBe('6:42 to 6:26 /mi')
+    expect(formatRange({ kind: 'bpm', bpm: 140 }, { kind: 'bpm', bpm: 150 }, 'km')).toBe(
+      '140 to 150 bpm',
+    )
+    expect(
+      formatRange({ kind: 'distance', m: 28_000 }, { kind: 'distance', m: 32_000 }, 'km'),
+    ).toBe('28 to 32 km')
+  })
+
+  test('reads in full, with a dash, when an end cannot be shown', () => {
+    const text = formatRange({ kind: 'bpm', bpm: Number.NaN }, { kind: 'bpm', bpm: 150 }, 'km')
+    expect(text).toBe(`${NO_VALUE} to 150 bpm`)
+    expect(text).not.toMatch(/NaN|undefined/)
   })
 })
 

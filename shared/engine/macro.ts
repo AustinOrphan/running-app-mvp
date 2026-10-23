@@ -18,6 +18,7 @@ import {
   completedReference,
   countsTowardReference,
   gainLimit,
+  injuryTight,
   noviceRamp,
   plannedMinOf,
   rampLimits,
@@ -486,7 +487,7 @@ export function startPath(input: EngineInput, state: AthleteState): StartPath | 
   if (startLevelMin(state) >= P.restartFloor.sessions.value * sessionMin) return null
   const runs = runFacts(input)
 
-  if (state.risk.recentInjury) {
+  if (injuryTight(state)) {
     const best = runs
       .filter(
         (r) =>

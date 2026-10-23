@@ -1,6 +1,25 @@
-import { afterAll, beforeAll, describe, expect, test } from 'vitest'
-import type { Goal } from '../../shared/types.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
+import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import type { ArchivedPlanView, Goal, PlanWithSessions } from '../../shared/types.ts'
+import { HttpError } from '../../server/errors.ts'
+import { replanActivePlan } from '../../server/services/replan.ts'
+import { settleWeatherCache } from '../../server/services/weatherCache.ts'
+import { fakeFetch } from '../fakeFetch.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
+
+// The re-plan that follows a restore is the engine's business and has its own tests; here it is a
+// spy that runs the real code unless a test makes it fail.
+vi.mock('../../server/services/replan.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../server/services/replan.ts')>()
+  return { ...original, replanActivePlan: vi.fn(original.replanActivePlan) }
+})
 
 let ctx: TestCtx
 let user: TestUser
@@ -17,6 +36,17 @@ afterAll(async () => {
 })
 
 const valid = { name: 'Harbour 10K', priority: 'A', status: 'target', targetDate: '2027-05-09' }
+
+/**
+ * A goal with a race place and a distance asks the archive for the race climate in the background.
+ * The tests that save one plan that call and let the archive be down; the goal is saved either way.
+ */
+function planClimateRequests(): void {
+  ctx.fetch = fakeFetch({
+    'GET https://archive-api.open-meteo.com/v1/archive': () =>
+      new Response('down', { status: 503 }),
+  })
+}
 
 async function createGoal(over: Record<string, unknown> = {}, who = user): Promise<Goal> {
   const res = await client(ctx, who)
@@ -209,6 +239,7 @@ describe('race descriptors', () => {
   })
 
   test('accepts and stores the descriptors, rounding the race location to 0.01 degrees', async () => {
+    planClimateRequests()
     const created = await createGoal({
       name: 'Trail 50',
       distanceM: 50_000,
@@ -274,6 +305,7 @@ describe('race descriptors', () => {
   })
 
   test('PUT changes only the descriptors it carries and can clear them', async () => {
+    planClimateRequests()
     const created = await createGoal({
       name: 'Hills',
       distanceM: 21_097,
@@ -379,5 +411,438 @@ describe('race descriptors', () => {
       .send({ notes: 'Still fine.' })
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({ goalType: 'time', targetTimeSec: null, notes: 'Still fine.' })
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Make active moves the plan; archived plans come back (phase 3a design 5.4)
+// ---------------------------------------------------------------------------------------------
+
+const today = todayIso()
+const thisMonday = mondayOf(today)
+
+afterEach(async () => {
+  vi.mocked(replanActivePlan).mockClear()
+  // The background climate refresh of a goal with a race place ends before the guard is read.
+  await settleWeatherCache()
+  expectNoRefusedFetches(ctx)
+})
+
+/** Twelve completed weeks of four runs, so the engine has a history to build on. */
+async function seedHistory(userId: string): Promise<void> {
+  const week = [
+    { dow: 1, min: 40, distanceM: 6400 },
+    { dow: 3, min: 45, distanceM: 7200 },
+    { dow: 5, min: 35, distanceM: 5600 },
+    { dow: 6, min: 70, distanceM: 11_000 },
+  ]
+  const rows = []
+  for (let w = 1; w <= 12; w += 1) {
+    for (const run of week) {
+      rows.push({
+        userId,
+        date: addDays(thisMonday, -7 * w + run.dow),
+        type: 'run',
+        durationSec: run.min * 60,
+        movingSec: run.min * 60,
+        distanceM: run.distanceM,
+        rpe: 3,
+        source: 'manual',
+      })
+    }
+  }
+  await ctx.prisma.activity.createMany({ data: rows })
+}
+
+let counter = 0
+
+interface Runner {
+  who: TestUser
+  /** The plan's goal. */
+  half: Goal
+  /** A second goal with no plan. */
+  tenK: Goal
+  plan: PlanWithSessions
+}
+
+/** A runner with a history, a half-marathon goal that has the plan, and a 10K goal that has none. */
+async function runnerWithPlan(options: Record<string, unknown> = {}): Promise<Runner> {
+  counter += 1
+  const who = await seedUser(ctx, { email: `switch${String(counter)}@example.com` })
+  await seedHistory(who.id)
+  const half = await createGoal(
+    {
+      name: 'Spring half',
+      distanceM: 21_097,
+      goalType: 'finish',
+      targetDate: addDays(thisMonday, 7 * 12 + 5),
+    },
+    who,
+  )
+  const tenK = await createGoal(
+    {
+      name: 'Autumn 10K',
+      distanceM: 10_000,
+      goalType: 'finish',
+      targetDate: addDays(thisMonday, 7 * 10 + 5),
+    },
+    who,
+  )
+  const generated = await client(ctx, who)
+    .post('/api/plan/generate')
+    .send({ goalId: half.id, options })
+  expect(generated.status, JSON.stringify(generated.body)).toBe(201)
+  return { who, half, tenK, plan: generated.body as PlanWithSessions }
+}
+
+const activate = (who: TestUser, goalId: string, body?: Record<string, unknown> | unknown[]) => {
+  const call = client(ctx, who).post(`/api/goals/${goalId}/activate`)
+  return body === undefined ? call : call.send(body)
+}
+
+const planRows = (userId: string) =>
+  ctx.prisma.plan.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } })
+
+const activeGoalIds = async (userId: string) =>
+  (await ctx.prisma.goal.findMany({ where: { userId, isActive: true } })).map((g) => g.id)
+
+describe('POST /api/goals/:id/activate while a plan follows another goal', () => {
+  test('answers 409 with what it takes and changes nothing; the body is optional and strict', async () => {
+    const { who, half, tenK, plan } = await runnerWithPlan()
+    const revisions = await ctx.prisma.planRevision.count({ where: { planId: plan.id } })
+
+    for (const body of [undefined, {}, { replacePlan: false }]) {
+      const res = await activate(who, tenK.id, body)
+      expect(res.status).toBe(409)
+      expect(res.body).toMatchObject({
+        error: {
+          code: 'conflict',
+          message: expect.stringContaining('The plan follows Spring half.') as unknown,
+          details: { requires: 'replacePlan', planGoalId: half.id, planGoalName: 'Spring half' },
+        },
+      })
+    }
+    expect(await activeGoalIds(who.id)).toEqual([half.id])
+    expect((await planRows(who.id)).map((p) => [p.id, p.status])).toEqual([[plan.id, 'active']])
+    expect(await ctx.prisma.planRevision.count({ where: { planId: plan.id } })).toBe(revisions)
+
+    for (const body of [{ replacePlan: 'yes' }, { replacePlan: true, extra: 1 }, []]) {
+      expect((await activate(who, tenK.id, body)).status).toBe(400)
+    }
+    expect(await planRows(who.id)).toHaveLength(1)
+  })
+
+  test('replacePlan builds the plan for the goal, archives the old one and writes a goal-switch revision', async () => {
+    const { who, half, tenK, plan } = await runnerWithPlan({
+      strengthSessions: 0,
+      recoveryCycle: '2:1',
+    })
+    const before = await ctx.prisma.planSession.findMany({ where: { planId: plan.id } })
+
+    const res = await activate(who, tenK.id, { replacePlan: true })
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    expect(res.body).toMatchObject({ id: tenK.id, isActive: true })
+    expect(await activeGoalIds(who.id)).toEqual([tenK.id])
+
+    const [old, built] = await planRows(who.id)
+    expect(old).toMatchObject({ id: plan.id, status: 'archived', goalId: half.id })
+    expect(built).toMatchObject({ status: 'active', goalId: tenK.id, generatorVersion: 2 })
+    // The runner's options carry over to the plan for the new goal.
+    expect(JSON.parse(built!.options)).toEqual({ strengthSessions: 0, recoveryCycle: '2:1' })
+    const served = (await client(ctx, who).get('/api/plan')).body as PlanWithSessions
+    expect(served.id).toBe(built!.id)
+
+    // One revision, written with the plan through `recordPlanWrite`: no diff, nothing to undo.
+    const revisions = await ctx.prisma.planRevision.findMany({ where: { planId: built!.id } })
+    expect(revisions).toHaveLength(1)
+    expect(revisions[0]).toMatchObject({
+      reason: 'goal-switch',
+      summary: expect.stringContaining('Plan switched to Autumn 10K') as unknown,
+      auto: false,
+      diff: null,
+      undo: null,
+    })
+    expect(await ctx.prisma.planRevision.count({ where: { planId: plan.id } })).toBe(1)
+
+    // A session that stays on its day and kind keeps its externalId; no id is used twice.
+    const after = await ctx.prisma.planSession.findMany({ where: { planId: built!.id } })
+    const oldKey = new Map(before.map((r) => [r.externalId, `${r.date}|${r.kind}`]))
+    const shared = after.filter((r) => oldKey.has(r.externalId))
+    expect(shared.length).toBeGreaterThan(0)
+    for (const row of shared) expect(oldKey.get(row.externalId)).toBe(`${row.date}|${row.kind}`)
+    expect(new Set(after.map((r) => r.externalId)).size).toBe(after.length)
+    // The archived plan keeps its rows, ids and externalIds as they were.
+    const archivedRows = await ctx.prisma.planSession.findMany({ where: { planId: plan.id } })
+    expect(archivedRows.map((r) => [r.id, r.externalId]).sort()).toEqual(
+      before.map((r) => [r.id, r.externalId]).sort(),
+    )
+  })
+
+  test('a plan that cannot be built changes nothing', async () => {
+    const { who, half, tenK, plan } = await runnerWithPlan()
+    await ctx.prisma.goal.update({ where: { id: tenK.id }, data: { distanceM: null } })
+    const revisions = await ctx.prisma.planRevision.count()
+
+    const noDistance = await activate(who, tenK.id, { replacePlan: true })
+    expect(noDistance.status).toBe(400)
+    expect(noDistance.body).toMatchObject({ error: { code: 'validation' } })
+
+    await ctx.prisma.goal.update({
+      where: { id: tenK.id },
+      data: { distanceM: 10_000, targetDate: addDays(today, -1) },
+    })
+    const passed = await activate(who, tenK.id, { replacePlan: true })
+    expect(passed.status).toBe(400)
+
+    expect(await activeGoalIds(who.id)).toEqual([half.id])
+    expect((await planRows(who.id)).map((p) => [p.id, p.status])).toEqual([[plan.id, 'active']])
+    expect(await ctx.prisma.planRevision.count()).toBe(revisions)
+  })
+
+  test('a finished or dropped goal is refused, with or without replacePlan', async () => {
+    const { who, half, plan } = await runnerWithPlan()
+    const done = await createGoal({ name: 'Done', status: 'done' }, who)
+    const dropped = await createGoal({ name: 'Dropped', status: 'dropped' }, who)
+    for (const goal of [done, dropped]) {
+      for (const body of [undefined, { replacePlan: true }]) {
+        expect((await activate(who, goal.id, body)).status).toBe(409)
+      }
+    }
+    expect(await activeGoalIds(who.id)).toEqual([half.id])
+    expect((await planRows(who.id)).map((p) => p.id)).toEqual([plan.id])
+  })
+
+  test('another runner s goal is not found', async () => {
+    const { who } = await runnerWithPlan()
+    const theirs = await createGoal({ name: 'Theirs' }, other)
+    expect((await activate(who, theirs.id, { replacePlan: true })).status).toBe(404)
+    expect((await activate(who, 'no-such-goal')).status).toBe(404)
+  })
+})
+
+describe('POST /api/goals/:id/activate when no plan has to move', () => {
+  test('the plan s own goal only has its flag set, even when another goal was marked active', async () => {
+    const { who, half, tenK, plan } = await runnerWithPlan()
+    await ctx.prisma.goal.updateMany({ where: { userId: who.id }, data: { isActive: false } })
+    await ctx.prisma.goal.update({ where: { id: tenK.id }, data: { isActive: true } })
+
+    const res = await activate(who, half.id)
+    expect(res.status).toBe(200)
+    expect(await activeGoalIds(who.id)).toEqual([half.id])
+    expect((await planRows(who.id)).map((p) => [p.id, p.status])).toEqual([[plan.id, 'active']])
+    expect(await ctx.prisma.planRevision.count({ where: { planId: plan.id } })).toBe(1)
+    // replacePlan changes nothing when the plan is already on this goal.
+    expect((await activate(who, half.id, { replacePlan: true })).status).toBe(200)
+    expect(await planRows(who.id)).toHaveLength(1)
+  })
+
+  test('a plan from the version-1 generator does not hold the goal: only the flag moves', async () => {
+    counter += 1
+    const who = await seedUser(ctx, { email: `legacy${String(counter)}@example.com` })
+    const a = await createGoal({ name: 'Legacy A', distanceM: 10_000 }, who)
+    const b = await createGoal({ name: 'Legacy B', distanceM: 10_000 }, who)
+    const legacy = await ctx.prisma.plan.create({
+      data: {
+        userId: who.id,
+        goalId: a.id,
+        name: a.name,
+        startDate: thisMonday,
+        raceWeekStart: thisMonday,
+        generatorVersion: 1,
+      },
+    })
+    const res = await activate(who, b.id, { replacePlan: true })
+    expect(res.status).toBe(200)
+    expect(await activeGoalIds(who.id)).toEqual([b.id])
+    expect((await planRows(who.id)).map((p) => [p.id, p.status])).toEqual([[legacy.id, 'active']])
+  })
+})
+
+describe('GET /api/plan/archived', () => {
+  test('lists the archived plan with the goal, the race week and whether it can come back', async () => {
+    const { who, half, tenK, plan } = await runnerWithPlan()
+    expect(((await client(ctx, who).get('/api/plan/archived')).body as unknown[]).length).toBe(0)
+    await activate(who, tenK.id, { replacePlan: true })
+
+    const res = await client(ctx, who).get('/api/plan/archived')
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual([
+      {
+        id: plan.id,
+        goalId: half.id,
+        goalName: 'Spring half',
+        raceWeekStart: mondayOf(half.targetDate),
+        archivedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) as unknown,
+        restorable: true,
+        reason: null,
+      },
+    ])
+    expect((await client(ctx).get('/api/plan/archived')).status).toBe(401)
+  })
+
+  test('says why a plan cannot come back: finished goal, passed race date, older generator', async () => {
+    const { who, half, tenK, plan } = await runnerWithPlan()
+    await activate(who, tenK.id, { replacePlan: true })
+    const list = async () =>
+      (await client(ctx, who).get('/api/plan/archived')).body as ArchivedPlanView[]
+
+    await ctx.prisma.goal.update({ where: { id: half.id }, data: { status: 'done' } })
+    expect((await list())[0]).toMatchObject({
+      restorable: false,
+      reason: 'The goal is finished or dropped, so its plan cannot be restored.',
+    })
+    await ctx.prisma.goal.update({
+      where: { id: half.id },
+      data: { status: 'target', targetDate: addDays(today, -1) },
+    })
+    expect((await list())[0]).toMatchObject({
+      restorable: false,
+      reason: 'The race date has passed, so this plan cannot be restored.',
+    })
+    await ctx.prisma.goal.update({
+      where: { id: half.id },
+      data: { targetDate: addDays(today, 70) },
+    })
+    await ctx.prisma.plan.update({ where: { id: plan.id }, data: { generatorVersion: 1 } })
+    expect((await list())[0]).toMatchObject({
+      restorable: false,
+      reason: 'This plan was made by an earlier version of the app, so it cannot be restored.',
+    })
+  })
+
+  test('lists at most the five newest, scoped to the runner', async () => {
+    counter += 1
+    const who = await seedUser(ctx, { email: `archive${String(counter)}@example.com` })
+    const goal = await createGoal({ name: 'Many plans', distanceM: 10_000 }, who)
+    const theirs = await createGoal({ name: 'Theirs', distanceM: 10_000 }, other)
+    const make = (userId: string, goalId: string, minute: number) =>
+      ctx.prisma.plan.create({
+        data: {
+          userId,
+          goalId,
+          name: 'p',
+          startDate: thisMonday,
+          raceWeekStart: thisMonday,
+          generatorVersion: 2,
+          status: 'archived',
+          updatedAt: new Date(2026, 0, 1, 0, minute),
+        },
+      })
+    const ids: string[] = []
+    for (let minute = 0; minute < 7; minute += 1) ids.push((await make(who.id, goal.id, minute)).id)
+    await make(other.id, theirs.id, 30)
+    const listed = (await client(ctx, who).get('/api/plan/archived')).body as ArchivedPlanView[]
+    expect(listed.map((p) => p.id)).toEqual(ids.slice(2).reverse())
+  })
+})
+
+describe('POST /api/plan/archived/:id/restore', () => {
+  const restore = (who: TestUser, planId: string) =>
+    client(ctx, who).post(`/api/plan/archived/${planId}/restore`)
+
+  test('brings the plan and its goal back, keeps every id and externalId and writes a Plan restored revision', async () => {
+    const { who, half, tenK, plan } = await runnerWithPlan()
+    const original = await ctx.prisma.planSession.findMany({ where: { planId: plan.id } })
+    await activate(who, tenK.id, { replacePlan: true })
+    const [, switched] = await planRows(who.id)
+
+    const res = await restore(who, plan.id)
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    expect(res.body).toEqual({ planId: plan.id, goalId: half.id, replanned: true, message: null })
+    expect(vi.mocked(replanActivePlan)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(replanActivePlan).mock.calls[0]?.[1]).toMatchObject({
+      userId: who.id,
+      reason: 'owner',
+      today,
+    })
+
+    expect((await planRows(who.id)).map((p) => [p.id, p.status])).toEqual([
+      [plan.id, 'active'],
+      [switched!.id, 'archived'],
+    ])
+    expect(await activeGoalIds(who.id)).toEqual([half.id])
+    expect(((await client(ctx, who).get('/api/plan')).body as PlanWithSessions).id).toBe(plan.id)
+
+    // Nothing about the data changed since the plan was made, so the re-plan moves no session.
+    const after = await ctx.prisma.planSession.findMany({ where: { planId: plan.id } })
+    expect(after.map((r) => [r.id, r.externalId]).sort()).toEqual(
+      original.map((r) => [r.id, r.externalId]).sort(),
+    )
+
+    const revisions = await ctx.prisma.planRevision.findMany({
+      where: { planId: plan.id },
+      orderBy: { createdAt: 'asc' },
+    })
+    expect(revisions.map((r) => [r.reason, r.summary])).toEqual([
+      ['generate', expect.any(String) as unknown],
+      ['owner', 'Plan restored.'],
+      ['owner', expect.any(String) as unknown],
+    ])
+    expect(revisions[1]).toMatchObject({ auto: false, diff: null, undo: null })
+
+    // The plan for the other goal is now the one in the archive, and can come back in turn.
+    const archived = (await client(ctx, who).get('/api/plan/archived')).body as ArchivedPlanView[]
+    expect(archived).toMatchObject([{ id: switched!.id, goalId: tenK.id, restorable: true }])
+  })
+
+  test('answers 409 for a finished goal, a passed race date, an older plan and the active plan', async () => {
+    const { who, half, tenK, plan } = await runnerWithPlan()
+    expect((await restore(who, plan.id)).status).toBe(409)
+    await activate(who, tenK.id, { replacePlan: true })
+
+    await ctx.prisma.goal.update({ where: { id: half.id }, data: { status: 'dropped' } })
+    const closed = await restore(who, plan.id)
+    expect(closed.status).toBe(409)
+    expect(closed.body).toMatchObject({
+      error: { message: 'The goal is finished or dropped, so its plan cannot be restored.' },
+    })
+    await ctx.prisma.goal.update({
+      where: { id: half.id },
+      data: { status: 'target', targetDate: addDays(today, -2) },
+    })
+    expect((await restore(who, plan.id)).status).toBe(409)
+    await ctx.prisma.goal.update({
+      where: { id: half.id },
+      data: { targetDate: addDays(today, 70) },
+    })
+    await ctx.prisma.plan.update({ where: { id: plan.id }, data: { generatorVersion: 1 } })
+    expect((await restore(who, plan.id)).status).toBe(409)
+
+    // Every refusal left the plan for the 10K as the active one.
+    expect((await planRows(who.id)).map((p) => p.status)).toEqual(['archived', 'active'])
+    expect(await activeGoalIds(who.id)).toEqual([tenK.id])
+    expect(vi.mocked(replanActivePlan)).not.toHaveBeenCalled()
+  })
+
+  test('is not found for another runner s plan and needs a session', async () => {
+    const { plan } = await runnerWithPlan()
+    const { who } = await runnerWithPlan()
+    expect((await restore(who, plan.id)).status).toBe(404)
+    expect((await restore(who, 'no-such-plan')).status).toBe(404)
+    expect((await client(ctx).post(`/api/plan/archived/${plan.id}/restore`)).status).toBe(401)
+  })
+
+  test('a re-plan that the checklist blocks leaves the plan restored and says so', async () => {
+    const { who, half, tenK, plan } = await runnerWithPlan()
+    await activate(who, tenK.id, { replacePlan: true })
+    const message = 'The plan did not pass the quality checklist (G-1), so it was not published.'
+    vi.mocked(replanActivePlan).mockRejectedValueOnce(
+      new HttpError(422, 'validation', message, { checklist: [] }),
+    )
+
+    const res = await restore(who, plan.id)
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ planId: plan.id, goalId: half.id, replanned: false, message })
+    expect((await planRows(who.id)).map((p) => p.status)).toEqual(['active', 'archived'])
+    expect(await activeGoalIds(who.id)).toEqual([half.id])
+    const revisions = await ctx.prisma.planRevision.findMany({ where: { planId: plan.id } })
+    expect(revisions.map((r) => r.summary)).toContain('Plan restored.')
+  })
+
+  test('an unexpected failure of the re-plan is an error, not a quiet replanned: false', async () => {
+    const { who, tenK, plan } = await runnerWithPlan()
+    await activate(who, tenK.id, { replacePlan: true })
+    vi.mocked(replanActivePlan).mockRejectedValueOnce(new Error('the engine is down'))
+    expect((await restore(who, plan.id)).status).toBe(500)
   })
 })
