@@ -186,7 +186,7 @@ const briefKey: SurfaceAdapter = {
     )
     // The stored figures are plain data: they come back from the JSON column as written.
     const stored = JSON.parse(JSON.stringify(key)) as typeof key
-    const lines = targetRows(stored.target, ctx.units).map(
+    const lines = targetRows(stored.target, ctx.units, 'other').map(
       (row) => `${row.term}: ${[row.value, ...(row.note === null ? [] : [row.note])].join(' ')}`,
     )
     return readTargetLines(lines, ctx.units)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { offlineLine, stalePreviewLine } from '../../../shared/copy/windowView.ts'
 import type { PlanRevisionView } from '../../../shared/types.ts'
@@ -43,7 +43,14 @@ export function ReplanSheet({ onClose }: ReplanSheetProps) {
   const [notice, setNotice] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [done, setDone] = useState<PlanRevisionView | null>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
   const units = settings.data?.units ?? 'km'
+
+  // Applying removes the button that was focused: the result's heading takes focus, so a screen
+  // reader starts at what was done and the keyboard stays inside the dialog.
+  useEffect(() => {
+    if (done !== null) heading.current?.focus()
+  }, [done])
 
   function apply() {
     if (preview.data === undefined || preview.data.blocked) return
@@ -51,7 +58,8 @@ export function ReplanSheet({ onClose }: ReplanSheetProps) {
     replan.mutate(preview.data.hash, {
       onSuccess: (revision) => {
         setDone(revision)
-        markSeen([revision.id])
+        // A revision the request wrote is seen at write; only one still unseen is stamped.
+        if (revision.seenAt === null) markSeen([revision.id])
       },
       onError: (error) => {
         const outcome = commitFailure(error)
@@ -73,7 +81,9 @@ export function ReplanSheet({ onClose }: ReplanSheetProps) {
     body = (
       <>
         <div role="status">
-          <h3 className={styles.stepHeading}>Plan updated</h3>
+          <h3 ref={heading} tabIndex={-1} className={styles.stepHeading}>
+            Plan updated
+          </h3>
         </div>
         <RevisionDiff revision={done} units={units} isNew={false} />
       </>

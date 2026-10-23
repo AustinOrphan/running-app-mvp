@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { P } from '../../shared/engine/params/index.ts'
@@ -199,15 +199,94 @@ describe('DisruptionBanner, I am better', () => {
     expectCleanCopy(dialog)
 
     await user.click(within(dialog).getByRole('button', { name: 'Apply to my plan' }))
-    expect(await within(dialog).findByText('Window changed')).toBeInTheDocument()
+    const changed = await within(dialog).findByRole('heading', { name: 'Window changed' })
     expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
       endDate: '2026-03-17',
       expectHash: 'd'.repeat(64),
     })
     expect(within(dialog).getByRole('button', { name: 'Undo update' })).toBeInTheDocument()
+    // The Apply button is gone: focus moves to what was done, inside the dialog.
+    await waitFor(() => {
+      expect(changed).toHaveFocus()
+    })
     await waitFor(() => {
       expect(calls.some((c) => c.url === '/api/plan/revisions/r8/seen')).toBe(true)
     })
+  })
+
+  test('is titled for the button that opened it: I am better for an illness', async () => {
+    const user = userEvent.setup()
+    renderBanners([illness()], { 'POST /api/plan/preview': () => makePreview() })
+    await user.click(await screen.findByRole('button', { name: "I'm better" }))
+    const dialog = await screen.findByRole('dialog', { name: "I'm better" })
+    expect(
+      within(dialog).getByText(
+        'The window ends yesterday. The return is sized from the days you rested.',
+      ),
+    ).toBeInTheDocument()
+    expectCleanCopy(dialog)
+  })
+
+  test('is titled for the button that opened it: Finish early for a travel window', async () => {
+    const user = userEvent.setup()
+    const travel = illness({
+      id: 'w2',
+      reason: 'travel',
+      mode: 'limited',
+      maxRunMin: 30,
+      phase: 'limited',
+    })
+    const { calls } = renderBanners([travel], {
+      'POST /api/plan/preview': () =>
+        makePreview({
+          action: { type: 'disruption-update', id: 'w2', endDate: '2026-03-17' },
+        }),
+    })
+    await user.click(await screen.findByRole('button', { name: 'Finish early' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Finish early' })
+    expect(screen.queryByRole('dialog', { name: "I'm better" })).not.toBeInTheDocument()
+    // Nothing here talks about days rested: a travel window is not a layoff.
+    expect(within(dialog).queryByText(/days you rested/)).not.toBeInTheDocument()
+    expect(
+      within(dialog).getByText('The window ends yesterday. The plan picks up from today.'),
+    ).toBeInTheDocument()
+    expectCleanCopy(dialog)
+    await waitFor(() => {
+      expect(calls.find((c) => c.url === '/api/plan/preview')?.body).toEqual({
+        type: 'disruption-update',
+        id: 'w2',
+        endDate: '2026-03-17',
+      })
+    })
+  })
+
+  test('a niggle is a health window too: I am better', async () => {
+    const user = userEvent.setup()
+    renderBanners([illness({ reason: 'niggle', pain: 3 })], {
+      'POST /api/plan/preview': () => makePreview(),
+    })
+    await user.click(await screen.findByRole('button', { name: "I'm better" }))
+    expect(await screen.findByRole('dialog', { name: "I'm better" })).toBeInTheDocument()
+  })
+
+  test('a revision that was seen when it was written is not stamped as seen again', async () => {
+    const user = userEvent.setup()
+    const written = applied('Changed the window (illness) to run from Mon 16 Mar to Tue 17 Mar.')
+    const { calls } = renderBanners([illness()], {
+      'POST /api/plan/preview': () => makePreview({ hash: 'd'.repeat(64) }),
+      'PATCH /api/plan/disruptions/w1': () => ({
+        ...written,
+        revision: { ...written.revision, seenAt: '2026-03-18T12:00:00.000Z' },
+      }),
+    })
+    await user.click(await screen.findByRole('button', { name: "I'm better" }))
+    const dialog = await screen.findByRole('dialog', { name: "I'm better" })
+    await user.click(await within(dialog).findByRole('button', { name: 'Apply to my plan' }))
+    await within(dialog).findByRole('heading', { name: 'Window changed' })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+    expect(calls.filter((c) => c.url.endsWith('/seen'))).toEqual([])
   })
 })
 
@@ -289,7 +368,10 @@ describe('DisruptionBanner, Remove window', () => {
     expect(dialog).toHaveTextContent('Days already skipped stay skipped.')
     await user.click(within(dialog).getByRole('button', { name: 'Apply to my plan' }))
 
-    expect(await within(dialog).findByText('Window removed')).toBeInTheDocument()
+    const removedHeading = await within(dialog).findByRole('heading', { name: 'Window removed' })
+    await waitFor(() => {
+      expect(removedHeading).toHaveFocus()
+    })
     expect(calls.find((c) => c.method === 'DELETE')?.url).toBe(
       `/api/plan/disruptions/w1?expectHash=${'f'.repeat(64)}`,
     )

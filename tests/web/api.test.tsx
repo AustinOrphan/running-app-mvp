@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test, vi, type MockInstance } from 'vitest'
 import type { ActivityListPage } from '../../shared/types.ts'
 import { useLogin, useLogout, useMe, useSetup } from '../../web/api/auth.ts'
 import {
@@ -14,7 +14,7 @@ import {
   useResolveDuplicate,
   useUpdateActivity,
 } from '../../web/api/activities.ts'
-import { createQueryClient, keys } from '../../web/api/client.ts'
+import { createQueryClient, invalidateNewPlan, keys } from '../../web/api/client.ts'
 import {
   useActivateGoal,
   useCreateGoal,
@@ -575,6 +575,68 @@ describe('invalidation', () => {
       'me',
       'settings',
     ])
+  })
+})
+
+describe('the plan readers', () => {
+  /** The roots of the queries that were invalidated, once each, sorted. */
+  const rootsOf = (invalidate: MockInstance<QueryClient['invalidateQueries']>) =>
+    [...new Set(invalidate.mock.calls.map(([filter]) => (filter?.queryKey as string[])[0]))].sort()
+
+  // What a change to the plan moves: the plan and its sessions, the revisions, the rest windows,
+  // the reviews, the brief, the athlete state, Today, the watch status and the fuel targets.
+  const READERS = [
+    keys.brief,
+    keys.disruptions,
+    keys.fuel,
+    keys.plan,
+    keys.planRevisions,
+    keys.reviews,
+    keys.state,
+    keys.today,
+    keys.wrist,
+  ]
+
+  test('a week edit reads every reader of the plan again, the watch status and fuel included', async () => {
+    mockApi(allRoutes())
+    const { queryClient, wrapper } = setup()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useUpdatePlanWeek(), { wrapper })
+    await act(() => result.current.mutateAsync({ weekStart: '2026-03-02', patch: { runDays: 4 } }))
+    expect(rootsOf(invalidate)).toEqual(READERS)
+  })
+
+  test('a new plan also reads the goals, the archived plans and the predictions again', async () => {
+    mockApi(allRoutes())
+    const { queryClient, wrapper } = setup()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useGeneratePlan(), { wrapper })
+    await act(() => result.current.mutateAsync({ goalId: 'g1' }))
+    expect(rootsOf(invalidate)).toEqual(
+      [...READERS, keys.goals, keys.planArchived, keys.predictions].sort(),
+    )
+  })
+
+  test('the plan and its reviews are awaited by a new plan; the other readers are not', async () => {
+    mockApi(allRoutes())
+    const { queryClient, wrapper } = setup()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useGeneratePlan(), { wrapper })
+    await act(() => result.current.mutateAsync({ goalId: 'g1' }))
+    // The plan and the reviews are asked for whole (every query under their key), once.
+    const whole = invalidate.mock.calls.filter(([filter]) => filter?.predicate === undefined)
+    expect(whole.map(([filter]) => (filter?.queryKey as string[])[0]).sort()).toEqual([
+      keys.plan,
+      keys.reviews,
+    ])
+  })
+
+  test('a plan that replaces the old one reads the watch status and fuel again', async () => {
+    mockApi(allRoutes())
+    const { queryClient } = setup()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    await act(() => invalidateNewPlan(queryClient))
+    expect(rootsOf(invalidate)).toEqual(expect.arrayContaining([keys.wrist, keys.fuel, keys.plan]))
   })
 })
 

@@ -228,8 +228,25 @@
   outline: none;
 }
 
+.adjustPanel:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+/*
+ * The panel is a live region, so it has to be in the page before the answer arrives: `display:
+ * none` would take it out of the accessibility tree. Empty, it is clipped to a point and out of
+ * the flow, so it adds no gap to the section.
+ */
 .adjustPanel:empty {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .guards {

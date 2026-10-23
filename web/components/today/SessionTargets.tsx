@@ -1,15 +1,25 @@
 import type { ResolvedTargets } from '../../../shared/engine/types.ts'
 import type { Units } from '../../../shared/types.ts'
 import styles from './SessionTargets.module.css'
-import { targetRows } from './targetText.ts'
+import { targetRows, type TargetDay } from './targetText.ts'
 
 /**
  * The targets of the session as a term list: the figure the day is run by first, the others
  * after it, and a note beside a figure that the day qualifies (hot weather). A target is a
- * sketch, so nothing here is a limit to be met.
+ * sketch, so nothing here is a limit to be met. `day` is `today` for Today's hero, which is the
+ * default, and `other` for a session read on any day (the session sheet): its notes do not say
+ * "today".
  */
-export function SessionTargets({ targets, units }: { targets: ResolvedTargets; units: Units }) {
-  const rows = targetRows(targets, units)
+export function SessionTargets({
+  targets,
+  units,
+  day = 'today',
+}: {
+  targets: ResolvedTargets
+  units: Units
+  day?: TargetDay
+}) {
+  const rows = targetRows(targets, units, day)
   if (rows.length === 0) return null
   return (
     <dl className={styles.targets}>

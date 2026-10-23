@@ -574,15 +574,18 @@ describe('UndoControl, when the update can be undone', () => {
       ([filter]) => (filter as { queryKey: string[] }).queryKey[0],
     )
     // The windows and the reviews are read again too: undoing the update that added a window
-    // withdraws it, and an undo moves the plan targets the reviews read.
+    // withdraws it, and an undo moves the plan targets the reviews read. The watch status and the
+    // fuel targets follow the sessions of the plan.
     expect(keys.sort()).toEqual([
       'brief',
       'disruptions',
+      'fuel',
       'plan',
       'planRevisions',
       'reviews',
       'state',
       'today',
+      'wrist',
     ])
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

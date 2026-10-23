@@ -251,7 +251,8 @@ describe('the key session', () => {
       key({ target: { ...key().target, hot: true, mode: 'effort' } }),
       'km',
     )!
-    expect(hot.targets[0]).toMatchObject({ term: 'Effort', note: 'Go by this today.' })
+    // The key session is on a day ahead: the note does not say "today".
+    expect(hot.targets[0]).toMatchObject({ term: 'Effort', note: 'Go by this when you run it.' })
   })
 
   test('names every kind, and a kind a newer build adds as a session', () => {

@@ -1,8 +1,9 @@
 // The targets of a session as the hero words them: a term, its value and a note per figure, in
 // the order the resolver's lead gives (`resolveTargets`, design 4.6). Every figure comes from the
 // resolved targets the server sent; this module only words them, in the runner's units. The hero
-// (`web/components/today/SessionTargets.tsx`) and the key session of the weekly brief
-// (`briefRender.ts`) both call it, so the two read the same words from the same figures.
+// (`web/components/today/SessionTargets.tsx`), the session sheet and the key session of the weekly
+// brief (`briefRender.ts`) all call it, so they read the same words from the same figures. Only
+// the hot-day effort note depends on the day (`TargetDay`): "today" is right for the hero alone.
 import type { ResolvedTargets } from '../engine/types.ts'
 import type { Units } from '../types.ts'
 import { formatRange } from './quantity.ts'
@@ -16,6 +17,12 @@ export type TargetFigures = Pick<
 >
 
 export type TargetKey = 'hr' | 'pace' | 'effort'
+
+/**
+ * The day the rows are for. `today` is Today's hero; `other` is a session the runner reads about
+ * on any day (the weekly brief's key session, a session sheet), which may be ahead or behind.
+ */
+export type TargetDay = 'today' | 'other'
 
 export interface TargetRow {
   key: TargetKey
@@ -46,10 +53,11 @@ type PlainId =
   | 'today.target.term-effort'
   | 'today.target.note-pace-guide'
   | 'today.target.note-hot-effort'
+  | 'today.target.note-hot-effort-day'
   | 'today.target.note-hot-hr'
 
 /** The rows of the targets that exist, lead first. A figure the session does not carry has no row. */
-export function targetRows(targets: TargetFigures, units: Units): TargetRow[] {
+export function targetRows(targets: TargetFigures, units: Units, day: TargetDay): TargetRow[] {
   const plain = (id: PlainId): string => render(TEMPLATES[id], {}, units)
   const hot = targets.hot
 
@@ -60,7 +68,11 @@ export function targetRows(targets: TargetFigures, units: Units): TargetRow[] {
       key: 'effort',
       term: plain('today.target.term-effort'),
       value: render(TEMPLATES['today.target.effort'], { range: effortRange(targets.rpe) }, units),
-      note: hot ? plain('today.target.note-hot-effort') : null,
+      note: hot
+        ? plain(
+            day === 'today' ? 'today.target.note-hot-effort' : 'today.target.note-hot-effort-day',
+          )
+        : null,
     },
   }
 

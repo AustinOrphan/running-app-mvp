@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { offlineLine, stalePreviewLine } from '../../../shared/copy/windowView.ts'
+import { betterWords, offlineLine, stalePreviewLine } from '../../../shared/copy/windowView.ts'
 import { addDays, isIsoDate } from '../../../shared/dates.ts'
 import type { DisruptionResult, DisruptionView } from '../../../shared/types.ts'
 import {
@@ -29,7 +29,9 @@ import styles from './disruption.module.css'
  * because the window changed since.
  *
  * - `better`: the window ends yesterday, so today is the first day the plan counts as recovered and
- *   the return is sized from the days actually rested.
+ *   the return is sized from the days actually rested. The banner calls it "I'm better" for an
+ *   illness or a niggle and "Finish early" for any other window, and the sheet is titled the same
+ *   (`betterWords`).
  * - `extend`: the window runs to a later last day, which the runner chooses.
  * - `remove`: the window is retracted; the days it already skipped stay skipped.
  *
@@ -42,14 +44,13 @@ export type WindowAction =
 
 export type WindowActionSheetProps = WindowAction & { onClose: () => void }
 
+/** The title and the sentence under it for the two actions that do not depend on the window. */
 const TITLES = {
-  better: "I'm better",
   extend: 'Extend this window',
   remove: 'Remove this window',
 } as const
 
 const INTRO = {
-  better: 'The window ends yesterday. The return is sized from the days you rested.',
   extend: 'Choose the new last day.',
   remove:
     'The plan goes back to how it would be without this window. Days already skipped stay skipped.',
@@ -74,7 +75,14 @@ export function WindowActionSheet(props: WindowActionSheetProps) {
   const [notice, setNotice] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [done, setDone] = useState<DisruptionResult | null>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
   const units = settings.data?.units ?? 'km'
+
+  // Applying removes the button that was focused: the result's heading takes focus, so a screen
+  // reader starts at what was done and the keyboard stays inside the dialog.
+  useEffect(() => {
+    if (done !== null) heading.current?.focus()
+  }, [done])
 
   const id = props.kind === 'remove' ? props.windowId : props.window.id
   let action: DisruptionPreviewAction | null
@@ -82,6 +90,12 @@ export function WindowActionSheet(props: WindowActionSheetProps) {
   else if (props.kind === 'better') {
     action = { type: 'disruption-update', id, endDate: addDays(props.today, -1) }
   } else action = isIsoDate(endDate) ? { type: 'disruption-update', id, endDate } : null
+
+  // The title and the sentence under it: the "better" action is worded for the window's reason.
+  const { title, intro } =
+    props.kind === 'better'
+      ? betterWords(props.window.reason, units)
+      : { title: TITLES[props.kind], intro: INTRO[props.kind] }
 
   const preview = usePlanPreview(action)
   const pending = update.isPending || remove.isPending
@@ -93,7 +107,8 @@ export function WindowActionSheet(props: WindowActionSheetProps) {
     const outcomeOf = {
       onSuccess: (result: DisruptionResult) => {
         setDone(result)
-        markSeen([result.revision.id])
+        // A revision the request wrote is seen at write; only one still unseen is stamped.
+        if (result.revision.seenAt === null) markSeen([result.revision.id])
       },
       onError: (error: unknown) => {
         const outcome = commitFailure(error)
@@ -120,7 +135,7 @@ export function WindowActionSheet(props: WindowActionSheetProps) {
     body = (
       <>
         <div role="status">
-          <h3 className={styles.stepHeading}>
+          <h3 ref={heading} tabIndex={-1} className={styles.stepHeading}>
             {props.kind === 'remove' ? 'Window removed' : 'Window changed'}
           </h3>
         </div>
@@ -139,7 +154,7 @@ export function WindowActionSheet(props: WindowActionSheetProps) {
       asked.kind === 'invalid' ? (asked.fields['endDate'] ?? asked.message) : undefined
     body = (
       <>
-        <p className={styles.text}>{INTRO[props.kind]}</p>
+        <p className={styles.text}>{intro}</p>
         {props.kind === 'extend' && bounds !== null ? (
           <Field label="Until" hint="The last day it affects training." error={fieldError}>
             {(a) => (
@@ -202,7 +217,7 @@ export function WindowActionSheet(props: WindowActionSheetProps) {
   }
 
   return (
-    <Sheet open onClose={onClose} title={TITLES[props.kind]} footer={footer}>
+    <Sheet open onClose={onClose} title={title} footer={footer}>
       <div className={styles.body}>{body}</div>
     </Sheet>
   )

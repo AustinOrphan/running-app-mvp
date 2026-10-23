@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { windowBannerLine } from '../../../shared/copy/windowView.ts'
+import { betterWords, windowBannerLine } from '../../../shared/copy/windowView.ts'
 import { addDays } from '../../../shared/dates.ts'
 import type { DisruptionView, Units } from '../../../shared/types.ts'
 import { Button } from '../Button.tsx'
-import { isIllness } from './windowDraft.ts'
 import { WindowActionSheet, type WindowAction } from './WindowActionSheet.tsx'
 import styles from './disruption.module.css'
 
@@ -37,7 +36,8 @@ export function DisruptionBanner({ window, today, units, onAction }: DisruptionB
     (window.phase === 'resting' || window.phase === 'limited') &&
     yesterday >= window.startDate &&
     yesterday < window.endDate
-  const health = isIllness(window.reason) || window.reason === 'niggle'
+  // The sheet this button opens is titled with the same words (`betterWords`).
+  const better = betterWords(window.reason, units).title
 
   return (
     <section aria-label="Rest window" className={styles.banner} data-phase={window.phase}>
@@ -50,7 +50,7 @@ export function DisruptionBanner({ window, today, units, onAction }: DisruptionB
               onAction('better')
             }}
           >
-            {health ? "I'm better" : 'Finish early'}
+            {better}
           </Button>
         ) : null}
         <Button
