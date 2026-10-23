@@ -586,6 +586,29 @@ function atOwnLength(week: WeekDraft, kind: StartKind, step: number): boolean {
 }
 
 /**
+ * The 3 x N floor week a re-plan is made in, when the start path has since ended [rules E6, g-2]:
+ * the plan opened this week on the floor, so the week stays on it. The floor is one week, and its
+ * exemption from the 2-week ceiling is the week's own. History logged since the plan was made (a
+ * week of runs imported late) can lift the typical week to 3 x 20 and end the start path, but the
+ * week is then not drawn again from the ceiling of the weeks before the layoff (28 min x 1.3),
+ * which would plan it below the floor it opened on and every week after it below the plan they
+ * continue. Null without such a week, and under a progression hold, where a runner with a typical
+ * week keeps it and no floor repeats.
+ */
+function floorContinuation(
+  input: EngineInput,
+  firstMonday: string,
+  hold: boolean,
+): StartPlan | null {
+  const current = input.existing?.weeks.find((w) => w.weekStart === firstMonday)
+  if (hold || current === undefined || !current.flags.includes('restart-floor')) return null
+  const sessions = P.restartFloor.sessions.value
+  const step =
+    current.longRunMin > 0 ? current.longRunMin : Math.round(plannedMinOf(current) / sessions)
+  return step > 0 ? { kind: 'floor', step, holdWeeks: 0, repeat: false, frozen: false } : null
+}
+
+/**
  * Where a re-plan carries a start path on [rules E6, G-3]: the weeks before this one that the
  * replaced plan flagged as ladder or injury-return weeks, in a row up to last week, are walked from
  * the first. A ladder week advances one rung after a week at the rung's own length with at least
@@ -868,7 +891,11 @@ function planWeeks(
   const carried = startContinuation(input, firstMonday, hold)
   const fresh =
     carried !== null || (hold && state.typicalWeekMin > 0) ? null : startPath(input, state)
-  const path: StartPlan | null = carried ?? (fresh === null ? null : planOf(fresh, hold))
+  // The floor week the plan opened on stays on the floor when the typical week has since ended the
+  // start path (`floorContinuation`).
+  const lapsed =
+    carried === null && fresh === null ? floorContinuation(input, firstMonday, hold) : null
+  const path: StartPlan | null = carried ?? lapsed ?? (fresh === null ? null : planOf(fresh, hold))
   /** The most a session of a start path may hold in the week of `weekStart`: G-1 as a hard bound. */
   const limitOf = (weekStart: string, kind: StartKind): number => {
     const caps = capsOf(weekStart, kind !== 'floor', true)

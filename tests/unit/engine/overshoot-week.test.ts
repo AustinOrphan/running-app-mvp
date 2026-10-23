@@ -4,6 +4,7 @@
 // anything up. Synthetic runners; no personal data.
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
+import { estimateState } from '../../../shared/engine/athlete.ts'
 import { runChecklist } from '../../../shared/engine/checklist.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import { plannedMinOf, runningMinutes } from '../../../shared/engine/limits.ts'
@@ -295,5 +296,138 @@ describe('a loading week of an established runner run past its target [rules G-2
     expect(weekOf(week.draft, recovery).targetRunMin).toBe(weekOf(plan, recovery).targetRunMin)
     expect(weekOf(week.draft, recovery).flags).not.toContain('overshoot')
     expect(failed(week.draft)).toEqual([])
+  })
+})
+
+describe('the weeks after an overshot restart floor week, once the weeks before it were outrun [rules G-2, G-6, E6, J7]', () => {
+  // A 100-mile runner back after a layoff. When the plan is made, the last four weeks with a run
+  // hold 100, 30, 30 and 30 minutes, a typical week of 30: the plan opens on the 60-minute floor.
+  // Two more runs of the week before the plan (30 + 34) are logged afterwards and make it a
+  // 94-minute week, which lifts the typical week to 62, past the floor. On Wednesday the first
+  // week of the plan stands at 44 + 35 = 79 minutes.
+  const planning = [
+    logged('2026-08-25', 40, 'old-1'),
+    logged('2026-08-28', 60, 'old-2'),
+    logged('2026-09-15', 30, 'old-3'),
+    logged('2026-10-06', 30, 'old-4'),
+    logged('2026-10-13', 30, 'old-5'),
+  ]
+  const late = [logged('2026-10-15', 30, 'late-1'), logged('2026-10-17', 34, 'late-2')]
+  const first: EngineInput = { ...floorRunner(MONDAY), activities: planning }
+  const plan = buildPlan(first)
+  const { runs, existing } = ranTwo(plan, 44, 35)
+  const history = [...planning, ...late, ...runs]
+  const replanOn = (today: string, rows: Existing) =>
+    replan({ ...first, today, activities: history.filter((a) => a.date <= today), existing: rows })
+  const out = replanOn(THURSDAY, existing)
+  const targets = (draft: PlanDraft, weeks = 6) =>
+    draft.weeks.slice(0, weeks).map((w) => w.targetRunMin)
+  const storedRows = (draft: PlanDraft, today: string): Existing => ({
+    weeks: draft.weeks,
+    sessions: draft.sessions.map((s, i) => ({
+      ...s,
+      id: `r${String(i)}`,
+      status: s.date < today && s.kind !== 'strength' ? 'completed' : 'planned',
+      activityId: runs.find((r) => r.date === s.date)?.id ?? null,
+    })),
+  })
+
+  it('opens on the 60-minute floor from a typical week of 30, and ends the layoff with the runs', () => {
+    expect(estimateState({ ...first, activities: planning }).typicalWeekMin).toBe(30)
+    expect(weekOf(plan, MONDAY).targetRunMin).toBe(60)
+    expect(weekOf(plan, MONDAY).flags).toContain('restart-floor')
+    const now = estimateState({ ...first, today: THURSDAY, activities: history })
+    expect(now.typicalWeekMin).toBeGreaterThanOrEqual(60)
+    expect(now.weeks.find((w) => w.weekStart === '2026-10-12')?.runMin).toBe(94)
+  })
+
+  it('takes the week as run, still the floor week it opened as, and passes the checklist', () => {
+    const week = weekOf(out.draft, MONDAY)
+    expect(week.targetRunMin).toBe(79)
+    expect(week.flags).toContain('overshoot')
+    expect(week.flags).toContain('restart-floor')
+    expect(plannedMinOf(week)).toBe(60)
+    expect(failed(out.draft)).toEqual([])
+  })
+
+  // The loading weeks after the first week of the plan (a recovery week sits where the cadence of
+  // the runner's typical week puts it, which is a separate matter).
+  const loadingAfter = (draft: PlanDraft, count = 4) =>
+    draft.weeks
+      .filter((w) => w.weekStart > MONDAY && !w.isRecovery && !w.isTaper)
+      .slice(0, count)
+      .map((w) => w.targetRunMin)
+
+  it('draws the weeks after it from the plan they continue, not below a Monday re-plan of the same history', () => {
+    const monday = replanOn(nextWeek(MONDAY, 1), existing)
+    expect(failed(monday.draft)).toEqual([])
+    const thursday = loadingAfter(out.draft)
+    const control = loadingAfter(monday.draft)
+    expect(control[0]).toBe(66)
+    thursday.forEach((minutes, i) => {
+      expect(minutes, `loading week ${String(i + 1)}`).toBeGreaterThanOrEqual(control[i]!)
+    })
+    // the plan before the week was run: the weeks after it are the same weeks
+    expect(thursday).toEqual(loadingAfter(plan))
+  })
+
+  it('keeps the weeks after it inside the ramp from the weeks actually run (94, then 79 minutes)', () => {
+    const series: Array<{ minutes: number; recovery: boolean }> = [
+      { minutes: 94, recovery: false },
+      { minutes: 79, recovery: false },
+      ...out.draft.weeks
+        .slice(1, 8)
+        .map((w) => ({ minutes: w.targetRunMin, recovery: w.isRecovery })),
+    ]
+    const loading: number[] = []
+    series.forEach((w, i) => {
+      if (i >= 2 && !w.recovery) {
+        const base = Math.max(...loading.slice(-2))
+        expect(w.minutes, `week ${String(i - 1)}`).toBeLessThanOrEqual(
+          Math.floor(base * 1.1 + 1e-9),
+        )
+      }
+      if (!w.recovery) loading.push(w.minutes)
+    })
+    expect(weekOf(out.draft, nextWeek(MONDAY, 1)).targetRunMin).toBeGreaterThan(60)
+  })
+
+  it('draws the same weeks when the week is re-planned again on Friday and on the next Monday', () => {
+    const friday = replanOn(FRIDAY, storedRows(out.draft, FRIDAY))
+    expect(failed(friday.draft)).toEqual([])
+    expect(targets(friday.draft)).toEqual(targets(out.draft))
+    expect(weekOf(friday.draft, MONDAY).flags).toEqual(weekOf(out.draft, MONDAY).flags)
+    const monday = replanOn(nextWeek(MONDAY, 1), storedRows(friday.draft, nextWeek(MONDAY, 1)))
+    expect(failed(monday.draft)).toEqual([])
+    expect(loadingAfter(monday.draft, 3)).toEqual(loadingAfter(out.draft, 3))
+  })
+
+  it('keeps the floor week and the weeks after it when the week is re-planned on Tuesday, before the overshoot', () => {
+    const tuesday = addDays(MONDAY, 1)
+    const early = replanOn(tuesday, {
+      weeks: plan.weeks,
+      sessions: plan.sessions.map((s, i) => ({
+        ...s,
+        id: `e${String(i)}`,
+        status: s.date === MONDAY ? 'completed' : 'planned',
+        activityId: s.date === MONDAY && s.kind !== 'strength' ? 'done-mon' : null,
+      })),
+    })
+    expect(failed(early.draft)).toEqual([])
+    expect(weekOf(early.draft, MONDAY).targetRunMin).toBe(60)
+    expect(weekOf(early.draft, MONDAY).flags).toContain('restart-floor')
+    expect(weekOf(early.draft, MONDAY).flags).not.toContain('overshoot')
+    expect(loadingAfter(early.draft)).toEqual(loadingAfter(out.draft))
+  })
+
+  it('leaves a runner under a progression hold with the typical week, not the floor', () => {
+    const held = replan({
+      ...first,
+      today: THURSDAY,
+      activities: history,
+      existing,
+      screeningFlags: 2,
+    })
+    expect(weekOf(held.draft, MONDAY).flags).not.toContain('restart-floor')
   })
 })
