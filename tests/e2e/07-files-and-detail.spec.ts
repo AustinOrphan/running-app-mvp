@@ -100,6 +100,10 @@ test('a FIT file imports once, opens its detail page and is rated from the Today
   const laps = page.getByRole('table', { name: 'Laps' })
   await expect(laps.getByRole('row')).toHaveCount(3)
   await expect(page.getByRole('heading', { name: 'Heart rate distribution' })).toBeVisible()
+  // The import described the run: its card loads, with a sentence or a plain "nothing unusual".
+  const standout = page.getByRole('region', { name: 'What stood out' })
+  await expect(standout.locator('p').first()).toBeVisible()
+  await expect(standout.getByText(/could not be loaded/)).toBeHidden()
   await expect(page.getByRole('link', { name: 'Download original file' })).toBeVisible()
 
   // Today lists the unrated run; rating it from the card removes it from the card.

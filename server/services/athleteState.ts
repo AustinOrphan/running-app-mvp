@@ -5,6 +5,7 @@
 // and midnight, all make the next read build a fresh picture. Nothing here raises the data version.
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
+import { fitHrModel, type HrModel } from '../../shared/engine/execution.ts'
 import { goalModel } from '../../shared/engine/goal.ts'
 import { isDuplicate } from '../../shared/engine/load.ts'
 import { P, PARAMS_VERSION } from '../../shared/engine/params/index.ts'
@@ -602,6 +603,18 @@ export async function memoByVersion<T>(
     async () => deepFreeze(await compute()),
   )
   return value as T
+}
+
+/**
+ * The runner's heart-rate-at-pace model for a snapshot (null with too few steady flat runs), fitted
+ * once per data version and shared by every reader: Explain and the run insights.
+ */
+export function hrModelOf(deps: SnapshotDeps, context: AthleteContext): Promise<HrModel | null> {
+  return memoByVersion(
+    deps,
+    { userId: context.userId, today: context.asOf, name: 'hr-model' },
+    () => fitHrModel(context.activities, context.asOf),
+  )
 }
 
 /** The body of `GET /api/state` for a snapshot. */

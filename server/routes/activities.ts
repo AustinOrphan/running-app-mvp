@@ -6,6 +6,7 @@ import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { loadActivities, loadActivityPage, toActivity } from '../serialize.ts'
 import { markDuplicates, releaseDuplicates, releaseDuplicatesOf } from '../services/duplicates.ts'
 import { runExecutionQuietly } from '../services/execution.ts'
+import { standoutView } from '../services/insight.ts'
 import { findPossibleDuplicate } from '../../shared/domain/duplicates.ts'
 import { isIsoDate, todayIso } from '../../shared/dates.ts'
 import {
@@ -250,6 +251,12 @@ export function activitiesRouter(deps: Deps): Router {
       hasFile: file !== null,
     }
     res.json(detail)
+  })
+
+  // What stood out on a run: at most three facts, computed on the first read and stored, then
+  // computed again after a rating, an edit or a change of version. None for strength and cross.
+  router.get('/:id/standout', async (req, res) => {
+    res.json(await standoutView(deps, { userId: req.userId, activityId: idParam(req.params.id) }))
   })
 
   router.get('/:id/file', async (req, res) => {

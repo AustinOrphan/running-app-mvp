@@ -893,6 +893,89 @@ function verifyWeatherCache(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, 'SELECT count(*) AS n FROM "ClimateCache"')).toEqual([{ n: 3 }])
 }
 
+/**
+ * The previous release's runs: two accounts, each with activities (one with a stream). The run
+ * insights add one table keyed by activity and touch none of these rows.
+ */
+function seedRuns(db: DatabaseSync): void {
+  for (const id of ['u1', 'u2']) {
+    insert(db, 'User', {
+      id,
+      email: `${id}@example.com`,
+      passwordHash: 'not-a-real-hash',
+      updatedAt: STAMP,
+    })
+  }
+  const runs: Array<[string, string]> = [
+    ['a1', 'u1'],
+    ['a2', 'u1'],
+    ['a3', 'u2'],
+  ]
+  for (const [id, userId] of runs) {
+    insert(db, 'Activity', {
+      id,
+      userId,
+      date: '2026-10-06',
+      type: 'run',
+      durationSec: 2700,
+      distanceM: 8000,
+      updatedAt: STAMP,
+    })
+  }
+  insert(db, 'ActivityStream', { activityId: 'a1', sampleSec: 10, data: '{}' })
+}
+
+function verifyActivityInsight(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // The table starts empty: an insight is computed on the first read of a run.
+  expect(tableNames(db)).toContain('ActivityInsight')
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "ActivityInsight"')).toEqual([{ n: 0 }])
+  expect(
+    rowsOf(db, 'PRAGMA table_info("ActivityInsight")').map((c) => [
+      c.name,
+      c.type,
+      c.notnull,
+      c.pk,
+    ]),
+  ).toEqual([
+    ['activityId', 'TEXT', 1, 1],
+    ['version', 'INTEGER', 1, 0],
+    ['facts', 'TEXT', 1, 0],
+    ['computedAt', 'DATETIME', 1, 0],
+  ])
+
+  // One insight per activity: the activity id is the key.
+  const insight = { version: 1, facts: '{"basis":"none","items":[]}', computedAt: STAMP }
+  insert(db, 'ActivityInsight', { activityId: 'a1', ...insight })
+  insert(db, 'ActivityInsight', { activityId: 'a2', ...insight })
+  insert(db, 'ActivityInsight', { activityId: 'a3', ...insight })
+  expect(() => {
+    insert(db, 'ActivityInsight', { activityId: 'a1', ...insight })
+  }).toThrow(/UNIQUE/)
+  // An insight needs its activity.
+  expect(() => {
+    insert(db, 'ActivityInsight', { activityId: 'nobody', ...insight })
+  }).toThrow(/FOREIGN KEY/)
+  const keys = rowsOf(db, `PRAGMA foreign_key_list("ActivityInsight")`).map((k) => ({
+    from: k.from,
+    table: k.table,
+    onDelete: k.on_delete,
+  }))
+  expect(keys).toEqual([{ from: 'activityId', table: 'Activity', onDelete: 'CASCADE' }])
+
+  // Deleting a run deletes its insight and no other; deleting an account takes its runs' insights.
+  db.exec(`DELETE FROM "Activity" WHERE id = 'a2'`)
+  expect(rowsOf(db, 'SELECT "activityId" FROM "ActivityInsight" ORDER BY "activityId"')).toEqual([
+    { activityId: 'a1' },
+    { activityId: 'a3' },
+  ])
+  db.exec(`DELETE FROM "User" WHERE id = 'u1'`)
+  expect(rowsOf(db, 'SELECT "activityId" FROM "ActivityInsight"')).toEqual([{ activityId: 'a3' }])
+  expectConsistent(db)
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -923,6 +1006,11 @@ const CASES: FixtureCase[] = [
     migration: 'foundation_weather_cache',
     seed: seedPlaces,
     verify: verifyWeatherCache,
+  },
+  {
+    migration: 'activity_insight',
+    seed: seedRuns,
+    verify: verifyActivityInsight,
   },
 ]
 

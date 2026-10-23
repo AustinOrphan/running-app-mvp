@@ -120,6 +120,7 @@ function renderDetail(
       units: opts.units ?? 'mi',
     }),
     'GET /api/activities/a1/detail': () => detail,
+    'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
     'GET /api/plan': () => opts.plan ?? null,
     ...opts.routes,
   })
@@ -253,6 +254,50 @@ describe('ActivityDetailPage', () => {
     expect(screen.queryByRole('link', { name: 'Download original file' })).not.toBeInTheDocument()
   })
 
+  test('What stood out sits above How did it go? on a run', async () => {
+    renderDetail({
+      routes: {
+        'GET /api/activities/a1/standout': () => ({
+          items: [
+            {
+              id: 'design-explain.grade',
+              template: 'standout.grade',
+              slots: {
+                gain: { kind: 'climb', m: 400 },
+                distance: { kind: 'distance', m: 8000 },
+                grade: { kind: 'percent', pct: 5 },
+              },
+              rule: 'design-explain',
+              sources: [],
+              moreSources: 0,
+              state: 'used',
+            },
+          ],
+          more: 0,
+        }),
+      },
+    })
+    const standout = await screen.findByRole('region', { name: 'What stood out' })
+    expect(
+      await within(standout).findByText(
+        'This run climbed 1312 ft over 5 mi, an average grade of 5%.',
+      ),
+    ).toBeInTheDocument()
+    const feedback = screen.getByRole('region', { name: 'How did it go?' })
+    expect(
+      standout.compareDocumentPosition(feedback) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  test('a strength activity has no What stood out', async () => {
+    const strength = makeDetail()
+    renderDetail({
+      detail: { ...strength, activity: { ...strength.activity, type: 'strength' } },
+    })
+    await screen.findByRole('region', { name: 'How did it go?' })
+    expect(screen.queryByRole('region', { name: 'What stood out' })).not.toBeInTheDocument()
+  })
+
   test('saves RPE, feel and pain together', async () => {
     const user = userEvent.setup()
     const api = renderDetail({ routes: { 'PATCH /api/activities/a1/feedback': () => ({}) } })
@@ -314,6 +359,7 @@ describe('ActivityDetailPage', () => {
         ...base,
         activity: { ...base.activity, ...stored },
       }),
+      'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
       'GET /api/plan': () => null,
       'PATCH /api/activities/a1/feedback': () => {
         stored = { rpe: 8, feel: 1, pain: 0 }
@@ -488,6 +534,7 @@ describe('ActivityDetailPage', () => {
           ...base,
           activity: { ...base.activity, ...stored },
         }),
+        'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
         'GET /api/plan': () => planWith(makeExecution(-1)),
         'PATCH /api/activities/a1/feedback': (req) => {
           const body = req.body as { rpe: number | null; feel: number | null }
