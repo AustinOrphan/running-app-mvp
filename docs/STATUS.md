@@ -47,6 +47,13 @@ Last update: 2026-10-22.
   runner's own numbers and a Monday brief, disruptions (dial-back, what-if, moves, undoable
   re-plans), the fuel lab and gut training, and the prediction back-test. The owner's spreadsheet
   plan is a placeholder; only the goal race is firm, and the engine owns the plan.
+- **Session identity (E3-7, the contract for the publish channel in E1):** a session's `externalId`
+  is its only durable identity, kept by owner moves, swaps, skips and restores and by every
+  re-plan that leaves it on the same day and kind (`pairSessions` in
+  `shared/domain/sessionIdentity.ts`), carried by a regenerate for sessions dated today or later,
+  and new when a re-plan changes its day or kind, so E1 publishes under
+  `workoutExternalId(externalId, userTag)`, creates the new event before it withdraws the old one
+  and derives no id from the date, the kind or the order.
 - `npm run dev` rendered a blank page because the dev proxy sent the `web/api/*.ts` source modules
   to the API server; fixed in #538.
 

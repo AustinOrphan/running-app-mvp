@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { distanceClassOf, generatePlan } from '../../shared/domain/plan.ts'
-import type { PlanWeek, PlanWithWeeks } from '../../shared/types.ts'
+import type { PlanWeek, PlanWithSessions, PlanWithWeeks } from '../../shared/types.ts'
 import { computeBaselineRunMin } from '../../server/services/baseline.ts'
 import { HttpError } from '../../server/errors.ts'
 import { generatePlanForGoal } from '../../server/services/plan.ts'
@@ -77,6 +77,44 @@ describe('GET /api/plan', () => {
     const res = await client(ctx, user).get('/api/plan')
     expect(res.status).toBe(200)
     expect(res.body).toBeNull()
+  })
+
+  test('GET /plan serves the externalId of each session of a version-2 plan, to its owner only', async () => {
+    const owner = await seedUser(ctx, { email: 'external-id-owner@example.com' })
+    const goal = await seedGoal({ userId: owner.id, name: 'Identity 10K', distanceM: 10_000 })
+    const plan = await ctx.prisma.plan.create({
+      data: {
+        userId: owner.id,
+        goalId: goal.id,
+        name: goal.name,
+        startDate: thisMonday,
+        raceWeekStart: mondayOf(goal.targetDate),
+        generatorVersion: 2,
+      },
+    })
+    const kinds = ['easy', 'long']
+    for (const [i, kind] of kinds.entries()) {
+      await ctx.prisma.planSession.create({
+        data: {
+          planId: plan.id,
+          externalId: `00000000-0000-4000-8000-00000000000${i}`,
+          weekStart: thisMonday,
+          date: addDays(thisMonday, i + 1),
+          order: 0,
+          kind,
+          title: kind,
+          durationMin: 40,
+          target: '{}',
+          purpose: 'Synthetic.',
+        },
+      })
+    }
+    const served = (await client(ctx, owner).get('/api/plan')).body as PlanWithSessions
+    expect(served.sessions.map((s) => s.externalId)).toEqual([
+      '00000000-0000-4000-8000-000000000000',
+      '00000000-0000-4000-8000-000000000001',
+    ])
+    expect((await client(ctx, other).get('/api/plan')).body).toBeNull()
   })
 })
 
