@@ -625,6 +625,10 @@ export interface PredictionView {
     id: string
     goalId: string
     createdAt: string
+    /** Monday of the local week the entry belongs to; the log holds one entry per week. */
+    weekStart: string
+    /** The local day the prediction was made. */
+    loggedOn: string
     method: string
     predictedSec: number
     lowSec: number

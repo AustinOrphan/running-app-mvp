@@ -18,6 +18,7 @@ export type {
   PlanSession,
   PlanWeek,
   PredictionLog,
+  RaceResult,
   Screening,
   SyncRun,
   WeeklyReview,

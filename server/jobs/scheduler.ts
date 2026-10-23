@@ -7,6 +7,7 @@ import { PROVIDERS } from '../providers/registry.ts'
 import { runNightlyMatching } from '../services/execution.ts'
 import { scanFolderIntegration } from '../services/folder.ts'
 import { replanActivePlan } from '../services/planEngine.ts'
+import { ensureWeeklyPrediction } from '../services/predictionLog.ts'
 import { syncProvider } from '../services/sync.ts'
 import { recordSyncRun, safeMessage } from '../services/syncLog.ts'
 import { enrichWeather } from '../services/weather.ts'
@@ -17,6 +18,8 @@ export const FOLDER_INTERVAL_MS = 5 * MINUTE_MS
 export const WEATHER_INTERVAL_MS = 10 * MINUTE_MS
 /** How often the weekly catch-up looks for a plan whose Monday update never ran. */
 export const CATCHUP_INTERVAL_MS = 6 * 60 * MINUTE_MS
+/** How often the weekly prediction job looks for a week that has no logged prediction. */
+export const PREDICTION_INTERVAL_MS = 6 * 60 * MINUTE_MS
 /** Activities that get weather per user per run. */
 const WEATHER_BATCH = 50
 /** The first run waits, so a crash loop never hammers a provider. */
@@ -158,6 +161,33 @@ export async function runWeatherJob(
     } catch (error) {
       log?.warn({ reason: safeMessage(error) }, 'weather backfill failed')
       await recordJob(deps, 'weather', user.id, startedAt, { error })
+    }
+  }
+}
+
+/**
+ * Makes sure each user's current goal has this week's prediction in the log (spec 11.7), so a
+ * missed night or a goal without a plan never leaves a week out of the record. A week that already
+ * has its row costs no engine work. A user whose prediction fails is recorded as an error run and
+ * the job goes on; every run is recorded, idle ones too, with the rows it wrote as `accepted`.
+ */
+export async function runPredictionJob(
+  deps: Deps,
+  opts: { now?: Date } = {},
+  log?: Log,
+): Promise<void> {
+  const today = todayIso(opts.now ?? new Date())
+  const users = await deps.prisma.user.findMany({ select: { id: true } })
+  for (const user of users) {
+    const startedAt = new Date()
+    try {
+      const outcome = await ensureWeeklyPrediction(deps, user.id, today)
+      await recordJob(deps, 'predictions', user.id, startedAt, {
+        accepted: outcome === 'created' ? 1 : 0,
+      })
+    } catch (error) {
+      log?.warn({ reason: safeMessage(error), userId: user.id }, 'weekly prediction failed')
+      await recordJob(deps, 'predictions', user.id, startedAt, { error })
     }
   }
 }
@@ -322,8 +352,8 @@ export const REPLAN_SLOT = { weekday: 1, hour: 3, minute: 0 } satisfies DailySlo
 
 /**
  * Starts the hourly sync, 5-minute folder scan and 10-minute weather jobs, the nightly matching
- * (02:30 local), the Monday re-plan (03:00 local) and its catch-up (30 s after start, then every
- * 6 hours); returns `stop()`.
+ * (02:30 local), the Monday re-plan (03:00 local) and its catch-up, and the weekly prediction log
+ * (each 30 s after start, then every 6 hours); returns `stop()`.
  * A job never overlaps itself: a tick that finds its previous run still going does nothing.
  * Called from `server/index.ts` only, never in tests.
  */
@@ -380,6 +410,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   daily('replan', REPLAN_SLOT, () => runReplanJob(deps, {}, log))
   // The daily slot is seeded at start, so a restart after 03:00 on Monday would skip the week.
   every('replan-catchup', CATCHUP_INTERVAL_MS, () => runReplanJob(deps, { catchUp: true }, log))
+  every('predictions', PREDICTION_INTERVAL_MS, () => runPredictionJob(deps, {}, log))
 
   return () => {
     stopped = true

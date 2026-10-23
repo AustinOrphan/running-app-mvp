@@ -27,6 +27,7 @@ export const STATE_MODELS = [
   'PlanWeek',
   'PlanSession',
   'PlanRevision',
+  'RaceResult',
 ] as const
 
 /**
