@@ -102,7 +102,7 @@ describe('model classification (ADR 0009)', () => {
     }
     // Written by a sync, an import or a read path: a state mark would invalidate the cache that
     // the same request just filled.
-    for (const name of ['Integration', 'ImportBatch', 'ImportedFile', 'PredictionLog']) {
+    for (const name of ['Integration', 'ImportBatch', 'ImportedFile', 'PredictionLog', 'SyncRun']) {
       expect(NON_STATE_MODELS).toContain(name)
     }
   })

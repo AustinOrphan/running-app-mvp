@@ -46,6 +46,33 @@ export class RateLimitPause extends Error {
   }
 }
 
+/**
+ * `listWellness` stopped before the whole window was read (a spent request budget). It carries the
+ * days it did read, oldest first, so the sync can store them, and how many of the window's days
+ * were read. A provider never returns a short list as if it were complete.
+ */
+export class WellnessTruncated extends RateLimitPause {
+  rows: WellnessInput[]
+  daysRead: number
+  daysTotal: number
+
+  constructor(
+    message: string,
+    opts: {
+      retryAfterSec: number
+      rows: WellnessInput[]
+      daysRead: number
+      daysTotal: number
+    },
+  ) {
+    super(message, { retryAfterSec: opts.retryAfterSec })
+    this.name = 'WellnessTruncated'
+    this.rows = opts.rows
+    this.daysRead = opts.daysRead
+    this.daysTotal = opts.daysTotal
+  }
+}
+
 /** The server fetches on a schedule. */
 export interface PullProvider {
   connect(input: unknown, ctx: ProviderCtx): Promise<{ config: object; secret: object }>
@@ -57,6 +84,10 @@ export interface PullProvider {
     parsed: ParsedActivity
     file?: { name: string; format: FileFormat; bytes: Uint8Array }
   } | null>
+  /**
+   * Daily wellness for `from` to `to`, oldest first. Throws `WellnessTruncated` (with the days it
+   * read) instead of returning less than the window.
+   */
   listWellness?(from: string, to: string, ctx: ProviderCtx): Promise<WellnessInput[]>
 }
 

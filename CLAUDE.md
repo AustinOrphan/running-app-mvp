@@ -46,6 +46,9 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
 - Secrets (API keys, client secrets, tokens) are encrypted and decrypted only through
   `server/crypto.ts`, stored in `Integration.secret`, and never logged or returned by the API.
   Refreshed tokens are saved through `ctx.saveSecret`. No new environment variables.
+- `listWellness` never returns a short list as complete: when it stops early (a spent request
+  budget) it throws `WellnessTruncated` with the days it read; the sync stores them and records a
+  `paused` run, never `ok`.
 - Files are parsed through `ctx.parseFile`, not by importing the parsers directly. Fixtures are
   synthetic; FIT test files are built with `tests/fixtures/fit/buildFit.ts`.
 

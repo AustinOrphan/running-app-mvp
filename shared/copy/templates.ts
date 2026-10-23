@@ -8,6 +8,7 @@
 import type { InputFact } from '../engine/types.ts'
 import type { Units } from '../types.ts'
 import { CopyError, isCopyStrict, render, tpl, type Template } from './template.ts'
+import { SYNC_TEMPLATES } from './sync.ts'
 
 export const TEMPLATES = {
   // The why drawer
@@ -37,6 +38,9 @@ export const TEMPLATES = {
   'why.footnote': tpl(
     'Decision support for one runner, not medical advice. Stop and see a clinician for pain that persists or worsens.',
   ),
+
+  // The sync history on the Integrations page
+  ...SYNC_TEMPLATES,
 } satisfies Record<string, Template>
 
 export type TemplateId = keyof typeof TEMPLATES

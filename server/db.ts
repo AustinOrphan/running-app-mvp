@@ -19,6 +19,7 @@ export type {
   PlanWeek,
   PredictionLog,
   Screening,
+  SyncRun,
   WeeklyReview,
   WellnessDay,
 } from '../generated/prisma/client.ts'

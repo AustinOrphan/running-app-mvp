@@ -3,11 +3,18 @@ import type { Deps } from '../app.ts'
 import { decryptSecret, encryptSecret, SecretError } from '../crypto.ts'
 import { HttpError, conflict, notFound, validationError } from '../errors.ts'
 import { getProvider } from '../providers/registry.ts'
-import { RateLimitPause, type ProviderCtx } from '../providers/types.ts'
+import { RateLimitPause, WellnessTruncated, type ProviderCtx } from '../providers/types.ts'
 import { toImportBatch, loadProfile } from '../serialize.ts'
 import { storeParsed, storeWellness } from './activityStore.ts'
+import { MAX_FAILURES_STORED, recordSyncRun, safeMessage, secretValues } from './syncLog.ts'
 import { localDateTime, parseActivityFile } from '../../shared/importers/files/index.ts'
-import type { ImportBatch, ImportReportRow } from '../../shared/types.ts'
+import type {
+  ImportBatch,
+  ImportReportRow,
+  SyncFailure,
+  SyncTrigger,
+  WellnessStatus,
+} from '../../shared/types.ts'
 
 const DAY_MS = 86_400_000
 /** First run without a start date reaches this far back. */
@@ -130,20 +137,36 @@ function sinceFor(row: Integration, from: string | undefined, now: Date): string
   return isoZ(now.getTime() - DEFAULT_BACKFILL_DAYS * DAY_MS)
 }
 
+/** What a pull run did about wellness, as the sync log stores it. */
+interface WellnessOutcome {
+  status: WellnessStatus
+  days: number | null
+  total: number | null
+}
+
+const WELLNESS_NONE: WellnessOutcome = { status: 'none', days: null, total: null }
+
 /**
  * Pulls new activities and wellness from one provider and advances its cursor. Runs one at a time
- * per user and provider: a second call while one is running returns null. Returns the run's
- * `ImportBatch`, or null when nothing new was stored, the provider was already syncing, or the
- * stored secret could not be decrypted (the integration is then marked `needs_auth`).
+ * per user and provider: a second call while one is running returns null and records nothing.
+ * Returns the run's `ImportBatch`, or null when nothing new was stored, the provider was already
+ * syncing, or the stored secret could not be decrypted (the integration is then marked
+ * `needs_auth`). Every run that starts writes one `SyncRun`, idle runs included.
  *
  * The cursor never moves past an activity that failed, so the next run tries it again. A
  * `RateLimitPause` keeps the cursor it carries, sets `lastSyncStatus 'paused'` and `pausedUntil`.
+ * Wellness that stopped early (`WellnessTruncated`) stores the days it read and pauses the same
+ * way, never reporting `ok`.
  */
 export async function syncProvider(
   deps: Deps,
   userId: string,
   provider: string,
-  opts: { from?: string; fetch?: typeof fetch } = {},
+  opts: {
+    from?: string
+    fetch?: typeof fetch
+    trigger?: Extract<SyncTrigger, 'schedule' | 'manual'>
+  } = {},
 ): Promise<ImportBatch | null> {
   const { prisma, config } = deps
   const registered = getProvider(provider)
@@ -161,6 +184,9 @@ export async function syncProvider(
   const lock = `${userId}:${provider}`
   if (running.has(lock)) return null
   running.add(lock)
+  const trigger = opts.trigger ?? 'schedule'
+  const startedAt = new Date()
+  let secrets: string[] = []
   try {
     let opened: ReturnType<typeof openIntegration>
     try {
@@ -171,9 +197,32 @@ export async function syncProvider(
         where: { id: row.id },
         data: { status: 'needs_auth', lastSyncStatus: 'error', lastError: SECRET_CHANGED },
       })
+      await recordSyncRun(deps, {
+        userId,
+        provider,
+        channel: 'pull',
+        trigger,
+        startedAt,
+        status: 'error',
+        message: SECRET_CHANGED,
+      })
       return null
     }
-    return await run(deps, userId, provider, row, opened, opts)
+    secrets = secretValues(opened.secret)
+    return await run(deps, userId, provider, row, opened, { ...opts, trigger })
+  } catch (error) {
+    // `run` records its own outcome last, so only a throw before that point reaches here.
+    await recordSyncRun(deps, {
+      userId,
+      provider,
+      channel: 'pull',
+      trigger,
+      startedAt,
+      status: 'error',
+      message: error,
+      secrets,
+    })
+    throw error
   } finally {
     running.delete(lock)
   }
@@ -185,7 +234,7 @@ async function run(
   provider: string,
   row: Integration,
   opened: { secret: Record<string, unknown>; config: Record<string, unknown> },
-  opts: { from?: string; fetch?: typeof fetch },
+  opts: { from?: string; fetch?: typeof fetch; trigger: SyncTrigger },
 ): Promise<ImportBatch | null> {
   const { prisma } = deps
   const pull = getProvider(provider).pull
@@ -194,10 +243,14 @@ async function run(
   const startedAt = ctx.now()
   const since = sinceFor(row, opts.from, startedAt)
   const previousCursor = validMs(row.cursor)
+  const secrets = secretValues(opened.secret)
+  /** Text that is stored, returned or logged never carries a token or a secret value. */
+  const safe = (value: unknown): string => safeMessage(value, secrets)
 
   let batchId: string | null = null
   const counts = { accepted: 0, skippedDuplicate: 0, skippedInvalid: 0 }
   const report: ImportReportRow[] = []
+  const failureLog: SyncFailure[] = []
   let newestMs: number | null = null
   let failureMs: number | null = null
   let failures = 0
@@ -266,8 +319,12 @@ async function run(
         consecutive += 1
         counts.skippedInvalid += 1
         if (refMs !== null && (failureMs === null || refMs < failureMs)) failureMs = refMs
+        const reason = safe(message(error))
         if (report.length < MAX_REPORT_ROWS) {
-          report.push({ line: null, reason: `${provider}:${ref.id}: ${message(error)}` })
+          report.push({ line: null, reason: `${provider}:${ref.id}: ${reason}` })
+        }
+        if (failureLog.length < MAX_FAILURES_STORED) {
+          failureLog.push({ ref: `${provider}:${ref.id}`, reason })
         }
         if (consecutive >= MAX_CONSECUTIVE_FAILURES) throw error
       }
@@ -278,13 +335,25 @@ async function run(
   }
 
   let wellnessError: unknown = null
+  let wellness = WELLNESS_NONE
   if (fatal === null && pause === null) {
     try {
-      await pullWellness(deps, userId, provider, row, ctx, opts.from, startedAt)
+      wellness = await pullWellness(deps, userId, provider, row, ctx, opts.from, startedAt)
     } catch (error) {
-      if (error instanceof RateLimitPause) pause = error
-      else wellnessError = error
+      if (error instanceof WellnessTruncated) {
+        pause = error
+        wellness = { status: 'truncated', days: error.daysRead, total: error.daysTotal }
+      } else if (error instanceof RateLimitPause) {
+        pause = error
+        wellness = { status: 'error', days: null, total: null }
+      } else {
+        wellnessError = error
+        wellness = { status: 'error', days: null, total: null }
+      }
     }
+  } else if (fatal === null && getProvider(provider).pull?.listWellness) {
+    // The activity pass paused first: wellness was not attempted and follows on a later run.
+    wellness = { status: 'waiting', days: null, total: null }
   }
 
   // The cursor holds at the oldest failure so that activity is listed again next run.
@@ -302,14 +371,16 @@ async function run(
   const failedHard = fatal !== null
   const lastError =
     fatal !== null
-      ? message(fatal)
-      : pause !== null
-        ? pause.message
-        : wellnessError !== null
-          ? `Wellness sync failed: ${message(wellnessError)}`
-          : failures > 0
-            ? `${failures} ${failures === 1 ? 'activity' : 'activities'} could not be imported; see the import report.`
-            : null
+      ? safe(message(fatal))
+      : pause instanceof WellnessTruncated
+        ? `Wellness stopped after ${pause.daysRead} of ${pause.daysTotal} days: ${safe(pause.message)}`
+        : pause !== null
+          ? safe(pause.message)
+          : wellnessError !== null
+            ? `Wellness could not be read: ${safe(message(wellnessError))}`
+            : failures > 0
+              ? `${failures} ${failures === 1 ? 'activity' : 'activities'} could not be imported; see the import report.`
+              : null
   const lastSyncStatus = failedHard
     ? 'error'
     : pause !== null
@@ -343,6 +414,34 @@ async function run(
     })
     batch = toImportBatch(updated)
   }
+
+  // Last, so that a throw above is recorded once by `syncProvider` and never twice.
+  await recordSyncRun(deps, {
+    userId,
+    provider,
+    channel: 'pull',
+    trigger: opts.trigger,
+    startedAt,
+    finishedAt: ctx.now(),
+    status: lastSyncStatus,
+    accepted: counts.accepted,
+    duplicate: counts.skippedDuplicate,
+    failed: counts.skippedInvalid,
+    wellnessStatus: wellness.status,
+    wellnessDays: wellness.days,
+    wellnessTotal: wellness.total,
+    message:
+      fatal !== null
+        ? fatal
+        : pause !== null
+          ? pause.message
+          : wellnessError !== null
+            ? wellnessError
+            : null,
+    secrets,
+    failures: failureLog,
+    importBatchId: batchId,
+  })
   return batch
 }
 
@@ -354,9 +453,9 @@ async function pullWellness(
   ctx: ProviderCtx,
   from: string | undefined,
   now: Date,
-): Promise<void> {
+): Promise<WellnessOutcome> {
   const pull = getProvider(provider).pull
-  if (!pull?.listWellness) return
+  if (!pull?.listWellness) return WELLNESS_NONE
   const { timezone } = ctx
   const dayOf = (ms: number): string => localDateTime(isoZ(ms), null, timezone).date
   // Only a run that read wellness successfully lets the next one start late.
@@ -370,7 +469,14 @@ async function pullWellness(
       ? dayOf(row.lastSyncAt.getTime() - WELLNESS_OVERLAP_DAYS * DAY_MS)
       : dayOf(now.getTime() - DEFAULT_BACKFILL_DAYS * DAY_MS)
   const end = dayOf(now.getTime())
-  if (start > end) return
-  const rows = await pull.listWellness(start, end, ctx)
-  await storeWellness(deps, userId, rows, provider)
+  if (start > end) return WELLNESS_NONE
+  try {
+    const rows = await pull.listWellness(start, end, ctx)
+    await storeWellness(deps, userId, rows, provider)
+    return { status: 'read', days: rows.length, total: null }
+  } catch (error) {
+    // A truncated read still hands back the days it got; they are stored before the run pauses.
+    if (error instanceof WellnessTruncated) await storeWellness(deps, userId, error.rows, provider)
+    throw error
+  }
 }
