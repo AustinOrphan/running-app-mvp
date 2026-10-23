@@ -6,8 +6,11 @@ import type {
   ChecklistResult,
   ExecutionAssessment,
   Feasibility,
+  FuelItem,
   Grade,
   InputFact,
+  LadderResult,
+  LadderStep,
   Param,
   PlanChange,
   Prediction,
@@ -940,6 +943,77 @@ export interface ForecastView {
 export interface ResearchParams {
   version: string
   params: Array<Param<unknown>>
+}
+// ---- Fuel lab (phase 3a, section 10; ADR 0011) ------------------------------------------------
+
+export type FuelProductKind = 'gel' | 'drink' | 'chew' | 'bar' | 'food' | 'electrolyte' | 'other'
+
+/** One product of the runner's own list, with the amounts in one serving. */
+export interface FuelProduct {
+  id: string
+  name: string
+  kind: FuelProductKind
+  /** What one serving is, such as "1 gel" or "500 mL bottle". */
+  servingLabel: string
+  /** Grams of carbohydrate in one serving. */
+  carbsG: number
+  sodiumMg: number | null
+  kcal: number | null
+  /** More than one transportable carbohydrate, such as glucose and fructose. */
+  multiCarb: boolean
+  /** Archived products stay readable in old logs and leave the pick list. */
+  archived: boolean
+}
+
+/** The fuel switches. A change reaches the plan at the next weekly re-plan. */
+export interface FuelSettings {
+  /** Opens the rungs from the first higher tier up to the second. */
+  optIn90: boolean
+  /** Opens the rungs above the second tier; needs `optIn90` and a tolerated run at the second tier. */
+  optInAdvanced: boolean
+  /** A diagnosed gut condition: the ladder stays at the floor and the gut-training block is removed. */
+  giDisease: boolean
+  /** The gut-training block before the taper. */
+  gutBlock: boolean
+}
+
+/** One thing eaten on a run as the log kept it when saved; a later product edit leaves it alone. */
+export interface FuelLogItem extends FuelItem {
+  /** The product it was taken from; null for "something else". */
+  productId: string | null
+}
+
+/** A fuel log as the API serves it. */
+export interface FuelLogView {
+  id: string
+  activityId: string
+  /** "Not this time": the run does not count toward the ladder. */
+  skipped: boolean
+  items: FuelLogItem[]
+  fluidMl: number | null
+  /** Sodium the runner reports taking, in milligrams, beyond what the products add up to. */
+  sodiumMg: number | null
+  /** 0 to 4; null only for a skipped log. */
+  gut: number | null
+  /** 0 to 4. */
+  nausea: number | null
+  /** The runner's own answer to "it was hot"; null means the run's weather decides on every replay. */
+  hot: boolean | null
+  notes: string | null
+  /** What the replay made of this run, derived on every read and never stored. */
+  step: LadderStep
+  /** "Counted toward your ladder." or the reason this run did not count. */
+  counts: string
+}
+
+/** The answer to a write on a fuel log: the log, the ladder replayed after it and the toast. */
+export interface FuelLogResult {
+  /** Null after a delete. */
+  log: FuelLogView | null
+  /** The replayed ladder; `steps` holds the latest few. */
+  ladder: LadderResult
+  /** What the run did to the ladder, such as "Tolerated at 60 g/h. Next long run: 70 g/h."; null after a delete. */
+  message: string | null
 }
 export interface Screening {
   id: string

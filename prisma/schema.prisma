@@ -34,6 +34,9 @@ model User {
   deliveryChannels  DeliveryChannel[]
   wristPublications WristPublication[]
   raceResults       RaceResult[]
+  fuelProducts      FuelProduct[]
+  fuelLogs          FuelLog[]
+  fuelSettings      FuelSettings?
 }
 
 model Activity {
@@ -77,15 +80,16 @@ model Activity {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  importBatch ImportBatch?    @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
-  duplicateOf Activity?       @relation("Duplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
-  duplicates  Activity[]      @relation("Duplicates")
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importBatch ImportBatch?     @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  duplicateOf Activity?        @relation("Duplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates  Activity[]       @relation("Duplicates")
   stream      ActivityStream?
   file        ActivityFile?
   insight     ActivityInsight?
   planSession PlanSession?
   raceResult  RaceResult?
+  fuelLog     FuelLog?
 
   @@unique([userId, providerKey])
   @@index([userId, date])
@@ -568,4 +572,64 @@ model WristPublication {
 
   @@unique([userId, channel, externalId])
   @@index([userId, channel, date])
+}
+
+// A gel, drink mix, chew or other thing the runner carries (state, ADR 0011). Archived, never
+// deleted, so history stays readable; the name is unique among live products by a service rule,
+// because Prisma has no partial unique index.
+model FuelProduct {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  kind         String // 'gel' | 'drink' | 'chew' | 'bar' | 'food' | 'electrolyte' | 'other'
+  servingLabel String // what one serving is, such as "1 gel" or "500 mL bottle"
+  carbsG       Float // carbohydrate in one serving
+  sodiumMg     Int? // sodium in one serving
+  kcal         Int? // energy in one serving
+  multiCarb    Boolean  @default(false) // more than one transportable carbohydrate
+  archived     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, archived])
+}
+
+// One run's fuel log (state: the ladder replay reads it). The totals, the rate, the multi-carb
+// share, the hot flag, block credit and every ladder step are derived on each read and never
+// stored. `hotOverride` null means the run's current weather decides on every replay, because the
+// weather job fills activities in batches and a flag fixed at save time would usually be false.
+model FuelLog {
+  id          String   @id @default(cuid())
+  userId      String
+  activityId  String   @unique
+  skipped     Boolean  @default(false) // "Not this time": the run does not count
+  items       String   @default("[]") // JSON text: FuelLogItem[], a snapshot of each product eaten
+  fluidMl     Int?
+  sodiumMg    Int? // sodium the runner reports taking, beyond what the products add up to
+  gut         Int? // 0-4; null only when skipped
+  nausea      Int? // 0-4
+  hotOverride Boolean?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// The runner's fuel switches (state: they bound the ladder). One row per user, created on the
+// first PUT; a missing row means the defaults below.
+model FuelSettings {
+  userId        String   @id
+  optIn90       Boolean  @default(false) // opens the rungs from the first higher tier up to 90 g/h
+  optInAdvanced Boolean  @default(false) // opens the rungs above 90 g/h; needs optIn90
+  giDisease     Boolean  @default(false) // a diagnosed gut condition: floor only, no gut-training block
+  gutBlock      Boolean  @default(true) // the gut-training block before the taper
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

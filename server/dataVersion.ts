@@ -28,6 +28,11 @@ export const STATE_MODELS = [
   'PlanSession',
   'PlanRevision',
   'RaceResult',
+  // The fuel ladder is replayed from the logs under the settings (ADR 0011) and its target reaches
+  // the watch line and Today, so a write to any of the three must drop a memo (design 10.3).
+  'FuelProduct',
+  'FuelLog',
+  'FuelSettings',
   // The snapshot's prediction reads the race climate, so a refresh must drop a memoised prediction.
   'ClimateCache',
 ] as const
