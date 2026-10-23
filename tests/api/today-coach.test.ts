@@ -186,8 +186,14 @@ async function setHome(userId: string): Promise<void> {
   })
 }
 
-/** A forecast for today: 20 C until 09:00, then 33 C, written to the cache by the weather job. */
-async function fillForecast(userId: string): Promise<void> {
+/**
+ * A forecast for today, written to the cache by the weather job: 20 C until 09:00, then 33 C, with
+ * the sun rising at 06:00 to 800 W/m2 at noon and setting at 18:00 (Open-Meteo always sends
+ * `shortwave_radiation`, so the day has a WBGT). `sun: false` leaves the radiation out, the case of
+ * a forecast whose index falls back to the air temperature.
+ */
+async function fillForecast(userId: string, options: { sun?: boolean } = {}): Promise<void> {
+  const sun = options.sun ?? true
   ctx.fetch = fakeFetch({
     'GET https://api.open-meteo.com/v1/forecast': () => {
       const times = Array.from(
@@ -201,6 +207,13 @@ async function fillForecast(userId: string): Promise<void> {
           relative_humidity_2m: times.map(() => 60),
           dew_point_2m: times.map(() => 16),
           wind_speed_10m: times.map(() => 5),
+          ...(sun
+            ? {
+                shortwave_radiation: times.map((_, h) =>
+                  h >= 6 && h <= 18 ? Math.round(800 * Math.sin((Math.PI * (h - 6)) / 12)) : 0,
+                ),
+              }
+            : {}),
         },
       })
     },
@@ -217,13 +230,24 @@ async function zonesOf(u: TestUser): Promise<ZoneSet> {
 // Query counting
 // ---------------------------------------------------------------------------------------------
 
-const READS = ['findMany', 'findFirst', 'findUnique', 'count', 'aggregate', 'groupBy'] as const
+const READS = [
+  'findMany',
+  'findFirst',
+  'findFirstOrThrow',
+  'findUnique',
+  'findUniqueOrThrow',
+  'count',
+  'aggregate',
+  'groupBy',
+] as const
+/** The raw read entry points: the tagged template and the string form the data version uses. */
+const RAW_READS = ['$queryRaw', '$queryRawUnsafe'] as const
 type Delegate = Record<string, (...args: unknown[]) => unknown>
 
 interface QueryLog {
   /** `model.method` of every read, in call order. */
   models: string[]
-  /** `$queryRaw` calls: the data-version pragma. */
+  /** Raw queries (`$queryRaw`, `$queryRawUnsafe`): today only the data-version read. */
   raw: number
   count(name: string): number
 }
@@ -248,11 +272,15 @@ function trackQueries(prisma: PrismaClient): QueryLog {
       })
     }
   }
-  const raw = prisma.$queryRawUnsafe.bind(prisma)
-  vi.spyOn(prisma, '$queryRawUnsafe').mockImplementation(((...args: Parameters<typeof raw>) => {
-    log.raw += 1
-    return raw(...args)
-  }) as typeof prisma.$queryRawUnsafe)
+  const rawClient = prisma as unknown as Record<string, (...args: unknown[]) => unknown>
+  for (const method of RAW_READS) {
+    const original = rawClient[method]
+    if (typeof original !== 'function') continue
+    vi.spyOn(rawClient, method).mockImplementation((...args: unknown[]) => {
+      log.raw += 1
+      return original.apply(prisma, args)
+    })
+  }
   return log
 }
 
@@ -399,18 +427,44 @@ describe('GET /api/today: the coach payload', () => {
     expect(coach.weekStrip!.runMin).toBe(45)
   })
 
-  test('the legacy heat block and the new heat fields come from the cached forecast', async () => {
+  test('a cached forecast with sun gives a WBGT peak: the heat block is hot for steering and the hero leads with effort', async () => {
     const { u } = await planWith('heat@example.com', [{ date: today, kind: 'long', min: 90 }])
     await setHome(u.id)
     await fillForecast(u.id)
+    const { heat, coach } = await view(u)
+    expect(heat.note).toMatch(/Warm day/)
+    expect(heat.index).toBe('wbgt')
+    expect(heat.wbgtC).toBeGreaterThanOrEqual(P.i9.warnWbgtC.value)
+    // The sun peaks at noon, and the temperature is flat from 09:00, so the WBGT peaks with the sun.
+    expect(heat.peakHour).toBe(12)
+    expect(heat.coolerHour).not.toBeNull()
+    expect(heat.coolerValue).not.toBeNull()
+    expect(heat.coolerValue!).toBeLessThan(heat.wbgtC!)
+    expect(heat.hotForSteering).toBe(true)
+    expect(coach.hero!.target).toMatchObject({ hot: true, mode: 'effort' })
+  })
+
+  test('an easy run with no heat flag is steered by effort on a hot forecast', async () => {
+    const { u } = await planWith('heat-easy@example.com', [{ date: today, kind: 'easy', min: 45 }])
+    await setHome(u.id)
+    await fillForecast(u.id)
+    const { heat, coach } = await view(u)
+    expect(coach.hero!.session.flags).not.toContain('heat')
+    expect(heat.hotForSteering).toBe(true)
+    expect(coach.hero!.target).toMatchObject({ hot: true, mode: 'effort' })
+    expect(coach.hero!.target!.hotNote).not.toBeNull()
+  })
+
+  test('a cached forecast with no radiation falls back to the air temperature, which never steers', async () => {
+    const { u } = await planWith('heat-air@example.com', [{ date: today, kind: 'long', min: 90 }])
+    await setHome(u.id)
+    await fillForecast(u.id, { sun: false })
     const { heat, coach } = await view(u)
     expect(heat.note).toMatch(/Warm day/)
     expect(heat.peakHour).toBe(9)
     expect(heat.coolerHour).not.toBeNull()
     expect(heat.coolerValue).not.toBeNull()
     expect(heat.coolerValue!).toBeLessThan(33)
-    // The cached forecast carries no solar radiation, so its index is the air temperature, and an
-    // air temperature alone never makes a day hot for steering.
     expect(heat.index).toBe('air-temperature')
     expect(heat.wbgtC).toBeNull()
     expect(heat.hotForSteering).toBe(false)

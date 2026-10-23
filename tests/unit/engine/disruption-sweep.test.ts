@@ -22,6 +22,9 @@ import { athletes, TODAY } from './matrix-fixtures.ts'
 
 const SEED = 20_261_023
 const ROUNDS = 6
+// The budget of design 9.8: the sweep runs in under 60 s. The test timeout below is twice that, so
+// a slow machine fails the assertion with the elapsed time instead of a bare timeout.
+const BUDGET_MS = 60_000
 const LENGTHS = [1, 3, 7, 14, 28] as const
 const OFFSET_MIN = -14
 const OFFSET_MAX = 14
@@ -149,8 +152,9 @@ describe('seeded sweep of rest windows over the matrix', () => {
       }
     }
     expect(failures).toEqual([])
-    expect(Date.now() - started).toBeLessThan(60_000)
-  }, 60_000)
+    const elapsedMs = Date.now() - started
+    expect(elapsedMs, `the sweep took ${String(elapsedMs)} ms`).toBeLessThan(BUDGET_MS)
+  }, 120_000)
 
   it('puts no negative or fractional number into a week', () => {
     // a cap never goes below zero, even when a window holds a whole week

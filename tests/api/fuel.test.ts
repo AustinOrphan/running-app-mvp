@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
-import { mondayOf } from '../../shared/dates.ts'
+import { addDays, mondayOf } from '../../shared/dates.ts'
+import { fuelRungs } from '../../shared/engine/fuel.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { FUEL_LADDER_STEPS_SHOWN, FUEL_PRODUCTS_MAX } from '../../shared/limits.ts'
 import type {
@@ -237,13 +238,22 @@ describe('fuel API: settings', () => {
     const open = { ...SETTINGS, optIn90: true }
     expect((await putSettings(user, open)).status).toBe(200)
 
-    // Two tolerated runs reach the 60 g/h rung and the next target is 70 g/h: not yet 90 g/h.
+    // Under the first opt-in alone each tolerated run steps the ladder up one rung from the floor,
+    // so the second tier is tolerated after `runsToTolerate(secondTier)` runs. One run fewer leaves
+    // 80 g/h tolerated and 90 g/h only the next target.
+    const secondTier = fuelRungs().findLastIndex((rung) => rung.gPerH <= P.h7.carbTier2GPerH.value)
+    const runsToTolerate = (rungIndex: number) => (rungIndex + 1) * P.h7.stepUpToleratedRuns.value
     const runs: Array<{ id: string }> = []
-    for (const date of ['2026-08-01', '2026-08-08']) {
-      const run = await newRun(user, date)
-      runs.push(run)
-      await putLog(user, run.id, logBody(gel))
+    const logTolerated = async (count: number) => {
+      while (runs.length < count) {
+        const run = await newRun(user, addDays('2026-08-01', 7 * runs.length))
+        runs.push(run)
+        await putLog(user, run.id, logBody(gel))
+      }
     }
+
+    // One rung short: no run at 90 g/h went well yet.
+    await logTolerated(runsToTolerate(secondTier - 1))
     const early = await putSettings(user, { ...open, optInAdvanced: true })
     expect(early.status).toBe(400)
     expect(errorOf(early).code).toBe('validation')
@@ -255,10 +265,8 @@ describe('fuel API: settings', () => {
     const stored = await ctx.prisma.fuelSettings.findUnique({ where: { userId: user.id } })
     expect(stored?.optInAdvanced).toBe(false)
 
-    // Three more tolerated runs take the ladder through 70, 80 and 90 g/h.
-    for (const date of ['2026-08-15', '2026-08-22', '2026-08-29']) {
-      await putLog(user, (await newRun(user, date)).id, logBody(gel))
-    }
+    // One more tolerated run, now at 90 g/h, opens it.
+    await logTolerated(runsToTolerate(secondTier))
     const late = await putSettings(user, { ...open, optInAdvanced: true })
     expect(late.status).toBe(200)
     expect(late.body).toEqual({ ...open, optInAdvanced: true })

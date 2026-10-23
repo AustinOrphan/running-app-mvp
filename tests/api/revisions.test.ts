@@ -2089,6 +2089,153 @@ describe('POST /api/plan/revisions/:id/undo', () => {
     await expectSameRows(r.f.plan.id, r.before)
   })
 
+  describe('a write between the decision and the transaction', () => {
+    const overrideTransaction = (value?: (...args: unknown[]) => Promise<unknown>) => {
+      if (value === undefined) return Reflect.deleteProperty(ctx.prisma, '$transaction')
+      return Reflect.defineProperty(ctx.prisma, '$transaction', {
+        value,
+        configurable: true,
+        writable: true,
+        enumerable: true,
+      })
+    }
+    afterEach(() => {
+      overrideTransaction()
+    })
+
+    /**
+     * Runs `write` once, after `commitUndo` decided on the rows and before the transaction of
+     * `applyUndo` opens: the window in which a second tab, the scheduler or a sync can still write.
+     *
+     * `vi.spyOn(ctx.prisma, '$transaction')` cannot do this. It takes the data-version proxy's own
+     * `$transaction` as the original, so a spy that delegates to it loops, and restoring the spy
+     * leaves the client under the proxy broken for the rest of the file. The override is defined
+     * on the client under the proxy, which is what the proxy's function delegates to; it removes
+     * itself on its first call and goes back through the proxy to the real transaction.
+     */
+    function writeBeforeTransaction(write: () => Promise<unknown>): void {
+      overrideTransaction(async (...args) => {
+        overrideTransaction()
+        await write()
+        const proxy = ctx.prisma as unknown as {
+          $transaction(...args: unknown[]): Promise<unknown>
+        }
+        return proxy.$transaction(...args)
+      })
+    }
+
+    /** The refusal wrote no revision, left the target undoable and kept the cache true to the rows. */
+    async function expectRefusedAsStale(
+      r: Replanned,
+      res: { status: number; body: unknown },
+      edited: Was,
+    ): Promise<PlanPreview> {
+      expect(res.status, JSON.stringify(res.body)).toBe(409)
+      expect(errorOf(res).details).toMatchObject({ code: 'stale-preview' })
+      // The transaction rolled back, so the rows are those of the interleaved write alone.
+      expect(await snapshot(r.f.plan.id)).toEqual(edited.rows)
+      const now = await counts(r.f)
+      expect(now.revisions).toBe(edited.counts.revisions)
+      expect(now.predictions).toBe(edited.counts.predictions)
+      const target = await ctx.prisma.planRevision.findUniqueOrThrow({ where: { id: r.second.id } })
+      expect(target.undoneAt).toBeNull()
+      await expectCacheMatchesDatabase(r.f)
+      return errorOf(res).details!.preview as PlanPreview
+    }
+
+    test('a row edited in between is refused as stale, not overwritten', async () => {
+      const r = await replannedTwice('undo-raced-edit@example.com')
+      const line = touchedSession(r.second)
+      let edited: Was | undefined
+      writeBeforeTransaction(async () => {
+        // The purpose is in the content hash and not in the diff, so the check on the diff cannot
+        // see this edit and only the standing of the rows read again in the transaction can.
+        await ctx.prisma.planSession.update({
+          where: { id: line.sessionId! },
+          data: { purpose: 'Edited in another tab.' },
+        })
+        edited = await stateOf(r.f)
+      })
+      const res = await post(r.f, undoUrl(r.second.id))
+      const fresh = await expectRefusedAsStale(r, res, edited!)
+      expect(
+        (await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: line.sessionId! } }))
+          .purpose,
+      ).toBe('Edited in another tab.')
+      // The preview that comes with the refusal is the plan as it is now: the edit blocks the undo.
+      expect(fresh.blocked).toBe(true)
+      expect(fresh.reasons.map((reason) => reason.code)).toContain('edited-since')
+    })
+
+    test('a row that leaves the restored days in between changes the diff, and the undo is refused as stale', async () => {
+      const r = await replannedTwice('undo-raced-diff@example.com')
+      const line = touchedSession(r.second)
+      const preview = (
+        await post(r.f, '/api/plan/preview', { type: 'undo', revisionId: r.second.id })
+      ).body as PlanPreview
+      let edited: Was | undefined
+      writeBeforeTransaction(async () => {
+        // A session dated before today is not restored, so it drops out of the rows that are checked
+        // (every remaining row is as the revision left it) and the restore no longer matches the
+        // diff that was previewed.
+        await ctx.prisma.planSession.update({
+          where: { id: line.sessionId! },
+          data: { date: addDays(today, -3) },
+        })
+        edited = await stateOf(r.f)
+      })
+      const res = await post(r.f, undoUrl(r.second.id), { expectHash: preview.hash })
+      const fresh = await expectRefusedAsStale(r, res, edited!)
+      // The preview that comes with the refusal is the plan as it is now.
+      expect(fresh.hash).not.toBe(preview.hash)
+    })
+  })
+
+  test('a restored session whose run was deleted since comes back unlinked and planned', async () => {
+    const f = await fourWeekPlan('undo-run-deleted@example.com')
+    const easy = f.plan.sessions.find((s) => s.weekStart === nextMonday && s.kind === 'easy')!
+    const run = await ctx.prisma.activity.findFirstOrThrow({
+      where: { userId: f.u.id, type: 'run' },
+      orderBy: { date: 'desc' },
+    })
+    await ctx.prisma.planSession.update({
+      where: { id: easy.id },
+      data: {
+        activityId: run.id,
+        linkSource: 'owner',
+        status: 'completed',
+        execution: JSON.stringify({ synthetic: 1 }),
+      },
+    })
+    // The re-plan closes the very day of that session, which deletes its row, link included.
+    await closeBusyDay(f)
+    const replanned = await post(f, '/api/plan/replan')
+    expect(replanned.status, JSON.stringify(replanned.body)).toBe(200)
+    const revision = replanned.body as PlanRevisionView
+    const stored = JSON.parse((await lastRevision(f.plan.id)).undo!) as UndoPayload
+    expect(stored.sessions.deleted.find((row) => row.id === easy.id)).toMatchObject({
+      activityId: run.id,
+      status: 'completed',
+    })
+    expect(await ctx.prisma.planSession.findUnique({ where: { id: easy.id } })).toBeNull()
+
+    // The run is deleted before the undo, and the day opens again so the restored plan passes.
+    await ctx.prisma.activity.delete({ where: { id: run.id } })
+    await reopenDays(f)
+    const res = await post(f, undoUrl(revision.id))
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+
+    const restored = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: easy.id } })
+    expect(restored).toMatchObject({
+      externalId: easy.externalId,
+      activityId: null,
+      linkSource: null,
+      execution: null,
+      status: 'planned',
+    })
+    await expectCacheMatchesDatabase(f)
+  })
+
   test('undoes an owner’s skip, restoring the status and the prescription they kept', async () => {
     const f = await fourWeekPlan('undo-owner-skip@example.com')
     const session = f.plan.sessions.find(

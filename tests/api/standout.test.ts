@@ -509,13 +509,51 @@ describe('the pipeline', () => {
     expect(await stored(id)).not.toBeNull()
   })
 
-  test('describes the other runs the matching assessed, and the run when matching fails', async () => {
+  test('describes the other run the matching assessed, with no read in between', async () => {
     const u = await newUser()
-    await planWith(u.id, [{ date: today, kind: 'easy', min: 60 }])
-    const run = await addRun(u.id, 0, { durationSec: 30 * 60, distanceM: 4000 })
-    await runExecutionForActivity(ctx, { userId: u.id, activityId: run.id })
-    expect(templates(await viewOf(u, run.id))).toEqual(['standout.ran-less'])
-    expect(vi.mocked(standoutFacts)).toHaveBeenCalledTimes(1)
+    const { rows } = await planWith(u.id, [{ date: today, kind: 'easy', min: 60 }])
+    const session = rows[0]!
+    const first = await addRun(u.id, 0, { durationSec: 30 * 60, distanceM: 4000 })
+    const second = await addRun(u.id, 0, { durationSec: 25 * 60, distanceM: 3500 })
+    // The matching takes the first run alone, so the second has neither a session nor a row.
+    await runExecutionForActivity(ctx, { userId: u.id, activityId: first.id })
+    expect(
+      (await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: session.id } })).activityId,
+    ).toBe(first.id)
+    expect(await stored(first.id)).not.toBeNull()
+    expect(await stored(second.id)).toBeNull()
+
+    // The first run moves out of reach of its session. The matching unlinks it and gives the freed
+    // session to the second run, which it assesses, so its row is written by the same call.
+    await ctx.prisma.activity.update({
+      where: { id: first.id },
+      data: { date: addDays(today, -5) },
+    })
+    await runExecutionForActivity(ctx, { userId: u.id, activityId: first.id, reconsider: 'date' })
+    expect(
+      (await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: session.id } })).activityId,
+    ).toBe(second.id)
+    expect(await stored(second.id)).not.toBeNull()
+    // The row rests on the assessment: it names the shortfall, which only a linked run has.
+    expect(templates(await viewOf(u, second.id))).toEqual(['standout.ran-less'])
+  })
+
+  test('describes the run even when the matching throws, and the error still reaches the caller', async () => {
+    const u = await newUser()
+    await planWith(u.id, [])
+    const run = await addRun(u.id, 0, { pain: 6 })
+    // The matching looks for the run's session first; that read fails once.
+    const lookup = vi
+      .spyOn(ctx.prisma.planSession, 'findFirst')
+      .mockRejectedValueOnce(new Error('boom'))
+    try {
+      await expect(
+        runExecutionForActivity(ctx, { userId: u.id, activityId: run.id }),
+      ).rejects.toThrow('boom')
+    } finally {
+      lookup.mockRestore()
+    }
+    expect(await stored(run.id)).not.toBeNull()
   })
 
   test('the nightly sweep describes the runs of the last 7 days and no others', async () => {

@@ -843,7 +843,7 @@ describe('injury report', () => {
 describe('validation', () => {
   const context: { today: string; goalDate: string | null } = {
     today: TODAY,
-    goalDate: '2027-06-12',
+    goalDate: '2027-06-26',
   }
   const draft = (over: Partial<DisruptionDraft> = {}): DisruptionDraft => ({
     reason: 'travel',
