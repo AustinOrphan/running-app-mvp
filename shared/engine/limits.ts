@@ -9,7 +9,7 @@ import type { Activity } from '../types.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { isLadderSession, startWeek, type StartPath } from './startWeeks.ts'
-import type { AthleteState, SessionKind, SessionSpec } from './types.ts'
+import type { AthleteState, SessionKind, SessionSpec, WeekDraft } from './types.ts'
 
 /** Guards float noise (100 * 1.1 = 110.00000000000001) before rounding down. */
 export const EPS = 1e-9
@@ -295,6 +295,30 @@ export function rampSkipWeeks(today: string, lowWeeks: Iterable<string>): Set<st
   const monday = mondayOf(today)
   if (today > monday) skip.add(monday)
   return skip
+}
+
+const PLANNED_FLAG = 'planned-'
+
+/**
+ * The flags of a loading week that was run past its target [rules g-2, g-6]: `overshoot`, and
+ * `planned-<n>`, the minutes the week was planned at. The target of such a week is the minutes run
+ * (they are a fact); the flags survive the stored plan, so a re-plan in the same week still draws
+ * the weeks after it from the planned minutes and the overshoot never lifts them or makes
+ * anything up.
+ */
+export const overshootFlags = (plannedMin: number): string[] => [
+  'overshoot',
+  `${PLANNED_FLAG}${String(plannedMin)}`,
+]
+/** The minutes a week was planned at: its target, unless the week was run past it. */
+export function plannedMinOf(week: Pick<WeekDraft, 'targetRunMin' | 'flags'>): number {
+  if (!week.flags.includes('overshoot')) return week.targetRunMin
+  for (const flag of week.flags) {
+    if (!flag.startsWith(PLANNED_FLAG)) continue
+    const n = Number(flag.slice(PLANNED_FLAG.length))
+    if (Number.isInteger(n) && n >= 0) return Math.min(n, week.targetRunMin)
+  }
+  return week.targetRunMin
 }
 
 /**
