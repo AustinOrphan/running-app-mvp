@@ -72,7 +72,7 @@ describe('shared contract types', () => {
 
   it('describes providers and their status', () => {
     expectTypeOf<ProviderInfo['channels']>().toEqualTypeOf<
-      Array<'pull' | 'push' | 'upload' | 'folder'>
+      Array<'pull' | 'push' | 'upload' | 'folder' | 'publish'>
     >()
     expectTypeOf<IntegrationStatus['info']>().toEqualTypeOf<ProviderInfo>()
     expectTypeOf<IntegrationStatus['status']>().toEqualTypeOf<
