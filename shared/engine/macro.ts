@@ -4,7 +4,8 @@
 // Week flags written here (WeekDraft.flags): 'recovery', 'peak', 'taper', 'race-week',
 // 'post-race', 'strength-block', 'gut-training', 'heat-acclimation', 'night', 'downhill', 'b2b',
 // and for the first weeks of a plan 'restart-floor', 'run-walk', 'ladder-<n>', 'injury-return',
-// 'injury-level-<n>' (startWeeks.ts).
+// 'injury-level-<n>' (startWeeks.ts). A re-plan adds 'overshoot' and 'planned-<n>' to a loading
+// week run past its target (index.ts, limits.ts `overshootFlags`).
 // Race week is the last week with the race in it: its volume is the shake-out running around the
 // race, not the race itself, and its long run is 0. The weeks after the race (H12) follow it; the
 // days of the race week after the hold are a week of their own (`macroPlanDraft`).
@@ -18,6 +19,7 @@ import {
   countsTowardReference,
   gainLimit,
   noviceRamp,
+  plannedMinOf,
   rampLimits,
   rampSkipWeeks,
   rampStep,
@@ -336,7 +338,9 @@ function replanAnchor(
         .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))[0]
     : current
   if (work === undefined || work.targetRunMin <= 0 || !Number.isFinite(stepCap)) return null
-  return { minutes: Math.min(work.targetRunMin, stepCap), paused: current.isRecovery }
+  // A week run past its target is stored at the minutes run; the loading sequence carries on from
+  // the minutes it was planned at, so an overshoot lifts nothing after it [rules g-2, g-6].
+  return { minutes: Math.min(plannedMinOf(work), stepCap), paused: current.isRecovery }
 }
 
 /** Quality sessions wanted in a pre-taper week before the run-day cap [rules F2, H1]. */

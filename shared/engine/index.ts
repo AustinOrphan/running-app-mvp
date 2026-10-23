@@ -15,6 +15,7 @@ import {
   gainLimit,
   isProgramme,
   noviceRamp,
+  overshootFlags,
   rampLimits,
   rampSkipWeeks,
   recordOf,
@@ -187,6 +188,30 @@ function capWeek(week: WeekDraft, cap: number | undefined): WeekDraft {
 }
 
 /**
+ * A loading week already run past its target is taken as run [rules g-2, g-6]: the minutes logged
+ * are a fact the engine cannot change, so the target rises to them and the week is flagged
+ * `overshoot`. The rest of the week holds no more running (`remainingOfWeek`), and the weeks after
+ * it were drawn from the planned week, so they neither rise on the strength of it nor make up
+ * anything. A recovery, taper, race, post-race or programme week keeps its target: the recovery
+ * cadence, the taper and the steps of a programme are read from it, and a ladder session is
+ * logged with its walks.
+ */
+function takenAsRun(week: WeekDraft, ranMin: number): WeekDraft {
+  const loading =
+    !week.isRecovery &&
+    !week.isTaper &&
+    week.phase !== 'race' &&
+    !week.flags.includes('post-race') &&
+    !isProgrammeWeek(week.flags)
+  if (!loading || ranMin <= week.targetRunMin) return week
+  return {
+    ...week,
+    targetRunMin: Math.ceil(ranMin - 1e-9),
+    flags: [...week.flags, ...overshootFlags(week.targetRunMin)],
+  }
+}
+
+/**
  * A week the weekly decision reduces is a recovery week [rules J5, E3]: it is marked so, and held
  * to the recovery cut from the last loading week before it.
  */
@@ -296,6 +321,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
   const placed: SessionSpec[] = []
   const shortOfDays: Array<{ weekStart: string; fit: number; wanted: number; spaced: boolean }> = []
   const tooShort: Array<{ weekStart: string; room: number; minimum: number }> = []
+  const overshot: Array<{ weekStart: string; planned: number; ran: number }> = []
   const history: SessionSpec[] = [...kept]
   const raceMonday = mondayOf(goal.date)
   for (let w = 0; w < macro.length; w++) {
@@ -540,6 +566,19 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     const ahead = [...inside, ...afterRace, ...keptToRun].filter((s) => s.date >= today)
     volumes.set(week.weekStart, done.minutes + runningMinutes(ahead))
     gains.set(week.weekStart, done.gain + runningGain(ahead))
+    // The current week's logged minutes are taken as they are, after the weeks that follow were
+    // drawn and capped from the planned week [rules g-2, g-6].
+    if (isCurrent) {
+      const taken = takenAsRun(macro[w]!, done.minutes + keptMin)
+      if (taken !== macro[w]) {
+        overshot.push({
+          weekStart: week.weekStart,
+          planned: macro[w]!.targetRunMin,
+          ran: taken.targetRunMin,
+        })
+        macro[w] = taken
+      }
+    }
     for (const s of ahead.sort(bySlot)) {
       if (!VOLUME_KINDS.has(s.kind)) continue
       records.push(recordOf(s))
@@ -586,6 +625,14 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       severity: 'info',
       message: `${tooShort.length} week(s), from the week of ${first.weekStart}, hold no run: ${P.g1.spikeRatioWarn.value}x the longest run of the last ${P.g1.windowDays.value} days is ${first.room} min, under the ${first.minimum}-minute minimum for a run in those weeks, so those runs are left out.`,
       rules: ['g-1', 'F5'],
+    })
+  }
+  for (const week of overshot) {
+    warnings.push({
+      code: 'overshoot-week',
+      severity: 'info',
+      message: `The week of ${week.weekStart} holds ${week.ran} min of running, above the ${week.planned} min planned. The week stands as run: it takes no more running, and the weeks after it keep their plan instead of rising from it.`,
+      rules: ['g-2', 'g-6'],
     })
   }
   warnings.push(...postRaceWarnings(windows))
