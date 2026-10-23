@@ -299,6 +299,61 @@ export interface JobsView {
   weeklyUpdate: WeeklyUpdateStatus
 }
 
+// Sessions on the wrist (phase 3a design 6.4): what the intervals.icu publisher holds per session.
+/**
+ * Where a session stands on the way to the watch. `not-sent`: publishing is on and the session has
+ * no publication yet; `waiting`: the app will send (again) by itself, at `retryAt` when it is
+ * known; `sent`: intervals.icu has it; `on-watch`: sent, the runner ticked the Garmin upload, no
+ * device error and 15 minutes have passed; `not-delivered`: the runner has to act (reconnect,
+ * change something, send again) or Garmin Connect reported a problem; `removed`: the runner deleted
+ * the event in intervals.icu, so the app leaves it alone; `withdrawn`: the app took it off the
+ * watch (a rest day, a skipped session).
+ */
+export type WristItemStatus =
+  'not-sent' | 'waiting' | 'sent' | 'on-watch' | 'not-delivered' | 'removed' | 'withdrawn'
+export interface WristItem {
+  /** `PlanSession.externalId`: the join key with a session (publications hold no foreign key). */
+  externalId: string
+  /** The session's id in the active plan; null when the plan no longer holds the session. */
+  sessionId: string | null
+  /** The session's day when the plan still holds it, else the day the publication was made for. */
+  date: string
+  kind: string
+  /** The allowlisted public title that went out ("Easy run, 45 min"). */
+  title: string
+  variant: 'planned' | 'eased'
+  status: WristItemStatus
+  /** Why the last send did not go through: `PublishFailCode`; null when it did. */
+  failCode: string | null
+  /** A sentence about that, sanitised and at most 200 characters. */
+  failMessage: string | null
+  /** What intervals.icu reports about the Garmin upload; null when it reports nothing. */
+  deviceMessage: string | null
+  /** Codes of what the text could not carry: `unparsed-steps`, `no-max-hr`, `no-threshold-pace`. */
+  warnings: string[]
+  /** When the app tries again by itself; null when it waits for new content or "Send again". */
+  retryAt: string | null
+  sentAt: string | null
+}
+/** The runner's choices for the intervals.icu publisher (`PUT /api/wrist/intervals`). */
+export interface WristSettings {
+  enabled: boolean
+  /** The runner ticked that intervals.icu uploads planned workouts to Garmin Connect. */
+  garminLinked: boolean
+  lastRunAt: string | null
+  /** A run for this runner is in progress. */
+  running: boolean
+}
+/** `GET /api/wrist/status`: the publisher's settings and one item per session in the range. */
+export interface WristStatus {
+  from: string
+  to: string
+  /** The intervals.icu connection: `needs_auth` asks for a reconnect. */
+  connection: 'disconnected' | 'connected' | 'needs_auth' | 'error'
+  settings: WristSettings
+  items: WristItem[]
+}
+
 export interface ActivityDetail {
   activity: Activity
   stream: (ActivityStreamData & { sampleSec: number }) | null

@@ -5,10 +5,12 @@
 // snapshot too and may read a table of its own. The producer of the two notes of the job log is
 // registered at the end of this file, and its ETag stamp in `today.ts`.
 import { addDays, mondayOf } from '../../shared/dates.ts'
+import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import type { HealthNote, TodayHealth } from '../../shared/types.ts'
+import { publishable } from '../../shared/workouts/labels.ts'
 import type { Deps } from '../app.ts'
-import { REPLAN_SLOT, weekSlotStart, weeklyUpdateStatus } from '../jobs/scheduler.ts'
+import { REPLAN_SLOT, weekSlotStart, weeklyUpdateStatus } from '../jobs/weeklyUpdate.ts'
 import { createLogger } from '../logger.ts'
 import { latestJobRuns, safeMessage } from './syncLog.ts'
 import type { AthleteContext } from './athleteState.ts'
@@ -88,6 +90,47 @@ export function registerHealthNoteProducer(producer: HealthNoteProducer): () => 
     const at = producers.indexOf(producer)
     if (at >= 0) producers.splice(at, 1)
   }
+}
+
+/**
+ * E1: tomorrow's run is not on the watch. Reads the publications of the sessions the plan has for
+ * tomorrow (a table the data version does not cover, so `publish.ts` registers a change stamp for
+ * it) and notes one that failed, is waiting for a retry or was sent with a Garmin Connect error.
+ * Nothing is said for a session the runner deleted in intervals.icu, or for one that has not been
+ * tried yet (the next run, within minutes, does that). Turning publishing off marks every row
+ * withdrawn, so a runner who is not publishing has no row that qualifies and costs no extra read
+ * when tomorrow holds no run.
+ */
+export const tomorrowNotOnWatch: HealthNoteProducer = async ({ deps, userId, context }) => {
+  const { prisma } = deps
+  // The channel name of the intervals.icu publisher (`CHANNEL` in `publish.ts`, which imports this
+  // module and so cannot be imported here).
+  const channel = 'intervals'
+  const tomorrow = addDays(context.asOf, 1)
+  const sessions = context.planSessions.filter(
+    (s) => s.date === tomorrow && publishable(s.kind) && isToRun(s.status),
+  )
+  if (sessions.length === 0) return []
+  const rows = await prisma.wristPublication.findMany({
+    where: { userId, channel, externalId: { in: sessions.map((s) => s.externalId) } },
+    select: { state: true, deviceMessage: true },
+  })
+  const problem = rows.some(
+    (row) =>
+      row.state === 'failed' ||
+      row.state === 'pending' ||
+      (row.state === 'sent' && row.deviceMessage !== null),
+  )
+  return problem
+    ? [
+        {
+          code: 'wrist-tomorrow',
+          template: 'publish.wrist.note-tomorrow',
+          slots: {},
+          href: '/plan',
+        },
+      ]
+    : []
 }
 
 /** The notes of every registered producer. A failing producer is logged and skipped. */

@@ -1244,12 +1244,16 @@ describe('GET /api/today: the validator', () => {
     const log = trackQueries(ctx.prisma)
     const res = await getToday(u).set('If-None-Match', tag)
     expect(res.status).toBe(304)
+    // The user lookup of the auth middleware, the forecast stamp (home, then the cache row), the
+    // job notes' stamp and the publications' stamp (E1: the notes read a table the data version
+    // does not cover).
     expect(log.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
         'forecastCache.findUnique',
         'syncRun.findFirst',
         'user.findUnique',
+        'wristPublication.groupBy',
       ].sort(),
     )
     expect(log.count('activity.findMany')).toBe(0)
@@ -1286,8 +1290,10 @@ describe('GET /api/today: cost', () => {
     const warm = trackQueries(ctx.prisma)
     expect((await getToday(u)).status).toBe(200)
     // The session lookup of the auth middleware, the forecast stamp (home, then the cache row), the
-    // cached forecast hours, the stamp of the job notes and the three reads of the job notes
-    // themselves (the latest runs, the last weekly revision, the plans due): nothing else.
+    // cached forecast hours, the stamp of the job notes, the three reads of the job notes themselves
+    // (the latest runs, the last weekly revision, the plans due) and E1's two reads of the
+    // publications table (the page tag's stamp and the note about tomorrow's run, which has a
+    // session here): nothing else.
     expect(warm.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
@@ -1298,6 +1304,8 @@ describe('GET /api/today: cost', () => {
         'syncRun.findFirst',
         'syncRun.groupBy',
         'user.findUnique',
+        'wristPublication.findMany',
+        'wristPublication.groupBy',
       ].sort(),
     )
     expect(warm.count('activity.findMany')).toBe(0)
@@ -1307,8 +1315,8 @@ describe('GET /api/today: cost', () => {
     // the cached forecast, the race climate, the change line and the three of the job notes), warm
     // is 8, and the data version is read three times (the tag, the snapshot, the change-line memo).
     // The eleventh read of the snapshot is the runner's active rest windows (E5-5).
-    expect(coldTotal).toBe(24)
-    expect(warm.models).toHaveLength(8)
+    expect(coldTotal).toBe(26)
+    expect(warm.models).toHaveLength(10)
     expect(warm.raw).toBe(5)
   })
 

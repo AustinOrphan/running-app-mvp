@@ -18,6 +18,7 @@ import type {
   PrismaClient,
   WeeklyReview as WeeklyReviewRow,
   WellnessDay as WellnessDayRow,
+  WristPublication as WristPublicationRow,
 } from './db.ts'
 import type {
   CourseSnapshot,
@@ -98,6 +99,8 @@ import type {
   Weekday,
   WeeklyReview,
   WellnessDay,
+  WristItem,
+  WristItemStatus,
 } from '../shared/types.ts'
 
 /** Parses stored JSON text; any failure gives `fallback`. */
@@ -279,6 +282,62 @@ export function toIntegrationStatus(
     lastSyncAt: row.lastSyncAt ? row.lastSyncAt.toISOString() : null,
     lastSyncStatus: row.lastSyncStatus,
     lastError: row.lastError,
+  }
+}
+
+/** Time after a send before the app says "On your watch": intervals.icu needs time to upload. */
+export const ON_WATCH_DELAY_MS = 15 * 60_000
+
+/**
+ * Where a stored publication stands (design 6.4). "On your watch" needs the runner's tick that
+ * intervals.icu uploads to Garmin Connect, no device message and 15 minutes since the send; the app
+ * cannot see the watch, so anything less is "sent". A send that moved with the session but has not
+ * been repeated at the new day yet is waiting. `sessionDate` is the day the plan has for the
+ * session now, or null when the plan no longer holds it.
+ */
+export function wristItemStatus(
+  row: Pick<WristPublicationRow, 'state' | 'date' | 'deviceMessage' | 'sentAt' | 'nextAttemptAt'>,
+  at: { garminLinked: boolean; now: Date; sessionDate: string | null },
+): WristItemStatus {
+  switch (row.state) {
+    case 'sent': {
+      if (at.sessionDate !== null && at.sessionDate !== row.date) return 'waiting'
+      if (row.deviceMessage !== null) return 'not-delivered'
+      const onWatch =
+        at.garminLinked &&
+        row.sentAt !== null &&
+        at.now.getTime() - row.sentAt.getTime() >= ON_WATCH_DELAY_MS
+      return onWatch ? 'on-watch' : 'sent'
+    }
+    case 'failed':
+      return row.nextAttemptAt === null ? 'not-delivered' : 'waiting'
+    case 'owner-removed':
+      return 'removed'
+    case 'withdrawn':
+      return 'withdrawn'
+    default:
+      return 'waiting'
+  }
+}
+
+export function toWristItem(
+  row: WristPublicationRow,
+  join: { sessionId: string | null; date: string; status: WristItemStatus },
+): WristItem {
+  return {
+    externalId: row.externalId,
+    sessionId: join.sessionId,
+    date: join.date,
+    kind: row.kind,
+    title: row.title,
+    variant: row.variant === 'eased' ? 'eased' : 'planned',
+    status: join.status,
+    failCode: row.failCode,
+    failMessage: row.failMessage,
+    deviceMessage: row.deviceMessage,
+    warnings: parseJson<string[]>(row.warnings, []),
+    retryAt: row.nextAttemptAt ? row.nextAttemptAt.toISOString() : null,
+    sentAt: row.sentAt ? row.sentAt.toISOString() : null,
   }
 }
 
