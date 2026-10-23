@@ -97,6 +97,12 @@ export interface AthleteContext {
   readonly goal: Goal | null
   /** The active version-2 plan, without its weeks and sessions. */
   readonly plan: Plan | null
+  /**
+   * The active plan's sessions as the API serves them (identity, execution and the original
+   * prescription included), by date then order. Empty without a version-2 plan. `existing()` holds
+   * the same rows in the engine's shape, which has no `externalId`.
+   */
+  readonly planSessions: PlanSession[]
   /** The state the engine estimates from the data above (it does not depend on a goal). */
   readonly state: AthleteState
   readonly zones: ZoneSet
@@ -448,10 +454,9 @@ async function buildContext(
   const reviews = reviewRows.map(toWeeklyReview)
   const screeningFlags = screening?.flags ?? 0
   const zoneChanges = zoneChangesOf(revisions)
+  const planSessions = planRow ? planRow.sessions.map(toPlanSession) : []
   const existing = deepFreeze(
-    planRow
-      ? existingFrom(planRow.weeks.map(toPlanWeek), planRow.sessions.map(toPlanSession))
-      : null,
+    planRow ? existingFrom(planRow.weeks.map(toPlanWeek), planSessions) : null,
   )
 
   const base: EngineInput = {
@@ -508,6 +513,7 @@ async function buildContext(
     goals,
     goal,
     plan: planRow ? toPlan(planRow) : null,
+    planSessions,
     state,
     zones,
     readiness,

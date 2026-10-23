@@ -665,13 +665,35 @@ export type DisruptionMode = 'rest' | 'limited'
 export type DisruptionPhase =
   'upcoming' | 'resting' | 'rest-gate' | 'easy-only' | 'limited' | 'returning' | 'done'
 export type TodayAdvice = 'as-planned' | 'downgrade-easy' | 'rest'
+/**
+ * The heat read of the day's main run. Every field is null (and `hotForSteering` false) when the
+ * run has no forecast or the day stays inside the optimum band. `wbgtC` is the peak when it is a
+ * WBGT reading; `index` says which index the peak is on, `coolerValue` is that index around the
+ * cooler start.
+ */
+export interface TodayHeat {
+  wbgtC: number | null
+  note: string | null
+  coolerHour: string | null
+  /** Hour of day, 0-23, of the warmest hour inside the daylight window. */
+  peakHour: number | null
+  coolerValue: number | null
+  index: 'wbgt' | 'air-temperature' | null
+  /** The one test every surface steers by (`isHotForSteering`). */
+  hotForSteering: boolean
+}
 export interface TodayView {
+  /** The viewed day: today, or a day ahead for a preview (`coach.preview`). */
   date: string
+  /** The server's IANA zone: "today" is its calendar day, whatever the device clock says. */
+  tz: string
   sessions: Array<{ session: PlanSession; advice: TodayAdvice; reasons: string[] }>
-  heat: { wbgtC: number | null; note: string | null; coolerHour: string | null }
+  heat: TodayHeat
   checkin: Checkin | null
   readiness: ReadinessSnapshot
   unrated: Activity[]
+  /** The coach view: readiness, hero, week, race, change line, health and slots. */
+  coach: TodayCoach
 }
 // ---- Today as a coach (phase 3a, section 7) ----------------------------------------------------
 // The pure pieces are `readinessSignals`, `readinessVerdict`, `rangeLabel`, `weekStrip` and
@@ -754,9 +776,10 @@ export interface TodayRace {
   targetDate: string
   dateProvisional: boolean
   daysToRace: number
-  /** Null when the athlete's state supports no source. */
+  /** Null when the athlete's state supports no source, or the goal has no distance. */
   prediction: Pick<Prediction, 'method' | 'predictedSec' | 'lowSec' | 'highSec'> | null
-  range: RangeLabel
+  /** How wide the range has to be; null when the goal has no distance. */
+  range: RangeLabel | null
 }
 /** The newest weekly, break or review update of the last seven days, as the plan stored it. */
 export interface ChangeLine {

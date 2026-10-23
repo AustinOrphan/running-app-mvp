@@ -220,14 +220,25 @@ interface ForecastRow {
   lastError: string | null
 }
 
-async function homeCellOf(prisma: PrismaClient, userId: string): Promise<ForecastCell | null> {
-  const profile = await prisma.athleteProfile.findUnique({
-    where: { userId },
-    select: { homeLat: true, homeLng: true },
-  })
-  return profile?.homeLat != null && profile.homeLng != null
-    ? forecastCellOf(profile.homeLat, profile.homeLng)
+/** The home coordinates a profile holds; either may be missing. */
+export interface HomeCoordinates {
+  homeLat: number | null
+  homeLng: number | null
+}
+
+function cellOfHome(home: HomeCoordinates | null): ForecastCell | null {
+  return home?.homeLat != null && home.homeLng != null
+    ? forecastCellOf(home.homeLat, home.homeLng)
     : null
+}
+
+async function homeCellOf(prisma: PrismaClient, userId: string): Promise<ForecastCell | null> {
+  return cellOfHome(
+    await prisma.athleteProfile.findUnique({
+      where: { userId },
+      select: { homeLat: true, homeLng: true },
+    }),
+  )
 }
 
 /** The stored hours. Rows written before the forecast carried radiation read it as null. */
@@ -295,14 +306,16 @@ function refreshForecast(
 
 /**
  * The home forecast that the engine may use: the cached hours, or null without a home, without a
- * filled cell, or when the forecast is older than `FORECAST_USABLE_MS`. Never fetches.
+ * filled cell, or when the forecast is older than `FORECAST_USABLE_MS`. Never fetches. A caller
+ * that already holds the profile passes its home as `home`, which saves the profile read.
  */
 export async function cachedForecast(
   prisma: PrismaClient,
   userId: string,
   now: Date = new Date(),
+  home?: HomeCoordinates,
 ): Promise<{ hours: WeatherHour[]; fetchedAt: Date } | null> {
-  const cell = await homeCellOf(prisma, userId)
+  const cell = home === undefined ? await homeCellOf(prisma, userId) : cellOfHome(home)
   if (!cell) return null
   const row = await prisma.forecastCache.findUnique({ where: forecastWhere(cell) })
   if (!row?.fetchedAt || !isUsable(row.fetchedAt, now)) return null
