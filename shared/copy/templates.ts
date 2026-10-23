@@ -13,6 +13,7 @@ import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
 import { GOALS_TEMPLATES } from './goals.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
 import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
+import { WINDOW_VIEW_TEMPLATES } from './windowView.ts'
 import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
 import { PUBLISH_TEMPLATES } from './publish.ts'
 import { STANDOUT_TEMPLATES } from './standoutTemplates.ts'
@@ -30,6 +31,7 @@ export const TEMPLATES = {
   ...FUEL_TEMPLATES,
   ...WINDOW_TEMPLATES,
   ...ADJUST_TEMPLATES,
+  ...WINDOW_VIEW_TEMPLATES,
   ...ACTIVITY_LIST_TEMPLATES,
   ...EXPLAIN_TEMPLATES,
   ...PUBLISH_TEMPLATES,

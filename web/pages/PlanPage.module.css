@@ -60,6 +60,18 @@
   border: 1px dashed var(--border-strong);
 }
 
+/* "Rest window" and "Return week" on a week: an outline in the accent, apart from the phase chip. */
+.windowChip {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  white-space: nowrap;
+}
+
 /* Week table: a two-line list on phones, a true table from 900px. */
 .table {
   width: 100%;

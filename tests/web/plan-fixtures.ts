@@ -1,7 +1,9 @@
 import type { SessionBrief } from '../../shared/engine/types.ts'
 import type {
+  DisruptionView,
   Plan,
   PlanDiff,
+  PlanPreview,
   PlanRevisionView,
   PlanSession,
   SessionDiffLine,
@@ -252,5 +254,45 @@ export function makeDiff(
       runMinAfter: weeks.reduce((n, w) => n + w.runMinAfter, 0),
     },
     empty: sessions.length === 0 && weeks.length === 0 && holds.length === 0,
+  }
+}
+
+/** A window the way `GET /api/plan/disruptions` serves it: resting for illness, by default. */
+export function makeWindow(over: Partial<DisruptionView> = {}): DisruptionView {
+  return {
+    id: 'w1',
+    reason: 'illness-above-neck',
+    mode: 'rest',
+    startDate: '2027-01-11',
+    endDate: '2027-01-14',
+    maxRunMin: null,
+    area: null,
+    pain: null,
+    gaitChange: false,
+    note: null,
+    status: 'active',
+    createdAt: '2027-01-11T08:00:00.000Z',
+    updatedAt: '2027-01-11T08:00:00.000Z',
+    phase: 'resting',
+    runFrom: '2027-01-16',
+    qualityFrom: '2027-01-19',
+    returnWeekMin: null,
+    ...over,
+  }
+}
+
+/** What `POST /api/plan/preview` answers: a re-plan that changes nothing, unless `over` says more. */
+export function makePreview(over: Partial<PlanPreview> = {}): PlanPreview {
+  return {
+    action: { type: 'replan' },
+    diff: makeDiff([]),
+    summary: 'No changes to the plan.',
+    warnings: [],
+    blocked: false,
+    guards: [],
+    reasons: [],
+    hash: 'a'.repeat(64),
+    today: '2027-01-13',
+    ...over,
   }
 }

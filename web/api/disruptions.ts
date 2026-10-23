@@ -8,6 +8,7 @@ import type {
   PlanPreview,
 } from '../../shared/types.ts'
 import { api, keys, qs } from './client.ts'
+import { isPreviewQuery } from './plan.ts'
 
 /** The actions on a rest window that can be previewed before they are committed. */
 export type DisruptionPreviewAction = Extract<
@@ -41,11 +42,26 @@ export function usePreviewDisruption() {
   })
 }
 
-/** Everything a window changes: the plan and its sessions, the revision list, Today and the state. */
+/**
+ * Everything a window changes: the windows, the plan and its sessions, the revision list, the
+ * reviews, Today, the brief and the state.
+ */
 function invalidateAfterWindow(queryClient: QueryClient): Promise<unknown> {
   return Promise.all(
-    [keys.disruptions, keys.plan, keys.planRevisions, keys.reviews, keys.today, keys.state].map(
-      (key) => queryClient.invalidateQueries({ queryKey: [key] }),
+    [
+      keys.disruptions,
+      keys.plan,
+      keys.planRevisions,
+      keys.reviews,
+      keys.today,
+      keys.brief,
+      keys.state,
+    ].map((key) =>
+      // The preview of the action just applied is not asked again: it would read "nothing to change".
+      queryClient.invalidateQueries({
+        queryKey: [key],
+        predicate: (query) => !isPreviewQuery(query.queryKey),
+      }),
     ),
   )
 }

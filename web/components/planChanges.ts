@@ -78,7 +78,8 @@ const FIELDS: Record<string, { label: string; format: Format }> = {
   qualitySessions: { label: 'Quality sessions', format: plain },
   gainTargetM: { label: 'Gain target', format: withUnit('m') },
   plannedMin: { label: 'Planned minutes', format: withUnit('min') },
-  // Owner edits of single sessions (`PUT /api/plan/sessions/:id`).
+  // Owner edits of single sessions, as revisions written before the revision model stored a diff
+  // (an edit through `POST /api/plan/sessions/:id/adjust` stores one and is worded by the diff).
   'session.status': { label: 'Session status', format: plain },
   'session.date': { label: 'Session date', format: day },
   'session.kind': { label: 'Session type', format: kind },

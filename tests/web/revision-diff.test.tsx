@@ -573,7 +573,8 @@ describe('UndoControl, when the update can be undone', () => {
     const keys = invalidate.mock.calls.map(
       ([filter]) => (filter as { queryKey: string[] }).queryKey[0],
     )
-    expect(keys.sort()).toEqual(['brief', 'plan', 'planRevisions', 'state', 'today'])
+    // The windows are read again too: undoing the update that added one withdraws it.
+    expect(keys.sort()).toEqual(['brief', 'disruptions', 'plan', 'planRevisions', 'state', 'today'])
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
