@@ -772,14 +772,22 @@ export interface RaceResultView {
   note: string | null
   /** Weekly predictions scored against this result; 0 for a did-not-finish. */
   scoredPredictions: number
-  /** Saving this result retyped the linked activity to a race. */
+  /** This save retyped the linked activity from a run to a race; false when it was a race already. */
   activityMarkedAsRace: boolean
 }
-/** One goal race in the track record: its result and the scored weekly predictions. */
+/**
+ * One goal race in the track record: its result and the scored weekly predictions. The stored
+ * fields of the result (`gainM`, `activityId`, `note`; the finish time is `resultSec`) are here so
+ * a sheet that edits the result starts from them without a second request.
+ */
 export interface TrackRecordRace extends RaceScore {
   goalId: string
   goalName: string
   distanceM: number
+  gainM: number | null
+  /** The activity the result is linked to, or null when it is not linked. */
+  activityId: string | null
+  note: string | null
 }
 /** GET /api/predictions/record: races newest first, and the summary across them (design 11.4). */
 export interface TrackRecordView {

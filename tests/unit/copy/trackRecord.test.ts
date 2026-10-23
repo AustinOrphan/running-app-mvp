@@ -18,6 +18,7 @@ import {
   summarySentences,
   TRACK_RECORD_TEMPLATES,
   trackRecordLead,
+  unscoredSentence,
 } from '../../../shared/copy/trackRecord.ts'
 import type { RecordSummary, ScoredPrediction } from '../../../shared/engine/backtest.ts'
 import { summariseRecord } from '../../../shared/engine/backtest.ts'
@@ -70,10 +71,10 @@ function point(overrides: Partial<ScoredPrediction> = {}): ScoredPrediction {
 describe('every template of the track record', () => {
   test('there are templates to check, with the two the design names', () => {
     expect(ids.length).toBeGreaterThan(20)
-    expect(render(TRACK_RECORD_TEMPLATES['trackRecord.heading'], {}, 'km')).toBe(
+    expect(render(TRACK_RECORD_TEMPLATES['track-record.heading'], {}, 'km')).toBe(
       'Prediction track record',
     )
-    expect(render(TRACK_RECORD_TEMPLATES['trackRecord.recordResult'], {}, 'km')).toBe(
+    expect(render(TRACK_RECORD_TEMPLATES['track-record.record-result'], {}, 'km')).toBe(
       'Record result',
     )
   })
@@ -101,7 +102,7 @@ describe('every template of the track record', () => {
   })
 
   test('a slot that cannot be shown throws under test and renders the fallback in production', () => {
-    const template = TRACK_RECORD_TEMPLATES['trackRecord.table.slowerCell']
+    const template = TRACK_RECORD_TEMPLATES['track-record.table.slower-cell']
     const bad = {
       diff: { kind: 'duration', sec: Number.NaN },
       pct: { kind: 'percent', pct: 1 },
@@ -330,6 +331,40 @@ describe('the sentences over a grid of inputs', () => {
     }
   })
 
+  test('unscored predictions: a race not finished, another course, none logged, all scored', () => {
+    const scored = [point()]
+    for (const units of UNITS) {
+      expect(
+        unscoredSentence({ outcome: 'did-not-finish', points: [], unscoredCount: 12 }, units),
+      ).toBe('Did not finish. There is nothing to compare, so these 12 predictions are not scored.')
+      expect(unscoredSentence({ outcome: 'finished', points: [], unscoredCount: 5 }, units)).toBe(
+        '5 predictions were made for a different course, so they are not scored.',
+      )
+      expect(unscoredSentence({ outcome: 'finished', points: [], unscoredCount: 1 }, units)).toBe(
+        '1 prediction was made for a different course, so it is not scored.',
+      )
+      // some scored and some not: the note names the ones that were left out
+      expect(
+        unscoredSentence({ outcome: 'finished', points: scored, unscoredCount: 2 }, units),
+      ).toBe('2 predictions were made for a different course, so they are not scored.')
+      expect(unscoredSentence({ outcome: 'finished', points: [], unscoredCount: 0 }, units)).toBe(
+        'No predictions were logged before this race, so there is nothing to compare.',
+      )
+      expect(
+        unscoredSentence({ outcome: 'finished', points: scored, unscoredCount: 0 }, units),
+      ).toBeNull()
+      for (const unscoredCount of [0, 1, 2, 9, 52]) {
+        for (const outcome of ['finished', 'did-not-finish'] as const) {
+          for (const points of [[], scored]) {
+            const text = unscoredSentence({ outcome, points, unscoredCount }, units)
+            if (text !== null)
+              expectSentences([text], `unscored ${outcome} ${String(unscoredCount)}`)
+          }
+        }
+      }
+    }
+  })
+
   test('table cells', () => {
     for (const units of UNITS) {
       expect(differenceCell(point({ errorSec: 250 }), units)).toBe('4 min 10 s slower (1.8%)')
@@ -371,20 +406,20 @@ describe('the sentences over a grid of inputs', () => {
 
   test('the fixed sheet and chart words pass the lint', () => {
     for (const id of [
-      'trackRecord.sheet.timeHint',
-      'trackRecord.sheet.linkNotice',
-      'trackRecord.sheet.removeConfirm',
+      'track-record.sheet.time-hint',
+      'track-record.sheet.link-notice',
+      'track-record.sheet.remove-confirm',
     ] as const) {
       expectSentences([render(TRACK_RECORD_TEMPLATES[id], {}, 'km')], id)
     }
-    expect(render(TRACK_RECORD_TEMPLATES['trackRecord.sheet.timeHint'], {}, 'km')).toBe(
+    expect(render(TRACK_RECORD_TEMPLATES['track-record.sheet.time-hint'], {}, 'km')).toBe(
       'Official time as h:mm:ss, like 3:52:10.',
     )
-    expect(render(TRACK_RECORD_TEMPLATES['trackRecord.sheet.removeConfirm'], {}, 'km')).toBe(
+    expect(render(TRACK_RECORD_TEMPLATES['track-record.sheet.remove-confirm'], {}, 'km')).toBe(
       'Remove this result? The weekly predictions stay logged and are no longer compared.',
     )
     const name = render(
-      TRACK_RECORD_TEMPLATES['trackRecord.chart.name'],
+      TRACK_RECORD_TEMPLATES['track-record.chart.name'],
       { race: 'Example 100 Mile' },
       'km',
     )
@@ -394,14 +429,14 @@ describe('the sentences over a grid of inputs', () => {
     expectFit(name, 'chart name')
     expect(
       render(
-        TRACK_RECORD_TEMPLATES['trackRecord.recordResultFor'],
+        TRACK_RECORD_TEMPLATES['track-record.record-result-for'],
         { goal: 'Example 100 Mile' },
         'km',
       ),
     ).toBe('Record result for Example 100 Mile')
     expect(
       render(
-        TRACK_RECORD_TEMPLATES['trackRecord.editResultFor'],
+        TRACK_RECORD_TEMPLATES['track-record.edit-result-for'],
         { goal: 'Example 100 Mile' },
         'km',
       ),

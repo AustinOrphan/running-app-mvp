@@ -8,14 +8,25 @@ import { notFound, parse } from '../errors.ts'
 import { toPredictionLogEntry } from '../serialize.ts'
 import { gatherEngineInput } from '../services/engineInput.ts'
 import { newestPerWeek } from '../services/predictionLog.ts'
+import { loadTrackRecord } from '../services/trackRecord.ts'
 
 const LOG_LIMIT = 50
 const query = z.object({ goalId: z.string().min(1) })
+/** The record takes no parameters; an unknown one is a mistake worth a 400. */
+const recordQuery = z.strictObject({})
 
-/** GET /api/predictions?goalId: the latest prediction and its log, one entry per week. */
+/**
+ * GET /api/predictions?goalId: the latest prediction and its log, one entry per week.
+ * GET /api/predictions/record: the track record, every recorded race scored against its predictions.
+ */
 export function predictionsRouter(deps: Deps): Router {
   const { prisma } = deps
   const router = Router()
+
+  router.get('/record', async (req, res) => {
+    parse(recordQuery, req.query)
+    res.json(await loadTrackRecord(deps, req.userId))
+  })
 
   router.get('/', async (req, res) => {
     const { goalId } = parse(query, req.query)

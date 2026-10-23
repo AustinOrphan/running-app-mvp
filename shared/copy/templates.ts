@@ -15,6 +15,7 @@ import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
 import { CopyError, isCopyStrict, render, tpl, type Template } from './template.ts'
 import { SYNC_TEMPLATES } from './sync.ts'
 import { TODAY_TEMPLATES } from './today.ts'
+import { TRACK_RECORD_TEMPLATES } from './trackRecord.ts'
 
 export const TEMPLATES = {
   ...REVISION_TEMPLATES,
@@ -24,6 +25,7 @@ export const TEMPLATES = {
   ...WINDOW_TEMPLATES,
   ...ACTIVITY_LIST_TEMPLATES,
   ...EXPLAIN_TEMPLATES,
+  ...TRACK_RECORD_TEMPLATES,
   // The why drawer
   'why.intro': tpl(
     'Every number in the plan comes from a rule. Grade A is the strongest evidence; grade D is a conservative default.',

@@ -9,12 +9,18 @@ import type {
   PlanSession as PlanSessionRow,
   PlanWeek as PlanWeekRow,
   PredictionLog as PredictionLogRow,
+  RaceResult as RaceResultRow,
   Screening as ScreeningRow,
   PrismaClient,
   WeeklyReview as WeeklyReviewRow,
   WellnessDay as WellnessDayRow,
 } from './db.ts'
-import type { CourseSnapshot, LoggedPrediction } from '../shared/engine/backtest.ts'
+import type {
+  CourseSnapshot,
+  LoggedPrediction,
+  RaceOutcome,
+  RaceResultInput,
+} from '../shared/engine/backtest.ts'
 import type {
   ChecklistResult,
   EngineWarning,
@@ -61,6 +67,7 @@ import type {
   PlanSessionStatus,
   PlanWeek,
   PredictionView,
+  RaceResultView,
   Screening,
   SupportLevel,
   ProviderInfo,
@@ -526,6 +533,37 @@ export function toLoggedPrediction(row: PredictionLogRow): LoggedPrediction {
     lowSec: row.lowSec,
     highSec: row.highSec,
     course,
+  }
+}
+
+/** A stored race result as the back-test scorer reads it. */
+export function toRaceResultInput(row: RaceResultRow): RaceResultInput {
+  return {
+    date: row.date,
+    outcome: row.outcome as RaceOutcome,
+    timeSec: row.timeSec,
+    distanceM: row.distanceM,
+    gainM: row.gainM,
+  }
+}
+
+/** A stored race result with what saving it did: the weeks compared and whether it retyped a run. */
+export function toRaceResultView(
+  row: RaceResultRow,
+  saved: Pick<RaceResultView, 'scoredPredictions' | 'activityMarkedAsRace'>,
+): RaceResultView {
+  return {
+    id: row.id,
+    goalId: row.goalId,
+    activityId: row.activityId,
+    date: row.date,
+    distanceM: row.distanceM,
+    gainM: row.gainM,
+    outcome: row.outcome as RaceOutcome,
+    timeSec: row.timeSec,
+    note: row.note,
+    scoredPredictions: saved.scoredPredictions,
+    activityMarkedAsRace: saved.activityMarkedAsRace,
   }
 }
 

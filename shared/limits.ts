@@ -17,3 +17,10 @@ export const ACTIVITY_PAGE_DEFAULT = 100
 export const ACTIVITY_PAGE_MAX = 500
 /** The furthest `offset` a list request may name; far beyond any history, and inside SQLite's range. */
 export const ACTIVITY_OFFSET_MAX = 1_000_000
+
+/**
+ * Days either side of a race result's date within which a run or race activity may be linked to
+ * the result (phase 3a design 11.4). The server enforces it and the result sheet lists activities
+ * inside it.
+ */
+export const RESULT_ACTIVITY_WINDOW_DAYS = 3

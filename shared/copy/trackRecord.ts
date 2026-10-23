@@ -6,167 +6,185 @@
 //
 // `TRACK_RECORD_TEMPLATES` is the registry for this file. The copy test renders every entry and
 // every helper over a grid of inputs; the entries can also be spread into `TEMPLATES`.
-import type { RecordSummary, ScoredPrediction } from '../engine/backtest.ts'
+import type { RaceScore, RecordSummary, ScoredPrediction } from '../engine/backtest.ts'
 import type { RaceResultView, Units } from '../types.ts'
 import { render, tpl, type Template } from './template.ts'
 
 export const TRACK_RECORD_TEMPLATES = {
   // Headings and buttons
-  'trackRecord.heading': tpl('Prediction track record', {}, { shape: 'label' }),
-  'trackRecord.recordResult': tpl('Record result', {}, { shape: 'label' }),
-  'trackRecord.editResult': tpl('Edit result', {}, { shape: 'label' }),
-  'trackRecord.recordResultFor': tpl(
+  'track-record.heading': tpl('Prediction track record', {}, { shape: 'label' }),
+  'track-record.record-result': tpl('Record result', {}, { shape: 'label' }),
+  'track-record.edit-result': tpl('Edit result', {}, { shape: 'label' }),
+  'track-record.record-result-for': tpl(
     'Record result for {goal}',
     { goal: 'text' },
     { shape: 'label', fallback: 'Record result' },
   ),
-  'trackRecord.editResultFor': tpl(
+  'track-record.edit-result-for': tpl(
     'Edit result for {goal}',
     { goal: 'text' },
     { shape: 'label', fallback: 'Edit result' },
   ),
-  'trackRecord.saveResult': tpl('Save result', {}, { shape: 'label' }),
-  'trackRecord.removeResult': tpl('Remove result', {}, { shape: 'label' }),
+  'track-record.save-result': tpl('Save result', {}, { shape: 'label' }),
+  'track-record.remove-result': tpl('Remove result', {}, { shape: 'label' }),
 
   // Goal outlook: predictions logged before the race
-  'trackRecord.outlook': tpl(
+  'track-record.outlook': tpl(
     '{count} predictions logged so far, one a week. After the race, add the result to see how they compared.',
     { count: 'count' },
     { fallback: 'After the race, add the result to see how the predictions compared.' },
   ),
-  'trackRecord.outlookOne': tpl(
+  'track-record.outlook-one': tpl(
     '1 prediction logged so far. After the race, add the result to see how it compared.',
   ),
 
   // The lead of the track record
-  'trackRecord.lead.written': tpl('The app writes down its predicted finish time once a week.'),
-  'trackRecord.lead.compared': tpl('After a race, each prediction is compared with what happened.'),
-  'trackRecord.lead.describes': tpl('The comparison describes the prediction, not the race.'),
+  'track-record.lead.written': tpl('The app writes down its predicted finish time once a week.'),
+  'track-record.lead.compared': tpl(
+    'After a race, each prediction is compared with what happened.',
+  ),
+  'track-record.lead.describes': tpl('The comparison describes the prediction, not the race.'),
 
   // Summary across races: from the threshold of rule L7 on
-  'trackRecord.summary.insideOnce': tpl(
+  'track-record.summary.inside-once': tpl(
     'Across {races} races the result was inside the predicted range once.',
     { races: 'count' },
   ),
-  'trackRecord.summary.insideTwice': tpl(
+  'track-record.summary.inside-twice': tpl(
     'Across {races} races the result was inside the predicted range twice.',
     { races: 'count' },
   ),
-  'trackRecord.summary.insideTimes': tpl(
+  'track-record.summary.inside-times': tpl(
     'Across {races} races the result was inside the predicted range {inside} times.',
     { races: 'count', inside: 'count' },
   ),
-  'trackRecord.summary.medianSlower': tpl(
+  'track-record.summary.median-slower': tpl(
     'The median difference was {pct} slower than predicted.',
     {
       pct: 'percent',
     },
   ),
-  'trackRecord.summary.medianFaster': tpl(
+  'track-record.summary.median-faster': tpl(
     'The median difference was {pct} faster than predicted.',
     {
       pct: 'percent',
     },
   ),
-  'trackRecord.summary.medianSame': tpl('The median result was within 0.1% of the predicted time.'),
+  'track-record.summary.median-same': tpl(
+    'The median result was within 0.1% of the predicted time.',
+  ),
 
   // Summary before the threshold: each race stands on its own
-  'trackRecord.summary.noneYet': tpl('No race compared so far.'),
-  'trackRecord.summary.oneYet': tpl('One race compared so far.'),
-  'trackRecord.summary.twoYet': tpl('Two races compared so far.'),
-  'trackRecord.summary.someYet': tpl('{races} races compared so far.', { races: 'count' }),
-  'trackRecord.summary.needsMore': tpl(
+  'track-record.summary.none-yet': tpl('No race compared so far.'),
+  'track-record.summary.one-yet': tpl('One race compared so far.'),
+  'track-record.summary.two-yet': tpl('Two races compared so far.'),
+  'track-record.summary.some-yet': tpl('{races} races compared so far.', { races: 'count' }),
+  'track-record.summary.needs-more': tpl(
     'A summary across races needs {needed} more; until then each race stands on its own.',
     { needed: 'count' },
   ),
 
   // One race: the last prediction, then the result against it
-  'trackRecord.headline.last': tpl(
+  'track-record.headline.last': tpl(
     'The last prediction, made {days} days before the race, was {predicted} ({low} to {high}).',
     { days: 'count', predicted: 'duration', low: 'duration', high: 'duration' },
   ),
-  'trackRecord.headline.lastDayBefore': tpl(
+  'track-record.headline.last-day-before': tpl(
     'The last prediction, made the day before the race, was {predicted} ({low} to {high}).',
     { predicted: 'duration', low: 'duration', high: 'duration' },
   ),
-  'trackRecord.headline.slowerInside': tpl(
+  'track-record.headline.slower-inside': tpl(
     'The result was {diff} slower than predicted ({pct}), inside the range.',
     { diff: 'duration', pct: 'percent' },
   ),
-  'trackRecord.headline.slowerOutside': tpl(
+  'track-record.headline.slower-outside': tpl(
     'The result was {diff} slower than predicted ({pct}), outside the range.',
     { diff: 'duration', pct: 'percent' },
   ),
-  'trackRecord.headline.fasterInside': tpl(
+  'track-record.headline.faster-inside': tpl(
     'The result was {diff} faster than predicted ({pct}), inside the range.',
     { diff: 'duration', pct: 'percent' },
   ),
-  'trackRecord.headline.fasterOutside': tpl(
+  'track-record.headline.faster-outside': tpl(
     'The result was {diff} faster than predicted ({pct}), outside the range.',
     { diff: 'duration', pct: 'percent' },
   ),
-  'trackRecord.headline.sameInside': tpl('The result matched the prediction, inside the range.'),
-  'trackRecord.headline.sameOutside': tpl('The result matched the prediction, outside the range.'),
+  'track-record.headline.same-inside': tpl('The result matched the prediction, inside the range.'),
+  'track-record.headline.same-outside': tpl(
+    'The result matched the prediction, outside the range.',
+  ),
 
   // A race that was not finished
-  'trackRecord.unscored.didNotFinish': tpl(
+  'track-record.unscored.did-not-finish': tpl(
     'Did not finish. There is nothing to compare, so these {count} predictions are not scored.',
     { count: 'count' },
   ),
-  'trackRecord.unscored.didNotFinishOne': tpl(
+  'track-record.unscored.did-not-finish-one': tpl(
     'Did not finish. There is nothing to compare, so this prediction is not scored.',
   ),
-  'trackRecord.unscored.didNotFinishNone': tpl('Did not finish. There is nothing to compare.'),
+  'track-record.unscored.did-not-finish-none': tpl('Did not finish. There is nothing to compare.'),
+
+  // A finished race with predictions that were not scored, or none to score
+  'track-record.unscored.other-course': tpl(
+    '{count} predictions were made for a different course, so they are not scored.',
+    { count: 'count' },
+  ),
+  'track-record.unscored.other-course-one': tpl(
+    '1 prediction was made for a different course, so it is not scored.',
+  ),
+  'track-record.unscored.no-predictions': tpl(
+    'No predictions were logged before this race, so there is nothing to compare.',
+  ),
 
   // Chart and table
-  'trackRecord.chart.name': tpl(
+  'track-record.chart.name': tpl(
     'Weekly predicted finish times and ranges for {race}, against the result',
     { race: 'text' },
     { shape: 'label', fallback: 'Weekly predicted finish times and ranges against the result' },
   ),
-  'trackRecord.chart.resultLine': tpl('Result', {}, { shape: 'label' }),
-  'trackRecord.table.caption': tpl(
+  'track-record.chart.result-line': tpl('Result', {}, { shape: 'label' }),
+  'track-record.table.caption': tpl(
     'Weekly predictions for {race} compared with the result.',
     { race: 'text' },
     { fallback: 'Weekly predictions compared with the result.' },
   ),
-  'trackRecord.table.weeksBefore': tpl('Weeks before', {}, { shape: 'label' }),
-  'trackRecord.table.predicted': tpl('Predicted', {}, { shape: 'label' }),
-  'trackRecord.table.range': tpl('Range', {}, { shape: 'label' }),
-  'trackRecord.table.difference': tpl('Result against prediction', {}, { shape: 'label' }),
-  'trackRecord.table.inRange': tpl('In range', {}, { shape: 'label' }),
-  'trackRecord.table.rangeCell': tpl(
+  'track-record.table.weeks-before': tpl('Weeks before', {}, { shape: 'label' }),
+  'track-record.table.predicted': tpl('Predicted', {}, { shape: 'label' }),
+  'track-record.table.range': tpl('Range', {}, { shape: 'label' }),
+  'track-record.table.difference': tpl('Result against prediction', {}, { shape: 'label' }),
+  'track-record.table.in-range': tpl('In range', {}, { shape: 'label' }),
+  'track-record.table.range-cell': tpl(
     '{low} to {high}',
     { low: 'duration', high: 'duration' },
     { shape: 'label', fallback: 'No range' },
   ),
-  'trackRecord.table.slowerCell': tpl(
+  'track-record.table.slower-cell': tpl(
     '{diff} slower ({pct})',
     { diff: 'duration', pct: 'percent' },
     { shape: 'label', fallback: 'No difference to show' },
   ),
-  'trackRecord.table.fasterCell': tpl(
+  'track-record.table.faster-cell': tpl(
     '{diff} faster ({pct})',
     { diff: 'duration', pct: 'percent' },
     { shape: 'label', fallback: 'No difference to show' },
   ),
-  'trackRecord.table.sameCell': tpl('Matched', {}, { shape: 'label' }),
-  'trackRecord.table.insideCell': tpl('Yes', {}, { shape: 'label' }),
-  'trackRecord.table.outsideCell': tpl('No', {}, { shape: 'label' }),
+  'track-record.table.same-cell': tpl('Matched', {}, { shape: 'label' }),
+  'track-record.table.inside-cell': tpl('Yes', {}, { shape: 'label' }),
+  'track-record.table.outside-cell': tpl('No', {}, { shape: 'label' }),
 
   // The result sheet and its toasts
-  'trackRecord.sheet.timeHint': tpl('Official time as h:mm:ss, like 3:52:10.'),
-  'trackRecord.sheet.linkNotice': tpl(
+  'track-record.sheet.time-hint': tpl('Official time as h:mm:ss, like 3:52:10.'),
+  'track-record.sheet.link-notice': tpl(
     'Linking marks this activity as a race, so later predictions can use it as an anchor, and zones and watch targets may change with it.',
   ),
-  'trackRecord.sheet.removeConfirm': tpl(
+  'track-record.sheet.remove-confirm': tpl(
     'Remove this result? The weekly predictions stay logged and are no longer compared.',
   ),
-  'trackRecord.toast.saved': tpl('Result saved. {count} predictions compared.', {
+  'track-record.toast.saved': tpl('Result saved. {count} predictions compared.', {
     count: 'count',
   }),
-  'trackRecord.toast.savedOne': tpl('Result saved. 1 prediction compared.'),
-  'trackRecord.toast.savedNotFinished': tpl(
+  'track-record.toast.saved-one': tpl('Result saved. 1 prediction compared.'),
+  'track-record.toast.saved-not-finished': tpl(
     'Result saved. Nothing to compare for a race not finished.',
   ),
 } satisfies Record<string, Template>
@@ -186,9 +204,9 @@ const percent = (pct: number) => ({ kind: 'percent', pct: shownPct(pct) }) as co
 export function trackRecordLead(units: Units): string[] {
   const t = TRACK_RECORD_TEMPLATES
   return [
-    render(t['trackRecord.lead.written'], {}, units),
-    render(t['trackRecord.lead.compared'], {}, units),
-    render(t['trackRecord.lead.describes'], {}, units),
+    render(t['track-record.lead.written'], {}, units),
+    render(t['track-record.lead.compared'], {}, units),
+    render(t['track-record.lead.describes'], {}, units),
   ]
 }
 
@@ -197,8 +215,8 @@ export function outlookLine(predictionCount: number, units: Units): string | nul
   const t = TRACK_RECORD_TEMPLATES
   if (predictionCount < 1) return null
   return predictionCount === 1
-    ? render(t['trackRecord.outlookOne'], {}, units)
-    : render(t['trackRecord.outlook'], { count: count(predictionCount) }, units)
+    ? render(t['track-record.outlook-one'], {}, units)
+    : render(t['track-record.outlook'], { count: count(predictionCount) }, units)
 }
 
 /**
@@ -213,33 +231,36 @@ export function summarySentences(summary: RecordSummary, units: Units): string[]
     const races = count(raceCount)
     const inside =
       insideCount === 1
-        ? render(t['trackRecord.summary.insideOnce'], { races }, units)
+        ? render(t['track-record.summary.inside-once'], { races }, units)
         : insideCount === 2
-          ? render(t['trackRecord.summary.insideTwice'], { races }, units)
+          ? render(t['track-record.summary.inside-twice'], { races }, units)
           : render(
-              t['trackRecord.summary.insideTimes'],
+              t['track-record.summary.inside-times'],
               { races, inside: count(insideCount) },
               units,
             )
     const pct = percent(medianSignedPct)
     const median =
       pct.pct === 0
-        ? render(t['trackRecord.summary.medianSame'], {}, units)
+        ? render(t['track-record.summary.median-same'], {}, units)
         : medianSignedPct > 0
-          ? render(t['trackRecord.summary.medianSlower'], { pct }, units)
-          : render(t['trackRecord.summary.medianFaster'], { pct }, units)
+          ? render(t['track-record.summary.median-slower'], { pct }, units)
+          : render(t['track-record.summary.median-faster'], { pct }, units)
     return [inside, median]
   }
   const sofar =
     raceCount <= 0
-      ? render(t['trackRecord.summary.noneYet'], {}, units)
+      ? render(t['track-record.summary.none-yet'], {}, units)
       : raceCount === 1
-        ? render(t['trackRecord.summary.oneYet'], {}, units)
+        ? render(t['track-record.summary.one-yet'], {}, units)
         : raceCount === 2
-          ? render(t['trackRecord.summary.twoYet'], {}, units)
-          : render(t['trackRecord.summary.someYet'], { races: count(raceCount) }, units)
+          ? render(t['track-record.summary.two-yet'], {}, units)
+          : render(t['track-record.summary.some-yet'], { races: count(raceCount) }, units)
   return summary.needed > 0
-    ? [sofar, render(t['trackRecord.summary.needsMore'], { needed: count(summary.needed) }, units)]
+    ? [
+        sofar,
+        render(t['track-record.summary.needs-more'], { needed: count(summary.needed) }, units),
+      ]
     : [sofar]
 }
 
@@ -253,9 +274,9 @@ export function headlineSentences(headline: ScoredPrediction, units: Units): str
   }
   const made =
     headline.daysBefore === 1
-      ? render(t['trackRecord.headline.lastDayBefore'], range, units)
+      ? render(t['track-record.headline.last-day-before'], range, units)
       : render(
-          t['trackRecord.headline.last'],
+          t['track-record.headline.last'],
           { days: count(headline.daysBefore), ...range },
           units,
         )
@@ -264,19 +285,19 @@ export function headlineSentences(headline: ScoredPrediction, units: Units): str
   let result: string
   if (headline.errorSec === 0) {
     result = render(
-      t[inside ? 'trackRecord.headline.sameInside' : 'trackRecord.headline.sameOutside'],
+      t[inside ? 'track-record.headline.same-inside' : 'track-record.headline.same-outside'],
       {},
       units,
     )
   } else if (headline.errorSec > 0) {
     result = render(
-      t[inside ? 'trackRecord.headline.slowerInside' : 'trackRecord.headline.slowerOutside'],
+      t[inside ? 'track-record.headline.slower-inside' : 'track-record.headline.slower-outside'],
       diff,
       units,
     )
   } else {
     result = render(
-      t[inside ? 'trackRecord.headline.fasterInside' : 'trackRecord.headline.fasterOutside'],
+      t[inside ? 'track-record.headline.faster-inside' : 'track-record.headline.faster-outside'],
       diff,
       units,
     )
@@ -287,16 +308,37 @@ export function headlineSentences(headline: ScoredPrediction, units: Units): str
 /** The sentence for a race that was not finished, naming how many predictions stay unscored. */
 export function didNotFinishSentence(unscoredCount: number, units: Units): string {
   const t = TRACK_RECORD_TEMPLATES
-  if (unscoredCount < 1) return render(t['trackRecord.unscored.didNotFinishNone'], {}, units)
+  if (unscoredCount < 1) return render(t['track-record.unscored.did-not-finish-none'], {}, units)
   return unscoredCount === 1
-    ? render(t['trackRecord.unscored.didNotFinishOne'], {}, units)
-    : render(t['trackRecord.unscored.didNotFinish'], { count: count(unscoredCount) }, units)
+    ? render(t['track-record.unscored.did-not-finish-one'], {}, units)
+    : render(t['track-record.unscored.did-not-finish'], { count: count(unscoredCount) }, units)
+}
+
+/**
+ * The note under a race about the predictions that were not scored, or null when every prediction
+ * was. A race not finished names how many stay unscored; a finished race names the predictions
+ * made for a different course, or says that none were logged before the race.
+ */
+export function unscoredSentence(
+  race: Pick<RaceScore, 'outcome' | 'points' | 'unscoredCount'>,
+  units: Units,
+): string | null {
+  const t = TRACK_RECORD_TEMPLATES
+  if (race.outcome !== 'finished') return didNotFinishSentence(race.unscoredCount, units)
+  if (race.unscoredCount > 0) {
+    return race.unscoredCount === 1
+      ? render(t['track-record.unscored.other-course-one'], {}, units)
+      : render(t['track-record.unscored.other-course'], { count: count(race.unscoredCount) }, units)
+  }
+  return race.points.length === 0
+    ? render(t['track-record.unscored.no-predictions'], {}, units)
+    : null
 }
 
 /** The "Range" cell of a weekly row. */
 export function rangeCell(point: ScoredPrediction, units: Units): string {
   return render(
-    TRACK_RECORD_TEMPLATES['trackRecord.table.rangeCell'],
+    TRACK_RECORD_TEMPLATES['track-record.table.range-cell'],
     { low: duration(point.lowSec), high: duration(point.highSec) },
     units,
   )
@@ -305,18 +347,18 @@ export function rangeCell(point: ScoredPrediction, units: Units): string {
 /** The "Result against prediction" cell of a weekly row. */
 export function differenceCell(point: ScoredPrediction, units: Units): string {
   const t = TRACK_RECORD_TEMPLATES
-  if (point.errorSec === 0) return render(t['trackRecord.table.sameCell'], {}, units)
+  if (point.errorSec === 0) return render(t['track-record.table.same-cell'], {}, units)
   const slots = { diff: duration(Math.abs(point.errorSec)), pct: percent(point.errorPct) }
   return point.errorSec > 0
-    ? render(t['trackRecord.table.slowerCell'], slots, units)
-    : render(t['trackRecord.table.fasterCell'], slots, units)
+    ? render(t['track-record.table.slower-cell'], slots, units)
+    : render(t['track-record.table.faster-cell'], slots, units)
 }
 
 /** The "In range" cell of a weekly row. */
 export function inRangeCell(point: ScoredPrediction, units: Units): string {
   const t = TRACK_RECORD_TEMPLATES
   return render(
-    t[point.inside ? 'trackRecord.table.insideCell' : 'trackRecord.table.outsideCell'],
+    t[point.inside ? 'track-record.table.inside-cell' : 'track-record.table.outside-cell'],
     {},
     units,
   )
@@ -329,8 +371,8 @@ export function savedToast(
 ): string {
   const t = TRACK_RECORD_TEMPLATES
   if (result.outcome !== 'finished')
-    return render(t['trackRecord.toast.savedNotFinished'], {}, units)
+    return render(t['track-record.toast.saved-not-finished'], {}, units)
   return result.scoredPredictions === 1
-    ? render(t['trackRecord.toast.savedOne'], {}, units)
-    : render(t['trackRecord.toast.saved'], { count: count(result.scoredPredictions) }, units)
+    ? render(t['track-record.toast.saved-one'], {}, units)
+    : render(t['track-record.toast.saved'], { count: count(result.scoredPredictions) }, units)
 }
