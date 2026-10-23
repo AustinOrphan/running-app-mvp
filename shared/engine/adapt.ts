@@ -10,6 +10,7 @@ import { efficiencyIndex } from './athlete.ts'
 import { restartFraction } from './disruption.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
+import { wholeMinutes } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { lastWindowDay, postRaceWindows, stageLabel, windowDay } from './postRace.ts'
@@ -193,8 +194,7 @@ function postRaceDecision(
   return {
     decision: 'hold',
     signals,
-    nextWeekTargetMin:
-      next?.targetRunMin ?? Math.floor(nextWeekCap(plannedThis, actual, ramp) + 1e-9),
+    nextWeekTargetMin: next?.targetRunMin ?? wholeMinutes(nextWeekCap(plannedThis, actual, ramp)),
     postRace: {
       label,
       phase: info?.kind === 'step' ? 'step' : 'hold',
@@ -508,16 +508,15 @@ export function weeklyDecision(
   const nextWeek = input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))
   const nextPlanned = nextWeek?.targetRunMin ?? Math.round(plannedThis * (1 + ramp))
   let nextWeekTargetMin: number
-  // Whole minutes, rounded down so the number never passes the cap.
-  const whole = (minutes: number) => Math.floor(minutes + 1e-9)
   if (decision === 'progress') {
     // A ladder or injury-return week is a step of a fixed programme, exempt from the soft ramp:
     // the suggestion is the minutes the step is planned at, inside the 2-week ceiling [rules E6, G-3]
     nextWeekTargetMin =
       nextWeek !== undefined && isProgrammeWeek(nextWeek.flags)
-        ? whole(nextWeekCap(nextPlanned, actual, P.g2.rampCeilingTwoWeeks.value))
-        : whole(nextWeekCap(nextPlanned, actual, ramp))
-  } else if (decision === 'hold') nextWeekTargetMin = whole(nextWeekCap(plannedThis, actual, ramp))
+        ? wholeMinutes(nextWeekCap(nextPlanned, actual, P.g2.rampCeilingTwoWeeks.value))
+        : wholeMinutes(nextWeekCap(nextPlanned, actual, ramp))
+  } else if (decision === 'hold')
+    nextWeekTargetMin = wholeMinutes(nextWeekCap(plannedThis, actual, ramp))
   else {
     nextWeekTargetMin = Math.round(
       nextWeekCap(plannedThis, actual, ramp) * (1 - P.e3.recoveryWeekCutPct.value / 100),

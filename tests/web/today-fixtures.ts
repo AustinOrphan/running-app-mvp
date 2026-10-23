@@ -46,7 +46,15 @@ export function makeToday(over: Partial<TodayView> = {}): TodayView {
     readiness: {
       date: TODAY,
       checkin: null,
-      hrv: { readings: 0, latest: null, baselineMean: null, baselineSd: null, flag: false },
+      hrv: {
+        readings: 0,
+        baseline: 0,
+        lookbackDays: 21,
+        latest: null,
+        baselineMean: null,
+        baselineSd: null,
+        flag: false,
+      },
       restingHrFlag: false,
       sleepAvgH: null,
       sleepFlag: false,

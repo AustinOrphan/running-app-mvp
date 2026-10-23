@@ -278,7 +278,12 @@ export interface ReadinessSnapshot {
   date: string
   checkin: Checkin | null
   hrv: {
+    /** Earlier readings plus today's own. */
     readings: number
+    /** Earlier readings the range is built from: the count `j4.minReadings` is tested against. */
+    baseline: number
+    /** Days before the date the baseline is read from (longer for a female profile). */
+    lookbackDays: number
     latest: number | null
     baselineMean: number | null
     baselineSd: number | null

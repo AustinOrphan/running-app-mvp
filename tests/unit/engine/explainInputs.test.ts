@@ -8,7 +8,7 @@ import { COPY_MAX_CHARS, EXPLAIN_MAX_SOURCES } from '../../../shared/copy/limits
 import { lintText } from '../../../shared/copy/lint.ts'
 import { TEMPLATES, renderFact } from '../../../shared/copy/templates.ts'
 import { addDays, isIsoDate } from '../../../shared/dates.ts'
-import { breakRestart, weeklyDecision } from '../../../shared/engine/adapt.ts'
+import { breakRestart, weekEvidence, weeklyDecision } from '../../../shared/engine/adapt.ts'
 import {
   csEffortsOf,
   durabilityRuns,
@@ -55,7 +55,14 @@ import type {
 import { buildZones } from '../../../shared/engine/zones.ts'
 import type { Activity, AthleteProfile, Units, WellnessDay } from '../../../shared/types.ts'
 import { RULE_TITLES } from '../../../web/components/ruleTitles.ts'
-import { activity, planned, profile as profileOf, wellnessDay } from './e8-fixtures.ts'
+import {
+  activity,
+  hrvSeries,
+  planned,
+  profile as profileOf,
+  STEADY_HRV,
+  wellnessDay,
+} from './e8-fixtures.ts'
 import { steadyHistogram } from './fixtures.ts'
 import { athletes, TODAY } from './matrix-fixtures.ts'
 
@@ -492,43 +499,68 @@ describe('A3 and g-1: the longest recent run', () => {
 })
 
 describe('g-2 and g-6: the ramp and lost volume', () => {
-  /** A week of 240 planned minutes of which 212 were run, and the week after it. */
-  function lostWeekCtx(overProfile: Partial<AthleteProfile> = {}): ExplainContext {
-    const week = (weekStart: string, targetRunMin: number) => ({
-      weekStart,
-      index: 0,
-      phase: 'build' as const,
-      focus: 'Build',
-      targetRunMin,
-      longRunMin: 90,
-      longRunM: null,
-      gainTargetM: null,
-      runDays: 3,
-      qualitySessions: 0,
-      strengthSessions: 0,
-      tid: { z1: 80, z2: 10, z3: 10 },
-      flags: [],
-      isRecovery: false,
-      isTaper: false,
-    })
+  const week = (weekStart: string, targetRunMin: number, flags: string[] = []) => ({
+    weekStart,
+    index: 0,
+    phase: 'build' as const,
+    focus: 'Build',
+    targetRunMin,
+    longRunMin: 90,
+    longRunM: null,
+    gainTargetM: null,
+    runDays: 3,
+    qualitySessions: 0,
+    strengthSessions: 0,
+    tid: { z1: 80, z2: 10, z3: 10 },
+    flags,
+    isRecovery: false,
+    isTaper: false,
+  })
+
+  /**
+   * A week of 240 planned minutes of which 212 were run, and the week after it. `ranMin` and
+   * `plannedMin` give the minutes of the three runs and of the three sessions planned for them.
+   */
+  function lostWeekCtx(
+    overProfile: Partial<AthleteProfile> = {},
+    ranMin: [number, number, number] = [70, 62, 80],
+    plannedMin: [number, number, number] = [80, 80, 80],
+  ): ExplainContext {
     const input: EngineInput = {
       ...emptyInput(),
       profile: profileOf(overProfile),
       activities: [
-        activity('2026-10-13', { id: 'a1', durationSec: 70 * 60, distanceM: 10_000 }),
-        activity('2026-10-15', { id: 'a2', durationSec: 62 * 60, distanceM: 9000 }),
-        activity('2026-10-17', { id: 'a3', durationSec: 80 * 60, distanceM: 12_000 }),
+        activity('2026-10-13', { id: 'a1', durationSec: ranMin[0] * 60, distanceM: 10_000 }),
+        activity('2026-10-15', { id: 'a2', durationSec: ranMin[1] * 60, distanceM: 9000 }),
+        activity('2026-10-17', { id: 'a3', durationSec: ranMin[2] * 60, distanceM: 12_000 }),
       ],
       existing: {
-        weeks: [week('2026-10-12', 240), week(MONDAY, 250)],
+        weeks: [
+          week('2026-10-12', plannedMin[0] + plannedMin[1] + plannedMin[2]),
+          week(MONDAY, 250),
+        ],
         sessions: [
-          planned('p1', '2026-10-13', 'easy', { durationMin: 80 }),
-          planned('p2', '2026-10-15', 'easy', { durationMin: 80 }),
-          planned('p3', '2026-10-17', 'long', { durationMin: 80 }),
+          planned('p1', '2026-10-13', 'easy', { durationMin: plannedMin[0] }),
+          planned('p2', '2026-10-15', 'easy', { durationMin: plannedMin[1] }),
+          planned('p3', '2026-10-17', 'long', { durationMin: plannedMin[2] }),
         ],
       },
     }
     return contextOf(input)
+  }
+
+  /** The J5 and g-6 facts for the week of 12 Oct, with the decision the engine makes about it. */
+  function decisionView(ctx: ExplainContext) {
+    const decision = weeklyDecision(ctx.input, '2026-10-12', {
+      redsFlags: 0,
+      ramp: weeklyRamp(ctx.state),
+    })
+    const groups = view(
+      { subject: 'decision', weekStart: '2026-10-12' },
+      { ...ctx, decision },
+    ).groups
+    const factsOfRule = (rule: string) => groups.find((g) => g.rule === rule)!.facts
+    return { decision, j5: factsOfRule('J5'), g6: factsOfRule('g-6') }
   }
 
   test('g-2 gives last week, the ramp and the plan for the week it leads to', () => {
@@ -563,6 +595,55 @@ describe('g-2 and g-6: the ramp and lost volume', () => {
     expect(text(cap!)).toBe(
       `The week of 19 Oct is capped at 233 min: the lower of the plan and the week before plus ${String(P.g2.rampSoft.value * 100)}%.`,
     )
+  })
+
+  test('g-6 and J5 give the next week as the same whole minutes the decision gives', () => {
+    // 175 min run x 1.10 is 192.5 (192.50000000000003 in floating point). The decision rounds
+    // down so the number never passes the cap, and the stored 250 is above that ceiling.
+    const ctx = lostWeekCtx({}, [70, 45, 60], [70, 70, 60])
+    const { decision, j5, g6 } = decisionView(ctx)
+    expect(decision.decision).toBe('progress')
+    expect(decision.nextWeekTargetMin).toBe(192)
+    expect(slot(j5[0]!, 'minutes', 'minutes').min).toBe(192)
+    const cap = g6.find((f) => f.id === 'g-6.cap')!
+    expect(slot(cap, 'minutes', 'minutes').min).toBe(192)
+    expect(text(cap)).toContain('capped at 192 min')
+    expect(text(j5[0]!)).toContain('up to 192 min')
+  })
+
+  test('g-6 and J5 count the run minutes the decision counted, not the credited ones', () => {
+    // A ladder week of three 21-minute sessions; one was run, and the recording carries the two
+    // 5-minute walks, so 31 min were run. The start paths credit 21 min of it, the decision 31.
+    const base = emptyInput()
+    const ladderWeek = week('2026-10-12', 63, ['ladder-1'])
+    const input: EngineInput = {
+      ...base,
+      profile: profileOf({}),
+      activities: [
+        activity('2026-10-13', { id: 'walks', durationSec: 31 * 60, distanceM: 4800, pain: 0 }),
+      ],
+      existing: {
+        weeks: [ladderWeek, week(MONDAY, 70)],
+        sessions: [
+          planned('l1', '2026-10-13', 'easy', {
+            durationMin: 21,
+            activityId: 'walks',
+            status: 'completed',
+          }),
+          planned('l2', '2026-10-15', 'easy', { durationMin: 21 }),
+          planned('l3', '2026-10-17', 'easy', { durationMin: 21 }),
+        ],
+      },
+    }
+    expect(weekEvidence(input, '2026-10-12').actualMin).toBe(21)
+    const { decision, j5, g6 } = decisionView(contextOf(input))
+    const signal = decision.signals.find((s) => s.code === 'completion-low')!
+    expect(signal.detail).toContain('31 of 63 planned minutes were run')
+    const completion = g6.find((f) => f.id === 'g-6.completion')!
+    expect(text(completion)).toBe('In the week of 12 Oct you ran 31 min of 63 min planned.')
+    const shortfall = j5.find((f) => f.template === 'explain.j5-completion')!
+    expect(slot(shortfall, 'actual', 'minutes').min).toBe(31)
+    expect(slot(shortfall, 'planned', 'minutes').min).toBe(63)
   })
 
   test('both say what they need when there is nothing to build from', () => {
@@ -719,19 +800,29 @@ describe('A2, A5, A6, A7, A8: the athlete state', () => {
 })
 
 describe('C1 to C5: zones', () => {
-  test('C1 session targets are the ones resolveTargets gives, for every kind in a plan', () => {
-    const kinds = new Set<string>()
-    for (const session of rich.existing!.sessions) {
-      kinds.add(session.kind)
-      const group = view({ subject: 'session', id: session.id }, richCtx).groups.find(
+  test('C1 session targets are the ones resolveTargets gives, for every mode a plan has', () => {
+    // The fitted pace gives every threshold session a pace; a threshold session stored without
+    // one (a runner with no pace anchor yet) is read by its heart-rate band.
+    const threshold = rich.existing!.sessions.find((s) => s.kind === 'threshold')!
+    const bandSession = {
+      ...threshold,
+      id: 'band',
+      target: { ...threshold.target, paceSecPerKm: null },
+    }
+    const sessions = [...rich.existing!.sessions, bandSession]
+    const ctx = contextOf({ ...rich, existing: { ...rich.existing!, sessions } })
+    const modes = new Set<string>()
+    for (const session of sessions) {
+      const group = view({ subject: 'session', id: session.id }, ctx).groups.find(
         (g) => g.rule === 'C1',
       )
-      const t = resolveTargets(session, richCtx.zones, { hot: false })
+      const t = resolveTargets(session, ctx.zones, { hot: false })
       if (group === undefined) {
         // only the kinds that count toward weekly running are read against the zones
         expect(VOLUME_KINDS.has(session.kind), session.kind).toBe(false)
         continue
       }
+      modes.add(t.mode)
       const target = group.facts.find((f) => f.id === 'c1.target')!
       switch (t.mode) {
         case 'hr-ceiling':
@@ -742,6 +833,10 @@ describe('C1 to C5: zones', () => {
           expect(target.template).toBe('explain.c1-target-band')
           expect(slot(target, 'low', 'bpm').bpm).toBe(Math.round(t.hrRange![0]))
           expect(slot(target, 'high', 'bpm').bpm).toBe(Math.round(t.hrRange![1]))
+          expect(slot(target, 'zone', 'count').n).toBe(2)
+          expect(text(target)).toBe(
+            `This session targets a heart rate of ${String(Math.round(t.hrRange![0]))} bpm to ${String(Math.round(t.hrRange![1]))} bpm, your zone 2.`,
+          )
           break
         case 'pace':
           expect(target.template).toBe('explain.c1-target-pace')
@@ -764,8 +859,9 @@ describe('C1 to C5: zones', () => {
         expect(slot(guide, 'fast', 'pace').secPerKm).toBe(t.paceSecPerKm[1])
       }
     }
-    // the plan covers easy running, a long run and quality work, so more than one mode is checked
-    expect(kinds.size).toBeGreaterThan(3)
+    // every mode the target builder has a branch for occurs in the fixtures, so none goes unchecked
+    expect([...modes].sort()).toEqual(['effort', 'hr-band', 'hr-ceiling', 'pace'])
+    expect(resolveTargets(bandSession, ctx.zones, { hot: false }).mode).toBe('hr-band')
   })
 
   test('C1 uses the current zones when they changed after the session was planned', () => {
@@ -803,11 +899,53 @@ describe('C1 to C5: zones', () => {
     })
     expect(facts[0]!.sources[0]).toMatchObject({ kind: 'profile' })
     const cs = facts.find((f) => f.id === 'c2.cs')!
-    expect(cs.slots['source']).toBe('your critical speed')
     expect(cs.sources.every((s) => s.kind === 'activity')).toBe(true)
     expect(cs.sources).toHaveLength(4)
     const [gap] = factsOf('C2', contextOf(emptyInput()))
     expect(gap).toMatchObject({ state: 'insufficient', template: 'explain.c2-gap' })
+  })
+
+  test('C2 never explains an anchor by itself, for the anchors and sources that can occur', () => {
+    // maximum heart rate measured, entered, from age and a lactate-threshold heart rate; threshold
+    // pace from the profile or from critical speed; each with and without critical speed fitted
+    const profiles: Array<Partial<AthleteProfile>> = [
+      {},
+      { hrMaxSource: 'estimated' },
+      { hrMax: null, hrMaxSource: null },
+      { lthr: 165 },
+      { thresholdPaceSecPerKm: 270 },
+    ]
+    const sourcesSeen = new Set<string>()
+    for (const base of [rich, marathon.input]) {
+      for (const over of profiles) {
+        const ctx = contextOf({ ...base, profile: { ...base.profile, ...over } })
+        for (const fact of factsOf('C2', ctx)) {
+          if (typeof fact.slots['source'] === 'string') sourcesSeen.add(fact.slots['source'])
+          for (const units of UNITS) {
+            const sentence = text(fact, units)
+            expect(lintText(sentence), `${fact.id}: ${sentence}`).toEqual([])
+            // "Your X comes from X": the source word must say something the anchor does not
+            expect(sentence, fact.id).not.toMatch(/^Your (.+) comes from (?:your |an? )?\1\b/)
+          }
+        }
+      }
+    }
+    // the pairs that were rendered cover every source a boundary can carry
+    expect([...sourcesSeen].sort()).toEqual(
+      [
+        ANCHOR_WORDS['hrmax-observed'],
+        ANCHOR_WORDS['hrmax-age'],
+        ANCHOR_WORDS.profile,
+        ANCHOR_WORDS.cs,
+      ].sort(),
+    )
+    // critical speed itself is fitted from efforts: it has its own sentence, with the efforts linked
+    const cs = factsOf('C2').find((f) => f.id === 'c2.cs')!
+    expect(cs.template).toBe('explain.c2-cs')
+    expect(text(cs)).toBe(
+      `Your critical speed is fitted from your recent efforts, as of Wed 21 Oct.`,
+    )
+    expect(cs.sources.every((source) => source.kind === 'activity')).toBe(true)
   })
 
   test('C3 tells a measured maximum from the age estimate and gives the band from P', () => {
@@ -956,6 +1094,69 @@ describe('J2 to J5 and J7: readiness, the decision and breaks', () => {
     expect(withBaseline[0]!.template).toBe('explain.j4-today-gap')
   })
 
+  test('J4 counts the earlier readings the engine tests, never the one taken today', () => {
+    const need = P.j4.minReadings.value
+    const days = P.j4.lookbackDays.value
+    const readingsInput = (priorCount: number, over: Partial<AthleteProfile> = {}) => {
+      const base = emptyInput()
+      const wellness = [
+        ...hrvSeries(TODAY, STEADY_HRV.slice(0, priorCount)),
+        wellnessDay(TODAY, { hrvRmssd: 60 }),
+      ]
+      return { ...base, profile: { ...base.profile, ...over }, wellness }
+    }
+    for (const priorCount of [0, 5, need - 1]) {
+      const ctx = contextOf(readingsInput(priorCount))
+      // today's reading is in the snapshot's own count but not in the figure the sentence gives
+      expect(ctx.readiness.hrv.readings).toBe(priorCount + 1)
+      const [gap] = factsOf('J4', ctx)
+      expect(gap).toMatchObject({ state: 'insufficient', template: 'explain.j4-gap' })
+      expect(slot(gap!, 'need', 'count').n).toBe(need)
+      expect(slot(gap!, 'days', 'count').n).toBe(days)
+      expect(slot(gap!, 'found', 'count').n).toBe(priorCount)
+      expect(text(gap!)).toContain(
+        `HRV needs ${String(need)} readings in the last ${String(days)} days; ${String(priorCount)} found.`,
+      )
+    }
+    // one more earlier reading and the range exists: no gap, even with today's reading counted once
+    const enough = factsOf('J4', contextOf(readingsInput(need)))
+    expect(enough[0]!.template).toBe('today.signal.hrv')
+  })
+
+  test('J4 reads a female profile over the cycle-aware lookback', () => {
+    const need = P.j4.minReadings.value
+    const cycleDays = P.j4.cycleBaselineDays.value
+    expect(cycleDays).toBeGreaterThan(P.j4.lookbackDays.value)
+    const base = emptyInput()
+    // ten readings from 25 to 34 days back: outside the 21-day lookback, inside the cycle one
+    const older = STEADY_HRV.map((hrvRmssd, i) =>
+      wellnessDay(addDays(TODAY, -(25 + i)), { hrvRmssd }),
+    )
+    const wellness = [...older, wellnessDay(TODAY, { hrvRmssd: 60 })]
+    const withSex = (sex: AthleteProfile['sex']) =>
+      contextOf({ ...base, profile: { ...base.profile, sex }, wellness })
+
+    const [female] = factsOf('J4', withSex('female'))
+    expect(female!.template).toBe('today.signal.hrv')
+
+    const [male] = factsOf('J4', withSex('male'))
+    expect(male).toMatchObject({ state: 'insufficient', template: 'explain.j4-gap' })
+    expect(slot(male!, 'days', 'count').n).toBe(P.j4.lookbackDays.value)
+    expect(slot(male!, 'found', 'count').n).toBe(0)
+
+    // nine of them for a female profile: the sentence names the 35 days it read
+    const nine = withSex('female')
+    const short = contextOf({
+      ...nine.input,
+      wellness: wellness.filter((w) => w.date !== older[0]!.date),
+    })
+    const [gap] = factsOf('J4', short)
+    expect(gap).toMatchObject({ state: 'insufficient', template: 'explain.j4-gap' })
+    expect(slot(gap!, 'days', 'count').n).toBe(cycleDays)
+    expect(slot(gap!, 'found', 'count').n).toBe(need - 1)
+    expect(gap!.window).toEqual({ from: addDays(TODAY, -(cycleDays - 1)), to: TODAY })
+  })
+
   test('J5 gives the decision, the next week and the signals behind it', () => {
     const input: EngineInput = { ...rich, today: addDays(MONDAY, 9), screeningFlags: 3 }
     const decision = weeklyDecision(input, MONDAY, { redsFlags: 3, ramp: 0.1 })
@@ -1097,6 +1298,33 @@ describe('L1 to L6: the prediction', () => {
     )
     const [gap] = factsOf('L1', contextOf(emptyInput()))
     expect(gap).toMatchObject({ state: 'insufficient', template: 'explain.l-gap' })
+  })
+
+  test('L1 lists the closest race only when the prediction rests on a race', () => {
+    const raceMethods = ['personal-exponent', 'riegel', 'same-distance', 'single-anchor']
+    const restsOnRace = (ctx: ExplainContext) =>
+      ctx.prediction!.method.split('+').some((method) => raceMethods.includes(method))
+    // a 100-mile goal with a shorter race and critical speed: no race method reaches that far, so
+    // the race was not read and is not listed as the anchor
+    const race = activity(addDays(TODAY, -40), {
+      id: 'race-10k',
+      type: 'race',
+      distanceM: 10_000,
+      durationSec: 3000,
+      movingSec: 3000,
+    })
+    const noRace = contextOf(withEfforts({ ...hundred.input, activities: [race] }))
+    expect(noRace.state.fitness.races).toHaveLength(1)
+    expect(restsOnRace(noRace)).toBe(false)
+    expect(factsOf('L1', noRace).map((f) => f.template)).toEqual(['explain.l1-basis'])
+    // with a race method in the prediction the anchor is listed
+    for (const ctx of [single, richCtx]) {
+      expect(restsOnRace(ctx)).toBe(true)
+      expect(factsOf('L1', ctx).map((f) => f.template)).toEqual([
+        'explain.l1-basis',
+        'explain.l1-anchor',
+      ])
+    }
   })
 
   test('L2 gives the single-race slowdown and the drift behind the durability share', () => {

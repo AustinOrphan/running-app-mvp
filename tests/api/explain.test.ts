@@ -5,6 +5,7 @@ import { lintText } from '../../shared/copy/lint.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { weeklyDecision } from '../../shared/engine/adapt.ts'
+import { explainInputs } from '../../shared/engine/explainInputs.ts'
 import { fitHrModel } from '../../shared/engine/execution.ts'
 import { VOLUME_KINDS } from '../../shared/engine/limits.ts'
 import { resolveTargets } from '../../shared/engine/targets.ts'
@@ -13,7 +14,12 @@ import type { PlanWithSessions, PredictionView } from '../../shared/types.ts'
 import { cacheSizes } from '../../server/services/athleteState.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
-// The heart-rate model and the weekly decision are counted, not replaced: the real functions run.
+// The heart-rate model, the weekly decision and the Explain builder are counted, not replaced: the
+// real functions run.
+vi.mock('../../shared/engine/explainInputs.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../shared/engine/explainInputs.ts')>()
+  return { ...actual, explainInputs: vi.fn(actual.explainInputs) }
+})
 vi.mock('../../shared/engine/execution.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../shared/engine/execution.ts')>()
   return { ...actual, fitHrModel: vi.fn(actual.fitHrModel) }
@@ -400,11 +406,14 @@ describe('GET /api/explain: one fit per data version', () => {
   test('a repeated request is served from the memo, and a write or a new day rebuilds it', async () => {
     await seedHistory(user.id, 11_000)
     const query = 'subject=rules&rules=A3,g-1'
+    vi.mocked(explainInputs).mockClear()
     const first = await explained(query)
-    const before = cacheSizes(ctx.prisma)
+    // the first request builds the view and stores it; the repeat builds nothing
+    expect(explainInputs).toHaveBeenCalledTimes(1)
+    expect(cacheSizes(ctx.prisma).memos).toBeGreaterThan(0)
     const again = await explained(query)
     expect(again).toEqual(first)
-    expect(cacheSizes(ctx.prisma)).toEqual(before)
+    expect(explainInputs).toHaveBeenCalledTimes(1)
 
     await ctx.prisma.activity.create({
       data: {
@@ -417,10 +426,14 @@ describe('GET /api/explain: one fit per data version', () => {
     })
     const longer = await explained(query)
     expect(slot(factsOf(longer, 'A3')[0]!, 'distance')).toEqual({ kind: 'distance', m: 20_000 })
+    expect(explainInputs).toHaveBeenCalledTimes(2)
+    await explained(query)
+    expect(explainInputs).toHaveBeenCalledTimes(2)
 
     vi.setSystemTime(new Date(2026, 9, 22, 9))
     const nextDay = await explained(query)
     expect(nextDay.asOf).toBe('2026-10-22')
+    expect(explainInputs).toHaveBeenCalledTimes(3)
   })
 })
 
@@ -445,6 +458,12 @@ describe('the explain service', () => {
     const goal = await seedGoal(user.id)
     const plan = await generatePlan(user, goal.id)
     const sessionId = plan.sessions[0]!.id
+    // A write makes a new data version, so the first request below builds the snapshot. It reads
+    // the history once; a rebuild by any later request would query it again.
+    await ctx.prisma.activity.create({
+      data: { userId: user.id, date: addDays(today, -1), type: 'run', durationSec: 1800 },
+    })
+    const findMany = vi.spyOn(ctx.prisma.activity, 'findMany')
     for (const query of [
       `subject=session&id=${sessionId}`,
       `subject=week&weekStart=${plan.weeks[1]!.weekStart}`,
@@ -457,5 +476,6 @@ describe('the explain service', () => {
       expect((await explain(query)).status, query).toBe(200)
     }
     expect(cacheSizes(ctx.prisma).snapshots).toBe(1)
+    expect(findMany).toHaveBeenCalledTimes(1)
   })
 })

@@ -21,6 +21,7 @@ import {
   spikeWarnLimit,
   VOLUME_KINDS,
   weeklyRamp,
+  wholeMinutes,
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
@@ -295,6 +296,15 @@ function plannedWeek(ctx: ExplainContext, weekStart: string) {
   return ctx.input.existing?.weeks.find((w) => w.weekStart === weekStart) ?? null
 }
 
+/**
+ * The running minutes of a week as the weekly decision counts them: the plain weekly total. A
+ * ladder or injury-return week credits less in `weekEvidence`, which the start paths read, so
+ * that figure would not be the one the decision's completion share and cap came from.
+ */
+function decisionRunMin(ctx: ExplainContext, weekStart: string): number {
+  return aggregateWeeks(ctx.input.activities, [weekStart])[0]!.runMin
+}
+
 function weeklyRampFacts(scope: Scope): InputFact[] {
   const { ctx, last, next } = scope
   if (!ctx.state.weeks.some((w) => w.runMin > 0 || w.raceMin > 0)) {
@@ -335,6 +345,7 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
   if (evidence.plannedMin === null) {
     return [gap('g-6', 'explain.g6-gap', { week: weekOf(last) }, { window: weekWindow(last) })]
   }
+  const actual = decisionRunMin(ctx, last)
   const facts = [
     make(
       'g-6',
@@ -342,7 +353,7 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
       'explain.g6-completion',
       {
         week: weekOf(last),
-        actual: minutes(evidence.actualMin),
+        actual: minutes(actual),
         planned: minutes(evidence.plannedMin),
       },
       { sources: weekRuns(ctx, last).map(activitySource), window: weekWindow(last) },
@@ -358,7 +369,7 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
         'explain.g6-cap',
         {
           week: weekOf(next),
-          minutes: minutes(nextWeekCap(target, evidence.actualMin, ramp)),
+          minutes: minutes(wholeMinutes(nextWeekCap(target, actual, ramp))),
           pct: percent(ramp * 100),
         },
         { window: weekWindow(next) },
@@ -706,23 +717,21 @@ function anchorFacts(scope: Scope): InputFact[] {
     ['threshold-pace', 'threshold pace', zones.thresholdPaceSecPerKm],
     ['cs', 'critical speed', zones.csMps],
   ]
-  const facts = anchors.flatMap(([name, anchor, boundary]) =>
-    boundary === null
-      ? []
-      : [
-          make(
-            'C2',
-            name,
-            'explain.c2-anchor',
-            {
-              anchor,
-              source: ANCHOR_WORDS[boundary.source],
-              date: day(isIsoDate(boundary.asOf) ? boundary.asOf : ctx.asOf),
-            },
-            { sources: boundary.source === 'cs' ? efforts : [profileSource(ctx)] },
-          ),
-        ],
-  )
+  const facts = anchors.flatMap(([name, anchor, boundary]) => {
+    if (boundary === null) return []
+    const date = day(isIsoDate(boundary.asOf) ? boundary.asOf : ctx.asOf)
+    // Critical speed is the fit itself: "comes from your critical speed" would explain it by itself.
+    if (name === 'cs') return [make('C2', name, 'explain.c2-cs', { date }, { sources: efforts })]
+    return [
+      make(
+        'C2',
+        name,
+        'explain.c2-anchor',
+        { anchor, source: ANCHOR_WORDS[boundary.source], date },
+        { sources: boundary.source === 'cs' ? efforts : [profileSource(ctx)] },
+      ),
+    ]
+  })
   return facts.length > 0 ? facts : [gap('C2', 'explain.c2-gap', {})]
 }
 
@@ -908,16 +917,18 @@ function downgradeFacts(scope: Scope): InputFact[] {
 function hrvFacts(scope: Scope): InputFact[] {
   const { ctx } = scope
   const { hrv, date } = ctx.readiness
-  const window = lastDays(ctx, P.j4.lookbackDays.value)
+  const window = lastDays(ctx, hrv.lookbackDays)
   if (hrv.baselineMean === null || hrv.baselineSd === null) {
+    // The engine tests the earlier readings, not today's own, against the minimum, and reads
+    // them over the lookback of the profile (longer for a female profile).
     return [
       gap(
         'J4',
         'explain.j4-gap',
         {
           need: count(P.j4.minReadings.value),
-          days: count(P.j4.lookbackDays.value),
-          found: count(hrv.readings),
+          days: count(hrv.lookbackDays),
+          found: count(hrv.baseline),
         },
         { window },
       ),
@@ -999,7 +1010,7 @@ function decisionFacts(scope: Scope): InputFact[] {
           name,
           'explain.j5-completion',
           {
-            actual: minutes(evidence.actualMin),
+            actual: minutes(decisionRunMin(ctx, last)),
             planned: minutes(evidence.plannedMin),
             share: share(P.j5.completionHoldShare.value),
           },
@@ -1088,6 +1099,14 @@ function methodsOf(prediction: Prediction): string[] {
   return prediction.method.split('+')
 }
 
+/** The methods that scale a race result: only these read the closest race to the goal. */
+const RACE_METHODS: ReadonlySet<string> = new Set([
+  'personal-exponent',
+  'riegel',
+  'same-distance',
+  'single-anchor',
+])
+
 function effectiveDistanceM(goal: NonNullable<ExplainContext['goal']>): number {
   return (goal.distanceM ?? 0) + Math.max(0, goal.gainM ?? 0) * P.l5.gainEquivalentM.value
 }
@@ -1117,7 +1136,9 @@ function modelFacts(scope: Scope): InputFact[] {
   }
   const basis = joinWords(methodsOf(prediction).map((method) => METHOD_WORDS[method] ?? method))
   const facts = [make('L1', 'basis', 'explain.l1-basis', { basis })]
-  const race = goal === null || goal.distanceM === null ? null : closestRace(ctx, goal)
+  // A prediction from critical speed alone (an ultra with no race near its distance) read no race.
+  const usesRace = methodsOf(prediction).some((method) => RACE_METHODS.has(method))
+  const race = !usesRace || goal === null || goal.distanceM === null ? null : closestRace(ctx, goal)
   if (race !== null) {
     const activity = countedRuns(ctx).find(
       (a) =>
