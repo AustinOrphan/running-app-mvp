@@ -165,6 +165,8 @@ export function invalidateNewPlan(queryClient: QueryClient): Promise<unknown> {
       keys.predictions,
       keys.state,
       keys.fuel,
+      // The sessions on the way to the watch are the plan's.
+      keys.wrist,
     ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
   )
 }

@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { resolveTargets } from '../../shared/engine/targets.ts'
 import type { PlanSession } from '../../shared/types.ts'
 import { SessionSheet } from '../../web/components/SessionSheet.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
@@ -20,7 +21,7 @@ import {
   makeSession,
   settings,
 } from './plan-fixtures.ts'
-import { sheetRoutes } from './wrist-fixtures.ts'
+import { makeWorkoutView, sheetRoutes } from './wrist-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
   WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
@@ -92,6 +93,18 @@ describe('SessionSheet', () => {
     expect(steps).toContain('3 x work 8 min, Zone 3')
     expect(steps).toContain('3 x recover 2 min, Zone 1')
     expect(steps).toContain('Cool-down 10 min, Zone 1')
+  })
+
+  test('a hot-day note on a session of another day does not say today', async () => {
+    const session = makeSession({ id: 's9', date: '2027-01-16' })
+    renderSheet(session, {
+      'GET /api/plan/sessions/s9/workout': () =>
+        makeWorkoutView(session, { targets: resolveTargets(session, null, { hot: true }) }),
+    })
+    const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+    expect(await within(dialog).findByText('Go by this when you run it.')).toBeInTheDocument()
+    expect(within(dialog).getByText('It runs high in heat.')).toBeInTheDocument()
+    expect(within(dialog).queryByText('Go by this today.')).not.toBeInTheDocument()
   })
 
   test('a single work step starts with a capital letter', async () => {

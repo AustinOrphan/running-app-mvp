@@ -9,7 +9,9 @@ import { isToRun } from '../../../shared/domain/sessionStatus.ts'
 import { weekStrip } from '../../../shared/domain/weekStrip.ts'
 import {
   adjustCheck,
+  shortenable,
   shortenedSession,
+  swappable,
   type AdjustCheck,
   type AdjustContext,
 } from '../../../shared/engine/adjust.ts'
@@ -567,6 +569,35 @@ describe('swap', () => {
     )
   })
 
+  it('names the partners once, for the check and for the session sheet', () => {
+    // TODAY is Wednesday 21 Oct; the target and its partners sit in the week of 26 Oct.
+    const open = session('open', FRI, 'easy', 40)
+    const cases: Array<[PlanSession, boolean]> = [
+      [open, true],
+      [session('same', TUE, 'easy', 40, { id: 'tue' }), false],
+      [session('next', addDays(SAT, 7), 'easy', 40), false],
+      [session('past', '2026-10-20', 'easy', 40), false],
+      [session('lk', FRI, 'easy', 40, { activityId: 'a1', status: 'completed' }), false],
+      [session('sk', FRI, 'easy', 40, { status: 'skipped' }), false],
+      [session('moved', FRI, 'easy', 40, { status: 'moved' }), true],
+      [session('race', SUN, 'race', 180), false],
+      [session('d1', THU, 'b2b', 100, { flags: ['b2b-day1'] }), false],
+      [session('d2', FRI, 'b2b', 100, { flags: ['b2b-day2'] }), false],
+    ]
+    for (const [partner, expected] of cases) {
+      expect(swappable(partner, tue, TODAY), partner.id).toBe(expected)
+    }
+    // Today itself is still to run; yesterday is not (both in the week of 19 Oct).
+    const thursday = session('thu', addDays(TODAY, 1), 'easy', 40)
+    expect(swappable(session('t', TODAY, 'easy', 40), thursday, TODAY)).toBe(true)
+    expect(swappable(session('y', addDays(TODAY, -1), 'easy', 40), thursday, TODAY)).toBe(false)
+    // The check agrees with the predicate for every partner.
+    for (const [partner, expected] of cases) {
+      const result = check(tue, { type: 'swap', withSessionId: partner.id }, [tue, partner])
+      expect(codes(result).includes('partner-unavailable'), partner.id).toBe(!expected)
+    }
+  })
+
   it('checks both new places', () => {
     const intervals = session('iv', WED, 'intervals', 40)
     const threshold = session('th', FRI, 'threshold', 40)
@@ -755,6 +786,22 @@ describe('shorten', () => {
     }
     const race = session('race', SAT, 'race', 180)
     expect(codes(check(race, { type: 'shorten', durationMin: 90 }, [race]))).toEqual(['race-day'])
+  })
+
+  it('names the kinds a shorten can reach once, for the check and for the session sheet', () => {
+    const kinds = ['easy', 'long', 'b2b', 'hills', 'strides', 'hike', 'race', 'strength', 'rest']
+    for (const kind of kinds as SessionKind[]) {
+      const target = session('t', THU, kind, 60)
+      expect(shortenable(target), kind).toBe(VOLUME_KINDS.has(kind))
+      // A kind the predicate refuses is refused by the check with the same reason, and one it
+      // accepts never meets that reason (the race and any other session that stays answer first).
+      const result = check(target, { type: 'shorten', durationMin: 45 }, [target])
+      expect(codes(result).includes('not-shortenable'), kind).toBe(
+        kind !== 'race' && !shortenable(target),
+      )
+    }
+    expect(shortenable(session('h', THU, 'hike', 120))).toBe(false)
+    expect(shortenable(session('r', SAT, 'race', 180))).toBe(false)
   })
 
   it('keeps day 2 of a back-to-back pair within what day 1 allows', () => {

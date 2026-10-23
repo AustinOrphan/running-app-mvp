@@ -184,11 +184,12 @@ function StoredTargets({ target, units }: { target: SessionTarget; units: Units 
 /**
  * The targets of the session as the resolver gives them today (current zones, the day's heat): the
  * same rows, in the same order and words, as Today's hero, plus the notes that explain a figure.
+ * The sheet opens for a session on any day, so a note does not say "today".
  */
 export function SheetTargets({ targets, units }: { targets: ResolvedTargets; units: Units }) {
   return (
     <>
-      <SessionTargets targets={targets} units={units} />
+      <SessionTargets targets={targets} units={units} day="other" />
       {targets.hotNote !== null ? <p className={styles.note}>{targets.hotNote}</p> : null}
       {targets.zonesNote !== null ? <p className={styles.note}>{targets.zonesNote}</p> : null}
     </>

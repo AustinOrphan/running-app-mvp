@@ -223,7 +223,8 @@ export function briefKeySession(
       : render(BRIEF_TEMPLATES['brief.key-session'], slots, units)
   return {
     line,
-    targets: targetRows(key.target, units),
+    // The key session is on a day ahead, whatever the brief's own day: no note says "today".
+    targets: targetRows(key.target, units, 'other'),
     readiness: briefText('brief.key-readiness', units),
   }
 }

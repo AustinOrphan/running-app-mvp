@@ -188,6 +188,9 @@ export const TODAY_TEMPLATES = {
   'today.target.effort': tpl('{range} out of 10', { range: 'text' }, { shape: 'label' }),
   'today.target.note-pace-guide': tpl('Effort and heart rate come first.'),
   'today.target.note-hot-effort': tpl('Go by this today.'),
+  // The same note for a session on another day (the weekly brief, the session sheet), where
+  // "today" would be wrong: it reads right for a day ahead and for a day that has passed.
+  'today.target.note-hot-effort-day': tpl('Go by this when you run it.'),
   'today.target.note-hot-hr': tpl('It runs high in heat.'),
 
   // The cooler start: the hour, and the index then and at the peak. Without a WBGT reading the

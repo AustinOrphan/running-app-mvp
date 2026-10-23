@@ -150,7 +150,8 @@ export function commitFailure(error: unknown): CommitFailure {
 /**
  * Every query that reads the plan or what a change to it moves: the plan and its sessions (the
  * session workout sits under its key), the revision list, the rest windows, the reviews, the weekly
- * brief, the athlete state and Today.
+ * brief, the athlete state, Today, the watch status (the sessions it lists are the plan's) and the
+ * fuel targets (the run targets they follow are the plan's).
  */
 const PLAN_READER_KEYS = [
   keys.plan,
@@ -160,19 +161,23 @@ const PLAN_READER_KEYS = [
   keys.brief,
   keys.state,
   keys.today,
+  keys.wrist,
+  keys.fuel,
 ] as const
 
 /**
  * Reads those queries again after a write to the plan (an undo, a re-plan, an adjusted session, a
- * rest window). `skip` leaves out the queries it names (the dry run of the edit that was just
- * applied, which would read "nothing to change").
+ * rest window, a week edit, a new plan). `skip` leaves out the queries it names (the dry run of the
+ * edit that was just applied, which would read "nothing to change"); `also` adds the keys that
+ * only some writes move (a new plan also changes the goals and the archived plans).
  */
 export function invalidatePlanReaders(
   queryClient: QueryClient,
   skip?: (queryKey: readonly unknown[]) => boolean,
+  also: readonly string[] = [],
 ): Promise<unknown> {
   return Promise.all(
-    PLAN_READER_KEYS.map((key) =>
+    [...PLAN_READER_KEYS, ...also].map((key) =>
       queryClient.invalidateQueries({
         queryKey: [key],
         predicate: skip === undefined ? undefined : (query) => !skip(query.queryKey),
@@ -364,19 +369,28 @@ export function useSessionWorkout(sessionId: string) {
   })
 }
 
-/** Plan targets feed the review suggestions, so reviews refresh with the plan. */
+/**
+ * Generates a plan for a goal. A new plan replaces the old one, so everything that reads the plan
+ * is read again (`invalidatePlanReaders`), and so are the goals (the plan's goal becomes the active
+ * goal), the archived plans (the old plan is archived) and the predictions.
+ */
 export function useGeneratePlan() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: GeneratePlanRequest) =>
       api<PlanWithSessions>('POST', '/plan/generate', request),
     onSuccess: () => {
-      // Generating makes the plan's goal the active goal, so goals refresh too. That refetch is
-      // not awaited: once the plan arrives the page swaps the form out, and the caller's success
-      // callback (the toast) only runs if this promise settles before that unmount.
-      void queryClient.invalidateQueries({ queryKey: [keys.goals] })
-      // The plan it replaces is archived, so the list of archived plans changes too.
-      void queryClient.invalidateQueries({ queryKey: [keys.planArchived] })
+      const awaitedHere = (queryKey: readonly unknown[]) =>
+        queryKey[0] === keys.plan || queryKey[0] === keys.reviews
+      // Only the plan and its reviews are awaited (the call below). Once the plan arrives the page
+      // swaps the form out, and the caller's success callback (the toast) only runs if this promise
+      // settles before that unmount, so the other refetches (Today, the goals, the watch status)
+      // run on their own.
+      void invalidatePlanReaders(queryClient, awaitedHere, [
+        keys.goals,
+        keys.planArchived,
+        keys.predictions,
+      ])
       return Promise.all(
         [keys.plan, keys.reviews].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
       )
@@ -384,16 +398,16 @@ export function useGeneratePlan() {
   })
 }
 
+/**
+ * Saves the owner's edit of one week. The readers of the plan are read again
+ * (`invalidatePlanReaders`), as after any other change to it: the reviews read the week's target,
+ * and the revisions, the brief and Today follow the plan.
+ */
 export function useUpdatePlanWeek() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ weekStart, patch }: { weekStart: string; patch: PlanWeekPatch }) =>
       api<PlanWeek>('PUT', `/plan/weeks/${encodeURIComponent(weekStart)}`, patch),
-    onSuccess: () =>
-      Promise.all(
-        [keys.plan, keys.planRevisions, keys.reviews, keys.today].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
-        ),
-      ),
+    onSuccess: () => invalidatePlanReaders(queryClient),
   })
 }

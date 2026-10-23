@@ -3,6 +3,8 @@ import { lintText } from '../../../shared/copy/lint.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import {
   WINDOW_VIEW_TEMPLATES,
+  betterWords,
+  isHealthWindow,
   offlineLine,
   raceDayLine,
   removeInsteadLabel,
@@ -164,6 +166,41 @@ describe('the preview lines', () => {
       removeInsteadLabel('km'),
     ]) {
       expect(lintText(text)).toEqual([])
+    }
+  })
+})
+
+describe('the action that ends a window yesterday', () => {
+  const REASONS: DisruptionReason[] = [
+    'illness-above-neck',
+    'illness-below-neck',
+    'niggle',
+    'short-on-time',
+    'travel',
+  ]
+
+  it('is a health window for an illness or a niggle, and no other', () => {
+    expect(REASONS.filter(isHealthWindow)).toEqual([
+      'illness-above-neck',
+      'illness-below-neck',
+      'niggle',
+    ])
+  })
+
+  it('is better for a health window and finishing early for any other, with its own sentence', () => {
+    for (const reason of REASONS) {
+      const words = betterWords(reason, 'km')
+      if (isHealthWindow(reason)) {
+        expect(words.title, reason).toBe("I'm better")
+        expect(words.intro, reason).toBe(
+          'The window ends yesterday. The return is sized from the days you rested.',
+        )
+      } else {
+        expect(words.title, reason).toBe('Finish early')
+        expect(words.intro, reason).toBe('The window ends yesterday. The plan picks up from today.')
+      }
+      expect(lintText(words.intro), reason).toEqual([])
+      expect(betterWords(reason, 'mi'), reason).toEqual(words)
     }
   })
 })

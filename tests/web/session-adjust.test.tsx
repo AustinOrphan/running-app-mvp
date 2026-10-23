@@ -1,4 +1,6 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type {
@@ -26,6 +28,7 @@ import {
   makeV2Plan,
   settings,
 } from './plan-fixtures.ts'
+import { makeToday } from './today-fixtures.ts'
 
 // Wednesday 13 January 2027; the session is Thursday's threshold run of 55 minutes in this week.
 const SESSION = makeSession({ id: 's1', date: '2027-01-14', title: 'Threshold intervals' })
@@ -40,6 +43,22 @@ afterEach(() => {
 })
 
 const HASH = '1'.repeat(64)
+
+const NOW = new Date('2027-01-13T12:00:00')
+
+/** Timers the test steps by hand: the component's wait for a typed value to settle. */
+function steppedTimers() {
+  vi.useRealTimers()
+  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+  vi.setSystemTime(NOW)
+}
+
+/** Back to the file's usual clock (the date only), so the queries and `findBy` run in real time. */
+function realTimers() {
+  vi.useRealTimers()
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(NOW)
+}
 
 function movedLine(to: string) {
   return makeLine({
@@ -73,7 +92,11 @@ function dryRun(adjustment: PlanAdjustment, over: Partial<AdjustResult> = {}): A
   }
 }
 
-function committed(summary: string, session: PlanSession = SESSION): AdjustResult {
+function committed(
+  summary: string,
+  session: PlanSession = SESSION,
+  seenAt: string | null = null,
+): AdjustResult {
   return {
     allowed: true,
     guards: [],
@@ -87,7 +110,7 @@ function committed(summary: string, session: PlanSession = SESSION): AdjustResul
       diff: makeDiff([movedLine('2027-01-15')]),
       causes: { sessions: { x1: ['owner-edit'] }, weeks: {} },
       undo: AVAILABLE,
-      seenAt: null,
+      seenAt,
     }),
     hash: HASH,
   }
@@ -106,6 +129,8 @@ function render(
 ) {
   const { calls } = mockApi({
     'GET /api/settings': () => settings,
+    // The server's day, which the swap list is judged by (Wednesday 13 January 2027).
+    'GET /api/today': () => makeToday({ date: '2027-01-13' }),
     'POST /api/plan/sessions/s1/adjust': (req) => adjust(req as MockRequest & { body: Body }),
     'POST /api/plan/revisions/r5/seen': () => ({ status: 204, body: undefined }),
     ...extra,
@@ -164,6 +189,28 @@ describe('AdjustSection, a move', () => {
     expectCleanCopy(section)
   })
 
+  test('a revision that was seen when it was written is not stamped as seen again', async () => {
+    const user = userEvent.setup()
+    const { calls } = render(SESSION, ({ body }) =>
+      body.dryRun === true
+        ? dryRun(body.adjustment)
+        : committed(
+            'Moved Threshold intervals from Thu 14 Jan to Fri 15 Jan.',
+            SESSION,
+            '2027-01-13T12:00:00.000Z',
+          ),
+    )
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    fireEvent.change(within(section).getByLabelText('Move to'), { target: { value: '2027-01-15' } })
+    await within(section).findByText('What would change')
+    await user.click(within(section).getByRole('button', { name: 'Apply change' }))
+    await within(section).findByRole('group', { name: 'Applied change' })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+    expect(calls.filter((c) => c.url.endsWith('/seen'))).toEqual([])
+  })
+
   test('a refusal is shown in the guard words with its suggestion, and cannot be applied', async () => {
     const user = userEvent.setup()
     const message =
@@ -209,6 +256,10 @@ describe('AdjustSection, a move', () => {
     expectCleanCopy(section)
 
     await user.click(within(why).getByRole('button', { name: 'Swap with Easy run 40 min instead' }))
+    // The button leaves the page with its list; focus goes to the part that speaks for the change.
+    await waitFor(() => {
+      expect(within(section).getByRole('status', { name: 'Check of this change' })).toHaveFocus()
+    })
     await within(section).findByText('What would change')
     expect(adjustCalls().at(-1)?.body).toEqual({
       adjustment: { type: 'swap', withSessionId: 'e1' },
@@ -256,6 +307,161 @@ describe('AdjustSection, a move', () => {
     fireEvent.change(within(section).getByLabelText('Move to'), { target: { value: '2027-01-15' } })
     expect(await within(section).findByText('This would not change the plan.')).toBeInTheDocument()
     expect(within(section).getByRole('button', { name: 'Apply change' })).toBeDisabled()
+  })
+})
+
+describe('AdjustSection, the answer to a check', () => {
+  const message = "Sun 17 Jan already has a run; one run a day keeps the week's spacing (rule F1)."
+
+  test('is read out: the status region is in the page before the answer, and the answer lands in it', async () => {
+    render(SESSION, ({ body }) =>
+      dryRun(body.adjustment, {
+        allowed: false,
+        diff: makeDiff([]),
+        guards: [block('one-run-a-day', message)],
+      }),
+    )
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    // Present and empty before anything is asked, so a screen reader is already listening to it.
+    const region = within(section).getByRole('status', { name: 'Check of this change' })
+    expect(region).toBeEmptyDOMElement()
+    expect(region).toHaveAttribute('aria-atomic', 'false')
+
+    fireEvent.change(within(section).getByLabelText('Move to'), { target: { value: '2027-01-17' } })
+    const why = await within(region).findByRole('list', { name: 'Why this cannot be done' })
+    expect(within(why).getByText(message)).toBeInTheDocument()
+    expect(within(section).getByRole('status', { name: 'Check of this change' })).toBe(region)
+  })
+
+  test('says "Checking this change." inside the same region while the server answers', async () => {
+    render(SESSION, ({ body }) => dryRun(body.adjustment))
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    const region = within(section).getByRole('status', { name: 'Check of this change' })
+    fireEvent.change(within(section).getByLabelText('Move to'), { target: { value: '2027-01-15' } })
+    await waitFor(() => {
+      expect(within(region).getByText('Checking this change.')).toBeInTheDocument()
+    })
+    expect(await within(region).findByText('What would change')).toBeInTheDocument()
+  })
+
+  test('the panel keeps a focus ring for the keyboard and stays in the accessibility tree when empty', () => {
+    // jsdom applies no stylesheet, so the rules are read: `:focus { outline: none }` is more
+    // specific than the global `:focus-visible` ring, and `display: none` drops a live region.
+    const css = readFileSync(
+      join(process.cwd(), 'web/components/disruption/disruption.module.css'),
+      'utf8',
+    )
+    const ring = /\.adjustPanel:focus-visible\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(ring).toMatch(/outline:\s*var\(--focus-ring\)/)
+    expect(ring).toMatch(/outline-offset:\s*var\(--focus-offset\)/)
+    const empty = /\.adjustPanel:empty\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(empty).not.toMatch(/display:\s*none/)
+  })
+})
+
+describe('AdjustSection, a value that is typed', () => {
+  test('a number typed digit by digit is asked about once, when it has settled', async () => {
+    const { adjustCalls } = render(SESSION, ({ body }) => dryRun(body.adjustment))
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    const minutes = within(section).getByLabelText('Shorten to (minutes)')
+    steppedTimers()
+    fireEvent.change(minutes, { target: { value: '4' } })
+    act(() => {
+      vi.advanceTimersByTime(250)
+    })
+    fireEvent.change(minutes, { target: { value: '40' } })
+    act(() => {
+      vi.advanceTimersByTime(299)
+    })
+    expect(adjustCalls()).toHaveLength(0)
+    expect(within(section).queryByText('Checking this change.')).not.toBeInTheDocument()
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    realTimers()
+    await within(section).findByText('What would change')
+    expect(adjustCalls().map((c) => c.body)).toEqual([
+      { adjustment: { type: 'shorten', durationMin: 40 }, dryRun: true },
+    ])
+  })
+
+  test('a date typed part by part is asked about once, for the last date', async () => {
+    const { adjustCalls } = render(SESSION, ({ body }) => dryRun(body.adjustment))
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    const day = within(section).getByLabelText('Move to')
+    steppedTimers()
+    for (const value of ['0002-01-15', '0202-01-15', '2027-01-15']) {
+      fireEvent.change(day, { target: { value } })
+      act(() => {
+        vi.advanceTimersByTime(100)
+      })
+    }
+    expect(adjustCalls()).toHaveLength(0)
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    realTimers()
+    await within(section).findByText('What would change')
+    expect(adjustCalls().map((c) => c.body)).toEqual([
+      { adjustment: { type: 'move', date: '2027-01-15' }, dryRun: true },
+    ])
+  })
+
+  test('the answer for the last value goes at once, so Apply never sits beside a value that was changed', async () => {
+    const { adjustCalls } = render(SESSION, ({ body }) => dryRun(body.adjustment))
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    const minutes = within(section).getByLabelText('Shorten to (minutes)')
+    fireEvent.change(minutes, { target: { value: '40' } })
+    await within(section).findByText('What would change')
+    expect(within(section).getByRole('button', { name: 'Apply change' })).toBeEnabled()
+
+    fireEvent.change(minutes, { target: { value: '400' } })
+    expect(within(section).queryByRole('button', { name: 'Apply change' })).not.toBeInTheDocument()
+    expect(within(section).queryByText('What would change')).not.toBeInTheDocument()
+    await within(section).findByText('What would change')
+    expect(adjustCalls().at(-1)?.body).toEqual({
+      adjustment: { type: 'shorten', durationMin: 400 },
+      dryRun: true,
+    })
+  })
+
+  test('a field that is emptied, or holds no whole number, asks nothing and drops the pending timer', () => {
+    const { adjustCalls } = render(SESSION, ({ body }) => dryRun(body.adjustment))
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    const minutes = within(section).getByLabelText('Shorten to (minutes)')
+    steppedTimers()
+    fireEvent.change(minutes, { target: { value: '40' } })
+    fireEvent.change(minutes, { target: { value: '' } })
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(adjustCalls()).toHaveLength(0)
+    expect(within(section).queryByText('Checking this change.')).not.toBeInTheDocument()
+  })
+
+  test('a button asks at once: nothing waits for the typed fields to settle', () => {
+    render(SESSION, ({ body }) => dryRun(body.adjustment))
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    steppedTimers()
+    fireEvent.click(within(section).getByRole('button', { name: 'Skip session' }))
+    // No timer has been stepped: the question is already on its way.
+    expect(within(section).getByText('Checking this change.')).toBeInTheDocument()
+  })
+
+  test('a button pressed while a typed number waits takes its place', async () => {
+    const { adjustCalls } = render(SESSION, ({ body }) => dryRun(body.adjustment))
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    steppedTimers()
+    fireEvent.change(within(section).getByLabelText('Shorten to (minutes)'), {
+      target: { value: '40' },
+    })
+    fireEvent.click(within(section).getByRole('button', { name: 'Skip session' }))
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    realTimers()
+    await within(section).findByText('What would change')
+    expect(adjustCalls().map((c) => (c.body as Body).adjustment)).toEqual([{ type: 'skip' }])
   })
 })
 
@@ -410,6 +616,15 @@ describe('AdjustSection, shorten', () => {
     ).toBeInTheDocument()
   })
 
+  test.each(['hike', 'race'] as const)(
+    'is not offered for a %s, which the server refuses to shorten',
+    (kind) => {
+      render(makeSession({ id: 's1', kind, title: 'Planned', durationMin: 120 }), () => ({}))
+      const section = screen.getByRole('region', { name: 'Change this session' })
+      expect(within(section).queryByLabelText('Shorten to (minutes)')).not.toBeInTheDocument()
+    },
+  )
+
   test('is not offered for a session that holds no running', () => {
     render(
       makeSession({ id: 's1', kind: 'strength', title: 'Strength', durationMin: 30 }),
@@ -422,6 +637,7 @@ describe('AdjustSection, shorten', () => {
 })
 
 describe('AdjustSection, swap', () => {
+  // Today is Wednesday 13 January 2027 (the clock and `GET /api/today`); the session is Thursday's.
   const week = () =>
     makeV2Plan({
       sessions: [
@@ -434,6 +650,7 @@ describe('AdjustSection, swap', () => {
           kind: 'long',
           durationMin: 90,
         }),
+        // A day that has passed, still marked "planned": the server refuses it (adjust.past).
         makeSession({
           id: 'b',
           weekStart: '2027-01-11',
@@ -459,6 +676,35 @@ describe('AdjustSection, swap', () => {
           activityId: 'act1',
         }),
         makeSession({ id: 'e', weekStart: '2027-01-18', date: '2027-01-19', title: 'Next week' }),
+        // A back-to-back pair stays together: neither day is offered.
+        makeSession({
+          id: 'f',
+          weekStart: '2027-01-11',
+          date: '2027-01-16',
+          order: 1,
+          title: 'Back-to-back day 1',
+          kind: 'b2b',
+          durationMin: 100,
+          flags: ['b2b-day1'],
+        }),
+        makeSession({
+          id: 'g',
+          weekStart: '2027-01-11',
+          date: '2027-01-17',
+          title: 'Back-to-back day 2',
+          kind: 'b2b',
+          durationMin: 80,
+          flags: ['b2b-day2'],
+        }),
+        // Today still counts as to run.
+        makeSession({
+          id: 'h',
+          weekStart: '2027-01-11',
+          date: '2027-01-13',
+          title: 'Strides',
+          kind: 'strides',
+          durationMin: 30,
+        }),
       ],
     })
 
@@ -470,7 +716,7 @@ describe('AdjustSection, swap', () => {
       { 'GET /api/plan': () => week() },
     )
     const section = screen.getByRole('region', { name: 'Change this session' })
-    expect(calls.some((c) => c.url === '/api/plan')).toBe(false)
+    expect(calls.some((c) => c.url === '/api/plan' || c.url === '/api/today')).toBe(false)
     await user.click(within(section).getByRole('button', { name: 'Swap with another session' }))
     const select = await within(section).findByLabelText('Swap with')
     await waitFor(() => {
@@ -480,7 +726,7 @@ describe('AdjustSection, swap', () => {
       within(select)
         .getAllByRole('option')
         .map((o) => o.textContent),
-    ).toEqual(['Choose a session', 'Tue 12 Jan, Easy run, 40 min', 'Sat 16 Jan, Long run, 90 min'])
+    ).toEqual(['Choose a session', 'Wed 13 Jan, Strides, 30 min', 'Sat 16 Jan, Long run, 90 min'])
     await user.selectOptions(select, 'a')
     await within(section).findByText('This would not change the plan.')
     expect(adjustCalls().at(-1)?.body).toEqual({

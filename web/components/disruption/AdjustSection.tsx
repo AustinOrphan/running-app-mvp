@@ -3,8 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { adjustText } from '../../../shared/copy/revision.ts'
 import { offlineLine, stalePreviewLine } from '../../../shared/copy/windowView.ts'
 import { isIsoDate } from '../../../shared/dates.ts'
-import { isToRun } from '../../../shared/domain/sessionStatus.ts'
-import { RUN_KINDS } from '../../../shared/engine/adjust.ts'
+import { shortenable, swappable } from '../../../shared/engine/adjust.ts'
 import type {
   AdjustResult,
   PlanAdjustment,
@@ -22,6 +21,7 @@ import {
   usePlan,
 } from '../../api/plan.ts'
 import { useSettings } from '../../api/settings.ts'
+import { useToday } from '../../api/today.ts'
 import { Button } from '../Button.tsx'
 import { Field, Input, Select } from '../Field.tsx'
 import { useToast } from '../Toast.tsx'
@@ -46,10 +46,11 @@ const NBSP = ' '
 /** The longest session a shorten can name: a full day of minutes (the route's limit). */
 const MAX_SESSION_MIN = 24 * 60
 
-/** The kinds that hold no running: a shorten does not apply to them. */
-function isShortenable(session: PlanSession): boolean {
-  return RUN_KINDS.has(session.kind) && session.durationMin > 0
-}
+/**
+ * How long a typed date or number stands still before the server is asked about it: a value
+ * typed one digit at a time is asked about once, not once per digit.
+ */
+const SETTLE_MS = 300
 
 /**
  * Change one session: move it to another day of its week, swap it with another session of the
@@ -59,6 +60,11 @@ function isShortenable(session: PlanSession): boolean {
  * would work as a button, and the rows the change would write. "Apply change" commits that dry run
  * with its hash: a plan that moved in between answers with a newer one. What was applied is shown
  * as the revision it wrote, with its undo. Nothing is added back to another day.
+ *
+ * Which sessions can be shortened or swapped with is decided by `shortenable` and `swappable` in
+ * the engine's `adjust.ts`, the same code the server's guards run, so a field or a partner that the
+ * server would refuse is not offered. A typed date or number is asked about once it has settled;
+ * the answer sits in a polite live region, so a screen reader hears the verdict.
  */
 export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
   const formId = useId()
@@ -79,6 +85,7 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
   const heading = useRef<HTMLHeadingElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const resultBox = useRef<HTMLDivElement>(null)
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const units = settings.data?.units ?? 'km'
 
   // What was applied takes focus: the button that applied it is gone.
@@ -86,28 +93,53 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
     if (result !== null) resultBox.current?.focus()
   }, [result])
 
+  // A value still waiting to settle is dropped with the section.
+  useEffect(
+    () => () => {
+      if (settleTimer.current !== null) clearTimeout(settleTimer.current)
+    },
+    [],
+  )
+
   const plan = usePlan({ enabled: swapOpen })
+  // The day the server judges "in the past" by; the device clock is never used.
+  const todayView = useToday({ enabled: swapOpen })
+  const today = todayView.data?.date
   const dry = useAdjustPreview(session.id, pending)
 
   const settled =
     session.status === 'completed' || session.status === 'partial' || session.activityId !== null
   const skipped = session.status === 'skipped'
-  const partners = (plan.data?.sessions ?? [])
-    .filter(
-      (other) =>
-        other.id !== session.id &&
-        other.weekStart === session.weekStart &&
-        other.kind !== 'race' &&
-        other.activityId === null &&
-        isToRun(other.status),
-    )
-    .sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order)
+  const partners =
+    today === undefined
+      ? []
+      : (plan.data?.sessions ?? [])
+          .filter((other) => swappable(other, session, today))
+          .sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order)
 
   function choose(adjustment: PlanAdjustment | null) {
+    if (settleTimer.current !== null) {
+      clearTimeout(settleTimer.current)
+      settleTimer.current = null
+    }
     setPending(adjustment)
     setResult(null)
     setNotice(null)
     setFailure(null)
+  }
+
+  /**
+   * For a field typed into: whatever was shown for the last value goes at once, so Apply never
+   * sits beside a value that is no longer the one in the field, and the server is asked about the
+   * new value when it has stood still for `SETTLE_MS`.
+   */
+  function chooseOnceSettled(adjustment: PlanAdjustment | null) {
+    choose(null)
+    if (adjustment === null) return
+    settleTimer.current = setTimeout(() => {
+      settleTimer.current = null
+      choose(adjustment)
+    }, SETTLE_MS)
   }
 
   /** Puts the controls where a suggested adjustment would leave them, and asks about it. */
@@ -137,7 +169,8 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
           setSwapId('')
           setShorten('')
           if (done.revision !== null) {
-            markSeen([done.revision.id])
+            // A revision the request wrote is seen at write; only one still unseen is stamped.
+            if (done.revision.seenAt === null) markSeen([done.revision.id])
             toast.show(done.revision.summary)
             onApplied?.()
           }
@@ -216,7 +249,7 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
                     onChange={(event) => {
                       const next = event.target.value
                       setMoveDraft(next)
-                      choose(
+                      chooseOnceSettled(
                         isIsoDate(next) && next !== session.date
                           ? { type: 'move', date: next }
                           : null,
@@ -228,13 +261,17 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
               {swapOpen ? (
                 <Field
                   label="Swap with"
-                  error={plan.isError ? 'The sessions of the week did not load.' : undefined}
+                  error={
+                    plan.isError || todayView.isError
+                      ? 'The sessions of the week did not load.'
+                      : undefined
+                  }
                 >
                   {(a) => (
                     <Select
                       {...a}
                       value={swapId}
-                      disabled={plan.data === undefined}
+                      disabled={plan.data === undefined || today === undefined}
                       onChange={(event) => {
                         const next = event.target.value
                         setSwapId(next)
@@ -262,7 +299,7 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
                   </Button>
                 </div>
               )}
-              {isShortenable(session) ? (
+              {shortenable(session) && session.durationMin > 0 ? (
                 <Field label="Shorten to (minutes)" hint="Nothing is added back to another day.">
                   {(a) => (
                     <Input
@@ -276,7 +313,7 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
                         const next = event.target.value
                         setShorten(next)
                         const minutes = Number(next)
-                        choose(
+                        chooseOnceSettled(
                           /^\d+$/.test(next) && minutes >= 1 && minutes <= MAX_SESSION_MIN
                             ? { type: 'shorten', durationMin: minutes }
                             : null,
@@ -315,11 +352,19 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
         </div>
       )}
 
-      <div ref={panel} tabIndex={-1} className={styles.adjustPanel}>
+      {/* A polite live region that is in the page before the answer arrives, so what the server
+          says about the change (the guards, or what would change) is read out when it does; only
+          the parts that are added are announced. */}
+      <div
+        ref={panel}
+        tabIndex={-1}
+        role="status"
+        aria-label="Check of this change"
+        aria-atomic="false"
+        className={styles.adjustPanel}
+      >
         {pending !== null && dry.isPending ? (
-          <p role="status" className={sheetStyles.muted}>
-            Checking this change.
-          </p>
+          <p className={sheetStyles.muted}>Checking this change.</p>
         ) : null}
         {pending !== null && dry.isError ? (
           <p role="alert" className={styles.errorText}>
@@ -328,11 +373,7 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
         ) : null}
         {dry.data !== undefined && pending !== null ? (
           <>
-            {notice !== null ? (
-              <p role="status" className={styles.notice}>
-                {notice}
-              </p>
-            ) : null}
+            {notice !== null ? <p className={styles.notice}>{notice}</p> : null}
             {blocking.length > 0 ? (
               <GuardList label="Why this cannot be done" guards={blocking} onSuggest={follow} />
             ) : null}

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type {
@@ -369,17 +369,42 @@ describe('Plan page, version-2 plans', () => {
     expectCleanCopy(dialog)
 
     await user.click(within(dialog).getByRole('button', { name: 'Apply to my plan' }))
-    expect(await within(dialog).findByText('Plan updated')).toBeInTheDocument()
+    const updated = await within(dialog).findByRole('heading', { name: 'Plan updated' })
     expect(calls.find((c) => c.url === '/api/plan/replan')?.body).toEqual({
       expectHash: 'a'.repeat(64),
     })
+    // The Apply button is gone: focus moves to what was done, inside the dialog.
     await waitFor(() => {
-      expect(calls.some((c) => c.url === '/api/plan/revisions/r3/seen')).toBe(true)
+      expect(updated).toHaveFocus()
     })
+    // The server wrote the revision as seen (as it does for every request): nothing is stamped.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+    expect(calls.some((c) => c.url.includes('/seen'))).toBe(false)
     await user.click(within(dialog).getByRole('button', { name: 'Done' }))
     expect(
       screen.queryByRole('dialog', { name: 'Update plan from latest data' }),
     ).not.toBeInTheDocument()
+  })
+
+  test('a re-plan whose revision is still unseen stamps it once', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(makeV2Plan(), {
+        'POST /api/plan/preview': () => replanPreview(),
+        'POST /api/plan/replan': () => makeRevision({ id: 'r3', seenAt: null }),
+        'POST /api/plan/revisions/r3/seen': () => ({ status: 204, body: undefined }),
+      }),
+    )
+    renderPlan()
+    await user.click(await screen.findByRole('button', { name: 'Update plan from latest data' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Update plan from latest data' })
+    await user.click(await within(dialog).findByRole('button', { name: 'Apply to my plan' }))
+    await within(dialog).findByRole('heading', { name: 'Plan updated' })
+    await waitFor(() => {
+      expect(calls.filter((c) => c.url === '/api/plan/revisions/r3/seen')).toHaveLength(1)
+    })
   })
 
   test('a re-plan that would change nothing says so and only closes', async () => {

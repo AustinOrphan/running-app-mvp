@@ -61,6 +61,15 @@ export const WINDOW_VIEW_TEMPLATES = {
     'The window includes race day. The plan keeps the race; whether to start is your decision.',
   ),
 
+  // The banner's button that ends a window yesterday, and the sheet it opens. The runner of a
+  // window for ill health says they are better; any other window ends early.
+  'window-view.better.label-health': tpl("I'm better", {}, { shape: 'label' }),
+  'window-view.better.label-other': tpl('Finish early', {}, { shape: 'label' }),
+  'window-view.better.intro-health': tpl(
+    'The window ends yesterday. The return is sized from the days you rested.',
+  ),
+  'window-view.better.intro-other': tpl('The window ends yesterday. The plan picks up from today.'),
+
   // What the sheets say when a request does not go through as previewed.
   'window-view.stale': tpl('The plan changed while you were reading. This is the new preview.'),
   'window-view.offline': tpl('You are offline. Nothing was changed.'),
@@ -193,6 +202,27 @@ export function runningTimeLine(figures: { before: number; after: number }, unit
 /** The race-day warning of a preview: a window over the race day is allowed, and the runner decides. */
 export function raceDayLine(units: Units): string {
   return render(t['window-view.race-day'], {}, units)
+}
+
+/** A window for ill health: an illness or a niggle. The runner of one is "better", not finished. */
+export function isHealthWindow(reason: DisruptionReason): boolean {
+  return reason === 'illness-above-neck' || reason === 'illness-below-neck' || reason === 'niggle'
+}
+
+/**
+ * The words of the action that ends a window yesterday: `title` is both the banner's button and the
+ * title of the sheet it opens (the same words, so the dialog is named for the button that opened
+ * it), and `intro` is the sentence under the title. Keyed on the window's reason by
+ * `isHealthWindow`.
+ */
+export function betterWords(
+  reason: DisruptionReason,
+  units: Units,
+): { title: string; intro: string } {
+  const health = isHealthWindow(reason)
+  const title = t[health ? 'window-view.better.label-health' : 'window-view.better.label-other']
+  const intro = t[health ? 'window-view.better.intro-health' : 'window-view.better.intro-other']
+  return { title: render(title, {}, units), intro: render(intro, {}, units) }
 }
 
 /** The sentence over a preview that replaced the one the runner was reading. */

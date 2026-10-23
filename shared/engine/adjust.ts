@@ -272,8 +272,13 @@ function staysAsItIs(session: PlanSession, today: string): PlanGuardView | null 
   return null
 }
 
-/** A session that another session may swap with: in the week, still to run and not linked. */
-function swappable(candidate: PlanSession, session: PlanSession, today: string): boolean {
+/**
+ * A session that another session may swap with: in the same week, not before `today`, not the
+ * race, still to run, not linked to an activity and not half of a back-to-back pair. The one
+ * definition: the swap check and its suggestions use it, and so does the list the session sheet
+ * offers.
+ */
+export function swappable(candidate: PlanSession, session: PlanSession, today: string): boolean {
   return (
     candidate.id !== session.id &&
     candidate.weekStart === session.weekStart &&
@@ -284,6 +289,15 @@ function swappable(candidate: PlanSession, session: PlanSession, today: string):
     !candidate.flags.includes('b2b-day1') &&
     !candidate.flags.includes('b2b-day2')
   )
+}
+
+/**
+ * Whether a session of this kind can be shortened at all: the kinds that count toward the week's
+ * running minutes (`VOLUME_KINDS`), which leaves out a hike and the race. The shorten check uses
+ * it, and so does the field the session sheet offers.
+ */
+export function shortenable(session: Pick<PlanSession, 'kind'>): boolean {
+  return VOLUME_KINDS.has(session.kind)
 }
 
 const inPair = (s: Pick<PlanSession, 'flags'>): boolean =>
@@ -815,7 +829,7 @@ export function shortenedSession(session: SessionSpec, durationMin: number): Ses
 function checkShorten(session: PlanSession, durationMin: number, ctx: AdjustContext): AdjustCheck {
   const stays = staysAsItIs(session, ctx.today)
   if (stays) return refused([stays])
-  if (!VOLUME_KINDS.has(session.kind)) {
+  if (!shortenable(session)) {
     return refused([guard('not-shortenable', 'adjust.not-shortenable', {}, [])])
   }
   if (durationMin === session.durationMin) return unchanged()
