@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { lintText } from '../../../shared/copy/lint.ts'
 import {
   acceptedZoneSummary,
+  ADJUST_TEMPLATES,
   declinedZoneSummary,
   REVISION_TEMPLATES,
 } from '../../../shared/copy/revision.ts'
@@ -18,9 +19,17 @@ describe('revision summaries', () => {
     }
   })
 
+  it('registers every guard template of an owner edit, so the shared lint test renders it', () => {
+    for (const id of Object.keys(ADJUST_TEMPLATES) as Array<keyof typeof ADJUST_TEMPLATES>) {
+      expect(TEMPLATES[id], id).toBe(ADJUST_TEMPLATES[id])
+      expect(id.startsWith('adjust.'), id).toBe(true)
+    }
+  })
+
   it('stores no slot that reads differently in kilometres and miles', () => {
     const unitBound = ['pace', 'speed', 'distance', 'climb']
-    for (const [id, template] of Object.entries(REVISION_TEMPLATES)) {
+    // the guards are written on the server, once, so they too hold no unit-bound figure
+    for (const [id, template] of Object.entries({ ...REVISION_TEMPLATES, ...ADJUST_TEMPLATES })) {
       for (const [slot, kind] of Object.entries(template.slots)) {
         expect(unitBound, `${id} slot ${slot}`).not.toContain(kind)
       }

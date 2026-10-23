@@ -585,16 +585,79 @@ export interface PlanRevisionView extends PlanRevision {
   disruptionId: string | null
 }
 /**
- * What `POST /api/plan/preview` takes and `computeAction` builds (design 4.2). A discriminated
- * union on `type`: phase 3a adds the rest-window and adjust actions to it, each with its own
- * commit route and the same preview.
+ * One owner edit of one session (phase 3a design 9.4, 9.5): the six things the session sheet can
+ * ask for, each checked by the same guards (`adjustCheck`, `shared/engine/adjust.ts`).
+ *
+ * - `move`: to another day of its own week.
+ * - `swap`: the two sessions trade days; both must be in the same week and still to run.
+ * - `swap-kind`: the next session of that kind in the week takes this one's prescription and the
+ *   other way round; the days keep their places (the older "change the kind" edit).
+ * - `shorten`: to fewer minutes. Never longer, never under the run minimum, nothing added to
+ *   another day.
+ * - `skip` and `restore`: a skipped session is not made up (G-6) and can be put back.
  */
-export type PlanAction = { type: 'replan' } | { type: 'undo'; revisionId: string }
-/** A guard that refuses or qualifies an action (the move, swap and shorten guards of E5). */
+export type PlanAdjustment =
+  | { type: 'move'; date: string }
+  | { type: 'swap'; withSessionId: string }
+  | { type: 'swap-kind'; kind: SessionKind }
+  | { type: 'shorten'; durationMin: number }
+  | { type: 'skip' }
+  | { type: 'restore' }
+/**
+ * What `POST /api/plan/preview` takes and `computeAction` builds (design 4.2). A discriminated
+ * union on `type`: phase 3a adds the rest-window actions to it, each with its own commit route and
+ * the same preview.
+ */
+export type PlanAction =
+  | { type: 'replan' }
+  | { type: 'undo'; revisionId: string }
+  | { type: 'adjust'; sessionId: string; adjustment: PlanAdjustment }
+/**
+ * Why an adjustment is refused or qualified. The first group holds when the session cannot be
+ * changed at all (it is the race, in the past, linked, done or skipped, or not a run for a
+ * shorten); the second names the limit a new arrangement breaks (availability, spacing, a rest
+ * window, the session spike limit, the weekly target).
+ */
+export type AdjustGuardCode =
+  | 'race-day'
+  | 'past-session'
+  | 'linked'
+  | 'settled'
+  | 'skipped'
+  | 'not-shortenable'
+  | 'other-week'
+  | 'past-date'
+  | 'no-partner'
+  | 'partner-unavailable'
+  | 'not-shorter'
+  | 'below-minimum'
+  | 'b2b-pair'
+  | 'closed-day'
+  | 'day-limit'
+  | 'one-run-a-day'
+  | 'hard-spacing'
+  | 'long-run-between'
+  | 'rest-window'
+  | 'quiet-day'
+  | 'day-cap'
+  | 'spike'
+  | 'weekly-cap'
+/** An adjustment that would work where the one asked for does not, with the words for its button. */
+export interface PlanSuggestion {
+  label: string
+  adjustment: PlanAdjustment
+}
+/**
+ * A guard that refuses or qualifies an action (the move, swap and shorten guards of E5). `blocks`
+ * refuses the commit; `warns` lets it through and says why it deserves a look. `message` is a fixed
+ * template with its rule ids in `rules`; `suggest` is set where one alternative exists.
+ */
 export interface PlanGuardView {
-  code: string
+  code: AdjustGuardCode
   message: string
   rules: string[]
+  effect: 'blocks' | 'warns'
+  suggest: PlanSuggestion | null
 }
 /**
  * What an action would do, from the same code that commits it (design 4.2). A refusal is
@@ -610,9 +673,12 @@ export interface PlanPreview {
   /** The engine's warnings for the plan the action leaves behind. */
   warnings: EngineWarning[]
   blocked: boolean
-  /** Guards of an adjust action; empty for re-plan and undo. */
+  /** Guards of an adjust action, the ones that refuse it first; empty for re-plan and undo. */
   guards: PlanGuardView[]
-  /** Why the commit would be refused: the structural undo reasons, or the checklist. */
+  /**
+   * Why the commit would be refused: the structural undo reasons, or the checklist. An adjust
+   * action is refused by its `guards` instead and leaves this empty.
+   */
   reasons: UndoReason[]
   hash: string
   /** The local day the preview was built for. */
@@ -622,6 +688,21 @@ export interface PlanPreview {
 export interface UndoResult {
   revision: PlanRevisionView
   target: PlanRevisionView
+}
+/**
+ * The answer to `POST /api/plan/sessions/:id/adjust`. `allowed` is false when a guard blocks (a
+ * dry run says so with 200; a commit answers 409 instead). `session` is the session as it stands
+ * after a commit and as it would stand after a dry run; `revision` is null for a dry run and for an
+ * adjustment that changes nothing. `hash` is the hash of the preview this answer was made from (a
+ * dry run's is the one to send back as `expectHash` with the commit).
+ */
+export interface AdjustResult {
+  allowed: boolean
+  guards: PlanGuardView[]
+  diff: PlanDiff
+  session: PlanSession
+  revision: PlanRevisionView | null
+  hash: string
 }
 export interface PlanWithSessions extends PlanWithWeeks {
   sessions: PlanSession[]

@@ -5,12 +5,18 @@ import type { PlanWeek } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound, parse, validationError } from '../errors.ts'
 import { toPlanWeek } from '../serialize.ts'
-import { commitReplan, commitUndo, previewAction } from '../services/planActions.ts'
+import { adjustmentOfPatch } from '../services/adjust.ts'
+import {
+  commitAdjust,
+  commitReplan,
+  commitUndo,
+  previewAction,
+  previewAdjust,
+} from '../services/planActions.ts'
 import {
   generateEnginePlan,
   linkPlanSession,
   loadPlanWithSessions,
-  updatePlanSession,
 } from '../services/planEngine.ts'
 import { listArchivedPlans, restoreArchivedPlan } from '../services/planSwitch.ts'
 import { listRevisions, markRevisionSeen } from '../services/revisions.ts'
@@ -36,31 +42,51 @@ const generateBody = z.object({
     .optional(),
 })
 
+const isoDate = z.string().refine(isIsoDate, 'Use a real date as YYYY-MM-DD.')
+
+/** The kinds a session can be swapped to: every kind but the race, which stays where it is. */
+const swapKind = z.enum([
+  'easy',
+  'recovery',
+  'long',
+  'long-fast-finish',
+  'threshold',
+  'intervals',
+  'race-pace',
+  'strides',
+  'hills',
+  'hike',
+  'b2b',
+  'strength',
+  'mobility',
+  'rest',
+  'cross',
+])
+
+/** The older edit of one session; it maps onto an adjustment (`adjustmentOfPatch`). */
 const sessionPatch = z
   .strictObject({
-    date: z.string().refine(isIsoDate, 'Use a real date as YYYY-MM-DD.').optional(),
-    kind: z
-      .enum([
-        'easy',
-        'recovery',
-        'long',
-        'long-fast-finish',
-        'threshold',
-        'intervals',
-        'race-pace',
-        'strides',
-        'hills',
-        'hike',
-        'b2b',
-        'strength',
-        'mobility',
-        'rest',
-        'cross',
-      ])
-      .optional(),
+    date: isoDate.optional(),
+    kind: swapKind.optional(),
     skip: z.boolean().optional(),
   })
   .refine((patch) => Object.keys(patch).length === 1, 'Send exactly one of date, kind or skip.')
+
+/** The longest session a shorten can name: a full day of minutes. */
+const MAX_SESSION_MIN = 24 * 60
+
+/** One owner edit of one session (`PlanAdjustment`). */
+const adjustment = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('move'), date: isoDate }),
+  z.strictObject({ type: z.literal('swap'), withSessionId: z.string().min(1).max(64) }),
+  z.strictObject({ type: z.literal('swap-kind'), kind: swapKind }),
+  z.strictObject({
+    type: z.literal('shorten'),
+    durationMin: z.number().int().min(1).max(MAX_SESSION_MIN),
+  }),
+  z.strictObject({ type: z.literal('skip') }),
+  z.strictObject({ type: z.literal('restore') }),
+])
 
 const linkBody = z.strictObject({ activityId: z.string().min(1).nullable() })
 
@@ -88,10 +114,18 @@ const expectHash = z.string().length(64).optional()
 const replanBody = z.strictObject({ expectHash })
 const undoBody = z.strictObject({ expectHash })
 
-/** What a preview can be asked of; the rest-window and adjust actions join it in E5. */
+/** The body of the adjust route: the edit, whether it is only asked about, and the preview's hash. */
+const adjustBody = z.strictObject({ adjustment, dryRun: z.boolean().optional(), expectHash })
+
+/** What a preview can be asked of; the rest-window actions join it in E5. */
 const previewBody = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('replan') }),
   z.strictObject({ type: z.literal('undo'), revisionId: z.string().min(1).max(64) }),
+  z.strictObject({
+    type: z.literal('adjust'),
+    sessionId: z.string().min(1).max(64),
+    adjustment,
+  }),
 ])
 
 const weekBody = z
@@ -201,16 +235,35 @@ export function planRouter(deps: Deps): Router {
     res.status(204).end()
   })
 
+  // Move, swap, swap-kind, shorten, skip or restore one session, guarded by the engine's rules.
+  // `dryRun` answers what would happen (200, with `allowed` and the guards) and writes nothing; a
+  // commit that a guard refuses answers 409 with `details.guards`.
+  router.post('/sessions/:id/adjust', async (req, res) => {
+    const { id } = parse(sessionParams, req.params)
+    const body = parse(adjustBody, req.body)
+    const args = {
+      userId: req.userId,
+      sessionId: id,
+      adjustment: body.adjustment,
+      today: todayIso(),
+    }
+    res.json(
+      body.dryRun === true
+        ? await previewAdjust(deps, args)
+        : await commitAdjust(deps, { ...args, expectHash: body.expectHash }),
+    )
+  })
+
+  // Kept for the web until it moves to the adjust route (E5-7): the same checks, the old answer.
   router.put('/sessions/:id', async (req, res) => {
     const patch = parse(sessionPatch, req.body)
-    res.json(
-      await updatePlanSession(deps, {
-        userId: req.userId,
-        sessionId: req.params.id,
-        patch,
-        today: todayIso(),
-      }),
-    )
+    const result = await commitAdjust(deps, {
+      userId: req.userId,
+      sessionId: req.params.id,
+      adjustment: adjustmentOfPatch(patch),
+      today: todayIso(),
+    })
+    res.json(result.session)
   })
 
   router.post('/sessions/:id/link', async (req, res) => {

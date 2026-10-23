@@ -82,6 +82,7 @@ const FIELDS: Record<string, { label: string; format: Format }> = {
   'session.status': { label: 'Session status', format: plain },
   'session.date': { label: 'Session date', format: day },
   'session.kind': { label: 'Session type', format: kind },
+  'session.durationMin': { label: 'Session length', format: withUnit('min') },
 }
 
 /**

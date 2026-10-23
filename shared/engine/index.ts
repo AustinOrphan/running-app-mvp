@@ -87,6 +87,8 @@ export type {
   RecordSummary,
   ScoredPrediction,
 } from './backtest.ts'
+export { adjustCheck, shortenedSession } from './adjust.ts'
+export type { AdjustCheck, AdjustContext, AdjustEdit, SessionPatch } from './adjust.ts'
 export { runChecklist } from './checklist.ts'
 export {
   dayRuleOn,

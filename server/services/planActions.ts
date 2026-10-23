@@ -7,24 +7,32 @@
 // hash back (`expectHash`) is refused with `stale-preview` when new data, another write or
 // midnight has changed what it would do; the answer carries the new preview.
 //
-// Only this module and `replan.ts` write a revision (`recordPlanWrite`). An undo is itself a
-// revision, with reason `undo` and no undo of its own.
+// Only this module, `adjust.ts` and `replan.ts` write a revision (`recordPlanWrite`). An undo is
+// itself a revision, with reason `undo` and no undo of its own. An owner edit of one session
+// (move, swap, shorten, skip, restore) is an `adjust` action: its guards are part of the preview
+// and a blocking one refuses the commit.
 import { createHash } from 'node:crypto'
-import { stalePreviewMessage } from '../../shared/copy/revision.ts'
+import { changesSummary, stalePreviewMessage } from '../../shared/copy/revision.ts'
 import { diffPlans } from '../../shared/engine/diff.ts'
 import type { EngineWarning } from '../../shared/engine/types.ts'
 import type {
+  AdjustResult,
   PlanAction,
+  PlanAdjustment,
   PlanDiff,
+  PlanGuardView,
   PlanPreview,
   PlanRevisionView,
+  PlanSession,
   UndoReason,
   UndoResult,
 } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import type { PlanSession as PlanSessionRow, PlanWeek as PlanWeekRow, PrismaClient } from '../db.ts'
 import { conflict, HttpError } from '../errors.ts'
-import { failedChecklist, WRITE_TIMEOUT_MS } from './planEngine.ts'
+import { toPlanSession } from '../serialize.ts'
+import { applyAdjust, planAdjust, StaleAdjust, type PlannedAdjust } from './adjust.ts'
+import { failedChecklist, ownedSession, WRITE_TIMEOUT_MS } from './planEngine.ts'
 import { applyReplan, computeReplan, recordPlanWrite, type ReplanResult } from './replan.ts'
 import {
   indexRows,
@@ -52,6 +60,8 @@ interface ComputedBase {
   warnings: EngineWarning[]
   /** Why a commit would be refused; empty when it would go through. */
   reasons: UndoReason[]
+  /** The guards of an adjust action, the ones that refuse it first; empty for the others. */
+  guards: PlanGuardView[]
   hash: string
 }
 export interface ComputedReplan extends ComputedBase {
@@ -62,7 +72,15 @@ export interface ComputedUndo extends ComputedBase {
   action: { type: 'undo'; revisionId: string }
   work: { type: 'undo'; plan: UndoPlan }
 }
-export type ComputedAction = ComputedReplan | ComputedUndo
+export interface ComputedAdjust extends ComputedBase {
+  action: { type: 'adjust'; sessionId: string; adjustment: PlanAdjustment }
+  work: { type: 'adjust'; planned: PlannedAdjust }
+}
+export type ComputedAction = ComputedReplan | ComputedUndo | ComputedAdjust
+
+/** True when a guard refuses the action. */
+const blocks = (guards: readonly PlanGuardView[]): boolean =>
+  guards.some((guard) => guard.effect === 'blocks')
 
 /** The JSON of a value with object keys in order, so equal values hash equally. */
 export function canonicalJson(value: unknown): string {
@@ -104,6 +122,14 @@ export async function computeAction(
 ): Promise<ComputedUndo>
 export async function computeAction(
   deps: Deps,
+  args: {
+    userId: string
+    action: { type: 'adjust'; sessionId: string; adjustment: PlanAdjustment }
+    today: string
+  },
+): Promise<ComputedAdjust>
+export async function computeAction(
+  deps: Deps,
   args: { userId: string; action: PlanAction; today: string },
 ): Promise<ComputedAction>
 export async function computeAction(
@@ -111,6 +137,30 @@ export async function computeAction(
   args: { userId: string; action: PlanAction; today: string },
 ): Promise<ComputedAction> {
   const { userId, today, action } = args
+  if (action.type === 'adjust') {
+    // 404 for a session that is not the user's. The newest revision is read before the plan
+    // around the session, as for a re-plan.
+    const { plan: _plan, ...row } = await ownedSession(deps, userId, action.sessionId)
+    const headRevisionId = await headRevisionOf(deps.prisma, row.planId)
+    const planned = await planAdjust(deps, { userId, row, adjustment: action.adjustment, today })
+    const refusal = planned.check.guards.find((guard) => guard.effect === 'blocks')
+    return {
+      action,
+      userId,
+      planId: planned.planId,
+      today,
+      headRevisionId,
+      // A refusal says why; an edit that changes nothing says so.
+      summary:
+        refusal?.message ?? (planned.check.noop ? changesSummary(0, 0) : planned.check.summary),
+      diff: planned.diff,
+      warnings: [],
+      reasons: [],
+      guards: planned.check.guards,
+      hash: previewHash({ diff: planned.diff, headRevisionId, today }),
+      work: { type: 'adjust', planned },
+    }
+  }
   if (action.type === 'replan') {
     // The newest revision is read first: a revision that lands during the compute makes the
     // commit's hash differ, never silently match.
@@ -127,6 +177,7 @@ export async function computeAction(
       diff: result.diff,
       warnings: result.draft.warnings,
       reasons: blocked ? [{ code: 'checklist', message: blocked.message }] : [],
+      guards: [],
       hash: previewHash({ diff: result.diff, headRevisionId, today }),
       work: { type: 'replan', result },
     }
@@ -143,6 +194,7 @@ export async function computeAction(
     diff: plan.diff,
     warnings: plan.warnings,
     reasons: plan.reasons,
+    guards: [],
     hash: previewHash({ diff: plan.diff, headRevisionId, today }),
     work: { type: 'undo', plan },
   }
@@ -158,8 +210,8 @@ export function toPreview(computed: ComputedAction): PlanPreview {
     diff: computed.diff,
     summary: computed.summary,
     warnings: computed.warnings,
-    blocked: computed.reasons.length > 0,
-    guards: [],
+    blocked: computed.reasons.length > 0 || blocks(computed.guards),
+    guards: computed.guards,
     reasons: computed.reasons,
     hash: computed.hash,
     today: computed.today,
@@ -201,6 +253,79 @@ export async function commitReplan(
   // A draft that fails the checklist is refused (422) by `applyReplan`, with nothing written.
   const written = await applyReplan(deps, computed.work.result)
   return viewRevision(deps, { userId: args.userId, revisionId: written.id })
+}
+
+/** The answer of the adjust route: the preview's guards and diff, and the session and revision. */
+function adjustResult(
+  computed: ComputedAdjust,
+  written: { revision: PlanRevisionView | null; session: PlanSession },
+): AdjustResult {
+  return {
+    allowed: !blocks(computed.guards),
+    guards: computed.guards,
+    diff: computed.diff,
+    session: written.session,
+    revision: written.revision,
+    hash: computed.hash,
+  }
+}
+
+/**
+ * What an owner edit of one session would do (`dryRun`), from the code that commits it: the guards,
+ * the diff and the session as it would stand. A refusal is information (`allowed: false`), not an
+ * error. Writes nothing.
+ */
+export async function previewAdjust(
+  deps: Deps,
+  args: { userId: string; sessionId: string; adjustment: PlanAdjustment; today: string },
+): Promise<AdjustResult> {
+  const computed = await computeAction(deps, {
+    userId: args.userId,
+    action: { type: 'adjust', sessionId: args.sessionId, adjustment: args.adjustment },
+    today: args.today,
+  })
+  return adjustResult(computed, { revision: null, session: computed.work.planned.after })
+}
+
+/**
+ * Applies an owner edit of one session and records it as a revision with a diff and an undo
+ * payload. 409 with `details.guards` and the first guard's message when a guard refuses it; 409
+ * `stale-preview` when `expectHash` no longer matches or the session changed meanwhile. An edit
+ * that changes nothing writes nothing and answers with `revision: null`.
+ */
+export async function commitAdjust(
+  deps: Deps,
+  args: {
+    userId: string
+    sessionId: string
+    adjustment: PlanAdjustment
+    today: string
+    expectHash?: string
+  },
+): Promise<AdjustResult> {
+  const { userId, today } = args
+  const action = { type: 'adjust', sessionId: args.sessionId, adjustment: args.adjustment } as const
+  const computed = await computeAction(deps, { userId, action, today })
+  assertCurrent(computed, args.expectHash)
+  const { planned } = computed.work
+  const refusal = computed.guards.find((guard) => guard.effect === 'blocks')
+  if (refusal) throw conflict(refusal.message, { guards: computed.guards })
+  if (planned.writes.length === 0) {
+    return adjustResult(computed, { revision: null, session: planned.after })
+  }
+  let written: Awaited<ReturnType<typeof applyAdjust>>
+  try {
+    written = await applyAdjust(
+      deps,
+      planned,
+      (diff) => canonicalJson(diff) === canonicalJson(computed.diff),
+    )
+  } catch (error) {
+    if (!(error instanceof StaleAdjust)) throw error
+    throw stalePreview(await computeAction(deps, { userId, action, today }))
+  }
+  const revision = await viewRevision(deps, { userId, revisionId: written.revision.id })
+  return adjustResult(computed, { revision, session: toPlanSession(written.session) })
 }
 
 /** The rows an undo found changed while it was being written; the caller answers `stale-preview`. */
