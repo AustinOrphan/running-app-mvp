@@ -72,6 +72,7 @@ const SESSION_STATUS_LABELS: Record<PlanSessionStatus, string> = {
   skipped: 'Skipped',
   downgraded: 'Eased',
   moved: 'Moved',
+  adjusted: 'Shortened',
 }
 
 const DATA_OPTIONS: Array<{ value: DataStatus; label: string }> = [

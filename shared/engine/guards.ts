@@ -9,6 +9,7 @@ import {
   completedReference,
   EPS,
   gainLimit,
+  injuryTight,
   isProgramme,
   noviceRamp,
   rampLimits,
@@ -559,7 +560,7 @@ export function applyGuards(
       .join(', ')
     const where = `${P.g1.windowDays.value}-day longest completed run`
 
-    if (state.risk.recentInjury) {
+    if (injuryTight(state)) {
       const factor = Math.min(...over.map((c) => c.warnLimit / c.d.value))
       const scaled = scaleSession(base, factor)
       warn(`g1|${s.date}`, {

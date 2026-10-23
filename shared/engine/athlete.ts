@@ -3,6 +3,7 @@
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity, AthleteProfile, WeekRow } from '../types.ts'
+import { injuryReports } from './disruption.ts'
 import { countsTowardReference } from './limits.ts'
 import {
   criticalSpeed,
@@ -438,7 +439,17 @@ function riskOf(
   }
   const screened = input.screeningFlags ?? 0
   const redsFlags = Number.isFinite(screened) ? Math.max(0, Math.floor(screened)) : 0
-  return { recentInjury, priorBsi, bsiFactors, redsFlags, noviceFlags }
+  // A window's injury report tightens the profile from the report until its ladder is over: the
+  // plan is drawn tight while the report is active or still ahead [rules J9, n-2].
+  const reported = injuryReports(input.disruptions ?? []).some((r) => r.until >= today)
+  return {
+    recentInjury,
+    ...(reported ? { injuryReport: true } : {}),
+    priorBsi,
+    bsiFactors,
+    redsFlags,
+    noviceFlags,
+  }
 }
 
 /**

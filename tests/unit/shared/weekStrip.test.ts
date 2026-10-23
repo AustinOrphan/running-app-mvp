@@ -96,6 +96,7 @@ describe('weekStrip: marks', () => {
     planned: toRun,
     moved: toRun,
     downgraded: toRun,
+    adjusted: toRun,
     completed: { past: 'done', today: 'done', ahead: 'done' },
     partial: { past: 'partial', today: 'partial', ahead: 'partial' },
     skipped: { past: 'skipped', today: 'skipped', ahead: 'skipped' },

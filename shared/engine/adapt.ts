@@ -7,7 +7,7 @@ import { addDays } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity } from '../types.ts'
 import { efficiencyIndex } from './athlete.ts'
-import { restartFraction } from './disruption.ts'
+import { dayRulesIn, disruptionPlan, heldDates, restartFraction } from './disruption.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
 import { wholeMinutes } from './limits.ts'
@@ -207,14 +207,62 @@ function postRaceDecision(
   }
 }
 
-/** Planned running minutes of a week: its planned sessions, else its target; null when unknown. */
+const NO_DATES: ReadonlySet<string> = new Set()
+
+/**
+ * The days of a week a rest window holds [rule J9]: no run is asked of them, so completion does not
+ * count them. Empty without windows.
+ */
+function coveredDates(input: EngineInput, weekStart: string): ReadonlySet<string> {
+  if (input.disruptions === undefined || input.disruptions.length === 0) return NO_DATES
+  const range = { from: weekStart, to: addDays(weekStart, 6) }
+  return new Set(heldDates(disruptionPlan(input.disruptions), range))
+}
+
+/**
+ * Planned running minutes of a week: its planned sessions, else its target; null when unknown. A
+ * session on a day a rest window holds is not asked for [rule J9].
+ */
 function plannedWeekMin(input: EngineInput, weekStart: string): number | null {
   const weekEnd = addDays(weekStart, 6)
+  const covered = coveredDates(input, weekStart)
   const sessions = (input.existing?.sessions ?? []).filter(
     (s) => s.date >= weekStart && s.date <= weekEnd && RUN_KINDS.has(s.kind),
   )
-  if (sessions.length > 0) return minutes(sessions)
+  if (sessions.length > 0) return minutes(sessions.filter((s) => !covered.has(s.date)))
   return input.existing?.weeks.find((w) => w.weekStart === weekStart)?.targetRunMin ?? null
+}
+
+/**
+ * A week a rest window touches is a hold with a `disruption` signal [rules J9, J5, G-6]: the window
+ * already took its days out of the week, and the return is sized from the days lost, so a rating
+ * or a check-in in the week never cuts the volume a second time. The next week keeps the minutes
+ * the plan holds for it. Null for a week no window touches.
+ */
+function disruptionDecision(
+  input: EngineInput,
+  weekStart: string,
+  ramp: number,
+): WeeklyDecision | null {
+  if (input.disruptions === undefined || input.disruptions.length === 0) return null
+  const plan = disruptionPlan(input.disruptions)
+  if (dayRulesIn(plan, { from: weekStart, to: addDays(weekStart, 6) }).length === 0) return null
+  const next = input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))
+  const actual = aggregateWeeks(input.activities, [weekStart])[0]!.runMin
+  const plannedThis = plannedWeekMin(input, weekStart) ?? actual
+  return {
+    decision: 'hold',
+    signals: [
+      {
+        code: 'disruption',
+        detail:
+          'A rest or limited-running window touches this week. The days it covers are not asked of you, the minutes of those days are not added back, and the way back is sized from the days lost.',
+        rules: ['J9', 'J5', 'G-6'],
+      },
+    ],
+    nextWeekTargetMin:
+      next?.targetRunMin ?? Math.floor(nextWeekCap(plannedThis, actual, ramp) + 1e-9),
+  }
 }
 
 /**
@@ -332,12 +380,16 @@ export function weeklyDecision(
   const asOf = finished ? weekEnd : input.today
   const inWindow = postRaceDecision(input, weekStart, asOf, ramp)
   if (inWindow !== null) return inWindow
+  const inDisruption = disruptionDecision(input, weekStart, ramp)
+  if (inDisruption !== null) return inDisruption
   const actual = aggregateWeeks(input.activities, [weekStart])[0]!.runMin
 
   // Completion: a week still in progress is judged on the sessions already due, never on the rest.
   const draft = input.existing?.weeks.find((w) => w.weekStart === weekStart)
+  const covered = coveredDates(input, weekStart)
   const weekSessions = (input.existing?.sessions ?? []).filter(
-    (s) => s.date >= weekStart && s.date <= weekEnd && RUN_KINDS.has(s.kind),
+    (s) =>
+      s.date >= weekStart && s.date <= weekEnd && RUN_KINDS.has(s.kind) && !covered.has(s.date),
   )
   const plannedFull = plannedWeekMin(input, weekStart)
   const plannedDue =

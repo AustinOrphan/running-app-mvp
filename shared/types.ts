@@ -341,7 +341,11 @@ export interface PlanWeek {
   overrideNote: string | null
   /** Version-2 plans only: TID targets in percent of running time. */
   tid: { z1: number; z2: number; z3: number } | null
-  /** Version-2 plans only: recovery, taper, strength, gut-training, heat-acclimation. */
+  /**
+   * Version-2 plans only: recovery, taper, strength, gut-training, heat-acclimation, and the two a
+   * rest window sets: `disrupted` (a window touches a day of the week) and `disruption-return` (the
+   * week is held to the J7 restart fraction).
+   */
   flags: string[]
   gainTargetM: number | null
   updatedAt: string
@@ -456,7 +460,7 @@ export interface PlanWithWeeks extends Plan {
   weeks: PlanWeek[]
 }
 export type PlanSessionStatus =
-  'planned' | 'completed' | 'partial' | 'skipped' | 'downgraded' | 'moved'
+  'planned' | 'completed' | 'partial' | 'skipped' | 'downgraded' | 'moved' | 'adjusted'
 /** One prescribed day-level session; JSON columns are parsed. */
 export interface PlanSession {
   id: string

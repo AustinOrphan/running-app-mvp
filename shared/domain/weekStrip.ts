@@ -18,13 +18,14 @@ import type { WeekCore } from './weeks.ts'
 
 /**
  * What a session's status says about its day. One exhaustive map, so a status added to
- * `PlanSessionStatus` (E5 adds `adjusted`) is a compile error here until it has a mark. A status
+ * `PlanSessionStatus` is a compile error here until it has a mark. A status
  * that is still to run (`isToRun`) reads `planned` here; the date decides what that means.
  */
 const STATUS_MARK: Record<PlanSessionStatus, WeekStripMark> = {
   planned: 'planned',
   moved: 'planned',
   downgraded: 'planned',
+  adjusted: 'planned',
   completed: 'done',
   partial: 'partial',
   skipped: 'skipped',

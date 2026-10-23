@@ -950,11 +950,12 @@ describe('fuelTargetFor', () => {
 
   it('serves the sessions still to be run and none that are settled', () => {
     // Typed as a full record: a status added to PlanSessionStatus is a compile error here until it
-    // is classified (E5 adds `adjusted`, a session still to be run).
+    // is classified (`adjusted`, a shortened session, is still to be run).
     const expected: Record<PlanSessionStatus, boolean> = {
       planned: true,
       moved: true,
       downgraded: true,
+      adjusted: true,
       completed: false,
       partial: false,
       skipped: false,
