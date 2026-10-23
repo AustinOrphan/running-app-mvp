@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { distanceClassOf, generatePlan } from '../../shared/domain/plan.ts'
 import type { PlanWeek, PlanWithWeeks } from '../../shared/types.ts'
@@ -6,6 +6,7 @@ import { computeBaselineRunMin } from '../../server/services/baseline.ts'
 import { HttpError } from '../../server/errors.ts'
 import { generatePlanForGoal } from '../../server/services/plan.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import { makeActivityCore } from '../factories.ts'
 
 let ctx: TestCtx
 let user: TestUser
@@ -133,6 +134,41 @@ describe('computeBaselineRunMin', () => {
     } finally {
       await fresh.close()
     }
+  })
+
+  test('reads the six core columns over the 26 completed weeks, with no heart-rate histogram', async () => {
+    const findMany = vi.fn((_args: unknown) =>
+      Promise.resolve([
+        makeActivityCore({ date: '2026-02-10', durationSec: 60 * 60 }),
+        makeActivityCore({ date: '2026-02-17', durationSec: 90 * 60 }),
+        makeActivityCore({ date: '2026-02-24', durationSec: 120 * 60 }),
+        makeActivityCore({ date: '2026-03-03', durationSec: 150 * 60 }),
+        makeActivityCore({ date: '2026-03-10', durationSec: 180 * 60 }),
+      ]),
+    )
+    const prisma = { activity: { findMany } } as unknown as Parameters<
+      typeof computeBaselineRunMin
+    >[0]
+
+    // Wednesday 2026-03-18: the last completed week is 2026-03-09..15, 26 weeks before the current
+    // week's Monday (2026-03-16) is 2025-09-15.
+    expect(await computeBaselineRunMin(prisma, 'u1', '2026-03-18')).toBe(135)
+
+    expect(findMany).toHaveBeenCalledTimes(1)
+    const args = findMany.mock.calls[0]![0] as {
+      where: unknown
+      select: Record<string, boolean>
+    }
+    expect(args.where).toEqual({ userId: 'u1', date: { gte: '2025-09-15', lte: '2026-03-15' } })
+    expect(Object.keys(args.select).sort()).toEqual([
+      'date',
+      'distanceM',
+      'duplicateStatus',
+      'durationSec',
+      'id',
+      'type',
+    ])
+    expect(Object.values(args.select).every((v) => v === true)).toBe(true)
   })
 
   test('weeks with no run are skipped, not counted as zero; an odd count takes the middle', async () => {

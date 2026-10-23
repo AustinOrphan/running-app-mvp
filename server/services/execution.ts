@@ -24,7 +24,7 @@ import type { Deps } from '../app.ts'
 import type { PlanSession as PlanSessionRow } from '../db.ts'
 import { notFound } from '../errors.ts'
 import { createLogger } from '../logger.ts'
-import { toActivity, toPlanSession } from '../serialize.ts'
+import { isTrimmed, toActivity, toPlanSession } from '../serialize.ts'
 import { gatherContextInput, sessionSpec } from './engineInput.ts'
 
 /** How far back the nightly sweep looks, in days. */
@@ -106,9 +106,9 @@ async function trimNextQuality(
   ).map(toPlanSession)
   const next = upcoming.find((s) => isQualityKind(s.kind))
   if (!next) return
-  // A trimmed session keeps the design-4.3 rule when it is run and its status becomes completed.
+  // A trimmed session keeps its trim flag when it is run and its status becomes completed.
   const trimsThisWeek = await prisma.planSession.count({
-    where: { planId: row.planId, weekStart: next.weekStart, rules: { contains: '"design-4.3"' } },
+    where: { planId: row.planId, weekStart: next.weekStart, trimmed: true },
   })
   if (!shouldTrimQuality(scores, trimsThisWeek)) return
   const trimmed = trimQuality(
@@ -126,6 +126,7 @@ async function trimNextQuality(
       target: JSON.stringify(trimmed.target),
       purpose: trimmed.purpose,
       rules: JSON.stringify(trimmed.rules),
+      trimmed: isTrimmed(trimmed.rules),
       flags: JSON.stringify(trimmed.flags),
       original: JSON.stringify(sessionSpec(next)),
     },

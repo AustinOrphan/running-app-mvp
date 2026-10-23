@@ -3,7 +3,7 @@
 // dimensions of the Liljegren model; every tunable number comes from the registry.
 import { daysBetween } from '../dates.ts'
 import { P } from './params/index.ts'
-import type { EngineInput, EngineWarning, SessionSpec } from './types.ts'
+import type { EngineInput, EngineWarning, SessionFlag, SessionSpec } from './types.ts'
 
 // ---------------------------------------------------------------------------------------------
 // Liljegren WBGT [rules I1]
@@ -244,17 +244,11 @@ export function heatWarning(wbgtC: number): EngineWarning | null {
 // Training in heat [rules I7]
 // ---------------------------------------------------------------------------------------------
 
-const NO_HEAT_NOTE_KINDS = new Set<SessionSpec['kind']>(['strength', 'mobility', 'rest'])
-const KEY_KINDS = new Set<SessionSpec['kind']>([
-  'long',
-  'long-fast-finish',
-  'threshold',
-  'intervals',
-  'race-pace',
-  'hills',
-  'b2b',
-  'race',
-  'hike',
+/** Kinds a hot day does not touch: no heat note, no cooler hour, never hot for steering. */
+export const NO_HEAT_NOTE_KINDS: ReadonlySet<SessionSpec['kind']> = new Set<SessionSpec['kind']>([
+  'strength',
+  'mobility',
+  'rest',
 ])
 
 interface HourPoint {
@@ -268,12 +262,30 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
+/** The warmest hour of the day inside the daylight window, on the index it was measured on. */
+export interface HeatPeak extends WeatherIndex {
+  /** Hour of day, 0-23, on the runner's local clock. */
+  hour: number
+}
+
+/** What `trainingHeatAdvice` says about a session's day. */
+export interface TrainingHeatAdvice {
+  note: string | null
+  coolerHour: string | null
+  /** The index around the cooler start, on the same index as `peak`; null with no cooler hour. */
+  coolerValue: number | null
+  /** The warmest hour of the day when it is above the optimum band, else null. */
+  peak: HeatPeak | null
+}
+
 /**
  * Heat note and the best cooler hour for a session [rules I7]. The session carries no clock time,
  * so the whole day inside the daylight window is considered: the note describes the warmest hour
  * of that window; the cooler hour is the start whose hours, over the session's duration, have the
- * lowest mean index (offered for key sessions only, and only when it gains at least
- * `i7.coolerMinGainC`). Both are null when the day stays inside the optimum band.
+ * lowest mean index (offered for any run, and only when it gains at least `i7.coolerMinGainC`).
+ * Strength, mobility and rest get nothing. Every field is null when the day stays inside the
+ * optimum band. `peak` and `coolerValue` carry the figures the note quotes, so other surfaces
+ * (steering, fuel, the watch) read this peak and do not extract their own.
  *
  * Each hour's `time` must be the runner's local wall-clock time (`YYYY-MM-DDTHH:MM...`): the date
  * and hour are read from the string as written, and no offset or trailing `Z` is converted. UTC
@@ -282,8 +294,8 @@ function pad2(n: number): string {
 export function trainingHeatAdvice(
   forecastHours: NonNullable<EngineInput['forecast']>,
   session: SessionSpec,
-): { note: string | null; coolerHour: string | null } {
-  const none = { note: null, coolerHour: null }
+): TrainingHeatAdvice {
+  const none: TrainingHeatAdvice = { note: null, coolerHour: null, coolerValue: null, peak: null }
   if (NO_HEAT_NOTE_KINDS.has(session.kind)) return none
   const start = P.i7.windowStartHour.value
   const end = P.i7.windowEndHour.value
@@ -306,31 +318,29 @@ export function trainingHeatAdvice(
   if (peak === null || peak.excess <= 0) return none
 
   let coolerHour: string | null = null
-  let coolerValue = 0
-  if (KEY_KINDS.has(session.kind)) {
-    const span = Math.max(1, Math.ceil(session.durationMin / 60))
-    let bestMean = Infinity
-    let bestStart = -1
-    for (let s = start; s + span <= end; s++) {
-      let sum = 0
-      let complete = true
-      for (let h = s; h < s + span; h++) {
-        const p = points.get(h)
-        if (!p) {
-          complete = false
-          break
-        }
-        sum += p.excess
+  let coolerValue: number | null = null
+  const span = Math.max(1, Math.ceil(session.durationMin / 60))
+  let bestMean = Infinity
+  let bestStart = -1
+  for (let s = start; s + span <= end; s++) {
+    let sum = 0
+    let complete = true
+    for (let h = s; h < s + span; h++) {
+      const p = points.get(h)
+      if (!p) {
+        complete = false
+        break
       }
-      if (complete && sum / span < bestMean) {
-        bestMean = sum / span
-        bestStart = s
-      }
+      sum += p.excess
     }
-    if (bestStart >= 0 && peak.excess - bestMean >= P.i7.coolerMinGainC.value) {
-      coolerHour = `${pad2(bestStart)}:00`
-      coolerValue = bestMean + (peak.value - peak.excess)
+    if (complete && sum / span < bestMean) {
+      bestMean = sum / span
+      bestStart = s
     }
+  }
+  if (bestStart >= 0 && peak.excess - bestMean >= P.i7.coolerMinGainC.value) {
+    coolerHour = `${pad2(bestStart)}:00`
+    coolerValue = bestMean + (peak.value - peak.excess)
   }
 
   const label = peak.index === 'wbgt' ? 'WBGT' : 'air temperature'
@@ -344,10 +354,30 @@ export function trainingHeatAdvice(
       `WBGT above ${P.i9.warnWbgtC.value} C: shorten, slow down or move the session. WBGT is a screening index, not a safety guarantee.`,
     )
   }
-  if (coolerHour) {
+  if (coolerHour !== null && coolerValue !== null) {
     parts.push(`A start near ${coolerHour} is cooler (${label} about ${coolerValue.toFixed(0)} C).`)
   }
-  return { note: parts.join(' '), coolerHour }
+  return {
+    note: parts.join(' '),
+    coolerHour,
+    coolerValue,
+    peak: { hour: peak.hour, value: peak.value, index: peak.index },
+  }
+}
+
+/**
+ * True when the day is hot enough to steer by effort instead of heart rate or pace [rules I9]: the
+ * session carries the `heat` flag (a heat-acclimation session), or the day's peak is a WBGT at or
+ * above the I9 warning. An air-temperature peak alone never makes a day hot, because it is only
+ * the fallback index when humidity, wind or radiation are missing [rules I1]. The one threshold is
+ * `i9.warnWbgtC`; the fuel hold keeps its own, lower one because it answers another question.
+ */
+export function isHotForSteering(
+  peak: WeatherIndex | null,
+  flags: readonly SessionFlag[],
+): boolean {
+  if (flags.includes('heat')) return true
+  return peak !== null && peak.index === 'wbgt' && peak.value >= P.i9.warnWbgtC.value
 }
 
 // ---------------------------------------------------------------------------------------------

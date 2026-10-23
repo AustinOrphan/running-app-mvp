@@ -1,5 +1,6 @@
 import type { EngineWarning, ExecutionAssessment } from '../../shared/engine/types.ts'
 import type { Units } from '../../shared/types.ts'
+import { formatQuantity } from '../../shared/copy/quantity.ts'
 import { formatShortDate } from './format.ts'
 
 const FEET_PER_METRE = 3.28084
@@ -9,7 +10,11 @@ const ISO_DATE = /\b\d{4}-\d{2}-\d{2}\b/g
 // A bare "N m" in engine text is climbing; the lookbehind leaves the distance in "D' 120 m" alone,
 // and the lookahead leaves "min", "m/s" and "m/h" alone.
 const METRES = /(?<!D' )(?<![\d.])(\d+(?:\.\d+)?) m(?![\w/])/g
-const KILOMETRES = /(?<![\d.])(\d+(?:\.\d+)?) km(?![\w/])/g
+// A range shares its unit ("28-32 km", "42.2 to 80.5 km"), so both ends convert.
+const KILOMETRES = /(?<![\d.])(\d+(?:\.\d+)?)(?:(-| to )(\d+(?:\.\d+)?))? km(?![\w/])/g
+const SPEEDS = /(?<![\d.])(\d+(?:\.\d+)?) km\/h(?!\w)/g
+const CLIMB_RATES = /(?<![\d.])(\d+(?:\.\d+)?) m\/h(?!\w)/g
+const PACES = /(?<![\d:])(\d{1,2}):([0-5]\d) per km(?!\w)/g
 
 /**
  * Engine messages in the viewer's words: ISO dates read "19 Oct", and with the `mi` setting climbs
@@ -32,7 +37,35 @@ export function localiseEngineText(text: string, units: Units | undefined): stri
     )
     .replace(
       KILOMETRES,
-      (_all, value: string) => `${((Number(value) * 1000) / M_PER_MILE).toFixed(1)} mi`,
+      (_all, from: string, joiner: string | undefined, to: string | undefined) =>
+        `${kilometresAsMiles(from)}${joiner ?? ''}${to === undefined ? '' : kilometresAsMiles(to)} mi`,
+    )
+}
+
+function kilometresAsMiles(value: string): string {
+  return ((Number(value) * 1000) / M_PER_MILE).toFixed(1)
+}
+
+/**
+ * A parameter note in the viewer's words. The note restates figures that sit beside the value
+ * (`describeParamValue`), so it reads in the same units: `localiseEngineText` for climbs and
+ * distances, and with the `mi` setting also speeds, climbing rates and paces, which engine messages
+ * leave alone. Race classes are spelled `5K`, `50K` and `100K`, as the Goals page labels them,
+ * so they never read as a distance to convert.
+ */
+export function localiseParamNote(note: string, units: Units | undefined): string {
+  const text = localiseEngineText(note, units)
+  if (units !== 'mi') return text
+  return text
+    .replace(SPEEDS, (_all, kmh: string) =>
+      formatQuantity({ kind: 'speed', kmh: Number(kmh) }, 'mi'),
+    )
+    .replace(
+      CLIMB_RATES,
+      (_all, m: string) => `${formatQuantity({ kind: 'climb', m: Number(m) }, 'mi')}/h`,
+    )
+    .replace(PACES, (_all, min: string, sec: string) =>
+      formatQuantity({ kind: 'pace', secPerKm: Number(min) * 60 + Number(sec) }, 'mi'),
     )
 }
 

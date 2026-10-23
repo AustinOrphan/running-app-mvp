@@ -1,7 +1,7 @@
 import type { Deps } from '../app.ts'
 import { addDays, mondayOf } from '../../shared/dates.ts'
 import { toV1Phase } from '../../shared/domain/plan.ts'
-import { aggregateWeeks } from '../../shared/domain/weeks.ts'
+import { activityLoadStart, aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { suggestAction, type Suggestion } from '../../shared/domain/review.ts'
 import type { WeeklyDecision } from '../../shared/engine/types.ts'
 import type {
@@ -14,7 +14,7 @@ import type {
 } from '../../shared/types.ts'
 import { HttpError, validationError } from '../errors.ts'
 import { createLogger } from '../logger.ts'
-import { loadActivities, toPlanWeek, toWeeklyReview } from '../serialize.ts'
+import { loadActivityCores, toPlanWeek, toWeeklyReview } from '../serialize.ts'
 import { replanActivePlan, weeklyDecisions } from './planEngine.ts'
 
 /** `undefined` keeps the stored value, `null` clears it. */
@@ -60,8 +60,9 @@ async function loadContexts(
 ): Promise<{ contexts: Map<string, WeekContext>; isV2: boolean }> {
   const { prisma } = deps
   const contexts = new Map<string, WeekContext>()
+  const first = weekStarts[0]
   const last = weekStarts[weekStarts.length - 1]
-  if (last === undefined) return { contexts, isV2: false }
+  if (first === undefined || last === undefined) return { contexts, isV2: false }
 
   const plan = await prisma.plan.findFirst({
     where: { userId, status: 'active' },
@@ -70,8 +71,11 @@ async function loadContexts(
   const planWeeks = new Map<string, PlanWeek>()
   for (const week of plan?.weeks ?? []) planWeeks.set(week.weekStart, toPlanWeek(week))
 
-  // Totals look back four weeks before the first row, so load everything up to the last week.
-  const activities = await loadActivities(prisma, userId, { to: addDays(last, 6) })
+  // Totals look back before the first row (`activityLoadStart`), so load from there to the last week.
+  const activities = await loadActivityCores(prisma, userId, {
+    from: activityLoadStart(first),
+    to: addDays(last, 6),
+  })
   const rows = aggregateWeeks(activities, weekStarts)
   const flagged = new Set<string>()
   for (const activity of activities) {

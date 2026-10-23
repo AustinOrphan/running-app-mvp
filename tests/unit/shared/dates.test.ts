@@ -1,8 +1,13 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import {
   addDays,
   daysBetween,
   daysLeftInWeek,
+  formatLongDate,
+  formatShortDate,
+  formatWeekday,
+  formatWeekdayDate,
+  formatWeekdayName,
   isIsoDate,
   mondayOf,
   todayIso,
@@ -62,5 +67,50 @@ describe('dates', () => {
     expect(isIsoDate('2028-02-29')).toBe(true)
     expect(isIsoDate('2026-02-29')).toBe(false)
     expect(isIsoDate('2026-2-9')).toBe(false)
+  })
+})
+
+describe('date formatting', () => {
+  test('en-GB forms', () => {
+    expect(formatShortDate('2026-10-19')).toBe('19 Oct')
+    expect(formatShortDate('2026-01-01')).toBe('1 Jan')
+    expect(formatWeekday('2026-10-19')).toBe('Mon')
+    expect(formatWeekdayName('2026-10-19')).toBe('Monday')
+    expect(formatWeekdayDate('2026-10-29')).toBe('Thu 29 Oct')
+    expect(formatLongDate('2026-10-19')).toBe('Mon 19 Oct 2026')
+  })
+
+  // The formatters fix their zone when `shared/dates.ts` loads, so each case sets the process zone
+  // first and then imports a fresh copy of the module. A formatter without `timeZone: 'UTC'` would
+  // read UTC midnight as the previous evening in Los Angeles. Kiritimati (UTC+14) cannot move a UTC
+  // midnight to another day; the case guards against a formatter that anchors the date elsewhere.
+  test.each(['America/Los_Angeles', 'Pacific/Kiritimati'])(
+    'reads the date in UTC, so the machine zone %s cannot shift the day',
+    async (zone) => {
+      const original = process.env.TZ
+      process.env.TZ = zone
+      try {
+        expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe(zone)
+        vi.resetModules()
+        const dates = await import('../../../shared/dates.ts')
+        expect(dates.formatShortDate('2026-10-19')).toBe('19 Oct')
+        expect(dates.formatWeekday('2026-10-19')).toBe('Mon')
+        expect(dates.formatWeekdayName('2026-10-19')).toBe('Monday')
+        expect(dates.formatWeekdayDate('2026-10-29')).toBe('Thu 29 Oct')
+        expect(dates.formatLongDate('2026-10-19')).toBe('Mon 19 Oct 2026')
+        expect(dates.formatLongDate('2026-01-01')).toBe('Thu 1 Jan 2026')
+      } finally {
+        if (original === undefined) delete process.env.TZ
+        else process.env.TZ = original
+        vi.resetModules()
+      }
+    },
+  )
+
+  test('anything but a real YYYY-MM-DD date throws a RangeError', () => {
+    for (const bad of ['', '2026-02-30', '19 Oct', '2026-10-19T08:00:00Z']) {
+      expect(() => formatShortDate(bad), bad).toThrow(RangeError)
+      expect(() => formatWeekdayName(bad), bad).toThrow(RangeError)
+    }
   })
 })

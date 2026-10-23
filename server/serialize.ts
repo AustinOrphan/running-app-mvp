@@ -28,6 +28,7 @@ import type {
 } from '../shared/engine/types.ts'
 import type {
   Activity,
+  ActivityCore,
   ActivityType,
   Checkin,
   AthleteProfile,
@@ -344,9 +345,21 @@ export function toPlanEngineFields(row: PlanRow): {
   }
 }
 
+/** The rule id that marks a session the engine or an execution trim eased [design 4.3]. */
+const TRIM_RULE = 'design-4.3'
+
+/**
+ * Whether a session's rule ids mark it as trimmed. The one derivation of `PlanSession.trimmed`: every
+ * write of `rules` sets the column through this function, and nothing scans the stored JSON text.
+ */
+export function isTrimmed(rules: readonly string[]): boolean {
+  return rules.includes(TRIM_RULE)
+}
+
 export function toPlanSession(row: PlanSessionRow): PlanSession {
   return {
     id: row.id,
+    externalId: row.externalId,
     planId: row.planId,
     weekStart: row.weekStart,
     date: row.date,
@@ -460,6 +473,43 @@ export function toImportBatch(row: ImportBatchRow): ImportBatch {
     errors: parseReport(row.errors),
     createdAt: row.createdAt.toISOString(),
   }
+}
+
+/**
+ * A user's activities as the six columns the week rows and the statistics read, in no particular
+ * order, with flagged duplicates included. Dates are inclusive.
+ */
+export async function loadActivityCores(
+  prisma: Pick<PrismaClient, 'activity'>,
+  userId: string,
+  opts: { from?: string; to?: string } = {},
+): Promise<ActivityCore[]> {
+  const rows = await prisma.activity.findMany({
+    where: {
+      userId,
+      ...(opts.from || opts.to
+        ? {
+            date: {
+              ...(opts.from ? { gte: opts.from } : {}),
+              ...(opts.to ? { lte: opts.to } : {}),
+            },
+          }
+        : {}),
+    },
+    select: {
+      id: true,
+      date: true,
+      type: true,
+      durationSec: true,
+      distanceM: true,
+      duplicateStatus: true,
+    },
+  })
+  return rows.map((row) => ({
+    ...row,
+    type: row.type as ActivityType,
+    duplicateStatus: row.duplicateStatus as DuplicateStatus,
+  }))
 }
 
 /** A user's activities, newest first, with flagged duplicates included. Dates are inclusive. */

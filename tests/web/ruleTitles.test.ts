@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { buildPlan } from '../../shared/engine/index.ts'
+import { lintText } from '../../shared/copy/lint.ts'
 import { allParams } from '../../shared/engine/params/index.ts'
 import { RULE_TITLES, ruleTitle } from '../../web/components/ruleTitles.ts'
 import { athletes } from '../unit/engine/matrix-fixtures.ts'
@@ -65,6 +66,15 @@ describe('RULE_TITLES', () => {
     // K-1 is not an id the engine uses.
     expect(ruleTitle('K-1')).toBeNull()
     expect(ruleTitle('zz-9')).toBeNull()
+  })
+
+  test('every title passes the G5 lint', () => {
+    const problems = Object.entries(RULE_TITLES).flatMap(([id, title]) =>
+      lintText(title).map(
+        (hit) => `${id}: "${hit.match}" (${hit.rule}) in ${JSON.stringify(title)}`,
+      ),
+    )
+    expect(problems).toEqual([])
   })
 
   test('has no raw id as a title', () => {

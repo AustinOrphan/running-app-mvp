@@ -1,9 +1,14 @@
+import { describeParamRange, describeParamValue } from '../../shared/copy/paramUnits.ts'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import type { Param } from '../../shared/engine/types.ts'
+import type { Units } from '../../shared/types.ts'
 import { useResearchParams } from '../api/research.ts'
+import { useSettings } from '../api/settings.ts'
 import { GradeBadge } from './GradeBadge.tsx'
 import { PaperCard } from './PaperCard.tsx'
 import { Sheet } from './Sheet.tsx'
-import { RATING_WHY_NOTE } from './engineText.ts'
+import { localiseParamNote, RATING_WHY_NOTE } from './engineText.ts'
 import { ruleTitle } from './ruleTitles.ts'
 import styles from './WhyDrawer.module.css'
 import { useCorpus, useToggleSet } from './researchCorpus.ts'
@@ -21,14 +26,6 @@ export interface WhyDrawerProps {
  */
 function ruleKey(id: string): string {
   return id.toLowerCase()
-}
-
-function formatScalar(value: unknown): string {
-  if (Array.isArray(value)) return value.map(formatScalar).join(', ')
-  if (typeof value === 'object' && value !== null) return JSON.stringify(value)
-  if (typeof value === 'string') return value
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
-  return ''
 }
 
 interface FactRow {
@@ -73,19 +70,14 @@ function ladderRows(rungs: number[][][], unit: string | undefined): FactRow[] {
   return unit === undefined ? rows : [...rows, { label: 'Unit', text: unit, wide: true }]
 }
 
-/** The parameter's value with its unit, and its range when it has one. */
-function describeParam(param: Param<unknown>): FactRow[] {
+/** The parameter's value in plain words and the runner's units, and its range when it has one. */
+function describeParam(param: Param<unknown>, units: Units): FactRow[] {
   if (param.id === LADDER_PARAM_ID && isLadder(param.value)) {
     return ladderRows(param.value, param.unit)
   }
-  const unit = param.unit === undefined ? '' : ` ${param.unit}`
-  const rows: FactRow[] = [{ label: 'Value', text: `${formatScalar(param.value)}${unit}` }]
-  if (param.range) {
-    rows.push({
-      label: 'Range',
-      text: `${formatScalar(param.range[0])} to ${formatScalar(param.range[1])}${unit}`,
-    })
-  }
+  const rows: FactRow[] = [{ label: 'Value', text: describeParamValue(param, units) }]
+  const range = describeParamRange(param, units)
+  if (range !== null) rows.push({ label: 'Range', text: range })
   return rows
 }
 
@@ -96,12 +88,14 @@ function paramLabel(id: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
-function ParamRow({ param }: { param: Param<unknown> }) {
+function ParamRow({ param, units }: { param: Param<unknown>; units: Units }) {
   return (
     <div className={styles.param}>
-      <p className={styles.sentence}>{param.note ?? paramLabel(param.id)}</p>
+      <p className={styles.sentence}>
+        {param.note === undefined ? paramLabel(param.id) : localiseParamNote(param.note, units)}
+      </p>
       <dl className={styles.facts}>
-        {describeParam(param).map((row) => (
+        {describeParam(param, units).map((row) => (
           <div
             key={row.label}
             className={row.wide === true ? `${styles.fact} ${styles.factWide}` : styles.fact}
@@ -123,14 +117,20 @@ function ParamRow({ param }: { param: Param<unknown> }) {
 
 function DrawerBody({ rules }: { rules: string[] }) {
   const registry = useResearchParams()
+  const settings = useSettings()
   const corpus = useCorpus()
   const [openPapers, togglePaper] = useToggleSet()
+  // Parameter values read in the runner's units; the server's default stands in if the setting
+  // cannot be read.
+  const units: Units = settings.data?.units ?? 'mi'
 
-  if (registry.isPending) return <p className={styles.status}>Loading the evidence.</p>
+  if (registry.isPending || settings.isPending) {
+    return <p className={styles.status}>{render(TEMPLATES['why.loading'], {}, units)}</p>
+  }
   if (registry.isError) {
     return (
       <p role="alert" className={styles.status}>
-        The parameter registry could not be loaded. Close this panel and open it again to retry.
+        {render(TEMPLATES['why.registry-error'], {}, units)}
       </p>
     )
   }
@@ -146,10 +146,7 @@ function DrawerBody({ rules }: { rules: string[] }) {
 
   return (
     <>
-      <p className={styles.intro}>
-        Every number in the plan has a rule behind it. Grade A is the strongest evidence; grade D is
-        a conservative default.
-      </p>
+      <p className={styles.intro}>{render(TEMPLATES['why.intro'], {}, units)}</p>
       {uniqueRules.map((rule) => {
         const matched = params.filter((p) => ruleKey(p.rule) === ruleKey(rule))
         const paperIds = [...new Set(matched.flatMap((p) => p.evidence))].sort()
@@ -161,17 +158,23 @@ function DrawerBody({ rules }: { rules: string[] }) {
               <p className={styles.note}>{RATING_WHY_NOTE}</p>
             ) : null}
             {matched.length === 0 ? (
-              <p className={styles.note}>No parameter is recorded for {title ?? rule}.</p>
+              <p className={styles.note}>
+                {render(TEMPLATES['why.no-parameter'], { rule: title ?? rule }, units)}
+              </p>
             ) : (
-              matched.map((param) => <ParamRow key={param.id} param={param} />)
+              matched.map((param) => <ParamRow key={param.id} param={param} units={units} />)
             )}
             {paperIds.length > 0 ? (
               <div className={styles.papers}>
                 <p className={styles.paperHeading}>Papers</p>
-                {corpus.isPending ? <p className={styles.note}>Loading papers.</p> : null}
+                {corpus.isPending ? (
+                  <p className={styles.note}>
+                    {render(TEMPLATES['why.papers-loading'], {}, units)}
+                  </p>
+                ) : null}
                 {corpus.isError ? (
                   <p role="alert" className={styles.note}>
-                    The research base could not be loaded. Papers: {paperIds.join(', ')}.
+                    {render(TEMPLATES['why.papers-error'], { ids: paperIds.join(', ') }, units)}
                   </p>
                 ) : null}
                 {corpus.data
@@ -188,7 +191,7 @@ function DrawerBody({ rules }: { rules: string[] }) {
                         />
                       ) : (
                         <p key={id} className={styles.note}>
-                          {id} is not in the bundled research base.
+                          {render(TEMPLATES['why.paper-missing'], { id }, units)}
                         </p>
                       )
                     })
@@ -198,10 +201,7 @@ function DrawerBody({ rules }: { rules: string[] }) {
           </section>
         )
       })}
-      <p className={styles.footnote}>
-        Decision support for one runner, not medical advice. Stop and see a clinician for pain that
-        persists or worsens.
-      </p>
+      <p className={styles.footnote}>{render(TEMPLATES['why.footnote'], {}, units)}</p>
     </>
   )
 }

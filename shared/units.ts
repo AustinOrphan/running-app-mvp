@@ -1,7 +1,9 @@
 import type { Units } from './types.ts'
 
 const M_PER_MILE = 1609.344
-const NO_VALUE = '—'
+export const FEET_PER_METRE = 3.28084
+/** What a formatter prints for a value it cannot show. Never "NaN" or "undefined". */
+export const NO_VALUE = '—'
 
 export function milesToM(mi: number): number {
   return mi * M_PER_MILE
@@ -52,4 +54,12 @@ export function formatDistance(distanceM: number, units: Units): string {
 /** Minutes as hours with one decimal: 450 -> '7.5'. */
 export function minutesToHours1(min: number): string {
   return (min / 60).toFixed(1)
+}
+
+/** Climb in the runner's unit: metres for km, feet for miles ("197 ft"). */
+export function formatClimb(gainM: number, units: Units): string {
+  if (!Number.isFinite(gainM)) return NO_VALUE
+  return units === 'mi'
+    ? `${String(Math.round(gainM * FEET_PER_METRE))} ft`
+    : `${String(Math.round(gainM))} m`
 }

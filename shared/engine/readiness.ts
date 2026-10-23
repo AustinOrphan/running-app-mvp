@@ -11,7 +11,14 @@
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { PlanSession, TodayView } from '../types.ts'
 import { P } from './params/index.ts'
-import type { Checkin, EngineInput, ReadinessSnapshot, SessionKind, SessionSpec } from './types.ts'
+import type {
+  Checkin,
+  EngineInput,
+  ReadinessSnapshot,
+  SessionKind,
+  SessionSpec,
+  ZoneSet,
+} from './types.ts'
 
 type WellnessRow = EngineInput['wellness'][number]
 type Advice = TodayView['sessions'][number]['advice']
@@ -491,9 +498,62 @@ export function todayAdvice(
   })
 }
 
+/** Kinds the J3 downgrade leaves alone: already easy, not running, or the race itself. */
+const KEEPS_AS_IS: ReadonlySet<SessionKind> = new Set<SessionKind>([
+  'easy',
+  'recovery',
+  'strength',
+  'mobility',
+  'rest',
+  'cross',
+  'hike',
+  'race',
+])
+
+/**
+ * The J3 downgrade made concrete: the session as an easy run [rules J3]. Same day, order and
+ * minutes (never longer), kind `easy`, title "Easy run", one steady Z1 step, no distance (time is
+ * the unit), the Z1 targets of the current zones, the registry's easy RPE, the rules plus `J3`,
+ * and no flags but `heat`. Everything else on the input is kept as it is, the id and the status
+ * above all, so the cached hero, a watch event and an undo all point at one row.
+ *
+ * Easy, recovery and non-run sessions (and the race) come back unchanged. Only called for the
+ * advice `downgrade-easy`; the advice `rest` withdraws the session instead. This is the only
+ * definition of an eased session; every surface calls it.
+ */
+export function easedSession<S extends SessionSpec>(session: S, zones: ZoneSet | null): S {
+  if (KEEPS_AS_IS.has(session.kind)) return session
+  return {
+    ...session,
+    kind: 'easy',
+    title: 'Easy run',
+    distanceM: null,
+    structure: [
+      {
+        kind: 'steady',
+        reps: 1,
+        durationSec: session.durationMin * 60,
+        distanceM: null,
+        zone: 'z1',
+      },
+    ],
+    target: {
+      zone: 'z1',
+      rpe: [...P.expectedRpe.easy.value],
+      hr: zones?.hr ? [...zones.hr.z1] : null,
+      paceSecPerKm: zones?.pace ? [...zones.pace.z1] : null,
+      heatNote: session.target.heatNote,
+    },
+    purpose: `Eased from ${session.title}: readiness signals have stayed lower than usual, so an easy run keeps the day.`,
+    rules: [...new Set([...session.rules, 'J3'])],
+    flags: session.flags.filter((flag) => flag === 'heat'),
+  }
+}
+
 /** The prescription as a plan session; fields the engine does not know take neutral defaults. */
 function toPlanSession(s: SessionSpec & { id: string }): PlanSession {
   return {
+    externalId: '',
     planId: '',
     weekStart: mondayOf(s.date),
     status: 'planned',

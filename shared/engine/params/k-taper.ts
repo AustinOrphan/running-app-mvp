@@ -18,12 +18,12 @@ export const kTaper = {
     fiveKmDays: param<number>('k1.fiveKmDays', 7, 'C', 'K1', TAPER_LENGTH, {
       unit: 'days',
       range: [7, 10],
-      note: '5 km: 7-10 days; the short end is the starting value.',
+      note: '5K: 7-10 days; the short end is the starting value.',
     }),
     tenKmDays: param<number>('k1.tenKmDays', 10, 'C', 'K1', TAPER_LENGTH, {
       unit: 'days',
       range: [7, 14],
-      note: '10 km takes 10 days, the overlap point.',
+      note: '10K takes 10 days, the overlap point.',
     }),
     halfMarathonDays: param('k1.halfMarathonDays', 14, 'A', 'K1', TAPER_LENGTH, { unit: 'days' }),
     marathonDays: param('k1.marathonDays', 21, 'B', 'K1', TAPER_LENGTH, { unit: 'days' }),

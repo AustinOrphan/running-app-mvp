@@ -78,6 +78,31 @@ export interface SessionSpec {
   rules: string[]
   flags: SessionFlag[]
 }
+/**
+ * A session's targets as every surface shows them (`resolveTargets`, design 4.6): the figure the
+ * day leads with, the secondary figures, and the notes that explain them.
+ */
+export interface ResolvedTargets {
+  /** The zone the stored target names. */
+  zone: ZoneKey
+  /** What leads: a heart-rate ceiling or band, the stored work pace, or effort. */
+  mode: 'hr-ceiling' | 'hr-band' | 'pace' | 'effort'
+  /** Top of the current Z1, in bpm. */
+  hrCeiling: number | null
+  /** Current Z2 or Z3 band, in bpm. */
+  hrRange: [number, number] | null
+  /** Seconds per km, slow end first; a guide unless the mode is `pace`. */
+  paceSecPerKm: [number, number] | null
+  /** CR-10. */
+  rpe: [number, number]
+  /** Hot enough to steer by effort (`isHotForSteering`); never true for strength, mobility or rest. */
+  hot: boolean
+  hotNote: string | null
+  /** Set when the figures use zones that changed after the session was planned. */
+  zonesNote: string | null
+  /** `zones` when a heart-rate or pace figure was read from the current zones. */
+  source: 'zones' | 'plan'
+}
 export interface Boundary {
   value: number
   band: [number, number]
@@ -340,4 +365,65 @@ export interface EngineInput {
    * Zone proposals ignore observations on or before it [rules C8]; absent means none accepted.
    */
   zoneChanges?: Partial<Record<ZoneProposal['boundary'], string>>
+}
+
+/**
+ * A number the copy system prints in the runner's units (`formatQuantity` in `shared/copy`). It is
+ * plain JSON, so a stored record keeps the quantity and not the sentence. Distances, climbs and
+ * paces are in metric base units (ADR 0003); `units` only changes how they read.
+ */
+export type Quantity =
+  | { kind: 'pace'; secPerKm: number }
+  | { kind: 'speed'; kmh: number }
+  | { kind: 'distance'; m: number }
+  | { kind: 'climb'; m: number }
+  | { kind: 'duration'; sec: number }
+  | { kind: 'minutes'; min: number }
+  | { kind: 'bpm'; bpm: number }
+  /** A number that is already a percentage: 5.5 reads "5.5%". */
+  | { kind: 'percent'; pct: number }
+  /** A fraction of one: 0.2 reads "20%". */
+  | { kind: 'share'; fraction: number }
+  | { kind: 'count'; n: number }
+  | { kind: 'temp'; c: number }
+  /** "19 Oct" (short, the default), "Mon 19 Oct" (weekday) or "Mon 19 Oct 2026" (long). */
+  | { kind: 'date'; iso: string; style?: 'short' | 'weekday' | 'long' }
+  /** "Mon" (short, the default) or "Monday". */
+  | { kind: 'weekday'; iso: string; style?: 'short' | 'long' }
+
+/** Where a figure came from, so an explanation can link to it and show its date. */
+export interface SourceRef {
+  kind:
+    | 'activity'
+    | 'check-in'
+    | 'wellness'
+    | 'profile'
+    | 'session'
+    | 'review'
+    | 'screening'
+    | 'disruption'
+  id: string
+  /** `YYYY-MM-DD`, in the runner's local day. */
+  date: string
+  label: string
+}
+
+/**
+ * One figure an explanation read, stored as data. `template` is a `TemplateId` of
+ * `shared/copy/templates.ts` and `slots` its values; `renderFact` turns the pair into a sentence in
+ * the runner's units at read time, so a copy fix reaches old records. `moreSources` counts the
+ * sources beyond the ones listed.
+ */
+export interface InputFact {
+  id: string
+  template: string
+  slots: Record<string, Quantity | string>
+  /** The rule the figure feeds, such as `a-6`. */
+  rule: string
+  sources: SourceRef[]
+  moreSources: number
+  /** `insufficient`: the data the rule needs is missing, and the sentence says what it counts. */
+  state: 'used' | 'insufficient'
+  /** The dates the figure was read over, when it is a window. */
+  window?: { from: string; to: string }
 }

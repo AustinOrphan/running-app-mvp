@@ -198,7 +198,7 @@ export const aState = {
       ['smyth-2020-cs-training-data'],
       {
         unit: 'm',
-        note: 'Default: inner edges of the distance bands (with 400 m and 5000 m as outer edges); the fastest effort of each band is a CS input, so one easy run cannot stand in for several distances.',
+        note: 'Default: inner edges of the distance bands (with 0.4 km and 5 km as outer edges); the fastest effort of each band is a CS input, so one easy run cannot stand in for several distances.',
       },
     ),
     csMinTimeSpreadRatio: param(
