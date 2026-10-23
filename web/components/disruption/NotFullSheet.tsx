@@ -182,7 +182,7 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
           setDone(result)
           setStep('done')
           // The runner is looking at it, so it is not "New" later.
-          markSeen([result.revision.id])
+          if (result.revision.seenAt === null) markSeen([result.revision.id])
         },
         onError: fail,
       },
