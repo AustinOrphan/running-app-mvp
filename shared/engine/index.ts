@@ -386,6 +386,10 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
               virtualTwoDay: completed.virtualTwoDay,
             },
             postRace: placing,
+            longRunMaxM:
+              goal.distanceClass === '5k' || goal.distanceClass === '10k'
+                ? P.macroDesign.peakLongRunKmMax.value * 1000
+                : undefined,
           })
         : []
     // A hold trims the week's next quality session, once a week [rules J5, design 4.3].

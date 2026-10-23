@@ -604,6 +604,22 @@ describe('macroPlan: 5 km and 10 km long-run tiers [rules D7]', () => {
       expect(Math.floor((16 * 390) / 60)).toBeGreaterThan(longest(weeks))
     })
 
+    it.each(['5k', '10k'] as const)(
+      'places no long or fast-finish session of a %s plan beyond 16 km, the first part week included',
+      (cls) => {
+        const g = goal(cls, 24)
+        const draft = buildPlan({ ...withZones(g), activities: [] })
+        const long = draft.sessions.filter(
+          (x) => x.kind === 'long' || x.kind === 'long-fast-finish',
+        )
+        expect(long.length).toBeGreaterThan(10)
+        for (const x of long) {
+          expect(x.distanceM).not.toBeNull()
+          expect(x.distanceM!).toBeLessThanOrEqual(P.macroDesign.peakLongRunKmMax.value * 1000)
+        }
+      },
+    )
+
     it('does not change a runner whose zone 1 is the training pace', () => {
       const g = goal('10k', 24)
       const st = history()

@@ -132,14 +132,18 @@ export function placeWeek(
     limits?: PlaceLimits
     /** The post-race windows the week's days fall in [rules H12]. */
     postRace?: readonly PostRaceWindow[]
+    /** No run of the week carries more than this: the 16 km of a 5 km or 10 km goal [rules D7]. */
+    longRunMaxM?: number
   },
 ): SessionSpec[] {
   const limits = ctx.limits ?? defaultLimits(ctx.state, ctx.prevSessions)
-  const caps = WEEKDAYS.map((_, day) =>
-    ctx.limits === undefined
-      ? runCaps({ min: 0, distanceM: null, gainM: null, lossM: null })
-      : runCaps(referenceAt(limits.runs, addDays(week.weekStart, day))),
-  )
+  const caps = WEEKDAYS.map((_, day) => {
+    const reference =
+      ctx.limits === undefined
+        ? runCaps({ min: 0, distanceM: null, gainM: null, lossM: null })
+        : runCaps(referenceAt(limits.runs, addDays(week.weekStart, day)))
+    return { ...reference, distanceM: Math.min(reference.distanceM, ctx.longRunMaxM ?? Infinity) }
+  })
   const windows = ctx.postRace ?? []
   const slots = slotsOf(week, ctx.profile, caps)
   applyWindowLimits(
