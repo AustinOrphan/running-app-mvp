@@ -3,7 +3,7 @@ import { undoDoneText, undoReasonLine, undoWords } from '../../../shared/copy/re
 import { todayIso } from '../../../shared/dates.ts'
 import type { PlanPreview, PlanRevisionView, UndoReason, Units } from '../../../shared/types.ts'
 import { ApiError } from '../../api/client.ts'
-import { usePreviewUndo, useUndoRevision } from '../../api/plan.ts'
+import { stalePreviewOf, usePreviewUndo, useUndoRevision } from '../../api/plan.ts'
 import { Button } from '../Button.tsx'
 import { useToast } from '../Toast.tsx'
 import { PlanDiffView } from './PlanDiffView.tsx'
@@ -16,15 +16,6 @@ export interface UndoControlProps {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
-}
-
-/** The newer preview a 409 `stale-preview` carries, or null for any other answer. */
-function stalePreviewOf(details: unknown): PlanPreview | null {
-  if (!isRecord(details) || details['code'] !== 'stale-preview') return null
-  const preview = details['preview']
-  return isRecord(preview) && typeof preview['hash'] === 'string'
-    ? (preview as unknown as PlanPreview)
-    : null
 }
 
 /** The reasons a 409 carries when the revision can no longer be undone, or an empty list. */

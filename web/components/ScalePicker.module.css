@@ -21,6 +21,11 @@
   max-width: 34rem;
 }
 
+/* A touch scale keeps a 44 px square per step and wraps when the steps do not fit in one row. */
+.row[data-touch='true'] {
+  grid-template-columns: repeat(auto-fit, minmax(2.75rem, 1fr));
+}
+
 .button {
   min-width: 0;
   min-height: var(--control-h);

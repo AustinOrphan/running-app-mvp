@@ -10,6 +10,10 @@ export const chartColors = {
   planned: 'var(--chart-planned)',
   actual: 'var(--chart-actual)',
   grid: 'var(--chart-grid)',
+  /** The prediction track record: the predicted time, its range, and the result it is held against. */
+  predicted: 'var(--chart-actual)',
+  range: 'var(--accent-soft)',
+  result: 'var(--chart-2)',
 } as const
 
 const tickStyle = {

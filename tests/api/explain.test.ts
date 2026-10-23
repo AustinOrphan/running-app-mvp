@@ -209,7 +209,7 @@ describe('GET /api/explain: whose records', () => {
     expect((await explain(`subject=week&weekStart=${thisMonday}`)).status).toBe(404)
   })
 
-  test('answers 404 for a brief until its stored figures exist; a run answers (standout.test.ts)', async () => {
+  test('answers 404 for a week without a brief (brief.test.ts has the figures); a run answers (standout.test.ts)', async () => {
     const run = await ctx.prisma.activity.create({
       data: { userId: user.id, date: addDays(today, -1), type: 'run', durationSec: 1800 },
     })

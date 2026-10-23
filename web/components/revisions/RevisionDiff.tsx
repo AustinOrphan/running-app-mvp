@@ -8,6 +8,7 @@ import { todayIso } from '../../../shared/dates.ts'
 import { entryCauses, presentDiff } from '../../../shared/engine/revisionDiff.ts'
 import type { PlanRevisionView, Units } from '../../../shared/types.ts'
 import { Button } from '../Button.tsx'
+import { RemoveWindowInstead, windowToRemoveInstead } from '../disruption/RemoveWindowInstead.tsx'
 import { localiseEngineText } from '../engineText.ts'
 import { formatShortDate } from '../format.ts'
 import { describeChange } from '../planChanges.ts'
@@ -44,6 +45,8 @@ const CAUSES_SHOWN = 2
  * One revision of the plan, the same everywhere it is shown (Plan page, Review after save, Today's
  * change sheet, the weekly brief): what made it and when, its stored summary, why each change is
  * there, the changes as from and to in the runner's units, a Why, and the undo with its preview.
+ * A rest window whose undo is refused because the plan changed since offers "Remove this rest
+ * window instead".
  *
  * A revision that every row explains the same way says so once above the rows; one whose rows have
  * different causes names the cause under each row. A revision from before the revision model has no
@@ -53,6 +56,8 @@ export function RevisionDiff({ revision, units, onWhy, isNew }: RevisionDiffProp
   const rules = rulesOf(revision)
   const marked = isNew ?? revision.seenAt === null
   const { diff } = revision
+  // A rest window whose undo is refused because the plan changed since can still be removed.
+  const windowId = windowToRemoveInstead(revision)
 
   let shared: string | null = null
   let notes: Map<string, string> | undefined
@@ -111,6 +116,7 @@ export function RevisionDiff({ revision, units, onWhy, isNew }: RevisionDiffProp
         </Button>
       ) : null}
       <UndoControl revision={revision} units={units} />
+      {windowId !== null ? <RemoveWindowInstead windowId={windowId} units={units} /> : null}
     </div>
   )
 }

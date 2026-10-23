@@ -1,7 +1,12 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import { describe, expect, test } from 'vitest'
 import { TodaySlot } from '../../web/components/today/TodaySlot.tsx'
 import { SLOT_BUDGETS_PX, type SlotName } from '../../web/components/today/slots.ts'
+import { renderWithProviders } from './helpers.tsx'
+
+// A slot with an epic's mount reads the Today payload from the query cache, so it renders inside
+// the providers; with nothing loaded it still renders nothing.
+const render = renderWithProviders
 
 const NAMES = Object.keys(SLOT_BUDGETS_PX) as SlotName[]
 

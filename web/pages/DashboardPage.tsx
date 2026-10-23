@@ -1,12 +1,14 @@
+import { useRef } from 'react'
 import { Link } from 'react-router-dom'
-import type { TodayCoach } from '../../shared/types.ts'
+import type { ReadinessVerdict, TodayCoach } from '../../shared/types.ts'
 import { useSettings } from '../api/settings.ts'
+import { checkinUrl } from '../api/checkins.ts'
 import { useToday } from '../api/today.ts'
 import buttonStyles from '../components/Button.module.css'
 import { formatWeekdayDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { ChangeLine } from '../components/today/ChangeLine.tsx'
-import { CheckinCard } from '../components/today/CheckinCard.tsx'
+import { CheckinRow } from '../components/today/CheckinRow.tsx'
 import { DataHealth } from '../components/today/DataHealth.tsx'
 import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
 import { FeedbackCard } from '../components/today/FeedbackCard.tsx'
@@ -20,6 +22,7 @@ import { TodaySkeleton } from '../components/today/TodaySkeleton.tsx'
 import { TodaySlot } from '../components/today/TodaySlot.tsx'
 import { WeekStrip } from '../components/today/WeekStrip.tsx'
 import { useToast } from '../components/Toast.tsx'
+import { useOutboxState } from '../pwa/outbox.ts'
 import styles from './DashboardPage.module.css'
 
 /**
@@ -38,6 +41,17 @@ function hasPlan(coach: TodayCoach): boolean {
 }
 
 /**
+ * The verdict while a check-in waits on the phone and the server has no signal yet. "One tap below
+ * adds the first" would promise a control that has just been used, so the verdict says where the
+ * answer is instead.
+ */
+const SAVED_ON_PHONE: ReadinessVerdict = {
+  code: 'no-signals',
+  template: 'today.checkin.verdict-queued',
+  slots: {},
+}
+
+/**
  * Today: one coach payload (`GET /api/today`) and the settings render the first screen. The
  * readiness read and the session lead; the week, the update line, the race and the rest follow.
  * The history sections read their own data once they come near the viewport.
@@ -46,6 +60,8 @@ export function DashboardPage() {
   const todayView = useToday()
   const settings = useSettings()
   const toast = useToast()
+  const outbox = useOutboxState()
+  const verdict = useRef<HTMLParagraphElement>(null)
 
   const header = (context?: string) => (
     <PageHeader
@@ -83,6 +99,9 @@ export function DashboardPage() {
   const { coach } = view
   const units = settings.data.units
   const planned = hasPlan(coach)
+  const waiting = outbox.entries.some((entry) => entry.url === checkinUrl(view.date))
+  const verdictShown =
+    waiting && coach.verdict?.code === 'no-signals' ? SAVED_ON_PHONE : coach.verdict
 
   return (
     <>
@@ -91,7 +110,25 @@ export function DashboardPage() {
         <HealthNotes flags={view.readiness.redFlags} notes={coach.health.notes} units={units} />
         <TodaySlot name="disruption" />
 
-        <ReadinessRead verdict={coach.verdict} signals={coach.signals} units={units} />
+        <ReadinessRead
+          verdict={verdictShown}
+          signals={coach.signals}
+          units={units}
+          verdictRef={verdict}
+        >
+          {coach.preview ? undefined : (
+            <CheckinRow
+              key={view.date}
+              date={view.date}
+              checkin={view.checkin}
+              boneActive={view.readiness.redFlags.some((flag) => flag.code === 'focal-bone-pain')}
+              units={units}
+              onAnswered={() => {
+                verdict.current?.focus()
+              }}
+            />
+          )}
+        </ReadinessRead>
         {coach.hero !== null ? (
           <SessionHero hero={coach.hero} heat={view.heat} next={coach.next} units={units} />
         ) : planned ? (
@@ -109,17 +146,6 @@ export function DashboardPage() {
         </TodaySlot>
         <TodaySlot name="fuelPrompt" />
 
-        {coach.preview ? null : (
-          <CheckinCard
-            key={view.date}
-            date={view.date}
-            checkin={view.checkin}
-            boneActive={view.readiness.redFlags.some((flag) => flag.code === 'focal-bone-pain')}
-            onSaved={(message) => {
-              toast.show(message)
-            }}
-          />
-        )}
         <FeedbackCard
           unrated={view.unrated}
           units={units}

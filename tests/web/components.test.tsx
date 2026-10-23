@@ -7,9 +7,12 @@ import { EmptyState } from '../../web/components/EmptyState.tsx'
 import { Field, Input } from '../../web/components/Field.tsx'
 import { Meter } from '../../web/components/Meter.tsx'
 import { PageHeader } from '../../web/components/PageHeader.tsx'
+import { ScalePicker } from '../../web/components/ScalePicker.tsx'
 import { Segmented } from '../../web/components/Segmented.tsx'
 import { Sheet } from '../../web/components/Sheet.tsx'
 import { Skeleton } from '../../web/components/Skeleton.tsx'
+import { activityTypeFor } from '../../web/components/today/DoneSheet.tsx'
+import { NotTodaySheet } from '../../web/components/today/NotTodaySheet.tsx'
 import { ToastProvider, useToast } from '../../web/components/Toast.tsx'
 import {
   formatClimb,
@@ -18,7 +21,9 @@ import {
   formatWeekday,
   phaseLabel,
 } from '../../web/components/format.ts'
-import { expectCleanCopy } from './helpers.tsx'
+import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
+import { settings } from './plan-fixtures.ts'
+import { makeSession } from './today-fixtures.ts'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -161,6 +166,128 @@ describe('Segmented', () => {
     expect(screen.getByRole('radio', { name: 'Cross' })).toHaveFocus()
     await user.tab()
     expect(screen.getByRole('button', { name: 'after' })).toHaveFocus()
+  })
+
+  describe('with arrows that only move focus', () => {
+    const options = [
+      { value: '1', label: 'One' },
+      { value: '2', label: 'Two' },
+      { value: '3', label: 'Three' },
+    ]
+
+    test('nothing is chosen, the arrow keys move without choosing, and Space chooses', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      render(
+        <>
+          <button>before</button>
+          <Segmented label="Pick" options={options} value="" arrows="focus" onChange={onChange} />
+          <button>after</button>
+        </>,
+      )
+      const radios = screen.getAllByRole('radio')
+      for (const radio of radios) expect(radio).toHaveAttribute('aria-checked', 'false')
+      expect(radios.filter((r) => r.getAttribute('tabindex') === '0')).toHaveLength(1)
+
+      await user.tab()
+      await user.tab()
+      expect(screen.getByRole('radio', { name: 'One' })).toHaveFocus()
+      await user.keyboard('{ArrowRight}{ArrowRight}')
+      expect(screen.getByRole('radio', { name: 'Three' })).toHaveFocus()
+      await user.keyboard('{ArrowRight}')
+      expect(screen.getByRole('radio', { name: 'One' })).toHaveFocus()
+      await user.keyboard('{End}')
+      expect(screen.getByRole('radio', { name: 'Three' })).toHaveFocus()
+      expect(onChange).not.toHaveBeenCalled()
+
+      await user.keyboard(' ')
+      expect(onChange).toHaveBeenCalledExactlyOnceWith('3')
+      // The group keeps its one tab stop where focus last was.
+      await user.tab()
+      expect(screen.getByRole('button', { name: 'after' })).toHaveFocus()
+    })
+
+    test('a click chooses at once', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      render(
+        <Segmented label="Pick" options={options} value="" arrows="focus" onChange={onChange} />,
+      )
+      await user.click(screen.getByRole('radio', { name: 'Two' }))
+      expect(onChange).toHaveBeenCalledExactlyOnceWith('2')
+    })
+  })
+})
+
+describe('ScalePicker', () => {
+  test('a touch scale marks its row so the buttons keep a 44 px square and wrap', () => {
+    render(
+      <>
+        <ScalePicker legend="Pain" min={0} max={10} value={null} onChange={() => {}} touch />
+        <ScalePicker legend="RPE" min={1} max={10} value={null} onChange={() => {}} />
+      </>,
+    )
+    const touch = screen.getByRole('group', { name: 'Pain' }).querySelector('[data-touch]')
+    expect(touch).not.toBeNull()
+    expect(within(touch as HTMLElement).getAllByRole('button')).toHaveLength(11)
+    expect(screen.getByRole('group', { name: 'RPE' }).querySelector('[data-touch]')).toBeNull()
+  })
+})
+
+describe('NotTodaySheet', () => {
+  test('hosts the move and skip controls and takes what a later epic puts above them', () => {
+    mockApi({ 'GET /api/settings': () => settings })
+    const onChanged = vi.fn()
+    renderWithProviders(
+      <NotTodaySheet session={makeSession()} onClose={() => {}} onChanged={onChanged}>
+        <p>Not 100% today?</p>
+      </NotTodaySheet>,
+    )
+    const sheet = screen.getByRole('dialog', { name: 'Not today' })
+    const extra = within(sheet).getByText('Not 100% today?')
+    const heading = within(sheet).getByRole('heading', { name: 'Change this session' })
+    expect(extra.compareDocumentPosition(heading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(within(sheet).getByLabelText('Move to')).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Skip session' })).toBeInTheDocument()
+    expect(within(sheet).getByText('A skipped session is not made up later.')).toBeInTheDocument()
+    expect(onChanged).not.toHaveBeenCalled()
+  })
+
+  test('Close and Escape end it without calling onChanged', async () => {
+    const user = userEvent.setup()
+    mockApi({ 'GET /api/settings': () => settings })
+    const onClose = vi.fn()
+    const onChanged = vi.fn()
+    renderWithProviders(
+      <NotTodaySheet session={makeSession()} onClose={onClose} onChanged={onChanged} />,
+    )
+    await user.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalledTimes(2)
+    expect(onChanged).not.toHaveBeenCalled()
+  })
+})
+
+describe('activityTypeFor', () => {
+  test.each([
+    ['easy', 'run'],
+    ['recovery', 'run'],
+    ['long', 'run'],
+    ['long-fast-finish', 'run'],
+    ['threshold', 'run'],
+    ['intervals', 'run'],
+    ['race-pace', 'run'],
+    ['strides', 'run'],
+    ['hills', 'run'],
+    ['b2b', 'run'],
+    ['race', 'race'],
+    ['strength', 'strength'],
+    ['hike', 'cross'],
+    ['mobility', 'cross'],
+    ['cross', 'cross'],
+  ] as const)('a %s session is logged as %s', (kind, type) => {
+    expect(activityTypeFor(kind)).toBe(type)
   })
 })
 

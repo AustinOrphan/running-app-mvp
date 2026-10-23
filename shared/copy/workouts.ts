@@ -7,7 +7,8 @@
 //
 // Ids are `workout.<group>.<name>`. The `workout.file.*` ones are sentences; all others are
 // labels: short phrases for a step or a line of a description.
-import { tpl, type Template } from './template.ts'
+import type { WorkoutFileRefusal } from '../types.ts'
+import { render, tpl, type Template } from './template.ts'
 
 export const WORKOUT_TEMPLATES = {
   // The name of a step, the same on every surface.
@@ -55,6 +56,15 @@ export const WORKOUT_TEMPLATES = {
   'workout.file.rest': tpl('Rest is the better choice today, so there is no workout file.'),
   'workout.file.week-empty': tpl('This week has no runs left to put on a watch.'),
 
+  // The links to the files, on the Plan page and in the session sheet.
+  'workout.link.file': tpl('Download the workout file', {}, { shape: 'label' }),
+  'workout.link.week': tpl('Download this week as .zip', {}, { shape: 'label' }),
+  'workout.link.week-of': tpl(
+    'Download the week of {date} as .zip',
+    { date: 'date' },
+    { shape: 'label' },
+  ),
+
   // Steps that repeat: "7 x: Run 1 min; Walk 2 min".
   'workout.repeat': tpl(
     '{count} x: {steps}',
@@ -62,3 +72,30 @@ export const WORKOUT_TEMPLATES = {
     { shape: 'label' },
   ),
 } satisfies Record<string, Template>
+
+/** The sentence for each `details.reason` a download is refused with. */
+const REFUSALS = {
+  'not-a-run': 'workout.file.not-a-run',
+  settled: 'workout.file.settled',
+  'rest-advice': 'workout.file.rest',
+  empty: 'workout.file.week-empty',
+} as const satisfies Record<WorkoutFileRefusal, keyof typeof WORKOUT_TEMPLATES>
+
+/** Why a workout file is not made, in words: the route's own sentence for the reason. */
+export function fileRefusalSentence(reason: WorkoutFileRefusal): string {
+  return render(WORKOUT_TEMPLATES[REFUSALS[reason]], {}, 'km')
+}
+
+/** "Download the workout file" or "Download this week as .zip". */
+export function workoutLinkLabel(id: 'workout.link.file' | 'workout.link.week'): string {
+  return render(WORKOUT_TEMPLATES[id], {}, 'km')
+}
+
+/** "Download the week of 26 Oct as .zip". */
+export function weekLinkLabel(weekStart: string): string {
+  return render(
+    WORKOUT_TEMPLATES['workout.link.week-of'],
+    { date: { kind: 'date', iso: weekStart, style: 'short' } },
+    'km',
+  )
+}

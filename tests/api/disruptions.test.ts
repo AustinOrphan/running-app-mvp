@@ -527,6 +527,41 @@ describe('the preview of a window action', () => {
     ])
   })
 
+  test('states the running time of the next 28 days, before and after, from the rows the commit writes', async () => {
+    const f = await fixture('preview-run-minutes@example.com')
+    // The runner skipped one run on a day the window will hold: it is not in the first figure, and
+    // the window releasing it must not take its minutes from the second.
+    const held = (await sessionsOf(f.plan.id)).find(
+      (row) => row.date >= THURSDAY && row.date <= SUNDAY && RUN_KINDS.has(row.kind),
+    )!
+    await ctx.prisma.planSession.update({ where: { id: held.id }, data: { status: 'skipped' } })
+    const last = addDays(THURSDAY, 27)
+    const stillToRun = async () =>
+      (await sessionsOf(f.plan.id))
+        .filter(
+          (row) =>
+            row.date >= THURSDAY &&
+            row.date <= last &&
+            (RUN_KINDS.has(row.kind) || row.kind === 'race') &&
+            ['planned', 'moved', 'downgraded', 'adjusted'].includes(row.status),
+        )
+        .reduce((sum, row) => sum + row.durationMin, 0)
+    const now = await stillToRun()
+
+    const action = { type: 'disruption-create', ...cold({ startDate: THURSDAY, endDate: SUNDAY }) }
+    const preview = await previewOf(f, action)
+    expect(preview.runMin).not.toBeNull()
+    expect(preview.runMin!.before).toBe(now)
+    expect(preview.runMin!.after).toBeLessThan(now)
+    expect(preview.diff.sessions.some((line) => line.sessionId === held.id)).toBe(true)
+
+    await createWindow(f, cold({ startDate: THURSDAY, endDate: SUNDAY, expectHash: preview.hash }))
+    expect(preview.runMin!.after).toBe(await stillToRun())
+    // A preview of nothing to change states the same figure on both sides.
+    const quiet = await previewOf(f, { type: 'replan' })
+    expect(quiet.runMin!.before).toBe(preview.runMin!.after)
+  })
+
   test('says a refused plan is refused, without writing: the checklist is a reason, not an error', async () => {
     const f = await fixture('preview-checklist@example.com')
     const before = await counts()

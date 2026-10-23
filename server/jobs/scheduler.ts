@@ -4,6 +4,7 @@ import type { Deps } from '../app.ts'
 import type { PrismaClient } from '../db.ts'
 import { createLogger } from '../logger.ts'
 import { PROVIDERS } from '../providers/registry.ts'
+import { generateBrief } from '../services/brief.ts'
 import { runNightlyMatching } from '../services/execution.ts'
 import { scanFolderIntegration } from '../services/folder.ts'
 import { replanActivePlan } from '../services/planEngine.ts'
@@ -302,7 +303,10 @@ export async function runPublishJob(
 const replanning = new Set<string>()
 
 /**
- * Monday: re-plans every active version-2 plan from the updated state [design 5].
+ * Monday: re-plans every active version-2 plan from the updated state [design 5], then writes the
+ * week's brief for that runner (`generateBrief`): from the revision the re-plan wrote, or, when the
+ * re-plan was refused or failed, with a note that says why the plan was not updated. The brief has a
+ * try/catch of its own, so one that cannot be written never fails the re-plan (design 8.7).
  *
  * With `catchUp`, only the plans whose weekly update is due (see `usersDueForWeeklyUpdate`) are
  * re-planned and the runs are recorded with trigger `catchup`: a server that was down at 03:00 on
@@ -324,16 +328,40 @@ export async function runReplanJob(
     if (replanning.has(userId)) continue
     replanning.add(userId)
     const startedAt = new Date()
+    // What the brief describes: the revision the re-plan wrote, or the error that stopped it.
+    let outcome: { revisionId: string } | { failure: unknown } | undefined
     try {
-      await replanActivePlan(deps, { userId, reason: 'weekly', today })
-      await recordJob(deps, 'replan', userId, startedAt, { trigger })
-    } catch (error) {
-      // A plan that fails its checklist or whose goal has passed stays as it is.
-      log?.warn({ reason: safeMessage(error), userId }, 'weekly re-plan failed')
-      await recordJob(deps, 'replan', userId, startedAt, { trigger, error })
+      try {
+        const revision = await replanActivePlan(deps, { userId, reason: 'weekly', today })
+        outcome = { revisionId: revision.id }
+        await recordJob(deps, 'replan', userId, startedAt, { trigger })
+      } catch (error) {
+        // A plan that fails its checklist or whose goal has passed stays as it is.
+        outcome ??= { failure: error }
+        log?.warn({ reason: safeMessage(error), userId }, 'weekly re-plan failed')
+        await recordJob(deps, 'replan', userId, startedAt, { trigger, error })
+      }
+      // The brief comes after the re-plan returns and has a try/catch of its own: a brief that
+      // cannot be written never fails the re-plan (design 8.7).
+      if (outcome !== undefined) await writeBrief(deps, { userId, today, ...outcome }, log)
     } finally {
       replanning.delete(userId)
     }
+  }
+}
+
+/** Writes the week's brief after a re-plan; a failure is logged and goes no further. */
+async function writeBrief(
+  deps: Deps,
+  args:
+    | { userId: string; today: string; revisionId: string }
+    | { userId: string; today: string; failure: unknown },
+  log?: Log,
+): Promise<void> {
+  try {
+    await generateBrief(deps, args)
+  } catch (error) {
+    log?.warn({ reason: safeMessage(error), userId: args.userId }, 'weekly brief failed')
   }
 }
 

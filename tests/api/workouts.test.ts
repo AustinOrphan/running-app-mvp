@@ -4,7 +4,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { prescribe } from '../../shared/engine/sessions.ts'
 import type { SessionKind } from '../../shared/engine/types.ts'
-import type { PlanSessionStatus, PlanWithSessions, StateView, Units } from '../../shared/types.ts'
+import type {
+  PlanSessionStatus,
+  PlanWithSessions,
+  SessionWorkoutView,
+  StateView,
+  Units,
+} from '../../shared/types.ts'
 import { loadAthleteContext } from '../../server/services/athleteState.ts'
 import { loadForecast } from '../../server/services/engineInput.ts'
 import { fuelLineFor, loadFuelContext } from '../../server/services/fuelLine.ts'
@@ -529,6 +535,142 @@ describe('GET /api/plan/weeks/:weekStart/workouts.zip', () => {
       where: { planId: theirs.planId, weekStart: nextMonday },
     })
     expect((await download(zipPath(nextMonday), theirs.u)).status).toBe(409)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The session sheet's view
+// ---------------------------------------------------------------------------------------------
+
+const viewPath = (id: string) => `/api/plan/sessions/${id}/workout`
+
+async function viewOf(path: string, user?: TestUser) {
+  const res = await client(ctx, user).get(path)
+  return { status: res.status, headers: res.headers, body: res.body as SessionWorkoutView }
+}
+
+describe('GET /api/plan/sessions/:id/workout', () => {
+  test('needs the session cookie', async () => {
+    const { planId } = await runner('view-auth@example.com')
+    const [row] = await onlyOn(planId, DAY_A, [{ kind: 'easy' }])
+    expect((await viewOf(viewPath(row!.id))).status).toBe(401)
+  })
+
+  test('answers the targets of the current zones, as the file carries them, never cached', async () => {
+    const { u, planId } = await runner('view-zones@example.com')
+    const [row] = await onlyOn(planId, DAY_A, [{ kind: 'easy', minutes: 45 }])
+    const view = await viewOf(viewPath(row!.id), u)
+    expect(view.status).toBe(200)
+    expect(view.headers['cache-control']).toBe('no-store')
+    const z1 = (await zonesOf(u)).z1
+    // the stored target holds the fixture's Z1 (120 to 140); the runner's own zones differ
+    expect(z1[1]).not.toBe(140)
+    expect(view.body).toMatchObject({
+      targets: { mode: 'hr-ceiling', hrCeiling: z1[1], hot: false, source: 'zones' },
+      eased: false,
+      file: { available: true },
+    })
+    // one resolver: the file of the same session holds this ceiling
+    const [step] = expandWorkout(readWorkout((await download(fitPath(row!.id), u)).bytes))
+    expect(step?.target).toMatchObject({ type: 'heart_rate', highBpm: view.body.targets.hrCeiling })
+  })
+
+  test('answers 404 outside the active plan', async () => {
+    const { u, planId } = await runner('view-404@example.com')
+    const other = await runner('view-404-other@example.com')
+    const [mine] = await onlyOn(planId, DAY_A, [{ kind: 'easy' }])
+    const [theirs] = await onlyOn(other.planId, DAY_A, [{ kind: 'easy' }])
+    expect((await viewOf(viewPath('no-such-session'), u)).status).toBe(404)
+    expect((await viewOf(viewPath(theirs!.id), u)).status).toBe(404)
+    await ctx.prisma.plan.update({ where: { id: planId }, data: { status: 'archived' } })
+    expect((await viewOf(viewPath(mine!.id), u)).status).toBe(404)
+  })
+
+  test.each(['strength', 'mobility', 'rest', 'race', 'cross'] as const)(
+    'has targets and no file for a %s session',
+    async (kind) => {
+      const { u, planId } = await runner(`view-${kind}@example.com`)
+      const [row] = await onlyOn(planId, DAY_A, [{ kind }])
+      const view = await viewOf(viewPath(row!.id), u)
+      expect(view.status).toBe(200)
+      expect(view.body.file).toEqual({ available: false, reason: 'not-a-run' })
+      expect(view.body.eased).toBe(false)
+      expect(view.body.targets.rpe).toHaveLength(2)
+    },
+  )
+
+  test.each(['completed', 'partial', 'skipped'] as const)(
+    'refuses the file of a %s session as settled, and offers a moved or trimmed one',
+    async (status) => {
+      const { u, planId } = await runner(`view-status-${status}@example.com`)
+      const [settled, moved, downgraded] = await onlyOn(planId, DAY_A, [
+        { kind: 'long', status },
+        { kind: 'long', status: 'moved' },
+        { kind: 'easy', status: 'downgraded' },
+      ])
+      expect((await viewOf(viewPath(settled!.id), u)).body.file).toEqual({
+        available: false,
+        reason: 'settled',
+      })
+      expect((await viewOf(viewPath(moved!.id), u)).body.file).toEqual({ available: true })
+      expect((await viewOf(viewPath(downgraded!.id), u)).body.file).toEqual({ available: true })
+    },
+  )
+
+  test('says today was eased, keeps the planned targets, and does not ease tomorrow', async () => {
+    const { u, planId } = await runner('view-eased@example.com')
+    const [todays] = await onlyOn(planId, today, [{ kind: 'threshold', minutes: 60 }])
+    const [tomorrows] = await onlyOn(planId, tomorrow, [{ kind: 'intervals', minutes: 60 }])
+    await client(ctx, u).put(`/api/checkins/${today}`).send({ painScore: 6 })
+    const eased = await viewOf(viewPath(todays!.id), u)
+    expect(eased.body.eased).toBe(true)
+    expect(eased.body.file).toEqual({ available: true })
+    // the sheet keeps the plan: the threshold session's pace band, not the easy version's ceiling
+    expect(eased.body.targets).toMatchObject({ mode: 'pace' })
+    const planned = await viewOf(viewPath(tomorrows!.id), u)
+    expect(planned.body.eased).toBe(false)
+    expect(planned.body.targets.mode).toBe('pace')
+  })
+
+  test('refuses the file as rest advice on a day readiness takes the run off, and only that day', async () => {
+    const { u, planId } = await runner('view-rest@example.com')
+    const [todays] = await onlyOn(planId, today, [{ kind: 'easy' }])
+    const [tomorrows] = await onlyOn(planId, tomorrow, [{ kind: 'easy' }])
+    await client(ctx, u).put(`/api/checkins/${today}`).send({ painScore: 7, painFocalBone: true })
+    const rested = await viewOf(viewPath(todays!.id), u)
+    expect(rested.body.file).toEqual({ available: false, reason: 'rest-advice' })
+    expect(rested.body.eased).toBe(false)
+    expect((await viewOf(viewPath(tomorrows!.id), u)).body.file).toEqual({ available: true })
+    // the file route gives the same answer
+    const refused = await download(fitPath(todays!.id), u)
+    expect(refused.json).toMatchObject({ error: { details: { reason: 'rest-advice' } } })
+  })
+
+  test('leads with effort on a day the forecast makes hot, as the file does', async () => {
+    const { u, planId } = await runner('view-heat@example.com')
+    const [hot, mild] = [
+      (await onlyOn(planId, DAY_A, [{ kind: 'easy', minutes: 60 }]))[0]!,
+      (await onlyOn(planId, DAY_B, [{ kind: 'easy', minutes: 60 }]))[0]!,
+    ]
+    const hours = Array.from({ length: 24 }, (_, h) => ({
+      time: `${DAY_A}T${String(h).padStart(2, '0')}:00:00`,
+      tempC: 36,
+      dewPointC: 22,
+      humidityPct: 50,
+      windKph: 3,
+      shortwaveWm2: 800,
+    }))
+    vi.mocked(loadForecast).mockResolvedValue(hours)
+    const day = await viewOf(viewPath(hot.id), u)
+    expect(day.body.targets).toMatchObject({ hot: true, mode: 'effort' })
+    expect(day.body.targets.hotNote).not.toBeNull()
+    expect((await viewOf(viewPath(mild.id), u)).body.targets).toMatchObject({
+      hot: false,
+      mode: 'hr-ceiling',
+    })
+    // the same forecast makes the same targets in the deliverable of the day
+    const [built] = sends(await buildDeliverables(deps(), u.id, { from: DAY_A, to: DAY_A, today }))
+    expect(built!.plan.targets).toEqual(day.body.targets)
   })
 })
 

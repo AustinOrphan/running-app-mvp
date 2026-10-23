@@ -73,9 +73,10 @@ test('create a goal, activate it, generate a plan and edit one week with a note'
     'Visiting family, one long day instead of two',
   )
 
-  // Owner edits of one session go through one guarded action. The session sheet still moves and
-  // skips through the older route, which now delegates to it; shortening has no control yet (E5-7),
-  // so it goes through the API and the page shows what it left.
+  // Owner edits of one session go through one guarded action. The session sheet asks the server
+  // about a move as it is chosen and applies that answer; the shorten here goes through the API
+  // and the page shows what it left. No e2e drives the sheet's own Shorten or Restore session:
+  // tests/web/session-adjust.test.tsx covers them against mocked routes.
   const plan = (await api.get('/plan')) as PlanWithSessions
   const isRun = (s: PlanSessionLike) => !['strength', 'mobility', 'rest', 'cross'].includes(s.kind)
   const inWeek = plan.sessions.filter((s) => s.weekStart === week)
@@ -103,8 +104,8 @@ test('create a goal, activate it, generate a plan and edit one week with a note'
     .click()
   const sheet = page.getByRole('dialog', { name: moving.title })
   await sheet.getByLabel('Move to').fill(free)
-  await sheet.getByRole('button', { name: 'Move session' }).click()
-  await expect(toast(page, /^Session moved to /)).toBeVisible()
+  await sheet.getByRole('button', { name: 'Apply change' }).click()
+  await expect(toast(page, /^Moved /)).toBeVisible()
 
   // A shorten through the action, on the first easy run that is long enough to lose five minutes:
   // the page reads it as shortened.

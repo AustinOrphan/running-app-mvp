@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom'
-import buttonStyles from '../Button.module.css'
 import { Button } from '../Button.tsx'
 import styles from './SessionActions.module.css'
 
@@ -8,25 +6,34 @@ export interface SessionActionsProps {
   canAct: boolean
   /** False when no rule stands behind the session (a plain rest day). */
   canExplain: boolean
+  /** Done was tapped: the hero opens the sheet that logs the run. */
+  onDone: () => void
+  /** Explain was tapped: the hero opens the why drawer with the rules behind the session. */
   onExplain: () => void
+  /**
+   * Not today was tapped: the hero opens a sheet. This component knows nothing of that sheet, so
+   * the hero can mount a different one (E5's "Not 100%") without a change here.
+   */
   onNotToday: () => void
 }
 
 /**
- * Done, Explain and Not today, in their final order and places. Done opens the log form and Not
- * today the session's sheet until the one-tap Done sheet and the Not today sheet replace them
- * (E2-6). Explain opens the why drawer with the rules behind the session.
+ * Done, Explain and Not today, in their final order and places. Each is a button that tells the
+ * hero what was asked; the sheets and the drawer belong to the hero.
  */
-export function SessionActions({ canAct, canExplain, onExplain, onNotToday }: SessionActionsProps) {
+export function SessionActions({
+  canAct,
+  canExplain,
+  onDone,
+  onExplain,
+  onNotToday,
+}: SessionActionsProps) {
   return (
     <div className={styles.actions}>
       {canAct ? (
-        <Link
-          to="/activities?new=1"
-          className={`${buttonStyles.button} ${buttonStyles.primary} ${styles.action}`}
-        >
+        <Button variant="primary" className={styles.action} onClick={onDone}>
           Done
-        </Link>
+        </Button>
       ) : null}
       {canExplain ? (
         <Button className={styles.action} onClick={onExplain}>

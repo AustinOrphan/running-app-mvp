@@ -65,6 +65,12 @@ export const NON_STATE_MODELS = [
   // Explain reads it straight from the table. As state, each lazy write would drop the snapshot it
   // was computed from. `server/services/insight.ts` is its only writer.
   'ActivityInsight',
+  // The Monday brief. Written by the weekly job after its re-plan and, for the current week only,
+  // by the request that finds none; read by the brief routes and by Explain straight from the
+  // table, and by no snapshot, memo or deliverable. As state, the lazy write of a request would
+  // drop the snapshot it was built from. `server/services/brief.ts` is its only writer. Its seen
+  // marker is the revision's `seenAt` (state), so stamping a brief seen does move the version.
+  'WeeklyBrief',
 ] as const
 
 const STATE_SET: ReadonlySet<string> = new Set(STATE_MODELS)

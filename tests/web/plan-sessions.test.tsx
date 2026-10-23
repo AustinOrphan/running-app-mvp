@@ -1,8 +1,9 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type {
   Goal,
+  PlanPreview,
   PlanRevisionView,
   PlanWithSessions,
   PlanWithWeeks,
@@ -24,14 +25,18 @@ import {
   makeBrief,
   makeDiff,
   makeLine,
+  makePreview,
   makeRevision,
   makeSession,
   makeV1Plan,
   makeV2Plan,
   makeV2Week,
   makeWeekLine,
+  makeWindow,
   settings,
 } from './plan-fixtures.ts'
+import { makeToday } from './today-fixtures.ts'
+import { sheetRoutes } from './wrist-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
   WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
@@ -71,7 +76,9 @@ function routes(plan: PlanWithSessions | PlanWithWeeks | null, extra: MockRoutes
     'GET /api/settings': () => settings,
     'GET /api/weeks': () => [] as WeekRow[],
     'GET /api/plan/revisions': () => [makeRevision()],
+    'GET /api/plan/disruptions': () => [],
     'GET /api/activities': () => activityPage([]),
+    ...sheetRoutes(plan !== null && 'sessions' in plan ? plan.sessions : []),
     ...extra,
   }
 }
@@ -320,7 +327,9 @@ describe('Plan page, version-2 plans', () => {
     mockApi(
       routes(current, {
         'GET /api/plan': () => current,
+        'POST /api/plan/preview': () => replanPreview(),
         'POST /api/plan/replan': () => makeRevision(),
+        'POST /api/plan/revisions/r1/seen': () => ({ status: 204, body: undefined }),
       }),
     )
     renderPlan()
@@ -330,25 +339,179 @@ describe('Plan page, version-2 plans', () => {
       sessions: [makeSession({ id: 'z', weekStart: '2027-01-11', date: '2027-01-15' })],
     })
     await user.click(screen.getByRole('button', { name: 'Update plan from latest data' }))
+    const update = await screen.findByRole('dialog', { name: 'Update plan from latest data' })
+    await user.click(await within(update).findByRole('button', { name: 'Apply to my plan' }))
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /Hill strides/ })).not.toBeInTheDocument()
     })
     expect(screen.queryByRole('dialog', { name: 'Hill strides' })).not.toBeInTheDocument()
   })
 
-  test('Update plan posts a re-plan and confirms with a toast', async () => {
+  test('Update plan from latest data previews first, then applies that preview with its hash', async () => {
     const user = userEvent.setup()
     const { calls } = mockApi(
-      routes(makeV2Plan(), { 'POST /api/plan/replan': () => makeRevision() }),
+      routes(makeV2Plan(), {
+        'POST /api/plan/preview': () => replanPreview(),
+        'POST /api/plan/replan': () => makeRevision({ id: 'r3' }),
+        'POST /api/plan/revisions/r3/seen': () => ({ status: 204, body: undefined }),
+      }),
     )
     renderPlan()
     await user.click(await screen.findByRole('button', { name: 'Update plan from latest data' }))
-    await waitFor(() => {
-      expect(calls.some((c) => c.method === 'POST' && c.url === '/api/plan/replan')).toBe(true)
+    const dialog = await screen.findByRole('dialog', { name: 'Update plan from latest data' })
+    expect(await within(dialog).findByText('1 change across 1 week.')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(/Thu 14 Jan: Threshold intervals 40 min to/),
+    ).toBeInTheDocument()
+    // The preview is a request that writes nothing.
+    expect(calls.find((c) => c.url === '/api/plan/preview')?.body).toEqual({ type: 'replan' })
+    expect(calls.some((c) => c.url === '/api/plan/replan')).toBe(false)
+    expectCleanCopy(dialog)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Apply to my plan' }))
+    const updated = await within(dialog).findByRole('heading', { name: 'Plan updated' })
+    expect(calls.find((c) => c.url === '/api/plan/replan')?.body).toEqual({
+      expectHash: 'a'.repeat(64),
     })
-    expect(await screen.findByText('Plan updated')).toBeInTheDocument()
+    // The Apply button is gone: focus moves to what was done, inside the dialog.
+    await waitFor(() => {
+      expect(updated).toHaveFocus()
+    })
+    // The server wrote the revision as seen (as it does for every request): nothing is stamped.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+    expect(calls.some((c) => c.url.includes('/seen'))).toBe(false)
+    await user.click(within(dialog).getByRole('button', { name: 'Done' }))
+    expect(
+      screen.queryByRole('dialog', { name: 'Update plan from latest data' }),
+    ).not.toBeInTheDocument()
+  })
+
+  test('a re-plan whose revision is still unseen stamps it once', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(makeV2Plan(), {
+        'POST /api/plan/preview': () => replanPreview(),
+        'POST /api/plan/replan': () => makeRevision({ id: 'r3', seenAt: null }),
+        'POST /api/plan/revisions/r3/seen': () => ({ status: 204, body: undefined }),
+      }),
+    )
+    renderPlan()
+    await user.click(await screen.findByRole('button', { name: 'Update plan from latest data' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Update plan from latest data' })
+    await user.click(await within(dialog).findByRole('button', { name: 'Apply to my plan' }))
+    await within(dialog).findByRole('heading', { name: 'Plan updated' })
+    await waitFor(() => {
+      expect(calls.filter((c) => c.url === '/api/plan/revisions/r3/seen')).toHaveLength(1)
+    })
+  })
+
+  test('a re-plan that would change nothing says so and only closes', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(makeV2Plan(), { 'POST /api/plan/preview': () => makePreview() }),
+    )
+    renderPlan()
+    await user.click(await screen.findByRole('button', { name: 'Update plan from latest data' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Update plan from latest data' })
+    expect(await within(dialog).findByText('No changes to the plan.')).toBeInTheDocument()
+    expectCleanCopy(dialog)
+    expect(
+      within(dialog).queryByRole('button', { name: 'Apply to my plan' }),
+    ).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Done' }))
+    expect(calls.some((c) => c.url === '/api/plan/replan')).toBe(false)
+  })
+
+  test('a stale re-plan preview is replaced by the new one before it is applied', async () => {
+    const user = userEvent.setup()
+    let commits = 0
+    const newer = replanPreview({ hash: 'b'.repeat(64), summary: '2 changes across 1 week.' })
+    const { calls } = mockApi(
+      routes(makeV2Plan(), {
+        'POST /api/plan/preview': () => replanPreview(),
+        'POST /api/plan/replan': () => {
+          commits += 1
+          return commits === 1
+            ? {
+                status: 409,
+                body: {
+                  error: {
+                    code: 'conflict',
+                    message: 'This preview is out of date. Review the new one before applying it.',
+                    details: { code: 'stale-preview', preview: newer },
+                  },
+                },
+              }
+            : makeRevision({ id: 'r3' })
+        },
+        'POST /api/plan/revisions/r3/seen': () => ({ status: 204, body: undefined }),
+      }),
+    )
+    renderPlan()
+    await user.click(await screen.findByRole('button', { name: 'Update plan from latest data' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Update plan from latest data' })
+    await user.click(await within(dialog).findByRole('button', { name: 'Apply to my plan' }))
+    expect(
+      await within(dialog).findByText(
+        'The plan changed while you were reading. This is the new preview.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText('2 changes across 1 week.')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Apply to my plan' }))
+    await within(dialog).findByText('Plan updated')
+    expect(
+      calls
+        .filter((c) => c.url === '/api/plan/replan')
+        .map((c) => (c.body as { expectHash: string }).expectHash),
+    ).toEqual(['a'.repeat(64), 'b'.repeat(64)])
+  })
+
+  test('a re-plan the plan checks refuse says why and cannot be applied', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(makeV2Plan(), {
+        'POST /api/plan/preview': () =>
+          replanPreview({
+            blocked: true,
+            reasons: [
+              {
+                code: 'checklist',
+                message: 'The plan did not pass the plan checks, so it was not published.',
+              },
+            ],
+          }),
+      }),
+    )
+    renderPlan()
+    await user.click(await screen.findByRole('button', { name: 'Update plan from latest data' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Update plan from latest data' })
+    expect(await within(dialog).findByText(/did not pass the plan checks/)).toBeInTheDocument()
+    expectCleanCopy(dialog)
+    expect(within(dialog).getByRole('button', { name: 'Apply to my plan' })).toBeDisabled()
   })
 })
+
+/** A re-plan that turns Thursday's threshold run into an easy run of 30 minutes. */
+function replanPreview(over: Partial<PlanPreview> = {}): PlanPreview {
+  return makePreview({
+    diff: makeDiff(
+      [
+        makeLine({
+          externalId: 'x1',
+          date: '2027-01-14',
+          before: makeBrief({ durationMin: 40 }),
+          after: makeBrief({ kind: 'easy', title: 'Easy run', durationMin: 30 }),
+          fields: ['kind', 'durationMin'],
+        }),
+      ],
+      [makeWeekLine()],
+    ),
+    summary: '1 change across 1 week.',
+    ...over,
+  })
+}
 
 /** A weekly update the runner has not opened: a diff, its cause and an undo. */
 function unseenUpdate(over: Partial<PlanRevisionView> = {}): PlanRevisionView {
@@ -514,6 +677,175 @@ describe('Plan page, What changed', () => {
   })
 })
 
+describe('Plan page, rest windows', () => {
+  const todayRoute = { 'GET /api/today': () => makeToday({ date: '2027-01-13' }) }
+
+  test('the header has Not 100% beside Update plan from latest data, and Not 100% opens the sheet', async () => {
+    const user = userEvent.setup()
+    mockApi(routes(makeV2Plan(), todayRoute))
+    renderPlan()
+    await screen.findByRole('button', { name: 'Not 100%' })
+    const header = screen.getByRole('banner')
+    expect(
+      within(header)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Not 100%', 'Update plan from latest data', 'Regenerate plan'])
+    await user.click(within(header).getByRole('button', { name: 'Not 100%' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Not 100%' })
+    expect(await within(dialog).findByRole('radio', { name: /Ill, above the neck/ })).toBeVisible()
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(within(header).getByRole('button', { name: 'Not 100%' })).toHaveFocus()
+  })
+
+  test('without a window there is no banner and the server is not asked for its day', async () => {
+    const { calls } = mockApi(routes(makeV2Plan()))
+    renderPlan()
+    await screen.findByText('Week focus 0')
+    await waitFor(() => {
+      expect(calls.some((c) => c.url.startsWith('/api/plan/disruptions'))).toBe(true)
+    })
+    expect(screen.queryByRole('region', { name: 'Rest window' })).not.toBeInTheDocument()
+    expect(calls.some((c) => c.url === '/api/today')).toBe(false)
+  })
+
+  test('a window in force is a banner above the plan, with its three buttons', async () => {
+    mockApi(
+      routes(makeV2Plan(), {
+        ...todayRoute,
+        'GET /api/plan/disruptions': () => [makeWindow()],
+      }),
+    )
+    renderPlan()
+    const banner = await screen.findByRole('region', { name: 'Rest window' })
+    expect(within(banner).getByText('Resting for illness until Thu 14 Jan.')).toBeInTheDocument()
+    expect(
+      within(banner)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(["I'm better", 'Extend', 'Remove window'])
+    // Above the overview and the table.
+    expect(
+      banner.compareDocumentPosition(screen.getByRole('region', { name: 'Feasibility' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expectCleanCopy(document.body)
+  })
+
+  test('removing the window from the banner shows the result and its undo after the banner is gone', async () => {
+    const user = userEvent.setup()
+    let removed = false
+    mockApi(
+      routes(makeV2Plan(), {
+        ...todayRoute,
+        'GET /api/plan/disruptions': () => (removed ? [] : [makeWindow()]),
+        'POST /api/plan/preview': () =>
+          makePreview({
+            action: { type: 'disruption-remove', id: 'w1' },
+            summary: 'Removed the window (illness) from Mon 11 Jan to Thu 14 Jan.',
+            hash: 'f'.repeat(64),
+          }),
+        'DELETE /api/plan/disruptions/w1': () => {
+          removed = true
+          return {
+            disruption: makeWindow({ status: 'undone', phase: 'done' }),
+            revision: makeRevision({
+              id: 'r6',
+              reason: 'disruption',
+              auto: false,
+              summary: 'Removed the window (illness) from Mon 11 Jan to Thu 14 Jan.',
+              diff: makeDiff([], [makeWeekLine()]),
+              causes: { sessions: {}, weeks: { '2027-01-11': ['disruption'] } },
+              undo: AVAILABLE,
+              seenAt: null,
+              disruptionId: 'w1',
+            }),
+          }
+        },
+        'POST /api/plan/revisions/r6/seen': () => ({ status: 204, body: undefined }),
+      }),
+    )
+    renderPlan()
+    await user.click(await screen.findByRole('button', { name: 'Remove window' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Remove this window' })
+    await user.click(await within(dialog).findByRole('button', { name: 'Apply to my plan' }))
+    expect(await within(dialog).findByText('Window removed')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Rest window' })).not.toBeInTheDocument()
+    })
+    expect(within(dialog).getByRole('button', { name: 'Undo update' })).toBeInTheDocument()
+  })
+
+  test('a week a window touches carries Rest window, and the weeks held to the restart, Return week', async () => {
+    mockApi(
+      routes(
+        makeV2Plan({
+          weeks: [
+            makeV2Week(0),
+            makeV2Week(1, { flags: ['disrupted'] }),
+            makeV2Week(2, { flags: ['disrupted', 'disruption-return'] }),
+          ],
+        }),
+      ),
+    )
+    renderPlan()
+    await screen.findByText('Week focus 0')
+    const row = (weekStart: string) =>
+      document.querySelector<HTMLElement>(`tr[data-week="${weekStart}"]`)!
+    expect(within(row('2027-01-04')).queryByText('Rest window')).not.toBeInTheDocument()
+    expect(within(row('2027-01-04')).queryByText('Return week')).not.toBeInTheDocument()
+    expect(within(row('2027-01-11')).getByText('Rest window')).toBeInTheDocument()
+    expect(within(row('2027-01-11')).queryByText('Return week')).not.toBeInTheDocument()
+    expect(within(row('2027-01-18')).getByText('Rest window')).toBeInTheDocument()
+    expect(within(row('2027-01-18')).getByText('Return week')).toBeInTheDocument()
+    expectCleanCopy(document.body)
+  })
+
+  test('a day a window holds reads Rest: illness with the meta Rest window; a skipped one says both', async () => {
+    mockApi(
+      routes(
+        makeV2Plan({
+          sessions: [
+            makeSession({
+              id: 'rest',
+              weekStart: '2027-01-11',
+              date: '2027-01-13',
+              kind: 'rest',
+              title: 'Rest: illness',
+              durationMin: 0,
+              distanceM: null,
+              gainM: null,
+              structure: [],
+              flags: ['rest-window'],
+              status: 'planned',
+            }),
+            makeSession({
+              id: 'back',
+              weekStart: '2027-01-11',
+              date: '2027-01-12',
+              kind: 'easy',
+              title: 'Easy run',
+              durationMin: 40,
+              distanceM: null,
+              flags: ['rest-window'],
+              status: 'skipped',
+            }),
+          ],
+        }),
+      ),
+    )
+    renderPlan()
+    const rest = await screen.findByRole('button', { name: /Rest: illness/ })
+    expect(rest).toHaveTextContent('Rest: illness')
+    expect(rest).toHaveTextContent('Rest window')
+    expect(rest).not.toHaveTextContent('Planned')
+    const skipped = screen.getByRole('button', { name: /Easy run/ })
+    expect(skipped).toHaveTextContent('40 min, Skipped, Rest window')
+    expectCleanCopy(document.body)
+  })
+})
+
 describe('Plan page, version-1 plans', () => {
   test('stay as before: no feasibility, no checks, no day cards, no revisions request', async () => {
     const { calls } = mockApi(routes(makeV1Plan()))
@@ -525,6 +857,8 @@ describe('Plan page, version-1 plans', () => {
     expect(
       screen.queryByRole('button', { name: 'Update plan from latest data' }),
     ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Not 100%' })).not.toBeInTheDocument()
     expect(calls.some((c) => c.url.startsWith('/api/plan/revisions'))).toBe(false)
+    expect(calls.some((c) => c.url.startsWith('/api/plan/disruptions'))).toBe(false)
   })
 })

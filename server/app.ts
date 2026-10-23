@@ -11,6 +11,7 @@ import type { Config } from './config.ts'
 import { apiNotFound, errorHandler } from './errors.ts'
 import { createLogger } from './logger.ts'
 import { activitiesRouter } from './routes/activities.ts'
+import { briefRouter, briefsRouter } from './routes/brief.ts'
 import { calendarRouter, redactedRequest } from './routes/calendar.ts'
 import { checkinsRouter } from './routes/checkins.ts'
 import { explainRouter } from './routes/explain.ts'
@@ -51,7 +52,10 @@ export interface Deps {
 
 const REQUEST_ID = /^[\w.-]{1,64}$/
 
-/** `globalLimit` overrides the per-IP request budget per 15 minutes; tests use it. */
+/**
+ * `globalLimit` overrides the per-IP API request budget per 15 minutes (1000 in production, 20000
+ * in any other `NODE_ENV`, see `apiLimitFor`); tests use it.
+ */
 export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Express {
   const logger = createLogger(deps.config)
   const app = express()
@@ -88,7 +92,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   // Before the API routers, so every API call shares one budget. It stops at `/api`: the hashed
   // assets, the manifest, the icons and the index fallback that `mountStatic` serves are cheap and
   // cacheable, not an abuse surface, and counting them would spend the budget on page loads.
-  app.use('/api', createGlobalLimiter({ max: opts.globalLimit }))
+  app.use('/api', createGlobalLimiter({ max: opts.globalLimit, nodeEnv: deps.config.nodeEnv }))
 
   // Request pipeline (phase 3a design 4.8): no JSON body is read before the caller is known. The
   // only parsers ahead of authentication are the 16 KB one on sign-in and setup, and the 16 MB one
@@ -122,6 +126,8 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/state', stateRouter(deps))
   app.use('/api/stats', statsRouter(deps))
   app.use('/api/explain', explainRouter(deps))
+  app.use('/api/brief', briefRouter(deps))
+  app.use('/api/briefs', briefsRouter(deps))
   app.use('/api/fuel', fuelRouter(deps))
   app.use('/api/activities', activitiesRouter(deps))
   app.use('/api/imports', importsRouter(deps))

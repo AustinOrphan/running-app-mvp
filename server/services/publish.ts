@@ -60,6 +60,7 @@ import {
 } from '../providers/types.ts'
 import { toWristItem, wristItemStatus } from '../serialize.ts'
 import { athleteKey, loadAthleteContext } from './athleteState.ts'
+import { CALENDAR_CHANNEL } from './calendar.ts'
 import { dataVersionKey, openTransactions } from '../dataVersion.ts'
 import { registerHealthNoteProducer, tomorrowNotOnWatch } from './todayHealth.ts'
 import { registerTodayStamp } from './today.ts'
@@ -85,9 +86,10 @@ export const REFERENCE_TTL_MS = 6 * 3_600_000
 export const INCOMPLETE_REFERENCE_TTL_MS = PUBLISH_BACKSTOP_MS
 /**
  * Bump when a renderer changes what an event holds (the intervals.icu text, the event body), so
- * every event is sent again with the new text.
+ * every event is sent again with the new text. An event the runner deleted stays deleted while its
+ * day, name and text are unchanged (`contentHashes`): the bump alone never brings it back.
  */
-export const DELIVERY_VERSION = 1
+export const DELIVERY_VERSION = 2
 /** Back-off of a send that did not go through: `min(2^attempts, 60)` minutes. */
 const MAX_BACKOFF_MIN = 60
 /** A rejected workout is tried this many times in all (the first and two retries). */
@@ -116,9 +118,31 @@ const RECONNECT_CODES: ReadonlySet<string> = new Set<PublishFailCode>(['auth', '
  * note and a new threshold pace in intervals.icu change the text.
  */
 export function contentHash(parts: { date: string; name: string; description: string }): string {
+  return hashAt(DELIVERY_VERSION, parts)
+}
+
+function hashAt(
+  version: number,
+  parts: { date: string; name: string; description: string },
+): string {
   return createHash('sha256')
-    .update(JSON.stringify([DELIVERY_VERSION, parts.date, parts.name, parts.description]))
+    .update(JSON.stringify([version, parts.date, parts.name, parts.description]))
     .digest('hex')
+}
+
+/**
+ * The hash `parts` had under every delivery version up to the current one, the current first. A
+ * stored hash from an earlier version is among these when only the version moved since: the day,
+ * the name and the text are the same. The runner's removal of an event is judged on this, so a
+ * bump of `DELIVERY_VERSION` never brings back an event the runner deleted, and a change of the
+ * content does.
+ */
+export function contentHashes(parts: {
+  date: string
+  name: string
+  description: string
+}): string[] {
+  return Array.from({ length: DELIVERY_VERSION }, (_, i) => hashAt(DELIVERY_VERSION - i, parts))
 }
 
 /**
@@ -209,6 +233,8 @@ interface Desired {
   title: string
   plan: WorkoutPlan
   hash: string
+  /** The hashes of the same content under every delivery version up to this one (`contentHashes`). */
+  sameContent: string[]
 }
 
 /** The columns a run writes; the rest are set by the database. */
@@ -376,21 +402,25 @@ async function runOnce(deps: Deps, userId: string, opts: PublishOptions): Promis
       ref = read.ref
       referenceJson = read.json
     }
-    const desired: Desired[] = sends.map((d) => ({
-      externalId: d.externalId,
-      remoteExternalId: workoutExternalId(d.externalId, tag),
-      date: d.date,
-      order: d.order,
-      kind: d.plan.kind,
-      variant: d.plan.eased ? 'eased' : 'planned',
-      title: d.plan.title,
-      plan: d.plan,
-      hash: contentHash({
+    const desired: Desired[] = sends.map((d) => {
+      const content = {
         date: d.date,
         name: d.plan.title,
         description: renderIntervalsDescription(d.plan, ref).text,
-      }),
-    }))
+      }
+      return {
+        externalId: d.externalId,
+        remoteExternalId: workoutExternalId(d.externalId, tag),
+        date: d.date,
+        order: d.order,
+        kind: d.plan.kind,
+        variant: d.plan.eased ? 'eased' : 'planned',
+        title: d.plan.title,
+        plan: d.plan,
+        hash: contentHash(content),
+        sameContent: contentHashes(content),
+      }
+    })
 
     const remote = await publish.list({ from: today, to }, ctx)
     const desiredIds = new Set(desired.map((d) => d.externalId))
@@ -739,7 +769,16 @@ function decide(args: {
       )
       continue
     }
-    if (row?.state === 'owner-removed' && remoteId === null && row.sentHash === d.hash) continue
+    // The removal stands while the content is what the runner removed; a delivery version that
+    // moved without the content moving does not bring the event back.
+    if (
+      row?.state === 'owner-removed' &&
+      remoteId === null &&
+      row.sentHash !== null &&
+      d.sameContent.includes(row.sentHash)
+    ) {
+      continue
+    }
 
     if (row !== undefined && row.state === 'sent' && row.sentHash === d.hash && remoteId !== null) {
       plan.unchanged += 1
@@ -1260,9 +1299,9 @@ export function statusRangeIssue(from: string, to: string): string | null {
 }
 
 /**
- * `GET /api/wrist/status`: the settings and one item per session in the range, joined by
- * `externalId`. While publishing is on, a run session of the next 14 days that has no publication
- * yet is listed as `not-sent`.
+ * `GET /api/wrist/status`: the settings, the calendar link and one item per session in the range,
+ * joined by `externalId`. While publishing is on, a run session of the next 14 days that has no
+ * publication yet is listed as `not-sent`.
  */
 export async function wristStatus(
   deps: Deps,
@@ -1272,8 +1311,12 @@ export async function wristStatus(
 ): Promise<WristStatus> {
   const { prisma } = deps
   const today = todayIso(now)
-  const [channel, integration, context] = await Promise.all([
+  const [channel, calendar, integration, context] = await Promise.all([
     prisma.deliveryChannel.findUnique({ where: { userId_channel: { userId, channel: CHANNEL } } }),
+    prisma.deliveryChannel.findUnique({
+      where: { userId_channel: { userId, channel: CALENDAR_CHANNEL } },
+      select: { enabled: true, tokenCreatedAt: true },
+    }),
     prisma.integration.findUnique({
       where: { userId_provider: { userId, provider: PROVIDER } },
       select: { status: true },
@@ -1353,6 +1396,11 @@ export async function wristStatus(
       garminLinked,
       lastRunAt: channel?.lastRunAt?.toISOString() ?? null,
       running: isPublishing(userId),
+    },
+    // Whether the calendar link works, and since when; the token is never read back.
+    calendar: {
+      enabled: calendar?.enabled === true,
+      tokenCreatedAt: calendar?.tokenCreatedAt?.toISOString() ?? null,
     },
     items: items.map(({ item }) => item),
   }

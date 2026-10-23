@@ -22,7 +22,7 @@ import {
 } from '../services/planEngine.ts'
 import { listArchivedPlans, restoreArchivedPlan } from '../services/planSwitch.ts'
 import { listRevisions, markRevisionSeen } from '../services/revisions.ts'
-import { sessionWorkoutFile, weekWorkoutZip } from '../services/workouts.ts'
+import { sessionWorkoutFile, sessionWorkoutView, weekWorkoutZip } from '../services/workouts.ts'
 
 /** A week's baseline can be at most a full week of minutes. */
 const MAX_WEEK_MIN = 7 * 24 * 60
@@ -370,6 +370,17 @@ export function planRouter(deps: Deps): Router {
     const { activityId } = parse(linkBody, req.body)
     res.json(
       await linkPlanSession(deps, { userId: req.userId, sessionId: req.params.id, activityId }),
+    )
+  })
+
+  // What the session sheet shows of the workout: its targets, whether today's version is eased and
+  // whether the file below can be made. The answer follows the day and the forecast, so it is not
+  // cached.
+  router.get('/sessions/:id/workout', async (req, res) => {
+    const { id } = parse(sessionParams, req.params)
+    res.set('Cache-Control', 'no-store')
+    res.json(
+      await sessionWorkoutView(deps, { userId: req.userId, sessionId: id, today: todayIso() }),
     )
   })
 

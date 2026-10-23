@@ -36,9 +36,16 @@ function isErrorBody(value: unknown): value is ApiErrorBody {
 
 /**
  * Same-origin JSON request. `path` is relative to `/api` (for example `/plan`); a leading `/api`
- * is accepted too. Failures throw `ApiError`. Resolves to `undefined` for an empty (204) body.
+ * is accepted too. Failures throw `ApiError`. Resolves to `undefined` for an empty (204) body. A
+ * `signal` that fires cancels the request: it is an `ApiError` with status 0 when it had not
+ * answered yet.
  */
-export async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
+export async function api<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   const relative = path.startsWith('/api/') ? path.slice(4) : path
   let response: Response
   try {
@@ -53,6 +60,7 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
               'Content-Type': 'application/json',
             },
       body: body === undefined ? undefined : JSON.stringify(body),
+      ...(signal === undefined ? {} : { signal }),
     })
   } catch {
     throw new ApiError(0, 'internal', 'The server did not respond.')
@@ -138,8 +146,8 @@ export const keys = {
   planArchived: 'planArchived',
   disruptions: 'disruptions',
   brief: 'brief',
+  fuel: 'fuel',
   today: 'today',
-  checkins: 'checkins',
   zones: 'zones',
   zoneProposals: 'zoneProposals',
   predictions: 'predictions',
@@ -148,6 +156,7 @@ export const keys = {
   explain: 'explain',
   state: 'state',
   stats: 'stats',
+  wrist: 'wrist',
 } as const
 
 /** Everything that reads the plan or the goal it follows, after a new plan replaces the old one. */
@@ -162,6 +171,9 @@ export function invalidateNewPlan(queryClient: QueryClient): Promise<unknown> {
       keys.today,
       keys.predictions,
       keys.state,
+      keys.fuel,
+      // The sessions on the way to the watch are the plan's.
+      keys.wrist,
     ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
   )
 }

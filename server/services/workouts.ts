@@ -17,8 +17,18 @@ import { WORKOUT_TEMPLATES } from '../../shared/copy/workouts.ts'
 import { isHotForSteering, trainingHeatAdvice } from '../../shared/engine/heat.ts'
 import { easedSession, todayAdvice } from '../../shared/engine/readiness.ts'
 import { resolveTargets } from '../../shared/engine/targets.ts'
-import type { SessionKind } from '../../shared/engine/types.ts'
-import type { PlanSessionStatus, TodayAdvice, Units } from '../../shared/types.ts'
+import type {
+  ResolvedTargets,
+  SessionKind,
+  SessionSpec,
+  ZoneSet,
+} from '../../shared/engine/types.ts'
+import type {
+  PlanSessionStatus,
+  SessionWorkoutView,
+  TodayAdvice,
+  Units,
+} from '../../shared/types.ts'
 import { FILE_SLUGS, publishable } from '../../shared/workouts/labels.ts'
 import { toWorkoutPlan } from '../../shared/workouts/plan.ts'
 import type { WorkoutPlan } from '../../shared/workouts/types.ts'
@@ -118,10 +128,7 @@ export async function buildDeliverables(
     if (verdict === 'rest') return { ...base, action: 'withdraw', cause: 'rest-advice' }
 
     const source = verdict === 'downgrade-easy' ? easedSession(planned, context.zones) : planned
-    const peak = forecast === null ? null : trainingHeatAdvice(forecast, source).peak
-    const targets = resolveTargets(source, context.zones, {
-      hot: isHotForSteering(peak, source.flags),
-    })
+    const targets = targetsFor(source, context.zones, forecast)
     // An eased run keeps its fuel target (design 10.5): the minutes and the day are the planned
     // ones, and the planned flags carry `fuel-practice`, which `easedSession` drops with the rest.
     const fuelLine = fuelLineFor(fuel, {
@@ -139,6 +146,20 @@ export async function buildDeliverables(
       plan: toWorkoutPlan(source, targets, { eased: source !== planned, fuelLine, units }),
     }
   })
+}
+
+/**
+ * The targets of a session as it is to be run: the current zones, and effort in the lead on a day
+ * steered by heat (`isHotForSteering` on the forecast's peak). Every surface that shows a figure
+ * gets it from here, the deliverables and the session sheet alike.
+ */
+function targetsFor(
+  source: SessionSpec,
+  zones: ZoneSet | null,
+  forecast: Awaited<ReturnType<typeof loadForecast>>,
+): ResolvedTargets {
+  const peak = forecast === null ? null : trainingHeatAdvice(forecast, source).peak
+  return resolveTargets(source, zones, { hot: isHotForSteering(peak, source.flags) })
 }
 
 function externalIdOf(session: { id: string; externalId?: string }): string {
@@ -240,4 +261,47 @@ export async function weekWorkoutZip(
   const entries: Record<string, [Uint8Array, { mtime: Date }]> = {}
   for (const d of sends) entries[names.get(d.sessionId)!] = [fitOf(d, now), { mtime: now }]
   return { fileName: `workouts-${weekStart}.zip`, bytes: zipSync(entries) }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The session sheet
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * What the session sheet shows of a session's workout: its targets as planned, whether readiness
+ * eased today's version for the watch, and whether the workout file can be made. The file's answer
+ * is the download route's own, in the same order (not a run, already settled, rest advice), so the
+ * sheet never offers a download the route would refuse.
+ *
+ * @throws 404 outside the active plan.
+ */
+export async function sessionWorkoutView(
+  deps: Deps,
+  args: { userId: string; sessionId: string; today: string },
+): Promise<SessionWorkoutView> {
+  const { userId, today } = args
+  const row = await deps.prisma.planSession.findFirst({
+    where: { id: args.sessionId, plan: { userId, status: 'active' } },
+    select: { id: true, date: true, kind: true, status: true },
+  })
+  if (!row) throw notFound(text('workout.file.not-found'))
+  const context = await loadAthleteContext(deps, { userId, today })
+  const planned = (context.existing()?.sessions ?? []).find((s) => s.id === row.id)
+  if (planned === undefined) throw notFound(text('workout.file.not-found'))
+  const forecast = await loadForecast(deps.prisma, userId, context.profile)
+  const targets = targetsFor(planned, context.zones, forecast)
+
+  if (!publishable(row.kind as SessionKind)) {
+    return { targets, eased: false, file: { available: false, reason: 'not-a-run' } }
+  }
+  if (!isToRun(row.status as PlanSessionStatus)) {
+    return { targets, eased: false, file: { available: false, reason: 'settled' } }
+  }
+  const day = await buildDeliverables(deps, userId, { from: row.date, to: row.date, today })
+  const found = day.find((d) => d.sessionId === row.id)
+  if (found === undefined) throw notFound(text('workout.file.not-found'))
+  if (found.action === 'withdraw') {
+    return { targets, eased: false, file: { available: false, reason: 'rest-advice' } }
+  }
+  return { targets, eased: found.plan.eased, file: { available: true } }
 }

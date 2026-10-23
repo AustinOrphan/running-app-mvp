@@ -16,6 +16,7 @@ import {
   makeToday,
 } from './today-fixtures.ts'
 import { renderToday, startToday } from './today-render.tsx'
+import { sheetRoutes } from './wrist-fixtures.ts'
 
 // Stands in for the real drawer so the wiring is visible: which rules it was opened with.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -86,16 +87,12 @@ describe('Today: the hero variants', () => {
     renderToday(dayOf())
     const card = await screen.findByRole('article', { name: 'Easy run' })
     const actions = [
-      within(card).getByRole('link', { name: 'Done' }),
+      within(card).getByRole('button', { name: 'Done' }),
       within(card).getByRole('button', { name: 'Explain' }),
       within(card).getByRole('button', { name: 'Not today' }),
     ]
     expect(actions[0]!.compareDocumentPosition(actions[1]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(actions[1]!.compareDocumentPosition(actions[2]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(within(card).getByRole('link', { name: 'Done' })).toHaveAttribute(
-      'href',
-      '/activities?new=1',
-    )
   })
 
   test('eased: the easy run is the hero, the planned session sits above it, and J3 is behind Explain', async () => {
@@ -161,7 +158,7 @@ describe('Today: the hero variants', () => {
     const card = await screen.findByRole('article', { name: 'Rest day.' })
     expect(within(card).getByText('Planned: Threshold, 50 min. Not today.')).toBeInTheDocument()
     expect(within(card).queryByText('Heart rate')).not.toBeInTheDocument()
-    expect(within(card).queryByRole('link', { name: 'Done' })).not.toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
     expect(within(card).queryByRole('button', { name: 'Not today' })).not.toBeInTheDocument()
     expect(within(card).getByRole('button', { name: 'Explain' })).toBeInTheDocument()
     expect(within(card).getByText('Next: Thu 19 Mar, Long run, 90 min.')).toBeInTheDocument()
@@ -214,23 +211,35 @@ describe('Today: the hero variants', () => {
 
   test('an eased session reads the same on the hero chip and in its sheet', async () => {
     const user = userEvent.setup()
-    renderToday(dayOf({ session: makeSession({ status: 'downgraded' }) }), {
-      'GET /api/activities': () => activityPage([]),
-    })
+    const eased = makeSession({ status: 'downgraded' })
+    const hero = makeHero({ session: eased })
+    renderToday(
+      makeToday({
+        sessions: [{ session: eased, advice: hero.advice, reasons: hero.reasons }],
+        coach: makeCoach({
+          hero,
+          weekStrip: makeStrip({}, { '2026-03-18': { mark: 'planned', sessions: [eased] } }),
+        }),
+      }),
+      { 'GET /api/activities': () => activityPage([]), ...sheetRoutes([eased]) },
+    )
     const card = await screen.findByRole('article', { name: 'Easy run' })
     expect(within(card).getByText('Eased')).toBeInTheDocument()
     expect(within(card).queryByText('Adjusted')).not.toBeInTheDocument()
-    await user.click(within(card).getByRole('button', { name: 'Not today' }))
+    await user.click(screen.getByRole('button', { name: 'Wednesday 18 Mar, Planned' }))
     const sheet = await screen.findByRole('dialog', { name: 'Easy run' })
     expect(within(sheet).getByText('Eased')).toBeInTheDocument()
   })
 
-  test('Not today opens the session sheet until the Not today sheet replaces it', async () => {
+  test('Not today opens the sheet that moves or skips the session', async () => {
     const user = userEvent.setup()
-    renderToday(dayOf(), { 'GET /api/activities': () => activityPage([]) })
+    renderToday(dayOf())
     const card = await screen.findByRole('article', { name: 'Easy run' })
     await user.click(within(card).getByRole('button', { name: 'Not today' }))
-    expect(await screen.findByRole('dialog', { name: 'Easy run' })).toBeInTheDocument()
+    const sheet = await screen.findByRole('dialog', { name: 'Not today' })
+    expect(within(sheet).getByLabelText('Move to')).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Skip session' })).toBeInTheDocument()
+    expect(within(sheet).getByText('A skipped session is not made up later.')).toBeInTheDocument()
   })
 })
 

@@ -8,19 +8,29 @@ import {
   type Template,
 } from '../../../shared/copy/template.ts'
 import {
+  activityHintText,
+  activityLoadErrorText,
   activityWindowRefusal,
   didNotFinishSentence,
   differenceCell,
+  distanceInvalidText,
   headlineSentences,
   inRangeCell,
   outlookLine,
+  predictedCell,
   rangeCell,
+  removedToast,
+  resultButtonLabel,
+  resultButtonName,
+  resultNotSavedText,
   resultRefusal,
   type ResultRefusal,
   savedToast,
+  sheetFieldProblem,
   summarySentences,
   TRACK_RECORD_TEMPLATES,
   trackRecordLead,
+  trackRecordLoadError,
   unscoredSentence,
 } from '../../../shared/copy/trackRecord.ts'
 import type { RecordSummary, ScoredPrediction } from '../../../shared/engine/backtest.ts'
@@ -473,6 +483,54 @@ describe('the refusals of the result routes', () => {
     expect(refused.map((id) => id.replace('track-record.refused.', '')).sort()).toEqual(
       [...Object.keys(MESSAGES), 'activity-window'].sort(),
     )
+  })
+})
+
+describe('the words of the Goals page around the sheet and the record', () => {
+  test('buttons, toast and sheet sentences keep their words in both unit systems', () => {
+    for (const units of UNITS) {
+      expect(resultButtonLabel(false, units)).toBe('Record result')
+      expect(resultButtonLabel(true, units)).toBe('Edit result')
+      expect(resultButtonName(false, 'Spring half', units)).toBe('Record result for Spring half')
+      expect(resultButtonName(true, 'Spring half', units)).toBe('Edit result for Spring half')
+      expect(removedToast(units)).toBe('Result removed.')
+      expect(resultNotSavedText('Goal not found.', units)).toBe('Result not saved. Goal not found.')
+      expect(trackRecordLoadError(units)).toBe(
+        'The track record did not load. Reload the page to try again.',
+      )
+      expect(sheetFieldProblem('date-missing', units)).toBe('Pick the day of the race.')
+      expect(sheetFieldProblem('time-invalid', units)).toBe('Enter a time like 3:52:10.')
+      expect(distanceInvalidText(units)).toBe(`Enter a distance in ${units}, like 13.1.`)
+      expect(activityHintText(3, units)).toBe('Runs and races within 3 days of the race date.')
+      expect(activityLoadErrorText(units)).toBe(
+        'Activities near that date did not load. The result can be saved without a link.',
+      )
+      expectSentences(
+        [
+          removedToast(units),
+          trackRecordLoadError(units),
+          sheetFieldProblem('date-missing', units),
+          sheetFieldProblem('time-invalid', units),
+          distanceInvalidText(units),
+          activityHintText(3, units),
+          activityLoadErrorText(units),
+        ],
+        'sheet words',
+      )
+    }
+  })
+
+  test('a long goal name reaches the button name and the not-saved line whole', () => {
+    const name = 'Autumn 10K around the reservoir '.repeat(6).trim()
+    expect(resultButtonName(true, name, 'km')).toBe(`Edit result for ${name}`)
+    expect(resultNotSavedText(name, 'km')).toBe(`Result not saved. ${name}`)
+  })
+
+  test('the predicted cell reads as the range and the sentences do', () => {
+    const p = point({ predictedSec: 13_920 })
+    expect(predictedCell(p, 'km')).toBe('3 h 52 min')
+    expect(rangeCell(p, 'km')).toMatch(/ to /)
+    expect(predictedCell(point({ predictedSec: 2_700 }), 'mi')).toBe('45 min')
   })
 })
 

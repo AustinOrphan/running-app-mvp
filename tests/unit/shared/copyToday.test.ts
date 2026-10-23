@@ -149,6 +149,7 @@ describe('hero copy', () => {
     expect(say('today.target.effort', { range: '3 to 4' })).toBe('3 to 4 out of 10')
     expect(say('today.target.note-pace-guide', {})).toBe('Effort and heart rate come first.')
     expect(say('today.target.note-hot-effort', {})).toBe('Go by this today.')
+    expect(say('today.target.note-hot-effort-day', {})).toBe('Go by this when you run it.')
     expect(say('today.target.note-hot-hr', {})).toBe('It runs high in heat.')
   })
 

@@ -1,0 +1,31 @@
+/* A note, not a warning banner: a hairline and a tint set it apart, and the stronger variant takes
+   a heavier edge in the warning colour. Nothing here is red. */
+.card {
+  max-width: var(--prose-max);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.card[data-stronger='true'] {
+  border-left: 4px solid var(--warning);
+}
+
+.heading {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: 600;
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

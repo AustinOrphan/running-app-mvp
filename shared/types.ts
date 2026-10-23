@@ -2,6 +2,9 @@ import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts
 import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type {
   AthleteState,
+  BriefDecision,
+  BriefFacts,
+  BriefReplanCode,
   Checkin,
   EahCard,
   EngineWarning,
@@ -344,6 +347,14 @@ export interface WristSettings {
   /** A run for this runner is in progress. */
   running: boolean
 }
+/**
+ * The private calendar link (`POST`/`DELETE /api/wrist/calendar/token`). The token is shown once,
+ * when it is made, and never read back, so this holds only whether a link works and since when.
+ */
+export interface WristCalendar {
+  enabled: boolean
+  tokenCreatedAt: string | null
+}
 /** `GET /api/wrist/status`: the publisher's settings and one item per session in the range. */
 export interface WristStatus {
   from: string
@@ -351,7 +362,21 @@ export interface WristStatus {
   /** The intervals.icu connection: `needs_auth` asks for a reconnect. */
   connection: 'disconnected' | 'connected' | 'needs_auth' | 'error'
   settings: WristSettings
+  calendar: WristCalendar
   items: WristItem[]
+}
+/** Why a workout file is not made: the `details.reason` of a refused download. */
+export type WorkoutFileRefusal = 'not-a-run' | 'settled' | 'rest-advice' | 'empty'
+/**
+ * `GET /api/plan/sessions/:id/workout`: what the session sheet shows of a session's workout. The
+ * targets are the session as planned, resolved against the current zones and the day's heat (the
+ * same resolver as Today, the file and the watch); `eased` says the watch and the file carry the
+ * easy version today; `file` says whether the download is possible and, if not, why.
+ */
+export interface SessionWorkoutView {
+  targets: ResolvedTargets
+  eased: boolean
+  file: { available: true } | { available: false; reason: Exclude<WorkoutFileRefusal, 'empty'> }
 }
 
 export interface ActivityDetail {
@@ -681,6 +706,49 @@ export interface PlanRevisionView extends PlanRevision {
   disruptionId: string | null
 }
 /**
+ * `GET /api/brief` (phase 3a design 8.4): the Monday brief of one week. `facts` holds template ids
+ * and slots, never prose (`shared/copy/briefRender.ts` writes the words). The brief has no seen
+ * column: it is seen when the revision it describes is, or when it describes none.
+ */
+export interface BriefView {
+  /** The Monday the brief opens. */
+  weekStart: string
+  /** The plan the brief was built from; null when it was built with none. */
+  planId: string | null
+  version: number
+  /**
+   * Built by a request before the weekly update ran, and reading today's plan. A provisional brief
+   * of a week that is over reads as one whose update did not run (`facts.replan` is `not-run`).
+   */
+  provisional: boolean
+  seen: boolean
+  generatedAt: string
+  facts: BriefFacts
+  /** The revision the weekly update wrote, as the revision list serves it (undo state included). */
+  revision: PlanRevisionView | null
+  /** Later revisions of the plan within the brief's week, newest first; none for a provisional brief. */
+  since: PlanRevisionView[]
+  /** The Monday of the nearest earlier brief, or null. */
+  prev: string | null
+  /** The Monday of the nearest later brief, or null. */
+  next: string | null
+}
+/** One brief in `GET /api/briefs`, enough for the history strip and Today's brief line. */
+export interface BriefListItem {
+  weekStart: string
+  provisional: boolean
+  seen: boolean
+  generatedAt: string
+  decision: BriefDecision['kind'] | null
+  /** Set when the weekly update wrote no revision. */
+  replan: BriefReplanCode | null
+  /** The sessions the update changed. */
+  changeCount: number
+  /** The revision was undone. */
+  undone: boolean
+  nextKey: { date: string; kind: SessionKind } | null
+}
+/**
  * One owner edit of one session (phase 3a design 9.4, 9.5): the six things the session sheet can
  * ask for, each checked by the same guards (`adjustCheck`, `shared/engine/adjust.ts`).
  *
@@ -758,6 +826,11 @@ export interface PlanGuardView {
   effect: 'blocks' | 'warns'
   suggest: PlanSuggestion | null
 }
+/** Minutes of running over a span of days, before a change and after it. */
+export interface RunMinutes {
+  before: number
+  after: number
+}
 /**
  * What an action would do, from the same code that commits it (design 4.2). A refusal is
  * information, not an error: `blocked` says the commit would be refused and `reasons` says why.
@@ -768,6 +841,12 @@ export interface PlanPreview {
   action: PlanAction
   /** Empty when the action would change nothing, and when it is refused for a structural reason. */
   diff: PlanDiff
+  /**
+   * The minutes of runs still to come over the next 28 days, now and once the rows of `diff` are
+   * written (`runMinutesAhead`). Null when no run is planned in those days before or after, and for
+   * an owner edit of one session and an undo, which do not state it.
+   */
+  runMin: RunMinutes | null
   summary: string
   /** The engine's warnings for the plan the action leaves behind. */
   warnings: EngineWarning[]

@@ -71,6 +71,74 @@ export const TODAY_TEMPLATES = {
   'today.signal.checkin-items': tpl('Check-in recorded today.'),
   'today.signal.checkin-items-low': tpl('Some check-in answers are away from normal today.'),
 
+  // The check-in row (E2-6): the question, the five answers of the fatigue scale, the line the row
+  // folds into and, when the connection is down, the same line saying where the answer is kept.
+  // One template per answer, so no word is picked in code.
+  'today.checkin.question': tpl('How do you feel today?'),
+  'today.checkin.answer-fresh': tpl('Fresh', {}, { shape: 'label' }),
+  'today.checkin.answer-good': tpl('Good', {}, { shape: 'label' }),
+  'today.checkin.answer-normal': tpl('Normal', {}, { shape: 'label' }),
+  'today.checkin.answer-tired': tpl('Tired', {}, { shape: 'label' }),
+  'today.checkin.answer-drained': tpl('Drained', {}, { shape: 'label' }),
+  'today.checkin.sent-fresh': tpl('Checked in: fresh.'),
+  'today.checkin.sent-good': tpl('Checked in: good.'),
+  'today.checkin.sent-normal': tpl('Checked in: normal.'),
+  'today.checkin.sent-tired': tpl('Checked in: tired.'),
+  'today.checkin.sent-drained': tpl('Checked in: drained.'),
+  'today.checkin.queued-fresh': tpl('Checked in: fresh. Saved on this phone.'),
+  'today.checkin.queued-good': tpl('Checked in: good. Saved on this phone.'),
+  'today.checkin.queued-normal': tpl('Checked in: normal. Saved on this phone.'),
+  'today.checkin.queued-tired': tpl('Checked in: tired. Saved on this phone.'),
+  'today.checkin.queued-drained': tpl('Checked in: drained. Saved on this phone.'),
+  // What the verdict says in place of "One tap below adds the first." once an answer is waiting on
+  // the phone: the server has no signal yet, and the row below has already been used.
+  'today.checkin.verdict-queued': tpl(
+    'Your check-in is saved on this phone. Readiness is read again once it is sent.',
+  ),
+  // The check-in sheet: the caption of the five scales, the pain scale's hint and the toast that
+  // says where a save ended up.
+  'today.checkin.sheet-new': tpl(
+    'Optional. 1 to 5, where 3 is normal. These answers come first when the plan checks readiness.',
+  ),
+  'today.checkin.sheet-saved': tpl('Saved for today. Change any answer and save again.'),
+  'today.checkin.pain-hint': tpl('0 is none, 10 is the worst.'),
+  'today.checkin.toast-sent': tpl('Check-in saved', {}, { shape: 'label' }),
+  'today.checkin.toast-queued': tpl('Check-in saved on this phone', {}, { shape: 'label' }),
+  // `reason` is the server's own sentence, quoted.
+  'today.checkin.not-saved': tpl('Check-in not saved. {reason} Try again.', { reason: 'text' }),
+  // The server no longer knows the session, so what was waiting on the phone is gone with it.
+  'today.outbox.signed-out': tpl('You are signed out.'),
+  // An entry the outbox sent later was refused by the server and removed from the phone.
+  'today.outbox.dropped': tpl(
+    'A {what} saved on this phone was not accepted and was removed. Enter it again if it still applies.',
+    { what: 'text' },
+  ),
+
+  // A sheet whose code could not be loaded (no connection and no copy kept, or a release replaced
+  // the file): the page itself still works.
+  'today.sheet.unavailable-title': tpl('This did not open', {}, { shape: 'label' }),
+  'today.sheet.unavailable': tpl(
+    'This part of the app did not load. Reload the page to try again.',
+  ),
+
+  // The Done sheet: the planned figures are the prefill, so the sentence says to change what
+  // differs. A session of another kind than a run is logged as the same activity it will link to.
+  'today.done.title-run': tpl("Log today's run", {}, { shape: 'label' }),
+  'today.done.title-session': tpl("Log today's session", {}, { shape: 'label' }),
+  'today.done.planned': tpl('Planned: {duration}, {distance}. Change anything that differs.', {
+    duration: 'minutes',
+    distance: 'text',
+  }),
+  'today.done.planned-time': tpl('Planned: {duration}. Change anything that differs.', {
+    duration: 'minutes',
+  }),
+  'today.done.offline': tpl('Needs a connection. Your entries stay on this phone.'),
+  'today.done.saved-run': tpl('Run saved', {}, { shape: 'label' }),
+  'today.done.saved-session': tpl('Session saved', {}, { shape: 'label' }),
+  'today.done.not-saved': tpl('Not saved. {reason} Your entries are still here; try again.', {
+    reason: 'text',
+  }),
+
   // The race countdown.
   'today.race.estimate': tpl('Finish estimate {low} to {high}, most likely about {likely}.', {
     low: 'duration',
@@ -127,6 +195,9 @@ export const TODAY_TEMPLATES = {
   'today.target.effort': tpl('{range} out of 10', { range: 'text' }, { shape: 'label' }),
   'today.target.note-pace-guide': tpl('Effort and heart rate come first.'),
   'today.target.note-hot-effort': tpl('Go by this today.'),
+  // The same note for a session on another day (the weekly brief, the session sheet), where
+  // "today" would be wrong: it reads right for a day ahead and for a day that has passed.
+  'today.target.note-hot-effort-day': tpl('Go by this when you run it.'),
   'today.target.note-hot-hr': tpl('It runs high in heat.'),
 
   // The cooler start: the hour, and the index then and at the peak. Without a WBGT reading the

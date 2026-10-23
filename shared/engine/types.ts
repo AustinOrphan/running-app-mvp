@@ -3,6 +3,7 @@
 import type {
   Activity,
   AthleteProfile,
+  CauseCode,
   PlanSessionStatus,
   DisruptionMode,
   DisruptionReason,
@@ -503,6 +504,106 @@ export interface InputFact {
   state: 'used' | 'insufficient'
   /** The dates the figure was read over, when it is a window. */
   window?: { from: string; to: string }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The Monday brief (phase 3a design 8.3 and 8.5)
+//
+// Plain data throughout: what `buildBriefFacts` (`shared/engine/brief.ts`) returns and
+// `WeeklyBrief.facts` stores. It holds codes, template ids and slot values, never a sentence; the
+// words are written when the brief is read, in the runner's units (`shared/copy/briefRender.ts`).
+// ---------------------------------------------------------------------------------------------
+
+/** Why the weekly update wrote no revision, so the brief says so in place of "what changed". */
+export type BriefReplanCode = 'goal-passed' | 'checklist' | 'no-plan' | 'not-run' | 'error'
+
+/** The week that just ended. */
+export interface BriefLastWeek {
+  /** Its Monday. */
+  weekStart: string
+  /** Running minutes, the plain weekly total. */
+  ranMin: number
+  /** Minutes the plan asked for; null when no plan covered the week. */
+  plannedMin: number | null
+}
+
+/** The weekly decision about last week, as the brief states it. */
+export interface BriefDecision {
+  /** `post-race`: the week falls in the return schedule after a race, which reports no progress, hold or reduce. */
+  kind: 'progress' | 'hold' | 'reduce' | 'post-race'
+  /** The running minutes the week after it is capped at. */
+  nextWeekTargetMin: number
+}
+
+/** One change of the update, with the causes `attributeChange` found for it. */
+export interface BriefChangeLine {
+  /** What `presentDiff` makes of the change: a moved session is one line, not two. */
+  type: 'week' | 'hold' | 'added' | 'removed' | 'changed' | 'moved' | 'replaced'
+  date: string
+  /** Never empty. */
+  causes: CauseCode[]
+}
+
+/** What the update changed. The revision itself carries the lines; this is what the brief keeps. */
+export interface BriefChanges {
+  /** The session changes (every line that is not a week or a hold). */
+  count: number
+  lines: BriefChangeLine[]
+  runMinBefore: number
+  runMinAfter: number
+}
+
+/** The figures of `resolveTargets` that a surface shows, without its prose notes. */
+export type BriefTarget = Pick<
+  ResolvedTargets,
+  'zone' | 'mode' | 'hrCeiling' | 'hrRange' | 'paceSecPerKm' | 'rpe' | 'hot'
+>
+
+/** The next key session: a long run, a hard workout or the race, still to be run. */
+export interface BriefKeySession {
+  sessionId: string
+  externalId: string | null
+  date: string
+  kind: SessionKind
+  durationMin: number
+  distanceM: number | null
+  gainM: number | null
+  /** From `resolveTargets`, the figures the hero and the watch show. */
+  target: BriefTarget
+}
+
+/** The goal race and how far off it is. */
+export interface BriefCountdown {
+  /** The name the runner gave the goal. */
+  name: string
+  date: string
+  days: number
+}
+
+/** The finish estimate of this week and of the week before, rounded as Today shows an estimate. */
+export interface BriefPrediction {
+  nowSec: number
+  priorSec: number
+}
+
+/** `WeeklyBrief.facts`. */
+export interface BriefFacts {
+  /** The Monday the brief opens. */
+  weekStart: string
+  /** The local day the figures were read on. */
+  asOf: string
+  lastWeek: BriefLastWeek | null
+  decision: BriefDecision | null
+  /** Set when the weekly update wrote no revision. */
+  replan: BriefReplanCode | null
+  /** Null when there is no revision to describe (a provisional brief, a replan note). */
+  changes: BriefChanges | null
+  /** At most `BRIEF_MAX_NOTICED`, safety first, each with the sources it rests on. */
+  noticed: InputFact[]
+  keySession: BriefKeySession | null
+  countdown: BriefCountdown | null
+  /** Set only when two weekly predictions a week apart exist. */
+  prediction: BriefPrediction | null
 }
 
 // ---------------------------------------------------------------------------------------------

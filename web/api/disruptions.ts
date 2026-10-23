@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   DisruptionChange,
   DisruptionInput,
@@ -8,6 +8,7 @@ import type {
   PlanPreview,
 } from '../../shared/types.ts'
 import { api, keys, qs } from './client.ts'
+import { invalidatePlanReaders, isPreviewQuery } from './plan.ts'
 
 /** The actions on a rest window that can be previewed before they are committed. */
 export type DisruptionPreviewAction = Extract<
@@ -41,22 +42,13 @@ export function usePreviewDisruption() {
   })
 }
 
-/** Everything a window changes: the plan and its sessions, the revision list, Today and the state. */
-function invalidateAfterWindow(queryClient: QueryClient): Promise<unknown> {
-  return Promise.all(
-    [keys.disruptions, keys.plan, keys.planRevisions, keys.reviews, keys.today, keys.state].map(
-      (key) => queryClient.invalidateQueries({ queryKey: [key] }),
-    ),
-  )
-}
-
 /** Opens a window. A 409 `stale-preview` carries the new preview in `details.preview`. */
 export function useCreateDisruption() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: DisruptionInput & { expectHash?: string }) =>
       api<DisruptionResult>('POST', '/plan/disruptions', request),
-    onSuccess: () => invalidateAfterWindow(queryClient),
+    onSuccess: () => invalidatePlanReaders(queryClient, isPreviewQuery),
   })
 }
 
@@ -66,7 +58,7 @@ export function useUpdateDisruption() {
   return useMutation({
     mutationFn: ({ id, ...change }: DisruptionChange & { id: string; expectHash?: string }) =>
       api<DisruptionResult>('PATCH', `/plan/disruptions/${encodeURIComponent(id)}`, change),
-    onSuccess: () => invalidateAfterWindow(queryClient),
+    onSuccess: () => invalidatePlanReaders(queryClient, isPreviewQuery),
   })
 }
 
@@ -79,6 +71,6 @@ export function useRemoveDisruption() {
         'DELETE',
         `/plan/disruptions/${encodeURIComponent(id)}${qs({ expectHash })}`,
       ),
-    onSuccess: () => invalidateAfterWindow(queryClient),
+    onSuccess: () => invalidatePlanReaders(queryClient, isPreviewQuery),
   })
 }

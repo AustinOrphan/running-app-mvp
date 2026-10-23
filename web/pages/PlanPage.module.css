@@ -60,6 +60,18 @@
   border: 1px dashed var(--border-strong);
 }
 
+/* "Rest window" and "Return week" on a week: an outline in the accent, apart from the phase chip. */
+.windowChip {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  white-space: nowrap;
+}
+
 /* Week table: a two-line list on phones, a true table from 900px. */
 .table {
   width: 100%;
@@ -439,6 +451,21 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
   font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* The week's workout files, under its days: a link, or the reason there is none. */
+.weekFiles {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  margin: 0;
+  color: var(--accent);
+}
+
+p.weekFiles {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
 }
 
 @media (min-width: 900px) {

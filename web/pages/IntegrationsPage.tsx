@@ -16,6 +16,7 @@ import { Field, Input, Textarea } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { SyncHistory } from '../components/SyncHistory.tsx'
+import { WristSettings } from '../components/WristSettings.tsx'
 import { useToast } from '../components/Toast.tsx'
 import styles from './IntegrationsPage.module.css'
 
@@ -81,7 +82,14 @@ function onSubmitWith(action: () => void) {
   }
 }
 
-function IntervalsForm({ submit, pending, errors, failure }: FormProps) {
+/** `reconnect`: the key was refused, so the same form asks for a new one and says so on its button. */
+function IntervalsForm({
+  submit,
+  pending,
+  errors,
+  failure,
+  reconnect,
+}: FormProps & { reconnect: boolean }) {
   const [athleteId, setAthleteId] = useState('')
   const [apiKey, setApiKey] = useState('')
   return (
@@ -129,7 +137,7 @@ function IntervalsForm({ submit, pending, errors, failure }: FormProps) {
       <FormAlert failure={failure} />
       <div>
         <Button type="submit" variant="primary" loading={pending}>
-          Connect
+          {reconnect ? 'Reconnect' : 'Connect'}
         </Button>
       </div>
     </form>
@@ -632,7 +640,7 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
   if (showForm) {
     switch (provider) {
       case 'intervals':
-        form = <IntervalsForm {...formProps} />
+        form = <IntervalsForm {...formProps} reconnect={item.status === 'needs_auth'} />
         break
       case 'strava':
         form = <StravaForm {...formProps} />
@@ -685,6 +693,8 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
       {form}
 
       {isPull && usable ? <SyncControls provider={provider} /> : null}
+
+      {channels.includes('publish') && usable ? <WristSettings /> : null}
 
       {isFolder && usable ? (
         <p className={styles.note}>The folder is scanned every 5 minutes.</p>

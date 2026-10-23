@@ -9,6 +9,7 @@ import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { buildSeries, StreamChart, type StreamChannel } from '../components/charts/StreamChart.tsx'
 import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
+import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ratingCounts, unratedEffortNote } from '../components/engineText.ts'
 import { formatLongDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -493,6 +494,7 @@ export function ActivityDetailPage() {
       {activity.type === 'run' || activity.type === 'race' ? (
         <StandoutCard activityId={activity.id} units={units} />
       ) : null}
+      <FuelSection activity={activity} />
       {/* Keyed on the stored values, so the pickers start again from them when they change. */}
       <Feedback
         key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}`}

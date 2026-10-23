@@ -72,6 +72,76 @@ Last update: 2026-10-23.
   0's registry and `main`'s) are reconciled to `2026-10-22.4` on `wave/3a-0`, and wave 1 moves on
   to `2026-10-23.1`.
 
+- **Phase 3a wave 5 (branch `feat/coach-phase3`, PR from `wave/3a-5`, 2026-10-23):** the one-tap
+  surfaces, the plan sheets and the brief. E2-6: the check-in is one row under the readiness verdict
+  ("How do you feel today?", five answers in a radiogroup; one tap saves the fatigue score, folds the
+  row into "Checked in" with "Add more" and moves focus to the verdict; "Something hurts, or I'm
+  ill" opens the full check-in sheet); the outbox (`web/pwa/outbox.ts`: an IndexedDB queue of the
+  allowlisted idempotent PUTs, the check-in of a day and the fuel log of a run, that survives a
+  reload and a lost connection; writes to one URL are combined, replayed oldest first on online, on
+  return to the foreground and on open, one at a time; a 4xx drops the entry with an inline
+  message, a 401 and sign-out empty the queue, entries older than 7 days drop, a send over 10 s
+  counts as no connection; the row and the sheet say whether an answer is saved or kept on the
+  phone); Done opens a sheet that logs the run the hero shows with a draft kept on the device; Not
+  today opens a sheet that moves or skips the session; spec 7.6 follows. E1-7: Plan gains a wrist
+  strip (the next 14 days counted by what they mean, "Send again", the week as a zip), a chip on
+  each run in the window, a zip link under each week and an "On your watch" section in the session
+  sheet that reads `GET /api/plan/sessions/:id/workout` (targets resolved through the same code as
+  Today, the file and the watch; refusals from the workout templates); `WristLine` for the Today
+  watch slot; every chip and sentence a publish template; nothing renders offline or when the
+  status cannot be read while the downloads stay; the wrist status reports the calendar link; the
+  `publish.wrist.*` sentences point at controls that exist; the intervals.icu event text says "By
+  effort" where the resolver leads by effort; `DELIVERY_VERSION` is 2. E4-5: the weekly brief
+  (`WeeklyBrief`, migration `weekly_brief`, non-state: the job and a request write it and nothing
+  memoised reads it; no seen column, seen when its revision is; `shared/engine/brief.ts` builds the
+  facts: last week, the decision, the changes with a cause each, up to four noticed facts with their
+  sources, the next key session with the resolver's targets, the countdown and a prediction line
+  that waits for two weekly estimates a week apart, with no new Param; `shared/copy/briefTemplates.ts`
+  and `briefRender.ts` word it in the runner's units, `targetRows` moved to `shared/copy`;
+  `runReplanJob` writes the brief after the re-plan in a try/catch of its own, with a replan note
+  after a refused or failed re-plan; a request builds the current week's brief when none exists,
+  never a past week; `GET /api/brief`, `GET /api/briefs`, `POST /api/briefs/:weekStart/seen`; Explain
+  answers `subject=brief`). E5-7: "Not 100%" in the Plan header opens a three-step sheet (reason,
+  dates, preview) over the disruption routes; "Update plan from latest data" previews first and
+  applies with its hash; every action goes preview, confirm, commit with `expectHash`, a stale
+  preview swaps in with a sentence, a blocked one disables Apply; `NotFullSheet` takes its bounds
+  from the Params, its dates from the server's day, the n-3 sentence, a running-time line over the
+  next four weeks from the sessions and a race-day note; `DisruptionBanners` (I'm better, Finish
+  early, Extend, Remove window, each previewed); `AdjustSection` replaces `SessionChanges` with live
+  dry runs of move, swap, shorten, skip and restore, the guard messages with their one-tap
+  suggestion and the result as a revision with its undo, and the web no longer sends the legacy
+  PUT; "Rest window" and "Return week" chips on Plan; "Remove this rest window instead" when an undo
+  is refused for edited-since; `shared/copy/windowView.ts`; `invalidatePlanReaders` in
+  `web/api/plan.ts` refreshes plan, revisions, disruptions, reviews, brief, state and Today after
+  every plan-changing write. E6-6: the 20-second fuel log (`FuelLogSheet` saving through
+  `PUT /api/fuel/logs/:activityId`: product chips with steppers, "Same as last long run", food not
+  on the list, a live total against the target, fluid chips from the runner's recent amounts, gut
+  and nausea scales, "It was hot", "Not this time", a draft on the device; a first log needs taps
+  only); `TodaySlot` renders the mounts registered in `slotMounts.tsx` (the fuel target line as a
+  disclosure closing to its 26 px budget, the prompt card) with no new request; Fuel sections on
+  the activity page and in the session sheet; `shared/copy/fuelUi.ts`. E10s-4: Goals gains "Record
+  result" and "Edit result" on each goal whose race day has come, a result sheet (outcome, finish
+  time, date, distance, an optional activity within three days that is marked a race when linked,
+  a note; refusals under their fields, focus to the first invalid field; "Remove result" asks
+  first) and the prediction track record (the lead, the summary, each race newest first with a
+  Recharts chart named for assistive technology and a captioned table; `shared/copy/trackRecord.ts`;
+  `web/components/goalFormat.ts` shared by both sheets). Merge: the e2e specs are `12-today`,
+  `13-record-result` and `14-disruptions`; `NotTodaySheet` mounts `AdjustSection` and closes after an
+  applied change (`onApplied`); one `useOnline`; Today pins unchanged (26 cold, 10 warm, 5
+  data-version reads). Gates on the merged branch: `npm run check` (212 files, 9260 tests), `npm run build` (entry chunk 324 kB), `npm run test:e2e` (40), `docker build .` (fourteen migrations apply), owner validation byte-identical to wave 4. Adversarial review: see below.
+- Wave 5 left for later tasks: the Today slots for the disruption banner and the watch line are
+  wired by E5-8 and E1-8; the Not today sheet closes after an applied change, so its undo is on
+  Today's change line and in the toast rather than in the sheet; a re-plan keeps owner edits for
+  `keepOwnerEditsDays` (14 days), so a shortened run further out is rebuilt by "Update plan from
+  latest data" and the preview shows it; the legacy `PUT /api/plan/sessions/:id` stays for API
+  callers and two e2e set-ups although the web no longer sends it; the global API limiter allows
+  20000 requests per 15 minutes outside `NODE_ENV=production` (the Docker image sets production; a
+  bare `npm start` without it runs with the wide limit); the tap-opened sheets are lazy chunks, so
+  E2-8's offline shell must precache them; a fuel-log item whose product was edited since the log
+  loses its product link on the next edit; sign-in and setup clear the outbox, so a queue left by
+  an expired session is lost; `RevisionDiff` and `WindowActionSheet` import each other; screen
+  readers and the layout from 900 px were not checked by hand; `DELIVERY_VERSION` 2 re-sends every
+  sent run once (deleted events stay deleted).
 - **Phase 3a wave 4 (branch `feat/coach-phase3`, PR from `wave/3a-4`, 2026-10-23):** the first
   surfaces and the plan actions on top of the wave-3 services. E2-5: Today rebuilt around the
   readiness read and the session hero (`web/components/today/*`, one CSS module per component: the
@@ -125,12 +195,7 @@ Last update: 2026-10-23.
   by the plan writers from the stored switches; a confirmed duplicate's fuel log moves to the
   original). Today pins: 26 cold reads, 10 warm, 5 data-version reads. `PARAMS_VERSION` stays
   `2026-10-23.2`. Gates on the merged branch: `npm run check` (191 files, 7776 tests), `npm run build`, `npm run test:e2e` (26), `docker build .` (thirteen migrations apply), owner validation byte-identical to wave 3. Adversarial review: see below.
-- Wave 4 left for later tasks: the check-in is still the `CheckinCard` form below the hero until
-  E2-6 folds it into the readiness read, so the no-signals verdict's "One tap below" names a control
-  that is not there yet, and Done opens the log form and Not today the session sheet until the
-  one-tap sheets land; the wrist copy names the Plan page's "Send again" and download controls (E1-7)
-  and the Integrations toggle (E1-8) before they exist, and publishing is reachable only through
-  `PUT /api/wrist/intervals` until then; Today's change sheet lists the revision page (50 rows) to
+- Wave 4 left for later tasks: Today's change sheet lists the revision page (50 rows) to
   show one revision and lists it again after the seen stamp (a by-id route for E4-8); revision dates
   are cut in the device's day, as the Goals page has always done; the week strip announces today only
   on a day with a session; a past check-in source links to Today; the feed's `X-WR-TIMEZONE` names
@@ -254,6 +319,90 @@ check` (142 files, 4337 tests), `npm run build`, `npm run test:e2e` (18), `docke
   `workoutExternalId(externalId, userTag)`, creates the new event before it withdraws the old one
   and derives no id from the date, the kind or the order.
 
+## Wave 5 adversarial review (2026-10-23)
+
+Six lenses over the wave-5 diff against the wave-4 tip (165 files); 42 findings, each tried by two
+independent refuters: 20 confirmed, 22 disputed. The confirmed mediums were a fuel-log edit that
+re-snapshotted every product, a hot-day note that promised "today" on other days' sheets and in the
+brief, and the e2e suite's spent request budget.
+
+Fixed on the integration branch before `wave/3a-5` was cut (`task/3a-W5-fix-server`,
+`task/3a-W5-fix-web-a`, `task/3a-W5-fix-web-b`, `task/3a-W5-fix-tests`):
+
+1. The Not 100% sheet summed "Running time over the next four weeks" in the browser from the cached
+   plan and the diff lines, subtracted skipped sessions it had never counted and could go negative;
+   `PlanPreview.runMin` now carries the before and after run minutes over 28 days from the same
+   write set as the diff (`shared/domain/runMinutes.ts`) and the sheet renders the payload.
+2. A second weekly run in the same week replaced the brief of the real update with an empty one;
+   `generateBrief` keeps a non-provisional brief whose revision changed the plan when a later
+   revision of the week changed nothing. The headline no longer reads "of 0 planned minutes".
+3. A `DELIVERY_VERSION` bump re-created intervals.icu events the runner had deleted, because the
+   owner-removed check compared the stored hash with one that includes the version; the publisher
+   recognises the same content under every earlier version, so a version-only change keeps a
+   deleted event deleted while a content change still re-sends it.
+4. Editing a saved fuel log re-snapshotted every product at its current amounts; an item whose
+   product changed since it was logged is sent in its snapshot form with the amounts logged.
+5. Outbox and drafts: a send that timed out could still arrive after the entry's next send (it is
+   aborted); unsent Done and fuel-log drafts stayed in local storage after sign-out and the Done
+   draft was keyed by date alone (`purgeDeviceData()` on sign-out and on a 401; the Done draft is
+   keyed by user); the outbox purge depended on one IndexedDB transaction and entries carried no
+   user (the database is deleted when the store fails, entries carry the user id, `adopt` drops
+   another user's entries before the first replay, sign-in and setup clear the queue); a check-in
+   save invalidated Today, check-ins and wellness twice (`refreshAfterSend`, the keys listed once
+   on the outbox route).
+6. `AdjustSection` re-implemented the server's shorten and swap eligibility loosely (a hike or race
+   offered a shorten field; past sessions and back-to-back days were listed as swap partners);
+   `swappable` and `shortenable` are exported from `shared/engine/adjust.ts` and used by the engine
+   and the section, with today from the Today payload. The panel is a live region that exists
+   before the answer, with its focus ring restored; the shorten and move inputs wait 300 ms before
+   a dry run.
+7. Copy and focus: the hot-day effort note said "Go by this today." on the weekly brief and on
+   other days' session sheets (`targetRows` takes the day; "Go by this when you run it."
+   elsewhere); the "Finish early" banner button opened a dialog titled "I'm better" (`betterWords`
+   keys the label, title and intro on the window kind); the re-plan and window-action sheets lost
+   focus when the result replaced Apply (the result heading takes focus); every Apply stamped an
+   already-seen revision (`markSeen` only when `seenAt` is null, in every request-driven sheet).
+8. The entry chunk had grown to 607 kB past the 500 kB invariant stated in `vite.config.ts`; the
+   seven tap-opened sheets load through `web/components/lazySheets.tsx` (React.lazy, a notice when
+   a chunk cannot load, chunks fetched at idle) and the entry is 325 kB. The copy registry and the
+   Sheet are chunks the entry and the sheets share, so the code loaded at start fell by 30 kB, not
+   by 280 kB.
+9. The e2e suite spent 942 of the global limiter's 1000 `/api` requests per 15 minutes; the
+   limiter allows 20000 outside `NODE_ENV=production` (`apiLimitFor`; the sign-in limiter stays at
+   10), the suite measures 943 requests, and the budget comments are corrected.
+10. Tests: the outbox "stops listening when it unmounts" case could not fail; the fold case passed
+    with the fold removed; the 12-today set-up un-skipped through the legacy PUT and e2e comments
+    named coverage that did not exist (the set-up restores through the adjust route); the brief
+    "concurrent requests" case never reached the unique-violation branch (eight requests are held
+    at `create`); the brief suite lacked `expectNoRefusedFetches` and built job deps without
+    `ctx.fetch`; the Plan watch-strip e2e inherited its viewport.
+
+Accepted from the disputed list and fixed with them: the fuel log is saved through the outbox like
+the check-in (a queued log says so and the ladder refreshes when it is sent); `useUpdatePlanWeek`
+and `useGeneratePlan` go through `invalidatePlanReaders`, which also covers the wrist status and
+fuel; the dead `useCheckin` hook and its key are gone; the plan's E2-6 and E5-8 text and the spec's
+Today paragraph say Not today hosts `AdjustSection`.
+
+Disputed and recorded (not fixed; reason in brackets):
+
+- Three reason-to-words maps for a disruption (`windowView.ts`, `revision.ts`, `disruption.ts`)
+  [the wording differs by surface as the spec words it].
+- Window and Today sentences typed in components rather than templates [rendered pages are linted
+  by `expectCleanCopy`; the same practice as the rest of the app].
+- `WristStrip` and the result sheet take today from the device clock [a recorded limitation: the
+  app follows the home day].
+- The provisional brief is recomposed on every `GET /api/brief` outside `memoByVersion` and stays
+  provisional all week for a plan built after Monday 03:00 [specified: a provisional brief reads
+  today's plan; its reads are the memoised context].
+- `disruption.module.css` is 275 lines [the 250-line limit is E2-1's page acceptance, not a module
+  rule].
+- The shared `Field` renders a validation error in red [the visual design fixes it for field
+  errors; not load].
+- The session sheet's workout request runs the deliverable builder for a day that cannot be eased
+  [memoised reads; a micro-optimisation].
+- The fuel log sheet reads the whole activity detail for four scalars [the stream is bucketed;
+  small].
+
 ## Wave 4 adversarial review (2026-10-23)
 
 Six lenses over the wave-4 diff against the wave-3 tip (181 files); 34 findings, each tried by two
@@ -305,11 +454,11 @@ Disputed and recorded (not fixed; reason in brackets):
 - The feed's `X-WR-TIMEZONE` names the home zone under all-day events [a minimisation preference;
   no rule names it].
 - The no-signals verdict promises a one-tap control below it [spec wording; E2-6 brings the control
-  in wave 5].
+  in wave 5]. Closed by E2-6.
 - The week strip does not announce today on a day without a session [specified design;
   `aria-current` on the cell].
 - Wrist copy names the Plan page and Integrations controls of E1-7 and E1-8 [the end-state wording
-  the plan scheduled; publishing is API-only until then].
+  the plan scheduled; publishing is API-only until then]. Closed by E1-7.
 - Today's change sheet lists the revision page for one revision and again after the seen stamp [one
   refuter held; small today; a by-id route for E4-8].
 - The `@ts-expect-error` undo-reason test checks TypeScript rather than the record [the type is the

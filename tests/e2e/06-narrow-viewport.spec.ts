@@ -1,5 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
+import { isToRun } from '../../shared/domain/sessionStatus.ts'
+import type { PlanSession, PlanWithSessions, WristItem, WristStatus } from '../../shared/types.ts'
+import { publishable } from '../../shared/workouts/labels.ts'
 import { relativeDates, resetData, signedInApi } from './helpers.ts'
 
 // A phone-width viewport: nothing may be clipped out of reach or push the page sideways.
@@ -57,6 +60,75 @@ test('every Fatigue rating sits inside its control at 360 px and can be chosen',
   }
   await group.getByRole('radio', { name: '10', exact: true }).click()
   await expect(group.getByRole('radio', { name: '10', exact: true })).toBeChecked()
+})
+
+test('the check-in row keeps five answers on one line at 360 px, none clipped, no scrolling', async () => {
+  await resetData()
+  await page.goto('/')
+  const group = page.getByRole('radiogroup', { name: 'How do you feel today?' })
+  await expect(group).toBeVisible()
+  const groupBox = await group.boundingBox()
+  expect(groupBox).not.toBeNull()
+  expect(await group.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  const tops = new Set<number>()
+  for (const word of ['Fresh', 'Good', 'Normal', 'Tired', 'Drained']) {
+    const radio = group.getByRole('radio', { name: word, exact: true })
+    const box = await radio.boundingBox()
+    expect(box, word).not.toBeNull()
+    if (!box || !groupBox) continue
+    tops.add(Math.round(box.y))
+    expect(box.x, `${word} left edge`).toBeGreaterThanOrEqual(groupBox.x - 0.5)
+    expect(box.x + box.width, `${word} right edge`).toBeLessThanOrEqual(
+      groupBox.x + groupBox.width + 0.5,
+    )
+    expect(box.height, `${word} height`).toBeGreaterThanOrEqual(44)
+    // The word fits inside its own button.
+    expect(await radio.evaluate((el) => el.scrollWidth - el.clientWidth), word).toBeLessThanOrEqual(
+      0,
+    )
+  }
+  expect(tops.size, 'all five answers share one line').toBe(1)
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+})
+
+test('the check-in sheet has 44 px targets at 360 px and does not scroll sideways', async () => {
+  await resetData()
+  await page.goto('/')
+  await page.getByRole('button', { name: "Something hurts, or I'm ill" }).click()
+  const sheet = page.getByRole('dialog', { name: 'Check-in' })
+  await expect(sheet).toBeVisible()
+  // Measure after the slide-up animation ends.
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+
+  const scales = ['Fatigue', 'Soreness', 'Sleep quality', 'Mood', 'Stress', 'Pain today']
+  for (const scale of scales) {
+    const buttons = await sheet.getByRole('group', { name: scale }).getByRole('button').all()
+    expect(buttons.length, scale).toBeGreaterThanOrEqual(5)
+    for (const button of buttons) {
+      const box = await button.boundingBox()
+      const label = (await button.getAttribute('aria-label')) ?? scale
+      expect(box, label).not.toBeNull()
+      expect(box?.width ?? 0, `${label} width`).toBeGreaterThanOrEqual(43.5)
+      expect(box?.height ?? 0, `${label} height`).toBeGreaterThanOrEqual(43.5)
+    }
+  }
+  for (const name of ['Feeling ill', 'Point tenderness on a bone']) {
+    const row = sheet.locator('label').filter({ hasText: name })
+    const box = await row.boundingBox()
+    expect(box, name).not.toBeNull()
+    expect(box?.height ?? 0, `${name} height`).toBeGreaterThanOrEqual(43.5)
+  }
+  const form = sheet.locator('form')
+  expect(await form.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+
+  // The pain scale wraps to a second row instead of shrinking its buttons.
+  const pain = await sheet.getByRole('group', { name: 'Pain today' }).getByRole('button').all()
+  const rows = new Set<number>()
+  for (const button of pain) rows.add(Math.round((await button.boundingBox())?.y ?? 0))
+  expect(rows.size).toBe(2)
+  await sheet.getByRole('button', { name: 'Close' }).click()
+  await expect(sheet).toBeHidden()
 })
 
 test('the Activities type filter needs no scrolling at 360 px', async () => {
@@ -227,6 +299,131 @@ test('the Goals question for Make active fits at 360 px and clears the tab bar',
   await expect(question).toBeHidden()
 })
 
+test('the Not 100% sheet and the window banner fit at 360 px, with every button reachable', async () => {
+  const { lastWednesday, thisMonday, today } = relativeDates()
+  await resetData()
+  for (let i = 0; i < 8; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (35 + i) * 60,
+      distanceM: 6000 + i * 300,
+    })
+  }
+  const goal = (await api.post('/goals', {
+    name: 'Narrow window half',
+    priority: 'A',
+    targetDate: addDays(thisMonday, 7 * 14 + 5),
+    distanceM: 21_097,
+    goalType: 'finish',
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id })
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/plan')
+
+  await page.getByRole('button', { name: 'Not 100%' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Not 100%' })
+  await expect(sheet).toBeVisible()
+  // Measure after the slide-up animation ends.
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+
+  const navHeight = (await page.getByRole('navigation', { name: 'Primary' }).boundingBox())?.height
+  expect(navHeight).toBeGreaterThan(0)
+  const viewport = page.viewportSize()
+  const width = viewport?.width ?? 0
+  const height = viewport?.height ?? 0
+  /** The sheet is inside the screen, does not scroll sideways, and its buttons can be tapped. */
+  async function expectReachable(buttons: string[]) {
+    expect(await pageOverflow(), 'the page').toBeLessThanOrEqual(0)
+    expect(
+      await sheet.evaluate((el) => el.scrollWidth - el.clientWidth),
+      'the sheet',
+    ).toBeLessThanOrEqual(0)
+    // Nothing inside the sheet reaches past the right edge of the screen.
+    const outside = await sheet.evaluate((el) =>
+      [...el.querySelectorAll('*')]
+        .filter((node) => {
+          const box = node.getBoundingClientRect()
+          return box.width > 0 && box.right > window.innerWidth + 0.5
+        })
+        .map((node) => `${node.tagName.toLowerCase()} "${node.textContent?.slice(0, 40) ?? ''}"`),
+    )
+    expect(outside, 'past the right edge').toEqual([])
+    for (const name of buttons) {
+      const button = sheet.getByRole('button', { name, exact: true })
+      await expect(button, name).toBeVisible()
+      const box = await button.boundingBox()
+      expect(box, name).not.toBeNull()
+      expect((box?.x ?? 0) + (box?.width ?? 0), `${name} right edge`).toBeLessThanOrEqual(
+        width + 0.5,
+      )
+      expect((box?.y ?? 0) + (box?.height ?? 0), `${name} bottom edge`).toBeLessThanOrEqual(height)
+      expect(await isUncovered(button), name).toBe(true)
+    }
+  }
+
+  // Step 1: five reasons, each a whole row.
+  await expectReachable(['Cancel', 'Next'])
+  for (const radio of await sheet.getByRole('radio').all()) {
+    const box = await radio.locator('xpath=ancestor::label').boundingBox()
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width + 0.5)
+  }
+
+  // Step 2, the longest: a niggle with its scale, notice, mode and the caps.
+  await sheet.getByRole('radio', { name: /A niggle or pain/ }).check()
+  await sheet.getByRole('button', { name: 'Next' }).click()
+  await expect(sheet.getByRole('heading', { name: 'When' })).toBeVisible()
+  await sheet.getByRole('radio', { name: 'Short easy runs' }).click()
+  await sheet.getByLabel('Until').fill(addDays(today, 2))
+  await sheet.getByRole('button', { name: 'Pain (0 to 10) 10' }).scrollIntoViewIfNeeded()
+  for (const rating of ['0', '10']) {
+    const pain = await sheet.getByRole('button', { name: `Pain (0 to 10) ${rating}` }).boundingBox()
+    expect((pain?.x ?? 0) + (pain?.width ?? 0), `pain ${rating}`).toBeLessThanOrEqual(width + 0.5)
+    expect(pain?.x ?? -1, `pain ${rating}`).toBeGreaterThanOrEqual(0)
+  }
+  await expectReachable(['Cancel', 'Back', 'Next'])
+
+  // Step 3: the preview, whose rows and buttons stay inside the screen.
+  await sheet.getByRole('button', { name: 'Next' }).click()
+  await expect(sheet.getByRole('heading', { name: 'What would change' })).toBeVisible()
+  await expectReachable(['Cancel', 'Back', 'Apply to my plan'])
+  await sheet.getByRole('button', { name: 'Cancel' }).click()
+  await expect(sheet).toBeHidden()
+
+  // A window in force: the banner wraps inside the screen and its three buttons stay in reach.
+  await api.post('/plan/disruptions', {
+    reason: 'illness-above-neck',
+    mode: 'rest',
+    startDate: addDays(today, -1),
+    endDate: addDays(today, 1),
+  })
+  await page.goto('/plan')
+  const banner = page.getByRole('region', { name: 'Rest window' })
+  await expect(banner).toBeVisible()
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+  const bannerBox = await banner.boundingBox()
+  expect((bannerBox?.x ?? 0) + (bannerBox?.width ?? 0)).toBeLessThanOrEqual(width + 0.5)
+  for (const name of ["I'm better", 'Extend', 'Remove window']) {
+    const button = banner.getByRole('button', { name })
+    const box = await button.boundingBox()
+    expect((box?.x ?? 0) + (box?.width ?? 0), name).toBeLessThanOrEqual(width + 0.5)
+    expect(await isUncovered(button), name).toBe(true)
+  }
+
+  // Its sheets fit too: Extend asks for a date and shows the preview above its two buttons.
+  await banner.getByRole('button', { name: 'Extend' }).click()
+  const extend = page.getByRole('dialog', { name: 'Extend this window' })
+  await expect(extend.getByRole('button', { name: 'Apply to my plan' })).toBeEnabled()
+  await extend.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+  for (const name of ['Cancel', 'Apply to my plan']) {
+    const box = await extend.getByRole('button', { name }).boundingBox()
+    expect((box?.x ?? 0) + (box?.width ?? 0), name).toBeLessThanOrEqual(width + 0.5)
+    expect((box?.y ?? 0) + (box?.height ?? 0), name).toBeLessThanOrEqual(height)
+  }
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+})
+
 for (const size of [
   { width: 390, height: 844 },
   { width: 360, height: 780 },
@@ -301,3 +498,124 @@ for (const size of [
     expect(await isUncovered(sheetSave)).toBe(true)
   })
 }
+
+test('the Plan page keeps the watch strip, its chips and the sheet section inside 360 px', async () => {
+  const { lastWednesday, raceDate, today } = relativeDates()
+  await resetData()
+  for (let i = 0; i < 8; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (35 + i) * 60,
+      distanceM: 6000 + i * 300,
+    })
+  }
+  const goal = (await api.post('/goals', {
+    name: 'Watch marathon',
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id })
+
+  // The test is named for this width; the viewport the earlier tests left is not its to rely on.
+  await page.setViewportSize({ width: 360, height: 740 })
+  // Sending is off in a fresh account: the strip says so and keeps the files one tap away.
+  await page.goto('/plan')
+  const strip = page.getByRole('region', { name: 'Watch' })
+  await expect(strip).toContainText('Sending to your watch is off.')
+  await expect(strip.getByRole('link', { name: 'Download this week as .zip' })).toBeVisible()
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+
+  // Sending on, with the longest words the chips and sentences can take. The status is the
+  // server's to report, and intervals.icu cannot be reached from a test, so the answer is made.
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  const runs = plan.sessions
+    .filter((s) => s.date >= today && publishable(s.kind) && isToRun(s.status))
+    .slice(0, 4)
+  expect(runs.length).toBe(4)
+  const words: Array<Partial<WristItem>> = [
+    { status: 'not-delivered', failCode: 'auth' },
+    { status: 'waiting', failCode: 'rate-limit', retryAt: new Date().toISOString() },
+    {
+      status: 'not-delivered',
+      failCode: 'device',
+      deviceMessage:
+        'The workout has more steps than this watch can hold, so Garmin Connect left it out of the upload',
+    },
+    { status: 'removed', failCode: 'owner-removed' },
+  ]
+  const item = (session: PlanSession, over: Partial<WristItem>): WristItem => ({
+    externalId: session.externalId,
+    sessionId: session.id,
+    date: session.date,
+    kind: session.kind,
+    title: 'Easy run, 45 min',
+    variant: 'planned',
+    status: 'sent',
+    failCode: null,
+    failMessage: null,
+    deviceMessage: null,
+    warnings: ['no-threshold-pace'],
+    retryAt: null,
+    sentAt: null,
+    ...over,
+  })
+  const status: WristStatus = {
+    from: today,
+    to: addDays(today, 13),
+    connection: 'connected',
+    settings: { enabled: true, garminLinked: true, lastRunAt: null, running: false },
+    calendar: { enabled: false, tokenCreatedAt: null },
+    items: runs.map((s, i) => item(s, words[i] ?? {})),
+  }
+  await page.route('**/api/wrist/status', (route) => route.fulfill({ json: status }))
+  try {
+    await page.goto('/plan')
+    await expect(strip).toContainText('Watch: next 14 days.')
+    await expect(strip).toContainText('1 waiting')
+    await expect(strip.getByRole('button', { name: 'Send again' })).toBeVisible()
+    expect(await pageOverflow()).toBeLessThanOrEqual(0)
+    const viewportWidth = page.viewportSize()?.width ?? 0
+    for (const control of [
+      strip,
+      strip.getByRole('button', { name: 'Send again' }),
+      strip.getByRole('link', { name: 'Download this week as .zip' }),
+    ]) {
+      const box = await control.boundingBox()
+      expect(box).not.toBeNull()
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 0.5)
+    }
+    // A chip sits inside the card of its session, not beside it.
+    const chips = page.locator('span[data-status]')
+    await expect(chips.first()).toBeVisible()
+    for (const chip of await chips.all()) {
+      const box = await chip.boundingBox()
+      expect(box).not.toBeNull()
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 0.5)
+    }
+
+    // The sheet of a run whose watch refused it: sentence, warning and both actions on screen.
+    await chips.nth(2).locator('xpath=ancestor::button').click()
+    const dialog = page.getByRole('dialog')
+    const section = dialog.getByRole('region', { name: 'On your watch' })
+    await expect(section).toContainText('Garmin Connect did not take it:')
+    await section.scrollIntoViewIfNeeded()
+    await expect(section.getByRole('button', { name: 'Send again' })).toBeVisible()
+    await expect(section.getByRole('link', { name: 'Download the workout file' })).toBeVisible()
+    expect(await pageOverflow()).toBeLessThanOrEqual(0)
+    for (const part of [
+      section,
+      section.getByRole('button', { name: 'Send again' }),
+      section.getByRole('link', { name: 'Download the workout file' }),
+    ]) {
+      const box = await part.boundingBox()
+      expect(box).not.toBeNull()
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 0.5)
+    }
+    expect(await dialog.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  } finally {
+    await page.unroute('**/api/wrist/status')
+  }
+})

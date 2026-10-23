@@ -1,0 +1,48 @@
+/* The row sits under the verdict and the signals. Unanswered it is a question and five answers on
+   one line; answered it is one sentence and two quiet buttons. */
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 34rem;
+}
+
+.ask {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.question {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+}
+
+.line {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+/* Quiet buttons carry a button's padding; pull each back so its text lines up with the page, on
+   the first line and on the next. */
+.more {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.more > button {
+  margin-left: calc(var(--space-4) * -1);
+}
+
+/* A refusal is said plainly, set apart by a bar and weight, never by colour. */
+.notice {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--border-strong);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+}

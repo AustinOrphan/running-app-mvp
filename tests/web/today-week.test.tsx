@@ -21,6 +21,7 @@ import {
 } from './today-fixtures.ts'
 import { AVAILABLE, makeDiff, makeRevision } from './plan-fixtures.ts'
 import { renderToday, settingsOf, startToday } from './today-render.tsx'
+import { sheetRoutes } from './wrist-fixtures.ts'
 
 // Stands in for the real drawer so the wiring is visible: which rules it was opened with.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -134,8 +135,10 @@ describe('Today: the week strip', () => {
 
   test("a tap on a day opens that day's session", async () => {
     const user = userEvent.setup()
-    renderToday(withWeek({ targetRunMin: 300 }), {
+    const today = withWeek({ targetRunMin: 300 })
+    renderToday(today, {
       'GET /api/activities': () => activityPage([]),
+      ...sheetRoutes(today.coach.weekStrip!.days.flatMap((day) => day.sessions)),
     })
     await user.click(
       await screen.findByRole('button', { name: 'Monday 16 Mar, Done, 40 min logged' }),
@@ -334,6 +337,7 @@ describe('Today: the change line', () => {
     const preview: PlanPreview = {
       action: { type: 'undo', revisionId: change.id },
       diff: makeDiff([]),
+      runMin: null,
       summary: 'Undid: nothing.',
       warnings: [],
       blocked: false,

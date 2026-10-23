@@ -6,12 +6,11 @@
 // and compares the figures with the resolver's. A second implementation of the rules, or a number
 // typed into a surface, fails here.
 //
-// Registered now:  hero (Today, E2-5: the rendered `SessionTargets`), FIT workout file (E1-3), ICS
-// outline (E1-6). The fuel line (E6-5) is a different figure and is read by its own adapters in the
-// last section of this file.
-// To be registered by the task that builds the surface:
-//   session sheet, intervals.icu description                          E1-7
-//   weekly brief key session                                          E4-5
+// Registered now:  hero (Today, E2-5: the rendered `SessionTargets`), session sheet (E1-7: the
+// rendered `SheetTargets`), the key session of the weekly brief (E4-5: the stored figures worded by
+// `targetRows`), FIT workout file (E1-3), intervals.icu description (E1-7), ICS outline (E1-6). The
+// fuel line (E6-5) is a different figure and is read by its own adapters in the last section of
+// this file.
 // To add one: write a `SurfaceAdapter` whose `read` renders from `resolveTargets` (or from the
 // shared builder that calls it) and parses the figures back, then append it to `SURFACES`.
 //
@@ -33,6 +32,8 @@ import {
   type FuelContext,
 } from '../../../shared/engine/fuel.ts'
 import { describeFuelTarget } from '../../../shared/engine/fuelCopy.ts'
+import { keySessionFacts } from '../../../shared/engine/brief.ts'
+import { targetRows } from '../../../shared/copy/targetRows.ts'
 import type { WeatherIndex } from '../../../shared/engine/heat.ts'
 import { easedSession } from '../../../shared/engine/readiness.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -40,7 +41,6 @@ import { resolveTargets } from '../../../shared/engine/targets.ts'
 import type {
   FuelRunInput,
   FuelSessionInput,
-  ResolvedTargets,
   SessionKind,
   SessionSpec,
   ZoneSet,
@@ -54,6 +54,7 @@ import type { WorkoutPlan } from '../../../shared/workouts/types.ts'
 import { renderIntervalsDescription } from '../../../server/providers/intervalsPublish.ts'
 import type { PublishReference } from '../../../server/providers/types.ts'
 import { encodeWorkoutFit, FIT_NOTES_MAX_BYTES } from '../../../server/services/workoutFit.ts'
+import { SheetTargets } from '../../../web/components/SessionSheet.tsx'
 import { SessionTargets } from '../../../web/components/today/SessionTargets.tsx'
 import { expandWorkout, readWorkout, type ExpandedStep } from '../../fixtures/fit/readWorkout.ts'
 import { prescribed, SESSION_KINDS, zoneSetFixture } from './fixtures.ts'
@@ -112,9 +113,8 @@ function reference(session: SessionSpec, ctx: SurfaceContext): SurfaceReading {
 // figures read back out of what it says.
 // ---------------------------------------------------------------------------------------------
 
-/** The lines the hero prints, in order: "Heart rate: under 149 bpm", with a note after a period. */
-function heroLines(t: ResolvedTargets, units: Units): string[] {
-  const markup = renderToStaticMarkup(createElement(SessionTargets, { targets: t, units }))
+/** The lines a term list prints, in order: "Heart rate: under 149 bpm", with a note after a period. */
+function termLines(markup: string): string[] {
   const rows = [...markup.matchAll(/<div[^>]*>(.*?)<\/div>/g)].map((row) => row[1] ?? '')
   return rows.map((row) => {
     const term = /<dt[^>]*>(.*?)<\/dt>/.exec(row)?.[1]
@@ -129,32 +129,83 @@ function paceSeconds(text: string): number {
   return m! * 60 + s!
 }
 
+/**
+ * The figures a list of "Term: value" lines carries, the way the hero and the session sheet print
+ * them and the way the weekly brief's rows are worded.
+ */
+function readTargetLines(lines: string[], units: Units): SurfaceReading {
+  const lead = lines[0]!
+  const find = (re: RegExp) => lines.map((line) => re.exec(line)).find((m) => m !== null) ?? null
+  const ceiling = find(/^Heart rate: under (\d+) bpm/)
+  const band = find(/^Heart rate: (\d+) to (\d+) bpm/)
+  // The list prints the quicker pace first; the resolver keeps the slow end first.
+  const pace = find(/^Pace: (?:about )?(\d+:\d{2}) to (\d+:\d{2}) \/(km|mi)/)
+  const effort = find(/^Effort: (\d+)(?: to (\d+))? out of 10/)!
+  if (pace !== null) expect(pace[3]).toBe(units)
+  return {
+    lead: lead.startsWith('Effort')
+      ? 'effort'
+      : lead.startsWith('Pace')
+        ? 'pace'
+        : ceiling !== null
+          ? 'hr-ceiling'
+          : 'hr-band',
+    hrCeiling: ceiling ? Number(ceiling[1]) : null,
+    hrRange: band ? [Number(band[1]), Number(band[2])] : null,
+    paceSecPerUnit: pace ? [paceSeconds(pace[2]!), paceSeconds(pace[1]!)] : null,
+    effort: [Number(effort[1]), Number(effort[2] ?? effort[1])],
+  }
+}
+
 const hero: SurfaceAdapter = {
   name: 'hero',
   read(session, ctx) {
-    const t = resolveTargets(session, ctx.zones, { hot: ctx.hot })
-    const lines = heroLines(t, ctx.units)
-    const lead = lines[0]!
-    const find = (re: RegExp) => lines.map((line) => re.exec(line)).find((m) => m !== null) ?? null
-    const ceiling = find(/^Heart rate: under (\d+) bpm/)
-    const band = find(/^Heart rate: (\d+) to (\d+) bpm/)
-    // The hero prints the quicker pace first; the resolver keeps the slow end first.
-    const pace = find(/^Pace: (?:about )?(\d+:\d{2}) to (\d+:\d{2}) \/(km|mi)/)
-    const effort = find(/^Effort: (\d+)(?: to (\d+))? out of 10/)!
-    if (pace !== null) expect(pace[3]).toBe(ctx.units)
-    return {
-      lead: lead.startsWith('Effort')
-        ? 'effort'
-        : lead.startsWith('Pace')
-          ? 'pace'
-          : ceiling !== null
-            ? 'hr-ceiling'
-            : 'hr-band',
-      hrCeiling: ceiling ? Number(ceiling[1]) : null,
-      hrRange: band ? [Number(band[1]), Number(band[2])] : null,
-      paceSecPerUnit: pace ? [paceSeconds(pace[2]!), paceSeconds(pace[1]!)] : null,
-      effort: [Number(effort[1]), Number(effort[2] ?? effort[1])],
-    }
+    const targets = resolveTargets(session, ctx.zones, { hot: ctx.hot })
+    const markup = renderToStaticMarkup(
+      createElement(SessionTargets, { targets, units: ctx.units }),
+    )
+    return readTargetLines(termLines(markup), ctx.units)
+  },
+}
+
+// ---------------------------------------------------------------------------------------------
+// The key session of the weekly brief (E4-5): the figures the brief stores with the session
+// (`keySessionFacts`, which calls the resolver) worded by `targetRows`, the code the hero words them
+// with, and read back out of the lines. It covers every kind, though the brief picks only the key
+// ones: the figures of a session do not depend on how it was chosen, and the matrix also feeds it
+// eased sessions, which are easy runs. Which sessions are picked is tested with the facts.
+// ---------------------------------------------------------------------------------------------
+
+const briefKey: SurfaceAdapter = {
+  name: 'brief',
+  read(session, ctx) {
+    const key = keySessionFacts(
+      { ...session, id: 'brief-session', status: 'planned', activityId: null },
+      ctx.zones,
+      ctx.hot,
+    )
+    // The stored figures are plain data: they come back from the JSON column as written.
+    const stored = JSON.parse(JSON.stringify(key)) as typeof key
+    const lines = targetRows(stored.target, ctx.units, 'other').map(
+      (row) => `${row.term}: ${[row.value, ...(row.note === null ? [] : [row.note])].join(' ')}`,
+    )
+    return readTargetLines(lines, ctx.units)
+  },
+}
+
+// ---------------------------------------------------------------------------------------------
+// The session sheet (E1-7): `SheetTargets`, which is what the sheet renders of the targets the
+// server resolved for the session (`GET /api/plan/sessions/:id/workout`). It shows every figure
+// the resolver holds, as the hero does, so it is a full surface and not a partial one: on a hot
+// day it still prints the heart rate and the pace beneath the effort lead, with the heat note.
+// ---------------------------------------------------------------------------------------------
+
+const sheet: SurfaceAdapter = {
+  name: 'sheet',
+  read(session, ctx) {
+    const targets = resolveTargets(session, ctx.zones, { hot: ctx.hot })
+    const markup = renderToStaticMarkup(createElement(SheetTargets, { targets, units: ctx.units }))
+    return readTargetLines(termLines(markup), ctx.units)
   },
 }
 
@@ -223,6 +274,50 @@ const fit: SurfaceAdapter = {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The intervals.icu event (E1-7): the text `renderIntervalsDescription` writes. Its steps hold
+// percentages of the remote's maximum heart rate and threshold pace, which are not the resolver's
+// figures, so the matrix reads the header line instead: the same targets in the runner's own units
+// ("Heart rate under 142 bpm; Pace 5:30 to 5:10 /km"), the line that tells a person what the
+// percentages mean. The lead is "Hot day: go by effort" or "By effort" for an effort day, else the
+// figure the header carries.
+// ---------------------------------------------------------------------------------------------
+
+const INTERVALS_REF: PublishReference = { maxHr: 190, lthr: 170, thresholdPaceMps: 3.8 }
+
+function readIntervals(text: string, units: Units): SurfaceReading {
+  const find = (re: RegExp) => re.exec(text)
+  const ceiling = find(/Heart rate under (\d+) bpm/)
+  const band = find(/Heart rate (\d+) to (\d+) bpm/)
+  // the text keeps the resolver's order: the slow end first
+  const pace = find(/Pace (\d+:\d{2}) to (\d+:\d{2}) \/(km|mi)/)
+  if (pace !== null) expect(pace[3]).toBe(units)
+  const paceSecPerUnit: [number, number] | null = pace
+    ? [paceSeconds(pace[1]!), paceSeconds(pace[2]!)]
+    : null
+  const hrCeiling = ceiling ? Number(ceiling[1]) : null
+  const hrRange: [number, number] | null = band ? [Number(band[1]), Number(band[2])] : null
+  const lead: SurfaceReading['lead'] = /go by effort|By effort/i.test(text)
+    ? 'effort'
+    : paceSecPerUnit !== null
+      ? 'pace'
+      : hrCeiling !== null
+        ? 'hr-ceiling'
+        : 'hr-band'
+  return { lead, hrCeiling, hrRange, paceSecPerUnit, effort: null }
+}
+
+const intervals: SurfaceAdapter = {
+  name: 'intervals',
+  covers: publishable,
+  partial: true,
+  read(session, ctx) {
+    const targets = resolveTargets(session, ctx.zones, { hot: ctx.hot })
+    const plan = toWorkoutPlan(session, targets, { units: ctx.units })
+    return readIntervals(renderIntervalsDescription(plan, INTERVALS_REF).text, ctx.units)
+  },
+}
+
+// ---------------------------------------------------------------------------------------------
 // The private calendar feed (E1-6): the DESCRIPTION of the event of a session, read back from the
 // iCalendar text. It says how the session is run in words ("by effort", "at target pace", "kept
 // easy", "kept steady") and carries no figure, because whoever holds the link reads it. The lead is
@@ -286,7 +381,7 @@ const ics: SurfaceAdapter = {
 }
 
 /** The registry. Later tasks append their adapters here. */
-const SURFACES: readonly SurfaceAdapter[] = [hero, fit, ics]
+const SURFACES: readonly SurfaceAdapter[] = [hero, sheet, briefKey, fit, intervals, ics]
 
 // ---------------------------------------------------------------------------------------------
 
@@ -371,7 +466,10 @@ describe('cross-surface targets', () => {
     const names = SURFACES.map((s) => s.name)
     expect(new Set(names).size).toBe(names.length)
     expect(names).toContain('hero')
+    expect(names).toContain('sheet')
+    expect(names).toContain('brief')
     expect(names).toContain('fit')
+    expect(names).toContain('intervals')
     expect(names).toContain('ics')
   })
 
@@ -387,11 +485,15 @@ describe('cross-surface targets', () => {
     expect(SESSION_KINDS).toHaveLength(16)
     expect(UNITS).toEqual(['km', 'mi'])
     expect(covered(hero)).toEqual(SESSION_KINDS)
+    // the sheet has targets for every kind, a strength day included
+    expect(covered(sheet)).toEqual(SESSION_KINDS)
+    expect(covered(briefKey)).toEqual(SESSION_KINDS)
     // the file of a run or a hike; no workout for strength, mobility, rest, cross-training or a race
     expect(covered(fit)).toHaveLength(11)
     expect(covered(fit).every((kind) => publishable(kind))).toBe(true)
     // the calendar outlines the same runs; a race or a strength day has a title and no outline
     expect(covered(ics)).toEqual(covered(fit))
+    expect(covered(intervals)).toEqual(covered(fit))
   })
 
   it('leads with effort on a hot day on every surface, and with the stored figure otherwise', () => {
@@ -448,6 +550,26 @@ describe('cross-surface targets', () => {
     expect(mismatchesOf(secondsOff).length).toBeGreaterThan(0)
   })
 
+  it('fails when the brief keeps its own figures', () => {
+    const staleBrief: SurfaceAdapter = {
+      name: 'stale-brief',
+      read(session, ctx) {
+        // a brief that stored the ceiling of the plan, not of the zones as they are now
+        const reading = briefKey.read(session, ctx)
+        return session.target.hr && reading.hrCeiling !== null
+          ? { ...reading, hrCeiling: session.target.hr[1] + 5 }
+          : reading
+      },
+    }
+    expect(mismatchesOf(staleBrief).length).toBeGreaterThan(0)
+    const coolerBrief: SurfaceAdapter = {
+      name: 'cool-brief',
+      // a brief that did not apply the heat the other surfaces apply
+      read: (session, ctx) => briefKey.read(session, { ...ctx, hot: false }),
+    }
+    expect(mismatchesOf(coolerBrief).length).toBeGreaterThan(0)
+  })
+
   it('fails when a workout file keeps its own figures or loses its lead', () => {
     const staleCeiling: SurfaceAdapter = {
       ...fit,
@@ -478,6 +600,59 @@ describe('cross-surface targets', () => {
       ...fit,
       name: 'effort-fit',
       read: (session, ctx) => ({ ...fit.read(session, ctx), lead: 'effort' }),
+    }
+    expect(mismatchesOf(effortOnly).length).toBeGreaterThan(0)
+  })
+
+  it('fails when the session sheet shows the stored target and not the resolver’s', () => {
+    const stored: SurfaceAdapter = {
+      name: 'stored-sheet',
+      read(session, ctx) {
+        // a sheet that printed the stored target would show the zones the plan was written with
+        const reading = sheet.read(session, ctx)
+        return session.target.hr && reading.hrCeiling !== null
+          ? { ...reading, hrCeiling: session.target.hr[1] + 5 }
+          : reading
+      },
+    }
+    expect(mismatchesOf(stored).length).toBeGreaterThan(0)
+    const hotWithoutLead: SurfaceAdapter = {
+      name: 'cool-sheet',
+      read: (session, ctx) => sheet.read(session, { ...ctx, hot: false }),
+    }
+    expect(mismatchesOf(hotWithoutLead).length).toBeGreaterThan(0)
+  })
+
+  it('fails when the intervals.icu text keeps its own figures or loses its lead', () => {
+    const staleCeiling: SurfaceAdapter = {
+      ...intervals,
+      name: 'stale-intervals',
+      read(session, ctx) {
+        const reading = intervals.read(session, ctx)
+        return reading.hrCeiling === null
+          ? reading
+          : { ...reading, hrCeiling: reading.hrCeiling + 5 }
+      },
+    }
+    expect(mismatchesOf(staleCeiling).length).toBeGreaterThan(0)
+    const slowerPace: SurfaceAdapter = {
+      ...intervals,
+      name: 'slower-intervals',
+      read(session, ctx) {
+        const reading = intervals.read(session, ctx)
+        return reading.paceSecPerUnit
+          ? {
+              ...reading,
+              paceSecPerUnit: [reading.paceSecPerUnit[0], reading.paceSecPerUnit[1] + 2],
+            }
+          : reading
+      },
+    }
+    expect(mismatchesOf(slowerPace).length).toBeGreaterThan(0)
+    const effortOnly: SurfaceAdapter = {
+      ...intervals,
+      name: 'effort-intervals',
+      read: (session, ctx) => ({ ...intervals.read(session, ctx), lead: 'effort' }),
     }
     expect(mismatchesOf(effortOnly).length).toBeGreaterThan(0)
   })
