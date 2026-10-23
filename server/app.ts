@@ -85,8 +85,10 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
     }),
   )
 
-  // Before the routers and static serving, so API calls and the index fallback share one budget.
-  app.use(createGlobalLimiter({ max: opts.globalLimit }))
+  // Before the API routers, so every API call shares one budget. It stops at `/api`: the hashed
+  // assets, the manifest, the icons and the index fallback that `mountStatic` serves are cheap and
+  // cacheable, not an abuse surface, and counting them would spend the budget on page loads.
+  app.use('/api', createGlobalLimiter({ max: opts.globalLimit }))
 
   // Request pipeline (phase 3a design 4.8): no JSON body is read before the caller is known. The
   // only parsers ahead of authentication are the 16 KB one on sign-in and setup, and the 16 MB one

@@ -50,7 +50,10 @@ export function createLoginLimiter(opts: LimiterOptions = {}): RequestHandler {
   return createLimiter(opts, 10, 'unauthorized', 'Too many sign-in attempts. Try again later.')
 }
 
-/** Generous app-wide limiter (1000 requests per 15 minutes per IP) that no normal use reaches. */
+/**
+ * Generous limiter of the API (1000 requests per 15 minutes per IP) that no normal use reaches.
+ * The app mounts it on `/api` only; static files and the SPA fallback are outside the budget.
+ */
 export function createGlobalLimiter(opts: LimiterOptions = {}): RequestHandler {
   return createLimiter(opts, 1000, 'internal', 'Too many requests. Try again later.')
 }
