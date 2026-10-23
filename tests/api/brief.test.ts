@@ -290,6 +290,27 @@ describe('the weekly job', () => {
     expect(after!.facts).toBe(before!.facts)
   })
 
+  test('keeps the brief of an update that changed the plan when a second update of the week changes nothing', async () => {
+    // The catch-up and the 03:00 slot can both re-plan one plan in a week: the second one finds the
+    // plan already as the first left it, and its empty revision must not replace the first's brief.
+    const r = await updated(email())
+    const before = (await briefOf(r.u.id))!
+    expect(readFacts(before.facts)!.changes!.count).toBeGreaterThan(0)
+
+    await runReplanJob(deps, { now: MONDAY_NOON })
+
+    const weekly = await ctx.prisma.planRevision.findMany({
+      where: { planId: r.plan.id, reason: 'weekly' },
+      orderBy: { createdAt: 'asc' },
+    })
+    expect(weekly).toHaveLength(2)
+    expect(weekly[1]!.diff).toContain('"empty":true')
+    const after = (await briefOf(r.u.id))!
+    expect(after.revisionId).toBe(r.revisionId)
+    expect(after.facts).toBe(before.facts)
+    expect(after.provisional).toBe(false)
+  })
+
   test('replaces a provisional brief with its own', async () => {
     const r = await runner(email())
     const provisional = (await getBrief(r))!

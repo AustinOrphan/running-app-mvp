@@ -89,6 +89,7 @@ function previewOf(over: Partial<PlanPreview> = {}): PlanPreview {
         after: makeBrief({ durationMin: 40 }),
       }),
     ]),
+    runMin: null,
     summary: 'Undid: 1 change across 1 week.',
     warnings: [],
     blocked: false,

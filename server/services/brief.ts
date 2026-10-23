@@ -111,6 +111,8 @@ export function replanNoteOf(
 interface Composed {
   planId: string | null
   revisionId: string | null
+  /** True when the revision it describes changed nothing. */
+  quiet: boolean
   facts: BriefFacts
 }
 
@@ -193,7 +195,12 @@ async function compose(deps: Deps, args: ComposeArgs): Promise<Composed> {
         session.flags,
       ),
   })
-  return { planId: context.plan?.id ?? null, revisionId: revision?.id ?? null, facts }
+  return {
+    planId: context.plan?.id ?? null,
+    revisionId: revision?.id ?? null,
+    quiet: revision?.diff?.empty === true,
+    facts,
+  }
 }
 
 function rowData(composed: Composed, provisional: boolean) {
@@ -211,7 +218,9 @@ function rowData(composed: Composed, provisional: boolean) {
  * Writes the brief of `today`'s week, replacing a provisional one. Called by the weekly job after
  * its re-plan: with the revision it wrote, or with the error that stopped it, which becomes a note
  * on the brief. A brief that already describes a revision is left alone by one that describes none,
- * so a late failure never replaces the brief of an update that ran.
+ * so a late failure never replaces the brief of an update that ran. It is also left alone by a
+ * second update of the week that changed nothing (the catch-up and the 03:00 slot can both
+ * re-plan one plan), which would otherwise say "the plan did not change" over the update that did.
  */
 export async function generateBrief(
   deps: Deps,
@@ -233,6 +242,22 @@ export async function generateBrief(
       select: { revisionId: true },
     })
     if (existing?.revisionId != null) return
+  } else if (composed.quiet) {
+    const kept = await deps.prisma.weeklyBrief.findFirst({
+      where: {
+        userId,
+        weekStart,
+        provisional: false,
+        revision: {
+          is: {
+            id: { not: composed.revisionId },
+            OR: [{ diff: null }, { NOT: { diff: { contains: EMPTY_DIFF_MARK } } }],
+          },
+        },
+      },
+      select: { id: true },
+    })
+    if (kept !== null) return
   }
   const data = rowData(composed, false)
   try {

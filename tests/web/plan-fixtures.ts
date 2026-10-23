@@ -286,6 +286,7 @@ export function makePreview(over: Partial<PlanPreview> = {}): PlanPreview {
   return {
     action: { type: 'replan' },
     diff: makeDiff([]),
+    runMin: null,
     summary: 'No changes to the plan.',
     warnings: [],
     blocked: false,

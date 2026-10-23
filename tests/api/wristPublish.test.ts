@@ -6,6 +6,7 @@ import { dataVersionKey } from '../../server/dataVersion.ts'
 import {
   DELIVERY_VERSION,
   contentHash,
+  contentHashes,
   isPublishDue,
   isPublishing,
   publishChangeKey,
@@ -381,6 +382,47 @@ describe('publishForUser', () => {
     expect((await rowsOf(u))[0]).toMatchObject({ state: 'sent', date: moved })
   })
 
+  test('a bump of the delivery version does not bring back an event the runner deleted', async () => {
+    const { u, planId } = await runner('owner-removed-bump@example.com')
+    const date = addDays(today, 2)
+    const [session] = await place(ctx, planId, [{ date, kind: 'easy' }])
+    await publish(u)
+    const [event] = fake.byDate()
+    const content = { date, name: event!.name, description: event!.description }
+    fake.events.clear() // deleted by hand in intervals.icu
+    await publish(u)
+    expect((await rowsOf(u))[0]).toMatchObject({
+      state: 'owner-removed',
+      sentHash: contentHash(content),
+    })
+
+    // The row as the release before the bump stored it: the same content under version 1.
+    const stored = contentHashes(content).at(-1)!
+    expect(DELIVERY_VERSION).toBeGreaterThan(1)
+    expect(stored).not.toBe(contentHash(content))
+    await ctx.prisma.wristPublication.updateMany({
+      where: { userId: u.id },
+      data: { sentHash: stored, desiredHash: stored },
+    })
+    fake.forget()
+    const seen = await publish(u)
+    expect(seen).toMatchObject({ status: 'ok', sent: 0, withdrawn: 0 })
+    expect(writes()).toEqual([])
+    expect(fake.events.size).toBe(0)
+    expect((await rowsOf(u))[0]).toMatchObject({ state: 'owner-removed', sentHash: stored })
+
+    // a change of the content still brings it back
+    const moved = addDays(today, 5)
+    await ctx.prisma.planSession.update({
+      where: { id: session!.id },
+      data: { date: moved, weekStart: mondayOf(moved) },
+    })
+    await publish(u)
+    expect(writes()).toEqual(['POST /athlete/i1001/events/bulk'])
+    expect(fake.byDate().map(dayOf)).toEqual([moved])
+    expect((await rowsOf(u))[0]).toMatchObject({ state: 'sent', date: moved })
+  })
+
   test('a 404 on the update of an event the list could not show is an owner removal too', async () => {
     const { u, planId } = await runner('put-404@example.com')
     const [session] = await place(ctx, planId, [{ date: today, kind: 'easy' }])
@@ -635,6 +677,12 @@ describe('the change key', () => {
     const parts = { date: '2026-10-22', name: 'Easy run, 45 min', description: '- Run 45m' }
     const hash = contentHash(parts)
     expect(hash).toMatch(/^[0-9a-f]{64}$/)
+    // the same content under every version up to this one, the current first
+    const all = contentHashes(parts)
+    expect(all).toHaveLength(DELIVERY_VERSION)
+    expect(all[0]).toBe(hash)
+    expect(new Set(all).size).toBe(DELIVERY_VERSION)
+    expect(contentHashes({ ...parts, date: '2026-10-23' }).some((h) => all.includes(h))).toBe(false)
     expect(contentHash(parts)).toBe(hash)
     expect(contentHash({ ...parts, date: '2026-10-23' })).not.toBe(hash)
     expect(contentHash({ ...parts, name: 'Long run, 45 min' })).not.toBe(hash)

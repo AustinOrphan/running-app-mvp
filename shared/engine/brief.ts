@@ -190,13 +190,12 @@ export function keySessionFacts(
 
 function lastWeekOf(input: EngineInput, last: string): BriefLastWeek | null {
   const ranMin = Math.round(aggregateWeeks(input.activities, [last])[0]!.runMin)
-  const plannedMin = weekEvidence(input, last).plannedMin
+  const planned = weekEvidence(input, last).plannedMin
+  // A week planned at zero minutes (the rest after a race, every run day held by a window) was
+  // not planned to run: "ran 25 of 0 planned minutes" is no sentence, so it reads as no plan.
+  const plannedMin = planned === null || Math.round(planned) <= 0 ? null : Math.round(planned)
   if (ranMin === 0 && plannedMin === null) return null
-  return {
-    weekStart: last,
-    ranMin,
-    plannedMin: plannedMin === null ? null : Math.round(plannedMin),
-  }
+  return { weekStart: last, ranMin, plannedMin }
 }
 
 function decisionOf(decision: WeeklyDecision | null): BriefDecision | null {

@@ -1,11 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { P } from '../../shared/engine/params/index.ts'
-import type { SessionKind } from '../../shared/engine/types.ts'
-import {
-  newWarnings,
-  runMinOverNextWeeks,
-  windowCovers,
-} from '../../web/components/disruption/previewFigures.ts'
+import { newWarnings, windowCovers } from '../../web/components/disruption/previewFigures.ts'
 import {
   EMPTY_DRAFT,
   RUN_CAP_CHOICES,
@@ -17,7 +12,7 @@ import {
   windowSentences,
   type WindowDraft,
 } from '../../web/components/disruption/windowDraft.ts'
-import { makeBrief, makeDiff, makeLine, makeWindow } from './plan-fixtures.ts'
+import { makeWindow } from './plan-fixtures.ts'
 
 const TODAY = '2026-10-22'
 
@@ -184,74 +179,7 @@ describe('what a window does to the days around it', () => {
   })
 })
 
-describe('the figures of a preview', () => {
-  // Today is Thursday 22 October; the four weeks run to Wednesday 18 November.
-  const run = (date: string, durationMin: number, over = {}) => ({
-    date,
-    kind: 'easy' as const,
-    durationMin,
-    status: 'planned' as const,
-    ...over,
-  })
-  const sessions = [
-    run('2026-10-20', 60), // before today
-    run('2026-10-22', 50),
-    run('2026-10-25', 90, { kind: 'long' }),
-    run('2026-10-23', 30, { kind: 'strength' }),
-    run('2026-10-27', 40, { status: 'skipped' }),
-    run('2026-11-18', 45), // the last day
-    run('2026-11-19', 45), // one day too far
-  ]
-  const brief = (date: string, kind: SessionKind, durationMin: number) =>
-    makeBrief({ date, kind, durationMin, title: kind })
-
-  test('adds up the runs still to come in the next four weeks, before and after', () => {
-    const diff = makeDiff([
-      // a run day held as rest, a run cut short, and a run moved out of the four weeks
-      makeLine({
-        externalId: 'a',
-        date: '2026-10-22',
-        before: brief('2026-10-22', 'easy', 50),
-        after: brief('2026-10-22', 'rest', 0),
-      }),
-      makeLine({
-        externalId: 'b',
-        date: '2026-10-25',
-        before: brief('2026-10-25', 'long', 90),
-        after: brief('2026-10-25', 'long', 60),
-      }),
-      makeLine({
-        externalId: 'c',
-        date: '2026-11-18',
-        before: brief('2026-11-18', 'easy', 45),
-        after: brief('2026-11-19', 'easy', 45),
-      }),
-      // a run added
-      makeLine({
-        change: 'added',
-        externalId: 'd',
-        date: '2026-10-30',
-        before: null,
-        after: brief('2026-10-30', 'easy', 25),
-      }),
-    ])
-    // 50 + 90 + 45 to come now; strength, a skipped run and days outside the weeks do not count.
-    // After: 0 + 60 + 0 + 25.
-    expect(runMinOverNextWeeks(sessions, diff, '2026-10-22')).toEqual({ before: 185, after: 85 })
-  })
-
-  test('a diff that changes no run leaves the total as it is', () => {
-    expect(runMinOverNextWeeks(sessions, makeDiff([]), '2026-10-22')).toEqual({
-      before: 185,
-      after: 185,
-    })
-  })
-
-  test('has no figure when no run is planned in those weeks', () => {
-    expect(runMinOverNextWeeks(sessions, makeDiff([]), '2027-03-01')).toBeNull()
-    expect(runMinOverNextWeeks([], makeDiff([]), '2026-10-22')).toBeNull()
-  })
-
+describe('the warnings and windows of a preview', () => {
   test('keeps only the warnings the plan does not carry already', () => {
     const known = {
       code: 'ramp',
