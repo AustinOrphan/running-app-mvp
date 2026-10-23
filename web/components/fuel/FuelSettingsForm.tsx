@@ -1,5 +1,7 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
+import { normalisedFuelSettings } from '../../../shared/domain/fuel.ts'
 import { advancedLockedMessage } from '../../../shared/engine/fuelCopy.ts'
+import type { LadderResult } from '../../../shared/engine/types.ts'
 import type { FuelSettings } from '../../../shared/types.ts'
 import { fieldErrors } from '../../api/client.ts'
 import { useSaveFuelSettings } from '../../api/fuel.ts'
@@ -11,6 +13,8 @@ import styles from './FuelLab.module.css'
 export interface FuelSettingsFormProps {
   /** The switches the server keeps. The page remounts the form when they change. */
   settings: FuelSettings
+  /** The replayed ladder; its rungs say whether the highest tier has been earned. */
+  ladder: Pick<LadderResult, 'rungs'>
 }
 
 /**
@@ -20,12 +24,15 @@ export interface FuelSettingsFormProps {
  * weekly re-plan. The form shows the values the server keeps, and what the runner has ticked until
  * Save.
  *
- * While the highest tier is closed, the sentence that says when it opens stands beside its box;
- * it is the sentence the server answers with when the box is saved ticked too early (the 400 on
- * `optInAdvanced`), so the refusal needs no second message: the box goes back to unticked and takes
- * focus, which reads the sentence out.
+ * While the ladder shows the highest rungs as not open yet, the sentence that says when they open
+ * stands beside the box, and describes it; once the ladder has earned them it is gone. It is the
+ * sentence the server answers with when the box is saved ticked too early (the 400 on
+ * `optInAdvanced`), and it also appears after such a refusal, whatever the ladder showed. The
+ * refusal drops nothing else: the other switches are saved with the highest tier off, and the
+ * toast says so in one sentence. When there is nothing else to save, the box goes back to unticked
+ * and takes focus, which reads the sentence out.
  */
-export function FuelSettingsForm({ settings }: FuelSettingsFormProps) {
+export function FuelSettingsForm({ settings, ladder }: FuelSettingsFormProps) {
   const headingId = useId()
   const hintId = useId()
   const advancedId = useId()
@@ -35,37 +42,62 @@ export function FuelSettingsForm({ settings }: FuelSettingsFormProps) {
   const save = useSaveFuelSettings()
   const [draft, setDraft] = useState<FuelSettings>(settings)
   const [failure, setFailure] = useState<string | null>(null)
+  // The server refused the highest tier on the last save: its sentence stands beside the box.
+  const [refused, setRefused] = useState(false)
 
   /** A gut condition turns the others off, and the highest tier needs the first one. */
   function change(next: Partial<FuelSettings>): void {
-    setDraft((current) => {
-      const merged = { ...current, ...next }
-      if (merged.giDisease) {
-        return { optIn90: false, optInAdvanced: false, giDisease: true, gutBlock: false }
-      }
-      return { ...merged, optInAdvanced: merged.optIn90 && merged.optInAdvanced }
-    })
+    setDraft((current) => normalisedFuelSettings({ ...current, ...next }))
+  }
+
+  function notSaved(error: unknown): void {
+    setFailure(labText.settingsNotSaved(error instanceof Error ? error.message : ''))
+  }
+
+  /**
+   * The highest tier was refused, and the server stored nothing from that request. The rest of the
+   * draft is saved with the tier off, and the toast says so; with nothing else to save, the box
+   * goes back to unticked and takes focus.
+   */
+  function saveWithoutHighest(): void {
+    const rest: FuelSettings = { ...draft, optInAdvanced: false }
+    setDraft(rest)
+    setRefused(true)
+    if (
+      rest.optIn90 === settings.optIn90 &&
+      rest.optInAdvanced === settings.optInAdvanced &&
+      rest.giDisease === settings.giDisease &&
+      rest.gutBlock === settings.gutBlock
+    ) {
+      advancedBox.current?.focus()
+      return
+    }
+    save.mutateAsync(rest).then(() => {
+      toast.show(labText.settingsSavedWithoutHighest())
+    }, notSaved)
   }
 
   function submit(event: FormEvent): void {
     event.preventDefault()
     setFailure(null)
+    setRefused(false)
     save.mutateAsync(draft).then(
       () => {
         toast.show(labText.settingsSaved())
       },
       (error: unknown) => {
-        if (fieldErrors(error)['optInAdvanced'] !== undefined) {
-          setDraft((current) => ({ ...current, optInAdvanced: false }))
-          advancedBox.current?.focus()
-          return
-        }
-        setFailure(labText.settingsNotSaved(error instanceof Error ? error.message : ''))
+        if (fieldErrors(error)['optInAdvanced'] === undefined) notSaved(error)
+        else saveWithoutHighest()
       },
     )
   }
 
   const advancedClosed = !draft.optIn90 || draft.giDisease
+  // A gut condition holds the ladder at the floor, so the highest rungs are not earned either.
+  const highestLocked = ladder.rungs.some(
+    (rung) => rung.state === 'opens-after-second-tier' || rung.state === 'gut-condition',
+  )
+  const showLocked = !draft.optInAdvanced && (highestLocked || refused)
   return (
     <section aria-labelledby={headingId} className={styles.section}>
       <h2 id={headingId} className={styles.heading}>
@@ -93,18 +125,18 @@ export function FuelSettingsForm({ settings }: FuelSettingsFormProps) {
             type="checkbox"
             checked={draft.optInAdvanced}
             disabled={advancedClosed}
-            aria-describedby={draft.optInAdvanced ? undefined : advancedId}
+            aria-describedby={showLocked ? advancedId : undefined}
             onChange={(event) => {
               change({ optInAdvanced: event.target.checked })
             }}
           />
           <span>{labText.optAdvanced()}</span>
         </label>
-        {draft.optInAdvanced ? null : (
+        {showLocked ? (
           <p id={advancedId} className={styles.note}>
             {advancedLockedMessage()}
           </p>
-        )}
+        ) : null}
         <label className={styles.check}>
           <input
             type="checkbox"

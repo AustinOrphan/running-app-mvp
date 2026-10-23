@@ -5,7 +5,13 @@ import type { CalendarTokenIssued, IntegrationStatus, WristStatus } from '../../
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { WristSettings } from '../../web/components/WristSettings.tsx'
 import { IntegrationsPage } from '../../web/pages/IntegrationsPage.tsx'
-import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  delayResponses,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 import { makeStateView } from './state-fixtures.ts'
 import { makeWristItem, makeWristStatus, refocus, sendingOn } from './wrist-fixtures.ts'
 
@@ -16,15 +22,50 @@ function setOnline(online: boolean): void {
   Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => online })
 }
 
+/**
+ * Chromium moves focus to the page when the focused control becomes disabled, and jsdom does not.
+ * This stands in for it, so a test fails when a control the runner is operating is disabled while
+ * its request runs. (jsdom's `blur()` ignores a disabled element, so the attribute is lifted while
+ * focus moves.)
+ */
+let stopDisabledBlur: (() => void) | null = null
+function blurWhenDisabled(): void {
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      const target = record.target
+      if (
+        target instanceof HTMLElement &&
+        target.hasAttribute('disabled') &&
+        document.activeElement === target
+      ) {
+        target.removeAttribute('disabled')
+        target.blur()
+        target.setAttribute('disabled', '')
+      }
+    }
+  })
+  observer.observe(document.body, {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['disabled'],
+  })
+  stopDisabledBlur = () => {
+    observer.disconnect()
+  }
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2027, 0, 13, 12, 0, 0))
   setOnline(true)
   window.localStorage.clear()
   window.sessionStorage.clear()
+  blurWhenDisabled()
 })
 
 afterEach(() => {
+  stopDisabledBlur?.()
+  stopDisabledBlur = null
   vi.useRealTimers()
 })
 
@@ -156,7 +197,11 @@ describe('the publishing settings', () => {
     // the status is read again when the window regains focus
     await refocus()
     expect(await screen.findByText('Sending to intervals.icu now.')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Send now' })).toBeDisabled()
+    // Busy, not disabled: a button that was just pressed keeps focus (see the focus tests below).
+    const sendNow = screen.getByRole('button', { name: 'Send now' })
+    expect(sendNow).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.setup().click(sendNow)
+    expect(view.calls.filter((c) => c.method === 'POST')).toEqual([])
   })
 
   describe('turning sending off', () => {
@@ -271,6 +316,106 @@ describe('the publishing settings', () => {
       expect(
         screen.getByRole('checkbox', { name: 'Send my next 14 days of runs to intervals.icu' }),
       ).toBeChecked()
+    })
+  })
+
+  describe('focus', () => {
+    const SEND = 'Send my next 14 days of runs to intervals.icu'
+    const GARMIN = 'intervals.icu uploads planned workouts to my Garmin Connect'
+
+    test.each([
+      ['the send box', SEND, { enabled: true, garminLinked: false }],
+      ['the Garmin box', GARMIN, { enabled: false, garminLinked: true }],
+    ])('%s keeps focus while it saves, and ignores a second press', async (_n, name, body) => {
+      const user = userEvent.setup()
+      const { calls } = stateful(makeWristStatus())
+      delayResponses(60)
+      renderWithProviders(<WristSettings />)
+      const box = await screen.findByRole('checkbox', { name })
+      await user.click(box)
+      // saving: the box is marked, not disabled, so focus stays where the runner put it
+      await waitFor(() => {
+        expect(box).toHaveAttribute('aria-disabled', 'true')
+      })
+      expect(box).not.toBeDisabled()
+      expect(box).toHaveFocus()
+      await user.keyboard(' ')
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+      await waitFor(() => {
+        expect(box).not.toHaveAttribute('aria-disabled')
+      })
+      expect(box).toHaveFocus()
+      expect(calls.find((c) => c.method === 'PUT')?.body).toEqual(body)
+      // the box shows what the server kept, not the second press
+      expect(box).toBeChecked()
+    })
+
+    test('the offer opens on its own box, and Keep sending gives focus back to the send box', async () => {
+      const user = userEvent.setup()
+      stateful(sendingOn(SENT))
+      renderWithProviders(<WristSettings />)
+      const send = await screen.findByRole('checkbox', { name: SEND })
+      await user.click(send)
+      const offer = screen.getByRole('group', { name: /New sessions stop/ })
+      expect(
+        within(offer).getByRole('checkbox', { name: 'Also remove the sessions already sent' }),
+      ).toHaveFocus()
+      await user.click(within(offer).getByRole('button', { name: 'Keep sending' }))
+      expect(screen.queryByRole('group', { name: /New sessions stop/ })).not.toBeInTheDocument()
+      expect(send).toHaveFocus()
+    })
+
+    test('turning sending off keeps focus on the button, then gives it to the send box', async () => {
+      const user = userEvent.setup()
+      stateful(sendingOn(SENT))
+      delayResponses(60)
+      renderWithProviders(<WristSettings />)
+      const send = await screen.findByRole('checkbox', { name: SEND })
+      await user.click(send)
+      const turnOff = screen.getByRole('button', { name: 'Turn off sending' })
+      await user.click(turnOff)
+      await waitFor(() => {
+        expect(turnOff).toHaveAttribute('aria-disabled', 'true')
+      })
+      expect(turnOff).not.toBeDisabled()
+      expect(turnOff).toHaveFocus()
+      await waitFor(() => {
+        expect(screen.queryByRole('group', { name: /New sessions stop/ })).not.toBeInTheDocument()
+      })
+      expect(send).not.toBeChecked()
+      expect(send).toHaveFocus()
+    })
+
+    test('a refused removal leaves focus on the button that was pressed', async () => {
+      const user = userEvent.setup()
+      stateful(sendingOn(SENT), { 'PUT /api/wrist/intervals': () => REMOVE_FAILED })
+      delayResponses(60)
+      renderWithProviders(<WristSettings />)
+      await user.click(await screen.findByRole('checkbox', { name: SEND }))
+      const turnOff = screen.getByRole('button', { name: 'Turn off sending' })
+      await user.click(turnOff)
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+      expect(turnOff).toBeEnabled()
+      expect(turnOff).toHaveFocus()
+    })
+
+    test('Send now keeps focus while it sends and while the send runs', async () => {
+      const user = userEvent.setup()
+      const status = sendingOn(SENT)
+      const view = stateful(status)
+      delayResponses(60)
+      renderWithProviders(<WristSettings />)
+      const sendNow = await screen.findByRole('button', { name: 'Send now' })
+      await user.click(sendNow)
+      await waitFor(() => {
+        expect(sendNow).toHaveAttribute('aria-disabled', 'true')
+      })
+      expect(sendNow).toHaveFocus()
+      view.set({ ...status, settings: { ...status.settings, running: true } })
+      await refocus()
+      expect(await screen.findByText('Sending to intervals.icu now.')).toBeVisible()
+      expect(sendNow).toHaveAttribute('aria-disabled', 'true')
+      expect(sendNow).toHaveFocus()
     })
   })
 
@@ -442,6 +587,52 @@ describe('Disconnect on the intervals.icu card', () => {
       within(intervals).getByRole('group', { name: /holds the sessions already sent/ }),
     ).toBeInTheDocument()
     expect(deletes(calls)).toEqual([])
+  })
+
+  test('the choice opens on its first box, and declining it gives focus back to Disconnect', async () => {
+    const user = userEvent.setup()
+    page(sendingOn(SENT))
+    const intervals = await card()
+    await within(intervals).findByText('Send sessions to your watch')
+    await user.click(within(intervals).getByRole('button', { name: 'Disconnect' }))
+    const choice = within(intervals).getByRole('group', { name: /holds the sessions already sent/ })
+    expect(
+      within(choice).getByRole('checkbox', { name: 'Also remove the sessions already sent' }),
+    ).toHaveFocus()
+    await user.click(within(choice).getByRole('button', { name: 'Keep it connected' }))
+    expect(within(intervals).getByRole('button', { name: 'Disconnect' })).toHaveFocus()
+  })
+
+  test('Disconnect keeps focus while it works, also after a refused removal', async () => {
+    const user = userEvent.setup()
+    const { calls } = page(sendingOn(SENT), {
+      'DELETE /api/integrations/intervals': () => REMOVE_FAILED,
+    })
+    delayResponses(60)
+    const intervals = await card()
+    await within(intervals).findByText('Send sessions to your watch')
+    await user.click(within(intervals).getByRole('button', { name: 'Disconnect' }))
+    const choice = within(intervals).getByRole('group', { name: /holds the sessions already sent/ })
+    await user.click(
+      within(choice).getByRole('checkbox', { name: 'Also remove the sessions already sent' }),
+    )
+    const disconnect = within(choice).getByRole('button', { name: 'Disconnect' })
+    await user.click(disconnect)
+    await waitFor(() => {
+      expect(disconnect).toHaveAttribute('aria-disabled', 'true')
+    })
+    expect(disconnect).not.toBeDisabled()
+    expect(disconnect).toHaveFocus()
+    await within(choice).findByRole('alert')
+    expect(disconnect).toHaveFocus()
+    expect(deletes(calls)).toEqual(['/api/integrations/intervals?removeSent=true'])
+
+    const without = within(choice).getByRole('button', { name: 'Disconnect without removing them' })
+    await user.click(without)
+    await waitFor(() => {
+      expect(without).toHaveAttribute('aria-disabled', 'true')
+    })
+    expect(without).toHaveFocus()
   })
 
   test('keeps the connection when the choice is declined', async () => {
@@ -647,6 +838,83 @@ describe('the Calendar link section', () => {
       )
     })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  test('keeps the token on screen when the status cannot be read after the link was made', async () => {
+    const user = userEvent.setup()
+    let created = false
+    page(undefined, {
+      'GET /api/wrist/status': () =>
+        created
+          ? { status: 500, body: { error: { code: 'internal', message: 'Down.' } } }
+          : makeWristStatus(),
+      'POST /api/wrist/calendar/token': () => {
+        created = true
+        return issued
+      },
+    })
+    const feed = await section()
+    await user.click(within(feed).getByRole('button', { name: 'Create calendar link' }))
+
+    // the section waits for a status it can trust, but the one copy of the token is not lost
+    const dialog = await screen.findByRole('dialog', { name: 'Your calendar link' })
+    expect(within(dialog).getByRole('textbox', { name: 'Calendar link address' })).toHaveValue(
+      addressOf(issued.path),
+    )
+    expect(screen.queryByRole('region', { name: 'Calendar link' })).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    expect(pageHoldsToken()).toBe(false)
+  })
+
+  describe('focus', () => {
+    test('stays on the Create button while the link is made, and returns there when the dialog closes', async () => {
+      const user = userEvent.setup()
+      const { calls } = page(undefined)
+      delayResponses(60)
+      const feed = await section()
+      const create = within(feed).getByRole('button', { name: 'Create calendar link' })
+      await user.click(create)
+      await waitFor(() => {
+        expect(create).toHaveAttribute('aria-disabled', 'true')
+      })
+      expect(create).not.toBeDisabled()
+      expect(create).toHaveFocus()
+      await user.click(create)
+      const dialog = await screen.findByRole('dialog', { name: 'Your calendar link' })
+      expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1)
+
+      await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(create).toHaveFocus()
+    })
+
+    test('returns to the button after Escape too', async () => {
+      const user = userEvent.setup()
+      page(makeWristStatus({ calendar: { enabled: true, tokenCreatedAt: issued.createdAt } }))
+      delayResponses(60)
+      const feed = await section()
+      const replace = await within(feed).findByRole('button', { name: 'Create a new link' })
+      await user.click(replace)
+      await screen.findByRole('dialog', { name: 'Your calendar link' })
+      await user.keyboard('{Escape}')
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(replace).toHaveFocus()
+    })
+
+    test('turning the link off keeps focus on its button while it works, then moves it to the button that makes a link', async () => {
+      const user = userEvent.setup()
+      page(makeWristStatus({ calendar: { enabled: true, tokenCreatedAt: issued.createdAt } }))
+      delayResponses(60)
+      const feed = await section()
+      const turnOff = await within(feed).findByRole('button', { name: 'Turn off the link' })
+      await user.click(turnOff)
+      await waitFor(() => {
+        expect(turnOff).toHaveAttribute('aria-disabled', 'true')
+      })
+      expect(turnOff).toHaveFocus()
+      expect(await screen.findByText('Calendar link turned off')).toBeInTheDocument()
+      expect(within(feed).getByRole('button', { name: 'Create calendar link' })).toHaveFocus()
+    })
   })
 
   test('is left out offline, where the link cannot be made or checked', async () => {

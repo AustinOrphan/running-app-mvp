@@ -256,5 +256,8 @@ export const labText = {
   settingsNote: () => say(T['fuel.lab.settings-note'], {}),
   settingsSave: () => say(T['fuel.lab.settings-save'], {}),
   settingsSaved: () => say(T['fuel.lab.settings-saved'], {}),
+  /** The other switches were saved and the highest tier was left off, as the server refused it. */
+  settingsSavedWithoutHighest: () =>
+    say(T['fuel.lab.settings-saved-partial'], { rate: count(P.h7.carbTier2GPerH.value) }),
   settingsNotSaved: (reason: string) => say(T['fuel.lab.settings-not-saved'], { reason }),
 }

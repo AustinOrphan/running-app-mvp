@@ -2,10 +2,12 @@
 // multiple-source share, derived from the items of a log and the elapsed time of the run. Nothing
 // here is stored. The fuel ladder in `shared/engine/fuel.ts` and the log form's live total both
 // call these functions, so the form and the replay always agree on how many grams per hour a run
-// was.
+// was. The rule that ties the four fuel switches together (section 10.4) lives here too, so the
+// settings form and the save route apply the same one.
 //
 // Pure: no clock, no I/O, no registry values. The conversions below are units, not rules.
 import type { FuelItem } from '../engine/types.ts'
+import type { FuelSettings } from '../types.ts'
 
 export const SECONDS_PER_MINUTE = 60
 export const SECONDS_PER_HOUR = 3600
@@ -72,4 +74,17 @@ export function carbRateGPerH(
 /** Minutes in a number of seconds, not rounded. */
 export function minutesOf(sec: number): number {
   return sec / SECONDS_PER_MINUTE
+}
+
+/**
+ * The rules of the four fuel switches. A gut condition forces the others off, so it leaves the
+ * floor and no gut-training block; opting out of the first higher tier clears the second, which
+ * needs it. The settings form applies this as the runner ticks boxes and the save route applies it
+ * to whatever it is sent, so a request never stores a combination the form could not show.
+ */
+export function normalisedFuelSettings(requested: FuelSettings): FuelSettings {
+  if (requested.giDisease) {
+    return { optIn90: false, optInAdvanced: false, giDisease: true, gutBlock: false }
+  }
+  return { ...requested, optInAdvanced: requested.optIn90 && requested.optInAdvanced }
 }

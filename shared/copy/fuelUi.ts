@@ -297,6 +297,11 @@ export const FUEL_UI_TEMPLATES = {
   ),
   'fuel.lab.settings-save': tpl('Save settings', {}, { shape: 'label' }),
   'fuel.lab.settings-saved': tpl('Fuel settings saved.'),
+  // The highest tier was ticked too early; the other switches were saved without it.
+  'fuel.lab.settings-saved-partial': tpl(
+    'Fuel settings saved without the highest tier, which opens after a run at {rate} g/h goes well.',
+    { rate: 'count' },
+  ),
   'fuel.lab.settings-not-saved': tpl('The settings were not saved. {reason} Try again.', {
     reason: 'text',
   }),

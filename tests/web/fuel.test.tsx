@@ -1288,12 +1288,21 @@ describe('the Fuel lab page: sections and layout', () => {
       'web/components/fuel/ProductManager.tsx',
       'web/components/fuel/ProductForm.tsx',
       'web/components/fuel/GutBlockCard.tsx',
-      'web/components/fuel/FuelSettingsForm.tsx',
     ]) {
       const source = readFileSync(join(process.cwd(), file), 'utf8')
       expect(source, file).not.toMatch(/engine\/fuel\.ts/)
       expect(source, file).not.toMatch(/domain\/fuel\.ts/)
     }
+  })
+
+  test('the settings form takes the one rule of the four switches from the shared module, and no rate', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'web/components/fuel/FuelSettingsForm.tsx'),
+      'utf8',
+    )
+    expect(source).not.toMatch(/engine\/fuel\.ts/)
+    const fromDomain = [...source.matchAll(/import \{([^}]*)\} from '[^']*domain\/fuel\.ts'/g)]
+    expect(fromDomain.map((match) => match[1]?.trim())).toEqual(['normalisedFuelSettings'])
   })
 
   test('shows the runs waiting for a log in the runner’s units, and Log fuel opens the form', async () => {
@@ -1792,8 +1801,12 @@ describe('the Fuel lab page: settings', () => {
     kept = OFF
   })
 
-  function renderSettings(routes: MockRoutes = {}) {
-    return renderLab(() => makeLab(RUNS, { settings: kept, block: BLOCK }), {
+  function renderSettings(
+    routes: MockRoutes = {},
+    labOf: (settings: FuelSettings) => FuelLabView = (settings) =>
+      makeLab(RUNS, { settings, block: BLOCK }),
+  ) {
+    return renderLab(() => labOf(kept), {
       'PUT /api/fuel/settings': ({ body }) => {
         kept = body as FuelSettings
         return kept
@@ -1801,6 +1814,44 @@ describe('the Fuel lab page: settings', () => {
       ...routes,
     })
   }
+
+  /**
+   * The lab of a runner who has tolerated the second tier under the first opt-in alone: runs, each
+   * at the rate of the rung being tried and with a multiple-source product, until the replay marks
+   * that rung tolerated. The ladder is the replay's own.
+   */
+  function earnedLab(settings: FuelSettings): FuelLabView {
+    const under = { optIn90: true, optInAdvanced: false, giDisease: false }
+    const runs: FuelRunInput[] = []
+    for (let n = 1; n <= 28; n++) {
+      const ladder = replayLadder({ settings: under, runs, gutTrainingWeeks: [] })
+      const secondTier = ladder.rungs.findLastIndex(
+        (rung) => rung.gPerH <= P.h7.carbTier2GPerH.value,
+      )
+      if (ladder.toleratedIndex >= secondTier) {
+        return makeLab(runs, { settings, ladder, block: BLOCK })
+      }
+      const run = loggedRun(n, {
+        servings: Math.ceil((ladder.rungs[ladder.currentIndex]!.gPerH * 3) / GEL.carbsG),
+      })
+      runs.push({
+        ...run,
+        log: { ...run.log, items: run.log.items.map((item) => ({ ...item, multiCarb: true })) },
+      })
+    }
+    throw new Error('The replay never tolerated the second tier.')
+  }
+
+  const refusal = () => ({
+    status: 400,
+    body: {
+      error: {
+        code: 'validation',
+        message: advancedLockedMessage(),
+        details: { issues: [{ path: 'optInAdvanced', message: advancedLockedMessage() }] },
+      },
+    },
+  })
 
   // The first opt-in opens the rungs above the first higher tier, the second those above the
   // second tier; the figures are the registry's.
@@ -1915,6 +1966,111 @@ describe('the Fuel lab page: settings', () => {
     expect(within(card).queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByText('Fuel settings saved.')).not.toBeInTheDocument()
     expect(api.calls.filter((call) => call.method === 'PUT')).toHaveLength(1)
+  })
+
+  test('keeps the sentence beside the highest tier while the first tier is on and the ladder has not earned it', async () => {
+    kept = { ...OFF, optIn90: true }
+    renderSettings()
+    const card = await region('Settings')
+    const advanced = box(card, SECOND_TIER)
+    expect(advanced).toBeEnabled()
+    expect(advanced).toHaveAccessibleDescription(advancedLockedMessage())
+    expect(within(card).getByText(advancedLockedMessage())).toBeInTheDocument()
+  })
+
+  test('drops the sentence once the ladder has earned the highest tier, and saves the box ticked', async () => {
+    const user = userEvent.setup()
+    kept = { ...OFF, optIn90: true }
+    const api = renderSettings({}, earnedLab)
+    const card = await region('Settings')
+    const advanced = box(card, SECOND_TIER)
+    expect(advanced).toBeEnabled()
+    expect(advanced).not.toBeChecked()
+    // the ladder beside it says the rungs are open to opt in to, so the box says nothing of waiting
+    expect(within(card).queryByText(advancedLockedMessage())).not.toBeInTheDocument()
+    expect(advanced).toHaveAccessibleDescription('')
+    expectCleanCopy(card)
+
+    await user.click(advanced)
+    await user.click(within(card).getByRole('button', { name: 'Save settings' }))
+    expect(await screen.findByText('Fuel settings saved.')).toBeInTheDocument()
+    expect(api.calls.filter((call) => call.method === 'PUT').map((call) => call.body)).toEqual([
+      { optIn90: true, optInAdvanced: true, giDisease: false, gutBlock: true },
+    ])
+  })
+
+  test('shows the server’s sentence after a refusal even when the ladder showed the tier as earned', async () => {
+    const user = userEvent.setup()
+    kept = { ...OFF, optIn90: true }
+    renderSettings({ 'PUT /api/fuel/settings': refusal }, earnedLab)
+    const card = await region('Settings')
+    const advanced = box(card, SECOND_TIER)
+    expect(within(card).queryByText(advancedLockedMessage())).not.toBeInTheDocument()
+    await user.click(advanced)
+    await user.click(within(card).getByRole('button', { name: 'Save settings' }))
+    await waitFor(() => {
+      expect(advanced).toHaveFocus()
+    })
+    expect(advanced).not.toBeChecked()
+    expect(within(card).getByText(advancedLockedMessage())).toBeInTheDocument()
+    expect(advanced).toHaveAccessibleDescription(advancedLockedMessage())
+  })
+
+  test('saves the other switches when the highest tier is refused, and says so in one sentence', async () => {
+    const user = userEvent.setup()
+    const api = renderSettings({
+      'PUT /api/fuel/settings': ({ body }) => {
+        const asked = body as FuelSettings
+        if (asked.optInAdvanced) return refusal()
+        kept = asked
+        return kept
+      },
+    })
+    const card = await region('Settings')
+    // both opt-ins at once, before the rung that opens the second has been tolerated
+    await user.click(box(card, FIRST_TIER))
+    await user.click(box(card, SECOND_TIER))
+    await user.click(box(card, 'Include a gut-training block before the taper'))
+    await user.click(within(card).getByRole('button', { name: 'Save settings' }))
+
+    const sentence = `Fuel settings saved without the highest tier, which opens after a run at ${String(P.h7.carbTier2GPerH.value)} g/h goes well.`
+    expect(await screen.findByText(sentence)).toBeInTheDocument()
+    expect(screen.queryByText('Fuel settings saved.')).not.toBeInTheDocument()
+    expect(api.calls.filter((call) => call.method === 'PUT').map((call) => call.body)).toEqual([
+      { optIn90: true, optInAdvanced: true, giDisease: false, gutBlock: false },
+      { optIn90: true, optInAdvanced: false, giDisease: false, gutBlock: false },
+    ])
+    expect(kept).toEqual({ optIn90: true, optInAdvanced: false, giDisease: false, gutBlock: false })
+    // the form starts again from what the server kept: the first tier on, the highest one off
+    await waitFor(async () => {
+      expect(await region('Settings')).not.toBe(card)
+    })
+    const fresh = await region('Settings')
+    expect(box(fresh, FIRST_TIER)).toBeChecked()
+    expect(box(fresh, SECOND_TIER)).not.toBeChecked()
+    expect(box(fresh, SECOND_TIER)).toBeEnabled()
+    expect(within(fresh).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  test('says the settings were not saved when the second request fails after a refusal', async () => {
+    const user = userEvent.setup()
+    renderSettings({
+      'PUT /api/fuel/settings': ({ body }) =>
+        (body as FuelSettings).optInAdvanced
+          ? refusal()
+          : {
+              status: 500,
+              body: { error: { code: 'internal', message: 'The server did not respond.' } },
+            },
+    })
+    const card = await region('Settings')
+    await user.click(box(card, FIRST_TIER))
+    await user.click(box(card, SECOND_TIER))
+    await user.click(within(card).getByRole('button', { name: 'Save settings' }))
+    expect(await within(card).findByRole('alert')).toHaveTextContent(
+      'The settings were not saved. The server did not respond. Try again.',
+    )
+    expect(screen.queryByText(/saved without the highest tier/)).not.toBeInTheDocument()
   })
 
   test('says the settings were not saved, in an alert, when the server is away', async () => {
