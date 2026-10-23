@@ -11,6 +11,7 @@ import type { Config } from './config.ts'
 import { apiNotFound, errorHandler } from './errors.ts'
 import { createLogger } from './logger.ts'
 import { activitiesRouter } from './routes/activities.ts'
+import { briefRouter, briefsRouter } from './routes/brief.ts'
 import { calendarRouter, redactedRequest } from './routes/calendar.ts'
 import { checkinsRouter } from './routes/checkins.ts'
 import { explainRouter } from './routes/explain.ts'
@@ -120,6 +121,8 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/state', stateRouter(deps))
   app.use('/api/stats', statsRouter(deps))
   app.use('/api/explain', explainRouter(deps))
+  app.use('/api/brief', briefRouter(deps))
+  app.use('/api/briefs', briefsRouter(deps))
   app.use('/api/fuel', fuelRouter(deps))
   app.use('/api/activities', activitiesRouter(deps))
   app.use('/api/imports', importsRouter(deps))

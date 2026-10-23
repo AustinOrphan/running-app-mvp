@@ -26,8 +26,8 @@ export function weekSlotStart(now: Date, slot: DailySlot & { weekday: number }):
   return start.getTime() <= now.getTime() ? start : null
 }
 
-/** Revisions that count as the week's automatic update. */
-const WEEKLY_REASONS = ['weekly', 'break']
+/** Revisions that count as the week's automatic update; the weekly brief describes one of them. */
+export const WEEKLY_REASONS = ['weekly', 'break']
 
 /**
  * Users whose weekly update is due: an active version-2 plan whose goal date has not passed, this

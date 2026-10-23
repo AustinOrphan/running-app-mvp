@@ -38,6 +38,7 @@ model User {
   fuelLogs          FuelLog[]
   fuelSettings      FuelSettings?
   disruptions       Disruption[]
+  weeklyBriefs      WeeklyBrief[]
 }
 
 model Activity {
@@ -253,7 +254,8 @@ model PlanRevision {
   seenAt       DateTime? // the one seen marker in the product
   disruptionId String? // the window this revision created, changed or removed (no foreign key)
 
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan  Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  brief WeeklyBrief?
 
   @@index([planId, createdAt])
   @@index([planId, reason])
@@ -369,6 +371,30 @@ model ActivityInsight {
   computedAt DateTime
 
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+// The Monday brief (phase 3a design 8.3 and 8.5): the facts of one week, as `BriefFacts` JSON, which
+// holds template ids, codes and slots and never prose (ADR 0010). Non-state: it is written by the
+// weekly job after its re-plan and, for the current week only, by a request that finds none, and
+// no snapshot, memo or deliverable reads it. `server/services/brief.ts` is its only writer. It has
+// no seen column: a brief is seen when the revision it describes is (`PlanRevision.seenAt`), or when
+// it describes none. `revisionId` is unique and set to null when the revision goes with its plan,
+// so a brief outlives the revision; `planId` is a plain column for the same reason.
+model WeeklyBrief {
+  id          String   @id @default(cuid())
+  userId      String
+  weekStart   String // Monday of the week the brief opens, YYYY-MM-DD
+  planId      String? // the active plan when the brief was built; null when there was none
+  revisionId  String?  @unique
+  version     Int // BRIEF_VERSION when the facts were built
+  facts       String // JSON text: BriefFacts
+  provisional Boolean  @default(false) // built by a request before the weekly update ran
+  generatedAt DateTime @default(now())
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revision PlanRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, weekStart])
 }
 
 model AthleteProfile {

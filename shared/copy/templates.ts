@@ -9,6 +9,7 @@ import { FUEL_TEMPLATES } from '../engine/fuelCopy.ts'
 import type { InputFact } from '../engine/types.ts'
 import type { Units } from '../types.ts'
 import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
+import { BRIEF_TEMPLATES } from './briefTemplates.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
 import { GOALS_TEMPLATES } from './goals.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
@@ -37,6 +38,7 @@ export const TEMPLATES = {
   ...WORKOUT_TEMPLATES,
   ...STANDOUT_TEMPLATES,
   ...TRACK_RECORD_TEMPLATES,
+  ...BRIEF_TEMPLATES,
   // The why drawer
   'why.intro': tpl(
     'Every number in the plan comes from a rule. Grade A is the strongest evidence; grade D is a conservative default.',

@@ -25,6 +25,7 @@ import {
   neutralGoal,
   type AthleteContext,
 } from './athleteState.ts'
+import { explainBrief } from './brief.ts'
 import { explainActivity } from './insight.ts'
 import { executionRecordsByWeek } from './planEngine.ts'
 
@@ -67,16 +68,15 @@ const NOT_FOUND: Record<ExplainRequest['subject'], string> = {
   zone: 'Not found.',
   prediction: 'Goal not found.',
   rules: 'Not found.',
-  // The figures of a brief are stored with it (E4-5).
-  brief: 'Explanations for briefs are not available yet.',
+  // A brief is answered from the figures stored with it, before this table is read.
+  brief: 'There is no brief for that week.',
   // A run is answered from its stored insight, before this table is read.
   activity: 'Activity not found.',
 }
 
 /**
  * The figures behind one Explain request. Throws 404 for a session or week outside the user's
- * current plan, a goal that is not theirs, a run that is not theirs, and a subject whose figures
- * are stored with it and not stored yet (a brief).
+ * current plan, a goal that is not theirs, a run that is not theirs, and a week without a brief.
  */
 export async function explainView(
   deps: Deps,
@@ -86,6 +86,11 @@ export async function explainView(
   // A run's figures are the ones stored with its insight (E4-7), not read again from the snapshot.
   if (request.subject === 'activity') {
     return explainActivity(deps, { userId, activityId: request.id })
+  }
+  // A brief's figures are the ones stored with it (E4-5): read from its row, never memoised by the
+  // data version, since a brief is a non-state table and a stored fact does not change.
+  if (request.subject === 'brief') {
+    return explainBrief(deps, { userId, weekStart: request.weekStart })
   }
   const today = args.today ?? todayIso()
   const context = await loadAthleteContext(deps, { userId, today })
