@@ -141,14 +141,12 @@ describe('Plan page', () => {
     // the version-1 fields are gone; the engine options are offered instead
     expect(screen.queryByLabelText('Weekly run minutes')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Plan start (Monday)')).not.toBeInTheDocument()
-    expect(screen.getByRole('radiogroup', { name: 'Recovery cycle' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: '3 up, 1 easy' })).toHaveAttribute(
+    expect(screen.getByRole('radiogroup', { name: 'Easier week' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Every 4th week' })).toHaveAttribute(
       'aria-checked',
       'true',
     )
-    expect(
-      screen.getByRole('radiogroup', { name: 'Strength sessions per week' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'Strength sessions a week' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: '2' })).toHaveAttribute('aria-checked', 'true')
     // a half marathon is not a 5 to 10 km goal
     expect(
@@ -199,7 +197,7 @@ describe('Plan page', () => {
       options: { recoveryCycle: '3:1', strengthSessions: 2 },
     })
 
-    await user.click(screen.getByRole('radio', { name: '2 up, 1 easy' }))
+    await user.click(screen.getByRole('radio', { name: 'Every 3rd week' }))
     await user.click(screen.getByRole('radio', { name: '1' }))
     await user.click(screen.getByRole('button', { name: 'Generate plan' }))
     await waitFor(() => {
@@ -482,7 +480,7 @@ describe('Plan page', () => {
     ).toBeInTheDocument()
     expect(calls.some((c) => c.method === 'POST')).toBe(false)
 
-    await user.click(within(dialog).getByRole('radio', { name: '2 up, 1 easy' }))
+    await user.click(within(dialog).getByRole('radio', { name: 'Every 3rd week' }))
     await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
     await waitFor(() => {
       expect(calls.some((c) => c.method === 'POST' && c.url === '/api/plan/generate')).toBe(true)
