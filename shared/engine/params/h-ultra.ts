@@ -334,6 +334,86 @@ export const hUltra = {
       unit: '% of non-finishers',
       note: 'GI distress was the leading DNF cause among 161 km non-finishers (descriptive; the reason higher rates are tolerance-gated).',
     }),
+    // The personal fuel ladder (E6, ADR 0011). Counting, movement and heat are replayed from the
+    // runner's own logs; only the 2 h threshold has a study behind it, the rest are labelled defaults.
+    logMinDurationMin: param('h7.logMinDurationMin', 120, 'A', 'H7', ['costa-2017-eigs-sr'], {
+      unit: 'min',
+      note: 'A run of at least this long can be logged and counted toward the ladder (a run of at least h7.gutTrainingSessionMinMin counts in a gut-training week). The review puts the threshold for significant gut strain at 2 h at about 60% VO2max; the app judges by duration alone.',
+    }),
+    rungReachFraction: param('h7.rungReachFraction', 0.9, 'D', 'H7', [], {
+      unit: 'fraction',
+      note: 'Default: a run reaches a rung when its carbohydrate rate over elapsed time is at least this fraction of the rung, which allows for a gel taken a few minutes late. No study sets a tolerance.',
+    }),
+    multiCarbMinShare: param(
+      'h7.multiCarbMinShare',
+      0.5,
+      'D',
+      'H7',
+      ['jeukendrup-2014-cho-intake'],
+      {
+        unit: 'fraction',
+        note: 'Default: above the first higher tier at least this share of the carbohydrate eaten comes from products with more than one transportable carbohydrate for the run to count. The review asks for multiple transportable carbohydrates above about 60 g/h; no study sets a share.',
+      },
+    ),
+    stepUpToleratedRuns: param(
+      'h7.stepUpToleratedRuns',
+      1,
+      'D',
+      'H7',
+      ['martinez-2023-gut-training-sr'],
+      {
+        unit: 'runs',
+        note: 'Default: one tolerated run opens the next step. The gut-training trials repeated the challenge for 2 weeks and the review found no established count, so the hold and fall-back rules carry the caution.',
+      },
+    ),
+    immediateFallbackScore: param(
+      'h7.immediateFallbackScore',
+      4,
+      'D',
+      'H7',
+      ['stuempfle-2015-gi-distress-wser'],
+      {
+        unit: 'score',
+        note: 'Default: a run scored this high (very severe on the 0-4 scale) returns the target to the last tolerated rung at once, without waiting for a second run. GI symptoms were a reason for dropping out for 35.6% of 161 km non-finishers (descriptive).',
+      },
+    ),
+    nauseaContingencyScore: param(
+      'h7.nauseaContingencyScore',
+      2,
+      'D',
+      'H7',
+      ['stuempfle-2015-gi-distress-wser', 'costa-2017-eigs-sr'],
+      {
+        unit: 'score',
+        note: 'Default: a nausea score this high on a counted run brings the nausea plan (simpler fuel, a slower pace) forward; the same cut-off as h7.gutStopScore. The sources name the plan, not the score.',
+      },
+    ),
+    hotDayWbgtC: param(
+      'h7.hotDayWbgtC',
+      18,
+      'D',
+      'H7',
+      ['costa-2017-eigs-sr', 'stuempfle-2015-gi-distress-wser'],
+      {
+        unit: 'C WBGT',
+        note: 'Default: a run at or above this WBGT is a hot day for fuel, so the target does not step up. Gut strain and nausea rise with heat but no study sets a temperature. This is not the heat-steering threshold: isHotForSteering (shared/engine/heat.ts) uses i9.warnWbgtC, 25 C WBGT, to drop the heart-rate ceiling, a different question, so a day can be hot for fuel and not for steering.',
+      },
+    ),
+    hotDayAirTempC: param(
+      'h7.hotDayAirTempC',
+      25,
+      'D',
+      'H7',
+      ['costa-2017-eigs-sr', 'stuempfle-2015-gi-distress-wser'],
+      {
+        unit: 'C',
+        note: 'Default: when a run has an air temperature but no WBGT, at or above this is a hot day for fuel. isHotForSteering never treats an air temperature alone as hot; the fuel hold errs the other way because stepping up on a hot day is the riskier mistake.',
+      },
+    ),
+    gutBlockSessionsPerWeek: param('h7.gutBlockSessionsPerWeek', 3, 'D', 'H7', GUT, {
+      unit: 'runs per week',
+      note: 'Default: at most this many runs of h7.gutTrainingSessionMinMin or more carry the fuel-practice flag in a gut-training week. The trials used near-daily 1 h sessions for 2 weeks and no study sets a weekly count; the flag adds no session, so only runs already in the plan are marked.',
+    }),
   },
   h8: {
     fluidReferenceMlPerH: param<[number, number]>(

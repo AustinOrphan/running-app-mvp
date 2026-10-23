@@ -27,7 +27,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-22.3')
+    expect(PARAMS_VERSION).toBe('2026-10-23.1')
   })
 
   it('holds a few hundred parameters, every section non-empty', () => {
@@ -186,6 +186,71 @@ describe('parameter registry', () => {
     expect(rate.note).toMatch(/default/i)
     // far below the reference for sustained ultra climbing, which is not a target
     expect(rate.value).toBeLessThan(P.h4.ultraClimbReferenceMh.value)
+  })
+
+  it('carries the personal fuel ladder of rule H7 with its grades and evidence', () => {
+    const h7 = P.h7
+    expect(
+      [
+        h7.logMinDurationMin,
+        h7.rungReachFraction,
+        h7.multiCarbMinShare,
+        h7.stepUpToleratedRuns,
+        h7.immediateFallbackScore,
+        h7.nauseaContingencyScore,
+        h7.hotDayWbgtC,
+        h7.hotDayAirTempC,
+        h7.gutBlockSessionsPerWeek,
+      ].map((p) => [p.id, p.value, p.grade, p.rule]),
+    ).toEqual([
+      ['h7.logMinDurationMin', 120, 'A', 'H7'],
+      ['h7.rungReachFraction', 0.9, 'D', 'H7'],
+      ['h7.multiCarbMinShare', 0.5, 'D', 'H7'],
+      ['h7.stepUpToleratedRuns', 1, 'D', 'H7'],
+      ['h7.immediateFallbackScore', 4, 'D', 'H7'],
+      ['h7.nauseaContingencyScore', 2, 'D', 'H7'],
+      ['h7.hotDayWbgtC', 18, 'D', 'H7'],
+      ['h7.hotDayAirTempC', 25, 'D', 'H7'],
+      ['h7.gutBlockSessionsPerWeek', 3, 'D', 'H7'],
+    ])
+    expect(paramsForRule('H7')).toHaveLength(22)
+    // the 2 h threshold is the one value taken from a study; the rest are labelled defaults
+    expect(h7.logMinDurationMin.evidence).toEqual(['costa-2017-eigs-sr'])
+    for (const p of [h7.hotDayWbgtC, h7.hotDayAirTempC]) {
+      expect(p.evidence).toEqual(['costa-2017-eigs-sr', 'stuempfle-2015-gi-distress-wser'])
+    }
+    // the scores live on the scale the log records and the stop rule reads
+    for (const p of [h7.immediateFallbackScore, h7.nauseaContingencyScore]) {
+      expect(p.value, p.id).toBeLessThanOrEqual(h7.gutSymptomScaleMax.value)
+    }
+    expect(h7.immediateFallbackScore.value).toBeGreaterThan(h7.gutStopScore.value)
+    // a run counts for less time in a gut-training week than in a normal week
+    expect(h7.gutTrainingSessionMinMin.value).toBeLessThan(h7.logMinDurationMin.value)
+  })
+
+  it('names the difference between the fuel and the heat-steering thresholds', () => {
+    // isHotForSteering uses i9.warnWbgtC; the fuel hold is lower on purpose (ADR 0011)
+    expect(P.h7.hotDayWbgtC.value).toBeLessThan(P.i9.warnWbgtC.value)
+    expect(P.h7.hotDayWbgtC.note).toMatch(/isHotForSteering/)
+    expect(P.h7.hotDayWbgtC.note).toMatch(/i9\.warnWbgtC/)
+    expect(P.h7.hotDayWbgtC.note).toMatch(/not the heat-steering threshold/i)
+    expect(P.h7.hotDayAirTempC.note).toMatch(/isHotForSteering/)
+  })
+
+  it('cites every evidence id of the h7 ladder in the text of rule H7', () => {
+    const start = engineRules.indexOf('- **H7 ')
+    const end = engineRules.indexOf('- **H8 ')
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    const h7Text = engineRules.slice(start, end)
+    const missing = paramsForRule('H7').flatMap((p) =>
+      p.evidence.filter((id) => !h7Text.includes(id)).map((id) => `${p.id}: ${id}`),
+    )
+    expect(missing).toEqual([])
+    // the hot-day numbers and the copy guard are stated in the rule, not only in the registry
+    expect(h7Text).toContain('**Copy guard.**')
+    expect(h7Text).toContain(`${P.h7.hotDayWbgtC.value} C or more`)
+    expect(h7Text).toContain(`${P.h7.hotDayAirTempC.value} C or more`)
   })
 
   it('transcribes the post-race window of rule H12', () => {
