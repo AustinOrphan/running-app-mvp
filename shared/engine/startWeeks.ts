@@ -7,9 +7,12 @@
 //   restart-floor        the first week of any start path
 //   run-walk, ladder-<n> a week of the run-walk ladder at rung n (1-based)
 //   injury-return, injury-level-<n>  a week of the injury-return ladder at level index n (0-based)
+// and by the flags of its sessions: `run-walk` on a ladder session that holds a walking break,
+// `injury-return` on the sessions of an injury-return week (`isLadderSession` tells a continuous
+// ladder run).
 import { P } from './params/index.ts'
 import type { RampExemption } from './limits.ts'
-import type { WeekDraft } from './types.ts'
+import type { SessionSpec, WeekDraft } from './types.ts'
 
 /** Where a runner starts: the result of the start-path rules (macro.ts `startPath`). */
 export type StartPath =
@@ -87,14 +90,29 @@ export function clipBlueprint(blueprint: readonly number[], maxMin: number): num
 
 /**
  * The blueprints cut together to at most `maxMin` minutes in all, each keeping its share: a start
- * week never holds more than the 2-week ceiling of G-2 lets it [rules E6, g-2].
+ * week never holds more than the 2-week ceiling of G-2 lets it [rules E6, g-2]. The whole minutes
+ * of the budget are all used (the largest remainders round up, the later and longer session first),
+ * so fitting the sessions of a week to the minutes it came out at gives the same sessions again.
  */
 export function fitBlueprints(blueprints: number[][], maxMin: number): number[][] {
   const lengths = blueprints.map(sessionMin)
   const total = lengths.reduce((a, b) => a + b, 0)
   if (!Number.isFinite(maxMin) || total <= maxMin + 1e-9) return blueprints
-  const factor = Math.max(0, maxMin) / total
-  return blueprints.map((bp, i) => clipBlueprint(bp, Math.floor(lengths[i]! * factor + 1e-9)))
+  const budget = Math.floor(Math.max(0, maxMin) + 1e-9)
+  const raw = lengths.map((len) => (len * budget) / total)
+  const sizes = raw.map((r) => Math.floor(r + 1e-9))
+  let left = budget - sizes.reduce((a, b) => a + b, 0)
+  const order = raw
+    .map((_, i) => i)
+    .sort((a, b) => raw[b]! - sizes[b]! - (raw[a]! - sizes[a]!) || b - a)
+  for (const i of order) {
+    if (left <= 0) break
+    if (sizes[i]! < lengths[i]!) {
+      sizes[i]! += 1
+      left -= 1
+    }
+  }
+  return blueprints.map((bp, i) => clipBlueprint(bp, sizes[i]!))
 }
 
 /** The three sessions of a rung: a rung with fewer blueprints repeats them. */
@@ -104,6 +122,14 @@ export function rungSessions(rung: number): number[][] {
   const wanted = P.restartFloor.sessions.value
   return Array.from({ length: wanted }, (_, i) => [...sessions[i % sessions.length]!])
 }
+
+/**
+ * Whether a session belongs to the run-walk ladder, a continuous run of the upper rungs included:
+ * among easy runs only the ladder opens with the framing walk, a warm-up step of walking. The
+ * `run-walk` flag marks only the sessions that hold a walking break, so it cannot tell.
+ */
+export const isLadderSession = (s: Pick<SessionSpec, 'kind' | 'structure'>): boolean =>
+  s.kind === 'easy' && s.structure[0]?.kind === 'warmup'
 
 /** Whether the blueprint holds a walk (it is a run-walk session, not a continuous run). */
 export const hasWalk = (blueprint: readonly number[]): boolean => blueprint.length > 1
@@ -124,23 +150,88 @@ export interface StartWeek {
   minutes: number
   /** The longest session, which enters the 30-day reference of the runs after it. */
   longest: number
+  /** Minutes of the step's own week, its sessions at full length. */
+  fullMinutes: number
+  /** True when a limit left a session shorter than its step, or left one out. */
+  clipped: boolean
   /** Week flags: `run-walk`/`ladder-<n>`, `injury-return`/`injury-level-<n>`; `restart-floor` is added by the caller for the first week. */
   flags: string[]
   focus: string
 }
 
-/** The shortest session each kind of start week keeps; a session cut under it is left out. */
-export function minSession(kind: StartKind): number {
-  if (kind === 'ladder') return P.fplace.minRunDayMin.value
-  if (kind === 'injury-return') return P.injuryReturn.levelsMin.value[0] ?? 0
-  return P.fplace.easyRunMinMin.value
+const DAY_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven']
+
+/**
+ * What a start week says about itself, from the sessions it holds: the days, the longest session
+ * and, where a limit cut it short of the step, the length it works toward. No word of falling
+ * behind. `repeat` words a step that is repeated.
+ */
+export function startFocus(
+  kind: StartKind,
+  step: number,
+  held: { days: number; longest: number; fullLongest: number; repeat: boolean },
+): string {
+  const cut = held.longest < held.fullLongest
+  const days = DAY_WORDS[held.days] ?? String(held.days)
+  const toward = `${String(held.longest)} min this week, working toward ${String(held.fullLongest)} min`
+  if (kind === 'ladder') {
+    const where = `Run-walk step ${String(step)} of ${String(rungCount())}`
+    const tail = cut ? `; sessions of up to ${toward}` : ''
+    return held.repeat
+      ? `${where}: repeating the step before moving on${tail}`
+      : `${where}: short runs with walking breaks, ${days} days a week${tail}`
+  }
+  if (kind === 'injury-return') {
+    const levels = P.injuryReturn.levelsMin.value
+    const where = `Return to running, level ${String(step + 1)} of ${String(levels.length)}`
+    if (held.repeat) return `${where}: repeating the level${cut ? `, ${toward}` : ''}`
+    return cut
+      ? `${where}: ${toward} of easy running, with a rest day between runs`
+      : `${where}: ${String(levels[step])} minutes of easy running, with a rest day between runs`
+  }
+  const runs = held.days > 0 ? held.days : P.restartFloor.sessions.value
+  return `Starting week: ${String(runs)} easy runs of ${String(held.longest > 0 ? held.longest : step)} minutes`
 }
+
+/**
+ * The focus of a start week from the sessions placed in it, which can be fewer or shorter than the
+ * programme drew (too few open days, a limit): the words of `startFocus` with the placed days and
+ * longest session. A week that is no start week keeps its focus.
+ */
+export function placedFocus(
+  week: Pick<WeekDraft, 'flags' | 'focus'>,
+  placed: { days: number; longest: number },
+): string {
+  const kind = startKind(week.flags)
+  if (kind === null) return week.focus
+  const repeat = week.focus.includes('repeating')
+  if (kind === 'ladder') {
+    const rung = ladderRung(week.flags)!
+    const fullLongest = Math.max(...rungSessions(rung).map(sessionMin))
+    return startFocus(kind, rung, { ...placed, fullLongest, repeat })
+  }
+  if (kind === 'injury-return') {
+    const level = injuryLevel(week.flags) ?? 0
+    const fullLongest = P.injuryReturn.levelsMin.value[level] ?? placed.longest
+    return startFocus(kind, level, { ...placed, fullLongest, repeat })
+  }
+  return startFocus(kind, placed.longest, { ...placed, fullLongest: placed.longest, repeat })
+}
+
+/**
+ * The shortest session of a start path: the first level of the injury-return ladder, 5 minutes. A
+ * session of the ladder, the injury-return ladder or the 3 x N floor is set by its programme and
+ * held to the G-1 bound, so it is exempt from the run day minimum (15 minutes) and the session
+ * minimum (20 minutes) and is placed at the bound instead of being dropped.
+ */
+export const startSessionMinMin = (): number => P.injuryReturn.levelsMin.value[0] ?? 0
 
 /**
  * The week of a start path at `step`, with every session held to `capMin`, the longest a session
  * may be against the 30-day reference (G-1 is a hard limit in a start path), and the week to
  * `weekMaxMin` in all (the 2-week ceiling of G-2). `repeat` words the focus for a rung that is
- * repeated.
+ * repeated. A session the limit cuts is placed at the limit, never under the shortest start
+ * session (5 minutes), and the focus says what the week works toward.
  */
 export function startWeek(
   kind: StartKind,
@@ -151,60 +242,100 @@ export function startWeek(
 ): StartWeek {
   let blueprints: number[][]
   let flags: string[]
-  let focus: string
+  let at = step
   if (kind === 'ladder') {
-    const total = rungCount()
     blueprints = rungSessions(step)
     flags = ['run-walk', ladderFlag(step)]
-    focus = repeat
-      ? `Run-walk step ${String(step)} of ${String(total)}: repeating the step before moving on`
-      : `Run-walk step ${String(step)} of ${String(total)}: short runs with walking breaks, three days a week`
   } else if (kind === 'injury-return') {
     const levels = P.injuryReturn.levelsMin.value
-    const level = Math.min(Math.max(step, 0), levels.length - 1)
-    blueprints = Array.from({ length: P.injuryReturn.repeatsPerLevel.value }, () => [
-      levels[level]!,
-    ])
-    flags = ['injury-return', injuryLevelFlag(level)]
-    focus = repeat
-      ? `Return to running, level ${String(level + 1)} of ${String(levels.length)}: repeating the level`
-      : `Return to running, level ${String(level + 1)} of ${String(levels.length)}: ${String(levels[level])} minutes of easy running, with a rest day between runs`
+    at = Math.min(Math.max(step, 0), levels.length - 1)
+    blueprints = Array.from({ length: P.injuryReturn.repeatsPerLevel.value }, () => [levels[at]!])
+    flags = ['injury-return', injuryLevelFlag(at)]
   } else {
     blueprints = Array.from({ length: P.restartFloor.sessions.value }, () => [step])
     flags = []
-    focus = `Starting week: ${String(P.restartFloor.sessions.value)} easy runs of ${String(step)} minutes`
   }
-  const floorMin = minSession(kind)
+  const floorMin = startSessionMinMin()
   const sessions = fitBlueprints(
     blueprints.map((bp) => clipBlueprint(bp, capMin)),
     weekMaxMin,
   ).filter((bp) => sessionMin(bp) >= floorMin)
   const lengths = sessions.map(sessionMin)
+  const full = blueprints.map(sessionMin)
+  const minutes = lengths.reduce((a, b) => a + b, 0)
+  const longest = Math.max(0, ...lengths)
   return {
     kind,
-    step,
+    step: at,
     sessions,
-    minutes: lengths.reduce((a, b) => a + b, 0),
-    longest: Math.max(0, ...lengths),
+    minutes,
+    longest,
+    fullMinutes: full.reduce((a, b) => a + b, 0),
+    clipped: minutes < full.reduce((a, b) => a + b, 0),
     flags,
-    focus,
+    focus: startFocus(kind, at, {
+      days: sessions.length,
+      longest,
+      fullLongest: Math.max(0, ...full),
+      repeat,
+    }),
   }
 }
 
+/** The last step of a programme: the last rung, the last level index, or the floor's one step. */
+function lastStep(kind: StartKind, step: number): number {
+  if (kind === 'ladder') return rungCount()
+  if (kind === 'injury-return') return P.injuryReturn.levelsMin.value.length - 1
+  return step
+}
+
+/** The shape of a start path that its weeks are counted from. */
+export interface StepPath {
+  kind: StartKind
+  step: number
+  /** Weeks still held at `step` by the BMI rule, counting the first. */
+  holdWeeks?: number
+  /** A progression hold: the step never rises and the floor repeats [rules n-1, n-4, J5]. */
+  frozen?: boolean
+}
+
 /**
- * The step of the `i`-th week of a start path (0-based), counting on to the end of the programme:
- * a ladder week by week from `rung` (held at `rung` for `holdWeeks` weeks first), the floor for
- * its one week, an injury-return level week by week. Null past the end.
+ * The steps of the weeks of a start path, one per week up to `weeks`: a ladder rung or injury
+ * level week by week from `path.step` (held for `holdWeeks` weeks first), the floor for its one
+ * week. A step rises only when the week drawn at it ran at its own length: `clipped(i, step)` says
+ * that week `i` at `step` was held short of the step by a limit, and the step then repeats, so the
+ * programme ends only after its last step has been run at its own length [rules E6, G-3]. A
+ * frozen path repeats its step in every week. `finished` is true when the programme ends before
+ * `weeks` run out.
  */
-export function stepAt(
-  path: { kind: StartKind; step: number; holdWeeks?: number },
-  i: number,
-): number | null {
-  if (path.kind === 'floor') return i === 0 ? path.step : null
-  const held = Math.max((path.holdWeeks ?? 0) - 1, 0)
-  const step = path.step + Math.max(0, i - held)
-  const last = path.kind === 'ladder' ? rungCount() : P.injuryReturn.levelsMin.value.length - 1
-  return step <= last ? step : null
+export function stepSchedule(
+  path: StepPath,
+  weeks: number,
+  clipped: (i: number, step: number) => boolean = () => false,
+): { steps: number[]; finished: boolean } {
+  const steps: number[] = []
+  const last = lastStep(path.kind, path.step)
+  let step = path.step
+  let hold = path.holdWeeks ?? 0
+  while (steps.length < weeks) {
+    if (step > last) return { steps, finished: true }
+    const i = steps.length
+    steps.push(step)
+    if (path.frozen === true) continue
+    if (hold > 1) hold -= 1
+    else if (!clipped(i, step)) step += 1
+  }
+  return { steps, finished: step > last }
+}
+
+/**
+ * The step of the `i`-th week of a start path (0-based), counting on to the end of the programme
+ * with no limit to hold a step short: a ladder week by week from `rung` (held at `rung` for
+ * `holdWeeks` weeks first), the floor for its one week, an injury-return level week by week. Null
+ * past the end.
+ */
+export function stepAt(path: StepPath, i: number): number | null {
+  return stepSchedule(path, i + 1).steps[i] ?? null
 }
 
 /** The weeks of a start path that follow a fixed programme, and what each is exempt from. */

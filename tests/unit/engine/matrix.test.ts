@@ -1,4 +1,4 @@
-// The plan matrix [design section 9]: nine synthetic athletes with their goals. For each plan the
+// The plan matrix [design section 9]: ten synthetic athletes with their goals. For each plan the
 // checklist is asserted item by item and every limit is re-derived here from the finished
 // sessions, in every week, without calling the code that enforces it. Determinism is asserted too.
 import { describe, expect, it } from 'vitest'
@@ -26,6 +26,15 @@ const RUNNING: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'b2b',
 ])
 const ANY_RUN: ReadonlySet<SessionKind> = new Set<SessionKind>([...RUNNING, 'hike'])
+
+/**
+ * A session set by a ladder or injury-return programme [rules E6, g-3]: a run-walk session, an
+ * injury-return run, or a continuous run of the upper rungs, which opens with the framing walk.
+ */
+const isStartSession = (s: SessionSpec): boolean =>
+  s.flags.includes('run-walk') ||
+  s.flags.includes('injury-return') ||
+  (s.kind === 'easy' && s.structure[0]?.kind === 'warmup')
 const HARD: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'threshold',
   'intervals',
@@ -191,7 +200,7 @@ describe.each(all)('plan matrix: $label', (a) => {
       // G-1 is checked against completed runs: a session of a run-walk or injury-return ladder is a
       // programme step, compared with the completed and the plain runs but not with another step
       // [rules E6]; the plain runs after the ladder see its sessions too
-      const step = s.flags.includes('run-walk') || s.flags.includes('injury-return')
+      const step = isStartSession(s)
       const window = [...completed, ...earlier.filter((r) => !step || !r.step)].filter((r) => {
         const ago = daysBetween(r.date, s.date)
         return ago >= 1 && ago <= 30
@@ -200,13 +209,13 @@ describe.each(all)('plan matrix: $label', (a) => {
       const refDist = Math.max(0, ...window.map((r) => r.distanceM ?? 0))
       if (refMin > 0) {
         const ratio = s.durationMin / refMin
-        // the normal band is 1.10x or the reference plus the minimum step of 3 min, as for distance
-        const overBand = s.durationMin > refMin + Math.max(refMin * 0.1, 3) + 1e-9
+        // the band is 1.10x, or the reference plus the 3-minute duration step where that is more
+        const warnLimit = refMin + Math.max(refMin * 0.1, 3)
         if (ratio > 2) bad.push(`${s.date} ${s.kind} is ${ratio.toFixed(2)}x by time`)
-        if (overBand && !s.flags.includes('spike-warn')) {
+        if (s.durationMin > warnLimit + 1e-9 && !s.flags.includes('spike-warn')) {
           bad.push(`${s.date} ${s.kind} is ${ratio.toFixed(2)}x by time without a warning`)
         }
-        if (state.risk.recentInjury && overBand) {
+        if (state.risk.recentInjury && s.durationMin > warnLimit + 1e-9) {
           bad.push(`${s.date} ${s.kind} passes the hard limit (${ratio.toFixed(2)}x)`)
         }
       }
@@ -532,7 +541,10 @@ describe.each(all)('plan adequacy: $label', (a) => {
       if (state.experience === 'novice') days = Math.min(days, 3)
       if (state.age !== null && state.age >= 40) days = Math.min(days, 6)
       const walking = runs.some((s) => s.flags.includes('run-walk'))
-      const fit = Math.floor(w.targetRunMin / (walking ? RUN_WALK_MIN : MIN_RUN))
+      // a ladder or injury-return session is exempt from the run day minimum: 5 minutes at least
+      const programme =
+        runs.some(isStartSession) || w.flags.some((f) => /^ladder-|^injury-/.test(f))
+      const fit = Math.floor(w.targetRunMin / (programme ? 5 : walking ? RUN_WALK_MIN : MIN_RUN))
       const lowest = w.isRecovery || w.isTaper ? 1 : Math.min(2, days)
       const expected = Math.min(days, open, Math.max(lowest, fit))
       if (cut.has(w.weekStart)) {
@@ -552,7 +564,7 @@ describe.each(all)('plan adequacy: $label', (a) => {
   it('keeps every run at the session minimum outside run-walk, and the long run the longest', () => {
     const bad: string[] = []
     for (const s of plan.sessions) {
-      if (!RUNNING.has(s.kind) || s.flags.includes('run-walk')) continue
+      if (!RUNNING.has(s.kind) || isStartSession(s)) continue
       if (s.durationMin < MIN_RUN) bad.push(`${s.date} ${s.kind} ${s.durationMin} min`)
     }
     for (const w of fullWeeks(plan)) {
@@ -567,6 +579,19 @@ describe.each(all)('plan adequacy: $label', (a) => {
           `${w.weekStart}: ${longer.kind} ${longer.durationMin} min is longer than the long run`,
         )
       }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('holds at least one run in every week that has a running target, a ladder or injury-return week included', () => {
+    const bad: string[] = []
+    for (const w of fullWeeks(plan)) {
+      if (w.targetRunMin <= 0) continue
+      const runs = plan.sessions.filter(
+        (s) => mondayOf(s.date) === w.weekStart && RUNNING.has(s.kind),
+      )
+      if (runs.length === 0)
+        bad.push(`${w.weekStart}: a target of ${w.targetRunMin} min and no run`)
     }
     expect(bad).toEqual([])
   })

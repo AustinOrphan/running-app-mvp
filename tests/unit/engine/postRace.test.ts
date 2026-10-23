@@ -10,6 +10,7 @@ import {
   countsTowardReference,
   referenceBetween,
   runCaps,
+  VOLUME_KINDS,
   type RunRecord,
 } from '../../../shared/engine/limits.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -761,16 +762,32 @@ describe('window weeks held to the normal band of G-1', () => {
     expect(windowRuns(hundred, [week!])).toEqual([])
   })
 
-  it('records a run no shorter than the shortest run for a week of few minutes', () => {
+  it('records the run a week of few minutes holds: one run of its own minutes, as placed', () => {
     const [week] = windowWeeks(hundred, {
       weekStarts: [weekStart],
       firstIndex: 0,
       reference: 40,
       referenceRunDays: 3,
     })
-    expect(week!.runDays).toBeGreaterThanOrEqual(1)
-    const [record] = windowRuns(hundred, [week!])
-    expect(record!.min).toBeGreaterThanOrEqual(P.fplace.easyRunMinMin.value)
+    expect(week!.runDays).toBe(1)
+    expect(week!.targetRunMin).toBeGreaterThanOrEqual(P.fplace.minRunDayMin.value)
+    expect(week!.targetRunMin).toBeLessThan(P.fplace.easyRunMinMin.value)
+    // the placement holds one run of those minutes (micro.ts), so the 30-day reference of the
+    // weeks after it is that run and not the shortest run
+    expect(windowRuns(hundred, [week!]).map((r) => r.min)).toEqual([week!.targetRunMin])
+  })
+
+  it('records no run for a week under the run day minimum, and the shortest run at least otherwise', () => {
+    const [week] = windowWeeks(hundred, {
+      weekStarts: [weekStart],
+      firstIndex: 0,
+      reference: 40,
+      referenceRunDays: 3,
+    })
+    const tiny = { ...week!, targetRunMin: P.fplace.minRunDayMin.value - 1, runDays: 1 }
+    expect(windowRuns(hundred, [tiny])).toEqual([])
+    const many = { ...week!, targetRunMin: 90, runDays: 3, longRunMin: 0 }
+    expect(windowRuns(hundred, [many])[0]!.min).toBe(Math.ceil(90 / 3))
   })
 })
 
@@ -1126,6 +1143,31 @@ describe('re-plans around a window and a start path', () => {
       const draft = replanAt(shift, logged)
       expect(draft.checklist.filter((c) => !c.ok).map((c) => `${c.id}: ${c.detail}`)).toEqual([])
     })
+
+    // a restart week re-planned on any day of its first weeks: the runs done or kept earlier in
+    // the week count toward its 3 non-consecutive run days [rules F5, E6, g-3]
+    it.each(Array.from({ length: 38 }, (_, i) => i))(
+      're-plan on each of the days 0 to 37, day %i: the start weeks hold at most 3 run days apart, and no item fails',
+      (shift) => {
+        const draft = replanAt(shift, logged)
+        expect(draft.checklist.filter((c) => !c.ok).map((c) => `${c.id}: ${c.detail}`)).toEqual([])
+        for (const week of draft.weeks.filter(
+          (w) => w.flags.includes('restart-floor') || w.flags.some((f) => f.startsWith('ladder-')),
+        )) {
+          const days = [
+            ...new Set(
+              draft.sessions
+                .filter((s) => mondayOf(s.date) === week.weekStart && VOLUME_KINDS.has(s.kind))
+                .map((s) => s.date),
+            ),
+          ].sort()
+          expect(days.length, week.weekStart).toBeLessThanOrEqual(3)
+          for (let i = 1; i < days.length; i++) {
+            expect(daysBetween(days[i - 1]!, days[i]!), week.weekStart).toBeGreaterThan(1)
+          }
+        }
+      },
+    )
   })
 
   it('holds a taper week to its minutes when the base is small', () => {

@@ -599,8 +599,13 @@ export function windowWeeks(
 
 /**
  * The run a post-race week adds to the 30-day reference of the weeks after it [rules G-1, H12]: its
- * longest run, dated on the first day the week can hold it so the reference is never overstated.
- * Null for a week with no run.
+ * longest run as placed, dated on the first day the week can hold it so the reference is never
+ * overstated. Null for a week with no run.
+ *
+ * A week of at least the shortest run holds runs of that length or more. A week of fewer minutes
+ * holds one run of its own minutes from the run day minimum up and none under it (micro.ts), so
+ * the record is that run, not the shortest run: a weeks-later floor or loading week is then held
+ * to the band of the run that is really in the 30 days.
  */
 function weekRun(window: PostRaceWindow, week: WeekDraft): RunRecord | null {
   if (week.targetRunMin <= 0 || week.runDays <= 0) return null
@@ -608,12 +613,13 @@ function weekRun(window: PostRaceWindow, week: WeekDraft): RunRecord | null {
     .map((d) => addDays(week.weekStart, d))
     .find((d) => d > window.race.date && windowDay(window, d)?.kind === 'step')
   if (date === undefined) return null
-  // a run is never placed under the shortest run, even in a week whose minutes are fewer
+  const shortest = P.fplace.easyRunMinMin.value
   const longest = Math.max(
     week.longRunMin,
     Math.ceil(week.targetRunMin / week.runDays),
-    P.fplace.easyRunMinMin.value,
+    week.targetRunMin < shortest ? 0 : shortest,
   )
+  if (longest < P.fplace.minRunDayMin.value) return null
   return { date, min: longest, distanceM: null, gainM: null, lossM: null }
 }
 

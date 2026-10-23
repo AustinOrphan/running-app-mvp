@@ -8,7 +8,7 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity } from '../types.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
-import { startWeek, type StartPath } from './startWeeks.ts'
+import { isLadderSession, startWeek, type StartPath } from './startWeeks.ts'
 import type { AthleteState, SessionKind, SessionSpec } from './types.ts'
 
 /** Guards float noise (100 * 1.1 = 110.00000000000001) before rounding down. */
@@ -464,5 +464,5 @@ export function runningGain(sessions: SessionSpec[]): number {
  * injury-return run). Planned ones are no reference for the runs after them: G-1 is checked
  * against completed runs, and the programme's steps rest on what the runner has run [rules E6, g-1].
  */
-export const isProgramme = (s: Pick<SessionSpec, 'flags'>): boolean =>
-  s.flags.includes('run-walk') || s.flags.includes('injury-return')
+export const isProgramme = (s: Pick<SessionSpec, 'flags' | 'kind' | 'structure'>): boolean =>
+  s.flags.includes('run-walk') || s.flags.includes('injury-return') || isLadderSession(s)

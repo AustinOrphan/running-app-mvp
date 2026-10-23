@@ -476,6 +476,53 @@ describe('placeWeek', () => {
       for (const s of sessions.filter(isRun)) expect(s.durationMin).toBeGreaterThanOrEqual(20)
       expect(runMinutes(sessions)).toBe(60)
     })
+
+    it('places three runs at the day limit when it is under the session minimum, not none [E6, G-1]', () => {
+      // the limit of G-1 leaves 17 minutes a day: the floor runs at 17, the week says 3 x 17
+      const day = { available: true, maxMin: 17 }
+      const sessions = place(
+        week({
+          index: 0,
+          targetRunMin: 51,
+          longRunMin: 17,
+          runDays: 3,
+          qualitySessions: 0,
+          flags: ['restart-floor'],
+        }),
+        {
+          profile: profile({
+            availability: availability({
+              mon: day,
+              tue: day,
+              wed: day,
+              thu: day,
+              fri: day,
+              sat: day,
+              sun: day,
+            }),
+          }),
+        },
+      )
+      const runs = sessions.filter(isRun)
+      expect(runs.map((s) => s.durationMin)).toEqual([17, 17, 17])
+      const days = runs.map(dayOf).sort((a, b) => a - b)
+      for (let i = 1; i < days.length; i++)
+        expect(days[i]! - days[i - 1]!).toBeGreaterThanOrEqual(2)
+    })
+
+    it('shares a week held under N a session between its runs, not onto fewer runs', () => {
+      const sessions = place(
+        week({
+          index: 0,
+          targetRunMin: 48,
+          longRunMin: 16,
+          runDays: 3,
+          qualitySessions: 0,
+          flags: ['restart-floor'],
+        }),
+      )
+      expect(sessions.filter(isRun).map((s) => s.durationMin)).toEqual([16, 16, 16])
+    })
   })
 
   describe('pairs and the 2-day total', () => {
@@ -677,7 +724,7 @@ describe('placeWeek: start-path weeks [rules E6, g-3]', () => {
             },
     })
 
-  it('places the three sessions of a rung on non-consecutive days, the longest last, flagged run-walk', () => {
+  it('places the three sessions of a rung on non-consecutive days, the longest last, flagged run-walk where they walk', () => {
     const sessions = runsOf(placeStart(ladderWeek(5, { targetRunMin: 62 })))
     expect(sessions).toHaveLength(3)
     // rung 5: 5-3w-5-3w-5 (21 min), 8-5w-8 (21 min), 20 min without a stop
@@ -686,10 +733,9 @@ describe('placeWeek: start-path weeks [rules E6, g-3]', () => {
     for (let i = 1; i < days.length; i += 1) {
       expect(days[i]! - days[i - 1]!).toBeGreaterThanOrEqual(2)
     }
-    for (const s of sessions) {
-      expect(s.kind).toBe('easy')
-      expect(s.flags).toContain('run-walk')
-    }
+    for (const s of sessions) expect(s.kind).toBe('easy')
+    // only a session with a walking break is a run-walk session; the continuous 20 minutes is not
+    expect(sessions.map((s) => s.flags.includes('run-walk'))).toEqual([true, true, false])
   })
 
   it('plans no quality, whatever the week asks for', () => {
@@ -721,10 +767,12 @@ describe('placeWeek: start-path weeks [rules E6, g-3]', () => {
     expect(sessions.map((s) => s.durationMin)).toEqual([18, 18, 18])
   })
 
-  it('leaves a session out when the bound falls under the run day minimum', () => {
-    // 10 + 3 = 13 min sits under the 15-min run day minimum
+  it('places a session at the bound when the bound falls under the run day minimum, never under 5 minutes', () => {
+    // 10 + 3 = 13 min sits under the 15-min run day minimum, which a ladder session is exempt from
     const sessions = runsOf(placeStart(ladderWeek(1), { recent: 10 }))
-    expect(sessions).toEqual([])
+    expect(sessions.map((s) => s.durationMin)).toEqual([13, 13, 13])
+    // a bound under 5 minutes leaves no session to place
+    expect(runsOf(placeStart(ladderWeek(1), { recent: 1 }))).toEqual([])
   })
 
   it('places the runs of an injury-return level with a rest day between them, from 5 minutes', () => {
