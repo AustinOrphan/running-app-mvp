@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import type {
   ExecutionAssessment,
+  ResolvedTargets,
   SessionFlag,
   SessionTarget,
   Step,
@@ -12,7 +13,7 @@ import { hasSubjectivePart } from '../../shared/engine/execution.ts'
 import { formatDistance, formatPace } from '../../shared/units.ts'
 import type { ActivityListItem, PlanSession, PlanSessionStatus, Units } from '../../shared/types.ts'
 import { useActivities } from '../api/activities.ts'
-import { useLinkPlanSession } from '../api/plan.ts'
+import { useLinkPlanSession, useSessionWorkout } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from './Button.tsx'
 import { Field, Select } from './Field.tsx'
@@ -20,6 +21,8 @@ import { SessionChanges } from './SessionChanges.tsx'
 import { Sheet } from './Sheet.tsx'
 import { useToast } from './Toast.tsx'
 import { WhyDrawer } from './WhyDrawer.tsx'
+import { WristSection } from './WristStatus.tsx'
+import { SessionTargets } from './today/SessionTargets.tsx'
 import { unratedEffortNote } from './engineText.ts'
 import {
   formatClimb,
@@ -174,16 +177,33 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function Targets({ target, units }: { target: SessionTarget; units: Units | undefined }) {
+/**
+ * The targets stored with the session. They are older than the zones when a zone change was
+ * accepted after the plan was written, so they stand in only when the resolved ones cannot be read.
+ */
+function StoredTargets({ target, units }: { target: SessionTarget; units: Units | undefined }) {
   return (
     <dl className={styles.facts}>
-      <Row label="Zone">{ZONE_LABELS[target.zone]}</Row>
       <Row label="Effort">{`${rangeText(target.rpe, '')} of 10`}</Row>
       {target.hr !== null ? <Row label="Heart rate">{rangeText(target.hr, ' bpm')}</Row> : null}
       {target.paceSecPerKm !== null && units !== undefined ? (
         <Row label="Pace">{paceText(target.paceSecPerKm, units)}</Row>
       ) : null}
     </dl>
+  )
+}
+
+/**
+ * The targets of the session as the resolver gives them today (current zones, the day's heat): the
+ * same rows, in the same order and words, as Today's hero, plus the notes that explain a figure.
+ */
+export function SheetTargets({ targets, units }: { targets: ResolvedTargets; units: Units }) {
+  return (
+    <>
+      <SessionTargets targets={targets} units={units} />
+      {targets.hotNote !== null ? <p className={styles.note}>{targets.hotNote}</p> : null}
+      {targets.zonesNote !== null ? <p className={styles.note}>{targets.zonesNote}</p> : null}
+    </>
   )
 }
 
@@ -349,6 +369,7 @@ function LinkSection({ session, units }: { session: PlanSession; units: Units | 
 export function SessionSheet({ session, onClose }: SessionSheetProps) {
   const settings = useSettings()
   const units = settings.data?.units
+  const workout = useSessionWorkout(session.id)
   const [whyOpen, setWhyOpen] = useState(false)
   const original = session.original
 
@@ -385,8 +406,15 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
               {session.gainM !== null && units !== undefined ? (
                 <Row label="Climb">{formatClimb(session.gainM, units)}</Row>
               ) : null}
+              <Row label="Zone">{ZONE_LABELS[session.target.zone]}</Row>
             </dl>
-            <Targets target={session.target} units={units} />
+            {workout.data !== undefined ? (
+              units !== undefined ? (
+                <SheetTargets targets={workout.data.targets} units={units} />
+              ) : null
+            ) : workout.isError ? (
+              <StoredTargets target={session.target} units={units} />
+            ) : null}
             {session.target.heatNote !== null ? (
               <p className={styles.note}>{session.target.heatNote}</p>
             ) : null}
@@ -421,6 +449,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
             </div>
           </section>
 
+          <WristSection session={session} workout={workout.data} />
           {session.execution !== null ? (
             <Assessment execution={session.execution} activityId={session.activityId} />
           ) : null}

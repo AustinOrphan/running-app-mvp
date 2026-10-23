@@ -60,6 +60,7 @@ import {
 } from '../providers/types.ts'
 import { toWristItem, wristItemStatus } from '../serialize.ts'
 import { athleteKey, loadAthleteContext } from './athleteState.ts'
+import { CALENDAR_CHANNEL } from './calendar.ts'
 import { dataVersionKey, openTransactions } from '../dataVersion.ts'
 import { registerHealthNoteProducer, tomorrowNotOnWatch } from './todayHealth.ts'
 import { registerTodayStamp } from './today.ts'
@@ -87,7 +88,7 @@ export const INCOMPLETE_REFERENCE_TTL_MS = PUBLISH_BACKSTOP_MS
  * Bump when a renderer changes what an event holds (the intervals.icu text, the event body), so
  * every event is sent again with the new text.
  */
-export const DELIVERY_VERSION = 1
+export const DELIVERY_VERSION = 2
 /** Back-off of a send that did not go through: `min(2^attempts, 60)` minutes. */
 const MAX_BACKOFF_MIN = 60
 /** A rejected workout is tried this many times in all (the first and two retries). */
@@ -1228,9 +1229,9 @@ export function statusRangeIssue(from: string, to: string): string | null {
 }
 
 /**
- * `GET /api/wrist/status`: the settings and one item per session in the range, joined by
- * `externalId`. While publishing is on, a run session of the next 14 days that has no publication
- * yet is listed as `not-sent`.
+ * `GET /api/wrist/status`: the settings, the calendar link and one item per session in the range,
+ * joined by `externalId`. While publishing is on, a run session of the next 14 days that has no
+ * publication yet is listed as `not-sent`.
  */
 export async function wristStatus(
   deps: Deps,
@@ -1240,8 +1241,12 @@ export async function wristStatus(
 ): Promise<WristStatus> {
   const { prisma } = deps
   const today = todayIso(now)
-  const [channel, integration, context] = await Promise.all([
+  const [channel, calendar, integration, context] = await Promise.all([
     prisma.deliveryChannel.findUnique({ where: { userId_channel: { userId, channel: CHANNEL } } }),
+    prisma.deliveryChannel.findUnique({
+      where: { userId_channel: { userId, channel: CALENDAR_CHANNEL } },
+      select: { enabled: true, tokenCreatedAt: true },
+    }),
     prisma.integration.findUnique({
       where: { userId_provider: { userId, provider: PROVIDER } },
       select: { status: true },
@@ -1321,6 +1326,11 @@ export async function wristStatus(
       garminLinked,
       lastRunAt: channel?.lastRunAt?.toISOString() ?? null,
       running: isPublishing(userId),
+    },
+    // Whether the calendar link works, and since when; the token is never read back.
+    calendar: {
+      enabled: calendar?.enabled === true,
+      tokenCreatedAt: calendar?.tokenCreatedAt?.toISOString() ?? null,
     },
     items: items.map(({ item }) => item),
   }

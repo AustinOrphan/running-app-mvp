@@ -16,6 +16,7 @@ import {
   makeToday,
 } from './today-fixtures.ts'
 import { renderToday, startToday } from './today-render.tsx'
+import { sheetRoutes } from './wrist-fixtures.ts'
 
 // Stands in for the real drawer so the wiring is visible: which rules it was opened with.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -214,7 +215,11 @@ describe('Today: the hero variants', () => {
 
   test('Not today opens the session sheet until the Not today sheet replaces it', async () => {
     const user = userEvent.setup()
-    renderToday(dayOf(), { 'GET /api/activities': () => activityPage([]) })
+    const day = dayOf()
+    renderToday(day, {
+      'GET /api/activities': () => activityPage([]),
+      ...sheetRoutes([day.coach.hero!.session]),
+    })
     const card = await screen.findByRole('article', { name: 'Easy run' })
     await user.click(within(card).getByRole('button', { name: 'Not today' }))
     expect(await screen.findByRole('dialog', { name: 'Easy run' })).toBeInTheDocument()

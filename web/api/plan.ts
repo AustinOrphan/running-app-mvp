@@ -9,6 +9,7 @@ import type {
   PlanWeek,
   PlanWithSessions,
   RestorePlanResult,
+  SessionWorkoutView,
   UndoResult,
 } from '../../shared/types.ts'
 import { api, invalidateNewPlan, keys } from './client.ts'
@@ -187,6 +188,20 @@ export function useLinkPlanSession() {
           queryClient.invalidateQueries({ queryKey: [key] }),
         ),
       ),
+  })
+}
+
+/**
+ * What the session sheet shows of a session's workout: the targets as the resolver gives them
+ * today (current zones, the day's heat), whether readiness eased the day for the watch, and
+ * whether the workout file can be made. The key sits under the plan's, so every change to the plan
+ * reads it again.
+ */
+export function useSessionWorkout(sessionId: string) {
+  return useQuery({
+    queryKey: [keys.plan, 'workout', sessionId],
+    queryFn: () =>
+      api<SessionWorkoutView>('GET', `/plan/sessions/${encodeURIComponent(sessionId)}/workout`),
   })
 }
 

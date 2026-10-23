@@ -148,6 +148,7 @@ export const keys = {
   explain: 'explain',
   state: 'state',
   stats: 'stats',
+  wrist: 'wrist',
 } as const
 
 /** Everything that reads the plan or the goal it follows, after a new plan replaces the old one. */

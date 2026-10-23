@@ -13,6 +13,7 @@ import {
   type MockRoutes,
 } from './helpers.tsx'
 import { makeSession, settings } from './plan-fixtures.ts'
+import { sheetRoutes } from './wrist-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
   WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
@@ -46,6 +47,7 @@ function renderSheet(session: PlanSession, extra: MockRoutes = {}) {
   const api = mockApi({
     'GET /api/settings': () => settings,
     'GET /api/activities': () => activityPage(nearby),
+    ...sheetRoutes([session]),
     ...extra,
   })
   renderWithProviders(
@@ -65,7 +67,7 @@ describe('SessionSheet', () => {
     expect(await within(dialog).findByText('9.00 km')).toBeInTheDocument()
     expect(within(dialog).getByText('60 m')).toBeInTheDocument()
     expect(within(dialog).getByText('Zone 3')).toBeInTheDocument()
-    expect(within(dialog).getByText('6 to 7 of 10')).toBeInTheDocument()
+    expect(await within(dialog).findByText('6 to 7 out of 10')).toBeInTheDocument()
     expect(within(dialog).getByText('158 to 168 bpm')).toBeInTheDocument()
     expect(within(dialog).getByText('5:10 to 5:30 /km')).toBeInTheDocument()
     expect(
@@ -99,7 +101,7 @@ describe('SessionSheet', () => {
     renderSheet(makeSession(), { 'GET /api/settings': () => ({ ...settings, units: 'mi' }) })
     const dialog = await screen.findByRole('dialog')
     expect(await within(dialog).findByText('5.59 mi')).toBeInTheDocument()
-    expect(within(dialog).getByText('8:19 to 8:51 /mi')).toBeInTheDocument()
+    expect(await within(dialog).findByText('8:19 to 8:51 /mi')).toBeInTheDocument()
     // The climb follows the setting too: 60 m is 197 ft.
     expect(within(dialog).getByText('197 ft')).toBeInTheDocument()
     expect(within(dialog).queryByText('60 m')).not.toBeInTheDocument()

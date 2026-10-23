@@ -23,6 +23,7 @@ import {
 } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
 import { useWeeks } from '../api/weeks.ts'
+import { useWristStatus, weekZipHref } from '../api/wrist.ts'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
@@ -33,6 +34,8 @@ import { Sheet } from '../components/Sheet.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { WhyDrawer } from '../components/WhyDrawer.tsx'
+import { WristChip } from '../components/WristStatus.tsx'
+import { WristStrip, weekHasRuns } from '../components/WristStrip.tsx'
 import {
   formatLongDate,
   formatShortDate,
@@ -41,6 +44,7 @@ import {
 } from '../components/format.ts'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { newMarker } from '../../shared/copy/revisionView.ts'
+import { fileRefusalSentence, weekLinkLabel } from '../../shared/copy/workouts.ts'
 import { distanceClassOf } from '../../shared/engine/goal.ts'
 import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
@@ -54,6 +58,7 @@ import type {
   PlanWeek,
   PlanWithSessions,
   Units,
+  WristItem,
 } from '../../shared/types.ts'
 import styles from './PlanPage.module.css'
 
@@ -720,11 +725,14 @@ function DayCards({
   week,
   sessions,
   units,
+  wrist,
   onOpen,
 }: {
   week: PlanWeek
   sessions: PlanSession[]
   units: Units | undefined
+  /** The state of each run in the next 14 days on its way to the watch, by session id. */
+  wrist: ReadonlyMap<string, WristItem>
   onOpen: (id: string) => void
 }) {
   const byDate = new Map<string, PlanSession[]>()
@@ -757,6 +765,7 @@ function DayCards({
                     .filter((part) => part !== '')
                     .join(', ')}
                 </span>
+                {wrist.has(session.id) ? <WristChip item={wrist.get(session.id)!} /> : null}
               </button>
             ))}
         </li>
@@ -765,7 +774,7 @@ function DayCards({
   )
 }
 
-/** Mounted only for plans with sessions, so version-1 plans never ask for settings. */
+/** Mounted only for plans with sessions, so version-1 plans never ask for settings or the watch. */
 function DaysRow({
   week,
   sessions,
@@ -776,10 +785,32 @@ function DaysRow({
   onOpen: (id: string) => void
 }) {
   const settings = useSettings()
+  // The chips of the next 14 days; nothing while sending is off, offline or unread.
+  const { status } = useWristStatus()
+  const wrist = new Map<string, WristItem>(
+    status?.settings.enabled === true
+      ? status.items.flatMap((item): Array<[string, WristItem]> =>
+          item.sessionId === null ? [] : [[item.sessionId, item]],
+        )
+      : [],
+  )
   return (
     <tr className={styles.daysRow} data-days-for={week.weekStart}>
       <td colSpan={10}>
-        <DayCards week={week} sessions={sessions} units={settings.data?.units} onOpen={onOpen} />
+        <DayCards
+          week={week}
+          sessions={sessions}
+          units={settings.data?.units}
+          wrist={wrist}
+          onOpen={onOpen}
+        />
+        {weekHasRuns(sessions, week.weekStart) ? (
+          <a href={weekZipHref(week.weekStart)} download className={styles.weekFiles}>
+            {weekLinkLabel(week.weekStart)}
+          </a>
+        ) : (
+          <p className={styles.weekFiles}>{fileRefusalSentence('empty')}</p>
+        )}
       </td>
     </tr>
   )
@@ -1039,6 +1070,7 @@ export function PlanPage() {
           The plan was not updated. {replan.error.message}
         </p>
       ) : null}
+      {hasSessions ? <WristStrip sessions={sessions} /> : null}
       {hasSessions ? <PlanOverview plan={plan.data} onWhy={setWhy} /> : null}
       <PlanTable plan={plan.data} sessions={sessions} onOpenSession={setOpenSessionId} />
       {openSession !== undefined ? (

@@ -5,7 +5,7 @@ import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { prescribe } from '../../shared/engine/sessions.ts'
 import { rungSessions, sessionMin } from '../../shared/engine/startWeeks.ts'
 import type { SessionKind } from '../../shared/engine/types.ts'
-import type { PlanSessionStatus, PlanWithSessions } from '../../shared/types.ts'
+import type { PlanSessionStatus, PlanWithSessions, WristStatus } from '../../shared/types.ts'
 import { PUBLIC_TITLES } from '../../shared/workouts/labels.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { buildDeliverables } from '../../server/services/workouts.ts'
@@ -317,6 +317,25 @@ describe('POST and DELETE /api/wrist/calendar/token', () => {
     expect((await open(second.path)).status).toBe(200)
     expect(await ctx.prisma.deliveryChannel.count()).toBe(1)
     expect((await ctx.prisma.deliveryChannel.findFirst())?.tokenHash).toBe(sha256(second.token))
+  })
+
+  test('are read back as the state of the link in the wrist status, never as the token', async () => {
+    const u = await seedUser(ctx)
+    const calendarOf = async () => {
+      const res = await client(ctx, u).get('/api/wrist/status')
+      expect(res.status).toBe(200)
+      return { calendar: (res.body as WristStatus).calendar, text: JSON.stringify(res.body) }
+    }
+    expect((await calendarOf()).calendar).toEqual({ enabled: false, tokenCreatedAt: null })
+
+    const res = await client(ctx, u).post('/api/wrist/calendar/token').send({})
+    const issued = res.body as { token: string; createdAt: string }
+    const made = await calendarOf()
+    expect(made.calendar).toEqual({ enabled: true, tokenCreatedAt: issued.createdAt })
+    expect(made.text).not.toContain(issued.token)
+
+    await client(ctx, u).delete('/api/wrist/calendar/token')
+    expect((await calendarOf()).calendar).toEqual({ enabled: false, tokenCreatedAt: null })
   })
 
   test('revoke the link, and a second revoke or one without a link changes nothing', async () => {

@@ -1,5 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
+import { isToRun } from '../../shared/domain/sessionStatus.ts'
+import type { PlanSession, PlanWithSessions, WristItem, WristStatus } from '../../shared/types.ts'
+import { publishable } from '../../shared/workouts/labels.ts'
 import { relativeDates, resetData, signedInApi } from './helpers.ts'
 
 // A phone-width viewport: nothing may be clipped out of reach or push the page sideways.
@@ -301,3 +304,122 @@ for (const size of [
     expect(await isUncovered(sheetSave)).toBe(true)
   })
 }
+
+test('the Plan page keeps the watch strip, its chips and the sheet section inside 360 px', async () => {
+  const { lastWednesday, raceDate, today } = relativeDates()
+  await resetData()
+  for (let i = 0; i < 8; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (35 + i) * 60,
+      distanceM: 6000 + i * 300,
+    })
+  }
+  const goal = (await api.post('/goals', {
+    name: 'Watch marathon',
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id })
+
+  // Sending is off in a fresh account: the strip says so and keeps the files one tap away.
+  await page.goto('/plan')
+  const strip = page.getByRole('region', { name: 'Watch' })
+  await expect(strip).toContainText('Sending to your watch is off.')
+  await expect(strip.getByRole('link', { name: 'Download this week as .zip' })).toBeVisible()
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+
+  // Sending on, with the longest words the chips and sentences can take. The status is the
+  // server's to report, and intervals.icu cannot be reached from a test, so the answer is made.
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  const runs = plan.sessions
+    .filter((s) => s.date >= today && publishable(s.kind) && isToRun(s.status))
+    .slice(0, 4)
+  expect(runs.length).toBe(4)
+  const words: Array<Partial<WristItem>> = [
+    { status: 'not-delivered', failCode: 'auth' },
+    { status: 'waiting', failCode: 'rate-limit', retryAt: new Date().toISOString() },
+    {
+      status: 'not-delivered',
+      failCode: 'device',
+      deviceMessage:
+        'The workout has more steps than this watch can hold, so Garmin Connect left it out of the upload',
+    },
+    { status: 'removed', failCode: 'owner-removed' },
+  ]
+  const item = (session: PlanSession, over: Partial<WristItem>): WristItem => ({
+    externalId: session.externalId,
+    sessionId: session.id,
+    date: session.date,
+    kind: session.kind,
+    title: 'Easy run, 45 min',
+    variant: 'planned',
+    status: 'sent',
+    failCode: null,
+    failMessage: null,
+    deviceMessage: null,
+    warnings: ['no-threshold-pace'],
+    retryAt: null,
+    sentAt: null,
+    ...over,
+  })
+  const status: WristStatus = {
+    from: today,
+    to: addDays(today, 13),
+    connection: 'connected',
+    settings: { enabled: true, garminLinked: true, lastRunAt: null, running: false },
+    calendar: { enabled: false, tokenCreatedAt: null },
+    items: runs.map((s, i) => item(s, words[i] ?? {})),
+  }
+  await page.route('**/api/wrist/status', (route) => route.fulfill({ json: status }))
+  try {
+    await page.goto('/plan')
+    await expect(strip).toContainText('Watch: next 14 days.')
+    await expect(strip).toContainText('1 waiting')
+    await expect(strip.getByRole('button', { name: 'Send again' })).toBeVisible()
+    expect(await pageOverflow()).toBeLessThanOrEqual(0)
+    const viewportWidth = page.viewportSize()?.width ?? 0
+    for (const control of [
+      strip,
+      strip.getByRole('button', { name: 'Send again' }),
+      strip.getByRole('link', { name: 'Download this week as .zip' }),
+    ]) {
+      const box = await control.boundingBox()
+      expect(box).not.toBeNull()
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 0.5)
+    }
+    // A chip sits inside the card of its session, not beside it.
+    const chips = page.locator('span[data-status]')
+    await expect(chips.first()).toBeVisible()
+    for (const chip of await chips.all()) {
+      const box = await chip.boundingBox()
+      expect(box).not.toBeNull()
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 0.5)
+    }
+
+    // The sheet of a run whose watch refused it: sentence, warning and both actions on screen.
+    await chips.nth(2).locator('xpath=ancestor::button').click()
+    const dialog = page.getByRole('dialog')
+    const section = dialog.getByRole('region', { name: 'On your watch' })
+    await expect(section).toContainText('Garmin Connect did not take it:')
+    await section.scrollIntoViewIfNeeded()
+    await expect(section.getByRole('button', { name: 'Send again' })).toBeVisible()
+    await expect(section.getByRole('link', { name: 'Download the workout file' })).toBeVisible()
+    expect(await pageOverflow()).toBeLessThanOrEqual(0)
+    for (const part of [
+      section,
+      section.getByRole('button', { name: 'Send again' }),
+      section.getByRole('link', { name: 'Download the workout file' }),
+    ]) {
+      const box = await part.boundingBox()
+      expect(box).not.toBeNull()
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 0.5)
+    }
+    expect(await dialog.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  } finally {
+    await page.unroute('**/api/wrist/status')
+  }
+})

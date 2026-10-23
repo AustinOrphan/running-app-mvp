@@ -1,0 +1,83 @@
+/* The chip is a word on a quiet ground; a dashed edge marks a run that is not there yet, so the
+   state never rests on colour alone. */
+.chip {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  white-space: nowrap;
+}
+
+.chip[data-status='sent'],
+.chip[data-status='on-watch'] {
+  background: var(--accent-soft);
+}
+
+.chip[data-status='waiting'],
+.chip[data-status='not-sent'] {
+  border-style: dashed;
+  background: transparent;
+}
+
+/* The section of the session sheet, set like its neighbours. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.section p {
+  margin: 0;
+  max-width: var(--prose-max);
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* chip and sentence wrap together on a phone; nothing sets a width */
+.stateLine {
+  overflow-wrap: anywhere;
+}
+
+.note {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--accent);
+}
+
+.error {
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
