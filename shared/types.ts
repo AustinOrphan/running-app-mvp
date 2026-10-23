@@ -1,3 +1,4 @@
+import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
 import type {
   Checkin,
   EngineWarning,
@@ -435,6 +436,34 @@ export interface PredictionView {
     highSec: number
     actualSec: number | null
   }>
+}
+/** A recorded race result, with how many weekly predictions it was compared with (design 11.4). */
+export interface RaceResultView {
+  id: string
+  goalId: string
+  activityId: string | null
+  date: string
+  distanceM: number
+  gainM: number | null
+  outcome: RaceOutcome
+  /** Official finish time; null for a did-not-finish. */
+  timeSec: number | null
+  note: string | null
+  /** Weekly predictions scored against this result; 0 for a did-not-finish. */
+  scoredPredictions: number
+  /** Saving this result retyped the linked activity to a race. */
+  activityMarkedAsRace: boolean
+}
+/** One goal race in the track record: its result and the scored weekly predictions. */
+export interface TrackRecordRace extends RaceScore {
+  goalId: string
+  goalName: string
+  distanceM: number
+}
+/** GET /api/predictions/record: races newest first, and the summary across them (design 11.4). */
+export interface TrackRecordView {
+  races: TrackRecordRace[]
+  summary: RecordSummary
 }
 /** GET /api/research/params: the parameter registry, for the why drawer. */
 export interface ResearchParams {
