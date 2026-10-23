@@ -28,6 +28,12 @@
   accent-color: var(--accent);
 }
 
+/* Saving: the box keeps focus, so it is marked, not disabled. */
+.check input[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .note {
   margin: 0;
   max-width: var(--prose-max);

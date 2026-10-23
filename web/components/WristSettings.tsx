@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { daysBetween, todayIso } from '../../shared/dates.ts'
 import { wristLastSend, wristPlain, wristSendLabel } from '../../shared/copy/publish.ts'
 import {
@@ -30,6 +30,11 @@ function lastSendLine(lastRunAt: string | null): string {
  *
  * Both choices are the server's to keep, so the boxes show what it reports, not what was clicked;
  * offline, or while the status cannot be read, the section is left out.
+ *
+ * Focus stays where the runner put it. A focused control that becomes disabled drops focus to the
+ * page, so a box that is saving is `aria-disabled` and its handler ignores the change, and a
+ * button that is working is `busy`. The offer opens with focus on its box and gives focus back to
+ * the "Send" box when it closes.
  */
 export function WristSettings() {
   const headingId = useId()
@@ -40,13 +45,20 @@ export function WristSettings() {
   const send = useSendAgain()
   // The offer that comes with turning sending off; its box starts unticked.
   const [offer, setOffer] = useState<{ removeSent: boolean } | null>(null)
+  const sendBox = useRef<HTMLInputElement>(null)
   if (status === undefined) return null
   const { enabled, garminLinked, lastRunAt, running } = status.settings
   const days = daysBetween(status.from, status.to) + 1
   // Only a session intervals.icu is known to hold is worth an offer to remove.
   const holdsSent = status.items.some((i) => i.status === 'sent' || i.status === 'on-watch')
 
+  function closeOffer() {
+    setOffer(null)
+    sendBox.current?.focus()
+  }
+
   function onSendChange(checked: boolean) {
+    if (save.isPending) return
     if (checked) {
       save.mutate({ enabled: true, garminLinked })
     } else if (holdsSent) {
@@ -64,9 +76,10 @@ export function WristSettings() {
       </legend>
       <label className={styles.check}>
         <input
+          ref={sendBox}
           type="checkbox"
           checked={enabled}
-          disabled={save.isPending}
+          aria-disabled={save.isPending ? true : undefined}
           onChange={(event) => {
             onSendChange(event.target.checked)
           }}
@@ -79,8 +92,10 @@ export function WristSettings() {
             {wristPlain('publish.settings.off-offer')}
           </p>
           <label className={styles.check}>
+            {/* The offer opens on the runner's own action, so focus goes to its first control. */}
             <input
               type="checkbox"
+              autoFocus
               checked={offer.removeSent}
               onChange={(event) => {
                 setOffer({ removeSent: event.target.checked })
@@ -91,15 +106,11 @@ export function WristSettings() {
           <div className={styles.actions}>
             <Button
               variant="primary"
-              loading={save.isPending}
+              busy={save.isPending}
               onClick={() => {
                 save.mutate(
                   { enabled: false, garminLinked, removeSent: offer.removeSent },
-                  {
-                    onSuccess: () => {
-                      setOffer(null)
-                    },
-                  },
+                  { onSuccess: closeOffer },
                 )
               }}
             >
@@ -110,7 +121,7 @@ export function WristSettings() {
               disabled={save.isPending}
               onClick={() => {
                 save.reset()
-                setOffer(null)
+                closeOffer()
               }}
             >
               {wristPlain('publish.settings.keep')}
@@ -123,8 +134,9 @@ export function WristSettings() {
           type="checkbox"
           checked={garminLinked}
           aria-describedby={helpId}
-          disabled={save.isPending}
+          aria-disabled={save.isPending ? true : undefined}
           onChange={(event) => {
+            if (save.isPending) return
             save.mutate({ enabled, garminLinked: event.target.checked })
           }}
         />
@@ -140,8 +152,7 @@ export function WristSettings() {
           </p>
           <Button
             variant="secondary"
-            loading={send.isPending}
-            disabled={running}
+            busy={send.isPending || running}
             onClick={() => {
               send.mutate({})
             }}
@@ -171,6 +182,10 @@ export function WristSettings() {
  * sent", unticked). The removal needs the key, so when it fails the server keeps the connection
  * (409 `remove-failed`) and says so; the way out is "Disconnect without removing them". With
  * sending off there is nothing to ask and Disconnect acts at once.
+ *
+ * The choice takes the place of the Disconnect button, so focus moves to its first control when it
+ * opens and back to the button when it is declined, and the buttons that work are `busy` and keep
+ * focus.
  */
 export function DisconnectIntervals({ onDisconnected }: { onDisconnected: () => void }) {
   const offerId = useId()
@@ -178,12 +193,34 @@ export function DisconnectIntervals({ onDisconnected }: { onDisconnected: () => 
   const disconnect = useDisconnectIntervals()
   const [choosing, setChoosing] = useState(false)
   const [removeSent, setRemoveSent] = useState(false)
+  const disconnectButton = useRef<HTMLButtonElement>(null)
+  // Set when the choice is declined, so the button that comes back takes focus (not on first show).
+  const declined = useRef(false)
+  useEffect(() => {
+    if (!choosing && declined.current) {
+      declined.current = false
+      disconnectButton.current?.focus()
+    }
+  }, [choosing])
   // Only a status that says sending is off lets Disconnect act at once: when the status cannot be
   // read, sessions may be on intervals.icu, so the choice is offered.
   const mayHoldSent = status?.settings.enabled !== false
 
+  // "Disconnect without removing them" appears once a removal has failed and stays for the rest of
+  // the choice: a new attempt clears the error, and the button would otherwise unmount under the
+  // focus of the runner who pressed it.
+  const [removalFailed, setRemovalFailed] = useState(false)
+
   function run(remove: boolean) {
-    disconnect.mutate({ removeSent: remove }, { onSuccess: onDisconnected })
+    disconnect.mutate(
+      { removeSent: remove },
+      {
+        onSuccess: onDisconnected,
+        onError: (error) => {
+          if (isRemoveFailed(error)) setRemovalFailed(true)
+        },
+      },
+    )
   }
   const label = wristPlain('publish.disconnect.button')
   const failure = disconnect.isError ? (
@@ -198,8 +235,9 @@ export function DisconnectIntervals({ onDisconnected }: { onDisconnected: () => 
     return (
       <>
         <Button
+          ref={disconnectButton}
           variant="quiet"
-          loading={disconnect.isPending}
+          busy={disconnect.isPending}
           onClick={() => {
             if (mayHoldSent) setChoosing(true)
             else run(false)
@@ -219,6 +257,7 @@ export function DisconnectIntervals({ onDisconnected }: { onDisconnected: () => 
       <label className={styles.check}>
         <input
           type="checkbox"
+          autoFocus
           checked={removeSent}
           onChange={(event) => {
             setRemoveSent(event.target.checked)
@@ -230,17 +269,17 @@ export function DisconnectIntervals({ onDisconnected }: { onDisconnected: () => 
       <div className={styles.actions}>
         <Button
           variant="primary"
-          loading={disconnect.isPending}
+          busy={disconnect.isPending}
           onClick={() => {
             run(removeSent)
           }}
         >
           {label}
         </Button>
-        {isRemoveFailed(disconnect.error) ? (
+        {removalFailed ? (
           <Button
             variant="secondary"
-            disabled={disconnect.isPending}
+            busy={disconnect.isPending}
             onClick={() => {
               run(false)
             }}
@@ -253,6 +292,8 @@ export function DisconnectIntervals({ onDisconnected }: { onDisconnected: () => 
           disabled={disconnect.isPending}
           onClick={() => {
             disconnect.reset()
+            setRemovalFailed(false)
+            declined.current = true
             setChoosing(false)
           }}
         >

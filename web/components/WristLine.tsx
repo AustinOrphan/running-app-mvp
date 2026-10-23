@@ -50,7 +50,14 @@ export function useWristLine(item: WristItem | undefined): WristLineModel | null
   }
 }
 
-/** The line itself: one row of 24 px, the file link beside the sentence when the run is not there. */
+/**
+ * Today's one line about the run on the watch, for the `watch` slot (24 px at 360 px): "On your
+ * watch.", "Sent to intervals.icu.", "The watch has the easy version of this run." or "Not on the
+ * watch yet: <short reason>." with the workout file one tap away. One row of 24 px, the file link
+ * beside the sentence when the run is not there. The slot's mount (`today/slotMounts.tsx`) calls
+ * `useWristLine` itself and renders this inside the slot's frame, so the frame appears only while
+ * the line has something to say.
+ */
 export function WristLineText({ line }: { line: WristLineModel }) {
   return (
     <p className={styles.line} role={line.changed ? 'status' : undefined} title={line.detail}>
@@ -62,16 +69,4 @@ export function WristLineText({ line }: { line: WristLineModel }) {
       ) : null}
     </p>
   )
-}
-
-/**
- * Today's one line about the run on the watch, for the `watch` slot (24 px at 360 px): "On your
- * watch.", "Sent to intervals.icu.", "The watch has the easy version of this run." or "Not on the
- * watch yet: <short reason>." with the workout file one tap away. The slot's own mount
- * (`today/slotMounts.tsx`) uses `useWristLine` directly, so the slot's frame appears only while
- * the line has something to say.
- */
-export function WristLine({ item }: { item: WristItem | undefined }) {
-  const line = useWristLine(item)
-  return line === null ? null : <WristLineText line={line} />
 }

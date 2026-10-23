@@ -33,7 +33,11 @@ function LabBody({ lab, units }: { lab: FuelLabView; units: Units | undefined })
         <div className={styles.column}>
           <ProductManager products={lab.products} />
           <GutBlockCard block={lab.block} clinician={lab.disclaimers.gutCondition} />
-          <FuelSettingsForm key={JSON.stringify(lab.settings)} settings={lab.settings} />
+          <FuelSettingsForm
+            key={JSON.stringify(lab.settings)}
+            settings={lab.settings}
+            ladder={lab.ladder}
+          />
           <div className={styles.eah}>
             <EahCard card={lab.eah} headingLevel="h2" />
           </div>

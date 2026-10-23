@@ -33,9 +33,10 @@ export interface WristStatusState {
 
 /**
  * The status of the sessions on their way to the watch: the next 14 days by default, which one
- * request serves to the Plan page, the session sheet and Today's line. The server does not cache
- * it and the service worker must not either. It is read again when the window regains focus and,
- * while a send is running, every few seconds.
+ * request serves to the Plan page, the session sheet, the settings and the calendar link. Today's
+ * line is not a reader of it: the line takes its item from the `watch` slot of the Today payload.
+ * The server does not cache it and the service worker must not either. It is read again when the
+ * window regains focus and, while a send is running, every few seconds.
  */
 export function useWristStatus(range?: WristRange): WristStatusState {
   const online = useOnline()

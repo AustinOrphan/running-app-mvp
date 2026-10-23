@@ -54,7 +54,7 @@ import {
   FUEL_PROMPTS_MAX,
   FUEL_TARGETS_MAX_DAYS,
 } from '../../shared/limits.ts'
-import { minutesOf, SECONDS_PER_HOUR } from '../../shared/domain/fuel.ts'
+import { minutesOf, normalisedFuelSettings, SECONDS_PER_HOUR } from '../../shared/domain/fuel.ts'
 import type {
   FuelBlockState,
   FuelBlockView,
@@ -96,17 +96,6 @@ export async function loadFuelSettings(
 }
 
 /**
- * The rules of the four switches. A gut condition forces the others off, so it leaves the floor
- * and no gut-training block; opting out of the first tier clears the second, which needs it.
- */
-function normalisedSettings(requested: FuelSettings): FuelSettings {
-  if (requested.giDisease) {
-    return { optIn90: false, optInAdvanced: false, giDisease: true, gutBlock: false }
-  }
-  return { ...requested, optInAdvanced: requested.optIn90 && requested.optInAdvanced }
-}
-
-/**
  * Saves the switches (the same body twice leaves the same row) and answers with what was kept. The
  * second opt-in opens only after a run at the second tier went well: the ladder is replayed under
  * the first opt-in alone, and the switch is refused with a 400 on `optInAdvanced` when that rung
@@ -119,7 +108,7 @@ export async function saveFuelSettings(
   requested: FuelSettings,
 ): Promise<FuelSettings> {
   const { prisma } = deps
-  const next = normalisedSettings(requested)
+  const next = normalisedFuelSettings(requested)
   const current = await loadFuelSettings(prisma, userId)
   if (next.optInAdvanced && !current.optInAdvanced) {
     const { input } = await loadFuelState(deps, userId)

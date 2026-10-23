@@ -81,6 +81,29 @@ describe('Button', () => {
       expect(b).toHaveAttribute('type', 'button')
     }
   })
+
+  test('busy keeps the button focusable, marks it and ignores clicks, a submit included', () => {
+    const onClick = vi.fn()
+    const onSubmit = vi.fn((event: { preventDefault(): void }) => {
+      event.preventDefault()
+    })
+    render(
+      <form onSubmit={onSubmit}>
+        <Button busy onClick={onClick} type="submit">
+          Save
+        </Button>
+      </form>,
+    )
+    const button = screen.getByRole('button', { name: /Save/ })
+    expect(button).toBeEnabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    button.focus()
+    fireEvent.click(button)
+    expect(onClick).not.toHaveBeenCalled()
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(button).toHaveFocus()
+  })
 })
 
 describe('Field', () => {

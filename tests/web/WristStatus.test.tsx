@@ -9,7 +9,7 @@ import type {
   WristItemStatus,
   WristStatus,
 } from '../../shared/types.ts'
-import { WristLine } from '../../web/components/WristLine.tsx'
+import { useWristLine, WristLineText } from '../../web/components/WristLine.tsx'
 import { WristChip, WristSection } from '../../web/components/WristStatus.tsx'
 import { WristSettings } from '../../web/components/WristSettings.tsx'
 import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
@@ -137,9 +137,14 @@ describe('the chip', () => {
 
 describe("Today's line", () => {
   // The line is given the hero's item from the Today payload and asks for nothing; the mount that
-  // picks the item, and what happens offline, is in TodayWrist.test.tsx.
+  // picks the item, and what happens offline, is in TodayWrist.test.tsx. This is the hook and the
+  // text that mount uses, without the mount.
+  function Line({ item }: { item: WristItem | undefined }) {
+    const line = useWristLine(item)
+    return line === null ? null : <WristLineText line={line} />
+  }
   function renderLine(item: WristItem | undefined) {
-    return render(<WristLine item={item} />)
+    return render(<Line item={item} />)
   }
 
   test('says "On your watch." and "Sent to intervals.icu."', () => {
@@ -205,13 +210,13 @@ describe("Today's line", () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(loaded.parentElement).not.toHaveAttribute('role')
 
-    view.rerender(<WristLine item={makeWristItem({ status: 'on-watch' })} />)
+    view.rerender(<Line item={makeWristItem({ status: 'on-watch' })} />)
     expect(screen.getByRole('status')).toHaveTextContent('On your watch.')
   })
 
   test('keeps quiet when a refresh brings the same state', () => {
     const view = renderLine(makeWristItem({ status: 'sent' }))
-    view.rerender(<WristLine item={makeWristItem({ status: 'sent' })} />)
+    view.rerender(<Line item={makeWristItem({ status: 'sent' })} />)
     expect(screen.getByText('Sent to intervals.icu.')).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
