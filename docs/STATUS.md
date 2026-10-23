@@ -10,7 +10,7 @@ Last update: 2026-10-22.
 - **On `main`:** the clean rewrite (#528, rebase-merged) and the evidence engine, data
   foundation and research corpus (#529, squash-merged as `2e17f23a`); the CodeQL escaping fix
   (#536).
-- **PR `feat/engine-defaults-round2` → `main`:** the owner's answers to the eight section-10
+- **Merged (#537, 2026-10-22):** the owner's answers to the eight section-10
   builder calls (`docs/superpowers/specs/2026-10-22-training-engine-design.md`), backed by a
   second evidence pass on five questions (70 new sources, corpus 370; `research/README.md`
   method entry 7): four start paths (E6: a 9-rung run-walk ladder, a 3 × 20-30 floor sized from
@@ -36,9 +36,26 @@ Last update: 2026-10-22.
   rule text aligned). Re-plan sweeps (0-37 days, logged and unlogged) pass for the reviewed
   fixtures.
 
+- **Phase 3a (branch `feat/coach-phase3`, integration branch; one PR per wave to `main`):**
+  the owner's mandate of 2026-10-22 ("a professional, research-informed, self-adjusting coach and
+  tracker, better than Strava and Runna") after an audit of the app and the market
+  (`docs/superpowers/specs/2026-10-22-coach-phase3a-design.md`, plan
+  `docs/superpowers/plans/2026-10-22-coach-phase3a.md`, ADRs 0007-0009 proposed). Seven epics in
+  eight waves: the foundation (cached athlete state, data version, one session identity, one
+  revision model, sync log), sessions on the wrist (intervals.icu publish, FIT download, ICS
+  feed), Today rebuilt as a phone-first coach with an offline shell, explanations from the
+  runner's own numbers and a Monday brief, disruptions (dial-back, what-if, moves, undoable
+  re-plans), the fuel lab and gut training, and the prediction back-test. The owner's spreadsheet
+  plan is a placeholder; only the goal race is firm, and the engine owns the plan.
+- `npm run dev` rendered a blank page because the dev proxy sent the `web/api/*.ts` source modules
+  to the API server; fixed in #538.
+
 ## Decisions for the owner
 
-None pending. The section-10 items are confirmed; the builder calls the second pass added are
+Phase 3a, section 13 of its design, lists sixteen open questions with the defaults the plan
+implements (undo policy, hot-day thresholds, the one-row check-in, publishing off by default, who
+runs the live intervals.icu and watch checks, the niggle caution, the fuel ladder details, windows
+as Params, and smaller defaults). Each default ships unless the owner says otherwise. The section-10 items are confirmed; the builder calls the second pass added are
 listed there (experienced returner after 90 days off restarts at 3 × 20; ladder weeks exempt from
 the soft ramp warning only; BMI > 30 holds rung 1 for three weeks; the ultra weekly feasibility
 path measures toward the long-run week, not the class peak; the check-in gate is computed, not
