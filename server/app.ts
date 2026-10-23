@@ -33,6 +33,7 @@ import { todayRouter } from './routes/today.ts'
 import { weatherRouter } from './routes/weather.ts'
 import { weeksRouter } from './routes/weeks.ts'
 import { wellnessRouter } from './routes/wellness.ts'
+import { wristRouter } from './routes/wrist.ts'
 import { zonesRouter } from './routes/zones.ts'
 import { mountStatic } from './static.ts'
 
@@ -123,6 +124,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/wellness', wellnessRouter(deps))
   app.use('/api/integrations', integrationsRouter(deps))
   app.use('/api/jobs', jobsRouter(deps))
+  app.use('/api/wrist', wristRouter(deps))
   app.use('/api/weather', weatherRouter(deps))
   app.use('/api/today', todayRouter(deps))
   app.use('/api/checkins', checkinsRouter(deps))

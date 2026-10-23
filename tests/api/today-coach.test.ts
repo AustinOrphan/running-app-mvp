@@ -1069,8 +1069,15 @@ describe('GET /api/today: the validator', () => {
     const log = trackQueries(ctx.prisma)
     const res = await getToday(u).set('If-None-Match', tag)
     expect(res.status).toBe(304)
+    // The user lookup of the auth middleware, the forecast stamp (home, then the cache row) and the
+    // publications' stamp (E1: the notes read a table the data version does not cover).
     expect(log.models.sort()).toEqual(
-      ['athleteProfile.findUnique', 'forecastCache.findUnique', 'user.findUnique'].sort(),
+      [
+        'athleteProfile.findUnique',
+        'forecastCache.findUnique',
+        'user.findUnique',
+        'wristPublication.groupBy',
+      ].sort(),
     )
     expect(log.count('activity.findMany')).toBe(0)
   })
@@ -1104,25 +1111,28 @@ describe('GET /api/today: cost', () => {
     // Warm: the same request with no write in between.
     const warm = trackQueries(ctx.prisma)
     expect((await getToday(u)).status).toBe(200)
-    // The session lookup of the auth middleware, the forecast stamp (home, then the cache row) and
-    // the cached forecast hours: nothing else.
+    // The session lookup of the auth middleware, the forecast stamp (home, then the cache row), the
+    // cached forecast hours, and E1's two reads of the publications table (the page tag's stamp and
+    // the note about tomorrow's run, which has a session here): nothing else.
     expect(warm.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
         'forecastCache.findUnique',
         'forecastCache.findUnique',
         'user.findUnique',
+        'wristPublication.findMany',
+        'wristPublication.groupBy',
       ].sort(),
     )
     expect(warm.count('activity.findMany')).toBe(0)
     expect(warm.count('plan.findFirst')).toBe(0)
     expect(warm.count('planRevision.findFirst')).toBe(0)
     // Pinned so that a query added to the request path is a decision, not an accident: cold is
-    // 16 reads (the session lookup, the forecast stamp, the snapshot's ten, the cached forecast,
-    // the race climate and the change line), warm is 4, and the data version is read three times
-    // (the tag, the snapshot, the change-line memo).
-    expect(coldTotal).toBe(16)
-    expect(warm.models).toHaveLength(4)
+    // 18 reads (the session lookup, the forecast stamp, the snapshot's ten, the cached forecast,
+    // the race climate, the change line and E1's two publication reads), warm is 6, and the data
+    // version is read three times (the tag, the snapshot, the change-line memo).
+    expect(coldTotal).toBe(18)
+    expect(warm.models).toHaveLength(6)
     expect(warm.raw).toBe(3)
   })
 

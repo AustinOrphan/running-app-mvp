@@ -26,6 +26,19 @@ export const PUBLISH_TEMPLATES = {
   'publish.rejected': tpl('intervals.icu did not accept the workout (HTTP {status}).', {
     status: 'count',
   }),
+
+  // The answers of the wrist routes (design 6.4) and the Today health note about tomorrow.
+  'publish.wrist.connect': tpl('Connect intervals.icu first.'),
+  'publish.wrist.reconnect': tpl('Reconnect intervals.icu first.'),
+  'publish.wrist.off': tpl('Sending to your watch is off. Turn it on under Integrations.'),
+  'publish.wrist.remove-failed': tpl(
+    'The sessions already sent could not be removed from intervals.icu, so it stays connected. Try again, or disconnect without removing them.',
+  ),
+  'publish.wrist.range': tpl('Ask for at most 60 days, ending on or after the start.'),
+  'publish.wrist.not-found': tpl('That session is not in the active plan.'),
+  'publish.wrist.note-tomorrow': tpl(
+    "Tomorrow's run is not on the watch yet. Open the plan to send it again or to download the workout file.",
+  ),
 } satisfies Record<string, Template>
 
 export type PublishTemplateId = keyof typeof PUBLISH_TEMPLATES
@@ -44,6 +57,19 @@ export type PublishSentenceId =
   | 'publish.unreadable'
 
 export function publishSentence(id: PublishSentenceId): string {
+  return render(PUBLISH_TEMPLATES[id], {}, STORED_UNITS)
+}
+
+/** The sentences of the wrist routes: what a refused request tells the runner to do. */
+export type WristSentenceId =
+  | 'publish.wrist.connect'
+  | 'publish.wrist.reconnect'
+  | 'publish.wrist.off'
+  | 'publish.wrist.remove-failed'
+  | 'publish.wrist.range'
+  | 'publish.wrist.not-found'
+
+export function wristSentence(id: WristSentenceId): string {
   return render(PUBLISH_TEMPLATES[id], {}, STORED_UNITS)
 }
 

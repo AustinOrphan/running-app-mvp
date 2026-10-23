@@ -6,8 +6,10 @@ import {
   publishSentence,
   rejectedReasonSentence,
   rejectedSentence,
+  wristSentence,
   type PublishSentenceId,
   type PublishTemplateId,
+  type WristSentenceId,
 } from '../../../shared/copy/publish.ts'
 import { render, sampleSlots, type Template } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
@@ -47,6 +49,21 @@ describe('the publish templates', () => {
     expect(rejectedReasonSentence('Cannot read step 3')).toBe(
       'intervals.icu did not accept the workout: Cannot read step 3',
     )
+  })
+
+  it('words each answer of the wrist routes', () => {
+    const fixed: Record<WristSentenceId, string> = {
+      'publish.wrist.connect': 'Connect intervals.icu first.',
+      'publish.wrist.reconnect': 'Reconnect intervals.icu first.',
+      'publish.wrist.off': 'Sending to your watch is off. Turn it on under Integrations.',
+      'publish.wrist.remove-failed':
+        'The sessions already sent could not be removed from intervals.icu, so it stays connected. Try again, or disconnect without removing them.',
+      'publish.wrist.range': 'Ask for at most 60 days, ending on or after the start.',
+      'publish.wrist.not-found': 'That session is not in the active plan.',
+    }
+    for (const [id, text] of Object.entries(fixed)) {
+      expect(wristSentence(id as WristSentenceId), id).toBe(text)
+    }
   })
 
   it('shows the service words as a slot, outside the lint', () => {

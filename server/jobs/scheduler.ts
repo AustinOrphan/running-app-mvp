@@ -8,6 +8,7 @@ import { runNightlyMatching } from '../services/execution.ts'
 import { scanFolderIntegration } from '../services/folder.ts'
 import { replanActivePlan } from '../services/planEngine.ts'
 import { ensureWeeklyPrediction } from '../services/predictionLog.ts'
+import { CHANNEL as PUBLISH_CHANNEL, isPublishDue, publishForUser } from '../services/publish.ts'
 import { syncProvider } from '../services/sync.ts'
 import {
   recordSyncRun,
@@ -26,6 +27,8 @@ export const WEATHER_INTERVAL_MS = 10 * MINUTE_MS
 export const CATCHUP_INTERVAL_MS = 6 * 60 * MINUTE_MS
 /** How often the weekly prediction job looks for a week that has no logged prediction. */
 export const PREDICTION_INTERVAL_MS = 6 * 60 * MINUTE_MS
+/** How often the publisher checks whether a runner's calendar is due (design 6.8). */
+export const PUBLISH_INTERVAL_MS = 2 * MINUTE_MS
 /** Activities that get weather per user per run. */
 const WEATHER_BATCH = 50
 /** The first run waits, so a crash loop never hammers a provider. */
@@ -260,6 +263,38 @@ export async function runMatchingJob(
   if (thrown !== null) throw thrown
 }
 
+/**
+ * Sends the next 14 days of run sessions to intervals.icu for every runner who turned publishing
+ * on (design 6.8). A tick runs the publisher for a runner whose composed change key moved, whose
+ * retry is due, or after 30 minutes; with `force` (the 04:45 slot, after matching and the Monday
+ * re-plan) every such runner is run regardless. Each run that happens records one `publish` run in
+ * the sync log; a tick that finds nothing due records nothing.
+ */
+export async function runPublishJob(
+  deps: Deps,
+  opts: { fetch: typeof fetch; now?: Date; force?: boolean },
+  log?: Log,
+): Promise<void> {
+  const now = opts.now ?? new Date()
+  const channels = await deps.prisma.deliveryChannel.findMany({
+    where: { channel: PUBLISH_CHANNEL, enabled: true },
+    orderBy: { id: 'asc' },
+  })
+  for (const channel of channels) {
+    try {
+      if (!opts.force && !(await isPublishDue(deps, channel, now))) continue
+      await publishForUser(deps, channel.userId, {
+        trigger: 'schedule',
+        fetch: opts.fetch,
+        ...(opts.now === undefined ? {} : { now: opts.now }),
+      })
+    } catch (error) {
+      // The run recorded the failure itself; this only keeps the loop going.
+      log?.warn({ reason: safeMessage(error) }, 'scheduled publishing failed')
+    }
+  }
+}
+
 export interface DailySlot {
   /** 0 Sunday .. 6 Saturday, in the server's local time; every day when absent. */
   weekday?: number
@@ -381,11 +416,14 @@ const SLOT_CHECK_MS = 10 * MINUTE_MS
 /** Nightly matching runs first, so the Monday re-plan sees the week's links. */
 export const MATCHING_SLOT: DailySlot = { hour: 2, minute: 30 }
 export const REPLAN_SLOT = { weekday: 1, hour: 3, minute: 0 } satisfies DailySlot
+/** After matching (02:30) and the Monday re-plan (03:00): the morning's forced publish. */
+export const PUBLISH_MORNING_SLOT: DailySlot = { hour: 4, minute: 45 }
 
 /**
  * Starts the hourly sync, 5-minute folder scan and 10-minute weather jobs, the nightly matching
  * (02:30 local), the Monday re-plan (03:00 local) and its catch-up, and the weekly prediction log
- * (each 30 s after start, then every 6 hours); returns `stop()`.
+ * (each 30 s after start, then every 6 hours), the publisher's 2-minute check and its forced 04:45
+ * run; returns `stop()`.
  * A job never overlaps itself: a tick that finds its previous run still going does nothing.
  * Called from `server/index.ts` only, never in tests.
  */
@@ -443,6 +481,10 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   // The daily slot is seeded at start, so a restart after 03:00 on Monday would skip the week.
   every('replan-catchup', CATCHUP_INTERVAL_MS, () => runReplanJob(deps, { catchUp: true }, log))
   every('predictions', PREDICTION_INTERVAL_MS, () => runPredictionJob(deps, {}, log))
+  every('publish', PUBLISH_INTERVAL_MS, () => runPublishJob(deps, opts, log))
+  daily('publish-morning', PUBLISH_MORNING_SLOT, () =>
+    runPublishJob(deps, { ...opts, force: true }, log),
+  )
 
   return () => {
     stopped = true

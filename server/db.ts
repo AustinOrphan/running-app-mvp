@@ -17,6 +17,7 @@ export type {
   ActivityFile,
   ActivityStream,
   AthleteProfile,
+  DeliveryChannel,
   FuelLog,
   FuelProduct,
   FuelSettings,
@@ -34,6 +35,7 @@ export type {
   SyncRun,
   WeeklyReview,
   WellnessDay,
+  WristPublication,
 } from '../generated/prisma/client.ts'
 
 /**
