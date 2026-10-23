@@ -1,11 +1,14 @@
+import { useId } from 'react'
 import { describeParamRange, describeParamValue } from '../../shared/copy/paramUnits.ts'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
-import type { Param } from '../../shared/engine/types.ts'
+import type { ExplainView, Param } from '../../shared/engine/types.ts'
 import type { Units } from '../../shared/types.ts'
+import { rulesRef, useExplain, type ExplainRef } from '../api/explain.ts'
 import { useResearchParams } from '../api/research.ts'
 import { useSettings } from '../api/settings.ts'
 import { GradeBadge } from './GradeBadge.tsx'
+import { InputFacts } from './InputFacts.tsx'
 import { PaperCard } from './PaperCard.tsx'
 import { Sheet } from './Sheet.tsx'
 import { localiseParamNote, RATING_WHY_NOTE } from './engineText.ts'
@@ -14,7 +17,16 @@ import styles from './WhyDrawer.module.css'
 import { useCorpus, useToggleSet } from './researchCorpus.ts'
 
 export interface WhyDrawerProps {
-  /** Rule ids such as `g-1`, resolved to parameters, grades and papers. */
+  /**
+   * What the figures are about: a session, a week, readiness, a prediction and so on. The drawer
+   * asks `GET /api/explain` for it while it is open. Without it the drawer reads the rule ids
+   * alone (`rulesRef`).
+   */
+  explain?: ExplainRef
+  /**
+   * Rule ids such as `g-1`, resolved to parameters, grades and papers. They are the rule section
+   * when the figures cannot be loaded, and any the subject does not list are shown after its own.
+   */
   rules: string[]
   open: boolean
   onClose: () => void
@@ -34,6 +46,9 @@ interface FactRow {
   /** A row of its own line, for a long value. */
   wide?: boolean
 }
+
+/** The server's default for a new account, used until the settings arrive. */
+const DEFAULT_UNITS: Units = 'mi'
 
 const LADDER_PARAM_ID = 'noviceLadder.rungs'
 
@@ -115,18 +130,80 @@ function ParamRow({ param, units }: { param: Param<unknown>; units: Units }) {
   )
 }
 
-function DrawerBody({ rules }: { rules: string[] }) {
+/** Rule ids without repeats (any case), in the order given. */
+function uniqueRules(rules: readonly string[]): string[] {
+  const seen = new Set<string>()
+  return rules.filter((rule) => {
+    const key = ruleKey(rule)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+/** The name a rule goes by: its title, or its id when it has none. */
+function ruleName(rule: string): string {
+  return ruleTitle(rule) ?? `Rule ${rule}`
+}
+
+/**
+ * "From your numbers": for each rule of the subject, the figures the engine read in the runner's
+ * units with the records they rest on, or the plain statement that the rule uses none of the
+ * runner's data. The rule, its grade and its papers come after (`RuleSections`).
+ */
+function NumbersSection({
+  view,
+  units,
+  onNavigate,
+}: {
+  view: ExplainView
+  units: Units
+  onNavigate: () => void
+}) {
+  const headingId = useId()
+  const labelId = useId()
+  const date = { kind: 'date', iso: view.asOf } as const
+  const intro = view.frozen
+    ? render(TEMPLATES['why.numbers-frozen'], { date }, units)
+    : render(TEMPLATES['why.numbers-live'], { date }, units)
+  return (
+    <section aria-labelledby={headingId} className={styles.numbers}>
+      <h3 id={headingId} className={styles.sectionTitle}>
+        {render(TEMPLATES['why.numbers-heading'], {}, units)}
+      </h3>
+      <p className={styles.intro}>{intro}</p>
+      {view.rules.map((rule) => {
+        const group = view.groups.find((candidate) => ruleKey(candidate.rule) === ruleKey(rule))
+        const alone = view.rest.some((candidate) => ruleKey(candidate) === ruleKey(rule))
+        if (group === undefined && !alone) return null
+        return (
+          <div
+            key={rule}
+            role="group"
+            aria-labelledby={`${labelId}-${ruleKey(rule)}`}
+            className={styles.numbersRule}
+          >
+            <p id={`${labelId}-${ruleKey(rule)}`} className={styles.ruleLabel}>
+              {ruleName(rule)}
+            </p>
+            {group === undefined ? (
+              <p className={styles.note}>{render(TEMPLATES['why.rule-alone'], {}, units)}</p>
+            ) : (
+              <InputFacts facts={group.facts} units={units} onNavigate={onNavigate} />
+            )}
+          </div>
+        )
+      })}
+    </section>
+  )
+}
+
+/** Each rule with its parameters, grades, default notes and papers. */
+function RuleSections({ rules, units }: { rules: string[]; units: Units }) {
   const registry = useResearchParams()
-  const settings = useSettings()
   const corpus = useCorpus()
   const [openPapers, togglePaper] = useToggleSet()
-  // Parameter values read in the runner's units; the server's default stands in if the setting
-  // cannot be read.
-  const units: Units = settings.data?.units ?? 'mi'
 
-  if (registry.isPending || settings.isPending) {
-    return <p className={styles.status}>{render(TEMPLATES['why.loading'], {}, units)}</p>
-  }
   if (registry.isError) {
     return (
       <p role="alert" className={styles.status}>
@@ -134,26 +211,20 @@ function DrawerBody({ rules }: { rules: string[] }) {
       </p>
     )
   }
+  if (registry.isPending) {
+    return <p className={styles.status}>{render(TEMPLATES['why.loading'], {}, units)}</p>
+  }
 
   const params = registry.data.params
-  const seen = new Set<string>()
-  const uniqueRules = rules.filter((rule) => {
-    const key = ruleKey(rule)
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-
   return (
     <>
-      <p className={styles.intro}>{render(TEMPLATES['why.intro'], {}, units)}</p>
-      {uniqueRules.map((rule) => {
+      {rules.map((rule) => {
         const matched = params.filter((p) => ruleKey(p.rule) === ruleKey(rule))
         const paperIds = [...new Set(matched.flatMap((p) => p.evidence))].sort()
         const title = ruleTitle(rule)
         return (
           <section key={rule} className={styles.rule} aria-label={title ?? `Rule ${rule}`}>
-            <h3 className={styles.ruleTitle}>{title ?? `Rule ${rule}`}</h3>
+            <h4 className={styles.ruleTitle}>{title ?? `Rule ${rule}`}</h4>
             {matched.some((param) => param.id.startsWith('effort.')) ? (
               <p className={styles.note}>{RATING_WHY_NOTE}</p>
             ) : null}
@@ -201,19 +272,69 @@ function DrawerBody({ rules }: { rules: string[] }) {
           </section>
         )
       })}
+    </>
+  )
+}
+
+function DrawerBody({
+  explain,
+  rules,
+  onClose,
+}: {
+  explain: ExplainRef
+  rules: string[]
+  onClose: () => void
+}) {
+  const view = useExplain(explain, { enabled: true })
+  const settings = useSettings()
+  const rulesHeadingId = useId()
+  // Parameter values and figures read in the runner's units. The setting is not waited for: the
+  // drawer shows the server's default until it arrives, as the pages do, so a slow or failing
+  // settings request never holds the figures back.
+  const units: Units = settings.data?.units ?? DEFAULT_UNITS
+  // The registry and the papers do not depend on the figures, so they are asked for now and the
+  // three requests overlap. `RuleSections` reads the same queries once the figures are in.
+  useResearchParams()
+  useCorpus()
+
+  // Wait for the figures, so the rule section does not gain rules after it has been read.
+  if (view.isPending) {
+    return <p className={styles.status}>{render(TEMPLATES['why.loading'], {}, units)}</p>
+  }
+
+  const shown = uniqueRules([...(view.data?.rules ?? []), ...rules])
+  return (
+    <>
+      {view.data === undefined ? (
+        <section className={styles.numbers}>
+          <p role="alert" className={styles.status}>
+            {render(TEMPLATES['why.explain-error'], {}, units)}
+          </p>
+        </section>
+      ) : (
+        <NumbersSection view={view.data} units={units} onNavigate={onClose} />
+      )}
+      <section aria-labelledby={rulesHeadingId} className={styles.rules}>
+        <h3 id={rulesHeadingId} className={styles.sectionTitle}>
+          {render(TEMPLATES['why.rules-heading'], {}, units)}
+        </h3>
+        <p className={styles.intro}>{render(TEMPLATES['why.intro'], {}, units)}</p>
+        <RuleSections rules={shown} units={units} />
+      </section>
       <p className={styles.footnote}>{render(TEMPLATES['why.footnote'], {}, units)}</p>
     </>
   )
 }
 
 /**
- * The "why" drawer: each rule with its parameters, grades, default notes and papers. The registry
- * is requested only while the drawer is open.
+ * The "why" drawer: "From your numbers" (the figures the engine read, with their sources) and then
+ * each rule with its parameters, grades, default notes and papers. The figures, the parameter
+ * registry and the papers are requested only while the drawer is open.
  */
-export function WhyDrawer({ rules, open, onClose }: WhyDrawerProps) {
+export function WhyDrawer({ explain, rules, open, onClose }: WhyDrawerProps) {
   return (
     <Sheet open={open} onClose={onClose} title="Why this?">
-      <DrawerBody rules={rules} />
+      <DrawerBody explain={explain ?? rulesRef(rules)} rules={rules} onClose={onClose} />
     </Sheet>
   )
 }

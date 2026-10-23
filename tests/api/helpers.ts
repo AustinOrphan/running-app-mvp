@@ -130,6 +130,7 @@ export function client(ctx: TestCtx, user?: TestUser) {
     get: (url: string) => prepare(agent.get(url)),
     post: (url: string) => prepare(agent.post(url)),
     put: (url: string) => prepare(agent.put(url)),
+    patch: (url: string) => prepare(agent.patch(url)),
     delete: (url: string) => prepare(agent.delete(url)),
   }
 }

@@ -1,63 +1,64 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { Activity, TodayView } from '../../shared/types.ts'
-import { ToastProvider } from '../../web/components/Toast.tsx'
-import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
+import type { TodayView } from '../../shared/types.ts'
 import { makeActivity } from '../factories.ts'
-import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
-import { makeHeat, makeSession, makeToday, TODAY } from './today-fixtures.ts'
+import { explainOf, expectCleanCopy } from './helpers.tsx'
+import {
+  makeCoach,
+  makeHeat,
+  makeHero,
+  makeSession,
+  makeTarget,
+  makeToday,
+  TODAY,
+} from './today-fixtures.ts'
+import { renderToday as render, startToday } from './today-render.tsx'
 
 // Stands in for the real drawer (Task E14) so the wiring is visible: which rules it was opened with.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
-  WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
-    open ? <div role="dialog" aria-label="Why">{`rules: ${rules.join(', ')}`}</div> : null,
+  WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
+    open ? (
+      <div role="dialog" aria-label="Why" data-explain={JSON.stringify(explain ?? null)}>
+        {`rules: ${rules.join(', ')}`}
+      </div>
+    ) : null,
 }))
 
 // The fixed clock is Wednesday 2026-03-18.
-const settings = { email: 'runner@example.com', displayName: null, units: 'mi' }
-
-beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['Date'] })
-  vi.setSystemTime(new Date(2026, 2, 18, 12, 0, 0))
-})
+beforeEach(startToday)
 
 afterEach(() => {
   vi.useRealTimers()
 })
 
-function renderToday(today: TodayView, activities: Activity[] = [], extra: MockRoutes = {}) {
-  const api = mockApi({
-    'GET /api/today': () => today,
-    'GET /api/goals': () => [],
-    'GET /api/plan': () => null,
-    'GET /api/weeks': () => [],
-    'GET /api/reviews': () => [],
-    'GET /api/activities': () => activityPage(activities),
-    'GET /api/settings': () => settings,
-    ...extra,
+/** A day with one easy run, as the server sends it: the hero and the legacy session list agree. */
+function withEasyRun(over: Partial<TodayView> = {}): TodayView {
+  const hero = makeHero()
+  return makeToday({
+    sessions: [{ session: hero.session, advice: 'as-planned', reasons: [] }],
+    coach: makeCoach({ hero }),
+    ...over,
   })
-  renderWithProviders(
-    <ToastProvider>
-      <DashboardPage />
-    </ToastProvider>,
-  )
-  return api
 }
 
 describe("Today: today's session", () => {
-  test('shows the prescription in pace, heart rate and RPE with the purpose', async () => {
-    renderToday(
-      makeToday({ sessions: [{ session: makeSession(), advice: 'as-planned', reasons: [] }] }),
-    )
+  test('shows the duration as the display figure with the targets and the purpose', async () => {
+    const { container } = render(withEasyRun())
     const card = await screen.findByRole('article', { name: 'Easy run' })
-    expect(within(card).getByText('45 min')).toBeInTheDocument()
+    expect(within(card).getByText('45')).toBeInTheDocument()
+    expect(within(card).getByText('min')).toBeInTheDocument()
     expect(within(card).getByText('5.00 mi')).toBeInTheDocument()
-    expect(within(card).getByText('197 ft')).toBeInTheDocument()
-    expect(within(card).getByText('9:15 to 10:28 /mi')).toBeInTheDocument()
-    expect(within(card).getByText('128 to 142 bpm')).toBeInTheDocument()
-    expect(within(card).getByText('3 to 4')).toBeInTheDocument()
+    expect(within(card).getByText('197 ft climb')).toBeInTheDocument()
+    expect(within(card).getByText('Heart rate')).toBeInTheDocument()
+    expect(within(card).getByText('under 142 bpm')).toBeInTheDocument()
+    expect(within(card).getByText('about 9:15 to 10:28 /mi')).toBeInTheDocument()
+    expect(within(card).getByText('Effort and heart rate come first.')).toBeInTheDocument()
+    expect(within(card).getByText('3 to 4 out of 10')).toBeInTheDocument()
     expect(within(card).getByText('Aerobic base at an easy effort.')).toBeInTheDocument()
+    expectCleanCopy(container)
   })
 
   test('leaves out figures the session does not carry', async () => {
@@ -68,63 +69,57 @@ describe("Today: today's session", () => {
       gainM: null,
       target: { zone: 'strength', rpe: [5, 6], hr: null, paceSecPerKm: null, heatNote: null },
     })
-    renderToday(makeToday({ sessions: [{ session, advice: 'as-planned', reasons: [] }] }))
+    const hero = makeHero({
+      session,
+      target: makeTarget({
+        zone: 'strength',
+        mode: 'effort',
+        hrCeiling: null,
+        paceSecPerKm: null,
+        rpe: [5, 6],
+      }),
+    })
+    render(
+      makeToday({
+        sessions: [{ session, advice: 'as-planned', reasons: [] }],
+        coach: makeCoach({ hero }),
+      }),
+    )
     const card = await screen.findByRole('article', { name: 'Strength' })
     expect(within(card).queryByText('Pace')).not.toBeInTheDocument()
     expect(within(card).queryByText('Heart rate')).not.toBeInTheDocument()
-    expect(within(card).queryByText('Distance')).not.toBeInTheDocument()
-    expect(within(card).getByText('5 to 6')).toBeInTheDocument()
+    expect(within(card).queryByText(/ mi$/)).not.toBeInTheDocument()
+    expect(within(card).getByText('5 to 6 out of 10')).toBeInTheDocument()
   })
 
-  test('the why button opens the drawer with the session rules', async () => {
+  test('Explain opens the drawer with the rules of the session', async () => {
     const user = userEvent.setup()
-    renderToday(
-      makeToday({ sessions: [{ session: makeSession(), advice: 'as-planned', reasons: [] }] }),
-    )
+    render(withEasyRun())
     const card = await screen.findByRole('article', { name: 'Easy run' })
-    await user.click(within(card).getByRole('button', { name: 'Why this session' }))
-    expect(await screen.findByRole('dialog', { name: 'Why' })).toHaveTextContent('rules: f-1, g-1')
+    await user.click(within(card).getByRole('button', { name: 'Explain' }))
+    const drawer = await screen.findByRole('dialog', { name: 'Why' })
+    expect(drawer).toHaveTextContent('rules: f-1, g-1')
+    expect(explainOf(drawer)).toEqual({ subject: 'session', id: 's1' })
   })
 
-  test('readiness that downgrades names the easier choice and its reasons', async () => {
-    const session = makeSession({ kind: 'intervals', title: 'Intervals' })
-    renderToday(
+  test('a completed session is labelled and shows the run that was logged', async () => {
+    const run = makeActivity({ id: 'r1', date: TODAY, durationSec: 2700, distanceM: 8047 })
+    const session = makeSession({ status: 'completed', activityId: 'r1' })
+    render(
       makeToday({
-        sessions: [
-          { session, advice: 'downgrade-easy', reasons: ['Sleep averaged under 7 hours.'] },
-        ],
-      }),
-    )
-    const card = await screen.findByRole('article', { name: 'Intervals' })
-    expect(within(card).getByText('An easy run is the better choice today.')).toBeInTheDocument()
-    expect(within(card).getByText('Sleep averaged under 7 hours.')).toBeInTheDocument()
-  })
-
-  test('readiness that suggests rest says so', async () => {
-    renderToday(
-      makeToday({
-        sessions: [{ session: makeSession(), advice: 'rest', reasons: ['Illness reported.'] }],
-      }),
-    )
-    const card = await screen.findByRole('article', { name: 'Easy run' })
-    expect(within(card).getByText('A rest day is the better choice today.')).toBeInTheDocument()
-    expect(within(card).getByText('Illness reported.')).toBeInTheDocument()
-  })
-
-  test('a completed session is labelled', async () => {
-    renderToday(
-      makeToday({
-        sessions: [
-          { session: makeSession({ status: 'completed' }), advice: 'as-planned', reasons: [] },
-        ],
+        sessions: [{ session, advice: 'as-planned', reasons: [] }],
+        coach: makeCoach({ hero: makeHero({ session, linkedRun: run }) }),
       }),
     )
     const card = await screen.findByRole('article', { name: 'Easy run' })
     expect(within(card).getByText('Completed')).toBeInTheDocument()
+    expect(within(card).getByText('Logged: 5.00 mi in 45 min.')).toBeInTheDocument()
+    expect(within(card).queryByRole('link', { name: 'Done' })).not.toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: 'Not today' })).not.toBeInTheDocument()
   })
 
   test('version-1 plans return no sessions and the page still renders', async () => {
-    renderToday(makeToday())
+    render(makeToday())
     await screen.findByRole('heading', { level: 1, name: 'Today' })
     await screen.findByText(/No plan yet/)
     expect(screen.queryByRole('article')).not.toBeInTheDocument()
@@ -132,48 +127,116 @@ describe("Today: today's session", () => {
 })
 
 describe('Today: heat, readiness and red flags', () => {
-  test('shows the heat note, WBGT and the cooler hour, with a why button', async () => {
+  const warm = makeHeat({
+    wbgtC: 25.4,
+    note: 'Warm day: WBGT reaches 25 C around 15:00. A start near 06:00 is cooler (WBGT about 17 C).',
+    coolerHour: '06:00',
+    coolerValue: 17.2,
+    peakHour: 15,
+    index: 'wbgt',
+  })
+
+  test('a warm day states the cooler start, and the heat note sits in the disclosure', async () => {
     const user = userEvent.setup()
-    renderToday(
+    render(withEasyRun({ heat: warm }))
+    const card = await screen.findByRole('article', { name: 'Easy run' })
+    expect(
+      within(card).getByText('Cooler start: 06:00. WBGT about 17 °C then, 25 °C around 15:00.'),
+    ).toBeInTheDocument()
+    await user.click(within(card).getByText('What to know today'))
+    expect(within(card).getByText(/Warm day: WBGT reaches 25 C around 15:00/)).toBeInTheDocument()
+    await user.click(within(card).getByRole('button', { name: 'Why: the heat note' }))
+    const drawer = await screen.findByRole('dialog', { name: 'Why' })
+    expect(drawer).toHaveTextContent('rules: I7, I9')
+    expect(explainOf(drawer)).toEqual({ subject: 'rules', rules: ['I7', 'I9'] })
+  })
+
+  test('a day with no heat read has no cooler start and no disclosure', async () => {
+    render(withEasyRun())
+    const card = await screen.findByRole('article', { name: 'Easy run' })
+    expect(within(card).queryByText(/Cooler start/)).not.toBeInTheDocument()
+    expect(within(card).queryByText('What to know today')).not.toBeInTheDocument()
+  })
+
+  test('the disclosure is a group the runner opens and closes by its summary', async () => {
+    const user = userEvent.setup()
+    window.localStorage.removeItem('rl_today_more')
+    render(withEasyRun({ heat: warm }))
+    const card = await screen.findByRole('article', { name: 'Easy run' })
+    const group = within(card).getByRole('group')
+    expect(group).not.toHaveAttribute('open')
+    await user.click(within(group).getByText('What to know today'))
+    expect(group).toHaveAttribute('open')
+    expect(within(group).getByRole('button', { name: 'Why: the heat note' })).toBeVisible()
+    await user.click(within(group).getByText('What to know today'))
+    expect(group).not.toHaveAttribute('open')
+    window.localStorage.removeItem('rl_today_more')
+  })
+
+  test('the summary row keeps the browser marker, the one cue that the line opens', () => {
+    // jsdom draws no marker, so the stylesheet is read: `display: flex` or `list-style: none` on
+    // the summary removes the marker in Chromium and Firefox.
+    const css = readFileSync(
+      join(process.cwd(), 'web/components/today/KnowToday.module.css'),
+      'utf8',
+    )
+    const rule = /\.summary\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(rule).toMatch(/display:\s*list-item/)
+    expect(rule).not.toMatch(/list-style/)
+  })
+
+  test('the disclosure keeps its state on this device', async () => {
+    const user = userEvent.setup()
+    window.localStorage.removeItem('rl_today_more')
+    const first = render(withEasyRun({ heat: warm }))
+    await user.click(await screen.findByText('What to know today'))
+    await waitFor(() => {
+      expect(window.localStorage.getItem('rl_today_more')).toBe('1')
+    })
+    first.unmount()
+    render(withEasyRun({ heat: warm }))
+    await screen.findByRole('article', { name: 'Easy run' })
+    expect(screen.getByText('What to know today').closest('details')).toHaveAttribute('open')
+    window.localStorage.removeItem('rl_today_more')
+  })
+
+  test('the verdict and the signals behind it read as the server worded them', async () => {
+    const { container } = render(
       makeToday({
-        heat: makeHeat({
-          wbgtC: 24.6,
-          note: 'Run by effort and keep drinking.',
-          coolerHour: '06:00',
+        coach: makeCoach({
+          verdict: {
+            code: 'low-plan-stays',
+            template: 'today.verdict.low-plan-stays',
+            slots: {},
+          },
+          signals: [
+            {
+              code: 'checkin',
+              noted: true,
+              template: 'today.signal.checkin-tired',
+              slots: {},
+            },
+            {
+              code: 'resting-hr',
+              noted: false,
+              template: 'today.signal.resting-hr-only',
+              slots: { latest: { kind: 'bpm', bpm: 58 } },
+            },
+          ],
         }),
       }),
     )
-    const heat = await screen.findByRole('region', { name: 'Heat' })
-    expect(within(heat).getByText('Run by effort and keep drinking.')).toBeInTheDocument()
-    expect(within(heat).getByText('WBGT 24.6 °C')).toBeInTheDocument()
-    expect(within(heat).getByText('Cooler hour: 06:00')).toBeInTheDocument()
-    await user.click(within(heat).getByRole('button', { name: 'Why this heat note' }))
-    expect(await screen.findByRole('dialog', { name: 'Why' })).toHaveTextContent('rules: i-7, i-9')
-  })
-
-  test('no heat section without a note or a reading', async () => {
-    renderToday(makeToday())
-    await screen.findByText(/No plan yet/)
-    expect(screen.queryByRole('region', { name: 'Heat' })).not.toBeInTheDocument()
-  })
-
-  test('possible fatigue is stated plainly, with the fatigue-state rules behind it', async () => {
-    const user = userEvent.setup()
-    const today = makeToday()
-    today.readiness.state = 'possible-fatigue'
-    renderToday(today)
-    expect(await screen.findByText('Recent signals point to possible fatigue.')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Why this note' }))
-    expect(await screen.findByRole('dialog', { name: 'Why' })).toHaveTextContent('rules: j-2, j-8')
-  })
-
-  test('persistent suppression is stated plainly', async () => {
-    const today = makeToday()
-    today.readiness.state = 'persistent-suppression'
-    renderToday(today)
+    const read = await screen.findByRole('region', { name: 'Readiness' })
+    expect(within(read).getByRole('status')).toHaveTextContent(
+      'Signals are a little low. The plan stays as it is.',
+    )
+    const signals = within(read).getByRole('list', { name: 'Readiness signals' })
     expect(
-      await screen.findByText('Recent signals have stayed low for several days.'),
-    ).toBeInTheDocument()
+      within(signals)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Check-in: feeling tired.', 'Resting heart rate is 58 bpm.'])
+    expectCleanCopy(container)
   })
 
   test('red flags appear as notes with their why button, not as alarms', async () => {
@@ -186,18 +249,20 @@ describe('Today: heat, readiness and red flags', () => {
         rules: ['n-1'],
       },
     ]
-    renderToday(today)
+    render(today)
     const banners = await screen.findByRole('region', { name: 'Health notes' })
     expect(
       within(banners).getByText('Point tenderness on a bone: see a clinician before the next run.'),
     ).toBeInTheDocument()
     expect(within(banners).queryByRole('alert')).not.toBeInTheDocument()
-    await user.click(within(banners).getByRole('button', { name: 'Why this note' }))
-    expect(await screen.findByRole('dialog', { name: 'Why' })).toHaveTextContent('rules: n-1')
+    await user.click(within(banners).getByRole('button', { name: 'Why: this note' }))
+    const drawer = await screen.findByRole('dialog', { name: 'Why' })
+    expect(drawer).toHaveTextContent('rules: n-1')
+    expect(explainOf(drawer)).toEqual({ subject: 'rules', rules: ['n-1'] })
   })
 
   test('links to the disclaimer', async () => {
-    renderToday(makeToday())
+    render(makeToday())
     const note = await screen.findByRole('region', { name: 'Disclaimer' })
     expect(within(note).getByText(/not medical, nutrition or injury advice/)).toBeInTheDocument()
     expect(within(note).getByRole('link', { name: 'How the numbers are graded' })).toHaveAttribute(
@@ -210,9 +275,7 @@ describe('Today: heat, readiness and red flags', () => {
 describe('Today: check-in', () => {
   test('saves the chosen answers for today', async () => {
     const user = userEvent.setup()
-    const api = renderToday(makeToday(), [], {
-      'PUT /api/checkins/2026-03-18': () => ({}),
-    })
+    const { api } = render(makeToday(), { 'PUT /api/checkins/2026-03-18': () => ({}) })
     const card = await screen.findByRole('region', { name: 'Check-in' })
     expect(within(card).getByRole('button', { name: 'Save check-in' })).toBeDisabled()
     await user.click(within(card).getByRole('button', { name: 'Fatigue 4' }))
@@ -252,7 +315,7 @@ describe('Today: check-in', () => {
       painArea: null,
       painFocalBone: false,
     }
-    renderToday(makeToday({ checkin }))
+    render(makeToday({ checkin }))
     const card = await screen.findByRole('region', { name: 'Check-in' })
     expect(within(card).getByRole('button', { name: 'Fatigue 2' })).toHaveAttribute(
       'aria-pressed',
@@ -278,9 +341,7 @@ describe('Today: check-in', () => {
 
     test('is ticked from the active state until the runner unticks it', async () => {
       const user = userEvent.setup()
-      const api = renderToday(withActiveFlag(), [], {
-        'PUT /api/checkins/2026-03-18': () => ({}),
-      })
+      const { api } = render(withActiveFlag(), { 'PUT /api/checkins/2026-03-18': () => ({}) })
       const card = await screen.findByRole('region', { name: 'Check-in' })
       const box = within(card).getByRole('checkbox', { name: 'Point tenderness on a bone' })
       expect(box).toBeChecked()
@@ -299,9 +360,7 @@ describe('Today: check-in', () => {
 
     test('is stored as false only after the runner unticks it', async () => {
       const user = userEvent.setup()
-      const api = renderToday(withActiveFlag(), [], {
-        'PUT /api/checkins/2026-03-18': () => ({}),
-      })
+      const { api } = render(withActiveFlag(), { 'PUT /api/checkins/2026-03-18': () => ({}) })
       const card = await screen.findByRole('region', { name: 'Check-in' })
       await user.click(within(card).getByRole('checkbox', { name: 'Point tenderness on a bone' }))
       await user.click(within(card).getByRole('button', { name: 'Save check-in' }))
@@ -326,7 +385,7 @@ describe('Today: check-in', () => {
         painArea: null,
         painFocalBone: false,
       }
-      renderToday({ ...withActiveFlag(), checkin })
+      render({ ...withActiveFlag(), checkin })
       const card = await screen.findByRole('region', { name: 'Check-in' })
       expect(
         within(card).getByRole('checkbox', { name: 'Point tenderness on a bone' }),
@@ -336,7 +395,7 @@ describe('Today: check-in', () => {
 
   test('a failed save keeps the entries and says what to do', async () => {
     const user = userEvent.setup()
-    renderToday(makeToday(), [], {
+    render(makeToday(), {
       'PUT /api/checkins/2026-03-18': () => ({
         status: 500,
         body: { error: { code: 'internal', message: 'Server error' } },
@@ -359,8 +418,9 @@ describe('Today: How did it go? toast', () => {
     // After the save the server reports the run as rated, so the card drops it and unmounts.
     let saved = false
     const run = makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })
-    renderToday(makeToday(), [], {
-      'GET /api/activities': () => activityPage(saved ? [{ ...run, rpe: 6 }] : [run]),
+    const day = () => makeToday({ unrated: saved ? [] : [run] })
+    render(day(), {
+      'GET /api/today': () => day(),
       'PATCH /api/activities/r1/feedback': () => {
         saved = true
         return {}

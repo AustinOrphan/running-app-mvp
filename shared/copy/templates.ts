@@ -11,7 +11,9 @@ import type { Units } from '../types.ts'
 import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
 import { GOALS_TEMPLATES } from './goals.ts'
-import { REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
+import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
+import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
+import { SESSION_STATUS_TEMPLATES } from './sessionStatus.ts'
 import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
 import { PUBLISH_TEMPLATES } from './publish.ts'
 import { STANDOUT_TEMPLATES } from './standoutTemplates.ts'
@@ -23,10 +25,13 @@ import { TRACK_RECORD_TEMPLATES } from './trackRecord.ts'
 
 export const TEMPLATES = {
   ...REVISION_TEMPLATES,
+  ...REVISION_VIEW_TEMPLATES,
   ...TODAY_TEMPLATES,
+  ...SESSION_STATUS_TEMPLATES,
   ...DATA_IN_USE_TEMPLATES,
   ...FUEL_TEMPLATES,
   ...WINDOW_TEMPLATES,
+  ...ADJUST_TEMPLATES,
   ...ACTIVITY_LIST_TEMPLATES,
   ...EXPLAIN_TEMPLATES,
   ...PUBLISH_TEMPLATES,
@@ -39,6 +44,36 @@ export const TEMPLATES = {
     'Every number in the plan comes from a rule. Grade A is the strongest evidence; grade D is a conservative default.',
   ),
   'why.loading': tpl('Loading the evidence.'),
+  // "From your numbers": the figures the engine read for this subject (phase 3a design 8.6)
+  'why.numbers-heading': tpl('From your numbers', {}, { shape: 'label' }),
+  'why.numbers-live': tpl(
+    'These are the figures the plan read, as of {date}. It reads them again every Monday.',
+    { date: 'date' },
+    { fallback: 'These are the figures the plan read. It reads them again every Monday.' },
+  ),
+  'why.numbers-frozen': tpl(
+    'These are the figures from {date}, when this was written.',
+    { date: 'date' },
+    { fallback: 'These are the figures from the day this was written.' },
+  ),
+  'why.not-enough': tpl('Not enough data yet:', {}, { shape: 'label' }),
+  'why.rule-alone': tpl('This rests on the rule alone. It does not use your data.'),
+  'why.explain-error': tpl(
+    'Your figures could not be loaded. The rule and papers below still apply. Close this panel and open it again to retry.',
+  ),
+  'why.based-on': tpl('Based on', {}, { shape: 'label' }),
+  'why.more-sources': tpl('and {n} more', { n: 'count' }, { fallback: 'and more', shape: 'label' }),
+  'why.source-activity': tpl(
+    '{label}, {distance}, {date}',
+    { label: 'text', distance: 'distance', date: 'date' },
+    { fallback: 'A record', shape: 'label' },
+  ),
+  'why.source-dated': tpl(
+    '{label}, {date}',
+    { label: 'text', date: 'date' },
+    { fallback: 'A record', shape: 'label' },
+  ),
+  'why.rules-heading': tpl('The rule and its evidence', {}, { shape: 'label' }),
   'why.registry-error': tpl(
     'The parameter registry could not be loaded. Close this panel and open it again to retry.',
   ),

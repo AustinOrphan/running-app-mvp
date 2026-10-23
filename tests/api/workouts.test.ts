@@ -552,13 +552,17 @@ describe('buildDeliverables', () => {
       vi.spyOn(ctx.prisma.wellnessDay, 'findMany'),
       vi.spyOn(ctx.prisma.weeklyReview, 'findMany'),
       vi.spyOn(ctx.prisma.planSession, 'findMany'),
-      vi.spyOn(ctx.prisma.planWeek, 'findMany'),
       vi.spyOn(ctx.prisma.plan, 'findFirst'),
     ]
+    // The fuel replay reads the weeks of every plan (a replaced plan's gut-training weeks still
+    // credit the runs they covered), which the snapshot of the active plan cannot answer; it is
+    // the one read of the stored plan the builder adds.
+    const weeks = vi.spyOn(ctx.prisma.planWeek, 'findMany')
     const built = await buildDeliverables(deps(), u.id, { from: DAY_A, to: DAY_B, today })
     expect(sends(built)).toHaveLength(3)
     expect(loadAthleteContext).toHaveBeenCalledTimes(1)
     for (const spy of spies) expect(spy).not.toHaveBeenCalled()
+    expect(weeks).toHaveBeenCalledTimes(1)
     vi.restoreAllMocks()
   })
 

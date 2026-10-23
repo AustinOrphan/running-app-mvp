@@ -9,6 +9,9 @@ interface LimiterOptions {
   windowMs?: number
 }
 
+/** How a limiter counts: every request, or only the ones that were refused (status 400 and up). */
+type Counting = 'every-request' | 'refusals'
+
 const WINDOW_MS = 15 * 60_000
 
 /**
@@ -21,10 +24,12 @@ function createLimiter(
   defaultMax: number,
   code: ApiErrorCode,
   message: string,
+  counting: Counting = 'every-request',
 ): RequestHandler {
   return rateLimit({
     limit: opts.max ?? defaultMax,
     windowMs: opts.windowMs ?? WINDOW_MS,
+    skipSuccessfulRequests: counting === 'refusals',
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     validate: { xForwardedForHeader: false },
@@ -51,4 +56,13 @@ export function createLoginLimiter(opts: LimiterOptions = {}): RequestHandler {
  */
 export function createGlobalLimiter(opts: LimiterOptions = {}): RequestHandler {
   return createLimiter(opts, 1000, 'internal', 'Too many requests. Try again later.')
+}
+
+/**
+ * Limiter of the private calendar feed: the budget and window of sign-in (10 per 15 minutes per
+ * IP), counted on refusals only. A token is a guess like a password, but a calendar app that holds
+ * the right one polls for years and must not use the budget up; only a refusal counts.
+ */
+export function createFeedLimiter(opts: LimiterOptions = {}): RequestHandler {
+  return createLimiter(opts, 10, 'unauthorized', 'Too many requests. Try again later.', 'refusals')
 }

@@ -1,0 +1,41 @@
+.read {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: var(--page-max);
+  padding-bottom: var(--space-4);
+}
+
+.verdict {
+  margin: 0;
+  max-width: var(--prose-max);
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: 600;
+}
+
+.signals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A hairline bar sets the readings apart; the ones the verdict leans on get a heavier bar and weight. */
+.signal {
+  max-width: var(--prose-max);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.signal[data-noted='true'] {
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}

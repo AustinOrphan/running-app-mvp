@@ -72,6 +72,70 @@ Last update: 2026-10-23.
   0's registry and `main`'s) are reconciled to `2026-10-22.4` on `wave/3a-0`, and wave 1 moves on
   to `2026-10-23.1`.
 
+- **Phase 3a wave 4 (branch `feat/coach-phase3`, PR from `wave/3a-4`, 2026-10-23):** the first
+  surfaces and the plan actions on top of the wave-3 services. E2-5: Today rebuilt around the
+  readiness read and the session hero (`web/components/today/*`, one CSS module per component: the
+  verdict and its signals first, the session as the hero with the duration as the display figure and
+  the targets in the lead's order, the cooler start, a "What to know today" disclosure that remembers
+  its state; the week strip with marks by shape and names for screen readers, the change line in the
+  brief slot with a Details sheet, the race countdown with the finish range; the payload carries the
+  race distance and the card-rule unrated list; the 28-day strip and the 12-week chart load when the
+  foot of the page nears the viewport; `useToday` refetches on focus; design 4.7 and item 18 of
+  section 7 record that the hero is the session and readiness). E1-5: the intervals.icu publisher
+  (`server/services/publish.ts`: today to +13 of the active plan's runs, read before write, upsert
+  before withdraw, one outcome per session; remote id `rl-<userTag>-<externalId>`; change detection
+  by athlete key, home forecast stamp, a due retry and a 30-minute backstop; a run writes only
+  non-state tables and leaves the data version alone; per-session back-off, a rate limit pauses the
+  channel, a refused key marks the integration `needs_auth`; `GET /api/wrist/status`,
+  `PUT /api/wrist/intervals`, `POST /api/wrist/publish`, `DELETE /api/integrations/intervals`; a
+  two-minute check and a forced 04:45 run; tomorrow's run that is not on the watch is a Today health
+  note). E1-6: the private calendar feed (`GET /api/calendar/:token/plan.ics`, 28 days of all-day
+  events from `buildDeliverables`; the router sits ahead of the same-origin guard, authentication and
+  the body parsers and compares the token's SHA-256 against `DeliveryChannel` in constant time; any
+  unknown token is the unknown-route 404; refusals limited like sign-in; `POST` and
+  `DELETE /api/wrist/calendar/token`; public titles and figure-free outlines only; no clock input;
+  the access log masks the token; `userTagOf` in `server/crypto.ts`). E4-3: the Why drawer opens
+  with "From your numbers" (`web/api/explain.ts`: `ExplainRef`, `useExplain`; `InputFacts` renders
+  each rule's figures in the runner's units with up to five sources linked to the runner's own
+  records; every call site passes a subject; a failed request keeps the rule section; `why.*`
+  templates). E4-4: one diff and undo component set (`RevisionDiff`, `PlanDiffView` with moved lines
+  folded and "Show all N changes", `UndoControl` previewing through `POST /api/plan/preview` with
+  the confirm sentences and every `UndoReasonCode` worded in one exhaustive record; `attributeChange`
+  derives the causes from the stored revision into `PlanRevisionView.causes`; `owner-edit` joins the
+  cause list; a revision written for a request is seen at write, an undo marks its target seen, the
+  scheduler's revisions stay unseen until a surface opens them). E5-5: disruptions on the server
+  (`Disruption` is a state model, migration `disruptions`; a window is a plan action previewed by
+  `POST /api/plan/preview` and committed by `POST`, `PATCH` and `DELETE /api/plan/disruptions` in one
+  transaction and one revision with the skips of the covered past days and the re-plan; only
+  `applyReplan` with a window step writes a window; the snapshot loads the active windows into
+  `estimateState`, readiness and every `EngineInput`; `keptByReplan` takes the held dates; undo
+  withdraws a created window or restores an edited one; `coach.disruptions` and the disruption slot
+  on Today; a commit that lands while a re-plan is decided answers 409 `stale-preview`, with
+  `replanActivePlan` deciding again once). E5-6: move, swap, swap-kind, shorten, skip and restore as
+  one guarded action (`shared/engine/adjust.ts`: the guards moved out of `planEngine.ts` plus F3,
+  rest windows, quiet days and per-day caps, the spike limit, a restore held to the week target and
+  the back-to-back pair; each guard carries a code, a template that cites its rule and the
+  alternative that would work; shorten scales steps, distance and climb and sets `adjusted`;
+  `server/services/adjust.ts` and `POST /api/plan/sessions/:id/adjust`, with `computeAction` building
+  the preview and the commit from one `adjustCheck`; `PlanGuardView` is
+  `{ code, message, rules, effect, suggest }`). E6-5: the fuel lab view (`GET /api/fuel` from one
+  replay memoised by data version, `GET /api/fuel/targets` for at most 62 days,
+  `PUT /api/fuel/settings`; `loadFuelContext` replaces the stub and callers pass the snapshot or
+  forecast they hold; `slots.fuel` and `slots.fuelPrompt` on Today; `options.gutTraining` is set only
+  by the plan writers from the stored switches; a confirmed duplicate's fuel log moves to the
+  original). Today pins: 26 cold reads, 10 warm, 5 data-version reads. `PARAMS_VERSION` stays
+  `2026-10-23.2`. Gates on the merged branch: `npm run check` (191 files, 7776 tests), `npm run build`, `npm run test:e2e` (26), `docker build .` (thirteen migrations apply), owner validation byte-identical to wave 3. Adversarial review: see below.
+- Wave 4 left for later tasks: the check-in is still the `CheckinCard` form below the hero until
+  E2-6 folds it into the readiness read, so the no-signals verdict's "One tap below" names a control
+  that is not there yet, and Done opens the log form and Not today the session sheet until the
+  one-tap sheets land; the wrist copy names the Plan page's "Send again" and download controls (E1-7)
+  and the Integrations toggle (E1-8) before they exist, and publishing is reachable only through
+  `PUT /api/wrist/intervals` until then; Today's change sheet lists the revision page (50 rows) to
+  show one revision and lists it again after the seen stamp (a by-id route for E4-8); revision dates
+  are cut in the device's day, as the Goals page has always done; the week strip announces today only
+  on a day with a session; a past check-in source links to Today; the feed's `X-WR-TIMEZONE` names
+  the home zone; `DISRUPTION_COLUMNS` is a hand-kept list equal to the schema minus the bookkeeping
+  columns; the prediction job still records idle runs.
 - **Phase 3a wave 3 (branch `feat/coach-phase3`, PR from `wave/3a-3`, 2026-10-23):** the services
   and routes on top of the wave-2 stores. R0-2: undo, preview and seen (`server/services/revisions.ts`,
   `planActions.ts`, `shared/engine/undoGuard.ts`): `computeAction` is the one builder of a preview and
@@ -102,13 +166,10 @@ Last update: 2026-10-23.
   `PARAMS_VERSION` is `2026-10-23.2`. Gates on the merged branch: `npm run check` (173 files, 6629 tests),
   `npm run build`, `npm run test:e2e` (25), `docker build .` (eleven migrations apply), owner
   validation byte-identical to wave 2. Adversarial review: see below.
-- Wave 3 left for later tasks: `server/services/fuelLine.ts` is a stub until E6-5 (no delivery
-  carries a fuel line yet); no route writes the `adjusted` status until E5-6; a 3-day window drawn
+- Wave 3 left for later tasks: a 3-day window drawn
   mid-week lowers a ramp-limited plan's later weeks by about 10% until the next Monday re-plan
   (E5-4; window-lowered weeks could be ramp-skip weeks); `isHotForSteering` has no production caller
-  that changes a session until E2-5/E1-5 read it; the StandoutCard's Why button passes rule ids until
-  E4-3 gives it `{ subject: 'activity', id }`; an undo revision and its target keep `seenAt` null
-  (E4-4 decides); the FIT files' watch behaviour (manufacturer 255, repeat steps, string caps) and
+  that changes a session until E2-5/E1-5 read it; the FIT files' watch behaviour (manufacturer 255, repeat steps, string caps) and
   the hike as sport running await the owner's watch check; the prediction job still records idle runs.
 - **Phase 3a wave 2 (branch `feat/coach-phase3`, PR from `wave/3a-2`, 2026-10-23):** the stores
   and engines the surfaces will show. R0-1: the revision foundation (`server/services/replan.ts`:
@@ -193,6 +254,67 @@ check` (142 files, 4337 tests), `npm run build`, `npm run test:e2e` (18), `docke
   `workoutExternalId(externalId, userTag)`, creates the new event before it withdraws the old one
   and derives no id from the date, the kind or the order.
 
+## Wave 4 adversarial review (2026-10-23)
+
+Six lenses over the wave-4 diff against the wave-3 tip (181 files); 34 findings, each tried by two
+independent refuters: 14 confirmed, 20 disputed. The one confirmed medium was a second engine-input
+builder in the explain service that left out the rest windows.
+
+Fixed on the integration branch before `wave/3a-4` was cut (`task/3a-W4-fix-server`,
+`task/3a-W4-fix-web`, `task/3a-W4-fix-tests`):
+
+1. `explain.ts` built its own `EngineInput` without the rest windows, so the Why drawer's weekly
+   decision could contradict the stored one; it takes `inputFromContext(context, { existing: true })`
+   and the second builder is gone.
+2. A fuel log saved on a confirmed duplicate read back as null and was never counted; a log saved,
+   skipped, read or deleted on a copy addresses its original.
+3. Revision causes read the week's current target source, so an override set later was credited to
+   older revisions; `owner-target-kept` is credited only to a revision written at or after the week
+   row's last write.
+4. The calendar feed token reached the access log in an absolute-form request target and after a
+   doubled slash; both forms are redacted.
+5. Copy and web: `ChangeSheet` and `RevisionDiff` worded the reason labels from two template sets
+   (one, `reasonLabel`); the hero chip said "Adjusted" where the sheet and Review say "Eased", and
+   three files held their own status map (one, `shared/copy/sessionStatus.ts`); rest-window hold
+   lines printed a double colon; the "What to know today" summary lost its disclosure marker
+   (`display: list-item`); an undo from Today's change sheet dropped focus to `<body>` (the Sheet
+   moves it to `#main` when its opener is gone); the Why drawer started the rule registry and the
+   research bundle only after the explain request settled (requested together).
+6. Tests: the idle-tick "not written" check compared `updatedAt` under a frozen clock; the "never
+   blocked by later edits" case never edited a held session; the past-session 409 case was skipped by
+   an `if`; a comment named the wrong file; the limited-window cap loop ran zero times; "I am better"
+   did not check that the return was resized; the cross-surface fuel-line test returned the expected
+   value when the FIT note lacked the line.
+
+Accepted from the disputed list and fixed with them: a non-array 200 from intervals.icu is an
+unreadable answer, not an empty calendar that marks every sent row owner-removed; a sustained outage
+stores one error run instead of one every five minutes; undo invalidates the disruptions and reviews
+queries; the Plan page falls back to miles like the other pages; the swap-kind guard names the
+session kind in words (`sessionTitle`); the `disruptions` and `revision-presentation` suites assert
+that nothing reached the network; the README names the Explain and Why buttons.
+
+Disputed and recorded (not fixed; reason in brackets):
+
+- `DISRUPTION_COLUMNS` is hand-kept rather than derived from the Prisma DMMF like the session and
+  week columns [equal to the schema minus the bookkeeping columns today; a later column needs the
+  edit].
+- Revision dates are cut in the device's day, not the server's [a pre-existing pattern moved
+  verbatim; travelling follows the home day, recorded in wave 1].
+- A past check-in source links to Today, which shows only the current day's card [a documented
+  choice; no page shows a past day].
+- The feed's `X-WR-TIMEZONE` names the home zone under all-day events [a minimisation preference;
+  no rule names it].
+- The no-signals verdict promises a one-tap control below it [spec wording; E2-6 brings the control
+  in wave 5].
+- The week strip does not announce today on a day without a session [specified design;
+  `aria-current` on the cell].
+- Wrist copy names the Plan page and Integrations controls of E1-7 and E1-8 [the end-state wording
+  the plan scheduled; publishing is API-only until then].
+- Today's change sheet lists the revision page for one revision and again after the seen stamp [one
+  refuter held; small today; a by-id route for E4-8].
+- The `@ts-expect-error` undo-reason test checks TypeScript rather than the record [the type is the
+  contract].
+
 ## Wave 3 adversarial review (2026-10-23)
 
 Six lenses over the wave-3 diff against the wave-2 tip (135 files); 25 findings, each tried by two
@@ -232,14 +354,17 @@ date and now carries a synthetic one.
 
 Disputed and recorded (not fixed; reason in brackets):
 
-- `explain.ts` keeps a second snapshot-to-input builder beside `inputFromContext` [one narrow
-  read; E4-8's pass].
+- `explain.ts` kept a second snapshot-to-input builder beside `inputFromContext` [one narrow
+  read; E4-8's pass]. Closed by the wave-4 review fixes: the builder left out the rest windows, so
+  the Why drawer's weekly decision for a week a window touches contradicted the stored one;
+  `explain.ts` now takes `inputFromContext(context, { existing: true })`.
 - The track-record memo reads `PredictionLog`, a non-state model [sound while no prediction is
   logged after a result; the header says so].
 - A restored plan keeps its old `createdAt`, so the catch-up may re-plan it once more [a no-op
   diff].
 - Server re-plan pairing calls `keptByReplan` without the hold dates [E5-5 passes them in wave 4].
-- `MOVABLE_STATUSES` and the `adjusted` status [E5-6 in wave 4].
+  Closed by E5-5.
+- `MOVABLE_STATUSES` and the `adjusted` status [E5-6 in wave 4]. Closed by E5-6.
 
 ## Wave 2 adversarial review (2026-10-23)
 

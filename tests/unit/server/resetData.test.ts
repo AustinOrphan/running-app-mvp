@@ -233,4 +233,42 @@ describe('clearUserData', () => {
     expect(left, 'tables resetData left rows in').toEqual([])
     expect(await count('User')).toBe(1)
   })
+
+  test('empties the rest windows, active and withdrawn, so a leftover never holds a later spec’s plan', async () => {
+    const users = await Promise.all(
+      ['a', 'b'].map((name) =>
+        prisma.user.create({
+          data: { email: `${name}@example.com`, passwordHash: 'not-a-real-hash' },
+        }),
+      ),
+    )
+    for (const [i, user] of users.entries()) {
+      await prisma.disruption.createMany({
+        data: [
+          {
+            userId: user.id,
+            reason: 'illness-above-neck',
+            mode: 'rest',
+            startDate: '2026-10-19',
+            endDate: '2026-10-21',
+          },
+          {
+            userId: user.id,
+            reason: 'travel',
+            mode: 'limited',
+            maxRunMin: 30,
+            startDate: '2026-10-22',
+            endDate: '2026-10-23',
+            status: i === 0 ? 'undone' : 'active',
+          },
+        ],
+      })
+    }
+    expect(await count('Disruption')).toBe(4)
+
+    await clearUserData(prisma)
+
+    expect(await count('Disruption')).toBe(0)
+    expect(await count('User')).toBe(2)
+  })
 })

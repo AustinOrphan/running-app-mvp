@@ -1,0 +1,43 @@
+.details {
+  border-top: 1px solid var(--border);
+}
+
+/*
+ * A 44px row, so the disclosure is a comfortable tap target. The row stays `display: list-item`,
+ * since any other display drops the browser's disclosure marker, the one cue that the line opens;
+ * padding centres the text in the row.
+ */
+.summary {
+  display: list-item;
+  padding-block: calc((2.75rem - var(--lh-base)) / 2);
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.text {
+  flex: 1 1 14rem;
+  margin: 0;
+  max-width: var(--prose-max);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

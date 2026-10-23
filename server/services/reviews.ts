@@ -16,6 +16,7 @@ import { HttpError, validationError } from '../errors.ts'
 import { createLogger } from '../logger.ts'
 import { loadActivityCores, toPlanWeek, toWeeklyReview } from '../serialize.ts'
 import { replanActivePlan, weeklyDecisions } from './planEngine.ts'
+import { viewRevision } from './revisions.ts'
 
 /** `undefined` keeps the stored value, `null` clears it. */
 export type ReviewPatch = Partial<
@@ -330,7 +331,10 @@ export async function saveReview(
   if (v2?.signals) result.signals = v2.signals
   if (qualifies) {
     try {
-      result.revision = await replanActivePlan(deps, { userId, reason: 'review', today })
+      const written = await replanActivePlan(deps, { userId, reason: 'review', today })
+      // The saved review carries the revision as the list serves it: with the undo state the
+      // other surfaces show, not only what the write itself knows.
+      result.revision = await viewRevision(deps, { userId, revisionId: written.id })
     } catch (error) {
       if (error instanceof HttpError) {
         result.replanError = error.message

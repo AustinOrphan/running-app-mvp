@@ -1,24 +1,46 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { Goal, PlanWithSessions, PlanWithWeeks, WeekRow } from '../../shared/types.ts'
+import type {
+  Goal,
+  PlanRevisionView,
+  PlanWithSessions,
+  PlanWithWeeks,
+  WeekRow,
+} from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeActivity } from '../factories.ts'
-import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import {
+  activityPage,
+  explainOf,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
+import {
+  AVAILABLE,
+  makeBrief,
+  makeDiff,
+  makeLine,
   makeRevision,
   makeSession,
   makeV1Plan,
   makeV2Plan,
   makeV2Week,
+  makeWeekLine,
   settings,
 } from './plan-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
-  WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
+  WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
     open ? (
-      <div role="complementary" aria-label="Why drawer">
+      <div
+        role="complementary"
+        aria-label="Why drawer"
+        data-explain={JSON.stringify(explain ?? null)}
+      >
         {rules.join(',')}
       </div>
     ) : null,
@@ -183,8 +205,37 @@ describe('Plan page, version-2 plans', () => {
     renderPlan()
     const warnings = await screen.findByRole('region', { name: 'Warnings' })
     await user.click(within(warnings).getByRole('button', { name: 'Why this warning' }))
-    expect(await screen.findByLabelText('Why drawer')).toHaveTextContent('g-3')
+    const drawer = await screen.findByLabelText('Why drawer')
+    expect(drawer).toHaveTextContent('g-3')
+    expect(explainOf(drawer)).toEqual({ subject: 'rules', rules: ['g-3'] })
   })
+
+  test.each([
+    { name: 'Why this note', index: 0, rules: ['d-1'] },
+    { name: 'Why this warning', index: 0, rules: ['g-3'] },
+    { name: 'Why this check', index: 0, rules: ['g-3'] },
+    { name: 'Why this check', index: 1, rules: ['k-1'] },
+    { name: 'Why this update', index: 0, rules: ['j-5'] },
+  ])(
+    'every why button on the page passes a subject: $name ($index) asks about $rules',
+    async ({ name, index, rules }) => {
+      const user = userEvent.setup()
+      mockApi(routes(makeV2Plan()))
+      renderPlan()
+      await screen.findByRole('region', { name: 'Warnings' })
+      // The plan checks and the list of changes sit in disclosures.
+      await user.click(screen.getByText('Plan checks'))
+      await user.click(screen.getByText('What changed'))
+      const buttons = await screen.findAllByRole('button', { name })
+      const button = buttons[index]
+      if (button === undefined) throw new Error(`No ${name} button at ${String(index)}`)
+      await user.click(button)
+      expect(explainOf(await screen.findByLabelText('Why drawer'))).toEqual({
+        subject: 'rules',
+        rules,
+      })
+    },
+  )
 
   test('What changed lists revisions with their summary and changes', async () => {
     mockApi(routes(makeV2Plan()))
@@ -296,6 +347,170 @@ describe('Plan page, version-2 plans', () => {
       expect(calls.some((c) => c.method === 'POST' && c.url === '/api/plan/replan')).toBe(true)
     })
     expect(await screen.findByText('Plan updated')).toBeInTheDocument()
+  })
+})
+
+/** A weekly update the runner has not opened: a diff, its cause and an undo. */
+function unseenUpdate(over: Partial<PlanRevisionView> = {}): PlanRevisionView {
+  return makeRevision({
+    id: 'r9',
+    createdAt: '2027-01-11T12:00:00.000Z',
+    reason: 'weekly',
+    auto: true,
+    summary: "2 changes across 1 week. Last week's decision: hold, next week up to 270 min.",
+    decision: { decision: 'hold', signals: [], nextWeekTargetMin: 270 },
+    diff: makeDiff(
+      [
+        makeLine({
+          externalId: 'x1',
+          date: '2027-01-14',
+          before: makeBrief({ durationMin: 40 }),
+          after: makeBrief({ kind: 'easy', title: 'Easy run', durationMin: 30 }),
+          fields: ['kind', 'durationMin'],
+        }),
+      ],
+      [makeWeekLine()],
+    ),
+    causes: { sessions: { x1: ['decision-hold'] }, weeks: { '2027-01-11': ['decision-hold'] } },
+    undo: AVAILABLE,
+    seenAt: null,
+    ...over,
+  })
+}
+
+describe('Plan page, What changed', () => {
+  test('lists a revision through the shared components: reason, cause, rows and undo', async () => {
+    mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/plan/revisions': () => [unseenUpdate()],
+        'POST /api/plan/revisions/r9/seen': () => ({ status: 204, body: undefined }),
+      }),
+    )
+    renderPlan()
+    const changed = await screen.findByRole('region', { name: 'What changed' })
+    await userEvent.setup().click(within(changed).getByText('What changed'))
+    expect(within(changed).getByText('Weekly update')).toBeInTheDocument()
+    expect(
+      within(changed).getByText('Week of 11 Jan: running time 300 min to 270 min'),
+    ).toBeInTheDocument()
+    expect(
+      within(changed).getByText('Thu 14 Jan: Threshold intervals 40 min to Easy run 30 min'),
+    ).toBeInTheDocument()
+    expect(
+      within(changed).getByText(
+        'Last week called for holding steady, so the plan did not step up.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(changed).getByRole('button', { name: 'Undo update' })).toBeInTheDocument()
+    expectCleanCopy(changed)
+  })
+
+  test('marks the closed panel New for a revision nobody opened, and stamps it when the panel opens', async () => {
+    const user = userEvent.setup()
+    let seen = false
+    const { calls } = mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/plan/revisions': () => [
+          unseenUpdate({ seenAt: seen ? '2027-01-13T12:00:00.000Z' : null }),
+          makeRevision({ id: 'old', seenAt: '2027-01-09T12:00:00.000Z' }),
+        ],
+        'POST /api/plan/revisions/r9/seen': () => {
+          seen = true
+          return { status: 204, body: undefined }
+        },
+      }),
+    )
+    renderPlan()
+    const changed = await screen.findByRole('region', { name: 'What changed' })
+    // The panel is closed: the marker sits on its summary, where the runner will see it.
+    await waitFor(() => {
+      expect(within(changed).getByText('New')).toBeInTheDocument()
+    })
+    expect(calls.some((c) => c.url.includes('/seen'))).toBe(false)
+
+    await user.click(within(changed).getByText('What changed'))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.url.includes('/seen')).map((c) => c.url)).toEqual([
+        '/api/plan/revisions/r9/seen',
+      ])
+    })
+    // Only the revision that was unseen is sent, and the marker stays on it while the panel is open.
+    const revision = changed.querySelector('[data-revision="r9"]') as HTMLElement
+    await waitFor(() => {
+      expect(within(revision).getByText('New')).toBeInTheDocument()
+    })
+    expect(changed.querySelector('[data-revision="old"]')).not.toHaveTextContent('New')
+
+    // Closing and opening again: it was seen, so nothing is marked and nothing is sent again.
+    await user.click(within(changed).getByText('What changed'))
+    await user.click(within(changed).getByText('What changed'))
+    expect(within(changed).queryByText('New')).not.toBeInTheDocument()
+    expect(calls.filter((c) => c.url.includes('/seen'))).toHaveLength(1)
+  })
+
+  test('sends nothing for a panel whose revisions were all seen', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/plan/revisions': () => [unseenUpdate({ seenAt: '2027-01-11T13:00:00.000Z' })],
+      }),
+    )
+    renderPlan()
+    const changed = await screen.findByRole('region', { name: 'What changed' })
+    await user.click(within(changed).getByText('What changed'))
+    await within(changed).findByText('Weekly update')
+    expect(within(changed).queryByText('New')).not.toBeInTheDocument()
+    expect(calls.some((c) => c.url.includes('/seen'))).toBe(false)
+  })
+
+  test('words an update in miles, the account default, while the settings are not known', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/settings': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'The settings could not be read.' } },
+        }),
+        'GET /api/plan/revisions': () => [
+          unseenUpdate({
+            seenAt: '2027-01-11T13:00:00.000Z',
+            diff: makeDiff([
+              makeLine({
+                externalId: 'x1',
+                date: '2027-01-14',
+                before: makeBrief({ distanceM: 8000 }),
+                after: makeBrief({ distanceM: 16_093 }),
+                fields: ['distanceM'],
+              }),
+            ]),
+          }),
+        ],
+      }),
+    )
+    renderPlan()
+    const changed = await screen.findByRole('region', { name: 'What changed' })
+    await user.click(within(changed).getByText('What changed'))
+    expect(
+      await within(changed).findByText(
+        'Thu 14 Jan: Threshold intervals 40 min, 5 mi to Threshold intervals 40 min, 10 mi',
+      ),
+    ).toBeInTheDocument()
+    expect(changed).not.toHaveTextContent(/\bkm\b/)
+  })
+
+  test('opens the why drawer with the rules of an update', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/plan/revisions': () => [unseenUpdate({ seenAt: '2027-01-11T13:00:00.000Z' })],
+        'POST /api/plan/revisions/r9/seen': () => ({ status: 204, body: undefined }),
+      }),
+    )
+    renderPlan()
+    const changed = await screen.findByRole('region', { name: 'What changed' })
+    await user.click(within(changed).getByText('What changed'))
+    await user.click(await within(changed).findByRole('button', { name: 'Why this update' }))
+    expect(await screen.findByLabelText('Why drawer')).toHaveTextContent('j-5,J5')
   })
 })
 

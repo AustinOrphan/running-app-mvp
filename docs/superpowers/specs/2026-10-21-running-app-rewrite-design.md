@@ -263,7 +263,8 @@ Errors: `{error:{code, message, details?}}` with codes `validation`, `unauthoriz
 
 ### 4.7 Frontend
 
-Routes: `/setup`, `/login`, `/` dashboard, `/activities` (list, filters, add/edit sheet,
+Routes: `/setup`, `/login`, `/` Today (a coach: today's session and readiness lead, the week
+follows as a strip; section 7, item 18), `/activities` (list, filters, add/edit sheet,
 import), `/plan` (week table with phases, generate and edit), `/review` (current and past
 weeks), `/goals`, `/stats`, `/settings`. Mobile-first; a bottom tab bar on phones, a side
 rail on wide screens. TanStack Query for data; CSS modules with design tokens; `recharts`
@@ -394,3 +395,11 @@ A fresh reader of sections 1–6 raised these; each answer refines the section n
     name follow the plan's goal; without a plan they follow the active goal.
 17. **Fastest-effort window (4.5).** A run qualifies for a distance when it is between 99.5% and
     102% of the target, compared in whole metres without rounding the target.
+18. **Today is a coach (4.7).** Owner decision of 2026-10-22, taken under the mandate of a
+    research-informed, self-adjusting coach (phase 3a design, section 12.1, decision 2). The hero of
+    `/` is today's session and the readiness read behind it: the session's title, its duration as the
+    display figure and its targets, with a one-line verdict and the few readings that explain it.
+    Weekly hours move to a week strip under the hero, with the Meter and the advisory minutes a day.
+    The race countdown follows the strip. Reason: a coach's hero, not a tracker's. This replaces the
+    hours-led dashboard hierarchy of the visual design; the sections of 1 to 6 that describe the
+    dashboard's contents stay true as lists of what Today shows, not as its order.

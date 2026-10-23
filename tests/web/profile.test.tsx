@@ -5,13 +5,13 @@ import type { ZoneSet } from '../../shared/engine/types.ts'
 import type { AthleteProfile, Availability, Screening, Units, Weekday } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ProfilePage } from '../../web/pages/ProfilePage.tsx'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { explainOf, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 
 // The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
-  WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
+  WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
     open ? (
-      <div role="dialog" aria-label="Evidence">
+      <div role="dialog" aria-label="Evidence" data-explain={JSON.stringify(explain ?? null)}>
         {rules.join(',')}
       </div>
     ) : null,
@@ -412,7 +412,9 @@ describe('ProfilePage', () => {
       expect(within(z2).getByText('4 to 6')).toBeInTheDocument()
 
       await user.click(within(section).getByRole('button', { name: 'Why: zones' }))
-      expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('C1,C2')
+      const drawer = await screen.findByRole('dialog', { name: 'Evidence' })
+      expect(drawer).toHaveTextContent('C1,C2')
+      expect(explainOf(drawer)).toEqual({ subject: 'zone' })
     })
 
     test('a failed load is stated and the form still works', async () => {
@@ -463,6 +465,17 @@ describe('ProfilePage', () => {
       const section = await screen.findByRole('region', { name: 'Energy availability screen' })
       expect(await within(section).findByText(/No screen yet/)).toBeInTheDocument()
       expect(within(section).getByRole('button', { name: 'Start screen' })).toBeInTheDocument()
+    })
+
+    test('its why button asks about the screen rule', async () => {
+      const { user } = setupScreening([])
+      const section = await screen.findByRole('region', { name: 'Energy availability screen' })
+      await user.click(
+        await within(section).findByRole('button', { name: 'Why: energy availability screen' }),
+      )
+      const drawer = await screen.findByRole('dialog', { name: 'Evidence' })
+      expect(drawer).toHaveTextContent('n-4')
+      expect(explainOf(drawer)).toEqual({ subject: 'rules', rules: ['n-4'] })
     })
 
     test('shows the last screen and when the next is due, 12 weeks on', async () => {

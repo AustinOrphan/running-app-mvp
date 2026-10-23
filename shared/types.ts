@@ -1,12 +1,15 @@
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
+import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type {
   AthleteState,
   Checkin,
+  EahCard,
   EngineWarning,
   ChecklistResult,
   ExecutionAssessment,
   Feasibility,
   FuelItem,
+  FuelTarget,
   Grade,
   InputFact,
   LadderResult,
@@ -296,6 +299,61 @@ export interface JobsView {
   weeklyUpdate: WeeklyUpdateStatus
 }
 
+// Sessions on the wrist (phase 3a design 6.4): what the intervals.icu publisher holds per session.
+/**
+ * Where a session stands on the way to the watch. `not-sent`: publishing is on and the session has
+ * no publication yet; `waiting`: the app will send (again) by itself, at `retryAt` when it is
+ * known; `sent`: intervals.icu has it; `on-watch`: sent, the runner ticked the Garmin upload, no
+ * device error and 15 minutes have passed; `not-delivered`: the runner has to act (reconnect,
+ * change something, send again) or Garmin Connect reported a problem; `removed`: the runner deleted
+ * the event in intervals.icu, so the app leaves it alone; `withdrawn`: the app took it off the
+ * watch (a rest day, a skipped session).
+ */
+export type WristItemStatus =
+  'not-sent' | 'waiting' | 'sent' | 'on-watch' | 'not-delivered' | 'removed' | 'withdrawn'
+export interface WristItem {
+  /** `PlanSession.externalId`: the join key with a session (publications hold no foreign key). */
+  externalId: string
+  /** The session's id in the active plan; null when the plan no longer holds the session. */
+  sessionId: string | null
+  /** The session's day when the plan still holds it, else the day the publication was made for. */
+  date: string
+  kind: string
+  /** The allowlisted public title that went out ("Easy run, 45 min"). */
+  title: string
+  variant: 'planned' | 'eased'
+  status: WristItemStatus
+  /** Why the last send did not go through: `PublishFailCode`; null when it did. */
+  failCode: string | null
+  /** A sentence about that, sanitised and at most 200 characters. */
+  failMessage: string | null
+  /** What intervals.icu reports about the Garmin upload; null when it reports nothing. */
+  deviceMessage: string | null
+  /** Codes of what the text could not carry: `unparsed-steps`, `no-max-hr`, `no-threshold-pace`. */
+  warnings: string[]
+  /** When the app tries again by itself; null when it waits for new content or "Send again". */
+  retryAt: string | null
+  sentAt: string | null
+}
+/** The runner's choices for the intervals.icu publisher (`PUT /api/wrist/intervals`). */
+export interface WristSettings {
+  enabled: boolean
+  /** The runner ticked that intervals.icu uploads planned workouts to Garmin Connect. */
+  garminLinked: boolean
+  lastRunAt: string | null
+  /** A run for this runner is in progress. */
+  running: boolean
+}
+/** `GET /api/wrist/status`: the publisher's settings and one item per session in the range. */
+export interface WristStatus {
+  from: string
+  to: string
+  /** The intervals.icu connection: `needs_auth` asks for a reconnect. */
+  connection: 'disconnected' | 'connected' | 'needs_auth' | 'error'
+  settings: WristSettings
+  items: WristItem[]
+}
+
 export interface ActivityDetail {
   activity: Activity
   stream: (ActivityStreamData & { sampleSec: number }) | null
@@ -400,7 +458,7 @@ export type ReviewView = WeeklyReview & { signals?: ReviewSignals }
 /** What saving returns: the review, plus for a version-2 plan the re-plan the review triggered. */
 export type SavedReview = ReviewView & {
   /** The revision written by the re-plan; null when this save did not re-plan. */
-  revision?: PlanRevision | null
+  revision?: PlanRevisionView | null
   /** Why a re-plan that was due did not run; the review itself is saved. */
   replanError?: string
 }
@@ -575,6 +633,36 @@ export interface UndoState {
   reasons: UndoReason[]
   undoneAt: string | null
 }
+/**
+ * Why a line of a diff exists, in the words of the product (phase 3a design 8.5): the weekly
+ * decision held or reduced the week, the runner made the change (an edit of one session, an undo),
+ * the runner's own target for the week was kept, the plan
+ * restarts after a break or follows the weeks after a race, a rest window holds the day, the next
+ * quality session was shortened, the weekly build moved, the calendar moved the week to another
+ * stage, or the figures the plan reads changed. Derived from the stored revision when it is served
+ * (`attributeChange`, `shared/engine/revisionDiff.ts`); never stored.
+ */
+export type CauseCode =
+  | 'owner-edit'
+  | 'decision-hold'
+  | 'decision-reduce'
+  | 'owner-target-kept'
+  | 'break-restart'
+  | 'post-race'
+  | 'disruption'
+  | 'trim'
+  | 'ramp'
+  | 'phase-calendar'
+  | 'state-update'
+/**
+ * The causes of every line of a revision's diff, most specific first and never empty: sessions by
+ * their `externalId`, weeks by their Monday. A line is found by its key, not by its place in the
+ * diff, so a surface that sorts or filters the lines keeps their causes.
+ */
+export interface RevisionCauses {
+  sessions: Record<string, CauseCode[]>
+  weeks: Record<string, CauseCode[]>
+}
 /** A revision as the API serves it: the stored row without its undo payload. */
 export interface PlanRevisionView extends PlanRevision {
   /** Written by the scheduler, not by a request. */
@@ -583,6 +671,8 @@ export interface PlanRevisionView extends PlanRevision {
   decision: WeeklyDecision | null
   /** Null on revisions written before the revision model, and on those with nothing to show. */
   diff: PlanDiff | null
+  /** The cause of each line of `diff`; null exactly when `diff` is null. */
+  causes: RevisionCauses | null
   undo: UndoState
   seenAt: string | null
   /** On an 'undo' revision: the revision it reverted. */
@@ -591,16 +681,82 @@ export interface PlanRevisionView extends PlanRevision {
   disruptionId: string | null
 }
 /**
- * What `POST /api/plan/preview` takes and `computeAction` builds (design 4.2). A discriminated
- * union on `type`: phase 3a adds the rest-window and adjust actions to it, each with its own
- * commit route and the same preview.
+ * One owner edit of one session (phase 3a design 9.4, 9.5): the six things the session sheet can
+ * ask for, each checked by the same guards (`adjustCheck`, `shared/engine/adjust.ts`).
+ *
+ * - `move`: to another day of its own week.
+ * - `swap`: the two sessions trade days; both must be in the same week and still to run.
+ * - `swap-kind`: the next session of that kind in the week takes this one's prescription and the
+ *   other way round; the days keep their places (the older "change the kind" edit).
+ * - `shorten`: to fewer minutes. Never longer, never under the run minimum, nothing added to
+ *   another day.
+ * - `skip` and `restore`: a skipped session is not made up (G-6) and can be put back.
  */
-export type PlanAction = { type: 'replan' } | { type: 'undo'; revisionId: string }
-/** A guard that refuses or qualifies an action (the move, swap and shorten guards of E5). */
+export type PlanAdjustment =
+  | { type: 'move'; date: string }
+  | { type: 'swap'; withSessionId: string }
+  | { type: 'swap-kind'; kind: SessionKind }
+  | { type: 'shorten'; durationMin: number }
+  | { type: 'skip' }
+  | { type: 'restore' }
+/**
+ * What `POST /api/plan/preview` takes and `computeAction` builds (design 4.2). A discriminated
+ * union on `type`: phase 3a adds adjust (E5-6) and the rest-window actions (E5-5) to it, each with
+ * its own commit route and the same preview.
+ */
+export type PlanAction =
+  | { type: 'replan' }
+  | { type: 'undo'; revisionId: string }
+  | { type: 'adjust'; sessionId: string; adjustment: PlanAdjustment }
+  | ({ type: 'disruption-create' } & DisruptionInput)
+  | ({ type: 'disruption-update'; id: string } & DisruptionChange)
+  | { type: 'disruption-remove'; id: string }
+/**
+ * Why an adjustment is refused or qualified. The first group holds when the session cannot be
+ * changed at all (it is the race, in the past, linked, done or skipped, or not a run for a
+ * shorten); the second names the limit a new arrangement breaks (availability, spacing, a rest
+ * window, the session spike limit, the weekly target).
+ */
+export type AdjustGuardCode =
+  | 'race-day'
+  | 'past-session'
+  | 'linked'
+  | 'settled'
+  | 'skipped'
+  | 'not-shortenable'
+  | 'other-week'
+  | 'past-date'
+  | 'no-partner'
+  | 'partner-unavailable'
+  | 'not-shorter'
+  | 'below-minimum'
+  | 'b2b-pair'
+  | 'closed-day'
+  | 'day-limit'
+  | 'one-run-a-day'
+  | 'hard-spacing'
+  | 'long-run-between'
+  | 'rest-window'
+  | 'quiet-day'
+  | 'day-cap'
+  | 'spike'
+  | 'weekly-cap'
+/** An adjustment that would work where the one asked for does not, with the words for its button. */
+export interface PlanSuggestion {
+  label: string
+  adjustment: PlanAdjustment
+}
+/**
+ * A guard that refuses or qualifies an action (the move, swap and shorten guards of E5). `blocks`
+ * refuses the commit; `warns` lets it through and says why it deserves a look. `message` is a fixed
+ * template with its rule ids in `rules`; `suggest` is set where one alternative exists.
+ */
 export interface PlanGuardView {
-  code: string
+  code: AdjustGuardCode
   message: string
   rules: string[]
+  effect: 'blocks' | 'warns'
+  suggest: PlanSuggestion | null
 }
 /**
  * What an action would do, from the same code that commits it (design 4.2). A refusal is
@@ -616,9 +772,12 @@ export interface PlanPreview {
   /** The engine's warnings for the plan the action leaves behind. */
   warnings: EngineWarning[]
   blocked: boolean
-  /** Guards of an adjust action; empty for re-plan and undo. */
+  /** Guards of an adjust action, the ones that refuse it first; empty for re-plan and undo. */
   guards: PlanGuardView[]
-  /** Why the commit would be refused: the structural undo reasons, or the checklist. */
+  /**
+   * Why the commit would be refused: the structural undo reasons, or the checklist. An adjust
+   * action is refused by its `guards` instead and leaves this empty.
+   */
   reasons: UndoReason[]
   hash: string
   /** The local day the preview was built for. */
@@ -628,6 +787,21 @@ export interface PlanPreview {
 export interface UndoResult {
   revision: PlanRevisionView
   target: PlanRevisionView
+}
+/**
+ * The answer to `POST /api/plan/sessions/:id/adjust`. `allowed` is false when a guard blocks (a
+ * dry run says so with 200; a commit answers 409 instead). `session` is the session as it stands
+ * after a commit and as it would stand after a dry run; `revision` is null for a dry run and for an
+ * adjustment that changes nothing. `hash` is the hash of the preview this answer was made from (a
+ * dry run's is the one to send back as `expectHash` with the commit).
+ */
+export interface AdjustResult {
+  allowed: boolean
+  guards: PlanGuardView[]
+  diff: PlanDiff
+  session: PlanSession
+  revision: PlanRevisionView | null
+  hash: string
 }
 export interface PlanWithSessions extends PlanWithWeeks {
   sessions: PlanSession[]
@@ -677,6 +851,63 @@ export type DisruptionMode = 'rest' | 'limited'
  */
 export type DisruptionPhase =
   'upcoming' | 'resting' | 'rest-gate' | 'easy-only' | 'limited' | 'returning' | 'done'
+/** `active` is in force; `undone` was withdrawn, by its removal or by the undo that created it. */
+export type DisruptionStatus = 'active' | 'undone'
+/**
+ * What a runner reports to open a window (`POST /api/plan/disruptions`, and the preview action
+ * `disruption-create`). The body rules are `validateDisruption`'s: illness is rest only, `limited`
+ * needs `maxRunMin`, only a niggle takes area, pain and gait change.
+ */
+export interface DisruptionInput {
+  reason: DisruptionReason
+  mode: DisruptionMode
+  startDate: string
+  endDate: string
+  maxRunMin?: number | null
+  area?: string | null
+  pain?: number | null
+  gaitChange?: boolean
+  /** The runner's own words; never read by the engine. */
+  note?: string | null
+}
+/** What `PATCH /api/plan/disruptions/:id` changes: a window is extended, shortened or re-capped. */
+export interface DisruptionChange {
+  endDate?: string
+  maxRunMin?: number | null
+}
+/** A stored window of rest or limited running (design 9.3). */
+export interface Disruption {
+  id: string
+  reason: DisruptionReason
+  mode: DisruptionMode
+  startDate: string
+  endDate: string
+  maxRunMin: number | null
+  area: string | null
+  pain: number | null
+  gaitChange: boolean
+  note: string | null
+  status: DisruptionStatus
+  createdAt: string
+  updatedAt: string
+}
+/**
+ * A window as `GET /api/plan/disruptions`, `GET /api/today` and the commit routes serve it, with
+ * what the engine says about it for the viewed date (`windowPhase`, `disruptionPlan`).
+ */
+export interface DisruptionView extends Disruption {
+  /** Where the viewed date lies against the window. */
+  phase: DisruptionPhase
+  /** The first day running is allowed. */
+  runFrom: string
+  /** The first day hard sessions are allowed. */
+  qualityFrom: string
+  /**
+   * The most minutes the return week may hold, from the J7 fraction of the week before the break;
+   * null when the window holds running for under `j7.tier1Days` days or no week before is known.
+   */
+  returnWeekMin: number | null
+}
 export type TodayAdvice = 'as-planned' | 'downgrade-easy' | 'rest'
 /**
  * The heat read of the day's main run. Every field is null (and `hotForSteering` false) when the
@@ -789,6 +1020,8 @@ export interface TodayRace {
   targetDate: string
   dateProvisional: boolean
   daysToRace: number
+  /** The race distance in metres; null when the goal has none. */
+  distanceM: number | null
   /** Null when the athlete's state supports no source, or the goal has no distance. */
   prediction: Pick<Prediction, 'method' | 'predictedSec' | 'lowSec' | 'highSec'> | null
   /** How wide the range has to be; null when the goal has no distance. */
@@ -813,16 +1046,36 @@ export interface TodayHealth {
   lastWeekReady: boolean
   notes: HealthNote[]
 }
+/** What the window routes answer: the window as it now stands and the revision that wrote it. */
+export interface DisruptionResult {
+  disruption: DisruptionView
+  revision: PlanRevisionView
+}
+/**
+ * The disruption slot (design 9.6): the window the banner is about, else an offer to set one. Null
+ * when there is neither.
+ */
+export interface DisruptionSlot {
+  /** The window in effect on the viewed day, else the next one ahead; null when there is none. */
+  window: DisruptionView | null
+  /**
+   * True when no window is in effect and today's check-in reports illness or pain at or above
+   * `pain.flagScore`: the page offers a rest window and creates nothing by itself.
+   */
+  offer: boolean
+}
 /**
  * What the named Today slots hold. Each owning epic gives its slot a type (disruption E5, fuel
  * and fuelPrompt E6, watch E1, brief E4); until then a slot is null and takes no height.
  */
 export interface TodaySlots {
-  disruption: null
-  fuel: null
+  disruption: DisruptionSlot | null
+  /** The fuel targets of the viewed day and the day after (E6); null when no run carries one. */
+  fuel: TodayFuel | null
   watch: null
   brief: null
-  fuelPrompt: null
+  /** Recent runs that wait for a fuel log (E6); null when none does. */
+  fuelPrompt: TodayFuelPrompts | null
 }
 export interface TodayCoach {
   /** ISO instant the payload was composed. */
@@ -840,6 +1093,8 @@ export interface TodayCoach {
   race: TodayRace | null
   change: ChangeLine | null
   health: TodayHealth
+  /** The runner's windows that are not over on the viewed date (a window tomorrow is `upcoming`). */
+  disruptions: DisruptionView[]
   slots: TodaySlots
 }
 /** A proposed zone change that the owner accepts or declines; `id` is stable for one proposal. */
@@ -1028,6 +1283,88 @@ export interface FuelLogResult {
   ladder: LadderResult
   /** What the run did to the ladder, such as "Tolerated at 60 g/h. Next long run: 70 g/h."; null after a delete. */
   message: string | null
+}
+
+/** The planned run a fuel target belongs to. */
+export type FuelSessionRef = Pick<PlanSession, 'id' | 'date' | 'kind' | 'title' | 'durationMin'>
+
+/** The fuel target of one planned run with the words around it (design 10.4, 10.6). */
+export interface FuelTargetView {
+  session: FuelSessionRef
+  target: FuelTarget
+  text: FuelTargetText
+}
+
+/** A recent run that has no fuel log yet and is long enough to count (design 10.4). */
+export interface FuelPrompt {
+  activityId: string
+  date: string
+  startTime: string | null
+  durationSec: number
+  distanceM: number | null
+  /** Counted from the shorter length of a gut-training week. */
+  block: boolean
+}
+
+/** `GET /api/today` slot `fuel`: the targets of the viewed day and the day after, in date order. */
+export interface TodayFuel {
+  targets: FuelTargetView[]
+  /** The safety card about drinking too much, which goes wherever fuel does; stronger in heat. */
+  eah: EahCard
+}
+
+/** `GET /api/today` slot `fuelPrompt`: unlogged runs of the last days, newest first, at most three. */
+export interface TodayFuelPrompts {
+  prompts: FuelPrompt[]
+}
+
+/**
+ * The gut-training block as the plan stores it: `none` when the plan has no such weeks (a shorter
+ * goal, or a switch not yet applied), `planned` when it has, `off` when the runner switched it off,
+ * `locked` for a diagnosed gut condition. Switching it off or locking it removes the weeks at the
+ * next re-plan; until then `removalPending` is true.
+ */
+export type FuelBlockState = 'none' | 'planned' | 'off' | 'locked'
+
+export interface FuelBlockView {
+  state: FuelBlockState
+  /** Mondays of the weeks that carry the `gut-training` flag in the stored plan. */
+  weeks: string[]
+  /** First Monday and last Sunday of the block; null without weeks. */
+  from: string | null
+  to: string | null
+  removalPending: boolean
+  /** What may be said about gut training and what may not (rule H7). */
+  lines: string[]
+}
+
+/** One row of the lab's history: a log with the sentence the replay gave its run. */
+export interface FuelHistoryRow {
+  log: FuelLogView
+  /** What the run did to the ladder, or why it did not count. */
+  note: string
+}
+
+/** `GET /api/fuel`: everything the Fuel lab shows; the stable surface for E11 and E12. */
+export interface FuelLabView {
+  settings: FuelSettings
+  /** The replayed ladder; `steps` holds the latest few. */
+  ladder: LadderResult
+  /** The target of the next planned run that can carry one; null when no such run is planned. */
+  next: FuelTargetView | null
+  block: FuelBlockView
+  /** Live products; archived ones come from `GET /api/fuel/products?archived=1`. */
+  products: FuelProduct[]
+  /** The latest logs of runs that count in the replay, newest first. */
+  history: FuelHistoryRow[]
+  prompts: FuelPrompt[]
+  /** The safety card about drinking too much; the stronger variant for a long goal or in heat. */
+  eah: EahCard
+  disclaimers: {
+    general: string
+    /** The clinician line for a diagnosed gut condition; null without one. */
+    gutCondition: string | null
+  }
 }
 export interface Screening {
   id: string

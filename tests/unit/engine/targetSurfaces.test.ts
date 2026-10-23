@@ -6,11 +6,12 @@
 // and compares the figures with the resolver's. A second implementation of the rules, or a number
 // typed into a surface, fails here.
 //
-// Registered now:  hero (Today, E2-2), FIT workout file (E1-3).
+// Registered now:  hero (Today, E2-5: the rendered `SessionTargets`), FIT workout file (E1-3), ICS
+// outline (E1-6). The fuel line (E6-5) is a different figure and is read by its own adapters in the
+// last section of this file.
 // To be registered by the task that builds the surface:
-//   session sheet, intervals.icu description, ICS outline             E1-7, E1-6
+//   session sheet, intervals.icu description                          E1-7
 //   weekly brief key session                                          E4-5
-//   fuel line                                                         E6-5
 // To add one: write a `SurfaceAdapter` whose `read` renders from `resolveTargets` (or from the
 // shared builder that calls it) and parses the figures back, then append it to `SURFACES`.
 //
@@ -19,22 +20,41 @@
 // surface: it has no effort figure and carries only the primary figure of its steps (nothing on a
 // hot day), and the matrix then requires that its lead is the resolver's and that every figure it
 // does carry equals the resolver's. A surface that has no page for a kind (a strength day has no
-// workout file) lists the kinds it `covers`.
+// workout file) lists the kinds it `covers`. A surface that is read by people other than the
+// runner (the calendar feed) carries no figure at all, only the words that say how the session is
+// run; it sets `figures: false`, so its lead must still be the resolver's and every figure null.
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import {
+  fuelLineForSession,
+  fuelTargetFor,
+  replayLadder,
+  type FuelContext,
+} from '../../../shared/engine/fuel.ts'
+import { describeFuelTarget } from '../../../shared/engine/fuelCopy.ts'
+import type { WeatherIndex } from '../../../shared/engine/heat.ts'
 import { easedSession } from '../../../shared/engine/readiness.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { resolveTargets } from '../../../shared/engine/targets.ts'
 import type {
+  FuelRunInput,
+  FuelSessionInput,
   ResolvedTargets,
   SessionKind,
   SessionSpec,
   ZoneSet,
 } from '../../../shared/engine/types.ts'
-import { formatDuration, formatPace } from '../../../shared/units.ts'
-import type { Units } from '../../../shared/types.ts'
+import { formatDuration } from '../../../shared/units.ts'
+import type { PlanSessionStatus, Units } from '../../../shared/types.ts'
+import { icsOutline, icsUid, renderIcs } from '../../../server/services/ics.ts'
 import { publishable } from '../../../shared/workouts/labels.ts'
 import { toWorkoutPlan } from '../../../shared/workouts/plan.ts'
-import { encodeWorkoutFit } from '../../../server/services/workoutFit.ts'
+import type { WorkoutPlan } from '../../../shared/workouts/types.ts'
+import { renderIntervalsDescription } from '../../../server/providers/intervalsPublish.ts'
+import type { PublishReference } from '../../../server/providers/types.ts'
+import { encodeWorkoutFit, FIT_NOTES_MAX_BYTES } from '../../../server/services/workoutFit.ts'
+import { SessionTargets } from '../../../web/components/today/SessionTargets.tsx'
 import { expandWorkout, readWorkout, type ExpandedStep } from '../../fixtures/fit/readWorkout.ts'
 import { prescribed, SESSION_KINDS, zoneSetFixture } from './fixtures.ts'
 
@@ -61,6 +81,8 @@ interface SurfaceAdapter {
   covers?(kind: SessionKind): boolean
   /** Shows a target per step, not every figure: see the header. */
   partial?: boolean
+  /** False for a surface that carries no figure, only its lead in words: see the header. */
+  figures?: boolean
   read(session: SessionSpec, ctx: SurfaceContext): SurfaceReading
 }
 
@@ -86,27 +108,20 @@ function reference(session: SessionSpec, ctx: SurfaceContext): SurfaceReading {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The hero: lines in the wording of the Today design (spec 7.6), read back from the text.
+// The hero: the term list of Today (`SessionTargets`, spec 7.6) rendered to markup, and the
+// figures read back out of what it says.
 // ---------------------------------------------------------------------------------------------
 
+/** The lines the hero prints, in order: "Heart rate: under 149 bpm", with a note after a period. */
 function heroLines(t: ResolvedTargets, units: Units): string[] {
-  const hr = (): string | null => {
-    if (t.hrCeiling !== null) return `Heart rate: under ${t.hrCeiling} bpm`
-    if (t.hrRange !== null) return `Heart rate: ${t.hrRange[0]} to ${t.hrRange[1]} bpm`
-    return null
-  }
-  const pace =
-    t.paceSecPerKm === null
-      ? null
-      : `Pace: about ${formatPace(t.paceSecPerKm[0], 1000, units).split(' ')[0]} to ${formatPace(t.paceSecPerKm[1], 1000, units)}`
-  const effort = `Effort: ${t.rpe[0]} to ${t.rpe[1]} out of 10`
-  const lines: Array<string | null> =
-    t.mode === 'effort'
-      ? [effort, hr(), pace]
-      : t.mode === 'pace'
-        ? [pace, effort, hr()]
-        : [hr(), pace, effort]
-  return lines.filter((line): line is string => line !== null)
+  const markup = renderToStaticMarkup(createElement(SessionTargets, { targets: t, units }))
+  const rows = [...markup.matchAll(/<div[^>]*>(.*?)<\/div>/g)].map((row) => row[1] ?? '')
+  return rows.map((row) => {
+    const term = /<dt[^>]*>(.*?)<\/dt>/.exec(row)?.[1]
+    const values = [...row.matchAll(/<dd[^>]*>(.*?)<\/dd>/g)].map((dd) => dd[1])
+    if (term === undefined || values.length === 0) throw new Error(`Unreadable row: ${row}`)
+    return `${term}: ${values.join(' ')}`
+  })
 }
 
 function paceSeconds(text: string): number {
@@ -123,8 +138,9 @@ const hero: SurfaceAdapter = {
     const find = (re: RegExp) => lines.map((line) => re.exec(line)).find((m) => m !== null) ?? null
     const ceiling = find(/^Heart rate: under (\d+) bpm/)
     const band = find(/^Heart rate: (\d+) to (\d+) bpm/)
-    const pace = find(/^Pace: about (\d+:\d{2}) to (\d+:\d{2}) \/(km|mi)/)
-    const effort = find(/^Effort: (\d+) to (\d+) out of 10/)!
+    // The hero prints the quicker pace first; the resolver keeps the slow end first.
+    const pace = find(/^Pace: (?:about )?(\d+:\d{2}) to (\d+:\d{2}) \/(km|mi)/)
+    const effort = find(/^Effort: (\d+)(?: to (\d+))? out of 10/)!
     if (pace !== null) expect(pace[3]).toBe(ctx.units)
     return {
       lead: lead.startsWith('Effort')
@@ -136,8 +152,8 @@ const hero: SurfaceAdapter = {
             : 'hr-band',
       hrCeiling: ceiling ? Number(ceiling[1]) : null,
       hrRange: band ? [Number(band[1]), Number(band[2])] : null,
-      paceSecPerUnit: pace ? [paceSeconds(pace[1]!), paceSeconds(pace[2]!)] : null,
-      effort: [Number(effort[1]), Number(effort[2])],
+      paceSecPerUnit: pace ? [paceSeconds(pace[2]!), paceSeconds(pace[1]!)] : null,
+      effort: [Number(effort[1]), Number(effort[2] ?? effort[1])],
     }
   },
 }
@@ -206,8 +222,71 @@ const fit: SurfaceAdapter = {
   },
 }
 
+// ---------------------------------------------------------------------------------------------
+// The private calendar feed (E1-6): the DESCRIPTION of the event of a session, read back from the
+// iCalendar text. It says how the session is run in words ("by effort", "at target pace", "kept
+// easy", "kept steady") and carries no figure, because whoever holds the link reads it. The lead is
+// the only thing it has in common with the resolver, so that is what the matrix checks, along
+// with the absence of every figure and of every digit.
+// ---------------------------------------------------------------------------------------------
+
+const ICS_STAMP = '2026-07-10T06:30:00Z'
+
+/** The description of the one event of a feed: unfolded, with the text escapes undone. */
+function icsDescription(feed: string): string {
+  const line = feed
+    .replaceAll('\r\n ', '')
+    .split('\r\n')
+    .find((candidate) => candidate.startsWith('DESCRIPTION:'))
+  if (line === undefined) throw new Error('The event has no description')
+  return line
+    .slice('DESCRIPTION:'.length)
+    .replace(/\\(.)/g, (_all, char: string) => (char === 'n' ? '\n' : char))
+}
+
+function readOutline(words: string): SurfaceReading {
+  const lead: SurfaceReading['lead'] | null = words.includes('by effort')
+    ? 'effort'
+    : words.includes('at target pace')
+      ? 'pace'
+      : words.includes('kept easy')
+        ? 'hr-ceiling'
+        : words.includes('kept steady')
+          ? 'hr-band'
+          : null
+  if (lead === null) throw new Error('The outline leads with nothing')
+  return { lead, hrCeiling: null, hrRange: null, paceSecPerUnit: null, effort: null }
+}
+
+const ics: SurfaceAdapter = {
+  name: 'ics',
+  covers: publishable,
+  partial: true,
+  figures: false,
+  read(session, ctx) {
+    const targets = resolveTargets(session, ctx.zones, { hot: ctx.hot })
+    const plan = toWorkoutPlan(session, targets, { units: ctx.units })
+    const feed = renderIcs({
+      timeZone: null,
+      stamp: ICS_STAMP,
+      events: [
+        {
+          uid: icsUid('rl-aaaaaa-session'),
+          date: session.date,
+          title: plan.title,
+          description: icsOutline(plan),
+        },
+      ],
+    })
+    const words = icsDescription(feed)
+    // a number written in a calendar is a number typed into a surface
+    expect(words, `${session.kind} outline`).not.toMatch(/\d/)
+    return readOutline(words)
+  },
+}
+
 /** The registry. Later tasks append their adapters here. */
-const SURFACES: readonly SurfaceAdapter[] = [hero, fit]
+const SURFACES: readonly SurfaceAdapter[] = [hero, fit, ics]
 
 // ---------------------------------------------------------------------------------------------
 
@@ -249,6 +328,11 @@ function figureAgrees(
 
 /** Whether a reading is what the resolver says: all of it, or for a partial surface what it carries. */
 function agrees(adapter: SurfaceAdapter, got: SurfaceReading, expected: SurfaceReading): boolean {
+  if (adapter.figures === false) {
+    return (
+      got.lead === expected.lead && [...CARRIED, 'effort' as const].every((k) => got[k] === null)
+    )
+  }
   if (adapter.partial !== true) return JSON.stringify(got) === JSON.stringify(expected)
   return (
     got.lead === expected.lead && CARRIED.every((key) => figureAgrees(key, got[key], expected[key]))
@@ -288,6 +372,7 @@ describe('cross-surface targets', () => {
     expect(new Set(names).size).toBe(names.length)
     expect(names).toContain('hero')
     expect(names).toContain('fit')
+    expect(names).toContain('ics')
   })
 
   it.each(SURFACES.map((s) => [s.name, s] as const))(
@@ -305,6 +390,8 @@ describe('cross-surface targets', () => {
     // the file of a run or a hike; no workout for strength, mobility, rest, cross-training or a race
     expect(covered(fit)).toHaveLength(11)
     expect(covered(fit).every((kind) => publishable(kind))).toBe(true)
+    // the calendar outlines the same runs; a race or a strength day has a title and no outline
+    expect(covered(ics)).toEqual(covered(fit))
   })
 
   it('leads with effort on a hot day on every surface, and with the stored figure otherwise', () => {
@@ -330,7 +417,7 @@ describe('cross-surface targets', () => {
       const eased = easedSession(prescribed('intervals', zones), zones)
       const reading = adapter.read(eased, { zones, hot: false, units: 'mi' })
       expect(reading.lead).toBe('hr-ceiling')
-      expect(reading.hrCeiling).toBe(zones.hr!.z1[1])
+      expect(reading.hrCeiling).toBe(adapter.figures === false ? null : zones.hr!.z1[1])
     }
   })
 
@@ -395,6 +482,27 @@ describe('cross-surface targets', () => {
     expect(mismatchesOf(effortOnly).length).toBeGreaterThan(0)
   })
 
+  it('fails when the calendar outline loses its lead or carries a figure', () => {
+    const wrongLead: SurfaceAdapter = {
+      ...ics,
+      name: 'effort-ics',
+      read: (session, ctx) => ({ ...ics.read(session, ctx), lead: 'effort' }),
+    }
+    expect(mismatchesOf(wrongLead).length).toBeGreaterThan(0)
+    const withCeiling: SurfaceAdapter = {
+      ...ics,
+      name: 'ceiling-ics',
+      read: (session, ctx) => ({ ...ics.read(session, ctx), hrCeiling: 140 }),
+    }
+    expect(mismatchesOf(withCeiling).length).toBeGreaterThan(0)
+    const withEffort: SurfaceAdapter = {
+      ...ics,
+      name: 'rpe-ics',
+      read: (session, ctx) => ({ ...ics.read(session, ctx), effort: [3, 4] }),
+    }
+    expect(mismatchesOf(withEffort).length).toBeGreaterThan(0)
+  })
+
   it('reads the workout file back to within a second of pace in both units', () => {
     // the speed range of the file is in mm/s, so a pace comes back rounded, not exactly
     const session = prescribed('threshold', zones)
@@ -410,5 +518,324 @@ describe('cross-surface targets', () => {
   it('formats whole-second paces the way the surfaces read them back', () => {
     expect(formatDuration(530)).toBe('8:50')
     expect(paceSeconds('8:50')).toBe(530)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The fuel line (E6-5). It is another figure than the targets above (grams of carbohydrate an
+// hour, not heart rate or pace), so it has its own adapters, but the rule is the same: one
+// function, `fuelTargetFor`, decides, and every surface that carries the line reads it back. The
+// surfaces are Today's watch text, the workout's description, the note of the first step of the
+// FIT file and the intervals.icu event text. Each is read for every kind, planned, moved and
+// eased, on a floor ladder and a stepped one, hot and not.
+// ---------------------------------------------------------------------------------------------
+
+describe('cross-surface fuel line', () => {
+  const DATE = '2026-07-10'
+  const SESSION_MIN = P.h7.logMinDurationMin.value + 30
+  const REF: PublishReference = { maxHr: 190, lthr: 170, thresholdPaceMps: 3.8 }
+  const HOT: WeatherIndex = { value: 33, index: 'air-temperature' }
+  const STATUSES = ['planned', 'moved', 'downgraded'] as const
+
+  const loggedRun: FuelRunInput = {
+    activityId: 'run-1',
+    date: '2026-07-01',
+    startTime: null,
+    elapsedSec: 3 * 3600,
+    weather: null,
+    sessionFlags: null,
+    log: {
+      skipped: false,
+      items: [
+        {
+          name: 'Synthetic gel',
+          carbsG: 40,
+          sodiumMg: null,
+          kcal: null,
+          multiCarb: true,
+          servings: 7,
+        },
+      ],
+      gut: 0,
+      nausea: null,
+      hotOverride: null,
+    },
+  }
+
+  /** The floor of the ladder, or the first step above it after one tolerated run. */
+  function context(opts: { stepped: boolean; hot: boolean }): FuelContext {
+    const settings = { optIn90: false, optInAdvanced: false, giDisease: false }
+    const runs = opts.stepped ? [loggedRun] : []
+    return {
+      settings,
+      ladder: replayLadder({ settings, runs, gutTrainingWeeks: [] }),
+      peaks: { [DATE]: opts.hot ? HOT : null },
+    }
+  }
+
+  /**
+   * The session as the deliverable builder hands it to the fuel seam: the kind and minutes it is
+   * run as (the eased ones when readiness eased it), the flags and the status it was planned with.
+   */
+  function fuelInput(
+    planned: SessionSpec,
+    source: SessionSpec,
+    status: PlanSessionStatus,
+  ): FuelSessionInput {
+    return {
+      id: 's1',
+      date: planned.date,
+      kind: source.kind,
+      durationMin: source.durationMin,
+      flags: planned.flags,
+      status,
+    }
+  }
+
+  function workoutOf(source: SessionSpec, fuelLine: string | null, eased: boolean): WorkoutPlan {
+    return toWorkoutPlan(source, resolveTargets(source, zones, { hot: false }), {
+      eased,
+      fuelLine,
+      units: 'km',
+    })
+  }
+
+  interface FuelCase {
+    planned: SessionSpec
+    source: SessionSpec
+    eased: boolean
+    status: PlanSessionStatus
+    ctx: FuelContext
+    /** What the builder passes the surfaces: the pure function's line for this session. */
+    line: string | null
+  }
+
+  /**
+   * What a surface shows of the line. `dropped` is set only by a surface that left the line out on
+   * purpose, with the reason; a line that is simply missing is a failure.
+   */
+  interface FuelRead {
+    line: string | null
+    dropped?: string
+  }
+
+  interface FuelSurface {
+    name: string
+    covers(kind: SessionKind): boolean
+    read(c: FuelCase): FuelRead
+  }
+
+  const lineOf = (lines: readonly string[]): FuelRead => ({
+    line: lines.findLast((line) => line.startsWith('Fuel ')) ?? null,
+  })
+
+  const byteLength = (text: string): number => new TextEncoder().encode(text).length
+
+  /** The notes of the first step of a workout, as the file stores them. */
+  const firstNote = (plan: WorkoutPlan): string =>
+    expandWorkout(readWorkout(encodeWorkoutFit(plan, { createdAt: FIT_CREATED })))[0]?.notes ?? ''
+
+  const FUEL_SURFACES: readonly FuelSurface[] = [
+    {
+      // Today's target line reads the target itself and words it. The slot the API serves is
+      // asserted against the same words in tests/api/fuelLab.test.ts.
+      name: 'today',
+      covers: () => true,
+      read: (c) => {
+        const target = fuelTargetFor(c.ctx, fuelInput(c.planned, c.source, c.status))
+        return { line: target === null ? null : describeFuelTarget(target).watch }
+      },
+    },
+    {
+      name: 'description',
+      covers: publishable,
+      read: (c) => lineOf(workoutOf(c.source, c.line, c.eased).description.split('\n')),
+    },
+    {
+      name: 'fit',
+      covers: publishable,
+      read: (c) => {
+        const plan = workoutOf(c.source, c.line, c.eased)
+        const notes = firstNote(plan)
+        // The note joins whole sentences, and the fuel line is the last of them.
+        const at = notes.indexOf('Fuel ')
+        if (at >= 0) return { line: notes.slice(at) }
+        if (c.line === null) return { line: null }
+        // A note holds 49 bytes, and a sentence that does not fit is left out whole, never cut
+        // (E1-3); the description still carries the line. So the line may be missing only when the
+        // rest of the note, joined as the encoder joins it, leaves it no room. The file then
+        // reports the drop; any other note without the line is a bug.
+        const rest = firstNote({ ...plan, fuelLine: null })
+        const joined = rest === '' ? c.line : `${rest}${rest.endsWith('.') ? ' ' : '. '}${c.line}`
+        if (byteLength(joined) <= FIT_NOTES_MAX_BYTES) {
+          throw new Error(`The note lost the line: ${notes}`)
+        }
+        return {
+          line: null,
+          dropped: `${String(byteLength(joined))} bytes in a ${String(FIT_NOTES_MAX_BYTES)}-byte note`,
+        }
+      },
+    },
+    {
+      name: 'intervals',
+      covers: publishable,
+      read: (c) =>
+        lineOf(
+          renderIntervalsDescription(workoutOf(c.source, c.line, c.eased), REF).text.split('\n'),
+        ),
+    },
+  ]
+
+  function* cases(): Generator<FuelCase & { label: string }> {
+    for (const kind of SESSION_KINDS) {
+      for (const status of STATUSES) {
+        for (const eased of [false, true]) {
+          for (const stepped of [false, true]) {
+            for (const hot of [false, true]) {
+              const ctx = context({ stepped, hot })
+              const planned = prescribed(kind, zones, { date: DATE, durationMin: SESSION_MIN })
+              const source = eased ? easedSession(planned, zones) : planned
+              yield {
+                label: `${kind} ${status} eased=${String(eased)} stepped=${String(stepped)} hot=${String(hot)}`,
+                planned,
+                source,
+                eased: source !== planned,
+                status,
+                ctx,
+                line: fuelLineForSession(ctx, fuelInput(planned, source, status)),
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  it('covers every kind, status, easing, ladder position and weather', () => {
+    // 16 kinds x 3 statuses x eased x stepped x hot
+    expect([...cases()]).toHaveLength(16 * 3 * 2 * 2 * 2)
+  })
+
+  it('has a line for each run kind and none for the rest', () => {
+    const none: SessionKind[] = ['strength', 'mobility', 'rest', 'race', 'cross']
+    for (const c of cases()) {
+      const kind = c.source.kind
+      expect(c.line === null, c.label).toBe(none.includes(kind))
+    }
+  })
+
+  it.each(FUEL_SURFACES.map((s) => [s.name, s] as const))(
+    '%s carries the line the pure function gives, or reports that it left the line out',
+    (_name, surface) => {
+      const wrong: string[] = []
+      for (const c of cases()) {
+        if (!surface.covers(c.planned.kind)) continue
+        const read = surface.read(c)
+        // A surface that dropped the line says so, and only where there was a line to drop.
+        if (read.dropped !== undefined) {
+          if (read.line !== null || c.line === null) {
+            wrong.push(`${c.label}: reports a drop with no line missing`)
+          }
+          continue
+        }
+        if (read.line !== c.line) {
+          wrong.push(`${c.label}: ${String(read.line)} instead of ${String(c.line)}`)
+        }
+      }
+      expect(wrong).toEqual([])
+    },
+  )
+
+  it('reports a dropped line on the FIT file for every eased run, and on no other surface', () => {
+    const droppedBy = new Map<string, string[]>(FUEL_SURFACES.map((s) => [s.name, []]))
+    const eased: string[] = []
+    for (const c of cases()) {
+      for (const surface of FUEL_SURFACES) {
+        if (!surface.covers(c.planned.kind)) continue
+        const read = surface.read(c)
+        if (read.dropped !== undefined) droppedBy.get(surface.name)!.push(c.label)
+        // "Eased for today" and the shortest line are over 49 bytes together (E1-3).
+        if (surface.name === 'fit' && c.eased && c.line !== null) {
+          eased.push(c.label)
+          expect(read.dropped, c.label).toBeDefined()
+        }
+      }
+    }
+    expect(eased.length).toBeGreaterThan(0)
+    expect(droppedBy.get('fit')!.length).toBeGreaterThanOrEqual(eased.length)
+    for (const surface of FUEL_SURFACES.filter((s) => s.name !== 'fit')) {
+      expect(droppedBy.get(surface.name), surface.name).toEqual([])
+    }
+  })
+
+  it('names the grams of the target on every surface, the floor held on a hot day', () => {
+    for (const { stepped, hot, grams } of [
+      { stepped: false, hot: false, grams: 30 },
+      { stepped: true, hot: false, grams: 60 },
+      { stepped: true, hot: true, grams: 30 },
+    ]) {
+      const ctx = context({ stepped, hot })
+      const planned = prescribed('long', zones, { date: DATE, durationMin: SESSION_MIN })
+      const target = fuelTargetFor(ctx, fuelInput(planned, planned, 'planned'))!
+      expect(target.gPerH).toBe(grams)
+      const c: FuelCase = {
+        planned,
+        source: planned,
+        eased: false,
+        status: 'planned',
+        ctx,
+        line: fuelLineForSession(ctx, fuelInput(planned, planned, 'planned')),
+      }
+      for (const surface of FUEL_SURFACES) {
+        const read = surface.read(c)
+        expect(read.line, surface.name).toMatch(
+          new RegExp(`^Fuel ${String(grams)}(?: to \\d+)? g/h carbs\\. Drink to thirst\\.$`),
+        )
+      }
+    }
+  })
+
+  it('names the same grams for a moved run, a trimmed run, an eased run and the run as planned', () => {
+    const ctx = context({ stepped: true, hot: false })
+    const planned = prescribed('long-fast-finish', zones, { date: DATE, durationMin: SESSION_MIN })
+    const lines = [
+      ...STATUSES.map((status) => fuelLineForSession(ctx, fuelInput(planned, planned, status))),
+      fuelLineForSession(ctx, fuelInput(planned, easedSession(planned, zones), 'planned')),
+    ]
+    expect(new Set(lines)).toEqual(new Set(['Fuel 60 g/h carbs. Drink to thirst.']))
+  })
+
+  it('gives no line to a settled session, a race or a run too short', () => {
+    const ctx = context({ stepped: false, hot: false })
+    const planned = prescribed('long', zones, { date: DATE, durationMin: SESSION_MIN })
+    for (const status of ['completed', 'partial', 'skipped'] as const) {
+      expect(fuelLineForSession(ctx, fuelInput(planned, planned, status))).toBeNull()
+    }
+    const race = prescribed('race', zones, { date: DATE, durationMin: SESSION_MIN })
+    expect(fuelLineForSession(ctx, fuelInput(race, race, 'planned'))).toBeNull()
+    const short = prescribed('long', zones, {
+      date: DATE,
+      durationMin: P.h7.logMinDurationMin.value - 1,
+    })
+    expect(fuelLineForSession(ctx, fuelInput(short, short, 'planned'))).toBeNull()
+  })
+
+  it('fails when a surface keeps its own grams', () => {
+    const ctx = context({ stepped: true, hot: false })
+    const planned = prescribed('long', zones, { date: DATE, durationMin: SESSION_MIN })
+    const c: FuelCase = {
+      planned,
+      source: planned,
+      eased: false,
+      status: 'planned',
+      ctx,
+      line: 'Fuel 45 g/h carbs. Drink to thirst.',
+    }
+    const stale = FUEL_SURFACES.filter((s) => s.name !== 'today').map((s) => s.read(c).line)
+    expect(
+      stale.every(
+        (read) => read === fuelLineForSession(ctx, fuelInput(planned, planned, 'planned')),
+      ),
+    ).toBe(false)
   })
 })

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, test } from 'vitest'
 import { allParams } from '../../shared/engine/params/index.ts'
-import type { Param } from '../../shared/engine/types.ts'
+import type { ExplainView, Param } from '../../shared/engine/types.ts'
 import type { ResearchParams, Units, UserSettings } from '../../shared/types.ts'
 import { PaperCard } from '../../web/components/PaperCard.tsx'
 import { WhyDrawer } from '../../web/components/WhyDrawer.tsx'
@@ -41,12 +41,24 @@ const registry: ResearchParams = {
   params: [taperParam, defaultParam, effortParam],
 }
 
-/** The settings the drawer reads to show parameter values in the runner's units. */
-const settingsRoute = (units: Units = 'mi') => ({
+/**
+ * What the drawer asks besides the registry: the settings, to show values in the runner's units,
+ * and its figures, here an empty list so the rule section stands alone (the drawer's own tests,
+ * `why-drawer-inputs.test.tsx`, cover the figures).
+ */
+const drawerRoutes = (units: Units = 'mi') => ({
   'GET /api/settings': (): UserSettings => ({
     email: 'runner@example.com',
     displayName: null,
     units,
+  }),
+  'GET /api/explain': (): ExplainView => ({
+    subject: 'rules',
+    asOf: '2026-10-23',
+    frozen: false,
+    rules: [],
+    groups: [],
+    rest: [],
   }),
 })
 
@@ -85,7 +97,7 @@ describe('WhyDrawer', () => {
   })
 
   test('shows each rule with its parameters, grades and papers', async () => {
-    mockApi({ ...settingsRoute(), 'GET /api/research/params': () => registry })
+    mockApi({ ...drawerRoutes(), 'GET /api/research/params': () => registry })
     const user = userEvent.setup()
     renderWithProviders(<Harness rules={['k1', 'c4']} />)
     await user.click(screen.getByRole('button', { name: 'Why' }))
@@ -121,7 +133,7 @@ describe('WhyDrawer', () => {
   }, 15_000)
 
   test('the effort assessment says that an effort verdict needs a rating', async () => {
-    mockApi({ ...settingsRoute(), 'GET /api/research/params': () => registry })
+    mockApi({ ...drawerRoutes(), 'GET /api/research/params': () => registry })
     const user = userEvent.setup()
     renderWithProviders(<Harness rules={['J2', 'K1']} />)
     await user.click(screen.getByRole('button', { name: 'Why' }))
@@ -160,7 +172,7 @@ describe('WhyDrawer', () => {
     }
     const params = [real('g1.minStepDistanceM'), real('h4.minStepGainM')]
     mockApi({
-      ...settingsRoute(units),
+      ...drawerRoutes(units),
       'GET /api/research/params': () => ({ version: 'v', params }),
     })
     const user = userEvent.setup()
@@ -184,7 +196,7 @@ describe('WhyDrawer', () => {
       note: 'Default: nine rungs.',
     }
     mockApi({
-      ...settingsRoute(),
+      ...drawerRoutes(),
       'GET /api/research/params': () => ({ version: 'v', params: [ladder, taperParam] }),
     })
     const user = userEvent.setup()
@@ -224,7 +236,7 @@ describe('WhyDrawer', () => {
       note: 'Default: observations before a personal model replaces the prior.',
     }
     mockApi({
-      ...settingsRoute(),
+      ...drawerRoutes(),
       'GET /api/research/params': () => ({ version: 'v', params: [prior, injury] }),
     })
     const user = userEvent.setup()
@@ -283,7 +295,7 @@ describe('WhyDrawer', () => {
     ]
     for (const [units, texts] of expectations) {
       mockApi({
-        ...settingsRoute(units),
+        ...drawerRoutes(units),
         'GET /api/research/params': () => ({ version: 'v', params }),
       })
       const user = userEvent.setup()
@@ -301,7 +313,7 @@ describe('WhyDrawer', () => {
   })
 
   test('says so when a rule has no parameter', async () => {
-    mockApi({ ...settingsRoute(), 'GET /api/research/params': () => registry })
+    mockApi({ ...drawerRoutes(), 'GET /api/research/params': () => registry })
     const user = userEvent.setup()
     renderWithProviders(<Harness rules={['zz-9']} />)
     await user.click(screen.getByRole('button', { name: 'Why' }))
@@ -310,7 +322,7 @@ describe('WhyDrawer', () => {
 
   test('shows an error line when the registry cannot be loaded', async () => {
     mockApi({
-      ...settingsRoute(),
+      ...drawerRoutes(),
       'GET /api/research/params': () => ({
         status: 500,
         body: { error: { code: 'internal', message: 'Boom' } },

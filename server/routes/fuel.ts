@@ -3,15 +3,20 @@
 // field); a missing activity or product is 404; a service rule such as a duplicate live name is
 // 409. The ladder is never stored: every log answer carries it replayed.
 //
-// `GET /api/fuel` (the lab view) and `GET /api/fuel/targets` are served by the same router in a
-// later task; until then those paths answer with the app's JSON 404.
+// `GET /api/fuel` is the lab view and the one read of the settings: there is no `GET
+// /api/fuel/settings`, because a second read of the same row would only repeat the view and the
+// Fuel lab page, the one place that edits the switches, loads the view anyway. `PUT /settings`
+// answers with what it kept.
 import { Router } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
-import { notFound, parse } from '../errors.ts'
+import { notFound, parse, validationError } from '../errors.ts'
+import { daysBetween, isIsoDate, todayIso } from '../../shared/dates.ts'
 import {
   itemNeedsFoodMessage,
   itemProductOnlyMessage,
+  rangeOrderMessage,
+  rangeSpanMessage,
   scoreMessage,
 } from '../../shared/engine/fuelCopy.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -25,6 +30,7 @@ import {
   FUEL_SERVING_SODIUM_MAX_MG,
   FUEL_SERVINGS_MAX,
   FUEL_SODIUM_MAX_MG,
+  FUEL_TARGETS_MAX_DAYS,
   MAX_NOTES,
 } from '../../shared/limits.ts'
 import type { FuelProductKind } from '../../shared/types.ts'
@@ -33,6 +39,8 @@ import {
   assertRun,
   createProduct,
   deleteLog,
+  fuelLabView,
+  fuelTargetsBetween,
   listProducts,
   readLog,
   saveFuelSettings,
@@ -165,6 +173,14 @@ function logSchema() {
   }) satisfies z.ZodType<LogInput, unknown>
 }
 
+/** A calendar day in a query string. */
+const dateParam = z
+  .string({ error: 'Use a date as YYYY-MM-DD.' })
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a date as YYYY-MM-DD.')
+  .refine(isIsoDate, 'Use a real calendar date.')
+
+const targetsQuerySchema = z.object({ from: dateParam, to: dateParam })
+
 function idParam(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
@@ -172,6 +188,23 @@ function idParam(value: unknown): string {
 export function fuelRouter(deps: Deps): Router {
   const { prisma } = deps
   const router = Router()
+
+  router.get('/', async (req, res) => {
+    res.json(await fuelLabView(deps, { userId: req.userId, today: todayIso() }))
+  })
+
+  router.get('/targets', async (req, res) => {
+    const { from, to } = parse(targetsQuerySchema, req.query)
+    if (from > to) {
+      const message = rangeOrderMessage()
+      throw validationError(message, [{ path: 'from', message }])
+    }
+    if (daysBetween(from, to) > FUEL_TARGETS_MAX_DAYS) {
+      const message = rangeSpanMessage(FUEL_TARGETS_MAX_DAYS)
+      throw validationError(message, [{ path: 'to', message }])
+    }
+    res.json(await fuelTargetsBetween(deps, { userId: req.userId, today: todayIso(), from, to }))
+  })
 
   async function findRun(userId: string, id: string) {
     const row = id

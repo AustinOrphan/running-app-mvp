@@ -60,6 +60,15 @@ export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
 }
 
+/**
+ * The short tag of a user in what the app writes to the outside (`rl-<tag>-<externalId>`, design
+ * 4.1): the first 6 hex characters of the SHA-256 of the user id, so that two installs writing to
+ * one account or one calendar cannot overwrite each other. It names nobody and is not a secret.
+ */
+export function userTagOf(userId: string): string {
+  return createHash('sha256').update(userId).digest('hex').slice(0, 6)
+}
+
 /** 32 random bytes, base64url. */
 export function newToken(): string {
   return randomBytes(32).toString('base64url')

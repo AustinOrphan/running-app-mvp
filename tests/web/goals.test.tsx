@@ -10,13 +10,19 @@ import type {
   PredictionView,
   UserSettings,
 } from '../../shared/types.ts'
-import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  expectCleanCopy,
+  explainOf,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 
 // The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
-  WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
+  WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
     open ? (
-      <div role="dialog" aria-label="Evidence">
+      <div role="dialog" aria-label="Evidence" data-explain={JSON.stringify(explain ?? null)}>
         {rules.join(',')}
       </div>
     ) : null,
@@ -447,18 +453,22 @@ describe('Goals page', () => {
     ).toBeInTheDocument()
     expect(within(card).getByText(/heat acclimation block/)).toBeInTheDocument()
 
+    // Each button passes the subject of its figure: the prediction of this goal, or the rules.
+    const drawers = () => screen.getAllByRole('dialog', { name: 'Evidence' })
+    const drawerWith = (text: string) => {
+      const found = drawers().find((d) => d.textContent === text)
+      if (found === undefined) throw new Error(`No drawer with ${text}`)
+      return found
+    }
     await user.click(within(card).getByRole('button', { name: 'Why: predicted time' }))
     expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('L1,L2')
+    expect(explainOf(drawerWith('L1,L2'))).toEqual({ subject: 'prediction', goalId: 'g1' })
 
     await user.click(within(card).getByRole('button', { name: 'Why: race-day heat' }))
-    expect(screen.getAllByRole('dialog', { name: 'Evidence' }).map((d) => d.textContent)).toContain(
-      'D6',
-    )
+    expect(explainOf(drawerWith('D6'))).toEqual({ subject: 'rules', rules: ['D6'] })
 
     await user.click(within(card).getByRole('button', { name: 'Why: feasibility' }))
-    expect(screen.getAllByRole('dialog', { name: 'Evidence' }).map((d) => d.textContent)).toContain(
-      'D4',
-    )
+    expect(explainOf(drawerWith('D4'))).toEqual({ subject: 'rules', rules: ['D4'] })
   })
 
   test('a goal that is not reachable within default limits says so and offers options, with no prediction text when none exists', async () => {

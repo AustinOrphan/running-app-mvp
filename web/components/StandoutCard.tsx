@@ -40,7 +40,11 @@ export function StandoutCard({ activityId, units }: StandoutCardProps) {
           {renderStandouts(standout.data, units).map((item) => (
             <li key={item.id} className={styles.item}>
               <p className={styles.sentence}>{item.text}</p>
-              <ExplainButton subject={item.subject} rules={item.rules} />
+              <ExplainButton
+                subject={item.subject}
+                rules={item.rules}
+                explain={{ subject: 'activity', id: activityId }}
+              />
             </li>
           ))}
         </ul>

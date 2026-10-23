@@ -61,6 +61,13 @@ describe('describeChange', () => {
     expect(describeChange(change('session.date', 'someday', null)).text).toBe(
       'Session date someday to none',
     )
+    // a shortened session (the adjust action, E5-6)
+    expect(describeChange(change('session.durationMin', 60, 40))).toEqual({
+      label: 'Session length',
+      from: '60 min',
+      to: '40 min',
+      text: 'Session length 60 min to 40 min',
+    })
   })
 
   test("names zone changes with the boundary and its value in the runner's unit", () => {

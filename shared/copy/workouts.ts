@@ -34,6 +34,14 @@ export const WORKOUT_TEMPLATES = {
   'workout.target.pace': tpl('pace {range}', { range: 'text' }, { shape: 'label' }),
   'workout.target.effort': tpl('by effort', {}, { shape: 'label' }),
 
+  // The outline of a session in the private calendar feed (design 6.5). It names no figure and no
+  // reason: a cue says how a step is run, never at which number.
+  'workout.ics.calendar-name': tpl('Running plan', {}, { shape: 'label' }),
+  'workout.ics.repeat': tpl('Repeat: {steps}', { steps: 'text' }, { shape: 'label' }),
+  'workout.ics.cue.easy': tpl('kept easy', {}, { shape: 'label' }),
+  'workout.ics.cue.steady': tpl('kept steady', {}, { shape: 'label' }),
+  'workout.ics.cue.pace': tpl('at target pace', {}, { shape: 'label' }),
+
   // The line of a day that was eased. The reason is never named.
   'workout.eased': tpl('Eased for today', {}, { shape: 'label' }),
 

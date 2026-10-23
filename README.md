@@ -1,9 +1,10 @@
 # Running log
 
 A self-hosted training log and planner for one runner. It keeps activities, goal races, a
-generated weekly plan, weekly reviews, a dashboard and stats. One Node process serves the API and
-the built web app, and the data lives in a single SQLite file. There is no telemetry. The app calls
-third parties only for the integrations you connect and for weather (see Integrations).
+generated weekly plan, weekly reviews, a Today page that leads with the day's session and
+readiness, and stats. One Node process serves the API and the built web app, and the data lives in
+a single SQLite file. There is no telemetry. The app calls third parties only for the integrations
+you connect and for weather (see Integrations).
 
 Targets are a sketch, not minimums: the plan never makes up missed volume, and a suggestion never
 changes a target by itself.
@@ -277,9 +278,10 @@ The disclaimer, in full (the Today page shows a shortened form with a link to th
 
 ### How evidence and defaults are shown
 
-The "Why this session" and "Why" buttons on Today, Plan, Goals and Review open one drawer. For each
-rule behind a number it shows the value and its range, a grade badge, the papers with their findings
-and DOI links, and a plain note when the value is a default. Grades:
+The "Explain" and "Why this session" buttons of a Today session, and the "Why" buttons on Today,
+Plan, Goals and Review, open one drawer. For each rule behind a number it shows the value and its
+range, a grade badge, the papers with their findings and DOI links, and a plain note when the value
+is a default. Grades:
 
 | Grade | Meaning                                                                      |
 | ----- | ---------------------------------------------------------------------------- |
@@ -363,7 +365,10 @@ docker compose exec app node dist/scripts/reset-password.js you@example.com
 ## Installing as an app
 
 The web app has a manifest and icon, so a phone or desktop browser can add it to the home screen.
-There is no offline mode; the app needs the server.
+There is no offline mode yet; the app needs the server. When the offline shell arrives, it will
+need https or localhost: browsers run the service worker that keeps the offline copy only on a
+secure origin, so an install reached over plain http (a home server by IP address, say) will keep
+working online only.
 
 ## Design documents
 
