@@ -38,8 +38,7 @@ import { WhyDrawer } from '../components/WhyDrawer.tsx'
 import { WristChip } from '../components/WristStatus.tsx'
 import { WristStrip, weekHasRuns } from '../components/WristStrip.tsx'
 import { DisruptionBanners } from '../components/disruption/DisruptionBanner.tsx'
-import { NotFullSheet } from '../components/disruption/NotFullSheet.tsx'
-import { ReplanSheet } from '../components/disruption/ReplanSheet.tsx'
+import { NotFullSheet, ReplanSheet } from '../components/lazySheets.tsx'
 import {
   formatLongDate,
   formatShortDate,

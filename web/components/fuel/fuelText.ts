@@ -91,6 +91,7 @@ export const fuelText = {
   save: () => say(T['fuel.ui.save'], {}),
   skip: () => say(T['fuel.ui.skip'], {}),
   saved: () => say(T['fuel.ui.saved'], {}),
+  savedQueued: () => say(T['fuel.ui.saved-queued'], {}),
   notSaved: (reason: string) => say(T['fuel.ui.not-saved'], { reason }),
   notMarked: (reason: string) => say(T['fuel.ui.not-marked'], { reason }),
   loadError: () => say(T['fuel.ui.load-error'], {}),

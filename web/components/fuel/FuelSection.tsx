@@ -6,7 +6,7 @@ import type { Activity, FuelLogView } from '../../../shared/types.ts'
 import { useFuelLog } from '../../api/fuel.ts'
 import { Button } from '../Button.tsx'
 import { Skeleton } from '../Skeleton.tsx'
-import { FuelLogSheet } from './FuelLogSheet.tsx'
+import { FuelLogSheet } from '../lazySheets.tsx'
 import { fuelText } from './fuelText.ts'
 import styles from './FuelSections.module.css'
 

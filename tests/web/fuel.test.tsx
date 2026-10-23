@@ -6,7 +6,7 @@ import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { fluidReferenceNote } from '../../shared/engine/fuelCopy.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { FUEL_FLUID_MAX_ML, FUEL_ITEMS_MAX, FUEL_SERVINGS_MAX } from '../../shared/limits.ts'
-import type { ActivityDetail, FuelLabView, FuelLogView } from '../../shared/types.ts'
+import type { ActivityDetail, FuelLabView, FuelLogView, FuelProduct } from '../../shared/types.ts'
 import {
   parseFluid,
   servingsOf,
@@ -19,11 +19,12 @@ import {
   type FormState,
 } from '../../web/components/fuel/fuelForm.ts'
 import { FuelLogSheet } from '../../web/components/fuel/FuelLogSheet.tsx'
+import { getOutbox } from '../../web/pwa/outbox.ts'
 import { fuelText, scaleScores, scaleWord } from '../../web/components/fuel/fuelText.ts'
 import { SessionSheet } from '../../web/components/SessionSheet.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { makeActivity } from '../factories.ts'
-import { COOL, GEL, HOT, loggedRun, logOf, makeLab, saved } from './fuel-fixtures.ts'
+import { COOL, DRINK, GEL, HOT, loggedRun, logOf, makeLab, saved } from './fuel-fixtures.ts'
 import {
   expectCleanCopy,
   mockApi,
@@ -508,7 +509,7 @@ describe('the fuel log form', () => {
     ).toBeInTheDocument()
   })
 
-  test('shows a failed save in an alert, keeps the entries and lets Save be tried again', async () => {
+  test('shows a refused save in an alert, keeps the entries and lets Save be tried again', async () => {
     const user = userEvent.setup()
     let attempts = 0
     const runs = [loggedRun(9)]
@@ -517,7 +518,7 @@ describe('the fuel log form', () => {
         [`PUT /api/fuel/logs/${ACTIVITY}`]: () => {
           attempts += 1
           return attempts === 1
-            ? { status: 500, body: { error: { code: 'internal', message: 'Try again later.' } } }
+            ? { status: 400, body: { error: { code: 'validation', message: 'Try again later.' } } }
             : saved(runs, ACTIVITY)
         },
       },
@@ -543,6 +544,75 @@ describe('the fuel log form', () => {
     expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument()
     expect(puts(api)).toHaveLength(2)
     expect(puts(api)[1]).toEqual(puts(api)[0])
+  })
+
+  test('with no connection the log is kept on this phone: it says so, closes and leaves the draft', async () => {
+    const user = userEvent.setup()
+    const api = renderSheet({
+      routes: {
+        [`PUT /api/fuel/logs/${ACTIVITY}`]: () => ({
+          status: 503,
+          body: { error: { code: 'internal', message: 'Offline.' } },
+        }),
+      },
+    })
+    const sheet = await dialog()
+    await user.click(await within(sheet).findByRole('button', { name: 'Add one Example gel' }))
+    await user.click(radio(within(sheet).getByRole('radiogroup', { name: 'Gut' }), '1 Mild'))
+    await user.click(within(sheet).getByRole('button', { name: 'Save fuel log' }))
+    await waitFor(() => {
+      expect(api.onDone).toHaveBeenCalledTimes(1)
+    })
+    expect(await screen.findByText(fuelText.savedQueued())).toBeInTheDocument()
+    expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument()
+    const queued = getOutbox().getState().entries
+    expect(queued.map((entry) => entry.url)).toEqual([`/api/fuel/logs/${ACTIVITY}`])
+    expect(queued[0]?.body).toMatchObject({ items: [{ productId: 'p-gel', servings: 1 }], gut: 1 })
+    // What the outbox holds is the safe copy now; the draft would only shadow the server's log.
+    expect(window.localStorage.getItem(`fuel-draft:${ACTIVITY}`)).toBeNull()
+  })
+
+  test('a log that reached the server shows the server sentence, not the phone one', async () => {
+    const user = userEvent.setup()
+    const runs = [loggedRun(9)]
+    const answer = saved(runs, ACTIVITY)
+    const api = renderSheet({ routes: { [`PUT /api/fuel/logs/${ACTIVITY}`]: () => answer } })
+    const sheet = await dialog()
+    await user.click(radio(await within(sheet).findByRole('radiogroup', { name: 'Gut' }), '0 None'))
+    await user.click(within(sheet).getByRole('button', { name: 'Save fuel log' }))
+    await waitFor(() => {
+      expect(api.onDone).toHaveBeenCalledTimes(1)
+    })
+    expect(await screen.findByText(answer.message ?? '')).toBeInTheDocument()
+    expect(screen.queryByText(fuelText.savedQueued())).not.toBeInTheDocument()
+    expect(getOutbox().getState().entries).toEqual([])
+  })
+
+  test('editing a log whose product changed since sends what was logged, not what the product says now', async () => {
+    const user = userEvent.setup()
+    const runs = [loggedRun(9, { servings: 4, gut: 2 })]
+    const edited: FuelProduct = { ...GEL, carbsG: 30 }
+    const api = renderSheet({
+      lab: makeLab(runs, { products: [edited, DRINK] }),
+      log: logOf(runs, ACTIVITY),
+      routes: { [`PUT /api/fuel/logs/${ACTIVITY}`]: () => saved(runs, ACTIVITY) },
+    })
+    const sheet = await dialog()
+    await within(sheet).findByRole('button', { name: 'Save fuel log' })
+    expect(within(sheet).getByText('4 taken')).toBeInTheDocument()
+    await user.click(radio(within(sheet).getByRole('radiogroup', { name: 'Gut' }), '0 None'))
+    await user.click(within(sheet).getByRole('button', { name: 'Save fuel log' }))
+    await waitFor(() => {
+      expect(puts(api)).toHaveLength(1)
+    })
+    // 4 x 25 g was eaten; by id the server would have stored 4 x 30 g.
+    expect(puts(api)[0]).toMatchObject({
+      items: [
+        { name: GEL.name, carbsG: 25, sodiumMg: 50, kcal: 100, multiCarb: true, servings: 4 },
+      ],
+      gut: 0,
+    })
+    expect(puts(api)[0]).not.toHaveProperty('items.0.productId')
   })
 
   test('"Not this time" marks the run, shows the server sentence and closes', async () => {
@@ -867,18 +937,31 @@ describe('the form state', () => {
     expect(parseFluid(String(FUEL_FLUID_MAX_ML + 1))).toBe('invalid')
   })
 
+  /** An item as the list product it was taken from reads now. */
+  const taken = (product: FuelProduct, servings: number): FormItem => ({
+    productId: product.id,
+    name: product.name,
+    carbsG: product.carbsG,
+    sodiumMg: product.sodiumMg,
+    kcal: product.kcal,
+    multiCarb: product.multiCarb,
+    servings,
+  })
+  const live = (...products: FuelProduct[]) =>
+    new Map(products.map((product) => [product.id, product]))
+
   test('the request names a live product by id and sends everything else with its amounts', () => {
     const state: FormState = {
       ...empty,
       items: [
-        { ...food('Gel'), productId: GEL.id, carbsG: GEL.carbsG, servings: 2 },
+        taken(GEL, 2),
         { ...food('Archived chew'), productId: 'p-archived', servings: 3 },
         food('Rice cake'),
       ],
       nausea: 1,
       hot: false,
     }
-    expect(toBody(state, 2, 750, new Set([GEL.id]), { sodiumMg: 400, notes: 'Windy.' })).toEqual({
+    expect(toBody(state, 2, 750, live(GEL), { sodiumMg: 400, notes: 'Windy.' })).toEqual({
       items: [
         { productId: GEL.id, servings: 2 },
         {
@@ -905,6 +988,48 @@ describe('the form state', () => {
       hot: false,
       notes: 'Windy.',
     })
+  })
+
+  test('an item whose product was edited since it was logged keeps the amounts it was logged with', () => {
+    // 2 x 25 g was eaten; the product now reads 30 g. By id, the server would store 60 g.
+    const edited: FuelProduct = { ...GEL, carbsG: 30 }
+    const state: FormState = { ...empty, items: [taken(GEL, 2)] }
+    expect(toBody(state, 1, null, live(edited), { sodiumMg: null, notes: null }).items).toEqual([
+      {
+        name: GEL.name,
+        carbsG: 25,
+        sodiumMg: 50,
+        kcal: 100,
+        multiCarb: true,
+        servings: 2,
+      },
+    ])
+  })
+
+  test.each([
+    ['renamed', { name: 'Example gel, new recipe' }],
+    ['changed in sodium', { sodiumMg: 80 }],
+    ['changed in energy', { kcal: 120 }],
+    ['made a single-carbohydrate product', { multiCarb: false }],
+  ] satisfies Array<[string, Partial<FuelProduct>]>)(
+    'an item whose product was %s is sent with its own amounts',
+    (_what, change) => {
+      const state: FormState = { ...empty, items: [taken(GEL, 1)] }
+      const [item] = toBody(state, 1, null, live({ ...GEL, ...change }), {
+        sodiumMg: null,
+        notes: null,
+      }).items
+      expect(item).not.toHaveProperty('productId')
+      expect(item).toMatchObject({ name: GEL.name, carbsG: 25, sodiumMg: 50, kcal: 100 })
+    },
+  )
+
+  test('an item from a stored log whose product is unchanged still goes by id', () => {
+    const runs = [loggedRun(9, { servings: 4 })]
+    const stored = stateFromLog(logOf(runs, 'run9'))
+    expect(toBody(stored, 1, null, live(GEL), { sodiumMg: null, notes: null }).items).toEqual([
+      { productId: GEL.id, servings: 4 },
+    ])
   })
 
   test('a log is the form state it is edited from, and a skipped one starts empty', () => {

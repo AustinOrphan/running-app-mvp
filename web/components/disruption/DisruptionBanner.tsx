@@ -4,7 +4,8 @@ import { addDays } from '../../../shared/dates.ts'
 import type { DisruptionView, Units } from '../../../shared/types.ts'
 import { Button } from '../Button.tsx'
 import { isIllness } from './windowDraft.ts'
-import { WindowActionSheet, type WindowAction } from './WindowActionSheet.tsx'
+import { WindowActionSheet } from '../lazySheets.tsx'
+import type { WindowAction } from './WindowActionSheet.tsx'
 import styles from './disruption.module.css'
 
 /** What the banner's buttons ask for. */

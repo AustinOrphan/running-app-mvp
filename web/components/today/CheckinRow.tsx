@@ -7,7 +7,7 @@ import { getOutbox, useOutboxState } from '../../pwa/outbox.ts'
 import { Button } from '../Button.tsx'
 import { Segmented } from '../Segmented.tsx'
 import { useToast } from '../Toast.tsx'
-import { CheckinSheet } from './CheckinSheet.tsx'
+import { CheckinSheet } from '../lazySheets.tsx'
 import styles from './CheckinRow.module.css'
 
 /** The fatigue row's answers, 1 (fresh) to 5 (drained): the word, then the line the row folds to. */

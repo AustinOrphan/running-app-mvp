@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import type { FuelLabView, FuelLogResult, FuelLogView, FuelTargetView } from '../../shared/types.ts'
+import { getOutbox, refreshAfterSend } from '../pwa/outbox.ts'
 import { api, keys, qs } from './client.ts'
 
 /**
@@ -69,16 +70,53 @@ function invalidateAfterLog(queryClient: QueryClient): Promise<unknown> {
   )
 }
 
+/** The URL of the fuel log of one run: the key of its entry in the outbox. */
+export function fuelLogUrl(activityId: string): string {
+  return `/api/fuel/logs/${encodeURIComponent(activityId)}`
+}
+
+/** Where a saved fuel log ended up. */
+export type FuelSaveResult =
+  /** The server has it; `message` is its sentence ("Tolerated at 60 g/h. ..."), when it sent one. */
+  | { status: 'sent'; message: string | null }
+  /** It is kept on this phone and goes out when a connection allows. */
+  | { status: 'queued' }
+  /** The server refused it, in these words; it is not queued. */
+  | { status: 'rejected'; reason: string }
+
+/** The sentence of a `FuelLogResult` in an answer the outbox handed back, or null. */
+function messageOf(response: unknown): string | null {
+  if (typeof response !== 'object' || response === null || !('message' in response)) return null
+  return typeof response.message === 'string' ? response.message : null
+}
+
 /**
- * Saves the log of a run. The request is an idempotent upsert, so sending it twice leaves the same
- * row; the answer carries the sentence to show ("Tolerated at 60 g/h. Next long run: 70 g/h.").
+ * Saves the log of a run through the outbox: the request is an idempotent upsert, so it is kept on
+ * this phone first and sent at once, or later when there is no connection. A sent answer carries the
+ * sentence to show ("Tolerated at 60 g/h. Next long run: 70 g/h."). The ladder, the targets and
+ * Today are read again once the server has the log: by the outbox listener (`useOutboxReplay`),
+ * which also covers a log sent later, and here, joining that read, so the answer comes back with the
+ * fresh data in place (`refreshAfterSend`).
  */
 export function useSaveFuelLog() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ activityId, body }: { activityId: string; body: FuelLogBody }) =>
-      api<FuelLogResult>('PUT', `/fuel/logs/${encodeURIComponent(activityId)}`, body),
-    onSuccess: () => invalidateAfterLog(queryClient),
+    mutationFn: async ({
+      activityId,
+      body,
+    }: {
+      activityId: string
+      body: FuelLogBody
+    }): Promise<FuelSaveResult> => {
+      const result = await getOutbox().save(fuelLogUrl(activityId), { ...body })
+      return result.status === 'sent'
+        ? { status: 'sent', message: messageOf(result.response) }
+        : result
+    },
+    onSuccess: (result, { activityId }) =>
+      result.status === 'sent'
+        ? refreshAfterSend(queryClient, fuelLogUrl(activityId), { cancelRefetch: false })
+        : undefined,
   })
 }
 

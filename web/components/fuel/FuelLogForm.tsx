@@ -83,7 +83,7 @@ export function FuelLogForm({
     }
   }, [])
 
-  const live = new Set(lab.products.map((product) => product.id))
+  const live = new Map(lab.products.map((product) => [product.id, product]))
   // The logs of other runs: the last one with products is what "Same as last long run" repeats,
   // and the fluid amounts of the recent ones are the runner's own chips.
   const others = lab.history.filter((row) => row.log.activityId !== activityId && !row.log.skipped)
@@ -130,11 +130,17 @@ export function FuelLogForm({
       notes: log?.notes ?? null,
     })
     // The saved run leaves the Today prompts, which can unmount this form before a per-call
-    // callback would run; the promise settles anyway.
+    // callback would run; the promise settles anyway. A log the server turned down shows in the
+    // form's alert and the entries stay; one kept on this phone is as good as saved.
     save.mutateAsync({ activityId, body }).then(
       (result) => {
+        if (result.status === 'rejected') return
         clearDraft(activityId)
-        toast.show(result.message ?? fuelText.saved())
+        toast.show(
+          result.status === 'queued'
+            ? fuelText.savedQueued()
+            : (result.message ?? fuelText.saved()),
+        )
         onDone()
       },
       () => {
@@ -163,9 +169,11 @@ export function FuelLogForm({
 
   const failure = save.isError
     ? fuelText.notSaved(save.error.message)
-    : skip.isError
-      ? fuelText.notMarked(skip.error.message)
-      : null
+    : save.data?.status === 'rejected'
+      ? fuelText.notSaved(save.data.reason)
+      : skip.isError
+        ? fuelText.notMarked(skip.error.message)
+        : null
 
   return (
     <form

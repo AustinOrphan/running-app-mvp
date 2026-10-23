@@ -56,7 +56,7 @@ import type {
   TrackRecordRace,
   Units,
 } from '../../shared/types.ts'
-import { RaceResultSheet } from './RaceResultSheet.tsx'
+import { RaceResultSheet } from '../components/lazySheets.tsx'
 import styles from './GoalsPage.module.css'
 
 interface Preset {

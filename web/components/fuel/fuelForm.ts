@@ -5,6 +5,7 @@ import { P } from '../../../shared/engine/params/index.ts'
 import { FUEL_FLUID_MAX_ML, FUEL_ITEMS_MAX, FUEL_SERVINGS_MAX } from '../../../shared/limits.ts'
 import type { FuelLogItem, FuelLogView, FuelProduct } from '../../../shared/types.ts'
 import type { FuelItemBody, FuelLogBody } from '../../api/fuel.ts'
+import { FUEL_DRAFT_PREFIX } from '../../pwa/drafts.ts'
 
 /** A thing eaten, as the form holds it: a list product or food of the runner's own. */
 export interface FormItem {
@@ -140,22 +141,38 @@ export function parseFluid(text: string): number | null | 'invalid' {
 // From the form, to a request
 // ---------------------------------------------------------------------------------------------
 
+/** True when the form's item still says what the list product says now. */
+function sameAsProduct(item: FormItem, product: FuelProduct): boolean {
+  return (
+    item.name === product.name &&
+    item.carbsG === product.carbsG &&
+    item.sodiumMg === product.sodiumMg &&
+    item.kcal === product.kcal &&
+    item.multiCarb === product.multiCarb
+  )
+}
+
 /**
- * The request for the state. A product that is still on the list goes by its id, so the server
- * copies its amounts; anything else (food of the runner's own, or a product archived since) goes
- * with the amounts the form holds. `kept` is what the form has no field for and must not lose when
- * it replaces a log: the sodium and the notes the log already had.
+ * The request for the state. A product that is still on the list, and that the item still matches,
+ * goes by its id: the server copies the product's amounts, which are the ones on screen. Anything
+ * else goes with the amounts the form holds: food of the runner's own, a product archived since,
+ * and an item whose product was edited after the log (or the run it is repeated from) was saved.
+ * The server copies a product's amounts at every save, so sending that item by id would replace
+ * what was eaten with what the product says today, and the total on screen would not be the total
+ * saved. `kept` is what the form has no field for and must not lose when it replaces a log: the
+ * sodium and the notes the log already had.
  */
 export function toBody(
   state: FormState,
   gut: number,
   fluidMl: number | null,
-  live: ReadonlySet<string>,
+  live: ReadonlyMap<string, FuelProduct>,
   kept: { sodiumMg: number | null; notes: string | null },
 ): FuelLogBody {
-  const items: FuelItemBody[] = state.items.map((item) =>
-    item.productId !== null && live.has(item.productId)
-      ? { productId: item.productId, servings: item.servings }
+  const items: FuelItemBody[] = state.items.map((item) => {
+    const product = item.productId === null ? undefined : live.get(item.productId)
+    return product !== undefined && sameAsProduct(item, product)
+      ? { productId: product.id, servings: item.servings }
       : {
           name: item.name,
           carbsG: item.carbsG,
@@ -163,8 +180,8 @@ export function toBody(
           kcal: item.kcal,
           multiCarb: item.multiCarb,
           servings: item.servings,
-        },
-  )
+        }
+  })
   return {
     items,
     fluidMl,
@@ -181,7 +198,7 @@ export function toBody(
 // ---------------------------------------------------------------------------------------------
 
 function draftKey(activityId: string): string {
-  return `fuel-draft:${activityId}`
+  return `${FUEL_DRAFT_PREFIX}${activityId}`
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

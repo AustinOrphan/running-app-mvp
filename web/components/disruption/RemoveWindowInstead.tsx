@@ -3,7 +3,7 @@ import { removeInsteadLabel } from '../../../shared/copy/windowView.ts'
 import type { PlanRevisionView, Units } from '../../../shared/types.ts'
 import { useDisruptions } from '../../api/disruptions.ts'
 import { Button } from '../Button.tsx'
-import { WindowActionSheet } from './WindowActionSheet.tsx'
+import { WindowActionSheet } from '../lazySheets.tsx'
 
 /**
  * The window a revision can no longer be undone for, when the undo is refused because the plan

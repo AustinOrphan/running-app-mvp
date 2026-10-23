@@ -5,6 +5,7 @@ import type { SessionKind } from '../../../shared/engine/types.ts'
 import type { ActivityType, Feel, Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
 import { useCreateActivity, type ActivityInput } from '../../api/activities.ts'
+import { useCachedUserId } from '../../api/auth.ts'
 import { ApiError, fieldErrors } from '../../api/client.ts'
 import {
   distanceText,
@@ -12,6 +13,7 @@ import {
   parseDistanceInput,
   parseDurationInput,
 } from '../../pages/ActivityForm.tsx'
+import { DONE_DRAFT_PREFIX } from '../../pwa/drafts.ts'
 import { Button } from '../Button.tsx'
 import { Field, Input } from '../Field.tsx'
 import { FeelPicker, ScaleChips } from '../FeelPicker.tsx'
@@ -72,12 +74,17 @@ const SERVER_FIELDS: Record<string, keyof Errors> = {
   feel: 'feel',
 }
 
-/** The device keeps an unsent entry per day, so a reload or a lost connection does not lose it. */
-const draftKey = (date: string) => `rl_done_draft_${date}`
+/**
+ * The device keeps an unsent entry per day, so a reload or a lost connection does not lose it. The
+ * key carries the signed-in user, so a second account on the same browser never opens the first
+ * one's figures; sign-out and a 401 remove the drafts as well (`purgeDeviceData`).
+ */
+const draftKey = (date: string, userId: string | null) =>
+  `${DONE_DRAFT_PREFIX}${userId === null ? '' : `${userId}_`}${date}`
 
-function readDraft(date: string): DoneForm | null {
+function readDraft(key: string): DoneForm | null {
   try {
-    const text = window.localStorage.getItem(draftKey(date))
+    const text = window.localStorage.getItem(key)
     if (text === null) return null
     const value: unknown = JSON.parse(text)
     if (typeof value !== 'object' || value === null) return null
@@ -96,17 +103,17 @@ function readDraft(date: string): DoneForm | null {
   }
 }
 
-function writeDraft(date: string, form: DoneForm): void {
+function writeDraft(key: string, form: DoneForm): void {
   try {
-    window.localStorage.setItem(draftKey(date), JSON.stringify(form))
+    window.localStorage.setItem(key, JSON.stringify(form))
   } catch {
     // A full or blocked store only means no draft.
   }
 }
 
-function clearDraft(date: string): void {
+function clearDraft(key: string): void {
   try {
-    window.localStorage.removeItem(draftKey(date))
+    window.localStorage.removeItem(key)
   } catch {
     // Nothing to clear.
   }
@@ -123,13 +130,14 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
   const toast = useToast()
   const online = useOnline()
   const create = useCreateActivity()
+  const key = draftKey(date, useCachedUserId())
   const type = activityTypeFor(plan.kind)
   const isRun = type === 'run' || type === 'race'
   const hasDistance = type !== 'strength'
   const planned = distanceText(plan.distanceM, units)
   const [form, setForm] = useState<DoneForm>(
     () =>
-      readDraft(date) ?? {
+      readDraft(key) ?? {
         duration: String(plan.durationMin),
         distance: planned,
         rpe: null,
@@ -142,7 +150,7 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
   function change(patch: Partial<DoneForm>) {
     const next = { ...form, ...patch }
     setForm(next)
-    writeDraft(date, next)
+    writeDraft(key, next)
   }
 
   function build(): { input: ActivityInput } | { errors: Errors } {
@@ -179,7 +187,7 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
     setFailure(null)
     create.mutate(built.input, {
       onSuccess: () => {
-        clearDraft(date)
+        clearDraft(key)
         toast.show(
           render(TEMPLATES[isRun ? 'today.done.saved-run' : 'today.done.saved-session'], {}, units),
         )

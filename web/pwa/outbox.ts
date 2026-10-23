@@ -11,13 +11,23 @@
 // - Entries are sent oldest first, one run at a time. A run stops at the first entry that cannot
 //   be sent now (no connection, a 5xx, a 408 or 429) and leaves everything queued.
 // - A 4xx (any other) drops the entry with one message. A 401 clears the whole queue, and so does
-//   sign-out: the queue holds health data (ADR 0012). An entry older than 7 days is dropped.
+//   sign-out and a new sign-in: the queue holds health data (ADR 0012). An entry older than 7 days
+//   is dropped.
 // - Replays start on `online`, on a return to the foreground and when the app opens.
+// - The queue belongs to the signed-in user. Each entry carries the id it was queued under, and
+//   `adopt` drops the entries of anyone else before the first replay, so a queue that outlived a
+//   failed purge is never sent under another account.
+// - Order is last arrival wins. A PUT carries no write time and the server stores whatever reaches
+//   it last, so a check-in queued on this phone and replayed after a newer one from another device
+//   replaces it. That is accepted: one runner, rarely two devices at once, and no server change.
+//   What the client can close, it does: a send that runs out of time is aborted, so it cannot
+//   arrive after the entry's next send (see `OUTBOX_SEND_TIMEOUT_MS`).
 import { useEffect, useSyncExternalStore } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { api, ApiError, keys, UNAUTHORIZED_EVENT } from '../api/client.ts'
+import { purgeDrafts } from './drafts.ts'
 
 /** A write the outbox may hold: an idempotent PUT to a URL this route matches. */
 export interface OutboxRoute {
@@ -44,7 +54,7 @@ export const OUTBOX_ROUTES: readonly OutboxRoute[] = [
     label: 'check-in',
     matches: (url) => /^\/api\/checkins\/\d{4}-\d{2}-\d{2}$/.test(url),
     combine: 'merge',
-    invalidates: [keys.checkins, keys.today, keys.wellness],
+    invalidates: [keys.today, keys.wellness],
   },
   {
     // `PUT /api/fuel/logs/:activityId` stores the whole log, so a second write replaces the first.
@@ -62,8 +72,10 @@ export const OUTBOX_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 /**
  * How long one send may take before it counts as a connection that is not there. A request that
  * hangs (a captive portal, one bar of signal) must not hold the queue, or a sheet waiting for its
- * answer, for as long as the browser cares to wait. The late reply, if one comes, is ignored: the
- * entry is sent again later, and a PUT sent twice changes nothing.
+ * answer, for as long as the browser cares to wait. At the limit the request is aborted, so it
+ * cannot be delivered after the entry's next send and overwrite a newer write; the entry is sent
+ * again later. Bytes that had already reached the server before the abort may still be applied,
+ * and a PUT of the same body sent again changes nothing.
  */
 export const OUTBOX_SEND_TIMEOUT_MS = 10_000
 
@@ -77,6 +89,8 @@ export interface OutboxEntry {
   seq: number
   /** Counts the writes the entry has taken, so a send never removes a write made while it ran. */
   version: number
+  /** The user the entry was queued under; absent only if it was queued before `adopt` ran. */
+  userId?: string
 }
 
 /** A refusal the page shows once, inline, near what was lost. */
@@ -94,8 +108,8 @@ export interface OutboxState {
 }
 
 export type SaveResult =
-  /** The server has it. */
-  | { status: 'sent' }
+  /** The server has it. `response` is what it answered with, when it answered with something. */
+  | { status: 'sent'; response?: unknown }
   /** It is kept on this phone and goes out when a connection allows. */
   | { status: 'queued' }
   /** The server refused it, in these words; it is not queued. */
@@ -103,7 +117,7 @@ export type SaveResult =
 
 /** What one attempt to send an entry came to. */
 export type SendResult =
-  | { kind: 'sent' }
+  | { kind: 'sent'; response?: unknown }
   /** No connection, a 5xx, a 408 or a 429: keep the entry and try again later. */
   | { kind: 'retry' }
   /** Any other 4xx: the entry will never be accepted. */
@@ -120,6 +134,8 @@ export interface OutboxStore {
    * the array it was given leaves the store as it is. Resolves to the stored entries.
    */
   transact(change: (entries: OutboxEntry[]) => OutboxEntry[]): Promise<OutboxEntry[]>
+  /** Removes everything stored, by whatever means the store has. */
+  clear(): Promise<void>
 }
 
 /** A queue in memory: for tests, and for a browser that will not open IndexedDB. */
@@ -131,6 +147,10 @@ export function memoryStore(): OutboxStore {
       const next = change([...stored])
       stored = [...next]
       return Promise.resolve([...stored])
+    },
+    clear: () => {
+      stored = []
+      return Promise.resolve()
     },
   }
 }
@@ -156,14 +176,31 @@ function openDatabase(): Promise<IDBDatabase> {
   })
 }
 
+/** The queue in IndexedDB, which can also be deleted outright (see `destroy`). */
+export interface IndexedDbStore extends OutboxStore {
+  /**
+   * Deletes the database itself. It works when a transaction does not (a connection the browser
+   * closed while the page was in the background), so it is the second try at emptying the queue.
+   */
+  destroy(): Promise<void>
+}
+
 /** The queue in IndexedDB: database `rl-outbox`, store `entries`, keyed by URL. */
-export function indexedDbStore(): OutboxStore {
+export function indexedDbStore(): IndexedDbStore {
   let opened: Promise<IDBDatabase> | null = null
   const database = (): Promise<IDBDatabase> => {
-    opened ??= openDatabase()
+    opened ??= openDatabase().then((db) => {
+      // Another tab deleting the database, or the browser upgrading it, must not be held up by
+      // this connection; the next operation opens a new one.
+      db.onversionchange = () => {
+        db.close()
+        opened = null
+      }
+      return db
+    })
     return opened
   }
-  return {
+  const store: IndexedDbStore = {
     async read() {
       const db = await database()
       return new Promise<OutboxEntry[]>((resolve, reject) => {
@@ -208,7 +245,34 @@ export function indexedDbStore(): OutboxStore {
         }
       })
     },
+    async clear() {
+      await store.transact(() => [])
+    },
+    async destroy() {
+      const connection = opened
+      opened = null
+      try {
+        ;(await connection)?.close()
+      } catch {
+        // It never opened, so there is nothing to close.
+      }
+      await new Promise<void>((resolve, reject) => {
+        const request = indexedDB.deleteDatabase(DB_NAME)
+        request.onsuccess = () => {
+          resolve()
+        }
+        request.onerror = () => {
+          reject(request.error ?? new Error('IndexedDB did not delete.'))
+        }
+        // Another tab still holds the database: the browser deletes it as soon as that tab lets
+        // go, which is all that can be done from here, so the sign-out does not wait for it.
+        request.onblocked = () => {
+          resolve()
+        }
+      })
+    },
   }
+  return store
 }
 
 /**
@@ -241,6 +305,26 @@ export function defaultStore(): OutboxStore {
       }
       return fallback.transact(change)
     },
+    async clear() {
+      await fallback.clear()
+      if (!broken) {
+        try {
+          await primary.clear()
+          return
+        } catch {
+          broken = true
+        }
+      }
+      // IndexedDB failed this clear or an earlier call, so rows may still be on disk, and the next
+      // visit would read them. Deleting the database does not depend on the transaction that failed.
+      try {
+        await primary.destroy()
+        broken = false
+      } catch {
+        // Nothing more can be done from the page. Entries carry their user (`adopt`), so a later
+        // sign-in as someone else drops them unsent.
+      }
+    },
   }
 }
 
@@ -249,7 +333,8 @@ export function defaultStore(): OutboxStore {
 export interface OutboxDeps {
   store: OutboxStore
   routes: readonly OutboxRoute[]
-  send: (entry: OutboxEntry) => Promise<SendResult>
+  /** Sends one entry. The signal fires when the send has run out of time: stop the request. */
+  send: (entry: OutboxEntry, signal: AbortSignal) => Promise<SendResult>
   now: () => number
   isOnline: () => boolean
   /** Milliseconds one send may take; `OUTBOX_SEND_TIMEOUT_MS` when absent. */
@@ -266,7 +351,13 @@ export interface Outbox {
   save(url: string, body: Readonly<Record<string, unknown>>): Promise<SaveResult>
   /** Sends what is queued, oldest first. One run at a time; a call during a run joins it. */
   flush(): Promise<void>
-  /** Forgets everything queued: sign-out and a 401. */
+  /**
+   * Binds the queue to the signed-in user: entries queued under another user are dropped unsent,
+   * entries with no user (queued in the moment before the user was known) are taken over, and what
+   * is queued from now on carries this user's id. Call it before the first `flush` of a session.
+   */
+  adopt(userId: string): Promise<void>
+  /** Forgets everything queued: sign-out, a new sign-in and a 401. */
   clear(): Promise<void>
   dismissNotice(id: number): void
   /** Called after each entry the server accepted. Returns the way to stop listening. */
@@ -286,17 +377,21 @@ function queueWrite(
   url: string,
   body: Readonly<Record<string, unknown>>,
   at: number,
+  userId: string | null,
 ): OutboxEntry[] {
   const incoming = withoutUndefined(body)
+  const owner = userId === null ? {} : { userId }
   const existing = entries.find((entry) => entry.url === url)
   if (existing !== undefined) {
     const joined = route.combine === 'merge' ? { ...existing.body, ...incoming } : incoming
     return entries.map((entry) =>
-      entry === existing ? { ...existing, body: joined, version: existing.version + 1 } : entry,
+      entry === existing
+        ? { ...existing, ...owner, body: joined, version: existing.version + 1 }
+        : entry,
     )
   }
   const seq = entries.reduce((highest, entry) => Math.max(highest, entry.seq), 0) + 1
-  return [...entries, { url, body: incoming, queuedAt: at, seq, version: 1 }]
+  return [...entries, { url, body: incoming, queuedAt: at, seq, version: 1, ...owner }]
 }
 
 /** The queue without this send: an entry written to again while it was sent stays. */
@@ -305,21 +400,36 @@ function withoutSent(entries: OutboxEntry[], sent: OutboxEntry): OutboxEntry[] {
 }
 
 /**
- * What a run of `flush` tells the `save` that waited on it: the URLs the server refused, and
- * whether the run ended because the session is gone (a 401), which empties the queue.
+ * What a run of `flush` tells the `save` that waited on it: the URLs the server refused, what it
+ * answered for the ones it took, and whether the run ended because the session is gone (a 401),
+ * which empties the queue.
  */
 interface Report {
   refused: Map<string, string>
+  responses: Map<string, unknown>
   signedOut: boolean
 }
 
-/** The send's own answer, or `retry` when it fails outright or takes longer than `ms`. */
-function withTimeout(attempt: Promise<SendResult>, ms: number): Promise<SendResult> {
+const newReport = (): Report => ({ refused: new Map(), responses: new Map(), signedOut: false })
+
+/**
+ * The send's own answer, or `retry` when it fails outright or takes longer than `ms`. At the limit
+ * the request is aborted, so a reply or a delivery that is late cannot land after the next send.
+ */
+function sendWithTimeout(
+  send: OutboxDeps['send'],
+  entry: OutboxEntry,
+  ms: number,
+): Promise<SendResult> {
+  const controller = new AbortController()
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
+      controller.abort()
       resolve({ kind: 'retry' })
     }, ms)
-    attempt.then(
+    new Promise<SendResult>((started) => {
+      started(send(entry, controller.signal))
+    }).then(
       (result) => {
         clearTimeout(timer)
         resolve(result)
@@ -342,7 +452,9 @@ export function createOutbox(deps: OutboxDeps): Outbox {
   let running: Promise<Report> | null = null
   let again = false
   let halted = false
-  let report: Report = { refused: new Map(), signedOut: false }
+  let report: Report = newReport()
+  /** The signed-in user the queue belongs to; null until `adopt` (tests that never sign in). */
+  let owner: string | null = null
   /** URLs a `save` is waiting on: their refusal goes to that caller, not to a notice. */
   const waiting = new Map<string, number>()
 
@@ -384,7 +496,7 @@ export function createOutbox(deps: OutboxDeps): Outbox {
         return
       }
       tried.add(`${next.url}#${String(next.version)}`)
-      const result = await withTimeout(send(next), sendTimeoutMs)
+      const result = await sendWithTimeout(send, next, sendTimeoutMs)
       if (result.kind === 'retry') {
         halted = true
         return
@@ -397,6 +509,7 @@ export function createOutbox(deps: OutboxDeps): Outbox {
       }
       entries = await remove(next)
       if (result.kind === 'sent') {
+        if (result.response !== undefined) report.responses.set(next.url, result.response)
         for (const listener of [...sentListeners]) listener(next)
         continue
       }
@@ -423,7 +536,7 @@ export function createOutbox(deps: OutboxDeps): Outbox {
       return running
     }
     halted = false
-    report = { refused: new Map(), signedOut: false }
+    report = newReport()
     const current = report
     const run = (async (): Promise<Report> => {
       try {
@@ -441,8 +554,19 @@ export function createOutbox(deps: OutboxDeps): Outbox {
   }
 
   async function clear(): Promise<void> {
-    const entries = await store.transact(() => [])
-    publish({ entries: [...entries], notices: [] })
+    await store.clear()
+    publish({ entries: [], notices: [] })
+  }
+
+  async function adopt(userId: string): Promise<void> {
+    owner = userId
+    const entries = await store.transact((current) => {
+      if (current.every((entry) => entry.userId === userId)) return current
+      return current
+        .filter((entry) => entry.userId === undefined || entry.userId === userId)
+        .map((entry) => (entry.userId === userId ? entry : { ...entry, userId }))
+    })
+    publish({ entries: [...entries].sort(bySeq) })
   }
 
   // The queue left by an earlier visit is read at once, so the page can show it.
@@ -462,7 +586,7 @@ export function createOutbox(deps: OutboxDeps): Outbox {
       waiting.set(url, (waiting.get(url) ?? 0) + 1)
       try {
         const entries = await store.transact((current) =>
-          queueWrite(current, route, url, body, now()),
+          queueWrite(current, route, url, body, now(), owner),
         )
         publish({ entries: [...entries].sort(bySeq) })
         const finished = await flush()
@@ -474,9 +598,9 @@ export function createOutbox(deps: OutboxDeps): Outbox {
             reason: render(TEMPLATES['today.outbox.signed-out'], {}, 'mi'),
           }
         }
-        return state.entries.some((entry) => entry.url === url)
-          ? { status: 'queued' }
-          : { status: 'sent' }
+        if (state.entries.some((entry) => entry.url === url)) return { status: 'queued' }
+        const response = finished.responses.get(url)
+        return response === undefined ? { status: 'sent' } : { status: 'sent', response }
       } finally {
         const left = (waiting.get(url) ?? 1) - 1
         if (left <= 0) waiting.delete(url)
@@ -486,6 +610,7 @@ export function createOutbox(deps: OutboxDeps): Outbox {
     async flush() {
       await flush()
     },
+    adopt,
     clear,
     dismissNotice(id) {
       publish({ notices: state.notices.filter((notice) => notice.id !== id) })
@@ -502,10 +627,10 @@ export function createOutbox(deps: OutboxDeps): Outbox {
 // ---- The app's outbox ------------------------------------------------------------------------
 
 /** Sends one entry through the same client as every other request. */
-export async function sendEntry(entry: OutboxEntry): Promise<SendResult> {
+export async function sendEntry(entry: OutboxEntry, signal?: AbortSignal): Promise<SendResult> {
   try {
-    await api('PUT', entry.url, entry.body)
-    return { kind: 'sent' }
+    const response = await api<unknown>('PUT', entry.url, entry.body, signal)
+    return response === undefined ? { kind: 'sent' } : { kind: 'sent', response }
   } catch (error) {
     if (!(error instanceof ApiError)) return { kind: 'retry' }
     const { status } = error
@@ -541,38 +666,79 @@ export function useOutboxState(): OutboxState {
 }
 
 /**
- * Keeps the queue moving for as long as the signed-in app is open: sends it when the app opens, on
- * `online` and on a return to the foreground, clears it on a 401, and refreshes what an entry
- * changed once the server has it.
+ * Reads again what a sent write to `url` changed: the queries its route lists. Two things start
+ * this for one write sent at once: the listener in `useOutboxReplay`, which also covers a replay,
+ * and the mutation that saved it, which waits for the fresh data before it reports back. The route
+ * is the only list of what to read. The mutation passes `cancelRefetch: false` so that its call
+ * joins the read the listener has just started instead of cancelling it and starting a second
+ * one: one write, one request per query.
  */
-export function useOutboxReplay(): void {
+export function refreshAfterSend(
+  queryClient: QueryClient,
+  url: string,
+  options: { cancelRefetch?: boolean } = {},
+): Promise<unknown> {
+  const route = OUTBOX_ROUTES.find((candidate) => candidate.matches(url))
+  return Promise.all(
+    (route?.invalidates ?? []).map((key) =>
+      queryClient.invalidateQueries(
+        { queryKey: [key] },
+        { cancelRefetch: options.cancelRefetch ?? true },
+      ),
+    ),
+  )
+}
+
+/**
+ * Everything this device keeps for the signed-in session: the unsent drafts in local storage and
+ * the writes waiting in the outbox. Sign-out and a 401 call it, so no health data outlives the
+ * session (ADR 0012). Local storage is purged first and synchronously, because it cannot fail
+ * halfway; the outbox clear follows.
+ */
+export async function purgeDeviceData(): Promise<void> {
+  purgeDrafts()
+  await getOutbox().clear()
+}
+
+/**
+ * Keeps the queue moving for as long as the signed-in app is open: binds it to the user, sends it
+ * when the app opens, on `online` and on a return to the foreground, purges it on a 401, and
+ * refreshes what an entry changed once the server has it (`refreshAfterSend`). With no user (not
+ * yet known, or signed out) it does nothing.
+ */
+export function useOutboxReplay(userId: string | null): void {
   const queryClient = useQueryClient()
   useEffect(() => {
+    if (userId === null) return undefined
     const outbox = getOutbox()
+    // Nothing is sent before the queue has been checked against the user, or an entry left by
+    // someone else could go out under this session.
+    let ready = false
     const flush = () => {
-      void outbox.flush()
+      if (ready) void outbox.flush()
     }
     const onVisible = () => {
       if (document.visibilityState === 'visible') flush()
     }
     const onUnauthorized = () => {
-      void outbox.clear()
+      void purgeDeviceData()
     }
     window.addEventListener('online', flush)
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
     const stopListening = outbox.onSent((entry) => {
-      const route = OUTBOX_ROUTES.find((candidate) => candidate.matches(entry.url))
-      for (const key of route?.invalidates ?? []) {
-        void queryClient.invalidateQueries({ queryKey: [key] })
-      }
+      void refreshAfterSend(queryClient, entry.url)
     })
-    flush()
+    void outbox.adopt(userId).then(() => {
+      ready = true
+      flush()
+    })
     return () => {
+      ready = false
       window.removeEventListener('online', flush)
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
       stopListening()
     }
-  }, [queryClient])
+  }, [queryClient, userId])
 }
