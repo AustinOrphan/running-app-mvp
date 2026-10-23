@@ -15,7 +15,6 @@ import {
   zoneProposals,
 } from '../../shared/engine/index.ts'
 import { P } from '../../shared/engine/params/index.ts'
-import { readinessSnapshot } from '../../shared/engine/readiness.ts'
 import type {
   ChecklistResult,
   EngineInput,
@@ -53,6 +52,7 @@ import {
   toPlanSession,
   toPlanWeek,
 } from '../serialize.ts'
+import { loadAthleteContext } from './athleteState.ts'
 import { assessSessionById } from './execution.ts'
 import { currentZones, gatherContextInput, gatherEngineInput, sessionSpec } from './engineInput.ts'
 import { MAX_PLAN_WEEKS } from './plan.ts'
@@ -977,10 +977,9 @@ export async function todayView(
 ): Promise<TodayView> {
   const { prisma } = deps
   const { userId, today } = args
-  const plan = await prisma.plan.findFirst({
-    where: { userId, status: 'active', generatorVersion: { gte: 2 } },
-    orderBy: { createdAt: 'desc' },
-  })
+  // The active version-2 plan and readiness come from the snapshot the input below is built on.
+  const context = await loadAthleteContext(deps, { userId, today })
+  const plan = context.plan
   const input = await gatherContextInput(
     deps,
     { userId, today, goalId: plan?.goalId ?? null },
@@ -998,7 +997,11 @@ export async function todayView(
     sessions.map((s) => ({ ...sessionSpec(s), id: s.id })),
   ).map((entry, i) => ({ ...entry, session: sessions[i]! }))
 
-  const readiness = readinessSnapshot(input, today)
+  // The snapshot's readiness is shared and frozen, so the screening note goes on a copy.
+  const readiness: TodayView['readiness'] = {
+    ...context.readiness,
+    redFlags: [...context.readiness.redFlags],
+  }
   const reds = input.screeningFlags ?? 0
   if (reds >= P.j5.redsHoldFlags.value) {
     readiness.redFlags.push({

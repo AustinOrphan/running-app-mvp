@@ -24,6 +24,7 @@ import { researchRouter } from './routes/research.ts'
 import { reviewsRouter } from './routes/reviews.ts'
 import { screeningsRouter } from './routes/screenings.ts'
 import { settingsRouter } from './routes/settings.ts'
+import { stateRouter } from './routes/state.ts'
 import { todayRouter } from './routes/today.ts'
 import { weatherRouter } from './routes/weather.ts'
 import { weeksRouter } from './routes/weeks.ts'
@@ -94,6 +95,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api', authRouter(deps))
   app.use('/api', requireAuth(deps))
   app.use('/api/settings', settingsRouter(deps))
+  app.use('/api/state', stateRouter(deps))
   app.use('/api/activities', activitiesRouter(deps))
   app.use('/api/imports', importsRouter(deps))
   app.use('/api/goals', goalsRouter(deps))
