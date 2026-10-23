@@ -366,8 +366,9 @@ describe('when the stored insight is stale', () => {
     // A pain score for that day arrives after the insight was stored.
     expect((await put({ painScore: 7 })).status).toBe(200)
     vi.mocked(standoutFacts).mockClear()
+    // The check-in, not the run's own rating, supplies the figure, so the check-in sentence is used.
     const pain = await viewOf(u, run.id)
-    expect(templates(pain)).toEqual(['standout.pain'])
+    expect(templates(pain)).toEqual(['standout.pain-checkin'])
     expect(pain.items[0]?.slots).toEqual({ pain: { kind: 'count', n: 7 } })
     expect(vi.mocked(standoutFacts)).toHaveBeenCalledTimes(1)
 
