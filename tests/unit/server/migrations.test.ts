@@ -401,6 +401,96 @@ function verifySyncLog(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, 'SELECT count(*) AS n FROM "Integration"')).toEqual([{ n: 2 }])
 }
 
+/**
+ * The previous release's places: a profile with a home location, a goal with a race location and
+ * an activity with weather, which are what the caches are keyed on and what they replace. The
+ * weather cache adds two tables beside them and touches none.
+ */
+function seedPlaces(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'AthleteProfile', {
+    userId: 'u1',
+    homeLat: 20.5,
+    homeLng: -30.12,
+    updatedAt: STAMP,
+  })
+  insert(db, 'Goal', {
+    id: 'g1',
+    userId: 'u1',
+    name: 'Synthetic marathon',
+    priority: 'A',
+    targetDate: '2027-04-18',
+    raceLat: 40.12,
+    raceLng: -105.23,
+    updatedAt: STAMP,
+  })
+  insert(db, 'Activity', {
+    id: 'a1',
+    userId: 'u1',
+    date: '2026-10-06',
+    type: 'run',
+    durationSec: 2700,
+    distanceM: 8000,
+    tempC: 11.5,
+    weatherSource: 'open-meteo',
+    updatedAt: STAMP,
+  })
+}
+
+function verifyWeatherCache(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Both tables start empty: the old in-memory caches left nothing to carry over.
+  for (const table of ['ForecastCache', 'ClimateCache']) {
+    expect(tableNames(db)).toContain(table)
+    expect(rowsOf(db, `SELECT count(*) AS n FROM "${table}"`)).toEqual([{ n: 0 }])
+  }
+  expectIndex(db, 'ForecastCache', ['latE1', 'lngE1'], true)
+  expectIndex(db, 'ClimateCache', ['latE2', 'lngE2', 'monthDay', 'startHour', 'windowHours'], true)
+
+  // A forecast cell is integer tenths of a degree; only the cell is required.
+  insert(db, 'ForecastCache', { id: 'f1', latE1: 205, lngE1: -301 })
+  insert(db, 'ForecastCache', { id: 'f2', latE1: 205, lngE1: -300 })
+  expect(rowsOf(db, `SELECT * FROM "ForecastCache" WHERE id = 'f1'`)[0]).toMatchObject({
+    hours: '[]',
+    fetchedAt: null,
+    failedAt: null,
+    lastError: null,
+  })
+  expect(() => {
+    insert(db, 'ForecastCache', { id: 'f3', latE1: 205, lngE1: -301 })
+  }).toThrow(/UNIQUE/)
+
+  // A race climate is one row per cell, month and day, start hour and window length.
+  const cell = { latE2: 4012, lngE2: -10523, monthDay: '04-18', startHour: 8, windowHours: 4 }
+  insert(db, 'ClimateCache', { id: 'c1', ...cell })
+  insert(db, 'ClimateCache', { id: 'c2', ...cell, windowHours: 5 })
+  insert(db, 'ClimateCache', { id: 'c3', ...cell, monthDay: '04-19', wbgtC: 17.4, complete: 1 })
+  expect(rowsOf(db, `SELECT * FROM "ClimateCache" WHERE id = 'c1'`)[0]).toMatchObject({
+    wbgtC: null,
+    samples: 0,
+    yearsRead: 0,
+    complete: 0,
+    fetchedAt: null,
+    failedAt: null,
+    lastError: null,
+  })
+  expect(() => {
+    insert(db, 'ClimateCache', { id: 'c4', ...cell })
+  }).toThrow(/UNIQUE/)
+
+  // The caches hold places, not people: removing the user takes nothing from them.
+  db.exec(`DELETE FROM "User" WHERE id = 'u1'`)
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "ForecastCache"')).toEqual([{ n: 2 }])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "ClimateCache"')).toEqual([{ n: 3 }])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -411,6 +501,11 @@ const CASES: FixtureCase[] = [
     migration: 'foundation_sync_log',
     seed: seedSyncState,
     verify: verifySyncLog,
+  },
+  {
+    migration: 'foundation_weather_cache',
+    seed: seedPlaces,
+    verify: verifyWeatherCache,
   },
 ]
 

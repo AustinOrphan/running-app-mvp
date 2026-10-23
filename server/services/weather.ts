@@ -1,15 +1,6 @@
 import type { Deps } from '../app.ts'
-import { HttpError } from '../errors.ts'
 import { fetchArchive, fetchForecast, type WeatherHour } from '../providers/openMeteo.ts'
 import { loadProfile } from '../serialize.ts'
-
-export interface ForecastHour {
-  time: string
-  tempC: number | null
-  dewPointC: number | null
-  humidityPct: number | null
-  windKph: number | null
-}
 
 const HOUR_MS = 3_600_000
 const DAY_MS = 86_400_000
@@ -19,7 +10,6 @@ const ARCHIVE_AFTER_DAYS = 5
 const RECENT_PAST_DAYS = 7
 /** One archive request never spans more than this many days. */
 const MAX_RANGE_DAYS = 90
-const FORECAST_TTL_MS = HOUR_MS
 /** Words in an activity's subtype that mark it as indoors (matched without regard to case). */
 const INDOOR_SUBTYPES = ['treadmill', 'virtual', 'indoor']
 
@@ -175,32 +165,4 @@ export async function enrichWeather(
 
   if (updated === 0 && firstError !== null) throw failure(firstError)
   return updated
-}
-
-const forecastCache = new Map<string, { at: number; hours: ForecastHour[] }>()
-
-/** Empties the forecast cache; tests use it. */
-export function resetForecastCache(): void {
-  forecastCache.clear()
-}
-
-/** Seven days of hourly forecast at home, cached for one hour; null without a home location. */
-export async function getForecast(
-  deps: Deps,
-  userId: string,
-  fetchFn: typeof fetch,
-): Promise<{ hours: ForecastHour[] } | null> {
-  const profile = await loadProfile(deps.prisma, userId)
-  if (profile.homeLat === null || profile.homeLng === null) return null
-  const place = { lat: cell(profile.homeLat), lng: cell(profile.homeLng) }
-  const key = `${userId} ${place.lat},${place.lng}`
-  const cached = forecastCache.get(key)
-  if (cached && Date.now() - cached.at < FORECAST_TTL_MS) return { hours: cached.hours }
-  try {
-    const hours = await fetchForecast(fetchFn, { ...place, forecastDays: 7 })
-    forecastCache.set(key, { at: Date.now(), hours })
-    return { hours }
-  } catch (error) {
-    throw new HttpError(502, 'internal', failure(error).message)
-  }
 }

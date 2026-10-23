@@ -8,16 +8,30 @@ import request from 'supertest'
 import type { Test } from 'supertest'
 import { inject } from 'vitest'
 import type { Units } from '../../shared/types.ts'
-import { createApp } from '../../server/app.ts'
+import { createApp, type Deps } from '../../server/app.ts'
 import { signSession } from '../../server/auth/session.ts'
 import type { Config } from '../../server/config.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
+import { settleWeatherCache } from '../../server/services/weatherCache.ts'
 
-export interface TestCtx {
+/**
+ * The app's deps plus the express app. `fetch` is the injected network client that the routes and
+ * the services read at each call: it starts as `noNetwork()`, so a call no test planned fails
+ * loudly instead of reaching the network; a test sets `ctx.fetch = fakeFetch({...})`.
+ */
+export interface TestCtx extends Deps {
   app: Express
   prisma: PrismaClient
   config: Config
   close(): Promise<void>
+}
+
+/** A `fetch` that rejects every call and names the URL, so a test never reaches the network. */
+export function noNetwork(): typeof fetch {
+  return (input) => {
+    const url = input instanceof Request ? input.url : String(input)
+    return Promise.reject(new Error(`A test reached the network (${url}); set ctx.fetch.`))
+  }
 }
 
 export interface TestUser {
@@ -46,17 +60,18 @@ export async function createTestCtx(
   }
   const prisma = createPrisma(config.databaseUrl)
   await initSqlite(prisma)
-  const app = createApp({ prisma, config }, appOpts)
+  // The app keeps this object, so a later `ctx.fetch = ...` reaches the routes too.
+  const deps: Deps = { prisma, config, fetch: noNetwork() }
+  const app = createApp(deps, appOpts)
 
-  return {
+  return Object.assign(deps, {
     app,
-    prisma,
-    config,
     async close() {
+      await settleWeatherCache()
       await prisma.$disconnect()
       rmSync(dir, { recursive: true, force: true })
     },
-  }
+  })
 }
 
 /** Inserts a user directly (bcrypt cost 4 keeps tests fast) and returns a ready session cookie. */

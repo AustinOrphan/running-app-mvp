@@ -36,6 +36,12 @@ import { mountStatic } from './static.ts'
 export interface Deps {
   prisma: PrismaClient
   config: Config
+  /**
+   * The network client of work that is not a scheduled job (the weather cache, a manual sync). Left
+   * out in production, where the global `fetch` is looked up at each call; tests set it, read at
+   * each call too, so that none reaches the network and none stubs the global.
+   */
+  fetch?: typeof fetch
 }
 
 const REQUEST_ID = /^[\w.-]{1,64}$/

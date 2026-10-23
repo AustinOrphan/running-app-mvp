@@ -54,7 +54,7 @@ import {
   toWellnessDay,
 } from '../serialize.ts'
 import { currentGoalFor } from './currentGoal.ts'
-import { raceClimate } from './raceClimate.ts'
+import { readClimate, type RaceClimate } from './weatherCache.ts'
 
 /** Snapshots kept per client; a runner reads a handful of days and the picture is large. */
 export const SNAPSHOT_LRU_SIZE = 8
@@ -115,6 +115,12 @@ export interface AthleteContext {
    * once per picture.
    */
   prediction(goalId: string): Promise<Prediction | null>
+  /**
+   * The cached race-day climate of a goal of the user (`ClimateCache`, filled by the weather job
+   * and by plan generation). Null for an unknown goal, a goal without a place, or a place not read
+   * yet. Never fetches. A refresh writes a state table, so the picture it belongs to is dropped.
+   */
+  climate(goalId: string): Promise<RaceClimate | null>
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -367,19 +373,13 @@ function zoneChangesOf(
 
 /** The goal model for one of the context's goals; null when the goal is unknown or has no distance. */
 export async function goalModelFor(
-  ctx: Pick<AthleteContext, 'goals' | 'profile' | 'state' | 'asOf'>,
+  ctx: Pick<AthleteContext, 'goals' | 'state' | 'climate'>,
   goalId: string,
   opts: { climate: boolean },
 ): Promise<GoalModel | null> {
   const goal = ctx.goals.find((candidate) => candidate.id === goalId)
   if (!goal || goal.distanceM === null) return null
-  const climate = opts.climate
-    ? await raceClimate(
-        goal,
-        { lat: ctx.profile.homeLat, lng: ctx.profile.homeLng, use: ctx.profile.useHomeWeather },
-        ctx.asOf,
-      )
-    : null
+  const climate = opts.climate ? await ctx.climate(goal.id) : null
   return goalModel(goal, ctx.state, climate)
 }
 
@@ -497,6 +497,7 @@ async function buildContext(
 
   const goals = goalRows.map(toGoal)
   const predictions = new Map<string, Promise<Prediction | null>>()
+  const climates = new Map<string, Promise<RaceClimate | null>>()
   const context: AthleteContext = {
     userId,
     asOf: today,
@@ -535,6 +536,21 @@ async function buildContext(
       predictions.set(goalId, pending)
       // A failure is not remembered; the next caller tries again.
       void pending.catch(() => predictions.delete(goalId))
+      return pending
+    },
+    climate(goalId) {
+      const known = climates.get(goalId)
+      if (known) return known
+      const goal = goals.find((candidate) => candidate.id === goalId)
+      const pending = goal
+        ? readClimate(prisma, goal, {
+            lat: profile.homeLat,
+            lng: profile.homeLng,
+            use: profile.useHomeWeather,
+          })
+        : Promise.resolve(null)
+      climates.set(goalId, pending)
+      void pending.catch(() => climates.delete(goalId))
       return pending
     },
   }

@@ -1,7 +1,16 @@
 import { afterEach, afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
-import { enrichWeather, getForecast, resetForecastCache } from '../../server/services/weather.ts'
+import type { ForecastView } from '../../shared/types.ts'
+import { enrichWeather } from '../../server/services/weather.ts'
+import { settleWeatherCache } from '../../server/services/weatherCache.ts'
 import { fakeFetch } from '../fakeFetch.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import {
+  client,
+  createTestCtx,
+  noNetwork,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 const ARCHIVE = 'https://archive-api.open-meteo.com/v1/archive'
 const FORECAST = 'https://api.open-meteo.com/v1/forecast'
@@ -22,12 +31,13 @@ afterAll(async () => {
 beforeEach(async () => {
   await ctx.prisma.activity.deleteMany()
   await ctx.prisma.athleteProfile.deleteMany()
-  resetForecastCache()
+  await ctx.prisma.forecastCache.deleteMany()
 })
 
-afterEach(() => {
+afterEach(async () => {
+  await settleWeatherCache()
   vi.useRealTimers()
-  vi.unstubAllGlobals()
+  ctx.fetch = noNetwork()
 })
 
 /** Hours of every date from `start` to `end` inclusive, as Open-Meteo writes them (GMT). */
@@ -451,75 +461,22 @@ describe('enrichWeather', () => {
   })
 })
 
-describe('getForecast', () => {
+describe('GET /api/weather/forecast', () => {
   async function setHome() {
     await ctx.prisma.athleteProfile.create({
       data: { userId: user.id, homeLat: 20.5, homeLng: -30.12 },
     })
   }
 
-  test('is null without a home location', async () => {
-    const fetchFn = fakeFetch({})
-    expect(await getForecast(ctx, user.id, fetchFn)).toBeNull()
-  })
+  function atMinutes(minutes: number): void {
+    vi.setSystemTime(new Date(NOW.getTime() + minutes * 60_000))
+  }
 
-  test('returns seven days of hours at home', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(NOW)
-    const calls: URL[] = []
-    const fetchFn = fakeFetch({ [`GET ${FORECAST}`]: forecastRoute(calls) })
-    await setHome()
+  async function forecast(): Promise<ForecastView> {
+    const res = await client(ctx, user).get('/api/weather/forecast').expect(200)
+    return res.body as ForecastView
+  }
 
-    const forecast = await getForecast(ctx, user.id, fetchFn)
-
-    expect(calls).toHaveLength(1)
-    expect(calls[0]!.searchParams.get('latitude')).toBe('20.5')
-    expect(calls[0]!.searchParams.get('longitude')).toBe('-30.1')
-    expect(calls[0]!.searchParams.get('forecast_days')).toBe('7')
-    expect(calls[0]!.searchParams.get('past_days')).toBeNull()
-    expect(forecast!.hours).toHaveLength(168)
-    expect(forecast!.hours[0]).toEqual({
-      time: '2026-03-20T00:00:00Z',
-      tempC: 0,
-      dewPointC: -5,
-      humidityPct: 50,
-      windKph: 0,
-    })
-    expect(forecast!.hours[13]).toMatchObject({ time: '2026-03-20T13:00:00Z', tempC: 13 })
-  })
-
-  test('caches for one hour per user and place', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(NOW)
-    const calls: URL[] = []
-    const fetchFn = fakeFetch({ [`GET ${FORECAST}`]: forecastRoute(calls) })
-    await setHome()
-
-    await getForecast(ctx, user.id, fetchFn)
-    vi.setSystemTime(new Date(NOW.getTime() + 59 * 60_000))
-    await getForecast(ctx, user.id, fetchFn)
-    expect(calls).toHaveLength(1)
-
-    vi.setSystemTime(new Date(NOW.getTime() + 61 * 60_000))
-    await getForecast(ctx, user.id, fetchFn)
-    expect(calls).toHaveLength(2)
-
-    await ctx.prisma.athleteProfile.update({
-      where: { userId: user.id },
-      data: { homeLat: 21.5 },
-    })
-    await getForecast(ctx, user.id, fetchFn)
-    expect(calls).toHaveLength(3)
-  })
-
-  test('turns a failed request into an error', async () => {
-    const fetchFn = fakeFetch({ [`GET ${FORECAST}`]: () => new Response('no', { status: 503 }) })
-    await setHome()
-    await expect(getForecast(ctx, user.id, fetchFn)).rejects.toThrow(/Open-Meteo/)
-  })
-})
-
-describe('GET /api/weather/forecast', () => {
   test('requires a session', async () => {
     await client(ctx).get('/api/weather/forecast').expect(401)
   })
@@ -528,29 +485,102 @@ describe('GET /api/weather/forecast', () => {
     await client(ctx, user).get('/api/weather/forecast').expect(404)
   })
 
-  test('returns the hours at home', async () => {
+  test('an empty cache waits for one fetch of seven days at the 0.1 degree home cell', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(NOW)
-    vi.stubGlobal('fetch', fakeFetch({ [`GET ${FORECAST}`]: forecastRoute([]) }))
-    await ctx.prisma.athleteProfile.create({
-      data: { userId: user.id, homeLat: 20.5, homeLng: -30.12 },
+    const calls: URL[] = []
+    ctx.fetch = fakeFetch({ [`GET ${FORECAST}`]: forecastRoute(calls) })
+    await setHome()
+
+    const view = await forecast()
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.searchParams.get('latitude')).toBe('20.5')
+    expect(calls[0]!.searchParams.get('longitude')).toBe('-30.1')
+    expect(calls[0]!.searchParams.get('forecast_days')).toBe('7')
+    expect(calls[0]!.searchParams.get('past_days')).toBeNull()
+    expect(view).toMatchObject({ fetchedAt: NOW.toISOString(), stale: false })
+    expect(view.hours).toHaveLength(168)
+    expect(view.hours[0]).toEqual({
+      time: '2026-03-20T00:00:00Z',
+      tempC: 0,
+      dewPointC: -5,
+      humidityPct: 50,
+      windKph: 0,
     })
-
-    const res = await client(ctx, user).get('/api/weather/forecast').expect(200)
-
-    const { hours } = res.body as { hours: unknown[] }
-    expect(hours).toHaveLength(168)
-    expect(hours[0]).toMatchObject({ time: '2026-03-20T00:00:00Z', tempC: 0 })
+    expect(view.hours[13]).toMatchObject({ time: '2026-03-20T13:00:00Z', tempC: 13 })
   })
 
-  test('answers 502 when the weather service fails', async () => {
-    vi.stubGlobal(
-      'fetch',
-      fakeFetch({ [`GET ${FORECAST}`]: () => new Response('no', { status: 500 }) }),
-    )
-    await ctx.prisma.athleteProfile.create({
-      data: { userId: user.id, homeLat: 20.5, homeLng: -30.12 },
+  test('a filled cell answers from the cache without a request, fresh for an hour', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(NOW)
+    const calls: URL[] = []
+    ctx.fetch = fakeFetch({ [`GET ${FORECAST}`]: forecastRoute(calls) })
+    await setHome()
+    await forecast()
+
+    atMinutes(59)
+    expect(await forecast()).toMatchObject({ fetchedAt: NOW.toISOString(), stale: false })
+    expect(calls).toHaveLength(1)
+  })
+
+  test('a stale cell answers at once as stale and refreshes in the background', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(NOW)
+    const calls: URL[] = []
+    ctx.fetch = fakeFetch({ [`GET ${FORECAST}`]: forecastRoute(calls) })
+    await setHome()
+    await forecast()
+
+    atMinutes(61)
+    expect(await forecast()).toMatchObject({ fetchedAt: NOW.toISOString(), stale: true })
+    await settleWeatherCache()
+    expect(calls).toHaveLength(2)
+    expect(await forecast()).toMatchObject({
+      fetchedAt: new Date(NOW.getTime() + 61 * 60_000).toISOString(),
+      stale: false,
     })
-    await client(ctx, user).get('/api/weather/forecast').expect(502)
+  })
+
+  test('a failed refresh keeps the old hours and waits out the back-off', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(NOW)
+    let calls = 0
+    let down = false
+    ctx.fetch = fakeFetch({
+      [`GET ${FORECAST}`]: (req) => {
+        calls += 1
+        return down ? new Response('no', { status: 503 }) : forecastRoute([])(req)
+      },
+    })
+    await setHome()
+    await forecast()
+
+    down = true
+    atMinutes(61)
+    await forecast()
+    await settleWeatherCache()
+    expect(calls).toBe(2)
+
+    // Inside the 15 minutes the stale hours are served and nobody asks again.
+    atMinutes(70)
+    const view = await forecast()
+    await settleWeatherCache()
+    expect(view).toMatchObject({ fetchedAt: NOW.toISOString(), stale: true })
+    expect(view.hours).toHaveLength(168)
+    expect(calls).toBe(2)
+
+    down = false
+    atMinutes(77)
+    await forecast()
+    await settleWeatherCache()
+    expect(calls).toBe(3)
+  })
+
+  test('answers 502 when an empty cache cannot be filled', async () => {
+    ctx.fetch = fakeFetch({ [`GET ${FORECAST}`]: () => new Response('no', { status: 500 }) })
+    await setHome()
+    const res = await client(ctx, user).get('/api/weather/forecast').expect(502)
+    expect(JSON.stringify(res.body)).toMatch(/Open-Meteo/)
   })
 })

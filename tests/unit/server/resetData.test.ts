@@ -8,6 +8,7 @@ import {
   clearUserData,
   parseSchemaModels,
   schemaModels,
+  sharedModels,
   userDataModels,
 } from '../../schemaModels.ts'
 
@@ -116,6 +117,23 @@ describe('which models resetData clears', () => {
     expect(expected.length).toBeGreaterThan(5)
     expect(
       userDataModels(schemaModels())
+        .map((model) => model.name)
+        .sort(),
+    ).toEqual(expected)
+  })
+
+  test('every shared cache is a table with neither a userId column nor a foreign key', async () => {
+    const expected: string[] = []
+    for (const table of await tableNames()) {
+      const columns = await rows(`PRAGMA table_info("${table}")`)
+      const hasUser = columns.some((column) => column.name === 'userId')
+      if (!hasUser && (await foreignKeys(table)).length === 0 && table !== 'User') {
+        expected.push(table)
+      }
+    }
+    expect(expected).toEqual(['ClimateCache', 'ForecastCache'])
+    expect(
+      sharedModels(schemaModels())
         .map((model) => model.name)
         .sort(),
     ).toEqual(expected)

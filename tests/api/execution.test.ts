@@ -17,10 +17,10 @@ import {
   runReplanJob,
 } from '../../server/jobs/scheduler.ts'
 import { storeParsed } from '../../server/services/activityStore.ts'
-import { resetClimateCache } from '../../server/services/engineInput.ts'
 import { runExecutionForActivity, runNightlyMatching } from '../../server/services/execution.ts'
-import { resetForecastCache } from '../../server/services/weather.ts'
-import { client, createTestCtx, seedUser, type TestCtx } from './helpers.ts'
+import { refreshWeatherCaches } from '../../server/services/weatherCache.ts'
+import { fakeFetch } from '../fakeFetch.ts'
+import { client, createTestCtx, noNetwork, seedUser, type TestCtx } from './helpers.ts'
 
 // The file parser's summary is a separate task; this stand-in keeps the store test independent.
 vi.mock('../../shared/importers/files/summarize.ts', () => ({
@@ -54,11 +54,12 @@ afterAll(async () => {
   await ctx.close()
 })
 
-afterEach(() => {
+afterEach(async () => {
   vi.unstubAllGlobals()
   vi.setSystemTime(new Date(2026, 9, 21, 12))
-  resetClimateCache()
-  resetForecastCache()
+  ctx.fetch = noNetwork()
+  await ctx.prisma.forecastCache.deleteMany()
+  await ctx.prisma.climateCache.deleteMany()
 })
 
 const TARGET = JSON.stringify({
@@ -768,21 +769,26 @@ describe('GET /api/today', () => {
     })
     await addRun(u.id, addDays(today, -1))
     const rated = await addRun(u.id, addDays(today, -2), { feel: 0 })
-    vi.stubGlobal('fetch', () => {
-      const times = Array.from(
-        { length: 24 },
-        (_, h) => `${today}T${String(h).padStart(2, '0')}:00`,
-      )
-      return Response.json({
-        hourly: {
-          time: times,
-          temperature_2m: times.map(() => 33),
-          relative_humidity_2m: times.map(() => 60),
-          dew_point_2m: times.map(() => 22),
-          wind_speed_10m: times.map(() => 5),
-        },
-      })
+    // The weather job fills the forecast cache; the request below only reads it.
+    ctx.fetch = fakeFetch({
+      'GET https://api.open-meteo.com/v1/forecast': () => {
+        const times = Array.from(
+          { length: 24 },
+          (_, h) => `${today}T${String(h).padStart(2, '0')}:00`,
+        )
+        return Response.json({
+          hourly: {
+            time: times,
+            temperature_2m: times.map(() => 33),
+            relative_humidity_2m: times.map(() => 60),
+            dew_point_2m: times.map(() => 22),
+            wind_speed_10m: times.map(() => 5),
+          },
+        })
+      },
     })
+    await refreshWeatherCaches(ctx, u.id)
+    ctx.fetch = noNetwork()
     const res = await client(ctx, u).get('/api/today')
     expect(res.status, JSON.stringify(res.body)).toBe(200)
     const view = res.body as TodayView

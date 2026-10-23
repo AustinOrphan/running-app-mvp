@@ -4,6 +4,7 @@ import { isIsoDate } from '../../shared/dates.ts'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { toGoal } from '../serialize.ts'
+import { warmWeatherCaches } from '../services/weatherCache.ts'
 
 /** Trimmed text; an empty string becomes null. */
 const optionalText = (max: number) =>
@@ -99,6 +100,17 @@ const goalPatch = z.object({
   supportLevel: goalFields.shape.supportLevel.unwrap().optional(),
 })
 
+/** The fields the race climate is read for: place, date, start time, length and whether it is open. */
+const CLIMATE_FIELDS = [
+  'raceLat',
+  'raceLng',
+  'targetDate',
+  'startTime',
+  'distanceM',
+  'targetTimeSec',
+  'status',
+] as const
+
 function checkUrl(value: string | null | undefined): string | null | undefined {
   if (value === undefined) return undefined
   return parse(optionalUrl, value)
@@ -153,6 +165,8 @@ export function goalsRouter(deps: Deps): Router {
         supportLevel: body.supportLevel,
       },
     })
+    // The race climate is read after the response, never during it.
+    warmWeatherCaches(deps, req.userId)
     res.status(201).json(toGoal(goal))
   })
 
@@ -201,6 +215,9 @@ export function goalsRouter(deps: Deps): Router {
         supportLevel: body.supportLevel,
       },
     })
+    if (CLIMATE_FIELDS.some((field) => body[field] !== undefined)) {
+      warmWeatherCaches(deps, req.userId)
+    }
     res.json(toGoal(goal))
   })
 

@@ -10,6 +10,7 @@ import { replanActivePlan } from '../services/planEngine.ts'
 import { syncProvider } from '../services/sync.ts'
 import { recordSyncRun, safeMessage } from '../services/syncLog.ts'
 import { enrichWeather } from '../services/weather.ts'
+import { refreshWeatherCaches } from '../services/weatherCache.ts'
 
 const MINUTE_MS = 60_000
 export const SYNC_INTERVAL_MS = 60 * MINUTE_MS
@@ -139,7 +140,13 @@ export async function runFolderJob(deps: Deps, log?: Log): Promise<void> {
   }
 }
 
-/** Fills weather on the newest activities that lack it, for every user. */
+/**
+ * The 10-minute weather job, for every user: fills weather on the newest activities that lack it,
+ * then refreshes the Open-Meteo caches (home forecast older than 60 minutes; race climates that are
+ * missing, incomplete or older than 30 days) through the injected `fetch`. This is the only place
+ * that fills those caches on a schedule; request handlers read them. The run counts the activities
+ * and the cache rows it stored, and is an error when either step failed.
+ */
 export async function runWeatherJob(
   deps: Deps,
   opts: { fetch: typeof fetch; now?: Date },
@@ -148,17 +155,26 @@ export async function runWeatherJob(
   const users = await deps.prisma.user.findMany({ select: { id: true } })
   for (const user of users) {
     const startedAt = new Date()
+    const now = opts.now ?? new Date()
+    let filled = 0
+    let error: unknown = null
     try {
-      const filled = await enrichWeather(deps, user.id, {
-        limit: WEATHER_BATCH,
-        fetch: opts.fetch,
-        now: opts.now ?? new Date(),
-      })
-      await recordJob(deps, 'weather', user.id, startedAt, { accepted: filled })
-    } catch (error) {
-      log?.warn({ reason: safeMessage(error) }, 'weather backfill failed')
-      await recordJob(deps, 'weather', user.id, startedAt, { error })
+      filled = await enrichWeather(deps, user.id, { limit: WEATHER_BATCH, fetch: opts.fetch, now })
+    } catch (failure) {
+      log?.warn({ reason: safeMessage(failure) }, 'weather backfill failed')
+      error = failure
     }
+    const caches = await refreshWeatherCaches(deps, user.id, { fetch: opts.fetch, now }).catch(
+      (failure: unknown) => ({ refreshed: 0, failed: 1, error: failure }),
+    )
+    if (caches.error !== null) {
+      log?.warn({ reason: safeMessage(caches.error) }, 'weather cache refresh failed')
+    }
+    await recordJob(deps, 'weather', user.id, startedAt, {
+      accepted: filled + caches.refreshed,
+      failed: caches.failed,
+      error: error ?? caches.error,
+    })
   }
 }
 

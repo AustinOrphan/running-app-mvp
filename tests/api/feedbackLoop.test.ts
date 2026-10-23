@@ -10,8 +10,7 @@ import type {
   TodayView,
   WeeklyReview,
 } from '../../shared/types.ts'
-import { gatherContextInput, resetClimateCache } from '../../server/services/engineInput.ts'
-import { resetForecastCache } from '../../server/services/weather.ts'
+import { gatherContextInput } from '../../server/services/engineInput.ts'
 import request from 'supertest'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
@@ -40,8 +39,6 @@ afterAll(async () => {
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.setSystemTime(WEDNESDAY)
-  resetClimateCache()
-  resetForecastCache()
 })
 
 type ReviewView = WeeklyReview & {
