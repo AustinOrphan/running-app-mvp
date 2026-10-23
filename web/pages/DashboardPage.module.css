@@ -11,9 +11,32 @@
   min-width: 0;
 }
 
-/* The quiet link carries a button's padding; pull it back so its text lines up with the title. */
+/* The two groups of sections. On a phone they simply follow one another, so the order is the
+   order of the DOM. From 900 px (`data-layout` follows the same query in `DashboardPage`) they
+   stand side by side; neither is moved with `order`, so focus follows the picture. */
+.columns {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.columns[data-layout='two'] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--space-6);
+  align-items: start;
+}
+
+/* The quiet link sits at the right of the title on a phone and carries a button's padding; pull it
+   back so its text lines up with the page's edge. */
 @media (max-width: 899px) {
   .log {
-    margin-left: calc(var(--space-4) * -1);
+    margin-right: calc(var(--space-4) * -1);
   }
 }
