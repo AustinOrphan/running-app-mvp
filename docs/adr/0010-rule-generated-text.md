@@ -1,6 +1,6 @@
 # 0010. App text is rendered at read time from stored facts by typed templates; no model writes it, and one lint covers it
 
-Status: Accepted 2026-10-23
+Status: Accepted 2026-10-23 (#542)
 
 ## Context
 
