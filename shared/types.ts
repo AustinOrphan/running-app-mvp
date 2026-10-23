@@ -485,7 +485,7 @@ export interface ReadinessSignal extends Pick<InputFact, 'template' | 'slots'> {
   noted: boolean
 }
 export type ReadinessVerdictCode =
-  'ready' | 'low-stays' | 'easy' | 'rest' | 'lighter-week' | 'no-signals'
+  'ready' | 'low-stays' | 'low-plan-stays' | 'easy' | 'rest' | 'lighter-week' | 'no-signals'
 /** The one line that says what readiness means for today. */
 export interface ReadinessVerdict extends Pick<InputFact, 'template' | 'slots'> {
   code: ReadinessVerdictCode

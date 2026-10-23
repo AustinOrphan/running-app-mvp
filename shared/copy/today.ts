@@ -15,6 +15,8 @@ export const TODAY_TEMPLATES = {
   'today.verdict.low-stays': tpl(
     "Signals are a little low. Today's session is already easy, so it stays.",
   ),
+  // Low signals on a day with a harder run (long, race, hike) or with no run at all.
+  'today.verdict.low-plan-stays': tpl('Signals are a little low. The plan stays as it is.'),
   'today.verdict.easy': tpl('An easy run is the better choice today.'),
   'today.verdict.rest': tpl('A rest day is the better choice today.'),
   'today.verdict.lighter-week': tpl(
