@@ -6,7 +6,8 @@
 // and for the first weeks of a plan 'restart-floor', 'run-walk', 'ladder-<n>', 'injury-return',
 // 'injury-level-<n>' (startWeeks.ts).
 // Race week is the last week with the race in it: its volume is the shake-out running around the
-// race, not the race itself, and its long run is 0. The weeks after the race (H12) follow it.
+// race, not the race itself, and its long run is 0. The weeks after the race (H12) follow it; the
+// days of the race week after the hold are a week of their own (`macroPlanDraft`).
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity } from '../types.ts'
 import { breakRestart, weekEvidence } from './adapt.ts'
@@ -630,12 +631,12 @@ function planWeeks(
     runs: RunRecord[]
     restart: string | null
   } = { volumes: new Map(), runs: [], restart: null },
-): WeekDraft[] {
+): { weeks: WeekDraft[]; raceWeekTail: WeekDraft | null } {
   const firstMonday = mondayOf(input.today)
   const raceMonday = mondayOf(goal.date)
-  if (goal.date < input.today) return []
+  if (goal.date < input.today) return { weeks: [], raceWeekTail: null }
   const total = daysBetween(firstMonday, raceMonday) / 7 + 1
-  if (total < 1) return []
+  if (total < 1) return { weeks: [], raceWeekTail: null }
 
   const novice = state.experience === 'novice'
   // Novices and low-frequency runners step by time, with a minimum step [rules A5, g-2].
@@ -939,7 +940,11 @@ function planWeeks(
 
     const raw = floorEps(t * share)
     const held = hold && prevLong > 0 ? prevLong : Infinity
-    const long = Math.max(0, Math.min(raw, longCap, held))
+    // The restart week after a window, with no run in its 30-day reference: the first run of the
+    // week sets the reference for the others, so its runs are of one length [rules G-1, J7].
+    const even =
+      restartWeeks.has(weekStart) && !Number.isFinite(caps.min) ? Math.ceil(t / days) : Infinity
+    const long = Math.max(0, Math.min(raw, longCap, held, even))
     longRun.push(long)
     longM.push(distanceOf(long, caps))
     prevLong = long
@@ -1132,18 +1137,20 @@ function planWeeks(
     }
   })
 
-  // After the race: the H12 window, counted in days from the race and laid over the Monday weeks
-  // after the race week. The days of the race week after the race carry no running.
+  // After the race: the H12 window, counted in days from the race and laid over the Monday weeks,
+  // the race week's included: its days after the hold carry the first step's runs, as a week of
+  // their own (`raceWeekTail`) since the race week keeps its taper row. The weeks are held to the
+  // runs drawn above, as the guards read them [rules G-1].
   const afterRace = ownWindow(input)
-  weeks.push(
-    ...windowWeeks(afterRace, {
-      weekStarts: windowMondays(afterRace, addDays(raceMonday, 7)),
-      firstIndex: total,
-      reference,
-      referenceRunDays: refDays,
-    }),
-  )
-  return weeks
+  const [raceWeekTail, ...afterWeeks] = windowWeeks(afterRace, {
+    weekStarts: windowMondays(afterRace, raceMonday),
+    firstIndex: total - 1,
+    reference,
+    referenceRunDays: refDays,
+    limits: { runs, today: input.today },
+  })
+  weeks.push(...afterWeeks)
+  return { weeks, raceWeekTail: raceWeekTail ?? null }
 }
 
 /** A week counts as a window week when this many of its days come before the window ends. */
@@ -1180,7 +1187,13 @@ function windowLeadIn(
   for (let m = mondayOf(input.today); m <= lastMonday && m < goalMonday; m = addDays(m, 7)) {
     weekStarts.push(m)
   }
-  const weeks = windowWeeks(past, { weekStarts, firstIndex: 0, reference, referenceRunDays })
+  const weeks = windowWeeks(past, {
+    weekStarts,
+    firstIndex: 0,
+    reference,
+    referenceRunDays,
+    limits: { runs: completedReference(input.activities, state).runs, today: input.today },
+  })
 
   // J7 with the hold as the layoff, held to the last step's minutes plus one ramp step [G-6].
   const lastFraction = past.stages[past.stages.length - 1]?.fraction ?? 1
@@ -1204,6 +1217,20 @@ export function macroPlan(
   goal: GoalModel,
   feasibility: Feasibility,
 ): WeekDraft[] {
+  return macroPlanDraft(input, state, goal, feasibility).weeks
+}
+
+/**
+ * The weeks of the plan (`macroPlan`) and the days of the race week after the goal race as a week
+ * of their own: the race week keeps its taper row, and these days carry the first return step
+ * [rule H12]. Null where the plan has no race week or the goal race is not ahead.
+ */
+export function macroPlanDraft(
+  input: EngineInput,
+  state: AthleteState,
+  goal: GoalModel,
+  feasibility: Feasibility,
+): { weeks: WeekDraft[]; raceWeekTail: WeekDraft | null } {
   const lead = windowLeadIn(input, state, goal)
   if (lead === null) return planWeeks(input, state, goal, feasibility)
   const normalStart = addDays(mondayOf(input.today), 7 * lead.weeks.length)
@@ -1220,5 +1247,14 @@ export function macroPlan(
       restart: normalStart,
     },
   )
-  return [...lead.weeks, ...rest.map((w) => ({ ...w, index: w.index + lead.weeks.length }))]
+  return {
+    weeks: [
+      ...lead.weeks,
+      ...rest.weeks.map((w) => ({ ...w, index: w.index + lead.weeks.length })),
+    ],
+    raceWeekTail:
+      rest.raceWeekTail === null
+        ? null
+        : { ...rest.raceWeekTail, index: rest.raceWeekTail.index + lead.weeks.length },
+  }
 }

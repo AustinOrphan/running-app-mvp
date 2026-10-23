@@ -301,8 +301,10 @@ function taper(draft: PlanDraft): ChecklistResult {
       )
     }
   }
+  // the runs of the race week after the race belong to the return steps, not to the taper [H12]
+  const taperSessions = draft.sessions.filter((s) => !s.flags.includes('post-race'))
   for (const week of taperWeeks) {
-    const planned = weekMinutes(draft.sessions, week.weekStart, week.weekStart)
+    const planned = weekMinutes(taperSessions, week.weekStart, week.weekStart)
     if (planned > week.targetRunMin + 1) {
       failures.push(
         `week of ${week.weekStart} holds ${planned} min, above its ${week.targetRunMin} min`,
@@ -343,7 +345,11 @@ function quietWeeks(weeks: WeekDraft[]): Set<string> {
  * F5, E1, E6: a novice plan keeps three non-consecutive run days; the ladder, floor and
  * injury-return weeks, and the quiet weeks after the ladder, hold no hard work and no strides.
  */
-function levelDifferentiation(draft: PlanDraft, state: AthleteState): ChecklistResult {
+function levelDifferentiation(
+  draft: PlanDraft,
+  state: AthleteState,
+  today: string,
+): ChecklistResult {
   const rules = ['F5', 'G1', 'E6']
   const novice = state.experience === 'novice'
   const fixedWeeks = draft.weeks.filter(
@@ -387,8 +393,10 @@ function levelDifferentiation(draft: PlanDraft, state: AthleteState): ChecklistR
     const afterLadder = quiet.has(week.weekStart) && !week.isTaper && week.phase !== 'race'
     const earlyNovice = novice && week.index < P.flib.runWalkWeeks.value
     if (fixed.has(week.weekStart) || afterLadder || earlyNovice) {
+      // a session of the past, kept from the plan a re-plan replaces, is history, not prescription
       const hard = draft.sessions.find(
-        (s) => mondayOf(s.date) === week.weekStart && NO_QUALITY_KINDS.has(s.kind),
+        (s) =>
+          s.date >= today && mondayOf(s.date) === week.weekStart && NO_QUALITY_KINDS.has(s.kind),
       )
       if (hard !== undefined) {
         failures.push(`week of ${week.weekStart}: ${hard.kind} in a week of easy running only`)
@@ -637,11 +645,16 @@ function raceDay(draft: PlanDraft, input: EngineInput): ChecklistResult {
     ),
   )
   const holdDays = own.holdUntil > input.goal.date ? daysBetween(input.goal.date, own.holdUntil) : 0
+  // the steps start on the day the hold ends, the race week included [H12]
+  const hold =
+    holdDays === 0
+      ? 'no days without running'
+      : `${holdDays} day${holdDays === 1 ? '' : 's'} without running, until ${own.holdUntil}`
   return result(
     'race-day',
     failures.length === 0,
     failures.length === 0
-      ? `The race is on ${input.goal.date}; after it ${holdDays} day${holdDays === 1 ? '' : 's'} without running, then easy steps, and no quality work before ${own.quietUntil}.`
+      ? `The race is on ${input.goal.date}; after it ${hold}, then easy steps from the day the hold ends, and no quality work before ${own.quietUntil}.`
       : failures.join('; '),
     rules,
   )
@@ -756,7 +769,7 @@ export function runChecklist(draft: PlanDraft, input: EngineInput): ChecklistRes
     recoveryCadence(draft, state, input),
     tid(draft),
     taper(draft),
-    levelDifferentiation(draft, state),
+    levelDifferentiation(draft, state, input.today),
     ladderSteps(draft),
     breakRestartItem(draft, input, state),
     spikeGuard(draft, state),

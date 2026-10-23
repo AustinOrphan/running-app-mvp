@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { buildPlan, explain } from '../../../shared/engine/index.ts'
+import { ownWindow, windowViolations } from '../../../shared/engine/postRace.ts'
 import type { PlanDraft, SessionKind, SessionSpec } from '../../../shared/engine/types.ts'
 import type { Weekday } from '../../../shared/types.ts'
 import { athletes, TODAY, type MatrixAthlete } from './matrix-fixtures.ts'
@@ -111,11 +112,14 @@ describe.each(all)('plan matrix: $label', (a) => {
       'race',
     ])
     const raceWeek = mondayOf(a.input.goal.date)
-    // the days after the race are rest days (the hold); nothing runs until the recovery weeks
+    // the days after the race are rest days in the hold, then easy runs of the first return step
+    // within its caps [H12]
     const after = plan.sessions.filter(
       (s) => mondayOf(s.date) === raceWeek && s.date > a.input.goal.date,
     )
-    expect(after.filter((s) => s.kind !== 'rest')).toEqual([])
+    const runsAfter = after.filter((s) => s.kind !== 'rest')
+    expect(runsAfter.every((s) => s.flags.includes('post-race'))).toBe(true)
+    expect(windowViolations(after, [ownWindow(a.input)], addDays(a.input.goal.date, 1))).toEqual([])
     expect(plan.paramsVersion).toMatch(/^\d{4}-\d{2}-\d{2}/)
   })
 
@@ -196,11 +200,13 @@ describe.each(all)('plan matrix: $label', (a) => {
       const refDist = Math.max(0, ...window.map((r) => r.distanceM ?? 0))
       if (refMin > 0) {
         const ratio = s.durationMin / refMin
+        // the normal band is 1.10x or the reference plus the minimum step of 3 min, as for distance
+        const overBand = s.durationMin > refMin + Math.max(refMin * 0.1, 3) + 1e-9
         if (ratio > 2) bad.push(`${s.date} ${s.kind} is ${ratio.toFixed(2)}x by time`)
-        if (ratio > 1.1 + 1e-9 && !s.flags.includes('spike-warn')) {
+        if (overBand && !s.flags.includes('spike-warn')) {
           bad.push(`${s.date} ${s.kind} is ${ratio.toFixed(2)}x by time without a warning`)
         }
-        if (state.risk.recentInjury && ratio > 1.1 + 1e-9) {
+        if (state.risk.recentInjury && overBand) {
           bad.push(`${s.date} ${s.kind} passes the hard limit (${ratio.toFixed(2)}x)`)
         }
       }

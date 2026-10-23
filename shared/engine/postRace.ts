@@ -8,7 +8,7 @@
 import { addDays, daysBetween } from '../dates.ts'
 import type { Activity } from '../types.ts'
 import { distanceClassOf } from './goal.ts'
-import type { RunRecord } from './limits.ts'
+import { referenceBetween, runCaps, type RunRecord } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { checkinsOf, J8_CHECKLIST, poorSubjective } from './readiness.ts'
@@ -295,14 +295,25 @@ export interface PostRaceWindows {
   past: PostRaceWindow | null
 }
 
-const isCompletedRace = (a: Activity) =>
-  a.type === 'race' && a.duplicateOfId === null && !isDuplicate(a)
+// The duplicate status alone decides, as for the 30-day reference and the athlete state.
+const isCompletedRace = (a: Activity) => a.type === 'race' && !isDuplicate(a)
 
-/** Age as the athlete state computes it: the calendar year of `today` less the birth year. */
-function ageOf(input: EngineInput): number | null {
+/** Age as the athlete state computes it, on a date: the calendar year less the birth year. */
+function ageOn(input: EngineInput, date: string): number | null {
   return input.profile.birthYear === null
     ? null
-    : Number(input.today.slice(0, 4)) - input.profile.birthYear
+    : Number(date.slice(0, 4)) - input.profile.birthYear
+}
+
+/** True when a logged race is the plan's goal race: on the goal date, at about the goal distance. */
+function isGoalRace(a: Activity, goal: GoalModel): boolean {
+  return (
+    a.date === goal.date &&
+    a.distanceM !== null &&
+    goal.distanceM > 0 &&
+    Math.abs(a.distanceM - goal.distanceM) <=
+      (P.h12.goalRaceDistanceTolerancePct.value / 100) * goal.distanceM
+  )
 }
 
 /** Descent only counts when it is known and positive. */
@@ -322,7 +333,7 @@ export function ownWindow(input: EngineInput): PostRaceWindow {
       lossM: lossOf(goal.lossM),
       distanceClass: goal.distanceClass,
     },
-    { age: ageOf(input) },
+    { age: ageOn(input, goal.date) },
     input.activities.filter(isCompletedRace),
     checkinsOf(input),
     input.today,
@@ -332,7 +343,6 @@ export function ownWindow(input: EngineInput): PostRaceWindow {
 export function postRaceWindows(input: EngineInput): PostRaceWindows {
   const { goal, today } = input
   const checkins = checkinsOf(input)
-  const athlete = { age: ageOf(input) }
   const races = input.activities.filter(isCompletedRace)
   const own = ownWindow(input)
 
@@ -342,8 +352,9 @@ export function postRaceWindows(input: EngineInput): PostRaceWindows {
     if (a.distanceM === null || a.distanceM <= 0 || a.date > today || a.date < horizon) continue
     const distanceClass = distanceClassOf(a.distanceM)
     if (!isMarathonOrLonger(distanceClass)) continue
-    // the race of the goal itself is the projected window, never a past one
-    if (a.date === goal.date && a.distanceM === goal.distanceM) continue
+    // the race of the goal itself is the projected window, never a past one: the logged distance
+    // (a GPS track) seldom equals the entered one
+    if (isGoalRace(a, goal)) continue
     const window = postRaceWindow(
       {
         date: a.date,
@@ -351,7 +362,7 @@ export function postRaceWindows(input: EngineInput): PostRaceWindows {
         lossM: lossOf(a.elevationLossM),
         distanceClass,
       },
-      athlete,
+      { age: ageOn(input, a.date) },
       races,
       checkins,
       today,
@@ -458,8 +469,15 @@ export function stageLabel(window: PostRaceWindow, date: string): string {
 /**
  * The Monday weeks of a window as plan weeks [H12]. A week's target is the sum over the steps it
  * overlaps of the step's fraction times the reference week times the share of the week the step
- * covers (days after the hold, over 7); a week inside the hold has none. Runs are capped by the
- * step caps and, in step 1, by the run count. Flag `post-race`, recovery, no quality.
+ * covers (days after the hold, over 7); a week inside the hold has none, and the race day is no day
+ * of the window since no run falls on it. Runs are capped by the step caps and, in step 1, by the
+ * run count (on non-consecutive days). Flag `post-race`, recovery, no quality.
+ *
+ * With `limits` the weeks are also held to the normal band of the session spike guard [rules G-1],
+ * week by week as planWeeks does: no run of a week passes 1.10x the longest run of the 30 days
+ * before the week's last day, read over the completed runs and the weeks drawn before it. A week
+ * with no run in that window has no reference, so its runs are of one length (the first sets the
+ * reference for the rest); a band under the shortest run leaves the week without a run.
  */
 export function windowWeeks(
   window: PostRaceWindow,
@@ -470,38 +488,77 @@ export function windowWeeks(
     reference: number
     /** Run days of the reference week. */
     referenceRunDays: number
+    /** The runs of the 30-day reference (completed or planned) and the first day a run can fall on. */
+    limits?: { runs: readonly RunRecord[]; today: string }
   },
 ): WeekDraft[] {
   const { reference, referenceRunDays } = args
+  const runs = args.limits === undefined ? null : [...args.limits.runs]
   return args.weekStarts.map((weekStart, k) => {
     let minutes = 0
     let openDays = 0
-    let step1 = false
+    let step1Days = 0
     let runMax = 0
+    let lowestRunMax = Infinity
     let longMax = 0
     let lastStep = 0
     for (let d = 0; d < 7; d++) {
-      const day = windowDay(window, addDays(weekStart, d))
+      const date = addDays(weekStart, d)
+      if (date <= window.race.date) continue
+      const day = windowDay(window, date)
       if (day === null || day.kind === 'hold') continue
       const { stage } = day
       openDays += 1
       minutes += (stage.fraction * reference) / 7
-      step1 = step1 || stage.maxRuns !== null
+      if (stage.maxRuns !== null) step1Days += 1
       runMax = Math.max(runMax, stage.runMaxMin)
+      lowestRunMax = Math.min(lowestRunMax, stage.runMaxMin)
       longMax = Math.max(longMax, stage.longRunMaxMin)
       lastStep = stage.step
     }
-    const runDays =
+    if (runs !== null && args.limits !== undefined) {
+      const { today } = args.limits
+      const firstDay = weekStart < today ? today : weekStart
+      const band = runCaps(
+        referenceBetween(
+          runs,
+          addDays(weekStart, 6 - P.g1.windowDays.value),
+          addDays(firstDay, -1),
+        ),
+      ).min
+      if (band < P.fplace.easyRunMinMin.value) {
+        runMax = 0
+        longMax = 0
+      } else if (Number.isFinite(band)) {
+        runMax = Math.min(runMax, band)
+        longMax = Math.min(longMax, band)
+      } else if (openDays > 0) {
+        // No reference: the first run of the week sets it for the others, and it may fall on a day
+        // of the lowest cap, so every run is held to that cap and none is longer than another.
+        runMax = lowestRunMax
+        longMax = lowestRunMax
+      }
+    }
+    const step1 = step1Days > 0
+    // the first step's runs fall on non-consecutive days: at most every other open day
+    const spacing = step1Days === openDays ? Math.ceil(openDays / 2) : Infinity
+    let runDays =
       openDays === 0
         ? 0
         : Math.min(
             Math.max(1, referenceRunDays),
             openDays,
+            spacing,
             step1 ? P.h12.step1MaxRuns.value : Infinity,
           )
-    // what the caps let the week hold: every run at the run cap, one of them at the long cap
-    const capacity = runDays * runMax + Math.max(0, longMax - runMax)
-    const target = openDays === 0 ? 0 : Math.min(Math.floor(minutes + EPS), capacity)
+    // what the caps let the week hold: every run at the run cap, one of them at the long cap; a
+    // run is not shorter than the shortest run, so a small week holds fewer runs, as placed
+    let target = 0
+    for (; runDays > 0; runDays -= 1) {
+      const capacity = runDays * runMax + Math.max(0, longMax - runMax)
+      target = Math.min(Math.floor(minutes + EPS), capacity)
+      if (runDays === 1 || target >= runDays * P.fplace.easyRunMinMin.value) break
+    }
     const rest = target === 0
     // from the third step one run of the week may reach the long cap: about a third of the week
     const longRun =
@@ -514,7 +571,7 @@ export function windowWeeks(
               Math.ceil(target / runDays),
             ),
           )
-    return {
+    const week: WeekDraft = {
       weekStart,
       index: args.firstIndex + k,
       phase: 'race',
@@ -533,26 +590,36 @@ export function windowWeeks(
       isRecovery: true,
       isTaper: false,
     }
+    // the week as drawn is in the reference of the weeks after it
+    const record = runs === null ? null : weekRun(window, week)
+    if (runs !== null && record !== null) runs.push(record)
+    return week
   })
 }
 
 /**
- * The runs the post-race weeks hold, for the 30-day reference of the weeks after them [rules G-1,
- * H12]: one record a week, the week's longest run, dated on the first day the week can hold it so
- * the reference is never overstated.
+ * The run a post-race week adds to the 30-day reference of the weeks after it [rules G-1, H12]: its
+ * longest run, dated on the first day the week can hold it so the reference is never overstated.
+ * Null for a week with no run.
  */
+function weekRun(window: PostRaceWindow, week: WeekDraft): RunRecord | null {
+  if (week.targetRunMin <= 0 || week.runDays <= 0) return null
+  const date = [0, 1, 2, 3, 4, 5, 6]
+    .map((d) => addDays(week.weekStart, d))
+    .find((d) => d > window.race.date && windowDay(window, d)?.kind === 'step')
+  if (date === undefined) return null
+  // a run is never placed under the shortest run, even in a week whose minutes are fewer
+  const longest = Math.max(
+    week.longRunMin,
+    Math.ceil(week.targetRunMin / week.runDays),
+    P.fplace.easyRunMinMin.value,
+  )
+  return { date, min: longest, distanceM: null, gainM: null, lossM: null }
+}
+
+/** The runs the post-race weeks hold, for the 30-day reference of the weeks after them [rules G-1, H12]. */
 export function windowRuns(window: PostRaceWindow, weeks: ReadonlyArray<WeekDraft>): RunRecord[] {
-  const out: RunRecord[] = []
-  for (const week of weeks) {
-    if (week.targetRunMin <= 0 || week.runDays <= 0) continue
-    const date = [0, 1, 2, 3, 4, 5, 6]
-      .map((d) => addDays(week.weekStart, d))
-      .find((d) => windowDay(window, d)?.kind === 'step')
-    if (date === undefined) continue
-    const longest = Math.max(week.longRunMin, Math.ceil(week.targetRunMin / week.runDays))
-    out.push({ date, min: longest, distanceM: null, gainM: null, lossM: null })
-  }
-  return out
+  return weeks.flatMap((week) => weekRun(window, week) ?? [])
 }
 
 /** The Mondays of the post-race weeks that cover a window, from `firstMonday` to its last day. */
