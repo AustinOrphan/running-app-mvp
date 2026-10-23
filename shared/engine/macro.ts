@@ -23,6 +23,7 @@ import {
   rampStep,
   referenceBetween,
   runCaps,
+  startLevelMin,
   tightRamp,
   weeklyGain,
   weeklyRamp,
@@ -458,7 +459,8 @@ function ladderEntry(ref: number, bound: number): number {
 
 /**
  * Where a runner starts, from history [rules E6, G-3, A9]: the run-walk ladder, 3 sessions of N
- * minutes, the injury-return ladder, or null when the typical week is at or above
+ * minutes, the injury-return ladder, or null when the start level (`startLevelMin`, limits.ts:
+ * the typical week, or the last two complete weeks when they were higher) is at or above
  * 3 x 20 minutes. It reads the runs of the last 30 and 90 days that the 30-day reference of G-1
  * counts (a marathon or longer race is none of them); sex never changes the dose.
  *
@@ -477,7 +479,7 @@ function ladderEntry(ref: number, bound: number): number {
  */
 export function startPath(input: EngineInput, state: AthleteState): StartPath | null {
   const sessionMin = P.restartFloor.sessionMin.value
-  if (state.typicalWeekMin >= P.restartFloor.sessions.value * sessionMin) return null
+  if (startLevelMin(state) >= P.restartFloor.sessions.value * sessionMin) return null
   const runs = runFacts(input)
 
   if (state.risk.recentInjury) {
@@ -921,8 +923,8 @@ function planWeeks(
       ? opening!.minutes
       : anchored !== null
         ? anchored.minutes
-        : state.typicalWeekMin > 0
-          ? state.typicalWeekMin
+        : startLevelMin(state) > 0
+          ? startLevelMin(state)
           : P.macroDesign.startFloorWeekMin.value
   const ceiling = Math.max(peakWeeklyMin(goal, pace), start)
   const hasGain = goal.gainM > 0 && goal.distanceM > 0
@@ -1348,7 +1350,11 @@ export function macroPlanDraft(
   // and would anchor the restart above the J7 volume.
   const rest = planWeeks(
     { ...input, today: normalStart, existing: null },
-    { ...state, typicalWeekMin: lead.restartMin },
+    {
+      ...state,
+      typicalWeekMin: lead.restartMin,
+      recentWeekMin: Math.min(state.recentWeekMin, lead.restartMin),
+    },
     goal,
     feasibility,
     {

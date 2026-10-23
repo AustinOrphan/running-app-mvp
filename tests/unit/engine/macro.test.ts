@@ -53,6 +53,7 @@ function state(over: Partial<AthleteState> = {}): AthleteState {
     load: { metric: 'srpe', acute: 0, chronic: 0, daily: [] },
     weeks: [],
     typicalWeekMin: 240,
+    recentWeekMin: 0,
     longest30d: { distanceM: 16000, durationSec: 5400, gainM: 100, lossM: 100, twoDaySec: 7000 },
     gaps16w: 0,
     layoffDays: 0,

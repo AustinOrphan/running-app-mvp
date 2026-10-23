@@ -242,25 +242,35 @@ export function weeklyRamp(state: AthleteState): number {
 }
 
 /**
- * The minutes of the 3 x 20 starting week when the runner's typical week sits under it
- * (sessions x session length): null above it, with no typical week, and for the tightened
+ * The weekly running minutes a plan starts from [rules E6]: the typical week (the median of the
+ * last 4 weeks with a run), or the recent level (the lesser of the last two complete weeks) when
+ * that is higher. A step up held for two weeks sets the level; one big week alone does not.
+ */
+export function startLevelMin(state: AthleteState): number {
+  return Math.max(state.typicalWeekMin, state.recentWeekMin)
+}
+
+/**
+ * The minutes of the 3 x 20 starting week when the runner's start level sits under it
+ * (sessions x session length): null above it, with no start level, and for the tightened
  * profiles, which are not lifted [design-macro, rules g-3]. The stand-in for the start path of
  * `startPath` (macro.ts) where only the athlete state is at hand.
  */
 export function restartFloorMin(state: AthleteState): number | null {
   const minutes = P.restartFloor.sessions.value * P.restartFloor.sessionMin.value
-  if (state.typicalWeekMin <= 0 || state.typicalWeekMin >= minutes) return null
+  const level = startLevelMin(state)
+  if (level <= 0 || level >= minutes) return null
   if (weeklyRamp(state) < P.g2.rampSoft.value) return null
   return minutes
 }
 
 /**
  * The weekly running minutes a new plan starts from: the first week of the start path when it is
- * the 3 x N floor or a run-walk rung, else the typical week, else the start floor of a runner
- * without recent running. The feasibility label of an ultra [rules D4] reads it. `path` is the
- * result of `startPath` (macro.ts); null means the plan starts from the typical week, and so does
- * an injury-return path, whose levels set their own pace. Left out, the 3 x 20 week stands in for
- * a typical week under it.
+ * the 3 x N floor or a run-walk rung, else the start level (`startLevelMin`), else the start floor
+ * of a runner without recent running. The feasibility label of an ultra [rules D4] reads it.
+ * `path` is the result of `startPath` (macro.ts); null means the plan starts from the start level,
+ * and so does an injury-return path, whose levels set their own pace. Left out, the 3 x 20 week
+ * stands in for a start level under it.
  */
 export function startWeekMin(state: AthleteState, path?: StartPath | null): number {
   if (path !== undefined && path !== null && path.kind !== 'injury-return') {
@@ -268,7 +278,8 @@ export function startWeekMin(state: AthleteState, path?: StartPath | null): numb
   }
   const floor = path === undefined ? restartFloorMin(state) : null
   if (floor !== null) return floor
-  return state.typicalWeekMin > 0 ? state.typicalWeekMin : P.macroDesign.startFloorWeekMin.value
+  const level = startLevelMin(state)
+  return level > 0 ? level : P.macroDesign.startFloorWeekMin.value
 }
 
 /**

@@ -444,6 +444,10 @@ export const eMacro = {
         note: 'Default: weekly running time to start from when no recent running exists and no start path applies (a progression hold or a tightened profile): about rung 1 of the ladder, 3 sessions of 20 min. It was 90 min (3 x 30) before the second evidence pass.',
       },
     ),
+    startRecentWeeks: param('macroDesign.startRecentWeeks', 2, 'D', 'E6', [], {
+      unit: 'weeks',
+      note: 'Default: a step up held for this many complete weeks sets the start level above the four-week median; one big week alone does not.',
+    }),
     longRunShareOfWeek: param(
       'macroDesign.longRunShareOfWeek',
       0.35,

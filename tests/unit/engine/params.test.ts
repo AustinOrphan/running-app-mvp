@@ -27,7 +27,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-22.2')
+    expect(PARAMS_VERSION).toBe('2026-10-22.3')
   })
 
   it('holds a few hundred parameters, every section non-empty', () => {

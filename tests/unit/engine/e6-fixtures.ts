@@ -65,6 +65,7 @@ export function state(over: Partial<AthleteState> = {}): AthleteState {
     load: { metric: 'minutes', acute: 0, chronic: 0, daily: [] },
     weeks: [],
     typicalWeekMin: 200,
+    recentWeekMin: 0,
     longest30d: { distanceM: 0, durationSec: 0, gainM: 0, lossM: 0, twoDaySec: 0 },
     gaps16w: 0,
     layoffDays: 0,
