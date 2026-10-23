@@ -3,7 +3,7 @@
 Current state only; rewritten at every boundary. History lives in `git log`, the specs and
 plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
-Last update: 2026-10-22.
+Last update: 2026-10-23.
 
 ## Where things stand
 
@@ -47,8 +47,80 @@ Last update: 2026-10-22.
   runner's own numbers and a Monday brief, disruptions (dial-back, what-if, moves, undoable
   re-plans), the fuel lab and gut training, and the prediction back-test. The owner's spreadsheet
   plan is a placeholder; only the goal race is firm, and the engine owns the plan.
-- `npm run dev` rendered a blank page because the dev proxy sent the `web/api/*.ts` source modules
-  to the API server; fixed in #538.
+- **Phase 3a wave 0 (branch `feat/coach-phase3`, PR from `wave/3a-0`, 2026-10-23):** the contracts
+  every later task imports. E3-1: the data version (`server/dataVersion.ts`, raised by the Prisma
+  client after every state write and at the end of every transaction, model classification tested
+  against the schema, `conflict(message, details)`, schema-derived `resetData`). E3-4: one
+  `PlanSession` migration (`externalId` unique per plan, `trimmed`, the indexes), the migration-chain
+  and drift test, `executionRecordsByWeek`, `loadActivityCores` with a 52-week bounded window.
+  E2-1: the Today page split into `web/components/today/*` with named slots. E2-2: one eased
+  session, `resolveTargets`/`climbNote`, heat steering shared across surfaces (`PARAMS_VERSION`
+  `2026-10-22.3`). E4-1: the copy system (`shared/copy/*`: typed templates, the G5 lint,
+  `formatQuantity`, `describeParamValue` in the runner's units, `expectCleanCopy`) and ADR 0010.
+  Gates on the merged branch: `npm run check` (123 files, 3336 tests), `npm run build`,
+  `npm run test:e2e` (18), `docker build .` (the migration applies), owner validation unchanged
+  apart from the date. Adversarial review: see below..
+- Known from E4-1, to fix in wave 1: four Param notes (`h8.weightLossToleranceMaxPct`,
+  `pain.flagScore`, `h12.laterStepLongRunMaxMin`, `l1.sameDistanceTolerancePct`) and the G-6 rule
+  title ("Never make up missed volume") fail the G5 lint; a drawer test that opens them with
+  `expectCleanCopy` will fail until they are reworded through `research-update`.
+- Fix PRs against `main` from the same day: #538 (dev proxy), #539 (plan form labels, merged),
+  #540 (start level from the last two complete weeks, `PARAMS_VERSION` `2026-10-22.3` on `main`),
+  #541 (persist `qualitySessions` and `isRecovery` on `PlanWeek` so a re-plan stops reporting a
+  phantom change). The integration branch takes `main` after they merge; the two `2026-10-22.3`
+  versions are reconciled to `2026-10-23.1` there.
+
+## Wave 0 adversarial review (2026-10-23)
+
+Six lenses (contracts, correctness, security and privacy, copy and accessibility, tests,
+performance) over the merged wave-0 diff against `main` (94 files); 24 findings, each tried by two
+independent refuters: 6 confirmed, 18 disputed. All confirmed findings are low or medium.
+
+Fixed in the same wave (`task/3a-W0-fix-copy`, `task/3a-W0-fix-code`):
+
+1. The why drawer printed Param notes with metric figures beside values converted to miles (about
+   70 notes restate a figure); notes now go through the same localisation as engine text, with a
+   registry-wide test.
+2. Four Param notes (`pain.flagScore`, `h8.weightLossToleranceMaxPct`,
+   `h12.laterStepLongRunMaxMin`, `l1.sameDistanceTolerancePct`) and the G-6 rule title failed the
+   G5 lint and nothing linted them; reworded, with a test over every note and rule title.
+3. `computeBaselineRunMin` still loaded whole `Activity` rows for week aggregation; it reads
+   `ActivityCore` rows now.
+4. The plan's R0-1 acceptance and spec 4.2 still asked migration D to add the `PlanRevision`
+   `(planId, reason)` index that migration B (E3-4) created; the index is removed from both.
+5. The cooler-hour gain threshold (`i7.coolerMinGainC`) had no pinning test; two cases added.
+6. `expectCleanCopy` linted each text node alone, so a banned phrase split by inline markup
+   passed; it also lints collapsed block text now.
+
+Accepted from the disputed list and fixed with them: the date-format test pins a time zone so a UTC
+runner can catch a local-getter regression; `render()` treats a non-object `slots` record as a
+missing slot (fallback in production, `CopyError` under test) instead of throwing.
+
+Disputed and recorded (not fixed; reason in brackets):
+
+- Canonical helpers from wave 0 coexist with in-tree duplicates in `planEngine.ts`; "trimmed" is
+  still decided by separate checks in `shared/engine` [the duplicates are on the write path E3-7
+  rewrites; revisit at E3-7].
+- The climb note fires on every run of a climbing week because the planner spreads gain over all
+  run kinds; an eased easy run keeps the original `gainM`; `easedSession` gives one cause for every
+  easy downgrade [design intent of E2-2; E2-3 and E2-5 own the sentences].
+- The G5 lint passes plural and inflected forms and some injury-probability phrasings [the list is
+  spec 4.5's exact list; widen it only with the owner's reading pass, E4-8].
+- The spec states the goal race's distance, terrain and month [not a race name, cutoff or course
+  fact; distance and terrain are already on `main`].
+- Focus drops to the page when the focused control unmounts in `SessionChanges` (confirmed by one
+  refuter, narrower than claimed) and `FeedbackCard` [moved unchanged from `main`; E2-6 rebuilds
+  the check-in sheet and should move focus].
+- Window lengths ("28 days", "12 weeks") are literal in Today headings [duplicates of constants
+  the same files own; E2-7 reworks the strip and the recent weeks].
+- ADR 0010's parameter count is pinned to a version and dated; its status gets the PR number
+  when the wave PR opens [convention].
+- `today.module.css` is one 368-line module against the plan's 250-line limit [E2-5 splits it].
+- The data-version write hook's nested-relation key list is mostly untested; the batched execution
+  query asserts no `orderBy`; the session-kind list in engine fixtures is hand-kept [test-strength
+  notes for E3-2 and E3-7].
+- The why drawer holds its loading state on the settings request, so the unit fallback applies
+  only after retries [E4-3 reworks the drawer's data loading].
 
 ## Decisions for the owner
 
