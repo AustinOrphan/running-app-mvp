@@ -113,6 +113,33 @@ function stepFractions(distanceClass: RaceClass): number[] {
   }
 }
 
+/** Why the hold of a race is lengthened: a steep course, the runner's age, a first race of the class [H12]. */
+export interface HoldReasons {
+  steep: boolean
+  masters: boolean
+  firstInClass: boolean
+}
+
+export function holdReasons(
+  race: PostRaceRace,
+  athlete: PostRaceAthlete,
+  history: ReadonlyArray<PostRaceHistoryRace>,
+): HoldReasons {
+  const descentPerKm =
+    race.lossM !== null && race.distanceM > 0 ? race.lossM / (race.distanceM / 1000) : null
+  return {
+    steep: descentPerKm !== null && descentPerKm + EPS >= P.h12.hillyDescentMPerKm.value,
+    masters: athlete.age !== null && athlete.age >= P.f5.mastersMinAge.value,
+    firstInClass: !history.some(
+      (h) =>
+        h.distanceM !== null &&
+        h.distanceM > 0 &&
+        h.date < race.date &&
+        distanceClassOf(h.distanceM) === race.distanceClass,
+    ),
+  }
+}
+
 /** The hold of a race: the class value, times 1.5 (rounded up) once when a modifier applies [H12]. */
 export function holdDaysOf(
   race: PostRaceRace,
@@ -120,18 +147,8 @@ export function holdDaysOf(
   history: ReadonlyArray<PostRaceHistoryRace>,
 ): { days: number; base: number; modified: boolean } {
   const base = baseHoldDays(race.distanceClass)
-  const descentPerKm =
-    race.lossM !== null && race.distanceM > 0 ? race.lossM / (race.distanceM / 1000) : null
-  const steep = descentPerKm !== null && descentPerKm + EPS >= P.h12.hillyDescentMPerKm.value
-  const masters = athlete.age !== null && athlete.age >= P.f5.mastersMinAge.value
-  const firstInClass = !history.some(
-    (h) =>
-      h.distanceM !== null &&
-      h.distanceM > 0 &&
-      h.date < race.date &&
-      distanceClassOf(h.distanceM) === race.distanceClass,
-  )
-  const modified = steep || masters || firstInClass
+  const reasons = holdReasons(race, athlete, history)
+  const modified = reasons.steep || reasons.masters || reasons.firstInClass
   return {
     days: modified ? Math.max(0, Math.ceil(base * P.h12.modifierMultiplier.value - EPS)) : base,
     base,
@@ -322,6 +339,21 @@ const lossOf = (loss: number | null) => (loss !== null && loss > 0 ? loss : null
 /** True for a class of marathon distance or longer: the races whose window a new plan follows. */
 const isMarathonOrLonger = (distanceClass: RaceClass) =>
   distanceClass !== '5k' && distanceClass !== '10k' && distanceClass !== 'half'
+
+/** Why the hold after the plan's own goal race is lengthened, when it is. */
+export function ownHoldReasons(input: EngineInput): HoldReasons {
+  const { goal } = input
+  return holdReasons(
+    {
+      date: goal.date,
+      distanceM: goal.distanceM,
+      lossM: lossOf(goal.lossM),
+      distanceClass: goal.distanceClass,
+    },
+    { age: ageOn(input, goal.date) },
+    input.activities.filter(isCompletedRace),
+  )
+}
 
 /** The window after the plan's own goal race, projected from the goal date. */
 export function ownWindow(input: EngineInput): PostRaceWindow {

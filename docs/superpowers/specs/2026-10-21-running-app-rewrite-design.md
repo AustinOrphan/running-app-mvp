@@ -261,6 +261,8 @@ GET  /api/weeks?from&to                  computed weekly rows (server-side aggre
 Errors: `{error:{code, message, details?}}` with codes `validation`, `unauthorized`,
 `not_found`, `conflict`, `internal`. Zod on every body and query. Request id header.
 
+Phase 3a added the routes of section 7, item 19; the list above is the first release's.
+
 ### 4.7 Frontend
 
 Routes: `/setup`, `/login`, `/` Today (a coach: today's session and readiness lead, the week
@@ -271,6 +273,9 @@ rail on wide screens. TanStack Query for data; CSS modules with design tokens; `
 for the few charts; no component library. Light and dark via `prefers-color-scheme` with a
 manual override. PWA manifest and icon. The visual direction is decided by the
 `frontend-design` skill at build time: calm, editorial, high contrast, one accent.
+
+Phase 3a added the pages and the page changes of section 7, item 20; the routes above are the
+first release's.
 
 ### 4.8 Tooling, CI, deploy
 
@@ -313,6 +318,9 @@ manual override. PWA manifest and icon. The visual direction is decided by the
 2. Race date for the active goal is entered by the owner; the app never guesses it.
 3. Strength and cross sessions are counted but not programmed; a program builder is later.
 4. Km display exists but miles is the default and the tested path.
+5. Phase 3a (sessions on the wrist, Today as a coach, explanations and the weekly brief,
+   disruptions, the fuel lab, the prediction back-test) keeps its open questions in section 13 of
+   `2026-10-22-coach-phase3a-design.md`; none of them changes items 1 to 4.
 
 ## 7. Resolutions from the builder check **(all calls)**
 
@@ -403,3 +411,65 @@ A fresh reader of sections 1–6 raised these; each answer refines the section n
     The race countdown follows the strip. Reason: a coach's hero, not a tracker's. This replaces the
     hours-led dashboard hierarchy of the visual design; the sections of 1 to 6 that describe the
     dashboard's contents stay true as lists of what Today shows, not as its order.
+19. **Phase 3a routes (4.6).** The phase 3a design (sections 5 to 11) is the contract of each route
+    below; every one is behind `requireAuth` and a Zod parse, except the two that check their own
+    token first (`/api/ingest/:provider` and the calendar feed), which are mounted before the body
+    parsers and the same-origin guard (section 4.8 of that design). No route adds an environment
+    variable.
+
+    ```
+    GET  /api/today?date=                    coach payload: verdict, hero session, week strip, slots
+    GET/PUT /api/checkins/:date              the daily check-in (pain, illness, sleep, mood)
+    GET  /api/state ; GET /api/jobs          the athlete snapshot (ETag); job runs and sync health
+    GET  /api/explain?subject=               the figures behind a Why: session, week, decision,
+                                             readiness, zone, prediction, rules, brief, activity
+    GET  /api/brief?weekStart= ; GET /api/briefs?limit= ; POST /api/briefs/:weekStart/seen
+    GET  /api/activities/:id/standout        up to three neutral facts about one run
+    POST /api/plan/replan | /preview         update the plan from the latest data; preview a change
+    GET  /api/plan/revisions ; POST /api/plan/revisions/:id/undo | /seen
+    GET/POST /api/plan/disruptions ; PATCH/DELETE /api/plan/disruptions/:id   rest windows
+    POST /api/plan/sessions/:id/adjust | /link   move, swap, shorten, skip a session; link a run
+    GET  /api/plan/sessions/:id/workout(.fit) ; GET /api/plan/weeks/:weekStart/workouts.zip
+    GET  /api/wrist/status ; PUT /api/wrist/intervals ; POST /api/wrist/publish
+    POST/DELETE /api/wrist/calendar/token ; GET /api/calendar/:token/plan.ics   (token only)
+    POST /api/ingest/:provider               pushed workouts (token only, 16 MB parser after it)
+    GET  /api/fuel ; GET /api/fuel/targets ; PUT /api/fuel/settings
+    CRUD /api/fuel/products ; PUT/DELETE /api/fuel/logs/:activityId ; POST .../skip
+    GET  /api/zones ; GET /api/zones/proposals ; POST /api/zones/proposals/:id/accept | /decline
+    GET/POST /api/screenings                 the energy-availability screen
+    PUT/DELETE /api/goals/:id/result ; GET /api/predictions/record ; GET /api/predictions?goalId
+    ```
+
+    The state, brief and explain reads are cached per data version (ADR 0009); a brief and a run
+    insight are stored in non-state tables, so reading one never moves the data version.
+20. **Phase 3a pages (4.7).** `DashboardPage` stays the route `/` and composes the pieces of
+    `web/components/today/`; the other routes are added or changed as follows. Copy for every page is
+    a typed template (`shared/copy/`), checked by the one G5 lint.
+
+    - **Today (`/`).** The hero is today's session with its targets and the readiness read; the
+      week strip, the brief line, the fuel and watch lines, the disruption banner and the race
+      countdown fill budgeted slots. Done, Explain and Not today are the actions; Not 100% opens the
+      rest-window sheet.
+    - **Plan (`/plan`).** Adds "What changed" (revisions with from-and-to lines, causes and a
+      one-tap undo with a preview), "Update plan from latest data" (a preview before any write),
+      the rest-window banner and chips, the adjust section of the session sheet, and the strip
+      "Watch: next 14 days" with a chip per run and a download of the week's workout files.
+    - **Brief (`/brief`, `/brief/:weekStart`).** The Monday page: what changed and why, what the
+      plan noticed (up to four facts with their dates), the next key session with the same target
+      the watch shows, and what has changed since. Linked from More and from Today's brief line.
+    - **Activity (`/activities/:id`).** "What stood out" above "How did it go?", and the fuel log
+      form for a long run.
+    - **Fuel lab (`/fuel`, from More).** The target, the tolerance ladder with its history,
+      products, the gut-training block, settings and the fluid-safety card.
+    - **Goals (`/goals`).** "Record result" and the track record: each weekly prediction compared
+      with the race result, with a summary only after three scored races.
+    - **Integrations (`/integrations`).** intervals.icu "Send sessions to your watch" with the last
+      send and "Send now", and the private "Calendar link" section (create, copy, turn off).
+    - **More (`/more`).** The pages that are not in the tab bar: the weekly brief, Goals, Stats,
+      Integrations, Profile, Research, the Fuel lab and Settings, and the theme choice.
+    - **Why drawer (everywhere).** Opens with "From your numbers": the figures the engine read, in
+      the runner's units, each with dated and linked sources or a plain statement of what is
+      missing, then the rule, its grade and its papers. A rule that uses none of the runner's
+      numbers says so. `shared/engine/explainInputs.ts` holds a builder for every rule that reads
+      them and a policy entry, with a reason, for every other; a test fails on a rule title with
+      neither.

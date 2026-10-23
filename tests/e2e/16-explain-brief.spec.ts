@@ -26,6 +26,10 @@ import { relativeDates, resetData, signedInApi, toast, type Api } from './helper
 // reported this week makes it a lighter week with a decision that cites rule n-3, rows to show and
 // an earlier plan that still passes the plan checks.
 //
+// The last two tests open the Why drawer where a runner meets the remaining rules: a session of the
+// plan (its week's zone split, its recovery cycle, the weeks after the race) and a plan check (the
+// taper from the goal). Every rule title has a builder or a policy entry, so no rule shows a bare id.
+//
 // The server counts every API request against one budget of 1000 per 15 minutes for the whole
 // suite, and the specs before this one leave about 40 of it. So this spec starts a server of its
 // own (the same build on the same database file, so a budget of its own) instead of using the
@@ -417,4 +421,100 @@ test('undo is refused once a run is linked to a session the update changed', asy
   const reasons = changed.getByRole('list', { name: 'Why this cannot be undone' })
   await expect(reasons.getByText(reason!.message, { exact: true })).toBeVisible()
   await noSidewaysScroll()
+})
+
+/** Opens a session of the plan on the Plan page and returns its sheet. */
+async function openSession(session: PlanWithSessions['sessions'][number]) {
+  await page.goto('/plan')
+  // The current week opens to its days by itself; the others open on request.
+  const toggle = page
+    .locator(`tr[data-week="${session.weekStart}"]`)
+    .getByRole('button', { name: /^Days for week of/ })
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click()
+  await page
+    .locator(`tr[data-days-for="${session.weekStart}"] button`)
+    .filter({ hasText: session.title })
+    .first()
+    .click()
+  return page.getByRole('dialog', { name: session.title })
+}
+
+test('Why on a session gives the figures behind its week, its recovery cycle and the weeks after the race', async () => {
+  const { thisMonday } = relativeDates()
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  // Easy runs carry the zone split of their phase; the recovery run of the first week back after
+  // the race carries the cycle and the weeks after the race.
+  const easy = plan.sessions.find(
+    (candidate) =>
+      candidate.kind === 'easy' &&
+      candidate.weekStart >= addDays(thisMonday, 14) &&
+      candidate.rules.includes('E4'),
+  )
+  const recovery = plan.sessions.find(
+    (candidate) =>
+      candidate.kind === 'recovery' &&
+      candidate.rules.includes('E3') &&
+      candidate.rules.includes('H12'),
+  )
+  expect(easy, 'an easy run of the plan cites the zone split').toBeDefined()
+  expect(recovery, 'a recovery run of the plan cites the cycle and the race').toBeDefined()
+
+  /** Opens the session, then its Why, and returns the "From your numbers" section. */
+  async function numbersOf(session: NonNullable<typeof easy>) {
+    const sheet = await openSession(session)
+    await sheet.getByRole('button', { name: 'Why this session' }).click()
+    const why = page.getByRole('dialog', { name: 'Why this?' })
+    const numbers = why.getByRole('region', { name: 'From your numbers' })
+    await expect(numbers).toBeVisible()
+    await expect(why.getByText(/Your figures could not be loaded/)).toBeHidden()
+    return { why, numbers }
+  }
+
+  // Each rule is a group named in words, with the runner's own figures under it.
+  const zones = await numbersOf(easy!)
+  await expect(
+    zones.numbers.getByRole('group', { name: 'Intensity distribution by phase' }),
+  ).toContainText(
+    /is a (base|build|race-specific|taper|race) week, with about \d+% of running time in zone 1/,
+  )
+  await noSidewaysScroll()
+  await zones.why.screenshot({ path: test.info().outputPath('why-session-360.png') })
+  await page.keyboard.press('Escape')
+  await expect(zones.why).toBeHidden()
+
+  const cycle = await numbersOf(recovery!)
+  await expect(cycle.numbers.getByRole('group', { name: 'Recovery weeks' })).toContainText(
+    /The plan puts a recovery week after every [23] weeks of work\./,
+  )
+  await expect(cycle.numbers.getByRole('group', { name: 'Recovery after the race' })).toContainText(
+    'After your goal race the plan returns in one step of reduced running.',
+  )
+  await noSidewaysScroll()
+  await page.keyboard.press('Escape')
+  await expect(cycle.why).toBeHidden()
+})
+
+test('Why on a plan check gives the taper of the plan from the goal', async () => {
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  const index = plan.checklist.findIndex((item) => item.rules.includes('K1'))
+  expect(index, 'a plan check cites the taper length').toBeGreaterThanOrEqual(0)
+
+  await page.goto('/plan')
+  await page.locator('summary#checks-title').click()
+  await page.getByRole('button', { name: 'Why this check' }).nth(index).click()
+  const why = page.getByRole('dialog', { name: 'Why this?' })
+  const numbers = why.getByRole('region', { name: 'From your numbers' })
+  await expect(numbers).toBeVisible()
+  await expect(why.getByText(/Your figures could not be loaded/)).toBeHidden()
+  await expect(numbers.getByRole('group', { name: 'Taper length' })).toContainText(
+    /A taper for this distance runs \d+ days; your plan starts it in the week of \d{1,2} \w{3}\./,
+  )
+  if (plan.checklist[index]!.rules.includes('K2')) {
+    await expect(numbers.getByRole('group', { name: 'Taper volume' })).toContainText(
+      /The taper week of \d{1,2} \w{3} is set at up to \d+ min\./,
+    )
+  }
+  await noSidewaysScroll()
+  await page.keyboard.press('Escape')
+  await expect(why).toBeHidden()
 })
