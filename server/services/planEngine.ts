@@ -6,6 +6,7 @@ import {
   acceptedZoneSummary,
   declinedZoneSummary,
   generatedSummary,
+  goalSwitchSummary,
   movedSummary,
   restoredSummary,
   skippedSummary,
@@ -42,6 +43,7 @@ import {
   type ZoneOutcome,
 } from '../../shared/engine/zoneChange.ts'
 import type {
+  PlanRevisionReason,
   PlanSession,
   PlanWithSessions,
   TodayView,
@@ -179,10 +181,20 @@ export function failedChecklist(checklist: ChecklistResult[]): HttpError | null 
   )
 }
 
-/** Runs `buildPlan`, the checklist, persists plan, weeks, sessions and a 'generate' revision. */
+/**
+ * Runs `buildPlan`, the checklist, persists plan, weeks, sessions and one revision: 'generate', or
+ * 'goal-switch' when Make active builds the plan for another goal. Nothing is written unless the
+ * plan passes the checklist, so a refusal leaves the goals and the current plan as they were.
+ */
 export async function generateEnginePlan(
   deps: Deps,
-  args: { userId: string; goalId: string; today: string; options?: EngineInput['options'] },
+  args: {
+    userId: string
+    goalId: string
+    today: string
+    options?: EngineInput['options']
+    reason?: Extract<PlanRevisionReason, 'generate' | 'goal-switch'>
+  },
 ): Promise<PlanWithSessions> {
   const { prisma } = deps
   const { userId, today } = args
@@ -249,11 +261,16 @@ export async function generateEnginePlan(
         data: draft.sessions.map((spec, i) => sessionRow(plan.id, spec, carried[i] ?? undefined)),
       })
       // A new plan has no earlier rows to diff against, so its revision carries no diff.
+      const switched = args.reason === 'goal-switch'
       await recordPlanWrite(tx, {
         planId: plan.id,
         userId,
-        reason: 'generate',
-        summary: generatedSummary(goal.name, draft.weeks.length, draft.sessions.length),
+        reason: switched ? 'goal-switch' : 'generate',
+        summary: (switched ? goalSwitchSummary : generatedSummary)(
+          goal.name,
+          draft.weeks.length,
+          draft.sessions.length,
+        ),
         changes: [],
         diff: null,
         undo: null,

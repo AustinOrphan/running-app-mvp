@@ -12,6 +12,7 @@ import {
   replanActivePlan,
   updatePlanSession,
 } from '../services/planEngine.ts'
+import { listArchivedPlans, restoreArchivedPlan } from '../services/planSwitch.ts'
 import { listRevisions } from '../services/replan.ts'
 
 /** A week's baseline can be at most a full week of minutes. */
@@ -119,6 +120,20 @@ export function planRouter(deps: Deps): Router {
   router.post('/replan', async (req, res) => {
     res.json(
       await replanActivePlan(deps, { userId: req.userId, reason: 'owner', today: todayIso() }),
+    )
+  })
+
+  router.get('/archived', async (req, res) => {
+    res.json(await listArchivedPlans(deps, { userId: req.userId, today: todayIso() }))
+  })
+
+  router.post('/archived/:id/restore', async (req, res) => {
+    res.json(
+      await restoreArchivedPlan(deps, {
+        userId: req.userId,
+        planId: req.params.id,
+        today: todayIso(),
+      }),
     )
   })
 

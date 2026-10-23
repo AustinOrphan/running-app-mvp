@@ -286,6 +286,14 @@ export const REVISION_TEMPLATES = {
     sessions: 'count',
   }),
 
+  // The summary of a plan built for another goal (Make active) and of a restored plan.
+  'revision.goal-switch': tpl(
+    'Plan switched to {goal}: {weeks} weeks, {sessions} sessions.',
+    { goal: 'text', weeks: 'count', sessions: 'count' },
+    { fallback: 'Plan switched to another goal.' },
+  ),
+  'revision.plan-restored': tpl('Plan restored.'),
+
   // Why an undo is refused, for the reasons that need only the revision itself.
   'revision.undo.already-undone': tpl('This update was already undone.'),
   'revision.undo.is-undo': tpl('An undo cannot be undone.'),
@@ -396,6 +404,18 @@ export function generatedSummary(goal: string, weeks: number, sessions: number):
     { goal, weeks: count(weeks), sessions: count(sessions) },
     STORED_UNITS,
   )
+}
+
+export function goalSwitchSummary(goal: string, weeks: number, sessions: number): string {
+  return render(
+    REVISION_TEMPLATES['revision.goal-switch'],
+    { goal, weeks: count(weeks), sessions: count(sessions) },
+    STORED_UNITS,
+  )
+}
+
+export function planRestoredSummary(): string {
+  return render(REVISION_TEMPLATES['revision.plan-restored'], {}, STORED_UNITS)
 }
 
 /**

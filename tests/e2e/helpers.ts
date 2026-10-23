@@ -47,6 +47,8 @@ export function apiFor(page: Page, origin: string) {
     get: async (path: string) => ok(await page.request.get(`/api${path}`)),
     post: async (path: string, data?: Body) =>
       ok(await page.request.post(`/api${path}`, { headers, data })),
+    put: async (path: string, data?: Body) =>
+      ok(await page.request.put(`/api${path}`, { headers, data })),
     delete: async (path: string) => ok(await page.request.delete(`/api${path}`, { headers })),
   }
 }

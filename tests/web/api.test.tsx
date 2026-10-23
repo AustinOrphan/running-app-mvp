@@ -196,10 +196,17 @@ describe('request shapes', () => {
       url: '/api/goals/g1',
       body: undefined,
     })
-    expect(await sent(() => result.current.activate.mutateAsync('g1'))).toEqual({
+    expect(await sent(() => result.current.activate.mutateAsync({ id: 'g1' }))).toEqual({
       method: 'POST',
       url: '/api/goals/g1/activate',
       body: undefined,
+    })
+    expect(
+      await sent(() => result.current.activate.mutateAsync({ id: 'g1', replacePlan: true })),
+    ).toEqual({
+      method: 'POST',
+      url: '/api/goals/g1/activate',
+      body: { replacePlan: true },
     })
     expect(
       await sent(() =>
@@ -510,7 +517,15 @@ describe('invalidation', () => {
 
   test('goals refetch goals and plan', async () => {
     expect(await run((r) => r.createGoal.mutateAsync(goalInput))).toEqual(['goals', 'plan'])
-    expect(await run((r) => r.activate.mutateAsync('g1'))).toEqual(['goals', 'plan'])
+    expect(await run((r) => r.activate.mutateAsync({ id: 'g1' }))).toEqual(['goals', 'plan'])
+  })
+
+  test('building the plan for another goal refetches goals, plan and reviews like a new plan', async () => {
+    expect(await run((r) => r.activate.mutateAsync({ id: 'g1', replacePlan: true }))).toEqual([
+      'goals',
+      'plan',
+      'reviews',
+    ])
   })
 
   test('plan generation refetches goals (it activates the goal), plan and reviews; week edits plan and reviews', async () => {

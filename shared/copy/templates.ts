@@ -10,6 +10,7 @@ import type { InputFact } from '../engine/types.ts'
 import type { Units } from '../types.ts'
 import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
+import { GOALS_TEMPLATES } from './goals.ts'
 import { REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
 import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
 import { PUBLISH_TEMPLATES } from './publish.ts'
@@ -26,6 +27,7 @@ export const TEMPLATES = {
   ...ACTIVITY_LIST_TEMPLATES,
   ...EXPLAIN_TEMPLATES,
   ...PUBLISH_TEMPLATES,
+  ...GOALS_TEMPLATES,
   // The why drawer
   'why.intro': tpl(
     'Every number in the plan comes from a rule. Grade A is the strongest evidence; grade D is a conservative default.',

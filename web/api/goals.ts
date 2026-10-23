@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import type {
+  ActivateRequiresPlan,
   Goal,
   GoalPriority,
   GoalStatus,
@@ -7,7 +8,7 @@ import type {
   GoalType,
   SupportLevel,
 } from '../../shared/types.ts'
-import { api, keys } from './client.ts'
+import { api, ApiError, invalidateNewPlan, keys } from './client.ts'
 
 export interface GoalInput {
   name: string
@@ -71,10 +72,42 @@ export function useDeleteGoal() {
   })
 }
 
+export interface ActivateGoalRequest {
+  id: string
+  /** Agree to build the plan for this goal when the plan follows another goal. */
+  replacePlan?: boolean
+}
+
+/**
+ * Makes a goal active. While a plan follows another goal the server answers 409 with
+ * `details.requires === 'replacePlan'` (`replacePlanRequired` reads it); asking again with
+ * `replacePlan` builds the plan for the goal and archives the old one.
+ */
 export function useActivateGoal() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api<Goal>('POST', `/goals/${encodeURIComponent(id)}/activate`),
-    onSuccess: () => invalidateGoalData(queryClient),
+    mutationFn: ({ id, replacePlan = false }: ActivateGoalRequest) =>
+      api<Goal>(
+        'POST',
+        `/goals/${encodeURIComponent(id)}/activate`,
+        replacePlan ? { replacePlan: true } : undefined,
+      ),
+    onSuccess: (_goal, { replacePlan }) =>
+      replacePlan === true ? invalidateNewPlan(queryClient) : invalidateGoalData(queryClient),
   })
+}
+
+/** The goal the plan follows, when an error is the 409 that asks for `replacePlan`; else null. */
+export function replacePlanRequired(error: unknown): ActivateRequiresPlan | null {
+  if (!(error instanceof ApiError) || error.status !== 409) return null
+  const details = error.details as Partial<ActivateRequiresPlan> | undefined
+  return details?.requires === 'replacePlan' &&
+    typeof details.planGoalId === 'string' &&
+    typeof details.planGoalName === 'string'
+    ? {
+        requires: 'replacePlan',
+        planGoalId: details.planGoalId,
+        planGoalName: details.planGoalName,
+      }
+    : null
 }

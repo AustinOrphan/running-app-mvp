@@ -143,9 +143,9 @@ check` (142 files, 4337 tests), `npm run build`, `npm run test:e2e` (18), `docke
   name a session on a day with none (E2-4); `median` now exists three times in `shared/engine`
   (`athlete.ts`, `readiness.ts`, `backtest.ts`); idle folder scans every 5 minutes fill the
   200-row `SyncRun` cap in about 17 hours (E3-8 or the next boundary decides whether idle
-  scheduled runs are recorded); a plan generated after the Monday slot gets one redundant
-  catch-up re-plan; the fast finish of a long run, the easy part of a strides session and quality
-  warm-ups are published as open steps because `resolveTargets` holds no band for them.
+  scheduled runs are recorded); the fast finish of a long run, the easy part of a strides session
+  and quality warm-ups are published as open steps because `resolveTargets` holds no band for
+  them.
 - **Session identity (E3-7, the contract for the publish channel in E1):** a session's `externalId`
   is its only durable identity, kept by owner moves, swaps, skips and restores and by every
   re-plan that leaves it on the same day and kind (`pairSessions` in
@@ -241,10 +241,9 @@ are no longer recorded, so the 200-row log holds real syncs.
 
 Disputed and recorded (not fixed; reason in brackets):
 
-- A plan generated after the Monday slot counts as "weekly update due" and gets one redundant
-  catch-up re-plan; the catch-up and the 03:00 job can both re-plan one plan in a week [an
-  in-process guard serialises them; R0-1's revision model makes the second a no-op diff; revisit
-  at E3-8].
+- The catch-up and the 03:00 job can both re-plan one plan in a week [an in-process guard
+  serialises them; R0-1's revision model makes the second a no-op diff]. A plan built after the
+  slot is no longer due (E3-8).
 - `GET /api/state` can answer 304 for a body the race-climate path would now build differently,
   and a cold read waits on up to three sequential Open-Meteo calls with no timeout [E3-3 replaces
   `raceClimate.ts` with the cache in the same wave 2].
@@ -254,9 +253,7 @@ Disputed and recorded (not fixed; reason in brackets):
   wording [E1-7's cross-surface adapter reconciles them].
 - The Monday re-plan identity test runs a no-op re-plan; the overlap test has one assertion that
   cannot fail; a 50 ms real-time sleep precedes the single-flight assertion; the Vary-header test
-  only re-checks the header [test-strength notes; R0-1 and E3-8 add the changed-plan case].
-- `latestJobRuns` reads every job row for one per job and the index does not cover its filter
-  [small table after idle runs stopped; E3-8].
+  only re-checks the header [test-strength notes; E3-8 added the changed-plan case].
 
 ## Wave 0 adversarial review (2026-10-23)
 
@@ -344,15 +341,13 @@ stored, and a check-in older than 3 days neither delays nor releases a step).
    42,195 m.
 7. A session the engine trims after a hold decision is stored without its untrimmed version.
 8. Lower-ranked review findings not yet addressed: nested sheets share the Escape key; Apple
-   Health push skips the range checks the parsed import applies; the JSON body parsers for ingest
-   and imports run before authentication; Goals reads "1:45" as minutes and seconds; a few engine tests assert
-   conditionally.
+   Health push skips the range checks the parsed import applies; Goals reads "1:45" as minutes
+   and seconds; a few engine tests assert conditionally.
 9. Behind a reverse proxy, rate limits key on the proxy's address (no trust-proxy setting by
    design: the environment variables are fixed).
-10. "Make active" on a goal other than the plan's goal leaves the plan on the old goal.
-11. Spec non-goals still open: readiness and race-decision gates as stored decisions, long-run lab
+10. Spec non-goals still open: readiness and race-decision gates as stored decisions, long-run lab
     and fueling logs, strength programming; Polar, WHOOP, Oura and Google Health providers.
-12. Enable branch protection on `main` requiring the `ci` and `analyze` checks.
+11. Enable branch protection on `main` requiring the `ci` and `analyze` checks.
 
 ## Clean-up after the merges
 

@@ -182,6 +182,50 @@ describe('a Monday re-plan of an unchanged plan', () => {
   })
 })
 
+describe('a Monday re-plan of a plan that the data changed', () => {
+  test('keeps the identity of a session that stays on its day and kind, and only that', async () => {
+    const { u, goalId, plan } = await fourWeekPlan('monday-changed@example.com')
+    const before = await rowsOf(plan.id)
+    const key = (row: { date: string; kind: string }) => `${row.date}|${row.kind}`
+    const beforeKey = new Map(before.map((r) => [r.id, key(r)]))
+
+    // The race moves a week closer, so the weeks that are left are laid out again.
+    const goal = await ctx.prisma.goal.findUniqueOrThrow({ where: { id: goalId } })
+    await ctx.prisma.goal.update({
+      where: { id: goalId },
+      data: { targetDate: addDays(goal.targetDate, -7) },
+    })
+    const revision = await replanActivePlan(deps(), {
+      userId: u.id,
+      reason: 'weekly',
+      today: thisMonday,
+    })
+    expect(revision.planId).toBe(plan.id)
+
+    const after = await rowsOf(plan.id)
+    const survivors = after.filter((r) => beforeKey.has(r.id))
+    const created = after.filter((r) => !beforeKey.has(r.id))
+    const removed = before.filter((r) => !after.some((a) => a.id === r.id))
+    // The re-plan changed the plan: sessions came and went, and a good part of the plan stayed.
+    expect(created.length + removed.length).toBeGreaterThan(0)
+    expect(survivors.length).toBeGreaterThan(0)
+
+    const externalIdOf = new Map(before.map((r) => [r.id, r.externalId]))
+    for (const row of survivors) {
+      // A kept row keeps its identity; a paired row moved only in content, never in day or kind.
+      expect(row.externalId, row.id).toBe(externalIdOf.get(row.id))
+      expect(key(row), row.id).toBe(beforeKey.get(row.id))
+    }
+    // A session the re-plan created has an identity of its own: none is a removed row's.
+    const oldIds = new Set(before.map((r) => r.externalId))
+    for (const row of created) {
+      expect(row.externalId, row.id).toMatch(UUID_V4)
+      expect(oldIds.has(row.externalId), row.id).toBe(false)
+    }
+    expect(new Set(after.map((r) => r.externalId)).size).toBe(after.length)
+  })
+})
+
 // ---------------------------------------------------------------------------------------------
 // The row-level write, with hand-made plans so that every case is exact
 // ---------------------------------------------------------------------------------------------

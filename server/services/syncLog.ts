@@ -317,12 +317,31 @@ export async function listSyncRuns(
   return rows.map(toSyncRunView)
 }
 
-/** The latest run of each job, newest first. */
+/**
+ * The latest run of each job, newest first. The database finds each job's newest start time and
+ * only those rows are read, however many runs the log holds (`distinct` would read them all and
+ * keep one per job in memory).
+ */
 export async function latestJobRuns(prisma: PrismaClient, userId: string): Promise<SyncRunView[]> {
-  const rows = await prisma.syncRun.findMany({
+  const newest = await prisma.syncRun.groupBy({
+    by: ['provider'],
     where: { userId, channel: 'job' },
-    orderBy: NEWEST_FIRST,
-    distinct: ['provider'],
+    _max: { startedAt: true },
   })
-  return rows.map(toSyncRunView)
+  const latest = newest.flatMap(({ provider, _max }) =>
+    _max.startedAt === null ? [] : [{ provider, startedAt: _max.startedAt }],
+  )
+  if (latest.length === 0) return []
+  const rows = await prisma.syncRun.findMany({
+    where: { userId, channel: 'job', OR: latest },
+    orderBy: NEWEST_FIRST,
+  })
+  // Two runs of one job can start in the same millisecond: the one listed first is the latest.
+  const seen = new Set<string>()
+  const first = rows.filter((row) => {
+    if (seen.has(row.provider)) return false
+    seen.add(row.provider)
+    return true
+  })
+  return first.map(toSyncRunView)
 }

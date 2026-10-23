@@ -104,6 +104,117 @@ async function isUncovered(locator: ReturnType<Page['locator']>): Promise<boolea
   })
 }
 
+/** How far the page reaches past the viewport sideways, in pixels. */
+async function pageOverflow(): Promise<number> {
+  return page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  )
+}
+
+test('Integrations with Recent syncs open does not scroll sideways at 360 px', async () => {
+  const { lastWednesday } = relativeDates()
+  await resetData()
+  // A connected source with two runs in its log: the same push twice.
+  const issued = (await api.post('/integrations/apple-health/push-token')) as { token: string }
+  const workouts = [6, 7, 8].map((hour) => ({
+    id: `narrow-${String(hour)}`,
+    name: 'Outdoor Run',
+    start: `${lastWednesday} 0${String(hour)}:00:00 +0000`,
+    end: `${lastWednesday} 0${String(hour)}:30:00 +0000`,
+    distance: { qty: 5, units: 'km' },
+  }))
+  for (let push = 0; push < 2; push += 1) {
+    const res = await page.request.post('/api/ingest/apple-health', {
+      headers: { Authorization: `Bearer ${issued.token}` },
+      data: { data: { metrics: [], workouts } },
+    })
+    expect(res.ok(), `push ${String(push)} answered ${String(res.status())}`).toBe(true)
+  }
+
+  await page.goto('/integrations')
+  const card = page.getByRole('region', { name: 'Apple Health' })
+  await expect(card).toBeVisible()
+  const history = card.locator('details').filter({ hasText: 'Recent syncs' })
+  await history.getByText('Recent syncs').click()
+  const runs = history.getByRole('listitem')
+  await expect(runs).toHaveCount(2)
+  await expect(runs.first()).toContainText('Stored 3 new activities')
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+  // Every line of the log stays inside the card.
+  const cardBox = await card.boundingBox()
+  expect(cardBox).not.toBeNull()
+  for (const run of await runs.all()) {
+    const box = await run.boundingBox()
+    expect(box).not.toBeNull()
+    if (!box || !cardBox) continue
+    expect(box.x).toBeGreaterThanOrEqual(cardBox.x - 0.5)
+    expect(box.x + box.width).toBeLessThanOrEqual(cardBox.x + cardBox.width + 0.5)
+  }
+})
+
+test('the Goals question for Make active fits at 360 px and clears the tab bar', async () => {
+  const { lastWednesday, thisMonday } = relativeDates()
+  await resetData()
+  for (let i = 0; i < 8; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (35 + i) * 60,
+      distanceM: 6000 + i * 300,
+    })
+  }
+  const longName = 'The narrow viewport marathon with a rather long name to wrap'
+  const first = (await api.post('/goals', {
+    name: longName,
+    priority: 'A',
+    targetDate: addDays(thisMonday, 7 * 14 + 5),
+    distanceM: 42_195,
+    goalType: 'finish',
+  })) as { id: string }
+  await api.post('/goals', {
+    name: 'Narrow 10K',
+    priority: 'B',
+    // Later than the plan's race, so its card is the last one and the question ends the page.
+    targetDate: addDays(thisMonday, 7 * 16 + 5),
+    distanceM: 10_000,
+    goalType: 'finish',
+  })
+  await api.post(`/goals/${first.id}/activate`)
+  await api.post('/plan/generate', { goalId: first.id })
+
+  await page.goto('/goals')
+  const card = page.getByRole('article', { name: 'Narrow 10K' })
+  await card.getByRole('button', { name: 'Make active' }).click()
+  const question = card.getByRole('group', { name: /^The plan follows/ })
+  await expect(question).toBeVisible()
+  await page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight)
+  })
+
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+  const viewport = page.viewportSize()
+  const navHeight = (await page.getByRole('navigation', { name: 'Primary' }).boundingBox())?.height
+  const limit = (viewport?.height ?? 0) - (navHeight ?? 0)
+  const questionBox = await question.boundingBox()
+  expect(questionBox).not.toBeNull()
+  expect((questionBox?.x ?? 0) + (questionBox?.width ?? 0)).toBeLessThanOrEqual(
+    (viewport?.width ?? 0) + 0.5,
+  )
+  for (const name of ['Build plan for Narrow 10K', 'Cancel']) {
+    const button = question.getByRole('button', { name })
+    await expect(button).toBeVisible()
+    const box = await button.boundingBox()
+    expect(box, name).not.toBeNull()
+    expect((box?.x ?? 0) + (box?.width ?? 0), `${name} right edge`).toBeLessThanOrEqual(
+      (viewport?.width ?? 0) + 0.5,
+    )
+    expect((box?.y ?? 0) + (box?.height ?? 0), `${name} bottom edge`).toBeLessThanOrEqual(limit)
+    expect(await isUncovered(button), name).toBe(true)
+  }
+  await question.getByRole('button', { name: 'Cancel' }).click()
+  await expect(question).toBeHidden()
+})
+
 for (const size of [
   { width: 390, height: 844 },
   { width: 360, height: 780 },
