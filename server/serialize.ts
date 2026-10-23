@@ -25,7 +25,10 @@ import type {
   SessionSpec,
   SessionTarget,
   Step,
+  WeeklyDecision,
 } from '../shared/engine/types.ts'
+import { undoReasonMessage } from '../shared/copy/revision.ts'
+import { P } from '../shared/engine/params/index.ts'
 import type {
   Activity,
   ActivityCore,
@@ -48,8 +51,9 @@ import type {
   IntegrationStatus,
   Plan,
   Phase,
-  PlanRevision,
+  PlanDiff,
   PlanRevisionReason,
+  PlanRevisionView,
   PlanSession,
   PlanSessionStatus,
   PlanWeek,
@@ -61,6 +65,8 @@ import type {
   Symptoms,
   TargetSource,
   Terrain,
+  UndoReasonCode,
+  UndoState,
   Weekday,
   WeeklyReview,
   WellnessDay,
@@ -387,7 +393,33 @@ export function toPlanSession(row: PlanSessionRow): PlanSession {
   }
 }
 
-export function toPlanRevision(row: PlanRevisionRow): PlanRevision {
+const DAY_MS = 86_400_000
+
+/**
+ * Whether a revision can be undone, as far as the revision itself says: it has a payload, is not
+ * undone, is not an undo and is younger than the undo window. The checks that read other rows (a
+ * touched row edited since, a run linked, a safety rule, the plan, the checklist) come with the
+ * undo itself; until then `available` means only that none of these four reasons applies.
+ */
+function undoStateOf(row: PlanRevisionRow, now: Date): UndoState {
+  const days = P.revision.undoWindowDays.value
+  let code: Extract<
+    UndoReasonCode,
+    'already-undone' | 'is-undo' | 'not-undoable' | 'window-passed'
+  > | null = null
+  if (row.undoneAt !== null) code = 'already-undone'
+  else if (row.reason === 'undo') code = 'is-undo'
+  else if (row.undo === null) code = 'not-undoable'
+  else if (now.getTime() - row.createdAt.getTime() >= days * DAY_MS) code = 'window-passed'
+  return {
+    available: code === null,
+    reasons: code === null ? [] : [{ code, message: undoReasonMessage(code, days) }],
+    undoneAt: row.undoneAt?.toISOString() ?? null,
+  }
+}
+
+/** A revision as the API serves it. The undo payload never leaves the server. */
+export function toPlanRevision(row: PlanRevisionRow, now: Date = new Date()): PlanRevisionView {
   return {
     id: row.id,
     planId: row.planId,
@@ -395,6 +427,13 @@ export function toPlanRevision(row: PlanRevisionRow): PlanRevision {
     reason: row.reason as PlanRevisionReason,
     summary: row.summary,
     changes: parseJson<PlanChange[]>(row.changes, []),
+    auto: row.auto,
+    decision: parseJson<WeeklyDecision | null>(row.decision, null),
+    diff: parseJson<PlanDiff | null>(row.diff, null),
+    undo: undoStateOf(row, now),
+    seenAt: row.seenAt?.toISOString() ?? null,
+    undoOf: row.undoOf,
+    disruptionId: row.disruptionId,
   }
 }
 

@@ -81,6 +81,11 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
   `externalId` (fresh unless carried) and `trimmed`, the indexed form of `rules` holding
   `design-4.3`. `isTrimmed()` in `server/serialize.ts` is the one derivation: set `trimmed` with it
   on every write of `rules`, and never filter the stored `rules` text with `contains`.
+- A re-plan and a `PlanRevision` are written only through `computeReplan` (reads, decides, writes
+  nothing), `applyReplan` and `recordPlanWrite` in `server/services/replan.ts` (ADR 0007);
+  `replanActivePlan` wraps the first two. Nothing else creates a revision (a test scans `server/`),
+  and each revision stores a `PlanDiff` and an `UndoPayload` built from the rows actually written.
+  Summaries are templates in `shared/copy/revision.ts`.
 - Week and statistics code reads `ActivityCore` rows (`loadActivityCores`, six columns), from
   `activityLoadStart(first week)` to the last Sunday, never every whole activity. A loop over weeks
   reads the database once for all of them (`executionRecordsByWeek`).

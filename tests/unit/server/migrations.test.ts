@@ -300,11 +300,125 @@ function verifyPlanSessions(db: DatabaseSync, before: Snapshot): void {
   ])
 }
 
+/** The previous release's revisions: one of each reason, in two plans, with distinct timestamps. */
+function seedRevisions(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Goal', {
+    id: 'g1',
+    userId: 'u1',
+    name: 'Synthetic marathon',
+    priority: 'A',
+    targetDate: '2027-04-18',
+    updatedAt: STAMP,
+  })
+  for (const id of ['p-active', 'p-old']) {
+    insert(db, 'Plan', {
+      id,
+      userId: 'u1',
+      goalId: 'g1',
+      name: 'Synthetic plan',
+      startDate: '2026-10-05',
+      raceWeekStart: '2027-04-12',
+      status: id === 'p-active' ? 'active' : 'archived',
+      generatorVersion: 2,
+      updatedAt: STAMP,
+    })
+  }
+  const changes = JSON.stringify([
+    { weekStart: '2026-10-12', field: 'targetRunMin', from: 300, to: 280, rules: ['J5'] },
+  ])
+  // [id, plan, reason, createdAt]
+  const revisions: Array<[string, string, string, string]> = [
+    ['r01', 'p-active', 'generate', '2026-10-05 08:00:00'],
+    ['r02', 'p-active', 'weekly', '2026-10-12 03:00:00'],
+    ['r03', 'p-active', 'review', '2026-10-13 09:30:00'],
+    ['r04', 'p-active', 'owner', '2026-10-14 18:45:00'],
+    ['r05', 'p-active', 'break', '2026-10-19 03:00:00'],
+    ['r06', 'p-old', 'weekly', '2026-09-28 03:00:00'],
+    ['r07', 'p-old', 'generate', '2026-09-21 08:00:00'],
+  ]
+  for (const [id, planId, reason, createdAt] of revisions) {
+    insert(db, 'PlanRevision', {
+      id,
+      planId,
+      reason,
+      summary: `Synthetic ${reason} revision.`,
+      changes: reason === 'generate' ? '[]' : changes,
+      createdAt,
+    })
+  }
+}
+
+function verifyRevisionModel(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  const seeded = before.get('PlanRevision') ?? []
+  expect(seeded).toHaveLength(7)
+  const rows = rowsOf(db, 'SELECT * FROM "PlanRevision" ORDER BY id')
+  expect(rows.map((r) => r.id)).toEqual(seeded.map((r) => r.id).sort())
+
+  // The scheduler's revisions (weekly and break) are automatic; nothing else is.
+  expect(
+    rows.filter((r) => r.auto === 1).map((r) => r.id),
+    'rows backfilled as automatic',
+  ).toEqual(['r02', 'r05', 'r06'])
+  expect(rows.filter((r) => r.auto === 0).map((r) => r.id)).toEqual(['r01', 'r03', 'r04', 'r07'])
+
+  // Every old revision counts as seen when it was written, so none reads as new.
+  for (const row of rows) expect(row.seenAt, `seenAt of ${String(row.id)}`).toBe(row.createdAt)
+
+  // Old rows have no diff, no undo payload and no link to an undo or a rest window.
+  for (const row of rows) {
+    expect(row, String(row.id)).toMatchObject({
+      decision: null,
+      diff: null,
+      undo: null,
+      undoneAt: null,
+      undoneById: null,
+      undoOf: null,
+      disruptionId: null,
+    })
+  }
+
+  // New rows default to a manual, unseen revision.
+  db.exec(
+    `INSERT INTO "PlanRevision" ("id", "planId", "reason", "summary") VALUES ('r08', 'p-active', 'owner', 'New.')`,
+  )
+  expect(rowsOf(db, `SELECT auto, seenAt FROM "PlanRevision" WHERE id = 'r08'`)).toEqual([
+    { auto: 0, seenAt: null },
+  ])
+
+  // Both indexes survive the redefine, and the cascade from the plan still fires.
+  expectIndex(db, 'PlanRevision', ['planId', 'createdAt'], false)
+  expectIndex(db, 'PlanRevision', ['planId', 'reason'], false)
+  const keys = rowsOf(db, `PRAGMA foreign_key_list("PlanRevision")`).map((k) => ({
+    from: k.from,
+    table: k.table,
+    onDelete: k.on_delete,
+  }))
+  expect(keys).toEqual([{ from: 'planId', table: 'Plan', onDelete: 'CASCADE' }])
+  db.exec(`DELETE FROM "Plan" WHERE id = 'p-old'`)
+  expect(rowsOf(db, `SELECT count(*) AS n FROM "PlanRevision" WHERE "planId" = 'p-old'`)).toEqual([
+    { n: 0 },
+  ])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
     seed: seedPlanSessions,
     verify: verifyPlanSessions,
+  },
+  {
+    migration: 'revision_model',
+    seed: seedRevisions,
+    verify: verifyRevisionModel,
   },
 ]
 

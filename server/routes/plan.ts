@@ -4,7 +4,7 @@ import { isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
 import type { PlanWeek } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound, parse, validationError } from '../errors.ts'
-import { toPlanRevision, toPlanWeek } from '../serialize.ts'
+import { toPlanWeek } from '../serialize.ts'
 import {
   generateEnginePlan,
   linkPlanSession,
@@ -12,6 +12,7 @@ import {
   replanActivePlan,
   updatePlanSession,
 } from '../services/planEngine.ts'
+import { listRevisions } from '../services/replan.ts'
 
 /** A week's baseline can be at most a full week of minutes. */
 const MAX_WEEK_MIN = 7 * 24 * 60
@@ -60,6 +61,13 @@ const sessionPatch = z
   .refine((patch) => Object.keys(patch).length === 1, 'Send exactly one of date, kind or skip.')
 
 const linkBody = z.strictObject({ activityId: z.string().min(1).nullable() })
+
+/** A page of the revision log; revisions with an empty diff are hidden unless asked for. */
+const revisionsQuery = z.strictObject({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  before: z.string().min(1).max(64).optional(),
+  include: z.literal('empty').optional(),
+})
 
 const weekBody = z
   .object({
@@ -115,20 +123,15 @@ export function planRouter(deps: Deps): Router {
   })
 
   router.get('/revisions', async (req, res) => {
-    const plan = await prisma.plan.findFirst({
-      where: { userId: req.userId, status: 'active' },
-      orderBy: { createdAt: 'desc' },
-    })
-    if (!plan) {
-      res.json([])
-      return
-    }
-    const rows = await prisma.planRevision.findMany({
-      where: { planId: plan.id },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 200,
-    })
-    res.json(rows.map(toPlanRevision))
+    const query = parse(revisionsQuery, req.query)
+    res.json(
+      await listRevisions(deps, {
+        userId: req.userId,
+        limit: query.limit,
+        before: query.before,
+        includeEmpty: query.include === 'empty',
+      }),
+    )
   })
 
   router.put('/sessions/:id', async (req, res) => {

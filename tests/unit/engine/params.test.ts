@@ -27,7 +27,19 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-23.1')
+    expect(PARAMS_VERSION).toBe('2026-10-23.2')
+  })
+
+  it('holds the undo window of the revision model as a grade D default of 7 days', () => {
+    expect(P.revision.undoWindowDays).toMatchObject({
+      id: 'revision.undoWindowDays',
+      value: 7,
+      grade: 'D',
+      rule: 'design-revisions',
+      unit: 'days',
+      evidence: [],
+    })
+    expect(paramsForRule('design-revisions').map((p) => p.id)).toEqual(['revision.undoWindowDays'])
   })
 
   it('holds a few hundred parameters, every section non-empty', () => {

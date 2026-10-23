@@ -79,6 +79,18 @@ export interface SessionSpec {
   flags: SessionFlag[]
 }
 /**
+ * What a revision diff remembers of a session on either side of a change (phase 3a design 4.2):
+ * enough to name it and say how long it is, without the steps or the targets. The one definition.
+ */
+export interface SessionBrief {
+  date: string
+  kind: SessionKind
+  title: string
+  durationMin: number
+  distanceM: number | null
+  gainM: number | null
+}
+/**
  * A session's targets as every surface shows them (`resolveTargets`, design 4.6): the figure the
  * day leads with, the secondary figures, and the notes that explain them.
  */
