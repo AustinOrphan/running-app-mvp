@@ -25,6 +25,7 @@ import {
 import { useImportFile, useImports } from '../../web/api/imports.ts'
 import {
   useGeneratePlan,
+  useLinkPlanSession,
   usePlan,
   usePlanRevisions,
   useUpdatePlanWeek,
@@ -629,6 +630,34 @@ describe('the plan readers', () => {
       keys.plan,
       keys.reviews,
     ])
+  })
+
+  test.each([
+    ['accepting', 'accept'],
+    ['declining', 'decline'],
+  ] as const)(
+    '%s a zone proposal reads every reader of the plan again, with the zones',
+    async (_, decision) => {
+      mockApi(allRoutes({ [`POST /api/zones/proposals/z1/${decision}`]: () => ({}) }))
+      const { queryClient, wrapper } = setup()
+      const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+      const { result } = renderHook(
+        () => (decision === 'accept' ? useAcceptZoneProposal() : useDeclineZoneProposal()),
+        { wrapper },
+      )
+      await act(() => result.current.mutateAsync('z1'))
+      // The decision is written to the revision log, which the brief lists under "Since this brief".
+      expect(rootsOf(invalidate)).toEqual([...READERS, keys.zones, keys.zoneProposals].sort())
+    },
+  )
+
+  test('linking a run to a session reads every reader of the plan again, with the activities', async () => {
+    mockApi(allRoutes({ 'POST /api/plan/sessions/s1/link': () => ({}) }))
+    const { queryClient, wrapper } = setup()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useLinkPlanSession(), { wrapper })
+    await act(() => result.current.mutateAsync({ id: 's1', activityId: 'a1' }))
+    expect(rootsOf(invalidate)).toEqual([...READERS, keys.activities, keys.activityDetail].sort())
   })
 
   test('a plan that replaces the old one reads the watch status and fuel again', async () => {

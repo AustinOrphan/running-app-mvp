@@ -11,12 +11,14 @@ import { useActivateGoal } from '../../web/api/goals.ts'
 import {
   useAdjustSession,
   useGeneratePlan,
+  useLinkPlanSession,
   useReplan,
   useRestorePlan,
   useUndoRevision,
   useUpdatePlanWeek,
 } from '../../web/api/plan.ts'
 import { useSaveReview } from '../../web/api/reviews.ts'
+import { useAcceptZoneProposal, useDeclineZoneProposal } from '../../web/api/zones.ts'
 import { mockApi } from './helpers.tsx'
 
 // The brief describes the plan, so every write that changes the plan reads it again. A brief that
@@ -106,6 +108,21 @@ const CASES: Case[] = [
     label: 'removing a rest window',
     route: 'DELETE /api/plan/disruptions/d1',
     run: (wrapper) => mutate(useRemoveDisruption, { id: 'd1' }, wrapper),
+  },
+  {
+    label: 'accepting a zone proposal',
+    route: 'POST /api/zones/proposals/z1/accept',
+    run: (wrapper) => mutate(useAcceptZoneProposal, 'z1', wrapper),
+  },
+  {
+    label: 'declining a zone proposal',
+    route: 'POST /api/zones/proposals/z1/decline',
+    run: (wrapper) => mutate(useDeclineZoneProposal, 'z1', wrapper),
+  },
+  {
+    label: 'linking a run to a session',
+    route: 'POST /api/plan/sessions/s1/link',
+    run: (wrapper) => mutate(useLinkPlanSession, { id: 's1', activityId: 'a1' }, wrapper),
   },
   {
     label: 'an undo',

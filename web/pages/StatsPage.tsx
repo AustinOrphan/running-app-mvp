@@ -1,12 +1,10 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import type { Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace, minutesToHours1 } from '../../shared/units.ts'
 import { useSettings } from '../api/settings.ts'
 import { useStats } from '../api/stats.ts'
 import { useWeeks } from '../api/weeks.ts'
-import { axisProps, chartColors, ChartTooltip, gridProps } from '../components/charts/theme.ts'
-import { WeeklyHoursChart } from '../components/charts/WeeklyHoursChart.tsx'
+import { MonthlyHoursChart, WeeklyHoursChart } from '../components/charts/lazyCharts.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { formatShortDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -86,10 +84,6 @@ export function StatsPage() {
     label: monthLabel(m.month),
     hours: m.runMin / 60,
   }))
-  const monthCeiling = Math.max(
-    2,
-    Math.ceil(Math.max(0, ...monthPoints.map((p) => p.hours)) / 2) * 2,
-  )
   const weekRows = weeks.data
   const history = [...weekRows].reverse()
 
@@ -112,35 +106,7 @@ export function StatsPage() {
 
       <section className={styles.section}>
         <h2 className={styles.heading}>Monthly totals</h2>
-        <div role="img" aria-label="Run hours per month" className={styles.chart}>
-          <ResponsiveContainer
-            width="100%"
-            height="100%"
-            initialDimension={{ width: 640, height: 200 }}
-          >
-            <BarChart data={monthPoints} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
-              <CartesianGrid {...gridProps} />
-              <XAxis dataKey="label" {...axisProps} interval="preserveStartEnd" />
-              <YAxis
-                {...axisProps}
-                width={28}
-                domain={[0, monthCeiling]}
-                ticks={[0, monthCeiling / 2, monthCeiling]}
-              />
-              <Tooltip
-                content={<ChartTooltip format={(value) => `${value.toFixed(1)} h`} />}
-                cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1, fill: 'none' }}
-              />
-              <Bar
-                dataKey="hours"
-                name="Run hours"
-                fill={chartColors.run}
-                barSize={16}
-                isAnimationActive={false}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <MonthlyHoursChart points={monthPoints} ariaLabel="Run hours per month" />
         <div
           className={styles.tableWrap}
           tabIndex={0}

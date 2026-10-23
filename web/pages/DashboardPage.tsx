@@ -88,7 +88,12 @@ export function DashboardPage() {
     />
   )
 
-  if (todayView.isError || settings.isError) {
+  // A read that fails after one that worked (the midnight refetch with the connection down) keeps
+  // the last payload on the page; the error replaces the page only when there is nothing to show.
+  if (
+    (todayView.isError && todayView.data === undefined) ||
+    (settings.isError && settings.data === undefined)
+  ) {
     return (
       <>
         {header()}

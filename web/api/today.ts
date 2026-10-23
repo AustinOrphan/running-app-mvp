@@ -30,21 +30,24 @@ const SEARCH_SPAN_MS = 30 * 60 * 60 * 1000
 const RETRY_MS = 60_000
 
 /**
- * Milliseconds from `now` until the calendar day in `tz` is no longer `date`: 0 when it already
- * is not, `null` when it will not change within a day and a half (a `date` that lies ahead).
- * Never reads the machine's zone, so a phone in another zone waits for the server's midnight.
- * Throws a RangeError for an unknown zone, like `isoDateInZone`.
+ * Milliseconds from `now` until the calendar day in `tz` is no longer `date`: 0 when the day in
+ * `tz` is already later than `date` (the payload is from an earlier day), and `null` when `date`
+ * is later than the day in `tz` (the device's clock runs behind the server's, so waiting does not
+ * end it). Never reads the machine's zone, so a phone in another zone waits for the server's
+ * midnight. Throws a RangeError for an unknown zone, like `isoDateInZone`.
  */
 function msUntilDayEnds(now: Date, tz: string, date: string): number | null {
-  const changed = (at: number) => isoDateInZone(new Date(at), tz) !== date
   const from = now.getTime()
-  if (changed(from)) return 0
+  const today = isoDateInZone(now, tz)
+  // ISO dates order as text.
+  if (today > date) return 0
+  if (today < date) return null
+  // A day is at most 25 hours long, so it has ended by the end of the search span.
   let high = from + SEARCH_SPAN_MS
-  if (!changed(high)) return null
   let low = from
   while (high - low > 1) {
     const middle = Math.floor((low + high) / 2)
-    if (changed(middle)) high = middle
+    if (isoDateInZone(new Date(middle), tz) !== date) high = middle
     else low = middle
   }
   return high - from
@@ -56,7 +59,9 @@ function msUntilDayEnds(now: Date, tz: string, date: string): number | null {
  * when a day ends (`TodayView.tz`), never the device clock's zone. The timer is set for the exact
  * end of the day; a server that still answers with the old day (its clock is a little behind) is
  * asked again every minute, which costs a 304. A day ahead (`coach.preview`) is not today and is
- * never refreshed this way.
+ * never refreshed this way, and neither is a payload dated after the device's own day in the
+ * server's zone (a device clock that runs behind): no timer is set, and the next focus refetch
+ * reads it again.
  */
 export function useServerToday() {
   const query = useToday()

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { ResolvedTargets } from '../../shared/engine/types.ts'
@@ -70,6 +70,34 @@ describe('Today: the first screen', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Today did not load. Reload the page to try again.',
     )
+  })
+
+  test('a failed refetch keeps the last payload on the page', async () => {
+    let answers = 0
+    const { api } = renderToday(dayOf(), {
+      'GET /api/today': () => {
+        answers += 1
+        return answers === 1
+          ? dayOf()
+          : { status: 500, body: { error: { code: 'internal', message: 'Server error' } } }
+      },
+    })
+    const hero = await screen.findByRole('article', { name: 'Easy run' })
+
+    // The window comes back to the front and the payload is read again; the connection is down.
+    act(() => {
+      window.dispatchEvent(new Event('visibilitychange'))
+    })
+    await waitFor(() => {
+      expect(api.calls.filter((call) => call.url === '/api/today')).toHaveLength(2)
+    })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+
+    // The hero is the same node (an open sheet or a half-typed answer stays), with no alert.
+    expect(screen.getByRole('article', { name: 'Easy run' })).toBe(hero)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   test('the skeleton mirrors the first screen and waits 300 ms before it shows', async () => {

@@ -179,9 +179,18 @@ const PLAN_READER_KEYS = [
 
 /**
  * Reads those queries again after a write to the plan (an undo, a re-plan, an adjusted session, a
- * rest window, a week edit, a new plan). `skip` leaves out the queries it names (the dry run of the
- * edit that was just applied, which would read "nothing to change"); `also` adds the keys that
- * only some writes move (a new plan also changes the goals and the archived plans).
+ * rest window, a week edit, a new plan, a zone decision, a run linked to a session). `skip` leaves
+ * out the queries it names (the dry run of the edit that was just applied, which would read
+ * "nothing to change"); `also` adds the keys that only some writes move (a new plan also changes the
+ * goals and the archived plans, a zone decision the zones and their proposals, a link the
+ * activities).
+ *
+ * Deliberately not routed through here, each with its own list: the writes to activity data (a run
+ * added, edited, deleted, imported or synced; `invalidateActivityData`), which link and assess
+ * sessions against what was run but record no revision; a profile save (`useUpdateProfile`) and a
+ * goal edit that leaves the plan alone, which record no revision; and the "seen" stamps, which move
+ * only the revision list, the brief and Today. A new write that records a revision or changes what
+ * a session asks for goes through this function.
  */
 export function invalidatePlanReaders(
   queryClient: QueryClient,

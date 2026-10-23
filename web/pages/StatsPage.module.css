@@ -9,12 +9,6 @@
   line-height: var(--lh-lg);
 }
 
-.chart {
-  width: 100%;
-  height: 12.5rem;
-  margin-bottom: var(--space-4);
-}
-
 .tableWrap {
   max-width: 100%;
   overflow-x: auto;

@@ -1,0 +1,27 @@
+/*
+ * The place held for a chart while its code loads: the height of the chart's own `.chart` rule, so
+ * the page does not jump when the chart arrives. Keep each in step with the chart it stands in for.
+ */
+.weekly {
+  height: 12.5rem;
+}
+
+.monthly {
+  height: 12.5rem;
+  margin-bottom: var(--space-4);
+}
+
+.stream {
+  height: 11rem;
+}
+
+.track {
+  height: 12rem;
+}
+
+.unavailable {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
