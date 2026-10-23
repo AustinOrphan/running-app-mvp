@@ -81,6 +81,9 @@ build runs `prisma migrate deploy` as a smoke test.
   auto-waiting assertions.
   `signedInApi()` signs in with a minted session cookie once the account exists, because the
   sign-in route allows 10 attempts per window and the suite would exhaust it.
+- The e2e server port is 3101 plus a per-checkout offset (`E2E_PORT` in `tests/e2e/env.ts`), so
+  worktrees can run e2e at the same time. Never hard-code it; use `baseURL` or `E2E_PORT`. Print it
+  with `node -e "import('./tests/e2e/env.ts').then((m) => console.log(m.E2E_PORT))"`.
 
 ## Public repository
 

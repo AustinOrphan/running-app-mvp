@@ -12,7 +12,9 @@ await initSqlite(prisma)
 
 const deps = { prisma, config }
 const app = createApp(deps)
-const server = app.listen(config.port, '0.0.0.0', () => {
+// Express 5 hands a bind error (such as EADDRINUSE) to this callback instead of throwing it.
+const server = app.listen(config.port, '0.0.0.0', (error?: Error) => {
+  if (error) throw error
   logger.info({ port: config.port }, 'server listening')
 })
 
