@@ -21,7 +21,7 @@ import { Sheet } from '../Sheet.tsx'
 import { Skeleton } from '../Skeleton.tsx'
 import { RevisionDiff } from '../revisions/RevisionDiff.tsx'
 import { PreviewPanel } from './PreviewPanel.tsx'
-import { newWarnings, runMinOverNextWeeks, windowCovers } from './previewFigures.ts'
+import { newWarnings, windowCovers } from './previewFigures.ts'
 import {
   EMPTY_DRAFT,
   REASON_CHOICES,
@@ -229,7 +229,6 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
       </Button>
     )
   } else if (step === 'review' && preview !== null && input !== null) {
-    const figures = runMinOverNextWeeks(plan.data?.sessions ?? [], preview.diff, preview.today)
     body = (
       <>
         <StepHeading step={step} heading={heading} title="What would change" />
@@ -238,7 +237,7 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
           units={units}
           notice={notice}
           lead={windowSentences(input, windows.data ?? [], units)}
-          facts={figures === null ? [] : [runningTimeLine(figures, units)]}
+          facts={preview.runMin === null ? [] : [runningTimeLine(preview.runMin, units)]}
           notes={raceDate !== null && windowCovers(input, raceDate) ? [raceDayLine(units)] : []}
           warnings={newWarnings(preview.warnings, plan.data?.warnings ?? [])}
         />

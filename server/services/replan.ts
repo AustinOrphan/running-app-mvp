@@ -16,6 +16,7 @@
 import { createHash } from 'node:crypto'
 import { addDays, mondayOf } from '../../shared/dates.ts'
 import { changesSummary, decisionSummary, stalePreviewMessage } from '../../shared/copy/revision.ts'
+import { runMinutesAhead } from '../../shared/domain/runMinutes.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
@@ -28,7 +29,12 @@ import type {
   WeekDraft,
   WeeklyDecision,
 } from '../../shared/engine/types.ts'
-import type { PlanDiff, PlanRevisionReason, PlanRevisionView } from '../../shared/types.ts'
+import type {
+  PlanDiff,
+  PlanRevisionReason,
+  PlanRevisionView,
+  RunMinutes,
+} from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import {
   PLAN_SESSION_COLUMNS,
@@ -471,6 +477,8 @@ export interface ReplanResult {
   holds: PlanDiff['holds']
   /** What writing it would change, from the rows as they are now. */
   diff: PlanDiff
+  /** The running time of the next 28 days, now and once the same writes are applied. */
+  runMin: RunMinutes | null
 }
 
 /** A write that found the plan changed since it was decided; the caller recomputes or answers 409. */
@@ -681,6 +689,13 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
       .filter((line): line is string => line !== null)
       .join(' ')
 
+  // One write set describes the preview: the diff and the running time are read from it.
+  const writes = previewWrites(
+    plan.id,
+    { sessions: sessionRows, weeks: weekRows },
+    { today, draft, settle, holdDates: new Set(holdDates), holds },
+  )
+
   return {
     userId,
     planId: plan.id,
@@ -700,13 +715,8 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     holdDates,
     settle,
     holds,
-    diff: diffPlans(
-      previewWrites(
-        plan.id,
-        { sessions: sessionRows, weeks: weekRows },
-        { today, draft, settle, holdDates: new Set(holdDates), holds },
-      ),
-    ),
+    diff: diffPlans(writes),
+    runMin: runMinutesAhead(sessionRows, writes.sessions, today),
   }
 }
 

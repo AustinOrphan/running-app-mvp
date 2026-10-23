@@ -26,6 +26,7 @@ import type {
   PlanPreview,
   PlanRevisionView,
   PlanSession,
+  RunMinutes,
   UndoReason,
   UndoResult,
 } from '../../shared/types.ts'
@@ -74,6 +75,8 @@ interface ComputedBase {
   headRevisionId: string | null
   summary: string
   diff: PlanDiff
+  /** The running time of the next 28 days before and after the diff; null where it is not stated. */
+  runMin: RunMinutes | null
   warnings: EngineWarning[]
   /** Why a commit would be refused; empty when it would go through. */
   reasons: UndoReason[]
@@ -170,6 +173,7 @@ export async function computeAction(
       summary:
         refusal?.message ?? (planned.check.noop ? changesSummary(0, 0) : planned.check.summary),
       diff: planned.diff,
+      runMin: null,
       warnings: [],
       reasons: [],
       guards: planned.check.guards,
@@ -191,6 +195,7 @@ export async function computeAction(
       headRevisionId,
       summary: result.summary,
       diff: result.diff,
+      runMin: result.runMin,
       warnings: result.draft.warnings,
       reasons: blocked ? [{ code: 'checklist', message: blocked.message }] : [],
       guards: [],
@@ -210,6 +215,7 @@ export async function computeAction(
       headRevisionId: result.headRevisionId,
       summary: result.summary,
       diff: result.diff,
+      runMin: result.runMin,
       warnings: result.draft.warnings,
       reasons: blocked ? [{ code: 'checklist', message: blocked.message }] : [],
       guards: [],
@@ -227,6 +233,7 @@ export async function computeAction(
     headRevisionId,
     summary: plan.summary,
     diff: plan.diff,
+    runMin: null,
     warnings: plan.warnings,
     reasons: plan.reasons,
     guards: [],
@@ -243,6 +250,7 @@ export function toPreview(computed: ComputedAction): PlanPreview {
   return {
     action: computed.action,
     diff: computed.diff,
+    runMin: computed.runMin,
     summary: computed.summary,
     warnings: computed.warnings,
     blocked: computed.reasons.length > 0 || blocks(computed.guards),

@@ -137,6 +137,23 @@ describe('buildBriefFacts', () => {
     expect(none.lastWeek).toBeNull()
   })
 
+  test('does not state zero planned minutes: a week planned at nothing reads as unplanned', () => {
+    // A plan that started a week early whose first week is the rest after a race: target 0, no run.
+    const early = plan(5, [{ targetRunMin: 0 }]).weeks.map((week, i) => ({
+      ...week,
+      weekStart: addDays(LAST_MONDAY, 7 * i),
+    }))
+    const sessions = plan(5)
+      .sessions.map((session) => ({ ...session, date: addDays(session.date, -7) }))
+      .filter((session) => session.date >= MONDAY)
+    const existing = { weeks: early, sessions }
+    // the runner jogged anyway: the week is stated by what was run
+    const jogged = buildBriefFacts(briefArgs({}, { existing }))
+    expect(jogged.lastWeek).toEqual({ weekStart: LAST_MONDAY, ranMin: 210, plannedMin: null })
+    // nothing run and nothing planned: no last week at all
+    expect(buildBriefFacts(briefArgs({}, { existing, activities: [] })).lastWeek).toBeNull()
+  })
+
   test('states the weekly decision, and none after a note that the update did not run', () => {
     const ran = buildBriefFacts(briefArgs({ decision: decisionOf('hold', [], 210) }))
     expect(ran.decision).toEqual({ kind: 'hold', nextWeekTargetMin: 210 })

@@ -337,6 +337,7 @@ describe('Today: the change line', () => {
     const preview: PlanPreview = {
       action: { type: 'undo', revisionId: change.id },
       diff: makeDiff([]),
+      runMin: null,
       summary: 'Undid: nothing.',
       warnings: [],
       blocked: false,

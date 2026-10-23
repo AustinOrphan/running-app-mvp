@@ -111,6 +111,9 @@ function illnessPreview(over: Partial<PlanPreview> = {}): PlanPreview {
       endDate: '2026-03-20',
     },
     diff: illnessDiff(),
+    // The server's figure for the 28 days from Wed 18 Mar: the 1,140 min of runs still to come,
+    // less Thursday's 100 min held as rest and 30 min cut from the next Tuesday.
+    runMin: { before: 1140, after: 1010 },
     summary: 'Added a window (illness) from Wed 18 Mar to Fri 20 Mar.',
     hash: ILLNESS_HASH,
     today: TODAY,
@@ -455,6 +458,30 @@ describe('Not 100%, step 3', () => {
     expect(within(dialog).getByRole('radio', { name: /Ill, above the neck/ })).toBeChecked()
   })
 
+  test('states the running time the server sent, whatever plan the page holds', async () => {
+    const user = userEvent.setup()
+    // The plan query answers an empty plan: the figure cannot come from it, and is not negative.
+    renderSheet({
+      'GET /api/plan': () => makeV2Plan({ sessions: [] }),
+      'POST /api/plan/preview': () => illnessPreview({ runMin: { before: 600, after: 480 } }),
+    })
+    const { dialog } = await open(user)
+    await toReview(user, dialog)
+    expect(
+      within(dialog).getByText(
+        'Running time over the next four weeks: 600 min becomes 480 min. The minutes you rest are not added back.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  test('leaves the running-time line out when the server sent no figure', async () => {
+    const user = userEvent.setup()
+    renderSheet({ 'POST /api/plan/preview': () => illnessPreview({ runMin: null }) })
+    const { dialog } = await open(user)
+    await toReview(user, dialog)
+    expect(within(dialog).queryByText(/Running time over the next four weeks/)).toBeNull()
+  })
+
   test('a window over the race day says the plan keeps the race', async () => {
     const user = userEvent.setup()
     renderSheet({ 'POST /api/plan/preview': () => illnessPreview() })
@@ -512,6 +539,7 @@ describe('Not 100%, step 3', () => {
     const user = userEvent.setup()
     const newer = illnessPreview({
       hash: 'c'.repeat(64),
+      runMin: { before: 1140, after: 980 },
       diff: makeDiff([
         makeLine({
           externalId: 'x1',

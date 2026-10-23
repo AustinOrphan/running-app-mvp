@@ -826,6 +826,11 @@ export interface PlanGuardView {
   effect: 'blocks' | 'warns'
   suggest: PlanSuggestion | null
 }
+/** Minutes of running over a span of days, before a change and after it. */
+export interface RunMinutes {
+  before: number
+  after: number
+}
 /**
  * What an action would do, from the same code that commits it (design 4.2). A refusal is
  * information, not an error: `blocked` says the commit would be refused and `reasons` says why.
@@ -836,6 +841,12 @@ export interface PlanPreview {
   action: PlanAction
   /** Empty when the action would change nothing, and when it is refused for a structural reason. */
   diff: PlanDiff
+  /**
+   * The minutes of runs still to come over the next 28 days, now and once the rows of `diff` are
+   * written (`runMinutesAhead`). Null when no run is planned in those days before or after, and for
+   * an owner edit of one session and an undo, which do not state it.
+   */
+  runMin: RunMinutes | null
   summary: string
   /** The engine's warnings for the plan the action leaves behind. */
   warnings: EngineWarning[]
