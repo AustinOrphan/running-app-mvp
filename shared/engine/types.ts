@@ -383,7 +383,15 @@ export interface EngineInput {
   }> | null
   existing: {
     weeks: WeekDraft[]
-    sessions: Array<SessionSpec & { id: string; status: string; activityId: string | null }>
+    sessions: Array<
+      SessionSpec & {
+        id: string
+        status: string
+        activityId: string | null
+        /** The durable identity of the stored session (design 4.1); the server's snapshot sets it. */
+        externalId?: string
+      }
+    >
   } | null
   options: {
     recoveryCycle?: '3:1' | '2:1'

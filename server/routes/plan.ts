@@ -13,6 +13,7 @@ import {
   updatePlanSession,
 } from '../services/planEngine.ts'
 import { listRevisions } from '../services/replan.ts'
+import { sessionWorkoutFile, weekWorkoutZip } from '../services/workouts.ts'
 
 /** A week's baseline can be at most a full week of minutes. */
 const MAX_WEEK_MIN = 7 * 24 * 60
@@ -61,6 +62,18 @@ const sessionPatch = z
   .refine((patch) => Object.keys(patch).length === 1, 'Send exactly one of date, kind or skip.')
 
 const linkBody = z.strictObject({ activityId: z.string().min(1).nullable() })
+
+const sessionParams = z.strictObject({ id: z.string().min(1).max(64) })
+
+/** A Monday as YYYY-MM-DD, the start of a plan week (ADR 0003). */
+const weekStartParams = z.strictObject({
+  weekStart: z
+    .string()
+    .refine(
+      (value) => isIsoDate(value) && mondayOf(value) === value,
+      'Use the Monday of the week as YYYY-MM-DD.',
+    ),
+})
 
 /** A page of the revision log; revisions with an empty diff are hidden unless asked for. */
 const revisionsQuery = z.strictObject({
@@ -151,6 +164,40 @@ export function planRouter(deps: Deps): Router {
     res.json(
       await linkPlanSession(deps, { userId: req.userId, sessionId: req.params.id, activityId }),
     )
+  })
+
+  // The FIT workout file of one session, as it would go to the watch today. The two download
+  // routes are never cached: the file holds today's version of the session.
+  router.get('/sessions/:id/workout.fit', async (req, res) => {
+    const { id } = parse(sessionParams, req.params)
+    res.set('Cache-Control', 'no-store')
+    const file = await sessionWorkoutFile(deps, {
+      userId: req.userId,
+      sessionId: id,
+      today: todayIso(),
+      now: new Date(),
+    })
+    res
+      .status(200)
+      .type('application/octet-stream')
+      .set('Content-Disposition', `attachment; filename="${file.fileName}"`)
+      .send(Buffer.from(file.bytes))
+  })
+
+  router.get('/weeks/:weekStart/workouts.zip', async (req, res) => {
+    const { weekStart } = parse(weekStartParams, req.params)
+    res.set('Cache-Control', 'no-store')
+    const file = await weekWorkoutZip(deps, {
+      userId: req.userId,
+      weekStart,
+      today: todayIso(),
+      now: new Date(),
+    })
+    res
+      .status(200)
+      .type('application/zip')
+      .set('Content-Disposition', `attachment; filename="${file.fileName}"`)
+      .send(Buffer.from(file.bytes))
   })
 
   router.put('/weeks/:weekStart', async (req, res) => {

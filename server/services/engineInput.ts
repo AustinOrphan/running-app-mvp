@@ -8,8 +8,13 @@
 // network, and a cell the weather job has not filled yet gives no forecast and no race heat.
 import type { Deps } from '../app.ts'
 import { todayIso } from '../../shared/dates.ts'
-import type { EngineInput, ZoneSet } from '../../shared/engine/types.ts'
-import { goalModelFor, loadAthleteContext, neutralGoal } from './athleteState.ts'
+import type { EngineInput, GoalModel, ZoneSet } from '../../shared/engine/types.ts'
+import {
+  goalModelFor,
+  loadAthleteContext,
+  neutralGoal,
+  type AthleteContext,
+} from './athleteState.ts'
 import { cachedForecast } from './weatherCache.ts'
 
 export { existingFrom, neutralGoal, sessionSpec } from './athleteState.ts'
@@ -57,7 +62,7 @@ export function localWallTime(iso: string, timeZone: string): string {
  * The cached home forecast in the engine's shape, with hours in the runner's local time. Null
  * without a home, without a filled cell, or when the forecast is older than 24 hours.
  */
-async function loadForecast(deps: Deps, userId: string, timeZone: string) {
+export async function loadForecast(deps: Deps, userId: string, timeZone: string) {
   const cached = await cachedForecast(deps.prisma, userId)
   if (!cached) return null
   const hours: NonNullable<EngineInput['forecast']> = []
@@ -85,6 +90,35 @@ export async function acceptedZoneChanges(
   return (await loadAthleteContext(deps, { userId, today: todayIso() })).zoneChanges
 }
 
+/**
+ * The engine input from a snapshot already in hand, for a reader that holds one (a builder that
+ * also needs the snapshot's zones). The goal is a neutral one unless given; `existing` and the
+ * forecast are added only when asked for. `assemble` below is this plus the per-call parts.
+ */
+export function contextInput(
+  context: AthleteContext,
+  parts: {
+    goal?: GoalModel | null
+    forecast?: EngineInput['forecast']
+    existing?: boolean
+    options?: EngineInput['options']
+  } = {},
+): EngineInput {
+  return {
+    today: context.asOf,
+    profile: context.profile,
+    activities: context.activities,
+    wellness: context.wellness,
+    reviews: context.reviews,
+    goal: parts.goal ?? neutralGoal(context.asOf),
+    forecast: parts.forecast ?? null,
+    existing: parts.existing === true ? context.existing() : null,
+    options: parts.options ?? {},
+    screeningFlags: context.screeningFlags,
+    zoneChanges: context.zoneChanges,
+  }
+}
+
 async function assemble(
   deps: Deps,
   args: { userId: string; today: string; goalId: string | null; options?: EngineInput['options'] },
@@ -97,19 +131,12 @@ async function assemble(
       ? null
       : await goalModelFor(context, args.goalId, { climate: opts.climate !== false })
 
-  return {
-    today,
-    profile: context.profile,
-    activities: context.activities,
-    wellness: context.wellness,
-    reviews: context.reviews,
-    goal: goal ?? neutralGoal(today),
+  return contextInput(context, {
+    goal,
     forecast: opts.forecast ? await loadForecast(deps, userId, context.profile.timezone) : null,
-    existing: opts.existing ? context.existing() : null,
-    options: args.options ?? {},
-    screeningFlags: context.screeningFlags,
-    zoneChanges: context.zoneChanges,
-  }
+    existing: opts.existing,
+    options: args.options,
+  })
 }
 
 /**

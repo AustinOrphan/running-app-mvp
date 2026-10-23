@@ -77,3 +77,27 @@ export function publicTitle(
   }
   return `${entry.title}, ${formatQuantity({ kind: 'duration', sec: session.durationMin * 60 }, 'km')}`
 }
+
+/**
+ * The kind of a session as it appears in the name of a workout file: lower case words joined by
+ * hyphens, one per kind, never the title and never anything the engine wrote. A long run with a
+ * fast finish is a long run on the watch, as in `PUBLIC_TITLES`. Exhaustive, like the titles.
+ */
+export const FILE_SLUGS: Readonly<Record<SessionKind, string>> = {
+  easy: 'easy-run',
+  recovery: 'recovery-run',
+  long: 'long-run',
+  'long-fast-finish': 'long-run',
+  threshold: 'threshold-run',
+  intervals: 'intervals',
+  'race-pace': 'race-pace-run',
+  strides: 'easy-run-with-strides',
+  hills: 'hill-repeats',
+  hike: 'hike',
+  b2b: 'back-to-back-run',
+  strength: 'strength',
+  mobility: 'mobility',
+  rest: 'rest-day',
+  race: 'race-day',
+  cross: 'cross-training',
+}

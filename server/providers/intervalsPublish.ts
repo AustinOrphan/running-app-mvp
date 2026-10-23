@@ -6,9 +6,8 @@
 // Network goes through `ctx.fetch`. The API key is read from `ctx.secret` for the Authorization
 // header and nowhere else: no message, outcome or return value carries it, and a remote answer is
 // stripped of any echo of it before it is kept.
-import { formatQuantity, quantityParts } from '../../shared/copy/quantity.ts'
-import type { Quantity } from '../../shared/engine/types.ts'
 import type { Units } from '../../shared/types.ts'
+import { easedLine, targetPhrase } from '../../shared/workouts/plan.ts'
 import type {
   StepTarget,
   WorkoutNode,
@@ -42,9 +41,6 @@ export const WARNING_UNPARSED_STEPS = 'unparsed-steps'
 export const WARNING_NO_MAX_HR = 'no-max-hr'
 export const WARNING_NO_THRESHOLD_PACE = 'no-threshold-pace'
 
-/** The line of an eased day. The reason is never named; `toWorkoutPlan` writes the same words. */
-const EASED_LINE = 'Eased for today'
-
 // ---------------------------------------------------------------------------------------------
 // The description [design 6.5]
 // ---------------------------------------------------------------------------------------------
@@ -71,14 +67,10 @@ const hasThreshold = (
 ): ref is PublishReference & { thresholdPaceMps: number } =>
   ref.thresholdPaceMps !== null && ref.thresholdPaceMps > 0
 
-/** Two quantities of one kind as a range that prints the unit once: "4:10 to 4:00 /km". */
-function rangeText(first: Quantity, second: Quantity, units: Units): string {
-  const from = quantityParts(first, units)
-  const to = quantityParts(second, units)
-  if (from === null || to === null) {
-    return `${formatQuantity(first, units)} to ${formatQuantity(second, units)}`
-  }
-  return `${from.num} to ${to.num}${to.suffix}`
+/** The phrase of a figure for the header line: the words of the description, capitalised. */
+function headerPhrase(target: StepTarget, units: Units): string {
+  const phrase = targetPhrase(target, units) ?? ''
+  return `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)}`
 }
 
 /** `21-74% HR`, or `74% HR` when the two edges meet. */
@@ -98,21 +90,21 @@ function renderTarget(target: StepTarget, ref: PublishReference, units: Units): 
     case 'open':
       return { token: null, absolute: null, warning: null }
     case 'hr-ceiling': {
-      const absolute = `Heart rate under ${formatQuantity({ kind: 'bpm', bpm: target.ceilingBpm }, units)}`
+      const absolute = headerPhrase(target, units)
       if (!hasMaxHr(ref)) return { token: null, absolute, warning: WARNING_NO_MAX_HR }
       const high = percentOfMaxHr(target.ceilingBpm, ref.maxHr)
       const low = percentOfMaxHr(target.floorBpm, ref.maxHr)
       return { token: percentRange(low, high, 'HR'), absolute, warning: null }
     }
     case 'hr-band': {
-      const absolute = `Heart rate ${rangeText({ kind: 'bpm', bpm: target.lowBpm }, { kind: 'bpm', bpm: target.highBpm }, units)}`
+      const absolute = headerPhrase(target, units)
       if (!hasMaxHr(ref)) return { token: null, absolute, warning: WARNING_NO_MAX_HR }
       const low = percentOfMaxHr(target.lowBpm, ref.maxHr)
       const high = percentOfMaxHr(target.highBpm, ref.maxHr)
       return { token: percentRange(low, high, 'HR'), absolute, warning: null }
     }
     case 'pace': {
-      const absolute = `Pace ${rangeText({ kind: 'pace', secPerKm: target.slowSecPerKm }, { kind: 'pace', secPerKm: target.fastSecPerKm }, units)}`
+      const absolute = headerPhrase(target, units)
       if (!hasThreshold(ref)) return { token: null, absolute, warning: WARNING_NO_THRESHOLD_PACE }
       const slow = percentOfThreshold(target.slowSecPerKm, ref.thresholdPaceMps)
       const fast = percentOfThreshold(target.fastSecPerKm, ref.thresholdPaceMps)
@@ -182,7 +174,7 @@ export function renderIntervalsDescription(
   flush()
 
   const preface = [
-    ...(plan.eased ? [EASED_LINE] : []),
+    ...(plan.eased ? [easedLine(plan.units)] : []),
     ...(plan.targets.hot && plan.targets.hotNote !== null ? [plan.targets.hotNote] : []),
     ...(header.size > 0 ? [[...header].join('; ')] : []),
   ]

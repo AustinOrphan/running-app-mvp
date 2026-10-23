@@ -177,6 +177,7 @@ export function existingFrom(
   const sessions = sessionRows.map((s) => ({
     ...sessionSpec(s),
     id: s.id,
+    externalId: s.externalId,
     status: s.status,
     activityId: s.activityId,
     linkSource: s.linkSource,
