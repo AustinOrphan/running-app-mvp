@@ -16,6 +16,7 @@ import { kTaper } from './k-taper.ts'
 import { lPredict } from './l-predict.ts'
 import { mExecution } from './m-execution.ts'
 import { nChecklist } from './n-checklist.ts'
+import { oDelivery } from './o-delivery.ts'
 
 /** Bump when any parameter value, grade or rule changes; stored with every generated plan. */
 export const PARAMS_VERSION = '2026-10-23.1'
@@ -36,6 +37,7 @@ export const PARAM_SECTIONS = {
   'l-predict': lPredict,
   'm-execution': mExecution,
   'n-checklist': nChecklist,
+  'o-delivery': oDelivery,
 } as const
 
 export const P = {
@@ -53,6 +55,7 @@ export const P = {
   ...lPredict,
   ...mExecution,
   ...nChecklist,
+  ...oDelivery,
 } as const
 
 /** Every parameter of one section, in declaration order. */

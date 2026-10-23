@@ -324,4 +324,33 @@ describe('parameter registry', () => {
     )
     expect(engineRules).not.toMatch(/until running back-tests exist/)
   })
+
+  it('carries the device rule O1 as two labelled defaults, with its evidence', () => {
+    const floor = P.o1.hrFloorBpm
+    expect([floor.id, floor.value, floor.unit, floor.grade, floor.rule]).toEqual([
+      'o1.hrFloorBpm',
+      40,
+      'bpm',
+      'D',
+      'O1',
+    ])
+    expect(floor.note).toMatch(/default/i)
+    const minStep = P.o1.hrTargetMinStepSec
+    expect([minStep.id, minStep.value, minStep.unit, minStep.grade, minStep.rule]).toEqual([
+      'o1.hrTargetMinStepSec',
+      180,
+      'sec',
+      'D',
+      'O1',
+    ])
+    expect(minStep.evidence).toEqual([
+      'bent-2020-ppg-inaccuracy',
+      'gillinov-2017-wearable-hr-aerobic',
+    ])
+    expect(minStep.note).toMatch(/default/i)
+    expect(paramsForRule('O1').map((p) => p.id)).toEqual(['o1.hrFloorBpm', 'o1.hrTargetMinStepSec'])
+    // the rule has its own heading in the document
+    expect(engineRules).toMatch(/^## \(o\) Delivery to devices$/m)
+    expect(engineRules).toMatch(/\*\*O1 Targets on the device\.\*\*/)
+  })
 })

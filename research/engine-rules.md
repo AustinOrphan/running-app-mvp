@@ -576,6 +576,17 @@ The app must surface each of these. It states facts and points to care; it does 
 
 > This plan is a sketch built from published research on groups of runners and from conservative defaults where research is missing. It cannot guarantee safety or performance, and it is not medical, nutrition or injury advice. Stop and see a qualified clinician for pain, illness or the warning signs listed. Many numbers are defaults that should change with your own experience, and the app shows which ones.
 
+## (o) Delivery to devices
+
+The plan reaches a watch, a workout file or a calendar as steps with targets. The targets come from the same resolver as every other surface, so this section adds only what is particular to a device. It states conventions and one measurement-quality argument; no trial tests how a runner should be cued on a watch. Grade D unless noted.
+
+- **O1 Targets on the device.**
+  - An easy, recovery, long, back-to-back or hike step carries one heart-rate ceiling, the top of the current zone 1. It is written as a band from 40 bpm up to the ceiling, so the watch alerts only above the ceiling and never for a low reading. The floor is `o1.hrFloorBpm`. Grade D.
+  - Quality work (threshold, intervals, race pace) carries a pace band, one per rep. Recoveries, strides and hill repeats carry no target and are run by effort. Grade D.
+  - A step shorter than 180 s carries no heart-rate target (`o1.hrTargetMinStepSec`). Wrist optical heart rate is accurate on average in steady running but errs more when activity changes, so a short step would alert on a reading that lags the effort. The 180 s length is a default; the direction is grade C [bent-2020-ppg-inaccuracy, gillinov-2017-wearable-hr-aerobic].
+  - On a day steered by effort (heat, I9), no step carries a heart-rate or pace target; the heart rate stays in the text as a guide only. Grade D.
+  - A title sent to a watch or a calendar names the kind of session and its length and nothing else: no injury, illness, pain, return, post-race, eased or run-walk wording, and no reason for a change. Grade D.
+
 ---
 
 ## Numeric parameter table
@@ -713,6 +724,8 @@ The app must surface each of these. It states facts and points to care; it does 
 | Novice run days (F5)                    | ≤3 non-consecutive                                                                               | 2 by choice                                                                                      | D     | pollock-1977-frequency-duration-injury, kluitenberg-2016-nlstart2run-training-factors                                                                     |
 | Injury-return ladder (G-3)              | 5-30 min in 5-min levels, each × 2                                                               | ≥1 rest day; 2-3 runs/wk                                                                         | D     | sanford-2024-return-to-running, bjsm-2019-bone-stress-return-to-run                                                                                       |
 | Cycle-phase load multiplier             | 1.0                                                                                              | —                                                                                                | A     | mcnulty-2020-menstrual-cycle-performance                                                                                                                  |
+| Device heart-rate floor (O1)            | 40 bpm                                                                                           | lower edge of a ceiling                                                                          | D     | none                                                                                                                                                      |
+| Shortest step with a HR target (O1)     | 180 s                                                                                            | shorter steps carry no heart-rate target                                                         | D     | bent-2020-ppg-inaccuracy, gillinov-2017-wearable-hr-aerobic                                                                                               |
 
 ## Top 10 evidence gaps
 
@@ -742,3 +755,4 @@ The app must surface each of these. It states facts and points to care; it does 
 - **A randomised return-to-running trial after an ultra (for example, easy running from day 3 versus a 7-10 day hold after 100 km or 100 miles), or day-by-day function data between day 5 and day 16.** It would replace the grade D H12 holds and fractions, and could promote the check-in gate beyond delay-only.
 - **A trial of run-walk against short continuous starts in novices, or injury outcomes by starting dose.** It would replace the E6 ladder, the floor sizes and the BMI hold.
 - **A study that links long-run length to 5-10 km performance or injury.** It would replace the D7 tiers and the 16 km cap.
+- **A validation of heart-rate alerts on a wrist watch during short intervals, or a watch that alerts on a ceiling alone.** It would replace the O1 floor and the 180 s step length.
