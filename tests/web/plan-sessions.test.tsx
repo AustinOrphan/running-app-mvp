@@ -13,6 +13,7 @@ import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeActivity } from '../factories.ts'
 import {
   activityPage,
+  explainOf,
   expectCleanCopy,
   mockApi,
   renderWithProviders,
@@ -33,9 +34,13 @@ import {
 } from './plan-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
-  WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
+  WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
     open ? (
-      <div role="complementary" aria-label="Why drawer">
+      <div
+        role="complementary"
+        aria-label="Why drawer"
+        data-explain={JSON.stringify(explain ?? null)}
+      >
         {rules.join(',')}
       </div>
     ) : null,
@@ -200,8 +205,37 @@ describe('Plan page, version-2 plans', () => {
     renderPlan()
     const warnings = await screen.findByRole('region', { name: 'Warnings' })
     await user.click(within(warnings).getByRole('button', { name: 'Why this warning' }))
-    expect(await screen.findByLabelText('Why drawer')).toHaveTextContent('g-3')
+    const drawer = await screen.findByLabelText('Why drawer')
+    expect(drawer).toHaveTextContent('g-3')
+    expect(explainOf(drawer)).toEqual({ subject: 'rules', rules: ['g-3'] })
   })
+
+  test.each([
+    { name: 'Why this note', index: 0, rules: ['d-1'] },
+    { name: 'Why this warning', index: 0, rules: ['g-3'] },
+    { name: 'Why this check', index: 0, rules: ['g-3'] },
+    { name: 'Why this check', index: 1, rules: ['k-1'] },
+    { name: 'Why this update', index: 0, rules: ['j-5'] },
+  ])(
+    'every why button on the page passes a subject: $name ($index) asks about $rules',
+    async ({ name, index, rules }) => {
+      const user = userEvent.setup()
+      mockApi(routes(makeV2Plan()))
+      renderPlan()
+      await screen.findByRole('region', { name: 'Warnings' })
+      // The plan checks and the list of changes sit in disclosures.
+      await user.click(screen.getByText('Plan checks'))
+      await user.click(screen.getByText('What changed'))
+      const buttons = await screen.findAllByRole('button', { name })
+      const button = buttons[index]
+      if (button === undefined) throw new Error(`No ${name} button at ${String(index)}`)
+      await user.click(button)
+      expect(explainOf(await screen.findByLabelText('Why drawer'))).toEqual({
+        subject: 'rules',
+        rules,
+      })
+    },
+  )
 
   test('What changed lists revisions with their summary and changes', async () => {
     mockApi(routes(makeV2Plan()))

@@ -18,6 +18,7 @@ import { makeActivity, makeWeekRow } from '../factories.ts'
 import {
   activityPage,
   expectCleanCopy,
+  explainOf,
   mockApi,
   renderWithProviders,
   type MockRoutes,
@@ -33,9 +34,9 @@ import {
 
 // The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
-  WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
+  WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
     open ? (
-      <div role="dialog" aria-label="Evidence">
+      <div role="dialog" aria-label="Evidence" data-explain={JSON.stringify(explain ?? null)}>
         {rules.join(',')}
       </div>
     ) : null,
@@ -631,7 +632,9 @@ describe('ReviewPage', () => {
       expect(within(signals).getByText(/210 of 300 planned minutes/)).toBeInTheDocument()
 
       await user.click(within(region).getByRole('button', { name: 'Why: weekly decision' }))
-      expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('J5,G-6')
+      const drawer = await screen.findByRole('dialog', { name: 'Evidence' })
+      expect(drawer).toHaveTextContent('J5,G-6')
+      expect(explainOf(drawer)).toEqual({ subject: 'decision', weekStart: W })
     })
 
     test("puts the signals' dates and distances in the reader's words, as the plan page does", async () => {
@@ -725,6 +728,12 @@ describe('ReviewPage', () => {
       expect(changes).toHaveLength(2)
       expect(changes[0]).toHaveTextContent('Week of 19 Oct: Weekly running time 320 min to 280 min')
       expect(changes[1]).toHaveTextContent('Week of 19 Oct: Long run 90 min to 80 min')
+
+      await user.click(within(region).getByRole('button', { name: 'Why this update' }))
+      expect(explainOf(await screen.findByRole('dialog', { name: 'Evidence' }))).toEqual({
+        subject: 'rules',
+        rules: ['J5', 'G-6'],
+      })
     })
 
     test('saving shows the revision through the shared diff and undo components', async () => {
@@ -929,7 +938,9 @@ describe('ReviewPage', () => {
       await user.click(
         within(items[0] as HTMLElement).getByRole('button', { name: 'Why: Easy run' }),
       )
-      expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('e-1')
+      const drawer = await screen.findByRole('dialog', { name: 'Evidence' })
+      expect(drawer).toHaveTextContent('e-1')
+      expect(explainOf(drawer)).toEqual({ subject: 'session', id: expect.any(String) as string })
     })
 
     test('a version-1 plan still uses the live suggestion and has no sessions section', async () => {
@@ -971,7 +982,9 @@ describe('ReviewPage', () => {
       expect(within(region).getByText('Based on 3 sessions.')).toBeInTheDocument()
 
       await user.click(within(region).getByRole('button', { name: 'Why: Threshold pace change' }))
-      expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('C8')
+      const drawer = await screen.findByRole('dialog', { name: 'Evidence' })
+      expect(drawer).toHaveTextContent('C8')
+      expect(explainOf(drawer)).toEqual({ subject: 'zone', boundary: 'thresholdPace' })
       await user.keyboard('{Escape}')
 
       await user.click(within(region).getByRole('button', { name: 'Accept Threshold pace change' }))

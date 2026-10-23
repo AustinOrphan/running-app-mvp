@@ -26,6 +26,7 @@ import type {
 } from '../../shared/types.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
+import { ruleTarget, type WhyTarget } from '../api/explain.ts'
 import { useActivities } from '../api/activities.ts'
 import { usePlan } from '../api/plan.ts'
 import { useReviews, useSaveReview, type ReviewPatch } from '../api/reviews.ts'
@@ -388,7 +389,7 @@ function WeekReview({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState<string | null>(null)
   const [replanned, setReplanned] = useState<ReplanOutcome | null>(null)
-  const [whyRules, setWhyRules] = useState<string[] | null>(null)
+  const [why, setWhy] = useState<WhyTarget | null>(null)
 
   const suggestInput: SuggestInput | null = planWeek
     ? {
@@ -567,6 +568,7 @@ function WeekReview({
                   <ExplainButton
                     subject="weekly decision"
                     rules={decisionRules(review.signals ?? [])}
+                    explain={{ subject: 'decision', weekStart }}
                   />
                 </div>
               </>
@@ -645,7 +647,7 @@ function WeekReview({
               revision={replanned.revision}
               units={units}
               onWhy={(rules) => {
-                setWhyRules(rules)
+                setWhy(ruleTarget(rules))
               }}
             />
           ) : (
@@ -656,10 +658,11 @@ function WeekReview({
         </section>
       ) : null}
       <WhyDrawer
-        rules={whyRules ?? []}
-        open={whyRules !== null}
+        explain={why?.explain}
+        rules={why?.rules ?? []}
+        open={why !== null}
         onClose={() => {
-          setWhyRules(null)
+          setWhy(null)
         }}
       />
     </form>
@@ -694,7 +697,11 @@ function SessionSummaries({ sessions }: { sessions: PlanSession[] }) {
             ))}
             {session.execution ? (
               <div>
-                <ExplainButton subject={session.title} rules={session.rules} />
+                <ExplainButton
+                  subject={session.title}
+                  rules={session.rules}
+                  explain={{ subject: 'session', id: session.id }}
+                />
               </div>
             ) : null}
           </li>
@@ -776,7 +783,11 @@ function ZoneProposals() {
                 >
                   Decline
                 </Button>
-                <ExplainButton subject={`${label} change`} rules={proposal.rules} />
+                <ExplainButton
+                  subject={`${label} change`}
+                  rules={proposal.rules}
+                  explain={{ subject: 'zone', boundary: proposal.boundary }}
+                />
               </div>
             </li>
           )

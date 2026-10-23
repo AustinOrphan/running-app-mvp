@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { Link } from 'react-router-dom'
 import { fieldErrors } from '../api/client.ts'
+import { ruleTarget, type WhyTarget } from '../api/explain.ts'
 import { useGoals } from '../api/goals.ts'
 import {
   useGeneratePlan,
@@ -522,7 +523,7 @@ function WhyButton({
 }: {
   rules: string[]
   label: string
-  onOpen: (rules: string[]) => void
+  onOpen: (why: WhyTarget) => void
 }) {
   if (rules.length === 0) return null
   return (
@@ -530,7 +531,7 @@ function WhyButton({
       variant="quiet"
       aria-label={label}
       onClick={() => {
-        onOpen(rules)
+        onOpen(ruleTarget(rules))
       }}
     >
       Why
@@ -551,7 +552,7 @@ function WhatChanged({
 }: {
   revisions: ReturnType<typeof usePlanRevisions>
   units: Units
-  onWhy: (rules: string[]) => void
+  onWhy: (why: WhyTarget) => void
 }) {
   const markSeen = useMarkRevisionsSeen()
   const [open, setOpen] = useState(false)
@@ -596,7 +597,9 @@ function WhatChanged({
             <RevisionDiff
               revision={revision}
               units={units}
-              onWhy={onWhy}
+              onWhy={(rules) => {
+                onWhy(ruleTarget(rules))
+              }}
               isNew={fresh.has(revision.id) || (open && revision.seenAt === null)}
             />
           </li>
@@ -623,7 +626,7 @@ function PlanOverview({
   onWhy,
 }: {
   plan: PlanWithSessions
-  onWhy: (rules: string[]) => void
+  onWhy: (why: WhyTarget) => void
 }) {
   const revisions = usePlanRevisions()
   const units = useSettings().data?.units ?? 'km'
@@ -944,7 +947,7 @@ export function PlanPage() {
   const goals = useGoals()
   const [regenerating, setRegenerating] = useState(false)
   const [openSessionId, setOpenSessionId] = useState<string | null>(null)
-  const [whyRules, setWhyRules] = useState<string[] | null>(null)
+  const [why, setWhy] = useState<WhyTarget | null>(null)
   const replan = useReplan()
   const toast = useToast()
 
@@ -1036,7 +1039,7 @@ export function PlanPage() {
           The plan was not updated. {replan.error.message}
         </p>
       ) : null}
-      {hasSessions ? <PlanOverview plan={plan.data} onWhy={setWhyRules} /> : null}
+      {hasSessions ? <PlanOverview plan={plan.data} onWhy={setWhy} /> : null}
       <PlanTable plan={plan.data} sessions={sessions} onOpenSession={setOpenSessionId} />
       {openSession !== undefined ? (
         <SessionSheet
@@ -1048,10 +1051,11 @@ export function PlanPage() {
         />
       ) : null}
       <WhyDrawer
-        rules={whyRules ?? []}
-        open={whyRules !== null}
+        explain={why?.explain}
+        rules={why?.rules ?? []}
+        open={why !== null}
         onClose={() => {
-          setWhyRules(null)
+          setWhy(null)
         }}
       />
       {regenerating ? (
