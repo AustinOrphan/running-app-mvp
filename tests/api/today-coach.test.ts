@@ -1310,11 +1310,14 @@ describe('GET /api/today: cost', () => {
     )
     expect(warm.count('activity.findMany')).toBe(0)
     expect(warm.count('plan.findFirst')).toBe(0)
-    // Pinned so that a query added to the request path is a decision, not an accident: cold is
-    // 21 reads (the session lookup, the forecast stamp, the job-notes stamp, the snapshot's eleven,
-    // the cached forecast, the race climate, the change line and the three of the job notes), warm
-    // is 8, and the data version is read three times (the tag, the snapshot, the change-line memo).
-    // The eleventh read of the snapshot is the runner's active rest windows (E5-5).
+    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 26
+    // reads: the session lookup, the forecast stamp (the profile and the cache row), the job-notes
+    // stamp, the publications' stamp, the snapshot's eleven (the eleventh is the runner's active
+    // rest windows), the cached forecast, the race climate, the change line, the three reads of the
+    // job notes, the note about tomorrow's run (the publications) and the fuel replay's three (the
+    // switches, the logs, the weeks of every plan; its session lookup is skipped without a log).
+    // Warm is 10, the ten of the list above, and the data version is read five times (the tag, the
+    // snapshot, the change-line memo and the fuel replay's memo once for each of the two fuel slots).
     expect(coldTotal).toBe(26)
     expect(warm.models).toHaveLength(10)
     expect(warm.raw).toBe(5)

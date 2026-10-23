@@ -45,7 +45,7 @@ import type {
   SessionSpec,
   ZoneSet,
 } from '../../../shared/engine/types.ts'
-import { formatDuration, formatPace } from '../../../shared/units.ts'
+import { formatDuration } from '../../../shared/units.ts'
 import type { PlanSessionStatus, Units } from '../../../shared/types.ts'
 import { icsOutline, icsUid, renderIcs } from '../../../server/services/ics.ts'
 import { publishable } from '../../../shared/workouts/labels.ts'
