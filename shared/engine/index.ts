@@ -166,6 +166,8 @@ interface Keep {
   toRun: ReadonlySet<KeptSession>
   /** For weeks with kept sessions: the running minutes the replaced plan still had on other days. */
   stillPlanned: ReadonlyMap<string, number>
+  /** The running minutes the replaced plan still has on each day from today on. */
+  plannedOn: ReadonlyMap<string, number>
   /** The kept sessions that a recorded activity stands for; its run is counted from the activity. */
   matched: ReadonlySet<KeptSession>
   decisions: NonNullable<ReplanOptions['decisions']>
@@ -587,6 +589,15 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         for (const s of baseline) {
           if (VOLUME_KINDS.has(s.kind)) minByDate[s.date] = (minByDate[s.date] ?? 0) + s.durationMin
         }
+        // The week of a re-plan is bounded by what the replaced plan still had on its other days
+        // (`stillPlanned`). A ruled day on which that plan already keeps to the rule (a rest session
+        // on a held day, a run within the cap of a capped day) is out of that figure, so it costs
+        // nothing a second time [rules J9, G-6].
+        if (keep.stillPlanned.has(week.weekStart)) {
+          for (const r of ruled) {
+            if ((keep.plannedOn.get(r.date) ?? 0) <= (r.maxRunMin ?? 0)) minByDate[r.date] = 0
+          }
+        }
         // a long run on a held day, or above the cap of its day, is lost and not moved
         longLost = baseline.some((s) => {
           const rule = ruled.find((r) => r.date === s.date)
@@ -929,7 +940,14 @@ function raceSession(input: EngineInput, zones: ZoneSet, week: WeekDraft): Sessi
 export function buildPlan(input: EngineInput): PlanDraft {
   const draft = generate(
     input,
-    { sessions: [], toRun: new Set(), stillPlanned: new Map(), matched: new Set(), decisions: {} },
+    {
+      sessions: [],
+      toRun: new Set(),
+      stillPlanned: new Map(),
+      plannedOn: new Map(),
+      matched: new Set(),
+      decisions: {},
+    },
     0,
   )
   return { ...draft, checklist: runChecklist(draft, input) }
@@ -967,17 +985,14 @@ const WEEK_FIELDS: Array<{ field: keyof WeekDraft; rules: string[] }> = [
   { field: 'gainTargetM', rules: ['H4'] },
 ]
 
+/** A session whose minutes count as running time (races, strength and hikes do not). */
+const isRunningTime = (s: SessionSpec): boolean =>
+  s.kind !== 'race' && s.kind !== 'strength' && s.kind !== 'hike'
+
 /** Running minutes planned in a week from `from` on (races and strength are not running time). */
 function plannedMinutes(sessions: SessionSpec[], weekStart: string, from: string): number {
   return sessions
-    .filter(
-      (s) =>
-        mondayOf(s.date) === weekStart &&
-        s.date >= from &&
-        s.kind !== 'race' &&
-        s.kind !== 'strength' &&
-        s.kind !== 'hike',
-    )
+    .filter((s) => mondayOf(s.date) === weekStart && s.date >= from && isRunningTime(s))
     .reduce((sum, s) => sum + s.durationMin, 0)
 }
 
@@ -1027,10 +1042,23 @@ export function replan(
       ),
     )
   }
+  // the running minutes the replaced plan still has on each day from today on
+  const plannedOn = new Map<string, number>()
+  for (const s of oldSessions) {
+    if (s.status !== 'planned' || s.date < input.today || !isRunningTime(s)) continue
+    plannedOn.set(s.date, (plannedOn.get(s.date) ?? 0) + s.durationMin)
+  }
   const matched = new Set(kept.filter((_, i) => keptRows[i]!.activityId !== null))
   const draft = generate(
     input,
-    { sessions: kept, toRun, stillPlanned, matched, decisions: options.decisions ?? {} },
+    {
+      sessions: kept,
+      toRun,
+      stillPlanned,
+      plannedOn,
+      matched,
+      decisions: options.decisions ?? {},
+    },
     pastWeeks.length,
   )
   const keptSet = new Set<SessionSpec>(kept)

@@ -8,7 +8,7 @@ import { prescribe, type PrescribeContext } from '../../../shared/engine/session
 import { rungSessions, sessionMin } from '../../../shared/engine/startWeeks.ts'
 import { resolveTargets } from '../../../shared/engine/targets.ts'
 import type { SessionKind, SessionSpec, ZoneSet } from '../../../shared/engine/types.ts'
-import { publishable } from '../../../shared/workouts/labels.ts'
+import { PUBLIC_TITLES, publishable } from '../../../shared/workouts/labels.ts'
 import { toWorkoutPlan } from '../../../shared/workouts/plan.ts'
 import type {
   StepIntent,
@@ -424,9 +424,27 @@ describe('fitText', () => {
       new TextDecoder().decode((fitText(0, value, 15).value as Uint8Array).slice(0, -1))
     expect(text('Easy run, 45 min')).toBe('Easy run')
     expect(text('Threshold run, 40 min')).toBe('Threshold run')
-    expect(text('Easy run with strides, 45 min')).toBe('Easy run with')
+    expect(text('Marathon pace run, 2 h')).toBe('Marathon pace')
     expect(text('Long run, 2 h')).toBe('Long run, 2 h')
     expect(text('Intervals, 1 h')).toBe('Intervals, 1 h')
+  })
+
+  it('names every publishable kind in full, with the short form the closed list gives where the title is over the cap', () => {
+    for (const kind of PUBLISHABLE) {
+      for (const minutes of MINUTES) {
+        const plan = planOf(make(kind, minutes))
+        const written = roundTrip(plan).read.workout.name ?? ''
+        const { title, short } = PUBLIC_TITLES[kind]
+        const name = short ?? title
+        expect(Buffer.byteLength(name), `${kind} name`).toBeLessThanOrEqual(FIT_NAME_MAX_BYTES)
+        // the name, with the length after it where that fits
+        expect(written === name || written.startsWith(`${name}, `), `${kind}: ${written}`).toBe(
+          true,
+        )
+      }
+    }
+    expect(roundTrip(planOf(make('strides', 45))).read.workout.name).toBe('Easy + strides')
+    expect(roundTrip(planOf(make('b2b', 90))).read.workout.name).toBe('Back-to-back')
   })
 
   it('writes one line without control characters', () => {

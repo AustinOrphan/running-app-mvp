@@ -198,16 +198,48 @@ describe('pain (1)', () => {
     const day = run(1, { pain: 1 })
     const checkin = { painScore: warn + 1, painFocalBone: false }
     const fromCheckin = standoutFacts(inputFor(day, { checkin }))
+    expect(fromCheckin[0]).toMatchObject({ template: 'standout.pain-checkin' })
     expect(slot(fromCheckin[0], 'pain')).toEqual({ kind: 'count', n: warn + 1 })
     expect(fromCheckin[0]!.sources.map((s) => s.kind).sort()).toEqual(['activity', 'check-in'])
   })
 
-  test('focal bone pain is stated at any score, with its own sentence', () => {
+  test('says where the figure was reported: the run when its rating is the higher or equal, the check-in otherwise', () => {
+    const rated = (own: number | null, reported: number | null) =>
+      standoutFacts(
+        inputFor(run(1, { pain: own }), { checkin: { painScore: reported, painFocalBone: false } }),
+      )[0]
+    expect(rated(warn + 1, warn)).toMatchObject({ template: 'standout.pain' })
+    expect(slot(rated(warn + 1, warn), 'pain')).toEqual({ kind: 'count', n: warn + 1 })
+    expect(rated(warn, warn)).toMatchObject({ template: 'standout.pain' })
+    expect(rated(null, warn)).toMatchObject({ template: 'standout.pain-checkin' })
+    expect(rated(warn - 1, warn + 1)).toMatchObject({ template: 'standout.pain-checkin' })
+    // a check-in below the flag score does not take the run's own report from it
+    expect(rated(warn, 1)).toMatchObject({ template: 'standout.pain' })
+    // the words follow the source, and neither source is called the other
+    const own = renderFact(rated(warn, null)!, 'km')
+    const checkin = renderFact(rated(null, warn)!, 'km')
+    expect(own).toContain('with this run')
+    expect(own).not.toContain('check-in')
+    expect(checkin).toContain('in the check-in on the day of this run')
+    expect(checkin).not.toContain('with this run')
+    expect(checkin).toContain(`Pain of ${String(warn)} out of 10`)
+  })
+
+  test('focal bone pain is stated at any score, with its own sentence, from the check-in', () => {
     const facts = standoutFacts(
       inputFor(run(1), { checkin: { painScore: null, painFocalBone: true } }),
     )
     expect(facts).toHaveLength(1)
     expect(facts[0]).toMatchObject({ template: 'standout.pain-bone' })
+    expect(facts[0]!.sources.map((s) => s.kind).sort()).toEqual(['activity', 'check-in'])
+    // no run carries the flag, so the sentence never puts the report on the run, whatever its rating
+    const words = renderFact(facts[0]!, 'km')
+    expect(words).toContain('in the check-in on the day of this run')
+    expect(words).not.toContain('with this run')
+    const rated = standoutFacts(
+      inputFor(run(1, { pain: 8 }), { checkin: { painScore: 2, painFocalBone: true } }),
+    )
+    expect(rated[0]).toMatchObject({ template: 'standout.pain-bone' })
   })
 
   test('comes first whatever else applies', () => {

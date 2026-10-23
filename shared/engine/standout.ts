@@ -105,10 +105,16 @@ interface Prepared {
 // The findings
 // ---------------------------------------------------------------------------------------------
 
-/** 1: pain at or above the warning score, or focal bone pain, from the run's rating or the check-in. */
+/**
+ * 1: pain at or above the warning score, or focal bone pain, from the run's rating or the check-in.
+ * The sentence names the source of the figure: the run when its rating is the higher or equal, the
+ * check-in of the day when that was higher. The focal bone flag exists only on the check-in.
+ */
 function painFact({ input, activity }: Prepared): InputFact | null {
   const { checkin } = input
-  const pain = Math.max(activity.pain ?? 0, checkin?.painScore ?? 0)
+  const own = activity.pain ?? 0
+  const reported = checkin?.painScore ?? 0
+  const pain = Math.max(own, reported)
   const bone = checkin?.painFocalBone === true
   if (!bone && pain < P.pain.flagScore.value) return null
   const sources = [
@@ -119,7 +125,13 @@ function painFact({ input, activity }: Prepared): InputFact | null {
   ]
   return bone
     ? make(RULE_EXECUTION, 'pain', 'standout.pain-bone', {}, { sources })
-    : make(RULE_EXECUTION, 'pain', 'standout.pain', { pain: count(pain) }, { sources })
+    : make(
+        RULE_EXECUTION,
+        'pain',
+        reported > own ? 'standout.pain-checkin' : 'standout.pain',
+        { pain: count(pain) },
+        { sources },
+      )
 }
 
 /**
