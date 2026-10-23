@@ -364,7 +364,7 @@ export function useSessionWorkout(sessionId: string) {
   })
 }
 
-/** Plan targets feed the review suggestions, so reviews refresh with the plan. */
+/** Plan targets feed the review suggestions, so reviews refresh with the plan; so does the brief. */
 export function useGeneratePlan() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -378,7 +378,9 @@ export function useGeneratePlan() {
       // The plan it replaces is archived, so the list of archived plans changes too.
       void queryClient.invalidateQueries({ queryKey: [keys.planArchived] })
       return Promise.all(
-        [keys.plan, keys.reviews].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+        [keys.plan, keys.reviews, keys.brief].map((key) =>
+          queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
       )
     },
   })
@@ -391,7 +393,7 @@ export function useUpdatePlanWeek() {
       api<PlanWeek>('PUT', `/plan/weeks/${encodeURIComponent(weekStart)}`, patch),
     onSuccess: () =>
       Promise.all(
-        [keys.plan, keys.planRevisions, keys.reviews, keys.today].map((key) =>
+        [keys.plan, keys.planRevisions, keys.reviews, keys.brief, keys.today].map((key) =>
           queryClient.invalidateQueries({ queryKey: [key] }),
         ),
       ),

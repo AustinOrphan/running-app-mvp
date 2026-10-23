@@ -25,7 +25,8 @@ export function useReviews(params: { from: string; to: string }) {
 
 /**
  * A final decision can write next week's target, and a decided review of a version-2 plan
- * re-plans, so the plan, its revisions ("What changed") and Today refresh with the reviews.
+ * re-plans, so the plan, its revisions ("What changed"), the brief and Today refresh with the
+ * reviews.
  */
 export function useSaveReview() {
   const queryClient = useQueryClient()
@@ -34,7 +35,7 @@ export function useSaveReview() {
       api<SavedReview>('PUT', `/reviews/${encodeURIComponent(weekStart)}`, patch),
     onSuccess: () =>
       Promise.all(
-        [keys.reviews, keys.plan, keys.planRevisions, keys.today].map((key) =>
+        [keys.reviews, keys.plan, keys.planRevisions, keys.brief, keys.today].map((key) =>
           queryClient.invalidateQueries({ queryKey: [key] }),
         ),
       ),

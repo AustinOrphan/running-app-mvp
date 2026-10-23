@@ -152,7 +152,10 @@ export const keys = {
   wrist: 'wrist',
 } as const
 
-/** Everything that reads the plan or the goal it follows, after a new plan replaces the old one. */
+/**
+ * Everything that reads the plan or the goal it follows, after a new plan replaces the old one. The
+ * weekly brief describes the plan it was built from, so it is read again too.
+ */
 export function invalidateNewPlan(queryClient: QueryClient): Promise<unknown> {
   return Promise.all(
     [
@@ -161,6 +164,7 @@ export function invalidateNewPlan(queryClient: QueryClient): Promise<unknown> {
       keys.planRevisions,
       keys.planArchived,
       keys.reviews,
+      keys.brief,
       keys.today,
       keys.predictions,
       keys.state,
