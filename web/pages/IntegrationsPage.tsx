@@ -11,9 +11,11 @@ import {
 } from '../api/integrations.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { Button } from '../components/Button.tsx'
+import { DataInUse } from '../components/DataInUse.tsx'
 import { Field, Input, Textarea } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
+import { SyncHistory } from '../components/SyncHistory.tsx'
 import { useToast } from '../components/Toast.tsx'
 import styles from './IntegrationsPage.module.css'
 
@@ -688,6 +690,8 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
         <p className={styles.note}>The folder is scanned every 5 minutes.</p>
       ) : null}
 
+      {hasConnection ? <SyncHistory provider={provider} /> : null}
+
       <div className={styles.row}>
         {usable && (isPull || isFolder) && !editing && !mfaPending ? (
           <Button
@@ -781,6 +785,7 @@ export function IntegrationsPage() {
         title="Integrations"
         context="Bring activities and daily health data in from other services."
       />
+      <DataInUse />
       <CallbackNotice list={integrations.data} />
       <div className={styles.list}>
         {integrations.data.map((item) => (

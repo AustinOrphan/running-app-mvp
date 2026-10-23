@@ -17,6 +17,7 @@ import { healthRouter } from './routes/health.ts'
 import { importsRouter } from './routes/imports.ts'
 import { ingestRouter } from './routes/ingest.ts'
 import { integrationsRouter } from './routes/integrations.ts'
+import { jobsRouter } from './routes/jobs.ts'
 import { planRouter } from './routes/plan.ts'
 import { predictionsRouter } from './routes/predictions.ts'
 import { profileRouter } from './routes/profile.ts'
@@ -24,6 +25,7 @@ import { researchRouter } from './routes/research.ts'
 import { reviewsRouter } from './routes/reviews.ts'
 import { screeningsRouter } from './routes/screenings.ts'
 import { settingsRouter } from './routes/settings.ts'
+import { stateRouter } from './routes/state.ts'
 import { todayRouter } from './routes/today.ts'
 import { weatherRouter } from './routes/weather.ts'
 import { weeksRouter } from './routes/weeks.ts'
@@ -94,6 +96,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api', authRouter(deps))
   app.use('/api', requireAuth(deps))
   app.use('/api/settings', settingsRouter(deps))
+  app.use('/api/state', stateRouter(deps))
   app.use('/api/activities', activitiesRouter(deps))
   app.use('/api/imports', importsRouter(deps))
   app.use('/api/goals', goalsRouter(deps))
@@ -103,6 +106,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/profile', profileRouter(deps))
   app.use('/api/wellness', wellnessRouter(deps))
   app.use('/api/integrations', integrationsRouter(deps))
+  app.use('/api/jobs', jobsRouter(deps))
   app.use('/api/weather', weatherRouter(deps))
   app.use('/api/today', todayRouter(deps))
   app.use('/api/checkins', checkinsRouter(deps))

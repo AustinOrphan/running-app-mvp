@@ -1,6 +1,6 @@
 # 0009. One cached athlete snapshot, invalidated by an automatic data-version counter
 
-Status: Proposed 2026-10-22
+Status: Accepted 2026-10-23 (#544)
 
 ## Context
 
@@ -38,8 +38,9 @@ through it.
 - `loadAthleteContext(deps, { userId, today })` returns the deep-frozen snapshot (profile,
   activities, wellness, reviews, screening flags, zone changes, state, zones, readiness, the stored
   plan and predictions on demand); `memoByVersion` caches derived values (stats, the heart-rate
-  model, the weekly decision, undo availability) under the same key. `GET /api/state` serves it with
-  an ETag built from the key.
+  model, the weekly decision, undo availability) under the same key and freezes them too. Concurrent
+  readers of one key share one build, and a client keeps at most 8 snapshots and 64 memoised
+  values. `GET /api/state` serves the snapshot with an ETag built from the key.
 - Open-Meteo is reached only by the scheduler, which fills two cache tables; request handlers read
   them.
 - Nothing about the snapshot is persisted.
@@ -102,4 +103,6 @@ Alternatives:
   version, the day and the forecast's fetch time, because the forecast cache is non-state.
 - The global counter invalidates every user's snapshot on any state write; irrelevant for one runner.
 - Request handlers never wait on Open-Meteo; plan generation may wait up to 8 seconds once for race
-  climate on a cold cache.
+  climate on a cold cache. Until the weather cache replaces it, the goal model reads the race climate
+  through `server/services/raceClimate.ts`, so a cold prediction can wait on the archive as it did
+  before.

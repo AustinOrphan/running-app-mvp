@@ -11,7 +11,7 @@ one recreational runner, not medical advice.
 | `papers/<id>.json` | One verified paper: metadata, design, findings, limitations, implications, verification    |
 | `topics/<key>.md`  | One synthesis per topic: what is established, contested, unknown, plus rules and papers    |
 | `rules/<key>.json` | The rules of one topic as data: statement, parameter, value, grade, confidence, evidence   |
-| `engine-rules.md`  | The integrated rule set, organised by engine stage (a-n), with the numeric parameter table |
+| `engine-rules.md`  | The integrated rule set, organised by engine stage (a-o), with the numeric parameter table |
 | `tools/`           | The workflow script that built the corpus and the writer that stores its result            |
 
 The corpus ships in the repository. The web app bundles `papers/*.json` and `topics/*.md` at build

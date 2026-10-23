@@ -59,7 +59,7 @@ Last update: 2026-10-23.
   `formatQuantity`, `describeParamValue` in the runner's units, `expectCleanCopy`) and ADR 0010.
   Gates on the merged branch: `npm run check` (123 files, 3336 tests), `npm run build`,
   `npm run test:e2e` (18), `docker build .` (the migration applies), owner validation unchanged
-  apart from the date. Adversarial review: see below..
+  apart from the date. Adversarial review: see below.
 - Known from E4-1, to fix in wave 1: four Param notes (`h8.weightLossToleranceMaxPct`,
   `pain.flagScore`, `h12.laterStepLongRunMaxMin`, `l1.sameDistanceTolerancePct`) and the G-6 rule
   title ("Never make up missed volume") fail the G5 lint; a drawer test that opens them with
@@ -71,6 +71,92 @@ Last update: 2026-10-23.
   is). The integration branch takes `main` after they merge; the two `2026-10-22.3` versions (wave
   0's registry and `main`'s) are reconciled to `2026-10-22.4` on `wave/3a-0`, and wave 1 moves on
   to `2026-10-23.1`.
+
+- **Phase 3a wave 1 (branch `feat/coach-phase3`, PR from `wave/3a-1`, 2026-10-23):** the
+  foundation every surface reads. E3-2: the cached athlete snapshot (`server/services/athleteState.ts`:
+  `loadAthleteContext`, `memoByVersion`, `currentGoalFor`; one build shared by concurrent requests,
+  rebuilt once per state write, day change or TTL, never stored when it overlapped a write or a
+  transaction; deep-frozen), `GET /api/state` with an ETag and 304, the DataInUse panel on
+  Integrations, ADR 0009 accepted; warm Today reads fall from ~8.5 ms to ~2 ms on a three-year
+  synthetic history. E3-7: session identity (`pairSessions`, `carryExternalIds`,
+  `workoutExternalId` in `shared/domain/sessionIdentity.ts`; `writeReplannedSessions` updates paired
+  rows in place and returns a `SessionWriteSet`), so a Monday re-plan of an unchanged plan keeps
+  every id and `externalId` (205 of 205 on the owner's plan; the old write kept 0). E3-6: the
+  `SyncRun` log (one row per pull, push, folder scan and job; `GET /api/integrations/:provider/runs`,
+  `GET /api/jobs`; `safeMessage` strips tokens; 200 rows and 90 days kept), honest Garmin wellness
+  truncation (`WellnessTruncated`, `paused` never `ok`), the weekly catch-up re-plan on start and
+  every 6 hours (ADR 0007), the SyncHistory card. E2-3: the Today engine pieces (`readinessSignals`,
+  `readinessVerdict`, `rangeLabel`, `weekStrip`, `formatEstimate`, `isoDateInZone`,
+  `restingHrEval`; templates in `shared/copy/today.ts`). E1-2: the workout model
+  (`shared/workouts/*`: `toWorkoutPlan` for every publishable kind including the run-walk ladder,
+  `publicTitle` from a closed allowlist, rule O1 with `o1.hrFloorBpm` and `o1.hrTargetMinStepSec`).
+  E6-1: the nine `h7` fuel-ladder Params, the H7 rule text and ADR 0011. E10s-2: the prediction
+  back-test scorer (`shared/engine/backtest.ts`), the `l7` Params, the L7 rule text and the
+  track-record copy. `PARAMS_VERSION` is `2026-10-23.1`. Gates on the merged branch: `npm run
+check` (142 files, 4337 tests), `npm run build`, `npm run test:e2e` (18), `docker build .` (the sync-log migration
+  applies), owner validation identical to wave 0. One merge interaction was caught by the gates
+  and fixed (the sync-history page test did not expect the Integrations page's new state read).
+  Adversarial review: see below.
+- Wave 1 left for later tasks: `shared/workouts/*` keeps a few fixed fragments ("Warm up", "heart
+  rate under") as literals rather than templates (E1-3 to decide); `TODAY_TEMPLATES` verdicts can
+  name a session on a day with none (E2-4); `median` now exists three times in `shared/engine`
+  (`athlete.ts`, `readiness.ts`, `backtest.ts`); idle folder scans every 5 minutes fill the
+  200-row `SyncRun` cap in about 17 hours (E3-8 or the next boundary decides whether idle
+  scheduled runs are recorded); a plan generated after the Monday slot gets one redundant
+  catch-up re-plan; the fast finish of a long run, the easy part of a strides session and quality
+  warm-ups are published as open steps because `resolveTargets` holds no band for them.
+- **Session identity (E3-7, the contract for the publish channel in E1):** a session's `externalId`
+  is its only durable identity, kept by owner moves, swaps, skips and restores and by every
+  re-plan that leaves it on the same day and kind (`pairSessions` in
+  `shared/domain/sessionIdentity.ts`), carried by a regenerate for sessions dated today or later,
+  and new when a re-plan changes its day or kind, so E1 publishes under
+  `workoutExternalId(externalId, userTag)`, creates the new event before it withdraws the old one
+  and derives no id from the date, the kind or the order.
+
+## Wave 1 adversarial review (2026-10-23)
+
+Six lenses over the wave-1 diff against `wave/3a-0` (90 files); 23 findings, each tried by two
+independent refuters: 8 confirmed (two pairs name one defect each), 15 disputed. Nothing confirmed
+is above medium.
+
+Fixed on `wave/3a-1` before its PR (`task/3a-W1-fix-readiness`, `task/3a-W1-fix-synclog`):
+
+1. The HRV "Building your usual range (N of 10 readings)" sentence counted today's reading while
+   the threshold counts prior readings only, so 9 prior nights read "10 of 10" with no range; the
+   shown count is the count the threshold uses, with boundary tests.
+2. The "Signals are a little low. Today's session is already easy, so it stays." verdict fired on
+   every non-quality day (a long run, a race, a strength day, a day with no session);
+   `readinessVerdict` now reads the day's session kinds and keeps that sentence for easy days only.
+3. The check-in signal used the fatigue sentence when a different item was the poor one.
+4. The sleep signal could read "averaged 7 h ... under 7 h"; the verdict now compares the value as
+   shown.
+5. Two sync-log tests could not fail (the `safeMessage` cut-order case and the "hostile message"
+   case of `recordSyncRun`); rebuilt so they discriminate.
+
+Accepted from the disputed list and fixed with them: `safeMessage` strips credentials after any
+`Authorization` scheme, cookie values and bare token pairs, not only `Bearer`; app-written failure
+messages in the sync history are templates under the lint (provider text stays a quoted slot); the
+"no token in a log line" test captures real log lines; idle scheduled folder scans and weather runs
+are no longer recorded, so the 200-row log holds real syncs.
+
+Disputed and recorded (not fixed; reason in brackets):
+
+- A plan generated after the Monday slot counts as "weekly update due" and gets one redundant
+  catch-up re-plan; the catch-up and the 03:00 job can both re-plan one plan in a week [an
+  in-process guard serialises them; R0-1's revision model makes the second a no-op diff; revisit
+  at E3-8].
+- `GET /api/state` can answer 304 for a body the race-climate path would now build differently,
+  and a cold read waits on up to three sequential Open-Meteo calls with no timeout [E3-3 replaces
+  `raceClimate.ts` with the cache in the same wave 2].
+- DataInUse says "No activities yet" for data outside its window [copy choice; E4-8's reading
+  pass].
+- The workout step vocabulary (`shared/workouts/plan.ts`) is a second copy of the session sheet's
+  wording [E1-7's cross-surface adapter reconciles them].
+- The Monday re-plan identity test runs a no-op re-plan; the overlap test has one assertion that
+  cannot fail; a 50 ms real-time sleep precedes the single-flight assertion; the Vary-header test
+  only re-checks the header [test-strength notes; R0-1 and E3-8 add the changed-plan case].
+- `latestJobRuns` reads every job row for one per job and the index does not cover its filter
+  [small table after idle runs stopped; E3-8].
 
 ## Wave 0 adversarial review (2026-10-23)
 
@@ -159,8 +245,7 @@ stored, and a check-in older than 3 days neither delays nor releases a step).
 7. A session the engine trims after a hold decision is stored without its untrimmed version.
 8. Lower-ranked review findings not yet addressed: nested sheets share the Escape key; Apple
    Health push skips the range checks the parsed import applies; the JSON body parsers for ingest
-   and imports run before authentication; Garmin wellness that runs out of request budget records
-   a successful run; Goals reads "1:45" as minutes and seconds; a few engine tests assert
+   and imports run before authentication; Goals reads "1:45" as minutes and seconds; a few engine tests assert
    conditionally.
 9. Behind a reverse proxy, rate limits key on the proxy's address (no trust-proxy setting by
    design: the environment variables are fixed).

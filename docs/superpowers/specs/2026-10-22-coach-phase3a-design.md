@@ -1169,7 +1169,10 @@ slot stubbed to its budget, and ≤ 707 at 390 × 707 answered.
 - Verdicts: "Ready as planned." / "Signals are a little low. Today's session is already easy, so it
   stays." / "An easy run is the better choice today." / "A rest day is the better choice today." /
   "Recent signals have stayed low for several days. A lighter week may help." / "No readiness
-  signals yet. One tap below adds the first."
+  signals yet. One tap below adds the first." The "already easy" sentence is shown only when every
+  run of the day is easy, recovery or strides; for any other day with low signals (a long run, a
+  race, a hike, strength only, rest or nothing planned) `readinessVerdict` takes the day's session
+  kinds and says "Signals are a little low. The plan stays as it is."
 - Targets: "Heart rate: under 149 bpm" / "Heart rate: 149 to 165 bpm" / "Pace: about 9:20 to 10:28
   /mi. Effort and heart rate come first." / "Effort: 3 to 4 out of 10"; hot: effort first "(go by
   this today)" and "Heart rate: under 149 bpm. It runs high in heat."

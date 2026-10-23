@@ -41,6 +41,7 @@ export const NON_STATE_MODELS = [
   'ImportedFile',
   'Integration',
   'PredictionLog',
+  'SyncRun',
 ] as const
 
 const STATE_SET: ReadonlySet<string> = new Set(STATE_MODELS)

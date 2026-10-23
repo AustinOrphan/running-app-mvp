@@ -425,6 +425,107 @@ function verifyPlanWeeks(db: DatabaseSync, before: Snapshot): void {
   ])
 }
 
+/**
+ * The previous release's sync state: two connections, an import batch and the activity it stored.
+ * The sync log adds a table beside them and touches none.
+ */
+function seedSyncState(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'User', {
+    id: 'u2',
+    email: 'other@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  for (const [id, userId, provider] of [
+    ['i1', 'u1', 'garmin'],
+    ['i2', 'u1', 'folder'],
+    ['i3', 'u2', 'garmin'],
+  ] as const) {
+    insert(db, 'Integration', {
+      id,
+      userId,
+      provider,
+      status: 'connected',
+      secret: 'v1.synthetic.synthetic.synthetic',
+      config: '{}',
+      lastSyncStatus: 'ok',
+      updatedAt: STAMP,
+    })
+  }
+  insert(db, 'ImportBatch', {
+    id: 'b1',
+    userId: 'u1',
+    source: 'garmin',
+    rowCount: 1,
+    accepted: 1,
+    skippedDuplicate: 0,
+    skippedInvalid: 0,
+    errors: '[]',
+  })
+  insert(db, 'Activity', {
+    id: 'a1',
+    userId: 'u1',
+    date: '2026-10-06',
+    type: 'run',
+    durationSec: 2700,
+    distanceM: 8000,
+    importBatchId: 'b1',
+    updatedAt: STAMP,
+  })
+}
+
+function verifySyncLog(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // The new table starts empty: earlier releases kept no run history to carry over.
+  expect(tableNames(db)).toContain('SyncRun')
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "SyncRun"')).toEqual([{ n: 0 }])
+  expectIndex(db, 'SyncRun', ['userId', 'provider', 'startedAt'], false)
+
+  // Only the identity, the channel, the trigger, the times and the status are required.
+  const required = {
+    userId: 'u1',
+    provider: 'garmin',
+    channel: 'pull',
+    trigger: 'schedule',
+    startedAt: STAMP,
+    finishedAt: STAMP,
+    status: 'ok',
+  }
+  insert(db, 'SyncRun', { id: 'r1', ...required, importBatchId: 'b1' })
+  insert(db, 'SyncRun', { id: 'r2', ...required, userId: 'u2' })
+  expect(rowsOf(db, `SELECT * FROM "SyncRun" WHERE id = 'r1'`)[0]).toMatchObject({
+    accepted: 0,
+    duplicate: 0,
+    failed: 0,
+    wellnessStatus: 'none',
+    wellnessDays: null,
+    wellnessTotal: null,
+    message: null,
+    failures: '[]',
+    importBatchId: 'b1',
+  })
+
+  // A run belongs to its user; the batch id is a plain reference, so pruning batches is harmless.
+  expect(() => {
+    insert(db, 'SyncRun', { id: 'r3', ...required, userId: 'nobody' })
+  }).toThrow(/FOREIGN KEY/)
+  db.exec(`DELETE FROM "ImportBatch" WHERE id = 'b1'`)
+  expect(rowsOf(db, `SELECT "importBatchId" FROM "SyncRun" WHERE id = 'r1'`)).toEqual([
+    { importBatchId: 'b1' },
+  ])
+  db.exec(`DELETE FROM "User" WHERE id = 'u2'`)
+  expect(rowsOf(db, 'SELECT id FROM "SyncRun" ORDER BY id')).toEqual([{ id: 'r1' }])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "Integration"')).toEqual([{ n: 2 }])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -435,6 +536,11 @@ const CASES: FixtureCase[] = [
     migration: 'plan_week_quality_sessions',
     seed: seedPlanWeeks,
     verify: verifyPlanWeeks,
+  },
+  {
+    migration: 'foundation_sync_log',
+    seed: seedSyncState,
+    verify: verifySyncLog,
   },
 ]
 

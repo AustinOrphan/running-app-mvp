@@ -27,7 +27,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-22.4')
+    expect(PARAMS_VERSION).toBe('2026-10-23.1')
   })
 
   it('holds a few hundred parameters, every section non-empty', () => {
@@ -188,6 +188,71 @@ describe('parameter registry', () => {
     expect(rate.value).toBeLessThan(P.h4.ultraClimbReferenceMh.value)
   })
 
+  it('carries the personal fuel ladder of rule H7 with its grades and evidence', () => {
+    const h7 = P.h7
+    expect(
+      [
+        h7.logMinDurationMin,
+        h7.rungReachFraction,
+        h7.multiCarbMinShare,
+        h7.stepUpToleratedRuns,
+        h7.immediateFallbackScore,
+        h7.nauseaContingencyScore,
+        h7.hotDayWbgtC,
+        h7.hotDayAirTempC,
+        h7.gutBlockSessionsPerWeek,
+      ].map((p) => [p.id, p.value, p.grade, p.rule]),
+    ).toEqual([
+      ['h7.logMinDurationMin', 120, 'A', 'H7'],
+      ['h7.rungReachFraction', 0.9, 'D', 'H7'],
+      ['h7.multiCarbMinShare', 0.5, 'D', 'H7'],
+      ['h7.stepUpToleratedRuns', 1, 'D', 'H7'],
+      ['h7.immediateFallbackScore', 4, 'D', 'H7'],
+      ['h7.nauseaContingencyScore', 2, 'D', 'H7'],
+      ['h7.hotDayWbgtC', 18, 'D', 'H7'],
+      ['h7.hotDayAirTempC', 25, 'D', 'H7'],
+      ['h7.gutBlockSessionsPerWeek', 3, 'D', 'H7'],
+    ])
+    expect(paramsForRule('H7')).toHaveLength(22)
+    // the 2 h threshold is the one value taken from a study; the rest are labelled defaults
+    expect(h7.logMinDurationMin.evidence).toEqual(['costa-2017-eigs-sr'])
+    for (const p of [h7.hotDayWbgtC, h7.hotDayAirTempC]) {
+      expect(p.evidence).toEqual(['costa-2017-eigs-sr', 'stuempfle-2015-gi-distress-wser'])
+    }
+    // the scores live on the scale the log records and the stop rule reads
+    for (const p of [h7.immediateFallbackScore, h7.nauseaContingencyScore]) {
+      expect(p.value, p.id).toBeLessThanOrEqual(h7.gutSymptomScaleMax.value)
+    }
+    expect(h7.immediateFallbackScore.value).toBeGreaterThan(h7.gutStopScore.value)
+    // a run counts for less time in a gut-training week than in a normal week
+    expect(h7.gutTrainingSessionMinMin.value).toBeLessThan(h7.logMinDurationMin.value)
+  })
+
+  it('names the difference between the fuel and the heat-steering thresholds', () => {
+    // isHotForSteering uses i9.warnWbgtC; the fuel hold is lower on purpose (ADR 0011)
+    expect(P.h7.hotDayWbgtC.value).toBeLessThan(P.i9.warnWbgtC.value)
+    expect(P.h7.hotDayWbgtC.note).toMatch(/isHotForSteering/)
+    expect(P.h7.hotDayWbgtC.note).toMatch(/i9\.warnWbgtC/)
+    expect(P.h7.hotDayWbgtC.note).toMatch(/not the heat-steering threshold/i)
+    expect(P.h7.hotDayAirTempC.note).toMatch(/isHotForSteering/)
+  })
+
+  it('cites every evidence id of the h7 ladder in the text of rule H7', () => {
+    const start = engineRules.indexOf('- **H7 ')
+    const end = engineRules.indexOf('- **H8 ')
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    const h7Text = engineRules.slice(start, end)
+    const missing = paramsForRule('H7').flatMap((p) =>
+      p.evidence.filter((id) => !h7Text.includes(id)).map((id) => `${p.id}: ${id}`),
+    )
+    expect(missing).toEqual([])
+    // the hot-day numbers and the copy guard are stated in the rule, not only in the registry
+    expect(h7Text).toContain('**Copy guard.**')
+    expect(h7Text).toContain(`${P.h7.hotDayWbgtC.value} C or more`)
+    expect(h7Text).toContain(`${P.h7.hotDayAirTempC.value} C or more`)
+  })
+
   it('transcribes the post-race window of rule H12', () => {
     const hold = P.h12HoldDays
     expect(
@@ -216,5 +281,76 @@ describe('parameter registry', () => {
     expect(P.h12.modifierMultiplier.grade).toBe('D')
     expect(P.h12.goalRaceDistanceTolerancePct.value).toBe(10)
     expect(paramsForRule('H12')).toHaveLength(20)
+  })
+
+  it('carries the back-test thresholds of rule L7 as defaults, with existing evidence', () => {
+    const minRaces = P.l7.minRacesForSummary
+    const tolerance = P.l7.courseTolerancePct
+    expect([minRaces.id, minRaces.value, minRaces.grade, minRaces.rule]).toEqual([
+      'l7.minRacesForSummary',
+      3,
+      'D',
+      'L7',
+    ])
+    expect([tolerance.id, tolerance.value, tolerance.grade, tolerance.rule]).toEqual([
+      'l7.courseTolerancePct',
+      2,
+      'D',
+      'L7',
+    ])
+    expect(minRaces.evidence).toEqual([
+      'hecksteden-2015-individual-response',
+      'mann-2014-high-low-responders',
+    ])
+    expect(tolerance.evidence).toEqual(['blythe-2016-individual-prediction'])
+    expect(minRaces.note).toMatch(/default/i)
+    expect(tolerance.note).toMatch(/default/i)
+    expect(paramsForRule('L7').map((p) => p.id)).toEqual([
+      'l7.minRacesForSummary',
+      'l7.courseTolerancePct',
+    ])
+    // the summary threshold is the same count of observations as the prior-shrinkage gate of G3
+    expect(minRaces.value).toBe(P.global3.minObservations.value)
+  })
+
+  it('words rule L7 as four bullets and ties the L6 band to scored races', () => {
+    const section = engineRules.slice(
+      engineRules.indexOf('- **L7 '),
+      engineRules.indexOf('## (m) Personalization verdicts'),
+    )
+    expect(section.match(/^ {2}- /gm)).toHaveLength(4)
+    expect(engineRules).toMatch(
+      /\*\*L6 Minimum band\.\*\*[^\n]*until at least 3 scored races exist \(L7\)/,
+    )
+    expect(engineRules).not.toMatch(/until running back-tests exist/)
+  })
+
+  it('carries the device rule O1 as two labelled defaults, with its evidence', () => {
+    const floor = P.o1.hrFloorBpm
+    expect([floor.id, floor.value, floor.unit, floor.grade, floor.rule]).toEqual([
+      'o1.hrFloorBpm',
+      40,
+      'bpm',
+      'D',
+      'O1',
+    ])
+    expect(floor.note).toMatch(/default/i)
+    const minStep = P.o1.hrTargetMinStepSec
+    expect([minStep.id, minStep.value, minStep.unit, minStep.grade, minStep.rule]).toEqual([
+      'o1.hrTargetMinStepSec',
+      180,
+      'sec',
+      'D',
+      'O1',
+    ])
+    expect(minStep.evidence).toEqual([
+      'bent-2020-ppg-inaccuracy',
+      'gillinov-2017-wearable-hr-aerobic',
+    ])
+    expect(minStep.note).toMatch(/default/i)
+    expect(paramsForRule('O1').map((p) => p.id)).toEqual(['o1.hrFloorBpm', 'o1.hrTargetMinStepSec'])
+    // the rule has its own heading in the document
+    expect(engineRules).toMatch(/^## \(o\) Delivery to devices$/m)
+    expect(engineRules).toMatch(/\*\*O1 Targets on the device\.\*\*/)
   })
 })

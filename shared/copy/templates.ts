@@ -7,9 +7,14 @@
 // their templates into `TEMPLATES`.
 import type { InputFact } from '../engine/types.ts'
 import type { Units } from '../types.ts'
+import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
 import { CopyError, isCopyStrict, render, tpl, type Template } from './template.ts'
+import { SYNC_TEMPLATES } from './sync.ts'
+import { TODAY_TEMPLATES } from './today.ts'
 
 export const TEMPLATES = {
+  ...TODAY_TEMPLATES,
+  ...DATA_IN_USE_TEMPLATES,
   // The why drawer
   'why.intro': tpl(
     'Every number in the plan comes from a rule. Grade A is the strongest evidence; grade D is a conservative default.',
@@ -37,6 +42,9 @@ export const TEMPLATES = {
   'why.footnote': tpl(
     'Decision support for one runner, not medical advice. Stop and see a clinician for pain that persists or worsens.',
   ),
+
+  // The sync history on the Integrations page
+  ...SYNC_TEMPLATES,
 } satisfies Record<string, Template>
 
 export type TemplateId = keyof typeof TEMPLATES

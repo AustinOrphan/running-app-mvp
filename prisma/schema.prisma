@@ -30,6 +30,7 @@ model User {
   importedFiles ImportedFile[]
   predictions   PredictionLog[]
   screenings    Screening[]
+  syncRuns      SyncRun[]
 }
 
 model Activity {
@@ -387,6 +388,32 @@ model Integration {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, provider])
+}
+
+// One finished run of a pull, push, folder scan or scheduled job (non-state: a log, never read by
+// the athlete snapshot). `recordSyncRun` is the only writer and prunes to 200 rows and 90 days.
+model SyncRun {
+  id             String   @id @default(cuid())
+  userId         String
+  provider       String // provider registry key, or the job name for channel 'job'
+  channel        String // 'pull' | 'push' | 'folder' | 'publish' | 'job'
+  trigger        String // 'schedule' | 'manual' | 'push' | 'catchup'
+  startedAt      DateTime
+  finishedAt     DateTime
+  status         String // 'ok' | 'partial' | 'paused' | 'error'
+  accepted       Int      @default(0)
+  duplicate      Int      @default(0)
+  failed         Int      @default(0)
+  wellnessStatus String   @default("none") // 'none' | 'read' | 'truncated' | 'waiting' | 'error'
+  wellnessDays   Int?
+  wellnessTotal  Int?
+  message        String? // scrubbed by safeMessage, at most 300 characters
+  failures       String   @default("[]") // JSON text: the first 10 { ref, reason }
+  importBatchId  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, provider, startedAt])
 }
 
 model ImportedFile {

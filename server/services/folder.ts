@@ -5,8 +5,9 @@ import { gunzipSync, unzipSync } from 'fflate'
 import type { Deps } from '../app.ts'
 import { loadProfile } from '../serialize.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
-import type { ImportReportRow } from '../../shared/types.ts'
+import type { ImportReportRow, SyncFailure, SyncTrigger } from '../../shared/types.ts'
 import { storeParsed } from './activityStore.ts'
+import { MAX_FAILURES_STORED, recordSyncRunUnlessIdle, syncMessage } from './syncLog.ts'
 
 const SCANNED = /\.(fit|gpx|tcx|zip|gz)$/i
 const ACTIVITY_FILE = /\.(fit|gpx|tcx)$/i
@@ -25,6 +26,8 @@ interface Tally {
   invalid: number
   seen: number
   report: ImportReportRow[]
+  /** The first failures with the file they belong to, for the sync log. */
+  failures: SyncFailure[]
   /** Failures that are not the file's fault (for example a database error); retried next scan. */
   errors: string[]
   batchId: string | null
@@ -104,9 +107,13 @@ async function recordFile(
   })
 }
 
-function note(tally: Tally, name: string, reason: string): void {
+/** Adds a line to the import report; `counted` failures also go to the sync log's failure list. */
+function note(tally: Tally, name: string, reason: string, counted = true): void {
   if (tally.report.length < MAX_REPORT_ROWS) {
     tally.report.push({ line: null, reason: `${baseName(name)}: ${reason}` })
+  }
+  if (counted && tally.failures.length < MAX_FAILURES_STORED) {
+    tally.failures.push({ ref: baseName(name), reason })
   }
 }
 
@@ -199,7 +206,11 @@ async function ingest(
   } catch (error) {
     // Whatever the parser throws, the content is the problem: the file is remembered as invalid.
     tally.invalid += 1
-    note(tally, name, error instanceof Error ? error.message : 'unreadable file')
+    note(
+      tally,
+      name,
+      error instanceof Error ? error.message : syncMessage('sync.msg.file-unreadable', {}),
+    )
     await recordFile(deps, userId, sha, name, 'invalid', null)
     return null
   }
@@ -229,25 +240,22 @@ async function ingest(
 }
 
 /**
- * Imports the files in `path` that `ImportedFile` has not seen; returns how many activities were
- * stored. The folder is read-only to the app. FIT, GPX and TCX files are read directly, `.gz` and
+ * Imports the files in `path` that `ImportedFile` has not seen and returns what the scan found,
+ * including the failures that are not a file's fault. Throws only when the folder cannot be read.
+ * The folder is read-only to the app. FIT, GPX and TCX files are read directly, `.gz` and
  * `.zip` files are opened (archives inside archives too, to a depth of three), and a file is remembered by the SHA-256 of its
  * bytes, so a moved or renamed copy is not imported twice. Files changed in the last few seconds
  * are left for the next scan, in case a sync tool is still writing them. One batch (source
  * `folder`) is recorded per scan that touched at least one new activity file.
- *
- * Throws when the folder cannot be read, or, after finishing the rest, when a file failed for a
- * reason that is not its content (such as a database error).
  */
-export async function scanFolder(
+async function scan(
   deps: Deps,
   userId: string,
   path: string,
-  opts: { settleMs?: number } = {},
-): Promise<number> {
+  opts: { settleMs?: number },
+): Promise<Tally> {
   const info = await stat(path).catch(() => null)
-  if (!info?.isDirectory())
-    throw new Error(`The watched folder is not a readable directory: ${path}`)
+  if (!info?.isDirectory()) throw new Error(syncMessage('sync.msg.folder-unreadable', { path }))
   const { timezone } = await loadProfile(deps.prisma, userId)
   const settleMs = opts.settleMs ?? SETTLE_MS
   const tally: Tally = {
@@ -256,6 +264,7 @@ export async function scanFolder(
     invalid: 0,
     seen: 0,
     report: [],
+    failures: [],
     errors: [],
     batchId: null,
   }
@@ -264,16 +273,18 @@ export async function scanFolder(
     try {
       const details = await stat(file)
       if (details.size > MAX_FILE_BYTES) {
-        note(tally, file, 'larger than 200 MB, skipped')
+        note(tally, file, 'larger than 200 MB, skipped', false)
         continue
       }
       if (Date.now() - details.mtimeMs < settleMs) continue
       const bytes = new Uint8Array(await readFile(file))
       await ingest(deps, userId, path, file, bytes, timezone, tally, 0)
     } catch (error) {
-      tally.errors.push(
-        `${baseName(file)}: ${error instanceof Error ? error.message : String(error)}`,
-      )
+      const reason = error instanceof Error ? error.message : String(error)
+      tally.errors.push(`${baseName(file)}: ${reason}`)
+      if (tally.failures.length < MAX_FAILURES_STORED) {
+        tally.failures.push({ ref: baseName(file), reason })
+      }
     }
   }
 
@@ -290,17 +301,52 @@ export async function scanFolder(
       },
     })
   }
-  if (tally.errors.length > 0) {
-    throw new Error(`${tally.errors.length} file(s) failed: ${tally.errors[0]}`)
-  }
+  return tally
+}
+
+function failedError(tally: Tally): Error | null {
+  const [first] = tally.errors
+  if (first === undefined) return null
+  return new Error(
+    tally.errors.length === 1
+      ? syncMessage('sync.msg.files.one', { reason: first })
+      : syncMessage('sync.msg.files.many', {
+          n: { kind: 'count', n: tally.errors.length },
+          reason: first,
+        }),
+  )
+}
+
+/**
+ * Imports the files in `path` that `ImportedFile` has not seen; returns how many activities were
+ * stored (see `scan`).
+ *
+ * Throws when the folder cannot be read, or, after finishing the rest, when a file failed for a
+ * reason that is not its content (such as a database error).
+ */
+export async function scanFolder(
+  deps: Deps,
+  userId: string,
+  path: string,
+  opts: { settleMs?: number } = {},
+): Promise<number> {
+  const tally = await scan(deps, userId, path, opts)
+  const failure = failedError(tally)
+  if (failure) throw failure
   return tally.stored
 }
 
 /**
- * Scans the folder of a user's `folder` integration and records the outcome on the row. Does
- * nothing when the integration is missing; returns the number of activities stored.
+ * Scans the folder of a user's `folder` integration, records the outcome on the row and writes one
+ * `SyncRun`, except for a scheduled scan that found nothing while the last run ended ok (see
+ * `recordSyncRunUnlessIdle`). Does nothing when the integration is missing; returns the number of
+ * activities stored.
  */
-export async function scanFolderIntegration(deps: Deps, userId: string): Promise<number> {
+export async function scanFolderIntegration(
+  deps: Deps,
+  userId: string,
+  opts: { trigger?: Extract<SyncTrigger, 'schedule' | 'manual'> } = {},
+): Promise<number> {
   const { prisma } = deps
   const row = await prisma.integration.findUnique({
     where: { userId_provider: { userId, provider: 'folder' } },
@@ -315,24 +361,44 @@ export async function scanFolderIntegration(deps: Deps, userId: string): Promise
   } catch {
     // An unreadable config is reported below like a missing path.
   }
+
+  const startedAt = new Date()
+  let tally: Tally | null = null
+  let failure: Error | null = null
   try {
-    if (path === '') throw new Error('No folder is configured.')
-    const stored = await scanFolder(deps, userId, path)
-    await prisma.integration.updateMany({
-      where: { id: row.id },
-      data: { status: 'connected', lastSyncAt: new Date(), lastSyncStatus: 'ok', lastError: null },
-    })
-    return stored
+    if (path === '') throw new Error(syncMessage('sync.msg.folder-none', {}))
+    tally = await scan(deps, userId, path, {})
+    failure = failedError(tally)
   } catch (error) {
-    await prisma.integration.updateMany({
-      where: { id: row.id },
-      data: {
-        status: 'error',
-        lastSyncAt: new Date(),
-        lastSyncStatus: 'error',
-        lastError: error instanceof Error ? error.message : String(error),
-      },
-    })
-    throw error
+    failure = error instanceof Error ? error : new Error(String(error))
   }
+
+  await prisma.integration.updateMany({
+    where: { id: row.id },
+    data:
+      failure === null
+        ? { status: 'connected', lastSyncAt: new Date(), lastSyncStatus: 'ok', lastError: null }
+        : {
+            status: 'error',
+            lastSyncAt: new Date(),
+            lastSyncStatus: 'error',
+            lastError: failure.message,
+          },
+  })
+  await recordSyncRunUnlessIdle(deps, {
+    userId,
+    provider: 'folder',
+    channel: 'folder',
+    trigger: opts.trigger ?? 'schedule',
+    startedAt,
+    status: failure !== null ? 'error' : tally && tally.invalid > 0 ? 'partial' : 'ok',
+    accepted: tally?.stored ?? 0,
+    duplicate: tally?.duplicate ?? 0,
+    failed: (tally?.invalid ?? 0) + (tally?.errors.length ?? 0),
+    message: failure,
+    failures: tally?.failures ?? [],
+    importBatchId: tally?.batchId ?? null,
+  })
+  if (failure) throw failure
+  return tally?.stored ?? 0
 }

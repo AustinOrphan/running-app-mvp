@@ -2,6 +2,7 @@
 // owner's edits to single sessions. The engine decides; this module gathers, persists and guards.
 import { randomUUID } from 'node:crypto'
 import { addDays, daysBetween, isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
+import { carryExternalIds, pairSessions } from '../../shared/domain/sessionIdentity.ts'
 import { type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { weatherIndex, trainingHeatAdvice } from '../../shared/engine/heat.ts'
@@ -15,7 +16,6 @@ import {
   zoneProposals,
 } from '../../shared/engine/index.ts'
 import { P } from '../../shared/engine/params/index.ts'
-import { readinessSnapshot } from '../../shared/engine/readiness.ts'
 import type {
   ChecklistResult,
   EngineInput,
@@ -53,6 +53,7 @@ import {
   toPlanSession,
   toPlanWeek,
 } from '../serialize.ts'
+import { loadAthleteContext } from './athleteState.ts'
 import { assessSessionById } from './execution.ts'
 import { currentZones, gatherContextInput, gatherEngineInput, sessionSpec } from './engineInput.ts'
 import { MAX_PLAN_WEEKS } from './plan.ts'
@@ -235,6 +236,13 @@ export async function generateEnginePlan(
 
   const created = await prisma.$transaction(
     async (tx) => {
+      // The sessions of the plan being archived that are dated today or later hand their
+      // externalIds to the paired sessions of the new plan (spec 4.1).
+      const previous = await tx.planSession.findMany({
+        where: { plan: { userId, status: 'active' }, date: { gte: today } },
+        select: { externalId: true, date: true, kind: true, order: true },
+      })
+      const carried = carryExternalIds(previous, draft.sessions)
       await tx.plan.updateMany({
         where: { userId, status: 'active' },
         data: { status: 'archived' },
@@ -260,7 +268,7 @@ export async function generateEnginePlan(
         },
       })
       await tx.planSession.createMany({
-        data: draft.sessions.map((spec) => sessionRow(plan.id, spec)),
+        data: draft.sessions.map((spec, i) => sessionRow(plan.id, spec, carried[i] ?? undefined)),
       })
       await writeRevision(
         tx,
@@ -283,8 +291,93 @@ export async function generateEnginePlan(
   return present(created, draft.zones)
 }
 
-function sameSlot(row: PlanSessionRow, spec: SessionSpec): boolean {
-  return row.date === spec.date && row.order === spec.order && row.kind === spec.kind
+/** The rows a re-plan wrote to a plan's sessions: what the revision diff and the undo payload read. */
+export interface SessionWriteSet {
+  created: PlanSessionRow[]
+  /** Full rows, so an undo can recreate them with their id and externalId. */
+  deleted: PlanSessionRow[]
+  /** Only the rows whose engine-derived columns changed; `before` and `after` are full rows. */
+  updated: Array<{ id: string; before: PlanSessionRow; after: PlanSessionRow }>
+}
+
+/**
+ * The columns a re-plan rewrites in a paired row: the ones `sessionRow` derives from the spec,
+ * never `id`, `planId` or `externalId`. The activity link (`activityId`, `linkSource`, `execution`)
+ * stays; so do `status` and `original` of a linked row, because the link gave it that status.
+ */
+function replannedColumns(row: PlanSessionRow, spec: SessionSpec) {
+  const {
+    planId: _planId,
+    externalId: _externalId,
+    status,
+    ...columns
+  } = sessionRow(row.planId, spec, row.externalId)
+  // A fresh prescription has no earlier version: the owner's edit of this slot is gone.
+  return row.activityId === null ? { ...columns, status, original: null } : columns
+}
+
+/**
+ * The draft's sessions that the re-plan does not already hold as kept rows. The engine copies each
+ * kept session unchanged into its draft, so the copy of a kept row is the draft entry with the
+ * row's own date, order and kind. This only removes those copies; which session is which across
+ * a re-plan is decided by `pairSessions`.
+ */
+function withoutKeptCopies(specs: SessionSpec[], kept: PlanSessionRow[]): SessionSpec[] {
+  const copies = [...kept]
+  return specs.filter((spec) => {
+    const at = copies.findIndex(
+      (r) => r.date === spec.date && r.order === spec.order && r.kind === spec.kind,
+    )
+    if (at < 0) return true
+    copies.splice(at, 1)
+    return false
+  })
+}
+
+/**
+ * Writes a re-plan's sessions row by row (spec 4.1). Kept rows (`keptByReplan`) are left alone and
+ * stay out of pairing. Each replaced row is paired with a draft session by `pairSessions`: a paired
+ * row is updated in place, so its id, `externalId` and activity link survive; a replaced row with
+ * no counterpart is deleted; a draft session with no counterpart is created with a fresh
+ * `externalId`. A paired row whose columns already match is not written. The caller passes the
+ * transaction client.
+ */
+export async function writeReplannedSessions(
+  tx: Pick<PrismaClient, 'planSession'>,
+  args: { planId: string; today: string; sessions: SessionSpec[] },
+): Promise<SessionWriteSet> {
+  const rows = await tx.planSession.findMany({ where: { planId: args.planId } })
+  // What the engine kept: the past, the finished sessions of the current week and the owner's
+  // edits of the next 14 days.
+  const isKept = (row: PlanSessionRow) =>
+    keptByReplan(
+      { date: row.date, status: row.status, rules: toPlanSession(row).rules },
+      args.today,
+    )
+  const kept = rows.filter(isKept)
+  const keptIds = new Set(kept.map((row) => row.id))
+  const replaced = rows.filter((row) => !keptIds.has(row.id))
+  const { paired, removed, added } = pairSessions(replaced, withoutKeptCopies(args.sessions, kept))
+
+  const written: SessionWriteSet = { created: [], deleted: removed, updated: [] }
+  if (removed.length > 0) {
+    await tx.planSession.deleteMany({ where: { id: { in: removed.map((row) => row.id) } } })
+  }
+  for (const { before, after: spec } of paired) {
+    const data = replannedColumns(before, spec)
+    const changed = (Object.keys(data) as Array<keyof typeof data>).some(
+      (column) => before[column] !== data[column],
+    )
+    if (!changed) continue
+    const after = await tx.planSession.update({ where: { id: before.id }, data })
+    written.updated.push({ id: before.id, before, after })
+  }
+  if (added.length > 0) {
+    written.created = await tx.planSession.createManyAndReturn({
+      data: added.map((spec) => sessionRow(args.planId, spec)),
+    })
+  }
+  return written
 }
 
 function describeChanges(changes: PlanChange[]): string {
@@ -433,22 +526,7 @@ export async function replanActivePlan(
 
   const revision = await prisma.$transaction(
     async (tx) => {
-      const rows = await tx.planSession.findMany({ where: { planId: plan.id } })
-      // What the engine kept: the past, the finished sessions of the current week and the owner's
-      // edits of the next 14 days.
-      const keptRows = rows.filter((r) =>
-        keptByReplan({ date: r.date, status: r.status, rules: toPlanSession(r).rules }, today),
-      )
-      const replaced = rows.filter((r) => !keptRows.includes(r))
-      await tx.planSession.deleteMany({ where: { id: { in: replaced.map((r) => r.id) } } })
-      const unmatched = [...keptRows]
-      const fresh: SessionSpec[] = []
-      for (const spec of draft.sessions) {
-        const at = unmatched.findIndex((r) => sameSlot(r, spec))
-        if (at >= 0) unmatched.splice(at, 1)
-        else fresh.push(spec)
-      }
-      await tx.planSession.createMany({ data: fresh.map((spec) => sessionRow(plan.id, spec)) })
+      await writeReplannedSessions(tx, { planId: plan.id, today, sessions: draft.sessions })
 
       const weeks = await tx.planWeek.findMany({ where: { planId: plan.id } })
       const byStart = new Map(weeks.map((w) => [w.weekStart, w]))
@@ -979,10 +1057,9 @@ export async function todayView(
 ): Promise<TodayView> {
   const { prisma } = deps
   const { userId, today } = args
-  const plan = await prisma.plan.findFirst({
-    where: { userId, status: 'active', generatorVersion: { gte: 2 } },
-    orderBy: { createdAt: 'desc' },
-  })
+  // The active version-2 plan and readiness come from the snapshot the input below is built on.
+  const context = await loadAthleteContext(deps, { userId, today })
+  const plan = context.plan
   const input = await gatherContextInput(
     deps,
     { userId, today, goalId: plan?.goalId ?? null },
@@ -1000,7 +1077,11 @@ export async function todayView(
     sessions.map((s) => ({ ...sessionSpec(s), id: s.id })),
   ).map((entry, i) => ({ ...entry, session: sessions[i]! }))
 
-  const readiness = readinessSnapshot(input, today)
+  // The snapshot's readiness is shared and frozen, so the screening note goes on a copy.
+  const readiness: TodayView['readiness'] = {
+    ...context.readiness,
+    redFlags: [...context.readiness.redFlags],
+  }
   const reds = input.screeningFlags ?? 0
   if (reds >= P.j5.redsHoldFlags.value) {
     readiness.redFlags.push({

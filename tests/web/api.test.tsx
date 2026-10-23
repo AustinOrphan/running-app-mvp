@@ -28,6 +28,7 @@ import {
 import { useReviews, useSaveReview } from '../../web/api/reviews.ts'
 import { useSettings, useUpdateSettings } from '../../web/api/settings.ts'
 import { useProfile, useUpdateProfile } from '../../web/api/profile.ts'
+import { useAthleteState } from '../../web/api/state.ts'
 import { useToday } from '../../web/api/today.ts'
 import { useWeeks } from '../../web/api/weeks.ts'
 import {
@@ -397,6 +398,66 @@ describe('invalidation', () => {
       'me',
       'settings',
     ])
+  })
+})
+
+describe('the athlete state', () => {
+  const stateCalls = (calls: Array<{ method: string; url: string }>) =>
+    calls.filter((c) => c.method === 'GET' && c.url === '/api/state').length
+
+  test('is read from GET /api/state under keys.state', async () => {
+    const { calls } = mockApi(allRoutes({ 'GET /api/state': () => ({ version: 'v1' }) }))
+    const { queryClient, wrapper } = setup()
+    const { result } = renderHook(() => useAthleteState(), { wrapper })
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+    expect(stateCalls(calls)).toBe(1)
+    expect(queryClient.getQueryData([keys.state])).toEqual({ version: 'v1' })
+  })
+
+  test('is asked for again when a screen mounts, because the server answers 304 while nothing changed', async () => {
+    const { calls } = mockApi(allRoutes({ 'GET /api/state': () => ({}) }))
+    const { wrapper } = setup()
+    const first = renderHook(() => useAthleteState(), { wrapper })
+    await waitFor(() => {
+      expect(first.result.current.isSuccess).toBe(true)
+    })
+    first.unmount()
+
+    const second = renderHook(() => useAthleteState(), { wrapper })
+    await waitFor(() => {
+      expect(stateCalls(calls)).toBe(2)
+    })
+    await waitFor(() => {
+      expect(second.result.current.isFetching).toBe(false)
+    })
+  })
+
+  test('goes stale with the activity data, so a run or a sync is seen at once', async () => {
+    const { calls } = mockApi(allRoutes({ 'GET /api/state': () => ({}) }))
+    const { wrapper } = setup()
+    const { result } = renderHook(
+      () => ({
+        state: useAthleteState(),
+        create: useCreateActivity(),
+        remove: useDeleteActivity(),
+      }),
+      { wrapper },
+    )
+    await waitFor(() => {
+      expect(result.current.state.isSuccess).toBe(true)
+    })
+
+    const before = stateCalls(calls)
+    await act(() => result.current.create.mutateAsync(activityInput))
+    await waitFor(() => {
+      expect(stateCalls(calls)).toBe(before + 1)
+    })
+    await act(() => result.current.remove.mutateAsync('a1'))
+    await waitFor(() => {
+      expect(stateCalls(calls)).toBe(before + 2)
+    })
   })
 })
 

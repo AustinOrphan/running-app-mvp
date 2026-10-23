@@ -9,6 +9,7 @@ import {
   csFractionAtMin,
   predictFromState,
   predictRace,
+  rangeLabel,
   type PredictTarget,
 } from '../../../shared/engine/predict.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -307,6 +308,75 @@ describe('predictFromState: interval [L2, L5, L6]', () => {
     const marathon = predictFromState(state, road(MARATHON))!
     expect(p.predictedSec / 160934).toBeGreaterThan(marathon.predictedSec / MARATHON)
     expect(p.predictedSec).toBeGreaterThan(20 * 3600)
+  })
+})
+
+describe('rangeLabel [L2, L4, L6]', () => {
+  const HUNDRED_MILES = 160934
+
+  it('reuses the floor of each distance band, with the rules that set it and its grade', () => {
+    const cases: Array<[string, number, number, string[], string]> = [
+      ['5 km', 5000, P.l6.minBandPct.value, ['L6'], P.l6.minBandPct.grade],
+      ['the Riegel limit', P.l1.riegelMaxTargetM.value, P.l6.minBandPct.value, ['L6'], 'C'],
+      ['a half marathon', HALF, P.l6.minBandPct.value, ['L6'], 'C'],
+      ['a marathon', MARATHON, P.l2.marathonMinHalfWidthPct.value, ['L2', 'L6'], 'C'],
+      [
+        'the ultra limit',
+        P.d1.ultraAboveM.value,
+        P.l2.marathonMinHalfWidthPct.value,
+        ['L2', 'L6'],
+        'C',
+      ],
+      ['50 km', 50000, P.l4.ultraMinHalfWidthPct.value, ['L4', 'L6'], 'D'],
+      ['100 miles', HUNDRED_MILES, P.l4.ultraMinHalfWidthPct.value, ['L4', 'L6'], 'D'],
+    ]
+    for (const [name, distanceM, pct, rules, grade] of cases) {
+      const label = rangeLabel(road(distanceM))
+      expect(label.minHalfWidthPct, name).toBe(pct)
+      expect(label.rules, name).toEqual(rules)
+      expect(label.grade, name).toBe(grade)
+    }
+  })
+
+  it('is wide on purpose only for an ultra', () => {
+    expect(rangeLabel(road(5000)).wide).toBe(false)
+    expect(rangeLabel(road(MARATHON)).wide).toBe(false)
+    expect(rangeLabel(road(P.d1.ultraAboveM.value)).wide).toBe(false)
+    expect(rangeLabel(road(P.d1.ultraAboveM.value + 1)).wide).toBe(true)
+    expect(rangeLabel(road(HUNDRED_MILES)).wide).toBe(true)
+  })
+
+  it('names the evidence the ultra range rests on: a grade D default', () => {
+    expect(P.l4.ultraMinHalfWidthPct.grade).toBe('D')
+    expect(rangeLabel(road(HUNDRED_MILES)).grade).toBe('D')
+  })
+
+  it('states the floor the interval really has', () => {
+    const marathon = predictFromState(
+      makeState({ races: [race('2026-09-01', HALF, 5400)], csMps: MARATHON / (0.88 * 12300) }, 5),
+      road(MARATHON),
+    )!
+    expect(halfWidthPct(marathon)).toBeGreaterThanOrEqual(
+      rangeLabel(road(MARATHON)).minHalfWidthPct,
+    )
+    const ultra = predictFromState(makeState({ csMps: 3.5, dPrimeM: 150 }), road(HUNDRED_MILES))!
+    expect(halfWidthPct(ultra)).toBeGreaterThanOrEqual(
+      rangeLabel(road(HUNDRED_MILES)).minHalfWidthPct,
+    )
+    const ten = predictFromState(
+      makeState({
+        races: [race('2026-09-01', 5000, 1500)],
+        csMps: 10000 / (1500 * 2 ** RIEGEL),
+        dPrimeM: 0,
+      }),
+      road(10000),
+    )!
+    expect(halfWidthPct(ten)).toBeGreaterThanOrEqual(rangeLabel(road(10000)).minHalfWidthPct - 0.05)
+  })
+
+  it('accepts a prediction target and takes nothing from the course but its distance', () => {
+    const trail = road(HUNDRED_MILES, { surface: 'trail', gainM: 5000, wbgtC: 28 })
+    expect(rangeLabel(trail)).toEqual(rangeLabel({ distanceM: HUNDRED_MILES }))
   })
 })
 

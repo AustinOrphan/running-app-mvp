@@ -131,6 +131,8 @@ export const keys = {
   profile: 'profile',
   wellness: 'wellness',
   integrations: 'integrations',
+  syncRuns: 'syncRuns',
+  jobs: 'jobs',
   activityDetail: 'activityDetail',
   planRevisions: 'planRevisions',
   today: 'today',
@@ -140,4 +142,5 @@ export const keys = {
   predictions: 'predictions',
   screenings: 'screenings',
   researchParams: 'researchParams',
+  state: 'state',
 } as const

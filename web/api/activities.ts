@@ -33,7 +33,7 @@ export interface ActivityParams {
 /**
  * Activities feed the week rows, the review suggestions and the detail page, and the server links,
  * assesses and re-evaluates plan sessions on every change (so the plan, today's advice and the
- * predictions move too): all go stale together.
+ * predictions move too), and so does the athlete state they all read: all go stale together.
  */
 export function invalidateActivityData(queryClient: QueryClient): Promise<unknown> {
   return Promise.all(
@@ -45,6 +45,7 @@ export function invalidateActivityData(queryClient: QueryClient): Promise<unknow
       keys.today,
       keys.plan,
       keys.predictions,
+      keys.state,
     ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
   )
 }

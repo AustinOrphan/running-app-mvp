@@ -46,6 +46,9 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
 - Secrets (API keys, client secrets, tokens) are encrypted and decrypted only through
   `server/crypto.ts`, stored in `Integration.secret`, and never logged or returned by the API.
   Refreshed tokens are saved through `ctx.saveSecret`. No new environment variables.
+- `listWellness` never returns a short list as complete: when it stops early (a spent request
+  budget) it throws `WellnessTruncated` with the days it read; the sync stores them and records a
+  `paused` run, never `ok`.
 - Files are parsed through `ctx.parseFile`, not by importing the parsers directly. Fixtures are
   synthetic; FIT test files are built with `tests/fixtures/fit/buildFit.ts`.
 
@@ -75,6 +78,11 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
   in the PR that adds it; a test fails on a model in neither or both. A model the snapshot, a
   memoised value or a published deliverable reads is state; a table written on a read path or by
   the publisher is non-state.
+- Athlete data (the 365-day history, wellness, reviews, the screening, the stored plan) comes from
+  `gatherEngineInput`, `gatherContextInput`, `loadAthleteContext` or `memoByVersion`
+  (`server/services/athleteState.ts`, ADR 0009); no new code queries that window or the stored plan
+  itself. The snapshot is deep-frozen, so copy an array before sorting or editing it.
+  `currentGoalFor` (`server/services/currentGoal.ts`) is the one answer to "which goal".
 - Migration folder names are regenerated at rebase so they sort after every migration on `main`.
 - `PlanSession.externalId` (a uuid, unique per plan) is a session's identity outside the database.
   Session rows are built only by `sessionRow()` in `server/services/planEngine.ts`, which sets

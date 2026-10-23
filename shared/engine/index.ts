@@ -60,12 +60,30 @@ import type {
 import { buildZones } from './zones.ts'
 
 export { zoneProposals, weeklyDecision } from './adapt.ts'
+export {
+  daysBefore,
+  isComparableCourse,
+  median,
+  scorePredictions,
+  scoreRace,
+  summariseRecord,
+  weeksBefore,
+} from './backtest.ts'
+export type {
+  CourseSnapshot,
+  LoggedPrediction,
+  RaceOutcome,
+  RaceResultInput,
+  RaceScore,
+  RecordSummary,
+  ScoredPrediction,
+} from './backtest.ts'
 export { runChecklist } from './checklist.ts'
 export { explain } from './explain.ts'
 export { assessExecution, matchSessions } from './execution.ts'
 export { PARAMS_VERSION, P } from './params/index.ts'
-export { predictRace } from './predict.ts'
-export { todayAdvice } from './readiness.ts'
+export { predictRace, rangeLabel } from './predict.ts'
+export { readinessSignals, readinessVerdict, strongestAdvice, todayAdvice } from './readiness.ts'
 export { weeklyRamp } from './macro.ts'
 
 const WEEKDAYS: readonly Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
