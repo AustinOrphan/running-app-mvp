@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SessionUser } from '../../shared/types.ts'
-import { getOutbox } from '../pwa/outbox.ts'
+import { getOutbox, purgeDeviceData } from '../pwa/outbox.ts'
 import { api, ApiError, keys } from './client.ts'
 
 /** The signed-in user, or null when there is no valid session. */
@@ -35,12 +35,25 @@ export interface SetupRequest extends LoginRequest {
   displayName?: string
 }
 
-/** Signs in; the returned user goes straight into the `me` cache. */
+/**
+ * The id of the signed-in user as the `me` cache holds it, read without a request: null when it is
+ * not cached. For keys that must not be shared between accounts on one browser.
+ */
+export function useCachedUserId(): string | null {
+  const queryClient = useQueryClient()
+  return queryClient.getQueryData<SessionUser | null>([keys.me])?.id ?? null
+}
+
+/**
+ * Signs in; the returned user goes straight into the `me` cache. A new session starts with an
+ * empty outbox: whatever is waiting there was queued under the session that ended.
+ */
 export function useLogin() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: LoginRequest) => api<SessionUser>('POST', '/auth/login', request),
-    onSuccess: (user) => {
+    onSuccess: async (user) => {
+      await getOutbox().clear()
       queryClient.setQueryData([keys.me], user)
     },
   })
@@ -51,7 +64,8 @@ export function useSetup() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: SetupRequest) => api<SessionUser>('POST', '/setup', request),
-    onSuccess: (user) => {
+    onSuccess: async (user) => {
+      await getOutbox().clear()
       queryClient.setQueryData([keys.me], user)
       queryClient.setQueryData([keys.setup], { needsSetup: false })
     },
@@ -59,8 +73,8 @@ export function useSetup() {
 }
 
 /**
- * Signs out and drops every cached query and every write waiting in the outbox, so no data
- * outlives the session.
+ * Signs out and drops every cached query, every unsent draft and every write waiting in the
+ * outbox, so no data outlives the session.
  */
 export function useLogout() {
   const queryClient = useQueryClient()
@@ -69,7 +83,7 @@ export function useLogout() {
     onSuccess: async () => {
       queryClient.clear()
       queryClient.setQueryData([keys.me], null)
-      await getOutbox().clear()
+      await purgeDeviceData()
     },
   })
 }

@@ -114,6 +114,13 @@ export const TODAY_TEMPLATES = {
     { what: 'text' },
   ),
 
+  // A sheet whose code could not be loaded (no connection and no copy kept, or a release replaced
+  // the file): the page itself still works.
+  'today.sheet.unavailable-title': tpl('This did not open', {}, { shape: 'label' }),
+  'today.sheet.unavailable': tpl(
+    'This part of the app did not load. Reload the page to try again.',
+  ),
+
   // The Done sheet: the planned figures are the prefill, so the sentence says to change what
   // differs. A session of another kind than a run is logged as the same activity it will link to.
   'today.done.title-run': tpl("Log today's run", {}, { shape: 'label' }),

@@ -8,7 +8,7 @@ import type { PlanSession, TodayHeat, TodayHero, Units } from '../../../shared/t
 import { formatDistance } from '../../../shared/units.ts'
 import { WhyDrawer } from '../WhyDrawer.tsx'
 import { CoolerStart } from './CoolerStart.tsx'
-import { DoneSheet } from './DoneSheet.tsx'
+import { DoneSheet } from '../lazySheets.tsx'
 import { KnowToday } from './KnowToday.tsx'
 import { NotTodaySheet } from './NotTodaySheet.tsx'
 import { SessionActions } from './SessionActions.tsx'

@@ -82,6 +82,9 @@ export const FUEL_UI_TEMPLATES = {
   'fuel.ui.save': tpl('Save fuel log', {}, { shape: 'label' }),
   'fuel.ui.skip': tpl('Not this time', {}, { shape: 'label' }),
   'fuel.ui.saved': tpl('Fuel log saved.'),
+  'fuel.ui.saved-queued': tpl(
+    'Fuel log saved on this phone. It is sent when a connection returns.',
+  ),
   'fuel.ui.not-saved': tpl(
     'Fuel log not saved. {reason} Your entries stay on this phone. Try again.',
     { reason: 'text' },

@@ -62,6 +62,22 @@ export function mockApi(routes: MockRoutes): {
   return { calls }
 }
 
+/**
+ * Makes the `fetch` that `mockApi` installed answer after `ms` milliseconds, as a real request
+ * does, so two things that start a read one after the other meet while the first is in flight.
+ */
+export function delayResponses(ms: number): void {
+  const answer = globalThis.fetch
+  vi.stubGlobal(
+    'fetch',
+    async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const response = answer(input, init)
+      await new Promise((resolve) => setTimeout(resolve, ms))
+      return response
+    },
+  )
+}
+
 /** A list row as the server sends it: the stored activity without its heart-rate histogram. */
 function listItem(item: ActivityListItem): ActivityListItem {
   const row: Record<string, unknown> = { ...item }

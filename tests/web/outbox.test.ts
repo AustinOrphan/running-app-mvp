@@ -1,8 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { UNAUTHORIZED_EVENT, keys } from '../../web/api/client.ts'
+import { useSaveCheckin } from '../../web/api/checkins.ts'
+import { UNAUTHORIZED_EVENT, api, keys } from '../../web/api/client.ts'
 import {
   OUTBOX_MAX_AGE_MS,
   OUTBOX_ROUTES,
@@ -19,7 +20,7 @@ import {
   type OutboxStore,
   type SendResult,
 } from '../../web/pwa/outbox.ts'
-import { mockApi } from './helpers.tsx'
+import { delayResponses, mockApi } from './helpers.tsx'
 
 const DAY = '2026-03-18'
 const URL = `/api/checkins/${DAY}`
@@ -29,7 +30,7 @@ const FUEL_URL = '/api/fuel/logs/cm1abc2def'
 interface Rig {
   outbox: Outbox
   store: OutboxStore
-  send: ReturnType<typeof vi.fn<(entry: OutboxEntry) => Promise<SendResult>>>
+  send: ReturnType<typeof vi.fn<(entry: OutboxEntry, signal: AbortSignal) => Promise<SendResult>>>
   online: { value: boolean }
   clock: { now: number }
 }
@@ -38,7 +39,7 @@ function rig(
   over: {
     store?: OutboxStore
     routes?: readonly OutboxRoute[]
-    send?: (entry: OutboxEntry) => Promise<SendResult>
+    send?: (entry: OutboxEntry, signal: AbortSignal) => Promise<SendResult>
     sendTimeoutMs?: number
   } = {},
 ): Rig {
@@ -419,7 +420,7 @@ describe('a fuel log', () => {
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     renderHook(
       () => {
-        useOutboxReplay()
+        useOutboxReplay('u1')
       },
       {
         wrapper: ({ children }: { children: ReactNode }) =>
@@ -514,8 +515,44 @@ describe('sending an entry', () => {
 
   test('puts the body to the URL as JSON and reports a 200 as sent', async () => {
     const { calls } = mockApi({ [`PUT ${URL}`]: () => ({}) })
-    expect(await sendEntry(entry)).toEqual({ kind: 'sent' })
+    expect(await sendEntry(entry)).toEqual({ kind: 'sent', response: {} })
     expect(calls).toEqual([{ method: 'PUT', url: URL, body: { fatigue: 4 } }])
+  })
+
+  test('carries what the server answered, and nothing when it answered with nothing', async () => {
+    mockApi({ [`PUT ${URL}`]: () => ({ message: 'Tolerated.' }) })
+    expect(await sendEntry(entry)).toEqual({ kind: 'sent', response: { message: 'Tolerated.' } })
+    mockApi({ [`PUT ${URL}`]: () => undefined })
+    expect(await sendEntry(entry)).toStrictEqual({ kind: 'sent' })
+  })
+
+  test('hands its signal to the request, and a request that is cancelled is kept for later', async () => {
+    const seen: Array<AbortSignal | null | undefined> = []
+    vi.stubGlobal(
+      'fetch',
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          seen.push(init?.signal)
+          init?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('The operation was aborted.', 'AbortError'))
+          })
+        }),
+    )
+    const controller = new AbortController()
+    const sending = sendEntry(entry, controller.signal)
+    controller.abort()
+    expect(await sending).toEqual({ kind: 'retry' })
+    expect(seen).toEqual([controller.signal])
+  })
+
+  test('a request with no signal is sent as before', async () => {
+    const seen: Array<RequestInit | undefined> = []
+    vi.stubGlobal('fetch', (_input: RequestInfo | URL, init?: RequestInit) => {
+      seen.push(init)
+      return Promise.resolve(new Response('{}', { status: 200 }))
+    })
+    await sendEntry(entry)
+    expect(seen[0]).not.toHaveProperty('signal')
   })
 
   test.each([500, 502, 503, 408, 429])('a %i is kept for later', async (status) => {
@@ -556,17 +593,17 @@ describe('sending an entry', () => {
 })
 
 describe('useOutboxReplay', () => {
-  function mount(outbox: Outbox) {
+  function mount(outbox: Outbox, userId: string | null = 'u1') {
     resetOutboxForTests(outbox)
     const queryClient = new QueryClient()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client: queryClient }, children)
     const view = renderHook(
-      () => {
-        useOutboxReplay()
+      ({ user }: { user: string | null }) => {
+        useOutboxReplay(user)
       },
-      { wrapper },
+      { wrapper, initialProps: { user: userId } },
     )
     return { ...view, invalidate }
   }
@@ -611,9 +648,13 @@ describe('useOutboxReplay', () => {
     await outbox.save(URL, { fatigue: 4 })
     await waitFor(() => {
       expect(invalidate.mock.calls.map(([filter]) => filter?.queryKey)).toEqual(
-        expect.arrayContaining([[keys.today], [keys.checkins], [keys.wellness]]),
+        expect.arrayContaining([[keys.today], [keys.wellness]]),
       )
     })
+    expect(invalidate.mock.calls.map(([filter]) => filter?.queryKey)).toEqual([
+      [keys.today],
+      [keys.wellness],
+    ])
   })
 
   test('clears the queue on a 401', async () => {
@@ -653,6 +694,309 @@ describe('useOutboxReplay', () => {
     expect(clear).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()
     expect(await store.read()).toHaveLength(1)
+  })
+})
+
+describe('a send that runs out of time', () => {
+  test('is aborted, so it cannot be delivered after the next send of the entry', async () => {
+    const signals: AbortSignal[] = []
+    const { outbox, store } = rig({
+      sendTimeoutMs: 20,
+      send: (_entry, signal) => {
+        signals.push(signal)
+        return signals.length === 1
+          ? new Promise<SendResult>(() => {})
+          : Promise.resolve<SendResult>({ kind: 'sent' })
+      },
+    })
+    expect(await outbox.save(URL, { fatigue: 2 })).toEqual({ status: 'queued' })
+    expect(signals).toHaveLength(1)
+    expect(signals[0]?.aborted).toBe(true)
+
+    await outbox.flush()
+    expect(signals).toHaveLength(2)
+    expect(signals[1]?.aborted).toBe(false)
+    expect(await store.read()).toEqual([])
+  })
+
+  test('through the real client the request itself is cancelled', async () => {
+    const seen: Array<AbortSignal | null | undefined> = []
+    vi.stubGlobal(
+      'fetch',
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          seen.push(init?.signal)
+          init?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('The operation was aborted.', 'AbortError'))
+          })
+        }),
+    )
+    const outbox = createOutbox({
+      store: memoryStore(),
+      routes: OUTBOX_ROUTES,
+      send: sendEntry,
+      now: () => Date.UTC(2026, 2, 18, 12),
+      isOnline: () => true,
+      sendTimeoutMs: 20,
+    })
+    expect(await outbox.save(URL, { fatigue: 2 })).toEqual({ status: 'queued' })
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.aborted).toBe(true)
+  })
+})
+
+describe('what the server answered', () => {
+  test('a save that was sent hands back the answer', async () => {
+    const { outbox } = rig({
+      send: () => Promise.resolve({ kind: 'sent', response: { message: 'Tolerated.' } }),
+    })
+    expect(await outbox.save(FUEL_URL, { gut: 1 })).toEqual({
+      status: 'sent',
+      response: { message: 'Tolerated.' },
+    })
+  })
+
+  test('a save sent with an empty answer has no response key', async () => {
+    const { outbox } = rig()
+    expect(await outbox.save(URL, { fatigue: 4 })).toStrictEqual({ status: 'sent' })
+  })
+})
+
+describe('the user the queue belongs to', () => {
+  const T0 = Date.UTC(2026, 2, 18, 11)
+  const entryOf = (url: string, seq: number, userId?: string): OutboxEntry => ({
+    url,
+    body: { fatigue: seq },
+    queuedAt: T0,
+    seq,
+    version: 1,
+    ...(userId === undefined ? {} : { userId }),
+  })
+
+  test('what is saved after adopting carries the user, and before it carries none', async () => {
+    const { outbox, online } = rig()
+    online.value = false
+    await outbox.save(OTHER_URL, { fatigue: 1 })
+    expect(outbox.getState().entries.map((entry) => entry.userId)).toEqual([undefined])
+    await outbox.adopt('u-a')
+    await outbox.save(URL, { fatigue: 2 })
+    expect(outbox.getState().entries.map((entry) => entry.userId)).toEqual(['u-a', 'u-a'])
+  })
+
+  test('adopting drops the entries of another user unsent and takes over the unmarked ones', async () => {
+    const store = memoryStore()
+    await store.transact(() => [
+      entryOf(URL, 1, 'u-a'),
+      entryOf(OTHER_URL, 2, 'u-b'),
+      entryOf(FUEL_URL, 3),
+    ])
+    const { outbox, send } = rig({ store })
+    await outbox.adopt('u-b')
+    expect(outbox.getState().entries.map((entry) => entry.url)).toEqual([OTHER_URL, FUEL_URL])
+    expect(await store.read()).toEqual([
+      expect.objectContaining({ url: OTHER_URL, userId: 'u-b' }),
+      expect.objectContaining({ url: FUEL_URL, userId: 'u-b' }),
+    ])
+    await outbox.flush()
+    expect(send.mock.calls.map(([entry]) => entry.url)).toEqual([OTHER_URL, FUEL_URL])
+  })
+
+  test('an entry of another user left in the store is never sent after the next sign-in', async () => {
+    const store = memoryStore()
+    await store.transact(() => [entryOf(URL, 1, 'u-a')])
+    const { outbox, send } = rig({ store })
+    resetOutboxForTests(outbox)
+    const { rerender } = renderHook(
+      ({ user }: { user: string | null }) => {
+        useOutboxReplay(user)
+      },
+      {
+        initialProps: { user: null as string | null },
+        wrapper: ({ children }: { children: ReactNode }) =>
+          createElement(QueryClientProvider, { client: new QueryClient() }, children),
+      },
+    )
+    // Nobody is signed in yet: nothing is sent, not even on a return to the foreground.
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    expect(send).not.toHaveBeenCalled()
+    rerender({ user: 'u-b' })
+    await waitFor(async () => {
+      expect(await store.read()).toEqual([])
+    })
+    expect(outbox.getState().entries).toEqual([])
+    expect(send).not.toHaveBeenCalled()
+  })
+})
+
+describe('a clear that IndexedDB refuses', () => {
+  const stale: OutboxEntry = { url: URL, body: { fatigue: 4 }, queuedAt: 1, seq: 1, version: 1 }
+
+  interface FakeRequest {
+    result?: unknown
+    error?: unknown
+    onsuccess?: () => void
+    onerror?: () => void
+    onupgradeneeded?: () => void
+    onblocked?: () => void
+  }
+
+  /** An IndexedDB with one database on a "disk" that outlives the connection. */
+  function fakeIndexedDb(options: { failTransactions: boolean }) {
+    const disk: OutboxEntry[] = [stale]
+    const deleted: string[] = []
+    const later = (run: () => void) => {
+      queueMicrotask(run)
+    }
+    const database = {
+      close: () => {},
+      createObjectStore: () => {},
+      onversionchange: null as (() => void) | null,
+      transaction: () => {
+        if (options.failTransactions) {
+          throw new DOMException('The database connection is closing.', 'InvalidStateError')
+        }
+        const tx = {
+          oncomplete: undefined as (() => void) | undefined,
+          onerror: undefined as (() => void) | undefined,
+          onabort: undefined as (() => void) | undefined,
+          abort: () => {},
+          objectStore: () => ({
+            getAll: () => {
+              const request: FakeRequest = {}
+              later(() => {
+                request.result = [...disk]
+                request.onsuccess?.()
+                later(() => {
+                  tx.oncomplete?.()
+                })
+              })
+              return request
+            },
+            clear: () => {
+              disk.length = 0
+            },
+            put: (entry: OutboxEntry) => {
+              disk.push(entry)
+            },
+          }),
+        }
+        return tx
+      },
+    }
+    const factory = {
+      open: () => {
+        const request: FakeRequest = {}
+        later(() => {
+          request.result = database
+          request.onupgradeneeded?.()
+          request.onsuccess?.()
+        })
+        return request
+      },
+      deleteDatabase: (name: string) => {
+        const request: FakeRequest = {}
+        deleted.push(name)
+        later(() => {
+          disk.length = 0
+          request.onsuccess?.()
+        })
+        return request
+      },
+    }
+    return { factory, disk, deleted }
+  }
+
+  test('falls back to deleting the database, so the rows are not read on the next visit', async () => {
+    const idb = fakeIndexedDb({ failTransactions: true })
+    vi.stubGlobal('indexedDB', idb.factory)
+    await defaultStore().clear()
+    expect(idb.deleted).toEqual(['rl-outbox'])
+    expect(idb.disk).toEqual([])
+  })
+
+  test('a clear that works empties the rows and leaves the database in place', async () => {
+    const idb = fakeIndexedDb({ failTransactions: false })
+    vi.stubGlobal('indexedDB', idb.factory)
+    await defaultStore().clear()
+    expect(idb.deleted).toEqual([])
+    expect(idb.disk).toEqual([])
+  })
+
+  test('the outbox clear gets there too, and its state is empty either way', async () => {
+    const idb = fakeIndexedDb({ failTransactions: true })
+    vi.stubGlobal('indexedDB', idb.factory)
+    const outbox = createOutbox({
+      store: defaultStore(),
+      routes: OUTBOX_ROUTES,
+      send: () => Promise.resolve({ kind: 'retry' }),
+      now: () => 2,
+      isOnline: () => false,
+    })
+    await outbox.save(URL, { fatigue: 3 })
+    expect(outbox.getState().entries).toHaveLength(1)
+    await outbox.clear()
+    expect(outbox.getState().entries).toEqual([])
+    expect(idb.deleted).toEqual(['rl-outbox'])
+    expect(idb.disk).toEqual([])
+  })
+})
+
+describe('a check-in saved while Today is open', () => {
+  test('reads Today and the wellness series once, not once for each of two refreshes', async () => {
+    const { calls } = mockApi({
+      'GET /api/today': () => ({ day: 'today' }),
+      'GET /api/wellness': () => [],
+      [`PUT ${URL}`]: () => ({}),
+    })
+    // A real request takes a moment; the two refreshes meet while the first read is on its way.
+    delayResponses(15)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    resetOutboxForTests(
+      createOutbox({
+        store: memoryStore(),
+        routes: OUTBOX_ROUTES,
+        send: sendEntry,
+        now: () => Date.UTC(2026, 2, 18, 12),
+        isOnline: () => true,
+      }),
+    )
+    const { result } = renderHook(
+      () => {
+        useOutboxReplay('u1')
+        const today = useQuery({
+          queryKey: [keys.today],
+          queryFn: () => api<unknown>('GET', '/today'),
+        })
+        const wellness = useQuery({
+          queryKey: [keys.wellness],
+          queryFn: () => api<unknown>('GET', '/wellness'),
+        })
+        return { save: useSaveCheckin(), today, wellness }
+      },
+      {
+        wrapper: ({ children }: { children: ReactNode }) =>
+          createElement(QueryClientProvider, { client: queryClient }, children),
+      },
+    )
+    await waitFor(() => {
+      expect(result.current.today.isSuccess && result.current.wellness.isSuccess).toBe(true)
+    })
+    const gets = (path: string) => calls.filter((c) => c.method === 'GET' && c.url === path).length
+    expect([gets('/api/today'), gets('/api/wellness')]).toEqual([1, 1])
+
+    let saved: unknown
+    await act(async () => {
+      saved = await result.current.save.mutateAsync({ date: DAY, input: { fatigue: 4 } })
+    })
+    expect(saved).toEqual({ status: 'sent', response: {} })
+    await waitFor(() => {
+      expect(result.current.today.isFetching || result.current.wellness.isFetching).toBe(false)
+    })
+    expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    // The first read and one read after the save: the two refreshes joined into one.
+    expect([gets('/api/today'), gets('/api/wellness')]).toEqual([2, 2])
   })
 })
 

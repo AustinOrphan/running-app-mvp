@@ -3,7 +3,7 @@ import type { FuelPrompt, Units } from '../../../shared/types.ts'
 import { useSkipFuelLog } from '../../api/fuel.ts'
 import { Button } from '../Button.tsx'
 import { useToast } from '../Toast.tsx'
-import { FuelLogSheet } from './FuelLogSheet.tsx'
+import { FuelLogSheet } from '../lazySheets.tsx'
 import { fuelText } from './fuelText.ts'
 import styles from './FuelPromptCard.module.css'
 

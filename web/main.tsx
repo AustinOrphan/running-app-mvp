@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { App } from './App.tsx'
 import { createQueryClient } from './api/client.ts'
+import { warmSheets } from './components/lazySheets.tsx'
 
 const queryClient = createQueryClient()
 const root = document.getElementById('root')
@@ -22,3 +23,4 @@ createRoot(root).render(
     </QueryClientProvider>
   </StrictMode>,
 )
+warmSheets()
