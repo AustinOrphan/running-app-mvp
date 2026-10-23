@@ -27,6 +27,14 @@ Last update: 2026-10-22.
   weeks, the weekly path governs by one week), a 3 × 20 first week and a 9.2 h peak, and
   projects a 15-day hold after the race (10 days × 1.5 for a first finish in the class) followed
   by three 7-day steps.
+- An adversarial review of the branch (six lenses, two independent refuters per finding) confirmed
+  32 findings and disputed 18; the confirmed ones and the accepted disputed ones are fixed on the
+  branch (start paths read only the runs the 30-day reference counts; the injury ladder advances
+  by minutes run, not by weeks; tightened profiles take the ladder; the post-race lead-in obeys
+  G-1 and the steps start inside the race week; the 16 km cap at the carried pace; one duplicate
+  predicate; the half and marathon long-run floors reconciled with the planner; web labels and
+  rule text aligned). Re-plan sweeps (0-37 days, logged and unlogged) pass for the reviewed
+  fixtures.
 
 ## Decisions for the owner
 
@@ -40,27 +48,35 @@ stored, and a check-in older than 3 days neither delays nor releases a step).
 
 1. The weekly decision's "first days of heat" and "sleep efficiency drop" holds are not derived
    from data yet, so those two J5 signals never fire.
-2. The 8 h race-simulation opt-in (H2) and the "no later than 3 weeks before race day" timing are
+2. Contrived re-plans (sessions marked completed for weeks with no activity behind them) can
+   ramp from a zero baseline and collapse to zero-minute weeks or a zero taper (19 of 2310 fuzzed
+   re-plans); the app marks a session completed only through activity matching, so no real path
+   produces this input. A repeated floor week after a clipped restart carries no flags and is
+   placed as a plain week.
+3. A true novice with a 5 km time goal 12 weeks away reads "not reachable within default limits"
+   (the ladder alone takes 9 weeks and a 30-min run is under 5 km at a novice pace); the label is
+   honest but conservative, and the plan still builds.
+4. The 8 h race-simulation opt-in (H2) and the "no later than 3 weeks before race day" timing are
    design intent: no code reads `h2.raceSimulationMaxHours`.
-3. A declared longest run (A3) has no profile field; a runner with no logs starts at rung 1 or, if
+5. A declared longest run (A3) has no profile field; a runner with no logs starts at rung 1 or, if
    experienced and unflagged, at 3 × 20. The n1 walk-jog stages for bone stress injuries are not
    implemented: a recent bone stress injury takes the same injury-return ladder.
-4. Post-race: strength sessions stay at 0 through the window with no evidence either way; the
+6. Post-race: strength sessions stay at 0 through the window with no evidence either way; the
    first-finish modifier applies to a runner with no race history at all; the window trigger for a
    new plan uses the D1 class (so a 40 km race counts as a marathon) while G-1 uses the literal
    42,195 m.
-5. A session the engine trims after a hold decision is stored without its untrimmed version.
-6. Lower-ranked review findings not yet addressed: nested sheets share the Escape key; Apple
+7. A session the engine trims after a hold decision is stored without its untrimmed version.
+8. Lower-ranked review findings not yet addressed: nested sheets share the Escape key; Apple
    Health push skips the range checks the parsed import applies; the JSON body parsers for ingest
    and imports run before authentication; Garmin wellness that runs out of request budget records
    a successful run; Goals reads "1:45" as minutes and seconds; a few engine tests assert
    conditionally.
-7. Behind a reverse proxy, rate limits key on the proxy's address (no trust-proxy setting by
+9. Behind a reverse proxy, rate limits key on the proxy's address (no trust-proxy setting by
    design: the environment variables are fixed).
-8. "Make active" on a goal other than the plan's goal leaves the plan on the old goal.
-9. Spec non-goals still open: readiness and race-decision gates as stored decisions, long-run lab
-   and fueling logs, strength programming; Polar, WHOOP, Oura and Google Health providers.
-10. Enable branch protection on `main` requiring the `ci` and `analyze` checks.
+10. "Make active" on a goal other than the plan's goal leaves the plan on the old goal.
+11. Spec non-goals still open: readiness and race-decision gates as stored decisions, long-run lab
+    and fueling logs, strength programming; Polar, WHOOP, Oura and Google Health providers.
+12. Enable branch protection on `main` requiring the `ci` and `analyze` checks.
 
 ## Clean-up after the merges
 
