@@ -61,9 +61,9 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
       if (opener?.isConnected === true) {
         opener.focus()
       } else if (opener !== null && isFocusLost()) {
-        // The opener went with the sheet (undoing the update that Today's change line opened takes
-        // the line away), and so did the focused control. The main landmark is the one stable
-        // place left, and it keeps the page where it is.
+        // The opener went with the sheet (removing the rest window that the Today banner opened
+        // takes the banner away), and so did the focused control. The main landmark is the one
+        // stable place left, and it keeps the page where it is.
         document.getElementById('main')?.focus({ preventScroll: true })
       }
     }

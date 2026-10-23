@@ -5,6 +5,7 @@ import { useTheme, type Theme } from '../components/Nav.tsx'
 import styles from './MorePage.module.css'
 
 const links = [
+  { to: '/brief', label: 'Weekly brief', note: 'What changed and the next key session' },
   { to: '/goals', label: 'Goals', note: 'Races you are training for' },
   { to: '/stats', label: 'Stats', note: 'Fastest efforts, monthly and yearly totals' },
   { to: '/integrations', label: 'Integrations', note: 'Sync activities from other services' },

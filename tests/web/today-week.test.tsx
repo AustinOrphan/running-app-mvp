@@ -1,16 +1,8 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { PlanPreview, UndoResult, WeekStripMark } from '../../shared/types.ts'
-import { ToastProvider } from '../../web/components/Toast.tsx'
-import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
-import {
-  activityPage,
-  explainOf,
-  expectCleanCopy,
-  mockApi,
-  renderWithProviders,
-} from './helpers.tsx'
+import type { WeekStripMark } from '../../shared/types.ts'
+import { activityPage, explainOf, expectCleanCopy } from './helpers.tsx'
 import {
   makeCoach,
   makeHero,
@@ -19,8 +11,7 @@ import {
   makeStrip,
   makeToday,
 } from './today-fixtures.ts'
-import { AVAILABLE, makeDiff, makeRevision } from './plan-fixtures.ts'
-import { renderToday, settingsOf, startToday } from './today-render.tsx'
+import { renderToday, startToday } from './today-render.tsx'
 import { sheetRoutes } from './wrist-fixtures.ts'
 
 // Stands in for the real drawer so the wiring is visible: which rules it was opened with.
@@ -234,162 +225,12 @@ describe('Today: the race countdown', () => {
   })
 })
 
-describe('Today: the change line', () => {
-  const change = {
-    id: 'rev1',
-    createdAt: '2026-03-16T12:30:00',
-    reason: 'weekly' as const,
-    summary: 'Moved the long run to Sunday and cut Tuesday by 10 min.',
-  }
-
-  test('fills the brief slot with the stored summary and a Details button', async () => {
-    const { container } = renderToday(makeToday({ coach: makeCoach({ change }) }))
-    const line = await screen.findByRole('region', { name: 'What changed' })
-    expect(line.closest('[data-slot]')).toHaveAttribute('data-slot', 'brief')
-    expect(line.closest('[data-slot]')).toHaveAttribute('data-budget-px', '52')
-    expect(within(line).getByText(change.summary)).toBeInTheDocument()
-    expectCleanCopy(container)
-  })
-
-  test("puts the summary in the runner's units", async () => {
-    renderToday(
-      makeToday({ coach: makeCoach({ change: { ...change, summary: 'Long run to 32 km.' } }) }),
-    )
-    expect(await screen.findByText('Long run to 19.9 mi.')).toBeInTheDocument()
-  })
-
-  test('Details opens a sheet with the update through the shared diff, stamped as seen', async () => {
-    const user = userEvent.setup()
-    const { api } = renderToday(makeToday({ coach: makeCoach({ change }) }), {
-      'GET /api/plan/revisions': () => [
-        makeRevision({
-          id: change.id,
-          createdAt: change.createdAt,
-          reason: change.reason,
-          summary: change.summary,
-          changes: [],
-          seenAt: null,
-        }),
-      ],
-      'POST /api/plan/revisions/rev1/seen': () => ({ status: 204, body: undefined }),
-    })
-    // Above the fold the page asks for neither the list nor the stamp.
-    await screen.findByRole('region', { name: 'What changed' })
-    expect(api.calls.some((call) => call.url.includes('/plan/revisions'))).toBe(false)
-
-    await user.click(screen.getByRole('button', { name: 'Details of this update' }))
-    const sheet = await screen.findByRole('dialog', { name: 'What changed' })
-    expect(await within(sheet).findByText('Weekly update')).toBeInTheDocument()
-    expect(within(sheet).getByText('16 Mar')).toBeInTheDocument()
-    expect(within(sheet).getByText(change.summary)).toBeInTheDocument()
-    // The marker stays while the sheet is open, though opening stamped the update.
-    expect(within(sheet).getByText('New')).toBeInTheDocument()
-    await waitFor(() => {
-      expect(
-        api.calls.filter((call) => call.url.includes('/seen')).map((call) => call.url),
-      ).toEqual(['/api/plan/revisions/rev1/seen'])
-    })
-    expect(within(sheet).getByRole('link', { name: 'Open the plan' })).toHaveAttribute(
-      'href',
-      '/plan',
-    )
-  })
-
-  test('the sheet gives the kind, the day and the summary when the list has no such update', async () => {
-    const user = userEvent.setup()
-    renderToday(makeToday({ coach: makeCoach({ change }) }), {
-      'GET /api/plan/revisions': () => [],
-    })
-    await user.click(await screen.findByRole('button', { name: 'Details of this update' }))
-    const sheet = await screen.findByRole('dialog', { name: 'What changed' })
-    expect(within(sheet).getByText('Weekly update')).toBeInTheDocument()
-    expect(within(sheet).getByText('Mon 16 Mar 2026')).toBeInTheDocument()
-    expect(within(sheet).getByText(change.summary)).toBeInTheDocument()
-    expect(within(sheet).getByRole('link', { name: 'Open the plan' })).toHaveAttribute(
-      'href',
-      '/plan',
-    )
-  })
-
-  test('the sheet gives the label of every reason the line can carry, before the list arrives', async () => {
-    const user = userEvent.setup()
-    renderToday(makeToday({ coach: makeCoach({ change: { ...change, reason: 'break' } }) }), {
-      'GET /api/plan/revisions': () => [],
-    })
-    await user.click(await screen.findByRole('button', { name: 'Details of this update' }))
-    const sheet = await screen.findByRole('dialog', { name: 'What changed' })
-    expect(within(sheet).getByText('Restart after a break')).toBeInTheDocument()
-  })
-
-  test('undoing the only update from its sheet leaves focus on the page, not on the body', async () => {
-    const user = userEvent.setup()
-    let undone = false
-    const revision = makeRevision({
-      id: change.id,
-      createdAt: change.createdAt,
-      reason: change.reason,
-      summary: change.summary,
-      changes: [],
-      diff: makeDiff([]),
-      undo: AVAILABLE,
-      seenAt: change.createdAt,
-    })
-    const preview: PlanPreview = {
-      action: { type: 'undo', revisionId: change.id },
-      diff: makeDiff([]),
-      runMin: null,
-      summary: 'Undid: nothing.',
-      warnings: [],
-      blocked: false,
-      guards: [],
-      reasons: [],
-      hash: 'a'.repeat(64),
-      today: '2026-03-18',
-    }
-    const result: UndoResult = {
-      revision: makeRevision({ id: 'rev2', reason: 'undo', undoOf: change.id }),
-      target: { ...revision, undo: { available: false, reasons: [], undoneAt: change.createdAt } },
-    }
-    // The server stops reporting an undone update, and the undo itself is not a weekly update, so
-    // the line (and the sheet it opens) goes once Today is read again.
-    mockApi({
-      'GET /api/today': () => makeToday({ coach: makeCoach({ change: undone ? null : change }) }),
-      'GET /api/settings': () => settingsOf('mi'),
-      'GET /api/plan/revisions': () => [
-        undone ? { ...revision, undo: result.target.undo } : revision,
-      ],
-      'POST /api/plan/preview': () => preview,
-      'POST /api/plan/revisions/rev1/undo': () => {
-        undone = true
-        return result
-      },
-    })
-    // Layout supplies the landmark in the app.
-    renderWithProviders(
-      <ToastProvider>
-        <main id="main" tabIndex={-1}>
-          <DashboardPage />
-        </main>
-      </ToastProvider>,
-    )
-
-    await user.click(await screen.findByRole('button', { name: 'Details of this update' }))
-    const sheet = await screen.findByRole('dialog', { name: 'What changed' })
-    await user.click(await within(sheet).findByRole('button', { name: 'Undo update' }))
-    const confirm = await within(sheet).findByRole('dialog', { name: 'Undo this update' })
-    await user.click(await within(confirm).findByRole('button', { name: 'Undo update' }))
-
-    await waitFor(() => {
-      expect(screen.queryByRole('region', { name: 'What changed' })).not.toBeInTheDocument()
-    })
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByRole('main')).toHaveFocus()
-  })
-
-  test('no update, no line and no slot', async () => {
+// The `brief` slot holds the weekly brief line (`tests/web/brief-line.test.tsx`), which replaced the
+// line on the last update of the plan. A Today with nothing to show draws no slot frame at all.
+describe('Today: the slots', () => {
+  test('no plan, no slot', async () => {
     renderToday(makeToday())
     await screen.findByText(/No plan yet/)
-    expect(screen.queryByRole('region', { name: 'What changed' })).not.toBeInTheDocument()
     expect(document.querySelector('[data-slot]')).toBeNull()
   })
 })

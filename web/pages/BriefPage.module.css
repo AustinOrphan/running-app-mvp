@@ -1,0 +1,132 @@
+/* One column on a phone, in the order of the design: the week, what changed, what the plan
+   noticed, the next key session, what changed since. From 900 px the update (the longest section,
+   with its rows and its undo) takes the left column and the three short sections stack on the
+   right, so the reading order and the order of the page stay the same. `min-width: 0` lets a long
+   line wrap inside a grid cell instead of widening the page at 360 px. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+  max-width: var(--page-max);
+}
+
+.page > * {
+  min-width: 0;
+}
+
+/* What last week was and what the weekly decision made of it: the first sentence leads. */
+.lead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: var(--prose-max);
+}
+
+.lead p {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-variant-numeric: lining-nums;
+}
+
+.lead p:first-child {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.grid > * {
+  min-width: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.section h2 {
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.text,
+.muted {
+  margin: 0;
+  max-width: var(--prose-max);
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* The causes of an update that left no rows to show them under. */
+.causes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.revisions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A real failure to load: set apart by a rule, not by colour. */
+.error {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--border-strong);
+  max-width: var(--prose-max);
+}
+
+/* The quiet button carries a button's padding; pull it back so its text lines up with the fact. */
+.why {
+  margin-left: calc(var(--space-4) * -1);
+}
+
+.weeks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The three short sections: one column of their own from 900 px, so the update's height never
+   stretches the gaps between them. */
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-6);
+    align-items: start;
+  }
+}

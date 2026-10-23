@@ -29,6 +29,12 @@ export interface RevisionDiffProps {
    * surface that stamps the revision when it opens passes the state from before it did.
    */
   isNew?: boolean
+  /**
+   * Whether to show the stored summary sentence (the default). The brief words what changed itself,
+   * and the summary of an update that changed no week reads "No changes to the plan." above rows
+   * that changed it.
+   */
+  summary?: boolean
 }
 
 /** Rules shown in the why drawer: those of the engine's week changes, and the weekly decision's. */
@@ -52,7 +58,7 @@ const CAUSES_SHOWN = 2
  * different causes names the cause under each row. A revision from before the revision model has no
  * diff and shows its week-level changes the way they were stored.
  */
-export function RevisionDiff({ revision, units, onWhy, isNew }: RevisionDiffProps) {
+export function RevisionDiff({ revision, units, onWhy, isNew, summary = true }: RevisionDiffProps) {
   const rules = rulesOf(revision)
   const marked = isNew ?? revision.seenAt === null
   const { diff } = revision
@@ -90,7 +96,9 @@ export function RevisionDiff({ revision, units, onWhy, isNew }: RevisionDiffProp
         </span>
         {marked ? <span className={styles.marker}>{newMarker(units)}</span> : null}
       </p>
-      <p className={styles.summary}>{localiseEngineText(revision.summary, units)}</p>
+      {summary ? (
+        <p className={styles.summary}>{localiseEngineText(revision.summary, units)}</p>
+      ) : null}
       {shared !== null ? <p className={styles.cause}>{shared}</p> : null}
       {diff !== null && !diff.empty ? (
         <PlanDiffView diff={diff} units={units} notes={notes} />

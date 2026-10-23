@@ -20,8 +20,11 @@ import {
 } from './today-fixtures.ts'
 import { renderToday, startToday } from './today-render.tsx'
 
-// The disruption and watch slots have no mount of their own yet (E5-8 and E1-8 add them), so the
-// order test stands one in for each; `fuel`, `brief` and `fuelPrompt` use the real mounts.
+// The order test stands one in for the disruption, watch and brief slots: the banner is filled by
+// the disruption epic (E5-8), the wrist line reads the watch status (E1-8), and the brief line asks
+// for its brief once it is near the viewport (E4-6), so none of them has its data in the Today
+// payload that this test builds. Their own tests cover the real mounts; `fuel` and `fuelPrompt` use
+// the real mounts here.
 vi.mock('../../web/components/today/slotMounts.tsx', async (importOriginal) => {
   const original =
     await importOriginal<typeof import('../../web/components/today/slotMounts.tsx')>()
@@ -38,6 +41,11 @@ vi.mock('../../web/components/today/slotMounts.tsx', async (importOriginal) => {
       watch: () => (
         <SlotFrame name="watch">
           <p>Stand-in for the wrist line</p>
+        </SlotFrame>
+      ),
+      brief: () => (
+        <SlotFrame name="brief">
+          <p>Stand-in for the brief line</p>
         </SlotFrame>
       ),
     },
@@ -130,7 +138,7 @@ describe('useMediaQuery', () => {
   })
 })
 
-/** A long-run day with every slot that has data filled: fuel, the change line, the fuel prompt. */
+/** A long-run day with every slot that has data filled: fuel and the fuel prompt. */
 function fullDay(): TodayView {
   const hero = makeHero({
     session: makeSession({ id: 'long1', kind: 'long', title: 'Long run', durationMin: 150 }),
@@ -141,12 +149,6 @@ function fullDay(): TodayView {
       hero,
       weekStrip: makeStrip({ runMin: 60, targetRunMin: 300 }),
       race: makeRace(),
-      change: {
-        id: 'rev1',
-        createdAt: '2026-03-16T12:30:00',
-        reason: 'weekly',
-        summary: 'Moved the long run to Sunday.',
-      },
       health: { possibleDuplicates: 1, pastUnconfirmedWeeks: 0, lastWeekReady: false, notes: [] },
       slots: {
         disruption: null,

@@ -8,7 +8,7 @@
  * | `disruption` | disruption banner or rest-window prompt | E5    | 64 px  |
  * | `fuel`       | fuel target line, beside the targets    | E6    | 26 px  |
  * | `watch`      | wrist line, under the session actions   | E1    | 24 px  |
- * | `brief`      | change line, then the weekly brief line | E4    | 52 px  |
+ * | `brief`      | weekly brief line                       | E4    | 52 px  |
  * | `fuelPrompt` | fuel prompt card, below the fold        | E6    | none   |
  *
  * Where each sits, in DOM order: `disruption` at the top of the session group, over the readiness
@@ -17,7 +17,7 @@
  *
  * **What a budget is.** The tallest the content may be, in CSS pixels, at a 360 px viewport (a
  * 328 px column), whatever state it shows. Content that could be taller stays inside its box
- * (`ChangeLine` clamps its text to two lines beside a 44 px button); it never grows the box. The
+ * (`BriefLine` clamps its text to two lines inside one link); it never grows the box. The
  * budget is the height of the slot's own `<div data-slot data-budget-px>`; the space between a slot
  * and its neighbours belongs to the page, so content carries no margin of its own. The owning
  * epic's e2e asserts that its real content fits its budget at 360 px.
@@ -31,10 +31,10 @@
  *
  * **How a slot is filled.** `TodaySlot` renders nothing while a slot has no content, so an empty
  * slot costs no height. A page places a slot without content and the epic that owns it registers a
- * mount for it in `slotMounts.tsx` (E6 does for `fuel` and `fuelPrompt`, E1 for `watch`), so filling a slot edits
- * no page: `DashboardPage.tsx` and `SessionHero.tsx` stay as they are. The `brief` slot holds
- * `ChangeLine` until E4's brief line replaces that entry. A slot whose data is missing offline
- * renders nothing.
+ * mount for it in `slotMounts.tsx` (E6 does for `fuel` and `fuelPrompt`, E1 for `watch`, E4 for
+ * `brief`), so filling a slot edits no page: `DashboardPage.tsx` and `SessionHero.tsx` stay as they
+ * are. The `brief` mount asks for the newest brief only once the slot is near the viewport, so the
+ * first screen keeps to its two requests. A slot whose data is missing offline renders nothing.
  *
  * **Above and below the fold.** `disruption`, `fuel`, `watch` and `brief` are budgeted because they
  * sit on or near the first screen. `fuelPrompt` sits below the fold in the week group and has no
