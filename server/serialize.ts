@@ -30,6 +30,7 @@ import type {
 } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
 import { P } from '../shared/engine/params/index.ts'
+import { revisionUndoReason } from '../shared/engine/undoGuard.ts'
 import type {
   Activity,
   ActivityCore,
@@ -68,7 +69,6 @@ import type {
   Symptoms,
   TargetSource,
   Terrain,
-  UndoReasonCode,
   UndoState,
   Weekday,
   WeeklyReview,
@@ -405,24 +405,25 @@ export function toPlanSession(row: PlanSessionRow): PlanSession {
   }
 }
 
-const DAY_MS = 86_400_000
-
 /**
  * Whether a revision can be undone, as far as the revision itself says: it has a payload, is not
- * undone, is not an undo and is younger than the undo window. The checks that read other rows (a
- * touched row edited since, a run linked, a safety rule, the plan, the checklist) come with the
- * undo itself; until then `available` means only that none of these four reasons applies.
+ * undone, is not an undo and is younger than the undo window. The structural checks that read
+ * other rows (`undoStates` in `services/revisions.ts`) refine it; a caller that holds no rows gets
+ * this, so `available` then means only that none of those reasons applies.
  */
-function undoStateOf(row: PlanRevisionRow, now: Date): UndoState {
+function ownUndoState(row: PlanRevisionRow, now: Date): UndoState {
   const days = P.revision.undoWindowDays.value
-  let code: Extract<
-    UndoReasonCode,
-    'already-undone' | 'is-undo' | 'not-undoable' | 'window-passed'
-  > | null = null
-  if (row.undoneAt !== null) code = 'already-undone'
-  else if (row.reason === 'undo') code = 'is-undo'
-  else if (row.undo === null) code = 'not-undoable'
-  else if (now.getTime() - row.createdAt.getTime() >= days * DAY_MS) code = 'window-passed'
+  const code = revisionUndoReason(
+    {
+      reason: row.reason,
+      hasPayload: row.undo !== null,
+      undone: row.undoneAt !== null,
+      createdAtMs: row.createdAt.getTime(),
+      planActive: true,
+    },
+    now.getTime(),
+    days,
+  )
   return {
     available: code === null,
     reasons: code === null ? [] : [{ code, message: undoReasonMessage(code, days) }],
@@ -430,8 +431,11 @@ function undoStateOf(row: PlanRevisionRow, now: Date): UndoState {
   }
 }
 
-/** A revision as the API serves it. The undo payload never leaves the server. */
-export function toPlanRevision(row: PlanRevisionRow, now: Date = new Date()): PlanRevisionView {
+/** A revision row without its undo payload, as a list reads it: the payload is not selected. */
+export type PlanRevisionListRow = Omit<PlanRevisionRow, 'undo'>
+
+/** A revision as the API serves it, with the undo state computed by the caller. */
+export function revisionView(row: PlanRevisionListRow, undo: UndoState): PlanRevisionView {
   return {
     id: row.id,
     planId: row.planId,
@@ -442,11 +446,21 @@ export function toPlanRevision(row: PlanRevisionRow, now: Date = new Date()): Pl
     auto: row.auto,
     decision: parseJson<WeeklyDecision | null>(row.decision, null),
     diff: parseJson<PlanDiff | null>(row.diff, null),
-    undo: undoStateOf(row, now),
+    undo,
     seenAt: row.seenAt?.toISOString() ?? null,
     undoOf: row.undoOf,
     disruptionId: row.disruptionId,
   }
+}
+
+/**
+ * A full revision row as the API serves it. The undo payload never leaves the server, and only the
+ * revision's own reasons are known without the rows it touched: this is the view right after a
+ * write, inside its transaction. `viewRevisions` in `services/revisions.ts` adds the structural
+ * checks.
+ */
+export function toPlanRevision(row: PlanRevisionRow, now: Date = new Date()): PlanRevisionView {
+  return revisionView(row, ownUndoState(row, now))
 }
 
 /** The check-in fields of a wellness row; null when none of them was ever filled in. */

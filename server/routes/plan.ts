@@ -5,15 +5,15 @@ import type { PlanWeek } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound, parse, validationError } from '../errors.ts'
 import { toPlanWeek } from '../serialize.ts'
+import { commitReplan, commitUndo, previewAction } from '../services/planActions.ts'
 import {
   generateEnginePlan,
   linkPlanSession,
   loadPlanWithSessions,
-  replanActivePlan,
   updatePlanSession,
 } from '../services/planEngine.ts'
 import { listArchivedPlans, restoreArchivedPlan } from '../services/planSwitch.ts'
-import { listRevisions } from '../services/replan.ts'
+import { listRevisions, markRevisionSeen } from '../services/revisions.ts'
 
 /** A week's baseline can be at most a full week of minutes. */
 const MAX_WEEK_MIN = 7 * 24 * 60
@@ -70,6 +70,17 @@ const revisionsQuery = z.strictObject({
   include: z.literal('empty').optional(),
 })
 
+/** The hash of a preview, sent back with its commit so that a plan that has moved is refused. */
+const expectHash = z.string().length(64).optional()
+const replanBody = z.strictObject({ expectHash })
+const undoBody = z.strictObject({ expectHash })
+
+/** What a preview can be asked of; the rest-window and adjust actions join it in E5. */
+const previewBody = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('replan') }),
+  z.strictObject({ type: z.literal('undo'), revisionId: z.string().min(1).max(64) }),
+])
+
 const weekBody = z
   .object({
     targetRunMin: z.number().int().min(0).max(MAX_WEEK_MIN),
@@ -118,8 +129,13 @@ export function planRouter(deps: Deps): Router {
   })
 
   router.post('/replan', async (req, res) => {
+    const body = parse(replanBody, req.body ?? {})
     res.json(
-      await replanActivePlan(deps, { userId: req.userId, reason: 'owner', today: todayIso() }),
+      await commitReplan(deps, {
+        userId: req.userId,
+        today: todayIso(),
+        expectHash: body.expectHash,
+      }),
     )
   })
 
@@ -137,6 +153,12 @@ export function planRouter(deps: Deps): Router {
     )
   })
 
+  // What an action would do, from the code that commits it. A refusal is information (200).
+  router.post('/preview', async (req, res) => {
+    const action = parse(previewBody, req.body)
+    res.json(await previewAction(deps, { userId: req.userId, action, today: todayIso() }))
+  })
+
   router.get('/revisions', async (req, res) => {
     const query = parse(revisionsQuery, req.query)
     res.json(
@@ -147,6 +169,23 @@ export function planRouter(deps: Deps): Router {
         includeEmpty: query.include === 'empty',
       }),
     )
+  })
+
+  router.post('/revisions/:id/undo', async (req, res) => {
+    const body = parse(undoBody, req.body ?? {})
+    res.json(
+      await commitUndo(deps, {
+        userId: req.userId,
+        revisionId: req.params.id,
+        today: todayIso(),
+        expectHash: body.expectHash,
+      }),
+    )
+  })
+
+  router.post('/revisions/:id/seen', async (req, res) => {
+    await markRevisionSeen(deps, { userId: req.userId, revisionId: req.params.id })
+    res.status(204).end()
   })
 
   router.put('/sessions/:id', async (req, res) => {
