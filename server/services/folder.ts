@@ -7,7 +7,7 @@ import { loadProfile } from '../serialize.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import type { ImportReportRow, SyncFailure, SyncTrigger } from '../../shared/types.ts'
 import { storeParsed } from './activityStore.ts'
-import { MAX_FAILURES_STORED, recordSyncRun } from './syncLog.ts'
+import { MAX_FAILURES_STORED, recordSyncRunUnlessIdle, syncMessage } from './syncLog.ts'
 
 const SCANNED = /\.(fit|gpx|tcx|zip|gz)$/i
 const ACTIVITY_FILE = /\.(fit|gpx|tcx)$/i
@@ -206,7 +206,11 @@ async function ingest(
   } catch (error) {
     // Whatever the parser throws, the content is the problem: the file is remembered as invalid.
     tally.invalid += 1
-    note(tally, name, error instanceof Error ? error.message : 'unreadable file')
+    note(
+      tally,
+      name,
+      error instanceof Error ? error.message : syncMessage('sync.msg.file-unreadable', {}),
+    )
     await recordFile(deps, userId, sha, name, 'invalid', null)
     return null
   }
@@ -251,8 +255,7 @@ async function scan(
   opts: { settleMs?: number },
 ): Promise<Tally> {
   const info = await stat(path).catch(() => null)
-  if (!info?.isDirectory())
-    throw new Error(`The watched folder is not a readable directory: ${path}`)
+  if (!info?.isDirectory()) throw new Error(syncMessage('sync.msg.folder-unreadable', { path }))
   const { timezone } = await loadProfile(deps.prisma, userId)
   const settleMs = opts.settleMs ?? SETTLE_MS
   const tally: Tally = {
@@ -302,9 +305,16 @@ async function scan(
 }
 
 function failedError(tally: Tally): Error | null {
-  return tally.errors.length > 0
-    ? new Error(`${tally.errors.length} file(s) failed: ${tally.errors[0]}`)
-    : null
+  const [first] = tally.errors
+  if (first === undefined) return null
+  return new Error(
+    tally.errors.length === 1
+      ? syncMessage('sync.msg.files.one', { reason: first })
+      : syncMessage('sync.msg.files.many', {
+          n: { kind: 'count', n: tally.errors.length },
+          reason: first,
+        }),
+  )
 }
 
 /**
@@ -328,8 +338,9 @@ export async function scanFolder(
 
 /**
  * Scans the folder of a user's `folder` integration, records the outcome on the row and writes one
- * `SyncRun` (idle scans included). Does nothing when the integration is missing; returns the number
- * of activities stored.
+ * `SyncRun`, except for a scheduled scan that found nothing while the last run ended ok (see
+ * `recordSyncRunUnlessIdle`). Does nothing when the integration is missing; returns the number of
+ * activities stored.
  */
 export async function scanFolderIntegration(
   deps: Deps,
@@ -355,7 +366,7 @@ export async function scanFolderIntegration(
   let tally: Tally | null = null
   let failure: Error | null = null
   try {
-    if (path === '') throw new Error('No folder is configured.')
+    if (path === '') throw new Error(syncMessage('sync.msg.folder-none', {}))
     tally = await scan(deps, userId, path, {})
     failure = failedError(tally)
   } catch (error) {
@@ -374,7 +385,7 @@ export async function scanFolderIntegration(
             lastError: failure.message,
           },
   })
-  await recordSyncRun(deps, {
+  await recordSyncRunUnlessIdle(deps, {
     userId,
     provider: 'folder',
     channel: 'folder',

@@ -398,14 +398,53 @@ describe('job runs', () => {
         }),
     })
     await runWeatherJob(deps(), { fetch: fetchFn, now: new Date(2026, 2, 20, 12) })
-    // The second run has nothing left to fill: an idle run is recorded too.
+    // The next runs have nothing left to fill. The job wakes every 10 minutes, so an idle run
+    // would push the runs with something to say out of the 200 kept: it is not stored.
+    await runWeatherJob(deps(), { fetch: fetchFn, now: new Date(2026, 2, 20, 12) })
     await runWeatherJob(deps(), { fetch: fetchFn, now: new Date(2026, 2, 20, 12) })
 
     const runs = await jobRuns(user.id, 'weather')
     expect(runs.map((run) => [run.status, run.accepted, run.trigger])).toEqual([
       ['ok', 1, 'schedule'],
-      ['ok', 0, 'schedule'],
     ])
+  })
+
+  test('an idle weather run is stored once after a failed one, and not again', async () => {
+    const { user } = await planFor()
+    const down = fakeFetch({
+      'GET https://archive-api.open-meteo.com/v1/archive': () =>
+        new Response('{}', { status: 503 }),
+    })
+    const activity = await ctx.prisma.activity.create({
+      data: {
+        userId: user.id,
+        type: 'run',
+        date: '2026-03-02',
+        durationSec: 1800,
+        source: 'file',
+        startUtc: '2026-03-02T07:40:00Z',
+        startLat: 10.12,
+        startLng: -20.34,
+      },
+    })
+    const now = new Date(2026, 2, 20, 12)
+    await runWeatherJob(deps(), { fetch: down, now })
+    await runWeatherJob(deps(), { fetch: down, now })
+    // A failure is always stored; the latest weather run is an error until a run says otherwise.
+    expect((await jobRuns(user.id, 'weather')).map((run) => run.status)).toEqual(['error', 'error'])
+
+    // The lookup has nothing left to do (the activity is gone): the recovery is stored once.
+    await ctx.prisma.activity.delete({ where: { id: activity.id } })
+    await runWeatherJob(deps(), { fetch: down, now })
+    await runWeatherJob(deps(), { fetch: down, now })
+    await runWeatherJob(deps(), { fetch: down, now })
+    expect((await jobRuns(user.id, 'weather')).map((run) => run.status)).toEqual([
+      'error',
+      'error',
+      'ok',
+    ])
+    const jobs = (await client(ctx, user).get('/api/jobs')).body as JobsView
+    expect(jobs.jobs.map((job) => [job.provider, job.status])).toContainEqual(['weather', 'ok'])
   })
 
   test('a failing weather lookup records an error run and the job goes on', async () => {

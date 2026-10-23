@@ -6,7 +6,13 @@ import { getProvider } from '../providers/registry.ts'
 import { RateLimitPause, WellnessTruncated, type ProviderCtx } from '../providers/types.ts'
 import { toImportBatch, loadProfile } from '../serialize.ts'
 import { storeParsed, storeWellness } from './activityStore.ts'
-import { MAX_FAILURES_STORED, recordSyncRun, safeMessage, secretValues } from './syncLog.ts'
+import {
+  MAX_FAILURES_STORED,
+  recordSyncRun,
+  safeMessage,
+  secretValues,
+  syncMessage,
+} from './syncLog.ts'
 import { localDateTime, parseActivityFile } from '../../shared/importers/files/index.ts'
 import type {
   ImportBatch,
@@ -30,7 +36,7 @@ const WELLNESS_OVERLAP_DAYS = 7
 const MAX_CONSECUTIVE_FAILURES = 5
 const MAX_REPORT_ROWS = 100
 
-export const SECRET_CHANGED = 'Reconnect: the session secret changed.'
+export const SECRET_CHANGED = syncMessage('sync.msg.secret-changed', {})
 
 /** One run per user and provider at a time. */
 const running = new Set<string>()
