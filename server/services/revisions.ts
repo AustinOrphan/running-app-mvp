@@ -521,28 +521,44 @@ export async function undoStates(
 }
 
 /**
- * The Mondays of each plan's weeks whose target the runner set, by plan id: the weeks a re-plan
- * keeps at the runner's number (`weekCaps` in `computeReplan`). One query for the page, and none
- * when no revision on it has a diff to attribute. Read when the revisions are served, so a week the
- * runner has since reset to the baseline no longer counts.
+ * The Mondays of each plan's weeks whose target the runner set, by plan id, each with the time the
+ * week row was last written: the weeks a re-plan keeps at the runner's number (`weekCaps` in
+ * `computeReplan`). One query for the page, and none when no revision on it has a diff to
+ * attribute. Read when the revisions are served, so a week the runner has since reset to the
+ * baseline no longer counts.
  */
 async function ownerWeeksByPlan(
   deps: Deps,
   rows: readonly PlanRevisionListRow[],
-): Promise<Map<string, Set<string>>> {
+): Promise<Map<string, Map<string, Date>>> {
   const planIds = [...new Set(rows.filter((row) => row.diff !== null).map((row) => row.planId))]
-  const byPlan = new Map<string, Set<string>>()
+  const byPlan = new Map<string, Map<string, Date>>()
   if (planIds.length === 0) return byPlan
   const weeks = await deps.prisma.planWeek.findMany({
     where: { planId: { in: planIds }, targetSource: { in: ['override', 'review'] } },
-    select: { planId: true, weekStart: true },
+    select: { planId: true, weekStart: true, updatedAt: true },
   })
   for (const week of weeks) {
-    const set = byPlan.get(week.planId) ?? new Set<string>()
-    set.add(week.weekStart)
-    byPlan.set(week.planId, set)
+    const map = byPlan.get(week.planId) ?? new Map<string, Date>()
+    map.set(week.weekStart, week.updatedAt)
+    byPlan.set(week.planId, map)
   }
   return byPlan
+}
+
+/**
+ * The runner's weeks that a revision written at `at` can name as a cause: those whose row was last
+ * written no later than the revision. The row holds no time of its own for the override, so a week
+ * written after the revision (an override set later, or any later edit or re-plan of the week) is
+ * left out: the older revision then names its generic cause, and never one that was not true when
+ * it was written.
+ */
+function ownerWeeksAt(
+  weeks: ReadonlyMap<string, Date> | undefined,
+  at: Date,
+): ReadonlySet<string> | undefined {
+  if (weeks === undefined) return undefined
+  return new Set([...weeks].filter(([, writtenAt]) => writtenAt <= at).map(([week]) => week))
 }
 
 /** Revisions as the API serves them, with the structural undo state and the causes of each. */
@@ -554,7 +570,9 @@ export async function viewRevisions(
     undoStates(deps, args),
     ownerWeeksByPlan(deps, args.rows),
   ])
-  return args.rows.map((row) => revisionView(row, states.get(row.id)!, ownerWeeks.get(row.planId)))
+  return args.rows.map((row) =>
+    revisionView(row, states.get(row.id)!, ownerWeeksAt(ownerWeeks.get(row.planId), row.createdAt)),
+  )
 }
 
 /** One of the user's revisions as the API serves it. */

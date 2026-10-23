@@ -659,8 +659,13 @@ async function list(
   })
   if (!response.ok) throw await failed(response, apiKey)
   const events = await requireJson(response)
+  // Only an array is a calendar. The caller reads an empty list as "the runner deleted everything",
+  // so any other shape (an object, a bare value) is an unreadable answer, not an empty one.
+  if (!Array.isArray(events)) {
+    throw new PublishError('rejected', publishSentence('publish.unreadable'))
+  }
   const out: RemoteWorkout[] = []
-  for (const event of Array.isArray(events) ? events : []) {
+  for (const event of events) {
     if (!isRecord(event)) continue
     const remoteId = remoteIdOf(event['id'])
     const start = event['start_date_local']

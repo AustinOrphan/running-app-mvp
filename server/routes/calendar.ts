@@ -9,10 +9,18 @@ import { calendarFeed, userForCalendarToken } from '../services/calendar.ts'
 /** What the access log writes in place of a feed token. */
 const TOKEN_PLACEHOLDER = ':token'
 
-/** The token segment of a feed URL. Express matches the mount path without regard to case. */
-const FEED_URL = /^(\/api\/calendar\/)[^/?#]+/i
+/**
+ * The token segment of a feed URL. Express matches the mount path without regard to case, and the
+ * logged URL is the raw request target: an absolute-form target (`http://host/api/calendar/...`)
+ * reaches the feed too, and extra slashes after the mount path still carry the token, so the
+ * pattern is neither anchored to the start nor limited to one slash.
+ */
+const FEED_URL = /(\/api\/calendar\/+)[^/?#]+/gi
 
-/** `/api/calendar/<token>/plan.ics` as `/api/calendar/:token/plan.ics`; other URLs are unchanged. */
+/**
+ * `/api/calendar/<token>/plan.ics` as `/api/calendar/:token/plan.ics`, also behind a scheme and
+ * host or an extra slash; other URLs are unchanged.
+ */
 export function redactFeedToken(url: string): string {
   return url.replace(FEED_URL, `$1${TOKEN_PLACEHOLDER}`)
 }

@@ -21,7 +21,14 @@ import {
   replanActivePlan,
   StaleWrite,
 } from '../../server/services/replan.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 // Rest and limited-running windows (design 9.3 and 9.4): validation, the preview that writes
 // nothing, the commit that matches it, the skips of back-dated days, the undo of a window, Today
@@ -83,7 +90,7 @@ function at(iso: string, hour = 12): void {
 }
 
 let ctx: TestCtx
-const deps = (): Deps => ({ prisma: ctx.prisma, config: ctx.config })
+const deps = (): Deps => ({ prisma: ctx.prisma, config: ctx.config, fetch: ctx.fetch })
 
 beforeAll(async () => {
   ctx = await createTestCtx()
@@ -97,6 +104,7 @@ afterEach(() => {
   race.during = null
   force.failChecklist = false
   at(THURSDAY)
+  expectNoRefusedFetches(ctx)
 })
 
 // ---------------------------------------------------------------------------------------------
