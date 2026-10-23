@@ -11,12 +11,13 @@ import {
 } from '../api/integrations.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { Button } from '../components/Button.tsx'
+import { CalendarFeed } from '../components/CalendarFeed.tsx'
 import { DataInUse } from '../components/DataInUse.tsx'
 import { Field, Input, Textarea } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { SyncHistory } from '../components/SyncHistory.tsx'
-import { WristSettings } from '../components/WristSettings.tsx'
+import { DisconnectIntervals, WristSettings } from '../components/WristSettings.tsx'
 import { useToast } from '../components/Toast.tsx'
 import styles from './IntegrationsPage.module.css'
 
@@ -658,6 +659,12 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
 
   const paused = item.lastSyncStatus === 'paused'
 
+  function onDisconnected() {
+    setEditing(false)
+    setMfaPending(false)
+    toast.show(`${info.label} disconnected`)
+  }
+
   return (
     <section className={styles.card} aria-labelledby={headingId}>
       <div className={styles.head}>
@@ -714,21 +721,19 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
           </Button>
         ) : null}
         {hasConnection || item.pushEnabled ? (
-          <Button
-            variant="quiet"
-            loading={disconnect.isPending}
-            onClick={() => {
-              disconnect.mutate(provider, {
-                onSuccess: () => {
-                  setEditing(false)
-                  setMfaPending(false)
-                  toast.show(`${info.label} disconnected`)
-                },
-              })
-            }}
-          >
-            Disconnect
-          </Button>
+          channels.includes('publish') ? (
+            <DisconnectIntervals onDisconnected={onDisconnected} />
+          ) : (
+            <Button
+              variant="quiet"
+              loading={disconnect.isPending}
+              onClick={() => {
+                disconnect.mutate(provider, { onSuccess: onDisconnected })
+              }}
+            >
+              Disconnect
+            </Button>
+          )
         ) : null}
       </div>
       {hasConnection || item.pushEnabled ? (
@@ -801,6 +806,7 @@ export function IntegrationsPage() {
         {integrations.data.map((item) => (
           <ProviderCard key={item.provider} item={item} />
         ))}
+        <CalendarFeed className={styles.card} />
       </div>
     </>
   )

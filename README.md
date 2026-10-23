@@ -236,6 +236,62 @@ Profile page when "use the home location for weather" is on. Turn that off, and 
 location empty, to send nothing. Providers see only what you connect: the app calls intervals.icu,
 Strava and Garmin only after you connect them, and only for your own account.
 
+## Sessions on the watch
+
+A planned run reaches a watch by three routes. All three are rendered from one workout, so they
+cannot disagree: an easy run carries one heart-rate ceiling, an interval session a pace band per
+repeat and an open recovery, and a long run of two hours or more its fuel line. A session that the
+day's readiness eases goes out as the easy version, without the reason; a rest advice takes it off
+the watch.
+
+| Route         | What it holds                                        | Where it is switched on                           |
+| ------------- | ---------------------------------------------------- | ------------------------------------------------- |
+| intervals.icu | The next 14 days of runs, kept in step with the plan | Integrations, intervals.icu card, Send sessions   |
+| Workout file  | One `.fit` per session, one `.zip` per week          | Plan page: the session sheet, and the week's link |
+| Calendar link | The next 28 days, as titles and durations only       | Integrations, Calendar link section               |
+
+Only the first route needs an account, and it is the only one that writes to a third party. The file
+and the calendar link keep working when intervals.icu or Garmin Connect is down.
+
+### Through intervals.icu
+
+Sending is off until "Send my next 14 days of runs to intervals.icu" is ticked on the connected
+intervals.icu card. The app then creates one event per run in the intervals.icu calendar, updates it
+when the plan changes (a move, a new zone, an eased day, an undo) within a few minutes, and removes
+it when the session is skipped or readiness advises rest. An event deleted by hand in intervals.icu
+is not created again until the session changes. "Send now" starts a send at once instead of waiting
+for the next one.
+
+intervals.icu forwards planned workouts to Garmin Connect, and from there to the watch, only when
+that is switched on in intervals.icu (Settings, Garmin Connect). The second box on the card records
+that choice. The app cannot check it, so Plan and Today say "Sent to intervals.icu" and say "On your
+watch" only when the box is ticked, intervals.icu reports no error from Garmin Connect, and 15
+minutes have passed since the send.
+
+Turning sending off, or disconnecting intervals.icu, offers to remove the sessions already sent; the
+removal needs the API key, so a failed removal keeps the connection and offers to disconnect without
+it. intervals.icu closes accounts that are not logged in to for a long time; logging in now and then
+keeps the plan reaching the watch.
+
+### Workout files
+
+The session sheet on the Plan page offers "Download the workout file", named by date and kind (for
+example `2027-03-02-easy-run.fit`, never the session title). The strip at the top of the Plan page
+offers "Download this week as .zip", and each opened week "Download the week of <date> as .zip", with
+one file per run still to be done. A file is loaded onto the watch
+by USB or through a Garmin app; the route that works depends on the watch model. The file holds
+today's version of the session, with the current zones.
+
+### Calendar link
+
+The Calendar link section on the Integrations page makes a private address that any calendar app can
+subscribe to (a `webcal://` link opens the app directly). Anyone holding the address can read the
+titles and durations of the next 28 days; titles name the kind of run only ("Easy run, 45 min"),
+never a reason, a figure of the body or a heart-rate or pace target. The address is shown once, when
+it is made, because only a hash of it is stored; making a new one ends the old one at once, and
+"Turn off the link" ends it without a replacement. A reverse proxy in front of the app may keep the
+address in its own access log, which the app cannot clear; the app redacts the address from its own.
+
 ## Training engine
 
 Plans come from a deterministic engine in `shared/engine/`: the same history, profile, goal and
@@ -381,6 +437,8 @@ working online only.
   providers, weather, profile and wellness
 - `docs/research/integrations-2026-10.md`: feasibility research behind the provider list
 - `docs/superpowers/specs/2026-10-22-training-engine-design.md` and its plan: the training engine
+- `docs/superpowers/specs/2026-10-22-coach-phase3a-design.md` section 6 and `docs/adr/0008-outbound-publish-channel.md`:
+  how sessions reach a watch
 - `research/README.md` and `research/engine-rules.md`: the evidence base and the rules derived from it
 - `docs/adr/`: architecture decision records
 

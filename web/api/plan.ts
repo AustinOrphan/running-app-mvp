@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useRef } from 'react'
 import type { EngineInput } from '../../shared/engine/types.ts'
 import type {
@@ -16,7 +16,15 @@ import type {
   SessionWorkoutView,
   UndoResult,
 } from '../../shared/types.ts'
-import { ApiError, api, fieldErrors, invalidateNewPlan, keys } from './client.ts'
+import {
+  ApiError,
+  api,
+  fieldErrors,
+  invalidateNewPlan,
+  invalidatePlanReaders,
+  keys,
+  NEW_PLAN_KEYS,
+} from './client.ts'
 
 export interface GeneratePlanRequest {
   goalId: string
@@ -145,45 +153,6 @@ export function commitFailure(error: unknown): CommitFailure {
     return { kind: 'invalid', message: error.message, fields: fieldErrors(error) }
   }
   return { kind: 'error', message: error.message }
-}
-
-/**
- * Every query that reads the plan or what a change to it moves: the plan and its sessions (the
- * session workout sits under its key), the revision list, the rest windows, the reviews, the weekly
- * brief, the athlete state, Today, the watch status (the sessions it lists are the plan's) and the
- * fuel targets (the run targets they follow are the plan's).
- */
-const PLAN_READER_KEYS = [
-  keys.plan,
-  keys.planRevisions,
-  keys.disruptions,
-  keys.reviews,
-  keys.brief,
-  keys.state,
-  keys.today,
-  keys.wrist,
-  keys.fuel,
-] as const
-
-/**
- * Reads those queries again after a write to the plan (an undo, a re-plan, an adjusted session, a
- * rest window, a week edit, a new plan). `skip` leaves out the queries it names (the dry run of the
- * edit that was just applied, which would read "nothing to change"); `also` adds the keys that
- * only some writes move (a new plan also changes the goals and the archived plans).
- */
-export function invalidatePlanReaders(
-  queryClient: QueryClient,
-  skip?: (queryKey: readonly unknown[]) => boolean,
-  also: readonly string[] = [],
-): Promise<unknown> {
-  return Promise.all(
-    [...PLAN_READER_KEYS, ...also].map((key) =>
-      queryClient.invalidateQueries({
-        queryKey: [key],
-        predicate: skip === undefined ? undefined : (query) => !skip(query.queryKey),
-      }),
-    ),
-  )
 }
 
 /**
@@ -386,11 +355,7 @@ export function useGeneratePlan() {
       // swaps the form out, and the caller's success callback (the toast) only runs if this promise
       // settles before that unmount, so the other refetches (Today, the goals, the watch status)
       // run on their own.
-      void invalidatePlanReaders(queryClient, awaitedHere, [
-        keys.goals,
-        keys.planArchived,
-        keys.predictions,
-      ])
+      void invalidatePlanReaders(queryClient, awaitedHere, NEW_PLAN_KEYS)
       return Promise.all(
         [keys.plan, keys.reviews].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
       )

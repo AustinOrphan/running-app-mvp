@@ -830,6 +830,100 @@ describe('the health note about tomorrow', () => {
   })
 })
 
+describe('the watch slot of Today', () => {
+  const getToday = (u: TestUser, query = '') => client(ctx, u).get(`/api/today${query}`)
+  const slotOf = async (u: TestUser, query = '') => {
+    const res = await getToday(u, query)
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    return (res.body as TodayView).coach.slots.watch
+  }
+
+  test('is empty while sending is off, and on a day with no run', async () => {
+    const { u, planId } = await runner('slot-off@example.com', { enabled: false })
+    await place(ctx, planId, [{ date: today, kind: 'easy' }])
+    expect(await slotOf(u)).toBeNull()
+
+    await enablePublishing(ctx, u.id)
+    expect(await slotOf(u)).not.toBeNull()
+    // tomorrow has no session at all
+    expect(await slotOf(u, `?date=${tomorrow}`)).toBeNull()
+    // and a day with no run (strength) has no line
+    await place(ctx, planId, [{ date: tomorrow, kind: 'strength' }])
+    expect(await slotOf(u, `?date=${tomorrow}`)).toBeNull()
+  })
+
+  test('lists the runs of the viewed day as the status does, and no other day', async () => {
+    const { u, planId } = await runner('slot-items@example.com', { garminLinked: true })
+    const [first, second] = await place(ctx, planId, [
+      { date: today, kind: 'easy' },
+      { date: tomorrow, kind: 'easy' },
+    ])
+    // before any run: announced as not sent yet
+    expect((await slotOf(u))?.items.map((i) => [i.sessionId, i.status])).toEqual([
+      [first!.id, 'not-sent'],
+    ])
+
+    await sentOnce(u)
+    const slot = await slotOf(u)
+    expect(slot?.items.map((i) => [i.sessionId, i.status])).toEqual([[first!.id, 'sent']])
+    const listed = await status(u, `?from=${today}&to=${today}`)
+    expect(slot?.items).toEqual(listed.items)
+
+    const preview = await slotOf(u, `?date=${tomorrow}`)
+    expect(preview?.items.map((i) => i.sessionId)).toEqual([second!.id])
+  })
+
+  test('says on your watch fifteen minutes after the send, and the page tag follows the clock', async () => {
+    const { u, planId } = await runner('slot-clock@example.com', { garminLinked: true })
+    const [run] = await place(ctx, planId, [{ date: today, kind: 'easy' }])
+    await sentOnce(u)
+
+    const first = await getToday(u)
+    expect((first.body as TodayView).coach.slots.watch?.items[0]).toMatchObject({
+      sessionId: run!.id,
+      status: 'sent',
+    })
+    const tag = String(first.headers.etag)
+    expect((await getToday(u).set('If-None-Match', tag)).status).toBe(304)
+
+    // no row is written: only the time has passed
+    vi.setSystemTime(at(16))
+    const later = await getToday(u).set('If-None-Match', tag)
+    expect(later.status).toBe(200)
+    expect((later.body as TodayView).coach.slots.watch?.items[0]?.status).toBe('on-watch')
+    expect((await getToday(u).set('If-None-Match', String(later.headers.etag))).status).toBe(304)
+  })
+
+  test('changes the page tag when sending is switched on or the upload is ticked, with no row written', async () => {
+    const { u, planId } = await runner('slot-switch@example.com', { enabled: false })
+    await place(ctx, planId, [{ date: today, kind: 'easy' }])
+    const off = await getToday(u)
+    const offTag = String(off.headers.etag)
+    expect((await getToday(u).set('If-None-Match', offTag)).status).toBe(304)
+
+    await enablePublishing(ctx, u.id, false)
+    const on = await getToday(u).set('If-None-Match', offTag)
+    expect(on.status).toBe(200)
+    expect((on.body as TodayView).coach.slots.watch?.items[0]?.status).toBe('not-sent')
+    const onTag = String(on.headers.etag)
+    expect((await getToday(u).set('If-None-Match', onTag)).status).toBe(304)
+
+    await enablePublishing(ctx, u.id, true)
+    expect((await getToday(u).set('If-None-Match', onTag)).status).toBe(200)
+    expect(await ctx.prisma.wristPublication.count({ where: { userId: u.id } })).toBe(0)
+  })
+
+  test('words a stuck run the same on Today as on Plan, and names no reason for an easier day', async () => {
+    const { u, planId } = await runner('slot-stuck@example.com')
+    await place(ctx, planId, [{ date: today, kind: 'easy' }])
+    fake.hooks.create = () => json({ error: 'Unreadable steps' }, 422)
+    await publishForUser(ctx, u.id, { fetch: fake.fetch, trigger: 'manual' })
+    const item = (await slotOf(u))?.items[0]
+    expect(item).toMatchObject({ failCode: 'rejected' })
+    expect(JSON.stringify(item)).not.toMatch(/readiness|injury|illness|pain/i)
+  })
+})
+
 // ---------------------------------------------------------------------------------------------
 // Secrets
 // ---------------------------------------------------------------------------------------------

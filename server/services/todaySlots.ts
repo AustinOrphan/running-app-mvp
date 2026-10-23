@@ -1,6 +1,6 @@
 // The named slots of the Today payload (phase 3a design 7.4 and 7.6). Each owning epic gives its
 // slot a type in `TodaySlots` and a provider here: the disruption banner (E5), the fuel target
-// line and the fuel prompt (E6), the watch line (E1) and the brief line (E4). Until its epic
+// line and the fuel prompt (E6), the watch line (E1, `wristItems.ts`) and the brief line (E4). Until its epic
 // lands, a provider answers null and the slot takes no height. The disruption slot (E5-5) holds
 // the window in effect, else an offer to set one (`disruptionSlot`).
 //
@@ -15,6 +15,7 @@ import type { AthleteContext } from './athleteState.ts'
 import { disruptionSlot } from './disruptions.ts'
 import { todayFuelPromptSlot, todayFuelSlot } from './fuel.ts'
 import { safeMessage } from './syncLog.ts'
+import { todayWatchSlot } from './wristItems.ts'
 
 export type SlotName = keyof TodaySlots
 
@@ -48,7 +49,9 @@ export const slotProviders: { [K in SlotName]: SlotProvider<K> } = {
   // data version and the forecast stamp in the page's ETag already cover it: no stamp of its own.
   fuel: ({ deps, userId, date, today, context, forecast }) =>
     todayFuelSlot(deps, { userId, today, date, context, forecast }),
-  watch: () => null,
+  // The publisher's rows are outside the data version; `publish.ts` registers their change stamp.
+  watch: ({ deps, userId, date, today, context }) =>
+    todayWatchSlot(deps.prisma, { userId, date, today, context }),
   brief: () => null,
   fuelPrompt: ({ deps, userId, today, preview, context }) =>
     todayFuelPromptSlot(deps, { userId, today, preview, context }),

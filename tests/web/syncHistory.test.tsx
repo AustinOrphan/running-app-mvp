@@ -6,6 +6,7 @@ import { SyncHistory } from '../../web/components/SyncHistory.tsx'
 import { IntegrationsPage } from '../../web/pages/IntegrationsPage.tsx'
 import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
 import { makeStateView } from './state-fixtures.ts'
+import { wristRoutes } from './wrist-fixtures.ts'
 
 function run(over: Partial<SyncRunView> = {}): SyncRunView {
   return {
@@ -228,6 +229,7 @@ describe('the Integrations page', () => {
     const { calls } = mockApi({
       'GET /api/integrations': () => [statusOf(info, { status: 'connected' }), statusOf(strava)],
       'GET /api/state': () => makeStateView(),
+      ...wristRoutes(),
       [RUNS]: () => [run({ accepted: 2 })],
     })
     renderWithProviders(<IntegrationsPage />)
@@ -237,8 +239,10 @@ describe('the Integrations page', () => {
     expect(
       within(screen.getByRole('region', { name: 'Strava' })).queryByText('Recent syncs'),
     ).not.toBeInTheDocument()
-    // Opening the page reads no history (the state read belongs to the data-in-use panel).
-    expect(calls.map((call) => call.url).filter((url) => url !== '/api/state')).toEqual([
+    // Opening the page reads no history (the state read belongs to the data-in-use panel, the
+    // wrist status to the calendar link).
+    const OTHER_PANELS = ['/api/state', '/api/wrist/status']
+    expect(calls.map((call) => call.url).filter((url) => !OTHER_PANELS.includes(url))).toEqual([
       '/api/integrations',
     ])
 

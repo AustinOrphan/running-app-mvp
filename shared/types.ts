@@ -355,6 +355,13 @@ export interface WristCalendar {
   enabled: boolean
   tokenCreatedAt: string | null
 }
+/** The answer to `POST /api/wrist/calendar/token`: the only time the token exists in the clear. */
+export interface CalendarTokenIssued {
+  token: string
+  /** The feed's path on this server; the client adds its own origin. */
+  path: string
+  createdAt: string
+}
 /** `GET /api/wrist/status`: the publisher's settings and one item per session in the range. */
 export interface WristStatus {
   from: string
@@ -1144,6 +1151,14 @@ export interface DisruptionSlot {
   offer: boolean
 }
 /**
+ * The `watch` slot: the run sessions of the viewed day as `GET /api/wrist/status` lists them, so
+ * the line on Today and the chip on Plan word a session the same way. The page picks the hero's
+ * session by `sessionId`. The slot is null while sending is off and on a day with no run.
+ */
+export interface TodayWatch {
+  items: WristItem[]
+}
+/**
  * What the named Today slots hold. Each owning epic gives its slot a type (disruption E5, fuel
  * and fuelPrompt E6, watch E1, brief E4); until then a slot is null and takes no height.
  */
@@ -1151,7 +1166,8 @@ export interface TodaySlots {
   disruption: DisruptionSlot | null
   /** The fuel targets of the viewed day and the day after (E6); null when no run carries one. */
   fuel: TodayFuel | null
-  watch: null
+  /** Where the viewed day's runs stand on their way to the watch (E1); null while sending is off. */
+  watch: TodayWatch | null
   brief: null
   /** Recent runs that wait for a fuel log (E6); null when none does. */
   fuelPrompt: TodayFuelPrompts | null
