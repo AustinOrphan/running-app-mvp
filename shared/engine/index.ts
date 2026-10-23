@@ -206,12 +206,17 @@ function reduceWeek(week: WeekDraft, lastLoad: WeekDraft | undefined): WeekDraft
 
 /**
  * A break of 7 days or more restarts below the volume before it [rules J7]: the typical week the
- * macrocycle grows from is the restart volume, not the pre-break one.
+ * macrocycle grows from is the restart volume, not the pre-break one, and the recent level of E6
+ * does not lift the start above it.
  */
 export function afterBreak(state: AthleteState): AthleteState {
   if (state.layoffDays < P.j7.tier1Days.value || state.typicalWeekMin <= 0) return state
   const restart = breakRestart(state.layoffDays, state.typicalWeekMin)
-  return { ...state, typicalWeekMin: Math.min(state.typicalWeekMin, restart.restartMin) }
+  return {
+    ...state,
+    typicalWeekMin: Math.min(state.typicalWeekMin, restart.restartMin),
+    recentWeekMin: Math.min(state.recentWeekMin, restart.restartMin),
+  }
 }
 
 /**
