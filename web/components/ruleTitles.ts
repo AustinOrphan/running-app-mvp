@@ -126,7 +126,7 @@ export const RULE_TITLES: Record<string, string> = {
   L4: 'Ultra prediction',
   L5: 'Trail prediction',
   L6: 'Minimum prediction band',
-  L7: 'Back-testing',
+  L7: 'Prediction track record',
   // (m) personalisation
   'm-age': 'Age',
   'm-sex': 'Sex',

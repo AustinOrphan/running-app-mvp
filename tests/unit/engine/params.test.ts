@@ -282,4 +282,46 @@ describe('parameter registry', () => {
     expect(P.h12.goalRaceDistanceTolerancePct.value).toBe(10)
     expect(paramsForRule('H12')).toHaveLength(20)
   })
+
+  it('carries the back-test thresholds of rule L7 as defaults, with existing evidence', () => {
+    const minRaces = P.l7.minRacesForSummary
+    const tolerance = P.l7.courseTolerancePct
+    expect([minRaces.id, minRaces.value, minRaces.grade, minRaces.rule]).toEqual([
+      'l7.minRacesForSummary',
+      3,
+      'D',
+      'L7',
+    ])
+    expect([tolerance.id, tolerance.value, tolerance.grade, tolerance.rule]).toEqual([
+      'l7.courseTolerancePct',
+      2,
+      'D',
+      'L7',
+    ])
+    expect(minRaces.evidence).toEqual([
+      'hecksteden-2015-individual-response',
+      'mann-2014-high-low-responders',
+    ])
+    expect(tolerance.evidence).toEqual(['blythe-2016-individual-prediction'])
+    expect(minRaces.note).toMatch(/default/i)
+    expect(tolerance.note).toMatch(/default/i)
+    expect(paramsForRule('L7').map((p) => p.id)).toEqual([
+      'l7.minRacesForSummary',
+      'l7.courseTolerancePct',
+    ])
+    // the summary threshold is the same count of observations as the prior-shrinkage gate of G3
+    expect(minRaces.value).toBe(P.global3.minObservations.value)
+  })
+
+  it('words rule L7 as four bullets and ties the L6 band to scored races', () => {
+    const section = engineRules.slice(
+      engineRules.indexOf('- **L7 '),
+      engineRules.indexOf('## (m) Personalization verdicts'),
+    )
+    expect(section.match(/^ {2}- /gm)).toHaveLength(4)
+    expect(engineRules).toMatch(
+      /\*\*L6 Minimum band\.\*\*[^\n]*until at least 3 scored races exist \(L7\)/,
+    )
+    expect(engineRules).not.toMatch(/until running back-tests exist/)
+  })
 })

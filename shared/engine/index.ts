@@ -59,6 +59,24 @@ import type {
 import { buildZones } from './zones.ts'
 
 export { zoneProposals, weeklyDecision } from './adapt.ts'
+export {
+  daysBefore,
+  isComparableCourse,
+  median,
+  scorePredictions,
+  scoreRace,
+  summariseRecord,
+  weeksBefore,
+} from './backtest.ts'
+export type {
+  CourseSnapshot,
+  LoggedPrediction,
+  RaceOutcome,
+  RaceResultInput,
+  RaceScore,
+  RecordSummary,
+  ScoredPrediction,
+} from './backtest.ts'
 export { runChecklist } from './checklist.ts'
 export { explain } from './explain.ts'
 export { assessExecution, matchSessions } from './execution.ts'

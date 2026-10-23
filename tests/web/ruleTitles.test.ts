@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { buildPlan } from '../../shared/engine/index.ts'
 import { lintText } from '../../shared/copy/lint.ts'
-import { allParams } from '../../shared/engine/params/index.ts'
+import { allParams, paramsForRule } from '../../shared/engine/params/index.ts'
 import { RULE_TITLES, ruleTitle } from '../../web/components/ruleTitles.ts'
 import { athletes } from '../unit/engine/matrix-fixtures.ts'
 
@@ -55,6 +55,13 @@ describe('RULE_TITLES', () => {
     expect(ruleTitle('F-lib')).toBe('Session library')
     expect(ruleTitle('G1')).toBe('Deterministic core')
     expect(ruleTitle('J5')).toBe('Weekly decision')
+  })
+
+  test('titles the back-test rule by what the runner sees, and its Params resolve to it', () => {
+    expect(RULE_TITLES['L7']).toBe('Prediction track record')
+    expect(ruleTitle('l7')).toBe('Prediction track record')
+    expect(ruleTitle('L6')).toBe('Minimum prediction band')
+    for (const p of paramsForRule('L7')) expect(ruleTitle(p.rule), p.id).not.toBeNull()
   })
 
   test('tells g-1 from G1, ignoring case but not hyphens', () => {
