@@ -823,6 +823,23 @@ export interface StateView {
   prediction: Prediction | null
   inputs: StateInputs
 }
+/** One hour of the cached home forecast, in GMT. */
+export interface ForecastHour {
+  /** The hour, `YYYY-MM-DDTHH:00:00Z`. */
+  time: string
+  tempC: number | null
+  dewPointC: number | null
+  humidityPct: number | null
+  windKph: number | null
+}
+/** GET /api/weather/forecast: the cached seven-day forecast at home. */
+export interface ForecastView {
+  hours: ForecastHour[]
+  /** When the hours were fetched, as an instant. */
+  fetchedAt: string
+  /** True once the hours are more than an hour old; a refresh is already on its way. */
+  stale: boolean
+}
 /** GET /api/research/params: the parameter registry, for the why drawer. */
 export interface ResearchParams {
   version: string

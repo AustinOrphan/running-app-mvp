@@ -233,7 +233,7 @@ describe('GET /api/state', () => {
   })
 
   test('names the goal the plan follows, the plan and the prediction the predictions route gives', async () => {
-    vi.stubGlobal('fetch', () => Promise.reject(new Error('no network in the state view')))
+    ctx.fetch = () => Promise.reject(new Error('no network in the state view'))
     await seedHistory(user.id)
     const followed = await seedGoal(user.id, { name: 'Followed' })
     const marked = await seedGoal(user.id, { name: 'Marked' })
@@ -269,7 +269,7 @@ describe('GET /api/state', () => {
 
 describe('a plan from a warm snapshot', () => {
   test('equals the plan from a cold gather', async () => {
-    vi.stubGlobal('fetch', () => Promise.reject(new Error('no network')))
+    ctx.fetch = () => Promise.reject(new Error('no network'))
     await seedHistory(user.id)
     await ctx.prisma.screening.create({
       data: { userId: user.id, date: addDays(today, -10), kind: 'reds', answers: '{}', flags: 1 },
@@ -295,7 +295,10 @@ describe('a plan from a warm snapshot', () => {
 
     // Cold: a client with no cache, as a restarted server would be.
     const cold = await secondConnection()
-    const coldInput = await gatherEngineInput({ prisma: cold, config: ctx.config }, args)
+    const coldInput = await gatherEngineInput(
+      { prisma: cold, config: ctx.config, fetch: ctx.fetch },
+      args,
+    )
 
     expect(warmInput).toEqual(coldInput)
     const warmPlan = buildPlan(warmInput)
@@ -305,7 +308,7 @@ describe('a plan from a warm snapshot', () => {
   })
 
   test('generates the same plan whether or not the state was read first', async () => {
-    vi.stubGlobal('fetch', () => Promise.reject(new Error('no network')))
+    ctx.fetch = () => Promise.reject(new Error('no network'))
     await seedHistory(user.id)
     const goal = await seedGoal(user.id)
 

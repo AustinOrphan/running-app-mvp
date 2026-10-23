@@ -58,6 +58,7 @@ import {
 import { loadAthleteContext } from './athleteState.ts'
 import { assessSessionById } from './execution.ts'
 import { currentZones, gatherContextInput, gatherEngineInput, sessionSpec } from './engineInput.ts'
+import { ensureClimate } from './weatherCache.ts'
 import { MAX_PLAN_WEEKS } from './plan.ts'
 import { recordPrediction } from './predictionLog.ts'
 import { recordPlanWrite, revisionParts } from './replan.ts'
@@ -195,6 +196,9 @@ export async function generateEnginePlan(
     throw validationError(`A plan covers at most ${MAX_PLAN_WEEKS} weeks. Choose a nearer goal.`)
   }
 
+  // The one wait on Open-Meteo in plan generation (8 s): a cold cache would otherwise build the
+  // first plan without race heat. Later plans, re-plans and every read use the cached climate.
+  await ensureClimate(deps, { userId, goalId: goal.id })
   const input = await gatherEngineInput(deps, { ...args, options: args.options ?? {} })
   const draft = buildPlan(input)
   const blocked = failedChecklist(draft.checklist)

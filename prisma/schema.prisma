@@ -450,6 +450,44 @@ model SyncRun {
   @@index([userId, provider, startedAt])
 }
 
+// The 7-day hourly forecast of one 0.1 degree home cell (non-state). The weather job fills it and
+// no request waits for it; a change key that depends on the forecast uses `forecastStamp`. Cells are
+// integer tenths of a degree so that the unique key never compares floats. `fetchedAt` is null until
+// a fetch succeeds; a failed fetch keeps the old hours and sets `failedAt` (15-minute back-off).
+model ForecastCache {
+  id        String    @id @default(cuid())
+  latE1     Int
+  lngE1     Int
+  hours     String    @default("[]") // JSON text: WeatherHour[], GMT
+  fetchedAt DateTime?
+  failedAt  DateTime?
+  lastError String?
+
+  @@unique([latE1, lngE1])
+}
+
+// Race-window WBGT climatology of one 0.01 degree race cell, month and day, start hour and window
+// length (state: the snapshot's prediction reads it, so a refresh must drop a memoised prediction).
+// `wbgtC` is the mean over the last three archive years; `complete` is false while a year could not
+// be read, and an incomplete row, or one older than 30 days, is read again with its old value kept.
+model ClimateCache {
+  id          String    @id @default(cuid())
+  latE2       Int
+  lngE2       Int
+  monthDay    String // 'MM-DD'
+  startHour   Int
+  windowHours Int
+  wbgtC       Float?
+  samples     Int       @default(0)
+  yearsRead   Int       @default(0)
+  complete    Boolean   @default(false)
+  fetchedAt   DateTime?
+  failedAt    DateTime?
+  lastError   String?
+
+  @@unique([latE2, lngE2, monthDay, startHour, windowHours])
+}
+
 model ImportedFile {
   id         String   @id @default(cuid())
   userId     String

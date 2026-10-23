@@ -72,6 +72,18 @@ export function userDataModels(models: readonly SchemaModel[]): SchemaModel[] {
 }
 
 /**
+ * The shared caches: models with neither a `userId` column nor a foreign key, such as
+ * `ForecastCache` and `ClimateCache`. They hold places and weather, not a user's rows, so deleting
+ * a user never reaches them; `resetData` clears them so that one spec's forecast or race climate
+ * cannot reach the next.
+ */
+export function sharedModels(models: readonly SchemaModel[]): SchemaModel[] {
+  return models.filter(
+    (model) => !model.hasUserId && model.parents.length === 0 && model.name !== 'User',
+  )
+}
+
+/**
  * Foreign-key passes: a model is cleared only after every model that holds a foreign key to it,
  * so a restricting relation never blocks a delete. Pass 0 holds the models nothing else refers
  * to. Throws on a cycle between models.
@@ -104,13 +116,15 @@ export function clearPasses(models: readonly SchemaModel[]): SchemaModel[][] {
 type Deletable = { deleteMany(): Promise<unknown> }
 
 /**
- * Deletes every user's data and keeps the `User` rows. The table list comes from the schema, so a
- * model added later is cleared without editing this function; `tests/unit/server/resetData.test.ts`
- * fails if one is skipped.
+ * Deletes every user's data and the shared caches, and keeps the `User` rows. The table list comes
+ * from the schema, so a model added later is cleared without editing this function;
+ * `tests/unit/server/resetData.test.ts` fails if one is skipped.
  */
 export async function clearUserData(prisma: PrismaClient): Promise<void> {
   const delegates = prisma as unknown as Record<string, Deletable | undefined>
-  for (const pass of clearPasses(userDataModels(schemaModels()))) {
+  const models = schemaModels()
+  const passes = [...clearPasses(userDataModels(models)), sharedModels(models)]
+  for (const pass of passes) {
     for (const model of pass) {
       const delegate = delegates[model.delegate]
       if (!delegate) throw new Error(`The Prisma client has no delegate ${model.delegate}.`)

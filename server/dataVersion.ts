@@ -28,6 +28,8 @@ export const STATE_MODELS = [
   'PlanSession',
   'PlanRevision',
   'RaceResult',
+  // The snapshot's prediction reads the race climate, so a refresh must drop a memoised prediction.
+  'ClimateCache',
 ] as const
 
 /**
@@ -47,6 +49,9 @@ export const NON_STATE_MODELS = [
   'SyncRun',
   'DeliveryChannel',
   'WristPublication',
+  // Written on a read path (a stale or empty forecast is refreshed there) and read by no snapshot
+  // or memo; a deliverable that depends on it composes `forecastStamp` into its change key.
+  'ForecastCache',
 ] as const
 
 const STATE_SET: ReadonlySet<string> = new Set(STATE_MODELS)

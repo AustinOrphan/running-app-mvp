@@ -28,7 +28,14 @@ import {
 } from '../../server/services/syncLog.ts'
 import type { SyncRunView, WellnessInput } from '../../shared/types.ts'
 import { fakeFetch, type FakeRoute } from '../fakeFetch.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import {
+  client,
+  createTestCtx,
+  noNetwork,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 // Every log line the server writes in this file, so a test can prove a token never reached one.
 const logged = vi.hoisted(() => ({ lines: [] as string[] }))
@@ -77,7 +84,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks()
-  vi.unstubAllGlobals()
+  ctx.fetch = noNetwork()
 })
 
 function deps() {
@@ -857,7 +864,7 @@ describe('GET /api/integrations/:provider/runs', () => {
 
   test('POST sync from the owner is recorded with the manual trigger', async () => {
     await connect()
-    vi.stubGlobal('fetch', intervals([{ id: 'i1', startUtc: '2026-03-02T07:00:00Z' }]))
+    ctx.fetch = intervals([{ id: 'i1', startUtc: '2026-03-02T07:00:00Z' }])
     const res = await client(ctx, user).post('/api/integrations/intervals/sync').send({})
     expect(res.status).toBe(202)
     await settleBackground()

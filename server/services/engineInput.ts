@@ -3,20 +3,21 @@
 // runs: profile, 365 days of activities, 60 days of wellness and check-ins, 16 weeks of reviews,
 // the goal, the home forecast, the race-day climate and the plan it is asked to keep (re-plans,
 // today's advice, weekly decisions). The athlete's own data comes from the snapshot, built once
-// per change; the goal model, the forecast and the options are added per call.
+// per change; the goal model, the forecast and the options are added per call. The forecast and the
+// race climate are read from the weather cache (`weatherCache.ts`): nothing here waits on the
+// network, and a cell the weather job has not filled yet gives no forecast and no race heat.
 import type { Deps } from '../app.ts'
 import { todayIso } from '../../shared/dates.ts'
 import type { EngineInput, ZoneSet } from '../../shared/engine/types.ts'
 import { goalModelFor, loadAthleteContext, neutralGoal } from './athleteState.ts'
-import { getForecast } from './weather.ts'
+import { cachedForecast } from './weatherCache.ts'
 
 export { existingFrom, neutralGoal, sessionSpec } from './athleteState.ts'
-export { resetClimateCache } from './raceClimate.ts'
 
 export interface GatherOptions {
-  /** Fetch the home forecast (today's heat note). Default false. */
+  /** Read the cached home forecast (today's heat note). Default false. */
   forecast?: boolean
-  /** Fetch the race-day climatology (goal model, prediction). Default true. */
+  /** Read the cached race-day climatology (goal model, prediction). Default true. */
   climate?: boolean
   /** Load the active plan as `existing` (re-plans, advice, weekly decisions). Default false. */
   existing?: boolean
@@ -52,26 +53,25 @@ export function localWallTime(iso: string, timeZone: string): string {
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:00:00`
 }
 
+/**
+ * The cached home forecast in the engine's shape, with hours in the runner's local time. Null
+ * without a home, without a filled cell, or when the forecast is older than 24 hours.
+ */
 async function loadForecast(deps: Deps, userId: string, timeZone: string) {
-  try {
-    const forecast = await getForecast(deps, userId, (input, init) => fetch(input, init))
-    if (!forecast) return null
-    const hours: NonNullable<EngineInput['forecast']> = []
-    for (const hour of forecast.hours) {
-      if (hour.tempC === null || hour.dewPointC === null) continue
-      hours.push({
-        time: localWallTime(hour.time, timeZone),
-        tempC: hour.tempC,
-        dewPointC: hour.dewPointC,
-        humidityPct: hour.humidityPct ?? 50,
-        windKph: hour.windKph ?? 0,
-      })
-    }
-    return hours.length > 0 ? hours : null
-  } catch {
-    // A forecast outage only costs the heat note.
-    return null
+  const cached = await cachedForecast(deps.prisma, userId)
+  if (!cached) return null
+  const hours: NonNullable<EngineInput['forecast']> = []
+  for (const hour of cached.hours) {
+    if (hour.tempC === null || hour.dewPointC === null) continue
+    hours.push({
+      time: localWallTime(hour.time, timeZone),
+      tempC: hour.tempC,
+      dewPointC: hour.dewPointC,
+      humidityPct: hour.humidityPct ?? 50,
+      windKph: hour.windKph ?? 0,
+    })
   }
+  return hours.length > 0 ? hours : null
 }
 
 /**
@@ -114,7 +114,7 @@ async function assemble(
 
 /**
  * The engine input: profile, 365 days of activities, 60 days of wellness and check-ins, 16 weeks of
- * reviews, the goal model, the forecast and the race climate (Open-Meteo archive climatology for
+ * reviews, the goal model, the forecast and the race climate (the cached archive climatology for
  * the race date and location). The athlete's data is the shared, frozen snapshot: copy an array
  * before sorting or changing it.
  */
@@ -128,7 +128,7 @@ export async function gatherEngineInput(
 
 /**
  * The same input for reads that are about the athlete rather than one race (zones, readiness,
- * advice). `goalId` null uses a neutral goal; no climate is fetched unless `opts.climate` asks.
+ * advice). `goalId` null uses a neutral goal; no climate is read unless `opts.climate` asks.
  */
 export async function gatherContextInput(
   deps: Deps,
