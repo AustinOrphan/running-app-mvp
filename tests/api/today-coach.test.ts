@@ -1118,12 +1118,13 @@ describe('GET /api/today: cost', () => {
     expect(warm.count('plan.findFirst')).toBe(0)
     expect(warm.count('planRevision.findFirst')).toBe(0)
     // Pinned so that a query added to the request path is a decision, not an accident: cold is
-    // 16 reads (the session lookup, the forecast stamp, the snapshot's ten, the cached forecast,
-    // the race climate and the change line), warm is 4, and the data version is read three times
-    // (the tag, the snapshot, the change-line memo).
-    expect(coldTotal).toBe(16)
+    // 18 reads (the session lookup, the forecast stamp, the snapshot's ten, the cached forecast,
+    // the race climate, the change line, and the fuel replay's two: the switches and the logs),
+    // warm is 4, and the data version is read five times (the tag, the snapshot, the
+    // change-line memo, and the fuel replay's memo once for each of the two fuel slots).
+    expect(coldTotal).toBe(18)
     expect(warm.models).toHaveLength(4)
-    expect(warm.raw).toBe(3)
+    expect(warm.raw).toBe(5)
   })
 
   test('no request path calls the network, empty or stale caches included', async () => {

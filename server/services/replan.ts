@@ -39,6 +39,7 @@ import {
 import { notFound, validationError } from '../errors.ts'
 import { toPlanRevision } from '../serialize.ts'
 import { gatherEngineInput } from './engineInput.ts'
+import { withGutTrainingOption } from './fuel.ts'
 import { recordPrediction, type PredictionGoal } from './predictionLog.ts'
 import {
   executionRecordsByWeek,
@@ -389,6 +390,11 @@ export interface ReplanResult {
   /** The goal model of the engine input the draft was made from (race-day WBGT). */
   input: Pick<EngineInput, 'goal'>
   today: string
+  /**
+   * The engine options the draft was made with, the gut-training switch included. `applyReplan`
+   * stores them in `Plan.options`; absent, the stored options are left as they are.
+   */
+  options?: EngineInput['options']
   /** The reason the revision is written with: a weekly update after a long break reads 'break'. */
   reason: PlanRevisionReason
   auto: boolean
@@ -454,7 +460,14 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   if (plan.goal.targetDate < today) {
     throw validationError('The goal date has passed. Move the date or choose another goal.')
   }
-  const options = JSON.parse(plan.options) as EngineInput['options']
+  // The gut-training switch is read from the stored fuel settings at every compute, so a change to
+  // the switches shows up in the next re-plan's diff, and a preview and its commit agree (design
+  // 10.5). `applyReplan` stores the options it was computed with.
+  const options = await withGutTrainingOption(
+    prisma,
+    userId,
+    JSON.parse(plan.options) as EngineInput['options'],
+  )
   const gathered = await gatherEngineInput(
     deps,
     { userId, goalId: plan.goalId, today, options },
@@ -512,6 +525,7 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     goal: plan.goal,
     input: { goal: input.goal },
     today,
+    options,
     reason,
     // The scheduler asks for 'weekly' and nothing else does; a request never writes an automatic revision.
     auto: args.reason === 'weekly',
@@ -552,6 +566,7 @@ export async function applyReplan(deps: Deps, result: ReplanResult): Promise<Pla
           feasibility: JSON.stringify(draft.feasibility),
           warnings: JSON.stringify(draft.warnings),
           checklist: JSON.stringify(draft.checklist),
+          ...(result.options === undefined ? {} : { options: JSON.stringify(result.options) }),
         },
       })
       await recordPrediction(tx, {

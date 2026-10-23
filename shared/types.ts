@@ -1,12 +1,15 @@
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
+import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type {
   AthleteState,
   Checkin,
+  EahCard,
   EngineWarning,
   ChecklistResult,
   ExecutionAssessment,
   Feasibility,
   FuelItem,
+  FuelTarget,
   Grade,
   InputFact,
   LadderResult,
@@ -813,10 +816,12 @@ export interface TodayHealth {
  */
 export interface TodaySlots {
   disruption: null
-  fuel: null
+  /** The fuel targets of the viewed day and the day after (E6); null when no run carries one. */
+  fuel: TodayFuel | null
   watch: null
   brief: null
-  fuelPrompt: null
+  /** Recent runs that wait for a fuel log (E6); null when none does. */
+  fuelPrompt: TodayFuelPrompts | null
 }
 export interface TodayCoach {
   /** ISO instant the payload was composed. */
@@ -1022,6 +1027,88 @@ export interface FuelLogResult {
   ladder: LadderResult
   /** What the run did to the ladder, such as "Tolerated at 60 g/h. Next long run: 70 g/h."; null after a delete. */
   message: string | null
+}
+
+/** The planned run a fuel target belongs to. */
+export type FuelSessionRef = Pick<PlanSession, 'id' | 'date' | 'kind' | 'title' | 'durationMin'>
+
+/** The fuel target of one planned run with the words around it (design 10.4, 10.6). */
+export interface FuelTargetView {
+  session: FuelSessionRef
+  target: FuelTarget
+  text: FuelTargetText
+}
+
+/** A recent run that has no fuel log yet and is long enough to count (design 10.4). */
+export interface FuelPrompt {
+  activityId: string
+  date: string
+  startTime: string | null
+  durationSec: number
+  distanceM: number | null
+  /** Counted from the shorter length of a gut-training week. */
+  block: boolean
+}
+
+/** `GET /api/today` slot `fuel`: the targets of the viewed day and the day after, in date order. */
+export interface TodayFuel {
+  targets: FuelTargetView[]
+  /** The safety card about drinking too much, which goes wherever fuel does; stronger in heat. */
+  eah: EahCard
+}
+
+/** `GET /api/today` slot `fuelPrompt`: unlogged runs of the last days, newest first, at most three. */
+export interface TodayFuelPrompts {
+  prompts: FuelPrompt[]
+}
+
+/**
+ * The gut-training block as the plan stores it: `none` when the plan has no such weeks (a shorter
+ * goal, or a switch not yet applied), `planned` when it has, `off` when the runner switched it off,
+ * `locked` for a diagnosed gut condition. Switching it off or locking it removes the weeks at the
+ * next re-plan; until then `removalPending` is true.
+ */
+export type FuelBlockState = 'none' | 'planned' | 'off' | 'locked'
+
+export interface FuelBlockView {
+  state: FuelBlockState
+  /** Mondays of the weeks that carry the `gut-training` flag in the stored plan. */
+  weeks: string[]
+  /** First Monday and last Sunday of the block; null without weeks. */
+  from: string | null
+  to: string | null
+  removalPending: boolean
+  /** What may be said about gut training and what may not (rule H7). */
+  lines: string[]
+}
+
+/** One row of the lab's history: a log with the sentence the replay gave its run. */
+export interface FuelHistoryRow {
+  log: FuelLogView
+  /** What the run did to the ladder, or why it did not count. */
+  note: string
+}
+
+/** `GET /api/fuel`: everything the Fuel lab shows; the stable surface for E11 and E12. */
+export interface FuelLabView {
+  settings: FuelSettings
+  /** The replayed ladder; `steps` holds the latest few. */
+  ladder: LadderResult
+  /** The target of the next planned run that can carry one; null when no such run is planned. */
+  next: FuelTargetView | null
+  block: FuelBlockView
+  /** Live products; archived ones come from `GET /api/fuel/products?archived=1`. */
+  products: FuelProduct[]
+  /** The latest logs of runs that count in the replay, newest first. */
+  history: FuelHistoryRow[]
+  prompts: FuelPrompt[]
+  /** The safety card about drinking too much; the stronger variant for a long goal or in heat. */
+  eah: EahCard
+  disclaimers: {
+    general: string
+    /** The clinician line for a diagnosed gut condition; null without one. */
+    gutCondition: string | null
+  }
 }
 export interface Screening {
   id: string

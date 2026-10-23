@@ -64,6 +64,7 @@ import {
 } from '../serialize.ts'
 import { assessSessionById } from './execution.ts'
 import { currentZones, gatherContextInput, gatherEngineInput, sessionSpec } from './engineInput.ts'
+import { withGutTrainingOption } from './fuel.ts'
 import { ensureClimate } from './weatherCache.ts'
 import { MAX_PLAN_WEEKS } from './plan.ts'
 import { recordPrediction } from './predictionLog.ts'
@@ -217,7 +218,10 @@ export async function generateEnginePlan(
   // The one wait on Open-Meteo in plan generation (8 s): a cold cache would otherwise build the
   // first plan without race heat. Later plans, re-plans and every read use the cached climate.
   await ensureClimate(deps, { userId, goalId: goal.id })
-  const input = await gatherEngineInput(deps, { ...args, options: args.options ?? {} })
+  // The gut-training switch comes from the stored fuel settings, never from the request (design
+  // 10.5): a gut condition or an opt-out builds the plan without the block.
+  const options = await withGutTrainingOption(prisma, userId, args.options ?? {})
+  const input = await gatherEngineInput(deps, { ...args, options })
   const draft = buildPlan(input)
   const blocked = failedChecklist(draft.checklist)
   if (blocked) throw blocked
@@ -251,7 +255,7 @@ export async function generateEnginePlan(
           feasibility: json(draft.feasibility),
           warnings: json(draft.warnings),
           checklist: json(draft.checklist),
-          options: json(args.options ?? {}),
+          options: json(options),
           weeks: { create: draft.weeks.map(weekRow) },
         },
       })

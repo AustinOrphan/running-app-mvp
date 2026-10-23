@@ -1,4 +1,14 @@
-import type { PlanSession, TodayCoach, TodayHeat, TodayView } from '../../shared/types.ts'
+import { eahCard, fuelTargetFor, replayLadder } from '../../shared/engine/fuel.ts'
+import { describeFuelTarget } from '../../shared/engine/fuelCopy.ts'
+import type {
+  FuelPrompt,
+  PlanSession,
+  TodayCoach,
+  TodayFuel,
+  TodayFuelPrompts,
+  TodayHeat,
+  TodayView,
+} from '../../shared/types.ts'
 
 export const TODAY = '2026-03-18'
 
@@ -47,6 +57,45 @@ export function makeHeat(over: Partial<TodayHeat> = {}): TodayHeat {
     index: null,
     hotForSteering: false,
     ...over,
+  }
+}
+
+/**
+ * The `fuel` slot of a day with one long run, on the floor of the ladder: the target the engine
+ * gives it and the words around it, so a page test never types a gram figure of its own.
+ */
+export function makeFuelSlot(over: Partial<TodayFuel> = {}): TodayFuel {
+  const settings = { optIn90: false, optInAdvanced: false, giDisease: false }
+  const session = makeSession({ id: 'long1', kind: 'long', title: 'Long run', durationMin: 150 })
+  const ladder = replayLadder({ settings, runs: [], gutTrainingWeeks: [] })
+  const target = fuelTargetFor({ settings, ladder, peaks: {} }, session)
+  if (target === null) throw new Error('A 150-minute long run carries a fuel target.')
+  const { id, date, kind, title, durationMin } = session
+  return {
+    targets: [
+      { session: { id, date, kind, title, durationMin }, target, text: describeFuelTarget(target) },
+    ],
+    eah: eahCard({ eventHours: null, hot: false }),
+    ...over,
+  }
+}
+
+/** The `fuelPrompt` slot with one unlogged three-hour run. */
+export function makeFuelPrompts(prompts: FuelPrompt[] = []): TodayFuelPrompts {
+  return {
+    prompts:
+      prompts.length > 0
+        ? prompts
+        : [
+            {
+              activityId: 'run1',
+              date: TODAY,
+              startTime: null,
+              durationSec: 3 * 3600,
+              distanceM: 30_000,
+              block: false,
+            },
+          ],
   }
 }
 

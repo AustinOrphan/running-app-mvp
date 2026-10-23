@@ -353,7 +353,7 @@ export async function todayView(
     changeLine(deps, context),
     raceBlock(context, date),
     todayHealth({ deps, userId, date, context }),
-    buildSlots({ deps, userId, date, today, preview, context }),
+    buildSlots({ deps, userId, date, today, preview, context, forecast }),
   ])
 
   const coach: TodayCoach = {

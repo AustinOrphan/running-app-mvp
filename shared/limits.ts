@@ -25,6 +25,13 @@ export const ACTIVITY_OFFSET_MAX = 1_000_000
 export const FUEL_PRODUCTS_MAX = 100
 /** Steps of the replayed ladder that an answer carries: the latest ones. */
 export const FUEL_LADDER_STEPS_SHOWN = 40
+/** Logs the lab view lists in its history, newest first. */
+export const FUEL_HISTORY_SHOWN = 30
+/** The most days between `from` and `to` of one `GET /api/fuel/targets` request. */
+export const FUEL_TARGETS_MAX_DAYS = 62
+/** How far back an unlogged run still gets a prompt, and how many prompts show at once. */
+export const FUEL_PROMPT_DAYS = 7
+export const FUEL_PROMPTS_MAX = 3
 export const FUEL_NAME_MAX = 60
 export const FUEL_SERVING_LABEL_MAX = 40
 /** Most items in one log. */
