@@ -49,7 +49,11 @@ Goals:
    check-ins, efficiency, sleep and HRV; daily readiness downgrade-only; break restarts;
    fatigue escalation.
 10. **Taper and race week** [rules §k]; **prediction with uncertainty** [rules §l], logged
-    and back-tested.
+    and back-tested. The back-test is rule L7 [rules §l, L7]: one logged prediction per goal
+    per local week, compared with the recorded race result, never changing a prediction by
+    itself. `PredictionLog` (section 3.3) gains `weekStart` and `loggedOn`, `RaceResult` holds
+    the result, and the Goals page shows the track record; the phase 3a design (section 11,
+    `2026-10-22-coach-phase3a-design.md`) specifies it.
 11. **Red flags and disclaimer** [rules §n], on every plan.
 12. **A living research base (owner, 2026-10-22):** the corpus ships in the repository with
     a schema test, a Crossref verification script, a research page in the app, and a project
