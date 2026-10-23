@@ -60,6 +60,7 @@ const STATUS_LABELS: Record<PlanSessionStatus, string> = {
   skipped: 'Skipped',
   downgraded: 'Eased',
   moved: 'Moved',
+  adjusted: 'Shortened',
 }
 
 const FLAG_LABELS: Record<SessionFlag, string> = {

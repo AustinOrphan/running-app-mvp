@@ -8,6 +8,7 @@ import { buildPlan, explain } from '../../../shared/engine/index.ts'
 import { ownWindow, windowViolations } from '../../../shared/engine/postRace.ts'
 import type { PlanDraft, SessionKind, SessionSpec } from '../../../shared/engine/types.ts'
 import type { Weekday } from '../../../shared/types.ts'
+import { problemsOf, windowOf } from './disruption-fixtures.ts'
 import { athletes, TODAY, type MatrixAthlete } from './matrix-fixtures.ts'
 
 const WEEKDAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
@@ -721,5 +722,37 @@ describe('plan matrix: REDs hold', () => {
     const item = plan.checklist.find((c) => c.id === 'reds-hold')!
     expect(item.ok).toBe(true)
     expect(item.detail).toMatch(/hold/i)
+  })
+})
+
+describe.each(all)('plan matrix with a rest window: $label', (a) => {
+  // A three-day illness starting in two days: rest through the symptom-free day, easy running after.
+  const window = windowOf({
+    reason: 'illness-above-neck',
+    startDate: addDays(TODAY, 2),
+    endDate: addDays(TODAY, 4),
+  })
+  const plan = buildPlan({ ...a.input, disruptions: [window] })
+
+  it('is the plan of the athlete without the field when the list of windows is empty', () => {
+    expect(buildPlan({ ...a.input, disruptions: [] })).toEqual(planOf(a))
+    expect(planOf(a).checklist.map((c) => c.id)).toEqual(CHECKLIST_IDS)
+  })
+
+  it('passes every item, the window item last, and keeps the label and the race', () => {
+    expect(plan.checklist.map((c) => c.id)).toEqual([...CHECKLIST_IDS, 'disruption-window'])
+    expect(plan.checklist.filter((c) => !c.ok).map((c) => `${c.id}: ${c.detail}`)).toEqual([])
+    expect(plan.feasibility.label).toBe(planOf(a).feasibility.label)
+    expect(plan.sessions.filter((s) => s.kind === 'race').map((s) => s.date)).toEqual([
+      a.input.goal.date,
+    ])
+  })
+
+  it('rests on the held days, adds no minutes and keeps the invariants of the window', () => {
+    expect(problemsOf(a, [window], plan, planOf(a))).toEqual([])
+    const held = [2, 3, 4, 5].map((k) => addDays(TODAY, k))
+    for (const date of held) {
+      expect(plan.sessions.filter((s) => s.date === date).map((s) => s.kind)).toEqual(['rest'])
+    }
   })
 })

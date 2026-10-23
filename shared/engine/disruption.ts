@@ -20,7 +20,7 @@
 import { addDays, daysBetween, isIsoDate, mondayOf } from '../dates.ts'
 import type { DisruptionMode, DisruptionPhase, DisruptionReason } from '../types.ts'
 import { P } from './params/index.ts'
-import type { DisruptionWindow, SessionSpec } from './types.ts'
+import type { DisruptionWindow, EngineInput, SessionSpec } from './types.ts'
 
 const DAYS_PER_WEEK = 7
 
@@ -47,6 +47,20 @@ export interface IllnessGate {
 /** True for the two illness reasons. */
 export function isIllness(reason: DisruptionReason): boolean {
   return reason === 'illness-above-neck' || reason === 'illness-below-neck'
+}
+
+/**
+ * The days illness was reported or a window covers [rules n-3, J9]: the check-ins that report it
+ * and every day of an illness window, whether or not the window lies in the past. This is the one
+ * list `illnessGate` reads, so a window and a check-in make the same gate.
+ */
+export function illnessDays(input: Pick<EngineInput, 'wellness' | 'disruptions'>): string[] {
+  const days = input.wellness.filter((row) => row.illness === true).map((row) => row.date)
+  for (const w of input.disruptions ?? []) {
+    if (!isIllness(w.reason) || !isUsable(w)) continue
+    for (let day = w.startDate; day <= w.endDate; day = addDays(day, 1)) days.push(day)
+  }
+  return days
 }
 
 /** The last day of each part of the gate that follows an illness day [rules n-3]. */
@@ -353,6 +367,14 @@ export function injuryReportOf(
   }
 }
 
+/** The injury reports of the usable windows, in the order given [rules J9, n-2]. */
+export function injuryReports(windows: readonly DisruptionWindow[]): InjuryReport[] {
+  return windows.filter(isUsable).flatMap((w) => {
+    const report = injuryReportOf(w)
+    return report === null ? [] : [report]
+  })
+}
+
 /**
  * Turns windows into per-day rules, layoffs and injury reports. Windows with a date that is not a
  * real calendar date, or a last day before the first, are left out; `validateDisruption` refuses
@@ -383,10 +405,7 @@ export function disruptionPlan(windows: readonly DisruptionWindow[]): Disruption
     windows: withRestart,
     days,
     holds,
-    injuryReports: usable.flatMap((w) => {
-      const report = injuryReportOf(w)
-      return report === null ? [] : [report]
-    }),
+    injuryReports: injuryReports(usable),
   }
 }
 
@@ -418,6 +437,22 @@ function inRange(date: string, range: DateRange): boolean {
   )
 }
 
+/**
+ * The Mondays of the weeks a long hold sends back at the J7 fraction: each hold's return week and
+ * first full week, ascending and without repeats. Empty when no hold reaches `j7.tier1Days`.
+ */
+export function returnWeeks(plan: DisruptionPlan): string[] {
+  const weeks = plan.holds
+    .filter((hold) => hold.fraction < 1)
+    .flatMap((hold) => [hold.returnWeekStart, hold.fullWeekStart])
+  return [...new Set(weeks)].sort()
+}
+
+/** The rules of the dates in `range`, ascending; the days of a week to place. */
+export function dayRulesIn(plan: DisruptionPlan, range: DateRange = {}): DayRule[] {
+  return plan.days.filter((rule) => inRange(rule.date, range))
+}
+
 /** The dates on which no running is allowed, ascending; hold dates close their slots in the week. */
 export function heldDates(plan: DisruptionPlan, range: DateRange = {}): string[] {
   return plan.days.filter((rule) => rule.held && inRange(rule.date, range)).map((rule) => rule.date)
@@ -434,17 +469,55 @@ export interface WeekBasis {
   /** The minutes the week holds without any window. */
   baselineMin: number
   /**
-   * The same minutes by date, when known. A held day then costs what the plan had on it; without
-   * it, an equal share of the week.
+   * The same minutes by date, when known. A held day then costs what the plan had on it, and a
+   * capped day what the plan had above its cap; without it, a held day costs an equal share of the
+   * week and a capped day nothing.
    */
   minByDate?: Readonly<Record<string, number>>
 }
 
 export type WeekFlag = 'disrupted' | 'disruption-return'
 
+/** True for a week a window touched or holds to the restart fraction (`WeekCap.flags`). */
+export function isDisruptedWeek(flags: readonly string[]): boolean {
+  return flags.includes('disrupted') || flags.includes('disruption-return')
+}
+
+const medianOf = (values: readonly number[]): number => {
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2
+}
+
+/**
+ * The reference week of a hold [rule J7]: the week a restart is sized from. It is the typical week
+ * before the one that holds the hold's first day, the median running minutes of up to
+ * `a5.typicalWeekCount` earlier weeks with a run, as the athlete state counts it for a break.
+ * `volumeOf` gives a week's minutes by Monday, or `undefined` for a week not known, which ends the
+ * look back. 0 when no earlier week has a run; the caller then falls back to the week itself.
+ */
+export function holdReference(
+  hold: Pick<HoldRun, 'from'>,
+  volumeOf: (weekStart: string) => number | undefined,
+): number {
+  const wanted = P.a5.typicalWeekCount.value
+  const limit = Math.ceil(P.a5.historyWindowDays.value / DAYS_PER_WEEK)
+  const first = mondayOf(hold.from)
+  const found: number[] = []
+  for (let back = 1; back <= limit && found.length < wanted; back += 1) {
+    const volume = volumeOf(addDays(first, -DAYS_PER_WEEK * back))
+    if (volume === undefined) break
+    if (volume > 0) found.push(volume)
+  }
+  return found.length === 0 ? 0 : Math.round(medianOf(found))
+}
+
 export interface WeekCap {
   weekStart: string
-  /** The most working minutes the week may hold, never negative; null when only day rules apply. */
+  /**
+   * The most working minutes the week may hold, never negative; null when only day rules apply (a
+   * capped day without the plan's minutes by date, or a quiet day).
+   */
   capMin: number | null
   heldDays: number
   openDays: number
@@ -461,7 +534,7 @@ const wholeMin = (value: number): number => Math.max(0, Math.floor(value + 1e-9)
  * The cap a week takes from the windows [rule J9], or null when no window touches it. Minutes are
  * lost, never moved [G-6]:
  * - a week with held days holds the plan's minutes on its open days, so the days a window holds
- *   cost what the plan had on them;
+ *   cost what the plan had on them, and a capped day the minutes it had above its cap;
  * - the return week after a hold of `j7.tier1Days` or more holds the reference week times the J7
  *   fraction, prorated by its open days, and the first full week after it the whole fraction (a
  *   single low week would let the next return to 110% of the week before the window).
@@ -482,13 +555,27 @@ export function disruptionWeekCap(
   let fraction = 1
   const flags: WeekFlag[] = []
 
-  if (held.length > 0) {
-    const byDate = basis.minByDate
-    const lost =
+  const byDate = basis.minByDate
+  const limited = dates.flatMap((d) => {
+    const rule = dayRuleOn(plan, d)
+    return rule !== null && !rule.held && rule.maxRunMin !== null
+      ? [{ date: d, maxRunMin: rule.maxRunMin }]
+      : []
+  })
+  if (held.length > 0 || (byDate !== undefined && limited.length > 0)) {
+    const heldLost =
       byDate === undefined
         ? (baselineMin * held.length) / DAYS_PER_WEEK
         : held.reduce((sum, d) => sum + finiteMin(byDate[d] ?? 0), 0)
-    caps.push(wholeMin(baselineMin - lost))
+    // minutes above the cap of a capped day are lost too, and never made up on another day [G-6]
+    const cappedLost =
+      byDate === undefined
+        ? 0
+        : limited.reduce(
+            (sum, l) => sum + Math.max(0, finiteMin(byDate[l.date] ?? 0) - l.maxRunMin),
+            0,
+          )
+    caps.push(wholeMin(baselineMin - heldLost - cappedLost))
   }
   for (const run of plan.holds) {
     if (run.fraction >= 1) continue

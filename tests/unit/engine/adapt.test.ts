@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { lintText } from '../../../shared/copy/lint.ts'
 import { addDays } from '../../../shared/dates.ts'
 import {
   breakRestart,
@@ -17,6 +18,7 @@ import type {
   WeekDraft,
 } from '../../../shared/engine/types.ts'
 import type { Activity } from '../../../shared/types.ts'
+import { windowOf } from './disruption-fixtures.ts'
 import {
   activity,
   input,
@@ -694,5 +696,91 @@ describe('weekEvidence: what a finished week shows the start paths [rules E6, G-
       WEEK,
     )
     expect(later.worstPain).toBe(1)
+  })
+})
+
+describe('weeklyDecision around a rest window (J9, J5, G-6)', () => {
+  // The week under review plans Mon 12, Wed 14, Fri 16 and Sun 18 October, 50 minutes each. A window
+  // holds Wed 14 and Thu 15 (rest, then the symptom-free day), so the runner ran Monday and Sunday.
+  const illness = windowOf({
+    reason: 'illness-above-neck',
+    startDate: '2026-10-14',
+    endDate: '2026-10-14',
+  })
+  const ranTwice = runs([50, 0, 0, 50]).filter((a) => a.durationSec > 0)
+  const poor = Array.from({ length: 5 }, (_, n) =>
+    wellnessDay(addDays(WEEK, n), { fatigue: 5, soreness: 4, mood: 2, illness: n === 2 }),
+  )
+
+  it('holds with a disruption signal, whatever else the week shows, and cuts nothing a second time', () => {
+    // without the window this week reads as low completion and a day of illness: a reduce
+    const plain = weeklyDecision(base({ activities: ranTwice, wellness: poor }), WEEK, {
+      efficiency: STABLE,
+    })
+    expect(plain.decision).toBe('reduce')
+    const d = weeklyDecision(
+      base({ activities: ranTwice, wellness: poor, disruptions: [illness] }),
+      WEEK,
+      { efficiency: STABLE },
+    )
+    expect(d.decision).toBe('hold')
+    expect(codes(d)).toEqual(['disruption'])
+    expect(d.signals[0]!.rules).toEqual(['J9', 'J5', 'G-6'])
+    // the next week keeps the minutes the plan holds for it
+    expect(d.nextWeekTargetMin).toBe(210)
+    expect(d.postRace).toBeUndefined()
+  })
+
+  it('says it in words that never speak of falling behind', () => {
+    const d = weeklyDecision(base({ activities: ranTwice, disruptions: [illness] }), WEEK)
+    expect(lintText(d.signals[0]!.detail)).toEqual([])
+    expect(d.signals[0]!.detail).toMatch(/not added back/)
+  })
+
+  it('holds a week only the easy days after the symptom-free day touch, and no other week', () => {
+    // the window ends Fri 9 Oct: rest to Sat 10 Oct, easy running Sun 11 to Tue 13 Oct
+    const earlier = windowOf({
+      reason: 'illness-above-neck',
+      startDate: '2026-10-08',
+      endDate: '2026-10-09',
+    })
+    expect(
+      codes(weeklyDecision(base({ disruptions: [earlier] }), WEEK, { efficiency: STABLE })),
+    ).toEqual(['disruption'])
+    // the week after the one it touches is judged as usual
+    const d = weeklyDecision(base({ disruptions: [earlier] }), NEXT, { efficiency: STABLE })
+    expect(codes(d)).not.toContain('disruption')
+    // so is a week an unrelated window never touches
+    const far = windowOf({ startDate: '2026-12-01', endDate: '2026-12-03' })
+    const progress = weeklyDecision(base({ disruptions: [far] }), WEEK, { efficiency: STABLE })
+    expect(progress).toEqual(weeklyDecision(base(), WEEK, { efficiency: STABLE }))
+    expect(progress.decision).toBe('progress')
+  })
+
+  it('does not ask for the minutes of a held day: planned time leaves the covered sessions out', () => {
+    const plain = weekEvidence(base({ activities: ranTwice }), WEEK)
+    expect(plain.plannedMin).toBe(200)
+    expect(plain.share).toBe(0.5)
+    const held = weekEvidence(base({ activities: ranTwice, disruptions: [illness] }), WEEK)
+    // Wednesday's session is on a held day; Friday's is not, and was not run
+    expect(held.plannedMin).toBe(150)
+    expect(held.actualMin).toBe(100)
+  })
+
+  it('treats an empty list of windows as no windows', () => {
+    const input = base({ activities: ranTwice, wellness: poor })
+    expect(weeklyDecision({ ...input, disruptions: [] }, WEEK, { efficiency: STABLE })).toEqual(
+      weeklyDecision(input, WEEK, { efficiency: STABLE }),
+    )
+  })
+
+  it('falls back to a capped next week when the plan has none', () => {
+    const noNext = base({
+      activities: ranTwice,
+      disruptions: [illness],
+      existing: { weeks: [weekDraft(WEEK, 200)], sessions: weekSessions() },
+    })
+    // min(planned this week 150 without the held day, 100 run x 1.1)
+    expect(weeklyDecision(noNext, WEEK, { efficiency: STABLE }).nextWeekTargetMin).toBe(110)
   })
 })

@@ -219,10 +219,20 @@ export function ultraRunCapMin(raceDurationSec: number | null | undefined): numb
 
 // ---- weekly ramp [rules g-2, g-3] ----
 
+/**
+ * True while the tightened recent-injury profile applies [rules g-3, J9, n-2]: an injury in the
+ * profile within the recent window, or an injury report of a rest window that is active or still
+ * ahead. The weekly ramp, the hard G-1 limit, the checklist's spike item and the start path read
+ * this; the recovery cadence reads `risk.recentInjury` alone, because a report does not change it.
+ */
+export function injuryTight(state: AthleteState): boolean {
+  return state.risk.recentInjury || state.risk.injuryReport === true
+}
+
 /** The lowest weekly ramp of the athlete's tightened profiles, or null for the default profile. */
 export function tightRamp(state: AthleteState): number | null {
   const caps: number[] = []
-  if (state.risk.recentInjury) caps.push(P.g3.recentInjuryRamp.value[1])
+  if (injuryTight(state)) caps.push(P.g3.recentInjuryRamp.value[1])
   if (state.risk.priorBsi) caps.push(P.g3.priorBsiRampMax.value)
   if (state.risk.bsiFactors >= P.g3.bsiFactorsForCap.value) {
     caps.push(P.g2.rampSoft.value * P.g3.bsiRampFactor.value)
@@ -233,7 +243,7 @@ export function tightRamp(state: AthleteState): number | null {
 /** The weekly ramp the generator plans with: the soft ramp, or the lower one of a profile [G-2, G-3]. */
 export function weeklyRamp(state: AthleteState): number {
   let ramp = P.g2.rampSoft.value
-  if (state.risk.recentInjury) ramp = Math.min(ramp, P.g3.recentInjuryRamp.value[0])
+  if (injuryTight(state)) ramp = Math.min(ramp, P.g3.recentInjuryRamp.value[0])
   if (state.risk.priorBsi) ramp = Math.min(ramp, P.g3.priorBsiRampMax.value)
   if (state.risk.bsiFactors >= P.g3.bsiFactorsForCap.value) {
     ramp = Math.min(ramp, P.g2.rampSoft.value * P.g3.bsiRampFactor.value)

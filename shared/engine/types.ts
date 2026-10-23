@@ -183,6 +183,13 @@ export interface AthleteState {
   durability: { decouplingMedianPct: number | null; samples: number }
   risk: {
     recentInjury: boolean
+    /**
+     * Set when a window's injury report is active or still ahead (`until` not yet past): a niggle
+     * with pain at or above `pain.flagScore` or a gait change tightens the recent-injury profile
+     * [rules J9, n-2]. Absent otherwise, so a state without windows is unchanged. Read it through
+     * `injuryTight`, never alone.
+     */
+    injuryReport?: boolean
     priorBsi: boolean
     bsiFactors: number
     redsFlags: number
@@ -396,6 +403,12 @@ export interface EngineInput {
      */
     gutTraining?: boolean
   }
+  /**
+   * The rest and limited-running windows the runner reported [rule J9], active ones only; absent or
+   * empty means none, and the plan is the same as without the field. `illnessDays` merges the
+   * illness ones with the check-ins.
+   */
+  disruptions?: DisruptionWindow[]
   /** Signs from the latest REDs screening [rules n-4]; absent means no screening. */
   screeningFlags?: number
   /**

@@ -13,6 +13,7 @@ const STATUS_LABELS: Record<PlanSessionStatus, string | null> = {
   skipped: 'Skipped',
   downgraded: 'Adjusted',
   moved: 'Moved',
+  adjusted: 'Shortened',
 }
 
 const ADVICE_LINES = {

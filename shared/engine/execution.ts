@@ -2,7 +2,8 @@
 // how the session went against expectation. Pure; every threshold is a parameter in
 // params/m-execution.ts.
 import { daysBetween } from '../dates.ts'
-import type { Activity, Checkin } from '../types.ts'
+import { isToRun } from '../domain/sessionStatus.ts'
+import type { Activity, Checkin, PlanSessionStatus } from '../types.ts'
 import { liljegrenWbgt } from './heat.ts'
 import { P } from './params/index.ts'
 import type {
@@ -91,7 +92,7 @@ type MatchSession = SessionSpec & {
   id: string
   activityId: string | null
   linkSource: string | null
-  /** Present on stored sessions; adjacent-day matches need 'planned' (or no status). */
+  /** Present on stored sessions; an adjacent-day match needs one still to run (`isToRun`). */
   status?: string
 }
 
@@ -128,7 +129,12 @@ export function matchSessions(
         if (takenActivities.has(activity.id) || !compatible(session.kind, activity)) continue
         const offset = Math.abs(daysBetween(session.date, activity.date))
         if (offset < minOffset || offset > maxOffset) continue
-        if (offset > 0 && session.status !== undefined && session.status !== 'planned') continue
+        if (
+          offset > 0 &&
+          session.status !== undefined &&
+          !isToRun(session.status as PlanSessionStatus)
+        )
+          continue
         pairs.push({ session, activity, score: matchScore(session.durationMin, activity, offset) })
       }
     }
