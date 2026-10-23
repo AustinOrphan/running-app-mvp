@@ -307,7 +307,7 @@ describe('the weekly job', () => {
     const before = (await briefOf(r.u.id))!
     expect(readFacts(before.facts)!.changes!.count).toBeGreaterThan(0)
 
-    await runReplanJob(deps, { now: MONDAY_NOON })
+    await runReplanJob(deps(), { now: MONDAY_NOON })
 
     const weekly = await ctx.prisma.planRevision.findMany({
       where: { planId: r.plan.id, reason: 'weekly' },
