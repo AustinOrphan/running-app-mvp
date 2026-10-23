@@ -15,7 +15,8 @@ import type { DisruptionIssue, DisruptionIssueCode, WindowPlan } from '../engine
 import { RUN_CAP_MAX_MIN } from '../engine/disruption.ts'
 import { P } from '../engine/params/index.ts'
 import type { Quantity } from '../engine/types.ts'
-import type { DisruptionReason, Units } from '../types.ts'
+import type { SafetyRule, UndoFinding } from '../engine/undoGuard.ts'
+import type { DisruptionReason, UndoReason, Units } from '../types.ts'
 import { render, tpl, type Template } from './template.ts'
 
 export const WINDOW_TEMPLATES = {
@@ -281,6 +282,38 @@ export const REVISION_TEMPLATES = {
   'revision.undo.window-passed': tpl('The {days}-day window for undoing this update has passed.', {
     days: 'count',
   }),
+  'revision.undo.plan-archived': tpl('This plan is archived, so its updates stay as they are.'),
+
+  // Why an undo is refused, for the reasons that name a row, a rule or a check.
+  'revision.undo.edited-since.session': tpl(
+    '{title} on {date} changed after this update, so it cannot be restored.',
+    { title: 'text', date: 'date' },
+  ),
+  'revision.undo.edited-since.week': tpl(
+    'The week of {date} changed after this update, so it cannot be restored.',
+    { date: 'date' },
+  ),
+  'revision.undo.edited-since.plan': tpl(
+    'The plan changed after this update, so it cannot be restored.',
+  ),
+  'revision.undo.session-run': tpl('A run is linked to {title} on {date}, so this update stays.', {
+    title: 'text',
+    date: 'date',
+  }),
+  'revision.undo.safety-rule': tpl(
+    'This update followed a safety rule that still applies ({topics}), so it stays.',
+    { topics: 'text' },
+  ),
+  'revision.undo.checklist': tpl(
+    'The restored plan does not pass the quality checklist ({items}), so the plan stays as it is.',
+    { items: 'text' },
+  ),
+
+  // The summary of an undo, and the answer to a preview that no longer matches the plan.
+  'revision.undone': tpl('Undid: {summary}', { summary: 'text' }, { shape: 'label' }),
+  'revision.stale-preview': tpl(
+    'This preview is out of date. Review the new one before applying it.',
+  ),
 } satisfies Record<string, Template>
 
 /** No slot of the revision templates depends on the units, so any units give the same text. */
@@ -361,10 +394,10 @@ export function generatedSummary(goal: string, weeks: number, sessions: number):
 
 /**
  * The message of an undo reason that needs only the revision itself. The reasons that name a row,
- * a rule or a check arrive with the undo itself.
+ * a rule or a check are built by `describeUndoFinding`.
  */
 export function undoReasonMessage(
-  code: 'already-undone' | 'is-undo' | 'not-undoable' | 'window-passed',
+  code: 'already-undone' | 'is-undo' | 'not-undoable' | 'plan-archived' | 'window-passed',
   undoWindowDays: number,
 ): string {
   switch (code) {
@@ -374,6 +407,8 @@ export function undoReasonMessage(
       return render(REVISION_TEMPLATES['revision.undo.is-undo'], {}, STORED_UNITS)
     case 'not-undoable':
       return render(REVISION_TEMPLATES['revision.undo.not-undoable'], {}, STORED_UNITS)
+    case 'plan-archived':
+      return render(REVISION_TEMPLATES['revision.undo.plan-archived'], {}, STORED_UNITS)
     case 'window-passed':
       return render(
         REVISION_TEMPLATES['revision.undo.window-passed'],
@@ -381,4 +416,101 @@ export function undoReasonMessage(
         STORED_UNITS,
       )
   }
+}
+
+/** What each safety rule is about, in the words of a sentence. */
+const SAFETY_TOPICS: Record<SafetyRule, string> = {
+  'n-1': 'bone pain',
+  'n-2': 'pain',
+  'n-3': 'illness',
+  'n-4': 'energy availability',
+}
+
+/** "illness", "pain and illness", "bone pain, pain and illness". */
+function topicsOf(rules: readonly string[]): string {
+  const topics = rules.map((rule) => SAFETY_TOPICS[rule as SafetyRule] ?? rule)
+  if (topics.length <= 1) return topics.join('')
+  return `${topics.slice(0, -1).join(', ')} and ${topics[topics.length - 1]!}`
+}
+
+/**
+ * A refusal of the undo as the API serves it: the finding's code, the row or rules it names and a
+ * sentence. A refusal that names a row without its words (a session that no longer exists) gets
+ * the plain sentence.
+ */
+export function describeUndoFinding(finding: UndoFinding, undoWindowDays: number): UndoReason {
+  const { code } = finding
+  const reason = (message: string): UndoReason => ({
+    code,
+    message,
+    ...(finding.sessionId === undefined ? {} : { sessionId: finding.sessionId }),
+    ...(finding.weekStart === undefined ? {} : { weekStart: finding.weekStart }),
+    ...(finding.disruptionId === undefined ? {} : { disruptionId: finding.disruptionId }),
+    ...(finding.rules === undefined ? {} : { rules: finding.rules }),
+  })
+  const plain = () =>
+    reason(render(REVISION_TEMPLATES['revision.undo.edited-since.plan'], {}, STORED_UNITS))
+  switch (code) {
+    case 'already-undone':
+    case 'is-undo':
+    case 'not-undoable':
+    case 'plan-archived':
+    case 'window-passed':
+      return reason(undoReasonMessage(code, undoWindowDays))
+    case 'edited-since':
+      if (finding.title !== undefined && finding.date !== undefined) {
+        return reason(
+          render(
+            REVISION_TEMPLATES['revision.undo.edited-since.session'],
+            { title: finding.title, date: day(finding.date) },
+            STORED_UNITS,
+          ),
+        )
+      }
+      if (finding.sessionId === undefined && finding.weekStart !== undefined) {
+        return reason(
+          render(
+            REVISION_TEMPLATES['revision.undo.edited-since.week'],
+            { date: day(finding.weekStart) },
+            STORED_UNITS,
+          ),
+        )
+      }
+      return plain()
+    case 'session-run':
+      if (finding.title === undefined || finding.date === undefined) return plain()
+      return reason(
+        render(
+          REVISION_TEMPLATES['revision.undo.session-run'],
+          { title: finding.title, date: day(finding.date) },
+          STORED_UNITS,
+        ),
+      )
+    case 'safety-rule':
+      return reason(
+        render(
+          REVISION_TEMPLATES['revision.undo.safety-rule'],
+          { topics: topicsOf(finding.rules ?? []) },
+          STORED_UNITS,
+        ),
+      )
+    case 'checklist':
+      return reason(
+        render(
+          REVISION_TEMPLATES['revision.undo.checklist'],
+          { items: (finding.items ?? []).join(', ') },
+          STORED_UNITS,
+        ),
+      )
+  }
+}
+
+/** The summary of an undo: the summary of the update it reverted. */
+export function undoneSummary(reverted: string): string {
+  return render(REVISION_TEMPLATES['revision.undone'], { summary: reverted }, STORED_UNITS)
+}
+
+/** The sentence of a 409 that asks the caller to look at the preview again. */
+export function stalePreviewMessage(): string {
+  return render(REVISION_TEMPLATES['revision.stale-preview'], {}, STORED_UNITS)
 }

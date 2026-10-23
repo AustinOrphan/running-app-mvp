@@ -170,11 +170,15 @@ export interface UndoPayload {
 }
 
 /** The columns an undo restores: every scalar column of the table except `updatedAt`. */
-const SESSION_COLUMNS: readonly string[] = PLAN_SESSION_COLUMNS.filter((c) => c !== 'updatedAt')
-const WEEK_COLUMNS: readonly string[] = PLAN_WEEK_COLUMNS.filter((c) => c !== 'updatedAt')
+export const SESSION_COLUMNS: readonly string[] = PLAN_SESSION_COLUMNS.filter(
+  (c) => c !== 'updatedAt',
+)
+export const WEEK_COLUMNS: readonly string[] = PLAN_WEEK_COLUMNS.filter((c) => c !== 'updatedAt')
 /**
- * The activity link and its assessment are not part of what a session says, so a run being linked
- * to a session reads as that, never as an edit of the session.
+ * The activity link and its assessment are not part of what a session says. Linking a run also sets
+ * the session's `status` (completed or partial), which stays in the hash because an owner's skip or
+ * move is a status too; a reader that compares hashes therefore checks `activityId` first
+ * (`scopeUndo` in `revisions.ts`), so a linked run reads as a run and never as an edit.
  */
 const LINK_COLUMNS: ReadonlySet<string> = new Set(['execution', 'activityId', 'linkSource'])
 const SESSION_HASH_COLUMNS = SESSION_COLUMNS.filter((c) => !LINK_COLUMNS.has(c))
@@ -205,7 +209,8 @@ export function weekHash(row: WeekContent): string {
   return hashRow(row, WEEK_COLUMNS)
 }
 
-function changedColumns(
+/** The columns in which two rows differ, with the first row's value. `id` is never listed. */
+export function changedColumns(
   before: object,
   after: object,
   columns: readonly string[],
@@ -314,6 +319,8 @@ export interface PlanWriteRecord {
   auto?: boolean
   /** The rest window this write created, changed or removed. */
   disruptionId?: string | null
+  /** On an 'undo' revision: the revision it reverted. */
+  undoOf?: string | null
 }
 
 /**
@@ -338,6 +345,7 @@ export async function recordPlanWrite(
       diff: record.diff ? JSON.stringify(record.diff) : null,
       undo: record.undo ? JSON.stringify(record.undo) : null,
       disruptionId: record.disruptionId ?? null,
+      undoOf: record.undoOf ?? null,
     },
   })
   return toPlanRevision(row)
@@ -356,52 +364,6 @@ export const EMPTY_DIFF_MARK = '"empty":true'
  */
 export function describeChanges(changes: readonly PlanChange[]): string {
   return changesSummary(changes.length, new Set(changes.map((c) => c.weekStart)).size)
-}
-
-/**
- * A page of the active plan's revisions, newest first. Revisions whose diff is empty (a weekly
- * update that changed nothing) are left out unless `includeEmpty`; revisions without a diff, those
- * written before the revision model, stay. `before` is the id of the last revision of the previous
- * page.
- */
-export async function listRevisions(
-  deps: Deps,
-  args: { userId: string; limit: number; before?: string; includeEmpty?: boolean },
-): Promise<PlanRevisionView[]> {
-  const { prisma } = deps
-  const plan = await prisma.plan.findFirst({
-    where: { userId: args.userId, status: 'active' },
-    orderBy: { createdAt: 'desc' },
-  })
-  if (!plan) return []
-  const cursor =
-    args.before === undefined
-      ? null
-      : await prisma.planRevision.findFirst({ where: { id: args.before, planId: plan.id } })
-  if (args.before !== undefined && cursor === null) throw notFound('Revision not found.')
-  const rows = await prisma.planRevision.findMany({
-    where: {
-      planId: plan.id,
-      AND: [
-        cursor === null
-          ? {}
-          : {
-              OR: [
-                { createdAt: { lt: cursor.createdAt } },
-                { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-              ],
-            },
-        // A null diff is not a match for NOT LIKE in SQL, so it is named.
-        args.includeEmpty
-          ? {}
-          : { OR: [{ diff: null }, { NOT: { diff: { contains: EMPTY_DIFF_MARK } } }] },
-      ],
-    },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: args.limit,
-  })
-  const now = new Date()
-  return rows.map((row) => toPlanRevision(row, now))
 }
 
 // ---------------------------------------------------------------------------------------------

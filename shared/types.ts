@@ -577,6 +577,45 @@ export interface PlanRevisionView extends PlanRevision {
   /** The rest window this revision created, changed or removed. */
   disruptionId: string | null
 }
+/**
+ * What `POST /api/plan/preview` takes and `computeAction` builds (design 4.2). A discriminated
+ * union on `type`: phase 3a adds the rest-window and adjust actions to it, each with its own
+ * commit route and the same preview.
+ */
+export type PlanAction = { type: 'replan' } | { type: 'undo'; revisionId: string }
+/** A guard that refuses or qualifies an action (the move, swap and shorten guards of E5). */
+export interface PlanGuardView {
+  code: string
+  message: string
+  rules: string[]
+}
+/**
+ * What an action would do, from the same code that commits it (design 4.2). A refusal is
+ * information, not an error: `blocked` says the commit would be refused and `reasons` says why.
+ * `hash` covers `{ diff, headRevisionId, today }`; a commit that sends it back (`expectHash`) is
+ * refused with `stale-preview` when any of the three has moved.
+ */
+export interface PlanPreview {
+  action: PlanAction
+  /** Empty when the action would change nothing, and when it is refused for a structural reason. */
+  diff: PlanDiff
+  summary: string
+  /** The engine's warnings for the plan the action leaves behind. */
+  warnings: EngineWarning[]
+  blocked: boolean
+  /** Guards of an adjust action; empty for re-plan and undo. */
+  guards: PlanGuardView[]
+  /** Why the commit would be refused: the structural undo reasons, or the checklist. */
+  reasons: UndoReason[]
+  hash: string
+  /** The local day the preview was built for. */
+  today: string
+}
+/** The answer to an undo: the revision it wrote and the revision it reverted, as they now stand. */
+export interface UndoResult {
+  revision: PlanRevisionView
+  target: PlanRevisionView
+}
 export interface PlanWithSessions extends PlanWithWeeks {
   sessions: PlanSession[]
   feasibility: Feasibility | null
