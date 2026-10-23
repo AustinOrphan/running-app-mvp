@@ -8,12 +8,15 @@
 // midnight has changed what it would do; the answer carries the new preview.
 //
 // Only this module and `replan.ts` write a revision (`recordPlanWrite`). An undo is itself a
-// revision, with reason `undo` and no undo of its own.
+// revision, with reason `undo` and no undo of its own. A rest window is a revision too: creating,
+// changing and removing one are actions, with a preview and a commit built by the same code
+// (`disruptions.ts`).
 import { createHash } from 'node:crypto'
 import { stalePreviewMessage } from '../../shared/copy/revision.ts'
 import { diffPlans } from '../../shared/engine/diff.ts'
 import type { EngineWarning } from '../../shared/engine/types.ts'
 import type {
+  DisruptionResult,
   PlanAction,
   PlanDiff,
   PlanPreview,
@@ -22,10 +25,25 @@ import type {
   UndoResult,
 } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
-import type { PlanSession as PlanSessionRow, PlanWeek as PlanWeekRow, PrismaClient } from '../db.ts'
+import type { PlanSession as PlanSessionRow, PlanWeek as PlanWeekRow } from '../db.ts'
 import { conflict, HttpError } from '../errors.ts'
+import {
+  isDisruptionAction,
+  planWindowAction,
+  viewDisruption,
+  windowRunner,
+  type DisruptionAction,
+  type WindowPlanned,
+} from './disruptions.ts'
 import { failedChecklist, WRITE_TIMEOUT_MS } from './planEngine.ts'
-import { applyReplan, computeReplan, recordPlanWrite, type ReplanResult } from './replan.ts'
+import {
+  applyReplan,
+  computeReplan,
+  headRevisionOf,
+  recordPlanWrite,
+  StaleWrite,
+  type ReplanResult,
+} from './replan.ts'
 import {
   indexRows,
   planUndo,
@@ -62,7 +80,11 @@ export interface ComputedUndo extends ComputedBase {
   action: { type: 'undo'; revisionId: string }
   work: { type: 'undo'; plan: UndoPlan }
 }
-export type ComputedAction = ComputedReplan | ComputedUndo
+export interface ComputedDisruption extends ComputedBase {
+  action: DisruptionAction
+  work: { type: 'disruption'; planned: WindowPlanned }
+}
+export type ComputedAction = ComputedReplan | ComputedUndo | ComputedDisruption
 
 /** The JSON of a value with object keys in order, so equal values hash equally. */
 export function canonicalJson(value: unknown): string {
@@ -80,15 +102,6 @@ function previewHash(parts: {
   return createHash('sha256').update(canonicalJson(parts)).digest('hex')
 }
 
-async function headRevisionOf(prisma: PrismaClient, planId: string): Promise<string | null> {
-  const head = await prisma.planRevision.findFirst({
-    where: { planId },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    select: { id: true },
-  })
-  return head?.id ?? null
-}
-
 /**
  * Decides an action from the data as it is and writes nothing: no row, no revision, no prediction,
  * no data version. A refusal (an undo with a reason, a draft that fails the checklist) is part of
@@ -104,6 +117,10 @@ export async function computeAction(
 ): Promise<ComputedUndo>
 export async function computeAction(
   deps: Deps,
+  args: { userId: string; action: DisruptionAction; today: string },
+): Promise<ComputedDisruption>
+export async function computeAction(
+  deps: Deps,
   args: { userId: string; action: PlanAction; today: string },
 ): Promise<ComputedAction>
 export async function computeAction(
@@ -112,10 +129,10 @@ export async function computeAction(
 ): Promise<ComputedAction> {
   const { userId, today, action } = args
   if (action.type === 'replan') {
-    // The newest revision is read first: a revision that lands during the compute makes the
-    // commit's hash differ, never silently match.
+    // The newest revision is read first (`computeReplan` does): a revision that lands during the
+    // compute makes the commit's hash differ, never silently match.
     const result = await computeReplan(deps, { userId, reason: 'owner', today })
-    const headRevisionId = await headRevisionOf(deps.prisma, result.planId)
+    const { headRevisionId } = result
     const blocked = failedChecklist(result.draft.checklist)
     return {
       action,
@@ -129,6 +146,24 @@ export async function computeAction(
       reasons: blocked ? [{ code: 'checklist', message: blocked.message }] : [],
       hash: previewHash({ diff: result.diff, headRevisionId, today }),
       work: { type: 'replan', result },
+    }
+  }
+  if (isDisruptionAction(action)) {
+    const planned = await planWindowAction(deps, { userId, action, today })
+    const { result } = planned
+    const blocked = failedChecklist(result.draft.checklist)
+    return {
+      action,
+      userId,
+      planId: planned.planId,
+      today,
+      headRevisionId: result.headRevisionId,
+      summary: result.summary,
+      diff: result.diff,
+      warnings: result.draft.warnings,
+      reasons: blocked ? [{ code: 'checklist', message: blocked.message }] : [],
+      hash: previewHash({ diff: result.diff, headRevisionId: result.headRevisionId, today }),
+      work: { type: 'disruption', planned },
     }
   }
   const plan = await planUndo(deps, { userId, revisionId: action.revisionId, today })
@@ -199,8 +234,53 @@ export async function commitReplan(
   })
   assertCurrent(computed, args.expectHash)
   // A draft that fails the checklist is refused (422) by `applyReplan`, with nothing written.
-  const written = await applyReplan(deps, computed.work.result)
+  let written: PlanRevisionView
+  try {
+    written = await applyReplan(deps, computed.work.result, { checkHead: true })
+  } catch (error) {
+    if (!(error instanceof StaleWrite)) throw error
+    throw stalePreview(
+      await computeAction(deps, {
+        userId: args.userId,
+        action: computed.action,
+        today: args.today,
+      }),
+    )
+  }
   return viewRevision(deps, { userId: args.userId, revisionId: written.id })
+}
+
+/**
+ * Creates, changes or removes a rest window: the window row, the past sessions it skips and the
+ * re-plan it causes are one transaction and one revision with `disruptionId`. 409 `stale-preview`
+ * when `expectHash` no longer matches or the plan or the window moved while it was written; 422
+ * with the checklist when the plan the window leaves does not pass it; nothing is written then.
+ */
+export async function commitDisruption(
+  deps: Deps,
+  args: { userId: string; action: DisruptionAction; today: string; expectHash?: string },
+): Promise<DisruptionResult> {
+  const { userId, action, today } = args
+  const computed = await computeAction(deps, { userId, action, today })
+  assertCurrent(computed, args.expectHash)
+  const { planned } = computed.work
+  let written: PlanRevisionView
+  try {
+    written = await applyReplan(deps, planned.result, {
+      window: windowRunner(planned.step),
+      checkHead: true,
+    })
+  } catch (error) {
+    if (!(error instanceof StaleWrite)) throw error
+    throw stalePreview(await computeAction(deps, { userId, action, today }))
+  }
+  const revision = await viewRevision(deps, { userId, revisionId: written.id })
+  const disruption = await viewDisruption(deps, {
+    userId,
+    id: revision.disruptionId!,
+    today,
+  })
+  return { disruption, revision }
 }
 
 /** The rows an undo found changed while it was being written; the caller answers `stale-preview`. */
@@ -220,11 +300,18 @@ async function applyUndo(
   if (restore === null) throw new Error('An undo that is refused has nothing to apply.')
   return deps.prisma.$transaction(
     async (tx) => {
-      const [sessionRows, weekRows] = await Promise.all([
+      const windowIds = [
+        ...restore.payload.disruptions.created,
+        ...restore.payload.disruptions.updated,
+      ]
+      const [sessionRows, weekRows, windowRows] = await Promise.all([
         tx.planSession.findMany({ where: { planId } }),
         tx.planWeek.findMany({ where: { planId } }),
+        windowIds.length === 0
+          ? Promise.resolve([])
+          : tx.disruption.findMany({ where: { id: { in: windowIds.map((w) => w.id) }, userId } }),
       ])
-      const scoped = scopeUndo(restore.payload, indexRows(sessionRows, weekRows), {
+      const scoped = scopeUndo(restore.payload, indexRows(sessionRows, weekRows, windowRows), {
         today: args.today,
         diff: null,
       })
@@ -295,6 +382,11 @@ async function applyUndo(
           ? []
           : await tx.planWeek.createManyAndReturn({ data: weeks.created })
 
+      // Windows: the one the revision created is withdrawn, the columns it changed come back.
+      for (const { id, data } of writes.windows) {
+        await tx.disruption.updateMany({ where: { id, userId }, data })
+      }
+
       await tx.plan.update({ where: { id: planId }, data: restore.plan })
       const diff = diffPlans({
         sessions: { created: sessionsCreated, deleted: sessions.deleted, updated: sessionsUpdated },
@@ -309,6 +401,7 @@ async function applyUndo(
         diff,
         undo: null,
         undoOf: target.id,
+        disruptionId: target.disruptionId,
       })
       await tx.planRevision.update({
         where: { id: target.id },

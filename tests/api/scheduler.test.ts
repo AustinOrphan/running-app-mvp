@@ -173,4 +173,93 @@ describe('runReplanJob', () => {
       (await ctx.prisma.planRevision.findUniqueOrThrow({ where: { id: listed[0]!.id } })).undo,
     ).not.toBeNull()
   })
+
+  test('honours a rest window created the evening before: the held days stay rest days', async () => {
+    const u = await seedUser(ctx, { email: 'window-job@example.com' })
+    const week = [
+      { dow: 1, min: 40, distanceM: 6400 },
+      { dow: 3, min: 45, distanceM: 7200 },
+      { dow: 5, min: 35, distanceM: 5600 },
+      { dow: 6, min: 70, distanceM: 11_000 },
+    ]
+    await ctx.prisma.activity.createMany({
+      data: Array.from({ length: 12 }, (_, w) =>
+        week.map((run) => ({
+          userId: u.id,
+          date: addDays(monday, -7 * (w + 1) + run.dow),
+          type: 'run',
+          durationSec: run.min * 60,
+          movingSec: run.min * 60,
+          distanceM: run.distanceM,
+          rpe: 3,
+          source: 'manual',
+        })),
+      ).flat(),
+    })
+    const goal = await ctx.prisma.goal.create({
+      data: {
+        userId: u.id,
+        name: 'Synthetic half',
+        priority: 'A',
+        targetDate: addDays(monday, 7 * 7 + 5),
+        distanceM: 21_097,
+        goalType: 'finish',
+      },
+    })
+    const c = client(ctx, u)
+    const generated = await c.post('/api/plan/generate').send({ goalId: goal.id })
+    expect(generated.status, JSON.stringify(generated.body)).toBe(201)
+    const plan = generated.body as PlanWithSessions
+    // the week is run: the Monday update then has no layoff to account for
+    await ctx.prisma.activity.createMany({
+      data: [1, 3, 5].map((dow) => ({
+        userId: u.id,
+        date: addDays(monday, dow),
+        type: 'run',
+        durationSec: 2400,
+        movingSec: 2400,
+        distanceM: 6400,
+        rpe: 3,
+        source: 'manual',
+      })),
+    })
+
+    // Sunday evening: ill on Monday and Tuesday of next week, reported through the route.
+    const sunday = addDays(nextMonday, -1)
+    vi.setSystemTime(new Date(`${sunday}T20:00:00`))
+    const created = await c.post('/api/plan/disruptions').send({
+      reason: 'illness-above-neck',
+      mode: 'rest',
+      startDate: nextMonday,
+      endDate: addDays(nextMonday, 1),
+    })
+    expect(created.status, JSON.stringify(created.body)).toBe(201)
+    const held = [nextMonday, addDays(nextMonday, 1), addDays(nextMonday, 2)]
+    const kindsOn = async () =>
+      (await ctx.prisma.planSession.findMany({ where: { planId: plan.id, date: { in: held } } }))
+        .map((s) => [s.date, s.kind])
+        .sort()
+
+    // Monday 03:00: the weekly job re-plans with the window in force and leaves the days alone.
+    vi.setSystemTime(new Date(`${nextMonday}T03:00:00`))
+    const deps = { prisma: ctx.prisma, config: ctx.config }
+    await runReplanJob(deps, { now: new Date() })
+    expect(await kindsOn()).toEqual(held.map((date) => [date, 'rest']))
+    const weekly = await ctx.prisma.planRevision.findFirstOrThrow({
+      where: { planId: plan.id, reason: { in: ['weekly', 'break'] } },
+    })
+    expect(weekly.auto).toBe(true)
+    const run = await ctx.prisma.syncRun.findFirstOrThrow({
+      where: { userId: u.id, provider: 'replan' },
+      orderBy: { startedAt: 'desc' },
+    })
+    expect(run.status).toBe('ok')
+    // and the window is still in force for the week it holds
+    const windows = await ctx.prisma.disruption.findMany({ where: { userId: u.id } })
+    expect(windows.map((w) => w.status)).toEqual(['active'])
+    const week2 = await ctx.prisma.planWeek.findFirstOrThrow({
+      where: { planId: plan.id, weekStart: nextMonday },
+    })
+    expect(JSON.parse(week2.flags)).toContain('disrupted')
+  })
 })

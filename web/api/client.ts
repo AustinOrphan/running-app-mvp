@@ -136,6 +136,7 @@ export const keys = {
   activityDetail: 'activityDetail',
   planRevisions: 'planRevisions',
   planArchived: 'planArchived',
+  disruptions: 'disruptions',
   today: 'today',
   checkins: 'checkins',
   zones: 'zones',

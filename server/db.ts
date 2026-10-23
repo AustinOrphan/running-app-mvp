@@ -17,6 +17,7 @@ export type {
   ActivityFile,
   ActivityStream,
   AthleteProfile,
+  Disruption,
   FuelLog,
   FuelProduct,
   FuelSettings,

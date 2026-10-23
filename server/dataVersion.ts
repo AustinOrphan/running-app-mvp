@@ -28,6 +28,9 @@ export const STATE_MODELS = [
   'PlanSession',
   'PlanRevision',
   'RaceResult',
+  // A rest or limited-running window is engine input (design 9.3): the snapshot, the readiness
+  // gate, Today and the publisher read it, so a write must show on the next read.
+  'Disruption',
   // The fuel ladder is replayed from the logs under the settings (ADR 0011) and its target reaches
   // the watch line and Today, so a write to any of the three must drop a memo (design 10.3).
   'FuelProduct',

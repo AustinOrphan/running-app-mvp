@@ -1198,6 +1198,110 @@ function verifyFuelLab(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, `SELECT id FROM "Activity" ORDER BY id`)).toEqual([{ id: 'a3' }])
 }
 
+/**
+ * The previous release's plans: two users, one with a plan and revisions that name no window (the
+ * `disruptionId` column has existed since the revision model). The window table is new, so nothing
+ * carries over; the case checks that the plan rows survive, that the table starts empty, what a
+ * row defaults to, how the index and the cascade are set, and that a revision can name a window
+ * (no foreign key) whether or not the window exists.
+ */
+function seedPlansForWindows(db: DatabaseSync): void {
+  for (const [id, email] of [
+    ['u1', 'runner@example.com'],
+    ['u2', 'other@example.com'],
+  ] as const) {
+    insert(db, 'User', { id, email, passwordHash: 'not-a-real-hash', updatedAt: STAMP })
+  }
+  insert(db, 'Goal', {
+    id: 'g1',
+    userId: 'u1',
+    name: 'Synthetic half',
+    priority: 'A',
+    targetDate: '2026-12-05',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Plan', {
+    id: 'p1',
+    userId: 'u1',
+    goalId: 'g1',
+    name: 'Synthetic plan',
+    startDate: '2026-10-19',
+    raceWeekStart: '2026-11-30',
+    status: 'active',
+    generatorVersion: 2,
+    updatedAt: STAMP,
+  })
+  insert(db, 'PlanRevision', {
+    id: 'r1',
+    planId: 'p1',
+    reason: 'weekly',
+    summary: 'Synthetic weekly revision.',
+    createdAt: '2026-10-19 03:00:00',
+  })
+}
+
+function verifyDisruptions(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  expect(tableNames(db)).toContain('Disruption')
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "Disruption"')).toEqual([{ n: 0 }])
+  expectIndex(db, 'Disruption', ['userId', 'status', 'endDate'], false)
+
+  // A window needs its reason, mode and two days; the rest has defaults.
+  const window = {
+    userId: 'u1',
+    reason: 'illness-above-neck',
+    mode: 'rest',
+    startDate: '2026-10-19',
+    endDate: '2026-10-21',
+  }
+  insert(db, 'Disruption', { id: 'w1', ...window, updatedAt: STAMP })
+  expect(rowsOf(db, `SELECT * FROM "Disruption" WHERE id = 'w1'`)[0]).toMatchObject({
+    maxRunMin: null,
+    area: null,
+    pain: null,
+    gaitChange: 0,
+    note: null,
+    status: 'active',
+  })
+  insert(db, 'Disruption', {
+    id: 'w2',
+    ...window,
+    userId: 'u2',
+    reason: 'niggle',
+    mode: 'limited',
+    maxRunMin: 30,
+    area: 'calf',
+    pain: 3,
+    gaitChange: 1,
+    status: 'undone',
+    updatedAt: STAMP,
+  })
+  expect(() => {
+    insert(db, 'Disruption', { id: 'w3', ...window, userId: 'missing', updatedAt: STAMP })
+  }).toThrow(/FOREIGN KEY/)
+  const keys = rowsOf(db, `PRAGMA foreign_key_list("Disruption")`).map((k) => ({
+    from: k.from,
+    table: k.table,
+    onDelete: k.on_delete,
+  }))
+  expect(keys).toEqual([{ from: 'userId', table: 'User', onDelete: 'CASCADE' }])
+
+  // A revision names a window by id and no key: the window is not required to exist, and removing
+  // one leaves the revision that names it.
+  db.exec(`UPDATE "PlanRevision" SET "disruptionId" = 'w1' WHERE id = 'r1'`)
+  db.exec(`DELETE FROM "Disruption" WHERE id = 'w1'`)
+  expect(rowsOf(db, `SELECT "disruptionId" FROM "PlanRevision" WHERE id = 'r1'`)).toEqual([
+    { disruptionId: 'w1' },
+  ])
+
+  // Windows go with the runner; the plan of the other runner stays.
+  db.exec(`DELETE FROM "User" WHERE id = 'u2'`)
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "Disruption"')).toEqual([{ n: 0 }])
+  expect(rowsOf(db, `SELECT id FROM "Plan"`)).toEqual([{ id: 'p1' }])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -1243,6 +1347,11 @@ const CASES: FixtureCase[] = [
     migration: 'fuel_lab',
     seed: seedFuelRuns,
     verify: verifyFuelLab,
+  },
+  {
+    migration: 'disruptions',
+    seed: seedPlansForWindows,
+    verify: verifyDisruptions,
   },
 ]
 

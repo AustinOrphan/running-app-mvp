@@ -7,7 +7,7 @@
 //   1. the revision has a payload, is not undone and is not itself an undo;
 //   2. its plan is still active;
 //   3. it is younger than `P.revision.undoWindowDays`;
-//   4. no session or week it created or changed has changed since (`edited-since`);
+//   4. no session, week or rest window it created or changed has changed since (`edited-since`);
 //   5. none of its sessions has been run or linked to an activity since (`session-run`);
 //   6. no safety rule it cites (n-1 to n-4) is still active (`safety-rule`), because G6 makes the
 //      more conservative rule win; a rest window the runner reported is the one exception, so a
@@ -145,9 +145,12 @@ export function revisionUndoReason(
  */
 export type UndoStanding = 'as-left' | 'edited' | 'run'
 
-/** A session or week the revision created, changed or deleted, dated today or later. */
+/**
+ * A session or week the revision created, changed or deleted, dated today or later, or a rest
+ * window it created or changed (a window has no date; it is checked whenever the revision is).
+ */
 export interface UndoRowFact {
-  kind: 'session' | 'week'
+  kind: 'session' | 'week' | 'disruption'
   /** The row's id. */
   id: string
   /** The week's Monday; null for a week row that no longer exists, whose Monday is unknown. */
@@ -183,8 +186,9 @@ export function undoEligibility(input: UndoEligibilityInput): UndoFinding[] {
   if (own !== null) return [{ code: own }]
   if (input.rows.length === 0) return [{ code: 'not-undoable' }]
 
-  const named = (row: UndoRowFact): Omit<UndoFinding, 'code' | 'rules' | 'disruptionId'> => ({
+  const named = (row: UndoRowFact): Omit<UndoFinding, 'code' | 'rules'> => ({
     ...(row.kind === 'session' ? { sessionId: row.id } : {}),
+    ...(row.kind === 'disruption' ? { disruptionId: row.id } : {}),
     ...(row.weekStart === null ? {} : { weekStart: row.weekStart }),
     ...(row.title === null ? {} : { title: row.title }),
     ...(row.date === null ? {} : { date: row.date }),

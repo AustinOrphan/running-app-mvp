@@ -5,7 +5,13 @@ import type { PlanWeek } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound, parse, validationError } from '../errors.ts'
 import { toPlanWeek } from '../serialize.ts'
-import { commitReplan, commitUndo, previewAction } from '../services/planActions.ts'
+import { listDisruptions } from '../services/disruptions.ts'
+import {
+  commitDisruption,
+  commitReplan,
+  commitUndo,
+  previewAction,
+} from '../services/planActions.ts'
 import {
   generateEnginePlan,
   linkPlanSession,
@@ -88,10 +94,56 @@ const expectHash = z.string().length(64).optional()
 const replanBody = z.strictObject({ expectHash })
 const undoBody = z.strictObject({ expectHash })
 
-/** What a preview can be asked of; the rest-window and adjust actions join it in E5. */
+const windowId = z.string().min(1).max(64)
+
+/**
+ * A reported window (design 9.4). The dates and the numbers are checked for their type here and for
+ * their meaning by `validateDisruption` (illness is rest only, `limited` needs a cap of 20 to 240
+ * minutes, only a niggle takes area, pain and gait change, a window is at most `j9.maxWindowDays`
+ * long, starts no earlier than `j9.maxBackdateDays` ago and ends by the race), so a refusal is a 400
+ * that names the field in the words of the window templates.
+ */
+const windowFields = {
+  reason: z.enum(['illness-above-neck', 'illness-below-neck', 'niggle', 'short-on-time', 'travel']),
+  mode: z.enum(['rest', 'limited']),
+  startDate: z.string().max(32),
+  endDate: z.string().max(32),
+  maxRunMin: z.number().nullable().optional(),
+  area: z.string().max(80).nullable().optional(),
+  pain: z.number().nullable().optional(),
+  gaitChange: z.boolean().optional(),
+  note: z.string().max(500).nullable().optional(),
+}
+/** A window is extended or shortened ("better early"), and a limited one is capped differently. */
+const changeFields = {
+  endDate: z.string().max(32).optional(),
+  maxRunMin: z.number().nullable().optional(),
+}
+const hasChange = (change: { endDate?: unknown; maxRunMin?: unknown }) =>
+  change.endDate !== undefined || change.maxRunMin !== undefined
+const CHANGE_REQUIRED = 'Send endDate, maxRunMin or both.'
+
+const disruptionBody = z.strictObject({ ...windowFields, expectHash })
+const disruptionPatch = z
+  .strictObject({ ...changeFields, expectHash })
+  .refine(hasChange, CHANGE_REQUIRED)
+const disruptionsQuery = z.strictObject({
+  include: z.literal('all').optional(),
+  date: z.string().refine(isIsoDate, 'Use a real date as YYYY-MM-DD.').optional(),
+})
+/** A removal has no body; the hash of its preview travels in the query. */
+const removeQuery = z.strictObject({ expectHash })
+const windowParams = z.strictObject({ id: windowId })
+
+/** What a preview can be asked of; the adjust action joins it in E5-6. */
 const previewBody = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('replan') }),
   z.strictObject({ type: z.literal('undo'), revisionId: z.string().min(1).max(64) }),
+  z.strictObject({ type: z.literal('disruption-create'), ...windowFields }),
+  z
+    .strictObject({ type: z.literal('disruption-update'), id: windowId, ...changeFields })
+    .refine(hasChange, CHANGE_REQUIRED),
+  z.strictObject({ type: z.literal('disruption-remove'), id: windowId }),
 ])
 
 const weekBody = z
@@ -192,6 +244,58 @@ export function planRouter(deps: Deps): Router {
         revisionId: req.params.id,
         today: todayIso(),
         expectHash: body.expectHash,
+      }),
+    )
+  })
+
+  // The runner's rest and limited-running windows (design 9.4). A window is a revision: each of
+  // these writes the window, the past sessions it skips and the re-plan in one transaction.
+  router.get('/disruptions', async (req, res) => {
+    const query = parse(disruptionsQuery, req.query)
+    res.json(
+      await listDisruptions(deps, {
+        userId: req.userId,
+        today: todayIso(),
+        date: query.date,
+        includeAll: query.include === 'all',
+      }),
+    )
+  })
+
+  router.post('/disruptions', async (req, res) => {
+    const { expectHash: hash, ...window } = parse(disruptionBody, req.body)
+    res.status(201).json(
+      await commitDisruption(deps, {
+        userId: req.userId,
+        action: { type: 'disruption-create', ...window },
+        today: todayIso(),
+        expectHash: hash,
+      }),
+    )
+  })
+
+  router.patch('/disruptions/:id', async (req, res) => {
+    const { id } = parse(windowParams, req.params)
+    const { expectHash: hash, ...change } = parse(disruptionPatch, req.body)
+    res.json(
+      await commitDisruption(deps, {
+        userId: req.userId,
+        action: { type: 'disruption-update', id, ...change },
+        today: todayIso(),
+        expectHash: hash,
+      }),
+    )
+  })
+
+  router.delete('/disruptions/:id', async (req, res) => {
+    const { id } = parse(windowParams, req.params)
+    const { expectHash: hash } = parse(removeQuery, req.query)
+    res.json(
+      await commitDisruption(deps, {
+        userId: req.userId,
+        action: { type: 'disruption-remove', id },
+        today: todayIso(),
+        expectHash: hash,
       }),
     )
   })

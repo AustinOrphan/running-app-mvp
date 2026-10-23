@@ -344,11 +344,14 @@ export interface SessionWritePlan {
  * draft session by `pairSessions`: a paired row is updated in place, so its id, `externalId` and
  * activity link survive; a replaced row with no counterpart is deleted; a draft session with no
  * counterpart is created. A paired row whose columns already match is not written. Pure: the
- * preview of a re-plan and its write both come from here.
+ * preview of a re-plan and its write both come from here. `heldDates` are the days the runner's
+ * rest windows hold (`heldDates` of the engine, from the same input as the draft): an edit or a
+ * trim on one of them is released, as the engine released it, or the rows kept here would differ
+ * from the sessions the engine drew.
  */
 export function planSessionWrites(
   rows: readonly PlanSessionRow[],
-  args: { today: string; sessions: SessionSpec[] },
+  args: { today: string; sessions: SessionSpec[]; heldDates?: ReadonlySet<string> },
 ): SessionWritePlan {
   // What the engine kept: the past, the finished sessions of the current week and the owner's
   // edits of the next 14 days.
@@ -356,6 +359,7 @@ export function planSessionWrites(
     keptByReplan(
       { date: row.date, status: row.status, rules: toPlanSession(row).rules },
       args.today,
+      args.heldDates,
     )
   const kept = rows.filter(isKept)
   const keptIds = new Set(kept.map((row) => row.id))
@@ -380,7 +384,7 @@ export function planSessionWrites(
  */
 export async function writeReplannedSessions(
   tx: Pick<PrismaClient, 'planSession'>,
-  args: { planId: string; today: string; sessions: SessionSpec[] },
+  args: { planId: string; today: string; sessions: SessionSpec[]; heldDates?: ReadonlySet<string> },
 ): Promise<SessionWriteSet> {
   const rows = await tx.planSession.findMany({ where: { planId: args.planId } })
   const planned = planSessionWrites(rows, args)

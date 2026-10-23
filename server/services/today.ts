@@ -48,6 +48,7 @@ import {
   memoByVersion,
   type AthleteContext,
 } from './athleteState.ts'
+import { todayDisruptions } from './disruptions.ts'
 import { inputFromContext, loadForecast, sessionSpec } from './engineInput.ts'
 import { EMPTY_DIFF_MARK } from './replan.ts'
 import { jobNotesStamp, todayHealth } from './todayHealth.ts'
@@ -370,6 +371,7 @@ export async function todayView(
     race,
     change,
     health,
+    disruptions: todayDisruptions(context, date),
     slots,
   }
 

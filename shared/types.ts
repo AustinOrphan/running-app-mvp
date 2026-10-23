@@ -592,10 +592,15 @@ export interface PlanRevisionView extends PlanRevision {
 }
 /**
  * What `POST /api/plan/preview` takes and `computeAction` builds (design 4.2). A discriminated
- * union on `type`: phase 3a adds the rest-window and adjust actions to it, each with its own
- * commit route and the same preview.
+ * union on `type`: phase 3a adds the rest-window actions (E5-5) and adjust (E5-6) to it, each with
+ * its own commit route and the same preview.
  */
-export type PlanAction = { type: 'replan' } | { type: 'undo'; revisionId: string }
+export type PlanAction =
+  | { type: 'replan' }
+  | { type: 'undo'; revisionId: string }
+  | ({ type: 'disruption-create' } & DisruptionInput)
+  | ({ type: 'disruption-update'; id: string } & DisruptionChange)
+  | { type: 'disruption-remove'; id: string }
 /** A guard that refuses or qualifies an action (the move, swap and shorten guards of E5). */
 export interface PlanGuardView {
   code: string
@@ -677,6 +682,63 @@ export type DisruptionMode = 'rest' | 'limited'
  */
 export type DisruptionPhase =
   'upcoming' | 'resting' | 'rest-gate' | 'easy-only' | 'limited' | 'returning' | 'done'
+/** `active` is in force; `undone` was withdrawn, by its removal or by the undo that created it. */
+export type DisruptionStatus = 'active' | 'undone'
+/**
+ * What a runner reports to open a window (`POST /api/plan/disruptions`, and the preview action
+ * `disruption-create`). The body rules are `validateDisruption`'s: illness is rest only, `limited`
+ * needs `maxRunMin`, only a niggle takes area, pain and gait change.
+ */
+export interface DisruptionInput {
+  reason: DisruptionReason
+  mode: DisruptionMode
+  startDate: string
+  endDate: string
+  maxRunMin?: number | null
+  area?: string | null
+  pain?: number | null
+  gaitChange?: boolean
+  /** The runner's own words; never read by the engine. */
+  note?: string | null
+}
+/** What `PATCH /api/plan/disruptions/:id` changes: a window is extended, shortened or re-capped. */
+export interface DisruptionChange {
+  endDate?: string
+  maxRunMin?: number | null
+}
+/** A stored window of rest or limited running (design 9.3). */
+export interface Disruption {
+  id: string
+  reason: DisruptionReason
+  mode: DisruptionMode
+  startDate: string
+  endDate: string
+  maxRunMin: number | null
+  area: string | null
+  pain: number | null
+  gaitChange: boolean
+  note: string | null
+  status: DisruptionStatus
+  createdAt: string
+  updatedAt: string
+}
+/**
+ * A window as `GET /api/plan/disruptions`, `GET /api/today` and the commit routes serve it, with
+ * what the engine says about it for the viewed date (`windowPhase`, `disruptionPlan`).
+ */
+export interface DisruptionView extends Disruption {
+  /** Where the viewed date lies against the window. */
+  phase: DisruptionPhase
+  /** The first day running is allowed. */
+  runFrom: string
+  /** The first day hard sessions are allowed. */
+  qualityFrom: string
+  /**
+   * The most minutes the return week may hold, from the J7 fraction of the week before the break;
+   * null when the window holds running for under `j7.tier1Days` days or no week before is known.
+   */
+  returnWeekMin: number | null
+}
 export type TodayAdvice = 'as-planned' | 'downgrade-easy' | 'rest'
 /**
  * The heat read of the day's main run. Every field is null (and `hotForSteering` false) when the
@@ -813,12 +875,30 @@ export interface TodayHealth {
   lastWeekReady: boolean
   notes: HealthNote[]
 }
+/** What the window routes answer: the window as it now stands and the revision that wrote it. */
+export interface DisruptionResult {
+  disruption: DisruptionView
+  revision: PlanRevisionView
+}
+/**
+ * The disruption slot (design 9.6): the window the banner is about, else an offer to set one. Null
+ * when there is neither.
+ */
+export interface DisruptionSlot {
+  /** The window in effect on the viewed day, else the next one ahead; null when there is none. */
+  window: DisruptionView | null
+  /**
+   * True when no window is in effect and today's check-in reports illness or pain at or above
+   * `pain.flagScore`: the page offers a rest window and creates nothing by itself.
+   */
+  offer: boolean
+}
 /**
  * What the named Today slots hold. Each owning epic gives its slot a type (disruption E5, fuel
  * and fuelPrompt E6, watch E1, brief E4); until then a slot is null and takes no height.
  */
 export interface TodaySlots {
-  disruption: null
+  disruption: DisruptionSlot | null
   fuel: null
   watch: null
   brief: null
@@ -840,6 +920,8 @@ export interface TodayCoach {
   race: TodayRace | null
   change: ChangeLine | null
   health: TodayHealth
+  /** The runner's windows that are not over on the viewed date (a window tomorrow is `upcoming`). */
+  disruptions: DisruptionView[]
   slots: TodaySlots
 }
 /** A proposed zone change that the owner accepts or declines; `id` is stable for one proposal. */
