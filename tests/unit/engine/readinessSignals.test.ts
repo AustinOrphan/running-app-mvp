@@ -12,7 +12,7 @@ import {
   strongestAdvice,
   todayAdvice,
 } from '../../../shared/engine/readiness.ts'
-import type { EngineInput } from '../../../shared/engine/types.ts'
+import type { EngineInput, SessionKind } from '../../../shared/engine/types.ts'
 import type { ReadinessSignal, TodayAdvice, Units } from '../../../shared/types.ts'
 import { activity, hrvSeries, input, spec, STEADY_HRV, TODAY, wellnessDay } from './e8-fixtures.ts'
 
@@ -111,19 +111,40 @@ describe('readinessSignals', () => {
       expect(text(signal)).toMatch(/^HRV is 61 ms\. Your usual range is \d+ to \d+ ms\.$/)
     })
 
-    it('says the range is still being built below the minimum number of readings', () => {
-      const wellness = [
-        ...hrvSeries(addDays(TODAY, -1), STEADY_HRV.slice(0, 6)),
-        wellnessDay(TODAY, { hrvRmssd: 55 }),
-      ]
+    // The range needs `minReadings` earlier nights; today's reading is not one of them.
+    it.each([6, 8, 9])(
+      'counts the %i earlier readings the range is built from, not today’s',
+      (earlier) => {
+        const wellness = [
+          ...hrvSeries(addDays(TODAY, -1), STEADY_HRV.slice(0, earlier)),
+          wellnessDay(TODAY, { hrvRmssd: 55 }),
+        ]
+        const signal = only(input({ wellness }))
+        expect(signal).toMatchObject({
+          code: 'hrv',
+          noted: false,
+          template: 'today.signal.hrv-building',
+          slots: { readings: { n: earlier }, needed: { n: P.j4.minReadings.value } },
+        })
+        expect(text(signal)).toBe(
+          `Building your usual HRV range (${String(earlier)} of ${String(P.j4.minReadings.value)} readings).`,
+        )
+      },
+    )
+
+    it('counts the earlier readings on a day without a reading of its own', () => {
+      const wellness = hrvSeries(addDays(TODAY, -1), STEADY_HRV.slice(0, 9))
       const signal = only(input({ wellness }))
       expect(signal).toMatchObject({
-        code: 'hrv',
-        noted: false,
         template: 'today.signal.hrv-building',
-        slots: { readings: { n: 7 }, needed: { n: P.j4.minReadings.value } },
+        slots: { readings: { n: 9 } },
       })
-      expect(text(signal)).toBe('Building your usual HRV range (7 of 10 readings).')
+    })
+
+    it('shows the range as soon as the earlier readings reach the minimum', () => {
+      expect(STEADY_HRV).toHaveLength(P.j4.minReadings.value)
+      const wellness = [...baseline(), wellnessDay(TODAY, { hrvRmssd: 55 })]
+      expect(only(input({ wellness })).template).toBe('today.signal.hrv')
     })
 
     it('gives no HRV signal for a day without a reading once the range exists', () => {
@@ -204,6 +225,25 @@ describe('readinessSignals', () => {
       expect(text(signal)).toBe('Sleep averaged 7 h 30 min across 7 recent nights.')
     })
 
+    // The sentence prints whole minutes, so the average is judged at whole minutes too: a mean
+    // 30 s under the floor reads "7 h", and "7 h, under 7 h" would contradict itself.
+    const nightsOf = (sleepSec: number) =>
+      Array.from({ length: 7 }, (_, n) => wellnessDay(addDays(TODAY, -n), { sleepSec }))
+
+    it('does not note an average that rounds to the floor, so the sentence never contradicts itself', () => {
+      const floorSec = P.j5.sleepWarnHours.value * 3600
+      const signal = only(input({ wellness: nightsOf(floorSec - 30) }))
+      expect(signal).toMatchObject({ code: 'sleep', noted: false, template: 'today.signal.sleep' })
+      expect(text(signal)).toBe('Sleep averaged 7 h across 7 recent nights.')
+    })
+
+    it('notes an average a whole minute short of the floor and prints the minute', () => {
+      const floorSec = P.j5.sleepWarnHours.value * 3600
+      const signal = only(input({ wellness: nightsOf(floorSec - 31) }))
+      expect(signal).toMatchObject({ noted: true, template: 'today.signal.sleep-low' })
+      expect(text(signal)).toBe('Sleep averaged 6 h 59 min across 7 recent nights, under 7 h.')
+    })
+
     it('counts the nights that were recorded, not the nights asked for', () => {
       const signal = only(input({ wellness: nights(6, 5) }))
       expect(signal.slots).toMatchObject({ nights: { n: 5 } })
@@ -240,6 +280,33 @@ describe('readinessSignals', () => {
         const checkin = readinessSnapshot(i, TODAY).checkin
         expect(signals(i)[0]!.noted, JSON.stringify(answers)).toBe(poorSubjective(checkin))
       }
+    })
+
+    it('does not describe fatigue in a noted signal that another answer set off', () => {
+      for (const answers of [
+        { fatigue: 1, soreness: 5 },
+        { fatigue: 3, mood: 1 },
+        { fatigue: 2, sleepQuality: 1 },
+        { fatigue: 3, stress: 5 },
+      ]) {
+        const signal = only(input({ wellness: [wellnessDay(TODAY, answers)] }))
+        expect(signal, JSON.stringify(answers)).toMatchObject({
+          code: 'checkin',
+          noted: true,
+          template: 'today.signal.checkin-items-low',
+        })
+        expect(text(signal)).toBe('Some check-in answers are away from normal today.')
+      }
+    })
+
+    it('names the fatigue answer when fatigue is itself a poor item, whatever else is poor', () => {
+      const signal = only(input({ wellness: [wellnessDay(TODAY, { fatigue: 5, soreness: 5 })] }))
+      expect(signal).toMatchObject({ noted: true, template: 'today.signal.checkin-drained' })
+    })
+
+    it('keeps the fatigue answer when nothing is poor, however mild the other answers', () => {
+      const signal = only(input({ wellness: [wellnessDay(TODAY, { fatigue: 4, soreness: 4 })] }))
+      expect(signal).toMatchObject({ noted: false, template: 'today.signal.checkin-tired' })
     })
 
     it('summarises a check-in that skipped the fatigue answer', () => {
@@ -422,15 +489,21 @@ describe('readinessVerdict', () => {
     advice: TodayAdvice,
     state: 'normal' | 'possible-fatigue' | 'persistent-suppression',
     signalCount: number,
-  ) => readinessVerdict({ advice, state, signalCount })
+    sessionKinds: readonly SessionKind[] = ['easy'],
+  ) => readinessVerdict({ advice, state, signalCount, sessionKinds })
 
-  it('maps the six situations to the six sentences of the design', () => {
+  it('maps the situations to the sentences of the design', () => {
     const cases = [
       [verdict('as-planned', 'normal', 2), 'ready', 'Ready as planned.'],
       [
         verdict('as-planned', 'possible-fatigue', 3),
         'low-stays',
         "Signals are a little low. Today's session is already easy, so it stays.",
+      ],
+      [
+        verdict('as-planned', 'possible-fatigue', 3, ['long']),
+        'low-plan-stays',
+        'Signals are a little low. The plan stays as it is.',
       ],
       [
         verdict('downgrade-easy', 'possible-fatigue', 3),
@@ -463,13 +536,55 @@ describe('readinessVerdict', () => {
     expect(verdict('as-planned', 'possible-fatigue', 0).code).toBe('low-stays')
   })
 
-  it('reads clean for every combination of advice, state and signal count', () => {
+  describe('when signals are low and the advice leaves the plan alone', () => {
+    const low = (sessionKinds: readonly SessionKind[]) =>
+      verdict('as-planned', 'possible-fatigue', 2, sessionKinds)
+
+    const days = (...lists: SessionKind[][]) => lists.map((kinds) => ({ kinds }))
+
+    it.each(days(['easy'], ['recovery'], ['strides'], ['easy', 'strides'], ['easy', 'strength']))(
+      'says the session is already easy when the runs are easy ($kinds)',
+      ({ kinds }) => {
+        expect(low(kinds).code).toBe('low-stays')
+      },
+    )
+
+    it.each(days(['long'], ['b2b'], ['hike'], ['race'], ['easy', 'long'], ['recovery', 'race']))(
+      'does not call the day easy when it holds a harder run ($kinds)',
+      ({ kinds }) => {
+        const result = low(kinds)
+        expect(result.code).toBe('low-plan-stays')
+        expect(renderFact(result, 'km')).not.toMatch(/already easy/)
+      },
+    )
+
+    it.each(days(['strength'], ['mobility'], ['cross'], ['rest'], []))(
+      'does not call a day with no run easy ($kinds)',
+      ({ kinds }) => {
+        expect(low(kinds).code).toBe('low-plan-stays')
+      },
+    )
+
+    it('leaves the other verdicts to the advice and the fatigue state', () => {
+      for (const kinds of [[], ['long'], ['easy']] as const) {
+        expect(verdict('rest', 'possible-fatigue', 2, kinds).code).toBe('rest')
+        expect(verdict('downgrade-easy', 'possible-fatigue', 2, kinds).code).toBe('easy')
+        expect(verdict('as-planned', 'persistent-suppression', 2, kinds).code).toBe('lighter-week')
+        expect(verdict('as-planned', 'normal', 2, kinds).code).toBe('ready')
+        expect(verdict('as-planned', 'normal', 0, kinds).code).toBe('no-signals')
+      }
+    })
+  })
+
+  it('reads clean for every combination of advice, state, signal count and session kinds', () => {
     for (const advice of ['as-planned', 'downgrade-easy', 'rest'] as const) {
       for (const state of ['normal', 'possible-fatigue', 'persistent-suppression'] as const) {
         for (const signalCount of [0, 1, 3]) {
-          const sentence = renderFact(verdict(advice, state, signalCount), 'km')
-          expect(lintText(sentence), sentence).toEqual([])
-          expect(sentence.length).toBeLessThanOrEqual(COPY_MAX_CHARS)
+          for (const kinds of [[], ['easy'], ['long']] as const) {
+            const sentence = renderFact(verdict(advice, state, signalCount, kinds), 'km')
+            expect(lintText(sentence), sentence).toEqual([])
+            expect(sentence.length).toBeLessThanOrEqual(COPY_MAX_CHARS)
+          }
         }
       }
     }
@@ -477,15 +592,20 @@ describe('readinessVerdict', () => {
 
   describe('from the engine, end to end', () => {
     const hardSession = (date: string) => ({ ...spec(date, 'threshold'), id: 'q' })
-    function read(i: EngineInput, session = hardSession(TODAY)) {
-      const advice = strongestAdvice(todayAdvice(i, [session]).map((row) => row.advice))
+    const sessionOf = (kind: SessionKind) => ({ ...spec(TODAY, kind), id: `s-${kind}` })
+    function read(i: EngineInput, sessions = [hardSession(TODAY)]) {
+      const rows = todayAdvice(i, sessions)
       const list = readinessSignals(i, TODAY)
       return readinessVerdict({
-        advice,
+        advice: strongestAdvice(rows.map((row) => row.advice)),
         state: readinessSnapshot(i, TODAY).state,
         signalCount: list.length,
+        sessionKinds: rows.map((row) => row.session.kind),
       })
     }
+    /** Two poor days running: the snapshot reads possible fatigue. */
+    const lowDays = () =>
+      input({ wellness: [wellnessDay(YESTERDAY, POOR), wellnessDay(TODAY, POOR)] })
 
     it('says an easy run is better after a poor night with a hard session planned', () => {
       const i = input({ wellness: [...baseline(), wellnessDay(TODAY, { hrvRmssd: 40, ...POOR })] })
@@ -498,15 +618,31 @@ describe('readinessVerdict', () => {
     })
 
     it('says the day stays when signals are low and the session is already easy', () => {
-      const i = input({ wellness: [wellnessDay(YESTERDAY, POOR), wellnessDay(TODAY, POOR)] })
-      expect(read(i, { ...spec(TODAY, 'easy'), id: 'e' }).code).toBe('low-stays')
+      expect(readinessSnapshot(lowDays(), TODAY).state).toBe('possible-fatigue')
+      expect(read(lowDays(), [sessionOf('easy')]).code).toBe('low-stays')
+    })
+
+    it.each(['long', 'b2b', 'hike', 'race'] as const)(
+      'does not call a %s day easy when signals are low',
+      (kind) => {
+        const verdict = read(lowDays(), [sessionOf(kind)])
+        expect(verdict.code).toBe('low-plan-stays')
+        expect(renderFact(verdict, 'km')).toBe('Signals are a little low. The plan stays as it is.')
+      },
+    )
+
+    it('does not call a strength-only day or a day with nothing planned easy', () => {
+      expect(read(lowDays(), [sessionOf('strength')]).code).toBe('low-plan-stays')
+      expect(read(lowDays(), []).code).toBe('low-plan-stays')
+    })
+
+    it('still turns a hard session into an easy run on the same low days', () => {
+      expect(read(lowDays(), [sessionOf('threshold')]).code).toBe('easy')
     })
 
     it('suggests a lighter week after fourteen low days', () => {
       const wellness = Array.from({ length: 14 }, (_, n) => wellnessDay(addDays(TODAY, -n), POOR))
-      expect(read(input({ wellness }), { ...spec(TODAY, 'easy'), id: 'e' }).code).toBe(
-        'lighter-week',
-      )
+      expect(read(input({ wellness }), [sessionOf('easy')]).code).toBe('lighter-week')
     })
 
     it('asks for a first check-in when nothing is known, and reads ready on a normal day', () => {
