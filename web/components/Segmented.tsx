@@ -1,4 +1,5 @@
-import { useRef, type KeyboardEvent } from 'react'
+import { useId, useRef, type KeyboardEvent } from 'react'
+import fieldStyles from './Field.module.css'
 import styles from './Segmented.module.css'
 
 export interface SegmentedProps<T extends string> {
@@ -6,15 +7,22 @@ export interface SegmentedProps<T extends string> {
   options: Array<{ value: T; label: string }>
   value: T
   onChange: (v: T) => void
+  /** One line of help under the control; with it, the label is shown above like a field's. */
+  hint?: string
 }
 
-/** A radio group drawn as joined buttons: one tab stop, arrow keys move and select. */
+/**
+ * A radio group drawn as joined buttons: one tab stop, arrow keys move and select. Without a hint
+ * the label is only read out; with one, the label and the hint are visible, as for a field.
+ */
 export function Segmented<T extends string>({
   label,
   options,
   value,
   onChange,
+  hint,
 }: SegmentedProps<T>) {
+  const id = useId()
   const buttons = useRef<Array<HTMLButtonElement | null>>([])
   const selected = options.findIndex((o) => o.value === value)
   const tabStop = selected === -1 ? 0 : selected
@@ -46,8 +54,15 @@ export function Segmented<T extends string>({
     buttons.current[next]?.focus()
   }
 
-  return (
-    <div role="radiogroup" aria-label={label} className={styles.group}>
+  const labelled = hint !== undefined
+  const group = (
+    <div
+      role="radiogroup"
+      aria-label={labelled ? undefined : label}
+      aria-labelledby={labelled ? `${id}-label` : undefined}
+      aria-describedby={labelled ? `${id}-hint` : undefined}
+      className={styles.group}
+    >
       {options.map((option, index) => (
         <button
           key={option.value}
@@ -69,6 +84,18 @@ export function Segmented<T extends string>({
           {option.label}
         </button>
       ))}
+    </div>
+  )
+  if (!labelled) return group
+  return (
+    <div className={fieldStyles.field}>
+      <span id={`${id}-label`} className={fieldStyles.label}>
+        {label}
+      </span>
+      {group}
+      <p id={`${id}-hint`} className={fieldStyles.hint}>
+        {hint}
+      </p>
     </div>
   )
 }

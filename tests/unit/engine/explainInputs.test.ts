@@ -611,6 +611,26 @@ describe('g-2 and g-6: the ramp and lost volume', () => {
     expect(text(j5[0]!)).toContain('up to 192 min')
   })
 
+  test('g-6 and J5 cap a week run past its target from the minutes it was planned at', () => {
+    // The week of 19 Oct was planned at 200 min and stored at the 250 min already run in it
+    // (flags overshoot and planned-200). The decision draws the next week from the plan, so the
+    // overshoot lifts nothing: min(200 planned, 212 run x 1.10 = 233) is 200, not 233.
+    const base = lostWeekCtx()
+    const input: EngineInput = {
+      ...base.input,
+      existing: {
+        ...base.input.existing!,
+        weeks: [base.input.existing!.weeks[0]!, week(MONDAY, 250, ['overshoot', 'planned-200'])],
+      },
+    }
+    const { decision, j5, g6 } = decisionView(contextOf(input))
+    expect(decision.decision).toBe('progress')
+    expect(decision.nextWeekTargetMin).toBe(200)
+    expect(slot(j5[0]!, 'minutes', 'minutes').min).toBe(200)
+    const cap = g6.find((f) => f.id === 'g-6.cap')!
+    expect(slot(cap, 'minutes', 'minutes').min).toBe(200)
+  })
+
   test('g-6 and J5 count the run minutes the decision counted, not the credited ones', () => {
     // A ladder week of three 21-minute sessions; one was run, and the recording carries the two
     // 5-minute walks, so 31 min were run. The start paths credit 21 min of it, the decision 31.

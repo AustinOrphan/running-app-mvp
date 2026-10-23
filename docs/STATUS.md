@@ -67,8 +67,10 @@ Last update: 2026-10-23.
 - Fix PRs against `main` from the same day: #538 (dev proxy), #539 (plan form labels, merged),
   #540 (start level from the last two complete weeks, `PARAMS_VERSION` `2026-10-22.3` on `main`),
   #541 (persist `qualitySessions` and `isRecovery` on `PlanWeek` so a re-plan stops reporting a
-  phantom change). The integration branch takes `main` after they merge; the two `2026-10-22.3`
-  versions are reconciled to `2026-10-23.1` there.
+  phantom change), #543 (a Playwright port per checkout), #545 (an overshot week is taken as it
+  is). The integration branch takes `main` after they merge; the two `2026-10-22.3` versions (wave
+  0's registry and `main`'s) are reconciled to `2026-10-22.4` on `wave/3a-0`, and wave 1 moves on
+  to `2026-10-23.1`.
 
 - **Phase 3a wave 2 (branch `feat/coach-phase3`, PR from `wave/3a-2`, 2026-10-23):** the stores
   and engines the surfaces will show. R0-1: the revision foundation (`server/services/replan.ts`:
@@ -374,7 +376,11 @@ linting unit-tests` worktrees and the detached comparison worktree the start-pat
 
 - Bare repository with worktrees (`~/src/BARE-REPO-WORKFLOW.md`). Isolated agent worktrees
   branch from `origin/main` and have no `node_modules`; agents run `npm ci` first.
-- Port 3101 is reserved by the Playwright web server, which also clears `test-results/`.
+- The Playwright web server listens on 3101 plus a per-checkout offset (0-399, a hash of the
+  checkout's absolute path, `tests/e2e/env.ts`), so worktrees can run `npm run test:e2e` at the
+  same time; it also clears `test-results/`. Print a checkout's port with
+  `node -e "import('./tests/e2e/env.ts').then((m) => console.log(m.E2E_PORT))"`. Two checkouts can
+  still hash to one port; the run then fails on the bind error.
 - The owner's intervals.icu account goes dormant without a login; Garmin's official API is
   closed to new applicants (October 2026).
 - Personal training data stays in Google Sheets, Smashrun and the owner's own app database; the

@@ -301,6 +301,131 @@ function verifyPlanSessions(db: DatabaseSync, before: Snapshot): void {
 }
 
 /**
+ * The previous release's weeks and sessions, in the schema after the PlanSession redefine: weeks
+ * with no flag, a recovery flag, a post-race flag and a taper flag, holding sessions of every
+ * quality kind, of other kinds and of none.
+ */
+function seedPlanWeeks(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Goal', {
+    id: 'g1',
+    userId: 'u1',
+    name: 'Synthetic marathon',
+    priority: 'A',
+    targetDate: '2027-04-18',
+    updatedAt: STAMP,
+  })
+  for (const id of ['p1', 'p2']) {
+    insert(db, 'Plan', {
+      id,
+      userId: 'u1',
+      goalId: 'g1',
+      name: 'Synthetic plan',
+      startDate: '2026-10-05',
+      raceWeekStart: '2027-04-12',
+      status: id === 'p1' ? 'active' : 'archived',
+      generatorVersion: 2,
+      updatedAt: STAMP,
+    })
+  }
+
+  // [plan, weekStart, flags]
+  const weeks: Array<[string, string, string[]]> = [
+    ['p1', '2026-10-05', []],
+    ['p1', '2026-10-12', ['recovery', 'strength']],
+    ['p1', '2026-10-19', ['post-race']],
+    ['p1', '2026-10-26', ['taper']],
+    ['p2', '2026-10-05', ['recovery']],
+  ]
+  weeks.forEach(([planId, weekStart, flags], i) => {
+    insert(db, 'PlanWeek', {
+      id: `w${i + 1}`,
+      planId,
+      weekStart,
+      index: i,
+      phase: 'base',
+      baselineRunMin: 120,
+      targetRunMin: 130,
+      longRunMin: 60,
+      runDays: 4,
+      strengthSessions: 1,
+      flags: JSON.stringify(flags),
+      updatedAt: STAMP,
+    })
+  })
+
+  // [plan, weekStart, kinds]: the first week holds all five quality kinds, the others few or none.
+  const sessions: Array<[string, string, string[]]> = [
+    ['p1', '2026-10-05', ['threshold', 'intervals', 'hills', 'race-pace', 'long-fast-finish']],
+    ['p1', '2026-10-05', ['easy', 'long', 'strength']],
+    ['p1', '2026-10-12', ['easy', 'long']],
+    ['p1', '2026-10-26', ['threshold', 'easy']],
+    ['p2', '2026-10-05', ['easy']],
+  ]
+  let n = 0
+  for (const [planId, weekStart, kinds] of sessions) {
+    for (const kind of kinds) {
+      n += 1
+      insert(db, 'PlanSession', {
+        id: `s${n}`,
+        planId,
+        externalId: `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`,
+        weekStart,
+        date: weekStart,
+        order: 0,
+        kind,
+        title: `Synthetic session ${n}`,
+        durationMin: 40,
+        target: TARGET,
+        purpose: 'Synthetic.',
+        updatedAt: STAMP,
+      })
+    }
+  }
+}
+
+function verifyPlanWeeks(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // The count is the stored sessions of the quality kinds, and the flag follows the stored flags
+  // (a post-race week is a recovery week that carries no 'recovery' flag).
+  expect(
+    rowsOf(db, 'SELECT id, qualitySessions, isRecovery FROM "PlanWeek" ORDER BY id'),
+    'backfilled weeks',
+  ).toEqual([
+    { id: 'w1', qualitySessions: 5, isRecovery: 0 },
+    { id: 'w2', qualitySessions: 0, isRecovery: 1 },
+    { id: 'w3', qualitySessions: 0, isRecovery: 1 },
+    { id: 'w4', qualitySessions: 1, isRecovery: 0 },
+    { id: 'w5', qualitySessions: 0, isRecovery: 1 },
+  ])
+
+  // A week written without the two columns takes their defaults.
+  insert(db, 'PlanWeek', {
+    id: 'w6',
+    planId: 'p1',
+    weekStart: '2026-11-02',
+    index: 5,
+    phase: 'base',
+    baselineRunMin: 120,
+    targetRunMin: 130,
+    longRunMin: 60,
+    runDays: 4,
+    strengthSessions: 1,
+    updatedAt: STAMP,
+  })
+  expect(rowsOf(db, `SELECT qualitySessions, isRecovery FROM "PlanWeek" WHERE id = 'w6'`)).toEqual([
+    { qualitySessions: 0, isRecovery: 0 },
+  ])
+}
+
+/**
  * The previous release's sync state: two connections, an import batch and the activity it stored.
  * The sync log adds a table beside them and touches none.
  */
@@ -898,6 +1023,11 @@ const CASES: FixtureCase[] = [
     migration: 'foundation_plan_session',
     seed: seedPlanSessions,
     verify: verifyPlanSessions,
+  },
+  {
+    migration: 'plan_week_quality_sessions',
+    seed: seedPlanWeeks,
+    verify: verifyPlanWeeks,
   },
   {
     migration: 'foundation_sync_log',

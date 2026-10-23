@@ -9,7 +9,7 @@ import type { Activity } from '../types.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { isLadderSession, startWeek, type StartPath } from './startWeeks.ts'
-import type { AthleteState, SessionKind, SessionSpec } from './types.ts'
+import type { AthleteState, SessionKind, SessionSpec, WeekDraft } from './types.ts'
 
 /** Guards float noise (100 * 1.1 = 110.00000000000001) before rounding down. */
 export const EPS = 1e-9
@@ -245,25 +245,35 @@ export function weeklyRamp(state: AthleteState): number {
 }
 
 /**
- * The minutes of the 3 x 20 starting week when the runner's typical week sits under it
- * (sessions x session length): null above it, with no typical week, and for the tightened
+ * The weekly running minutes a plan starts from [rules E6]: the typical week (the median of the
+ * last 4 weeks with a run), or the recent level (the lesser of the last two complete weeks) when
+ * that is higher. A step up held for two weeks sets the level; one big week alone does not.
+ */
+export function startLevelMin(state: AthleteState): number {
+  return Math.max(state.typicalWeekMin, state.recentWeekMin)
+}
+
+/**
+ * The minutes of the 3 x 20 starting week when the runner's start level sits under it
+ * (sessions x session length): null above it, with no start level, and for the tightened
  * profiles, which are not lifted [design-macro, rules g-3]. The stand-in for the start path of
  * `startPath` (macro.ts) where only the athlete state is at hand.
  */
 export function restartFloorMin(state: AthleteState): number | null {
   const minutes = P.restartFloor.sessions.value * P.restartFloor.sessionMin.value
-  if (state.typicalWeekMin <= 0 || state.typicalWeekMin >= minutes) return null
+  const level = startLevelMin(state)
+  if (level <= 0 || level >= minutes) return null
   if (weeklyRamp(state) < P.g2.rampSoft.value) return null
   return minutes
 }
 
 /**
  * The weekly running minutes a new plan starts from: the first week of the start path when it is
- * the 3 x N floor or a run-walk rung, else the typical week, else the start floor of a runner
- * without recent running. The feasibility label of an ultra [rules D4] reads it. `path` is the
- * result of `startPath` (macro.ts); null means the plan starts from the typical week, and so does
- * an injury-return path, whose levels set their own pace. Left out, the 3 x 20 week stands in for
- * a typical week under it.
+ * the 3 x N floor or a run-walk rung, else the start level (`startLevelMin`), else the start floor
+ * of a runner without recent running. The feasibility label of an ultra [rules D4] reads it.
+ * `path` is the result of `startPath` (macro.ts); null means the plan starts from the start level,
+ * and so does an injury-return path, whose levels set their own pace. Left out, the 3 x 20 week
+ * stands in for a start level under it.
  */
 export function startWeekMin(state: AthleteState, path?: StartPath | null): number {
   if (path !== undefined && path !== null && path.kind !== 'injury-return') {
@@ -271,7 +281,8 @@ export function startWeekMin(state: AthleteState, path?: StartPath | null): numb
   }
   const floor = path === undefined ? restartFloorMin(state) : null
   if (floor !== null) return floor
-  return state.typicalWeekMin > 0 ? state.typicalWeekMin : P.macroDesign.startFloorWeekMin.value
+  const level = startLevelMin(state)
+  return level > 0 ? level : P.macroDesign.startFloorWeekMin.value
 }
 
 /**
@@ -298,6 +309,30 @@ export function rampSkipWeeks(today: string, lowWeeks: Iterable<string>): Set<st
   const monday = mondayOf(today)
   if (today > monday) skip.add(monday)
   return skip
+}
+
+const PLANNED_FLAG = 'planned-'
+
+/**
+ * The flags of a loading week that was run past its target [rules g-2, g-6]: `overshoot`, and
+ * `planned-<n>`, the minutes the week was planned at. The target of such a week is the minutes run
+ * (they are a fact); the flags survive the stored plan, so a re-plan in the same week still draws
+ * the weeks after it from the planned minutes and the overshoot never lifts them or makes
+ * anything up.
+ */
+export const overshootFlags = (plannedMin: number): string[] => [
+  'overshoot',
+  `${PLANNED_FLAG}${String(plannedMin)}`,
+]
+/** The minutes a week was planned at: its target, unless the week was run past it. */
+export function plannedMinOf(week: Pick<WeekDraft, 'targetRunMin' | 'flags'>): number {
+  if (!week.flags.includes('overshoot')) return week.targetRunMin
+  for (const flag of week.flags) {
+    if (!flag.startsWith(PLANNED_FLAG)) continue
+    const n = Number(flag.slice(PLANNED_FLAG.length))
+    if (Number.isInteger(n) && n >= 0) return Math.min(n, week.targetRunMin)
+  }
+  return week.targetRunMin
 }
 
 /**
