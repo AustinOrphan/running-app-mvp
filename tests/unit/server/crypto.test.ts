@@ -6,6 +6,7 @@ import {
   newToken,
   SecretError,
   tokensEqual,
+  userTagOf,
 } from '../../../server/crypto.ts'
 
 const SECRET = 'test-only-session-secret-0123456789abcdef'
@@ -62,5 +63,19 @@ describe('tokens', () => {
     expect(tokensEqual('abc', 'abc')).toBe(true)
     expect(tokensEqual('abc', 'abd')).toBe(false)
     expect(tokensEqual('abc', 'abcd')).toBe(false)
+  })
+})
+
+describe('userTagOf', () => {
+  it('is the first 6 hex characters of the SHA-256 of the user id', () => {
+    expect(userTagOf('user-1')).toBe('c6c289')
+    expect(userTagOf('user-1')).toBe(hashToken('user-1').slice(0, 6))
+    expect(userTagOf('user-2')).not.toBe(userTagOf('user-1'))
+  })
+
+  it('is lower-case hex of exactly six characters, whatever the id', () => {
+    for (const id of ['', 'a', 'clx0abc123def456', 'ünïcode ✓']) {
+      expect(userTagOf(id)).toMatch(/^[0-9a-f]{6}$/)
+    }
   })
 })

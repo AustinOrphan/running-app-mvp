@@ -337,8 +337,7 @@
 }
 
 .items,
-.revisions,
-.changes {
+.revisions {
   margin: var(--space-2) 0 0;
   padding: 0;
   list-style: none;
@@ -359,16 +358,17 @@
   border-top: 1px solid var(--border);
 }
 
-.revisions p {
-  margin: 0;
-  max-width: var(--prose-max);
-}
-
-.changes {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-  font-variant-numeric: lining-nums tabular-nums;
+/* The "New" marker beside the closed "What changed" panel: a quiet pill in the accent, never red. */
+.newMarker {
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: 400;
 }
 
 /* Day cards sit under their week row. */

@@ -106,6 +106,15 @@ export function activityRoute(all: ActivityListItem[]): (req: MockRequest) => Ac
   }
 }
 
+/**
+ * The `explain` a mocked `WhyDrawer` was opened with. The page tests stand a small element in for
+ * the drawer and put `JSON.stringify(explain ?? null)` in `data-explain`; a call site that passes
+ * no subject reads `null`.
+ */
+export function explainOf(drawer: HTMLElement): unknown {
+  return JSON.parse(drawer.getAttribute('data-explain') ?? 'null')
+}
+
 export function renderWithProviders(ui: ReactElement, opts: { route?: string } = {}): RenderResult {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },

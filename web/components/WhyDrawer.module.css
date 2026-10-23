@@ -11,6 +11,30 @@
   margin: var(--space-5) 0 0;
 }
 
+.numbers,
+.rules {
+  margin-bottom: var(--space-5);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+}
+
+.numbersRule {
+  margin-bottom: var(--space-4);
+}
+
+.ruleLabel {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .rule {
   margin-bottom: var(--space-5);
 }
@@ -18,9 +42,9 @@
 .ruleTitle {
   margin: 0 0 var(--space-2);
   font-family: var(--font-serif);
-  font-size: var(--text-lg);
-  line-height: var(--lh-lg);
-  font-weight: 500;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: 600;
 }
 
 .param {

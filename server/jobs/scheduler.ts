@@ -1,5 +1,5 @@
 import { todayIso } from '../../shared/dates.ts'
-import type { SyncStatus, SyncTrigger, WeeklyUpdateStatus } from '../../shared/types.ts'
+import type { SyncStatus, SyncTrigger } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import type { PrismaClient } from '../db.ts'
 import { createLogger } from '../logger.ts'
@@ -8,6 +8,7 @@ import { runNightlyMatching } from '../services/execution.ts'
 import { scanFolderIntegration } from '../services/folder.ts'
 import { replanActivePlan } from '../services/planEngine.ts'
 import { ensureWeeklyPrediction } from '../services/predictionLog.ts'
+import { CHANNEL as PUBLISH_CHANNEL, isPublishDue, publishForUser } from '../services/publish.ts'
 import { syncProvider } from '../services/sync.ts'
 import {
   recordSyncRun,
@@ -17,6 +18,9 @@ import {
 } from '../services/syncLog.ts'
 import { enrichWeather } from '../services/weather.ts'
 import { refreshWeatherCaches } from '../services/weatherCache.ts'
+import { REPLAN_SLOT, usersDueForWeeklyUpdate, type DailySlot } from './weeklyUpdate.ts'
+
+export { REPLAN_SLOT, weekSlotStart, weeklyUpdateStatus, type DailySlot } from './weeklyUpdate.ts'
 
 const MINUTE_MS = 60_000
 export const SYNC_INTERVAL_MS = 60 * MINUTE_MS
@@ -26,6 +30,8 @@ export const WEATHER_INTERVAL_MS = 10 * MINUTE_MS
 export const CATCHUP_INTERVAL_MS = 6 * 60 * MINUTE_MS
 /** How often the weekly prediction job looks for a week that has no logged prediction. */
 export const PREDICTION_INTERVAL_MS = 6 * 60 * MINUTE_MS
+/** How often the publisher checks whether a runner's calendar is due (design 6.8). */
+export const PUBLISH_INTERVAL_MS = 2 * MINUTE_MS
 /** Activities that get weather per user per run. */
 const WEATHER_BATCH = 50
 /** The first run waits, so a crash loop never hammers a provider. */
@@ -260,70 +266,36 @@ export async function runMatchingJob(
   if (thrown !== null) throw thrown
 }
 
-export interface DailySlot {
-  /** 0 Sunday .. 6 Saturday, in the server's local time; every day when absent. */
-  weekday?: number
-  hour: number
-  minute: number
-}
-
 /**
- * The slot's occurrence in the current Monday-based week, in the server's local time (ADR 0003), or
- * null when it has not come yet this week.
+ * Sends the next 14 days of run sessions to intervals.icu for every runner who turned publishing
+ * on (design 6.8). A tick runs the publisher for a runner whose composed change key moved, whose
+ * retry is due, or after 30 minutes; with `force` (the 04:45 slot, after matching and the Monday
+ * re-plan) every such runner is run regardless. Each run that happens records one `publish` run in
+ * the sync log; a tick that finds nothing due records nothing.
  */
-export function weekSlotStart(now: Date, slot: DailySlot & { weekday: number }): Date | null {
-  const daysSinceMonday = (now.getDay() + 6) % 7
-  const slotOffset = (slot.weekday + 6) % 7
-  const start = new Date(now)
-  start.setDate(now.getDate() - daysSinceMonday + slotOffset)
-  start.setHours(slot.hour, slot.minute, 0, 0)
-  return start.getTime() <= now.getTime() ? start : null
-}
-
-/** Revisions that count as the week's automatic update. */
-const WEEKLY_REASONS = ['weekly', 'break']
-
-/**
- * Users whose weekly update is due: an active version-2 plan whose goal date has not passed, this
- * week's `REPLAN_SLOT` has come, the plan is older than the slot, and no `weekly` or `break`
- * revision exists since it. A plan built after the slot (generated, switched to another goal) was
- * made from this week's data, so the update has nothing left to do for it. `userId` narrows the
- * answer to one user.
- */
-async function usersDueForWeeklyUpdate(
-  prisma: PrismaClient,
-  now: Date,
-  userId?: string,
-): Promise<string[]> {
-  const start = weekSlotStart(now, REPLAN_SLOT)
-  if (start === null) return []
-  const plans = await prisma.plan.findMany({
-    where: {
-      ...(userId === undefined ? {} : { userId }),
-      status: 'active',
-      generatorVersion: { gte: 2 },
-      goal: { targetDate: { gte: todayIso(now) } },
-      createdAt: { lt: start },
-      revisions: { none: { reason: { in: WEEKLY_REASONS }, createdAt: { gte: start } } },
-    },
-    select: { userId: true },
+export async function runPublishJob(
+  deps: Deps,
+  opts: { fetch: typeof fetch; now?: Date; force?: boolean },
+  log?: Log,
+): Promise<void> {
+  const now = opts.now ?? new Date()
+  const channels = await deps.prisma.deliveryChannel.findMany({
+    where: { channel: PUBLISH_CHANNEL, enabled: true },
+    orderBy: { id: 'asc' },
   })
-  return [...new Set(plans.map((plan) => plan.userId))]
-}
-
-/** Whether this week's automatic plan update has run, for `GET /api/jobs` and Today's health note. */
-export async function weeklyUpdateStatus(
-  prisma: PrismaClient,
-  userId: string,
-  now: Date,
-): Promise<WeeklyUpdateStatus> {
-  const last = await prisma.planRevision.findFirst({
-    where: { reason: { in: WEEKLY_REASONS }, plan: { userId, status: 'active' } },
-    orderBy: { createdAt: 'desc' },
-    select: { createdAt: true },
-  })
-  const due = (await usersDueForWeeklyUpdate(prisma, now, userId)).length > 0
-  return { due, lastRevisionAt: last ? last.createdAt.toISOString() : null }
+  for (const channel of channels) {
+    try {
+      if (!opts.force && !(await isPublishDue(deps, channel, now))) continue
+      await publishForUser(deps, channel.userId, {
+        trigger: 'schedule',
+        fetch: opts.fetch,
+        ...(opts.now === undefined ? {} : { now: opts.now }),
+      })
+    } catch (error) {
+      // The run recorded the failure itself; this only keeps the loop going.
+      log?.warn({ reason: safeMessage(error) }, 'scheduled publishing failed')
+    }
+  }
 }
 
 /** Users being re-planned now, so the 03:00 slot and the catch-up never re-plan one twice at once. */
@@ -380,12 +352,14 @@ export function dueSlot(now: Date, last: string | null, slot: DailySlot): string
 const SLOT_CHECK_MS = 10 * MINUTE_MS
 /** Nightly matching runs first, so the Monday re-plan sees the week's links. */
 export const MATCHING_SLOT: DailySlot = { hour: 2, minute: 30 }
-export const REPLAN_SLOT = { weekday: 1, hour: 3, minute: 0 } satisfies DailySlot
+/** After matching (02:30) and the Monday re-plan (03:00): the morning's forced publish. */
+export const PUBLISH_MORNING_SLOT: DailySlot = { hour: 4, minute: 45 }
 
 /**
  * Starts the hourly sync, 5-minute folder scan and 10-minute weather jobs, the nightly matching
  * (02:30 local), the Monday re-plan (03:00 local) and its catch-up, and the weekly prediction log
- * (each 30 s after start, then every 6 hours); returns `stop()`.
+ * (each 30 s after start, then every 6 hours), the publisher's 2-minute check and its forced 04:45
+ * run; returns `stop()`.
  * A job never overlaps itself: a tick that finds its previous run still going does nothing.
  * Called from `server/index.ts` only, never in tests.
  */
@@ -443,6 +417,10 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   // The daily slot is seeded at start, so a restart after 03:00 on Monday would skip the week.
   every('replan-catchup', CATCHUP_INTERVAL_MS, () => runReplanJob(deps, { catchUp: true }, log))
   every('predictions', PREDICTION_INTERVAL_MS, () => runPredictionJob(deps, {}, log))
+  every('publish', PUBLISH_INTERVAL_MS, () => runPublishJob(deps, opts, log))
+  daily('publish-morning', PUBLISH_MORNING_SLOT, () =>
+    runPublishJob(deps, { ...opts, force: true }, log),
+  )
 
   return () => {
     stopped = true

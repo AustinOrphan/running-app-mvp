@@ -37,6 +37,7 @@ import {
 import type { PlanDiff, PlanRevisionView, UndoReason, UndoState } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import type {
+  Disruption as DisruptionRow,
   PlanRevision as PlanRevisionRow,
   PlanSession as PlanSessionRow,
   PlanWeek as PlanWeekRow,
@@ -44,12 +45,21 @@ import type {
 import { notFound } from '../errors.ts'
 import { existingFrom, loadAthleteContext } from './athleteState.ts'
 import { gatherEngineInput } from './engineInput.ts'
-import { revisionView, toPlanSession, toPlanWeek, type PlanRevisionListRow } from '../serialize.ts'
 import {
+  revisionView,
+  toDisruption,
+  toPlanSession,
+  toPlanWeek,
+  type PlanRevisionListRow,
+} from '../serialize.ts'
+import { toEngineWindow } from './athleteState.ts'
+import {
+  DISRUPTION_COLUMNS,
   SESSION_COLUMNS,
   WEEK_COLUMNS,
   applyUndoPayload,
   changedColumns,
+  disruptionHash,
   sessionHash,
   weekHash,
   EMPTY_DIFF_MARK,
@@ -122,8 +132,20 @@ function parseRevision(
       decision: readJson<WeeklyDecision | null>(row.decision, null),
       diff,
     }),
-    createdWindow: payload !== null && payload.disruptions.created.length > 0,
+    createdWindow: payload !== null && reportsWindow(payload),
   }
+}
+
+/**
+ * The revision opened a window the runner reported, or withdrew one: restoring either only returns
+ * caution (G6), so its undo is never refused on safety grounds. A window the revision merely moved
+ * the end of is not either.
+ */
+function reportsWindow(payload: UndoPayload): boolean {
+  return (
+    payload.disruptions.created.length > 0 ||
+    payload.disruptions.updated.some((entry) => entry.before.status === 'active')
+  )
 }
 
 /** What checks 1 to 3 of the policy read: the revision row, and whether it holds a payload. */
@@ -148,6 +170,7 @@ function needsActiveRules(parsed: ParsedRevision): boolean {
 
 /** The current rows of a plan, by the keys an undo checks them by. */
 export interface PlanRowIndex {
+  disruptionById: ReadonlyMap<string, DisruptionRow>
   sessionById: ReadonlyMap<string, SessionContent>
   sessionByExternalId: ReadonlyMap<string, SessionContent>
   sessionByActivity: ReadonlyMap<string, SessionContent>
@@ -158,8 +181,10 @@ export interface PlanRowIndex {
 export function indexRows(
   sessions: readonly SessionContent[],
   weeks: readonly WeekContent[],
+  disruptions: readonly DisruptionRow[] = [],
 ): PlanRowIndex {
   return {
+    disruptionById: new Map(disruptions.map((row) => [row.id, row])),
     sessionById: new Map(sessions.map((row) => [row.id, row])),
     sessionByExternalId: new Map(sessions.map((row) => [row.externalId, row])),
     sessionByActivity: new Map(
@@ -188,7 +213,9 @@ export function scopeUndo(
   index: PlanRowIndex,
   args: { today: string; diff: PlanDiff | null },
 ): ScopedUndo {
-  const restorePast = payload.disruptions.created.length > 0
+  // A revision that wrote a window also skipped the past days the window covers, on the runner's
+  // word; undoing the window brings those sessions back.
+  const restorePast = payload.disruptions.created.length + payload.disruptions.updated.length > 0
   const currentMonday = mondayOf(args.today)
   const sessionIn = (date: string) => restorePast || date >= args.today
   const weekIn = (weekStart: string) => restorePast || weekStart >= currentMonday
@@ -233,6 +260,19 @@ export function scopeUndo(
     sessions: { created: [], deleted: [], updated: [] },
     weeks: { created: [], deleted: [], updated: [] },
     disruptions: payload.disruptions,
+  }
+
+  const windowFact = (id: string, row: DisruptionRow | undefined, hash: string): UndoRowFact => ({
+    kind: 'disruption',
+    id,
+    weekStart: null,
+    title: null,
+    date: null,
+    // A window that is gone cannot have changed since; there is nothing to restore on it.
+    standing: row === undefined || disruptionHash(row) === hash ? 'as-left' : 'edited',
+  })
+  for (const entry of [...payload.disruptions.created, ...payload.disruptions.updated]) {
+    rows.push(windowFact(entry.id, index.disruptionById.get(entry.id), entry.hash))
   }
 
   for (const entry of payload.sessions.created) {
@@ -350,9 +390,13 @@ async function loadTouchedRows(deps: Deps, revisions: readonly ParsedRevision[])
   const activityIds = new Set<string>()
   const weekIds = new Set<string>()
   const weekStarts = new Set<string>()
+  const windowIds = new Set<string>()
   for (const { row, payload } of revisions) {
     if (payload === null) continue
     planIds.add(row.planId)
+    for (const entry of [...payload.disruptions.created, ...payload.disruptions.updated]) {
+      windowIds.add(entry.id)
+    }
     for (const entry of [...payload.sessions.created, ...payload.sessions.updated]) {
       sessionIds.add(entry.id)
     }
@@ -371,7 +415,7 @@ async function loadTouchedRows(deps: Deps, revisions: readonly ParsedRevision[])
   }
   if (planIds.size === 0) return indexRows([], [])
   const planId = { in: [...planIds] }
-  const [sessions, weeks] = await Promise.all([
+  const [sessions, weeks, windows] = await Promise.all([
     deps.prisma.planSession.findMany({
       where: {
         OR: [
@@ -388,8 +432,17 @@ async function loadTouchedRows(deps: Deps, revisions: readonly ParsedRevision[])
         OR: [{ id: { in: [...weekIds] } }, { weekStart: { in: [...weekStarts] } }],
       },
     }),
+    // Only the windows of the users these plans belong to, by id: a window has no plan.
+    windowIds.size === 0
+      ? Promise.resolve([])
+      : deps.prisma.disruption.findMany({
+          where: {
+            id: { in: [...windowIds] },
+            user: { plans: { some: { id: planId } } },
+          },
+        }),
   ])
-  return indexRows(sessions, weeks)
+  return indexRows(sessions, weeks, windows)
 }
 
 /**
@@ -467,13 +520,41 @@ export async function undoStates(
   return states
 }
 
-/** Revisions as the API serves them, with the structural undo state of each. */
+/**
+ * The Mondays of each plan's weeks whose target the runner set, by plan id: the weeks a re-plan
+ * keeps at the runner's number (`weekCaps` in `computeReplan`). One query for the page, and none
+ * when no revision on it has a diff to attribute. Read when the revisions are served, so a week the
+ * runner has since reset to the baseline no longer counts.
+ */
+async function ownerWeeksByPlan(
+  deps: Deps,
+  rows: readonly PlanRevisionListRow[],
+): Promise<Map<string, Set<string>>> {
+  const planIds = [...new Set(rows.filter((row) => row.diff !== null).map((row) => row.planId))]
+  const byPlan = new Map<string, Set<string>>()
+  if (planIds.length === 0) return byPlan
+  const weeks = await deps.prisma.planWeek.findMany({
+    where: { planId: { in: planIds }, targetSource: { in: ['override', 'review'] } },
+    select: { planId: true, weekStart: true },
+  })
+  for (const week of weeks) {
+    const set = byPlan.get(week.planId) ?? new Set<string>()
+    set.add(week.weekStart)
+    byPlan.set(week.planId, set)
+  }
+  return byPlan
+}
+
+/** Revisions as the API serves them, with the structural undo state and the causes of each. */
 export async function viewRevisions(
   deps: Deps,
   args: { userId: string; rows: readonly PlanRevisionListRow[]; planActive: boolean },
 ): Promise<PlanRevisionView[]> {
-  const states = await undoStates(deps, args)
-  return args.rows.map((row) => revisionView(row, states.get(row.id)!))
+  const [states, ownerWeeks] = await Promise.all([
+    undoStates(deps, args),
+    ownerWeeksByPlan(deps, args.rows),
+  ])
+  return args.rows.map((row) => revisionView(row, states.get(row.id)!, ownerWeeks.get(row.planId)))
 }
 
 /** One of the user's revisions as the API serves it. */
@@ -585,8 +666,55 @@ export interface RestoreWrites {
     deleted: PlanWeekRow[]
     updated: Array<{ before: PlanWeekRow; data: Partial<WeekContent> }>
   }
+  /**
+   * The windows the payload changes: those the revision created are withdrawn (`status`
+   * 'undone'), the columns it changed take their old values.
+   */
+  windows: Array<{ id: string; data: Partial<WindowColumns> }>
   /** The plan's rows once the payload is applied. */
   restored: { sessions: SessionContent[]; weeks: WeekContent[] }
+}
+
+/** The columns of a window an undo can restore. */
+export type WindowColumns = Pick<
+  DisruptionRow,
+  | 'reason'
+  | 'mode'
+  | 'startDate'
+  | 'endDate'
+  | 'maxRunMin'
+  | 'area'
+  | 'pain'
+  | 'gaitChange'
+  | 'note'
+  | 'status'
+>
+
+/** Only the columns a window hash covers, whatever a stored payload holds. */
+function windowColumnsOf(before: Record<string, unknown>): Partial<WindowColumns> {
+  return Object.fromEntries(
+    Object.entries(before).filter(([column]) => DISRUPTION_COLUMNS.includes(column)),
+  )
+}
+
+/**
+ * The windows as they stand once a payload is undone: a window the revision created is withdrawn
+ * and the columns it changed take their old values. Pure.
+ */
+export function windowsAfterUndo(
+  rows: readonly DisruptionRow[],
+  payload: UndoPayload['disruptions'],
+): DisruptionRow[] {
+  const created = new Set(payload.created.map((entry) => entry.id))
+  const restored = new Map(payload.updated.map((entry) => [entry.id, entry.before]))
+  return rows.map((row) => {
+    const before = restored.get(row.id)
+    return {
+      ...row,
+      ...(created.has(row.id) ? { status: 'undone' } : {}),
+      ...(before === undefined ? {} : windowColumnsOf(before)),
+    }
+  })
 }
 
 function difference<Row extends { id: string }>(
@@ -628,6 +756,16 @@ export function restoreWrites(
   return {
     sessions: difference(rows.sessions, restored.sessions, SESSION_COLUMNS),
     weeks: difference(rows.weeks, restored.weeks, WEEK_COLUMNS),
+    windows: [
+      ...payload.disruptions.created.map((entry) => ({
+        id: entry.id,
+        data: { status: 'undone' },
+      })),
+      ...payload.disruptions.updated.map((entry) => ({
+        id: entry.id,
+        data: windowColumnsOf(entry.before),
+      })),
+    ],
     restored,
   }
 }
@@ -735,19 +873,25 @@ export async function planUndo(
     return refused([{ code: own ?? 'not-undoable' }])
   }
 
-  const [sessionRows, weekRows] = await Promise.all([
+  const windowIds = [...parsed.payload.disruptions.created, ...parsed.payload.disruptions.updated]
+    .map((entry) => entry.id)
+    .sort()
+  const [sessionRows, weekRows, windowRows] = await Promise.all([
     prisma.planSession.findMany({
       where: { planId: plan.id },
       orderBy: [{ date: 'asc' }, { order: 'asc' }, { id: 'asc' }],
     }),
     prisma.planWeek.findMany({ where: { planId: plan.id }, orderBy: { index: 'asc' } }),
+    windowIds.length === 0
+      ? Promise.resolve([])
+      : prisma.disruption.findMany({ where: { id: { in: windowIds }, userId } }),
   ])
   const active = needsActiveRules(parsed)
     ? activeSafetyRules(await loadAthleteContext(deps, { userId, today }))
     : []
   const { findings, scoped } = evaluate(parsed, {
     planActive,
-    index: indexRows(sessionRows, weekRows),
+    index: indexRows(sessionRows, weekRows, windowRows),
     today,
     nowMs,
     windowDays,
@@ -766,18 +910,29 @@ export async function planUndo(
       .sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order || a.id.localeCompare(b.id))
       .map((session) => toPlanSession({ updatedAt: EPOCH, ...session })),
   )
-  const input = {
-    ...(await gatherEngineInput(
-      deps,
-      {
-        userId,
-        goalId: plan.goalId,
-        today,
-        options: readJson<EngineInput['options']>(plan.options, {}),
-      },
-      { existing: false },
-    )),
+  // The checklist reads the windows as they will stand: the one an undo withdraws no longer holds
+  // the days it held, and the one it brings back does.
+  const { disruptions: current, ...gathered } = await gatherEngineInput(
+    deps,
+    {
+      userId,
+      goalId: plan.goalId,
+      today,
+      options: readJson<EngineInput['options']>(plan.options, {}),
+    },
+    { existing: false },
+  )
+  const touched = new Set(windowIds)
+  const windows = [
+    ...(current ?? []).filter((window) => !touched.has(window.id)),
+    ...windowsAfterUndo(windowRows, scoped.payload.disruptions)
+      .filter((row) => row.status === 'active')
+      .map((row) => toEngineWindow(toDisruption(row))),
+  ].sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id.localeCompare(b.id))
+  const input: EngineInput = {
+    ...gathered,
     existing: stored,
+    ...(windows.length === 0 ? {} : { disruptions: windows }),
   }
   // The plan columns follow the rows by the code a re-plan uses; the checklist reads the restored
   // plan itself.

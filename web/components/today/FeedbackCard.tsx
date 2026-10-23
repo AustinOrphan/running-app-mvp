@@ -1,5 +1,4 @@
 import { useId, useState } from 'react'
-import { addDays } from '../../../shared/dates.ts'
 import type { ActivityListItem, Units } from '../../../shared/types.ts'
 import { formatDistance, formatDuration } from '../../../shared/units.ts'
 import { useSaveFeedback } from '../../api/activities.ts'
@@ -8,24 +7,7 @@ import { TYPE_LABELS } from '../../pages/ActivityForm.tsx'
 import { Button } from '../Button.tsx'
 import { FeedbackFields, type FeedbackValues } from '../FeelPicker.tsx'
 import { formatShortDate, formatWeekday } from '../format.ts'
-import styles from './today.module.css'
-
-const FEEDBACK_DAYS = 7
-
-/** Runs and races from the last week that have neither an RPE nor a feel, newest first. */
-function unratedRecent(activities: ActivityListItem[], today: string): ActivityListItem[] {
-  const first = addDays(today, 1 - FEEDBACK_DAYS)
-  return activities.filter(
-    (a) =>
-      (a.type === 'run' || a.type === 'race') &&
-      a.date >= first &&
-      a.date <= today &&
-      a.rpe === null &&
-      a.feel === null &&
-      a.duplicateStatus !== 'possible' &&
-      a.duplicateStatus !== 'confirmed',
-  )
-}
+import styles from './FeedbackCard.module.css'
 
 /** "Run Tue 17 Mar, 30:00, 5.00 km" for one unrated run. */
 function activityLine(activity: ActivityListItem, units: Units): { type: string; rest: string } {
@@ -116,23 +98,20 @@ function FeedbackQueued({
 
 /**
  * The most recent unrated run of the last week in full; the others as a list with a Rate button
- * that opens the same form in place. `activities` is every recent activity; the card picks the
- * unrated runs itself.
+ * that opens the same form in place. `unrated` is the list the server sends with the payload
+ * (`TodayView.unrated`): runs and races without an effort rating or a feel.
  */
 export function FeedbackCard({
-  activities,
-  today,
+  unrated,
   units,
   onSaved,
 }: {
-  activities: ActivityListItem[]
-  today: string
+  unrated: ActivityListItem[]
   units: Units
   onSaved: () => void
 }) {
   const headingId = useId()
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set())
-  const unrated = unratedRecent(activities, today)
   if (unrated.length === 0) return null
   const newestFirst = [...unrated].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   const [newest, ...older] = newestFirst

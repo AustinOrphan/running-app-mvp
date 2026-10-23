@@ -71,6 +71,11 @@ export const TODAY_TEMPLATES = {
   'today.signal.checkin-items': tpl('Check-in recorded today.'),
   'today.signal.checkin-items-low': tpl('Some check-in answers are away from normal today.'),
 
+  // What an update of the plan was, on the change line's sheet. The line shows the stored summary.
+  'today.change.weekly': tpl('Weekly update', {}, { shape: 'label' }),
+  'today.change.break': tpl('Restart after a break', {}, { shape: 'label' }),
+  'today.change.review': tpl('After a review', {}, { shape: 'label' }),
+
   // The race countdown.
   'today.race.estimate': tpl('Finish estimate {low} to {high}, most likely about {likely}.', {
     low: 'duration',
@@ -95,6 +100,80 @@ export const TODAY_TEMPLATES = {
   'today.week.planned': tpl('Planned', {}, { shape: 'label' }),
   'today.week.unlogged': tpl('Planned, no run logged', {}, { shape: 'label' }),
   'today.week.free': tpl('No run planned', {}, { shape: 'label' }),
+  // A day as a screen reader names it: the date, its mark and the run time logged on it.
+  'today.week.day': tpl(
+    '{weekday} {date}, {mark}',
+    { weekday: 'weekday', date: 'date', mark: 'text' },
+    { shape: 'label' },
+  ),
+  'today.week.day-logged': tpl(
+    '{weekday} {date}, {mark}, {logged} logged',
+    { weekday: 'weekday', date: 'date', mark: 'text', logged: 'minutes' },
+    { shape: 'label' },
+  ),
+  // The advisory split of what is left of the week's target. Advice, not a minimum.
+  'today.week.advisory': tpl(
+    '{perDay} a day left, through Sunday',
+    { perDay: 'minutes' },
+    { shape: 'label' },
+  ),
+  'today.week.nothing-left': tpl('Nothing left to plan this week', {}, { shape: 'label' }),
+  'today.week.advisory-caption': tpl('advisory', {}, { shape: 'label' }),
+
+  // The targets of the session, as the hero's term list reads them: a term, its value and, when
+  // the day calls for it, a note. The order of the terms follows the lead (`resolveTargets`).
+  'today.target.term-hr': tpl('Heart rate', {}, { shape: 'label' }),
+  'today.target.term-pace': tpl('Pace', {}, { shape: 'label' }),
+  'today.target.term-effort': tpl('Effort', {}, { shape: 'label' }),
+  'today.target.hr-ceiling': tpl('under {limit}', { limit: 'bpm' }, { shape: 'label' }),
+  // A range prints its unit once ("149 to 165 bpm"), so it arrives as text.
+  'today.target.range': tpl('{range}', { range: 'text' }, { shape: 'label' }),
+  'today.target.pace-guide': tpl('about {range}', { range: 'text' }, { shape: 'label' }),
+  'today.target.effort': tpl('{range} out of 10', { range: 'text' }, { shape: 'label' }),
+  'today.target.note-pace-guide': tpl('Effort and heart rate come first.'),
+  'today.target.note-hot-effort': tpl('Go by this today.'),
+  'today.target.note-hot-hr': tpl('It runs high in heat.'),
+
+  // The cooler start: the hour, and the index then and at the peak. Without a WBGT reading the
+  // peak figure is not known, so the air-temperature line names the cooler hour only.
+  'today.cooler.wbgt': tpl('Cooler start: {time}. WBGT about {then} then, {peak} around {hour}.', {
+    time: 'text',
+    then: 'temp',
+    peak: 'temp',
+    hour: 'text',
+  }),
+  'today.cooler.air': tpl('Cooler start: {time}. Air temperature about {then} then.', {
+    time: 'text',
+    then: 'temp',
+  }),
+
+  // The hero: what was planned when the day is eased or rested, the run that was logged, the
+  // day's other sessions and the next one.
+  'today.hero.planned': tpl(
+    'Planned: {title}, {duration}',
+    { title: 'text', duration: 'minutes' },
+    { shape: 'label' },
+  ),
+  'today.hero.planned-not-today': tpl('Planned: {title}, {duration}. Not today.', {
+    title: 'text',
+    duration: 'minutes',
+  }),
+  'today.hero.rest-day': tpl('Rest day.'),
+  // The distance of a run arrives as text, written by `formatDistance` (5.00 mi), as the log and
+  // the session sheet write it.
+  'today.hero.logged': tpl('Logged: {distance} in {duration}.', {
+    distance: 'text',
+    duration: 'duration',
+  }),
+  'today.hero.logged-time': tpl('Logged: {duration}.', { duration: 'duration' }),
+  'today.hero.also': tpl('Also today: {sessions}.', { sessions: 'text' }),
+  'today.hero.nothing-planned': tpl('Nothing is planned today.'),
+  'today.hero.next': tpl('Next: {date}, {title}, {duration}.', {
+    date: 'date',
+    title: 'text',
+    duration: 'minutes',
+  }),
+  'today.hero.climb': tpl('{climb} climb', { climb: 'climb' }, { shape: 'label' }),
 } satisfies Record<string, Template>
 
 /**

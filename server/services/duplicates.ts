@@ -10,6 +10,41 @@ import type { DuplicateStatus } from '../../shared/types.ts'
 
 const COUNTED_TYPES = ['run', 'race']
 
+/**
+ * Hands the fuel log of a confirmed duplicate of `originalId` to the original, when the original
+ * has none. A confirmed duplicate is the same run and the ladder counts a run once, so a log the
+ * runner entered on the copy would otherwise drop out of the replay (design 10.7). When the
+ * original already has a log, the copy's log stays where it is and the replay leaves it out. At
+ * most one log moves, because an activity holds one. Returns whether a log moved.
+ */
+export async function moveConfirmedLogs(
+  prisma: Pick<PrismaClient, 'activity' | 'fuelLog'>,
+  userId: string,
+  originalId: string,
+): Promise<boolean> {
+  const held = await prisma.fuelLog.findUnique({
+    where: { activityId: originalId },
+    select: { id: true },
+  })
+  if (held) return false
+  const copies = await prisma.activity.findMany({
+    where: { userId, duplicateOfId: originalId, duplicateStatus: 'confirmed' },
+    select: { id: true },
+    orderBy: { id: 'asc' },
+  })
+  for (const copy of copies) {
+    const log = await prisma.fuelLog.findUnique({
+      where: { activityId: copy.id },
+      select: { id: true },
+    })
+    if (log) {
+      await prisma.fuelLog.update({ where: { id: log.id }, data: { activityId: originalId } })
+      return true
+    }
+  }
+  return false
+}
+
 /** `date` (YYYY-MM-DD) moved by `days`; calendar arithmetic in UTC, so no DST effects. */
 function shiftDate(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`)
@@ -28,7 +63,7 @@ function shiftDate(date: string, days: number): string {
  * `confirmed` when it now qualifies. Returns how many rows were newly flagged.
  */
 export async function markDuplicates(
-  prisma: Pick<PrismaClient, 'activity'>,
+  prisma: Pick<PrismaClient, 'activity' | 'fuelLog'>,
   userId: string,
   activityIds: string[],
 ): Promise<number> {
@@ -73,6 +108,7 @@ export async function markDuplicates(
         where: { userId, duplicateOfId: duplicate.id, id: { not: original.id } },
         data: { duplicateOfId: original.id },
       })
+      if (status === 'confirmed') await moveConfirmedLogs(prisma, userId, original.id)
       if (!wasFlagged) flagged += 1
       // The candidate is now itself a duplicate; it cannot demote anything else.
       if (duplicate.id === candidate.id) break

@@ -38,6 +38,14 @@ export const WINDOW_TEMPLATES = {
     { days: 'count', share: 'share' },
   ),
 
+  // The label of a window in a diff (`PlanDiff.holds`), like the title of a rest day.
+  'window.label.rest': tpl('Rest: {reason}', { reason: 'text' }, { shape: 'label' }),
+  'window.label.limited': tpl(
+    'Runs up to {max}: {reason}',
+    { max: 'minutes', reason: 'text' },
+    { shape: 'label' },
+  ),
+
   // The rule behind a window.
   'window.rule-illness': tpl(
     'Running waits until you have had {free}, then {easy} before any hard session.',
@@ -258,6 +266,120 @@ export function describeIssue(issue: DisruptionIssue, units: Units): string {
   return renderWindowFact(issueFact(issue), units)
 }
 
+/**
+ * The guards of an owner edit of one session (`adjustCheck`): why a move, swap, shorten or skip is
+ * refused or qualified, and the label of the one alternative that would work. Each message names
+ * its rule where the rule limits the edit. Slots are dates, minutes, shares and the session's own
+ * title, so the words read the same in kilometres and in miles.
+ */
+export const ADJUST_TEMPLATES = {
+  // The session cannot be changed at all.
+  'adjust.race-skip': tpl('The race day cannot be skipped.'),
+  'adjust.race-stays': tpl('The race day stays where it is.'),
+  'adjust.past': tpl('A session in the past stays as it was.'),
+  'adjust.linked': tpl(
+    'This session is linked to an activity, so it stays as it is. Unlink the activity first to change it.',
+  ),
+  'adjust.settled': tpl('This session is already done, so it stays as it is.'),
+  'adjust.skipped': tpl('This session is skipped. Restore it before changing it.'),
+  'adjust.not-shortenable': tpl('Only a run can be shortened.'),
+
+  // A move or a swap that has nowhere to go.
+  'adjust.other-week': tpl('A session moves within its own week. Re-plan to change weeks.'),
+  'adjust.past-date': tpl('A session cannot move to a day that has passed.'),
+  'adjust.no-partner': tpl(
+    'There is no {kind} session left this week to swap with. A swap never adds a session or raises load.',
+    { kind: 'text' },
+  ),
+  'adjust.partner-unavailable': tpl(
+    'That session cannot be swapped with. It must be in the same week, still to run and not linked to an activity.',
+  ),
+
+  // A shorten that is not one.
+  'adjust.not-shorter': tpl(
+    'Shortening only makes a session shorter. Nothing is added to it or to another day.',
+  ),
+  'adjust.below-minimum': tpl('A run under {min} is not worth scheduling. Skip it instead.', {
+    min: 'minutes',
+  }),
+  'adjust.b2b-stays': tpl(
+    '{title} is one day of a back-to-back pair, so it stays on its day (rule H3).',
+    {
+      title: 'text',
+    },
+  ),
+  'adjust.b2b-day2': tpl('Day 2 of the pair would be longer than day 1 allows (rule H3).'),
+
+  // The new arrangement breaks a limit.
+  'adjust.closed-day': tpl('{date} is not a day you run, so {title} cannot go there.', {
+    date: 'date',
+    title: 'text',
+  }),
+  'adjust.day-limit': tpl('{title} is {minutes} and {date} allows {max}.', {
+    title: 'text',
+    minutes: 'minutes',
+    date: 'date',
+    max: 'minutes',
+  }),
+  'adjust.one-run': tpl(
+    "{date} already has a run; one run a day keeps the week's spacing (rule F1).",
+    { date: 'date' },
+  ),
+  'adjust.hard-spacing': tpl(
+    '{title} next to {other} would leave no easy day between two hard sessions (rule F1).',
+    { title: 'text', other: 'text' },
+  ),
+  'adjust.long-run-between': tpl(
+    'The long run on {date} would sit between two quality days (rule F3).',
+    { date: 'date' },
+  ),
+  'adjust.rest-window': tpl('Running is on hold on {date}, so {title} cannot go there (rule J9).', {
+    date: 'date',
+    title: 'text',
+  }),
+  'adjust.quiet-day': tpl(
+    '{date} is for easy running only, so {title} cannot go there (rule J9).',
+    {
+      date: 'date',
+      title: 'text',
+    },
+  ),
+  'adjust.day-cap': tpl('Runs on {date} are held to {max}, and {title} is {minutes} (rule J9).', {
+    date: 'date',
+    max: 'minutes',
+    title: 'text',
+    minutes: 'minutes',
+  }),
+  'adjust.spike-warn': tpl(
+    '{title} on {date} is above {limit} of the longest run of the last {days} days. Check that it feels right (rule G-1).',
+    { title: 'text', date: 'date', limit: 'share', days: 'count' },
+  ),
+  'adjust.spike-block': tpl(
+    '{title} on {date} would be above {limit} of the longest run of the last {days} days, so it stays as it is (rule G-1).',
+    { title: 'text', date: 'date', limit: 'share', days: 'count' },
+  ),
+  'adjust.weekly-cap': tpl(
+    'The week of {date} would hold {minutes} of running, above its {max} target (rules G-2, G-6).',
+    { date: 'date', minutes: 'minutes', max: 'minutes' },
+  ),
+
+  // The label of the alternative a guard offers.
+  'adjust.suggest.swap': tpl(
+    'Swap with {title} {minutes} instead',
+    { title: 'text', minutes: 'minutes' },
+    { shape: 'label' },
+  ),
+  'adjust.suggest.restore': tpl('Restore it first', {}, { shape: 'label' }),
+  'adjust.suggest.skip': tpl('Skip it instead', {}, { shape: 'label' }),
+  'adjust.suggest.shorten': tpl(
+    'Shorten it to {minutes} first',
+    { minutes: 'minutes' },
+    { shape: 'label' },
+  ),
+} satisfies Record<string, Template>
+
+export type AdjustTemplateId = keyof typeof ADJUST_TEMPLATES
+
 export const REVISION_TEMPLATES = {
   // The summary of a re-plan: how many week-level changes it made, then the weekly decision.
   'revision.changes.none': tpl('No changes to the plan.'),
@@ -285,6 +407,29 @@ export const REVISION_TEMPLATES = {
     date: 'date',
     other: 'text',
     otherDate: 'date',
+  }),
+  'revision.owner.shortened': tpl('Shortened {title} on {date} from {from} to {to}.', {
+    title: 'text',
+    date: 'date',
+    from: 'minutes',
+    to: 'minutes',
+  }),
+
+  // The summary of a change to a window (E5): added, changed or removed.
+  'revision.window.created': tpl('Added a window ({reason}) from {from} to {to}.', {
+    reason: 'text',
+    from: 'date',
+    to: 'date',
+  }),
+  'revision.window.updated': tpl('Changed the window ({reason}) to run from {from} to {to}.', {
+    reason: 'text',
+    from: 'date',
+    to: 'date',
+  }),
+  'revision.window.removed': tpl('Removed the window ({reason}) from {from} to {to}.', {
+    reason: 'text',
+    from: 'date',
+    to: 'date',
   }),
 
   // The summary of the owner's decision on a zone proposal. The proposed values are in the
@@ -333,6 +478,9 @@ export const REVISION_TEMPLATES = {
   ),
   'revision.undo.edited-since.plan': tpl(
     'The plan changed after this update, so it cannot be restored.',
+  ),
+  'revision.undo.edited-since.window': tpl(
+    'The window changed after this update, so it cannot be restored.',
   ),
   'revision.undo.session-run': tpl('A run is linked to {title} on {date}, so this update stays.', {
     title: 'text',
@@ -428,6 +576,36 @@ export function swappedSummary(
   )
 }
 
+export function shortenedSummary(
+  title: string,
+  date: string,
+  fromMin: number,
+  toMin: number,
+): string {
+  return render(
+    REVISION_TEMPLATES['revision.owner.shortened'],
+    {
+      title,
+      date: day(date),
+      from: { kind: 'minutes', min: fromMin },
+      to: { kind: 'minutes', min: toMin },
+    },
+    STORED_UNITS,
+  )
+}
+
+/**
+ * One sentence of the guards of an owner edit (`ADJUST_TEMPLATES`), filled from the figures the
+ * guard found. The slots are checked against the template when it renders, as for a window fact.
+ */
+export function adjustText(
+  id: AdjustTemplateId,
+  slots: Record<string, Quantity | string> = {},
+): string {
+  const template: Template = ADJUST_TEMPLATES[id]
+  return render(template, slots, STORED_UNITS)
+}
+
 /** The zone boundaries as the summary of a zone decision names them. */
 const ZONE_BOUNDARY_WORDS: Record<ZoneBoundary, string> = {
   cs: 'critical speed',
@@ -473,6 +651,55 @@ export function goalSwitchSummary(goal: string, weeks: number, sessions: number)
 
 export function planRestoredSummary(): string {
   return render(REVISION_TEMPLATES['revision.plan-restored'], {}, STORED_UNITS)
+}
+
+/** How a reason reads in the summary and the label of a window; no numbers. */
+const REASON_WORDS: Record<DisruptionReason, string> = {
+  'illness-above-neck': 'illness',
+  'illness-below-neck': 'illness',
+  niggle: 'niggle',
+  'short-on-time': 'short on time',
+  travel: 'travel',
+}
+
+/** What a revision did to a window. */
+export type WindowChangeKind = 'created' | 'updated' | 'removed'
+
+/** "Added a window (illness) from Wed 22 Oct to Fri 24 Oct." for the revision of a window action. */
+export function windowRevisionSummary(
+  kind: WindowChangeKind,
+  window: { reason: DisruptionReason; startDate: string; endDate: string },
+): string {
+  const slots = {
+    reason: REASON_WORDS[window.reason],
+    from: day(window.startDate),
+    to: day(window.endDate),
+  }
+  switch (kind) {
+    case 'created':
+      return render(REVISION_TEMPLATES['revision.window.created'], slots, STORED_UNITS)
+    case 'updated':
+      return render(REVISION_TEMPLATES['revision.window.updated'], slots, STORED_UNITS)
+    case 'removed':
+      return render(REVISION_TEMPLATES['revision.window.removed'], slots, STORED_UNITS)
+  }
+}
+
+/** "Rest: illness" or "Runs up to 30 min: travel": the name of a window in a diff. */
+export function windowHoldLabel(window: {
+  reason: DisruptionReason
+  mode: 'rest' | 'limited'
+  maxRunMin: number | null
+}): string {
+  const reason = REASON_WORDS[window.reason]
+  if (window.mode === 'limited' && window.maxRunMin !== null && window.maxRunMin > 0) {
+    return render(
+      WINDOW_TEMPLATES['window.label.limited'],
+      { max: { kind: 'minutes', min: window.maxRunMin }, reason },
+      STORED_UNITS,
+    )
+  }
+  return render(WINDOW_TEMPLATES['window.label.rest'], { reason }, STORED_UNITS)
 }
 
 /**
@@ -558,6 +785,11 @@ export function describeUndoFinding(finding: UndoFinding, undoWindowDays: number
             { date: day(finding.weekStart) },
             STORED_UNITS,
           ),
+        )
+      }
+      if (finding.disruptionId !== undefined) {
+        return reason(
+          render(REVISION_TEMPLATES['revision.undo.edited-since.window'], {}, STORED_UNITS),
         )
       }
       return plain()

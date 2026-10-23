@@ -1,0 +1,49 @@
+.race {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--page-max);
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--border);
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.line {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.number {
+  font-size: var(--text-xl);
+  line-height: var(--lh-xl);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.caption {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.estimate {
+  margin: 0;
+  max-width: var(--prose-max);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.wide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}

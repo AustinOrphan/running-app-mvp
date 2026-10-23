@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, test } from 'vitest'
 import type { StandoutView } from '../../shared/copy/standoutRender.ts'
 import { allParams } from '../../shared/engine/params/index.ts'
-import type { InputFact, Quantity } from '../../shared/engine/types.ts'
+import type { ExplainView, InputFact, Quantity } from '../../shared/engine/types.ts'
 import type { Units, UserSettings } from '../../shared/types.ts'
 import { StandoutCard } from '../../web/components/StandoutCard.tsx'
 import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
@@ -115,10 +115,18 @@ describe('StandoutCard', () => {
     ])
   })
 
-  test('a Why opens the drawer on the rule of the fact and on the thresholds', async () => {
-    mockApi({
+  test('a Why opens the drawer on the run, its stored figures, the rule of the fact and the thresholds', async () => {
+    const { calls } = mockApi({
       ...settings('km'),
       'GET /api/activities/a1/standout': () => ({ items: [HEART_RATE], more: 0 }),
+      'GET /api/explain': (): ExplainView => ({
+        subject: 'activity',
+        asOf: '2026-10-20',
+        frozen: true,
+        rules: ['A8'],
+        groups: [{ rule: 'A8', facts: [HEART_RATE] }],
+        rest: [],
+      }),
       'GET /api/research/params': () => ({ version: 'v', params: allParams() }),
     })
     renderWithProviders(<StandoutCard activityId="a1" units="km" />)
@@ -126,6 +134,17 @@ describe('StandoutCard', () => {
     await user.click(await screen.findByRole('button', { name: 'Why: heart rate' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    // The figures stored with the run, from the activity subject and not from the rule ids.
+    expect(
+      await within(dialog).findByText('These are the figures from 20 Oct, when this was written.'),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByText('Average heart rate was 8 bpm higher than your usual at this pace.'),
+    ).toBeInTheDocument()
+    expect(
+      calls.filter((call) => call.url.startsWith('/api/explain')).map((call) => call.url),
+    ).toEqual(['/api/explain?subject=activity&id=a1'])
+    // The rule section keeps the rule of the fact and the one that holds the thresholds.
     expect(
       await within(dialog).findByRole('heading', { name: 'Efficiency index' }),
     ).toBeInTheDocument()

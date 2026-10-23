@@ -1,6 +1,7 @@
 import type {
   Activity as ActivityRow,
   AthleteProfile as AthleteProfileRow,
+  Disruption as DisruptionRow,
   FuelLog as FuelLogRow,
   FuelProduct as FuelProductRow,
   FuelSettings as FuelSettingsRow,
@@ -17,6 +18,7 @@ import type {
   PrismaClient,
   WeeklyReview as WeeklyReviewRow,
   WellnessDay as WellnessDayRow,
+  WristPublication as WristPublicationRow,
 } from './db.ts'
 import type {
   CourseSnapshot,
@@ -39,8 +41,10 @@ import type {
   WeeklyDecision,
 } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
+import { mondayOf, todayIso } from '../shared/dates.ts'
 import { countsLine } from '../shared/engine/fuelCopy.ts'
 import { P } from '../shared/engine/params/index.ts'
+import { causesOf } from '../shared/engine/revisionDiff.ts'
 import { revisionUndoReason } from '../shared/engine/undoGuard.ts'
 import type {
   Activity,
@@ -53,6 +57,10 @@ import type {
   AthleteProfile,
   Availability,
   DataStatus,
+  Disruption,
+  DisruptionMode,
+  DisruptionReason,
+  DisruptionStatus,
   DuplicateStatus,
   Feel,
   FuelLogItem,
@@ -91,6 +99,8 @@ import type {
   Weekday,
   WeeklyReview,
   WellnessDay,
+  WristItem,
+  WristItemStatus,
 } from '../shared/types.ts'
 
 /** Parses stored JSON text; any failure gives `fallback`. */
@@ -275,6 +285,62 @@ export function toIntegrationStatus(
   }
 }
 
+/** Time after a send before the app says "On your watch": intervals.icu needs time to upload. */
+export const ON_WATCH_DELAY_MS = 15 * 60_000
+
+/**
+ * Where a stored publication stands (design 6.4). "On your watch" needs the runner's tick that
+ * intervals.icu uploads to Garmin Connect, no device message and 15 minutes since the send; the app
+ * cannot see the watch, so anything less is "sent". A send that moved with the session but has not
+ * been repeated at the new day yet is waiting. `sessionDate` is the day the plan has for the
+ * session now, or null when the plan no longer holds it.
+ */
+export function wristItemStatus(
+  row: Pick<WristPublicationRow, 'state' | 'date' | 'deviceMessage' | 'sentAt' | 'nextAttemptAt'>,
+  at: { garminLinked: boolean; now: Date; sessionDate: string | null },
+): WristItemStatus {
+  switch (row.state) {
+    case 'sent': {
+      if (at.sessionDate !== null && at.sessionDate !== row.date) return 'waiting'
+      if (row.deviceMessage !== null) return 'not-delivered'
+      const onWatch =
+        at.garminLinked &&
+        row.sentAt !== null &&
+        at.now.getTime() - row.sentAt.getTime() >= ON_WATCH_DELAY_MS
+      return onWatch ? 'on-watch' : 'sent'
+    }
+    case 'failed':
+      return row.nextAttemptAt === null ? 'not-delivered' : 'waiting'
+    case 'owner-removed':
+      return 'removed'
+    case 'withdrawn':
+      return 'withdrawn'
+    default:
+      return 'waiting'
+  }
+}
+
+export function toWristItem(
+  row: WristPublicationRow,
+  join: { sessionId: string | null; date: string; status: WristItemStatus },
+): WristItem {
+  return {
+    externalId: row.externalId,
+    sessionId: join.sessionId,
+    date: join.date,
+    kind: row.kind,
+    title: row.title,
+    variant: row.variant === 'eased' ? 'eased' : 'planned',
+    status: join.status,
+    failCode: row.failCode,
+    failMessage: row.failMessage,
+    deviceMessage: row.deviceMessage,
+    warnings: parseJson<string[]>(row.warnings, []),
+    retryAt: row.nextAttemptAt ? row.nextAttemptAt.toISOString() : null,
+    sentAt: row.sentAt ? row.sentAt.toISOString() : null,
+  }
+}
+
 export function toGoal(row: GoalRow): Goal {
   return {
     id: row.id,
@@ -454,18 +520,45 @@ function ownUndoState(row: PlanRevisionRow, now: Date): UndoState {
 /** A revision row without its undo payload, as a list reads it: the payload is not selected. */
 export type PlanRevisionListRow = Omit<PlanRevisionRow, 'undo'>
 
-/** A revision as the API serves it, with the undo state computed by the caller. */
-export function revisionView(row: PlanRevisionListRow, undo: UndoState): PlanRevisionView {
+/**
+ * A revision as the API serves it, with the undo state computed by the caller. `ownerWeeks` are
+ * the Mondays of the plan's weeks whose target the runner set (`targetSource` override or review),
+ * which a re-plan keeps; a caller that has not read them gets causes without that one.
+ */
+export function revisionView(
+  row: PlanRevisionListRow,
+  undo: UndoState,
+  ownerWeeks?: ReadonlySet<string>,
+): PlanRevisionView {
+  const reason = row.reason as PlanRevisionReason
+  const decision = parseJson<WeeklyDecision | null>(row.decision, null)
+  const changes = parseJson<PlanChange[]>(row.changes, [])
+  const diff = parseJson<PlanDiff | null>(row.diff, null)
+  const writtenOn = todayIso(row.createdAt)
   return {
     id: row.id,
     planId: row.planId,
     createdAt: row.createdAt.toISOString(),
-    reason: row.reason as PlanRevisionReason,
+    reason,
     summary: row.summary,
-    changes: parseJson<PlanChange[]>(row.changes, []),
+    changes,
     auto: row.auto,
-    decision: parseJson<WeeklyDecision | null>(row.decision, null),
-    diff: parseJson<PlanDiff | null>(row.diff, null),
+    decision,
+    diff,
+    causes:
+      diff === null
+        ? null
+        : causesOf(diff, {
+            reason,
+            decision,
+            writtenOn,
+            disruptionId: row.disruptionId,
+            changeFields: changes.map((change) => change.field),
+            // The engine keeps a runner's target only for the week it was written in and later.
+            ownerWeeks: new Set(
+              [...(ownerWeeks ?? [])].filter((week) => week >= mondayOf(writtenOn)),
+            ),
+          }),
     undo,
     seenAt: row.seenAt?.toISOString() ?? null,
     undoOf: row.undoOf,
@@ -481,6 +574,25 @@ export function revisionView(row: PlanRevisionListRow, undo: UndoState): PlanRev
  */
 export function toPlanRevision(row: PlanRevisionRow, now: Date = new Date()): PlanRevisionView {
   return revisionView(row, ownUndoState(row, now))
+}
+
+/** A stored rest or limited-running window as the API serves it. */
+export function toDisruption(row: DisruptionRow): Disruption {
+  return {
+    id: row.id,
+    reason: row.reason as DisruptionReason,
+    mode: row.mode as DisruptionMode,
+    startDate: row.startDate,
+    endDate: row.endDate,
+    maxRunMin: row.maxRunMin,
+    area: row.area,
+    pain: row.pain,
+    gaitChange: row.gaitChange,
+    note: row.note,
+    status: row.status as DisruptionStatus,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
 }
 
 /** The three columns of a revision that the Today change line reads. */

@@ -15,10 +15,11 @@
 // function body, so the cycle never sees an uninitialised binding.
 import { createHash } from 'node:crypto'
 import { addDays, mondayOf } from '../../shared/dates.ts'
-import { changesSummary, decisionSummary } from '../../shared/copy/revision.ts'
+import { changesSummary, decisionSummary, stalePreviewMessage } from '../../shared/copy/revision.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
+import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
-import { replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
+import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import type {
   EngineInput,
@@ -36,9 +37,10 @@ import {
   type PlanWeek as PlanWeekRow,
   type PrismaClient,
 } from '../db.ts'
-import { notFound, validationError } from '../errors.ts'
-import { toPlanRevision } from '../serialize.ts'
-import { gatherEngineInput } from './engineInput.ts'
+import { conflict, notFound, validationError } from '../errors.ts'
+import { toPlanRevision, toPlanSession } from '../serialize.ts'
+import { gatherEngineInput, sessionSpec } from './engineInput.ts'
+import { withGutTrainingOption } from './fuel.ts'
 import { recordPrediction, type PredictionGoal } from './predictionLog.ts'
 import {
   executionRecordsByWeek,
@@ -162,7 +164,11 @@ export interface UndoPayload {
   v: 1
   sessions: UndoRows<SessionContent>
   weeks: UndoRows<WeekContent>
-  /** Rest windows (phase 3a, E5); empty until the model exists. */
+  /**
+   * Rest windows (phase 3a, E5): the rows the revision created (an undo withdraws them) and the
+   * columns it changed (an undo puts them back), each with the hash of the row as written. A
+   * window the revision withdrew is an update of `status`.
+   */
   disruptions: {
     created: Array<{ id: string; hash: string }>
     updated: Array<{ id: string; before: Record<string, unknown>; hash: string }>
@@ -209,6 +215,28 @@ export function weekHash(row: WeekContent): string {
   return hashRow(row, WEEK_COLUMNS)
 }
 
+/**
+ * The columns of a window that say what it is and what it does. Its identity and owner never
+ * change, and a hash that covered `updatedAt` would change with every write.
+ */
+export const DISRUPTION_COLUMNS: readonly string[] = [
+  'reason',
+  'mode',
+  'startDate',
+  'endDate',
+  'maxRunMin',
+  'area',
+  'pain',
+  'gaitChange',
+  'note',
+  'status',
+]
+
+/** The hash of a window's content columns. */
+export function disruptionHash(row: object): string {
+  return hashRow(row, DISRUPTION_COLUMNS)
+}
+
 /** The columns in which two rows differ, with the first row's value. `id` is never listed. */
 export function changedColumns(
   before: object,
@@ -245,21 +273,30 @@ const noWrites = <Row>(): RowWrites<Row> => ({ created: [], deleted: [], updated
  * The diff and the undo payload of one write, built from the rows it wrote. Nothing written gives
  * an empty diff and no payload: there is nothing to restore.
  */
-export function revisionParts(writes: { sessions?: SessionWriteSet; weeks?: WeekWriteSet }): {
+export function revisionParts(writes: {
+  sessions?: SessionWriteSet
+  weeks?: WeekWriteSet
+  /** The window rows the write created or changed (E5): they are part of what an undo restores. */
+  disruptions?: UndoPayload['disruptions']
+  holds?: PlanDiff['holds']
+}): {
   diff: PlanDiff
   undo: UndoPayload | null
 } {
   const sessions: RowWrites<PlanSessionRow> = writes.sessions ?? noWrites()
   const weeks: RowWrites<PlanWeekRow> = writes.weeks ?? noWrites()
-  const diff = diffPlans({ sessions, weeks })
-  if (diff.empty) return { diff, undo: null }
+  const diff = diffPlans({ sessions, weeks, ...(writes.holds ? { holds: writes.holds } : {}) })
+  const disruptions = writes.disruptions ?? { created: [], updated: [] }
+  // A window written without any session or week changing still has something to restore.
+  const touched = disruptions.created.length + disruptions.updated.length > 0
+  if (diff.empty && !touched) return { diff, undo: null }
   return {
     diff,
     undo: {
       v: 1,
       sessions: undoRows(sessions, SESSION_COLUMNS, SESSION_HASH_COLUMNS),
       weeks: undoRows(weeks, WEEK_COLUMNS, WEEK_COLUMNS),
-      disruptions: { created: [], updated: [] },
+      disruptions,
     },
   }
 }
@@ -341,6 +378,9 @@ export async function recordPlanWrite(
       summary: record.summary,
       changes: JSON.stringify(record.changes),
       auto: record.auto ?? false,
+      // The one seen marker (ADR 0007): a revision the runner asked for is seen when it is written;
+      // one the scheduler wrote waits until a surface that shows it stamps it (`markRevisionSeen`).
+      seenAt: record.auto ? null : new Date(),
       decision: record.decision ? JSON.stringify(record.decision) : null,
       diff: record.diff ? JSON.stringify(record.diff) : null,
       undo: record.undo ? JSON.stringify(record.undo) : null,
@@ -373,11 +413,30 @@ export function describeChanges(changes: readonly PlanChange[]): string {
 /** Changes the engine input before a re-plan reads it: how a what-if applies a hypothetical. */
 export type PlanInputTransform = (input: EngineInput) => EngineInput
 
+/** What a rest-window action tells the re-plan it is part of. */
+export interface WindowReplan {
+  /** The window's span in the diff: after the action, or as it was for a removal. */
+  hold: PlanDiff['holds'][number]
+  /** The summary of the revision: what the action did to the window. */
+  summary: string
+}
+
 export interface ReplanArgs {
   userId: string
   reason: PlanRevisionReason
   today: string
   transform?: PlanInputTransform
+  /**
+   * Set by a rest-window action. The re-plan then marks the past sessions the windows cover as
+   * skipped before it writes (design 9.4), puts the window in the diff and takes the summary.
+   */
+  window?: WindowReplan
+}
+
+/** A past session that a rest window skips, written before the re-plan's own rows. */
+export interface SettleWrite {
+  before: PlanSessionRow
+  data: { status: 'skipped'; flags: string; original: string }
 }
 
 /** A re-plan that has been decided and not written. */
@@ -389,6 +448,13 @@ export interface ReplanResult {
   /** The goal model of the engine input the draft was made from (race-day WBGT). */
   input: Pick<EngineInput, 'goal'>
   today: string
+  /** The newest revision of the plan before anything was read, for the head check of the write. */
+  headRevisionId: string | null
+  /**
+   * The engine options the draft was made with, the gut-training switch included. `applyReplan`
+   * stores them in `Plan.options`; absent, the stored options are left as they are.
+   */
+  options?: EngineInput['options']
   /** The reason the revision is written with: a weekly update after a long break reads 'break'. */
   reason: PlanRevisionReason
   auto: boolean
@@ -397,8 +463,35 @@ export interface ReplanResult {
   decision: WeeklyDecision | null
   draft: PlanDraft
   raceWeekStart: string
+  /** The days the windows hold: an owner edit on one is released, so the write must know them. */
+  holdDates: string[]
+  /** The past sessions a rest window skips first; empty for any other re-plan. */
+  settle: SettleWrite[]
+  /** The rest windows the diff names; empty for any other re-plan. */
+  holds: PlanDiff['holds']
   /** What writing it would change, from the rows as they are now. */
   diff: PlanDiff
+}
+
+/** A write that found the plan changed since it was decided; the caller recomputes or answers 409. */
+export class StaleWrite extends Error {
+  constructor() {
+    super('The plan changed after this was decided.')
+    this.name = 'StaleWrite'
+  }
+}
+
+/** The id of a plan's newest revision, or null. */
+export async function headRevisionOf(
+  prisma: Pick<PrismaClient, 'planRevision'>,
+  planId: string,
+): Promise<string | null> {
+  const head = await prisma.planRevision.findFirst({
+    where: { planId },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    select: { id: true },
+  })
+  return head?.id ?? null
 }
 
 /**
@@ -409,26 +502,90 @@ export interface ReplanResult {
 function previewWrites(
   planId: string,
   rows: { sessions: readonly PlanSessionRow[]; weeks: readonly PlanWeekRow[] },
-  args: { today: string; draft: PlanDraft },
+  args: {
+    today: string
+    draft: PlanDraft
+    settle: readonly SettleWrite[]
+    holdDates: ReadonlySet<string>
+    holds: PlanDiff['holds']
+  },
 ): PlanWrites {
-  const sessions = planSessionWrites(rows.sessions, {
+  // The write pairs the rows after the skips, and so does this. The skipped rows lie in the past,
+  // which a re-plan keeps, so they never take part in the pairing either way.
+  const settled = new Map(args.settle.map((write) => [write.before.id, write]))
+  const current = rows.sessions.map((row) => {
+    const write = settled.get(row.id)
+    return write === undefined ? row : { ...row, ...write.data }
+  })
+  const sessions = planSessionWrites(current, {
     today: args.today,
     sessions: args.draft.sessions,
+    heldDates: args.holdDates,
   })
   const weeks = planWeekWrites(rows.weeks, { today: args.today, weeks: args.draft.weeks })
   return {
     sessions: {
       created: sessions.created.map((spec) => ({ id: null, ...sessionRow(planId, spec, '') })),
       deleted: sessions.deleted,
-      updated: sessions.updated.map(({ before, data }) => ({
-        before,
-        after: { ...before, ...data },
-      })),
+      updated: [
+        ...args.settle.map(({ before, data }) => ({ before, after: { ...before, ...data } })),
+        ...sessions.updated.map(({ before, data }) => ({ before, after: { ...before, ...data } })),
+      ],
     },
     weeks: {
       created: weeks.created,
       deleted: weeks.deleted,
       updated: weeks.updated.map(({ before, data }) => ({ before, after: { ...before, ...data } })),
+    },
+    holds: args.holds,
+  }
+}
+
+/**
+ * The past sessions the windows of `input` skip, as writes: still to be run, unlinked, on a day a
+ * window holds or caps (`backdatedSkips`). The row keeps its prescription in `original`, as the
+ * runner's own skip does, and gains the flag `rest-window`, which the engine reads as "not run".
+ */
+function settleWrites(
+  rows: readonly PlanSessionRow[],
+  input: Pick<EngineInput, 'disruptions'>,
+  today: string,
+): SettleWrite[] {
+  const targets = new Set(backdatedSkips(rows, disruptionPlan(input.disruptions ?? []), today))
+  return rows
+    .filter((row) => targets.has(row))
+    .map((before) => {
+      const flags = toPlanSession(before).flags
+      return {
+        before,
+        data: {
+          status: 'skipped' as const,
+          flags: JSON.stringify(flags.includes('rest-window') ? flags : [...flags, 'rest-window']),
+          original: before.original ?? JSON.stringify(sessionSpec(toPlanSession(before))),
+        },
+      }
+    })
+}
+
+/** The engine input with the sessions of `settle` skipped and flagged, as the write will leave them. */
+function settledInput(input: EngineInput, settle: readonly SettleWrite[]): EngineInput {
+  if (settle.length === 0 || input.existing === null) return input
+  const ids = new Set(settle.map((write) => write.before.id))
+  return {
+    ...input,
+    existing: {
+      ...input.existing,
+      sessions: input.existing.sessions.map((session) =>
+        ids.has(session.id)
+          ? {
+              ...session,
+              status: 'skipped',
+              flags: session.flags.includes('rest-window')
+                ? session.flags
+                : [...session.flags, 'rest-window'],
+            }
+          : session,
+      ),
     },
   }
 }
@@ -454,13 +611,33 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   if (plan.goal.targetDate < today) {
     throw validationError('The goal date has passed. Move the date or choose another goal.')
   }
-  const options = JSON.parse(plan.options) as EngineInput['options']
+  // The newest revision is read before anything else, so a revision that lands during the compute
+  // makes the head check of the write (and the hash of a preview) differ, never silently match.
+  const headRevisionId = await headRevisionOf(prisma, plan.id)
+  // The gut-training switch is read from the stored fuel settings at every compute, so a change to
+  // the switches shows up in the next re-plan's diff, and a preview and its commit agree (design
+  // 10.5). `applyReplan` stores the options it was computed with.
+  const options = await withGutTrainingOption(
+    prisma,
+    userId,
+    JSON.parse(plan.options) as EngineInput['options'],
+  )
   const gathered = await gatherEngineInput(
     deps,
     { userId, goalId: plan.goalId, today, options },
     { existing: true },
   )
-  const input = args.transform ? args.transform(gathered) : gathered
+  const hypothetical = args.transform ? args.transform(gathered) : gathered
+  const [weekRows, sessionRows] = await Promise.all([
+    prisma.planWeek.findMany({ where: { planId: plan.id } }),
+    prisma.planSession.findMany({ where: { planId: plan.id } }),
+  ])
+  // A window reported late skips the past sessions it covers, and the engine sees them skipped:
+  // a skipped run in the window is not a run [rules J9, G-6]. Without a window action none are.
+  const settle = args.window ? settleWrites(sessionRows, hypothetical, today) : []
+  const input = settledInput(hypothetical, settle)
+  const holdDates = heldDates(disruptionPlan(input.disruptions ?? []))
+  const holds = args.window ? [args.window.hold] : []
   // The decision for the week that just finished goes into the summary and, after a reduce or a
   // hold, caps the week that follows it; the owner's or review's lower target caps its week too
   // and takes the place of the decision's number [rules g-2, J5].
@@ -478,10 +655,6 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   if (decision !== null && decision.decision !== 'progress') {
     weekCaps[addDays(lastWeek, 7)] = decision.nextWeekTargetMin
   }
-  const [weekRows, sessionRows] = await Promise.all([
-    prisma.planWeek.findMany({ where: { planId: plan.id } }),
-    prisma.planSession.findMany({ where: { planId: plan.id } }),
-  ])
   for (const week of weekRows) {
     if (
       week.weekStart >= currentMonday &&
@@ -499,12 +672,14 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
 
   const reason: PlanRevisionReason =
     args.reason === 'weekly' && state.layoffDays >= P.j7.tier1Days.value ? 'break' : args.reason
-  const summary = [
-    describeChanges(changes),
-    decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null,
-  ]
-    .filter((line): line is string => line !== null)
-    .join(' ')
+  const summary =
+    args.window?.summary ??
+    [
+      describeChanges(changes),
+      decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null,
+    ]
+      .filter((line): line is string => line !== null)
+      .join(' ')
 
   return {
     userId,
@@ -512,6 +687,8 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     goal: plan.goal,
     input: { goal: input.goal },
     today,
+    headRevisionId,
+    options,
     reason,
     // The scheduler asks for 'weekly' and nothing else does; a request never writes an automatic revision.
     auto: args.reason === 'weekly',
@@ -520,29 +697,66 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     decision,
     draft,
     raceWeekStart: mondayOf(plan.goal.targetDate),
+    holdDates,
+    settle,
+    holds,
     diff: diffPlans(
-      previewWrites(plan.id, { sessions: sessionRows, weeks: weekRows }, { today, draft }),
+      previewWrites(
+        plan.id,
+        { sessions: sessionRows, weeks: weekRows },
+        { today, draft, settle, holdDates: new Set(holdDates), holds },
+      ),
     ),
   }
+}
+
+/** What a rest-window action wrote to the window table, for the revision that records it. */
+export interface WindowWrite {
+  /** The window the action created, changed or withdrew. */
+  disruptionId: string
+  /** What an undo of the revision does to the window table. */
+  undo: UndoPayload['disruptions']
+}
+
+export interface ApplyOptions {
+  /** Writes the window of a rest-window action, first, inside the transaction. */
+  window?: (tx: Pick<PrismaClient, 'disruption'>) => Promise<WindowWrite>
+  /** Refuses the write (`StaleWrite`) when the plan has a revision newer than the one decided on. */
+  checkHead?: boolean
 }
 
 /**
  * Writes a computed re-plan in one transaction and returns its revision. The rows are paired again
  * against the stored rows inside the transaction, so the diff and the undo payload describe what
  * was written. A draft that fails the quality checklist is refused (422) and nothing is written.
+ * A rest-window action passes its window write: the window, the skips of the past days it covers
+ * and the re-plan are one transaction and one revision.
  */
-export async function applyReplan(deps: Deps, result: ReplanResult): Promise<PlanRevisionView> {
+export async function applyReplan(
+  deps: Deps,
+  result: ReplanResult,
+  options: ApplyOptions = {},
+): Promise<PlanRevisionView> {
   const { planId, today, draft } = result
   const blocked = failedChecklist(draft.checklist)
   if (blocked) throw blocked
 
   return deps.prisma.$transaction(
     async (tx) => {
-      const sessions = await writeReplannedSessions(tx, {
+      if (options.checkHead && (await headRevisionOf(tx, planId)) !== result.headRevisionId) {
+        throw new StaleWrite()
+      }
+      const windowWrite = options.window ? await options.window(tx) : null
+      const sessions = await writeSettled(tx, result)
+      const replanned = await writeReplannedSessions(tx, {
         planId,
         today,
         sessions: draft.sessions,
+        heldDates: new Set(result.holdDates),
       })
+      sessions.created.push(...replanned.created)
+      sessions.deleted.push(...replanned.deleted)
+      sessions.updated.push(...replanned.updated)
       const weeks = await writeReplannedWeeks(tx, { planId, today, weeks: draft.weeks })
       await tx.plan.update({
         where: { id: planId },
@@ -552,6 +766,7 @@ export async function applyReplan(deps: Deps, result: ReplanResult): Promise<Pla
           feasibility: JSON.stringify(draft.feasibility),
           warnings: JSON.stringify(draft.warnings),
           checklist: JSON.stringify(draft.checklist),
+          ...(result.options === undefined ? {} : { options: JSON.stringify(result.options) }),
         },
       })
       await recordPrediction(tx, {
@@ -562,7 +777,12 @@ export async function applyReplan(deps: Deps, result: ReplanResult): Promise<Pla
         today,
         mode: 'refresh',
       })
-      const { diff, undo } = revisionParts({ sessions, weeks })
+      const { diff, undo } = revisionParts({
+        sessions,
+        weeks,
+        ...(windowWrite ? { disruptions: windowWrite.undo } : {}),
+        holds: result.holds,
+      })
       return recordPlanWrite(tx, {
         planId,
         userId: result.userId,
@@ -573,16 +793,61 @@ export async function applyReplan(deps: Deps, result: ReplanResult): Promise<Pla
         undo,
         decision: result.decision,
         auto: result.auto,
+        disruptionId: windowWrite?.disruptionId ?? null,
       })
     },
     { timeout: WRITE_TIMEOUT_MS },
   )
 }
 
-/** Re-plans the active plan from the updated state and writes a `PlanRevision`. */
+/**
+ * Marks the past sessions of a rest window skipped, from the rows as they are inside the
+ * transaction. A row that was linked, finished or edited since the decision was made would make the
+ * diff that was shown untrue, so it stops the write (`StaleWrite`) rather than being skipped.
+ */
+async function writeSettled(
+  tx: Pick<PrismaClient, 'planSession'>,
+  result: ReplanResult,
+): Promise<SessionWriteSet> {
+  const written: SessionWriteSet = { created: [], deleted: [], updated: [] }
+  if (result.settle.length === 0) return written
+  const rows = await tx.planSession.findMany({
+    where: { id: { in: result.settle.map((write) => write.before.id) } },
+  })
+  const byId = new Map(rows.map((row) => [row.id, row]))
+  for (const { before, data } of result.settle) {
+    const now = byId.get(before.id)
+    if (
+      now === undefined ||
+      now.status !== before.status ||
+      now.activityId !== before.activityId ||
+      now.flags !== before.flags ||
+      now.original !== before.original
+    ) {
+      throw new StaleWrite()
+    }
+    const after = await tx.planSession.update({ where: { id: before.id }, data })
+    written.updated.push({ id: before.id, before: now, after })
+  }
+  return written
+}
+
+/**
+ * Re-plans the active plan from the updated state and writes a `PlanRevision`. A request that
+ * lands between the read and the write moves the plan's newest revision; the re-plan is then
+ * decided again, once. A second collision is a 409 for the caller to report (the weekly job logs
+ * it and the next tick tries again).
+ */
 export async function replanActivePlan(
   deps: Deps,
   args: { userId: string; reason: PlanRevisionReason; today: string },
 ): Promise<PlanRevisionView> {
-  return applyReplan(deps, await computeReplan(deps, args))
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await applyReplan(deps, await computeReplan(deps, args), { checkHead: true })
+    } catch (error) {
+      if (!(error instanceof StaleWrite)) throw error
+      if (attempt >= 2) throw conflict(stalePreviewMessage())
+    }
+  }
 }

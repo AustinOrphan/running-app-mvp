@@ -1,20 +1,18 @@
-// Version-2 plans: generate with the engine, re-plan, persist weeks, sessions and revisions, and the
-// owner's edits to single sessions. The engine decides; this module gathers, persists and guards.
+// Version-2 plans: generate with the engine, re-plan, persist weeks, sessions and revisions, and
+// link an activity to a session. The owner's edits of a session are `adjust.ts`. The engine
+// decides; this module gathers, persists and guards.
 import { randomUUID } from 'node:crypto'
-import { addDays, daysBetween, isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
 import {
   acceptedZoneSummary,
   checklistRefusedMessage,
   declinedZoneSummary,
   generatedSummary,
   goalSwitchSummary,
-  movedSummary,
-  restoredSummary,
-  skippedSummary,
-  swappedSummary,
 } from '../../shared/copy/revision.ts'
 import { carryExternalIds, pairSessions } from '../../shared/domain/sessionIdentity.ts'
 import { type ExecutionRecord } from '../../shared/engine/adapt.ts'
+import { RUN_KINDS } from '../../shared/engine/adjust.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import {
   buildPlan,
@@ -55,20 +53,14 @@ import type {
   PrismaClient,
 } from '../db.ts'
 import { conflict, HttpError, notFound, validationError } from '../errors.ts'
-import {
-  isTrimmed,
-  loadProfile,
-  toPlan,
-  toPlanEngineFields,
-  toPlanSession,
-  toPlanWeek,
-} from '../serialize.ts'
+import { isTrimmed, toPlan, toPlanEngineFields, toPlanSession, toPlanWeek } from '../serialize.ts'
 import { assessSessionById } from './execution.ts'
-import { currentZones, gatherContextInput, gatherEngineInput, sessionSpec } from './engineInput.ts'
+import { currentZones, gatherContextInput, gatherEngineInput } from './engineInput.ts'
+import { withGutTrainingOption } from './fuel.ts'
 import { ensureClimate } from './weatherCache.ts'
 import { MAX_PLAN_WEEKS } from './plan.ts'
 import { recordPrediction } from './predictionLog.ts'
-import { recordPlanWrite, revisionParts } from './replan.ts'
+import { recordPlanWrite } from './replan.ts'
 
 /** A plan's rows are written in one transaction; long plans have a thousand sessions. */
 export const WRITE_TIMEOUT_MS = 60_000
@@ -215,7 +207,10 @@ export async function generateEnginePlan(
   // The one wait on Open-Meteo in plan generation (8 s): a cold cache would otherwise build the
   // first plan without race heat. Later plans, re-plans and every read use the cached climate.
   await ensureClimate(deps, { userId, goalId: goal.id })
-  const input = await gatherEngineInput(deps, { ...args, options: args.options ?? {} })
+  // The gut-training switch comes from the stored fuel settings, never from the request (design
+  // 10.5): a gut condition or an opt-out builds the plan without the block.
+  const options = await withGutTrainingOption(prisma, userId, args.options ?? {})
+  const input = await gatherEngineInput(deps, { ...args, options })
   const draft = buildPlan(input)
   const blocked = failedChecklist(draft.checklist)
   if (blocked) throw blocked
@@ -249,7 +244,7 @@ export async function generateEnginePlan(
           feasibility: json(draft.feasibility),
           warnings: json(draft.warnings),
           checklist: json(draft.checklist),
-          options: json(args.options ?? {}),
+          options: json(options),
           weeks: { create: draft.weeks.map(weekRow) },
         },
       })
@@ -344,11 +339,14 @@ export interface SessionWritePlan {
  * draft session by `pairSessions`: a paired row is updated in place, so its id, `externalId` and
  * activity link survive; a replaced row with no counterpart is deleted; a draft session with no
  * counterpart is created. A paired row whose columns already match is not written. Pure: the
- * preview of a re-plan and its write both come from here.
+ * preview of a re-plan and its write both come from here. `heldDates` are the days the runner's
+ * rest windows hold (`heldDates` of the engine, from the same input as the draft): an edit or a
+ * trim on one of them is released, as the engine released it, or the rows kept here would differ
+ * from the sessions the engine drew.
  */
 export function planSessionWrites(
   rows: readonly PlanSessionRow[],
-  args: { today: string; sessions: SessionSpec[] },
+  args: { today: string; sessions: SessionSpec[]; heldDates?: ReadonlySet<string> },
 ): SessionWritePlan {
   // What the engine kept: the past, the finished sessions of the current week and the owner's
   // edits of the next 14 days.
@@ -356,6 +354,7 @@ export function planSessionWrites(
     keptByReplan(
       { date: row.date, status: row.status, rules: toPlanSession(row).rules },
       args.today,
+      args.heldDates,
     )
   const kept = rows.filter(isKept)
   const keptIds = new Set(kept.map((row) => row.id))
@@ -380,7 +379,7 @@ export function planSessionWrites(
  */
 export async function writeReplannedSessions(
   tx: Pick<PrismaClient, 'planSession'>,
-  args: { planId: string; today: string; sessions: SessionSpec[] },
+  args: { planId: string; today: string; sessions: SessionSpec[]; heldDates?: ReadonlySet<string> },
 ): Promise<SessionWriteSet> {
   const rows = await tx.planSession.findMany({ where: { planId: args.planId } })
   const planned = planSessionWrites(rows, args)
@@ -470,331 +469,18 @@ export async function weeklyDecisions(
 }
 
 // ---------------------------------------------------------------------------------------------
-// Owner edits of one session
+// One session of the active plan: finding it and linking an activity. The owner's edits of its day,
+// length and place are `adjust.ts` (move, swap, shorten, skip, restore).
 // ---------------------------------------------------------------------------------------------
 
-export interface PlanSessionPatch {
-  date?: string
-  kind?: SessionKind
-  skip?: boolean
-}
-
-/** Kinds that need the day after them easy [rules F1]; the same set the week placement uses. */
-const HARD_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
-  'threshold',
-  'intervals',
-  'race-pace',
-  'hills',
-  'long-fast-finish',
-  'b2b',
-  'race',
-])
-/** Kinds that occupy a run day. */
-const RUN_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
-  'easy',
-  'recovery',
-  'long',
-  'long-fast-finish',
-  'threshold',
-  'intervals',
-  'race-pace',
-  'strides',
-  'hills',
-  'hike',
-  'b2b',
-  'race',
-])
-const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
-/** Statuses of a session that is still to be run and so can move or swap. */
-const MOVABLE_STATUSES: ReadonlySet<string> = new Set(['planned', 'downgraded', 'moved'])
-
-type Slot = Pick<SessionSpec, 'date' | 'kind' | 'durationMin'> & { title: string }
-
-/** The reason a set of sessions breaks availability or spacing, or null when it holds. */
-function layoutProblem(
-  sessions: Slot[],
-  availability: Awaited<ReturnType<typeof loadProfile>>['availability'],
-  touched: Slot[],
-): string | null {
-  for (const s of touched) {
-    if (!RUN_KINDS.has(s.kind)) continue
-    const day = availability[WEEKDAYS[daysBetween(mondayOf(s.date), s.date)]!]
-    if (!day.available) return `${s.date} is not a day you run: ${s.title} cannot go there.`
-    if (day.maxMin !== null && s.kind !== 'race' && s.durationMin > day.maxMin) {
-      return `${s.title} is ${s.durationMin} min and ${s.date} allows ${day.maxMin} min.`
-    }
-  }
-  const runs = sessions.filter((s) => RUN_KINDS.has(s.kind))
-  for (const s of touched) {
-    if (!RUN_KINDS.has(s.kind)) continue
-    if (runs.some((o) => o !== s && o.date === s.date)) {
-      return `${s.date} already has a run; one run a day keeps the week's spacing (rule F1).`
-    }
-    if (HARD_KINDS.has(s.kind)) {
-      const neighbour = runs.find(
-        (o) => o !== s && HARD_KINDS.has(o.kind) && Math.abs(daysBetween(o.date, s.date)) === 1,
-      )
-      if (neighbour) {
-        return `${s.title} next to ${neighbour.title} would leave no easy day between two hard sessions (rule F1).`
-      }
-    }
-  }
-  return null
-}
-
-async function ownedSession(deps: Deps, userId: string, id: string) {
+/** A session of the user's active plan, with its plan; 404 for any other. */
+export async function ownedSession(deps: Deps, userId: string, id: string) {
   const row = await deps.prisma.planSession.findFirst({
     where: { id, plan: { userId, status: 'active' } },
     include: { plan: true },
   })
   if (!row) throw notFound('Session not found.')
   return row
-}
-
-function slotOf(row: PlanSessionRow | PlanSession, over: Partial<Slot> = {}): Slot {
-  return {
-    date: row.date,
-    kind: row.kind as SessionKind,
-    durationMin: row.durationMin,
-    title: row.title,
-    ...over,
-  }
-}
-
-const SWAP_FIELDS = [
-  'kind',
-  'title',
-  'durationMin',
-  'distanceM',
-  'gainM',
-  'structure',
-  'target',
-  'purpose',
-  'rules',
-  'trimmed',
-  'flags',
-] as const
-
-/**
- * Writes the revision of an owner's edit: the rows it updated, in place, give the diff and the
- * undo payload (spec 4.2). Call it inside the transaction that updated them.
- */
-function recordOwnerEdit(
-  tx: Pick<PrismaClient, 'plan' | 'planRevision'>,
-  edit: {
-    planId: string
-    userId: string
-    summary: string
-    changes: PlanChange[]
-    updated: Array<{ before: PlanSessionRow; after: PlanSessionRow }>
-  },
-) {
-  const sessions: SessionWriteSet = {
-    created: [],
-    deleted: [],
-    updated: edit.updated.map(({ before, after }) => ({ id: after.id, before, after })),
-  }
-  const { diff, undo } = revisionParts({ sessions })
-  return recordPlanWrite(tx, {
-    planId: edit.planId,
-    userId: edit.userId,
-    reason: 'owner',
-    summary: edit.summary,
-    changes: edit.changes,
-    diff,
-    undo,
-  })
-}
-
-/** Owner edits: move within the week, swap kinds within the week, skip or restore. */
-export async function updatePlanSession(
-  deps: Deps,
-  args: { userId: string; sessionId: string; patch: PlanSessionPatch; today: string },
-): Promise<PlanSession> {
-  const { prisma } = deps
-  const { userId, today, patch } = args
-  const { plan: _plan, ...row } = await ownedSession(deps, userId, args.sessionId)
-  const session = toPlanSession(row)
-  const original = JSON.stringify(sessionSpec(session))
-
-  if (patch.skip !== undefined) {
-    if (patch.skip) {
-      if (session.kind === 'race') throw conflict('The race day cannot be skipped.')
-      if (session.activityId !== null) {
-        throw conflict('This session is already linked to an activity. Unlink it first.')
-      }
-      if (session.status === 'skipped') return session
-      const saved = await prisma.$transaction(async (tx) => {
-        const updated = await tx.planSession.update({
-          where: { id: row.id },
-          data: { status: 'skipped', original: row.original ?? original },
-        })
-        await recordOwnerEdit(tx, {
-          planId: row.planId,
-          userId,
-          summary: skippedSummary(session.title, session.date),
-          changes: [
-            {
-              weekStart: session.weekStart,
-              field: 'session.status',
-              from: session.status,
-              to: 'skipped',
-              rules: ['g-6'],
-            },
-          ],
-          updated: [{ before: row, after: updated }],
-        })
-        return updated
-      })
-      return toPlanSession(saved)
-    }
-    if (session.status !== 'skipped') return session
-    const saved = await prisma.$transaction(async (tx) => {
-      const updated = await tx.planSession.update({
-        where: { id: row.id },
-        data: { status: 'planned' },
-      })
-      await recordOwnerEdit(tx, {
-        planId: row.planId,
-        userId,
-        summary: restoredSummary(session.title, session.date),
-        changes: [
-          {
-            weekStart: session.weekStart,
-            field: 'session.status',
-            from: 'skipped',
-            to: 'planned',
-            rules: ['g-6'],
-          },
-        ],
-        updated: [{ before: row, after: updated }],
-      })
-      return updated
-    })
-    return toPlanSession(saved)
-  }
-
-  if (session.kind === 'race') throw conflict('The race day stays where it is.')
-  if (session.date < today) throw conflict('A session in the past cannot be moved.')
-  // A done session keeps the day it was run on; a skipped one is restored before it moves.
-  if (session.activityId !== null || !MOVABLE_STATUSES.has(session.status)) {
-    throw conflict(
-      session.status === 'skipped'
-        ? 'This session is skipped. Restore it before moving it.'
-        : 'This session is already done or linked to an activity, so it stays on its day.',
-    )
-  }
-  const profile = await loadProfile(prisma, userId)
-  const neighbours = await prisma.planSession.findMany({
-    where: {
-      planId: row.planId,
-      date: { gte: addDays(session.weekStart, -1), lte: addDays(session.weekStart, 7) },
-      id: { not: row.id },
-    },
-  })
-
-  if (patch.date !== undefined) {
-    if (!isIsoDate(patch.date)) throw validationError('Use a real date as YYYY-MM-DD.')
-    if (patch.date === session.date) return session
-    if (mondayOf(patch.date) !== session.weekStart) {
-      throw conflict('A session moves within its own week. Re-plan to change weeks.')
-    }
-    if (patch.date < today) throw conflict('A session cannot move to a day that has passed.')
-    const moved = slotOf(session, { date: patch.date })
-    const others = neighbours.filter((n) => n.status !== 'skipped').map((n) => slotOf(n))
-    const problem = layoutProblem([...others, moved], profile.availability, [moved])
-    if (problem) throw conflict(problem)
-    const saved = await prisma.$transaction(async (tx) => {
-      const updated = await tx.planSession.update({
-        where: { id: row.id },
-        data: { date: patch.date!, status: 'moved', original: row.original ?? original },
-      })
-      await recordOwnerEdit(tx, {
-        planId: row.planId,
-        userId,
-        summary: movedSummary(session.title, session.date, patch.date!),
-        changes: [
-          {
-            weekStart: session.weekStart,
-            field: 'session.date',
-            from: session.date,
-            to: patch.date,
-            rules: ['F1'],
-          },
-        ],
-        updated: [{ before: row, after: updated }],
-      })
-      return updated
-    })
-    return toPlanSession(saved)
-  }
-
-  // Swap kinds: the other session of that kind in the week takes this one's prescription.
-  const kind = patch.kind!
-  if (kind === session.kind) return session
-  const partner = neighbours.find(
-    (n) =>
-      n.weekStart === session.weekStart &&
-      n.kind === kind &&
-      n.date >= today &&
-      n.activityId === null &&
-      MOVABLE_STATUSES.has(n.status),
-  )
-  if (!partner) {
-    throw conflict(
-      `There is no ${kind} session left this week to swap with. A swap never adds a session or raises load.`,
-    )
-  }
-  const thisAfter = slotOf(partner, { date: session.date })
-  const partnerAfter = slotOf(session, { date: partner.date })
-  const others = neighbours
-    .filter((n) => n.id !== partner.id && n.status !== 'skipped')
-    .map((n) => slotOf(n))
-  const problem = layoutProblem([...others, thisAfter, partnerAfter], profile.availability, [
-    thisAfter,
-    partnerAfter,
-  ])
-  if (problem) throw conflict(problem)
-  const saved = await prisma.$transaction(async (tx) => {
-    const mine: Record<string, unknown> = {}
-    const theirs: Record<string, unknown> = {}
-    for (const field of SWAP_FIELDS) {
-      mine[field] = partner[field]
-      theirs[field] = row[field]
-    }
-    const partnerUpdated = await tx.planSession.update({
-      where: { id: partner.id },
-      data: {
-        ...theirs,
-        status: 'moved',
-        original: partner.original ?? JSON.stringify(sessionSpec(toPlanSession(partner))),
-      },
-    })
-    const updated = await tx.planSession.update({
-      where: { id: row.id },
-      data: { ...mine, status: 'moved', original: row.original ?? original },
-    })
-    await recordOwnerEdit(tx, {
-      planId: row.planId,
-      userId,
-      summary: swappedSummary(session.title, session.date, partner.title, partner.date),
-      changes: [
-        {
-          weekStart: session.weekStart,
-          field: 'session.kind',
-          from: session.kind,
-          to: kind,
-          rules: ['F1'],
-        },
-      ],
-      updated: [
-        { before: row, after: updated },
-        { before: partner, after: partnerUpdated },
-      ],
-    })
-    return updated
-  })
-  return toPlanSession(saved)
 }
 
 /** Compatibility of an activity with a session kind, as the matcher defines it [design 4.1]. */

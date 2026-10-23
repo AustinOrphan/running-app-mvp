@@ -12,6 +12,7 @@ import { PROVIDERS, getProvider } from '../providers/registry.ts'
 import { authorizeUrl, exchangeCode, type StravaConfig } from '../providers/strava.ts'
 import { toIntegrationStatus } from '../serialize.ts'
 import { scanFolderIntegration } from '../services/folder.ts'
+import { prepareDisconnect } from '../services/publish.ts'
 import {
   SECRET_CHANGED,
   isSyncing,
@@ -52,6 +53,9 @@ const runsQuery = z.object({
     )
     .optional(),
 })
+
+/** `?removeSent=true` also takes the sessions the app sent off the provider's calendar (ADR 0008). */
+const disconnectQuery = z.strictObject({ removeSent: z.enum(['true', 'false']).optional() })
 
 const folderBody = z.object({ path: z.string().trim().min(1, 'Enter the folder path.') }).strict()
 
@@ -301,7 +305,13 @@ export function integrationsRouter(deps: Deps): Router {
 
   router.delete('/:provider', async (req, res) => {
     const provider = String(req.params.provider)
-    getProvider(provider)
+    const registered = getProvider(provider)
+    const { removeSent } = parse(disconnectQuery, req.query)
+    // The key is needed to take the sent sessions off the calendar, so this happens before the row
+    // goes; a removal that fails answers 409 `remove-failed` and keeps the integration.
+    if (registered.publish) {
+      await prepareDisconnect(deps, req.userId, { removeSent: removeSent === 'true' })
+    }
     await prisma.integration.deleteMany({ where: { userId: req.userId, provider } })
     res.status(204).end()
   })

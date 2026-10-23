@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useRef } from 'react'
 import type { EngineInput, SessionKind } from '../../shared/engine/types.ts'
 import type {
   ArchivedPlanView,
-  PlanRevision,
+  PlanPreview,
+  PlanRevisionView,
   PlanSession,
   PlanWeek,
   PlanWithSessions,
   RestorePlanResult,
+  UndoResult,
 } from '../../shared/types.ts'
 import { api, invalidateNewPlan, keys } from './client.ts'
 
@@ -47,12 +50,82 @@ export function usePlan() {
   })
 }
 
-/** Every revision of the active plan, newest first: the "What changed" list. */
-export function usePlanRevisions() {
+/**
+ * Every revision of the active plan, newest first: the "What changed" list. A surface that shows it
+ * only on request (Today's change sheet) asks for it once it is open.
+ */
+export function usePlanRevisions(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: [keys.planRevisions],
-    queryFn: () => api<PlanRevision[]>('GET', '/plan/revisions'),
+    queryFn: () => api<PlanRevisionView[]>('GET', '/plan/revisions'),
+    enabled: options.enabled ?? true,
   })
+}
+
+/**
+ * What undoing a revision would do, from the code that commits it: the diff it restores, the guards
+ * and the reasons it would be refused. Writes nothing; the hash goes back with the commit.
+ */
+export function usePreviewUndo() {
+  return useMutation({
+    mutationFn: (revisionId: string) =>
+      api<PlanPreview>('POST', '/plan/preview', { type: 'undo', revisionId }),
+  })
+}
+
+/**
+ * Undoes a revision the preview was made for. A 409 carries `reasons` or a newer preview
+ * (`stale-preview`); a 422 carries the checklist the restored plan fails. A success changes the plan
+ * and the revision list, and the brief, the athlete state and Today read both.
+ */
+export function useUndoRevision() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, expectHash }: { id: string; expectHash: string }) =>
+      api<UndoResult>('POST', `/plan/revisions/${encodeURIComponent(id)}/undo`, { expectHash }),
+    onSuccess: () =>
+      Promise.all(
+        [keys.plan, keys.planRevisions, keys.brief, keys.state, keys.today].map((key) =>
+          queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
+      ),
+  })
+}
+
+/**
+ * Stamps revisions as seen (the one marker Today, the Plan page and the brief share). Returns a
+ * function that sends each id once for the life of the component and refreshes what shows the
+ * marker; the answer is 204 and idempotent, so a lost request is repaired by the next open.
+ */
+export function useMarkRevisionsSeen(): (ids: readonly string[]) => void {
+  const queryClient = useQueryClient()
+  const sent = useRef(new Set<string>())
+  const mutation = useMutation({
+    mutationFn: (ids: string[]) =>
+      Promise.all(
+        ids.map((id) => api<undefined>('POST', `/plan/revisions/${encodeURIComponent(id)}/seen`)),
+      ),
+    onSuccess: () =>
+      Promise.all(
+        [keys.planRevisions, keys.brief, keys.today].map((key) =>
+          queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
+      ),
+    // Nothing is shown for a failure: the marker stays, and the next open sends the ids again.
+    onError: (_error, ids) => {
+      for (const id of ids) sent.current.delete(id)
+    },
+  })
+  const { mutate } = mutation
+  return useCallback(
+    (ids: readonly string[]) => {
+      const fresh = ids.filter((id) => !sent.current.has(id))
+      if (fresh.length === 0) return
+      for (const id of fresh) sent.current.add(id)
+      mutate(fresh)
+    },
+    [mutate],
+  )
 }
 
 /** The plans a newer one replaced (up to five), with whether each can be restored. */
@@ -77,7 +150,7 @@ export function useRestorePlan() {
 export function useReplan() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () => api<PlanRevision>('POST', '/plan/replan'),
+    mutationFn: () => api<PlanRevisionView>('POST', '/plan/replan'),
     onSuccess: () =>
       Promise.all(
         [keys.plan, keys.planRevisions, keys.reviews, keys.today].map((key) =>

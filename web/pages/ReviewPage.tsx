@@ -11,7 +11,7 @@ import {
 import type {
   ActivityListItem,
   DataStatus,
-  PlanRevision,
+  PlanRevisionView,
   PlanSession,
   PlanSessionStatus,
   PlanWeek,
@@ -26,6 +26,7 @@ import type {
 } from '../../shared/types.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
+import { ruleTarget, type WhyTarget } from '../api/explain.ts'
 import { useActivities } from '../api/activities.ts'
 import { usePlan } from '../api/plan.ts'
 import { useReviews, useSaveReview, type ReviewPatch } from '../api/reviews.ts'
@@ -43,7 +44,8 @@ import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { formatShortDate, formatWeekday, weekPhaseLabel } from '../components/format.ts'
 import { localiseEngineText } from '../components/engineText.ts'
-import { describeChange } from '../components/planChanges.ts'
+import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
+import { WhyDrawer } from '../components/WhyDrawer.tsx'
 import { PROPOSAL_LABELS, proposalValueText } from '../components/zoneFormat.ts'
 import styles from './ReviewPage.module.css'
 
@@ -61,7 +63,7 @@ const DECISION_OPTIONS: Array<{ value: Decision; label: string }> = [
 
 /** The re-plan that followed a save, as the page shows it. */
 interface ReplanOutcome {
-  revision: PlanRevision | null
+  revision: PlanRevisionView | null
   error: string | null
 }
 
@@ -387,6 +389,7 @@ function WeekReview({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState<string | null>(null)
   const [replanned, setReplanned] = useState<ReplanOutcome | null>(null)
+  const [why, setWhy] = useState<WhyTarget | null>(null)
 
   const suggestInput: SuggestInput | null = planWeek
     ? {
@@ -422,8 +425,6 @@ function WeekReview({
   const decisionOptions = isV2
     ? DECISION_OPTIONS.filter((option) => option.value !== 'repeat')
     : DECISION_OPTIONS
-
-  const changedRules = [...new Set(replanned?.revision?.changes.flatMap((c) => c.rules) ?? [])]
 
   const suggestedDecision = suggestion && isDecision(suggestion.action) ? suggestion.action : ''
   const suggestedMin = suggestion?.suggestedNextMin ?? null
@@ -567,6 +568,7 @@ function WeekReview({
                   <ExplainButton
                     subject="weekly decision"
                     rules={decisionRules(review.signals ?? [])}
+                    explain={{ subject: 'decision', weekStart }}
                   />
                 </div>
               </>
@@ -641,24 +643,13 @@ function WeekReview({
         <section aria-labelledby={changedId} className={`${styles.section} ${styles.suggestion}`}>
           <h2 id={changedId}>What changed</h2>
           {replanned.revision !== null ? (
-            <>
-              <p>{replanned.revision.summary}</p>
-              {replanned.revision.changes.length > 0 ? (
-                <ul className={styles.signals}>
-                  {replanned.revision.changes.map((change, index) => (
-                    <li key={`${change.weekStart}-${change.field}-${String(index)}`}>
-                      Week of {formatShortDate(change.weekStart)}:{' '}
-                      {describeChange(change, units).text}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {changedRules.length > 0 ? (
-                <div>
-                  <ExplainButton subject="plan update" rules={changedRules} />
-                </div>
-              ) : null}
-            </>
+            <RevisionDiff
+              revision={replanned.revision}
+              units={units}
+              onWhy={(rules) => {
+                setWhy(ruleTarget(rules))
+              }}
+            />
           ) : (
             <p>
               The review is saved. The plan was not re-planned: {replanned.error ?? 'try again.'}
@@ -666,6 +657,14 @@ function WeekReview({
           )}
         </section>
       ) : null}
+      <WhyDrawer
+        explain={why?.explain}
+        rules={why?.rules ?? []}
+        open={why !== null}
+        onClose={() => {
+          setWhy(null)
+        }}
+      />
     </form>
   )
 }
@@ -698,7 +697,11 @@ function SessionSummaries({ sessions }: { sessions: PlanSession[] }) {
             ))}
             {session.execution ? (
               <div>
-                <ExplainButton subject={session.title} rules={session.rules} />
+                <ExplainButton
+                  subject={session.title}
+                  rules={session.rules}
+                  explain={{ subject: 'session', id: session.id }}
+                />
               </div>
             ) : null}
           </li>
@@ -780,7 +783,11 @@ function ZoneProposals() {
                 >
                   Decline
                 </Button>
-                <ExplainButton subject={`${label} change`} rules={proposal.rules} />
+                <ExplainButton
+                  subject={`${label} change`}
+                  rules={proposal.rules}
+                  explain={{ subject: 'zone', boundary: proposal.boundary }}
+                />
               </div>
             </li>
           )

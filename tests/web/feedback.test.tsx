@@ -6,10 +6,10 @@ import { FeelPicker } from '../../web/components/FeelPicker.tsx'
 import { ScalePicker } from '../../web/components/ScalePicker.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
-import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
 import { makeActivity } from '../factories.ts'
 import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { makeToday } from './today-fixtures.ts'
+import { renderToday } from './today-render.tsx'
 
 // The fixed clock is Wednesday 2026-03-18.
 beforeEach(() => {
@@ -78,35 +78,16 @@ describe('ScalePicker', () => {
   })
 })
 
-function renderDashboard(activities: Activity[], extra: MockRoutes = {}) {
-  const api = mockApi({
-    'GET /api/goals': () => [],
-    'GET /api/plan': () => null,
-    'GET /api/weeks': () => [],
-    'GET /api/reviews': () => [],
-    'GET /api/activities': () => activityPage(activities),
-    'GET /api/settings': () => settings,
-    'GET /api/today': () => makeToday(),
-    ...extra,
-  })
-  renderWithProviders(
-    <ToastProvider>
-      <DashboardPage />
-    </ToastProvider>,
-  )
-  return api
+/** The Today page with `unrated` as the server's list of runs still to rate. */
+function renderDashboard(unrated: Activity[], extra: MockRoutes = {}) {
+  return renderToday(makeToday({ unrated }), extra).api
 }
 
 describe('Today: How did it go?', () => {
-  test('lists runs and races of the last 7 days with no RPE and no feel', async () => {
+  test('lists the runs and races the server sends as unrated', async () => {
     renderDashboard([
       makeActivity({ id: 'r1', date: '2026-03-17', type: 'run', durationSec: 1800 }),
       makeActivity({ id: 'r2', date: '2026-03-12', type: 'race', durationSec: 3600 }),
-      makeActivity({ id: 'old', date: '2026-03-11', type: 'run' }),
-      makeActivity({ id: 'rated', date: '2026-03-16', type: 'run', rpe: 5 }),
-      makeActivity({ id: 'felt', date: '2026-03-16', type: 'run', feel: 0 }),
-      makeActivity({ id: 'gym', date: '2026-03-16', type: 'strength' }),
-      makeActivity({ id: 'dupe', date: '2026-03-16', type: 'run', duplicateStatus: 'confirmed' }),
     ])
     const card = await screen.findByRole('region', { name: 'How did it go?' })
     expect(within(card).getAllByRole('listitem')).toHaveLength(2)
@@ -154,7 +135,7 @@ describe('Today: How did it go?', () => {
   })
 
   test('is absent when nothing needs rating', async () => {
-    renderDashboard([makeActivity({ date: '2026-03-17', rpe: 4 })])
+    renderDashboard([])
     await screen.findByText(/No plan yet/)
     expect(screen.queryByRole('region', { name: 'How did it go?' })).not.toBeInTheDocument()
   })
@@ -179,7 +160,7 @@ describe('Today: How did it go?', () => {
     })
   })
 
-  test('refreshes today and the plan after a save, since the server re-assesses the session', async () => {
+  test('refreshes today after a save, since the server re-assesses the session', async () => {
     const user = userEvent.setup()
     const api = renderDashboard([makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })], {
       'PATCH /api/activities/r1/feedback': () => ({}),
@@ -189,13 +170,11 @@ describe('Today: How did it go?', () => {
       api.calls.filter((c) => c.method === 'GET' && c.url.startsWith(path)).length
     await waitFor(() => {
       expect(gets('/api/today')).toBe(1)
-      expect(gets('/api/plan')).toBe(1)
     })
     await user.click(within(card).getByRole('button', { name: 'RPE 6' }))
     await user.click(within(card).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
       expect(gets('/api/today')).toBe(2)
-      expect(gets('/api/plan')).toBe(2)
     })
   })
 

@@ -5,7 +5,7 @@ import { ApiError } from '../../api/client.ts'
 import { Button } from '../Button.tsx'
 import { Input } from '../Field.tsx'
 import { ScalePicker } from '../ScalePicker.tsx'
-import styles from './today.module.css'
+import styles from './CheckinCard.module.css'
 
 interface CheckinDraft {
   fatigue: number | null
@@ -128,7 +128,7 @@ export function CheckinCard({
           Point tenderness on a bone
         </label>
       </div>
-      <div className={styles.feedbackActions}>
+      <div className={styles.actions}>
         <Button
           variant="primary"
           disabled={!dirty}
@@ -161,7 +161,7 @@ export function CheckinCard({
         </Button>
       </div>
       {save.isError ? (
-        <p role="alert" className={styles.feedbackError}>
+        <p role="alert" className={styles.error}>
           {`Check-in not saved. ${save.error instanceof ApiError ? save.error.message : 'Something went wrong.'} Try again.`}
         </p>
       ) : null}

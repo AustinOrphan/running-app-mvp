@@ -12,6 +12,7 @@ import type {
 } from '../../shared/types.ts'
 import { formatDuration, milesToM } from '../../shared/units.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
+import { rulesRef } from '../api/explain.ts'
 import { useProfile, useUpdateProfile } from '../api/profile.ts'
 import { useSaveScreening, useScreenings } from '../api/screenings.ts'
 import { useSettings } from '../api/settings.ts'
@@ -892,7 +893,7 @@ function ZonesSection({ units }: { units: Units }) {
       </p>
       {body}
       <div>
-        <ExplainButton subject="zones" rules={['C1', 'C2']} />
+        <ExplainButton subject="zones" rules={['C1', 'C2']} explain={{ subject: 'zone' }} />
       </div>
     </section>
   )
@@ -1032,7 +1033,11 @@ function ScreeningSection() {
         >
           {latest ? 'Screen again' : 'Start screen'}
         </Button>
-        <ExplainButton subject="energy availability screen" rules={['n-4']} />
+        <ExplainButton
+          subject="energy availability screen"
+          rules={['n-4']}
+          explain={rulesRef(['n-4'])}
+        />
       </div>
       {open ? (
         <ScreeningSheet

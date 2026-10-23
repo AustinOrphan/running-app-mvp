@@ -795,11 +795,13 @@ describe('the revision of a re-plan', () => {
       reason: 'generate',
       diff: null,
       decision: null,
+      causes: null,
       auto: false,
-      seenAt: null,
       undoOf: null,
       disruptionId: null,
     })
+    // The runner asked for the plan, so the revision is seen when it is written.
+    expect(listed[0]?.seenAt).toEqual(expect.any(String))
     expect(listed[0]?.summary).toMatch(
       /^Plan generated for Synthetic half: \d+ weeks, \d+ sessions\.$/,
     )
@@ -2383,7 +2385,9 @@ describe('GET /api/plan/revisions: the structural undo state', () => {
     expect(reasonCodes(r.second.id)).toEqual([])
 
     expect(sessions).toHaveBeenCalledTimes(1)
-    expect(weeks).toHaveBeenCalledTimes(1)
+    // One query for the weeks the revisions touched, one for the weeks whose target the runner set
+    // (the causes of the lines), whatever the size of the page.
+    expect(weeks).toHaveBeenCalledTimes(2)
     expect(force.checklistRuns).toBe(0)
     // Nothing on the page cites a safety rule, so the cached input is not read at all.
     expect(force.contextReads).toBe(0)
@@ -2456,9 +2460,21 @@ describe('GET /api/plan/revisions: the structural undo state', () => {
 })
 
 describe('POST /api/plan/revisions/:id/seen', () => {
+  /** A fixture whose newest revision is the scheduler's weekly update, which nobody has opened. */
+  async function weeklyUpdate(email: string): Promise<Replanned> {
+    const r = await replannedTwice(email)
+    await closeBusyDay(r.f)
+    const weekly = await replanActivePlan(deps(), {
+      userId: r.f.u.id,
+      reason: 'weekly',
+      today: thisMonday,
+    })
+    return { ...r, second: weekly }
+  }
+
   test('stamps the revision once and answers 204 every time', async () => {
-    const r = await replannedTwice('seen@example.com')
-    expect(r.second.seenAt).toBeNull()
+    const r = await weeklyUpdate('seen@example.com')
+    expect(r.second).toMatchObject({ auto: true, seenAt: null })
     const first = await post(r.f, `/api/plan/revisions/${r.second.id}/seen`)
     expect(first.status).toBe(204)
     const stamped = await ctx.prisma.planRevision.findUniqueOrThrow({ where: { id: r.second.id } })
@@ -2475,7 +2491,8 @@ describe('POST /api/plan/revisions/:id/seen', () => {
 
     const listed = (await client(ctx, r.f.u).get('/api/plan/revisions')).body as PlanRevisionView[]
     expect(listed.find((v) => v.id === r.second.id)!.seenAt).toBe(stamped.seenAt!.toISOString())
-    expect(listed.find((v) => v.id === r.first.id)!.seenAt).toBeNull()
+    // The runner's own re-plans were seen when they were written, and the stamp leaves them alone.
+    expect(listed.find((v) => v.id === r.first.id)!.seenAt).not.toBeNull()
   })
 
   test('finds no revision that does not exist', async () => {

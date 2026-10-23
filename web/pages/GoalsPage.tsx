@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { fieldErrors } from '../api/client.ts'
+import { rulesRef } from '../api/explain.ts'
 import {
   replacePlanRequired,
   useActivateGoal,
@@ -589,6 +590,8 @@ function GoalOutlook({ goal }: { goal: Goal }) {
   const isHeat = (text: string) => /WBGT/.test(text)
   const heatNotes = feasibility?.notes.filter((note) => note.code === 'heat-acclimation') ?? []
   const otherNotes = feasibility?.notes.filter((note) => note.code !== 'heat-acclimation') ?? []
+  const feasibilityRules = [...new Set(['D4', ...otherNotes.flatMap((note) => note.rules)])]
+  const heatRules = [...new Set(['D6', ...heatNotes.flatMap((note) => note.rules)])]
   const heatLines = [
     ...(prediction?.conditions.filter(isHeat) ?? []),
     ...heatNotes.map((note) => note.message),
@@ -613,7 +616,8 @@ function GoalOutlook({ goal }: { goal: Goal }) {
           ))}
           <ExplainButton
             subject="feasibility"
-            rules={[...new Set(['D4', ...otherNotes.flatMap((note) => note.rules)])]}
+            rules={feasibilityRules}
+            explain={rulesRef(feasibilityRules)}
           />
         </section>
       ) : null}
@@ -631,7 +635,11 @@ function GoalOutlook({ goal }: { goal: Goal }) {
                 {line}
               </p>
             ))}
-            <ExplainButton subject="predicted time" rules={prediction.rules} />
+            <ExplainButton
+              subject="predicted time"
+              rules={prediction.rules}
+              explain={{ subject: 'prediction', goalId: goal.id }}
+            />
           </>
         ) : (
           <p className={styles.note}>
@@ -647,10 +655,7 @@ function GoalOutlook({ goal }: { goal: Goal }) {
               {line}
             </p>
           ))}
-          <ExplainButton
-            subject="race-day heat"
-            rules={[...new Set(['D6', ...heatNotes.flatMap((note) => note.rules)])]}
-          />
+          <ExplainButton subject="race-day heat" rules={heatRules} explain={rulesRef(heatRules)} />
         </section>
       ) : null}
     </div>

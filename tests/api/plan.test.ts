@@ -820,6 +820,7 @@ describe('GET /api/plan/revisions', () => {
     expect(Object.keys(row!).sort()).toEqual(
       [
         'auto',
+        'causes',
         'changes',
         'createdAt',
         'decision',

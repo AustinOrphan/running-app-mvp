@@ -48,6 +48,7 @@ import {
   memoByVersion,
   type AthleteContext,
 } from './athleteState.ts'
+import { todayDisruptions } from './disruptions.ts'
 import { inputFromContext, loadForecast, sessionSpec } from './engineInput.ts'
 import { EMPTY_DIFF_MARK } from './replan.ts'
 import { jobNotesStamp, todayHealth } from './todayHealth.ts'
@@ -195,6 +196,7 @@ async function raceBlock(context: AthleteContext, date: string): Promise<TodayRa
     targetDate: goal.targetDate,
     dateProvisional: goal.dateProvisional,
     daysToRace,
+    distanceM: goal.distanceM,
     prediction:
       prediction === null
         ? null
@@ -220,13 +222,17 @@ function stripFor(context: AthleteContext, date: string): WeekStrip {
   })
 }
 
-/** Runs of the last week that the runner has not rated yet, newest first. */
+/**
+ * Runs and races of the last `UNRATED_DAYS` days (today included) that carry neither an effort
+ * rating nor a feel, newest first: the runs the "How did it go?" card offers to rate.
+ */
 function unratedRuns(context: AthleteContext): TodayView['unrated'] {
-  const since = addDays(context.asOf, -UNRATED_DAYS)
+  const since = addDays(context.asOf, 1 - UNRATED_DAYS)
   return context.activities
     .filter(
       (a) =>
         (a.type === 'run' || a.type === 'race') &&
+        a.rpe === null &&
         a.feel === null &&
         (a.duplicateStatus === 'none' || a.duplicateStatus === 'dismissed') &&
         a.date >= since,
@@ -356,7 +362,7 @@ export async function todayView(
     changeLine(deps, context),
     raceBlock(context, date),
     todayHealth({ deps, userId, date, context }),
-    buildSlots({ deps, userId, date, today, preview, context }),
+    buildSlots({ deps, userId, date, today, preview, context, forecast }),
   ])
 
   const coach: TodayCoach = {
@@ -370,6 +376,7 @@ export async function todayView(
     race,
     change,
     health,
+    disruptions: todayDisruptions(context, date),
     slots,
   }
 

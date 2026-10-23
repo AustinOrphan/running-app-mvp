@@ -1,0 +1,19 @@
+/* One column of sections, each with its own space and hairline. `min-width: 0` lets a long line
+   wrap inside a flex or grid child instead of widening the page at 360 px. */
+.page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: var(--page-max);
+}
+
+.page > * {
+  min-width: 0;
+}
+
+/* The quiet link carries a button's padding; pull it back so its text lines up with the title. */
+@media (max-width: 899px) {
+  .log {
+    margin-left: calc(var(--space-4) * -1);
+  }
+}

@@ -695,6 +695,7 @@ describe('GET /api/today: the race', () => {
     expect(race?.goalId).not.toBe(other.id)
     expect(race?.name).toBe('Synthetic race')
     expect(race?.daysToRace).toBe(200)
+    expect(race?.distanceM).toBe(160_934)
     expect(race?.range).toMatchObject({
       wide: true,
       minHalfWidthPct: P.l4.ultraMinHalfWidthPct.value,
@@ -743,6 +744,7 @@ describe('GET /api/today: the race', () => {
     })
     expect((await view(u)).coach.race).toMatchObject({
       daysToRace: 20,
+      distanceM: null,
       prediction: null,
       range: null,
     })
@@ -780,6 +782,39 @@ describe('GET /api/today: the race', () => {
     expect(race?.prediction).not.toBeNull()
     expect(race!.prediction!.lowSec).toBeLessThan(race!.prediction!.predictedSec)
     expect(race!.prediction!.highSec).toBeGreaterThan(race!.prediction!.predictedSec)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Unrated runs
+// ---------------------------------------------------------------------------------------------
+
+describe('GET /api/today: unrated runs', () => {
+  test('are runs and races of the last seven days with neither an effort rating nor a feel', async () => {
+    const u = await seedUser(ctx, { email: 'unrated@example.com' })
+    const add = (date: string, over: Record<string, unknown> = {}) =>
+      ctx.prisma.activity.create({
+        data: {
+          userId: u.id,
+          date,
+          type: 'run',
+          durationSec: 1800,
+          movingSec: 1800,
+          distanceM: 5000,
+          source: 'manual',
+          ...over,
+        },
+      })
+    const newest = await add(today)
+    const race = await add(addDays(today, -6), { type: 'race' })
+    await add(addDays(today, -7)) // the eighth day back
+    await add(addDays(today, -1), { rpe: 5 })
+    await add(addDays(today, -2), { feel: 0 })
+    await add(addDays(today, -3), { type: 'strength' })
+    await add(addDays(today, -4), { duplicateStatus: 'confirmed' })
+
+    const { unrated } = await view(u)
+    expect(unrated.map((a) => a.id)).toEqual([newest.id, race.id])
   })
 })
 
@@ -1209,12 +1244,16 @@ describe('GET /api/today: the validator', () => {
     const log = trackQueries(ctx.prisma)
     const res = await getToday(u).set('If-None-Match', tag)
     expect(res.status).toBe(304)
+    // The user lookup of the auth middleware, the forecast stamp (home, then the cache row), the
+    // job notes' stamp and the publications' stamp (E1: the notes read a table the data version
+    // does not cover).
     expect(log.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
         'forecastCache.findUnique',
         'syncRun.findFirst',
         'user.findUnique',
+        'wristPublication.groupBy',
       ].sort(),
     )
     expect(log.count('activity.findMany')).toBe(0)
@@ -1251,8 +1290,10 @@ describe('GET /api/today: cost', () => {
     const warm = trackQueries(ctx.prisma)
     expect((await getToday(u)).status).toBe(200)
     // The session lookup of the auth middleware, the forecast stamp (home, then the cache row), the
-    // cached forecast hours, the stamp of the job notes and the three reads of the job notes
-    // themselves (the latest runs, the last weekly revision, the plans due): nothing else.
+    // cached forecast hours, the stamp of the job notes, the three reads of the job notes themselves
+    // (the latest runs, the last weekly revision, the plans due) and E1's two reads of the
+    // publications table (the page tag's stamp and the note about tomorrow's run, which has a
+    // session here): nothing else.
     expect(warm.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
@@ -1263,17 +1304,23 @@ describe('GET /api/today: cost', () => {
         'syncRun.findFirst',
         'syncRun.groupBy',
         'user.findUnique',
+        'wristPublication.findMany',
+        'wristPublication.groupBy',
       ].sort(),
     )
     expect(warm.count('activity.findMany')).toBe(0)
     expect(warm.count('plan.findFirst')).toBe(0)
-    // Pinned so that a query added to the request path is a decision, not an accident: cold is
-    // 20 reads (the session lookup, the forecast stamp, the job-notes stamp, the snapshot's ten,
-    // the cached forecast, the race climate, the change line and the three of the job notes), warm
-    // is 8, and the data version is read three times (the tag, the snapshot, the change-line memo).
-    expect(coldTotal).toBe(20)
-    expect(warm.models).toHaveLength(8)
-    expect(warm.raw).toBe(3)
+    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 26
+    // reads: the session lookup, the forecast stamp (the profile and the cache row), the job-notes
+    // stamp, the publications' stamp, the snapshot's eleven (the eleventh is the runner's active
+    // rest windows), the cached forecast, the race climate, the change line, the three reads of the
+    // job notes, the note about tomorrow's run (the publications) and the fuel replay's three (the
+    // switches, the logs, the weeks of every plan; its session lookup is skipped without a log).
+    // Warm is 10, the ten of the list above, and the data version is read five times (the tag, the
+    // snapshot, the change-line memo and the fuel replay's memo once for each of the two fuel slots).
+    expect(coldTotal).toBe(26)
+    expect(warm.models).toHaveLength(10)
+    expect(warm.raw).toBe(5)
   })
 
   test('no request path calls the network, empty or stale caches included', async () => {

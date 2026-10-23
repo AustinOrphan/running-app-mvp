@@ -229,6 +229,8 @@ export const FUEL_TEMPLATES = {
   'fuel.api.log-exists': tpl(
     'This run already has a fuel log. Remove it before marking the run as not logged.',
   ),
+  'fuel.api.range-order': tpl('Use a start date on or before the end date.'),
+  'fuel.api.range-span': tpl('Ask for no more than {max} days at a time.', { max: 'count' }),
 } satisfies Record<string, Template>
 
 export type FuelTemplateId = keyof typeof FUEL_TEMPLATES
@@ -351,7 +353,7 @@ export function describeFuelTarget(target: FuelTarget): FuelTargetText {
       : null,
     fluid: fluidLine(),
     sodium: say(T['fuel.sodium.line'], {}),
-    lock: target.locked ? say(T['fuel.lock'], {}) : null,
+    lock: target.locked ? gutConditionLock() : null,
     nausea: nauseaPlan(target.nauseaPlanForward),
     watch: fuelWatchText(target),
   }
@@ -393,6 +395,11 @@ export function gutTrainingText(): string[] {
 
 export function fuelDisclaimer(): string {
   return say(T['fuel.disclaimer'], {})
+}
+
+/** The clinician line for a diagnosed gut condition, for a page that has no target to carry it. */
+export function gutConditionLock(): string {
+  return say(T['fuel.lock'], {})
 }
 
 /** The log form's live line; null when the run has no elapsed time. */
@@ -543,4 +550,14 @@ export function notARunMessage(): string {
 
 export function logExistsMessage(): string {
   return say(T['fuel.api.log-exists'], {})
+}
+
+/** `from` is after `to` on a targets request. */
+export function rangeOrderMessage(): string {
+  return say(T['fuel.api.range-order'], {})
+}
+
+/** A targets request spans more than `max` days. */
+export function rangeSpanMessage(max: number): string {
+  return say(T['fuel.api.range-span'], { max: count(max) })
 }
