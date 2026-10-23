@@ -75,7 +75,8 @@ test('create a goal, activate it, generate a plan and edit one week with a note'
 
   // Owner edits of one session go through one guarded action. The session sheet asks the server
   // about a move as it is chosen and applies that answer; the shorten here goes through the API
-  // and the page shows what it left (the sheet's own shorten is in 14-disruptions.spec.ts).
+  // and the page shows what it left. No e2e drives the sheet's own Shorten or Restore session:
+  // tests/web/session-adjust.test.tsx covers them against mocked routes.
   const plan = (await api.get('/plan')) as PlanWithSessions
   const isRun = (s: PlanSessionLike) => !['strength', 'mobility', 'rest', 'cross'].includes(s.kind)
   const inWeek = plan.sessions.filter((s) => s.weekStart === week)

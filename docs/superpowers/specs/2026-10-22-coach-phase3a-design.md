@@ -1157,10 +1157,11 @@ DashboardPage            useToday(), useSettings(); two columns from 900 px via 
 
 A day with no hero shows `NoSession` (or `PlanNotice` when the payload shows no plan at all); a
 week outside the plan adds one muted line. Done opens a sheet that logs the run the hero shows
-(minutes and distance filled in, RPE and feel to add) and Not today a sheet that moves or skips the
-session; `SessionActions` only reports the tap, and the hero mounts the sheets, so E5's "Not 100%"
-entry goes into the Not today sheet's `children`. `HealthNotes` lists the red-flag notes and then the producers' notes, each linking
-to where it can be put right. The unrated runs of `FeedbackCard` are `TodayView.unrated` (runs and
+(minutes and distance filled in, RPE and feel to add) and Not today a sheet that hosts
+`AdjustSection` (move, swap, shorten, skip; the session sheet hosts the same section);
+`SessionActions` only reports the tap, and the hero mounts the sheets, so E5's "Not 100%" entry goes
+into the Not today sheet's `children`. `HealthNotes` lists the red-flag notes and then the
+producers' notes, each linking to where it can be put right. The unrated runs of `FeedbackCard` are `TodayView.unrated` (runs and
 races of the last seven days with neither a rating of effort nor a feel); no other request is made
 above the fold than `/api/today` and `/api/settings`.
 

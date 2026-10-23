@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import type { ApiErrorCode } from '../../shared/types.ts'
+import type { Config } from '../config.ts'
 import { HttpError } from '../errors.ts'
 
 interface LimiterOptions {
@@ -50,12 +51,36 @@ export function createLoginLimiter(opts: LimiterOptions = {}): RequestHandler {
   return createLimiter(opts, 10, 'unauthorized', 'Too many sign-in attempts. Try again later.')
 }
 
+/** Requests per window and IP of the API limiter in production. */
+export const PRODUCTION_API_LIMIT = 1000
+
 /**
- * Generous limiter of the API (1000 requests per 15 minutes per IP) that no normal use reaches.
- * The app mounts it on `/api` only; static files and the SPA fallback are outside the budget.
+ * Requests per window and IP of the API limiter outside production. The Playwright server runs
+ * with `NODE_ENV=development` and the suite sends one IP's whole run through the window (942 of
+ * 1000 requests at wave 5), so a spec added later must not exhaust it.
  */
-export function createGlobalLimiter(opts: LimiterOptions = {}): RequestHandler {
-  return createLimiter(opts, 1000, 'internal', 'Too many requests. Try again later.')
+export const NON_PRODUCTION_API_LIMIT = 20_000
+
+/** The default request budget of the API limiter for a `NODE_ENV`. */
+export function apiLimitFor(nodeEnv: Config['nodeEnv']): number {
+  return nodeEnv === 'production' ? PRODUCTION_API_LIMIT : NON_PRODUCTION_API_LIMIT
+}
+
+/**
+ * Generous limiter of the API (1000 requests per 15 minutes per IP in production, 20000 in any
+ * other `NODE_ENV`) that no normal use reaches. `opts.max` overrides the budget. The app mounts it
+ * on `/api` only; static files and the SPA fallback are outside the budget.
+ */
+export function createGlobalLimiter(
+  opts: LimiterOptions & { nodeEnv?: Config['nodeEnv'] } = {},
+): RequestHandler {
+  return createLimiter(
+    opts,
+    // An unset `nodeEnv` counts as production: the strict budget is the safe default.
+    apiLimitFor(opts.nodeEnv ?? 'production'),
+    'internal',
+    'Too many requests. Try again later.',
+  )
 }
 
 /**

@@ -519,6 +519,8 @@ test('the Plan page keeps the watch strip, its chips and the sheet section insid
   await api.post(`/goals/${goal.id}/activate`)
   await api.post('/plan/generate', { goalId: goal.id })
 
+  // The test is named for this width; the viewport the earlier tests left is not its to rely on.
+  await page.setViewportSize({ width: 360, height: 740 })
   // Sending is off in a fresh account: the strip says so and keeps the files one tap away.
   await page.goto('/plan')
   const strip = page.getByRole('region', { name: 'Watch' })

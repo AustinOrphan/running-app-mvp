@@ -11,11 +11,19 @@ import type {
   PlanRevisionView,
   PlanWithSessions,
 } from '../../shared/types.ts'
+import type { Deps } from '../../server/app.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { HttpError, notFound, validationError } from '../../server/errors.ts'
 import { runReplanJob } from '../../server/jobs/scheduler.ts'
 import { generateBrief, readFacts, replanNoteOf } from '../../server/services/brief.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 // A Monday at noon. Only Date is faked; timers and promises keep working.
 const MONDAY_NOON = new Date(2026, 9, 19, 12)
@@ -30,12 +38,13 @@ vi.useFakeTimers({ toFake: ['Date'] })
 const anyString = expect.any(String) as unknown as string
 
 let ctx: TestCtx
-let deps: { prisma: TestCtx['prisma']; config: TestCtx['config'] }
 let nextUser = 1
+
+/** What a job gets; `ctx.fetch` is read at each call, so an unplanned call reaches the guard. */
+const deps = (): Deps => ({ prisma: ctx.prisma, config: ctx.config, fetch: ctx.fetch })
 
 beforeAll(async () => {
   ctx = await createTestCtx()
-  deps = { prisma: ctx.prisma, config: ctx.config }
 })
 
 afterAll(async () => {
@@ -48,6 +57,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.setSystemTime(MONDAY_NOON)
+  expectNoRefusedFetches(ctx)
 })
 
 interface Runner {
@@ -138,7 +148,7 @@ async function getBrief(r: Runner, query = ''): Promise<BriefView | null> {
 async function updated(label: string): Promise<Runner & { revisionId: string }> {
   const r = await runner(label)
   await closeADay(r)
-  await runReplanJob(deps, { now: MONDAY_NOON })
+  await runReplanJob(deps(), { now: MONDAY_NOON })
   const weekly = await ctx.prisma.planRevision.findFirstOrThrow({
     where: { planId: r.plan.id, reason: 'weekly' },
     orderBy: { createdAt: 'desc' },
@@ -178,7 +188,7 @@ describe('the weekly job', () => {
 
   test('writes a brief for a quiet week too: no changes, the revision still described', async () => {
     const r = await runner(email())
-    await runReplanJob(deps, { now: MONDAY_NOON })
+    await runReplanJob(deps(), { now: MONDAY_NOON })
     const row = await briefOf(r.u.id)
     const facts = readFacts(row!.facts)!
     expect(row!.revisionId).not.toBeNull()
@@ -192,7 +202,7 @@ describe('the weekly job', () => {
       where: { id: r.goalId },
       data: { targetDate: addDays(monday, -1) },
     })
-    await runReplanJob(deps, { now: MONDAY_NOON })
+    await runReplanJob(deps(), { now: MONDAY_NOON })
     const row = await briefOf(r.u.id)
     expect(row).toMatchObject({ revisionId: null, provisional: false, planId: r.plan.id })
     const facts = readFacts(row!.facts)!
@@ -269,7 +279,7 @@ describe('the weekly job', () => {
     const r = await runner(email())
     const wednesday = new Date(2026, 9, 21, 12)
     vi.setSystemTime(wednesday)
-    await runReplanJob(deps, { now: wednesday, catchUp: true })
+    await runReplanJob(deps(), { now: wednesday, catchUp: true })
     const row = await briefOf(r.u.id)
     expect(row).toMatchObject({ provisional: false, weekStart: monday })
     expect(row!.revisionId).not.toBeNull()
@@ -284,7 +294,7 @@ describe('the weekly job', () => {
   test('keeps the brief of an update that ran when a later attempt fails', async () => {
     const r = await updated(email())
     const before = await briefOf(r.u.id)
-    await generateBrief(deps, { userId: r.u.id, today: monday, failure: new Error('later') })
+    await generateBrief(deps(), { userId: r.u.id, today: monday, failure: new Error('later') })
     const after = await briefOf(r.u.id)
     expect(after!.revisionId).toBe(r.revisionId)
     expect(after!.facts).toBe(before!.facts)
@@ -317,7 +327,7 @@ describe('the weekly job', () => {
     expect(provisional).toMatchObject({ provisional: true, revision: null, seen: true })
     expect(provisional.facts.changes).toBeNull()
     const rowBefore = (await briefOf(r.u.id))!
-    await runReplanJob(deps, { now: MONDAY_NOON })
+    await runReplanJob(deps(), { now: MONDAY_NOON })
     const replaced = (await getBrief(r))!
     expect(replaced.provisional).toBe(false)
     expect(replaced.revision).not.toBeNull()
@@ -454,8 +464,31 @@ describe('GET /api/brief', () => {
 
   test('creates one row for concurrent requests', async () => {
     const r = await runner(email())
-    const responses = await Promise.all(Array.from({ length: 8 }, () => r.c.get('/api/brief')))
-    for (const res of responses) expect(res.status).toBe(200)
+    const requests = 8
+    // Each request holds at `create` until all have read "no brief yet", so that every insert but
+    // the first meets the unique key and the losers read the winner's row. Without the hold the
+    // requests run one after another and none ever reaches that branch.
+    const create = ctx.prisma.weeklyBrief.create.bind(ctx.prisma.weeklyBrief)
+    let arrived = 0
+    let release = () => {}
+    const allArrived = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const gated = vi.spyOn(ctx.prisma.weeklyBrief, 'create').mockImplementation(((
+      args: Parameters<typeof create>[0],
+    ) => {
+      arrived += 1
+      if (arrived === requests) release()
+      return allArrived.then(() => create(args))
+    }) as never)
+    let responses
+    try {
+      responses = await Promise.all(Array.from({ length: requests }, () => r.c.get('/api/brief')))
+    } finally {
+      gated.mockRestore()
+    }
+    expect(arrived, 'every request reached create').toBe(requests)
+    for (const res of responses) expect(res.status, JSON.stringify(res.body)).toBe(200)
     const briefs = responses.map((res) => (res.body as { brief: BriefView }).brief)
     expect(new Set(briefs.map((b) => b.facts.asOf)).size).toBe(1)
     expect(await ctx.prisma.weeklyBrief.count({ where: { userId: r.u.id } })).toBe(1)
@@ -733,7 +766,7 @@ describe('the table', () => {
     // a request that builds the brief
     expect((await getBrief(r))!.provisional).toBe(true)
     // and the job's own write, called alone
-    await generateBrief(deps, { userId: r.u.id, today: monday, failure: new Error('x') })
+    await generateBrief(deps(), { userId: r.u.id, today: monday, failure: new Error('x') })
     expect(await briefOf(r.u.id)).toMatchObject({ provisional: false })
     const after = await dataVersionKey(ctx.prisma)
     expect(after.key).toBe(before.key)
@@ -763,7 +796,7 @@ describe('GET /api/explain?subject=brief', () => {
       data: { userId: r.u.id, date: addDays(lastMonday, 2), painScore: 5, source: 'manual' },
     })
     await closeADay(r)
-    await runReplanJob(deps, { now: MONDAY_NOON })
+    await runReplanJob(deps(), { now: MONDAY_NOON })
     return r
   }
 
