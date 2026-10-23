@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
@@ -175,6 +176,7 @@ async function planWith(
     const row = await ctx.prisma.planSession.create({
       data: {
         planId: plan.id,
+        externalId: randomUUID(),
         weekStart: mondayOf(s.date),
         date: s.date,
         order: i,

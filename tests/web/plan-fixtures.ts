@@ -17,6 +17,7 @@ export const settings: UserSettings = {
 export function makeSession(over: Partial<PlanSession> = {}): PlanSession {
   return {
     id: 's1',
+    externalId: `ext-${over.id ?? 's1'}`,
     planId: 'p2',
     weekStart: '2027-01-11',
     date: '2027-01-13',

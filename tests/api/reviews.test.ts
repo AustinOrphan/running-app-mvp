@@ -170,9 +170,36 @@ describe('GET /api/reviews', () => {
   test('requires a session', async () => {
     expect((await list('', null)).status).toBe(401)
   })
+
+  test('loads six columns of activities, from 52 weeks before the first week to the last Sunday', async () => {
+    const findMany = vi.spyOn(ctx.prisma.activity, 'findMany')
+    const res = await list(`?from=${W1}&to=${W3}`, user)
+    expect(res.status).toBe(200)
+    expect(findMany).toHaveBeenCalledTimes(1)
+    const args = findMany.mock.calls[0]![0]!
+    expect(args.where).toEqual({ userId: user.id, date: { gte: '2025-03-10', lte: '2026-03-29' } })
+    expect(Object.keys(args.select ?? {}).sort()).toEqual([
+      'date',
+      'distanceM',
+      'duplicateStatus',
+      'durationSec',
+      'id',
+      'type',
+    ])
+  })
 })
 
 describe('PUT /api/reviews/:weekStart', () => {
+  test('save loads the same bounded window for its one week', async () => {
+    const findMany = vi.spyOn(ctx.prisma.activity, 'findMany')
+    expect((await put(W1, { dataStatus: 'complete' })).status).toBe(200)
+    expect(findMany).toHaveBeenCalledTimes(1)
+    expect(findMany.mock.calls[0]![0]!.where).toEqual({
+      userId: user.id,
+      date: { gte: '2025-03-10', lte: '2026-03-15' },
+    })
+  })
+
   test('save computes and stores the suggestion', async () => {
     const res = await put(W, { dataStatus: 'complete', fatigue: 4, symptoms: 'none' })
     expect(res.status).toBe(200)

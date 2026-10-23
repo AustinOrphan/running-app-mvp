@@ -1,4 +1,4 @@
-import type { Activity, WeekRow } from '../shared/types.ts'
+import type { Activity, ActivityCore, WeekRow } from '../shared/types.ts'
 
 let nextId = 1
 
@@ -43,6 +43,19 @@ export function makeActivity(over: Partial<Activity> = {}): Activity {
     pain: null,
     createdAt: '2026-03-02T12:00:00.000Z',
     updatedAt: '2026-03-02T12:00:00.000Z',
+    ...over,
+  }
+}
+
+/** The six columns `loadActivityCores` returns, for code that reads no more than that. */
+export function makeActivityCore(over: Partial<ActivityCore> = {}): ActivityCore {
+  return {
+    id: `c${nextId++}`,
+    date: '2026-03-02',
+    type: 'run',
+    durationSec: 1800,
+    distanceM: 5000,
+    duplicateStatus: 'none',
     ...over,
   }
 }

@@ -1,5 +1,6 @@
 // Version-2 plans: generate with the engine, re-plan, persist weeks, sessions and revisions, and the
 // owner's edits to single sessions. The engine decides; this module gathers, persists and guards.
+import { randomUUID } from 'node:crypto'
 import { addDays, daysBetween, isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
 import { type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
@@ -44,6 +45,7 @@ import type {
 } from '../db.ts'
 import { conflict, HttpError, notFound, validationError } from '../errors.ts'
 import {
+  isTrimmed,
   loadProfile,
   toPlan,
   toPlanEngineFields,
@@ -122,12 +124,16 @@ function weekRow(week: WeekDraft) {
 }
 
 /**
- * A new session row. A session the engine trimmed after a hold decision [rules J5, design 4.3] is
- * stored as downgraded, as an execution trim is.
+ * A new session row. `externalId` is the identity of the session outside the database (spec 4.1):
+ * a fresh uuid, or the one `externalId` carries over from the session this row replaces. `trimmed`
+ * follows `rules` through `isTrimmed`, and a session the engine trimmed after a hold decision
+ * [rules J5, design 4.3] is stored as downgraded, as an execution trim is.
  */
-function sessionRow(planId: string, spec: SessionSpec) {
+export function sessionRow(planId: string, spec: SessionSpec, externalId: string = randomUUID()) {
+  const trimmed = isTrimmed(spec.rules)
   return {
     planId,
+    externalId,
     weekStart: mondayOf(spec.date),
     date: spec.date,
     order: spec.order,
@@ -140,8 +146,9 @@ function sessionRow(planId: string, spec: SessionSpec) {
     target: json(spec.target),
     purpose: spec.purpose,
     rules: json(spec.rules),
+    trimmed,
     flags: json(spec.flags),
-    status: spec.rules.includes('design-4.3') ? 'downgraded' : 'planned',
+    status: trimmed ? 'downgraded' : 'planned',
   }
 }
 
@@ -284,20 +291,29 @@ function describeChanges(changes: PlanChange[]): string {
   return `${changes.length} change${changes.length === 1 ? '' : 's'} across ${weeks} week${weeks === 1 ? '' : 's'}.`
 }
 
-/** The stored assessments of the sessions of one week, as the weekly decision reads them. */
-async function executionRecords(
-  prisma: PrismaClient,
+/**
+ * The stored assessments of the sessions of each of `weekStarts`, as the weekly decision reads
+ * them: one session query for any number of weeks. Every requested week has an entry, empty when
+ * none of its sessions is assessed; each list is in session order.
+ */
+export async function executionRecordsByWeek(
+  prisma: Pick<PrismaClient, 'planSession'>,
   planId: string,
-  weekStart: string,
-): Promise<ExecutionRecord[]> {
+  weekStarts: string[],
+): Promise<Map<string, ExecutionRecord[]>> {
+  const byWeek = new Map<string, ExecutionRecord[]>(weekStarts.map((week) => [week, []]))
+  if (weekStarts.length === 0) return byWeek
   const rows = await prisma.planSession.findMany({
-    where: { planId, weekStart, execution: { not: null } },
+    where: { planId, weekStart: { in: weekStarts }, execution: { not: null } },
     orderBy: [{ date: 'asc' }, { order: 'asc' }],
   })
-  return rows.map((row) => {
+  for (const row of rows) {
     const session = toPlanSession(row)
-    return { date: session.date, kind: session.kind, assessment: session.execution! }
-  })
+    byWeek
+      .get(row.weekStart)
+      ?.push({ date: session.date, kind: session.kind, assessment: session.execution! })
+  }
+  return byWeek
 }
 
 /**
@@ -324,12 +340,15 @@ export async function weeklyDecisions(
   // hot days (heatFirstDays) and the sleep-efficiency drop are not derived from the data yet, so
   // those two holds of rule J5 do not fire.
   const ramp = weeklyRamp(estimateState(input))
-  for (const weekStart of args.weekStarts) {
-    if (!input.existing?.weeks.some((w) => w.weekStart === weekStart)) continue
+  const planned = args.weekStarts.filter((weekStart) =>
+    input.existing?.weeks.some((w) => w.weekStart === weekStart),
+  )
+  const executions = await executionRecordsByWeek(deps.prisma, plan.id, planned)
+  for (const weekStart of planned) {
     decisions.set(
       weekStart,
       weeklyDecision(input, weekStart, {
-        executions: await executionRecords(deps.prisma, plan.id, weekStart),
+        executions: executions.get(weekStart) ?? [],
         redsFlags: input.screeningFlags,
         ramp,
       }),
@@ -373,7 +392,7 @@ export async function replanActivePlan(
   const lastWeek = addDays(currentMonday, -7)
   const decision = input.existing?.weeks.some((w) => w.weekStart === lastWeek)
     ? weeklyDecision(input, lastWeek, {
-        executions: await executionRecords(prisma, plan.id, lastWeek),
+        executions: (await executionRecordsByWeek(prisma, plan.id, [lastWeek])).get(lastWeek) ?? [],
         redsFlags: input.screeningFlags,
         ramp: weeklyRamp(state),
       })
@@ -582,6 +601,7 @@ const SWAP_FIELDS = [
   'target',
   'purpose',
   'rules',
+  'trimmed',
   'flags',
 ] as const
 

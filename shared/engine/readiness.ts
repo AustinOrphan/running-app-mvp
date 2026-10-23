@@ -553,6 +553,7 @@ export function easedSession<S extends SessionSpec>(session: S, zones: ZoneSet |
 /** The prescription as a plan session; fields the engine does not know take neutral defaults. */
 function toPlanSession(s: SessionSpec & { id: string }): PlanSession {
   return {
+    externalId: '',
     planId: '',
     weekStart: mondayOf(s.date),
     status: 'planned',

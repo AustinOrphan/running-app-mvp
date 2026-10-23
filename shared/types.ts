@@ -67,6 +67,14 @@ export interface Activity {
   createdAt: string
   updatedAt: string
 }
+/**
+ * The six columns the week rows and the statistics read. The server loads these
+ * (`loadActivityCores`) instead of whole activities, which also carry a heart-rate histogram.
+ */
+export type ActivityCore = Pick<
+  Activity,
+  'id' | 'date' | 'type' | 'durationSec' | 'distanceM' | 'duplicateStatus'
+>
 export type Feel = -2 | -1 | 0 | 1 | 2
 /** Aligned arrays of equal length; `null` when the source had no such channel. */
 export interface ActivityStreamData {
@@ -215,6 +223,7 @@ export interface WeekRow {
   longestRunMin: number
   longRunShare: number | null
   avg4wRunMin: number
+  /** Consecutive weeks ending here with 3 or more runs, counted up to 52 (`STREAK_LOOKBACK_WEEKS`). */
   streak3Plus: number
 }
 export type Phase =
@@ -359,6 +368,11 @@ export type PlanSessionStatus =
 /** One prescribed day-level session; JSON columns are parsed. */
 export interface PlanSession {
   id: string
+  /**
+   * The identity of the session outside the database: a uuid, unique within the plan and kept by
+   * every write that keeps the session. Opaque to the client.
+   */
+  externalId: string
   planId: string
   weekStart: string
   date: string

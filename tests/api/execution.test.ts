@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import type { ExecutionAssessment } from '../../shared/engine/types.ts'
@@ -119,6 +120,7 @@ async function planWith(
       await ctx.prisma.planSession.create({
         data: {
           planId: plan.id,
+          externalId: randomUUID(),
           weekStart: mondayOf(s.date),
           date: s.date,
           order: i,
@@ -519,6 +521,7 @@ describe('activities already linked elsewhere', () => {
     const sibling = await ctx.prisma.planSession.create({
       data: {
         planId: fresh.id,
+        externalId: randomUUID(),
         weekStart: thisMonday,
         date: addDays(today, -2),
         order: 0,
@@ -687,6 +690,7 @@ describe('zone proposals', () => {
       await ctx.prisma.planSession.create({
         data: {
           planId: made.plan.id,
+          externalId: randomUUID(),
           weekStart: mondayOf(addDays(today, -back)),
           date: addDays(today, -back),
           order: 0,

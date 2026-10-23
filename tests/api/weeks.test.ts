@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { addDays } from '../../shared/dates.ts'
 import type { ActivityType, ApiErrorBody, WeekRow } from '../../shared/types.ts'
+import { loadActivityCores } from '../../server/serialize.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
 let ctx: TestCtx
@@ -159,5 +161,72 @@ describe('GET /api/weeks', () => {
 
   test('requires a session', async () => {
     expect((await get('', null)).status).toBe(401)
+  })
+})
+
+const CORE_COLUMNS = ['date', 'distanceM', 'duplicateStatus', 'durationSec', 'id', 'type']
+
+describe('the activities a range loads', () => {
+  test('GET /weeks reads six columns, from 52 weeks before the first week to the last Sunday', async () => {
+    const findMany = vi.spyOn(ctx.prisma.activity, 'findMany')
+    const res = await get('?from=2026-03-02&to=2026-03-09')
+    expect(res.status).toBe(200)
+    expect(findMany).toHaveBeenCalledTimes(1)
+    const args = findMany.mock.calls[0]![0]!
+    expect(args.where).toEqual({
+      userId: user.id,
+      date: { gte: '2025-03-03', lte: '2026-03-15' },
+    })
+    expect(Object.keys(args.select ?? {}).sort()).toEqual(CORE_COLUMNS)
+  })
+
+  test('the streak is capped at 52 weeks and the average still looks back before from', async () => {
+    // Three runs a week for 60 consecutive weeks ending in the week of from.
+    const last = '2026-03-16'
+    const data = Array.from({ length: 60 }, (_, w) => addDays(last, -7 * w)).flatMap((monday) =>
+      [0, 2, 4].map((offset) => ({
+        userId: user.id,
+        date: addDays(monday, offset),
+        type: 'run',
+        durationSec: 3600,
+        distanceM: 10000,
+      })),
+    )
+    await ctx.prisma.activity.createMany({ data })
+    const res = await get(`?from=${last}&to=${last}`)
+    expect(res.body[0]).toMatchObject({ runMin: 180, avg4wRunMin: 180, streak3Plus: 52 })
+  })
+})
+
+describe('loadActivityCores', () => {
+  function stub() {
+    const findMany = vi.fn((_args: unknown) => Promise.resolve([]))
+    return {
+      findMany,
+      prisma: { activity: { findMany } } as unknown as Parameters<typeof loadActivityCores>[0],
+    }
+  }
+
+  test('selects the six columns of the week rows and the statistics, for one user', async () => {
+    const { findMany, prisma } = stub()
+    await loadActivityCores(prisma, 'u1')
+    expect(findMany).toHaveBeenCalledTimes(1)
+    const args = findMany.mock.calls[0]![0] as { where: unknown; select: Record<string, boolean> }
+    expect(args.where).toEqual({ userId: 'u1' })
+    expect(Object.keys(args.select).sort()).toEqual(CORE_COLUMNS)
+    expect(Object.values(args.select).every((v) => v === true)).toBe(true)
+  })
+
+  test('bounds the dates inclusively at either end, or at one', async () => {
+    const { findMany, prisma } = stub()
+    await loadActivityCores(prisma, 'u1', { from: '2026-01-05', to: '2026-03-15' })
+    await loadActivityCores(prisma, 'u1', { to: '2026-03-15' })
+    await loadActivityCores(prisma, 'u1', { from: '2026-01-05' })
+    const wheres = findMany.mock.calls.map((c) => (c[0] as { where: unknown }).where)
+    expect(wheres).toEqual([
+      { userId: 'u1', date: { gte: '2026-01-05', lte: '2026-03-15' } },
+      { userId: 'u1', date: { lte: '2026-03-15' } },
+      { userId: 'u1', date: { gte: '2026-01-05' } },
+    ])
   })
 })

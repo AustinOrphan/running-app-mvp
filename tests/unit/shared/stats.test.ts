@@ -6,7 +6,7 @@ import {
   yearlyTotals,
 } from '../../../shared/domain/stats.ts'
 import type { Activity } from '../../../shared/types.ts'
-import { makeActivity } from '../../factories.ts'
+import { makeActivity, makeActivityCore } from '../../factories.ts'
 
 const run = (distanceM: number | null, durationSec: number, over: Partial<Activity> = {}) =>
   makeActivity({ type: 'run', distanceM, durationSec, ...over })
@@ -163,4 +163,21 @@ test('empty input gives empty arrays', () => {
   expect(monthlyTotals([])).toEqual([])
   expect(yearlyTotals([])).toEqual([])
   expect(longestRuns([])).toEqual([])
+})
+
+describe('rows of six columns', () => {
+  // The server loads these six columns instead of whole activities; every statistic reads no more.
+  test('feed the efforts, the totals and the longest runs', () => {
+    const rows = [
+      makeActivityCore({ id: 'fast', durationSec: 1500 }),
+      makeActivityCore({ id: 'slow', durationSec: 1700, date: '2026-03-09' }),
+      makeActivityCore({ id: 'dup', durationSec: 1000, duplicateStatus: 'possible' }),
+    ]
+    expect(fastestEfforts(rows).map((e) => [e.label, e.activityId])).toEqual([['5K', 'fast']])
+    expect(monthlyTotals(rows)).toEqual([
+      { month: '2026-03', runMin: 53, runM: 10000, runs: 2, longestRunMin: 28 },
+    ])
+    expect(yearlyTotals(rows)).toHaveLength(1)
+    expect(longestRuns(rows).map((r) => r.id)).toEqual(['slow', 'fast'])
+  })
 })
