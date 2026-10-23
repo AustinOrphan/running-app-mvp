@@ -1,41 +1,10 @@
 import type { SessionKind } from '../../shared/engine/types.ts'
-import type { PlanPhase, Units } from '../../shared/types.ts'
+import type { PlanPhase } from '../../shared/types.ts'
 
-const parts = new Intl.DateTimeFormat('en-GB', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
-
-/** The pieces of a `YYYY-MM-DD` date, read in UTC so the viewer's time zone never shifts the day. */
-function dateParts(iso: string): Record<'weekday' | 'day' | 'month' | 'year', string> {
-  const date = new Date(`${iso}T00:00:00Z`)
-  if (Number.isNaN(date.getTime())) throw new RangeError(`Invalid date: ${iso}`)
-  const result = { weekday: '', day: '', month: '', year: '' }
-  for (const part of parts.formatToParts(date)) {
-    if (part.type in result) result[part.type as keyof typeof result] = part.value
-  }
-  return result
-}
-
-/** "19 Oct" */
-export function formatShortDate(iso: string): string {
-  const { day, month } = dateParts(iso)
-  return `${day} ${month}`
-}
-
-/** "Mon" */
-export function formatWeekday(iso: string): string {
-  return dateParts(iso).weekday
-}
-
-/** "Mon 19 Oct 2026" */
-export function formatLongDate(iso: string): string {
-  const { weekday, day, month, year } = dateParts(iso)
-  return `${weekday} ${day} ${month} ${year}`
-}
+// The date and climb formatters live in `shared/` so the copy system can use them; pages keep
+// importing them from here.
+export { formatLongDate, formatShortDate, formatWeekday } from '../../shared/dates.ts'
+export { formatClimb } from '../../shared/units.ts'
 
 const phaseLabels: Record<PlanPhase, string> = {
   restart: 'Restart',
@@ -89,13 +58,4 @@ export function sessionKindLabel(kind: SessionKind): string {
 /** Whether a string names a session kind. */
 export function isSessionKind(value: unknown): value is SessionKind {
   return typeof value === 'string' && value in kindLabels
-}
-
-const FEET_PER_METRE = 3.28084
-
-/** Climb in the runner's unit: metres for km, feet for miles ("197 ft"). */
-export function formatClimb(gainM: number, units: Units): string {
-  return units === 'mi'
-    ? `${String(Math.round(gainM * FEET_PER_METRE))} ft`
-    : `${String(Math.round(gainM))} m`
 }
