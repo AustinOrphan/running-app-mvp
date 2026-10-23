@@ -396,7 +396,7 @@ export type ReviewView = WeeklyReview & { signals?: ReviewSignals }
 /** What saving returns: the review, plus for a version-2 plan the re-plan the review triggered. */
 export type SavedReview = ReviewView & {
   /** The revision written by the re-plan; null when this save did not re-plan. */
-  revision?: PlanRevision | null
+  revision?: PlanRevisionView | null
   /** Why a re-plan that was due did not run; the review itself is saved. */
   replanError?: string
 }
@@ -569,6 +569,36 @@ export interface UndoState {
   reasons: UndoReason[]
   undoneAt: string | null
 }
+/**
+ * Why a line of a diff exists, in the words of the product (phase 3a design 8.5): the weekly
+ * decision held or reduced the week, the runner made the change (an edit of one session, an undo),
+ * the runner's own target for the week was kept, the plan
+ * restarts after a break or follows the weeks after a race, a rest window holds the day, the next
+ * quality session was shortened, the weekly build moved, the calendar moved the week to another
+ * stage, or the figures the plan reads changed. Derived from the stored revision when it is served
+ * (`attributeChange`, `shared/engine/revisionDiff.ts`); never stored.
+ */
+export type CauseCode =
+  | 'owner-edit'
+  | 'decision-hold'
+  | 'decision-reduce'
+  | 'owner-target-kept'
+  | 'break-restart'
+  | 'post-race'
+  | 'disruption'
+  | 'trim'
+  | 'ramp'
+  | 'phase-calendar'
+  | 'state-update'
+/**
+ * The causes of every line of a revision's diff, most specific first and never empty: sessions by
+ * their `externalId`, weeks by their Monday. A line is found by its key, not by its place in the
+ * diff, so a surface that sorts or filters the lines keeps their causes.
+ */
+export interface RevisionCauses {
+  sessions: Record<string, CauseCode[]>
+  weeks: Record<string, CauseCode[]>
+}
 /** A revision as the API serves it: the stored row without its undo payload. */
 export interface PlanRevisionView extends PlanRevision {
   /** Written by the scheduler, not by a request. */
@@ -577,6 +607,8 @@ export interface PlanRevisionView extends PlanRevision {
   decision: WeeklyDecision | null
   /** Null on revisions written before the revision model, and on those with nothing to show. */
   diff: PlanDiff | null
+  /** The cause of each line of `diff`; null exactly when `diff` is null. */
+  causes: RevisionCauses | null
   undo: UndoState
   seenAt: string | null
   /** On an 'undo' revision: the revision it reverted. */

@@ -310,9 +310,11 @@ async function applyUndo(
         undo: null,
         undoOf: target.id,
       })
+      // The runner chose to undo this revision from a surface that showed it, so it counts as seen.
+      const now = new Date()
       await tx.planRevision.update({
         where: { id: target.id },
-        data: { undoneAt: new Date(), undoneById: revision.id },
+        data: { undoneAt: now, undoneById: revision.id, seenAt: target.seenAt ?? now },
       })
       return revision.id
     },

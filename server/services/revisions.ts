@@ -467,13 +467,41 @@ export async function undoStates(
   return states
 }
 
-/** Revisions as the API serves them, with the structural undo state of each. */
+/**
+ * The Mondays of each plan's weeks whose target the runner set, by plan id: the weeks a re-plan
+ * keeps at the runner's number (`weekCaps` in `computeReplan`). One query for the page, and none
+ * when no revision on it has a diff to attribute. Read when the revisions are served, so a week the
+ * runner has since reset to the baseline no longer counts.
+ */
+async function ownerWeeksByPlan(
+  deps: Deps,
+  rows: readonly PlanRevisionListRow[],
+): Promise<Map<string, Set<string>>> {
+  const planIds = [...new Set(rows.filter((row) => row.diff !== null).map((row) => row.planId))]
+  const byPlan = new Map<string, Set<string>>()
+  if (planIds.length === 0) return byPlan
+  const weeks = await deps.prisma.planWeek.findMany({
+    where: { planId: { in: planIds }, targetSource: { in: ['override', 'review'] } },
+    select: { planId: true, weekStart: true },
+  })
+  for (const week of weeks) {
+    const set = byPlan.get(week.planId) ?? new Set<string>()
+    set.add(week.weekStart)
+    byPlan.set(week.planId, set)
+  }
+  return byPlan
+}
+
+/** Revisions as the API serves them, with the structural undo state and the causes of each. */
 export async function viewRevisions(
   deps: Deps,
   args: { userId: string; rows: readonly PlanRevisionListRow[]; planActive: boolean },
 ): Promise<PlanRevisionView[]> {
-  const states = await undoStates(deps, args)
-  return args.rows.map((row) => revisionView(row, states.get(row.id)!))
+  const [states, ownerWeeks] = await Promise.all([
+    undoStates(deps, args),
+    ownerWeeksByPlan(deps, args.rows),
+  ])
+  return args.rows.map((row) => revisionView(row, states.get(row.id)!, ownerWeeks.get(row.planId)))
 }
 
 /** One of the user's revisions as the API serves it. */

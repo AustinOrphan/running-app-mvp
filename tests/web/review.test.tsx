@@ -15,7 +15,21 @@ import type {
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ReviewPage } from '../../web/pages/ReviewPage.tsx'
 import { makeActivity, makeWeekRow } from '../factories.ts'
-import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  activityPage,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
+import {
+  AVAILABLE,
+  makeBrief,
+  makeDiff,
+  makeLine,
+  makeRevision,
+  makeWeekLine,
+} from './plan-fixtures.ts'
 
 // The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -675,18 +689,20 @@ describe('ReviewPage', () => {
         {
           [`PUT /api/reviews/${W}`]: () => ({
             ...makeReview(W, { id: 'r1', dataStatus: 'complete', ...decided }),
-            revision: {
+            // A revision from before the revision model has no diff: its stored changes show.
+            revision: makeRevision({
               id: 'rev1',
               planId: 'p1',
               createdAt: '2026-10-21T12:00:00.000Z',
               reason: 'review',
+              auto: false,
               summary:
                 "2 changes across 1 week. Last week's decision: hold, next week up to 280 min.",
               changes: [
                 { weekStart: CURRENT, field: 'targetRunMin', from: 320, to: 280, rules: ['J5'] },
                 { weekStart: CURRENT, field: 'longRunMin', from: 90, to: 80, rules: ['G-6'] },
               ],
-            },
+            }),
           }),
         },
       )
@@ -701,10 +717,85 @@ describe('ReviewPage', () => {
           "2 changes across 1 week. Last week's decision: hold, next week up to 280 min.",
         ),
       ).toBeInTheDocument()
-      const changes = within(region).getAllByRole('listitem')
+      const changes = within(
+        within(region).getByRole('list', { name: 'Changes in this update' }),
+      ).getAllByRole('listitem')
       expect(changes).toHaveLength(2)
       expect(changes[0]).toHaveTextContent('Week of 19 Oct: Weekly running time 320 min to 280 min')
       expect(changes[1]).toHaveTextContent('Week of 19 Oct: Long run 90 min to 80 min')
+    })
+
+    test('saving shows the revision through the shared diff and undo components', async () => {
+      const user = userEvent.setup()
+      const diff = makeDiff(
+        [
+          makeLine({
+            externalId: 'x1',
+            date: '2026-10-22',
+            weekStart: CURRENT,
+            before: makeBrief({ date: '2026-10-22', durationMin: 40 }),
+            after: makeBrief({
+              date: '2026-10-22',
+              kind: 'easy',
+              title: 'Easy run',
+              durationMin: 30,
+            }),
+            fields: ['kind', 'durationMin'],
+          }),
+        ],
+        [makeWeekLine({ weekStart: CURRENT, runMinBefore: 320, runMinAfter: 280 })],
+      )
+      const calls = renderReview(
+        { plan: v2Plan(), weeks: { [W]: fullWeek }, reviews: { [W]: decided } },
+        {
+          [`PUT /api/reviews/${W}`]: () => ({
+            ...makeReview(W, { id: 'r1', dataStatus: 'complete', ...decided }),
+            revision: makeRevision({
+              id: 'rev1',
+              planId: 'p1',
+              createdAt: '2026-10-21T12:00:00.000Z',
+              reason: 'review',
+              auto: false,
+              summary:
+                "1 change across 1 week. Last week's decision: hold, next week up to 280 min.",
+              changes: [
+                { weekStart: CURRENT, field: 'targetRunMin', from: 320, to: 280, rules: ['J5'] },
+              ],
+              diff,
+              causes: {
+                sessions: { x1: ['decision-hold'] },
+                weeks: { [CURRENT]: ['decision-hold'] },
+              },
+              undo: AVAILABLE,
+              seenAt: '2026-10-21T12:00:00.000Z',
+            }),
+          }),
+        },
+      )
+      await ready()
+      await user.click(screen.getByRole('radio', { name: 'Data complete' }))
+      await user.click(screen.getByRole('button', { name: 'Save review' }))
+
+      const region = await screen.findByRole('region', { name: 'What changed' })
+      expect(within(region).getByText('After a review')).toBeInTheDocument()
+      expect(
+        within(region).getByText('Week of 19 Oct: running time 320 min to 280 min'),
+      ).toBeInTheDocument()
+      expect(
+        within(region).getByText('Thu 22 Oct: Threshold intervals 40 min to Easy run 30 min'),
+      ).toBeInTheDocument()
+      // The runner just made this revision: no marker, one cause sentence, an Undo, a Why.
+      expect(within(region).queryByText('New')).not.toBeInTheDocument()
+      expect(
+        within(region).getByText(
+          'Last week called for holding steady, so the plan did not step up.',
+        ),
+      ).toBeInTheDocument()
+      expect(within(region).getByRole('button', { name: 'Undo update' })).toBeInTheDocument()
+      await user.click(within(region).getByRole('button', { name: 'Why this update' }))
+      expect(await screen.findByRole('dialog', { name: 'Evidence' })).toHaveTextContent('J5')
+      expectCleanCopy(region)
+      expect(calls.calls.some((c) => c.url.includes('/seen'))).toBe(false)
     })
 
     test('a re-plan that could not run is said plainly and the review stays saved', async () => {

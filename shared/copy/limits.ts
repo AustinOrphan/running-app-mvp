@@ -20,6 +20,9 @@ export const BRIEF_MAX_NOTICED = 4
 /** Days ahead the brief looks for the next key session. */
 export const KEY_LOOKAHEAD_DAYS = 7
 
+/** Lines of a revision's diff shown before "Show all {n} changes". */
+export const DIFF_LINES_SHOWN = 5
+
 /** The longest rendered template: one sentence a reader takes in at a glance. */
 export const COPY_MAX_CHARS = 160
 

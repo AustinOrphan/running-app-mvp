@@ -1,7 +1,12 @@
+import type { SessionBrief } from '../../shared/engine/types.ts'
 import type {
   Plan,
-  PlanRevision,
+  PlanDiff,
+  PlanRevisionView,
   PlanSession,
+  SessionDiffLine,
+  UndoState,
+  WeekDiffLine,
   PlanWeek,
   PlanWithSessions,
   PlanWithWeeks,
@@ -152,7 +157,11 @@ export function makeV2Plan(over: Partial<PlanWithSessions> = {}): PlanWithSessio
   }
 }
 
-export function makeRevision(over: Partial<PlanRevision> = {}): PlanRevision {
+/**
+ * A revision as the API serves it: the legacy shape by default, written before the revision model
+ * (no diff, no causes, nothing to undo, already seen), which shows its week-level `changes`.
+ */
+export function makeRevision(over: Partial<PlanRevisionView> = {}): PlanRevisionView {
   return {
     id: 'r1',
     planId: 'p2',
@@ -162,6 +171,84 @@ export function makeRevision(over: Partial<PlanRevision> = {}): PlanRevision {
     changes: [
       { weekStart: '2027-01-18', field: 'targetRunMin', from: 330, to: 300, rules: ['j-5'] },
     ],
+    auto: true,
+    decision: null,
+    diff: null,
+    causes: null,
+    undo: {
+      available: false,
+      reasons: [{ code: 'not-undoable', message: 'This update has nothing to restore.' }],
+      undoneAt: null,
+    },
+    seenAt: '2027-01-10T03:00:00.000Z',
+    undoOf: null,
+    disruptionId: null,
     ...over,
+  }
+}
+
+export const AVAILABLE: UndoState = { available: true, reasons: [], undoneAt: null }
+
+export function makeBrief(over: Partial<SessionBrief> = {}): SessionBrief {
+  return {
+    date: '2027-01-14',
+    kind: 'threshold',
+    title: 'Threshold intervals',
+    durationMin: 40,
+    distanceM: 8000,
+    gainM: null,
+    ...over,
+  }
+}
+
+/** A session line of a diff: a changed one by default, with its brief before and after. */
+export function makeLine(over: Partial<SessionDiffLine> = {}): SessionDiffLine {
+  const change = over.change ?? 'changed'
+  const before = change === 'added' ? null : makeBrief()
+  const after = change === 'removed' ? null : makeBrief({ durationMin: 30 })
+  return {
+    change,
+    externalId: 'x1',
+    sessionId: 's1',
+    date: '2027-01-14',
+    weekStart: '2027-01-11',
+    before,
+    after,
+    fields: change === 'changed' ? ['durationMin'] : [],
+    rules: ['f-1'],
+    ...over,
+  }
+}
+
+export function makeWeekLine(over: Partial<WeekDiffLine> = {}): WeekDiffLine {
+  return {
+    weekStart: '2027-01-11',
+    runMinBefore: 300,
+    runMinAfter: 270,
+    flagsAdded: [],
+    flagsRemoved: [],
+    ...over,
+  }
+}
+
+export function makeDiff(
+  sessions: SessionDiffLine[],
+  weeks: WeekDiffLine[] = [],
+  holds: PlanDiff['holds'] = [],
+): PlanDiff {
+  return {
+    v: 1,
+    sessions,
+    weeks,
+    holds,
+    totals: {
+      added: sessions.filter((l) => l.change === 'added').length,
+      removed: sessions.filter((l) => l.change === 'removed').length,
+      changed: sessions.filter((l) => l.change === 'changed').length,
+      weeksChanged: weeks.length,
+      runMinBefore: weeks.reduce((n, w) => n + w.runMinBefore, 0),
+      runMinAfter: weeks.reduce((n, w) => n + w.runMinAfter, 0),
+    },
+    empty: sessions.length === 0 && weeks.length === 0 && holds.length === 0,
   }
 }
