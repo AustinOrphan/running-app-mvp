@@ -33,6 +33,7 @@ import {
 } from './helpers.tsx'
 import { makeSession, settings } from './plan-fixtures.ts'
 import { makeFuelSlot } from './today-fixtures.ts'
+import { sheetRoutes } from './wrist-fixtures.ts'
 
 const ACTIVITY = 'run9'
 const THREE_HOURS = 3 * 3600
@@ -765,6 +766,7 @@ describe('the Fuel section of the session sheet', () => {
         offset: 0,
         nextOffset: null,
       }),
+      ...sheetRoutes([session]),
       ...extra,
     })
     renderWithProviders(

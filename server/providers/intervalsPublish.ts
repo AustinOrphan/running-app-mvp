@@ -13,7 +13,7 @@ import {
   rejectedSentence,
 } from '../../shared/copy/publish.ts'
 import type { Units } from '../../shared/types.ts'
-import { easedLine, targetPhrase } from '../../shared/workouts/plan.ts'
+import { easedLine, effortPhrase, targetPhrase } from '../../shared/workouts/plan.ts'
 import type {
   StepTarget,
   WorkoutNode,
@@ -137,7 +137,7 @@ const cueOf = (label: string): string =>
 
 /**
  * The text of the event: lines that describe (the eased line, the heat note, one header line with
- * the figures in the runner's units), then the steps as `- Cue 10m 55-70% HR` lines, a `4x` line
+ * "By effort" on a day run by effort and the figures in the runner's units), then the steps as `- Cue 10m 55-70% HR` lines, a `4x` line
  * before the steps of a repeat, and the fuel line last. Heart rate is a percentage of maximum
  * rounded down and pace a percentage of threshold pace, because those are what the watch is given;
  * a step that needs a figure the remote does not hold is written open, and the header still
@@ -149,6 +149,12 @@ export function renderIntervalsDescription(
 ): IntervalsDescription {
   const header = new Set<string>()
   const warnings = new Set<string>()
+  // A day run by effort says so first, as the workout file does in its notes; on a hot day the
+  // heat note below already says it. The figures that follow are guides.
+  if (plan.targets.mode === 'effort' && !plan.targets.hot) {
+    const phrase = effortPhrase(plan.units)
+    header.add(`${phrase.charAt(0).toUpperCase()}${phrase.slice(1)}`)
+  }
 
   const stepLine = (step: WorkoutStep): string => {
     const rendered = renderTarget(step.target, ref, plan.units)

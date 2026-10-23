@@ -32,6 +32,7 @@ import {
   makeWeekLine,
   settings,
 } from './plan-fixtures.ts'
+import { sheetRoutes } from './wrist-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
   WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
@@ -72,6 +73,7 @@ function routes(plan: PlanWithSessions | PlanWithWeeks | null, extra: MockRoutes
     'GET /api/weeks': () => [] as WeekRow[],
     'GET /api/plan/revisions': () => [makeRevision()],
     'GET /api/activities': () => activityPage([]),
+    ...sheetRoutes(plan !== null && 'sessions' in plan ? plan.sessions : []),
     ...extra,
   }
 }

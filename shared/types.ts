@@ -347,6 +347,14 @@ export interface WristSettings {
   /** A run for this runner is in progress. */
   running: boolean
 }
+/**
+ * The private calendar link (`POST`/`DELETE /api/wrist/calendar/token`). The token is shown once,
+ * when it is made, and never read back, so this holds only whether a link works and since when.
+ */
+export interface WristCalendar {
+  enabled: boolean
+  tokenCreatedAt: string | null
+}
 /** `GET /api/wrist/status`: the publisher's settings and one item per session in the range. */
 export interface WristStatus {
   from: string
@@ -354,7 +362,21 @@ export interface WristStatus {
   /** The intervals.icu connection: `needs_auth` asks for a reconnect. */
   connection: 'disconnected' | 'connected' | 'needs_auth' | 'error'
   settings: WristSettings
+  calendar: WristCalendar
   items: WristItem[]
+}
+/** Why a workout file is not made: the `details.reason` of a refused download. */
+export type WorkoutFileRefusal = 'not-a-run' | 'settled' | 'rest-advice' | 'empty'
+/**
+ * `GET /api/plan/sessions/:id/workout`: what the session sheet shows of a session's workout. The
+ * targets are the session as planned, resolved against the current zones and the day's heat (the
+ * same resolver as Today, the file and the watch); `eased` says the watch and the file carry the
+ * easy version today; `file` says whether the download is possible and, if not, why.
+ */
+export interface SessionWorkoutView {
+  targets: ResolvedTargets
+  eased: boolean
+  file: { available: true } | { available: false; reason: Exclude<WorkoutFileRefusal, 'empty'> }
 }
 
 export interface ActivityDetail {

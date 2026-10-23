@@ -2,8 +2,14 @@
 // design 6.6 and 6.7). `server/providers/intervalsPublish.ts` renders them where it builds an
 // outcome, so a copy fix lives here and every one is rendered by the copy-lint test.
 //
-// Text intervals.icu returned (the reason of a rejection) is a text slot: it is shown verbatim
-// inside the app's own sentence and is outside the lint (ADR 0010).
+// Text intervals.icu or Garmin Connect returned (the reason of a rejection, a device message) is a
+// text slot: it is shown verbatim inside the app's own sentence and is outside the lint (ADR 0010).
+//
+// The second half of the file is what the runner reads about a session on its way to the watch
+// (design 6.7): the chip words, the sentence behind each status and code, the warnings, the Plan
+// strip, the sheet section and Today's line. The web renders them through the functions at the
+// end, so a status word is never typed in a component.
+import type { WristItem, WristItemStatus } from '../types.ts'
 import { render, tpl, type Template } from './template.ts'
 
 export const PUBLISH_TEMPLATES = {
@@ -39,6 +45,99 @@ export const PUBLISH_TEMPLATES = {
   'publish.wrist.note-tomorrow': tpl(
     "Tomorrow's run is not on the watch yet. Open the plan to send it again or to download the workout file.",
   ),
+
+  // The chip of a session: one short word, with the sentence below as its `title`.
+  'publish.chip.not-sent': tpl('Not sent yet', {}, { shape: 'label' }),
+  'publish.chip.waiting': tpl('Waiting to send', {}, { shape: 'label' }),
+  'publish.chip.sent': tpl('Sent to intervals.icu', {}, { shape: 'label' }),
+  'publish.chip.on-watch': tpl('On your watch', {}, { shape: 'label' }),
+  'publish.chip.not-delivered': tpl('Not delivered', {}, { shape: 'label' }),
+  'publish.chip.removed': tpl('Removed in intervals.icu', {}, { shape: 'label' }),
+
+  // The sentence of a status that has no code behind it.
+  'publish.status.not-sent': tpl(
+    'Sending is on and this run has not been sent yet. The app sends it within a few minutes.',
+  ),
+  'publish.status.waiting': tpl('The app sends this run by itself.'),
+  'publish.status.sent': tpl('intervals.icu has this run.'),
+  'publish.status.on-watch': tpl('intervals.icu has this run and uploads it to Garmin Connect.'),
+  'publish.status.not-delivered': tpl(
+    'This run did not reach the watch. Send it again, or download the workout file.',
+  ),
+  'publish.status.removed': tpl(
+    'You removed this one in intervals.icu, so the app leaves it alone.',
+  ),
+  'publish.status.withdrawn': tpl('The app took this run off the watch.'),
+
+  // The sentence of a failure code, and what follows it while a retry is due.
+  'publish.code.not-connected': tpl(
+    'intervals.icu is not connected. Connect it on the Integrations page.',
+  ),
+  'publish.retry-at': tpl('It tries again at {time}.', { time: 'text' }),
+  'publish.device': tpl('Garmin Connect did not take it: {message}.', { message: 'text' }),
+
+  // What the text of an event could not carry (the warning codes of an upsert).
+  'publish.warning.no-threshold-pace': tpl(
+    'intervals.icu has no running threshold pace yet, so pace targets are written in the text of each step only. Set it in intervals.icu under Settings, Run.',
+  ),
+  'publish.warning.no-max-hr': tpl(
+    'intervals.icu has no maximum heart rate yet, so heart-rate targets are in the text of each step only. Set it in intervals.icu under Settings, Run.',
+  ),
+  'publish.warning.unparsed-steps': tpl(
+    'intervals.icu did not read the steps of this workout, so the watch may show it as one block. The workout file has the steps.',
+  ),
+
+  // The strip on the Plan page: "Watch: next 14 days. 11 on your watch or sent, 2 waiting."
+  'publish.strip.heading': tpl('Watch', {}, { shape: 'label' }),
+  'publish.strip': tpl('Watch: next {days} days. {counts}.', { days: 'count', counts: 'text' }),
+  'publish.strip.none': tpl('Watch: next {days} days. No runs to send.', { days: 'count' }),
+  'publish.strip.sent': tpl('{n} on your watch or sent', { n: 'count' }, { shape: 'label' }),
+  'publish.strip.waiting': tpl('{n} waiting', { n: 'count' }, { shape: 'label' }),
+  'publish.strip.not-delivered': tpl('{n} not delivered', { n: 'count' }, { shape: 'label' }),
+
+  // The section of the session sheet.
+  'publish.sheet.heading': tpl('On your watch', {}, { shape: 'label' }),
+  'publish.sheet.off': tpl(
+    'Sending to your watch is off. Download the workout file, or turn it on under Integrations.',
+  ),
+  'publish.sheet.eased': tpl(
+    "Today's readiness eased this session. The watch has the easy version; this page keeps the plan.",
+  ),
+  'publish.action.send-again': tpl('Send again', {}, { shape: 'label' }),
+  'publish.action.integrations': tpl('Open Integrations', {}, { shape: 'label' }),
+
+  // The settings on the intervals.icu card of the Integrations page: the two choices the sentences
+  // "Turn it on under Integrations" and "Sending to your watch is off" send the runner to.
+  'publish.settings.heading': tpl('Send sessions to your watch', {}, { shape: 'label' }),
+  'publish.settings.send': tpl(
+    'Send my next {days} days of runs to intervals.icu',
+    { days: 'count' },
+    { shape: 'label', fallback: 'Send my next runs to intervals.icu' },
+  ),
+  'publish.settings.garmin': tpl(
+    'intervals.icu uploads planned workouts to my Garmin Connect',
+    {},
+    { shape: 'label' },
+  ),
+  'publish.settings.garmin-help': tpl(
+    'In intervals.icu open Settings, Garmin Connect, and switch on uploading planned workouts. The app cannot check this.',
+  ),
+
+  // Today's line (the `watch` slot), and the short reason that follows "Not on the watch yet".
+  'publish.line.on-watch': tpl('On your watch.'),
+  'publish.line.sent': tpl('Sent to intervals.icu.'),
+  'publish.line.eased': tpl('The watch has the easy version of this run.'),
+  'publish.line.not-yet': tpl('Not on the watch yet: {reason}.', { reason: 'text' }),
+  'publish.reason.not-sent': tpl('not sent yet', {}, { shape: 'label' }),
+  'publish.reason.waiting': tpl('waiting to send', {}, { shape: 'label' }),
+  'publish.reason.not-delivered': tpl('not delivered', {}, { shape: 'label' }),
+  'publish.reason.removed': tpl('removed in intervals.icu', {}, { shape: 'label' }),
+  'publish.reason.auth': tpl('reconnect intervals.icu', {}, { shape: 'label' }),
+  'publish.reason.not-connected': tpl('connect intervals.icu', {}, { shape: 'label' }),
+  'publish.reason.rate-limit': tpl('intervals.icu asked the app to wait', {}, { shape: 'label' }),
+  'publish.reason.network': tpl('intervals.icu could not be reached', {}, { shape: 'label' }),
+  'publish.reason.rejected': tpl('intervals.icu did not accept it', {}, { shape: 'label' }),
+  'publish.reason.device': tpl('Garmin Connect did not take it', {}, { shape: 'label' }),
 } satisfies Record<string, Template>
 
 export type PublishTemplateId = keyof typeof PUBLISH_TEMPLATES
@@ -94,4 +193,223 @@ export function rejectedSentence(status: number): string {
 /** A rejection with the reason intervals.icu gave, quoted as its own words. */
 export function rejectedReasonSentence(reason: string): string {
   return render(PUBLISH_TEMPLATES['publish.rejected-reason'], { reason }, STORED_UNITS)
+}
+
+// ---------------------------------------------------------------------------------------------
+// What the runner reads about a session on its way to the watch
+// ---------------------------------------------------------------------------------------------
+
+/** A template of the publish file that has no slot. */
+type PlainTemplateId = {
+  [K in PublishTemplateId]: PublishTemplate<K> extends Template<infer S>
+    ? [keyof S] extends [never]
+      ? K
+      : never
+    : never
+}[PublishTemplateId]
+type PublishTemplate<K extends PublishTemplateId> = (typeof PUBLISH_TEMPLATES)[K]
+
+const say = (id: PlainTemplateId): string => render(PUBLISH_TEMPLATES[id], {}, STORED_UNITS)
+
+/** The part of an item the words depend on. */
+export type WristWording = Pick<
+  WristItem,
+  'status' | 'failCode' | 'failMessage' | 'deviceMessage' | 'retryAt'
+>
+
+const CHIPS: Record<WristItemStatus, PlainTemplateId | null> = {
+  'not-sent': 'publish.chip.not-sent',
+  waiting: 'publish.chip.waiting',
+  sent: 'publish.chip.sent',
+  'on-watch': 'publish.chip.on-watch',
+  'not-delivered': 'publish.chip.not-delivered',
+  removed: 'publish.chip.removed',
+  // The app took it off on purpose (a rest day, a skipped session): nothing to flag.
+  withdrawn: null,
+}
+
+/** The word on the chip of a status, or null for a status that has no chip. */
+export function wristChipLabel(status: WristItemStatus): string | null {
+  const id = CHIPS[status]
+  return id === null ? null : say(id)
+}
+
+/** A device message that already ends in a full stop would double the one the sentence adds. */
+const withoutFinalStops = (text: string): string => text.replace(/[.\s]+$/, '')
+
+/** "It tries again at 14:20." while a retry is due, else nothing. */
+function retrySentence(item: WristWording, retryTime: string | null): string {
+  if (item.status !== 'waiting' || item.retryAt === null || retryTime === null) return ''
+  return ` ${render(PUBLISH_TEMPLATES['publish.retry-at'], { time: retryTime }, STORED_UNITS)}`
+}
+
+/**
+ * The sentence behind a status: the failure code when there is one (with the time of the retry
+ * when one is due), else the status itself. The reason intervals.icu gave for refusing a workout
+ * was stored whole when it happened (`failMessage`, already a sentence of `publish.rejected-*`),
+ * so it is shown as it is. `retryTime` is the clock time of `retryAt` in the runner's day.
+ */
+export function wristItemSentence(item: WristWording, retryTime: string | null): string {
+  if (item.status === 'removed') return say('publish.status.removed')
+  if (item.status === 'withdrawn') return say('publish.status.withdrawn')
+  if (item.deviceMessage !== null && item.status === 'not-delivered') {
+    return render(
+      PUBLISH_TEMPLATES['publish.device'],
+      { message: withoutFinalStops(item.deviceMessage) },
+      STORED_UNITS,
+    )
+  }
+  switch (item.failCode) {
+    case 'auth':
+      return say('publish.auth')
+    case 'not-connected':
+      return say('publish.code.not-connected')
+    case 'rate-limit':
+      return `${say('publish.rate-limited')}${retrySentence(item, retryTime)}`
+    case 'network':
+      return `${say('publish.unreachable')}${retrySentence(item, retryTime)}`
+    case 'device':
+    case 'rejected':
+    case 'no-threshold':
+      if (item.failMessage !== null && item.failMessage !== '') return item.failMessage
+      break
+  }
+  switch (item.status) {
+    case 'not-sent':
+      return say('publish.status.not-sent')
+    case 'waiting':
+      return `${say('publish.status.waiting')}${retrySentence(item, retryTime)}`
+    case 'sent':
+      return say('publish.status.sent')
+    case 'on-watch':
+      return say('publish.status.on-watch')
+    case 'not-delivered':
+      return say('publish.status.not-delivered')
+  }
+}
+
+/** A few words for Today's line: why the run is not on the watch yet. */
+export function wristShortReason(item: WristWording): string {
+  if (item.status === 'removed') return say('publish.reason.removed')
+  if (item.status === 'not-sent') return say('publish.reason.not-sent')
+  if (item.deviceMessage !== null && item.status === 'not-delivered') {
+    return say('publish.reason.device')
+  }
+  switch (item.failCode) {
+    case 'auth':
+      return say('publish.reason.auth')
+    case 'not-connected':
+      return say('publish.reason.not-connected')
+    case 'rate-limit':
+      return say('publish.reason.rate-limit')
+    case 'network':
+      return say('publish.reason.network')
+    case 'rejected':
+    case 'no-threshold':
+      return say('publish.reason.rejected')
+    case 'device':
+      return say('publish.reason.device')
+  }
+  return say(item.status === 'waiting' ? 'publish.reason.waiting' : 'publish.reason.not-delivered')
+}
+
+/** The sentence of a warning code an upsert returned, or null for a code this build does not know. */
+export function wristWarningSentence(code: string): string | null {
+  switch (code) {
+    case 'no-threshold-pace':
+      return say('publish.warning.no-threshold-pace')
+    case 'no-max-hr':
+      return say('publish.warning.no-max-hr')
+    case 'unparsed-steps':
+      return say('publish.warning.unparsed-steps')
+    default:
+      return null
+  }
+}
+
+/** How many sessions of the window sit in each group of the Plan strip. */
+export interface WristCounts {
+  sent: number
+  waiting: number
+  notDelivered: number
+}
+
+/** The tally of a window by what it means to the runner; `not-sent` counts as waiting. */
+export function wristCounts(items: ReadonlyArray<Pick<WristItem, 'status'>>): WristCounts {
+  const counts: WristCounts = { sent: 0, waiting: 0, notDelivered: 0 }
+  for (const { status } of items) {
+    if (status === 'sent' || status === 'on-watch') counts.sent += 1
+    else if (status === 'waiting' || status === 'not-sent') counts.waiting += 1
+    else if (status === 'not-delivered') counts.notDelivered += 1
+  }
+  return counts
+}
+
+/**
+ * "Watch: next 14 days. 11 on your watch or sent, 2 waiting, 1 not delivered." A group with no
+ * session is left out, and a window with none at all says there is nothing to send.
+ */
+export function wristStripSentence(counts: WristCounts, days: number): string {
+  const groups: Array<
+    [number, 'publish.strip.sent' | 'publish.strip.waiting' | 'publish.strip.not-delivered']
+  > = [
+    [counts.sent, 'publish.strip.sent'],
+    [counts.waiting, 'publish.strip.waiting'],
+    [counts.notDelivered, 'publish.strip.not-delivered'],
+  ]
+  const parts = groups
+    .filter(([n]) => n > 0)
+    .map(([n, id]) => render(PUBLISH_TEMPLATES[id], { n: { kind: 'count', n } }, STORED_UNITS))
+  const window = { days: { kind: 'count', n: days } } as const
+  if (parts.length === 0) {
+    return render(PUBLISH_TEMPLATES['publish.strip.none'], window, STORED_UNITS)
+  }
+  return render(
+    PUBLISH_TEMPLATES['publish.strip'],
+    { ...window, counts: parts.join(', ') },
+    STORED_UNITS,
+  )
+}
+
+/** Today's line for one session, or null when the line has nothing to say (a withdrawn run). */
+export function wristLineSentence(item: WristWording & Pick<WristItem, 'variant'>): string | null {
+  switch (item.status) {
+    case 'on-watch':
+    case 'sent':
+      if (item.variant === 'eased') return say('publish.line.eased')
+      return say(item.status === 'on-watch' ? 'publish.line.on-watch' : 'publish.line.sent')
+    case 'withdrawn':
+      return null
+    default:
+      return render(
+        PUBLISH_TEMPLATES['publish.line.not-yet'],
+        { reason: wristShortReason(item) },
+        STORED_UNITS,
+      )
+  }
+}
+
+/** The fixed words of the Plan strip, the session sheet and the settings: headings, notes, labels. */
+export type WristPlainId =
+  | 'publish.strip.heading'
+  | 'publish.sheet.heading'
+  | 'publish.sheet.off'
+  | 'publish.sheet.eased'
+  | 'publish.action.send-again'
+  | 'publish.action.integrations'
+  | 'publish.settings.heading'
+  | 'publish.settings.garmin'
+  | 'publish.settings.garmin-help'
+
+export function wristPlain(id: WristPlainId): string {
+  return say(id)
+}
+
+/** "Send my next 14 days of runs to intervals.icu": the label of the switch that turns sending on. */
+export function wristSendLabel(days: number): string {
+  return render(
+    PUBLISH_TEMPLATES['publish.settings.send'],
+    { days: { kind: 'count', n: days } },
+    STORED_UNITS,
+  )
 }

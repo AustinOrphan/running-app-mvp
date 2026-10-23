@@ -13,6 +13,7 @@ import type {
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeWeekRow } from '../factories.ts'
 import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { wristRoutes } from './wrist-fixtures.ts'
 
 const settings: UserSettings = { email: 'runner@example.com', displayName: null, units: 'mi' }
 const START = '2026-12-28'
@@ -111,6 +112,7 @@ function routes(
     'GET /api/goals': () => goals,
     'GET /api/settings': () => settings,
     'GET /api/weeks': () => [] as WeekRow[],
+    ...wristRoutes(),
     ...extra,
   }
 }

@@ -16,6 +16,7 @@ import {
   makeToday,
 } from './today-fixtures.ts'
 import { renderToday, startToday } from './today-render.tsx'
+import { sheetRoutes } from './wrist-fixtures.ts'
 
 // Stands in for the real drawer so the wiring is visible: which rules it was opened with.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -220,7 +221,7 @@ describe('Today: the hero variants', () => {
           weekStrip: makeStrip({}, { '2026-03-18': { mark: 'planned', sessions: [eased] } }),
         }),
       }),
-      { 'GET /api/activities': () => activityPage([]) },
+      { 'GET /api/activities': () => activityPage([]), ...sheetRoutes([eased]) },
     )
     const card = await screen.findByRole('article', { name: 'Easy run' })
     expect(within(card).getByText('Eased')).toBeInTheDocument()

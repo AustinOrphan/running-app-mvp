@@ -231,6 +231,22 @@ describe('renderIntervalsDescription', () => {
     expect(text).not.toMatch(/%/)
   })
 
+  it('says "By effort" first on a day the resolver leads by effort, and nowhere else', () => {
+    // a hill session carries no figure at all; a hike leads by effort and keeps its ceiling
+    const hills = renderIntervalsDescription(planOf('hills', 50), REF).text
+    expect(hills.split('\n')[0]).toBe('By effort')
+    const hike = planOf('hike', 90)
+    expect(hike.targets.mode).toBe('effort')
+    expect(renderIntervalsDescription(hike, REF).text.split('\n')[0]).toBe(
+      `By effort; Heart rate under ${String(hike.targets.hrCeiling)} bpm`,
+    )
+    // the heat note already says it on a hot day, and a day led by a figure does not
+    expect(
+      renderIntervalsDescription(planOf('intervals', 60, { hot: true }), REF).text,
+    ).not.toMatch(/^By effort/m)
+    expect(renderIntervalsDescription(planOf('easy', 45), REF).text).not.toMatch(/By effort/)
+  })
+
   it('says "Eased for today" and never a reason', () => {
     const plan = planOf('intervals', 60, { eased: true })
     const { text } = renderIntervalsDescription(plan, REF)
