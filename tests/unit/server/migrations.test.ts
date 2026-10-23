@@ -1302,6 +1302,79 @@ function verifyDisruptions(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, `SELECT id FROM "Plan"`)).toEqual([{ id: 'p1' }])
 }
 
+/**
+ * The brief table is new, so nothing carries over from the previous release's plans and weekly
+ * revisions (the rows the rest-window case seeds). The case checks that those rows survive, that
+ * the table starts empty, what a row defaults to, that a runner has one brief a week and a
+ * revision at most one brief, and how the two keys behave: the brief goes with its runner, and
+ * outlives its revision with the link cleared.
+ */
+function verifyWeeklyBrief(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  expect(tableNames(db)).toContain('WeeklyBrief')
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "WeeklyBrief"')).toEqual([{ n: 0 }])
+  // no seen column: a brief is seen when its revision is (`PlanRevision.seenAt`)
+  expect(
+    rowsOf(db, `PRAGMA table_info("WeeklyBrief")`)
+      .map((column) => String(column.name))
+      .sort(),
+  ).toEqual([
+    'facts',
+    'generatedAt',
+    'id',
+    'planId',
+    'provisional',
+    'revisionId',
+    'userId',
+    'version',
+    'weekStart',
+  ])
+  expectIndex(db, 'WeeklyBrief', ['userId', 'weekStart'], true)
+  expectIndex(db, 'WeeklyBrief', ['revisionId'], true)
+
+  // A brief needs its runner, week, version and facts; the rest has defaults.
+  const brief = { userId: 'u1', weekStart: '2026-10-19', version: 1, facts: '{}' }
+  insert(db, 'WeeklyBrief', { id: 'b1', ...brief })
+  const row = rowsOf(db, `SELECT * FROM "WeeklyBrief" WHERE id = 'b1'`)[0]
+  expect(row).toMatchObject({ planId: null, revisionId: null, provisional: 0 })
+  expect(row?.generatedAt, 'generatedAt defaults to now').not.toBeNull()
+  expect(() => {
+    insert(db, 'WeeklyBrief', { id: 'b2', ...brief })
+  }, 'a second brief for the same week').toThrow(/UNIQUE/)
+  expect(() => {
+    insert(db, 'WeeklyBrief', { id: 'b3', ...brief, userId: 'missing', weekStart: '2026-10-26' })
+  }).toThrow(/FOREIGN KEY/)
+
+  // A revision is described by one brief at most.
+  db.exec(`UPDATE "WeeklyBrief" SET "revisionId" = 'r1', "planId" = 'p1' WHERE id = 'b1'`)
+  expect(() => {
+    insert(db, 'WeeklyBrief', { id: 'b4', ...brief, weekStart: '2026-10-26', revisionId: 'r1' })
+  }, 'a second brief for the same revision').toThrow(/UNIQUE/)
+  insert(db, 'WeeklyBrief', { id: 'b5', ...brief, userId: 'u2', provisional: 1 })
+
+  const keys = rowsOf(db, `PRAGMA foreign_key_list("WeeklyBrief")`)
+    .map((k) => ({ from: k.from, table: k.table, onDelete: k.on_delete }))
+    .sort((a, b) => String(a.from).localeCompare(String(b.from)))
+  expect(keys).toEqual([
+    { from: 'revisionId', table: 'PlanRevision', onDelete: 'SET NULL' },
+    { from: 'userId', table: 'User', onDelete: 'CASCADE' },
+  ])
+
+  // The brief outlives its revision: the plan goes, the revision goes with it, the brief stays and
+  // keeps its plan id as a plain value.
+  db.exec(`DELETE FROM "Plan" WHERE id = 'p1'`)
+  expect(rowsOf(db, `SELECT count(*) AS n FROM "PlanRevision" WHERE id = 'r1'`)).toEqual([{ n: 0 }])
+  expect(rowsOf(db, `SELECT "planId", "revisionId" FROM "WeeklyBrief" WHERE id = 'b1'`)).toEqual([
+    { planId: 'p1', revisionId: null },
+  ])
+
+  // Briefs go with the runner.
+  db.exec(`DELETE FROM "User" WHERE id = 'u1'`)
+  expect(rowsOf(db, `SELECT id FROM "WeeklyBrief" ORDER BY id`)).toEqual([{ id: 'b5' }])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -1352,6 +1425,11 @@ const CASES: FixtureCase[] = [
     migration: 'disruptions',
     seed: seedPlansForWindows,
     verify: verifyDisruptions,
+  },
+  {
+    migration: 'weekly_brief',
+    seed: seedPlansForWindows,
+    verify: verifyWeeklyBrief,
   },
 ]
 

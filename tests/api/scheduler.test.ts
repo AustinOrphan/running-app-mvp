@@ -167,6 +167,11 @@ describe('runReplanJob', () => {
     expect(
       ((await c.get('/api/plan/revisions')).body as PlanRevisionView[]).map((r) => r.reason),
     ).toEqual(['generate'])
+    // the week's brief follows the re-plan and describes the revision it wrote, a quiet one too
+    const briefKey = { userId_weekStart: { userId: u.id, weekStart: monday } }
+    const quietBrief = await ctx.prisma.weeklyBrief.findUniqueOrThrow({ where: briefKey })
+    expect(quietBrief).toMatchObject({ revisionId: quiet.id, provisional: false, planId: plan.id })
+    expect(JSON.parse(quietBrief.facts)).toMatchObject({ weekStart: monday, replan: null })
 
     // A closed day moves next week's runs: the next update has a diff, a payload and shows up.
     const easy = plan.sessions.find((s) => s.weekStart === nextMonday && s.kind === 'easy')!
@@ -188,6 +193,13 @@ describe('runReplanJob', () => {
     expect(
       (await ctx.prisma.planRevision.findUniqueOrThrow({ where: { id: listed[0]!.id } })).undo,
     ).not.toBeNull()
+    // the second update's brief takes the first one's place and counts the sessions it changed
+    const changedBrief = await ctx.prisma.weeklyBrief.findUniqueOrThrow({ where: briefKey })
+    expect(changedBrief.revisionId).toBe(listed[0]!.id)
+    expect(
+      (JSON.parse(changedBrief.facts) as { changes: { count: number } }).changes.count,
+    ).toBeGreaterThan(0)
+    expect(await ctx.prisma.weeklyBrief.count({ where: { userId: u.id } })).toBe(1)
   })
 
   test('honours a rest window created the evening before: the held days stay rest days', async () => {

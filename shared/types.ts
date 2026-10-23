@@ -2,6 +2,9 @@ import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts
 import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type {
   AthleteState,
+  BriefDecision,
+  BriefFacts,
+  BriefReplanCode,
   Checkin,
   EahCard,
   EngineWarning,
@@ -679,6 +682,49 @@ export interface PlanRevisionView extends PlanRevision {
   undoOf: string | null
   /** The rest window this revision created, changed or removed. */
   disruptionId: string | null
+}
+/**
+ * `GET /api/brief` (phase 3a design 8.4): the Monday brief of one week. `facts` holds template ids
+ * and slots, never prose (`shared/copy/briefRender.ts` writes the words). The brief has no seen
+ * column: it is seen when the revision it describes is, or when it describes none.
+ */
+export interface BriefView {
+  /** The Monday the brief opens. */
+  weekStart: string
+  /** The plan the brief was built from; null when it was built with none. */
+  planId: string | null
+  version: number
+  /**
+   * Built by a request before the weekly update ran, and reading today's plan. A provisional brief
+   * of a week that is over reads as one whose update did not run (`facts.replan` is `not-run`).
+   */
+  provisional: boolean
+  seen: boolean
+  generatedAt: string
+  facts: BriefFacts
+  /** The revision the weekly update wrote, as the revision list serves it (undo state included). */
+  revision: PlanRevisionView | null
+  /** Later revisions of the plan within the brief's week, newest first; none for a provisional brief. */
+  since: PlanRevisionView[]
+  /** The Monday of the nearest earlier brief, or null. */
+  prev: string | null
+  /** The Monday of the nearest later brief, or null. */
+  next: string | null
+}
+/** One brief in `GET /api/briefs`, enough for the history strip and Today's brief line. */
+export interface BriefListItem {
+  weekStart: string
+  provisional: boolean
+  seen: boolean
+  generatedAt: string
+  decision: BriefDecision['kind'] | null
+  /** Set when the weekly update wrote no revision. */
+  replan: BriefReplanCode | null
+  /** The sessions the update changed. */
+  changeCount: number
+  /** The revision was undone. */
+  undone: boolean
+  nextKey: { date: string; kind: SessionKind } | null
 }
 /**
  * One owner edit of one session (phase 3a design 9.4, 9.5): the six things the session sheet can

@@ -34,6 +34,7 @@ export type {
   RaceResult,
   Screening,
   SyncRun,
+  WeeklyBrief,
   WeeklyReview,
   WellnessDay,
   WristPublication,
