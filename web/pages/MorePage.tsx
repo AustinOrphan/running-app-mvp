@@ -10,6 +10,7 @@ const links = [
   { to: '/integrations', label: 'Integrations', note: 'Sync activities from other services' },
   { to: '/profile', label: 'Profile', note: 'Heart rate, availability and injury history' },
   { to: '/research', label: 'Research', note: 'The papers and rules behind the plan' },
+  { to: '/fuel', label: 'Fuel lab', note: 'Fuel targets, products and gut training' },
   { to: '/settings', label: 'Settings', note: 'Units, display name, export' },
 ]
 

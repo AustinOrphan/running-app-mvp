@@ -1,5 +1,13 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import type { FuelLabView, FuelLogResult, FuelLogView, FuelTargetView } from '../../shared/types.ts'
+import type {
+  FuelLabView,
+  FuelLogResult,
+  FuelLogView,
+  FuelProduct,
+  FuelProductKind,
+  FuelSettings,
+  FuelTargetView,
+} from '../../shared/types.ts'
 import { getOutbox, refreshAfterSend } from '../pwa/outbox.ts'
 import { api, keys, qs } from './client.ts'
 
@@ -127,5 +135,69 @@ export function useSkipFuelLog() {
     mutationFn: (activityId: string) =>
       api<FuelLogResult>('POST', `/fuel/logs/${encodeURIComponent(activityId)}/skip`),
     onSuccess: () => invalidateAfterLog(queryClient),
+  })
+}
+
+/**
+ * The body of `POST /api/fuel/products` and `PUT /api/fuel/products/:id`: a full replacement, so a
+ * repeat leaves one row. The keys are exactly those of `server/routes/fuel.ts`.
+ */
+export interface FuelProductBody {
+  name: string
+  kind: FuelProductKind
+  servingLabel: string
+  carbsG: number
+  sodiumMg: number | null
+  kcal: number | null
+  multiCarb: boolean
+}
+
+/** The lab view carries the products, the ladder's ceiling and the plan's block: all of it moves. */
+function invalidateFuel(queryClient: QueryClient): Promise<unknown> {
+  return queryClient.invalidateQueries({ queryKey: [keys.fuel] })
+}
+
+/** Adds a product to the runner's list. A 409 when the name is taken or the list is full. */
+export function useCreateFuelProduct() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: FuelProductBody) => api<FuelProduct>('POST', '/fuel/products', body),
+    onSuccess: () => invalidateFuel(queryClient),
+  })
+}
+
+/** Replaces the fields of a live product. */
+export function useUpdateFuelProduct() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: FuelProductBody }) =>
+      api<FuelProduct>('PUT', `/fuel/products/${encodeURIComponent(id)}`, body),
+    onSuccess: () => invalidateFuel(queryClient),
+  })
+}
+
+/** Archives a product: it leaves the pick list and old logs keep its name and amounts. */
+export function useArchiveFuelProduct() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<undefined>('DELETE', `/fuel/products/${encodeURIComponent(id)}`),
+    onSuccess: () => invalidateFuel(queryClient),
+  })
+}
+
+/**
+ * Saves the four switches and answers with what the server kept: a gut condition forces the others
+ * off. A 400 on `optInAdvanced` before the second tier was tolerated carries the sentence to show.
+ * The ladder and every target follow the switches at once, so Today's fuel line is read again too.
+ */
+export function useSaveFuelSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: FuelSettings) => api<FuelSettings>('PUT', '/fuel/settings', body),
+    onSuccess: () =>
+      Promise.all(
+        [keys.fuel, keys.today].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+      ),
   })
 }
