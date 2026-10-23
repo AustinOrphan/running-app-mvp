@@ -303,6 +303,8 @@ export function toPlanWeek(row: PlanWeekRow): PlanWeek {
     tid: parseJson<PlanWeek['tid']>(row.tid, null),
     flags: parseJson<string[]>(row.flags, []),
     gainTargetM: row.gainTargetM,
+    qualitySessions: row.qualitySessions,
+    isRecovery: row.isRecovery,
     updatedAt: row.updatedAt.toISOString(),
   }
 }

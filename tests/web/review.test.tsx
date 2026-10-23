@@ -59,6 +59,8 @@ function planWeek(weekStart: string, over: Partial<PlanWeek> = {}): PlanWeek {
     tid: null,
     flags: [],
     gainTargetM: null,
+    qualitySessions: 0,
+    isRecovery: false,
     updatedAt: '2026-10-01T00:00:00.000Z',
     ...over,
   }

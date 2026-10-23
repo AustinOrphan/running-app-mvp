@@ -370,6 +370,31 @@ describe('re-plan', () => {
     expect(revisions.map((r) => r.reason)).toEqual(['owner', 'generate'])
   })
 
+  test('re-plans with no change in the data report no change in the weeks', async () => {
+    const u = await seedUser(ctx, { email: 'replan-twice@example.com' })
+    await seedHistory(u.id)
+    const goal = await seedGoal(u.id)
+    await generated(u, goal.id)
+    const c = client(ctx, u)
+
+    // The plan ends with the race and the weeks after it, so the weeks include a race week (the
+    // engine counts a quality session there, the session placed is strides) and a post-race week
+    // (a recovery week without the 'recovery' flag): the two shapes a stored week used to lose.
+    const first = await c.post('/api/plan/replan').send({})
+    expect(first.status, JSON.stringify(first.body)).toBe(200)
+    const second = await c.post('/api/plan/replan').send({})
+    expect(second.status, JSON.stringify(second.body)).toBe(200)
+
+    for (const revision of [first.body as PlanRevision, second.body as PlanRevision]) {
+      expect(revision.changes.filter((change) => change.field === 'qualitySessions')).toEqual([])
+      expect(revision.changes.filter((change) => change.field === 'isRecovery')).toEqual([])
+      expect(revision.changes).toEqual([])
+    }
+    const stored = (await c.get('/api/plan')).body as PlanWithSessions
+    expect(stored.weeks.some((w) => w.qualitySessions > 0)).toBe(true)
+    expect(stored.weeks.some((w) => w.isRecovery && !w.flags.includes('recovery'))).toBe(true)
+  })
+
   test('a finished session of the current week survives a re-plan', async () => {
     const u = await seedUser(ctx, { email: 'replan-kept@example.com' })
     await seedHistory(u.id)

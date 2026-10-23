@@ -9,7 +9,7 @@ import { goalModel } from '../../shared/engine/goal.ts'
 import { isDuplicate } from '../../shared/engine/load.ts'
 import { P, PARAMS_VERSION } from '../../shared/engine/params/index.ts'
 import { predictFromState } from '../../shared/engine/predict.ts'
-import { isQualityKind, readinessSnapshot } from '../../shared/engine/readiness.ts'
+import { readinessSnapshot } from '../../shared/engine/readiness.ts'
 import type {
   AthleteState,
   EngineInput,
@@ -193,11 +193,11 @@ export function existingFrom(
       longRunM: longest,
       gainTargetM: w.gainTargetM,
       runDays: w.runDays,
-      qualitySessions: inWeek.filter((s) => isQualityKind(s.kind)).length,
+      qualitySessions: w.qualitySessions,
       strengthSessions: w.strengthSessions,
       tid: w.tid ?? { z1: 80, z2: 5, z3: 15 },
       flags: w.flags,
-      isRecovery: w.flags.includes('recovery'),
+      isRecovery: w.isRecovery,
       isTaper: w.flags.includes('taper') || w.phase === ('taper' as PlanPhase),
     }
   })

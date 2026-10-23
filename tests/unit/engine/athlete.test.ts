@@ -81,6 +81,52 @@ describe('estimateState: identity and weeks', () => {
     expect(estimateState(input(acts)).typicalWeekMin).toBe(120)
     expect(estimateState(input([])).typicalWeekMin).toBe(0)
   })
+
+  test('recentWeekMin is the lesser of the run minutes of the last two complete weeks', () => {
+    // complete weeks start 06-08 and 06-01; the two before them are small
+    const acts = [
+      makeActivity({ date: '2026-05-19', durationSec: 1800 }), // 30
+      makeActivity({ date: '2026-05-27', durationSec: 1800 }), // 30
+      makeActivity({ date: '2026-06-02', durationSec: 4740 }), // 79
+      makeActivity({ date: '2026-06-09', durationSec: 5400 }), // 90
+    ]
+    const s = estimateState(input(acts))
+    expect(s.recentWeekMin).toBe(79)
+    // the median of 30, 30, 79 and 90 is lower than the week the runner already runs
+    expect(s.typicalWeekMin).toBe(55)
+    // the lesser of the two, whichever week it is
+    const swapped = [
+      ...acts.slice(0, 2),
+      makeActivity({ date: '2026-06-02', durationSec: 5400 }),
+      makeActivity({ date: '2026-06-09', durationSec: 4740 }),
+    ]
+    expect(estimateState(input(swapped)).recentWeekMin).toBe(79)
+  })
+
+  test('recentWeekMin ignores the current partial week, however big', () => {
+    const acts = [
+      makeActivity({ date: '2026-06-02', durationSec: 4740 }), // 79
+      makeActivity({ date: '2026-06-09', durationSec: 5400 }), // 90
+      run(0, { durationSec: 18_000 }), // the current week so far: 300 min
+      run(1, { durationSec: 600 }), // and 10 min more
+    ]
+    expect(estimateState(input(acts)).recentWeekMin).toBe(79)
+    // a current week alone is no complete week
+    expect(estimateState(input([run(0, { durationSec: 18_000 })])).recentWeekMin).toBe(0)
+  })
+
+  test('recentWeekMin is 0 unless both of the last two complete weeks hold a run', () => {
+    const lastWeek = makeActivity({ date: '2026-06-09', durationSec: 5400 })
+    const weekBefore = makeActivity({ date: '2026-06-02', durationSec: 4740 })
+    const older = makeActivity({ date: '2026-05-26', durationSec: 5400 })
+    // one week with runs
+    expect(estimateState(input([lastWeek])).recentWeekMin).toBe(0)
+    expect(estimateState(input([weekBefore])).recentWeekMin).toBe(0)
+    // a gap in the middle: the older week does not stand in for the empty one
+    expect(estimateState(input([lastWeek, older])).recentWeekMin).toBe(0)
+    expect(estimateState(input([lastWeek, weekBefore, older])).recentWeekMin).toBe(79)
+    expect(estimateState(input([])).recentWeekMin).toBe(0)
+  })
 })
 
 describe('estimateState: longest run in 30 days', () => {

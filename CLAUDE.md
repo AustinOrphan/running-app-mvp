@@ -112,6 +112,9 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
   asserts nothing was lost. The same file runs `prisma migrate diff --exit-code` against
   `prisma/schema.prisma`, so a schema change without its migration fails `npm run check`. A required
   column on a populated table is generated, then hand-edited so the redefine fills it per row.
+- The e2e server port is 3101 plus a per-checkout offset (`E2E_PORT` in `tests/e2e/env.ts`), so
+  worktrees can run e2e at the same time. Never hard-code it; use `baseURL` or `E2E_PORT`. Print it
+  with `node -e "import('./tests/e2e/env.ts').then((m) => console.log(m.E2E_PORT))"`.
 
 ## Public repository
 
