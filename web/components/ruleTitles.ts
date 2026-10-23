@@ -138,6 +138,8 @@ export const RULE_TITLES: Record<string, string> = {
   'n-5': 'Possible iron deficiency',
   'n-6': 'Persistent suppression',
   'n-7': 'Exercise-associated hyponatraemia',
+  // (o) delivery to devices
+  O1: 'Targets on the device',
   // design decisions that have no research rule
   'design-macro': 'Plan structure defaults',
   'design-sessions': 'Session design defaults',
