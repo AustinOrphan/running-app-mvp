@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
@@ -9,7 +9,7 @@ import { BriefLine } from '../../web/components/BriefLine.tsx'
 import { SLOT_BUDGETS_PX } from '../../web/components/today/slots.ts'
 import { TodaySlot } from '../../web/components/today/TodaySlot.tsx'
 import { makeItem } from './brief-fixtures.ts'
-import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
 import { renderToday, startToday } from './today-render.tsx'
 import { makeCoach, makeToday } from './today-fixtures.ts'
 
@@ -84,39 +84,33 @@ describe('BriefLine', () => {
 
 const SETTINGS: UserSettings = { email: 'runner@example.com', displayName: null, units: 'km' }
 
-/** Makes the observer report an intersection for the targets `match` accepts, and no others. */
-function nearViewport(match: (target: Element) => boolean): void {
-  class Near {
-    private readonly callback: IntersectionObserverCallback
-    constructor(callback: IntersectionObserverCallback) {
-      this.callback = callback
-    }
-    observe(target: Element): void {
-      if (!match(target)) return
-      this.callback(
-        [{ isIntersecting: true, target } as IntersectionObserverEntry],
-        this as unknown as IntersectionObserver,
-      )
-    }
-    unobserve(): void {}
-    disconnect(): void {}
-    takeRecords(): IntersectionObserverEntry[] {
-      return []
-    }
-  }
-  vi.stubGlobal('IntersectionObserver', Near)
+/** `navigator.onLine` as the test needs it. */
+function setOnline(online: boolean): void {
+  Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => online })
 }
 
-/** The `brief` slot of Today with the settings already in the cache, as the page leaves them. */
+beforeEach(() => {
+  setOnline(true)
+})
+
+/** A Today payload whose `brief` slot holds `brief`. */
+const todayWith = (brief: BriefListItem | null) =>
+  makeToday({ coach: makeCoach({ slots: { ...makeCoach().slots, brief } }) })
+
+/**
+ * The `brief` slot of Today with the payload and the settings already in the cache, as the page
+ * leaves them. No route is mocked: a request of any kind fails the test.
+ */
 function renderSlot(
-  routes: MockRoutes,
+  brief: BriefListItem | null,
   settings: UserSettings | null = SETTINGS,
   children?: ReactNode,
 ) {
-  const api = mockApi(routes)
+  const api = mockApi({})
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
+  queryClient.setQueryData([keys.today], todayWith(brief))
   if (settings !== null) queryClient.setQueryData([keys.settings], settings)
   const view = render(
     <QueryClientProvider client={queryClient}>
@@ -125,27 +119,18 @@ function renderSlot(
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  return { api, ...view }
+  return { api, queryClient, ...view }
 }
-
-const briefs = (items: BriefListItem[]) => () => ({ briefs: items })
 
 describe('the brief slot', () => {
   test('is 52 px, the budget the line is built to', () => {
     expect(SLOT_BUDGETS_PX.brief).toBe(52)
   })
 
-  test('asks for nothing and draws nothing until the slot is near the viewport', () => {
-    const { api, container } = renderSlot({ 'GET /api/briefs': briefs([makeItem()]) })
+  test('fills the slot from the payload within its budget, and asks for nothing', () => {
+    const { api, container } = renderSlot(makeItem())
+    const region = screen.getByRole('region', { name: 'Weekly brief' })
     expect(api.calls).toEqual([])
-    expect(container.querySelector('[data-slot]')).toBeNull()
-  })
-
-  test('near the viewport it asks for the newest brief and fills the slot within its budget', async () => {
-    nearViewport(() => true)
-    const { api, container } = renderSlot({ 'GET /api/briefs': briefs([makeItem()]) })
-    const region = await screen.findByRole('region', { name: 'Weekly brief' })
-    expect(api.calls.map((call) => call.url)).toEqual(['/api/briefs?limit=1'])
     const slot = region.closest('[data-slot]')
     expect(slot).toHaveAttribute('data-slot', 'brief')
     expect(slot).toHaveAttribute('data-budget-px', '52')
@@ -153,89 +138,82 @@ describe('the brief slot', () => {
     expectCleanCopy(container)
   })
 
-  test('the marker that finds the slot takes no room: it is out of the layout', async () => {
-    nearViewport(() => true)
-    const { container } = renderSlot({ 'GET /api/briefs': briefs([makeItem()]) })
-    await screen.findByRole('region', { name: 'Weekly brief' })
-    const marker = container.querySelector('[aria-hidden="true"]')
-    expect(marker).toHaveStyle({ position: 'absolute', width: '1px', height: '1px' })
+  test('a week with no brief yet has no line, and no slot frame', () => {
+    const { api, container } = renderSlot(null)
+    expect(api.calls).toEqual([])
+    expect(container.querySelector('[data-slot]')).toBeNull()
   })
 
-  test('without the settings in the cache it does nothing, whatever is in view', () => {
-    nearViewport(() => true)
-    const { api, container } = renderSlot({ 'GET /api/briefs': briefs([makeItem()]) }, null)
+  test('without the settings in the cache it does nothing', () => {
+    const { api, container } = renderSlot(makeItem(), null)
     expect(api.calls).toEqual([])
     expect(container).toBeEmptyDOMElement()
   })
 
-  test('shows only the brief of the current week', async () => {
-    nearViewport(() => true)
-    const { api, container } = renderSlot({
-      'GET /api/briefs': briefs([makeItem({ weekStart: '2027-01-04' })]),
+  test('shows the brief of the payload, whatever week the device clock is in', () => {
+    // The server decides which week is current; the payload holds that week's brief or none.
+    vi.setSystemTime(new Date('2027-06-02T12:00:00'))
+    renderSlot(makeItem({ weekStart: '2027-01-11' }))
+    expect(screen.getByRole('region', { name: 'Weekly brief' })).toBeInTheDocument()
+  })
+
+  test('follows the payload when the server asks again: the new week brings its brief', async () => {
+    const { queryClient } = renderSlot(makeItem({ weekStart: '2027-01-04', changeCount: 3 }))
+    expect(screen.getByRole('region', { name: 'Weekly brief' })).toHaveTextContent(
+      'Since last week: 3 changes',
+    )
+
+    // The server's Monday: the answer carries the new week, with no brief written yet ...
+    act(() => {
+      queryClient.setQueryData([keys.today], todayWith(null))
     })
     await waitFor(() => {
-      expect(api.calls).toHaveLength(1)
+      expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
     })
-    await waitFor(() => {
-      expect(container.querySelector('[data-slot]')).toBeNull()
+
+    // ... and then the brief the weekly update wrote.
+    act(() => {
+      queryClient.setQueryData(
+        [keys.today],
+        todayWith(makeItem({ weekStart: '2027-01-11', changeCount: 1 })),
+      )
     })
+    expect(await screen.findByRole('region', { name: 'Weekly brief' })).toHaveTextContent(
+      'Since last week: 1 change',
+    )
+  })
+
+  test('offline it draws nothing: the brief page is not cached', () => {
+    setOnline(false)
+    const { container } = renderSlot(makeItem())
+    expect(container.querySelector('[data-slot]')).toBeNull()
     expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
   })
 
-  test('an account with no brief yet has no line', async () => {
-    nearViewport(() => true)
-    const { api, container } = renderSlot({ 'GET /api/briefs': briefs([]) })
-    await waitFor(() => {
-      expect(api.calls).toHaveLength(1)
-    })
-    expect(container.querySelector('[data-slot]')).toBeNull()
-  })
-
-  test('a failed request leaves the slot empty and raises no alert', async () => {
-    nearViewport(() => true)
-    const { api, container } = renderSlot({
-      'GET /api/briefs': () => ({
-        status: 500,
-        body: { error: { code: 'internal', message: 'Something broke.' } },
-      }),
-    })
-    await waitFor(() => {
-      expect(api.calls).toHaveLength(1)
-    })
-    expect(container.querySelector('[data-slot]')).toBeNull()
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  })
-
   test('content a page passes to the slot is kept, and the mount is not used', () => {
-    nearViewport(() => true)
-    const { api } = renderSlot(
-      { 'GET /api/briefs': briefs([makeItem()]) },
-      SETTINGS,
-      <p>The page&apos;s own line</p>,
-    )
+    renderSlot(makeItem(), SETTINGS, <p>The page&apos;s own line</p>)
     expect(screen.getByText("The page's own line").closest('[data-slot]')).toHaveAttribute(
       'data-slot',
       'brief',
     )
-    expect(api.calls).toEqual([])
+    expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
   })
 })
 
 describe('Today', () => {
   beforeEach(startToday)
 
-  test('keeps to its two requests on the first screen, then fills the slot when it is near', async () => {
-    // Only the slot's marker is near the viewport: the history sections stay unloaded.
-    nearViewport((target) => target.getAttribute('aria-hidden') === 'true')
-    const { api } = renderToday(makeToday({ coach: makeCoach({ change: null }) }), {
-      'GET /api/briefs': briefs([makeItem({ weekStart: '2026-03-16', seen: false })]),
-    })
+  test('keeps to its two requests, with the brief line in the first answer', async () => {
+    const { api } = renderToday(todayWith(makeItem({ weekStart: '2026-03-16', seen: false })))
     const region = await screen.findByRole('region', { name: 'Weekly brief' })
     expect(region.closest('[data-slot]')).toHaveAttribute('data-slot', 'brief')
-    expect(api.calls.map((call) => call.url).sort()).toEqual([
-      '/api/briefs?limit=1',
-      '/api/settings',
-      '/api/today',
-    ])
+    expect(api.calls.map((call) => call.url).sort()).toEqual(['/api/settings', '/api/today'])
+  })
+
+  test('a week with no brief has no line, and still only the two requests', async () => {
+    const { api } = renderToday(todayWith(null))
+    await screen.findByRole('region', { name: 'Readiness' })
+    expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
+    expect(api.calls.map((call) => call.url).sort()).toEqual(['/api/settings', '/api/today'])
   })
 })

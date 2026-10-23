@@ -1022,7 +1022,7 @@ export interface TodayView {
   checkin: Checkin | null
   readiness: ReadinessSnapshot
   unrated: Activity[]
-  /** The coach view: readiness, hero, week, race, change line, health and slots. */
+  /** The coach view: readiness, hero, week, race, health and slots. */
   coach: TodayCoach
 }
 // ---- Today as a coach (phase 3a, section 7) ----------------------------------------------------
@@ -1113,13 +1113,6 @@ export interface TodayRace {
   /** How wide the range has to be; null when the goal has no distance. */
   range: RangeLabel | null
 }
-/** The newest weekly, break or review update of the last seven days, as the plan stored it. */
-export interface ChangeLine {
-  id: string
-  createdAt: string
-  reason: PlanRevisionReason
-  summary: string
-}
 /** A note from a registered producer (sync paused, weekly update not run, ...). */
 export interface HealthNote extends Pick<InputFact, 'template' | 'slots'> {
   code: string
@@ -1168,7 +1161,11 @@ export interface TodaySlots {
   fuel: TodayFuel | null
   /** Where the viewed day's runs stand on their way to the watch (E1); null while sending is off. */
   watch: TodayWatch | null
-  brief: null
+  /**
+   * The stored brief of the server's current week, as `GET /api/briefs` serves it (E4); null when
+   * the week has none yet. The brief line reads it from here and asks for nothing.
+   */
+  brief: BriefListItem | null
   /** Recent runs that wait for a fuel log (E6); null when none does. */
   fuelPrompt: TodayFuelPrompts | null
 }
@@ -1186,7 +1183,6 @@ export interface TodayCoach {
   next: PlanSession | null
   weekStrip: WeekStrip | null
   race: TodayRace | null
-  change: ChangeLine | null
   health: TodayHealth
   /** The runner's windows that are not over on the viewed date (a window tomorrow is `upcoming`). */
   disruptions: DisruptionView[]

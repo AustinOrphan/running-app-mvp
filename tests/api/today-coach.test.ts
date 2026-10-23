@@ -321,7 +321,8 @@ describe('GET /api/today: the coach payload', () => {
       daysToRace: daysBetween(today, goal.targetDate),
       range: { wide: false },
     })
-    expect(coach.change).toBeNull()
+    // The change line left the payload with its component: the brief line replaced it.
+    expect(coach).not.toHaveProperty('change')
     expect(coach.health).toEqual({
       possibleDuplicates: 0,
       pastUnconfirmedWeeks: 0,
@@ -819,78 +820,6 @@ describe('GET /api/today: unrated runs', () => {
 })
 
 // ---------------------------------------------------------------------------------------------
-// The change line
-// ---------------------------------------------------------------------------------------------
-
-describe('GET /api/today: the change line', () => {
-  async function revision(
-    planId: string,
-    over: {
-      reason: string
-      summary: string
-      daysAgo: number
-      diff?: string | null
-      undone?: boolean
-    },
-  ) {
-    return ctx.prisma.planRevision.create({
-      data: {
-        planId,
-        reason: over.reason,
-        summary: over.summary,
-        createdAt: new Date(2026, 9, 21 - over.daysAgo, 3),
-        diff: over.diff ?? null,
-        undoneAt: over.undone ? new Date() : null,
-      },
-    })
-  }
-
-  test('is the newest weekly, break or review update of the last 7 days, with its stored summary', async () => {
-    const { u, plan } = await planWith('change@example.com', [])
-    expect((await view(u)).coach.change).toBeNull()
-
-    await revision(plan.id, { reason: 'weekly', summary: 'Too old.', daysAgo: 7 })
-    await revision(plan.id, { reason: 'owner', summary: 'An owner edit.', daysAgo: 0 })
-    await revision(plan.id, { reason: 'undo', summary: 'An undo.', daysAgo: 0 })
-    await revision(plan.id, {
-      reason: 'weekly',
-      summary: 'Changed nothing.',
-      daysAgo: 0,
-      diff: '{"empty":true}',
-    })
-    await revision(plan.id, { reason: 'weekly', summary: 'Undone.', daysAgo: 0, undone: true })
-    expect((await view(u)).coach.change).toBeNull()
-
-    await revision(plan.id, { reason: 'review', summary: 'Older update.', daysAgo: 3 })
-    const newest = await revision(plan.id, {
-      reason: 'break',
-      summary: 'Newest update.',
-      daysAgo: 1,
-      diff: '{"empty":false}',
-    })
-    const { change } = (await view(u)).coach
-    expect(change).toEqual({
-      id: newest.id,
-      createdAt: newest.createdAt.toISOString(),
-      reason: 'break',
-      summary: 'Newest update.',
-    })
-
-    // The sixth day back is still inside the window.
-    const edge = await planWith('change-edge@example.com', [])
-    await revision(edge.plan.id, { reason: 'weekly', summary: 'Six days ago.', daysAgo: 6 })
-    expect((await view(edge.u)).coach.change?.summary).toBe('Six days ago.')
-  })
-
-  test('a plan of another runner never shows', async () => {
-    const mine = await planWith('change-mine@example.com', [])
-    const theirs = await planWith('change-theirs@example.com', [])
-    await revision(theirs.plan.id, { reason: 'weekly', summary: 'Theirs.', daysAgo: 0 })
-    expect((await view(mine.u)).coach.change).toBeNull()
-  })
-})
-
-// ---------------------------------------------------------------------------------------------
 // Health
 // ---------------------------------------------------------------------------------------------
 
@@ -1245,9 +1174,10 @@ describe('GET /api/today: the validator', () => {
     const res = await getToday(u).set('If-None-Match', tag)
     expect(res.status).toBe(304)
     // The user lookup of the auth middleware, the forecast stamp (home, then the cache row), the
-    // job notes' stamp and the publications' stamp (E1: the notes and the watch line read tables
+    // job notes' stamp, the publications' stamp (E1: the notes and the watch line read tables
     // the data version does not cover: the rows by state, the channel's two switches and the sends
-    // still inside the 15 minutes before "On your watch").
+    // still inside the 15 minutes before "On your watch") and the brief's (E4: the current week's
+    // row).
     expect(log.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
@@ -1255,6 +1185,7 @@ describe('GET /api/today: the validator', () => {
         'forecastCache.findUnique',
         'syncRun.findFirst',
         'user.findUnique',
+        'weeklyBrief.findUnique',
         'wristPublication.count',
         'wristPublication.groupBy',
       ].sort(),
@@ -1283,8 +1214,8 @@ describe('GET /api/today: cost', () => {
     expect(cold.count('activity.findMany')).toBe(1)
     expect(cold.count('plan.findFirst')).toBe(2)
     expect(cold.count('planSession.findMany')).toBe(0)
-    // The change line, and the weekly-update note.
-    expect(cold.count('planRevision.findFirst')).toBe(2)
+    // The weekly-update note.
+    expect(cold.count('planRevision.findFirst')).toBe(1)
     expect(cold.count('forecastCache.findUnique')).toBe(2)
     const coldTotal = cold.models.length
     vi.restoreAllMocks()
@@ -1297,7 +1228,8 @@ describe('GET /api/today: cost', () => {
     // (the latest runs, the last weekly revision, the plans due) and E1's reads of the publisher's
     // tables: the page tag's stamp (the rows by state, the channel's switches, the recent sends),
     // the watch slot's read of the channel (today has a run) and the note about tomorrow's run
-    // (which has a session here): nothing else.
+    // (which has a session here), and E4's two reads of the current week's brief row (the page
+    // tag's stamp, and the slot, which reads the row and never composes one): nothing else.
     expect(warm.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
@@ -1310,6 +1242,8 @@ describe('GET /api/today: cost', () => {
         'syncRun.findFirst',
         'syncRun.groupBy',
         'user.findUnique',
+        'weeklyBrief.findUnique',
+        'weeklyBrief.findUnique',
         'wristPublication.count',
         'wristPublication.findMany',
         'wristPublication.groupBy',
@@ -1317,19 +1251,19 @@ describe('GET /api/today: cost', () => {
     )
     expect(warm.count('activity.findMany')).toBe(0)
     expect(warm.count('plan.findFirst')).toBe(0)
-    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 29
+    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 30
     // reads: the session lookup, the forecast stamp (the profile and the cache row), the job-notes
     // stamp, the publications' stamp (three: the rows by state, the channel, the recent sends), the
-    // snapshot's eleven (the eleventh is the runner's active rest windows), the cached forecast,
-    // the race climate, the change line, the three reads of the job notes, the watch slot's read of
-    // the channel, the note about tomorrow's run (the publications) and the fuel replay's three
-    // (the switches, the logs, the weeks of every plan; its session lookup is skipped without a
-    // log). Warm is 13, the thirteen of the list above, and the data version is read five times
-    // (the tag, the snapshot, the change-line memo and the fuel replay's memo once for each of the
-    // two fuel slots).
-    expect(coldTotal).toBe(29)
-    expect(warm.models).toHaveLength(13)
-    expect(warm.raw).toBe(5)
+    // brief's stamp (the current week's row), the snapshot's eleven (the eleventh is the runner's
+    // active rest windows), the cached forecast, the race climate, the three reads of the job
+    // notes, the watch slot's read of the channel, the note about tomorrow's run (the
+    // publications), the brief slot's read of the row and the fuel replay's three (the switches,
+    // the logs, the weeks of every plan; its session lookup is skipped without a log). Warm is 15,
+    // the fifteen of the list above, and the data version is read four times (the tag, the
+    // snapshot and the fuel replay's memo once for each of the two fuel slots).
+    expect(coldTotal).toBe(30)
+    expect(warm.models).toHaveLength(15)
+    expect(warm.raw).toBe(4)
   })
 
   test('no request path calls the network, empty or stale caches included', async () => {

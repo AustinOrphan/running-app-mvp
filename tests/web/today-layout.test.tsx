@@ -7,6 +7,7 @@ import type { TodayView } from '../../shared/types.ts'
 import { useServerToday } from '../../web/api/today.ts'
 import { useMediaQuery } from '../../web/components/useMediaQuery.ts'
 import { makeWeekRow } from '../factories.ts'
+import { makeItem } from './brief-fixtures.ts'
 import { mockApi, renderWithProviders } from './helpers.tsx'
 import {
   makeCoach,
@@ -20,11 +21,10 @@ import {
 } from './today-fixtures.ts'
 import { renderToday, startToday } from './today-render.tsx'
 
-// The order test stands one in for the disruption, watch and brief slots: the banner is filled by
-// the disruption epic (E5-8), the wrist line reads the watch status (E1-8), and the brief line asks
-// for its brief once it is near the viewport (E4-6), so none of them has its data in the Today
-// payload that this test builds. Their own tests cover the real mounts; `fuel` and `fuelPrompt` use
-// the real mounts here.
+// The order test stands one in for the disruption and watch slots: the banner is filled by the
+// disruption epic (E5-8) and the wrist line reads the watch status (E1-8), so neither has its data
+// in the Today payload that this test builds. Their own tests cover the real mounts; `fuel`,
+// `brief` and `fuelPrompt` use the real mounts here.
 vi.mock('../../web/components/today/slotMounts.tsx', async (importOriginal) => {
   const original =
     await importOriginal<typeof import('../../web/components/today/slotMounts.tsx')>()
@@ -41,11 +41,6 @@ vi.mock('../../web/components/today/slotMounts.tsx', async (importOriginal) => {
       watch: () => (
         <SlotFrame name="watch">
           <p>Stand-in for the wrist line</p>
-        </SlotFrame>
-      ),
-      brief: () => (
-        <SlotFrame name="brief">
-          <p>Stand-in for the brief line</p>
         </SlotFrame>
       ),
     },
@@ -138,7 +133,7 @@ describe('useMediaQuery', () => {
   })
 })
 
-/** A long-run day with every slot that has data filled: fuel and the fuel prompt. */
+/** A long-run day with every slot that has data filled: fuel, the brief and the fuel prompt. */
 function fullDay(): TodayView {
   const hero = makeHero({
     session: makeSession({ id: 'long1', kind: 'long', title: 'Long run', durationMin: 150 }),
@@ -154,7 +149,7 @@ function fullDay(): TodayView {
         disruption: null,
         fuel: makeFuelSlot(),
         watch: null,
-        brief: null,
+        brief: makeItem(),
         fuelPrompt: makeFuelPrompts(),
       },
     }),

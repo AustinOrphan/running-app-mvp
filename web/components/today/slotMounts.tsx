@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ComponentType, ReactNode } from 'react'
-import { addDays, mondayOf, todayIso } from '../../../shared/dates.ts'
-import type { TodayView, Units, UserSettings, WristItem } from '../../../shared/types.ts'
-import { useBriefs } from '../../api/brief.ts'
+import { addDays } from '../../../shared/dates.ts'
+import type { TodayView, UserSettings, WristItem } from '../../../shared/types.ts'
 import { keys } from '../../api/client.ts'
 import { BriefLine } from '../BriefLine.tsx'
-import { useInView } from '../useInView.ts'
 import { useOnline } from '../useOnline.ts'
 import { useWristLine, WristLineText } from '../WristLine.tsx'
 import { FuelPromptCard } from '../fuel/FuelPromptCard.tsx'
@@ -83,40 +81,24 @@ function WatchMount() {
 }
 
 /**
- * The brief line of the current week, once its marker is near the viewport. The marker is a 1 px
- * box out of the layout, so it takes no height and no grid cell, and it is always rendered so the
- * observer finds it.
- */
-function BriefSlot({ units }: { units: Units }) {
-  const [marker, near] = useInView<HTMLDivElement>()
-  const briefs = useBriefs(1, { enabled: near })
-  const newest = briefs.data?.[0]
-  return (
-    <>
-      <div
-        ref={marker}
-        aria-hidden="true"
-        style={{ position: 'absolute', width: 1, height: 1, pointerEvents: 'none' }}
-      />
-      <SlotFrame name="brief">
-        {newest === undefined || newest.weekStart !== mondayOf(todayIso()) ? null : (
-          <BriefLine item={newest} units={units} />
-        )}
-      </SlotFrame>
-    </>
-  )
-}
-
-/**
- * E4: the weekly brief line. `GET /api/briefs` is not part of the Today payload, so the first
- * screen keeps to its two requests: nothing is asked for until the slot scrolls near the viewport,
- * and nothing is drawn before the settings, which give the units, are in the cache. The line shows
- * the brief of the current week; an older one would say "since last week" of a week that is gone,
- * and a failed request shows nothing.
+ * E4: the weekly brief line, under the week strip (52 px). The item is the payload's `brief` slot,
+ * the stored brief of the server's current week, so the line adds no request and never describes a
+ * week that is gone: the page asks for Today again when the server's day turns (`useServerToday`),
+ * and the new payload carries the new week's brief or none. Nothing is drawn before the settings,
+ * which give the units, are in the cache. The brief page is not cached offline, so the line
+ * renders nothing then, as the wrist line does.
  */
 function BriefMount() {
+  const today = useLoaded<TodayView>(keys.today)
   const settings = useLoaded<UserSettings>(keys.settings)
-  return settings === undefined ? null : <BriefSlot units={settings.units} />
+  const online = useOnline()
+  const item = today?.coach.slots.brief ?? null
+  if (!online || item === null || settings === undefined) return null
+  return (
+    <SlotFrame name="brief">
+      <BriefLine item={item} units={settings.units} />
+    </SlotFrame>
+  )
 }
 
 /**

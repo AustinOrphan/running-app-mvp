@@ -830,6 +830,100 @@ describe('the health note about tomorrow', () => {
   })
 })
 
+describe('the health note and the Plan strip', () => {
+  // Both read a session's publication through `readWristItems`, so the note is made exactly when
+  // the strip says `waiting` or `not-delivered`: a failed send is one case among the stored states.
+  const getToday = (u: TestUser) => client(ctx, u).get('/api/today')
+  const notes = async (u: TestUser) => {
+    const res = await getToday(u)
+    expect(res.status).toBe(200)
+    return (res.body as TodayView).coach.health.notes
+  }
+  const publication = (u: TestUser, session: { externalId: string }, row: object) =>
+    ctx.prisma.wristPublication.create({
+      data: {
+        userId: u.id,
+        channel: 'intervals',
+        externalId: session.externalId,
+        date: tomorrow,
+        kind: 'easy',
+        title: 'Easy run, 1 h',
+        desiredHash: 'h',
+        ...(row as { state: string }),
+      },
+    })
+
+  test.each<[string, string, Record<string, unknown>, string, boolean]>([
+    ['pending', 'a send waiting for its first try', { state: 'pending' }, 'waiting', true],
+    [
+      'retry',
+      'a failed send that is tried again by itself',
+      { state: 'failed', failCode: 'network', failMessage: 'x', nextAttemptAt: new Date(NOW) },
+      'waiting',
+      true,
+    ],
+    [
+      'rejected',
+      'a failed send that waits for "Send again"',
+      { state: 'failed', failCode: 'rejected', failMessage: 'x', nextAttemptAt: null },
+      'not-delivered',
+      true,
+    ],
+    [
+      'refused',
+      'a send that Garmin Connect refused',
+      { state: 'sent', sentHash: 'h', sentAt: new Date(NOW), deviceMessage: 'Refused.' },
+      'not-delivered',
+      true,
+    ],
+    [
+      'moved',
+      'a send for the day the session has left',
+      { state: 'sent', sentHash: 'h', sentAt: new Date(NOW), date: addDays(today, 3) },
+      'waiting',
+      true,
+    ],
+    [
+      'sent',
+      'a send that went through',
+      { state: 'sent', sentHash: 'h', sentAt: new Date(NOW) },
+      'sent',
+      false,
+    ],
+    [
+      'owner-removed',
+      'an event the runner deleted',
+      { state: 'owner-removed', sentHash: 'h' },
+      'removed',
+      false,
+    ],
+    ['withdrawn', 'a withdrawn send', { state: 'withdrawn' }, 'withdrawn', false],
+  ])('%s, %s: the note and the strip agree', async (key, _name, row, expected, noted) => {
+    const { u, planId } = await runner(`agree-${key}@example.com`)
+    const [session] = await place(ctx, planId, [{ date: tomorrow, kind: 'easy' }])
+    await publication(u, session!, row)
+    const [item] = (await status(u, `?from=${tomorrow}&to=${tomorrow}`)).items
+    expect(item?.status).toBe(expected)
+    expect(await notes(u)).toHaveLength(noted ? 1 : 0)
+  })
+
+  test('says nothing for a session that is no longer to run or gone from the plan', async () => {
+    const { u, planId } = await runner('agree-gone@example.com')
+    const [session] = await place(ctx, planId, [{ date: tomorrow, kind: 'easy' }])
+    await publication(u, session!, {
+      state: 'failed',
+      failCode: 'rejected',
+      failMessage: 'x',
+      nextAttemptAt: null,
+    })
+    expect(await notes(u)).toHaveLength(1)
+    await ctx.prisma.planSession.update({ where: { id: session!.id }, data: { status: 'skipped' } })
+    expect(await notes(u)).toEqual([])
+    await ctx.prisma.planSession.delete({ where: { id: session!.id } })
+    expect(await notes(u)).toEqual([])
+  })
+})
+
 describe('the watch slot of Today', () => {
   const getToday = (u: TestUser, query = '') => client(ctx, u).get(`/api/today${query}`)
   const slotOf = async (u: TestUser, query = '') => {

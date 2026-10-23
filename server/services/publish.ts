@@ -57,7 +57,7 @@ import {
   type UpsertOutcome,
 } from '../providers/types.ts'
 import { ON_WATCH_DELAY_MS } from '../serialize.ts'
-import { readWristItems } from './wristItems.ts'
+import { readWristItems, WRIST_CHANNEL as CHANNEL } from './wristItems.ts'
 import { athleteKey, loadAthleteContext } from './athleteState.ts'
 import { CALENDAR_CHANNEL } from './calendar.ts'
 import { dataVersionKey, openTransactions } from '../dataVersion.ts'
@@ -69,7 +69,7 @@ import { buildDeliverables, type SendDeliverable } from './workouts.ts'
 import { forecastStamp } from './weatherCache.ts'
 
 /** The `DeliveryChannel.channel` and `WristPublication.channel` of the intervals.icu publisher. */
-export const CHANNEL = 'intervals'
+export { CHANNEL }
 /** The provider key: the registry entry, the integration row and the `SyncRun.provider`. */
 const PROVIDER = 'intervals'
 /** Days published, today included: today to +13 (`shared/workouts/horizon.ts`). */

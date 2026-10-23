@@ -47,7 +47,9 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
   intervals.icu events, the FIT files and the calendar feed render the same `WorkoutPlan`. The
   calendar feed is not a provider (a route behind a hashed token on `DeliveryChannel`, no registry
   entry). How a session stands on its way to the watch is read only through `readWristItems`
-  (`server/services/wristItems.ts`), for the Plan page, the settings and Today's `watch` slot alike.
+  (`server/services/wristItems.ts`), for the Plan page, the settings, Today's `watch` slot and the
+  health note about tomorrow's run alike; `WRIST_CHANNEL` there is the one place the channel name
+  is written.
 - A provider returns `ParsedActivity` and `WellnessInput` values; it never writes to the database.
   `server/services/activityStore.ts` is the only writer of imported activities, and
   `server/services/sync.ts` drives pull providers.
