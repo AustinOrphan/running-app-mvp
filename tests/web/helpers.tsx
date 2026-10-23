@@ -3,6 +3,7 @@ import { render, type RenderResult } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
+import { lintText } from '../../shared/copy/lint.ts'
 
 export interface MockRequest {
   body: unknown
@@ -69,4 +70,44 @@ export function renderWithProviders(ui: ReactElement, opts: { route?: string } =
       <MemoryRouter initialEntries={[opts.route ?? '/']}>{ui}</MemoryRouter>
     </QueryClientProvider>,
   )
+}
+
+/** Attributes whose text a reader or a screen reader gets, so the lint covers them too. */
+const COPY_ATTRIBUTES = ['aria-label', 'title', 'placeholder', 'alt']
+const SKIPPED_TAGS = new Set(['SCRIPT', 'STYLE'])
+
+interface CopyItem {
+  where: string
+  text: string
+}
+
+function collectCopy(node: Node, found: CopyItem[]): void {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent?.trim() ?? ''
+    if (text !== '') found.push({ where: 'text', text })
+    return
+  }
+  if (!(node instanceof Element) || SKIPPED_TAGS.has(node.tagName)) return
+  for (const name of COPY_ATTRIBUTES) {
+    const text = node.getAttribute(name)?.trim() ?? ''
+    if (text !== '') found.push({ where: `<${node.tagName.toLowerCase()} ${name}>`, text })
+  }
+  for (const child of node.childNodes) collectCopy(child, found)
+}
+
+/**
+ * Fails when any copy under `container` breaks the G5 lint (`shared/copy/lint.ts`): every text node
+ * and the accessible-name attributes. A sheet renders in a portal on `document.body`, so pass the
+ * dialog (or `document.body`), not only the `container` of `render`. Text a provider returned is
+ * outside the lint; render a fixture without it.
+ */
+export function expectCleanCopy(container: Element): void {
+  const found: CopyItem[] = []
+  collectCopy(container, found)
+  const problems = found.flatMap(({ where, text }) =>
+    lintText(text).map((hit) => `${where}: "${hit.match}" in ${JSON.stringify(text)}`),
+  )
+  if (problems.length > 0) {
+    throw new Error(`Copy breaks the G5 lint:\n${problems.join('\n')}`)
+  }
 }

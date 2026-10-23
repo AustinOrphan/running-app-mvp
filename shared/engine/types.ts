@@ -361,3 +361,64 @@ export interface EngineInput {
    */
   zoneChanges?: Partial<Record<ZoneProposal['boundary'], string>>
 }
+
+/**
+ * A number the copy system prints in the runner's units (`formatQuantity` in `shared/copy`). It is
+ * plain JSON, so a stored record keeps the quantity and not the sentence. Distances, climbs and
+ * paces are in metric base units (ADR 0003); `units` only changes how they read.
+ */
+export type Quantity =
+  | { kind: 'pace'; secPerKm: number }
+  | { kind: 'speed'; kmh: number }
+  | { kind: 'distance'; m: number }
+  | { kind: 'climb'; m: number }
+  | { kind: 'duration'; sec: number }
+  | { kind: 'minutes'; min: number }
+  | { kind: 'bpm'; bpm: number }
+  /** A number that is already a percentage: 5.5 reads "5.5%". */
+  | { kind: 'percent'; pct: number }
+  /** A fraction of one: 0.2 reads "20%". */
+  | { kind: 'share'; fraction: number }
+  | { kind: 'count'; n: number }
+  | { kind: 'temp'; c: number }
+  /** "19 Oct" (short, the default), "Mon 19 Oct" (weekday) or "Mon 19 Oct 2026" (long). */
+  | { kind: 'date'; iso: string; style?: 'short' | 'weekday' | 'long' }
+  /** "Mon" (short, the default) or "Monday". */
+  | { kind: 'weekday'; iso: string; style?: 'short' | 'long' }
+
+/** Where a figure came from, so an explanation can link to it and show its date. */
+export interface SourceRef {
+  kind:
+    | 'activity'
+    | 'check-in'
+    | 'wellness'
+    | 'profile'
+    | 'session'
+    | 'review'
+    | 'screening'
+    | 'disruption'
+  id: string
+  /** `YYYY-MM-DD`, in the runner's local day. */
+  date: string
+  label: string
+}
+
+/**
+ * One figure an explanation read, stored as data. `template` is a `TemplateId` of
+ * `shared/copy/templates.ts` and `slots` its values; `renderFact` turns the pair into a sentence in
+ * the runner's units at read time, so a copy fix reaches old records. `moreSources` counts the
+ * sources beyond the ones listed.
+ */
+export interface InputFact {
+  id: string
+  template: string
+  slots: Record<string, Quantity | string>
+  /** The rule the figure feeds, such as `a-6`. */
+  rule: string
+  sources: SourceRef[]
+  moreSources: number
+  /** `insufficient`: the data the rule needs is missing, and the sentence says what it counts. */
+  state: 'used' | 'insufficient'
+  /** The dates the figure was read over, when it is a window. */
+  window?: { from: string; to: string }
+}

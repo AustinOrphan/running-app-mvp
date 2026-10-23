@@ -12,11 +12,13 @@ import { Sheet } from '../../web/components/Sheet.tsx'
 import { Skeleton } from '../../web/components/Skeleton.tsx'
 import { ToastProvider, useToast } from '../../web/components/Toast.tsx'
 import {
+  formatClimb,
   formatLongDate,
   formatShortDate,
   formatWeekday,
   phaseLabel,
 } from '../../web/components/format.ts'
+import { expectCleanCopy } from './helpers.tsx'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -356,5 +358,80 @@ describe('format helpers', () => {
     expect(phaseLabel('race')).toBe('Race week')
     expect(phaseLabel('restart')).toBe('Restart')
     expect(phaseLabel('taper')).toBe('Taper')
+  })
+})
+
+describe('expectCleanCopy', () => {
+  test('passes clean copy, including "record" and RED-S', () => {
+    const { container } = render(
+      <section aria-label="Prediction track record">
+        <h2>Record result</h2>
+        <p>Relative energy deficiency (RED-S) signs are checked in every check-in.</p>
+        <button type="button" title="Open the brief">
+          Open
+        </button>
+      </section>,
+    )
+    expectCleanCopy(container)
+  })
+
+  test('fails on a banned word in any text node, and names where it is', () => {
+    const { container } = render(
+      <div>
+        <p>
+          Nothing here, and <b>you are behind</b> the plan.
+        </p>
+      </div>,
+    )
+    expect(() => {
+      expectCleanCopy(container)
+    }).toThrow(/text: "behind" in "you are behind"/)
+  })
+
+  test('also reads the accessible-name attributes', () => {
+    for (const attributes of [
+      { 'aria-label': 'Missed sessions' },
+      { title: 'A new PR' },
+      { placeholder: 'Keep the streak' },
+    ]) {
+      const { container, unmount } = render(<input type="text" {...attributes} />)
+      expect(() => {
+        expectCleanCopy(container)
+      }).toThrow(/G5 lint/)
+      unmount()
+    }
+    const { container } = render(<img src="x.png" alt="Great job!" />)
+    expect(() => {
+      expectCleanCopy(container)
+    }).toThrow(/alt/)
+  })
+
+  test('skips script and style content', () => {
+    const { container } = render(
+      <div>
+        <style>{'.red { color: red }'}</style>
+        <p>Ready as planned.</p>
+      </div>,
+    )
+    expectCleanCopy(container)
+  })
+
+  test('lints a portal when given document.body', () => {
+    render(
+      <Sheet open onClose={() => {}} title="Why this?">
+        <p>Fail</p>
+      </Sheet>,
+    )
+    expect(() => {
+      expectCleanCopy(document.body)
+    }).toThrow(/"Fail"/)
+  })
+})
+
+describe('format helpers: climb', () => {
+  test('climb is metres for km and feet for miles, and never NaN', () => {
+    expect(formatClimb(60, 'km')).toBe('60 m')
+    expect(formatClimb(60, 'mi')).toBe('197 ft')
+    expect(formatClimb(Number.NaN, 'mi')).toBe('—')
   })
 })

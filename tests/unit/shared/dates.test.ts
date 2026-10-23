@@ -3,6 +3,11 @@ import {
   addDays,
   daysBetween,
   daysLeftInWeek,
+  formatLongDate,
+  formatShortDate,
+  formatWeekday,
+  formatWeekdayDate,
+  formatWeekdayName,
   isIsoDate,
   mondayOf,
   todayIso,
@@ -62,5 +67,23 @@ describe('dates', () => {
     expect(isIsoDate('2028-02-29')).toBe(true)
     expect(isIsoDate('2026-02-29')).toBe(false)
     expect(isIsoDate('2026-2-9')).toBe(false)
+  })
+})
+
+describe('date formatting', () => {
+  test('en-GB forms, read in UTC so the machine time zone cannot shift the day', () => {
+    expect(formatShortDate('2026-10-19')).toBe('19 Oct')
+    expect(formatShortDate('2026-01-01')).toBe('1 Jan')
+    expect(formatWeekday('2026-10-19')).toBe('Mon')
+    expect(formatWeekdayName('2026-10-19')).toBe('Monday')
+    expect(formatWeekdayDate('2026-10-29')).toBe('Thu 29 Oct')
+    expect(formatLongDate('2026-10-19')).toBe('Mon 19 Oct 2026')
+  })
+
+  test('anything but a real YYYY-MM-DD date throws a RangeError', () => {
+    for (const bad of ['', '2026-02-30', '19 Oct', '2026-10-19T08:00:00Z']) {
+      expect(() => formatShortDate(bad), bad).toThrow(RangeError)
+      expect(() => formatWeekdayName(bad), bad).toThrow(RangeError)
+    }
   })
 })

@@ -3,12 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, test } from 'vitest'
 import type { Param } from '../../shared/engine/types.ts'
-import type { ResearchParams } from '../../shared/types.ts'
+import type { ResearchParams, Units, UserSettings } from '../../shared/types.ts'
 import { PaperCard } from '../../web/components/PaperCard.tsx'
 import { WhyDrawer } from '../../web/components/WhyDrawer.tsx'
 import { shortCitation, type CorpusPaper } from '../../web/components/researchCorpus.ts'
 import { ResearchPage } from '../../web/pages/ResearchPage.tsx'
-import { mockApi, renderWithProviders } from './helpers.tsx'
+import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
 
 const taperParam: Param<unknown> = {
   id: 'k1.weeklyMultipliers',
@@ -39,6 +39,15 @@ const registry: ResearchParams = {
   version: '2026-10-22.1',
   params: [taperParam, defaultParam, effortParam],
 }
+
+/** The settings the drawer reads to show parameter values in the runner's units. */
+const settingsRoute = (units: Units = 'mi') => ({
+  'GET /api/settings': (): UserSettings => ({
+    email: 'runner@example.com',
+    displayName: null,
+    units,
+  }),
+})
 
 function Harness({ rules }: { rules: string[] }) {
   const [open, setOpen] = useState(false)
@@ -75,7 +84,7 @@ describe('WhyDrawer', () => {
   })
 
   test('shows each rule with its parameters, grades and papers', async () => {
-    mockApi({ 'GET /api/research/params': () => registry })
+    mockApi({ ...settingsRoute(), 'GET /api/research/params': () => registry })
     const user = userEvent.setup()
     renderWithProviders(<Harness rules={['k1', 'c4']} />)
     await user.click(screen.getByRole('button', { name: 'Why' }))
@@ -96,7 +105,7 @@ describe('WhyDrawer', () => {
     expect(dialog.textContent).not.toMatch(/k1\.weeklyMultipliers|expectedRpe\.easy/)
     // a parameter without a note reads as words
     expect(within(dialog).getByText('Weekly multipliers')).toBeInTheDocument()
-    expect(within(dialog).getByText('2 to 4 CR-10')).toBeInTheDocument()
+    expect(within(dialog).getByText('2 to 4 on the CR-10 scale')).toBeInTheDocument()
     // The paper behind a grade B parameter, from the bundled corpus.
     expect(
       await within(dialog).findByText(
@@ -105,11 +114,13 @@ describe('WhyDrawer', () => {
         SLOW,
       ),
     ).toBeInTheDocument()
+    // Everything the drawer says in its own words passes the shared G5 lint.
+    expectCleanCopy(dialog)
     // The wait for the corpus is 8 s, so the test must allow more than the 5 s default.
   }, 15_000)
 
   test('the effort assessment says that an effort verdict needs a rating', async () => {
-    mockApi({ 'GET /api/research/params': () => registry })
+    mockApi({ ...settingsRoute(), 'GET /api/research/params': () => registry })
     const user = userEvent.setup()
     renderWithProviders(<Harness rules={['J2', 'K1']} />)
     await user.click(screen.getByRole('button', { name: 'Why' }))
@@ -139,7 +150,10 @@ describe('WhyDrawer', () => {
       unit: 'min of running and walking per session',
       note: 'Default: nine rungs.',
     }
-    mockApi({ 'GET /api/research/params': () => ({ version: 'v', params: [ladder, taperParam] }) })
+    mockApi({
+      ...settingsRoute(),
+      'GET /api/research/params': () => ({ version: 'v', params: [ladder, taperParam] }),
+    })
     const user = userEvent.setup()
     renderWithProviders(<Harness rules={['E6']} />)
     await user.click(screen.getByRole('button', { name: 'Why' }))
@@ -176,7 +190,10 @@ describe('WhyDrawer', () => {
       evidence: [],
       note: 'Default: observations before a personal model replaces the prior.',
     }
-    mockApi({ 'GET /api/research/params': () => ({ version: 'v', params: [prior, injury] }) })
+    mockApi({
+      ...settingsRoute(),
+      'GET /api/research/params': () => ({ version: 'v', params: [prior, injury] }),
+    })
     const user = userEvent.setup()
     renderWithProviders(<Harness rules={['g-3']} />)
     await user.click(screen.getByRole('button', { name: 'Why' }))
@@ -187,8 +204,71 @@ describe('WhyDrawer', () => {
     expect(dialog.textContent).not.toMatch(/observations before a personal model/)
   })
 
+  test('shows parameter values in plain words and in the runner s units', async () => {
+    const params: Array<Param<unknown>> = [
+      {
+        id: 'flib.fastFinishFraction',
+        value: 0.2,
+        unit: 'fraction of duration',
+        grade: 'D',
+        rule: 'F3',
+        evidence: [],
+        note: 'Default: the fast finish of a long run.',
+      },
+      {
+        id: 'd3.halfMinWeeklyKm',
+        value: 32,
+        unit: 'km/week',
+        grade: 'C',
+        rule: 'F3',
+        evidence: [],
+        note: 'A soft floor for a half-marathon time goal.',
+      },
+      {
+        id: 'd1Prior.paceSecPerKm',
+        value: 420,
+        range: [390, 450],
+        unit: 'sec/km',
+        grade: 'D',
+        rule: 'F3',
+        evidence: [],
+        note: 'Default: the pace prior.',
+      },
+      {
+        id: 'h4.walkReferenceClimbRateMh',
+        value: 800,
+        unit: 'm/h',
+        grade: 'C',
+        rule: 'F3',
+        evidence: [],
+        note: 'The climb rate of a walk.',
+      },
+    ]
+    const expectations: Array<[Units, string[]]> = [
+      ['mi', ['19.9 mi per week', '11:16 /mi', '10:28 to 12:04 /mi', '2625 ft per hour']],
+      ['km', ['32 km per week', '7:00 /km', '6:30 to 7:30 /km', '800 m per hour']],
+    ]
+    for (const [units, texts] of expectations) {
+      mockApi({
+        ...settingsRoute(units),
+        'GET /api/research/params': () => ({ version: 'v', params }),
+      })
+      const user = userEvent.setup()
+      const { unmount } = renderWithProviders(<Harness rules={['f3']} />)
+      await user.click(screen.getByRole('button', { name: 'Why' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+      expect(await within(dialog).findByText('20% of the duration')).toBeInTheDocument()
+      for (const text of texts) expect(within(dialog).getByText(text)).toBeInTheDocument()
+      // The raw words of the registry never reach the page.
+      expect(dialog.textContent).not.toMatch(/fraction of duration|sec\/km|km\/week/)
+      if (units === 'mi') expect(dialog.textContent).not.toMatch(/\bkm\b|\d m\b/)
+      expectCleanCopy(dialog)
+      unmount()
+    }
+  })
+
   test('says so when a rule has no parameter', async () => {
-    mockApi({ 'GET /api/research/params': () => registry })
+    mockApi({ ...settingsRoute(), 'GET /api/research/params': () => registry })
     const user = userEvent.setup()
     renderWithProviders(<Harness rules={['zz-9']} />)
     await user.click(screen.getByRole('button', { name: 'Why' }))
@@ -197,6 +277,7 @@ describe('WhyDrawer', () => {
 
   test('shows an error line when the registry cannot be loaded', async () => {
     mockApi({
+      ...settingsRoute(),
       'GET /api/research/params': () => ({
         status: 500,
         body: { error: { code: 'internal', message: 'Boom' } },

@@ -80,3 +80,55 @@ export function weekStartsBetween(from: string, to: string): string[] {
 export function daysLeftInWeek(date: string): number {
   return 7 - daysBetween(mondayOf(date), date)
 }
+
+// Display formatting. en-GB, read in UTC so the viewer's time zone never shifts the day.
+
+const dateFormat = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+const weekdayNameFormat = new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'UTC' })
+
+/** The pieces of a `YYYY-MM-DD` date. Throws a RangeError for anything else. */
+function dateParts(iso: string): Record<'weekday' | 'day' | 'month' | 'year', string> {
+  const ms = toUtcMs(iso)
+  if (ms === null) throw new RangeError(`Invalid date: ${iso}`)
+  const result = { weekday: '', day: '', month: '', year: '' }
+  for (const part of dateFormat.formatToParts(new Date(ms))) {
+    if (part.type in result) result[part.type as keyof typeof result] = part.value
+  }
+  return result
+}
+
+/** "19 Oct" */
+export function formatShortDate(iso: string): string {
+  const { day, month } = dateParts(iso)
+  return `${day} ${month}`
+}
+
+/** "Mon" */
+export function formatWeekday(iso: string): string {
+  return dateParts(iso).weekday
+}
+
+/** "Monday" */
+export function formatWeekdayName(iso: string): string {
+  const ms = toUtcMs(iso)
+  if (ms === null) throw new RangeError(`Invalid date: ${iso}`)
+  return weekdayNameFormat.format(new Date(ms))
+}
+
+/** "Mon 19 Oct" */
+export function formatWeekdayDate(iso: string): string {
+  const { weekday, day, month } = dateParts(iso)
+  return `${weekday} ${day} ${month}`
+}
+
+/** "Mon 19 Oct 2026" */
+export function formatLongDate(iso: string): string {
+  const { weekday, day, month, year } = dateParts(iso)
+  return `${weekday} ${day} ${month} ${year}`
+}
