@@ -6,7 +6,7 @@ import { api, keys } from './client.ts'
 
 /**
  * Today as one coach payload: the session of the day with its targets, the readiness read, the
- * week strip, the race countdown, the change line, the health counts and the unrated runs. The
+ * week strip, the race countdown, the health counts and the unrated runs. The
  * server tags the answer with an ETag that follows the data version and the day, so asking again
  * is cheap while nothing has changed. A stale payload is read again when the window regains
  * focus: a phone that was locked overnight shows the new day's session, not yesterday's. A surface

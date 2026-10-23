@@ -1099,7 +1099,7 @@ caches `rl-shell-<buildId>` (two generations kept), `rl-api-v1` and `rl-meta`. H
 - `GET /api/today` gains `tz` (the server's IANA zone) and `coach: TodayCoach`: generated at,
   preview flag, verdict, up to three signals, the hero (session, advice, reasons, eased session,
   target, linked run, other sessions), the next session, the week strip, the race countdown (with
-  the distance in metres, `wide`, the minimum half-width and its rules), the change line (the stored revision summary),
+  the distance in metres, `wide`, the minimum half-width and its rules),
   health (counts plus notes from registered producers) and the slots; `heat` gains `peakHour`,
   `coolerValue`, `index`, `hotForSteering`. `?date=` accepts today or up to two days ahead (else 400
   "Use today or one of the next two days."); a future date returns `preview: true`, no verdict and

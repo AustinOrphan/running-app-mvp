@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useRef } from 'react'
-import type { BriefListItem, BriefView } from '../../shared/types.ts'
+import type { BriefView } from '../../shared/types.ts'
 import { api, keys, qs } from './client.ts'
 
 /**
@@ -14,20 +14,6 @@ export function useBrief(weekStart?: string, options: { enabled?: boolean } = {}
     queryKey: [keys.brief, 'view', weekStart ?? 'current'],
     queryFn: async () =>
       (await api<{ brief: BriefView | null }>('GET', `/brief${qs({ weekStart })}`)).brief,
-    enabled: options.enabled ?? true,
-  })
-}
-
-/**
- * The newest briefs, slim (`GET /api/briefs`), for Today's brief line. It runs only while `enabled`:
- * Today asks for it once the line is near the viewport, so the first screen keeps to its two
- * requests.
- */
-export function useBriefs(limit: number, options: { enabled?: boolean } = {}) {
-  return useQuery({
-    queryKey: [keys.brief, 'list', limit],
-    queryFn: async () =>
-      (await api<{ briefs: BriefListItem[] }>('GET', `/briefs${qs({ limit })}`)).briefs,
     enabled: options.enabled ?? true,
   })
 }
