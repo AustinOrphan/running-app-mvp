@@ -16,6 +16,7 @@ import { useLinkPlanSession } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from './Button.tsx'
 import { Field, Select } from './Field.tsx'
+import { FuelSessionSection } from './fuel/FuelSessionSection.tsx'
 import { SessionChanges } from './SessionChanges.tsx'
 import { Sheet } from './Sheet.tsx'
 import { useToast } from './Toast.tsx'
@@ -420,6 +421,8 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
               </Button>
             </div>
           </section>
+
+          <FuelSessionSection session={session} />
 
           {session.execution !== null ? (
             <Assessment execution={session.execution} activityId={session.activityId} />

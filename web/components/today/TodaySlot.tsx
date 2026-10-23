@@ -1,18 +1,16 @@
-import { Children, type ReactNode } from 'react'
-import { SLOT_BUDGETS_PX, type SlotName } from './slots.ts'
+import type { ReactNode } from 'react'
+import { hasSlotContent, SlotFrame } from './SlotFrame.tsx'
+import { SLOT_MOUNTS } from './slotMounts.tsx'
+import type { SlotName } from './slots.ts'
 
 /**
- * A named place on Today for one line or card from a later epic. Without content it renders
- * nothing; with content it wraps it in `<div data-slot data-budget-px>`. An unbudgeted slot has no
- * `data-budget-px`.
+ * A named place on Today for one line or card from a later epic. Given content it wraps it in
+ * `<div data-slot data-budget-px>` (`SlotFrame`). Given none it renders the mount registered for
+ * the slot in `slotMounts.tsx`, which reads the Today payload itself, so the page that places the
+ * slot needs no edit when an epic fills it; a slot with neither renders nothing.
  */
 export function TodaySlot({ name, children }: { name: SlotName; children?: ReactNode }) {
-  const hasContent = Children.toArray(children).some((child) => child !== '')
-  if (!hasContent) return null
-  const budget = SLOT_BUDGETS_PX[name]
-  return (
-    <div data-slot={name} data-budget-px={budget ?? undefined}>
-      {children}
-    </div>
-  )
+  const Mount = SLOT_MOUNTS[name]
+  if (Mount !== undefined && !hasSlotContent(children)) return <Mount />
+  return <SlotFrame name={name}>{children}</SlotFrame>
 }

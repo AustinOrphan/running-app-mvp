@@ -138,6 +138,7 @@ export const keys = {
   planArchived: 'planArchived',
   disruptions: 'disruptions',
   brief: 'brief',
+  fuel: 'fuel',
   today: 'today',
   checkins: 'checkins',
   zones: 'zones',
@@ -162,6 +163,7 @@ export function invalidateNewPlan(queryClient: QueryClient): Promise<unknown> {
       keys.today,
       keys.predictions,
       keys.state,
+      keys.fuel,
     ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
   )
 }

@@ -1,0 +1,48 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0 var(--space-3);
+}
+
+.basis,
+.note {
+  margin: 0;
+  max-width: var(--prose-max);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.note {
+  color: var(--text-muted);
+}
+
+.nausea {
+  max-width: var(--prose-max);
+}
+
+/* A 44px row, so the disclosure is a comfortable tap target. */
+.summary {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

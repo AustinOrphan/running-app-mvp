@@ -12,7 +12,9 @@
  * | `brief`      | change line, then the weekly brief line   | E4    |
  * | `fuelPrompt` | fuel prompt card                          | E6    |
  *
- * `TodaySlot` renders nothing while a slot has no content, so an empty slot costs no height.
+ * `TodaySlot` renders nothing while a slot has no content, so an empty slot costs no height. A
+ * page places a slot without content and the epic that owns it registers a mount for it in
+ * `slotMounts.tsx` (E6 does for `fuel` and `fuelPrompt`), so filling a slot edits no page.
  */
 export const SLOT_BUDGETS_PX = {
   disruption: 64,
