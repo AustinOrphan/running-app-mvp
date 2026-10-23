@@ -27,7 +27,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-22.2')
+    expect(PARAMS_VERSION).toBe('2026-10-22.3')
   })
 
   it('holds a few hundred parameters, every section non-empty', () => {
@@ -170,6 +170,22 @@ describe('parameter registry', () => {
     expect(P.i12.vo2maxDeclinePctPer1000m.range).toEqual([4.6, 7.5])
     expect(P.l6.minBandPct.value).toBe(3)
     expect(P.n1.bsiReturnDays.value).toEqual([44, 56, 107, 127])
+  })
+
+  it('carries the climb-note threshold of rule H4 as a default, with its evidence', () => {
+    const rate = P.h4.climbNoteGainPerHourM
+    expect(rate.id).toBe('h4.climbNoteGainPerHourM')
+    expect(rate.value).toBe(150)
+    expect(rate.grade).toBe('D')
+    expect(rate.rule).toBe('H4')
+    expect(rate.unit).toBe('m/h')
+    expect(rate.evidence).toEqual([
+      'hingrand-2023-power-vs-ascent-speed',
+      'jeker-2020-vertical-speed-ultra',
+    ])
+    expect(rate.note).toMatch(/default/i)
+    // far below the reference for sustained ultra climbing, which is not a target
+    expect(rate.value).toBeLessThan(P.h4.ultraClimbReferenceMh.value)
   })
 
   it('transcribes the post-race window of rule H12', () => {
