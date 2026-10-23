@@ -17,6 +17,7 @@ import { P } from '../../shared/engine/params/index.ts'
 import { FUEL_HISTORY_SHOWN, FUEL_PROMPTS_MAX, FUEL_TARGETS_MAX_DAYS } from '../../shared/limits.ts'
 import type {
   FuelLabView,
+  FuelLogResult,
   FuelProduct,
   FuelSettings,
   PlanSessionStatus,
@@ -915,6 +916,67 @@ describe('a confirmed duplicate', () => {
     expect(view.ladder.steps.map((s) => s.activityId)).toEqual([file.id])
     expect(view.history.map((row) => row.log.activityId)).toEqual([file.id])
     expect(view.ladder.steps[0]).toMatchObject({ score: 1, outcome: 'step-up' })
+  })
+
+  test('saves a log made on the copy after the confirmation on the original', async () => {
+    const user = await newUser()
+    const gel = await addProduct(user)
+    const { file, strava } = await pair(user)
+    await markDuplicates(ctx.prisma, user.id, [strava.id])
+    expect(await ctx.prisma.activity.findUniqueOrThrow({ where: { id: strava.id } })).toMatchObject(
+      { duplicateStatus: 'confirmed', duplicateOfId: file.id },
+    )
+
+    const saved = await client(ctx, user)
+      .put(`/api/fuel/logs/${strava.id}`)
+      .send({ items: [{ productId: gel.id, servings: 7 }], gut: 0 })
+    expect(saved.status, JSON.stringify(saved.body)).toBe(200)
+    // The answer is the log, on the run the ladder counts, not null
+    const answer = saved.body as FuelLogResult
+    expect(answer.log).toMatchObject({ activityId: file.id, skipped: false })
+    expect(answer.ladder.steps.map((step) => step.activityId)).toEqual([file.id])
+    expect(await ctx.prisma.fuelLog.count({ where: { activityId: strava.id } })).toBe(0)
+    expect(await ctx.prisma.fuelLog.count({ where: { activityId: file.id } })).toBe(1)
+    const view = await lab(user)
+    expect(view.ladder.countedRuns).toBe(1)
+    expect(view.history.map((row) => row.log.activityId)).toEqual([file.id])
+
+    // The copy is the same run: reading it gives the log, and deleting it removes the log
+    const read = await client(ctx, user).get(`/api/fuel/logs/${strava.id}`)
+    expect(read.body).toMatchObject({ activityId: file.id })
+    const removed = await client(ctx, user).delete(`/api/fuel/logs/${strava.id}`)
+    expect(removed.status).toBe(200)
+    expect((removed.body as FuelLogResult).log).toBeNull()
+    expect(await ctx.prisma.fuelLog.count({ where: { userId: user.id } })).toBe(0)
+  })
+
+  test('replaces the original’s log when the copy is logged again, and skips on the original', async () => {
+    const user = await newUser()
+    const gel = await addProduct(user)
+    const { file, strava } = await pair(user)
+    await logRun(user, gel, file.id, { gut: 1 })
+    await markDuplicates(ctx.prisma, user.id, [strava.id])
+
+    await logRun(user, gel, strava.id, { gut: 3 })
+    const rows = await ctx.prisma.fuelLog.findMany({ where: { userId: user.id } })
+    expect(rows.map((row) => [row.activityId, row.gut])).toEqual([[file.id, 3]])
+
+    // A run with an answer is not skipped, on the copy as on the original
+    const refused = await client(ctx, user).post(`/api/fuel/logs/${strava.id}/skip`)
+    expect(refused.status).toBe(409)
+    expect(refused.body).toMatchObject({ error: { details: { code: 'log-exists' } } })
+
+    await client(ctx, user).delete(`/api/fuel/logs/${file.id}`)
+    const skipped = await client(ctx, user).post(`/api/fuel/logs/${strava.id}/skip`)
+    expect(skipped.status, JSON.stringify(skipped.body)).toBe(200)
+    expect((skipped.body as FuelLogResult).log).toMatchObject({
+      activityId: file.id,
+      skipped: true,
+    })
+    expect(await ctx.prisma.fuelLog.count({ where: { activityId: strava.id } })).toBe(0)
+    expect(
+      await ctx.prisma.fuelLog.findUniqueOrThrow({ where: { activityId: file.id } }),
+    ).toMatchObject({ skipped: true })
   })
 
   test('moves nothing for another runner’s activity', async () => {

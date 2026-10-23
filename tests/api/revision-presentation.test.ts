@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { CAUSE_ORDER } from '../../shared/engine/revisionDiff.ts'
 import type { Deps } from '../../server/app.ts'
@@ -10,7 +10,14 @@ import type {
   SavedReview,
   UndoResult,
 } from '../../shared/types.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 // What the revision routes serve for presentation (design 4.2 and 8.6): the cause of every line of a
 // diff, the seen marker and the revision a saved review returns. A Monday, as the weekly job's re-plan
@@ -29,11 +36,15 @@ beforeAll(async () => {
   ctx = await createTestCtx()
 })
 
+afterEach(() => {
+  expectNoRefusedFetches(ctx)
+})
+
 afterAll(async () => {
   await ctx.close()
 })
 
-const deps = (): Deps => ({ prisma: ctx.prisma, config: ctx.config })
+const deps = (): Deps => ({ prisma: ctx.prisma, config: ctx.config, fetch: ctx.fetch })
 
 interface Fixture {
   u: TestUser
@@ -192,6 +203,33 @@ describe('causes on the served revisions', () => {
       expect(served.causes!.sessions[line.externalId], line.externalId).toContain(
         'owner-target-kept',
       )
+    }
+  })
+
+  test('does not name a target the runner set after the revision was written', async () => {
+    const f = await fourWeekPlan('presentation-owner-later@example.com')
+    await closeBusyDay(f)
+    const made = await weekly(f)
+    // The runner overrides next week an hour after the weekly update has moved its runs.
+    vi.setSystemTime(new Date(2026, 9, 19, 13))
+    try {
+      const set = await client(ctx, f.u)
+        .put(`/api/plan/weeks/${nextMonday}`)
+        .send({ targetRunMin: 150, overrideNote: 'A work trip.' })
+      expect(set.status, JSON.stringify(set.body)).toBe(200)
+      const served = (await list(f)).find((v) => v.id === made.id)!
+      const lines = served.diff!.sessions.filter((line) => line.weekStart === nextMonday)
+      expect(lines.length).toBeGreaterThan(0)
+      for (const line of lines) {
+        const causes = served.causes!.sessions[line.externalId]!
+        expect(causes, line.externalId).not.toContain('owner-target-kept')
+        expect(causes.length, line.externalId).toBeGreaterThan(0)
+      }
+      for (const week of Object.values(served.causes!.weeks)) {
+        expect(week).not.toContain('owner-target-kept')
+      }
+    } finally {
+      vi.setSystemTime(new Date(2026, 9, 19, 12))
     }
   })
 })

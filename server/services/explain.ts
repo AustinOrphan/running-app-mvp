@@ -15,35 +15,18 @@ import {
   type ExplainContext,
 } from '../../shared/engine/explainInputs.ts'
 import { weeklyRamp } from '../../shared/engine/limits.ts'
-import type { EngineInput, ExplainRequest, ExplainView } from '../../shared/engine/types.ts'
+import type { ExplainRequest, ExplainView } from '../../shared/engine/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound } from '../errors.ts'
 import {
   hrModelOf,
   loadAthleteContext,
   memoByVersion,
-  neutralGoal,
   type AthleteContext,
 } from './athleteState.ts'
+import { inputFromContext } from './engineInput.ts'
 import { explainActivity } from './insight.ts'
 import { executionRecordsByWeek } from './planEngine.ts'
-
-/** The engine's view of the snapshot: the athlete's own data and the stored plan, with no goal. */
-function engineInputOf(context: AthleteContext): EngineInput {
-  return {
-    today: context.asOf,
-    profile: context.profile,
-    activities: context.activities,
-    wellness: context.wellness,
-    reviews: context.reviews,
-    goal: neutralGoal(context.asOf),
-    forecast: null,
-    existing: context.existing(),
-    options: {},
-    screeningFlags: context.screeningFlags,
-    zoneChanges: context.zoneChanges,
-  }
-}
 
 type Goal = NonNullable<ExplainContext['goal']>
 
@@ -89,7 +72,9 @@ export async function explainView(
   }
   const today = args.today ?? todayIso()
   const context = await loadAthleteContext(deps, { userId, today })
-  const input = engineInputOf(context)
+  // The same input the stored decision was made from, rest windows included: a week a window
+  // touches has to give the same decision here as in the review.
+  const input = inputFromContext(context, { existing: true })
   const goal = goalFor(context, request)
   const shell: ExplainContext = {
     asOf: today,

@@ -491,15 +491,39 @@ async function snapshotItems(
   })
 }
 
-/** The log of a run with the ladder as it replays now; the log is null when the run has none. */
+/**
+ * The activity whose log a request about `activityId` reads and writes. A confirmed duplicate is
+ * the same run as its original and the ladder counts that run once, on the original (design 10.7),
+ * so the copy keeps no log of its own: a request about it is a request about the original. Any
+ * other run stands for itself.
+ */
+async function logHolder(
+  prisma: Pick<PrismaClient, 'activity'>,
+  userId: string,
+  activityId: string,
+): Promise<string> {
+  const row = await prisma.activity.findFirst({
+    where: { id: activityId, userId },
+    select: { duplicateStatus: true, duplicateOfId: true },
+  })
+  return row?.duplicateStatus === 'confirmed' && row.duplicateOfId !== null
+    ? row.duplicateOfId
+    : activityId
+}
+
+/**
+ * The log of a run with the ladder as it replays now; the log is null when the run has none. For a
+ * confirmed duplicate it is the original's log (`logHolder`).
+ */
 export async function readLog(
   deps: FuelDeps,
   userId: string,
   activityId: string,
 ): Promise<FuelLogResult> {
+  const holder = await logHolder(deps.prisma, userId, activityId)
   const state = await loadFuelState(deps, userId)
-  const row = state.logs.get(activityId)
-  const step = state.ladder.steps.find((s) => s.activityId === activityId)
+  const row = state.logs.get(holder)
+  const step = state.ladder.steps.find((s) => s.activityId === holder)
   const ladder = ladderView(state.ladder)
   if (!row || !step) return { log: null, ladder, message: null }
   return { log: toFuelLogView(row, step), ladder, message: stepNote(step) }
@@ -507,7 +531,9 @@ export async function readLog(
 
 /**
  * Saves the log of a run, replacing any earlier one: the same request twice leaves the same row, so
- * the outbox may replay it. Products are snapshotted. The answer is the replay after the write.
+ * the outbox may replay it. Products are snapshotted. The answer is the replay after the write. A
+ * save on a confirmed duplicate is a save on its original, so a request queued before the pass
+ * that confirmed the copy still lands where the ladder counts it.
  */
 export async function saveLog(
   deps: FuelDeps,
@@ -516,6 +542,7 @@ export async function saveLog(
   input: LogInput,
 ): Promise<FuelLogResult> {
   const { prisma } = deps
+  const holder = await logHolder(prisma, userId, activityId)
   const items = await snapshotItems(prisma, userId, input.items)
   const data = {
     skipped: false,
@@ -528,8 +555,8 @@ export async function saveLog(
     notes: input.notes,
   }
   await prisma.fuelLog.upsert({
-    where: { activityId },
-    create: { userId, activityId, ...data },
+    where: { activityId: holder },
+    create: { userId, activityId: holder, ...data },
     update: data,
   })
   return readLog(deps, userId, activityId)
@@ -545,14 +572,15 @@ export async function skipLog(
   activityId: string,
 ): Promise<FuelLogResult> {
   const { prisma } = deps
-  const existing = await prisma.fuelLog.findUnique({ where: { activityId } })
+  const holder = await logHolder(prisma, userId, activityId)
+  const existing = await prisma.fuelLog.findUnique({ where: { activityId: holder } })
   if (existing && !existing.skipped) {
     throw conflict(logExistsMessage(), { code: 'log-exists' })
   }
   if (!existing) {
     await prisma.fuelLog.upsert({
-      where: { activityId },
-      create: { userId, activityId, skipped: true, items: '[]' },
+      where: { activityId: holder },
+      create: { userId, activityId: holder, skipped: true, items: '[]' },
       update: {},
     })
   }
@@ -565,7 +593,8 @@ export async function deleteLog(
   userId: string,
   activityId: string,
 ): Promise<FuelLogResult> {
-  await deps.prisma.fuelLog.deleteMany({ where: { userId, activityId } })
+  const holder = await logHolder(deps.prisma, userId, activityId)
+  await deps.prisma.fuelLog.deleteMany({ where: { userId, activityId: holder } })
   return readLog(deps, userId, activityId)
 }
 

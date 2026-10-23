@@ -12,6 +12,7 @@ import { resolveTargets } from '../../shared/engine/targets.ts'
 import type { ExplainView, InputFact, Quantity } from '../../shared/engine/types.ts'
 import type { PlanWithSessions, PredictionView } from '../../shared/types.ts'
 import { cacheSizes } from '../../server/services/athleteState.ts'
+import { weeklyDecisions } from '../../server/services/planEngine.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
 // The heart-rate model, the weekly decision and the Explain builder are counted, not replaced: the
@@ -404,6 +405,45 @@ describe('GET /api/explain: one fit per data version', () => {
 
     await explained(`subject=decision&weekStart=${second!.weekStart}`)
     expect(weeklyDecision).toHaveBeenCalledTimes(2)
+  })
+
+  test('a week a rest window touches gives the stored decision: a hold for the window', async () => {
+    await seedHistory(user.id)
+    const goal = await seedGoal(user.id)
+    const plan = await generatePlan(user, goal.id)
+    const week = plan.weeks[0]!.weekStart
+    const window = await client(ctx, user)
+      .post('/api/plan/disruptions')
+      .send({
+        reason: 'illness-above-neck',
+        mode: 'rest',
+        startDate: today,
+        endDate: addDays(today, 2),
+      })
+    expect(window.status, JSON.stringify(window.body)).toBe(201)
+
+    // The decision the reviews and the weekly update are made from.
+    const stored = (
+      await weeklyDecisions(
+        { prisma: ctx.prisma, config: ctx.config },
+        {
+          userId: user.id,
+          today,
+          weekStarts: [week],
+        },
+      )
+    ).get(week)!
+    expect(stored.decision).toBe('hold')
+    expect(stored.signals.map((signal) => signal.code)).toEqual(['disruption'])
+
+    const view = await explained(`subject=decision&weekStart=${week}`)
+    const facts = factsOf(view, 'J5')
+    const [decision, ...signals] = facts
+    expect(decision!.template).toBe('explain.j5-hold')
+    expect(slot(decision!, 'minutes')).toMatchObject({ min: stored.nextWeekTargetMin })
+    // one signal, the window's own, and no completion figure the held days would have fed
+    expect(signals.map((fact) => fact.id)).toEqual(['j5.signal-disruption'])
+    expect(signals[0]!.template).toBe('explain.j5-signal')
   })
 
   test('a repeated request is served from the memo, and a write or a new day rebuilds it', async () => {

@@ -41,7 +41,7 @@ import { publishable } from '../../shared/workouts/labels.ts'
 import type { WorkoutPlan } from '../../shared/workouts/types.ts'
 import type { Deps } from '../app.ts'
 import { SecretError, userTagOf } from '../crypto.ts'
-import type { DeliveryChannel, WristPublication } from '../db.ts'
+import type { DeliveryChannel, PrismaClient, WristPublication } from '../db.ts'
 import { conflict, notFound } from '../errors.ts'
 import { createLogger } from '../logger.ts'
 import { renderIntervalsDescription } from '../providers/intervalsPublish.ts'
@@ -504,22 +504,54 @@ async function runOnce(deps: Deps, userId: string, opts: PublishOptions): Promis
   // A run with nothing to say is not stored while the newest stored run was fine: this job wakes
   // every two minutes and would push the runs that did something out of the 200 kept.
   const record = idle ? recordSyncRunUnlessIdle : recordSyncRun
-  await record(deps, {
-    userId,
-    provider: PROVIDER,
-    channel: 'publish',
-    trigger,
-    startedAt,
-    status,
-    accepted: tally.sent,
-    duplicate: idle ? 0 : tally.unchanged,
-    failed: tally.failed,
-    message: stop === null ? null : stop.message,
-    secrets,
-    failures,
-  })
+  // Nor is a scheduled retry of a failure that is already the newest stored publish run: a long
+  // outage would otherwise store one error every five minutes and replace every earlier run of the
+  // provider, the pulls included. The retry itself (the pause above) is unchanged.
+  const repeated =
+    trigger === 'schedule' &&
+    status === 'error' &&
+    stop?.kind === 'error' &&
+    (await repeatsNewestError(prisma, userId, safeMessage(stop.message, secrets)))
+  if (!repeated) {
+    await record(deps, {
+      userId,
+      provider: PROVIDER,
+      channel: 'publish',
+      trigger,
+      startedAt,
+      status,
+      accepted: tally.sent,
+      duplicate: idle ? 0 : tally.unchanged,
+      failed: tally.failed,
+      message: stop === null ? null : stop.message,
+      secrets,
+      failures,
+    })
+  }
   if (unexpected !== null) throw unexpected
   return { ran: true, status, ...tally }
+}
+
+/**
+ * Whether the newest stored publish run of the user is an error with this (already scrubbed)
+ * message. A run after a recovery, or with another message, is not a repeat. False when the log
+ * cannot be read: the run is then stored.
+ */
+async function repeatsNewestError(
+  prisma: PrismaClient,
+  userId: string,
+  message: string,
+): Promise<boolean> {
+  try {
+    const newest = await prisma.syncRun.findFirst({
+      where: { userId, provider: PROVIDER, channel: 'publish' },
+      orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+      select: { status: true, message: true },
+    })
+    return newest?.status === 'error' && newest.message === message
+  } catch {
+    return false
+  }
 }
 
 /** What was thrown, as an `Error` (the message scrubbed of credentials when it was not one). */

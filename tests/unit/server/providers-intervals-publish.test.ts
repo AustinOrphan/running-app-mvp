@@ -987,6 +987,26 @@ describe('intervals.icu list', () => {
     ])
   })
 
+  it('reads an empty array as an empty calendar, and any other answer as unreadable', async () => {
+    const empty = makeCtx({ [`GET ${EVENTS}`]: () => json([]) })
+    expect(await intervalsPublish.list({ from: '2026-03-10', to: '2026-03-12' }, empty)).toEqual([])
+    // An object (a wrapped list, an error body on a 200) is not proof that the calendar is empty:
+    // the publisher would take every sent row for one the runner deleted.
+    for (const body of [
+      {},
+      { events: [{ id: 11, start_date_local: '2026-03-10' }] },
+      'ok',
+      0,
+      false,
+    ]) {
+      const ctx = makeCtx({ [`GET ${EVENTS}`]: () => json(body) })
+      await expect(
+        intervalsPublish.list({ from: '2026-03-10', to: '2026-03-12' }, ctx),
+        JSON.stringify(body),
+      ).rejects.toMatchObject({ name: 'PublishError', code: 'rejected' })
+    }
+  })
+
   it('rejects a range that is not two dates, and surfaces failures as typed errors', async () => {
     const ctx = makeCtx({ [`GET ${EVENTS}`]: () => json({}, 401) })
     await expect(

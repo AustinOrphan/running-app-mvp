@@ -232,8 +232,10 @@ date and now carries a synthetic one.
 
 Disputed and recorded (not fixed; reason in brackets):
 
-- `explain.ts` keeps a second snapshot-to-input builder beside `inputFromContext` [one narrow
-  read; E4-8's pass].
+- `explain.ts` kept a second snapshot-to-input builder beside `inputFromContext` [one narrow
+  read; E4-8's pass]. Closed by the wave-4 review fixes: the builder left out the rest windows, so
+  the Why drawer's weekly decision for a week a window touches contradicted the stored one;
+  `explain.ts` now takes `inputFromContext(context, { existing: true })`.
 - The track-record memo reads `PredictionLog`, a non-state model [sound while no prediction is
   logged after a result; the header says so].
 - A restored plan keeps its old `createdAt`, so the catch-up may re-plan it once more [a no-op

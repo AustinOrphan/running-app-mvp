@@ -1,4 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { once } from 'node:events'
+import { createServer, request as httpRequest } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
@@ -200,6 +203,32 @@ async function makeLink(u: TestUser): Promise<{ token: string; path: string }> {
 /** What a calendar app sends: a GET with no cookie, no Origin and no body. */
 async function open(path: string) {
   return request(ctx.app).get(path)
+}
+
+/**
+ * A GET whose request target is sent as written. Superagent prefixes the target with the test
+ * server's origin; a proxy may send the absolute form (`GET http://host/path`) instead.
+ */
+async function openTarget(target: string): Promise<number> {
+  const server = createServer(ctx.app).listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  try {
+    const { port } = server.address() as AddressInfo
+    return await new Promise<number>((resolve, reject) => {
+      const req = httpRequest(
+        { host: '127.0.0.1', port, path: target, method: 'GET', headers: { connection: 'close' } },
+        (res) => {
+          res.resume()
+          res.on('end', () => resolve(res.statusCode ?? 0))
+        },
+      )
+      req.on('error', reject)
+      req.end()
+    })
+  } finally {
+    // closed once the connection has ended, which is after the server has logged the request
+    await new Promise((resolve) => server.close(resolve))
+  }
 }
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
@@ -493,6 +522,25 @@ describe('the access log', () => {
       .filter((url) => url.toLowerCase().startsWith('/api/calendar/'))
     expect(urls).toHaveLength(3)
     for (const url of urls) expect(url.toLowerCase()).toBe('/api/calendar/:token/plan.ics')
+  })
+
+  test('holds no token for an absolute-form request target or an extra slash either', async () => {
+    const { u } = await runner()
+    const link = await makeLink(u)
+    // A proxy may send the absolute form, which Express routes to the feed.
+    expect(await openTarget(`http://app.test${link.path}`)).toBe(200)
+    // An extra slash after the mount path misses the feed, but the URL still carries the token.
+    const doubled = link.path.replace('/api/calendar/', '/api/calendar//')
+    expect(await openTarget(doubled)).not.toBe(200)
+
+    const log = logged.lines.join('')
+    expect(log).not.toContain(link.token)
+    const urls = logged.lines
+      .map((line) => (JSON.parse(line) as { req?: { url?: string } }).req?.url ?? '')
+      .filter((url) => url.includes('/api/calendar/'))
+    expect(urls.sort()).toEqual(
+      ['http://app.test/api/calendar/:token/plan.ics', '/api/calendar//:token/plan.ics'].sort(),
+    )
   })
 
   test('keeps the other routes’ URLs as they are', async () => {

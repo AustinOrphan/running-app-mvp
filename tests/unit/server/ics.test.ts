@@ -328,6 +328,17 @@ describe('redactFeedToken', () => {
     expect(redactFeedToken('/api/calendar/abc?x=1')).toBe('/api/calendar/:token?x=1')
   })
 
+  it('also redacts an absolute-form request target and extra slashes', () => {
+    expect(redactFeedToken('http://app.test/api/calendar/abc/plan.ics')).toBe(
+      'http://app.test/api/calendar/:token/plan.ics',
+    )
+    expect(redactFeedToken('https://app.test:8443/API/Calendar/abc/plan.ics?x=1')).toBe(
+      'https://app.test:8443/API/Calendar/:token/plan.ics?x=1',
+    )
+    expect(redactFeedToken('/api/calendar//abc/plan.ics')).toBe('/api/calendar//:token/plan.ics')
+    expect(redactFeedToken('/api/calendar///abc')).toBe('/api/calendar///:token')
+  })
+
   it('leaves every other URL as it is', () => {
     for (const url of [
       '/api/plan?x=1',

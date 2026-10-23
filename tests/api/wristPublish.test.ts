@@ -888,6 +888,51 @@ describe('retry rules', () => {
     })
   })
 
+  test('an outage stores its first error run, and not each scheduled retry of it', async () => {
+    const { u, planId } = await runner('outage@example.com')
+    await place(ctx, planId, [{ date: tomorrow, kind: 'easy' }])
+    fake.hooks.list = () => json({}, 502)
+
+    // ten ticks, five minutes apart: each one retries, and only the first is stored
+    for (let tick = 0; tick < 10; tick += 1) {
+      expect(await publish(u, { now: at(5 * tick) })).toMatchObject({ ran: true, status: 'error' })
+    }
+    expect(fake.made('GET', 'events')).toHaveLength(10)
+    const channel = await ctx.prisma.deliveryChannel.findFirstOrThrow({ where: { userId: u.id } })
+    expect(channel.pausedUntil).toEqual(at(50))
+    expect(await runsOf(u)).toMatchObject([
+      { status: 'error', message: 'intervals.icu answered HTTP 502.' },
+    ])
+
+    // another failure is news, and so is a run the runner asked for
+    fake.hooks.list = () => json({}, 503)
+    await publish(u, { now: at(50) })
+    await publish(u, { now: at(55) })
+    expect((await runsOf(u)).map((run) => run.message)).toEqual([
+      'intervals.icu answered HTTP 502.',
+      'intervals.icu answered HTTP 503.',
+    ])
+    await publish(u, { now: at(60), trigger: 'manual' })
+    expect(await runsOf(u)).toHaveLength(3)
+
+    // a recovery is stored, so a failure after it is stored again
+    delete fake.hooks.list
+    expect(await publish(u, { now: at(65) })).toMatchObject({ status: 'ok', sent: 1 })
+    fake.hooks.list = () => json({}, 503)
+    await ctx.prisma.deliveryChannel.updateMany({
+      where: { userId: u.id },
+      data: { dataKey: null },
+    })
+    await publish(u, { now: at(95) })
+    expect((await runsOf(u)).map((run) => run.status)).toEqual([
+      'error',
+      'error',
+      'error',
+      'ok',
+      'error',
+    ])
+  })
+
   test('shows a device error until push_errors clears', async () => {
     const { u, planId } = await runner('device@example.com')
     await place(ctx, planId, [{ date: tomorrow, kind: 'easy' }])
