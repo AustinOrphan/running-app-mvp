@@ -43,3 +43,10 @@
     padding: 0 var(--space-1);
   }
 }
+
+/* Five short words on a 360 px row: smaller type, and just enough padding to keep them apart. */
+.dense .option {
+  padding: 0 2px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}

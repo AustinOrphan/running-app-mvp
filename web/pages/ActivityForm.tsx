@@ -54,7 +54,7 @@ const TYPE_OPTIONS = (Object.keys(TYPE_LABELS) as ActivityType[]).map((value) =>
 }))
 
 const M_PER_FOOT = 0.3048
-const DURATION_HINT = 'Enter minutes like 45, or 0:45:00'
+export const DURATION_HINT = 'Enter minutes like 45, or 0:45:00'
 
 /**
  * A bare number is minutes; `m:ss` and `h:mm:ss` are read as written. Seconds, and minutes
@@ -106,7 +106,8 @@ function trimNumber(value: number): string {
   return String(Number(value.toFixed(2)))
 }
 
-function distanceText(distanceM: number | null | undefined, units: Units): string {
+/** A distance as the field shows it: in the runner's unit, at most two decimals, empty for none. */
+export function distanceText(distanceM: number | null | undefined, units: Units): string {
   if (distanceM == null) return ''
   return trimNumber(units === 'mi' ? mToMiles(distanceM) : mToKm(distanceM))
 }

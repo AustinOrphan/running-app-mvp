@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SessionUser } from '../../shared/types.ts'
+import { getOutbox } from '../pwa/outbox.ts'
 import { api, ApiError, keys } from './client.ts'
 
 /** The signed-in user, or null when there is no valid session. */
@@ -57,14 +58,18 @@ export function useSetup() {
   })
 }
 
-/** Signs out and drops every cached query, so no data outlives the session. */
+/**
+ * Signs out and drops every cached query and every write waiting in the outbox, so no data
+ * outlives the session.
+ */
 export function useLogout() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => api<void>('POST', '/auth/logout'),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.clear()
       queryClient.setQueryData([keys.me], null)
+      await getOutbox().clear()
     },
   })
 }

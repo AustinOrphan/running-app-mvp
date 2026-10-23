@@ -1151,13 +1151,15 @@ DashboardPage            useToday(), useSettings(); two columns from 900 px via 
   WeekStrip (7 cells, Meter, caption, advisory line)
   <TodaySlot name="brief" budget=52>               ChangeLine until E4's BriefLine
   <TodaySlot name="fuelPrompt">                    E6 FuelPromptCard (below the fold, unbudgeted)
-  CheckinCard (until E2-6 folds it into ReadinessRead) · FeedbackCard · RaceCountdown · DataHealth
+  FeedbackCard · RaceCountdown · DataHealth
   History (RecentStrip, RecentWeeks; read their own data once near the viewport) · DisclaimerNote
 ```
 
 A day with no hero shows `NoSession` (or `PlanNotice` when the payload shows no plan at all); a
-week outside the plan adds one muted line. Until E2-6, Done opens the log form and Not today the
-session's sheet. `HealthNotes` lists the red-flag notes and then the producers' notes, each linking
+week outside the plan adds one muted line. Done opens a sheet that logs the run the hero shows
+(minutes and distance filled in, RPE and feel to add) and Not today a sheet that moves or skips the
+session; `SessionActions` only reports the tap, and the hero mounts the sheets, so E5's "Not 100%"
+entry goes into the Not today sheet's `children`. `HealthNotes` lists the red-flag notes and then the producers' notes, each linking
 to where it can be put right. The unrated runs of `FeedbackCard` are `TodayView.unrated` (runs and
 races of the last seven days with neither a rating of effort nor a feel); no other request is made
 above the fold than `/api/today` and `/api/settings`.
@@ -1191,7 +1193,10 @@ slot stubbed to its budget, and ≤ 707 at 390 × 707 answered.
 - Done sheet: "Log today's run", "Planned: 45 min, 5.00 mi. Change anything that differs.", toast
   "Run saved"; offline: "Needs a connection. Your entries stay on this phone."
 - Check-in: "Checked in: normal." with "Add more", and "Something hurts, or I'm ill" one tap away
-  (pain and illness drive n-1 to n-3); offline: "Checked in: tired. Saved on this phone."
+  (pain and illness drive n-1 to n-3); offline: "Checked in: tired. Saved on this phone." While an
+  answer waits on the phone and the server has no signal yet, the verdict reads "Your check-in is
+  saved on this phone. Readiness is read again once it is sent." in place of "One tap below adds
+  the first.", so the verdict never promises a control that has been used.
 - Offline: "Offline. Showing the session saved at 06:12." / "Offline. This session was saved on Wed
   21 Oct. Today's is not loaded yet."
 
@@ -1209,8 +1214,14 @@ dependency); the manifest gains `id`, `scope` and two shortcuts. Settings shows 
 
 **Outbox** (`web/pwa/outbox.ts`): IndexedDB queue for allowlisted idempotent PUTs, coalesced by URL,
 replayed oldest first on `online` and on foreground; a 4xx drops the entry with one inline message;
-entries older than 7 days drop; purged on logout and any 401. E6 registers the fuel log in the same
-allowlist array.
+entries older than 7 days drop; purged on logout and any 401. The check-in and E6's fuel log
+(`PUT /api/fuel/logs/:activityId`) are the two entries of one exported allowlist array
+(`OUTBOX_ROUTES`); a later task appends to it. Each allowlist entry says how a second write to its URL joins the
+queued one: a check-in is merged key by key, because its PUT leaves absent keys alone (a one-tap
+`{ fatigue }` followed by the sheet's answers keeps both), and a route whose PUT stores its whole body
+replaces. A write made while its entry is on the wire is not lost (entries carry a version), a send
+that takes longer than 10 s counts as no connection, and a browser that will not open IndexedDB
+keeps the queue in memory for the life of the page.
 
 ### 7.7 Jobs
 

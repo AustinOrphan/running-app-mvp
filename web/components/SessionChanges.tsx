@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { isIsoDate } from '../../shared/dates.ts'
 import type { PlanSession } from '../../shared/types.ts'
 import { useUpdatePlanSession } from '../api/plan.ts'
@@ -22,8 +22,22 @@ export function SessionChanges({ session, onClose }: SessionChangesProps) {
   const [date, setDate] = useState(session.date)
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const confirmButton = useRef<HTMLButtonElement>(null)
+  const skipButton = useRef<HTMLButtonElement>(null)
+  const leftConfirm = useRef(false)
   const done = session.status === 'completed' || session.status === 'partial'
   const unchanged = !isIsoDate(date) || date === session.date
+
+  // The button that was pressed is replaced by the question, so focus follows it into the question
+  // and, when the question is dropped, back to the button that asked it.
+  useEffect(() => {
+    if (confirming) {
+      confirmButton.current?.focus()
+    } else if (leftConfirm.current) {
+      leftConfirm.current = false
+      skipButton.current?.focus()
+    }
+  }, [confirming])
 
   function move(event: FormEvent) {
     event.preventDefault()
@@ -54,6 +68,7 @@ export function SessionChanges({ session, onClose }: SessionChangesProps) {
         },
         onError: (err) => {
           setError(err.message)
+          leftConfirm.current = true
           setConfirming(false)
         },
       },
@@ -107,6 +122,7 @@ export function SessionChanges({ session, onClose }: SessionChangesProps) {
         <div className={styles.inline} role="group" aria-label="Confirm skipping">
           <p>Skip this session?</p>
           <Button
+            ref={confirmButton}
             variant="secondary"
             loading={update.isPending}
             onClick={() => {
@@ -118,6 +134,7 @@ export function SessionChanges({ session, onClose }: SessionChangesProps) {
           <Button
             variant="quiet"
             onClick={() => {
+              leftConfirm.current = true
               setConfirming(false)
             }}
           >
@@ -127,6 +144,7 @@ export function SessionChanges({ session, onClose }: SessionChangesProps) {
       ) : (
         <div>
           <Button
+            ref={skipButton}
             variant="secondary"
             disabled={done}
             onClick={() => {

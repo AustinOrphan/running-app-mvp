@@ -5,7 +5,7 @@ import type { ResolvedTargets } from '../../shared/engine/types.ts'
 import type { TodayView } from '../../shared/types.ts'
 import { SessionTargets } from '../../web/components/today/SessionTargets.tsx'
 import { TodaySkeleton } from '../../web/components/today/TodaySkeleton.tsx'
-import { activityPage, expectCleanCopy } from './helpers.tsx'
+import { expectCleanCopy } from './helpers.tsx'
 import {
   makeCoach,
   makeHeat,
@@ -86,16 +86,12 @@ describe('Today: the hero variants', () => {
     renderToday(dayOf())
     const card = await screen.findByRole('article', { name: 'Easy run' })
     const actions = [
-      within(card).getByRole('link', { name: 'Done' }),
+      within(card).getByRole('button', { name: 'Done' }),
       within(card).getByRole('button', { name: 'Explain' }),
       within(card).getByRole('button', { name: 'Not today' }),
     ]
     expect(actions[0]!.compareDocumentPosition(actions[1]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(actions[1]!.compareDocumentPosition(actions[2]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(within(card).getByRole('link', { name: 'Done' })).toHaveAttribute(
-      'href',
-      '/activities?new=1',
-    )
   })
 
   test('eased: the easy run is the hero, the planned session sits above it, and J3 is behind Explain', async () => {
@@ -161,7 +157,7 @@ describe('Today: the hero variants', () => {
     const card = await screen.findByRole('article', { name: 'Rest day.' })
     expect(within(card).getByText('Planned: Threshold, 50 min. Not today.')).toBeInTheDocument()
     expect(within(card).queryByText('Heart rate')).not.toBeInTheDocument()
-    expect(within(card).queryByRole('link', { name: 'Done' })).not.toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
     expect(within(card).queryByRole('button', { name: 'Not today' })).not.toBeInTheDocument()
     expect(within(card).getByRole('button', { name: 'Explain' })).toBeInTheDocument()
     expect(within(card).getByText('Next: Thu 19 Mar, Long run, 90 min.')).toBeInTheDocument()
@@ -212,12 +208,15 @@ describe('Today: the hero variants', () => {
     expect(within(card).getByText('Also today: Strength (30 min).')).toBeInTheDocument()
   })
 
-  test('Not today opens the session sheet until the Not today sheet replaces it', async () => {
+  test('Not today opens the sheet that moves or skips the session', async () => {
     const user = userEvent.setup()
-    renderToday(dayOf(), { 'GET /api/activities': () => activityPage([]) })
+    renderToday(dayOf())
     const card = await screen.findByRole('article', { name: 'Easy run' })
     await user.click(within(card).getByRole('button', { name: 'Not today' }))
-    expect(await screen.findByRole('dialog', { name: 'Easy run' })).toBeInTheDocument()
+    const sheet = await screen.findByRole('dialog', { name: 'Not today' })
+    expect(within(sheet).getByRole('button', { name: 'Move session' })).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Skip session' })).toBeInTheDocument()
+    expect(within(sheet).getByText('A skipped session is not made up later.')).toBeInTheDocument()
   })
 })
 

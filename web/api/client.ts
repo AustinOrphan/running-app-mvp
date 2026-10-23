@@ -138,6 +138,7 @@ export const keys = {
   planArchived: 'planArchived',
   disruptions: 'disruptions',
   brief: 'brief',
+  fuel: 'fuel',
   today: 'today',
   checkins: 'checkins',
   zones: 'zones',
