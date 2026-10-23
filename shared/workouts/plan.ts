@@ -159,18 +159,26 @@ function totalOf(nodes: WorkoutNode[]): number {
 /**
  * The engine floors the length of a bout or a rep to whole seconds and fits whole reps into the
  * minutes, so its steps can add up to a little less than the session. The rest goes to the end of
- * the last cool-down, so the workout lasts the planned minutes.
+ * the last cool-down, so the workout lasts the planned minutes. Without a cool-down at the end the
+ * rest becomes one, named from the copy like every other step.
  */
-function fillToMinutes(nodes: WorkoutNode[], missingSec: number): void {
+function fillToMinutes(nodes: WorkoutNode[], missingSec: number, ctx: Context): void {
   const last = nodes[nodes.length - 1]
   if (last?.type === 'step' && last.intent === 'cooldown') {
     last.durationSec += missingSec
     return
   }
+  const cooldown: Step = {
+    kind: 'cooldown',
+    reps: 1,
+    durationSec: missingSec,
+    distanceM: null,
+    zone: ctx.targets.zone,
+  }
   nodes.push({
     type: 'step',
     intent: 'cooldown',
-    label: 'Cool down',
+    label: labelOf(cooldown, false, ctx),
     walk: false,
     durationSec: missingSec,
     target: { kind: 'open' },
@@ -291,7 +299,7 @@ export function toWorkoutPlan(
   const nodes = toNodes(engineSteps, ctx)
   // the walks that frame a ladder session sit outside its minutes, so only other sessions fill up
   const missingSec = plannedSec - totalOf(nodes)
-  if (missingSec > 0 && !isLadderSession(session)) fillToMinutes(nodes, missingSec)
+  if (missingSec > 0 && !isLadderSession(session)) fillToMinutes(nodes, missingSec, ctx)
 
   const eased = options.eased ?? false
   const fuelLine = options.fuelLine?.trim() ? options.fuelLine.trim() : null

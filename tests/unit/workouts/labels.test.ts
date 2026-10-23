@@ -10,6 +10,7 @@ import {
   PUBLIC_TITLES,
   publicTitle,
   publishable,
+  shortTitle,
 } from '../../../shared/workouts/labels.ts'
 import { SESSION_KINDS, weekFixture, zoneSetFixture } from '../engine/fixtures.ts'
 
@@ -70,6 +71,27 @@ describe('publicTitle', () => {
       expect(title, kind).not.toMatch(FORBIDDEN)
       expect(lintText(title), kind).toEqual([])
     }
+  })
+
+  it('gives a short name to the titles that are over the 15 bytes of a FIT workout name, and only those', () => {
+    for (const kind of SESSION_KINDS) {
+      const { title, short } = PUBLIC_TITLES[kind]
+      expect(short !== undefined, kind).toBe(Buffer.byteLength(title) > 15)
+      if (short === undefined) continue
+      expect(Buffer.byteLength(short), kind).toBeLessThanOrEqual(15)
+      expect(short, kind).not.toMatch(FORBIDDEN)
+      expect(lintText(short), kind).toEqual([])
+    }
+  })
+
+  it('swaps the short name in for the kind and keeps the length that follows it', () => {
+    expect(shortTitle('strides', publicTitle(session('strides', 40)))).toBe(
+      'Easy + strides, 40 min',
+    )
+    expect(shortTitle('b2b', publicTitle(session('b2b', 90)))).toBe('Back-to-back, 1 h 30 min')
+    // a kind with no short name, and a title that is not the one of its kind, stay as they are
+    expect(shortTitle('easy', 'Easy run, 45 min')).toBe('Easy run, 45 min')
+    expect(shortTitle('strides', 'Läufer 走る')).toBe('Läufer 走る')
   })
 
   it('is the allowlisted title and a length for every kind and every combination of flags', () => {

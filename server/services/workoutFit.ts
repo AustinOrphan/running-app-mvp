@@ -13,6 +13,7 @@
 // because `fit-file-parser` must not reach the web build.
 import { FitBaseType, FitEncoder } from 'fit-file-parser'
 import type { FitEncoderField } from 'fit-file-parser'
+import { shortTitle } from '../../shared/workouts/labels.ts'
 import { easedLine, effortPhrase, isEffortStep } from '../../shared/workouts/plan.ts'
 import type {
   StepIntent,
@@ -299,7 +300,11 @@ export function encodeWorkoutFit(plan: WorkoutPlan, options: WorkoutFitOptions):
   )
   fit.writeMessage(
     MESG_WORKOUT,
-    [e8(4, SPORT_RUNNING), u16(6, steps.length), fitText(8, plan.title, FIT_NAME_MAX_BYTES)],
+    [
+      e8(4, SPORT_RUNNING),
+      u16(6, steps.length),
+      fitText(8, shortTitle(plan.kind, plan.title), FIT_NAME_MAX_BYTES),
+    ],
     LOCAL_WORKOUT,
   )
   steps.forEach((flat, index) => {

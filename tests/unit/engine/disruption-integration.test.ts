@@ -3,6 +3,8 @@
 // pinned in disruption.test.ts; the seeded sweep over every matrix athlete is
 // disruption-sweep.test.ts.
 import { describe, expect, it } from 'vitest'
+import { COPY_MAX_CHARS } from '../../../shared/copy/limits.ts'
+import { lintText } from '../../../shared/copy/lint.ts'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { dayRuleOn, disruptionPlan, illnessDays } from '../../../shared/engine/disruption.ts'
@@ -429,6 +431,96 @@ describe('a back-dated hold re-planned after it', () => {
   })
 })
 
+describe('a re-plan with the window its plan already carries', () => {
+  // The held days' minutes are lost once, when the window first reaches the plan. A further re-plan
+  // of the same window (the Monday job, "Update plan", an edit of another window) reads a plan whose
+  // held days already rest, so it takes nothing more from the days that are left [rules J9, G-6].
+  const monday = addDays(mondayOf(TODAY), 7)
+  const cases: Array<{
+    name: string
+    athlete: string
+    today: string
+    window: DisruptionWindow
+    ran?: boolean
+  }> = [
+    {
+      name: 'a rest window on the last days of the week',
+      athlete: 'half',
+      today: TODAY,
+      window: windowOf({ reason: 'travel', startDate: '2026-10-23', endDate: '2026-10-25' }),
+    },
+    {
+      name: 'an illness window that starts tomorrow',
+      athlete: 'half',
+      today: TODAY,
+      window: windowOf({
+        reason: 'illness-above-neck',
+        startDate: '2026-10-22',
+        endDate: '2026-10-23',
+      }),
+    },
+    {
+      name: 'a rest window with a run already logged on Monday',
+      athlete: 'marathon',
+      today: TODAY,
+      window: windowOf({ reason: 'travel', startDate: '2026-10-23', endDate: '2026-10-25' }),
+      ran: true,
+    },
+    {
+      name: 'a window of capped days',
+      athlete: 'marathon',
+      today: TODAY,
+      window: windowOf({
+        reason: 'travel',
+        mode: 'limited',
+        maxRunMin: 30,
+        startDate: '2026-10-23',
+        endDate: '2026-10-28',
+      }),
+    },
+    {
+      name: 'the Monday job in the middle of a rest window',
+      athlete: 'half',
+      today: monday,
+      window: windowOf({ reason: 'travel', startDate: '2026-10-23', endDate: '2026-10-28' }),
+    },
+  ]
+
+  for (const c of cases) {
+    it(`gives the same plan again after ${c.name}`, () => {
+      const a = byId(c.athlete)
+      const logged = c.ran
+        ? [
+            activity('2026-10-19', {
+              id: 'done-monday',
+              durationSec: 40 * 60,
+              distanceM: 40 * 170,
+            }),
+          ]
+        : []
+      const input: EngineInput = {
+        ...a.input,
+        today: c.today,
+        activities: [...a.input.activities, ...logged],
+        disruptions: [c.window],
+      }
+      const first = replan({ ...input, existing: asExisting(buildPlan(a.input)) }).draft
+      const from = mondayOf(c.today)
+      const ahead = (plan: PlanDraft) =>
+        plan.sessions.filter((s) => s.date >= c.today).map((s) => [s.date, s.kind, s.durationMin])
+      expect(planMinutes(first).get(from)).toBeLessThan(planMinutes(buildPlan(a.input)).get(from)!)
+      let existing = asExisting(first)
+      for (let pass = 2; pass <= 4; pass++) {
+        const again = replan({ ...input, existing }).draft
+        expect(ahead(again), `pass ${pass}`).toEqual(ahead(first))
+        expect(again.weeks, `pass ${pass}`).toEqual(first.weeks)
+        expect(again.checklist.filter((item) => !item.ok)).toEqual([])
+        existing = asExisting(again)
+      }
+    })
+  }
+})
+
 describe('keptByReplan with the days a window holds', () => {
   const today = '2026-10-21' // a Wednesday
   const holds = new Set(['2026-10-22', '2026-10-27'])
@@ -727,6 +819,31 @@ describe('the disruption-window checklist item', () => {
     expect(result.ok).toBe(true)
     expect(result.rules).toEqual(['J9', 'J7', 'g-6'])
     expect(result.detail).toMatch(/rest on the held days/)
+  })
+
+  it('counts the days under a window in words that agree with the count, for one day and for several', () => {
+    const line = (w: DisruptionWindow) => {
+      const windowed = withWindows(half, w)
+      const result = runChecklist(buildPlan(windowed), windowed).find(
+        (c) => c.id === 'disruption-window',
+      )!
+      expect(result.ok, result.detail).toBe(true)
+      return { days: disruptionPlan([w]).days.length, detail: result.detail }
+    }
+    const one = line(windowOf({ reason: 'travel', startDate: '2026-10-23', endDate: '2026-10-23' }))
+    expect(one.days).toBe(1)
+    expect(one.detail).toMatch(/^1 day under a rest window holds: rest on the held day, /)
+    const several = line(
+      windowOf({ reason: 'travel', startDate: '2026-10-23', endDate: '2026-10-25' }),
+    )
+    expect(several.days).toBe(3)
+    expect(several.detail).toMatch(/^3 days under rest windows hold: rest on the held days, /)
+    // no placeholder plural, and the words pass the shared lint like every other app sentence
+    for (const { detail } of [one, several]) {
+      expect(detail).not.toMatch(/\(s\)/)
+      expect(lintText(detail)).toEqual([])
+      expect(detail.length).toBeLessThanOrEqual(COPY_MAX_CHARS)
+    }
   })
 
   it('fails a run, a hike or a strength session on a held day, and names the date', () => {

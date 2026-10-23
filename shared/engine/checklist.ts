@@ -3,6 +3,7 @@
 // differentiation, the session spike guard, availability, spacing, ultra caps and race day.
 // It re-reads the finished plan; it never repairs one. A failed item blocks publishing with its
 // detail, so each detail names the week or date at fault.
+import { windowCheckLine } from '../copy/revision.ts'
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
 import { breakRestart } from './adapt.ts'
@@ -887,9 +888,7 @@ function disruptionWindowItem(
   return result(
     'disruption-window',
     failures.length === 0,
-    failures.length === 0
-      ? `${plan.days.length} day(s) of rest windows hold: rest on the held days, runs within their caps, no hard work on easy days, and the return weeks within their share.`
-      : failures.join('; '),
+    failures.length === 0 ? windowCheckLine(plan.days.length) : failures.join('; '),
     rules,
   )
 }

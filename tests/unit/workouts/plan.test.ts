@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { assertCleanCopy } from '../../../shared/copy/lint.ts'
 import { formatQuantity } from '../../../shared/copy/quantity.ts'
+import { tpl } from '../../../shared/copy/template.ts'
 import { WORKOUT_TEMPLATES } from '../../../shared/copy/workouts.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { easedSession } from '../../../shared/engine/readiness.ts'
@@ -661,7 +662,25 @@ describe('the words of a workout', () => {
     for (const step of allSteps(planOf(ladder(2, rungSessions(2)[0]!)))) {
       expect(names.has(step.label), step.label).toBe(true)
     }
+    // a run-walk block that leaves minutes over gets a cool-down of its own
+    const filled = allSteps(planOf(make('easy', 50, zones, { runWalk: true })))
+    expect(filled.at(-1)?.intent).toBe('cooldown')
+    for (const step of filled) expect(names.has(step.label), step.label).toBe(true)
     expect(seen).toBeGreaterThan(PUBLISHABLE.length)
+  })
+
+  it('names the cool-down that fills the minutes from the copy, so a change of the copy reaches it', () => {
+    const original = WORKOUT_TEMPLATES['workout.step.cool-down']
+    WORKOUT_TEMPLATES['workout.step.cool-down'] = tpl('Ease out', {}, { shape: 'label' })
+    try {
+      const plan = planOf(make('easy', 50, zones, { runWalk: true }))
+      const last = allSteps(plan).at(-1)!
+      expect(last.intent).toBe('cooldown')
+      expect(last.label).toBe('Ease out')
+      expect(plan.description.split('\n').at(-1)).toMatch(/^Ease out /)
+    } finally {
+      WORKOUT_TEMPLATES['workout.step.cool-down'] = original
+    }
   })
 
   it('writes the eased line from the copy, with no reason', () => {

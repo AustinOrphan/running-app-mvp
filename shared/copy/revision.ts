@@ -48,6 +48,16 @@ export const WINDOW_TEMPLATES = {
     { easy: 'text' },
   ),
 
+  // The pass line of the plan check for windows: the days under a window that the plan keeps as the
+  // window says. One day and several are two templates, as in the data-in-use sentences.
+  'window.plan-check': tpl(
+    '{days} days under rest windows hold: rest on the held days, runs within their caps, no hard work on easy days, and the return weeks within their share.',
+    { days: 'count' },
+  ),
+  'window.plan-check-one': tpl(
+    '1 day under a rest window holds: rest on the held day, a run within its cap, no hard work on an easy day, and the return weeks within their share.',
+  ),
+
   // Why a request for a window is refused.
   'window.issue.start-invalid': tpl('The first day is not a valid date.'),
   'window.issue.end-invalid': tpl('The last day is not a valid date.'),
@@ -177,6 +187,14 @@ function renderWindowFact(fact: WindowFact, units: Units): string {
 /** The sentences of `windowFacts` in the runner's units. */
 export function describeWindow(window: WindowPlan, units: Units): string[] {
   return windowFacts(window).map((fact) => renderWindowFact(fact, units))
+}
+
+/** The pass line of the plan check for windows, for the number of days a window rules. */
+export function windowCheckLine(days: number): string {
+  // a count reads the same in either unit system
+  return days === 1
+    ? render(WINDOW_TEMPLATES['window.plan-check-one'], {}, 'km')
+    : render(WINDOW_TEMPLATES['window.plan-check'], { days: count(days) }, 'km')
 }
 
 /**
