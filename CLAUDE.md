@@ -68,6 +68,14 @@ build runs `prisma migrate deploy` as a smoke test.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
   and `LOG_LEVEL` (plus `TZ` as an OS setting in Docker).
 - Migrations under `prisma/migrations` are committed; never ignore them.
+- Callers never bump the data version: `server/dataVersion.ts` raises it after every write to a
+  state model and at the end of every `$transaction`, and exports no way to raise it. No raw SQL
+  writes a state table (`tests/unit/server/noRawWrites.test.ts` enforces it).
+- Every new Prisma model is added to `STATE_MODELS` or `NON_STATE_MODELS` in `server/dataVersion.ts`
+  in the PR that adds it; a test fails on a model in neither or both. A model the snapshot, a
+  memoised value or a published deliverable reads is state; a table written on a read path or by
+  the publisher is non-state.
+- Migration folder names are regenerated at rebase so they sort after every migration on `main`.
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are
   `devDependencies`, so the Docker image installs without them.
 
@@ -79,6 +87,8 @@ build runs `prisma migrate deploy` as a smoke test.
   and call `resetData()` and `signedInApi()` from `tests/e2e/helpers.ts` so each spec stands on
   its own. `01-auth.spec.ts` owns the empty database and must stay first. No sleeps; rely on
   auto-waiting assertions.
+  `resetData()` derives its table list from `prisma/schema.prisma` (every model with a `userId`
+  column except `User`), so a new table needs no edit there.
   `signedInApi()` signs in with a minted session cookie once the account exists, because the
   sign-in route allows 10 attempts per window and the suite would exhaust it.
 
