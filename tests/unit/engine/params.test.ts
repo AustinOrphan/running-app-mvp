@@ -27,7 +27,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-23.1')
+    expect(PARAMS_VERSION).toBe('2026-10-23.2')
   })
 
   it('holds a few hundred parameters, every section non-empty', () => {
@@ -323,6 +323,40 @@ describe('parameter registry', () => {
       /\*\*L6 Minimum band\.\*\*[^\n]*until at least 3 scored races exist \(L7\)/,
     )
     expect(engineRules).not.toMatch(/until running back-tests exist/)
+  })
+
+  it('carries the four standout thresholds under design-explain as labelled defaults', () => {
+    const s = P.standout
+    expect(
+      [s.longestLookbackWeeks, s.gradeNoteMinPct, s.driftDeltaPp, s.hrDeltaMinBpm].map((p) => [
+        p.id,
+        p.value,
+        p.unit,
+        p.grade,
+        p.rule,
+      ]),
+    ).toEqual([
+      ['standout.longestLookbackWeeks', 12, 'weeks', 'D', 'design-explain'],
+      ['standout.gradeNoteMinPct', 3, '% grade', 'D', 'design-explain'],
+      ['standout.driftDeltaPp', 2, 'percentage points', 'D', 'design-explain'],
+      ['standout.hrDeltaMinBpm', 3, 'bpm', 'D', 'design-explain'],
+    ])
+    expect(s.driftDeltaPp.evidence).toEqual(['nuuttila-2025-recreational-runners-durability'])
+    expect(s.hrDeltaMinBpm.evidence).toEqual([
+      'bent-2020-ppg-inaccuracy',
+      'navalta-2020-trail-running-hr',
+    ])
+    expect(s.longestLookbackWeeks.evidence).toEqual([])
+    expect(s.gradeNoteMinPct.evidence).toEqual([])
+    for (const p of Object.values(s)) expect(p.note, p.id).toMatch(/^Default:/)
+    expect(paramsForRule('design-explain').map((p) => p.id)).toEqual([
+      'standout.longestLookbackWeeks',
+      'standout.gradeNoteMinPct',
+      'standout.driftDeltaPp',
+      'standout.hrDeltaMinBpm',
+    ])
+    // the section is registered, and it adds no parameter to any other section
+    expect(sectionParams('o-explain')).toHaveLength(4)
   })
 
   it('carries the device rule O1 as two labelled defaults, with its evidence', () => {

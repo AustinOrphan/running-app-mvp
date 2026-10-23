@@ -147,6 +147,7 @@ export const RULE_TITLES: Record<string, string> = {
   'design-4.1': 'Matching activities to sessions',
   'design-4.2': 'Execution assessment',
   'design-4.3': 'Trimming the next quality session',
+  'design-explain': 'What stood out on a run',
 }
 
 /**

@@ -401,6 +401,8 @@ export interface SourceRef {
   /** `YYYY-MM-DD`, in the runner's local day. */
   date: string
   label: string
+  /** The distance of an `activity` source in metres (ADR 0003), so a page shows it in the runner's units. */
+  distanceM?: number
 }
 
 /**
@@ -421,4 +423,50 @@ export interface InputFact {
   state: 'used' | 'insufficient'
   /** The dates the figure was read over, when it is a window. */
   window?: { from: string; to: string }
+}
+
+/** What the Why drawer is opened on (phase 3a design 8.4). */
+export type ExplainRequest =
+  /** A planned session of the active plan, by id: a run's longest-run, volume and zone rules, then its own. */
+  | { subject: 'session'; id: string }
+  /** A planned week (a Monday): the ramp and volume rules that set it. */
+  | { subject: 'week'; weekStart: string }
+  /** The weekly decision about a finished or running week (a Monday). */
+  | { subject: 'decision'; weekStart: string }
+  /** Readiness as of today. */
+  | { subject: 'readiness' }
+  /** The zone anchors, or the anchor of one boundary. */
+  | { subject: 'zone'; boundary?: ZoneProposal['boundary'] }
+  /** The race prediction for one of the runner's goals. */
+  | { subject: 'prediction'; goalId: string }
+  /** Rule ids asked for directly, at most `EXPLAIN_MAX_RULES`. */
+  | { subject: 'rules'; rules: string[] }
+  /** A Monday brief: the figures stored with it. */
+  | { subject: 'brief'; weekStart: string }
+  /** A run: the figures stored with its insights. */
+  | { subject: 'activity'; id: string }
+
+export type ExplainSubject = ExplainRequest['subject']
+
+/** The figures one rule read, in the order they are shown. */
+export interface ExplainGroup {
+  rule: string
+  facts: InputFact[]
+}
+
+/**
+ * The body of `GET /api/explain`. `groups` holds the rules that read the runner's numbers, each
+ * with its facts (a fact is `used` or `insufficient`); `rest` lists the rules that rest on the
+ * rule alone and use none of the runner's data. `frozen` is true for a brief or a run, whose
+ * figures are the ones stored when it was written.
+ */
+export interface ExplainView {
+  subject: ExplainSubject
+  /** The local day the figures were read for. */
+  asOf: string
+  frozen: boolean
+  /** The rule ids of the subject, in the order they are shown. */
+  rules: string[]
+  groups: ExplainGroup[]
+  rest: string[]
 }
