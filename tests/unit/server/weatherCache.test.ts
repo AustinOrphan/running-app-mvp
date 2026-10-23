@@ -364,6 +364,20 @@ describe('the home forecast', () => {
     expect(await cachedForecast(prisma, user.id, later(FORECAST_USABLE_MS))).not.toBeNull()
     expect(await cachedForecast(prisma, user.id, later(FORECAST_USABLE_MS + 1))).toBeNull()
   })
+
+  test('a caller that holds the profile passes its home and the profile is not read again', async () => {
+    const user = await seedUser({ lat: 20.5, lng: -30.12 })
+    deps.fetch = fakeFetch({ [`GET ${FORECAST}`]: forecastRoute([]) })
+    await refreshWeatherCaches(deps, user.id, { now: NOW })
+
+    const profileRead = vi.spyOn(prisma.athleteProfile, 'findUnique')
+    const home = { homeLat: 20.5, homeLng: -30.12 }
+    expect((await cachedForecast(prisma, user.id, NOW, home))?.hours).toHaveLength(168)
+    // Another cell holds nothing, and a profile without a home has no forecast at all.
+    expect(await cachedForecast(prisma, user.id, NOW, { homeLat: 41, homeLng: 2 })).toBeNull()
+    expect(await cachedForecast(prisma, user.id, NOW, { homeLat: null, homeLng: null })).toBeNull()
+    expect(profileRead).not.toHaveBeenCalled()
+  })
 })
 
 // ---------------------------------------------------------------------------------------------
