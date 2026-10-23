@@ -14,15 +14,14 @@ import type {
   AthleteState,
   EngineInput,
   GoalModel,
-  PlanChange,
   Prediction,
   ReadinessSnapshot,
   SessionSpec,
   WeekDraft,
-  ZoneProposal,
   ZoneSet,
 } from '../../shared/engine/types.ts'
 import { buildZones } from '../../shared/engine/zones.ts'
+import { ZONE_CHANGE_MARK, zoneDecisionsOf } from '../../shared/engine/zoneChange.ts'
 import type {
   Activity,
   AthleteProfile,
@@ -65,9 +64,6 @@ export const SNAPSHOT_TTL_MS = 5 * 60_000
 
 const WELLNESS_DAYS = 60
 const REVIEW_WEEKS = 16
-/** Summary prefix of the owner revision `decideZoneProposal` writes when a proposal is accepted. */
-const ACCEPTED_PROPOSAL = 'Accepted zone proposal '
-const ZONE_FIELD = /^zones\.(\w+)$/
 
 /** What the snapshot needs from the app: the data-versioned client. */
 export type SnapshotDeps = Pick<Deps, 'prisma'>
@@ -363,9 +359,8 @@ function zoneChangesOf(
 ): NonNullable<EngineInput['zoneChanges']> {
   const changes: NonNullable<EngineInput['zoneChanges']> = {}
   for (const revision of revisions) {
-    for (const change of JSON.parse(revision.changes) as PlanChange[]) {
-      const boundary = ZONE_FIELD.exec(change.field)?.[1] as ZoneProposal['boundary'] | undefined
-      if (boundary !== undefined) changes[boundary] = todayIso(revision.createdAt)
+    for (const { boundary, outcome } of zoneDecisionsOf(revision.changes)) {
+      if (outcome === 'accepted') changes[boundary] = todayIso(revision.createdAt)
     }
   }
   return changes
@@ -421,7 +416,7 @@ async function buildContext(
       select: { flags: true },
     }),
     prisma.planRevision.findMany({
-      where: { plan: { userId }, reason: 'owner', summary: { startsWith: ACCEPTED_PROPOSAL } },
+      where: { plan: { userId }, reason: 'owner', changes: { contains: ZONE_CHANGE_MARK } },
       orderBy: { createdAt: 'asc' },
       select: { changes: true, createdAt: true },
     }),

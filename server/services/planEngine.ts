@@ -3,6 +3,8 @@
 import { randomUUID } from 'node:crypto'
 import { addDays, daysBetween, isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
 import {
+  acceptedZoneSummary,
+  declinedZoneSummary,
   generatedSummary,
   movedSummary,
   restoredSummary,
@@ -33,6 +35,12 @@ import type {
   ZoneProposal,
   ZoneSet,
 } from '../../shared/engine/types.ts'
+import {
+  ZONE_CHANGE_MARK,
+  zoneChangeField,
+  zoneDecisionsOf,
+  type ZoneOutcome,
+} from '../../shared/engine/zoneChange.ts'
 import type {
   PlanSession,
   PlanWithSessions,
@@ -836,12 +844,19 @@ export async function linkPlanSession(
 
 const DAY_MS = 86_400_000
 
-function proposalId(proposal: ZoneProposal): string {
+function proposalId(proposal: Pick<ZoneProposal, 'boundary' | 'from' | 'to'>): string {
   return `${proposal.boundary}-${proposal.from}-${proposal.to}`
 }
 
-function declinedSummary(id: string): string {
-  return `Declined zone proposal ${id}.`
+/** The change that records the owner's decision on a proposal; the values are the proposed ones. */
+function zoneChange(proposal: ZoneProposal, outcome: ZoneOutcome, today: string): PlanChange {
+  return {
+    weekStart: mondayOf(today),
+    field: zoneChangeField(proposal.boundary, outcome),
+    from: proposal.from,
+    to: proposal.to,
+    rules: proposal.rules,
+  }
 }
 
 /**
@@ -876,19 +891,29 @@ export async function listZoneProposals(
   const proposals = zoneProposals(input, executions)
   if (proposals.length === 0) return []
 
-  const declines = await prisma.planRevision.findMany({
+  // A decline is found by its stored change (`zones.<boundary>.declined`, the proposed values in
+  // `from` and `to`), never by the words of the summary.
+  const revisions = await prisma.planRevision.findMany({
     where: {
       plan: { userId: args.userId },
       reason: 'owner',
-      summary: { startsWith: 'Declined zone proposal ' },
+      changes: { contains: ZONE_CHANGE_MARK },
       createdAt: { gte: new Date(Date.now() - P.zoneProposal.windowDays.value * DAY_MS) },
     },
-    select: { summary: true },
+    select: { changes: true },
   })
-  const declined = new Set(declines.map((d) => d.summary))
+  const declined = new Set(
+    revisions.flatMap((revision) =>
+      zoneDecisionsOf(revision.changes)
+        .filter((decision) => decision.outcome === 'declined')
+        .map(({ boundary, change }) =>
+          proposalId({ boundary, from: change.from as number, to: change.to as number }),
+        ),
+    ),
+  )
   return proposals
     .map((proposal) => ({ ...proposal, id: proposalId(proposal) }))
-    .filter((proposal) => !declined.has(declinedSummary(proposal.id)))
+    .filter((proposal) => !declined.has(proposal.id))
 }
 
 /** Accepts (applies to the profile) or declines a proposal; the revision log keeps the record. */
@@ -910,8 +935,8 @@ export async function decideZoneProposal(
         planId: plan.id,
         userId: args.userId,
         reason: 'owner',
-        summary: declinedSummary(proposal.id),
-        changes: [],
+        summary: declinedZoneSummary(proposal.boundary, args.today),
+        changes: [zoneChange(proposal, 'declined', args.today)],
         diff: null,
         undo: null,
       })
@@ -938,16 +963,8 @@ export async function decideZoneProposal(
       planId: plan.id,
       userId: args.userId,
       reason: 'owner',
-      summary: `Accepted zone proposal ${proposal.id}: ${proposal.boundary} from ${proposal.from} to ${proposal.to}.`,
-      changes: [
-        {
-          weekStart: mondayOf(args.today),
-          field: `zones.${proposal.boundary}`,
-          from: proposal.from,
-          to: proposal.to,
-          rules: proposal.rules,
-        },
-      ],
+      summary: acceptedZoneSummary(proposal.boundary, args.today),
+      changes: [zoneChange(proposal, 'accepted', args.today)],
       diff: null,
       undo: null,
     })

@@ -1882,7 +1882,8 @@ Each decision is overturnable by the owner; section 13 lists the ones that most 
 
 1. **The weekly re-plan stays automatic and becomes visible and undoable** (ADR 0007). Reason: a
    watch that receives a stale plan is worse than a visible, reversible change, and the mandate is a
-   self-adjusting coach. Targets set by hand are never overwritten.
+   self-adjusting coach. Targets set by hand are kept unless a safety limit requires a lower week
+   (ADR 0007).
 2. **Today's hero is today's session and readiness**; weekly hours move to the week strip (spec §4.7
    and the visual design's dashboard hierarchy are edited in E2-5). Reason: a coach's hero, not a
    tracker's.

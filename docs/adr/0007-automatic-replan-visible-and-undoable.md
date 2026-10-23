@@ -51,7 +51,8 @@ Each revision has one `seenAt` marker, which Today, the Plan page and the weekly
 
 The anti-goal is amended to: "Any change to a training target that the owner cannot see and
 reverse. Changes the engine makes on schedule are shown as revisions and can be undone; targets the
-owner set by hand are never overwritten."
+owner set by hand are kept unless a safety limit requires a lower week, and the change is shown as a
+revision."
 
 Reasons:
 

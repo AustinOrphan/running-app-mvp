@@ -199,6 +199,29 @@ const lastRevision = (planId: string): Promise<PlanRevisionRow> =>
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
   })
 
+/**
+ * The stored undo payload of a plan's last revision, after every hash in it (created and updated
+ * sessions and weeks) was compared with the hash of the stored row. Written against the exported
+ * hash functions, so a change of what a hash covers needs no edit here.
+ */
+async function expectPayloadHashes(planId: string): Promise<UndoPayload> {
+  const payload = JSON.parse((await lastRevision(planId)).undo!) as UndoPayload
+  const after = await snapshot(planId)
+  const sessionById = new Map(after.sessions.map((row) => [row.id, row]))
+  const weekById = new Map(after.weeks.map((row) => [row.id, row]))
+  for (const entry of [...payload.sessions.created, ...payload.sessions.updated]) {
+    const row = sessionById.get(entry.id)
+    expect(row, `session ${entry.id} is stored`).toBeDefined()
+    expect(entry.hash, `session ${entry.id}`).toBe(sessionHash(row!))
+  }
+  for (const entry of [...payload.weeks.created, ...payload.weeks.updated]) {
+    const row = weekById.get(entry.id)
+    expect(row, `week ${entry.id} is stored`).toBeDefined()
+    expect(entry.hash, `week ${entry.id}`).toBe(weekHash(row!))
+  }
+  return payload
+}
+
 const withoutUpdatedAt = <Row extends { updatedAt: Date }>(row: Row): Omit<Row, 'updatedAt'> => {
   const { updatedAt: _updatedAt, ...rest } = row
   return rest
@@ -595,18 +618,24 @@ describe('the revision of a re-plan', () => {
     const f = await fourWeekPlan('revision-hashes@example.com')
     await closeBusyDay(f)
     await replanActivePlan(deps(), { userId: f.u.id, reason: 'weekly', today: thisMonday })
-    const payload = JSON.parse((await lastRevision(f.plan.id)).undo!) as UndoPayload
-    const after = await snapshot(f.plan.id)
-    const sessionById = new Map(after.sessions.map((row) => [row.id, row]))
-    const weekById = new Map(after.weeks.map((row) => [row.id, row]))
-    const created = [...payload.sessions.created, ...payload.sessions.updated]
-    expect(created.length).toBeGreaterThan(0)
-    for (const entry of created) {
-      expect(entry.hash).toBe(sessionHash(sessionById.get(entry.id)!))
-    }
-    for (const entry of [...payload.weeks.created, ...payload.weeks.updated]) {
-      expect(entry.hash).toBe(weekHash(weekById.get(entry.id)!))
-    }
+    const payload = await expectPayloadHashes(f.plan.id)
+    expect(payload.sessions.created.length).toBeGreaterThan(0)
+  })
+
+  test('the hashes of updated sessions and of weeks are the hashes of the rows as written', async () => {
+    const f = await fourWeekPlan('revision-hashes-updated@example.com')
+    // A race two weeks later updates the sessions and weeks that stay and adds the ones that follow.
+    await ctx.prisma.goal.update({
+      where: { id: f.goalId },
+      data: { targetDate: addDays(thisMonday, 7 * 3 + 5 + 14) },
+    })
+    await replanActivePlan(deps(), { userId: f.u.id, reason: 'owner', today: thisMonday })
+    const payload = await expectPayloadHashes(f.plan.id)
+    // Each list holds entries, so the comparisons above ran over rows and not over nothing.
+    expect(payload.sessions.created.length).toBeGreaterThan(0)
+    expect(payload.sessions.updated.length).toBeGreaterThan(0)
+    expect(payload.weeks.created.length).toBeGreaterThan(0)
+    expect(payload.weeks.updated.length).toBeGreaterThan(0)
   })
 
   test('a no-op re-plan writes a hidden revision with an empty diff and nothing to undo', async () => {
