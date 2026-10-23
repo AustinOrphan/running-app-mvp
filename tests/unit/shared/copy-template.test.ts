@@ -211,6 +211,23 @@ describe('the template registry', () => {
     )
   })
 
+  test('renderFact throws a CopyError in tests when the slots are not an object', () => {
+    const base: InputFact = {
+      id: 'f1',
+      template: 'why.no-parameter',
+      slots: { rule: 'zz-9' },
+      rule: 'zz-9',
+      sources: [],
+      moreSources: 0,
+      state: 'used',
+    }
+    for (const slots of [null, undefined, 'zz-9', ['zz-9']]) {
+      const fact = { ...base, slots } as unknown as InputFact
+      expect(() => renderFact(fact, 'km'), String(slots)).toThrow(CopyError)
+      expect(() => renderFact(fact, 'km'), String(slots)).toThrow(/slots must be an object/)
+    }
+  })
+
   test('renderFact renders the template fallback or a neutral line in production', () => {
     vi.stubEnv('NODE_ENV', 'production')
     const base: InputFact = {
@@ -224,5 +241,27 @@ describe('the template registry', () => {
     }
     expect(renderFact(base, 'km')).toBe(TEMPLATES['why.no-parameter'].fallback)
     expect(renderFact({ ...base, template: 'no.such.template' }, 'km')).toBe(UNKNOWN_FACT_TEXT)
+  })
+
+  test('renderFact renders the template fallback in production when the slots are not an object', () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    const base: InputFact = {
+      id: 'f1',
+      template: 'why.no-parameter',
+      slots: { rule: 'zz-9' },
+      rule: 'zz-9',
+      sources: [],
+      moreSources: 0,
+      state: 'used',
+    }
+    for (const slots of [null, undefined, 'zz-9', ['zz-9']]) {
+      const fact = { ...base, slots } as unknown as InputFact
+      expect(renderFact(fact, 'km'), String(slots)).toBe(TEMPLATES['why.no-parameter'].fallback)
+    }
+    // A template with no slots of its own falls back too: the record is bad, not the template.
+    expect(render(tpl('Ready.'), null as never, 'km')).toBe(FALLBACK_TEXT)
+    expect(render(RUN as Template, undefined as never, 'km')).toBe(
+      'The longest recent run is not available.',
+    )
   })
 })

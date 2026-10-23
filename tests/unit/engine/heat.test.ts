@@ -247,6 +247,38 @@ describe('trainingHeatAdvice (rules I7)', () => {
     expect(advice.peak).not.toBeNull()
   })
 
+  describe('the i7.coolerMinGainC threshold', () => {
+    // Air temperature only (no radiation, so the index is the temperature itself): every hour of
+    // the day sits at the peak except one at `peakC - gainC`. Dyadic figures keep the sums exact.
+    function dayWithCoolerHour(gainC: number): Hour[] {
+      const peakC = P.i1.airTempOptimumC.value[1] + 10
+      return Array.from({ length: 24 }, (_, h) => ({
+        time: `2026-07-10T${String(h).padStart(2, '0')}:00`,
+        tempC: h === 8 ? peakC - gainC : peakC,
+        dewPointC: 12,
+        humidityPct: 45,
+        windKph: 6,
+      }))
+    }
+    const easy = session({ kind: 'easy', durationMin: 40 })
+
+    it('offers no cooler hour when the best window gains less than the threshold', () => {
+      // half the threshold: 0.5 C while the threshold is 1 C
+      const advice = trainingHeatAdvice(dayWithCoolerHour(P.i7.coolerMinGainC.value / 2), easy)
+      expect(advice.peak).not.toBeNull()
+      expect(advice.note).not.toBeNull()
+      expect(advice.coolerHour).toBeNull()
+      expect(advice.coolerValue).toBeNull()
+    })
+
+    it('offers the cooler hour at a gain of exactly the threshold', () => {
+      const advice = trainingHeatAdvice(dayWithCoolerHour(P.i7.coolerMinGainC.value), easy)
+      expect(advice.coolerHour).toBe('08:00')
+      expect(advice.coolerValue).toBe(advice.peak!.value - P.i7.coolerMinGainC.value)
+      expect(advice.note).toContain('08:00')
+    })
+  })
+
   it('returns the peak: the hour with the highest index, and which index it is', () => {
     const hours = summerDay('2026-07-10', 36, 18)
     const { peak } = trainingHeatAdvice(hours, session())

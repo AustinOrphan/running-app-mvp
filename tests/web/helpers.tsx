@@ -95,18 +95,109 @@ function collectCopy(node: Node, found: CopyItem[]): void {
   for (const child of node.childNodes) collectCopy(child, found)
 }
 
+/** Elements whose text reads as part of the sentence around them; any other element ends a run. */
+const INLINE_TAGS = new Set([
+  'A',
+  'ABBR',
+  'B',
+  'BDI',
+  'BDO',
+  'CITE',
+  'CODE',
+  'DFN',
+  'EM',
+  'I',
+  'KBD',
+  'MARK',
+  'Q',
+  'S',
+  'SAMP',
+  'SMALL',
+  'SPAN',
+  'STRONG',
+  'SUB',
+  'SUP',
+  'TIME',
+  'U',
+  'VAR',
+])
+
+interface InlineRun {
+  /** The nearest block-level element around the run. */
+  owner: Element
+  /** The text nodes that read as one sentence, in order; at least two, so markup splits them. */
+  nodes: Text[]
+}
+
+/** Runs of text nodes that inline markup splits, such as `You <b>should</b> have gone`. */
+function inlineRuns(root: Element): InlineRun[] {
+  const runs: InlineRun[] = []
+  let owner = root
+  let nodes: Text[] = []
+  const flush = (): void => {
+    if (nodes.length > 1) runs.push({ owner, nodes })
+    nodes = []
+  }
+  const visit = (element: Element): void => {
+    const inline = INLINE_TAGS.has(element.tagName)
+    const outer = owner
+    if (!inline) {
+      flush()
+      owner = element
+    }
+    for (const child of element.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) nodes.push(child as Text)
+      else if (child instanceof Element && !SKIPPED_TAGS.has(child.tagName)) visit(child)
+    }
+    if (!inline) {
+      flush()
+      owner = outer
+    }
+  }
+  visit(root)
+  flush()
+  return runs
+}
+
 /**
- * Fails when any copy under `container` breaks the G5 lint (`shared/copy/lint.ts`): every text node
- * and the accessible-name attributes. A sheet renders in a portal on `document.body`, so pass the
- * dialog (or `document.body`), not only the `container` of `render`. Text a provider returned is
- * outside the lint; render a fixture without it.
+ * Banned phrases that a run's markup splits across text nodes, which the per-node check cannot see.
+ * The run's text has whitespace collapsed; a hit counts only when it crosses a node boundary, so a
+ * hit inside one node is reported once, by the per-node check.
+ */
+function splitPhraseProblems(container: Element): string[] {
+  return inlineRuns(container).flatMap(({ owner, nodes }) => {
+    let text = ''
+    const boundaries: number[] = []
+    for (const node of nodes) {
+      const piece = (node.textContent ?? '').replace(/\s+/g, ' ')
+      text += text.endsWith(' ') && piece.startsWith(' ') ? piece.slice(1) : piece
+      boundaries.push(text.length)
+    }
+    return lintText(text)
+      .filter((hit) => boundaries.some((at) => hit.index < at && at < hit.index + hit.match.length))
+      .map(
+        (hit) =>
+          `<${owner.tagName.toLowerCase()}>: "${hit.match}" in ${JSON.stringify(text.trim())}, split by markup`,
+      )
+  })
+}
+
+/**
+ * Fails when any copy under `container` breaks the G5 lint (`shared/copy/lint.ts`): every text node,
+ * the text of each block with its inline markup joined (so `You <b>should</b> have gone` fails on
+ * "should have"), and the accessible-name attributes. A sheet renders in a portal on
+ * `document.body`, so pass the dialog (or `document.body`), not only the `container` of `render`.
+ * Text a provider returned is outside the lint; render a fixture without it.
  */
 export function expectCleanCopy(container: Element): void {
   const found: CopyItem[] = []
   collectCopy(container, found)
-  const problems = found.flatMap(({ where, text }) =>
-    lintText(text).map((hit) => `${where}: "${hit.match}" in ${JSON.stringify(text)}`),
-  )
+  const problems = [
+    ...found.flatMap(({ where, text }) =>
+      lintText(text).map((hit) => `${where}: "${hit.match}" in ${JSON.stringify(text)}`),
+    ),
+    ...splitPhraseProblems(container),
+  ]
   if (problems.length > 0) {
     throw new Error(`Copy breaks the G5 lint:\n${problems.join('\n')}`)
   }

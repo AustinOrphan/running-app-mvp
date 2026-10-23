@@ -175,8 +175,11 @@ undoneById   String?   // the 'undo' revision that reverted this one
 undoOf       String?   // on an 'undo' revision: the revision it reverted
 seenAt       DateTime? // the one seen marker in the product
 disruptionId String?   // the window this revision created, changed or removed (no foreign key)
-@@index([planId, reason])
 ```
+
+The `@@index([planId, reason])` on `PlanRevision` is not part of migration D: migration B
+(`20261023052702_foundation_plan_session`, task E3-4) already shipped it, so migration D holds the
+columns and the backfill only.
 
 `reason` gains the values `disruption`, `undo` and `goal-switch` (a text column, no migration). The
 migration backfills `auto = 1` for `weekly` and `break` rows and `seenAt = createdAt` for every
