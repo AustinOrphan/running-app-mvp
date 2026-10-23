@@ -1,6 +1,6 @@
 # 0009. One cached athlete snapshot, invalidated by an automatic data-version counter
 
-Status: Accepted 2026-10-23
+Status: Accepted 2026-10-23 (#544)
 
 ## Context
 

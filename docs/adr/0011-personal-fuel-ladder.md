@@ -1,6 +1,6 @@
 # 0011. Fuel targets come from a ladder replayed from the runner's own logs, not from a calculator or a model
 
-Status: Accepted 2026-10-23
+Status: Accepted 2026-10-23 (#544)
 
 ## Context
 
