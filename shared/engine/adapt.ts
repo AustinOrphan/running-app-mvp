@@ -9,6 +9,7 @@ import type { Activity } from '../types.ts'
 import { efficiencyIndex } from './athlete.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
+import { plannedMinOf } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { lastWindowDay, postRaceWindows, stageLabel, windowDay } from './postRace.ts'
@@ -505,7 +506,8 @@ export function weeklyDecision(
   // G-6: the target never exceeds last week's actual x (1 + ramp); missed minutes are not repeated.
   const plannedThis = plannedFull ?? actual
   const nextWeek = input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))
-  const nextPlanned = nextWeek?.targetRunMin ?? Math.round(plannedThis * (1 + ramp))
+  const nextPlanned =
+    nextWeek === undefined ? Math.round(plannedThis * (1 + ramp)) : plannedMinOf(nextWeek)
   let nextWeekTargetMin: number
   // Whole minutes, rounded down so the number never passes the cap.
   const whole = (minutes: number) => Math.floor(minutes + 1e-9)

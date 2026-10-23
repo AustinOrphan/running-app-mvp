@@ -4,7 +4,9 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
+import { feasibility } from '../../../shared/engine/goal.ts'
 import { buildPlan, replan, weeklyDecision } from '../../../shared/engine/index.ts'
+import { macroPlan } from '../../../shared/engine/macro.ts'
 import {
   completedReference,
   countsTowardReference,
@@ -660,6 +662,15 @@ describe('plans around a window', () => {
         (s) => s.kind !== 'rest' && s.date >= delayed.today,
       )!
       expect(firstRun.date >= later.holdUntil).toBe(true)
+    })
+
+    it('lets no recent level lift the restart above the J7 volume [rules E6, J7]', () => {
+      const state = estimateState(input)
+      const feas = feasibility(input.goal, state, TODAY)
+      const targets = (recentWeekMin: number) =>
+        macroPlan(input, { ...state, recentWeekMin }, input.goal, feas).map((w) => w.targetRunMin)
+      // a recent level far above the restart is capped at it, as for any other break
+      expect(targets(100_000)).toEqual(targets(0))
     })
   })
 })

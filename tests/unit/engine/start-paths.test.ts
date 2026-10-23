@@ -8,9 +8,9 @@ import { estimateState } from '../../../shared/engine/athlete.ts'
 import { runChecklist } from '../../../shared/engine/checklist.ts'
 import { feasibility } from '../../../shared/engine/goal.ts'
 import { applyGuards } from '../../../shared/engine/guards.ts'
-import { buildPlan, replan, weeklyDecision } from '../../../shared/engine/index.ts'
+import { afterBreak, buildPlan, replan, weeklyDecision } from '../../../shared/engine/index.ts'
 import { macroPlan, startPath } from '../../../shared/engine/macro.ts'
-import { isProgramme } from '../../../shared/engine/limits.ts'
+import { isProgramme, startLevelMin, startWeekMin } from '../../../shared/engine/limits.ts'
 import { placeWeek } from '../../../shared/engine/micro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { prescribe } from '../../../shared/engine/sessions.ts'
@@ -1684,5 +1684,100 @@ describe('the orphan J7 run-walk rule is gone [rules J7, E6]', () => {
   it('leaves no run-walk threshold in the J7 parameters and no run-walk output on the restart', () => {
     expect('runWalkIfConsistentUnderMonths' in P.j7).toBe(false)
     expect(Object.keys(breakRestart(60, 100)).sort()).toEqual(['fraction', 'restartMin'])
+  })
+})
+
+describe('the start level: the last two complete weeks [rules E6, G-2]', () => {
+  /** The runs of the Monday week `back` weeks before the current one, on Tuesday, Thursday and Saturday. */
+  const weekOf = (back: number, minutes: number[]): Activity[] =>
+    minutes.map((min, i) =>
+      activity(addDays(MONDAY, -7 * back + [1, 3, 5][i]!), {
+        id: `week-${String(back)}-${String(i)}`,
+        durationSec: min * 60,
+        movingSec: min * 60,
+        distanceM: Math.round(min * 160),
+      }),
+    )
+  // weeks of 30, 30, 90 and 79 min, oldest first: a four-week median of about 55
+  const stepUp = [
+    ...weekOf(4, [10, 10, 10]),
+    ...weekOf(3, [10, 10, 10]),
+    ...weekOf(2, [30, 30, 30]),
+    ...weekOf(1, [30, 25, 24]),
+  ]
+  const openingWeek = (activities: Activity[], over: Partial<AthleteProfile> = {}) =>
+    buildPlan(input({ activities, profile: profile(over) })).weeks[0]!
+
+  it('starts from the lesser of the last two complete weeks when the median sits below them', () => {
+    const inp = input({ activities: stepUp })
+    const state = estimateState(inp)
+    expect(state.typicalWeekMin).toBe(55)
+    expect(state.recentWeekMin).toBe(79)
+    // 79 min is above 3 x 20: no start path, the plan grows from the weeks the runner ran
+    expect(startPath(inp, state)).toBeNull()
+    const first = openingWeek(stepUp)
+    expect(first.targetRunMin).toBe(79)
+    expect(first.flags).not.toContain('restart-floor')
+  })
+
+  it('opens at 79 min with no ramp warning: the baseline is the highest of the 2 preceding weeks', () => {
+    const plan = buildPlan(input({ activities: stepUp }))
+    // 90 min is the baseline, so 79 is inside the soft 10% step
+    expect(plan.weeks[0]!.targetRunMin).toBeLessThanOrEqual(90 * (1 + P.g2.rampSoft.value))
+    expect(plan.warnings.map((w) => w.code)).not.toContain('ramp-soft')
+    expect(plan.warnings.map((w) => w.code)).not.toContain('ramp-ceiling')
+    // the label and the plan agree: feasibility starts from the same 79 min
+    expect(startWeekMin(estimateState(input({ activities: stepUp })), null)).toBe(79)
+  })
+
+  it('keeps the 3 x 20 floor for a sparse history of 30-minute weeks', () => {
+    // one 30-min run a week for 4 weeks, age 50 (a soft flag): the median and the recent level are 30
+    const sparse = [1, 2, 3, 4].flatMap((back) => weekOf(back, [30]))
+    const flagged = { birthYear: 1976 }
+    const inp = input({ activities: sparse, profile: profile(flagged) })
+    const state = estimateState(inp)
+    expect(state.typicalWeekMin).toBe(30)
+    expect(state.recentWeekMin).toBe(30)
+    expect(startPath(inp, state)).toEqual({ kind: 'floor', sessionMin: 20 })
+    const first = openingWeek(sparse, flagged)
+    expect(first.targetRunMin).toBe(3 * P.restartFloor.sessionMin.value)
+    expect(first.flags).toContain('restart-floor')
+  })
+
+  it('is not lifted by a single big week: the recent level needs two', () => {
+    // 30, 30, 30 and then 120 min in one week
+    const spike = [
+      ...weekOf(4, [30]),
+      ...weekOf(3, [30]),
+      ...weekOf(2, [30]),
+      ...weekOf(1, [40, 40, 40]),
+    ]
+    const flagged = { birthYear: 1976 }
+    const inp = input({ activities: spike, profile: profile(flagged) })
+    const state = estimateState(inp)
+    expect(state.typicalWeekMin).toBe(30)
+    expect(state.recentWeekMin).toBe(30)
+    expect(startPath(inp, state)).toEqual({ kind: 'floor', sessionMin: 20 })
+    expect(openingWeek(spike, flagged).targetRunMin).toBe(60)
+  })
+
+  it('counts a big current week as nothing: only complete weeks set the level', () => {
+    const thisWeek = activity(TODAY, { id: 'big-today', durationSec: 7200, movingSec: 7200 })
+    const inp = input({ activities: [...weekOf(1, [30]), ...weekOf(2, [30]), thisWeek] })
+    expect(estimateState(inp).recentWeekMin).toBe(30)
+  })
+
+  it('does not lift a restart after a break above the J7 restart volume', () => {
+    // the same weeks seen from the Sunday after the last run: 8 days off, restart at 90%
+    const sunday = addDays(MONDAY, 6)
+    const inp = input({ today: sunday, activities: stepUp })
+    const raw = estimateState(inp)
+    expect(raw.layoffDays).toBe(8)
+    expect(raw.recentWeekMin).toBe(79)
+    const state = afterBreak(raw)
+    expect(state.typicalWeekMin).toBe(breakRestart(raw.layoffDays, raw.typicalWeekMin).restartMin)
+    expect(state.typicalWeekMin).toBeLessThan(79)
+    // the start level is the restart volume, not the 79 minutes before the break
+    expect(startLevelMin(state)).toBe(state.typicalWeekMin)
   })
 })
