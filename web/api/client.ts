@@ -142,4 +142,5 @@ export const keys = {
   predictions: 'predictions',
   screenings: 'screenings',
   researchParams: 'researchParams',
+  state: 'state',
 } as const

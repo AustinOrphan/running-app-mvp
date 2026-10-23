@@ -11,6 +11,7 @@ import {
 } from '../api/integrations.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { Button } from '../components/Button.tsx'
+import { DataInUse } from '../components/DataInUse.tsx'
 import { Field, Input, Textarea } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
@@ -784,6 +785,7 @@ export function IntegrationsPage() {
         title="Integrations"
         context="Bring activities and daily health data in from other services."
       />
+      <DataInUse />
       <CallbackNotice list={integrations.data} />
       <div className={styles.list}>
         {integrations.data.map((item) => (

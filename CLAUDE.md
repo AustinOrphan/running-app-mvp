@@ -78,6 +78,11 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
   in the PR that adds it; a test fails on a model in neither or both. A model the snapshot, a
   memoised value or a published deliverable reads is state; a table written on a read path or by
   the publisher is non-state.
+- Athlete data (the 365-day history, wellness, reviews, the screening, the stored plan) comes from
+  `gatherEngineInput`, `gatherContextInput`, `loadAthleteContext` or `memoByVersion`
+  (`server/services/athleteState.ts`, ADR 0009); no new code queries that window or the stored plan
+  itself. The snapshot is deep-frozen, so copy an array before sorting or editing it.
+  `currentGoalFor` (`server/services/currentGoal.ts`) is the one answer to "which goal".
 - Migration folder names are regenerated at rebase so they sort after every migration on `main`.
 - `PlanSession.externalId` (a uuid, unique per plan) is a session's identity outside the database.
   Session rows are built only by `sessionRow()` in `server/services/planEngine.ts`, which sets

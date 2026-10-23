@@ -1,5 +1,6 @@
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
 import type {
+  AthleteState,
   Checkin,
   EngineWarning,
   ChecklistResult,
@@ -645,6 +646,43 @@ export interface TrackRecordRace extends RaceScore {
 export interface TrackRecordView {
   races: TrackRecordRace[]
   summary: RecordSummary
+}
+
+/**
+ * What the training advice reads (`StateView.inputs`): the size of each window, how many rows fall
+ * in it and the latest day among them. Activities count without flagged duplicates, which the
+ * engine leaves out; `flaggedDuplicates` says how many it left out.
+ */
+export interface StateInputs {
+  activities: {
+    windowDays: number
+    count: number
+    latest: string | null
+    flaggedDuplicates: number
+  }
+  wellness: { windowDays: number; count: number; latest: string | null }
+  reviews: { windowWeeks: number; count: number }
+}
+/** GET /api/state: the cached picture of the athlete on the server's day (ADR 0009). */
+export interface StateView {
+  /** The data version the picture was built at: `<boot>.<writes>.<external>`. */
+  version: string
+  /** The server's local day the picture is for. */
+  asOf: string
+  /** When the picture was built, as an instant. */
+  builtAt: string
+  /** The parameter registry version the engine ran with. */
+  paramsVersion: string
+  state: AthleteState
+  zones: ZoneSet
+  readiness: ReadinessSnapshot
+  /** The active plan's goal, else the active goal, else null (`currentGoalFor`). */
+  goal: Goal | null
+  /** The active version-2 plan, without its weeks and sessions. */
+  plan: Plan | null
+  /** The prediction for `goal` from the athlete's own data; null without a distance or a source. */
+  prediction: Prediction | null
+  inputs: StateInputs
 }
 /** GET /api/research/params: the parameter registry, for the why drawer. */
 export interface ResearchParams {

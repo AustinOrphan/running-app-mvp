@@ -5,6 +5,7 @@ import type { IntegrationStatus, ProviderInfo } from '../../shared/types.ts'
 import { SYNC_POLL_MS } from '../../web/api/integrations.ts'
 import { IntegrationsPage } from '../../web/pages/IntegrationsPage.tsx'
 import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { makeInputs, makeStateView } from './state-fixtures.ts'
 
 const infos: Record<string, ProviderInfo> = {
   intervals: {
@@ -70,7 +71,11 @@ function allStatuses(over: Record<string, Partial<IntegrationStatus>> = {}): Int
 }
 
 function routes(list: IntegrationStatus[], extra: MockRoutes = {}): MockRoutes {
-  return { 'GET /api/integrations': () => list, ...extra }
+  return {
+    'GET /api/integrations': () => list,
+    'GET /api/state': () => makeStateView(),
+    ...extra,
+  }
 }
 
 function card(name: string): HTMLElement {
@@ -92,6 +97,53 @@ describe('IntegrationsPage', () => {
       'Watched folder',
     ])
     expect(within(card('intervals.icu')).getByText('Not connected')).toBeInTheDocument()
+  })
+
+  test('says what the training advice reads above the cards', async () => {
+    mockApi(
+      routes(allStatuses(), {
+        'GET /api/state': () =>
+          makeStateView(
+            makeInputs({
+              activities: {
+                windowDays: 365,
+                count: 214,
+                latest: '2026-10-21',
+                flaggedDuplicates: 0,
+              },
+              wellness: { windowDays: 60, count: 41, latest: '2026-10-22' },
+            }),
+          ),
+      }),
+    )
+    renderWithProviders(<IntegrationsPage />)
+
+    const summary = await screen.findByRole('status')
+    await waitFor(() => {
+      expect(summary).toHaveTextContent(
+        'Training advice reads 214 activities, the latest on 21 Oct, and 41 days of wellness, the latest on 22 Oct.',
+      )
+    })
+    const cards = await screen.findByRole('region', { name: 'intervals.icu' })
+    expect(summary.compareDocumentPosition(cards) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  test('a summary that did not load leaves the cards usable', async () => {
+    mockApi(
+      routes(allStatuses(), {
+        'GET /api/state': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'Something went wrong.' } },
+        }),
+      }),
+    )
+    renderWithProviders(<IntegrationsPage />)
+
+    await screen.findByRole('region', { name: 'intervals.icu' })
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('The data summary did not load.')
+    })
+    expect(within(card('intervals.icu')).getByRole('button', { name: 'Connect' })).toBeEnabled()
   })
 
   test('connects intervals.icu with the athlete id and API key', async () => {
@@ -217,6 +269,7 @@ describe('IntegrationsPage', () => {
       'GET /api/activities': () => [],
       'GET /api/imports': () => [],
       'GET /api/wellness': () => [],
+      'GET /api/state': () => makeStateView(),
     })
     renderWithProviders(<IntegrationsPage />)
     const listCalls = () => calls.filter((c) => c.url === '/api/integrations').length
