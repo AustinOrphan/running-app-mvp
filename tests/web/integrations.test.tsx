@@ -6,6 +6,7 @@ import { SYNC_POLL_MS } from '../../web/api/integrations.ts'
 import { IntegrationsPage } from '../../web/pages/IntegrationsPage.tsx'
 import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { makeInputs, makeStateView } from './state-fixtures.ts'
+import { wristRoutes } from './wrist-fixtures.ts'
 
 const infos: Record<string, ProviderInfo> = {
   intervals: {
@@ -74,6 +75,8 @@ function routes(list: IntegrationStatus[], extra: MockRoutes = {}): MockRoutes {
   return {
     'GET /api/integrations': () => list,
     'GET /api/state': () => makeStateView(),
+    // the "Calendar link" section reads the wrist status
+    ...wristRoutes(),
     ...extra,
   }
 }
@@ -88,6 +91,8 @@ describe('IntegrationsPage', () => {
     renderWithProviders(<IntegrationsPage />)
 
     await screen.findByRole('region', { name: 'intervals.icu' })
+    // the calendar link is a section of its own after the providers, not a provider card
+    await screen.findByRole('region', { name: 'Calendar link' })
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
     expect(headings).toEqual([
       'intervals.icu',
@@ -95,6 +100,7 @@ describe('IntegrationsPage', () => {
       'Garmin Connect',
       'Apple Health',
       'Watched folder',
+      'Calendar link',
     ])
     expect(within(card('intervals.icu')).getByText('Not connected')).toBeInTheDocument()
   })
@@ -270,6 +276,7 @@ describe('IntegrationsPage', () => {
       'GET /api/imports': () => [],
       'GET /api/wellness': () => [],
       'GET /api/state': () => makeStateView(),
+      ...wristRoutes(),
     })
     renderWithProviders(<IntegrationsPage />)
     const listCalls = () => calls.filter((c) => c.url === '/api/integrations').length

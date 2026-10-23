@@ -122,6 +122,75 @@ export const PUBLISH_TEMPLATES = {
   'publish.settings.garmin-help': tpl(
     'In intervals.icu open Settings, Garmin Connect, and switch on uploading planned workouts. The app cannot check this.',
   ),
+  'publish.settings.last-send': tpl('Last send to intervals.icu: {date} at {time}.', {
+    date: 'date',
+    time: 'text',
+  }),
+  'publish.settings.never-sent': tpl('Nothing has been sent to intervals.icu yet.'),
+  'publish.settings.sending-now': tpl('Sending to intervals.icu now.'),
+  'publish.settings.send-now': tpl('Send now', {}, { shape: 'label' }),
+  'publish.settings.dormant': tpl(
+    'intervals.icu closes accounts that are not logged in to for a long time. Log in now and then so the plan keeps reaching your watch.',
+  ),
+  // The offer that comes with turning sending off.
+  'publish.settings.off-offer': tpl(
+    'New sessions stop going out. Those already in intervals.icu stay there unless they are removed too.',
+  ),
+  'publish.settings.remove-sent': tpl(
+    'Also remove the sessions already sent',
+    {},
+    { shape: 'label' },
+  ),
+  'publish.settings.turn-off': tpl('Turn off sending', {}, { shape: 'label' }),
+  'publish.settings.keep': tpl('Keep sending', {}, { shape: 'label' }),
+
+  // Disconnecting intervals.icu while sending is on offers the same removal, and a way out when the
+  // removal fails (the server answers 409 and keeps the connection, because it needs the key).
+  'publish.disconnect.button': tpl('Disconnect', {}, { shape: 'label' }),
+  'publish.disconnect.offer': tpl(
+    'intervals.icu holds the sessions already sent. They stay there after disconnecting unless they are removed too.',
+  ),
+  'publish.disconnect.failed': tpl(
+    'Not disconnected. The server did not accept the request; try again.',
+  ),
+  'publish.disconnect.without': tpl('Disconnect without removing them', {}, { shape: 'label' }),
+  'publish.disconnect.cancel': tpl('Keep it connected', {}, { shape: 'label' }),
+
+  // The calendar link: a private address for any calendar app, with no account behind it.
+  'publish.calendar.heading': tpl('Calendar link', {}, { shape: 'label' }),
+  'publish.calendar.privacy': tpl(
+    'Anyone with this link can read your session titles and durations. Titles name the kind of run only.',
+  ),
+  'publish.calendar.window': tpl(
+    'The calendar shows the next {calendarDays} days; the watch gets the next {watchDays}.',
+    { calendarDays: 'count', watchDays: 'count' },
+  ),
+  'publish.calendar.proxy': tpl(
+    'A reverse proxy in front of this app may log the link, and the app cannot clear that log. Turn the link off to end it.',
+  ),
+  'publish.calendar.off': tpl('The calendar link is off.'),
+  'publish.calendar.on': tpl('The calendar link works. It was made on {date}.', { date: 'date' }),
+  'publish.calendar.on-plain': tpl('The calendar link works.'),
+  'publish.calendar.not-shown': tpl(
+    'The link cannot be shown again. Create a new one to copy it; the old one then stops working.',
+  ),
+  'publish.calendar.create': tpl('Create calendar link', {}, { shape: 'label' }),
+  'publish.calendar.replace': tpl('Create a new link', {}, { shape: 'label' }),
+  'publish.calendar.turn-off': tpl('Turn off the link', {}, { shape: 'label' }),
+  'publish.calendar.dialog': tpl('Your calendar link', {}, { shape: 'label' }),
+  'publish.calendar.shown-once': tpl(
+    'This link is shown once. Copy it now or open it in a calendar app; creating another replaces it.',
+  ),
+  'publish.calendar.address': tpl('Calendar link address', {}, { shape: 'label' }),
+  'publish.calendar.copy': tpl('Copy link', {}, { shape: 'label' }),
+  'publish.calendar.open': tpl('Open in a calendar app', {}, { shape: 'label' }),
+  'publish.calendar.copied': tpl('Link copied', {}, { shape: 'label' }),
+  'publish.calendar.copy-failed': tpl(
+    'The link could not be copied. Select it and copy it by hand.',
+  ),
+  'publish.calendar.turned-off': tpl('Calendar link turned off', {}, { shape: 'label' }),
+  'publish.calendar.create-failed': tpl('The calendar link was not created. Try again.'),
+  'publish.calendar.turn-off-failed': tpl('The calendar link was not turned off. Try again.'),
 
   // Today's line (the `watch` slot), and the short reason that follows "Not on the watch yet".
   'publish.line.on-watch': tpl('On your watch.'),
@@ -389,7 +458,10 @@ export function wristLineSentence(item: WristWording & Pick<WristItem, 'variant'
   }
 }
 
-/** The fixed words of the Plan strip, the session sheet and the settings: headings, notes, labels. */
+/**
+ * The fixed words of the Plan strip, the session sheet, the settings, the disconnect choice and the
+ * calendar link: headings, notes, labels.
+ */
 export type WristPlainId =
   | 'publish.strip.heading'
   | 'publish.sheet.heading'
@@ -400,6 +472,38 @@ export type WristPlainId =
   | 'publish.settings.heading'
   | 'publish.settings.garmin'
   | 'publish.settings.garmin-help'
+  | 'publish.settings.never-sent'
+  | 'publish.settings.sending-now'
+  | 'publish.settings.send-now'
+  | 'publish.settings.dormant'
+  | 'publish.settings.off-offer'
+  | 'publish.settings.remove-sent'
+  | 'publish.settings.turn-off'
+  | 'publish.settings.keep'
+  | 'publish.disconnect.button'
+  | 'publish.disconnect.offer'
+  | 'publish.disconnect.failed'
+  | 'publish.disconnect.without'
+  | 'publish.disconnect.cancel'
+  | 'publish.calendar.heading'
+  | 'publish.calendar.privacy'
+  | 'publish.calendar.proxy'
+  | 'publish.calendar.off'
+  | 'publish.calendar.on-plain'
+  | 'publish.calendar.not-shown'
+  | 'publish.calendar.create'
+  | 'publish.calendar.replace'
+  | 'publish.calendar.turn-off'
+  | 'publish.calendar.dialog'
+  | 'publish.calendar.shown-once'
+  | 'publish.calendar.address'
+  | 'publish.calendar.copy'
+  | 'publish.calendar.open'
+  | 'publish.calendar.copied'
+  | 'publish.calendar.copy-failed'
+  | 'publish.calendar.turned-off'
+  | 'publish.calendar.create-failed'
+  | 'publish.calendar.turn-off-failed'
 
 export function wristPlain(id: WristPlainId): string {
   return say(id)
@@ -410,6 +514,36 @@ export function wristSendLabel(days: number): string {
   return render(
     PUBLISH_TEMPLATES['publish.settings.send'],
     { days: { kind: 'count', n: days } },
+    STORED_UNITS,
+  )
+}
+
+/** "Last send to intervals.icu: 13 Jan at 11:00.": `time` is the clock time where the runner is. */
+export function wristLastSend(date: string, time: string): string {
+  return render(
+    PUBLISH_TEMPLATES['publish.settings.last-send'],
+    { date: { kind: 'date', iso: date, style: 'short' }, time },
+    STORED_UNITS,
+  )
+}
+
+/** "The calendar link works. It was made on 13 Jan." */
+export function calendarOnSentence(madeOn: string): string {
+  return render(
+    PUBLISH_TEMPLATES['publish.calendar.on'],
+    { date: { kind: 'date', iso: madeOn, style: 'short' } },
+    STORED_UNITS,
+  )
+}
+
+/** "The calendar shows the next 28 days; the watch gets the next 14." */
+export function calendarWindowSentence(calendarDays: number, watchDays: number): string {
+  return render(
+    PUBLISH_TEMPLATES['publish.calendar.window'],
+    {
+      calendarDays: { kind: 'count', n: calendarDays },
+      watchDays: { kind: 'count', n: watchDays },
+    },
     STORED_UNITS,
   )
 }

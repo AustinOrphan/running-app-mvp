@@ -307,6 +307,11 @@ the why drawer), so no API is needed for papers.
   grade; the same drawer component serves every "why".
 - **Profile:** adds risk-profile fields (BSI history, REDs screen entry point) and shows the
   current zone set with each boundary's source.
+- **Delivery:** a prescribed session leaves the app as a workout on a watch (an intervals.icu
+  event, a FIT file) and as a titled day in a private calendar feed, all rendered from one
+  provider-neutral workout so they carry the numbers of the session sheet. The design is section 6
+  of `2026-10-22-coach-phase3a-design.md` and ADR 0008; the engine only prescribes and chooses
+  nothing for delivery.
 
 ## 8. Living research base
 
