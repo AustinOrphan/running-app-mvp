@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest'
-import { aggregateWeeks } from '../../../shared/domain/weeks.ts'
+import {
+  activityLoadStart,
+  aggregateWeeks,
+  STREAK_LOOKBACK_WEEKS,
+  type WeekCore,
+} from '../../../shared/domain/weeks.ts'
 import { addDays } from '../../../shared/dates.ts'
 import { makeActivity } from '../../factories.ts'
 
@@ -171,6 +176,27 @@ describe('aggregateWeeks', () => {
     expect(first(rows).streak3Plus).toBe(1)
   })
 
+  test('streak3Plus is capped at 52 weeks, however many weeks come before', () => {
+    // One week at 3 runs makes a streak of 1; each of N consecutive weeks adds one.
+    const consecutive = (weeks: number) =>
+      Array.from({ length: weeks }, (_, w) => addDays(W, -7 * w)).flatMap((weekStart) =>
+        Array.from({ length: 3 }, (_, i) => makeActivity({ date: addDays(weekStart, i) })),
+      )
+    expect(STREAK_LOOKBACK_WEEKS).toBe(52)
+    expect(first(aggregateWeeks(consecutive(51), [W])).streak3Plus).toBe(51)
+    expect(first(aggregateWeeks(consecutive(52), [W])).streak3Plus).toBe(52)
+    expect(first(aggregateWeeks(consecutive(53), [W])).streak3Plus).toBe(52)
+    expect(first(aggregateWeeks(consecutive(80), [W])).streak3Plus).toBe(52)
+  })
+
+  test('reads only the five columns of a WeekCore, nothing else of an activity', () => {
+    const core: WeekCore[] = [
+      { date: W, type: 'run', durationSec: min(60), distanceM: 10000, duplicateStatus: 'none' },
+      { date: W, type: 'run', durationSec: min(30), distanceM: null, duplicateStatus: 'possible' },
+    ]
+    expect(first(aggregateWeeks(core, [W]))).toMatchObject({ runMin: 60, runM: 10000 })
+  })
+
   test('rows follow weekStarts order and include weeks with no activity', () => {
     const rows = aggregateWeeks(
       [makeActivity({ date: '2026-03-09', durationSec: min(30) })],
@@ -183,5 +209,18 @@ describe('aggregateWeeks', () => {
   test('a week start that is not a Monday or not a date throws instead of giving an empty row', () => {
     expect(() => aggregateWeeks([], ['2026-03-04'])).toThrow(RangeError)
     expect(() => aggregateWeeks([], ['2026-3-2'])).toThrow(RangeError)
+  })
+})
+
+describe('activityLoadStart', () => {
+  test('is 52 weeks before the first week, so the streak of its row is whole', () => {
+    expect(activityLoadStart(W)).toBe(addDays(W, -7 * STREAK_LOOKBACK_WEEKS))
+    expect(activityLoadStart(W)).toBe('2025-03-03')
+  })
+
+  test('the first row still sees every week its 4-week average and its streak read', () => {
+    const start = activityLoadStart(W)
+    const needed = [addDays(W, -21), addDays(W, -7 * (STREAK_LOOKBACK_WEEKS - 1))]
+    for (const date of needed) expect(date >= start).toBe(true)
   })
 })

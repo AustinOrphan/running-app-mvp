@@ -19,8 +19,8 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
 
 CI (`.github/workflows/ci.yml`) runs `npm ci`, the chromium install, `npm run check`,
 `npm run build` and `npm run test:e2e`, and uploads the Playwright report on failure. The Docker
-image must still build (`docker build .`) after a change to dependencies or the `Dockerfile`; its
-build runs `prisma migrate deploy` as a smoke test.
+image must still build (`docker build .`) after a change to dependencies, the `Dockerfile` or a
+migration; its build runs `prisma migrate deploy` as a smoke test.
 
 ## Structure
 
@@ -68,6 +68,14 @@ build runs `prisma migrate deploy` as a smoke test.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
   and `LOG_LEVEL` (plus `TZ` as an OS setting in Docker).
 - Migrations under `prisma/migrations` are committed; never ignore them.
+- `PlanSession.externalId` (a uuid, unique per plan) is a session's identity outside the database.
+  Session rows are built only by `sessionRow()` in `server/services/planEngine.ts`, which sets
+  `externalId` (fresh unless carried) and `trimmed`, the indexed form of `rules` holding
+  `design-4.3`. `isTrimmed()` in `server/serialize.ts` is the one derivation: set `trimmed` with it
+  on every write of `rules`, and never filter the stored `rules` text with `contains`.
+- Week and statistics code reads `ActivityCore` rows (`loadActivityCores`, six columns), from
+  `activityLoadStart(first week)` to the last Sunday, never every whole activity. A loop over weeks
+  reads the database once for all of them (`executionRecordsByWeek`).
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are
   `devDependencies`, so the Docker image installs without them.
 
@@ -81,6 +89,11 @@ build runs `prisma migrate deploy` as a smoke test.
   auto-waiting assertions.
   `signedInApi()` signs in with a minted session cookie once the account exists, because the
   sign-in route allows 10 attempts per window and the suite would exhaust it.
+- Every migration adds a case to `tests/unit/server/migrations.test.ts`: it seeds the previous
+  release's rows with raw SQL (sessions linked to activities included), applies the migration and
+  asserts nothing was lost. The same file runs `prisma migrate diff --exit-code` against
+  `prisma/schema.prisma`, so a schema change without its migration fails `npm run check`. A required
+  column on a populated table is generated, then hand-edited so the redefine fills it per row.
 
 ## Public repository
 

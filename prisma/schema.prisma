@@ -83,6 +83,7 @@ model Activity {
 
   @@unique([userId, providerKey])
   @@index([userId, date])
+  @@index([duplicateOfId])
 }
 
 model ImportBatch {
@@ -190,6 +191,7 @@ model PlanWeek {
 model PlanSession {
   id          String   @id @default(cuid())
   planId      String
+  externalId  String // uuid; the identity of a session outside the database (watch events, calendar UIDs, revision diffs), kept by every write that keeps the session
   weekStart   String // Monday, YYYY-MM-DD
   date        String // YYYY-MM-DD
   order       Int
@@ -202,6 +204,7 @@ model PlanSession {
   target      String // JSON text: SessionTarget
   purpose     String
   rules       String   @default("[]") // JSON text: string[] of rule ids
+  trimmed     Boolean  @default(false) // derived from rules by isTrimmed() in server/serialize.ts, only there
   flags       String   @default("[]") // JSON text: SessionFlag[]
   status      String   @default("planned") // 'planned' | 'completed' | 'partial' | 'skipped' | 'downgraded' | 'moved'
   activityId  String?  @unique
@@ -213,7 +216,10 @@ model PlanSession {
   plan     Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
   activity Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
 
+  @@unique([planId, externalId])
   @@index([planId, date])
+  @@index([planId, weekStart, trimmed])
+  @@index([planId, status, date])
 }
 
 model PlanRevision {
@@ -227,6 +233,7 @@ model PlanRevision {
   plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@index([planId, createdAt])
+  @@index([planId, reason])
 }
 
 model PredictionLog {

@@ -90,6 +90,7 @@ function makePlan(weeks: PlanWeek[], over: Partial<PlanWithSessions> = {}): Plan
 function makeSession(over: Partial<PlanSession> = {}): PlanSession {
   return {
     id: 's1',
+    externalId: 'ext-s1',
     planId: 'p1',
     weekStart: W,
     date: '2026-10-13',

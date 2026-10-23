@@ -1,4 +1,4 @@
-import type { Activity } from '../types.ts'
+import type { ActivityCore } from '../types.ts'
 
 export interface FastestEffort {
   label: string
@@ -32,11 +32,11 @@ const WINDOW_MIN_PER_MILLE = 995
 const WINDOW_MAX_PER_MILLE = 1020
 
 // `possible` and `confirmed` duplicates are excluded from every statistic.
-function counts(activity: Activity): boolean {
+function counts(activity: ActivityCore): boolean {
   return activity.duplicateStatus === 'none' || activity.duplicateStatus === 'dismissed'
 }
 
-function isFasterOrEarlier(a: Activity, b: Activity): boolean {
+function isFasterOrEarlier(a: ActivityCore, b: ActivityCore): boolean {
   // pace = duration / distance; cross-multiply to compare without division.
   const left = a.durationSec * (b.distanceM ?? 0)
   const right = b.durationSec * (a.distanceM ?? 0)
@@ -44,7 +44,7 @@ function isFasterOrEarlier(a: Activity, b: Activity): boolean {
   return a.date < b.date
 }
 
-export function fastestEfforts(activities: Activity[]): FastestEffort[] {
+export function fastestEfforts(activities: ActivityCore[]): FastestEffort[] {
   const candidates = activities.filter(
     (a) =>
       counts(a) &&
@@ -55,7 +55,7 @@ export function fastestEfforts(activities: Activity[]): FastestEffort[] {
   )
   const efforts: FastestEffort[] = []
   for (const { label, targetM } of EFFORT_TARGETS) {
-    let best: Activity | null = null
+    let best: ActivityCore | null = null
     for (const a of candidates) {
       const d = a.distanceM ?? 0
       if (d * 1000 < targetM * WINDOW_MIN_PER_MILLE || d * 1000 > targetM * WINDOW_MAX_PER_MILLE) {
@@ -77,7 +77,7 @@ export function fastestEfforts(activities: Activity[]): FastestEffort[] {
   return efforts
 }
 
-function totalsBy(activities: Activity[], keyLength: number): Array<[string, PeriodTotal]> {
+function totalsBy(activities: ActivityCore[], keyLength: number): Array<[string, PeriodTotal]> {
   const sums = new Map<string, { sec: number; runM: number; runs: number; longestSec: number }>()
   for (const a of activities) {
     if (a.type !== 'run' || !counts(a)) continue
@@ -102,15 +102,15 @@ function totalsBy(activities: Activity[], keyLength: number): Array<[string, Per
     ])
 }
 
-export function monthlyTotals(activities: Activity[]): Array<PeriodTotal & { month: string }> {
+export function monthlyTotals(activities: ActivityCore[]): Array<PeriodTotal & { month: string }> {
   return totalsBy(activities, 7).map(([month, total]) => ({ month, ...total }))
 }
 
-export function yearlyTotals(activities: Activity[]): Array<PeriodTotal & { year: string }> {
+export function yearlyTotals(activities: ActivityCore[]): Array<PeriodTotal & { year: string }> {
   return totalsBy(activities, 4).map(([year, total]) => ({ year, ...total }))
 }
 
-export function longestRuns(activities: Activity[], limit = 10): Activity[] {
+export function longestRuns<T extends ActivityCore>(activities: T[], limit = 10): T[] {
   return activities
     .filter((a) => a.type === 'run' && counts(a))
     .sort(

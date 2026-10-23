@@ -5,6 +5,7 @@ export const TODAY = '2026-03-18'
 export function makeSession(over: Partial<PlanSession> = {}): PlanSession {
   return {
     id: 's1',
+    externalId: `ext-${over.id ?? 's1'}`,
     planId: 'p1',
     weekStart: '2026-03-16',
     date: TODAY,
