@@ -6,6 +6,8 @@
 const ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive'
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
 const HOURLY = 'temperature_2m,relative_humidity_2m,dew_point_2m,wind_speed_10m'
+/** The forecast adds radiation: it makes the heat index a WBGT instead of the air temperature. */
+const FORECAST_HOURLY = `${HOURLY},shortwave_radiation`
 const CLIMATE_HOURLY = 'temperature_2m,relative_humidity_2m,wind_speed_10m,shortwave_radiation'
 /** One request never waits longer, so a hung connection cannot hold a scheduled job for good. */
 export const REQUEST_TIMEOUT_MS = 20_000
@@ -19,6 +21,8 @@ export interface WeatherHour {
   dewPointC: number | null
   humidityPct: number | null
   windKph: number | null
+  /** Shortwave radiation in W/m2, the mean of the hour; null when the model sends none. */
+  shortwaveWm2: number | null
 }
 
 /** One archive hour in the place's local time, as the race climatology reads it. */
@@ -77,8 +81,13 @@ function hourLabels(body: OpenMeteoBody): unknown[] {
   return times as unknown[]
 }
 
-async function request(fetchFn: typeof fetch, base: string, params: URLSearchParams) {
-  params.set('hourly', HOURLY)
+async function request(
+  fetchFn: typeof fetch,
+  base: string,
+  params: URLSearchParams,
+  hourly: string = HOURLY,
+) {
+  params.set('hourly', hourly)
   params.set('timezone', 'GMT')
   params.set('wind_speed_unit', 'kmh')
   const body = await getJson(fetchFn, base, params)
@@ -87,6 +96,7 @@ async function request(fetchFn: typeof fetch, base: string, params: URLSearchPar
   const humidity = column(body.hourly?.relative_humidity_2m, times.length)
   const dew = column(body.hourly?.dew_point_2m, times.length)
   const wind = column(body.hourly?.wind_speed_10m, times.length)
+  const sun = column(body.hourly?.shortwave_radiation, times.length)
   const hours: WeatherHour[] = []
   times.forEach((time, index) => {
     // "2026-03-02T07:00" in GMT.
@@ -98,6 +108,7 @@ async function request(fetchFn: typeof fetch, base: string, params: URLSearchPar
       dewPointC: round1(dew[index] ?? null),
       humidityPct: humidityValue === null ? null : Math.round(humidityValue),
       windKph: round1(wind[index] ?? null),
+      shortwaveWm2: round1(sun[index] ?? null),
     })
   })
   return hours
@@ -131,7 +142,7 @@ export function fetchForecast(
   })
   if (where.pastDays) params.set('past_days', String(where.pastDays))
   if (where.forecastDays) params.set('forecast_days', String(where.forecastDays))
-  return request(fetchFn, FORECAST_URL, params)
+  return request(fetchFn, FORECAST_URL, params, FORECAST_HOURLY)
 }
 
 /**

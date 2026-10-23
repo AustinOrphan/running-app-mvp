@@ -10,7 +10,7 @@ import { fakeFetch, type FakeRoute } from '../fakeFetch.ts'
 import {
   client,
   createTestCtx,
-  noNetwork,
+  expectNoRefusedFetches,
   seedUser,
   type TestCtx,
   type TestUser,
@@ -38,7 +38,7 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
-  ctx.fetch = noNetwork()
+  expectNoRefusedFetches(ctx)
 })
 
 function json(body: unknown, status = 200): Response {

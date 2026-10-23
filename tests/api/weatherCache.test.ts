@@ -3,6 +3,8 @@ import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import type { PlanWithSessions, PredictionView, StateView } from '../../shared/types.ts'
 import { runWeatherJob } from '../../server/jobs/scheduler.ts'
 import { gatherContextInput } from '../../server/services/engineInput.ts'
+import { isHotForSteering, trainingHeatAdvice } from '../../shared/engine/heat.ts'
+import type { SessionSpec } from '../../shared/engine/types.ts'
 import {
   BACKOFF_MS,
   FORECAST_REFRESH_MS,
@@ -13,7 +15,7 @@ import { fakeFetch, type FakeRoute } from '../fakeFetch.ts'
 import {
   client,
   createTestCtx,
-  noNetwork,
+  expectNoRefusedFetches,
   seedUser,
   type TestCtx,
   type TestUser,
@@ -45,11 +47,11 @@ afterEach(async () => {
   await settleWeatherCache()
   vi.unstubAllGlobals()
   vi.setSystemTime(NOW)
-  ctx.fetch = noNetwork()
   await ctx.prisma.climateCache.deleteMany()
   await ctx.prisma.forecastCache.deleteMany()
   // The job serves every user, so each test starts with only its own runner.
   await ctx.prisma.user.deleteMany()
+  expectNoRefusedFetches(ctx)
 })
 
 // ---------------------------------------------------------------------------------------------
@@ -161,6 +163,49 @@ function forecastRoute(calls: URL[], temperature = 33): FakeRoute {
   }
 }
 
+/**
+ * A week of forecast whose afternoons are hot: air 32 C and 60% humidity from 12:00 to 17:00, 20 C
+ * otherwise, 5 km/h of wind, and with `sun` 800 W/m2 of radiation from 11:00 to 16:00. Without
+ * `sun` the response has no radiation column at all, as an older answer or another model would.
+ */
+function hotAfternoonRoute(calls: URL[], sun: boolean): FakeRoute {
+  return (req) => {
+    calls.push(new URL(req.url))
+    const times = hoursOf(today, 7)
+    const hour = (time: string) => Number(time.slice(11, 13))
+    return Response.json({
+      hourly: {
+        time: times,
+        temperature_2m: times.map((t) => (hour(t) >= 12 && hour(t) <= 17 ? 32 : 20)),
+        relative_humidity_2m: times.map(() => 60),
+        dew_point_2m: times.map(() => 22),
+        wind_speed_10m: times.map(() => 5),
+        ...(sun
+          ? { shortwave_radiation: times.map((t) => (hour(t) >= 11 && hour(t) <= 16 ? 800 : 0)) }
+          : {}),
+      },
+    })
+  }
+}
+
+/** A key session on `date`, as the engine would hand it to the heat advice. */
+function easyRun(date: string): SessionSpec {
+  return {
+    date,
+    order: 0,
+    kind: 'easy',
+    title: 'Easy run',
+    durationMin: 45,
+    distanceM: null,
+    gainM: null,
+    structure: [],
+    target: { zone: 'z2', rpe: [3, 4], hr: null, paceSecPerKm: null, heatNote: null },
+    purpose: 'test',
+    rules: [],
+    flags: [],
+  }
+}
+
 /** A `fetch` that counts its calls and answers none of them. */
 function silent(): { fetchFn: typeof fetch; calls: string[] } {
   const calls: string[] = []
@@ -263,6 +308,70 @@ describe('request paths read the cache and never fetch', () => {
     vi.setSystemTime(new Date(NOW.getTime() + FORECAST_USABLE_MS + MINUTE))
     expect((await input()).forecast).toBeNull()
     expect(stray).toEqual([])
+  })
+})
+
+describe('heat steering from the cached forecast', () => {
+  /** The weather job fills the cell; the engine input then reads it and nothing else. */
+  async function heatOfToday(sun: boolean) {
+    const { user } = await runner(`steer-${sun ? 'sun' : 'nosun'}@example.com`)
+    const calls: URL[] = []
+    ctx.fetch = fakeFetch({ [`GET ${FORECAST}`]: hotAfternoonRoute(calls, sun) })
+    await runWeatherJob(ctx, { fetch: ctx.fetch })
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.searchParams.get('hourly')).toContain('shortwave_radiation')
+
+    const input = await gatherContextInput(
+      ctx,
+      { userId: user.id, today, goalId: null },
+      { forecast: true },
+    )
+    const advice = trainingHeatAdvice(input.forecast ?? [], easyRun(today))
+    return { forecast: input.forecast, advice }
+  }
+
+  test('a hot afternoon with radiation is a WBGT peak and steers by effort', async () => {
+    const { forecast, advice } = await heatOfToday(true)
+
+    expect(forecast).toHaveLength(168)
+    const noon = forecast!.find((hour) => hour.time === `${today}T13:00:00`)
+    expect(noon).toMatchObject({ tempC: 32, humidityPct: 60, shortwaveWm2: 800 })
+    expect(advice.peak).toMatchObject({ index: 'wbgt' })
+    expect(advice.peak!.value).toBeGreaterThanOrEqual(25)
+    expect(advice.note).toMatch(/WBGT reaches/)
+    expect(isHotForSteering(advice.peak, [])).toBe(true)
+  })
+
+  test('without radiation the index falls back to the air temperature and does not steer alone', async () => {
+    const { forecast, advice } = await heatOfToday(false)
+
+    expect(forecast).toHaveLength(168)
+    expect(forecast!.every((hour) => !('shortwaveWm2' in hour))).toBe(true)
+    expect(advice.peak).toEqual({ hour: 12, value: 32, index: 'air-temperature' })
+    expect(advice.note).toMatch(/air temperature reaches 32 C/)
+    expect(isHotForSteering(advice.peak, [])).toBe(false)
+    expect(isHotForSteering(advice.peak, ['heat'])).toBe(true)
+  })
+})
+
+describe('the network guard', () => {
+  test('records a call that the weather layer swallows, so an unplanned fetch fails its test', async () => {
+    const { user, goal } = await runner('guard@example.com')
+
+    // Nothing plans a fetch here, so the request reaches the guard; the weather layer catches the
+    // rejection and the request still succeeds.
+    const res = await client(ctx, user).post('/api/plan/generate').send({ goalId: goal.id })
+    expect(res.status, JSON.stringify(res.body)).toBe(201)
+    await settleWeatherCache()
+
+    expect(ctx.refusedFetches.length).toBeGreaterThan(0)
+    expect(ctx.refusedFetches.every((url) => url.startsWith(ARCHIVE))).toBe(true)
+    // The check every suite runs after each test fails on it, and puts the guard back.
+    expect(() => {
+      expectNoRefusedFetches(ctx)
+    }).toThrow(/network guard/)
+    expect(ctx.refusedFetches).toEqual([])
+    expectNoRefusedFetches(ctx)
   })
 })
 

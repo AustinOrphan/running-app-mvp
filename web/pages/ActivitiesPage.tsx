@@ -195,12 +195,16 @@ export function ActivitiesPage() {
   const loadFailed = activities.isError && !moreFailed
 
   const moreButton = useRef<HTMLButtonElement>(null)
+  const countStatus = useRef<HTMLParagraphElement>(null)
   const refocusMore = useRef(false)
   // The button is disabled while a page loads, which drops its focus; give it back afterwards.
+  // The last page removes the button, so focus goes to the count line, which now reads the whole
+  // list, instead of falling to the document.
   useEffect(() => {
     if (!paged.isFetchingNextPage && refocusMore.current) {
       refocusMore.current = false
-      moreButton.current?.focus()
+      const target = moreButton.current ?? countStatus.current
+      target?.focus()
     }
   }, [paged.isFetchingNextPage])
 
@@ -318,11 +322,10 @@ export function ActivitiesPage() {
     <>
       <PageHeader title="Activities" />
 
-      {countText !== undefined && !badRange && !loadFailed ? (
-        <p role="status" className={styles.count}>
-          {countText}
-        </p>
-      ) : null}
+      {/* Always mounted, so a screen reader hears the text change; empty while there is no count. */}
+      <p ref={countStatus} role="status" tabIndex={-1} className={styles.count}>
+        {countText !== undefined && !badRange && !loadFailed ? countText : ''}
+      </p>
 
       {showControls ? (
         <div className={styles.bar}>

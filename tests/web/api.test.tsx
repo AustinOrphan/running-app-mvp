@@ -2,10 +2,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, test } from 'vitest'
+import type { ActivityListPage } from '../../shared/types.ts'
 import { useLogin, useLogout, useMe, useSetup } from '../../web/api/auth.ts'
 import {
   ACTIVITY_FOLLOW_MAX_PAGES,
   useActivities,
+  joinPages,
   useActivityPages,
   useCreateActivity,
   useDeleteActivity,
@@ -331,6 +333,48 @@ describe('the activity list', () => {
       '/api/activities?from=2026-03-01&limit=50&offset=0',
       '/api/activities?from=2026-03-01&limit=50&offset=50',
     ])
+  })
+
+  test('useActivityPages shows a row once when a write between two pages shifts the list', async () => {
+    // 75 runs, newest first. After page 1 is served a sync adds a newer run, so the list is one
+    // longer and the old row 49 comes back as the first row of page 2.
+    const all = rows.slice(0, 75)
+    const serve = activityRoute(all)
+    mockApi(
+      allRoutes({
+        'GET /api/activities': (req) => {
+          if (req.query.get('offset') === '50') all.unshift({ ...rows[200]!, id: 'added-by-sync' })
+          return serve(req)
+        },
+      }),
+    )
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useActivityPages(), { wrapper })
+    await waitFor(() => {
+      expect(result.current.data?.items).toHaveLength(50)
+    })
+
+    await act(() => result.current.fetchNextPage())
+    await waitFor(() => {
+      expect(result.current.data?.total).toBe(76)
+    })
+    const ids = result.current.data?.items.map((a) => a.id) ?? []
+    expect(new Set(ids).size).toBe(ids.length)
+    // The first copy wins, so every row keeps its place and none is repeated.
+    expect(ids).toEqual(rows.slice(0, 75).map((a) => a.id))
+    expect(result.current.hasNextPage).toBe(false)
+  })
+
+  test('joinPages keeps the first copy of a repeated id and the newest total', () => {
+    const page = (ids: string[], total: number): ActivityListPage =>
+      activityPage(
+        ids.map((id) => ({ ...rows[0]!, id })),
+        { total },
+      )
+    const joined = joinPages({ pages: [page(['a', 'b', 'c'], 5), page(['c', 'd', 'e'], 6)] })
+    expect(joined.items.map((a) => a.id)).toEqual(['a', 'b', 'c', 'd', 'e'])
+    expect(joined.total).toBe(6)
+    expect(joinPages({ pages: [] })).toEqual({ items: [], total: 0 })
   })
 
   test('useActivityPages has no next page after the last one', async () => {

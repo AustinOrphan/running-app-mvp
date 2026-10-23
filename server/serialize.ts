@@ -627,7 +627,10 @@ export async function loadActivities(
  * total (date, start time, creation time, then `id`), so a row is never repeated or skipped
  * between two pages of an unchanged list. Offset paging, not a cursor: `startTime` is nullable.
  * The count and the page are two reads, not a transaction (a transaction ends with a data-version
- * bump), so a write between them can leave `total` one off until the next request.
+ * bump), so a write between them can leave `total` one off until the next request. The count is
+ * read after the page: a row inserted before the page read pushes the last row of the list onto
+ * the following page, and a count taken afterwards includes the new row, so `next < total` still
+ * offers that page. A count taken first would be one short and end the list a row early.
  */
 export async function loadActivityPage(
   prisma: Pick<PrismaClient, 'activity'>,
@@ -635,16 +638,14 @@ export async function loadActivityPage(
   opts: { from?: string; to?: string; type?: ActivityType; limit: number; offset: number },
 ): Promise<ActivityListPage> {
   const where = activityWhere(userId, opts)
-  const [total, rows] = await Promise.all([
-    prisma.activity.count({ where }),
-    prisma.activity.findMany({
-      where,
-      omit: ACTIVITY_LIST_OMIT,
-      orderBy: [{ date: 'desc' }, { startTime: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
-      skip: opts.offset,
-      take: opts.limit,
-    }),
-  ])
+  const rows = await prisma.activity.findMany({
+    where,
+    omit: ACTIVITY_LIST_OMIT,
+    orderBy: [{ date: 'desc' }, { startTime: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+    skip: opts.offset,
+    take: opts.limit,
+  })
+  const total = await prisma.activity.count({ where })
   const next = opts.offset + rows.length
   return {
     items: rows.map(toActivityListItem),

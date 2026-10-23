@@ -831,6 +831,8 @@ export interface ForecastHour {
   dewPointC: number | null
   humidityPct: number | null
   windKph: number | null
+  /** Shortwave radiation in W/m2; null for an hour the model sent none for (and for older cache rows). */
+  shortwaveWm2: number | null
 }
 /** GET /api/weather/forecast: the cached seven-day forecast at home. */
 export interface ForecastView {

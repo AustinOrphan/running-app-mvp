@@ -69,6 +69,8 @@ async function loadForecast(deps: Deps, userId: string, timeZone: string) {
       dewPointC: hour.dewPointC,
       humidityPct: hour.humidityPct ?? 50,
       windKph: hour.windKph ?? 0,
+      // Without radiation the heat index falls back to the air temperature, which never steers.
+      ...(hour.shortwaveWm2 === null ? {} : { shortwaveWm2: hour.shortwaveWm2 }),
     })
   }
   return hours.length > 0 ? hours : null

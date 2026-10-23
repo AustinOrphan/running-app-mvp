@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs'
 import type { Express } from 'express'
 import request from 'supertest'
 import type { Test } from 'supertest'
-import { inject } from 'vitest'
+import { expect, inject } from 'vitest'
 import type { ActivityListItem, ActivityListPage, Units } from '../../shared/types.ts'
 import { createApp, type Deps } from '../../server/app.ts'
 import { signSession } from '../../server/auth/session.ts'
@@ -16,22 +16,47 @@ import { settleWeatherCache } from '../../server/services/weatherCache.ts'
 
 /**
  * The app's deps plus the express app. `fetch` is the injected network client that the routes and
- * the services read at each call: it starts as `noNetwork()`, so a call no test planned fails
- * loudly instead of reaching the network; a test sets `ctx.fetch = fakeFetch({...})`.
+ * the services read at each call: it starts as `noNetwork(refusedFetches)`, so a call no test
+ * planned is refused and recorded instead of reaching the network; a test sets
+ * `ctx.fetch = fakeFetch({...})`. The weather layer catches a refused call (a request never fails
+ * on Open-Meteo), so the rejection alone cannot fail a test: `expectNoRefusedFetches(ctx)` does.
  */
 export interface TestCtx extends Deps {
   app: Express
   prisma: PrismaClient
   config: Config
+  /** The URLs the default `noNetwork` guard refused since the last `blockNetwork(ctx)`. */
+  refusedFetches: string[]
   close(): Promise<void>
 }
 
-/** A `fetch` that rejects every call and names the URL, so a test never reaches the network. */
-export function noNetwork(): typeof fetch {
+/**
+ * A `fetch` that rejects every call and names the URL, so a test never reaches the network. Each
+ * refused URL is pushed to `refused`, where a test can see a call that the code under test swallowed.
+ */
+export function noNetwork(refused: string[] = []): typeof fetch {
   return (input) => {
     const url = input instanceof Request ? input.url : String(input)
+    refused.push(url)
     return Promise.reject(new Error(`A test reached the network (${url}); set ctx.fetch.`))
   }
+}
+
+/** Puts the guard back on `ctx` and forgets the calls it refused so far. */
+export function blockNetwork(ctx: TestCtx): void {
+  ctx.refusedFetches.length = 0
+  ctx.fetch = noNetwork(ctx.refusedFetches)
+}
+
+/**
+ * Fails when the guard refused a call since `blockNetwork(ctx)`, even one the code swallowed, and
+ * puts the guard back for the next test. A test that plans calls replaces `ctx.fetch`, so only an
+ * unplanned one reaches the guard. Call it last in an `afterEach`.
+ */
+export function expectNoRefusedFetches(ctx: TestCtx): void {
+  const refused = [...ctx.refusedFetches]
+  blockNetwork(ctx)
+  expect(refused, 'A call reached the network guard').toEqual([])
 }
 
 export interface TestUser {
@@ -61,11 +86,13 @@ export async function createTestCtx(
   const prisma = createPrisma(config.databaseUrl)
   await initSqlite(prisma)
   // The app keeps this object, so a later `ctx.fetch = ...` reaches the routes too.
-  const deps: Deps = { prisma, config, fetch: noNetwork() }
+  const refusedFetches: string[] = []
+  const deps: Deps = { prisma, config, fetch: noNetwork(refusedFetches) }
   const app = createApp(deps, appOpts)
 
   return Object.assign(deps, {
     app,
+    refusedFetches,
     async close() {
       await settleWeatherCache()
       await prisma.$disconnect()

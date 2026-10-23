@@ -62,6 +62,17 @@ function plan(...windows: DisruptionWindow[]): DisruptionPlan {
   return disruptionPlan(windows)
 }
 
+/** Runs `fn` with a Param set to `value`, then puts it back. */
+function withValue<T>(param: { value: number }, value: number, fn: () => T): T {
+  const before = param.value
+  param.value = value
+  try {
+    return fn()
+  } finally {
+    param.value = before
+  }
+}
+
 function dates(from: string, to: string): string[] {
   const out: string[] = []
   for (let d = from; d <= to; d = addDays(d, 1)) out.push(d)
@@ -592,6 +603,105 @@ describe('week caps', () => {
     expect(checked).toBeGreaterThan(1000)
   })
 
+  it('keeps every cap a whole, non-negative number whatever figures it is given', () => {
+    // Figures that are negative or not finite read as zero; a held day costs what the plan had on it.
+    const clean = (value: number) => (Number.isFinite(value) ? Math.max(0, value) : 0)
+    const weeks = Array.from({ length: 10 }, (_, k) => addDays('2026-10-12', k * 7))
+    const figures = [-50, 0, 100, 300, Number.NaN, Infinity, -Infinity]
+    const dayMinutes = [undefined, 0, 500, -40, Number.NaN, Infinity] as const
+    let checked = 0
+    let heldChecked = 0
+    for (const length of [1, 3, 7, 9, 14, 30]) {
+      for (const offset of [-14, -7, -1, 2, 9]) {
+        const p = plan(rest(addDays(TODAY, offset), length, { reason: 'illness-above-neck' }))
+        for (const week of weeks) {
+          for (const baselineMin of figures) {
+            for (const referenceMin of figures) {
+              for (const perDay of dayMinutes) {
+                const minByDate =
+                  perDay === undefined
+                    ? undefined
+                    : Object.fromEntries(dates(week, addDays(week, 6)).map((d) => [d, perDay]))
+                const cap = disruptionWeekCap(p, week, { referenceMin, baselineMin, minByDate })
+                if (cap === null || cap.capMin === null) continue
+                checked += 1
+                expect(Number.isInteger(cap.capMin)).toBe(true)
+                expect(cap.capMin).toBeGreaterThanOrEqual(0)
+                if (cap.heldDays > 0) {
+                  heldChecked += 1
+                  expect(cap.capMin).toBeLessThanOrEqual(clean(baselineMin))
+                }
+                if (cap.flags.includes('disruption-return')) {
+                  expect(cap.capMin).toBeLessThanOrEqual(clean(referenceMin))
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(10_000)
+    expect(heldChecked).toBeGreaterThan(5_000)
+  })
+
+  it('floors a held week at zero when the held days cost more than the week holds', () => {
+    // Thu 22 to Sun 25 held. The plan's four held days add up to 240 minutes, the week to 180.
+    const p = plan(win({ startDate: '2026-10-22', endDate: '2026-10-24', reason: 'niggle' }))
+    const minByDate = {
+      '2026-10-19': 30,
+      '2026-10-22': 90,
+      '2026-10-23': 60,
+      '2026-10-24': 60,
+      '2026-10-25': 30,
+    }
+    const cap = disruptionWeekCap(p, MON, { referenceMin: 300, baselineMin: 180, minByDate })
+    expect(cap?.heldDays).toBeGreaterThan(0)
+    expect(cap?.capMin).toBe(0)
+  })
+
+  it('reads a missing, negative or infinite figure as zero minutes, never a negative or NaN cap', () => {
+    const held = plan(rest('2026-10-20', 3))
+    for (const baselineMin of [Number.NaN, -120, Infinity, -Infinity]) {
+      expect(disruptionWeekCap(held, MON, { referenceMin: 300, baselineMin })?.capMin).toBe(0)
+    }
+    // A negative day figure costs nothing; it does not add minutes to the week.
+    const refund = { '2026-10-20': -400, '2026-10-21': -400, '2026-10-22': -400 }
+    expect(
+      disruptionWeekCap(held, MON, { referenceMin: 300, baselineMin: 100, minByDate: refund })
+        ?.capMin,
+    ).toBe(100)
+    const noDetail = { referenceMin: 300, baselineMin: 100, minByDate: { '2026-10-20': Infinity } }
+    expect(disruptionWeekCap(held, MON, noDetail)?.capMin).toBe(100)
+
+    // The return week and the full week after a 9-day hold: the reference is the only figure.
+    const back = plan(rest('2026-10-12', 9))
+    for (const referenceMin of [Number.NaN, -300, Infinity]) {
+      const week = disruptionWeekCap(back, '2026-10-26', { referenceMin, baselineMin: 300 })
+      expect(week).toMatchObject({ capMin: 0, flags: ['disruption-return'] })
+    }
+  })
+
+  it('rounds a cap down only after the 1e-9 nudge, so 62.99999999999999 minutes is 63', () => {
+    // 90 x 0.7 is 62.99999999999999 in floating point; the cap is the minutes the product means.
+    expect(0.7 * 90).toBeLessThan(63)
+    // The plan reads the J7 fraction when it is built, so it is built with the fraction set.
+    const caps = withValue(P.j7.restart7to14, 0.7, () => {
+      const back = plan(rest('2026-10-12', 8))
+      expect(back.holds[0]).toMatchObject({
+        fraction: 0.7,
+        returnWeekStart: MON,
+        fullWeekStart: '2026-10-26',
+      })
+      return {
+        full: disruptionWeekCap(back, '2026-10-26', { referenceMin: 90, baselineMin: 300 }),
+        // The return week prorates the same way: its 6 open days of 45 x 0.7 are 26.999999999999996.
+        returnWeek: disruptionWeekCap(back, MON, { referenceMin: 45, baselineMin: 300 }),
+      }
+    })
+    expect(caps.full?.capMin).toBe(63)
+    expect(caps.returnWeek).toMatchObject({ openDays: 6, capMin: 27 })
+  })
+
   it('applies the smallest cap when a week is both held and a return week', () => {
     // 9 days off ending Wed 21 Oct, then a second window holding Sat 24 and Sun 25.
     const p = plan(rest('2026-10-13', 9), rest('2026-10-24', 2, { id: 'w2' }))
@@ -862,17 +972,6 @@ describe('window copy', () => {
     'ten',
   ]
   const phrase = (n: number, noun: string) => `${words[n]!} ${noun}${n === 1 ? '' : 's'}`
-
-  /** Runs `fn` with a Param set to `value`, then puts it back. */
-  function withValue<T>(param: { value: number }, value: number, fn: () => T): T {
-    const before = param.value
-    param.value = value
-    try {
-      return fn()
-    } finally {
-      param.value = before
-    }
-  }
 
   const illnessSentence = () => renderFact(windowRuleFact('illness-above-neck')!, 'km')
 

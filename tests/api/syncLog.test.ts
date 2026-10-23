@@ -32,7 +32,7 @@ import { buildFit } from '../fixtures/fit/buildFit.ts'
 import {
   client,
   createTestCtx,
-  noNetwork,
+  expectNoRefusedFetches,
   seedUser,
   type TestCtx,
   type TestUser,
@@ -89,7 +89,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks()
-  ctx.fetch = noNetwork()
+  expectNoRefusedFetches(ctx)
 })
 
 function deps() {

@@ -111,9 +111,22 @@ export interface ActivityPages {
   total: number
 }
 
-function joinPages(data: { pages: ActivityListPage[] }): ActivityPages {
+/**
+ * The rows of every page read, each id once. Pages are read by offset, so a write between two
+ * reads (an hourly sync adding a run) shifts a row onto the next page; the first copy wins.
+ */
+export function joinPages(data: { pages: ActivityListPage[] }): ActivityPages {
   const last = data.pages.at(-1)
-  return { items: data.pages.flatMap((page) => page.items), total: last?.total ?? 0 }
+  const seen = new Set<string>()
+  const items: ActivityListItem[] = []
+  for (const page of data.pages) {
+    for (const item of page.items) {
+      if (seen.has(item.id)) continue
+      seen.add(item.id)
+      items.push(item)
+    }
+  }
+  return { items, total: last?.total ?? 0 }
 }
 
 /**

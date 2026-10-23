@@ -21,7 +21,14 @@ import { storeParsed } from '../../server/services/activityStore.ts'
 import { runExecutionForActivity, runNightlyMatching } from '../../server/services/execution.ts'
 import { refreshWeatherCaches } from '../../server/services/weatherCache.ts'
 import { fakeFetch } from '../fakeFetch.ts'
-import { client, createTestCtx, noNetwork, seedUser, type TestCtx } from './helpers.ts'
+import {
+  blockNetwork,
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+} from './helpers.ts'
 
 // The file parser's summary is a separate task; this stand-in keeps the store test independent.
 vi.mock('../../shared/importers/files/summarize.ts', () => ({
@@ -58,9 +65,9 @@ afterAll(async () => {
 afterEach(async () => {
   vi.unstubAllGlobals()
   vi.setSystemTime(new Date(2026, 9, 21, 12))
-  ctx.fetch = noNetwork()
   await ctx.prisma.forecastCache.deleteMany()
   await ctx.prisma.climateCache.deleteMany()
+  expectNoRefusedFetches(ctx)
 })
 
 const TARGET = JSON.stringify({
@@ -828,7 +835,7 @@ describe('GET /api/today', () => {
       },
     })
     await refreshWeatherCaches(ctx, u.id)
-    ctx.fetch = noNetwork()
+    blockNetwork(ctx)
     const res = await client(ctx, u).get('/api/today')
     expect(res.status, JSON.stringify(res.body)).toBe(200)
     const view = res.body as TodayView

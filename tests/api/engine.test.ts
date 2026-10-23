@@ -14,7 +14,7 @@ import { fakeFetch } from '../fakeFetch.ts'
 import {
   client,
   createTestCtx,
-  noNetwork,
+  expectNoRefusedFetches,
   seedUser,
   type TestCtx,
   type TestUser,
@@ -62,9 +62,9 @@ afterAll(async () => {
 afterEach(async () => {
   vi.unstubAllGlobals()
   vi.setSystemTime(new Date(2026, 9, 21, 12))
-  ctx.fetch = noNetwork()
   await ctx.prisma.climateCache.deleteMany()
   await ctx.prisma.forecastCache.deleteMany()
+  expectNoRefusedFetches(ctx)
 })
 
 /** Twelve completed weeks of four runs, so the engine has a history to build on. */
