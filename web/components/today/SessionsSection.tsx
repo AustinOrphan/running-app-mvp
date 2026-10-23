@@ -1,9 +1,9 @@
 import { useId } from 'react'
 import type { PlanSession, PlanSessionStatus, TodayView, Units } from '../../../shared/types.ts'
 import { formatDistance, formatPace } from '../../../shared/units.ts'
-import { Button } from '../Button.tsx'
 import { formatClimb } from '../format.ts'
 import { TodaySlot } from './TodaySlot.tsx'
+import { WhyButton } from './WhyButton.tsx'
 import styles from './today.module.css'
 
 const STATUS_LABELS: Record<PlanSessionStatus, string | null> = {
@@ -59,15 +59,7 @@ function sessionFigures(
   return figures.flatMap((f) => (f.value === null ? [] : [{ label: f.label, value: f.value }]))
 }
 
-function SessionCard({
-  entry,
-  units,
-  onWhy,
-}: {
-  entry: TodayView['sessions'][number]
-  units: Units
-  onWhy: (rules: string[]) => void
-}) {
+function SessionCard({ entry, units }: { entry: TodayView['sessions'][number]; units: Units }) {
   const { session, advice, reasons } = entry
   const titleId = useId()
   const status = STATUS_LABELS[session.status]
@@ -106,28 +98,28 @@ function SessionCard({
         </div>
       )}
       <div className={styles.cardActions}>
-        <Button
-          variant="quiet"
-          onClick={() => {
-            onWhy(session.rules)
-          }}
-        >
-          Why this session
-        </Button>
+        <WhyButton
+          label="Why this session"
+          rules={session.rules}
+          explain={{ subject: 'session', id: session.id }}
+        />
       </div>
       <TodaySlot name="watch" />
     </article>
   )
 }
 
+/** J8 defines the fatigue states; J2 makes the check-in their primary input. */
+const FATIGUE_RULES = ['J2', 'J8']
+
 export function SessionsSection({
   today,
   units,
-  onWhy,
 }: {
   today: TodayView
   units: Units
-  onWhy: (rules: string[]) => void
+  /** Not read: each button owns its drawer. DashboardPage still passes it until E2-5. */
+  onWhy?: unknown
 }) {
   const headingId = useId()
   const { state } = today.readiness
@@ -146,20 +138,16 @@ export function SessionsSection({
       {readinessLine === null ? null : (
         <p className={styles.readinessLine}>
           <span>{readinessLine}</span>
-          <Button
-            variant="quiet"
-            onClick={() => {
-              // J8 defines the fatigue states; J2 makes the check-in their primary input.
-              onWhy(['j-2', 'j-8'])
-            }}
-          >
-            Why this note
-          </Button>
+          <WhyButton
+            label="Why this note"
+            rules={FATIGUE_RULES}
+            explain={{ subject: 'readiness' }}
+          />
         </p>
       )}
       <div className={styles.sessionList}>
         {today.sessions.map((entry) => (
-          <SessionCard key={entry.session.id} entry={entry} units={units} onWhy={onWhy} />
+          <SessionCard key={entry.session.id} entry={entry} units={units} />
         ))}
       </div>
     </section>

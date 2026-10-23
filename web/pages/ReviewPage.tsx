@@ -26,6 +26,7 @@ import type {
 } from '../../shared/types.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
+import { rulesRef } from '../api/explain.ts'
 import { useActivities } from '../api/activities.ts'
 import { usePlan } from '../api/plan.ts'
 import { useReviews, useSaveReview, type ReviewPatch } from '../api/reviews.ts'
@@ -567,6 +568,7 @@ function WeekReview({
                   <ExplainButton
                     subject="weekly decision"
                     rules={decisionRules(review.signals ?? [])}
+                    explain={{ subject: 'decision', weekStart }}
                   />
                 </div>
               </>
@@ -655,7 +657,11 @@ function WeekReview({
               ) : null}
               {changedRules.length > 0 ? (
                 <div>
-                  <ExplainButton subject="plan update" rules={changedRules} />
+                  <ExplainButton
+                    subject="plan update"
+                    rules={changedRules}
+                    explain={rulesRef(changedRules)}
+                  />
                 </div>
               ) : null}
             </>
@@ -698,7 +704,11 @@ function SessionSummaries({ sessions }: { sessions: PlanSession[] }) {
             ))}
             {session.execution ? (
               <div>
-                <ExplainButton subject={session.title} rules={session.rules} />
+                <ExplainButton
+                  subject={session.title}
+                  rules={session.rules}
+                  explain={{ subject: 'session', id: session.id }}
+                />
               </div>
             ) : null}
           </li>
@@ -780,7 +790,11 @@ function ZoneProposals() {
                 >
                   Decline
                 </Button>
-                <ExplainButton subject={`${label} change`} rules={proposal.rules} />
+                <ExplainButton
+                  subject={`${label} change`}
+                  rules={proposal.rules}
+                  explain={{ subject: 'zone', boundary: proposal.boundary }}
+                />
               </div>
             </li>
           )

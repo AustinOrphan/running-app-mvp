@@ -5,13 +5,23 @@ import type { PlanSession } from '../../shared/types.ts'
 import { SessionSheet } from '../../web/components/SessionSheet.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { makeActivity } from '../factories.ts'
-import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  activityPage,
+  explainOf,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 import { makeSession, settings } from './plan-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
-  WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
+  WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
     open ? (
-      <div role="complementary" aria-label="Why drawer">
+      <div
+        role="complementary"
+        aria-label="Why drawer"
+        data-explain={JSON.stringify(explain ?? null)}
+      >
         {rules.join(',')}
       </div>
     ) : null,
@@ -95,13 +105,15 @@ describe('SessionSheet', () => {
     expect(within(dialog).queryByText('60 m')).not.toBeInTheDocument()
   })
 
-  test('the why button opens the drawer with the session rule ids', async () => {
+  test('the why button opens the drawer on the session and its rule ids', async () => {
     const user = userEvent.setup()
     renderSheet(makeSession())
     const dialog = await screen.findByRole('dialog')
     expect(screen.queryByLabelText('Why drawer')).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Why this session' }))
-    expect(await screen.findByLabelText('Why drawer')).toHaveTextContent('e-2,f-1')
+    const drawer = await screen.findByLabelText('Why drawer')
+    expect(drawer).toHaveTextContent('e-2,f-1')
+    expect(explainOf(drawer)).toEqual({ subject: 'session', id: 's1' })
   })
 
   test('shows the execution assessment in plain words, with no judging copy', async () => {

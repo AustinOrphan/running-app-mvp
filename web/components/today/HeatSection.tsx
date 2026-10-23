@@ -1,14 +1,18 @@
 import { useId } from 'react'
 import type { TodayView } from '../../../shared/types.ts'
-import { Button } from '../Button.tsx'
+import { rulesRef } from '../../api/explain.ts'
+import { WhyButton } from './WhyButton.tsx'
 import styles from './today.module.css'
+
+// Training in heat and heat warnings, spelled as the Param registry spells them.
+const HEAT_RULES = ['I7', 'I9']
 
 export function HeatSection({
   heat,
-  onWhy,
 }: {
   heat: TodayView['heat']
-  onWhy: (rules: string[]) => void
+  /** Not read: the button owns its drawer. DashboardPage still passes it until E2-5. */
+  onWhy?: unknown
 }) {
   const headingId = useId()
   if (heat.note === null && heat.wbgtC === null) return null
@@ -23,14 +27,7 @@ export function HeatSection({
         {heat.coolerHour === null ? null : <span>{`Cooler hour: ${heat.coolerHour}`}</span>}
       </p>
       <div className={styles.cardActions}>
-        <Button
-          variant="quiet"
-          onClick={() => {
-            onWhy(['i-7', 'i-9'])
-          }}
-        >
-          Why this heat note
-        </Button>
+        <WhyButton label="Why this heat note" rules={HEAT_RULES} explain={rulesRef(HEAT_RULES)} />
       </div>
     </section>
   )

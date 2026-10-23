@@ -5,13 +5,23 @@ import type { Activity, TodayView } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
 import { makeActivity } from '../factories.ts'
-import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  activityPage,
+  explainOf,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 import { makeHeat, makeSession, makeToday, TODAY } from './today-fixtures.ts'
 
 // Stands in for the real drawer (Task E14) so the wiring is visible: which rules it was opened with.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
-  WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
-    open ? <div role="dialog" aria-label="Why">{`rules: ${rules.join(', ')}`}</div> : null,
+  WhyDrawer: ({ rules, explain, open }: { rules: string[]; explain?: unknown; open: boolean }) =>
+    open ? (
+      <div role="dialog" aria-label="Why" data-explain={JSON.stringify(explain ?? null)}>
+        {`rules: ${rules.join(', ')}`}
+      </div>
+    ) : null,
 }))
 
 // The fixed clock is Wednesday 2026-03-18.
@@ -83,7 +93,9 @@ describe("Today: today's session", () => {
     )
     const card = await screen.findByRole('article', { name: 'Easy run' })
     await user.click(within(card).getByRole('button', { name: 'Why this session' }))
-    expect(await screen.findByRole('dialog', { name: 'Why' })).toHaveTextContent('rules: f-1, g-1')
+    const drawer = await screen.findByRole('dialog', { name: 'Why' })
+    expect(drawer).toHaveTextContent('rules: f-1, g-1')
+    expect(explainOf(drawer)).toEqual({ subject: 'session', id: 's1' })
   })
 
   test('readiness that downgrades names the easier choice and its reasons', async () => {
@@ -148,7 +160,9 @@ describe('Today: heat, readiness and red flags', () => {
     expect(within(heat).getByText('WBGT 24.6 °C')).toBeInTheDocument()
     expect(within(heat).getByText('Cooler hour: 06:00')).toBeInTheDocument()
     await user.click(within(heat).getByRole('button', { name: 'Why this heat note' }))
-    expect(await screen.findByRole('dialog', { name: 'Why' })).toHaveTextContent('rules: i-7, i-9')
+    const drawer = await screen.findByRole('dialog', { name: 'Why' })
+    expect(drawer).toHaveTextContent('rules: I7, I9')
+    expect(explainOf(drawer)).toEqual({ subject: 'rules', rules: ['I7', 'I9'] })
   })
 
   test('no heat section without a note or a reading', async () => {
@@ -164,7 +178,9 @@ describe('Today: heat, readiness and red flags', () => {
     renderToday(today)
     expect(await screen.findByText('Recent signals point to possible fatigue.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Why this note' }))
-    expect(await screen.findByRole('dialog', { name: 'Why' })).toHaveTextContent('rules: j-2, j-8')
+    const drawer = await screen.findByRole('dialog', { name: 'Why' })
+    expect(drawer).toHaveTextContent('rules: J2, J8')
+    expect(explainOf(drawer)).toEqual({ subject: 'readiness' })
   })
 
   test('persistent suppression is stated plainly', async () => {
@@ -193,7 +209,9 @@ describe('Today: heat, readiness and red flags', () => {
     ).toBeInTheDocument()
     expect(within(banners).queryByRole('alert')).not.toBeInTheDocument()
     await user.click(within(banners).getByRole('button', { name: 'Why this note' }))
-    expect(await screen.findByRole('dialog', { name: 'Why' })).toHaveTextContent('rules: n-1')
+    const drawer = await screen.findByRole('dialog', { name: 'Why' })
+    expect(drawer).toHaveTextContent('rules: n-1')
+    expect(explainOf(drawer)).toEqual({ subject: 'rules', rules: ['n-1'] })
   })
 
   test('links to the disclaimer', async () => {

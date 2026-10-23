@@ -429,6 +429,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
         </div>
       </Sheet>
       <WhyDrawer
+        explain={{ subject: 'session', id: session.id }}
         rules={session.rules}
         open={whyOpen}
         onClose={() => {

@@ -1,13 +1,14 @@
 import type { TodayView } from '../../../shared/types.ts'
-import { Button } from '../Button.tsx'
+import { rulesRef } from '../../api/explain.ts'
+import { WhyButton } from './WhyButton.tsx'
 import styles from './today.module.css'
 
 export function HealthNotes({
   flags,
-  onWhy,
 }: {
   flags: TodayView['readiness']['redFlags']
-  onWhy: (rules: string[]) => void
+  /** Not read: each note's button owns its drawer. DashboardPage still passes it until E2-5. */
+  onWhy?: unknown
 }) {
   if (flags.length === 0) return null
   return (
@@ -16,14 +17,7 @@ export function HealthNotes({
         {flags.map((flag) => (
           <li key={flag.code} className={styles.note}>
             <p className={styles.noteText}>{flag.message}</p>
-            <Button
-              variant="quiet"
-              onClick={() => {
-                onWhy(flag.rules)
-              }}
-            >
-              Why this note
-            </Button>
+            <WhyButton label="Why this note" rules={flag.rules} explain={rulesRef(flag.rules)} />
           </li>
         ))}
       </ul>
