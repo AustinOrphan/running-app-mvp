@@ -9,6 +9,7 @@ import {
   type Template,
 } from '../../../shared/copy/template.ts'
 import { TEMPLATES, UNKNOWN_FACT_TEXT } from '../../../shared/copy/templates.ts'
+import { allParams } from '../../../shared/engine/params/index.ts'
 import type { Units } from '../../../shared/types.ts'
 
 const matches = (text: string) => lintText(text).map((hit) => hit.match)
@@ -166,5 +167,24 @@ describe('every registered template', () => {
       expect(lintText(text), text).toEqual([])
       expect(text).toMatch(/\.$/)
     }
+  })
+})
+
+// The why drawer shows a parameter's note as app-authored copy, so the registry is linted the way
+// the templates are: a note added later is covered without an edit here.
+describe('every parameter note', () => {
+  const notes = allParams().flatMap((p) =>
+    p.note === undefined ? [] : [{ id: p.id, note: p.note }],
+  )
+
+  test('there are notes to check', () => {
+    expect(notes.length).toBeGreaterThan(300)
+  })
+
+  test('passes the G5 lint', () => {
+    const problems = notes.flatMap(({ id, note }) =>
+      lintText(note).map((hit) => `${id}: "${hit.match}" (${hit.rule}) in ${JSON.stringify(note)}`),
+    )
+    expect(problems).toEqual([])
   })
 })

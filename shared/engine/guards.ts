@@ -1,6 +1,6 @@
 // Safety limits applied to a planned session list: the session spike guard (rules g-1, H4), the
 // weekly ramp (g-2), the tightened profiles (g-3), the ultra caps (H2, H3) and the helper behind
-// "never make up missed volume" (g-6). Pure: no I/O, no clock; `state.asOf` is today. Every number
+// "never make up lost volume" (g-6). Pure: no I/O, no clock; `state.asOf` is today. Every number
 // comes from limits.ts, which the macrocycle and the week placement plan with, so a generated
 // plan passes here unchanged; the cuts remain for owner edits and as a safety net.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'

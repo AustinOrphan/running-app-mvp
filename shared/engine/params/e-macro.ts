@@ -57,7 +57,7 @@ export const eMacro = {
       ['filipas-2022-pyr-pol-periodization'],
       {
         unit: 'weeks',
-        note: 'Default: the 8-week figure comes from a 5-10 km RCT design; the rule does not grade it, so it is treated as a default.',
+        note: 'Default: the 8-week figure comes from a 5-10K RCT design; the rule does not grade it, so it is treated as a default.',
       },
     ),
     ultraPeakWeeksBeforeRace: param(
@@ -126,7 +126,7 @@ export const eMacro = {
     }),
     baseZ3Share: param('e4.baseZ3Share', 5, 'C', 'E4', TID_PRIOR, {
       unit: '% of running time',
-      note: 'Base phase for 5-10 km and half/marathon: Z1 at least 80, Z2 at most 12, Z3 about 5.',
+      note: 'Base phase for 5-10K and half/marathon: Z1 at least 80, Z2 at most 12, Z3 about 5.',
     }),
     z2CapBase: param('e4.z2CapBase', 12, 'B', 'E4', ['rosenblat-2019-pol-vs-thr'], {
       unit: '% of running time',
@@ -163,7 +163,7 @@ export const eMacro = {
       ['oliveira-2024-pol-meta', 'rosenblat-2025-tid-ipd-nma'],
       {
         unit: 'weeks',
-        note: 'A polarized block is offered for competitive 5-10 km athletes and lasts under this many weeks, with load held constant.',
+        note: 'A polarized block is offered for competitive 5-10K athletes and lasts under this many weeks, with load held constant.',
       },
     ),
   },
@@ -476,7 +476,7 @@ export const eMacro = {
       [],
       {
         unit: 'min per week',
-        note: 'Default: the 5 km and 10 km long-run tier is the first below 180 min, the second from 180 to 360 min and the third above 360 min of the completed typical week (never the planned week). The boundaries keep run days times the cap at or above the week at every tier top.',
+        note: 'Default: the 5K and 10K long-run tier is the first below 180 min, the second from 180 to 360 min and the third above 360 min of the completed typical week (never the planned week). The boundaries keep run days times the cap at or above the week at every tier top.',
       },
     ),
     peakLongRunKmMax: param(
@@ -487,7 +487,7 @@ export const eMacro = {
       ['johnson-2018-long-runs-5k-10k', 'higdon-2024-advanced-10k'],
       {
         unit: 'km',
-        note: 'Default: the long run of a 5 km or 10 km goal never exceeds this distance (10 miles, the longest long run of the cited plans for both distances), so a fast runner is capped below the minutes of the tier. A coaching convention, not an injury limit.',
+        note: 'Default: the long run of a 5K or 10K goal never exceeds this distance (10 miles, the longest long run of the cited plans for both distances), so a fast runner is capped below the minutes of the tier. A coaching convention, not an injury limit.',
       },
     ),
     trainingPaceFactor: param('macroDesign.trainingPaceFactor', 1.15, 'D', 'design-macro', [], {
@@ -505,7 +505,7 @@ export const eMacro = {
       },
     ),
     postRaceReducedFraction: param('macroDesign.postRaceReducedFraction', 0.5, 'D', 'H12', [], {
-      note: 'Default: the single return step after a race of 5 km to a half marathon is this fraction of the pre-taper reference week; no source covers recovery after races shorter than a marathon.',
+      note: 'Default: the single return step after a race of 5K to a half marathon is this fraction of the pre-taper reference week; no source covers recovery after races shorter than a marathon.',
     }),
     postRaceMarathonFractions: param<number[]>(
       'macroDesign.postRaceMarathonFractions',
@@ -518,7 +518,7 @@ export const eMacro = {
         'takayama-2017-marathon-one-week',
       ],
       {
-        note: 'Default: the 7-day return steps after a marathon or a 50 km class race are these fractions of the pre-taper reference week; LDH normalises about day 8 and CRP is still raised then, and the fractions themselves are a convention.',
+        note: 'Default: the 7-day return steps after a marathon or a 50K class race are these fractions of the pre-taper reference week; LDH normalises about day 8 and CRP is still raised then, and the fractions themselves are a convention.',
       },
     ),
     postRaceLongFractions: param<number[]>(
@@ -533,12 +533,12 @@ export const eMacro = {
         'millet-2011-ultramarathon-neuromuscular',
       ],
       {
-        note: 'Default: the 7-day return steps after a race of 100 km or longer are these fractions of the pre-taper reference week; coach plans stage the return over about four weeks and no study sets the fractions.',
+        note: 'Default: the 7-day return steps after a race of 100K or longer are these fractions of the pre-taper reference week; coach plans stage the return over about four weeks and no study sets the fractions.',
       },
     ),
     polarizedZ2Share: param('macroDesign.polarizedZ2Share', 5, 'D', 'design-macro', [], {
       unit: '% of running time',
-      note: 'Default: Z2 share of the optional polarized specific phase for 5-10 km (E4).',
+      note: 'Default: Z2 share of the optional polarized specific phase for 5-10K (E4).',
     }),
     gainShareBase: param('macroDesign.gainShareBase', 0.3, 'D', 'design-macro', [], {
       note: 'Default: share of the race gain per km practised in the base phase (H4).',
@@ -557,11 +557,11 @@ export const eMacro = {
   peakWeeklyMin: {
     '5k': param('peakWeeklyMin.5k', 180, 'D', 'design-macro', [], {
       unit: 'min per week',
-      note: 'Default: peak weekly running time for a 5 km goal; never above what the ramp allows.',
+      note: 'Default: peak weekly running time for a 5K goal; never above what the ramp allows.',
     }),
     '10k': param('peakWeeklyMin.10k', 210, 'D', 'design-macro', [], {
       unit: 'min per week',
-      note: 'Default: peak weekly running time for a 10 km goal; never above what the ramp allows.',
+      note: 'Default: peak weekly running time for a 10K goal; never above what the ramp allows.',
     }),
     half: param('peakWeeklyMin.half', 270, 'D', 'design-macro', [], {
       unit: 'min per week',
@@ -573,11 +573,11 @@ export const eMacro = {
     }),
     ultra50: param('peakWeeklyMin.ultra50', 390, 'D', 'D4', ULTRA_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: 'Default: peak weekly running time for a 50 km ultra; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number.',
+      note: 'Default: peak weekly running time for a 50K ultra; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number.',
     }),
     ultra100k: param('peakWeeklyMin.ultra100k', 480, 'D', 'D4', ULTRA_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: 'Default: peak weekly running time for 100 km; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number.',
+      note: 'Default: peak weekly running time for 100K; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number.',
     }),
     ultra100mi: param('peakWeeklyMin.ultra100mi', 600, 'D', 'D4', ULTRA_WEEKLY_PEAK, {
       unit: 'min per week',
@@ -597,7 +597,7 @@ export const eMacro = {
       SHORT_RACE_LONG_RUN,
       {
         unit: 'min by tier',
-        note: 'Default: peak long-run duration for a 5 km goal by volume tier (typical week under 180, 180-360, over 360 min; macroDesign.longRunTierWeeklyMin), also capped at macroDesign.peakLongRunKmMax. The caps follow coaching conventions and published plans; they are not injury limits, and G-1 is the single-session guard.',
+        note: 'Default: peak long-run duration for a 5K goal by volume tier (typical week under 180, 180-360, over 360 min; macroDesign.longRunTierWeeklyMin), also capped at macroDesign.peakLongRunKmMax. The caps follow coaching conventions and published plans; they are not injury limits, and G-1 is the single-session guard.',
       },
     ),
     '10k': param<[number, number, number]>(
@@ -608,7 +608,7 @@ export const eMacro = {
       SHORT_RACE_LONG_RUN,
       {
         unit: 'min by tier',
-        note: 'Default: peak long-run duration for a 10 km goal by volume tier (typical week under 180, 180-360, over 360 min; macroDesign.longRunTierWeeklyMin), also capped at macroDesign.peakLongRunKmMax. The caps follow coaching conventions and published plans; they are not injury limits, and G-1 is the single-session guard.',
+        note: 'Default: peak long-run duration for a 10K goal by volume tier (typical week under 180, 180-360, over 360 min; macroDesign.longRunTierWeeklyMin), also capped at macroDesign.peakLongRunKmMax. The caps follow coaching conventions and published plans; they are not injury limits, and G-1 is the single-session guard.',
       },
     ),
     half: param('peakLongRunMin.half', 105, 'D', 'design-macro', [], {
@@ -621,11 +621,11 @@ export const eMacro = {
     }),
     ultra50: param('peakLongRunMin.ultra50', 240, 'D', 'design-macro', [], {
       unit: 'min',
-      note: 'Default: peak long-run duration for a 50 km ultra, capped by H2. With the default weekly ceiling the long-run share (175 min) binds first; no study sets this number.',
+      note: 'Default: peak long-run duration for a 50K ultra, capped by H2. With the default weekly ceiling the long-run share (175 min) binds first; no study sets this number.',
     }),
     ultra100k: param('peakLongRunMin.ultra100k', 300, 'D', 'design-macro', [], {
       unit: 'min',
-      note: 'Default: peak long-run duration for 100 km, capped by H2. With the default weekly ceiling the long-run share (216 min) binds first; no study sets this number.',
+      note: 'Default: peak long-run duration for 100K, capped by H2. With the default weekly ceiling the long-run share (216 min) binds first; no study sets this number.',
     }),
     ultra100mi: param(
       'peakLongRunMin.ultra100mi',

@@ -18,11 +18,11 @@ export const dGoal = {
   d1Class: {
     fiveKmUpperM: param('d1Class.fiveKmUpperM', 7500, 'D', 'D1', [], {
       unit: 'm',
-      note: 'Default: goals up to this distance are classed 5 km (the midpoint to the 10 km class).',
+      note: 'Default: goals up to this distance are classed 5K (the midpoint to the 10K class).',
     }),
     tenKmUpperM: param('d1Class.tenKmUpperM', 15000, 'D', 'D1', [], {
       unit: 'm',
-      note: 'Default: goals up to this distance are classed 10 km.',
+      note: 'Default: goals up to this distance are classed 10K.',
     }),
     halfUpperM: param('d1Class.halfUpperM', 32000, 'D', 'D1', [], {
       unit: 'm',
@@ -30,15 +30,15 @@ export const dGoal = {
     }),
     ultra50UpperM: param('d1Class.ultra50UpperM', 80467, 'D', 'D1', [], {
       unit: 'm',
-      note: 'Default: 50 miles in metres; ultras above the ultra threshold up to this distance are classed 50 km.',
+      note: 'Default: 50 miles in metres; ultras above the ultra threshold up to this distance are classed 50K.',
     }),
     ultra100kUpperM: param('d1Class.ultra100kUpperM', 130000, 'D', 'D1', [], {
       unit: 'm',
-      note: 'Default: goals above the 50 class up to this distance are classed 100 km.',
+      note: 'Default: goals above the 50 class up to this distance are classed 100K.',
     }),
     ultra100miUpperM: param('d1Class.ultra100miUpperM', 170000, 'D', 'D1', [], {
       unit: 'm',
-      note: 'Default: goals above the 100 km class up to this distance are classed 100 miles; longer goals are classed beyond.',
+      note: 'Default: goals above the 100K class up to this distance are classed 100 miles; longer goals are classed beyond.',
     }),
   },
   d1Dark: {
@@ -189,7 +189,7 @@ export const dGoal = {
       ],
       {
         unit: 'min',
-        note: 'Default: longest single run the feasibility check works toward for a 50 km ultra (about a marathon-length run, the common convention); back-to-back days (H3) add time on feet beyond it, and the H2 cap stays the ceiling. It sits at or below observed practice, and no study links any longest run to finishing.',
+        note: 'Default: longest single run the feasibility check works toward for a 50K ultra (about a marathon-length run, the common convention); back-to-back days (H3) add time on feet beyond it, and the H2 cap stays the ceiling. It sits at or below observed practice, and no study links any longest run to finishing.',
       },
     ),
     ultra100k: param(
@@ -204,7 +204,7 @@ export const dGoal = {
       ],
       {
         unit: 'min',
-        note: 'Default: longest single run the feasibility check works toward for 100 km (about a 20-24 mile trail run); back-to-backs add time on feet, H2 caps it. It sits at or below observed practice, and no study links any longest run to finishing.',
+        note: 'Default: longest single run the feasibility check works toward for 100K (about a 20-24 mile trail run); back-to-backs add time on feet, H2 caps it. It sits at or below observed practice, and no study links any longest run to finishing.',
       },
     ),
     ultra100mi: param(
