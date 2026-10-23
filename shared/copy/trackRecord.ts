@@ -8,6 +8,7 @@
 // every helper over a grid of inputs; the entries can also be spread into `TEMPLATES`.
 import type { RaceScore, RecordSummary, ScoredPrediction } from '../engine/backtest.ts'
 import type { RaceResultView, Units } from '../types.ts'
+import { formatQuantity } from './quantity.ts'
 import { render, tpl, type Template } from './template.ts'
 
 export const TRACK_RECORD_TEMPLATES = {
@@ -187,6 +188,33 @@ export const TRACK_RECORD_TEMPLATES = {
   'track-record.toast.saved-not-finished': tpl(
     'Result saved. Nothing to compare for a race not finished.',
   ),
+  'track-record.toast.removed': tpl('Result removed.'),
+
+  // A save that no field explains, and a record that did not load. The reason is the server's own
+  // sentence, so the line is a label (it ends with whatever the server wrote).
+  'track-record.sheet.not-saved': tpl(
+    'Result not saved. {reason}',
+    { reason: 'text' },
+    { shape: 'label', fallback: 'Result not saved.' },
+  ),
+  'track-record.load-error': tpl('The track record did not load. Reload the page to try again.'),
+
+  // What the sheet says before it asks the server: a field it cannot read, and the activity list.
+  'track-record.sheet.date-missing': tpl('Pick the day of the race.'),
+  'track-record.sheet.time-invalid': tpl('Enter a time like 3:52:10.'),
+  'track-record.sheet.distance-invalid': tpl(
+    'Enter a distance in {units}, like 13.1.',
+    { units: 'text' },
+    { fallback: 'Enter a distance, like 13.1.' },
+  ),
+  'track-record.sheet.activity-hint': tpl(
+    'Runs and races within {days} days of the race date.',
+    { days: 'count' },
+    { fallback: 'Runs and races close to the race date.' },
+  ),
+  'track-record.sheet.activity-load-error': tpl(
+    'Activities near that date did not load. The result can be saved without a link.',
+  ),
 
   // Why the result routes refuse a request: the message of the 400, 404 and 409, field by field.
   'track-record.refused.not-a-run': tpl('Choose a run or a race.'),
@@ -350,6 +378,11 @@ export function unscoredSentence(
     : null
 }
 
+/** The "Predicted" cell of a weekly row, written as the range and the sentences write times. */
+export function predictedCell(point: ScoredPrediction, units: Units): string {
+  return formatQuantity(duration(point.predictedSec), units)
+}
+
 /** The "Range" cell of a weekly row. */
 export function rangeCell(point: ScoredPrediction, units: Units): string {
   return render(
@@ -390,6 +423,61 @@ export function savedToast(
   return result.scoredPredictions === 1
     ? render(t['track-record.toast.saved-one'], {}, units)
     : render(t['track-record.toast.saved'], { count: count(result.scoredPredictions) }, units)
+}
+
+/** The toast after a result is removed. */
+export function removedToast(units: Units): string {
+  return render(TRACK_RECORD_TEMPLATES['track-record.toast.removed'], {}, units)
+}
+
+/** The visible words of the Record result or Edit result button. */
+export function resultButtonLabel(hasResult: boolean, units: Units): string {
+  const t = TRACK_RECORD_TEMPLATES
+  return render(t[hasResult ? 'track-record.edit-result' : 'track-record.record-result'], {}, units)
+}
+
+/** The name of the Record result or Edit result button, which says which goal it is for. */
+export function resultButtonName(hasResult: boolean, goalName: string, units: Units): string {
+  const t = TRACK_RECORD_TEMPLATES
+  return render(
+    t[hasResult ? 'track-record.edit-result-for' : 'track-record.record-result-for'],
+    { goal: goalName },
+    units,
+  )
+}
+
+/** The line above a sheet's buttons when a save failed for a reason no field explains. */
+export function resultNotSavedText(reason: string, units: Units): string {
+  return render(TRACK_RECORD_TEMPLATES['track-record.sheet.not-saved'], { reason }, units)
+}
+
+/** A sentence the sheet shows before it asks the server, for a field it cannot read. */
+export function sheetFieldProblem(kind: 'date-missing' | 'time-invalid', units: Units): string {
+  return render(TRACK_RECORD_TEMPLATES[`track-record.sheet.${kind}`], {}, units)
+}
+
+/** The distance field's message, naming the runner's unit. */
+export function distanceInvalidText(units: Units): string {
+  return render(TRACK_RECORD_TEMPLATES['track-record.sheet.distance-invalid'], { units }, units)
+}
+
+/** The line under the Activity field: what the list holds, within how many days of the race. */
+export function activityHintText(days: number, units: Units): string {
+  return render(
+    TRACK_RECORD_TEMPLATES['track-record.sheet.activity-hint'],
+    { days: count(days) },
+    units,
+  )
+}
+
+/** The line under the Activity field when the list could not be read. */
+export function activityLoadErrorText(units: Units): string {
+  return render(TRACK_RECORD_TEMPLATES['track-record.sheet.activity-load-error'], {}, units)
+}
+
+/** The note shown in place of the track record when it did not load. */
+export function trackRecordLoadError(units: Units): string {
+  return render(TRACK_RECORD_TEMPLATES['track-record.load-error'], {}, units)
 }
 
 /** The refusals of the result routes that carry no figure. */

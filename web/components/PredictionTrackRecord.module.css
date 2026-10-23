@@ -1,0 +1,114 @@
+.section {
+  max-width: var(--prose-max);
+  margin-top: var(--space-7);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+.heading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.lead,
+.summary,
+.headline,
+.unscored {
+  margin: var(--space-2) 0 0;
+  line-height: var(--lh-base);
+  overflow-wrap: anywhere;
+}
+
+.lead {
+  color: var(--text-muted);
+}
+
+.summary {
+  font-weight: 600;
+}
+
+.races {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.race {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--border);
+}
+
+.raceName {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.facts {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.unscored {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.race figure {
+  margin-top: var(--space-3);
+}
+
+.tableWrap {
+  max-width: 100%;
+  margin-top: var(--space-3);
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.caption {
+  padding-bottom: var(--space-2);
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-weight: 400;
+  white-space: nowrap;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.table thead th {
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+.table tbody th {
+  font-weight: 600;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
