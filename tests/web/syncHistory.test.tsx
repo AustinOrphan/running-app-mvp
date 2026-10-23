@@ -5,6 +5,7 @@ import type { IntegrationStatus, SyncRunView } from '../../shared/types.ts'
 import { SyncHistory } from '../../web/components/SyncHistory.tsx'
 import { IntegrationsPage } from '../../web/pages/IntegrationsPage.tsx'
 import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
+import { makeStateView } from './state-fixtures.ts'
 
 function run(over: Partial<SyncRunView> = {}): SyncRunView {
   return {
@@ -226,6 +227,7 @@ describe('the Integrations page', () => {
   test('a connected card has the history and a card that is not connected does not', async () => {
     const { calls } = mockApi({
       'GET /api/integrations': () => [statusOf(info, { status: 'connected' }), statusOf(strava)],
+      'GET /api/state': () => makeStateView(),
       [RUNS]: () => [run({ accepted: 2 })],
     })
     renderWithProviders(<IntegrationsPage />)
@@ -235,8 +237,10 @@ describe('the Integrations page', () => {
     expect(
       within(screen.getByRole('region', { name: 'Strava' })).queryByText('Recent syncs'),
     ).not.toBeInTheDocument()
-    // Opening the page reads no history.
-    expect(calls.map((call) => call.url)).toEqual(['/api/integrations'])
+    // Opening the page reads no history (the state read belongs to the data-in-use panel).
+    expect(calls.map((call) => call.url).filter((url) => url !== '/api/state')).toEqual([
+      '/api/integrations',
+    ])
 
     const user = userEvent.setup()
     await user.click(within(connected).getByText('Recent syncs'))
