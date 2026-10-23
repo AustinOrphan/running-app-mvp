@@ -1,4 +1,4 @@
-import { Fragment, useId, useState } from 'react'
+import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import { formatQuantity } from '../../../shared/copy/quantity.ts'
 import { sessionStatusLabel } from '../../../shared/copy/sessionStatus.ts'
 import { render } from '../../../shared/copy/template.ts'
@@ -6,10 +6,11 @@ import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { isToRun } from '../../../shared/domain/sessionStatus.ts'
 import type { PlanSession, TodayHeat, TodayHero, Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
-import { SessionSheet } from '../SessionSheet.tsx'
 import { WhyDrawer } from '../WhyDrawer.tsx'
 import { CoolerStart } from './CoolerStart.tsx'
+import { DoneSheet } from './DoneSheet.tsx'
 import { KnowToday } from './KnowToday.tsx'
+import { NotTodaySheet } from './NotTodaySheet.tsx'
 import { SessionActions } from './SessionActions.tsx'
 import styles from './SessionHero.module.css'
 import { SessionTargets } from './SessionTargets.tsx'
@@ -66,14 +67,27 @@ export interface SessionHeroProps {
 
 /**
  * Today's session as the page's hero: its title, the duration as the display figure, the targets
- * to run by, the cooler start, the disclosure and the actions. When readiness eases the day the
- * easy run is the hero and the planned session sits above it, muted; on a rest day the hero says
- * so and keeps the planned session beside it. Every figure comes from the payload.
+ * to run by, the cooler start, the disclosure and the actions. Done opens the sheet that logs the
+ * run, filled in with what the hero shows, and Not today the sheet that moves or skips the
+ * session. When readiness eases the day the easy run is the hero and the planned session sits
+ * above it, muted; on a rest day the hero says so and keeps the planned session beside it. Every
+ * figure comes from the payload.
  */
 export function SessionHero({ hero, heat, next, units }: SessionHeroProps) {
   const titleId = useId()
+  const title = useRef<HTMLHeadingElement>(null)
+  const settled = useRef(false)
   const [whyOpen, setWhyOpen] = useState(false)
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [sheet, setSheet] = useState<'done' | 'not-today' | null>(null)
+
+  // After a run is saved or the session is moved or skipped, the button that opened the sheet is
+  // gone with the rest of the actions; focus goes to the title, where the new state reads.
+  useEffect(() => {
+    if (sheet === null && settled.current) {
+      settled.current = false
+      title.current?.focus()
+    }
+  }, [sheet])
 
   const { session, advice, eased, target, linkedRun, others } = hero
   const rest = advice === 'rest' || session.kind === 'rest'
@@ -105,7 +119,7 @@ export function SessionHero({ hero, heat, next, units }: SessionHeroProps) {
     <article aria-labelledby={titleId} className={styles.hero}>
       {plannedLine === null ? null : <p className={styles.planned}>{plannedLine}</p>}
       <div className={styles.head}>
-        <h2 id={titleId} className={styles.title}>
+        <h2 id={titleId} ref={title} tabIndex={-1} className={styles.title}>
           {rest ? render(TEMPLATES['today.hero.rest-day'], {}, units) : shown.title}
         </h2>
         {status === null ? null : <span className={styles.status}>{status}</span>}
@@ -159,11 +173,14 @@ export function SessionHero({ hero, heat, next, units }: SessionHeroProps) {
       <SessionActions
         canAct={!rest && toRun}
         canExplain={rules.length > 0}
+        onDone={() => {
+          setSheet('done')
+        }}
         onExplain={() => {
           setWhyOpen(true)
         }}
         onNotToday={() => {
-          setSheetOpen(true)
+          setSheet('not-today')
         }}
       />
       <TodaySlot name="watch" />
@@ -181,11 +198,29 @@ export function SessionHero({ hero, heat, next, units }: SessionHeroProps) {
           setWhyOpen(false)
         }}
       />
-      {sheetOpen ? (
-        <SessionSheet
+      {sheet === 'done' ? (
+        <DoneSheet
+          plan={shown}
+          date={session.date}
+          units={units}
+          onClose={() => {
+            setSheet(null)
+          }}
+          onSaved={() => {
+            settled.current = true
+            setSheet(null)
+          }}
+        />
+      ) : null}
+      {sheet === 'not-today' ? (
+        <NotTodaySheet
           session={session}
           onClose={() => {
-            setSheetOpen(false)
+            setSheet(null)
+          }}
+          onChanged={() => {
+            settled.current = true
+            setSheet(null)
           }}
         />
       ) : null}

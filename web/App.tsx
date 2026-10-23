@@ -18,12 +18,15 @@ import { ReviewPage } from './pages/ReviewPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
 import { SetupPage } from './pages/SetupPage.tsx'
 import { StatsPage } from './pages/StatsPage.tsx'
+import { useOutboxReplay } from './pwa/outbox.ts'
 
 /** Sends first-run visitors to /setup and signed-out visitors to /login. */
 function AuthGate() {
   const queryClient = useQueryClient()
   const setup = useSetupStatus()
   const me = useMe()
+  // Writes kept on this phone while offline go out whenever the app is open; a 401 drops them.
+  useOutboxReplay()
 
   useEffect(() => {
     function onUnauthorized() {

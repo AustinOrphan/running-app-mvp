@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { renderFact } from '../../../shared/copy/templates.ts'
 import type { ReadinessSignal, ReadinessVerdict, Units } from '../../../shared/types.ts'
 import styles from './ReadinessRead.module.css'
@@ -9,7 +9,9 @@ export interface ReadinessReadProps {
   /** At most three readings, those the verdict leans on first. */
   signals: ReadinessSignal[]
   units: Units
-  /** The check-in under the signals (E2-6). */
+  /** Where focus goes when the check-in row, which folds away on a tap, hands it on. */
+  verdictRef?: Ref<HTMLParagraphElement>
+  /** The check-in row, under the signals. */
   children?: ReactNode
 }
 
@@ -19,12 +21,18 @@ export interface ReadinessReadProps {
  * verdict asks for more than the plan holds. A reading the verdict leans on is set in heavier
  * type and listed first; nothing is told by colour alone.
  */
-export function ReadinessRead({ verdict, signals, units, children }: ReadinessReadProps) {
+export function ReadinessRead({
+  verdict,
+  signals,
+  units,
+  verdictRef,
+  children,
+}: ReadinessReadProps) {
   if (verdict === null && signals.length === 0 && children === undefined) return null
   return (
     <section aria-label="Readiness" className={styles.read}>
       {verdict === null ? null : (
-        <p role="status" className={styles.verdict}>
+        <p role="status" tabIndex={-1} ref={verdictRef} className={styles.verdict}>
           {renderFact(verdict, units)}
         </p>
       )}

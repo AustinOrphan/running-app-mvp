@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
+import { resetOutboxForTests } from '../../web/pwa/outbox.ts'
 import { unmatchedCalls } from './helpers.tsx'
 
 class ResizeObserverStub {
@@ -38,6 +39,8 @@ Object.defineProperty(window, 'matchMedia', {
 
 afterEach(() => {
   cleanup()
+  // The outbox is one per page; a test starts with an empty one.
+  resetOutboxForTests()
   // Restore the real fetch, but keep the stubs installed above.
   vi.unstubAllGlobals()
   vi.stubGlobal('ResizeObserver', ResizeObserverStub)

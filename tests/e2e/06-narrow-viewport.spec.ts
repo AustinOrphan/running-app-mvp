@@ -59,6 +59,75 @@ test('every Fatigue rating sits inside its control at 360 px and can be chosen',
   await expect(group.getByRole('radio', { name: '10', exact: true })).toBeChecked()
 })
 
+test('the check-in row keeps five answers on one line at 360 px, none clipped, no scrolling', async () => {
+  await resetData()
+  await page.goto('/')
+  const group = page.getByRole('radiogroup', { name: 'How do you feel today?' })
+  await expect(group).toBeVisible()
+  const groupBox = await group.boundingBox()
+  expect(groupBox).not.toBeNull()
+  expect(await group.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  const tops = new Set<number>()
+  for (const word of ['Fresh', 'Good', 'Normal', 'Tired', 'Drained']) {
+    const radio = group.getByRole('radio', { name: word, exact: true })
+    const box = await radio.boundingBox()
+    expect(box, word).not.toBeNull()
+    if (!box || !groupBox) continue
+    tops.add(Math.round(box.y))
+    expect(box.x, `${word} left edge`).toBeGreaterThanOrEqual(groupBox.x - 0.5)
+    expect(box.x + box.width, `${word} right edge`).toBeLessThanOrEqual(
+      groupBox.x + groupBox.width + 0.5,
+    )
+    expect(box.height, `${word} height`).toBeGreaterThanOrEqual(44)
+    // The word fits inside its own button.
+    expect(await radio.evaluate((el) => el.scrollWidth - el.clientWidth), word).toBeLessThanOrEqual(
+      0,
+    )
+  }
+  expect(tops.size, 'all five answers share one line').toBe(1)
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+})
+
+test('the check-in sheet has 44 px targets at 360 px and does not scroll sideways', async () => {
+  await resetData()
+  await page.goto('/')
+  await page.getByRole('button', { name: "Something hurts, or I'm ill" }).click()
+  const sheet = page.getByRole('dialog', { name: 'Check-in' })
+  await expect(sheet).toBeVisible()
+  // Measure after the slide-up animation ends.
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+
+  const scales = ['Fatigue', 'Soreness', 'Sleep quality', 'Mood', 'Stress', 'Pain today']
+  for (const scale of scales) {
+    const buttons = await sheet.getByRole('group', { name: scale }).getByRole('button').all()
+    expect(buttons.length, scale).toBeGreaterThanOrEqual(5)
+    for (const button of buttons) {
+      const box = await button.boundingBox()
+      const label = (await button.getAttribute('aria-label')) ?? scale
+      expect(box, label).not.toBeNull()
+      expect(box?.width ?? 0, `${label} width`).toBeGreaterThanOrEqual(43.5)
+      expect(box?.height ?? 0, `${label} height`).toBeGreaterThanOrEqual(43.5)
+    }
+  }
+  for (const name of ['Feeling ill', 'Point tenderness on a bone']) {
+    const row = sheet.locator('label').filter({ hasText: name })
+    const box = await row.boundingBox()
+    expect(box, name).not.toBeNull()
+    expect(box?.height ?? 0, `${name} height`).toBeGreaterThanOrEqual(43.5)
+  }
+  const form = sheet.locator('form')
+  expect(await form.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+
+  // The pain scale wraps to a second row instead of shrinking its buttons.
+  const pain = await sheet.getByRole('group', { name: 'Pain today' }).getByRole('button').all()
+  const rows = new Set<number>()
+  for (const button of pain) rows.add(Math.round((await button.boundingBox())?.y ?? 0))
+  expect(rows.size).toBe(2)
+  await sheet.getByRole('button', { name: 'Close' }).click()
+  await expect(sheet).toBeHidden()
+})
+
 test('the Activities type filter needs no scrolling at 360 px', async () => {
   await resetData()
   await api.post('/activities', {
