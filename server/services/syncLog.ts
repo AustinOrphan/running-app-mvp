@@ -1,6 +1,13 @@
 import type { Deps } from '../app.ts'
 import type { PrismaClient, SyncRun } from '../db.ts'
 import { createLogger } from '../logger.ts'
+import { SYNC_TEMPLATES } from '../../shared/copy/sync.ts'
+import {
+  render,
+  type SlotSpec,
+  type SlotValues,
+  type Template,
+} from '../../shared/copy/template.ts'
 import type {
   SyncChannel,
   SyncFailure,
@@ -32,12 +39,45 @@ const REMOVED = '[removed]'
 /** A secret value shorter than this is not searched for: it would shred ordinary words. */
 const MIN_SECRET_CHARS = 6
 
-// Order matters: query strings go first so that `?access_token=...` is gone before the key rules.
+// The key rules keep the key and replace the value, so a message still says what was refused.
+// Order matters: query strings go first so that `?access_token=...` is gone before the key rules,
+// and the header rules go before the pair rule so that `Cookie: token=...` is removed whole.
 const QUERY_STRING = /\?\w[\w.%~+-]*=[^\s"'<>#]*/g
+/** A quoted string, or a run up to the next separator. */
+const VALUE = String.raw`(?:"[^"]*"|'[^']*'|[^\s,;&"'}]+)`
+/** A credential, or the first `name=value` parameter of a list of them (an OAuth 1 header). */
+const CREDENTIAL = String.raw`(?:[\w-]+=)?${VALUE}`
+/** `Authorization: <scheme> <credential>` for any scheme (Basic, Token, Digest, OAuth, ...). */
+const AUTHORIZATION = new RegExp(
+  String.raw`(["']?\bauthorization\b["']?\s*[:=]\s*)(?:[A-Za-z][\w-]*\s+)?${CREDENTIAL}(?:\s*,\s*[\w-]+=${VALUE})*`,
+  'gi',
+)
+/** A `Cookie` or `Set-Cookie` value: a quoted string, or the rest of the line. */
+const COOKIE = /(["']?\b(?:set-)?cookie\b["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\r\n]*)/gi
+const SECRET_KEY = String.raw`(?:(?:access|refresh|id|oauth)[_-]?token(?:[_-]?secret)?|token|ticket|client[_-]?secret|api[_-]?key|password)`
+const SECRET_PAIR = new RegExp(
+  String.raw`(["']?\b${SECRET_KEY}\b["']?\s*[:=]\s*)(?:Bearer\s+)?${VALUE}`,
+  'gi',
+)
 const BEARER = /\bBearer\s+[\w.~+/=-]+/gi
-const SECRET_PAIR =
-  /(["']?\b(?:access_token|refresh_token|id_token|client_secret|api[_-]?key|apikey|password|authorization)\b["']?\s*[:=]\s*)(?:Bearer\s+)?(?:"[^"]*"|'[^']*'|[^\s,;&"'}]+)/gi
 const JWT = /\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]*/g
+
+/** The sentences the app writes as the message of a run: the `sync.msg.*` templates. */
+export type SyncMessageId = Extract<keyof typeof SYNC_TEMPLATES, `sync.msg.${string}`>
+
+/**
+ * One of the app's own sentences for a run's message (or an integration's `lastError`), rendered
+ * from `shared/copy/sync.ts` so that the G5 lint covers it. Text a provider or the system returned
+ * goes in a text slot, verbatim; `recordSyncRun` still scrubs the whole message.
+ */
+export function syncMessage<K extends SyncMessageId>(
+  id: K,
+  slots: SlotValues<(typeof SYNC_TEMPLATES)[K]['slots']>,
+): string {
+  const template: Template = SYNC_TEMPLATES[id]
+  // No sync sentence holds a distance or a pace, so the unit system cannot change a word of it.
+  return render(template, slots as SlotValues<SlotSpec>, 'km')
+}
 
 /** Every string inside a decrypted secret, at any depth; what `safeMessage` must never let out. */
 export function secretValues(secret: unknown): string[] {
@@ -65,14 +105,19 @@ function textOf(input: unknown): string {
 }
 
 /**
- * Text that is safe to store, return and log: bearer tokens, `access_token`, `client_secret` and
- * similar values, JWTs, query strings and every value in `secrets` are replaced, whitespace is
- * collapsed, and the result is cut to `MAX_MESSAGE_CHARS`. Accepts an `Error` or any value.
+ * Text that is safe to store, return and log: the credential of an `Authorization` header (any
+ * scheme), `Cookie` and `Set-Cookie` values, `token`, `ticket`, `access_token`, `client_secret`
+ * and similar pairs, bearer tokens, JWTs, query strings and every value in `secrets` are replaced,
+ * whitespace is collapsed, and the result is cut to `MAX_MESSAGE_CHARS`. Accepts an `Error` or
+ * any value. Best effort for a form of credential it does not know: a provider must not put a
+ * response body or a request header into an error.
  */
 export function safeMessage(input: unknown, secrets: readonly string[] = []): string {
   let text = textOf(input)
   text = text
     .replace(QUERY_STRING, '')
+    .replace(AUTHORIZATION, `$1${REMOVED}`)
+    .replace(COOKIE, `$1${REMOVED}`)
     .replace(SECRET_PAIR, `$1${REMOVED}`)
     .replace(BEARER, `Bearer ${REMOVED}`)
     .replace(JWT, REMOVED)
@@ -111,6 +156,8 @@ export interface SyncRunInput {
   failures?: ReadonlyArray<{ ref: string; reason: unknown }>
   importBatchId?: string | null
 }
+
+const NEWEST_FIRST = [{ startedAt: 'desc' as const }, { id: 'desc' as const }]
 
 /** Deletes rows past the retention window and past the newest `MAX_RUNS_KEPT`. */
 async function prune(prisma: PrismaClient, userId: string, provider: string): Promise<void> {
@@ -180,6 +227,46 @@ export async function recordSyncRun(
   }
 }
 
+/** A run with nothing to report: it ended ok and stored, skipped, failed and read nothing. */
+function isIdle(run: SyncRunInput): boolean {
+  return (
+    run.status === 'ok' &&
+    (run.accepted ?? 0) === 0 &&
+    (run.duplicate ?? 0) === 0 &&
+    (run.failed ?? 0) === 0 &&
+    (run.wellnessStatus ?? 'none') === 'none' &&
+    (run.message === undefined || run.message === null) &&
+    (run.failures ?? []).length === 0
+  )
+}
+
+/**
+ * `recordSyncRun` for the jobs that wake every few minutes (the folder scan, the weather
+ * backfill). A scheduled run with nothing to report is not stored while the newest stored run of
+ * the provider ended ok: one idle row per 5 or 10 minutes would replace the `MAX_RUNS_KEPT` rows
+ * within a day or two, and a run that failed would be gone before anyone opened the list. A manual run,
+ * a run with a count or an error, and the first idle run after one that did not end ok (or the
+ * first run ever) are stored, so the newest row shows the recovery.
+ */
+export async function recordSyncRunUnlessIdle(
+  deps: Pick<Deps, 'prisma' | 'config'>,
+  run: SyncRunInput,
+): Promise<void> {
+  if (run.trigger === 'schedule' && isIdle(run)) {
+    try {
+      const newest = await deps.prisma.syncRun.findFirst({
+        where: { userId: run.userId, provider: run.provider },
+        orderBy: NEWEST_FIRST,
+        select: { status: true },
+      })
+      if (newest?.status === 'ok') return
+    } catch {
+      // Without the answer the run is stored; `recordSyncRun` logs it if the log itself is broken.
+    }
+  }
+  await recordSyncRun(deps, run)
+}
+
 function parseFailures(text: string): SyncFailure[] {
   try {
     const value: unknown = JSON.parse(text)
@@ -214,8 +301,6 @@ export function toSyncRunView(row: SyncRun): SyncRunView {
     importBatchId: row.importBatchId,
   }
 }
-
-const NEWEST_FIRST = [{ startedAt: 'desc' as const }, { id: 'desc' as const }]
 
 /** A provider's runs, newest first; both directions of one provider share the list. */
 export async function listSyncRuns(

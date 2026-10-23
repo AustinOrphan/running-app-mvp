@@ -69,6 +69,35 @@ export const SYNC_TEMPLATES = {
   }),
   'sync.not-sent': tpl('{n} could not be sent.', { n: 'count' }),
 
+  // What the app itself writes as the message of a run (and as `Integration.lastError`); the server
+  // renders them through `syncMessage`, so the lint covers them. What a service said stays a text
+  // slot.
+  'sync.msg.secret-changed': tpl('Reconnect: the session secret changed.'),
+  'sync.msg.sync-unfinished': tpl('A sync did not finish.'),
+  'sync.msg.push-unreadable': tpl('The pushed data could not be read.'),
+  'sync.msg.push-none-stored': tpl(
+    'None of the pushed activities could be stored: {reason}',
+    { reason: 'text' },
+    { shape: 'label', fallback: 'None of the pushed activities could be stored.' },
+  ),
+  'sync.msg.folder-none': tpl('No folder is configured.'),
+  'sync.msg.folder-unreadable': tpl(
+    'The watched folder is not a readable directory: {path}',
+    { path: 'text' },
+    { shape: 'label', fallback: 'The watched folder is not a readable directory.' },
+  ),
+  'sync.msg.files.one': tpl(
+    '1 file could not be imported: {reason}',
+    { reason: 'text' },
+    { shape: 'label', fallback: '1 file could not be imported.' },
+  ),
+  'sync.msg.files.many': tpl(
+    '{n} files could not be imported; the first: {reason}',
+    { n: 'count', reason: 'text' },
+    { shape: 'label', fallback: 'Some files could not be imported.' },
+  ),
+  'sync.msg.file-unreadable': tpl('The file could not be read.'),
+
   // The disclosure and its states.
   'sync.summary': tpl('Recent syncs', {}, { shape: 'label' }),
   'sync.loading': tpl('Loading recent syncs.'),
