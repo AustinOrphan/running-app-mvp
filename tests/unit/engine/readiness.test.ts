@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { addDays } from '../../../shared/dates.ts'
-import { readinessSnapshot, todayAdvice } from '../../../shared/engine/readiness.ts'
+import { addDays, daysBetween } from '../../../shared/dates.ts'
+import { P } from '../../../shared/engine/params/index.ts'
+import { illnessPhase, readinessSnapshot, todayAdvice } from '../../../shared/engine/readiness.ts'
 import type { EngineInput } from '../../../shared/engine/types.ts'
 import {
   activity,
@@ -215,6 +216,66 @@ describe('illness gate (n-3)', () => {
       expect(adviceFor(ill(daysAgo), 'threshold', 'easy')).toEqual(['downgrade-easy', 'as-planned'])
     }
     expect(adviceFor(ill(5), 'threshold', 'easy')).toEqual(['as-planned', 'as-planned'])
+  })
+
+  it('gives the result it gave before the gate was shared with rest windows, for every check-in case', () => {
+    // The implementation as it was, kept as the oracle.
+    const oracle = (i: EngineInput, date: string) => {
+      let last: string | null = null
+      for (const row of i.wellness) {
+        if (row.illness === true && row.date <= date && (last === null || row.date > last)) {
+          last = row.date
+        }
+      }
+      if (last === null) return { phase: 'clear', since: null }
+      const since = daysBetween(last, date)
+      const free = P.n3.illnessSymptomFreeDays.value
+      const easy = P.n3.illnessEasyDaysBeforeIntensity.value
+      if (since <= free) return { phase: 'rest', since }
+      if (since <= free + easy) return { phase: 'easy-only', since }
+      return { phase: 'clear', since }
+    }
+    const day = (offset: number, over: Parameters<typeof wellnessDay>[1] = {}) =>
+      wellnessDay(addDays(TODAY, offset), over)
+    // A small seeded generator: the same rows on every run.
+    let seed = 20261023
+    const next = () => {
+      seed = (seed * 1664525 + 1013904223) % 4294967296
+      return seed / 4294967296
+    }
+    const random = Array.from({ length: 40 }, () =>
+      Array.from({ length: 1 + Math.floor(next() * 8) }, () =>
+        day(Math.floor(next() * 24) - 12, {
+          illness: next() < 0.5 ? true : next() < 0.5 ? false : undefined,
+        }),
+      ),
+    )
+    const cases: Array<ReturnType<typeof day>[]> = [
+      [],
+      [day(0, { ...NORMAL })],
+      [day(0, { illness: false })],
+      [day(0, { illness: true })],
+      [day(-1, { illness: true }), day(-1, { hrvRmssd: 50 })],
+      [day(-3, { illness: true }), day(-8, { illness: true })],
+      [day(-8, { illness: true }), day(-3, { illness: true })],
+      [day(2, { illness: true })],
+      [day(-2, { illness: true }), day(3, { illness: true }), day(-9, { ...POOR })],
+      ...[0, 1, 2, 3, 4, 5, 6, 7].map((daysAgo) => [day(-daysAgo, { illness: true })]),
+      ...random,
+    ]
+    let compared = 0
+    const seen = new Set<string>()
+    for (const wellness of cases) {
+      for (let offset = -4; offset <= 14; offset++) {
+        const date = addDays(TODAY, offset)
+        const result = illnessPhase(input({ wellness }), date)
+        expect(result).toEqual(oracle(input({ wellness }), date))
+        seen.add(result.phase)
+        compared += 1
+      }
+    }
+    expect(compared).toBeGreaterThan(1000)
+    expect([...seen].sort()).toEqual(['clear', 'easy-only', 'rest'])
   })
 
   it('raises an illness red flag while the gate is closed', () => {

@@ -1,6 +1,14 @@
 // The contract between the engine modules, the server and the web app (training-engine plan,
 // "Shared contract"). Frozen after Task E1: change it only with the plan.
-import type { Activity, AthleteProfile, WeekRow, WeeklyReview, WellnessDay } from '../types.ts'
+import type {
+  Activity,
+  AthleteProfile,
+  DisruptionMode,
+  DisruptionReason,
+  WeekRow,
+  WeeklyReview,
+  WellnessDay,
+} from '../types.ts'
 
 export type Grade = 'A' | 'B' | 'C' | 'D'
 export interface Param<T = number> {
@@ -64,6 +72,7 @@ export type SessionFlag =
   | 'run-walk'
   | 'post-race'
   | 'injury-return'
+  | 'rest-window'
 export interface SessionSpec {
   date: string
   order: number
@@ -322,6 +331,27 @@ export interface PlanChange {
   from: unknown
   to: unknown
   rules: string[]
+}
+/**
+ * A window of rest or limited running the runner reported [rule J9], as the disruption module
+ * reads it. Only what the engine needs: the stored area and note are never read.
+ */
+export interface DisruptionWindow {
+  /** The stored window's id; the engine only echoes it. */
+  id: string
+  reason: DisruptionReason
+  /** Illness is always rest, whatever is stored. */
+  mode: DisruptionMode
+  /** `YYYY-MM-DD`, may lie in the past. */
+  startDate: string
+  /** `YYYY-MM-DD`, inclusive: the last day the reason affects training. */
+  endDate: string
+  /** The longest run of a day in minutes; set for `limited` only. */
+  maxRunMin: number | null
+  /** Niggle only, 0-10. */
+  pain: number | null
+  /** Niggle only: it changes how the runner walks or runs. */
+  gaitChange: boolean
 }
 export interface EngineInput {
   today: string

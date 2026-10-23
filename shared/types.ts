@@ -416,6 +416,19 @@ export interface PlanWithSessions extends PlanWithWeeks {
   checklist: ChecklistResult[]
   zones: ZoneSet | null
 }
+/** Why a runner reports a window of rest or limited running [rule J9]. */
+export type DisruptionReason =
+  'illness-above-neck' | 'illness-below-neck' | 'niggle' | 'short-on-time' | 'travel'
+/** `rest` holds running; `limited` caps the longest run of each day (`maxRunMin`). */
+export type DisruptionMode = 'rest' | 'limited'
+/**
+ * Where a date lies against a window, computed by `windowPhase`: before it (`upcoming`), inside it
+ * (`resting`, or `limited` when short runs are allowed), the symptom-free wait after an illness
+ * (`rest-gate`), easy running only (`easy-only`), the weeks held to the restart fraction
+ * (`returning`) and past all of it (`done`).
+ */
+export type DisruptionPhase =
+  'upcoming' | 'resting' | 'rest-gate' | 'easy-only' | 'limited' | 'returning' | 'done'
 export type TodayAdvice = 'as-planned' | 'downgrade-easy' | 'rest'
 export interface TodayView {
   date: string

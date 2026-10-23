@@ -27,7 +27,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-23.1')
+    expect(PARAMS_VERSION).toBe('2026-10-23.2')
   })
 
   it('holds a few hundred parameters, every section non-empty', () => {
@@ -323,6 +323,45 @@ describe('parameter registry', () => {
       /\*\*L6 Minimum band\.\*\*[^\n]*until at least 3 scored races exist \(L7\)/,
     )
     expect(engineRules).not.toMatch(/until running back-tests exist/)
+  })
+
+  it('carries the disruption-window rule J9 as three labelled defaults, with its evidence', () => {
+    const j9 = [P.j9.maxWindowDays, P.j9.maxBackdateDays, P.j9.niggleEasyDays]
+    expect(j9.map((p) => [p.id, p.value, p.unit, p.grade, p.rule])).toEqual([
+      ['j9.maxWindowDays', 28, 'days', 'D', 'J9'],
+      ['j9.maxBackdateDays', 28, 'days', 'D', 'J9'],
+      ['j9.niggleEasyDays', 3, 'days', 'D', 'J9'],
+    ])
+    expect(paramsForRule('J9').map((p) => p.id)).toEqual(j9.map((p) => p.id))
+    expect(j9.map((p) => p.evidence)).toEqual([
+      ['feely-2022-training-disruptions', 'mujika-2000-detraining-part1'],
+      ['feely-2022-training-disruptions'],
+      ['sanford-2024-return-to-running', 'snyders-2022-respiratory-illness-rts'],
+    ])
+    for (const p of j9) expect(p.note, p.id).toMatch(/default/i)
+    // the longest window is the third J7 tier, so a longer break is a break under J7
+    expect(P.j9.maxWindowDays.value).toBe(P.j7.tier3Days.value)
+    expect(P.j9.maxWindowDays.note).toMatch(/j7\.tier3Days/)
+    // a niggle gets the easy days an illness gets after its symptom-free day
+    expect(P.j9.niggleEasyDays.value).toBe(P.n3.illnessEasyDaysBeforeIntensity.value)
+  })
+
+  it('states rule J9 in engine-rules.md with its parameters, evidence and table rows', () => {
+    const start = engineRules.indexOf('- **J9 ')
+    const end = engineRules.indexOf('## (k) Taper and race week')
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    const j9Text = engineRules.slice(start, end)
+    for (const p of paramsForRule('J9')) {
+      expect(j9Text, p.id).toContain(`\`${p.id}\``)
+      const missing = p.evidence.filter((id) => !j9Text.includes(id))
+      expect(missing, p.id).toEqual([])
+    }
+    expect(j9Text).toContain('`pain.flagScore`')
+    expect(j9Text).toMatch(/Grade D as a whole|grade D as a whole/)
+    for (const row of ['Disruption window length', 'Disruption back-dating', 'Niggle easy days']) {
+      expect(engineRules, row).toMatch(new RegExp(`^\\| ${row} `, 'm'))
+    }
   })
 
   it('carries the device rule O1 as two labelled defaults, with its evidence', () => {
