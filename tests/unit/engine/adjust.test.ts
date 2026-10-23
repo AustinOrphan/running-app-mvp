@@ -635,13 +635,28 @@ describe('swap-kind', () => {
     const result = check(tue, { type: 'swap-kind', kind: 'long' }, [tue, thu])
     expect(codes(result)).toEqual(['no-partner'])
     expect(result.guards[0]!.message).toBe(
-      'There is no long session left this week to swap with. A swap never adds a session or raises load.',
+      'There is no Long run left this week to swap with. A swap never adds a session or raises load.',
     )
     // a partner that is linked, skipped or in the past does not count
     const linked = session('lk', FRI, 'long', 90, { activityId: 'a1', status: 'completed' })
     expect(codes(check(tue, { type: 'swap-kind', kind: 'long' }, [tue, linked]))).toEqual([
       'no-partner',
     ])
+  })
+
+  it('words the missing kind as the plan titles it, never as its code', () => {
+    const message = (kind: SessionKind) =>
+      check(tue, { type: 'swap-kind', kind }, [tue, thu]).guards[0]!.message
+    expect(message('long-fast-finish')).toBe(
+      'There is no Long run, fast finish left this week to swap with. A swap never adds a session or raises load.',
+    )
+    expect(message('b2b')).toBe(
+      'There is no Back-to-back run left this week to swap with. A swap never adds a session or raises load.',
+    )
+    for (const kind of ['long-fast-finish', 'b2b', 'race-pace', 'strides', 'hills'] as const) {
+      expect(lintText(message(kind)), kind).toEqual([])
+      expect(message(kind), kind).not.toContain(`no ${kind} `)
+    }
   })
 
   it('changes nothing for the same kind and checks the two new places', () => {

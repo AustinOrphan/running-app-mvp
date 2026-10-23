@@ -71,11 +71,6 @@ export const TODAY_TEMPLATES = {
   'today.signal.checkin-items': tpl('Check-in recorded today.'),
   'today.signal.checkin-items-low': tpl('Some check-in answers are away from normal today.'),
 
-  // What an update of the plan was, on the change line's sheet. The line shows the stored summary.
-  'today.change.weekly': tpl('Weekly update', {}, { shape: 'label' }),
-  'today.change.break': tpl('Restart after a break', {}, { shape: 'label' }),
-  'today.change.review': tpl('After a review', {}, { shape: 'label' }),
-
   // The race countdown.
   'today.race.estimate': tpl('Finish estimate {low} to {high}, most likely about {likely}.', {
     low: 'duration',

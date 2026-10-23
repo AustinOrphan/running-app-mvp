@@ -14,9 +14,15 @@ export interface SheetProps {
 const focusable =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
+/** True when nothing holds focus any more, as after the focused control unmounts. */
+function isFocusLost(): boolean {
+  return document.activeElement === null || document.activeElement === document.body
+}
+
 /**
  * A modal dialog: a bottom sheet below 900px, a right-hand panel above. Escape and a click on the
- * scrim close it, Tab stays inside (also when focus has fallen to the page), and focus goes back to whatever opened it.
+ * scrim close it, Tab stays inside (also when focus has fallen to the page), and focus goes back to
+ * whatever opened it, or to the main landmark when the opener is gone and focus is lost with it.
  */
 export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
   const titleId = useId()
@@ -52,7 +58,14 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
-      if (opener?.isConnected === true) opener.focus()
+      if (opener?.isConnected === true) {
+        opener.focus()
+      } else if (opener !== null && isFocusLost()) {
+        // The opener went with the sheet (undoing the update that Today's change line opened takes
+        // the line away), and so did the focused control. The main landmark is the one stable
+        // place left, and it keeps the page where it is.
+        document.getElementById('main')?.focus({ preventScroll: true })
+      }
     }
   }, [open])
 

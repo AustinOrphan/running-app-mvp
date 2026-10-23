@@ -114,11 +114,13 @@ export const REVISION_VIEW_TEMPLATES = {
   'diff.week.flag.race-week': tpl('the race week', {}, { shape: 'label' }),
   'diff.week.flag.post-race': tpl('in the weeks after the race', {}, { shape: 'label' }),
   'diff.week.flag.disrupted': tpl('touched by a rest window', {}, { shape: 'label' }),
+  // The label of a window already holds a colon ("Rest: illness"), so the dates follow a comma.
   'diff.hold': tpl(
-    '{label}: {from} to {to}',
+    '{label}, {from} to {to}',
     { label: 'text', from: 'date', to: 'date' },
     { shape: 'label' },
   ),
+  'diff.hold.day': tpl('{label}, on {day}', { label: 'text', day: 'date' }, { shape: 'label' }),
   'diff.list': tpl('Changes in this update', {}, { shape: 'label' }),
   'diff.empty': tpl('No changes to the plan.'),
   'diff.show-all': tpl('Show all {n} changes', { n: 'count' }, { shape: 'label' }),
@@ -392,6 +394,13 @@ export function describeEntry(entry: DiffEntry, units: Units): string {
     case 'week':
       return weekLine(entry.week, units)
     case 'hold':
+      if (entry.hold.from === entry.hold.to) {
+        return render(
+          t['diff.hold.day'],
+          { label: entry.hold.label, day: day(entry.hold.from) },
+          units,
+        )
+      }
       return render(
         t['diff.hold'],
         { label: entry.hold.label, from: day(entry.hold.from), to: day(entry.hold.to) },

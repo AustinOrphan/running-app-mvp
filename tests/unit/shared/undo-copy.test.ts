@@ -304,13 +304,32 @@ describe('the lines of a diff', () => {
     ])
   })
 
-  it('renders a rest window hold with its stored label', () => {
+  it('renders a rest window hold under the label the server stores, with no second colon', () => {
     const withHold: PlanDiff = {
       ...diff([]),
-      holds: [{ from: '2026-10-28', to: '2026-10-30', label: 'Rest window', disruptionId: 'd1' }],
+      holds: [
+        { from: '2026-10-28', to: '2026-10-30', label: 'Rest: illness', disruptionId: 'd1' },
+        {
+          from: '2026-10-29',
+          to: '2026-10-31',
+          label: 'Runs up to 30 min: travel',
+          disruptionId: 'd2',
+        },
+      ],
     }
     expect(presentDiff(withHold).map((entry) => describeEntry(entry, 'km'))).toEqual([
-      'Rest window: Wed 28 Oct to Fri 30 Oct',
+      'Rest: illness, Wed 28 Oct to Fri 30 Oct',
+      'Runs up to 30 min: travel, Thu 29 Oct to Sat 31 Oct',
+    ])
+  })
+
+  it('names the one day of a one-day hold once', () => {
+    const withHold: PlanDiff = {
+      ...diff([]),
+      holds: [{ from: '2026-10-28', to: '2026-10-28', label: 'Rest: illness', disruptionId: 'd1' }],
+    }
+    expect(presentDiff(withHold).map((entry) => describeEntry(entry, 'mi'))).toEqual([
+      'Rest: illness, on Wed 28 Oct',
     ])
   })
 

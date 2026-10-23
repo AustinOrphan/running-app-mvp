@@ -573,7 +573,15 @@ describe('UndoControl, when the update can be undone', () => {
     const keys = invalidate.mock.calls.map(
       ([filter]) => (filter as { queryKey: string[] }).queryKey[0],
     )
-    expect(keys.sort()).toEqual(['brief', 'plan', 'planRevisions', 'state', 'today'])
+    expect(keys.sort()).toEqual([
+      'brief',
+      'disruptions',
+      'plan',
+      'planRevisions',
+      'reviews',
+      'state',
+      'today',
+    ])
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })

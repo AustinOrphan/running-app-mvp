@@ -38,6 +38,7 @@ import type { DayRule } from './disruption.ts'
 import { minSize, scaleSession, spikeLevelOf } from './guards.ts'
 import { EPS, isProgramme, recordOf, referenceAt, VOLUME_KINDS, type RunRecord } from './limits.ts'
 import { P } from './params/index.ts'
+import { sessionTitle } from './sessions.ts'
 import type { PlanChange, Quantity, SessionKind, SessionSpec } from './types.ts'
 
 // ---------------------------------------------------------------------------------------------
@@ -759,7 +760,7 @@ function checkSwapKind(session: PlanSession, kind: SessionKind, ctx: AdjustConte
     .filter((s) => s.kind === kind && swappable(s, session, ctx.today))
     .sort((a, b) => (a.date === b.date ? a.order - b.order : a.date < b.date ? -1 : 1))[0]
   if (partner === undefined) {
-    return refused([guard('no-partner', 'adjust.no-partner', { kind }, [])])
+    return refused([guard('no-partner', 'adjust.no-partner', { title: sessionTitle(kind) }, [])])
   }
   if (inPair(session)) {
     return refused([guard('b2b-pair', 'adjust.b2b-stays', { title: session.title }, ['H3'])])
