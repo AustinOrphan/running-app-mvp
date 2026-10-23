@@ -1,0 +1,7 @@
+.cooler {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--accent);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

@@ -1,20 +1,30 @@
-import type { PlanWeek, WeekRow } from '../../../shared/types.ts'
+import { addDays, mondayOf } from '../../../shared/dates.ts'
+import { usePlan } from '../../api/plan.ts'
+import { useWeeks } from '../../api/weeks.ts'
 import { WeeklyHoursChart } from '../charts/WeeklyHoursChart.tsx'
-import styles from './today.module.css'
+import styles from './RecentWeeks.module.css'
 
-/** Run hours for the last 12 weeks against the plan's targets. */
-export function RecentWeeks({ weeks, planWeeks }: { weeks: WeekRow[]; planWeeks: PlanWeek[] }) {
-  if (!weeks.some((w) => w.runMin > 0)) return null
+const CHART_WEEKS = 12
+
+/**
+ * Run hours for the last 12 weeks against the plan's targets. It reads the weeks and the plan
+ * itself, so the page mounts it only once it is near the viewport.
+ */
+export function RecentWeeks({ today }: { today: string }) {
+  const thisWeek = mondayOf(today)
+  const weeks = useWeeks({ from: addDays(thisWeek, -7 * (CHART_WEEKS - 1)), to: thisWeek })
+  const plan = usePlan()
+  if (weeks.data === undefined || !weeks.data.some((w) => w.runMin > 0)) return null
   return (
     <section className={styles.section}>
-      <h2 className={styles.heading}>Last 12 weeks</h2>
+      <h2 className={styles.heading}>{`Last ${String(CHART_WEEKS)} weeks`}</h2>
       <WeeklyHoursChart
-        weeks={weeks}
-        planned={planWeeks.map((w) => ({
+        weeks={weeks.data}
+        planned={(plan.data?.weeks ?? []).map((w) => ({
           weekStart: w.weekStart,
           targetRunMin: w.targetRunMin,
         }))}
-        ariaLabel="Run hours per week, last 12 weeks"
+        ariaLabel={`Run hours per week, last ${String(CHART_WEEKS)} weeks`}
       />
     </section>
   )

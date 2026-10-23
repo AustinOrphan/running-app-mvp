@@ -1,0 +1,54 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--page-max);
+  padding: var(--space-4) 0;
+}
+
+.verdict {
+  width: 70%;
+  height: 1.625rem;
+}
+
+.title {
+  width: 40%;
+  height: 1.75rem;
+}
+
+.figure {
+  width: 45%;
+  height: 3.5rem;
+}
+
+.targets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.target {
+  height: 1.5rem;
+}
+
+.target:nth-child(1) {
+  width: 85%;
+}
+
+.target:nth-child(2) {
+  width: 70%;
+}
+
+.target:nth-child(3) {
+  width: 55%;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.action {
+  flex: 1 1 0;
+  height: var(--control-h);
+}

@@ -1,0 +1,30 @@
+/* The `brief` slot is 52 px tall at 360 px: two lines of text beside a 44 px button, no padding
+   of its own beyond a hairline. */
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  box-sizing: border-box;
+  max-height: 3.25rem;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+}
+
+.text {
+  display: -webkit-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.line > button {
+  flex: 0 0 auto;
+  min-height: 2.75rem;
+}

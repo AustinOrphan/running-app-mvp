@@ -3,7 +3,12 @@ import type { PlanPhase } from '../../shared/types.ts'
 
 // The date and climb formatters live in `shared/` so the copy system can use them; pages keep
 // importing them from here.
-export { formatLongDate, formatShortDate, formatWeekday } from '../../shared/dates.ts'
+export {
+  formatLongDate,
+  formatShortDate,
+  formatWeekday,
+  formatWeekdayDate,
+} from '../../shared/dates.ts'
 export { formatClimb } from '../../shared/units.ts'
 
 const phaseLabels: Record<PlanPhase, string> = {

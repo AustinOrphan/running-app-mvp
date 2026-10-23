@@ -695,6 +695,7 @@ describe('GET /api/today: the race', () => {
     expect(race?.goalId).not.toBe(other.id)
     expect(race?.name).toBe('Synthetic race')
     expect(race?.daysToRace).toBe(200)
+    expect(race?.distanceM).toBe(160_934)
     expect(race?.range).toMatchObject({
       wide: true,
       minHalfWidthPct: P.l4.ultraMinHalfWidthPct.value,
@@ -743,6 +744,7 @@ describe('GET /api/today: the race', () => {
     })
     expect((await view(u)).coach.race).toMatchObject({
       daysToRace: 20,
+      distanceM: null,
       prediction: null,
       range: null,
     })
@@ -780,6 +782,39 @@ describe('GET /api/today: the race', () => {
     expect(race?.prediction).not.toBeNull()
     expect(race!.prediction!.lowSec).toBeLessThan(race!.prediction!.predictedSec)
     expect(race!.prediction!.highSec).toBeGreaterThan(race!.prediction!.predictedSec)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Unrated runs
+// ---------------------------------------------------------------------------------------------
+
+describe('GET /api/today: unrated runs', () => {
+  test('are runs and races of the last seven days with neither an effort rating nor a feel', async () => {
+    const u = await seedUser(ctx, { email: 'unrated@example.com' })
+    const add = (date: string, over: Record<string, unknown> = {}) =>
+      ctx.prisma.activity.create({
+        data: {
+          userId: u.id,
+          date,
+          type: 'run',
+          durationSec: 1800,
+          movingSec: 1800,
+          distanceM: 5000,
+          source: 'manual',
+          ...over,
+        },
+      })
+    const newest = await add(today)
+    const race = await add(addDays(today, -6), { type: 'race' })
+    await add(addDays(today, -7)) // the eighth day back
+    await add(addDays(today, -1), { rpe: 5 })
+    await add(addDays(today, -2), { feel: 0 })
+    await add(addDays(today, -3), { type: 'strength' })
+    await add(addDays(today, -4), { duplicateStatus: 'confirmed' })
+
+    const { unrated } = await view(u)
+    expect(unrated.map((a) => a.id)).toEqual([newest.id, race.id])
   })
 })
 

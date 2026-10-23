@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import type { ActivityListPage } from '../../shared/types.ts'
 import { useLogin, useLogout, useMe, useSetup } from '../../web/api/auth.ts'
 import {
@@ -14,7 +14,7 @@ import {
   useResolveDuplicate,
   useUpdateActivity,
 } from '../../web/api/activities.ts'
-import { keys } from '../../web/api/client.ts'
+import { createQueryClient, keys } from '../../web/api/client.ts'
 import {
   useActivateGoal,
   useCreateGoal,
@@ -575,6 +575,40 @@ describe('invalidation', () => {
       'me',
       'settings',
     ])
+  })
+})
+
+describe('Today', () => {
+  const todayCalls = (calls: Array<{ method: string; url: string }>) =>
+    calls.filter((c) => c.method === 'GET' && c.url === '/api/today').length
+
+  test('is read again when the window regains focus once it is stale; the settings are not', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const { calls } = mockApi(allRoutes({ 'GET /api/today': () => ({}) }))
+      // The app's own defaults: 30 s of freshness and no refetch on focus unless a hook asks.
+      const queryClient = createQueryClient()
+      const wrapper = ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      )
+      const { result } = renderHook(() => ({ today: useToday(), settings: useSettings() }), {
+        wrapper,
+      })
+      await waitFor(() => {
+        expect(result.current.today.isSuccess && result.current.settings.isSuccess).toBe(true)
+      })
+
+      vi.setSystemTime(Date.now() + 60_000)
+      act(() => {
+        window.dispatchEvent(new Event('visibilitychange'))
+      })
+      await waitFor(() => {
+        expect(todayCalls(calls)).toBe(2)
+      })
+      expect(calls.filter((c) => c.url === '/api/settings')).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

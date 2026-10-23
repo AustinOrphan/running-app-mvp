@@ -1,0 +1,43 @@
+.targets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+/* Term and value share a baseline; a note drops under the value, never beside it on a phone. */
+.row {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  column-gap: var(--space-3);
+  align-items: baseline;
+}
+
+.term {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.value {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* The lead is bigger and heavier, so the day's steering figure reads first without colour. */
+.row[data-lead='true'] .value {
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 600;
+}
+
+.note {
+  grid-column: 2;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

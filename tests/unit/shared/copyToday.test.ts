@@ -134,3 +134,59 @@ describe('week strip names', () => {
     }
   })
 })
+
+describe('hero copy', () => {
+  const say = (template: string, slots: Record<string, unknown>, units: 'km' | 'mi' = 'mi') =>
+    renderFact({ template, slots: slots as never }, units)
+
+  test('the targets read as the design words them', () => {
+    expect(say('today.target.hr-ceiling', { limit: { kind: 'bpm', bpm: 149 } })).toBe(
+      'under 149 bpm',
+    )
+    expect(say('today.target.pace-guide', { range: '9:20 to 10:28 /mi' })).toBe(
+      'about 9:20 to 10:28 /mi',
+    )
+    expect(say('today.target.effort', { range: '3 to 4' })).toBe('3 to 4 out of 10')
+    expect(say('today.target.note-pace-guide', {})).toBe('Effort and heart rate come first.')
+    expect(say('today.target.note-hot-effort', {})).toBe('Go by this today.')
+    expect(say('today.target.note-hot-hr', {})).toBe('It runs high in heat.')
+  })
+
+  test('the cooler start names the hour and the index then and at the peak', () => {
+    const slots = {
+      time: '06:00',
+      then: { kind: 'temp', c: 17 },
+      peak: { kind: 'temp', c: 25 },
+      hour: '15:00',
+    }
+    expect(say('today.cooler.wbgt', slots)).toBe(
+      'Cooler start: 06:00. WBGT about 17 °C then, 25 °C around 15:00.',
+    )
+    expect(say('today.cooler.air', { time: '06:00', then: { kind: 'temp', c: 17 } })).toBe(
+      'Cooler start: 06:00. Air temperature about 17 °C then.',
+    )
+  })
+
+  test('an eased or rested day keeps the planned session in view', () => {
+    const planned = { title: 'Threshold', duration: { kind: 'minutes', min: 50 } }
+    expect(say('today.hero.planned', planned)).toBe('Planned: Threshold, 50 min')
+    expect(say('today.hero.planned-not-today', planned)).toBe(
+      'Planned: Threshold, 50 min. Not today.',
+    )
+    expect(say('today.hero.rest-day', {})).toBe('Rest day.')
+  })
+
+  test('the week reads in minutes a day, without a minimum', () => {
+    expect(say('today.week.advisory', { perDay: { kind: 'minutes', min: 34 } })).toBe(
+      '34 min a day left, through Sunday',
+    )
+    expect(
+      say('today.week.day-logged', {
+        weekday: { kind: 'weekday', iso: '2026-03-16', style: 'long' },
+        date: { kind: 'date', iso: '2026-03-16', style: 'short' },
+        mark: 'Done',
+        logged: { kind: 'minutes', min: 40 },
+      }),
+    ).toBe('Monday 16 Mar, Done, 40 min logged')
+  })
+})

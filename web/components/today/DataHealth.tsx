@@ -1,39 +1,15 @@
 import { Link } from 'react-router-dom'
-import { addDays } from '../../../shared/dates.ts'
-import type { ActivityListItem, PlanWeek, ReviewView, WeekRow } from '../../../shared/types.ts'
+import type { TodayHealth } from '../../../shared/types.ts'
 import { plural } from '../format.ts'
-import styles from './today.module.css'
+import styles from './DataHealth.module.css'
 
-/** Links to possible duplicates, past weeks without confirmed data and a review that is due. */
-export function DataHealth({
-  activities,
-  weeks,
-  reviews,
-  planWeeks,
-  thisWeek,
-}: {
-  activities: ActivityListItem[]
-  weeks: WeekRow[]
-  reviews: ReviewView[]
-  planWeeks: PlanWeek[]
-  /** Monday of the current week. */
-  thisWeek: string
-}) {
-  const planWeekStarts = new Set(planWeeks.map((w) => w.weekStart))
-  const possibleDuplicates = activities.filter((a) => a.duplicateStatus === 'possible').length
-  const reviewByWeek = new Map(reviews.map((r) => [r.weekStart, r]))
-  const pastUnconfirmed = weeks.filter(
-    (w) =>
-      w.weekStart < thisWeek &&
-      planWeekStarts.has(w.weekStart) &&
-      reviewByWeek.get(w.weekStart)?.dataStatus !== 'complete',
-  ).length
-  const lastWeek = addDays(thisWeek, -7)
-  const lastWeekHasData =
-    planWeekStarts.has(lastWeek) ||
-    (weeks.find((w) => w.weekStart === lastWeek)?.runSessions ?? 0) > 0
-  const lastWeekReady = lastWeekHasData && (reviewByWeek.get(lastWeek)?.reviewedAt ?? null) === null
-  if (possibleDuplicates === 0 && pastUnconfirmed === 0 && !lastWeekReady) return null
+/**
+ * Links to possible duplicates, past weeks without confirmed data and a review that is due. The
+ * counts come from the server (`coach.health`), which also holds the producers' notes.
+ */
+export function DataHealth({ health }: { health: TodayHealth }) {
+  const { possibleDuplicates, pastUnconfirmedWeeks, lastWeekReady } = health
+  if (possibleDuplicates === 0 && pastUnconfirmedWeeks === 0 && !lastWeekReady) return null
 
   return (
     <section aria-label="Data health" className={styles.section}>
@@ -45,10 +21,10 @@ export function DataHealth({
             </Link>
           </li>
         ) : null}
-        {pastUnconfirmed > 0 ? (
+        {pastUnconfirmedWeeks > 0 ? (
           <li>
             <Link to="/review">
-              {`${String(pastUnconfirmed)} past ${plural(pastUnconfirmed, 'week', 'weeks')} without confirmed data`}
+              {`${String(pastUnconfirmedWeeks)} past ${plural(pastUnconfirmedWeeks, 'week', 'weeks')} without confirmed data`}
             </Link>
           </li>
         ) : null}

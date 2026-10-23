@@ -814,7 +814,8 @@ describe('GET /api/today', () => {
     await ctx.prisma.athleteProfile.create({
       data: { userId: u.id, homeLat: 40.1, homeLng: -105.2, timezone: 'UTC' },
     })
-    await addRun(u.id, addDays(today, -1))
+    const unrated = await addRun(u.id, addDays(today, -1))
+    await ctx.prisma.activity.update({ where: { id: unrated.id }, data: { rpe: null } })
     const rated = await addRun(u.id, addDays(today, -2), { feel: 0 })
     // The weather job fills the forecast cache; the request below only reads it.
     ctx.fetch = fakeFetch({
@@ -846,8 +847,8 @@ describe('GET /api/today', () => {
     expect(view.heat.note).toMatch(/Warm day/)
     expect(view.checkin).toBeNull()
     expect(view.readiness.date).toBe(today)
+    expect(view.unrated.map((a) => a.id)).toEqual([unrated.id])
     expect(view.unrated.map((a) => a.id)).not.toContain(rated.id)
-    expect(view.unrated).toHaveLength(1)
   })
 
   test('a reported focal bone pain turns the run into rest advice', async () => {

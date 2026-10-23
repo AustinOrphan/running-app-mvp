@@ -50,11 +50,15 @@ export function usePlan() {
   })
 }
 
-/** Every revision of the active plan, newest first: the "What changed" list. */
-export function usePlanRevisions() {
+/**
+ * Every revision of the active plan, newest first: the "What changed" list. A surface that shows it
+ * only on request (Today's change sheet) asks for it once it is open.
+ */
+export function usePlanRevisions(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: [keys.planRevisions],
     queryFn: () => api<PlanRevisionView[]>('GET', '/plan/revisions'),
+    enabled: options.enabled ?? true,
   })
 }
 

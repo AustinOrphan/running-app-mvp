@@ -1,0 +1,63 @@
+.section {
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--border);
+}
+
+.heading {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.caption {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.checkinFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--page-max);
+  margin: var(--space-4) 0;
+}
+
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  font-size: var(--text-base);
+}
+
+.checkLabel input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--accent);
+}
+
+.areaField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 32rem;
+}
+
+.areaLabel {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
