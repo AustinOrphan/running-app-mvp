@@ -1,5 +1,5 @@
 import { addDays } from '../../../shared/dates.ts'
-import type { Activity, Units } from '../../../shared/types.ts'
+import type { ActivityListItem, Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
 import { formatShortDate, plural } from '../format.ts'
 import styles from './today.module.css'
@@ -12,7 +12,7 @@ interface DayRun {
 }
 
 /** Run minutes per day for the `days` days ending on `today`; flagged duplicates do not count. */
-function runMinutesPerDay(activities: Activity[], today: string, days: number): DayRun[] {
+function runMinutesPerDay(activities: ActivityListItem[], today: string, days: number): DayRun[] {
   const minutes = new Map<string, number>()
   const first = addDays(today, 1 - days)
   for (const a of activities) {
@@ -32,7 +32,7 @@ export function RecentStrip({
   today,
   units,
 }: {
-  activities: Activity[]
+  activities: ActivityListItem[]
   today: string
   units: Units
 }) {

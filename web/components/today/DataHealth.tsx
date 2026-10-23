@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { addDays } from '../../../shared/dates.ts'
-import type { Activity, PlanWeek, ReviewView, WeekRow } from '../../../shared/types.ts'
+import type { ActivityListItem, PlanWeek, ReviewView, WeekRow } from '../../../shared/types.ts'
 import { plural } from '../format.ts'
 import styles from './today.module.css'
 
@@ -12,7 +12,7 @@ export function DataHealth({
   planWeeks,
   thisWeek,
 }: {
-  activities: Activity[]
+  activities: ActivityListItem[]
   weeks: WeekRow[]
   reviews: ReviewView[]
   planWeeks: PlanWeek[]

@@ -33,6 +33,8 @@ import { P } from '../shared/engine/params/index.ts'
 import type {
   Activity,
   ActivityCore,
+  ActivityListItem,
+  ActivityListPage,
   ActivityType,
   Checkin,
   AthleteProfile,
@@ -83,7 +85,10 @@ function parseJson<T>(text: string | null, fallback: T): T {
   }
 }
 
-export function toActivity(row: ActivityRow): Activity {
+/** An activity row read without its heart-rate histogram (`ACTIVITY_LIST_OMIT`). */
+export type ActivityListRow = Omit<ActivityRow, 'hrHistogram'>
+
+export function toActivityListItem(row: ActivityListRow): ActivityListItem {
   return {
     id: row.id,
     userId: row.userId,
@@ -117,13 +122,19 @@ export function toActivity(row: ActivityRow): Activity {
     windKph: row.windKph,
     humidityPct: row.humidityPct,
     weatherSource: row.weatherSource as Activity['weatherSource'],
-    hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
     decouplingPct: row.decouplingPct,
     gapDistanceM: row.gapDistanceM,
     feel: row.feel as Feel | null,
     pain: row.pain,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
+export function toActivity(row: ActivityRow): Activity {
+  return {
+    ...toActivityListItem(row),
+    hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
   }
 }
 
@@ -579,6 +590,25 @@ export async function loadActivityCores(
   }))
 }
 
+/** The column a list never reads: the heart-rate histogram is the largest and only the detail needs it. */
+const ACTIVITY_LIST_OMIT = { hrHistogram: true } as const
+
+/** The `where` of a user's activities in an inclusive date range, optionally of one type. */
+function activityWhere(userId: string, opts: { from?: string; to?: string; type?: ActivityType }) {
+  return {
+    userId,
+    ...(opts.type ? { type: opts.type } : {}),
+    ...(opts.from || opts.to
+      ? {
+          date: {
+            ...(opts.from ? { gte: opts.from } : {}),
+            ...(opts.to ? { lte: opts.to } : {}),
+          },
+        }
+      : {}),
+  }
+}
+
 /** A user's activities, newest first, with flagged duplicates included. Dates are inclusive. */
 export async function loadActivities(
   prisma: PrismaClient,
@@ -586,19 +616,41 @@ export async function loadActivities(
   opts: { from?: string; to?: string; type?: ActivityType } = {},
 ): Promise<Activity[]> {
   const rows = await prisma.activity.findMany({
-    where: {
-      userId,
-      ...(opts.type ? { type: opts.type } : {}),
-      ...(opts.from || opts.to
-        ? {
-            date: {
-              ...(opts.from ? { gte: opts.from } : {}),
-              ...(opts.to ? { lte: opts.to } : {}),
-            },
-          }
-        : {}),
-    },
+    where: activityWhere(userId, opts),
     orderBy: [{ date: 'desc' }, { startTime: 'desc' }, { createdAt: 'desc' }],
   })
   return rows.map(toActivity)
+}
+
+/**
+ * One page of a user's activities, newest first, without the heart-rate histogram. The order is
+ * total (date, start time, creation time, then `id`), so a row is never repeated or skipped
+ * between two pages of an unchanged list. Offset paging, not a cursor: `startTime` is nullable.
+ * The count and the page are two reads, not a transaction (a transaction ends with a data-version
+ * bump), so a write between them can leave `total` one off until the next request.
+ */
+export async function loadActivityPage(
+  prisma: Pick<PrismaClient, 'activity'>,
+  userId: string,
+  opts: { from?: string; to?: string; type?: ActivityType; limit: number; offset: number },
+): Promise<ActivityListPage> {
+  const where = activityWhere(userId, opts)
+  const [total, rows] = await Promise.all([
+    prisma.activity.count({ where }),
+    prisma.activity.findMany({
+      where,
+      omit: ACTIVITY_LIST_OMIT,
+      orderBy: [{ date: 'desc' }, { startTime: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      skip: opts.offset,
+      take: opts.limit,
+    }),
+  ])
+  const next = opts.offset + rows.length
+  return {
+    items: rows.map(toActivityListItem),
+    total,
+    limit: opts.limit,
+    offset: opts.offset,
+    nextOffset: rows.length > 0 && next < total ? next : null,
+  }
 }

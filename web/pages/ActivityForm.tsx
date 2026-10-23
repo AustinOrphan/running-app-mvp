@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react'
 import { todayIso } from '../../shared/dates.ts'
 import { MAX_DURATION_SEC } from '../../shared/limits.ts'
-import type { Activity, ActivityType, Feel, Units } from '../../shared/types.ts'
+import type { ActivityListItem, ActivityType, Feel, Units } from '../../shared/types.ts'
 import { formatDuration, kmToM, mToKm, mToMiles, milesToM } from '../../shared/units.ts'
 import {
   useCreateActivity,
@@ -22,7 +22,7 @@ import styles from './ActivityForm.module.css'
 export interface ActivityFormProps {
   open: boolean
   onClose: () => void
-  activity?: Activity
+  activity?: ActivityListItem
 }
 
 export const TYPE_LABELS: Record<ActivityType, string> = {
@@ -117,7 +117,7 @@ function elevationText(elevationGainM: number | null | undefined, units: Units):
 }
 
 /** The request body that recreates an activity; empty fields are left out. */
-export function activityToInput(activity: Activity): ActivityInput {
+export function activityToInput(activity: ActivityListItem): ActivityInput {
   const input: ActivityInput = {
     date: activity.date,
     type: activity.type,
@@ -290,7 +290,7 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
     onClose()
   }
 
-  async function deleteActivity(target: Activity) {
+  async function deleteActivity(target: ActivityListItem) {
     try {
       await remove.mutateAsync(target.id)
     } catch (err) {

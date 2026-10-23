@@ -81,6 +81,47 @@ export type ActivityCore = Pick<
   Activity,
   'id' | 'date' | 'type' | 'durationSec' | 'distanceM' | 'duplicateStatus'
 >
+/**
+ * An activity as the list shows it: every column but the heart-rate histogram, which is the
+ * largest and is read only by the detail route (`GET /api/activities/:id`).
+ */
+export type ActivityListItem = Omit<Activity, 'hrHistogram'>
+/**
+ * `GET /api/activities`: one page of the list, newest first. `nextOffset` is the `offset` of the
+ * next page, or null on the last one; `total` counts every row the filters match.
+ */
+export interface ActivityListPage {
+  items: ActivityListItem[]
+  total: number
+  limit: number
+  offset: number
+  nextOffset: number | null
+}
+/** The fastest run for one standard distance. */
+export interface FastestEffort {
+  label: string
+  targetM: number
+  activityId: string
+  date: string
+  distanceM: number
+  durationSec: number
+  paceSecPerKm: number
+}
+/** Run totals for one month or one year. */
+export interface PeriodTotal {
+  runMin: number
+  runM: number
+  runs: number
+  longestRunMin: number
+}
+/** `GET /api/stats`: the statistics of the whole history, computed on the server. */
+export interface StatsView {
+  monthly: Array<PeriodTotal & { month: string }>
+  yearly: Array<PeriodTotal & { year: string }>
+  efforts: FastestEffort[]
+  /** The longest runs, longest first. */
+  longest: ActivityCore[]
+}
 export type Feel = -2 | -1 | 0 | 1 | 2
 /** Aligned arrays of equal length; `null` when the source had no such channel. */
 export interface ActivityStreamData {

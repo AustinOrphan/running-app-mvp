@@ -15,7 +15,7 @@ import type {
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ReviewPage } from '../../web/pages/ReviewPage.tsx'
 import { makeActivity, makeWeekRow } from '../factories.ts'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 
 // The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -188,7 +188,7 @@ function routes(fixture: Fixture = {}): MockRoutes {
       weekStartsBetween(query.get('from') ?? '', query.get('to') ?? '').map((weekStart) =>
         makeWeekRow({ weekStart, ...fixture.weeks?.[weekStart] }),
       ),
-    'GET /api/activities': () => fixture.activities ?? [],
+    'GET /api/activities': () => activityPage(fixture.activities ?? []),
     'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'km' }),
     'GET /api/zones/proposals': () => fixture.proposals ?? [],
   }

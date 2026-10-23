@@ -1,14 +1,21 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test } from 'vitest'
-import { todayIso } from '../../shared/dates.ts'
+import { addDays, todayIso } from '../../shared/dates.ts'
 import type { Activity, ImportBatch, Units } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
 import { parseDistanceInput, parseDurationInput } from '../../web/pages/ActivityForm.tsx'
 import { ImportDialog } from '../../web/pages/ImportDialog.tsx'
 import { makeActivity } from '../factories.ts'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  activityPage,
+  activityRoute,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 
 function settings(units: Units) {
   return { email: 'runner@example.com', displayName: null, units }
@@ -22,7 +29,7 @@ function renderPage(opts: {
 }) {
   const api = mockApi({
     'GET /api/settings': () => settings(opts.units ?? 'mi'),
-    'GET /api/activities': () => opts.activities ?? [],
+    'GET /api/activities': activityRoute(opts.activities ?? []),
     ...opts.routes,
   })
   renderWithProviders(
@@ -483,7 +490,120 @@ describe('Activities page', () => {
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-03-01' } })
     fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-03-31' } })
     await waitFor(() => {
-      expect(api.calls.at(-1)?.url).toBe('/api/activities?from=2026-03-01&to=2026-03-31&type=race')
+      expect(api.calls.at(-1)?.url).toBe(
+        '/api/activities?from=2026-03-01&to=2026-03-31&type=race&limit=50&offset=0',
+      )
+    })
+  })
+})
+
+describe('Activities page: paging', () => {
+  /** `count` runs, newest first, one a day. */
+  function history(count: number): Activity[] {
+    return Array.from({ length: count }, (_, i) =>
+      makeActivity({ id: `p${String(i).padStart(3, '0')}`, date: addDays('2026-03-01', -i) }),
+    )
+  }
+
+  test('shows 50 rows with "Showing 50 of 120 activities", and "Show 50 more" adds the next page', async () => {
+    const user = userEvent.setup()
+    const api = renderPage({ activities: history(120) })
+
+    const status = await screen.findByText('Showing 50 of 120 activities')
+    expect(status).toHaveAttribute('role', 'status')
+    expect(screen.getAllByRole('button', { name: /^Run/ })).toHaveLength(50)
+    const more = screen.getByRole('button', { name: 'Show 50 more' })
+
+    await user.click(more)
+    expect(await screen.findByText('Showing 100 of 120 activities')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /^Run/ })).toHaveLength(100)
+    // The button that was pressed is still where the keyboard left it.
+    expect(screen.getByRole('button', { name: 'Show 20 more' })).toHaveFocus()
+
+    await user.click(screen.getByRole('button', { name: 'Show 20 more' }))
+    expect(await screen.findByText('120 activities')).toHaveAttribute('role', 'status')
+    expect(screen.getAllByRole('button', { name: /^Run/ })).toHaveLength(120)
+    expect(screen.queryByRole('button', { name: /^Show \d+ more$/ })).not.toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url.startsWith('/api/activities')).map((c) => c.url)).toEqual([
+      '/api/activities?limit=50&offset=0',
+      '/api/activities?limit=50&offset=50',
+      '/api/activities?limit=50&offset=100',
+    ])
+    expectCleanCopy(document.body)
+  })
+
+  test('a history that fits one page shows its count and no button', async () => {
+    renderPage({ activities: history(3) })
+    expect(await screen.findByText('3 activities')).toHaveAttribute('role', 'status')
+    expect(screen.queryByRole('button', { name: /^Show \d+ more$/ })).not.toBeInTheDocument()
+  })
+
+  test('counts above a thousand carry a separator', async () => {
+    renderPage({
+      routes: {
+        'GET /api/activities': () =>
+          activityPage(history(50), { total: 1284, limit: 50, nextOffset: 50 }),
+      },
+    })
+    expect(await screen.findByText('Showing 50 of 1,284 activities')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show 50 more' })).toBeInTheDocument()
+  })
+
+  test('a page that did not load says so, keeps the rows and tries again on the next press', async () => {
+    const user = userEvent.setup()
+    const serve = activityRoute(history(120))
+    let fail = true
+    renderPage({
+      routes: {
+        'GET /api/activities': (req) => {
+          if (req.query.get('offset') === '50' && fail) {
+            return {
+              status: 500,
+              body: { error: { code: 'internal', message: 'Something went wrong on the server.' } },
+            }
+          }
+          return serve(req)
+        },
+      },
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Show 50 more' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'More activities did not load. Try again.',
+    )
+    expect(screen.getAllByRole('button', { name: /^Run/ })).toHaveLength(50)
+    expect(screen.getByText('Showing 50 of 120 activities')).toBeInTheDocument()
+    expect(screen.queryByText(/Activities did not load/)).not.toBeInTheDocument()
+    expectCleanCopy(document.body)
+
+    fail = false
+    await user.click(screen.getByRole('button', { name: 'Show 50 more' }))
+    expect(await screen.findByText('Showing 100 of 120 activities')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  test('the duplicates view reads the whole list, so a duplicate beyond the first page is found', async () => {
+    const rows = history(120)
+    rows[110] = { ...rows[110], duplicateStatus: 'possible', duplicateOfId: 'p001' } as Activity
+    const api = renderPage({ route: '/activities?duplicates=1', activities: rows })
+
+    expect(await screen.findByText('Possible duplicate')).toBeInTheDocument()
+    expect(screen.getByText('1 activity')).toHaveAttribute('role', 'status')
+    expect(screen.queryByRole('button', { name: /^Show \d+ more$/ })).not.toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url.startsWith('/api/activities')).map((c) => c.url)).toEqual([
+      '/api/activities?limit=500&offset=0',
+    ])
+  })
+
+  test('a filter starts the list again from the first page', async () => {
+    const user = userEvent.setup()
+    const api = renderPage({ activities: history(120) })
+    await user.click(await screen.findByRole('button', { name: 'Show 50 more' }))
+    await screen.findByText('Showing 100 of 120 activities')
+
+    await user.click(screen.getByRole('radio', { name: 'Race' }))
+    await waitFor(() => {
+      expect(api.calls.at(-1)?.url).toBe('/api/activities?type=race&limit=50&offset=0')
     })
   })
 })

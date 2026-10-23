@@ -8,7 +8,7 @@ import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
 import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
 import { makeActivity } from '../factories.ts'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { makeToday } from './today-fixtures.ts'
 
 // The fixed clock is Wednesday 2026-03-18.
@@ -84,7 +84,7 @@ function renderDashboard(activities: Activity[], extra: MockRoutes = {}) {
     'GET /api/plan': () => null,
     'GET /api/weeks': () => [],
     'GET /api/reviews': () => [],
-    'GET /api/activities': () => activities,
+    'GET /api/activities': () => activityPage(activities),
     'GET /api/settings': () => settings,
     'GET /api/today': () => makeToday(),
     ...extra,
@@ -252,7 +252,7 @@ describe('Activities list and form', () => {
   function renderList(activities: Activity[]) {
     const api = mockApi({
       'GET /api/settings': () => settings,
-      'GET /api/activities': () => activities,
+      'GET /api/activities': () => activityPage(activities),
       'PUT /api/activities/a9': () => ({}),
     })
     renderWithProviders(

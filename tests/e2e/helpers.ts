@@ -102,7 +102,10 @@ export async function resetData() {
   }
 }
 
-/** The toast region announces confirmations; it is the one `role="status"` on a signed-in page. */
+/**
+ * The toast region announces confirmations. Some pages add a status line of their own (the data
+ * summary, the activity count), so the locator narrows by the message text.
+ */
 export function toast(page: Page, message: string | RegExp) {
   return page.getByRole('status').getByText(message)
 }

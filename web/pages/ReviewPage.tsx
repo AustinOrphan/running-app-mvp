@@ -9,7 +9,7 @@ import {
   type Suggestion,
 } from '../../shared/domain/review.ts'
 import type {
-  Activity,
+  ActivityListItem,
   DataStatus,
   PlanRevision,
   PlanSession,
@@ -224,7 +224,7 @@ interface ReviewBodyProps {
   reviews: WeeklyReview[]
   weeks: WeekRow[]
   plan: PlanWithSessions | null
-  activities: Activity[]
+  activities: ActivityListItem[]
 }
 
 function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }: ReviewBodyProps) {
