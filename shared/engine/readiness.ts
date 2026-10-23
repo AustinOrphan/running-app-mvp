@@ -146,6 +146,8 @@ interface HrvEval {
   readings: number
   /** Earlier readings the range is built from: the count `j4.minReadings` is tested against. */
   baseline: number
+  /** Days before the date the baseline is read from: the cycle-aware lookback of the profile. */
+  lookback: number
   latest: number | null
   /** The reading itself in ms; `latest` is its natural log. */
   latestMs: number | null
@@ -175,12 +177,21 @@ function hrvOn(ctx: Ctx, date: string): HrvEval {
   const baseline = base.length
   const readings = baseline + (latestMs === null ? 0 : 1)
   if (baseline < P.j4.minReadings.value) {
-    return { readings, baseline, latest, latestMs, mean: null, sd: null, flag: false }
+    return { readings, baseline, lookback, latest, latestMs, mean: null, sd: null, flag: false }
   }
   const baseMean = mean(base)
   const baseSd = sampleSd(base)
   if (latestMs === null || latest === null) {
-    return { readings, baseline, latest, latestMs, mean: baseMean, sd: baseSd, flag: false }
+    return {
+      readings,
+      baseline,
+      lookback,
+      latest,
+      latestMs,
+      mean: baseMean,
+      sd: baseSd,
+      flag: false,
+    }
   }
   const floorPct =
     P.j4.noiseFloorGarminPolarWhoopPct.value + (cyclic ? P.j4.cycleBandWidenPp.value : 0)
@@ -202,6 +213,7 @@ function hrvOn(ctx: Ctx, date: string): HrvEval {
   return {
     readings,
     baseline,
+    lookback,
     latest,
     latestMs,
     mean: baseMean,
@@ -427,6 +439,8 @@ export function readinessSnapshot(input: EngineInput, date: string): ReadinessSn
     // latest, baselineMean and baselineSd are on the ln(rMSSD) scale.
     hrv: {
       readings: hrv.readings,
+      baseline: hrv.baseline,
+      lookbackDays: hrv.lookback,
       latest: hrv.latest,
       baselineMean: hrv.mean,
       baselineSd: hrv.sd,

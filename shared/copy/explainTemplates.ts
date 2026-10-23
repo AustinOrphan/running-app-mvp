@@ -179,6 +179,9 @@ export const EXPLAIN_TEMPLATES = {
     source: 'text',
     date: 'date',
   }),
+  'explain.c2-cs': tpl('Your critical speed is fitted from your recent efforts, as of {date}.', {
+    date: 'date',
+  }),
   'explain.c2-gap': tpl(
     'No anchor is on file yet. Add a maximum heart rate or your age to your profile, or log a few hard efforts.',
   ),
