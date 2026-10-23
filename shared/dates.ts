@@ -89,6 +89,45 @@ export function isoDateInZone(now: Date, tz: string): string {
   return `${part('year').padStart(4, '0')}-${part('month')}-${part('day')}`
 }
 
+const wallClockFormatters = new Map<string, Intl.DateTimeFormat>()
+
+/**
+ * The formatter of an IANA zone for `localWallTime`, one per zone for the life of the process: a
+ * forecast has 168 hours, and building a formatter costs far more than formatting an hour with it
+ * (`shared/importers/files/summarize.ts` caches its formatters the same way). An unknown zone
+ * reads as UTC.
+ */
+export function wallClockFormatter(timeZone: string): Intl.DateTimeFormat {
+  const cached = wallClockFormatters.get(timeZone)
+  if (cached !== undefined) return cached
+  const build = (zone: string) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: zone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+    })
+  let formatter: Intl.DateTimeFormat
+  try {
+    formatter = build(timeZone)
+  } catch {
+    formatter = build('UTC')
+  }
+  wallClockFormatters.set(timeZone, formatter)
+  return formatter
+}
+
+/** The wall-clock time `YYYY-MM-DDTHH:00:00` of an instant in an IANA time zone (UTC if unknown). */
+export function localWallTime(iso: string, timeZone: string): string {
+  const ms = Date.parse(iso)
+  if (Number.isNaN(ms)) return iso
+  const list = wallClockFormatter(timeZone).formatToParts(ms)
+  const get = (type: string) => list.find((part) => part.type === type)?.value ?? '00'
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:00:00`
+}
+
 /** Mondays from mondayOf(from) to mondayOf(to), inclusive; empty when `from` is after `to`. */
 export function weekStartsBetween(from: string, to: string): string[] {
   const first = mondayOf(from)

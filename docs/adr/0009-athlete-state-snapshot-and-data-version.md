@@ -129,3 +129,9 @@ after a write to a state model, so it builds the snapshot; a warm request is the
 (task E3-2, a three-year synthetic history) fell from about 8.5 ms to about 2 ms; the table shows
 the same warm figure after the weather cache, the session identity and the sync log were added. As
 the design expected, the gain is the cache, not parallel queries: better-sqlite3 is synchronous.
+
+The table does not say whether a home forecast was cached. With a home location and a filled
+seven-day forecast cell (168 hours), a rebuilt `GET /api/today` (no tag, warm snapshot) measured
+7.9 ms while `localWallTime` built a formatter for every forecast hour, and 2.7 ms once one
+formatter per zone is cached (recorded 2026-10-23 with the review fixes of wave 3; median of 50
+requests, a synthetic plan with one session, the same machine and method).

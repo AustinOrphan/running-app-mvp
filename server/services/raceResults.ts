@@ -5,12 +5,13 @@
 // the engine), so a write here raises the data version through the client, never by hand.
 import { daysBetween } from '../../shared/dates.ts'
 import {
-  daysBefore,
   isComparableCourse,
+  loggedBeforeRaceDay,
   scorePredictions,
   type RaceOutcome,
   type RaceResultInput,
 } from '../../shared/engine/backtest.ts'
+import { activityWindowRefusal, resultRefusal } from '../../shared/copy/trackRecord.ts'
 import { RESULT_ACTIVITY_WINDOW_DAYS } from '../../shared/limits.ts'
 import type { RaceResultView, ValidationIssue } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
@@ -58,7 +59,7 @@ export async function syncActuals(
   const ids = rows
     .filter(
       (row) =>
-        daysBefore(result.date, row.loggedOn) >= 1 &&
+        loggedBeforeRaceDay(result.date, row.loggedOn) &&
         isComparableCourse(toLoggedPrediction(row).course, raced),
     )
     .map((row) => row.id)
@@ -116,17 +117,17 @@ export async function saveRaceResult(
   const issues: ValidationIssue[] = []
   if (activity !== null) {
     if (activity.type !== 'run' && activity.type !== 'race') {
-      issues.push({ path: 'activityId', message: 'Choose a run or a race.' })
+      issues.push({ path: 'activityId', message: resultRefusal('not-a-run') })
     } else if (Math.abs(daysBetween(activity.date, body.date)) > RESULT_ACTIVITY_WINDOW_DAYS) {
       issues.push({
         path: 'activityId',
-        message: `Choose an activity within ${String(RESULT_ACTIVITY_WINDOW_DAYS)} days of the race date.`,
+        message: activityWindowRefusal(RESULT_ACTIVITY_WINDOW_DAYS),
       })
     }
   }
   const distanceM = distanceFor(body, activity, goal)
   if (distanceM === null) {
-    issues.push({ path: 'distanceM', message: 'Enter the distance that was raced.' })
+    issues.push({ path: 'distanceM', message: resultRefusal('distance') })
   }
   if (issues.length > 0 || distanceM === null) {
     throw validationError('Some fields need attention.', issues)
@@ -139,7 +140,7 @@ export async function saveRaceResult(
         select: { id: true },
       })
       if (taken !== null) {
-        throw conflict('That activity is already linked to the result of another race.')
+        throw conflict(resultRefusal('activity-taken'))
       }
     }
     const existing = await tx.raceResult.findUnique({
@@ -192,7 +193,7 @@ export async function deleteRaceResult(
   const { userId, goalId } = args
   await deps.prisma.$transaction(async (tx: ResultDb) => {
     const { count } = await tx.raceResult.deleteMany({ where: { goalId, userId } })
-    if (count === 0) throw notFound('No result is recorded for this goal.')
+    if (count === 0) throw notFound(resultRefusal('no-result'))
     await syncActuals(tx, { userId, goalId, result: null })
   })
 }

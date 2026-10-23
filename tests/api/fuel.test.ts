@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
-import { addDays, mondayOf } from '../../shared/dates.ts'
+import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { fuelRungs } from '../../shared/engine/fuel.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { FUEL_LADDER_STEPS_SHOWN, FUEL_PRODUCTS_MAX } from '../../shared/limits.ts'
@@ -172,6 +172,48 @@ async function planWithBlock(
     })
   }
   return plan
+}
+
+/**
+ * What Make active and Regenerate do to the stored plans: the active plan is archived and a new
+ * one, with no gut-training week, takes its place from the given weeks (this week by default).
+ */
+async function replaceActivePlan(user: TestUser, weekStarts: string[] = [mondayOf(todayIso())]) {
+  await ctx.prisma.plan.updateMany({
+    where: { userId: user.id, status: 'active' },
+    data: { status: 'archived' },
+  })
+  const goal = await ctx.prisma.goal.create({
+    data: {
+      userId: user.id,
+      name: 'Synthetic 10 km',
+      priority: 'A',
+      targetDate: '2027-03-06',
+      distanceM: 10_000,
+    },
+  })
+  return ctx.prisma.plan.create({
+    data: {
+      userId: user.id,
+      goalId: goal.id,
+      name: goal.name,
+      startDate: weekStarts[0]!,
+      raceWeekStart: '2027-03-01',
+      generatorVersion: 2,
+      weeks: {
+        create: weekStarts.map((weekStart, index) => ({
+          weekStart,
+          index,
+          phase: 'build',
+          baselineRunMin: 200,
+          targetRunMin: 200,
+          longRunMin: 90,
+          runDays: 4,
+          strengthSessions: 0,
+        })),
+      },
+    },
+  })
 }
 
 describe('fuel API: access', () => {
@@ -742,6 +784,66 @@ describe('fuel API: logs', () => {
     expect(said?.counts).toBe(
       `The run was shorter than ${String(P.h7.logMinDurationMin.value)} min, so it does not count toward your ladder.`,
     )
+  })
+
+  test('replacing the plan leaves the block credit of earlier runs as it was', async () => {
+    const user = await newUser()
+    const gel = await addProduct(user)
+    const short = { durationSec: 70 * 60 }
+    const unlinked = await newRun(user, '2026-09-08', short)
+    const linked = await newRun(user, '2026-09-10', short)
+    await planWithBlock(user, '2026-09-07', {
+      activityId: linked.id,
+      date: '2026-09-10',
+      flags: ['fuel-practice'],
+    })
+    const body = logBody(gel, { items: [{ productId: gel.id, servings: 2 }] })
+    await putLog(user, unlinked.id, body)
+    const before = await putLog(user, linked.id, body)
+    expect(before.ladder.steps.map((step) => step.reason)).toEqual(['counted', 'counted'])
+
+    await replaceActivePlan(user)
+
+    const after = await putLog(user, linked.id, body)
+    expect(after.ladder).toEqual(before.ladder)
+    expect((await getLog(user, unlinked.id))?.step.reason).toBe('counted')
+  })
+
+  test('a replaced plan lends only the weeks it ran and the active plan does not hold', async () => {
+    const user = await newUser()
+    const gel = await addProduct(user)
+    const short = { durationSec: 70 * 60 }
+    const thisMonday = mondayOf(todayIso())
+    const nextMonday = addDays(thisMonday, 7)
+    const kept = await newRun(user, '2026-09-08', short)
+    const held = await newRun(user, '2026-09-15', short)
+    const ahead = await newRun(user, addDays(nextMonday, 1), short)
+    const archived = await planWithBlock(user, '2026-09-07')
+    for (const weekStart of ['2026-09-14', nextMonday]) {
+      await ctx.prisma.planWeek.create({
+        data: {
+          planId: archived.id,
+          weekStart,
+          index: 1,
+          phase: 'build',
+          baselineRunMin: 200,
+          targetRunMin: 200,
+          longRunMin: 90,
+          runDays: 4,
+          strengthSessions: 0,
+          flags: JSON.stringify(['gut-training']),
+        },
+      })
+    }
+    // The new plan holds 2026-09-14 without a block, so it decides that week.
+    await replaceActivePlan(user, ['2026-09-14', thisMonday])
+
+    const body = logBody(gel, { items: [{ productId: gel.id, servings: 2 }] })
+    const reasons: Record<string, string | undefined> = {}
+    for (const [name, run] of Object.entries({ kept, held, ahead })) {
+      reasons[name] = (await putLog(user, run.id, body)).log?.step.reason
+    }
+    expect(reasons).toEqual({ kept: 'counted', held: 'too-short', ahead: 'too-short' })
   })
 
   test('a run too short for the ladder still saves, and says so', async () => {

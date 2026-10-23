@@ -3,7 +3,16 @@ import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import type { ArchivedPlanView, Goal, PlanWithSessions } from '../../shared/types.ts'
 import { HttpError } from '../../server/errors.ts'
 import { replanActivePlan } from '../../server/services/replan.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import { settleWeatherCache } from '../../server/services/weatherCache.ts'
+import { fakeFetch } from '../fakeFetch.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 // The re-plan that follows a restore is the engine's business and has its own tests; here it is a
 // spy that runs the real code unless a test makes it fail.
@@ -27,6 +36,17 @@ afterAll(async () => {
 })
 
 const valid = { name: 'Harbour 10K', priority: 'A', status: 'target', targetDate: '2027-05-09' }
+
+/**
+ * A goal with a race place and a distance asks the archive for the race climate in the background.
+ * The tests that save one plan that call and let the archive be down; the goal is saved either way.
+ */
+function planClimateRequests(): void {
+  ctx.fetch = fakeFetch({
+    'GET https://archive-api.open-meteo.com/v1/archive': () =>
+      new Response('down', { status: 503 }),
+  })
+}
 
 async function createGoal(over: Record<string, unknown> = {}, who = user): Promise<Goal> {
   const res = await client(ctx, who)
@@ -219,6 +239,7 @@ describe('race descriptors', () => {
   })
 
   test('accepts and stores the descriptors, rounding the race location to 0.01 degrees', async () => {
+    planClimateRequests()
     const created = await createGoal({
       name: 'Trail 50',
       distanceM: 50_000,
@@ -284,6 +305,7 @@ describe('race descriptors', () => {
   })
 
   test('PUT changes only the descriptors it carries and can clear them', async () => {
+    planClimateRequests()
     const created = await createGoal({
       name: 'Hills',
       distanceM: 21_097,
@@ -399,8 +421,11 @@ describe('race descriptors', () => {
 const today = todayIso()
 const thisMonday = mondayOf(today)
 
-afterEach(() => {
+afterEach(async () => {
   vi.mocked(replanActivePlan).mockClear()
+  // The background climate refresh of a goal with a race place ends before the guard is read.
+  await settleWeatherCache()
+  expectNoRefusedFetches(ctx)
 })
 
 /** Twelve completed weeks of four runs, so the engine has a history to build on. */

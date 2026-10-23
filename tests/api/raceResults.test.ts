@@ -219,6 +219,15 @@ function issuePaths(res: { body: unknown }): string[] {
   return (body.error.details?.issues ?? []).map((issue) => issue.path).sort()
 }
 
+/** The issues of a 400 as `path: message`, sorted. */
+function issueMessages(res: { body: unknown }): string[] {
+  const body = res.body as { error: { details?: { issues?: { path: string; message: string }[] } } }
+  return (body.error.details?.issues ?? []).map((i) => `${i.path}: ${i.message}`).sort()
+}
+
+const errorMessage = (res: { body: unknown }): string =>
+  (res.body as { error: { message: string } }).error.message
+
 describe('PUT /api/goals/:id/result: a finished race', () => {
   test('creates the result (201), scores one prediction per week and sets actualSec on pre-race rows', async () => {
     const { user, goalId } = await seedRunner()
@@ -291,6 +300,31 @@ describe('PUT /api/goals/:id/result: a finished race', () => {
     const record = await getRecord(user)
     expect(record.races[0]).toMatchObject({ points: [], headline: null, unscoredCount: 0 })
     expect(record.summary.raceCount).toBe(0)
+  })
+
+  test('stamps the row logged the day before race day and leaves the race-day row empty', async () => {
+    const { user, goalId } = await seedRunner()
+    // A Monday race: the day before falls in the previous week, so the log keeps the rows apart.
+    await seedLog(user.id, goalId, {
+      weekStart: '2026-10-05',
+      loggedOn: '2026-10-11',
+      predictedSec: 7300,
+    })
+    await seedLog(user.id, goalId, {
+      weekStart: '2026-10-12',
+      loggedOn: '2026-10-12',
+      predictedSec: 7200,
+    })
+
+    const result = await save(user, goalId, finished({ date: '2026-10-12' }))
+    expect(result.scoredPredictions).toBe(1)
+    expect((await logRows(goalId)).map((r) => [r.loggedOn, r.actualSec])).toEqual([
+      ['2026-10-11', FINISH_SEC],
+      ['2026-10-12', null],
+    ])
+    // The scorer agrees with the column.
+    const record = await getRecord(user)
+    expect(record.races[0]!.points.map((p) => p.loggedOn)).toEqual(['2026-10-11'])
   })
 
   test('only comparable courses are scored: a row for another distance keeps a null actualSec', async () => {
@@ -420,6 +454,7 @@ describe('PUT /api/goals/:id/result: validation (400 with paths)', () => {
       expect(res.status).toBe(400)
       expect((res.body as { error: { code: string } }).error.code).toBe('validation')
       expect(issuePaths(res)).toEqual(['timeSec'])
+      expect(issueMessages(res)).toEqual(['timeSec: Enter the official finish time.'])
     }
     expect(await ctx.prisma.raceResult.count()).toBe(0)
   })
@@ -429,6 +464,7 @@ describe('PUT /api/goals/:id/result: validation (400 with paths)', () => {
     const tomorrow = await putResult(user, goalId, finished({ date: '2026-10-22' }))
     expect(tomorrow.status).toBe(400)
     expect(issuePaths(tomorrow)).toEqual(['date'])
+    expect(issueMessages(tomorrow)).toEqual(['date: Use a race date that has passed.'])
     for (const date of ['2026-02-30', 'yesterday', '18/10/2026', 20261018, null]) {
       const res = await putResult(user, goalId, finished({ date }))
       expect(res.status, String(date)).toBe(400)
@@ -467,6 +503,7 @@ describe('PUT /api/goals/:id/result: validation (400 with paths)', () => {
     const none = await putResult(user, goalId, finished())
     expect(none.status).toBe(400)
     expect(issuePaths(none)).toEqual(['distanceM'])
+    expect(issueMessages(none)).toEqual(['distanceM: Enter the distance that was raced.'])
 
     // an activity without a distance does not supply one
     const bare = await seedActivity(user, { distanceM: null })
@@ -494,6 +531,14 @@ describe('PUT /api/goals/:id/result: validation (400 with paths)', () => {
       expect(res.status, activityId).toBe(400)
       expect(issuePaths(res)).toEqual(['activityId'])
     }
+    expect(
+      issueMessages(await putResult(user, goalId, finished({ activityId: tooEarly }))),
+    ).toEqual([
+      `activityId: Choose an activity within ${String(RESULT_ACTIVITY_WINDOW_DAYS)} days of the race date.`,
+    ])
+    expect(issueMessages(await putResult(user, goalId, finished({ activityId: cross })))).toEqual([
+      'activityId: Choose a run or a race.',
+    ])
     // a race activity is accepted as it is
     const race = await seedActivity(user, { type: 'race' })
     const res = await putResult(user, goalId, finished({ activityId: race }))
@@ -560,6 +605,7 @@ describe('PUT /api/goals/:id/result: who may write (401, 404, 409)', () => {
     const res = await putResult(user, goalId, finished({ activityId }))
     expect(res.status).toBe(409)
     expect((res.body as { error: { code: string } }).error.code).toBe('conflict')
+    expect(errorMessage(res)).toBe('That activity is already linked to the result of another race.')
     expect(await ctx.prisma.raceResult.count({ where: { goalId } })).toBe(0)
     // the goal that owns the link may save it again
     const again = await putResult(user, otherGoal, finished({ activityId, distanceM: 10_000 }))
@@ -696,6 +742,9 @@ describe('DELETE /api/goals/:id/result', () => {
       404,
     )
     expect((await client(ctx, mine.user).delete('/api/goals/nope/result')).status).toBe(404)
+    expect(
+      errorMessage(await client(ctx, mine.user).delete(`/api/goals/${mine.goalId}/result`)),
+    ).toBe('No result is recorded for this goal.')
     // the other runner's result is still there
     expect(await ctx.prisma.raceResult.count({ where: { goalId: other.goalId } })).toBe(1)
   })

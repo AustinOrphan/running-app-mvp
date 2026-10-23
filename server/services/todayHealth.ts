@@ -2,13 +2,15 @@
 // work out in the browser from four separate reads (activities, weeks, reviews, plan), and the
 // notes that registered producers add (E3: sync paused, weekly update not run; E1: tomorrow's
 // session not on the watch). The counts read the athlete snapshot only; a producer receives the
-// snapshot too and may read a table of its own.
+// snapshot too and may read a table of its own. The producer of the two notes of the job log is
+// registered at the end of this file, and its ETag stamp in `today.ts`.
 import { addDays, mondayOf } from '../../shared/dates.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import type { HealthNote, TodayHealth } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
+import { REPLAN_SLOT, weekSlotStart, weeklyUpdateStatus } from '../jobs/scheduler.ts'
 import { createLogger } from '../logger.ts'
-import { safeMessage } from './syncLog.ts'
+import { latestJobRuns, safeMessage } from './syncLog.ts'
 import type { AthleteContext } from './athleteState.ts'
 
 /** Days of activities the duplicate count looks at: the window the Today page used to request. */
@@ -109,3 +111,63 @@ export async function healthNotes(args: HealthNoteArgs): Promise<HealthNote[]> {
 export async function todayHealth(args: HealthNoteArgs): Promise<TodayHealth> {
   return { ...healthCounts(args.context), notes: await healthNotes(args) }
 }
+
+// ---------------------------------------------------------------------------------------------
+// The notes of the job log (E3: sync paused, weekly update not run)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * "Sync is paused" when the latest run of the sync job ended paused, and "This week's plan update
+ * has not run yet" when the weekly update is due (`weeklyUpdateStatus`, the same answer as
+ * `GET /api/jobs`). The two sentences are templates; neither carries a slot.
+ */
+export async function jobHealthNotes({ deps, userId }: HealthNoteArgs): Promise<HealthNote[]> {
+  const { prisma } = deps
+  const [jobs, weekly] = await Promise.all([
+    latestJobRuns(prisma, userId),
+    weeklyUpdateStatus(prisma, userId, new Date()),
+  ])
+  const notes: HealthNote[] = []
+  if (jobs.some((job) => job.provider === 'sync' && job.status === 'paused')) {
+    notes.push({
+      code: 'sync-paused',
+      template: 'today.health.sync-paused',
+      slots: {},
+      href: '/integrations',
+    })
+  }
+  if (weekly.due) {
+    notes.push({
+      code: 'weekly-update-not-run',
+      template: 'today.health.update-not-run',
+      slots: {},
+      href: '/plan',
+    })
+  }
+  return notes
+}
+
+/**
+ * What moves the page's ETag for the two notes above. `SyncRun` is outside the data version, so the
+ * status of the latest sync run is read here: one indexed row. Whether the weekly update is due
+ * depends on the plan, its revisions and the goal date, which the data version and the day already
+ * cover, and on the clock, which this adds as the start of this week's update slot: it changes
+ * once a week, when the slot comes, and moves the tag without any write.
+ */
+export async function jobNotesStamp({
+  deps,
+  userId,
+}: {
+  deps: Deps
+  userId: string
+}): Promise<string> {
+  const latest = await deps.prisma.syncRun.findFirst({
+    where: { userId, channel: 'job', provider: 'sync' },
+    orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+    select: { status: true },
+  })
+  const slot = weekSlotStart(new Date(), REPLAN_SLOT)
+  return `jobs:${latest?.status === 'paused' ? 'paused' : 'ok'}:${slot === null ? 'none' : String(slot.getTime())}`
+}
+
+registerHealthNoteProducer(jobHealthNotes)

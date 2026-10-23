@@ -7,7 +7,7 @@
 // race climate are read from the weather cache (`weatherCache.ts`): nothing here waits on the
 // network, and a cell the weather job has not filled yet gives no forecast and no race heat.
 import type { Deps } from '../app.ts'
-import { todayIso } from '../../shared/dates.ts'
+import { localWallTime, todayIso } from '../../shared/dates.ts'
 import type { EngineInput, GoalModel, ZoneSet } from '../../shared/engine/types.ts'
 import type { AthleteProfile } from '../../shared/types.ts'
 import type { PrismaClient } from '../db.ts'
@@ -35,29 +35,6 @@ export type GatherArgs = {
   goalId: string
   today: string
   options?: EngineInput['options']
-}
-
-/** The wall-clock time `YYYY-MM-DDTHH:00:00` of an instant in an IANA time zone (UTC if unknown). */
-export function localWallTime(iso: string, timeZone: string): string {
-  const ms = Date.parse(iso)
-  if (Number.isNaN(ms)) return iso
-  const parts = (zone: string) =>
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: zone,
-      hourCycle: 'h23',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-    }).formatToParts(ms)
-  let list: Intl.DateTimeFormatPart[]
-  try {
-    list = parts(timeZone)
-  } catch {
-    list = parts('UTC')
-  }
-  const get = (type: string) => list.find((part) => part.type === type)?.value ?? '00'
-  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:00:00`
 }
 
 /**

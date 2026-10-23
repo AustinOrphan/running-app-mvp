@@ -8,12 +8,15 @@ import {
   type Template,
 } from '../../../shared/copy/template.ts'
 import {
+  activityWindowRefusal,
   didNotFinishSentence,
   differenceCell,
   headlineSentences,
   inRangeCell,
   outlookLine,
   rangeCell,
+  resultRefusal,
+  type ResultRefusal,
   savedToast,
   summarySentences,
   TRACK_RECORD_TEMPLATES,
@@ -441,6 +444,35 @@ describe('the sentences over a grid of inputs', () => {
         'km',
       ),
     ).toBe('Edit result for Example 100 Mile')
+  })
+})
+
+describe('the refusals of the result routes', () => {
+  const MESSAGES: Record<ResultRefusal, string> = {
+    'not-a-run': 'Choose a run or a race.',
+    distance: 'Enter the distance that was raced.',
+    'activity-taken': 'That activity is already linked to the result of another race.',
+    'no-result': 'No result is recorded for this goal.',
+    'time-required': 'Enter the official finish time.',
+    'date-passed': 'Use a race date that has passed.',
+  }
+
+  test('keep their words, and pass the lint', () => {
+    for (const [kind, message] of Object.entries(MESSAGES) as Array<[ResultRefusal, string]>) {
+      expect(resultRefusal(kind)).toBe(message)
+      expectSentences([resultRefusal(kind)], kind)
+    }
+    expect(activityWindowRefusal(3)).toBe('Choose an activity within 3 days of the race date.')
+    for (const days of [0, 1, 3, 14, 365]) {
+      expectSentences([activityWindowRefusal(days)], 'activity-window')
+    }
+  })
+
+  test('every refusal template is reached by a helper', () => {
+    const refused = ids.filter((id) => id.startsWith('track-record.refused.'))
+    expect(refused.map((id) => id.replace('track-record.refused.', '')).sort()).toEqual(
+      [...Object.keys(MESSAGES), 'activity-window'].sort(),
+    )
   })
 })
 
