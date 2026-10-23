@@ -5,7 +5,12 @@ import { assertCleanCopy, lintText } from '../../../shared/copy/lint.ts'
 import { prescribe } from '../../../shared/engine/sessions.ts'
 import { rungSessions, sessionMin } from '../../../shared/engine/startWeeks.ts'
 import type { SessionFlag, SessionKind, SessionSpec } from '../../../shared/engine/types.ts'
-import { PUBLIC_TITLES, publicTitle, publishable } from '../../../shared/workouts/labels.ts'
+import {
+  FILE_SLUGS,
+  PUBLIC_TITLES,
+  publicTitle,
+  publishable,
+} from '../../../shared/workouts/labels.ts'
 import { SESSION_KINDS, weekFixture, zoneSetFixture } from '../engine/fixtures.ts'
 
 /** Every flag a session can carry; the record makes a flag added to the engine a compile error. */
@@ -148,6 +153,34 @@ describe('publishable', () => {
     for (const kind of ['strength', 'mobility', 'rest', 'race', 'cross'] as const) {
       expect(publishable(kind), kind).toBe(false)
     }
+  })
+})
+
+describe('FILE_SLUGS', () => {
+  it('names every kind, in lower case words joined by hyphens', () => {
+    expect(Object.keys(FILE_SLUGS).sort()).toEqual([...SESSION_KINDS].sort())
+    for (const [kind, slug] of Object.entries(FILE_SLUGS)) {
+      expect(slug, kind).toMatch(/^[a-z]+(?:-[a-z]+)*$/)
+    }
+  })
+
+  it('carries no health, reason or run-walk wording', () => {
+    for (const [kind, slug] of Object.entries(FILE_SLUGS)) {
+      expect(slug, kind).not.toMatch(FORBIDDEN)
+    }
+  })
+
+  it('names a long run with a fast finish as a long run, as the title does', () => {
+    expect(FILE_SLUGS['long-fast-finish']).toBe(FILE_SLUGS.long)
+    expect(FILE_SLUGS.easy).toBe('easy-run')
+    expect(FILE_SLUGS.intervals).toBe('intervals')
+  })
+
+  it('gives the kinds that go to a watch names of their own, apart from the long run', () => {
+    const slugs = SESSION_KINDS.filter(publishable)
+      .filter((kind) => kind !== 'long-fast-finish')
+      .map((kind) => FILE_SLUGS[kind])
+    expect(new Set(slugs).size).toBe(slugs.length)
   })
 })
 

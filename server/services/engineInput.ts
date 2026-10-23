@@ -101,18 +101,19 @@ export async function acceptedZoneChanges(
 }
 
 /**
- * The engine input for a snapshot: the athlete's data as it is, the given goal model (a neutral
- * one for reads about the athlete) and the parts a caller asks for. Pure; the arrays are the
- * snapshot's frozen ones.
+ * The engine input for a snapshot already in hand: the athlete's data as it is, the given goal
+ * model (a neutral one for reads about the athlete) and the parts a caller asks for. `existing` and
+ * the forecast are added only when asked for. Pure; the arrays are the snapshot's frozen ones.
+ * `assemble` below is this plus the per-call parts.
  */
 export function inputFromContext(
   context: AthleteContext,
   parts: {
-    goal: GoalModel | null
-    forecast: EngineInput['forecast']
-    existing: boolean
+    goal?: GoalModel | null
+    forecast?: EngineInput['forecast']
+    existing?: boolean
     options?: EngineInput['options']
-  },
+  } = {},
 ): EngineInput {
   return {
     today: context.asOf,
@@ -121,8 +122,8 @@ export function inputFromContext(
     wellness: context.wellness,
     reviews: context.reviews,
     goal: parts.goal ?? neutralGoal(context.asOf),
-    forecast: parts.forecast,
-    existing: parts.existing ? context.existing() : null,
+    forecast: parts.forecast ?? null,
+    existing: parts.existing === true ? context.existing() : null,
     options: parts.options ?? {},
     screeningFlags: context.screeningFlags,
     zoneChanges: context.zoneChanges,

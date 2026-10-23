@@ -17,6 +17,7 @@ import { PUBLISH_TEMPLATES } from './publish.ts'
 import { CopyError, isCopyStrict, render, tpl, type Template } from './template.ts'
 import { SYNC_TEMPLATES } from './sync.ts'
 import { TODAY_TEMPLATES } from './today.ts'
+import { WORKOUT_TEMPLATES } from './workouts.ts'
 
 export const TEMPLATES = {
   ...REVISION_TEMPLATES,
@@ -28,6 +29,7 @@ export const TEMPLATES = {
   ...EXPLAIN_TEMPLATES,
   ...PUBLISH_TEMPLATES,
   ...GOALS_TEMPLATES,
+  ...WORKOUT_TEMPLATES,
   // The why drawer
   'why.intro': tpl(
     'Every number in the plan comes from a rule. Grade A is the strongest evidence; grade D is a conservative default.',

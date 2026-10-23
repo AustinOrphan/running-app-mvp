@@ -100,7 +100,8 @@ export interface AthleteContext {
   /**
    * The active plan's sessions as the API serves them (identity, execution and the original
    * prescription included), by date then order. Empty without a version-2 plan. `existing()` holds
-   * the same rows in the engine's shape, which has no `externalId`.
+   * the same rows in the engine's shape (with the `externalId` the workout builder needs): the
+   * surfaces that serve rows read this, the engine and the workout files read that.
    */
   readonly planSessions: PlanSession[]
   /** The state the engine estimates from the data above (it does not depend on a goal). */
@@ -179,6 +180,7 @@ export function existingFrom(
   const sessions = sessionRows.map((s) => ({
     ...sessionSpec(s),
     id: s.id,
+    externalId: s.externalId,
     status: s.status,
     activityId: s.activityId,
     linkSource: s.linkSource,
