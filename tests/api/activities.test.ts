@@ -1,8 +1,15 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { markDuplicates } from '../../server/services/duplicates.ts'
 import { parseGenericCsv } from '../../shared/importers/generic.ts'
-import type { Activity } from '../../shared/types.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import type { ActivityListPage } from '../../shared/types.ts'
+import {
+  client,
+  createTestCtx,
+  listActivities,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 interface Json {
   id: string
@@ -154,26 +161,20 @@ describe('activities CRUD', () => {
     await post({ ...run, date: '2026-03-05', type: 'strength', distanceM: null })
     await post({ ...run, date: '2026-03-08' })
 
-    const all = await client(ctx, user).get('/api/activities')
-    expect(all.status).toBe(200)
-    expect((all.body as Activity[]).map((a) => a.date)).toEqual([
+    expect((await listActivities(ctx, user)).map((a) => a.date)).toEqual([
       '2026-03-08',
       '2026-03-05',
       '2026-03-03',
       '2026-03-01',
     ])
 
-    const range = await client(ctx, user).get('/api/activities?from=2026-03-03&to=2026-03-08')
-    expect((range.body as Activity[]).map((a) => a.date)).toEqual([
-      '2026-03-08',
-      '2026-03-05',
-      '2026-03-03',
-    ])
-    const exact = await client(ctx, user).get('/api/activities?from=2026-03-05&to=2026-03-05')
-    expect((exact.body as Activity[]).length).toBe(1)
+    const range = await listActivities(ctx, user, 'from=2026-03-03&to=2026-03-08')
+    expect(range.map((a) => a.date)).toEqual(['2026-03-08', '2026-03-05', '2026-03-03'])
+    const exact = await listActivities(ctx, user, 'from=2026-03-05&to=2026-03-05')
+    expect(exact.length).toBe(1)
 
-    const runs = await client(ctx, user).get('/api/activities?type=run')
-    expect((runs.body as Activity[]).map((a) => a.date)).toEqual(['2026-03-08', '2026-03-01'])
+    const runs = await listActivities(ctx, user, 'type=run')
+    expect(runs.map((a) => a.date)).toEqual(['2026-03-08', '2026-03-01'])
 
     expect(
       (await client(ctx, user).get('/api/activities?from=2026-03-09&to=2026-03-01')).status,
@@ -193,7 +194,7 @@ describe('activities CRUD', () => {
     expect(
       (await c.post(`/api/activities/${id}/duplicate`).send({ status: 'confirmed' })).status,
     ).toBe(404)
-    expect(((await c.get('/api/activities')).body as Activity[]).length).toBe(0)
+    expect(await listActivities(ctx, other)).toEqual([])
     expect((await client(ctx, user).get(`/api/activities/${id}`)).status).toBe(200)
     await ctx.prisma.user.delete({ where: { id: other.id } })
   })
@@ -227,7 +228,7 @@ describe('duplicate flagging', () => {
     const flagged = await post({ ...run })
     expect(json(flagged).duplicateStatus).toBe('possible')
 
-    const list = (await client(ctx, user).get('/api/activities')).body as Activity[]
+    const list = await listActivities(ctx, user)
     expect(list.map((a) => a.id).sort()).toEqual([imported.id, json(flagged).id].sort())
     const stored = list.find((a) => a.id === json(flagged).id)
     expect(stored).toMatchObject({
@@ -404,6 +405,235 @@ describe('duplicate flagging', () => {
       const after = await client(ctx, user).get(`/api/activities/${json(row).id}`)
       expect(after.body).toMatchObject({ duplicateStatus: 'none', duplicateOfId: null })
     }
+  })
+})
+
+describe('GET /api/activities pages', () => {
+  const HISTOGRAM = { start: 40, width: 1, sec: [1, 2, 3] }
+
+  async function page(query = '', as: TestUser = user) {
+    const res = await client(ctx, as).get(`/api/activities${query === '' ? '' : `?${query}`}`)
+    return { status: res.status, body: res.body as ActivityListPage & Json }
+  }
+
+  /** `count` runs on consecutive days from 2026-03-01, written straight to the database. */
+  async function seedDays(count: number, as: TestUser = user): Promise<void> {
+    await ctx.prisma.activity.createMany({
+      data: Array.from({ length: count }, (_, i) => ({
+        userId: as.id,
+        date: `2026-03-${String(i + 1).padStart(2, '0')}`,
+        type: 'run',
+        durationSec: 1800,
+        distanceM: 5000,
+      })),
+    })
+  }
+
+  test('answers with the envelope: items, total, limit, offset and nextOffset', async () => {
+    await seedDays(3)
+    const res = await page()
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ total: 3, limit: 100, offset: 0, nextOffset: null })
+    expect(res.body.items.map((a) => a.date)).toEqual(['2026-03-03', '2026-03-02', '2026-03-01'])
+    expect(Array.isArray(res.body)).toBe(false)
+  })
+
+  test('an empty list is an empty page, not an error', async () => {
+    expect((await page()).body).toEqual({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+      nextOffset: null,
+    })
+  })
+
+  test('items omit hrHistogram, which the row detail still carries', async () => {
+    const stored = await ctx.prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: '2026-03-02',
+        type: 'run',
+        durationSec: 1800,
+        distanceM: 5000,
+        hrHistogram: JSON.stringify(HISTOGRAM),
+        avgHr: 150,
+      },
+    })
+    const [item] = (await page()).body.items
+    expect(item).toMatchObject({ id: stored.id, avgHr: 150, durationSec: 1800 })
+    expect(item).not.toHaveProperty('hrHistogram')
+    expect(item).toHaveProperty('createdAt')
+
+    const detail = await client(ctx, user).get(`/api/activities/${stored.id}`)
+    expect(detail.body).toMatchObject({ hrHistogram: HISTOGRAM })
+    const withStream = await client(ctx, user).get(`/api/activities/${stored.id}/detail`)
+    expect(withStream.body).toMatchObject({ activity: { hrHistogram: HISTOGRAM } })
+  })
+
+  test('a page costs two queries, a count and one read that leaves the histogram column out', async () => {
+    await seedDays(3)
+    const findMany = vi.spyOn(ctx.prisma.activity, 'findMany')
+    const count = vi.spyOn(ctx.prisma.activity, 'count')
+    await page('limit=2&offset=1')
+    expect(count).toHaveBeenCalledTimes(1)
+    expect(findMany).toHaveBeenCalledTimes(1)
+    expect(findMany.mock.calls[0]![0]).toMatchObject({
+      omit: { hrHistogram: true },
+      skip: 1,
+      take: 2,
+    })
+    vi.restoreAllMocks()
+  })
+
+  test('a row inserted between the page read and the count does not end the list one row early', async () => {
+    // Rows 1..6, page 2 of 3 (offset 3). A sync adds a newer run right after the first of the two
+    // reads: the last old row slides to index 6, and `total` must say so for it to be offered.
+    await seedDays(6)
+    const { loadActivityPage } = await import('../../server/serialize.ts')
+    let reads = 0
+    const interleaved = {
+      activity: {
+        count: async (args: Parameters<typeof ctx.prisma.activity.count>[0]) => {
+          reads += 1
+          if (reads === 2) await insertNewer()
+          return ctx.prisma.activity.count(args)
+        },
+        findMany: async (args: Parameters<typeof ctx.prisma.activity.findMany>[0]) => {
+          reads += 1
+          if (reads === 2) await insertNewer()
+          return ctx.prisma.activity.findMany(args)
+        },
+      },
+    } as unknown as Pick<typeof ctx.prisma, 'activity'>
+    async function insertNewer() {
+      await ctx.prisma.activity.create({
+        data: { userId: user.id, date: '2026-03-20', type: 'run', durationSec: 1800 },
+      })
+    }
+
+    const result = await loadActivityPage(interleaved, user.id, { limit: 3, offset: 3 })
+    expect(result.items).toHaveLength(3)
+    expect(result.total).toBe(7)
+    expect(result.nextOffset).toBe(6)
+
+    // The page it points at holds the one row that would have been dropped.
+    const last = await page('limit=3&offset=6')
+    expect(last.body.items.map((a) => a.date)).toEqual(['2026-03-01'])
+    expect(last.body.nextOffset).toBeNull()
+  })
+
+  test('limit and offset walk the list: every row once, nextOffset points at the next page', async () => {
+    await seedDays(7)
+    const seen: string[] = []
+    let offset: number | null = 0
+    const offsets: Array<number | null> = []
+    while (offset !== null) {
+      const res = await page(`limit=3&offset=${offset}`)
+      expect(res.status).toBe(200)
+      expect(res.body).toMatchObject({ total: 7, limit: 3, offset })
+      seen.push(...res.body.items.map((a) => a.date))
+      offset = res.body.nextOffset
+      offsets.push(offset)
+    }
+    expect(offsets).toEqual([3, 6, null])
+    expect(seen).toEqual([
+      '2026-03-07',
+      '2026-03-06',
+      '2026-03-05',
+      '2026-03-04',
+      '2026-03-03',
+      '2026-03-02',
+      '2026-03-01',
+    ])
+  })
+
+  test('the order is total: start time, creation time, then id break every tie', async () => {
+    const createdAt = new Date('2026-03-10T12:00:00Z')
+    const base = { userId: user.id, date: '2026-03-02', type: 'run', durationSec: 600, createdAt }
+    await ctx.prisma.activity.createMany({
+      data: [
+        { ...base, id: 'tie-b' },
+        { ...base, id: 'tie-d' },
+        { ...base, id: 'tie-a' },
+        { ...base, id: 'tie-c' },
+        { ...base, id: 'late', startTime: '18:00' },
+        { ...base, id: 'early', startTime: '06:00' },
+        { ...base, id: 'newer', createdAt: new Date('2026-03-11T12:00:00Z') },
+      ],
+    })
+    const expected = ['late', 'early', 'newer', 'tie-d', 'tie-c', 'tie-b', 'tie-a']
+    expect((await listActivities(ctx, user)).map((a) => a.id)).toEqual(expected)
+
+    // Cut through the tied rows: no row repeats and none is skipped between pages.
+    const joined = [
+      ...(await listActivities(ctx, user, 'limit=4&offset=0')),
+      ...(await listActivities(ctx, user, 'limit=4&offset=4')),
+    ]
+    expect(joined.map((a) => a.id)).toEqual(expected)
+  })
+
+  test('total counts every row the filters match, not the page', async () => {
+    await seedDays(6)
+    await ctx.prisma.activity.create({
+      data: { userId: user.id, date: '2026-03-02', type: 'race', durationSec: 3000 },
+    })
+    const res = await page('limit=2&type=run&from=2026-03-02&to=2026-03-05')
+    expect(res.body).toMatchObject({ total: 4, limit: 2, offset: 0, nextOffset: 2 })
+    expect(res.body.items.map((a) => a.date)).toEqual(['2026-03-05', '2026-03-04'])
+  })
+
+  test('an offset past the end is an empty page that keeps the total', async () => {
+    await seedDays(3)
+    const res = await page('limit=5&offset=50')
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ items: [], total: 3, limit: 5, offset: 50, nextOffset: null })
+  })
+
+  test('limit takes 1 to 500 and offset a whole number, else 400 naming the field', async () => {
+    await seedDays(2)
+    expect((await page('limit=500')).status).toBe(200)
+    expect((await page('limit=1')).body.items).toHaveLength(1)
+    expect((await page('offset=0')).status).toBe(200)
+
+    for (const [query, path] of [
+      ['limit=501', 'limit'],
+      ['limit=0', 'limit'],
+      ['limit=-1', 'limit'],
+      ['limit=2.5', 'limit'],
+      ['limit=abc', 'limit'],
+      ['limit=', 'limit'],
+      ['limit=1&limit=2', 'limit'],
+      ['offset=-1', 'offset'],
+      ['offset=1.5', 'offset'],
+      ['offset=abc', 'offset'],
+      ['offset=1000001', 'offset'],
+    ] as const) {
+      const res = await page(query)
+      expect(res.status, query).toBe(400)
+      expect(res.body.error.code, query).toBe('validation')
+      expect(
+        res.body.error.details.issues.map((i) => i.path),
+        query,
+      ).toContain(path)
+    }
+  })
+
+  test('another runner rows are neither listed nor counted', async () => {
+    const other = await seedUser(ctx, { email: 'paging@example.com' })
+    await seedDays(2, other)
+    await seedDays(1)
+    const res = await page('limit=1')
+    expect(res.body).toMatchObject({ total: 1, nextOffset: null })
+    expect((await page('', other)).body.total).toBe(2)
+    await ctx.prisma.activity.deleteMany({ where: { userId: other.id } })
+    await ctx.prisma.user.delete({ where: { id: other.id } })
+  })
+
+  test('the CSV export still has every row, past any page size', async () => {
+    await seedDays(30)
+    const res = await client(ctx, user).get('/api/activities/export.csv')
+    expect(res.text.trim().split('\r\n')).toHaveLength(31)
   })
 })
 

@@ -11,7 +11,7 @@ one recreational runner, not medical advice.
 | `papers/<id>.json` | One verified paper: metadata, design, findings, limitations, implications, verification    |
 | `topics/<key>.md`  | One synthesis per topic: what is established, contested, unknown, plus rules and papers    |
 | `rules/<key>.json` | The rules of one topic as data: statement, parameter, value, grade, confidence, evidence   |
-| `engine-rules.md`  | The integrated rule set, organised by engine stage (a-n), with the numeric parameter table |
+| `engine-rules.md`  | The integrated rule set, organised by engine stage (a-o), with the numeric parameter table |
 | `tools/`           | The workflow script that built the corpus and the writer that stores its result            |
 
 The corpus ships in the repository. The web app bundles `papers/*.json` and `topics/*.md` at build
@@ -58,6 +58,10 @@ time for the Research page and the "why" drawer.
    NHS and original Couch-to-5K plans, coaching, clinical and magazine pages) kept as grade D
    conventions: they may set a default and never raise a grade. One blog post was not admitted.
    Sources verified twice under different ids merged by DOI, so each paper has one id.
+8. **Disruption rule J9 (2026-10-23).** Written for phase 3a from papers already in the corpus, with
+   no new paper: illness follows n-3, the restart after a long hold follows J7, and the tightened
+   profile after a reported niggle follows G-3. The rule is grade D as a whole, and its three
+   parameters (window length, back-dating, easy days after a niggle) are labelled defaults.
 
 ## Evidence levels and grades
 
@@ -98,6 +102,10 @@ record, and engine code uses only those records (`P.g1.spikeRatioWarn.value`):
 - `evidence` lists paper ids from `papers/`. A grade D parameter may have none.
 - A grade D parameter has a `note` that says it is a default. The why drawer shows the rule, grade,
   note and papers.
+- A `note` is app copy. It passes the G5 lint (`shared/copy/lint.ts`; a test lints every note), and
+  the why drawer reads its kilometre, metre, km/h, m/h and "per km" figures in the runner's units
+  (`localiseParamNote`). Race classes are written `5K`, `10K`, `50K` and `100K`, as on the Goals
+  page, because a distance such as "50 km" would be converted.
 - Section files are `a-state`, `b-load`, `c-zones`, `d-goal`, `e-macro`, `f-micro`, `g-limits`,
   `h-ultra`, `i-env`, `j-adapt`, `k-taper`, `l-predict` and `m-execution`; `index.ts` merges them
   into `P` and holds `PARAMS_VERSION`.

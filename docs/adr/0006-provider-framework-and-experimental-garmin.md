@@ -2,6 +2,8 @@
 
 Status: Accepted 2026-10-22 (#529)
 
+Extended by ADR 0008 (outbound publish channel).
+
 ## Context
 
 The training engine needs heart rate, elevation, weather, laps and daily wellness (resting heart

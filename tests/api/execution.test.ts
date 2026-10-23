@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { P } from '../../shared/engine/params/index.ts'
 import type { ExecutionAssessment } from '../../shared/engine/types.ts'
 import type {
   ParsedActivity,
@@ -16,10 +18,17 @@ import {
   runReplanJob,
 } from '../../server/jobs/scheduler.ts'
 import { storeParsed } from '../../server/services/activityStore.ts'
-import { resetClimateCache } from '../../server/services/engineInput.ts'
 import { runExecutionForActivity, runNightlyMatching } from '../../server/services/execution.ts'
-import { resetForecastCache } from '../../server/services/weather.ts'
-import { client, createTestCtx, seedUser, type TestCtx } from './helpers.ts'
+import { refreshWeatherCaches } from '../../server/services/weatherCache.ts'
+import { fakeFetch } from '../fakeFetch.ts'
+import {
+  blockNetwork,
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+} from './helpers.ts'
 
 // The file parser's summary is a separate task; this stand-in keeps the store test independent.
 vi.mock('../../shared/importers/files/summarize.ts', () => ({
@@ -53,11 +62,12 @@ afterAll(async () => {
   await ctx.close()
 })
 
-afterEach(() => {
+afterEach(async () => {
   vi.unstubAllGlobals()
   vi.setSystemTime(new Date(2026, 9, 21, 12))
-  resetClimateCache()
-  resetForecastCache()
+  await ctx.prisma.forecastCache.deleteMany()
+  await ctx.prisma.climateCache.deleteMany()
+  expectNoRefusedFetches(ctx)
 })
 
 const TARGET = JSON.stringify({
@@ -119,6 +129,7 @@ async function planWith(
       await ctx.prisma.planSession.create({
         data: {
           planId: plan.id,
+          externalId: randomUUID(),
           weekStart: mondayOf(s.date),
           date: s.date,
           order: i,
@@ -519,6 +530,7 @@ describe('activities already linked elsewhere', () => {
     const sibling = await ctx.prisma.planSession.create({
       data: {
         planId: fresh.id,
+        externalId: randomUUID(),
         weekStart: thisMonday,
         date: addDays(today, -2),
         order: 0,
@@ -687,6 +699,7 @@ describe('zone proposals', () => {
       await ctx.prisma.planSession.create({
         data: {
           planId: made.plan.id,
+          externalId: randomUUID(),
           weekStart: mondayOf(addDays(today, -back)),
           date: addDays(today, -back),
           order: 0,
@@ -721,14 +734,25 @@ describe('zone proposals', () => {
     expect(profile.thresholdPaceSecPerKm).toBe(proposal.to)
     const revisions = (await c.get('/api/plan/revisions')).body as PlanRevision[]
     expect(revisions[0]).toMatchObject({ reason: 'owner' })
-    expect(revisions[0]!.summary).toMatch(/Accepted zone proposal/)
+    // The summary is a template with a plain label and a date; the paces are in the change.
+    expect(revisions[0]!.summary).toMatch(
+      /^Accepted the proposed threshold pace on [A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}\.$/,
+    )
+    expect(revisions[0]!.changes).toEqual([
+      expect.objectContaining({ field: 'zones.thresholdPace', from: 300, to: proposal.to }),
+    ])
     expect((await c.post(`/api/zones/proposals/${proposal.id}/accept`).send({})).status).toBe(404)
 
-    // The same observations never move the boundary a second time.
+    // The same observations never move the boundary a second time. The acceptance is found by its
+    // stored change, whatever its summary says.
+    await ctx.prisma.planRevision.updateMany({
+      where: { reason: 'owner', plan: { userId: u.id } },
+      data: { summary: 'Reworded.' },
+    })
     expect((await c.get('/api/zones/proposals')).body).toEqual([])
     // Dating the acceptance before all three of them is what brings the proposal back.
     await ctx.prisma.planRevision.updateMany({
-      where: { summary: { startsWith: 'Accepted zone proposal ' }, plan: { userId: u.id } },
+      where: { reason: 'owner', plan: { userId: u.id } },
       data: { createdAt: new Date(Date.now() - 10 * 86_400_000) },
     })
     expect(((await c.get('/api/zones/proposals')).body as ZoneProposalView[]).length).toBe(1)
@@ -744,6 +768,34 @@ describe('zone proposals', () => {
     const profile = await ctx.prisma.athleteProfile.findUniqueOrThrow({ where: { userId: u.id } })
     expect(profile.thresholdPaceSecPerKm).toBe(300)
     expect((await c.post('/api/zones/proposals/unknown/decline').send({})).status).toBe(404)
+
+    // The decline is a revision with a template summary and the declined proposal as its change.
+    const [revision] = (await c.get('/api/plan/revisions')).body as PlanRevision[]
+    expect(revision).toMatchObject({ reason: 'owner' })
+    expect(revision!.summary).toMatch(
+      /^Declined the proposed threshold pace on [A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}\.$/,
+    )
+    expect(revision!.changes).toEqual([
+      expect.objectContaining({
+        field: 'zones.thresholdPace.declined',
+        from: 300,
+        to: proposal!.to,
+      }),
+    ])
+    // It is found by that change, whatever its summary says, and a decline does not read as an
+    // accepted change of the boundary.
+    await ctx.prisma.planRevision.updateMany({
+      where: { reason: 'owner', plan: { userId: u.id } },
+      data: { summary: 'Reworded.' },
+    })
+    expect((await c.get('/api/zones/proposals')).body).toEqual([])
+    await ctx.prisma.planRevision.updateMany({
+      where: { reason: 'owner', plan: { userId: u.id } },
+      data: {
+        createdAt: new Date(Date.now() - (P.zoneProposal.windowDays.value + 1) * 86_400_000),
+      },
+    })
+    expect(((await c.get('/api/zones/proposals')).body as ZoneProposalView[]).length).toBe(1)
   })
 
   test('mixed feedback makes no proposal, and the zone set is readable', async () => {
@@ -764,21 +816,26 @@ describe('GET /api/today', () => {
     })
     await addRun(u.id, addDays(today, -1))
     const rated = await addRun(u.id, addDays(today, -2), { feel: 0 })
-    vi.stubGlobal('fetch', () => {
-      const times = Array.from(
-        { length: 24 },
-        (_, h) => `${today}T${String(h).padStart(2, '0')}:00`,
-      )
-      return Response.json({
-        hourly: {
-          time: times,
-          temperature_2m: times.map(() => 33),
-          relative_humidity_2m: times.map(() => 60),
-          dew_point_2m: times.map(() => 22),
-          wind_speed_10m: times.map(() => 5),
-        },
-      })
+    // The weather job fills the forecast cache; the request below only reads it.
+    ctx.fetch = fakeFetch({
+      'GET https://api.open-meteo.com/v1/forecast': () => {
+        const times = Array.from(
+          { length: 24 },
+          (_, h) => `${today}T${String(h).padStart(2, '0')}:00`,
+        )
+        return Response.json({
+          hourly: {
+            time: times,
+            temperature_2m: times.map(() => 33),
+            relative_humidity_2m: times.map(() => 60),
+            dew_point_2m: times.map(() => 22),
+            wind_speed_10m: times.map(() => 5),
+          },
+        })
+      },
     })
+    await refreshWeatherCaches(ctx, u.id)
+    blockNetwork(ctx)
     const res = await client(ctx, u).get('/api/today')
     expect(res.status, JSON.stringify(res.body)).toBe(200)
     const view = res.body as TodayView

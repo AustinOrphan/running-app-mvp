@@ -426,6 +426,43 @@ export const jAdapt = {
       },
     ),
   },
+  // Disruption windows [J9]: illness follows n-3, a niggle has its own tail, and the restart after a
+  // long hold is J7's fraction. Every value is a default.
+  j9: {
+    maxWindowDays: param(
+      'j9.maxWindowDays',
+      28,
+      'D',
+      'J9',
+      ['feely-2022-training-disruptions', 'mujika-2000-detraining-part1'],
+      {
+        unit: 'days',
+        note: 'Default: the longest window the engine accepts. It equals j7.tier3Days (a test pins the two together), so a longer break is a break under J7 and the start paths, not a window.',
+      },
+    ),
+    maxBackdateDays: param(
+      'j9.maxBackdateDays',
+      28,
+      'D',
+      'J9',
+      ['feely-2022-training-disruptions'],
+      {
+        unit: 'days',
+        note: 'Default: a window may start this many days before today, so a runner who opens the app late gets a plan that stops asking about those days. It is as long as the longest window.',
+      },
+    ),
+    niggleEasyDays: param(
+      'j9.niggleEasyDays',
+      3,
+      'D',
+      'J9',
+      ['sanford-2024-return-to-running', 'snyders-2022-respiratory-illness-rts'],
+      {
+        unit: 'days',
+        note: 'Default: easy running only for this many days after a niggle window, with no symptom-free gate. The count copies the 3 easy days n-3 sets after illness; no study sets it for a niggle.',
+      },
+    ),
+  },
   n1: {
     bsiReturnDays: param<number[]>(
       'n1.bsiReturnDays',
@@ -525,5 +562,12 @@ export const jAdapt = {
         note: 'Default: a proposed threshold-pace change moves the pace by this much; the owner confirms or declines.',
       },
     ),
+  },
+  revision: {
+    undoWindowDays: param('revision.undoWindowDays', 7, 'D', 'design-revisions', [], {
+      range: [1, 28],
+      unit: 'days',
+      note: 'Default: a plan change can be undone for this many days. Later, an undo would restore sessions planned from data that no longer describes the runner; no study sets the length.',
+    }),
   },
 } satisfies ParamGroups

@@ -1,9 +1,19 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import {
+  ACTIVITY_MORE_ERROR,
+  activityCountText,
+  activityMoreLabel,
+} from '../../shared/copy/activityList.ts'
 import { todayIso } from '../../shared/dates.ts'
-import type { Activity, ActivityType, Units } from '../../shared/types.ts'
+import type { ActivityListItem, ActivityType, Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
-import { useActivities, useResolveDuplicate } from '../api/activities.ts'
+import {
+  ACTIVITY_VIEW_PAGE,
+  useActivities,
+  useActivityPages,
+  useResolveDuplicate,
+} from '../api/activities.ts'
 import { ApiError } from '../api/client.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
@@ -36,8 +46,8 @@ function dateHeading(date: string): string {
 }
 
 /** Consecutive rows with the same date; the API already sorts newest first. */
-function groupByDate(rows: Activity[]): Array<{ date: string; rows: Activity[] }> {
-  const groups: Array<{ date: string; rows: Activity[] }> = []
+function groupByDate(rows: ActivityListItem[]): Array<{ date: string; rows: ActivityListItem[] }> {
+  const groups: Array<{ date: string; rows: ActivityListItem[] }> = []
   for (const row of rows) {
     const last = groups.at(-1)
     if (last?.date === row.date) last.rows.push(row)
@@ -52,7 +62,7 @@ function ActivityRow({
   onEdit,
   restorable = false,
 }: {
-  activity: Activity
+  activity: ActivityListItem
   units: Units
   onEdit: () => void
   /** Offers to undo a confirmed duplicate, so the row counts again. */
@@ -161,18 +171,42 @@ export function ActivitiesPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [editing, setEditing] = useState<Activity | null>(null)
+  const [editing, setEditing] = useState<ActivityListItem | null>(null)
   const [importing, setImporting] = useState(false)
 
   const settings = useSettings()
   const units: Units = settings.data?.units ?? 'mi'
   // ISO dates compare as strings. A reversed range would be a 400, so it is not sent.
   const badRange = from !== '' && to !== '' && from > to
-  const activities = useActivities({
+  const filters = {
     ...(from !== '' && !badRange ? { from } : {}),
     ...(to !== '' && !badRange ? { to } : {}),
     ...(typeFilter !== 'all' ? { type: typeFilter } : {}),
-  })
+  }
+  // The list shows a page at a time. The duplicates view reads every row instead: a possible
+  // duplicate on a page that is not loaded would otherwise be missing from a view that says none.
+  const paged = useActivityPages(filters, { enabled: !duplicatesOnly })
+  const whole = useActivities(filters, { enabled: duplicatesOnly })
+  const activities = duplicatesOnly ? whole : paged
+  const loaded = duplicatesOnly ? whole.data : paged.data?.items
+  const total = duplicatesOnly ? whole.data?.length : paged.data?.total
+  // A page that failed leaves the rows already read in place; only a failed first read is an error.
+  const moreFailed = !duplicatesOnly && paged.isFetchNextPageError
+  const loadFailed = activities.isError && !moreFailed
+
+  const moreButton = useRef<HTMLButtonElement>(null)
+  const countStatus = useRef<HTMLParagraphElement>(null)
+  const refocusMore = useRef(false)
+  // The button is disabled while a page loads, which drops its focus; give it back afterwards.
+  // The last page removes the button, so focus goes to the count line, which now reads the whole
+  // list, instead of falling to the document.
+  useEffect(() => {
+    if (!paged.isFetchingNextPage && refocusMore.current) {
+      refocusMore.current = false
+      const target = moreButton.current ?? countStatus.current
+      target?.focus()
+    }
+  }, [paged.isFetchingNextPage])
 
   function setFlag(name: 'new' | 'duplicates', on: boolean) {
     setParams(
@@ -187,15 +221,21 @@ export function ActivitiesPage() {
   }
 
   const filtersActive = typeFilter !== 'all' || from !== '' || to !== '' || duplicatesOnly
-  const rows = (activities.data ?? []).filter(
-    (row) => !duplicatesOnly || row.duplicateStatus === 'possible',
-  )
+  const rows = (loaded ?? []).filter((row) => !duplicatesOnly || row.duplicateStatus === 'possible')
   // The duplicates view also lists confirmed rows, so a wrong confirmation can be undone.
   const confirmedRows = duplicatesOnly
-    ? (activities.data ?? []).filter((row) => row.duplicateStatus === 'confirmed')
+    ? (loaded ?? []).filter((row) => row.duplicateStatus === 'confirmed')
     : []
   const loading = activities.isPending || settings.isPending
-  const noneAtAll = activities.isSuccess && activities.data.length === 0 && !filtersActive
+  const noneAtAll = activities.isSuccess && total === 0 && !filtersActive
+  const countText =
+    loaded === undefined || total === undefined || rows.length === 0
+      ? undefined
+      : duplicatesOnly
+        ? activityCountText(rows.length, rows.length)
+        : activityCountText(loaded.length, total)
+  const remaining = total === undefined || loaded === undefined ? 0 : total - loaded.length
+  const showMore = !duplicatesOnly && !badRange && !loadFailed && !loading && paged.hasNextPage
   // The empty state carries its own Log and Import buttons, so the bar and filters wait for data.
   const showControls = filtersActive || (!loading && !noneAtAll)
 
@@ -226,7 +266,7 @@ export function ActivitiesPage() {
         Use a start date on or before the end date.
       </p>
     )
-  } else if (activities.isError) {
+  } else if (loadFailed) {
     body = (
       <p role="alert" className={styles.error}>
         Activities did not load. Reload the page to try again.
@@ -280,14 +320,12 @@ export function ActivitiesPage() {
 
   return (
     <>
-      <PageHeader
-        title="Activities"
-        context={
-          activities.isSuccess && rows.length > 0
-            ? `${rows.length} ${rows.length === 1 ? 'activity' : 'activities'}`
-            : undefined
-        }
-      />
+      <PageHeader title="Activities" />
+
+      {/* Always mounted, so a screen reader hears the text change; empty while there is no count. */}
+      <p ref={countStatus} role="status" tabIndex={-1} className={styles.count}>
+        {countText !== undefined && !badRange && !loadFailed ? countText : ''}
+      </p>
 
       {showControls ? (
         <div className={styles.bar}>
@@ -349,6 +387,26 @@ export function ActivitiesPage() {
       ) : null}
 
       {body}
+
+      {showMore ? (
+        <div className={styles.more}>
+          {moreFailed ? (
+            <p role="alert" className={styles.error}>
+              {ACTIVITY_MORE_ERROR}
+            </p>
+          ) : null}
+          <Button
+            ref={moreButton}
+            loading={paged.isFetchingNextPage}
+            onClick={() => {
+              refocusMore.current = true
+              void paged.fetchNextPage()
+            }}
+          >
+            {activityMoreLabel(Math.min(ACTIVITY_VIEW_PAGE, remaining))}
+          </Button>
+        </div>
+      ) : null}
 
       {confirmedRows.length > 0 && !loading && !badRange ? (
         <section aria-labelledby={confirmedHeadingId} className={styles.group}>

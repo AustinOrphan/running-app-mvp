@@ -1,6 +1,15 @@
 // The contract between the engine modules, the server and the web app (training-engine plan,
 // "Shared contract"). Frozen after Task E1: change it only with the plan.
-import type { Activity, AthleteProfile, WeekRow, WeeklyReview, WellnessDay } from '../types.ts'
+import type {
+  Activity,
+  AthleteProfile,
+  PlanSessionStatus,
+  DisruptionMode,
+  DisruptionReason,
+  WeekRow,
+  WeeklyReview,
+  WellnessDay,
+} from '../types.ts'
 
 export type Grade = 'A' | 'B' | 'C' | 'D'
 export interface Param<T = number> {
@@ -64,6 +73,7 @@ export type SessionFlag =
   | 'run-walk'
   | 'post-race'
   | 'injury-return'
+  | 'rest-window'
 export interface SessionSpec {
   date: string
   order: number
@@ -77,6 +87,43 @@ export interface SessionSpec {
   purpose: string
   rules: string[]
   flags: SessionFlag[]
+}
+/**
+ * What a revision diff remembers of a session on either side of a change (phase 3a design 4.2):
+ * enough to name it and say how long it is, without the steps or the targets. The one definition.
+ */
+export interface SessionBrief {
+  date: string
+  kind: SessionKind
+  title: string
+  durationMin: number
+  distanceM: number | null
+  gainM: number | null
+}
+/**
+ * A session's targets as every surface shows them (`resolveTargets`, design 4.6): the figure the
+ * day leads with, the secondary figures, and the notes that explain them.
+ */
+export interface ResolvedTargets {
+  /** The zone the stored target names. */
+  zone: ZoneKey
+  /** What leads: a heart-rate ceiling or band, the stored work pace, or effort. */
+  mode: 'hr-ceiling' | 'hr-band' | 'pace' | 'effort'
+  /** Top of the current Z1, in bpm. */
+  hrCeiling: number | null
+  /** Current Z2 or Z3 band, in bpm. */
+  hrRange: [number, number] | null
+  /** Seconds per km, slow end first; a guide unless the mode is `pace`. */
+  paceSecPerKm: [number, number] | null
+  /** CR-10. */
+  rpe: [number, number]
+  /** Hot enough to steer by effort (`isHotForSteering`); never true for strength, mobility or rest. */
+  hot: boolean
+  hotNote: string | null
+  /** Set when the figures use zones that changed after the session was planned. */
+  zonesNote: string | null
+  /** `zones` when a heart-rate or pace figure was read from the current zones. */
+  source: 'zones' | 'plan'
 }
 export interface Boundary {
   value: number
@@ -236,7 +283,12 @@ export interface ReadinessSnapshot {
   date: string
   checkin: Checkin | null
   hrv: {
+    /** Earlier readings plus today's own. */
     readings: number
+    /** Earlier readings the range is built from: the count `j4.minReadings` is tested against. */
+    baseline: number
+    /** Days before the date the baseline is read from (longer for a female profile). */
+    lookbackDays: number
     latest: number | null
     baselineMean: number | null
     baselineSd: number | null
@@ -303,6 +355,27 @@ export interface PlanChange {
   to: unknown
   rules: string[]
 }
+/**
+ * A window of rest or limited running the runner reported [rule J9], as the disruption module
+ * reads it. Only what the engine needs: the stored area and note are never read.
+ */
+export interface DisruptionWindow {
+  /** The stored window's id; the engine only echoes it. */
+  id: string
+  reason: DisruptionReason
+  /** Illness is always rest, whatever is stored. */
+  mode: DisruptionMode
+  /** `YYYY-MM-DD`, may lie in the past. */
+  startDate: string
+  /** `YYYY-MM-DD`, inclusive: the last day the reason affects training. */
+  endDate: string
+  /** The longest run of a day in minutes; set for `limited` only. */
+  maxRunMin: number | null
+  /** Niggle only, 0-10. */
+  pain: number | null
+  /** Niggle only: it changes how the runner walks or runs. */
+  gaitChange: boolean
+}
 export interface EngineInput {
   today: string
   profile: AthleteProfile
@@ -326,6 +399,12 @@ export interface EngineInput {
     recoveryCycle?: '3:1' | '2:1'
     strengthSessions?: 0 | 1 | 2
     tidModel?: 'pyramidal' | 'polarized'
+    /**
+     * `false` leaves the gut-training block out of the plan: no `gut-training` week flag and no
+     * `fuel-practice` session flag [rules H7]. Absent or `true` keeps the block. The server sets
+     * `false` for a diagnosed gut condition or when the runner opts out; only flags differ.
+     */
+    gutTraining?: boolean
   }
   /** Signs from the latest REDs screening [rules n-4]; absent means no screening. */
   screeningFlags?: number
@@ -340,4 +419,315 @@ export interface EngineInput {
    * Zone proposals ignore observations on or before it [rules C8]; absent means none accepted.
    */
   zoneChanges?: Partial<Record<ZoneProposal['boundary'], string>>
+}
+
+/**
+ * A number the copy system prints in the runner's units (`formatQuantity` in `shared/copy`). It is
+ * plain JSON, so a stored record keeps the quantity and not the sentence. Distances, climbs and
+ * paces are in metric base units (ADR 0003); `units` only changes how they read.
+ */
+export type Quantity =
+  | { kind: 'pace'; secPerKm: number }
+  | { kind: 'speed'; kmh: number }
+  | { kind: 'distance'; m: number }
+  | { kind: 'climb'; m: number }
+  | { kind: 'duration'; sec: number }
+  | { kind: 'minutes'; min: number }
+  | { kind: 'bpm'; bpm: number }
+  /** A number that is already a percentage: 5.5 reads "5.5%". */
+  | { kind: 'percent'; pct: number }
+  /** A fraction of one: 0.2 reads "20%". */
+  | { kind: 'share'; fraction: number }
+  | { kind: 'count'; n: number }
+  | { kind: 'temp'; c: number }
+  /** "19 Oct" (short, the default), "Mon 19 Oct" (weekday) or "Mon 19 Oct 2026" (long). */
+  | { kind: 'date'; iso: string; style?: 'short' | 'weekday' | 'long' }
+  /** "Mon" (short, the default) or "Monday". */
+  | { kind: 'weekday'; iso: string; style?: 'short' | 'long' }
+
+/** Where a figure came from, so an explanation can link to it and show its date. */
+export interface SourceRef {
+  kind:
+    | 'activity'
+    | 'check-in'
+    | 'wellness'
+    | 'profile'
+    | 'session'
+    | 'review'
+    | 'screening'
+    | 'disruption'
+  id: string
+  /** `YYYY-MM-DD`, in the runner's local day. */
+  date: string
+  label: string
+  /** The distance of an `activity` source in metres (ADR 0003), so a page shows it in the runner's units. */
+  distanceM?: number
+}
+
+/**
+ * One figure an explanation read, stored as data. `template` is a `TemplateId` of
+ * `shared/copy/templates.ts` and `slots` its values; `renderFact` turns the pair into a sentence in
+ * the runner's units at read time, so a copy fix reaches old records. `moreSources` counts the
+ * sources beyond the ones listed.
+ */
+export interface InputFact {
+  id: string
+  template: string
+  slots: Record<string, Quantity | string>
+  /** The rule the figure feeds, such as `a-6`. */
+  rule: string
+  sources: SourceRef[]
+  moreSources: number
+  /** `insufficient`: the data the rule needs is missing, and the sentence says what it counts. */
+  state: 'used' | 'insufficient'
+  /** The dates the figure was read over, when it is a window. */
+  window?: { from: string; to: string }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The personal fuel ladder [rules H7, ADR 0011]
+//
+// Plain data throughout: the ladder is replayed from the runner's logs on every read and nothing
+// below is stored. `shared/engine/fuel.ts` builds these; `shared/engine/fuelCopy.ts` words them.
+// ---------------------------------------------------------------------------------------------
+
+/** The switches of the fuel settings that bound the ladder. */
+export interface FuelSettingsInput {
+  /** Opens the rungs from the first higher tier up to the second (70 to 90 g/h by default). */
+  optIn90: boolean
+  /** Opens the rungs above the second tier; needs `optIn90`. */
+  optInAdvanced: boolean
+  /** A diagnosed gut condition: the ladder stays at the floor. */
+  giDisease: boolean
+}
+
+/** One product eaten on a run, as a log's snapshot keeps it, with the servings taken. */
+export interface FuelItem {
+  name: string
+  /** Carbohydrate in one serving, grams. */
+  carbsG: number
+  sodiumMg: number | null
+  kcal: number | null
+  /** More than one transportable carbohydrate. */
+  multiCarb: boolean
+  servings: number
+}
+
+/**
+ * The weather a run had, as the activity stores it. WBGT needs temperature and humidity; wind and
+ * solar radiation fall back to the assumptions of `execution` (no wind, shade), and a run without
+ * humidity is judged on its air temperature.
+ */
+export interface RunWeather {
+  tempC: number | null
+  humidityPct: number | null
+  windKph: number | null
+  shortwaveWm2?: number | null
+}
+
+/** What the ladder reads from a fuel log. */
+export interface FuelLogInput {
+  skipped: boolean
+  items: readonly FuelItem[]
+  /** 0 to 4. */
+  gut: number
+  /** 0 to 4; null when not answered. */
+  nausea: number | null
+  /** The runner's own answer to "it was hot"; null means the weather decides, on every replay. */
+  hotOverride: boolean | null
+}
+
+/** A logged run as the ladder replays it. */
+export interface FuelRunInput {
+  activityId: string
+  /** The runner's local day, `YYYY-MM-DD`. */
+  date: string
+  /** Time of day, to order two runs on one day; null when unknown. */
+  startTime: string | null
+  /** Elapsed seconds, not moving seconds: eating happens at stops. */
+  elapsedSec: number
+  weather: RunWeather | null
+  /** The flags of the plan session the run is linked to; null when the run is not linked. */
+  sessionFlags: readonly SessionFlag[] | null
+  log: FuelLogInput
+}
+
+/** The carbohydrate rate of a rung: one figure, and the range at the floor. */
+export interface RungRate {
+  /** Grams per hour; the low end at the floor. */
+  gPerH: number
+  /** The floor's range; null for every other rung. */
+  range: [number, number] | null
+}
+
+export interface FuelRung extends RungRate {
+  /** 0 is the floor. */
+  index: number
+  grade: Grade
+  /** Every rung above the floor. */
+  lowCertainty: boolean
+  /** Above the first higher tier, a run counts only with enough multiple-source carbohydrate. */
+  multiCarbRequired: boolean
+  opens: 'always' | 'first-opt-in' | 'second-opt-in'
+}
+
+export type RungState =
+  | 'tolerated'
+  | 'next-up'
+  | 'repeat'
+  | 'later'
+  | 'opt-in'
+  | 'opens-after-second-tier'
+  | 'gut-condition'
+
+export interface FuelRungView extends FuelRung {
+  state: RungState
+}
+
+/** Why a logged run did or did not count toward the ladder. */
+export type CountReason =
+  'counted' | 'skipped' | 'too-short' | 'below-target' | 'too-little-multi-carb'
+
+export type StepOutcome =
+  | 'step-up'
+  | 'tolerated-top'
+  | 'tolerated-more'
+  | 'warm-tolerated'
+  | 'hold'
+  | 'fall-back'
+  | 'not-counted'
+
+/** What one logged run did to the ladder. */
+export interface LadderStep {
+  activityId: string
+  date: string
+  /** The rung being tried when the run happened. */
+  rungIndex: number
+  rung: RungRate
+  /** The rung the target stands on after the run. */
+  nextIndex: number
+  next: RungRate
+  /** Grams per hour of elapsed time; null when the run has no elapsed time. */
+  rateGPerH: number | null
+  multiCarbShare: number
+  /** The higher of the gut and nausea scores. */
+  score: number
+  hot: boolean
+  reason: CountReason
+  outcome: StepOutcome
+  /** The minutes a run needed to count (fewer in a gut-training week). */
+  requiredMin: number
+  /** For `tolerated-more`: tolerated runs still needed before the next step. */
+  toleratedLeft: number | null
+  /** Whether the current rung repeats after this run. */
+  held: boolean
+}
+
+export type LadderBasis = 'start' | 'next-up' | 'repeat' | 'fell-back' | 'at-ceiling' | 'locked'
+
+/** The replayed ladder. */
+export interface LadderResult {
+  rungs: FuelRungView[]
+  /** The rung the next run tries. */
+  currentIndex: number
+  /** The last rung a run was tolerated on; -1 before any. */
+  toleratedIndex: number
+  /** The last counted run scored badly: the current rung repeats. */
+  held: boolean
+  locked: boolean
+  /** The highest rung the settings open. */
+  ceilingIndex: number
+  basis: LadderBasis
+  /** The nausea plan comes forward: the last counted run's nausea score reached the cut-off. */
+  nauseaForward: boolean
+  countedRuns: number
+  /** Every logged run, oldest first. */
+  steps: LadderStep[]
+}
+
+/** A plan session as the fuel target reads it (`PlanSession` fits). */
+export interface FuelSessionInput {
+  id: string
+  date: string
+  kind: SessionKind
+  durationMin: number
+  flags: readonly SessionFlag[]
+  status: PlanSessionStatus
+}
+
+export type FuelBasis = LadderBasis | 'warm-held' | 'warm-repeat' | 'warm-steady'
+
+/** The fuel target for one session. */
+export interface FuelTarget {
+  sessionId: string
+  date: string
+  rungIndex: number
+  /** Grams per hour; the low end at the floor. */
+  gPerH: number
+  range: [number, number] | null
+  lowCertainty: boolean
+  multiCarbRequired: boolean
+  basis: FuelBasis
+  /** The last rung a run was tolerated on, when the basis names it. */
+  lastTolerated: RungRate | null
+  /** The rung a warm day held back, for the `warm-held` and `warm-repeat` bases. */
+  heldBack: RungRate | null
+  /** The day's forecast is hot for fuel. */
+  hot: boolean
+  /** The nausea plan comes forward: a hot day, or the last counted run's nausea score. */
+  nauseaPlanForward: boolean
+  locked: boolean
+}
+
+export interface EahCard {
+  /** Events over `n7.eahStrongerAlertHours`, or heat. */
+  stronger: boolean
+  heading: string
+  lines: string[]
+}
+
+/** What the Why drawer is opened on (phase 3a design 8.4). */
+export type ExplainRequest =
+  /** A planned session of the active plan, by id: a run's longest-run, volume and zone rules, then its own. */
+  | { subject: 'session'; id: string }
+  /** A planned week (a Monday): the ramp and volume rules that set it. */
+  | { subject: 'week'; weekStart: string }
+  /** The weekly decision about a finished or running week (a Monday). */
+  | { subject: 'decision'; weekStart: string }
+  /** Readiness as of today. */
+  | { subject: 'readiness' }
+  /** The zone anchors, or the anchor of one boundary. */
+  | { subject: 'zone'; boundary?: ZoneProposal['boundary'] }
+  /** The race prediction for one of the runner's goals. */
+  | { subject: 'prediction'; goalId: string }
+  /** Rule ids asked for directly, at most `EXPLAIN_MAX_RULES`. */
+  | { subject: 'rules'; rules: string[] }
+  /** A Monday brief: the figures stored with it. */
+  | { subject: 'brief'; weekStart: string }
+  /** A run: the figures stored with its insights. */
+  | { subject: 'activity'; id: string }
+
+export type ExplainSubject = ExplainRequest['subject']
+
+/** The figures one rule read, in the order they are shown. */
+export interface ExplainGroup {
+  rule: string
+  facts: InputFact[]
+}
+
+/**
+ * The body of `GET /api/explain`. `groups` holds the rules that read the runner's numbers, each
+ * with its facts (a fact is `used` or `insufficient`); `rest` lists the rules that rest on the
+ * rule alone and use none of the runner's data. `frozen` is true for a brief or a run, whose
+ * figures are the ones stored when it was written.
+ */
+export interface ExplainView {
+  subject: ExplainSubject
+  /** The local day the figures were read for. */
+  asOf: string
+  frozen: boolean
+  /** The rule ids of the subject, in the order they are shown. */
+  rules: string[]
+  groups: ExplainGroup[]
+  rest: string[]
 }

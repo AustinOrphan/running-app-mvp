@@ -3,7 +3,8 @@
 // prediction in that order; replan keeps the past and recomputes the future. The other entry
 // points delegate to the module that owns the rule.
 import { addDays, mondayOf } from '../dates.ts'
-import type { AthleteProfile, Weekday } from '../types.ts'
+import { isToRun } from '../domain/sessionStatus.ts'
+import type { AthleteProfile, PlanSessionStatus, Weekday } from '../types.ts'
 import { breakRestart, trimQuality } from './adapt.ts'
 import { estimateState } from './athlete.ts'
 import { runChecklist } from './checklist.ts'
@@ -59,12 +60,46 @@ import type {
 import { buildZones } from './zones.ts'
 
 export { zoneProposals, weeklyDecision } from './adapt.ts'
+export {
+  daysBefore,
+  isComparableCourse,
+  median,
+  scorePredictions,
+  scoreRace,
+  summariseRecord,
+  weeksBefore,
+} from './backtest.ts'
+export type {
+  CourseSnapshot,
+  LoggedPrediction,
+  RaceOutcome,
+  RaceResultInput,
+  RaceScore,
+  RecordSummary,
+  ScoredPrediction,
+} from './backtest.ts'
 export { runChecklist } from './checklist.ts'
 export { explain } from './explain.ts'
 export { assessExecution, matchSessions } from './execution.ts'
+export {
+  ceilingIndex,
+  eahCard,
+  fuelEligible,
+  fuelLineForSession,
+  fuelRungs,
+  fuelTargetFor,
+  fuelTargetsFor,
+  fuelWatchLine,
+  isBlockRun,
+  isHotForFuel,
+  replayLadder,
+  runIsHot,
+  runScore,
+} from './fuel.ts'
+export type { FuelContext, LadderInput } from './fuel.ts'
 export { PARAMS_VERSION, P } from './params/index.ts'
-export { predictRace } from './predict.ts'
-export { todayAdvice } from './readiness.ts'
+export { predictRace, rangeLabel } from './predict.ts'
+export { readinessSignals, readinessVerdict, strongestAdvice, todayAdvice } from './readiness.ts'
 export { weeklyRamp } from './macro.ts'
 
 const WEEKDAYS: readonly Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
@@ -102,7 +137,6 @@ export interface ReplanOptions {
 }
 
 const OWNER_EDITS: ReadonlySet<string> = new Set(['moved', 'skipped'])
-const TO_RUN: ReadonlySet<string> = new Set(['moved', 'downgraded'])
 
 const isTrim = (s: { status: string; rules: string[] }) =>
   s.status === 'downgraded' && s.rules.includes('design-4.3')
@@ -774,8 +808,12 @@ export function replan(
   const pastWeeks = oldWeeks.filter((w) => w.weekStart < currentMonday)
   const keptRows = oldSessions.filter((s) => keptByReplan(s, input.today))
   const kept = keptRows.map(specOf)
+  // The engine input types a stored status as a string; the server passes the plan's own statuses.
   const toRun = new Set(
-    kept.filter((_, i) => keptRows[i]!.date >= input.today && TO_RUN.has(keptRows[i]!.status)),
+    kept.filter(
+      (_, i) =>
+        keptRows[i]!.date >= input.today && isToRun(keptRows[i]!.status as PlanSessionStatus),
+    ),
   )
 
   // A re-plan never adds to a week with settled sessions what the replaced plan did not hold on

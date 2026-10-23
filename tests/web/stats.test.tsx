@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { StatsPage } from '../../web/pages/StatsPage.tsx'
 import type { Activity, Units, UserSettings, WeekRow } from '../../shared/types.ts'
 import { addDays } from '../../shared/dates.ts'
+import { statsOf } from '../../shared/domain/stats.ts'
 import { makeActivity, makeWeekRow } from '../factories.ts'
-import { mockApi, renderWithProviders } from './helpers.tsx'
+import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
 
 // The fixed clock is Wednesday 2026-03-18; 26 weeks end on Monday 2026-03-16.
 const FIRST_WEEK = '2025-09-22'
@@ -53,9 +54,10 @@ const activities = [
   }),
 ]
 
+/** The page reads `GET /api/stats`; the server's figures are `statsOf` over the same rows. */
 function mockStats(opts: { units?: Units; activities?: Activity[]; weeks?: WeekRow[] } = {}) {
-  mockApi({
-    'GET /api/activities': () => opts.activities ?? activities,
+  return mockApi({
+    'GET /api/stats': () => statsOf(opts.activities ?? activities),
     'GET /api/weeks': () => opts.weeks ?? history(),
     'GET /api/settings': () => settings(opts.units ?? 'mi'),
   })
@@ -107,6 +109,34 @@ describe('StatsPage', () => {
     const efforts = screen.getByRole('table', { name: 'Fastest efforts' })
     const fiveK = within(efforts).getByRole('row', { name: /5K/ })
     expect(cellTexts(fiveK)).toEqual(['23:00', '7:20 /mi', '3.14 mi', '3 Feb 2026'])
+  })
+
+  test('reads the statistics from the server and requests no activities', async () => {
+    const { calls } = mockStats()
+    const { container } = renderWithProviders(<StatsPage />)
+    await screen.findByRole('table', { name: 'Monthly totals' })
+
+    expect(calls.map((c) => `${c.method} ${c.url.split('?')[0]}`).sort()).toEqual([
+      'GET /api/settings',
+      'GET /api/stats',
+      'GET /api/weeks',
+    ])
+    expectCleanCopy(container)
+  })
+
+  test('says so when the statistics did not load', async () => {
+    mockApi({
+      'GET /api/stats': () => ({
+        status: 500,
+        body: { error: { code: 'internal', message: 'Something went wrong on the server.' } },
+      }),
+      'GET /api/weeks': () => history(),
+      'GET /api/settings': () => settings('mi'),
+    })
+    renderWithProviders(<StatsPage />)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Stats did not load. Reload the page to try again.',
+    )
   })
 
   test('the header says totals come from runs and that races count only for fastest efforts', async () => {

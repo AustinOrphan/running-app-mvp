@@ -19,8 +19,8 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
 
 CI (`.github/workflows/ci.yml`) runs `npm ci`, the chromium install, `npm run check`,
 `npm run build` and `npm run test:e2e`, and uploads the Playwright report on failure. The Docker
-image must still build (`docker build .`) after a change to dependencies or the `Dockerfile`; its
-build runs `prisma migrate deploy` as a smoke test.
+image must still build (`docker build .`) after a change to dependencies, the `Dockerfile` or a
+migration; its build runs `prisma migrate deploy` as a smoke test.
 
 ## Structure
 
@@ -43,9 +43,20 @@ build runs `prisma migrate deploy` as a smoke test.
   `server/services/sync.ts` drives pull providers.
 - Network access goes only through `ctx.fetch`, never a global `fetch` or an HTTP client of its own,
   so tests inject synthetic responses and no test touches the network.
+- Request handlers never call Open-Meteo. It stays outside the registry: the weather job
+  (`refreshWeatherCaches`, every 10 minutes) fills `ForecastCache` and `ClimateCache`, and engine
+  input, predictions, zones and Today read them, so a miss gives no forecast and no race heat, never
+  a wait. The two waits that remain are the forecast route on a never-filled cell (5 s, then 502)
+  and `ensureClimate` in plan generation (8 s). `ForecastCache` is not state: a change key that
+  depends on the forecast adds `forecastStamp(prisma, userId)`. Its fetch is `Deps.fetch`, read at
+  each call (the global `fetch` when unset); tests inject one through the API helpers' `ctx.fetch`
+  and never stub the global.
 - Secrets (API keys, client secrets, tokens) are encrypted and decrypted only through
   `server/crypto.ts`, stored in `Integration.secret`, and never logged or returned by the API.
   Refreshed tokens are saved through `ctx.saveSecret`. No new environment variables.
+- `listWellness` never returns a short list as complete: when it stops early (a spent request
+  budget) it throws `WellnessTruncated` with the days it read; the sync stores them and records a
+  `paused` run, never `ok`.
 - Files are parsed through `ctx.parseFile`, not by importing the parsers directly. Fixtures are
   synthetic; FIT test files are built with `tests/fixtures/fit/buildFit.ts`.
 
@@ -68,19 +79,57 @@ build runs `prisma migrate deploy` as a smoke test.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
   and `LOG_LEVEL` (plus `TZ` as an OS setting in Docker).
 - Migrations under `prisma/migrations` are committed; never ignore them.
+- Callers never bump the data version: `server/dataVersion.ts` raises it after every write to a
+  state model and at the end of every `$transaction`, and exports no way to raise it. No raw SQL
+  writes a state table (`tests/unit/server/noRawWrites.test.ts` enforces it).
+- Every new Prisma model is added to `STATE_MODELS` or `NON_STATE_MODELS` in `server/dataVersion.ts`
+  in the PR that adds it; a test fails on a model in neither or both. A model the snapshot, a
+  memoised value or a published deliverable reads is state; a table written on a read path or by
+  the publisher is non-state.
+- Athlete data (the 365-day history, wellness, reviews, the screening, the stored plan) comes from
+  `gatherEngineInput`, `gatherContextInput`, `loadAthleteContext` or `memoByVersion`
+  (`server/services/athleteState.ts`, ADR 0009); no new code queries that window or the stored plan
+  itself. The snapshot is deep-frozen, so copy an array before sorting or editing it.
+  `currentGoalFor` (`server/services/currentGoal.ts`) is the one answer to "which goal".
+- Migration folder names are regenerated at rebase so they sort after every migration on `main`.
+- `PlanSession.externalId` (a uuid, unique per plan) is a session's identity outside the database.
+  Session rows are built only by `sessionRow()` in `server/services/planEngine.ts`, which sets
+  `externalId` (fresh unless carried) and `trimmed`, the indexed form of `rules` holding
+  `design-4.3`. `isTrimmed()` in `server/serialize.ts` is the one derivation: set `trimmed` with it
+  on every write of `rules`, and never filter the stored `rules` text with `contains`.
+- A re-plan and a `PlanRevision` are written only through `computeReplan` (reads, decides, writes
+  nothing), `applyReplan` and `recordPlanWrite` in `server/services/replan.ts` (ADR 0007);
+  `replanActivePlan` wraps the first two. Nothing else creates a revision (a test scans `server/`),
+  and each revision stores a `PlanDiff` and an `UndoPayload` built from the rows actually written.
+  Summaries are templates in `shared/copy/revision.ts`.
+- Week and statistics code reads `ActivityCore` rows (`loadActivityCores`, six columns), from
+  `activityLoadStart(first week)` to the last Sunday, never every whole activity. A loop over weeks
+  reads the database once for all of them (`executionRecordsByWeek`).
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are
   `devDependencies`, so the Docker image installs without them.
 
 ## Testing
 
 - API tests use `tests/api/helpers.ts` (own SQLite file per context, seeded user and cookie).
+  `ctx.fetch` starts as `noNetwork()`, which rejects, names the URL and records it in
+  `ctx.refusedFetches` (the weather layer swallows the rejection); end an `afterEach` with
+  `expectNoRefusedFetches(ctx)` so an unplanned call still fails the test, and set `ctx.fetch` to a
+  `fakeFetch` to plan calls.
 - Page tests use `tests/web/helpers.tsx`; query by role and accessible name.
 - E2E specs in `tests/e2e` drive the UI by role and label, use dates computed from the clock,
   and call `resetData()` and `signedInApi()` from `tests/e2e/helpers.ts` so each spec stands on
   its own. `01-auth.spec.ts` owns the empty database and must stay first. No sleeps; rely on
   auto-waiting assertions.
+  `resetData()` derives its table list from `prisma/schema.prisma` (every model with a `userId`
+  column except `User`, and the shared caches that have neither a `userId` nor a parent), so a new
+  table needs no edit there.
   `signedInApi()` signs in with a minted session cookie once the account exists, because the
   sign-in route allows 10 attempts per window and the suite would exhaust it.
+- Every migration adds a case to `tests/unit/server/migrations.test.ts`: it seeds the previous
+  release's rows with raw SQL (sessions linked to activities included), applies the migration and
+  asserts nothing was lost. The same file runs `prisma migrate diff --exit-code` against
+  `prisma/schema.prisma`, so a schema change without its migration fails `npm run check`. A required
+  column on a populated table is generated, then hand-edited so the redefine fills it per row.
 - The e2e server port is 3101 plus a per-checkout offset (`E2E_PORT` in `tests/e2e/env.ts`), so
   worktrees can run e2e at the same time. Never hard-code it; use `baseURL` or `E2E_PORT`. Print it
   with `node -e "import('./tests/e2e/env.ts').then((m) => console.log(m.E2E_PORT))"`.

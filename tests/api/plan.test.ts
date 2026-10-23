@@ -1,11 +1,12 @@
-import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { distanceClassOf, generatePlan } from '../../shared/domain/plan.ts'
-import type { PlanWeek, PlanWithWeeks } from '../../shared/types.ts'
+import type { PlanWeek, PlanWithSessions, PlanWithWeeks } from '../../shared/types.ts'
 import { computeBaselineRunMin } from '../../server/services/baseline.ts'
 import { HttpError } from '../../server/errors.ts'
 import { generatePlanForGoal } from '../../server/services/plan.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import { makeActivityCore } from '../factories.ts'
 
 let ctx: TestCtx
 let user: TestUser
@@ -78,6 +79,44 @@ describe('GET /api/plan', () => {
     expect(res.status).toBe(200)
     expect(res.body).toBeNull()
   })
+
+  test('GET /plan serves the externalId of each session of a version-2 plan, to its owner only', async () => {
+    const owner = await seedUser(ctx, { email: 'external-id-owner@example.com' })
+    const goal = await seedGoal({ userId: owner.id, name: 'Identity 10K', distanceM: 10_000 })
+    const plan = await ctx.prisma.plan.create({
+      data: {
+        userId: owner.id,
+        goalId: goal.id,
+        name: goal.name,
+        startDate: thisMonday,
+        raceWeekStart: mondayOf(goal.targetDate),
+        generatorVersion: 2,
+      },
+    })
+    const kinds = ['easy', 'long']
+    for (const [i, kind] of kinds.entries()) {
+      await ctx.prisma.planSession.create({
+        data: {
+          planId: plan.id,
+          externalId: `00000000-0000-4000-8000-00000000000${i}`,
+          weekStart: thisMonday,
+          date: addDays(thisMonday, i + 1),
+          order: 0,
+          kind,
+          title: kind,
+          durationMin: 40,
+          target: '{}',
+          purpose: 'Synthetic.',
+        },
+      })
+    }
+    const served = (await client(ctx, owner).get('/api/plan')).body as PlanWithSessions
+    expect(served.sessions.map((s) => s.externalId)).toEqual([
+      '00000000-0000-4000-8000-000000000000',
+      '00000000-0000-4000-8000-000000000001',
+    ])
+    expect((await client(ctx, other).get('/api/plan')).body).toBeNull()
+  })
 })
 
 describe('computeBaselineRunMin', () => {
@@ -133,6 +172,41 @@ describe('computeBaselineRunMin', () => {
     } finally {
       await fresh.close()
     }
+  })
+
+  test('reads the six core columns over the 26 completed weeks, with no heart-rate histogram', async () => {
+    const findMany = vi.fn((_args: unknown) =>
+      Promise.resolve([
+        makeActivityCore({ date: '2026-02-10', durationSec: 60 * 60 }),
+        makeActivityCore({ date: '2026-02-17', durationSec: 90 * 60 }),
+        makeActivityCore({ date: '2026-02-24', durationSec: 120 * 60 }),
+        makeActivityCore({ date: '2026-03-03', durationSec: 150 * 60 }),
+        makeActivityCore({ date: '2026-03-10', durationSec: 180 * 60 }),
+      ]),
+    )
+    const prisma = { activity: { findMany } } as unknown as Parameters<
+      typeof computeBaselineRunMin
+    >[0]
+
+    // Wednesday 2026-03-18: the last completed week is 2026-03-09..15, 26 weeks before the current
+    // week's Monday (2026-03-16) is 2025-09-15.
+    expect(await computeBaselineRunMin(prisma, 'u1', '2026-03-18')).toBe(135)
+
+    expect(findMany).toHaveBeenCalledTimes(1)
+    const args = findMany.mock.calls[0]![0] as {
+      where: unknown
+      select: Record<string, boolean>
+    }
+    expect(args.where).toEqual({ userId: 'u1', date: { gte: '2025-09-15', lte: '2026-03-15' } })
+    expect(Object.keys(args.select).sort()).toEqual([
+      'date',
+      'distanceM',
+      'duplicateStatus',
+      'durationSec',
+      'id',
+      'type',
+    ])
+    expect(Object.values(args.select).every((v) => v === true)).toBe(true)
   })
 
   test('weeks with no run are skipped, not counted as zero; an odd count takes the middle', async () => {
@@ -623,5 +697,142 @@ describe('PUT /api/plan/weeks/:weekStart', () => {
       .put(`/api/plan/weeks/${plan.weeks[0]?.weekStart}`)
       .send({ focus: 'steal' })
     expect(res.status).toBe(404)
+  })
+})
+
+describe('GET /api/plan/revisions', () => {
+  /** Hand-made revisions of a version-2 plan, a minute apart, oldest first. */
+  async function planWithRevisions(
+    email: string,
+    kinds: Array<'old' | 'empty' | 'change'>,
+  ): Promise<{ u: TestUser; ids: string[] }> {
+    const u = await seedUser(ctx, { email })
+    const goal = await seedGoal({ userId: u.id })
+    const plan = await ctx.prisma.plan.create({
+      data: {
+        userId: u.id,
+        goalId: goal.id,
+        name: goal.name,
+        startDate: thisMonday,
+        raceWeekStart: mondayOf(goal.targetDate),
+        generatorVersion: 2,
+      },
+    })
+    const empty = JSON.stringify({ v: 1, sessions: [], weeks: [], holds: [], empty: true })
+    const change = JSON.stringify({ v: 1, sessions: [], weeks: [], holds: [], empty: false })
+    const ids: string[] = []
+    for (const [i, kind] of kinds.entries()) {
+      const row = await ctx.prisma.planRevision.create({
+        data: {
+          planId: plan.id,
+          reason: 'weekly',
+          summary: `Synthetic ${String(i)}.`,
+          createdAt: new Date(Date.UTC(2026, 9, 1, 3, i)),
+          diff: kind === 'old' ? null : kind === 'empty' ? empty : change,
+        },
+      })
+      ids.push(row.id)
+    }
+    return { u, ids }
+  }
+
+  const idsOf = (body: unknown) => (body as Array<{ id: string }>).map((r) => r.id)
+
+  test('is empty without a plan', async () => {
+    const u = await seedUser(ctx, { email: 'revisions-none@example.com' })
+    const res = await client(ctx, u).get('/api/plan/revisions')
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual([])
+  })
+
+  test('lists newest first, hides empty diffs, keeps revisions without a diff', async () => {
+    const { u, ids } = await planWithRevisions('revisions-hide@example.com', [
+      'old',
+      'change',
+      'empty',
+      'change',
+      'empty',
+    ])
+    const c = client(ctx, u)
+    expect(idsOf((await c.get('/api/plan/revisions')).body)).toEqual([ids[3], ids[1], ids[0]])
+    expect(idsOf((await c.get('/api/plan/revisions?include=empty')).body)).toEqual(
+      [...ids].reverse(),
+    )
+  })
+
+  test('pages with limit and before, and a page of the filtered list is full', async () => {
+    const kinds = Array.from({ length: 9 }, (_, i): 'empty' | 'change' =>
+      i % 3 === 0 ? 'change' : 'empty',
+    )
+    const { u, ids } = await planWithRevisions('revisions-page@example.com', kinds)
+    const c = client(ctx, u)
+    const changes = ids.filter((_, i) => kinds[i] === 'change').reverse()
+
+    const first = idsOf((await c.get('/api/plan/revisions?limit=2')).body)
+    expect(first).toEqual(changes.slice(0, 2))
+    const second = idsOf((await c.get(`/api/plan/revisions?limit=2&before=${first[1]!}`)).body)
+    expect(second).toEqual(changes.slice(2))
+
+    const newest = [...ids].reverse()
+    const everything = idsOf((await c.get('/api/plan/revisions?limit=4&include=empty')).body)
+    expect(everything).toEqual(newest.slice(0, 4))
+    const rest = idsOf(
+      (await c.get(`/api/plan/revisions?limit=200&include=empty&before=${everything[3]!}`)).body,
+    )
+    expect(rest).toEqual(newest.slice(4))
+  })
+
+  test('serves 50 by default and at most 200', async () => {
+    const { u } = await planWithRevisions(
+      'revisions-limit@example.com',
+      Array.from({ length: 205 }, () => 'change' as const),
+    )
+    const c = client(ctx, u)
+    expect(idsOf((await c.get('/api/plan/revisions')).body)).toHaveLength(50)
+    expect(idsOf((await c.get('/api/plan/revisions?limit=200')).body)).toHaveLength(200)
+  })
+
+  test('refuses what it cannot read, and does not take another user’s revision as a cursor', async () => {
+    const { u } = await planWithRevisions('revisions-bad@example.com', ['change'])
+    const stranger = await planWithRevisions('revisions-stranger@example.com', ['change'])
+    const c = client(ctx, u)
+    for (const query of [
+      'limit=0',
+      'limit=201',
+      'limit=1.5',
+      'limit=many',
+      'include=all',
+      'include=',
+      'before=',
+      'surprise=1',
+    ]) {
+      expect((await c.get(`/api/plan/revisions?${query}`)).status, query).toBe(400)
+    }
+    expect((await c.get('/api/plan/revisions?before=no-such-revision')).status).toBe(404)
+    expect((await c.get(`/api/plan/revisions?before=${stranger.ids[0]!}`)).status).toBe(404)
+  })
+
+  test('serves the revision model fields and never the undo payload', async () => {
+    const { u } = await planWithRevisions('revisions-fields@example.com', ['change'])
+    const [row] = (await client(ctx, u).get('/api/plan/revisions')).body as Array<
+      Record<string, unknown>
+    >
+    expect(Object.keys(row!).sort()).toEqual(
+      [
+        'auto',
+        'changes',
+        'createdAt',
+        'decision',
+        'diff',
+        'disruptionId',
+        'id',
+        'planId',
+        'reason',
+        'seenAt',
+        'summary',
+        'undo',
+        'undoOf',
+      ].sort(),
+    )
   })
 })

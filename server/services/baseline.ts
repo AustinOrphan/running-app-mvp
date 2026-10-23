@@ -1,7 +1,7 @@
 import { addDays, mondayOf, weekStartsBetween } from '../../shared/dates.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import type { PrismaClient } from '../db.ts'
-import { loadActivities } from '../serialize.ts'
+import { loadActivityCores } from '../serialize.ts'
 
 const LOOKBACK_WEEKS = 26
 const SAMPLE_WEEKS = 4
@@ -25,7 +25,8 @@ export async function computeBaselineRunMin(
 ): Promise<number | null> {
   const lastWeek = addDays(mondayOf(today), -7)
   const firstWeek = addDays(mondayOf(today), -7 * LOOKBACK_WEEKS)
-  const activities = await loadActivities(prisma, userId, {
+  // Only `runMin` is read, so the window starts at the first week with no 52-week lookback.
+  const activities = await loadActivityCores(prisma, userId, {
     from: firstWeek,
     to: addDays(lastWeek, 6),
   })

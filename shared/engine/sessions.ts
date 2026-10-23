@@ -556,10 +556,6 @@ export function prescribe(
 
   const has = (flag: string) => week.flags.includes(flag)
   let heatNote: string | null = null
-  if (has('gut-training') && ['long', 'long-fast-finish', 'b2b'].includes(kind)) {
-    flags.push('fuel-practice')
-    rules.push('H7')
-  }
   if (has('night') && kind === 'long') {
     flags.push('night')
     rules.push('H6')
@@ -574,7 +570,8 @@ export function prescribe(
     heatNote =
       'Heat acclimation week: run this one easy and in the warm part of the day; effort, not pace, sets the limit.'
   }
-  // 'b2b-day1' and 'b2b-day2' are set by micro.ts, which knows which day of the pair this is
+  // 'b2b-day1' and 'b2b-day2' are set by micro.ts, which knows which day of the pair this is;
+  // 'fuel-practice' is set there too, because the cap of rule H7 counts the runs of the week
 
   // Targets from the zone set; pace and HR recompute for display when the zones change
   const zoneKey = lib.zone

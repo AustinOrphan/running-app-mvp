@@ -72,9 +72,9 @@ export const RULE_TITLES: Record<string, string> = {
   'g-3': 'Tightened profiles',
   'g-4': 'Sex-specific limits',
   'g-5': 'Load ratio is never a gate',
-  'g-6': 'Never make up missed volume',
+  'g-6': 'Never make up lost volume',
   'g-7': 'Symptom check-ins are secondary',
-  'G-6': 'Never make up missed volume',
+  'G-6': 'Never make up lost volume',
   // (h) ultra
   H1: 'Progression priority',
   H2: 'Time on feet',
@@ -111,6 +111,7 @@ export const RULE_TITLES: Record<string, string> = {
   J6: 'Perceived-recovery gate',
   J7: 'Breaks',
   J8: 'Fatigue states',
+  J9: 'Rest windows and returns',
   // (k) taper
   K1: 'Taper length',
   K2: 'Taper volume',
@@ -126,7 +127,7 @@ export const RULE_TITLES: Record<string, string> = {
   L4: 'Ultra prediction',
   L5: 'Trail prediction',
   L6: 'Minimum prediction band',
-  L7: 'Back-testing',
+  L7: 'Prediction track record',
   // (m) personalisation
   'm-age': 'Age',
   'm-sex': 'Sex',
@@ -138,6 +139,8 @@ export const RULE_TITLES: Record<string, string> = {
   'n-5': 'Possible iron deficiency',
   'n-6': 'Persistent suppression',
   'n-7': 'Exercise-associated hyponatraemia',
+  // (o) delivery to devices
+  O1: 'Targets on the device',
   // design decisions that have no research rule
   'design-macro': 'Plan structure defaults',
   'design-sessions': 'Session design defaults',
@@ -145,6 +148,8 @@ export const RULE_TITLES: Record<string, string> = {
   'design-4.1': 'Matching activities to sessions',
   'design-4.2': 'Execution assessment',
   'design-4.3': 'Trimming the next quality session',
+  'design-revisions': 'Undoing a plan change',
+  'design-explain': 'What stood out on a run',
 }
 
 /**

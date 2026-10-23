@@ -26,7 +26,7 @@ export const hUltra = {
       ['tanda-2015-training-anthropometry-100km', 'coates-2021-physio-determinants-ultra'],
       {
         unit: 'm',
-        note: 'For goals of 100 km or more, grow weekly volume before adding pace work.',
+        note: 'For goals of 100K or more, grow weekly volume before adding pace work.',
       },
     ),
     keepSpeedWorkAtM: param(
@@ -35,7 +35,7 @@ export const hUltra = {
       'C',
       'H1',
       ['tanda-2015-training-anthropometry-100km', 'coates-2021-physio-determinants-ultra'],
-      { unit: 'm', note: 'For 50 km, keep speed work.' },
+      { unit: 'm', note: 'For 50K, keep speed work.' },
     ),
     experiencedMedianWeeklyKm: param(
       'h1.experiencedMedianWeeklyKm',
@@ -74,7 +74,7 @@ export const hUltra = {
       ['outside-2015-orton-koop-100-miles'],
       {
         unit: 'fraction of expected race duration',
-        note: 'Default: no study sets this number. It binds only for races expected under 10 h (for example a 50 km goal).',
+        note: 'Default: no study sets this number. It binds only for races expected under 10 h (for example a 50K goal).',
       },
     ),
     raceSimulationMaxHours: param(
@@ -161,6 +161,17 @@ export const hUltra = {
       {
         unit: 'm/h',
         note: 'Reference for sustained ultra climbing only, not a target or a race-average figure.',
+      },
+    ),
+    climbNoteGainPerHourM: param(
+      'h4.climbNoteGainPerHourM',
+      150,
+      'D',
+      'H4',
+      ['hingrand-2023-power-vs-ascent-speed', 'jeker-2020-vertical-speed-ultra'],
+      {
+        unit: 'm/h',
+        note: 'Default: a session whose planned gain reaches this many metres per hour of running gets a climbing line (climb by effort, not by speed). No study sets this number; it sits well below the about 550 m/h reference for sustained ultra climbing.',
       },
     ),
   },
@@ -323,6 +334,86 @@ export const hUltra = {
       unit: '% of non-finishers',
       note: 'GI distress was the leading DNF cause among 161 km non-finishers (descriptive; the reason higher rates are tolerance-gated).',
     }),
+    // The personal fuel ladder (E6, ADR 0011). Counting, movement and heat are replayed from the
+    // runner's own logs; only the 2 h threshold has a study behind it, the rest are labelled defaults.
+    logMinDurationMin: param('h7.logMinDurationMin', 120, 'A', 'H7', ['costa-2017-eigs-sr'], {
+      unit: 'min',
+      note: 'A run of at least this long can be logged and counted toward the ladder (a run of at least h7.gutTrainingSessionMinMin counts in a gut-training week). The review puts the threshold for significant gut strain at 2 h at about 60% VO2max; the app judges by duration alone.',
+    }),
+    rungReachFraction: param('h7.rungReachFraction', 0.9, 'D', 'H7', [], {
+      unit: 'fraction',
+      note: 'Default: a run reaches a rung when its carbohydrate rate over elapsed time is at least this fraction of the rung, which allows for a gel taken a few minutes late. No study sets a tolerance.',
+    }),
+    multiCarbMinShare: param(
+      'h7.multiCarbMinShare',
+      0.5,
+      'D',
+      'H7',
+      ['jeukendrup-2014-cho-intake'],
+      {
+        unit: 'fraction',
+        note: 'Default: above the first higher tier at least this share of the carbohydrate eaten comes from products with more than one transportable carbohydrate for the run to count. The review asks for multiple transportable carbohydrates above about 60 g/h; no study sets a share.',
+      },
+    ),
+    stepUpToleratedRuns: param(
+      'h7.stepUpToleratedRuns',
+      1,
+      'D',
+      'H7',
+      ['martinez-2023-gut-training-sr'],
+      {
+        unit: 'runs',
+        note: 'Default: one tolerated run opens the next step. The gut-training trials repeated the challenge for 2 weeks and the review found no established count, so the hold and fall-back rules carry the caution.',
+      },
+    ),
+    immediateFallbackScore: param(
+      'h7.immediateFallbackScore',
+      4,
+      'D',
+      'H7',
+      ['stuempfle-2015-gi-distress-wser'],
+      {
+        unit: 'score',
+        note: 'Default: a run scored this high (very severe on the 0-4 scale) returns the target to the last tolerated rung at once, without waiting for a second run. GI symptoms were a reason for dropping out for 35.6% of 161 km non-finishers (descriptive).',
+      },
+    ),
+    nauseaContingencyScore: param(
+      'h7.nauseaContingencyScore',
+      2,
+      'D',
+      'H7',
+      ['stuempfle-2015-gi-distress-wser', 'costa-2017-eigs-sr'],
+      {
+        unit: 'score',
+        note: 'Default: a nausea score this high on a counted run brings the nausea plan (simpler fuel, a slower pace) forward; the same cut-off as h7.gutStopScore. The sources name the plan, not the score.',
+      },
+    ),
+    hotDayWbgtC: param(
+      'h7.hotDayWbgtC',
+      18,
+      'D',
+      'H7',
+      ['costa-2017-eigs-sr', 'stuempfle-2015-gi-distress-wser'],
+      {
+        unit: 'C WBGT',
+        note: 'Default: a run at or above this WBGT is a hot day for fuel, so the target does not step up. Gut strain and nausea rise with heat but no study sets a temperature. This is not the heat-steering threshold: isHotForSteering (shared/engine/heat.ts) uses i9.warnWbgtC, 25 C WBGT, to drop the heart-rate ceiling, a different question, so a day can be hot for fuel and not for steering.',
+      },
+    ),
+    hotDayAirTempC: param(
+      'h7.hotDayAirTempC',
+      25,
+      'D',
+      'H7',
+      ['costa-2017-eigs-sr', 'stuempfle-2015-gi-distress-wser'],
+      {
+        unit: 'C',
+        note: 'Default: when a run has an air temperature but no WBGT, at or above this is a hot day for fuel. isHotForSteering never treats an air temperature alone as hot; the fuel hold errs the other way because stepping up on a hot day is the riskier mistake.',
+      },
+    ),
+    gutBlockSessionsPerWeek: param('h7.gutBlockSessionsPerWeek', 3, 'D', 'H7', GUT, {
+      unit: 'runs per week',
+      note: 'Default: at most this many runs of h7.gutTrainingSessionMinMin or more carry the fuel-practice flag in a gut-training week. The trials used near-daily 1 h sessions for 2 weeks and no study sets a weekly count; the flag adds no session, so only runs already in the plan are marked.',
+    }),
   },
   h8: {
     fluidReferenceMlPerH: param<[number, number]>(
@@ -359,7 +450,7 @@ export const hUltra = {
       ['hoffman-2013-eah-hydration-161km'],
       {
         unit: '% body mass',
-        note: 'Weight loss up to 3% is fine; weight gain is a red flag.',
+        note: 'Weight loss up to 3% is fine; weight gain is a warning sign.',
       },
     ),
   },
@@ -440,7 +531,7 @@ export const hUltra = {
       ],
       {
         unit: 'min per run',
-        note: 'Default. The marathon first step is the dose of one small randomised trial of recreational runners (40 min at first-threshold heart rate), grade B there; the value is graded D because it also caps the first step after 50 km and longer races, where it extrapolates to the 25-45 min jogs coaches describe.',
+        note: 'Default. The marathon first step is the dose of one small randomised trial of recreational runners (40 min at first-threshold heart rate), grade B there; the value is graded D because it also caps the first step after 50K and longer races, where it extrapolates to the 25-45 min jogs coaches describe.',
       },
     ),
     step1MaxRuns: param(
@@ -455,7 +546,7 @@ export const hUltra = {
       ],
       {
         unit: 'runs',
-        note: 'Default. The marathon first step is the schedule of one small randomised trial (days 2, 4 and 6, three runs on non-consecutive days), grade B there; the value is graded D because it also caps the first step after 50 km and longer races, where it is an extrapolation.',
+        note: 'Default. The marathon first step is the schedule of one small randomised trial (days 2, 4 and 6, three runs on non-consecutive days), grade B there; the value is graded D because it also caps the first step after 50K and longer races, where it is an extrapolation.',
       },
     ),
     step2RunMaxMin: param(
@@ -477,7 +568,7 @@ export const hUltra = {
       ['cts-2025-koop-ultra-recovery', 'skurka-2017-roche-100-recovery'],
       {
         unit: 'min',
-        note: 'Default: from the third step on, the longest run of a week is at most this long; an engineering default with no study behind it.',
+        note: 'Default: from the third step on, the longest run of a week is at most this long; an engineering default that no study supports.',
       },
     ),
     modifierMultiplier: param(
@@ -597,7 +688,7 @@ export const hUltra = {
       ],
       {
         unit: 'days',
-        note: 'Default: days without running after a race of 80.5 to 130 km; no 100 km time course exists, and 118 km data show raised damage markers at days 3 and 7.',
+        note: 'Default: days without running after a race of 80.5 to 130 km; no 100K time course exists, and 118 km data show raised damage markers at days 3 and 7.',
       },
     ),
     ultra100mi: param(

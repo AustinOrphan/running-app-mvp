@@ -8,10 +8,27 @@
 //   counts when it persists (j3.persistenceDays) or when an objective flag comes with a poor
 //   subjective score [J3]. Sleep is a weekly signal (J5) and never flags a single day.
 // - HRV uses rMSSD only (hrvSdnn is Apple's measure and is never mixed in), on the ln scale.
+import { SIGNAL_LIMIT } from '../copy/limits.ts'
+import type { TemplateId } from '../copy/templates.ts'
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
-import type { PlanSession, TodayView } from '../types.ts'
+import type {
+  PlanSession,
+  ReadinessSignal,
+  ReadinessSignalCode,
+  ReadinessVerdict,
+  TodayView,
+} from '../types.ts'
+import { illnessGate, type IllnessGate } from './disruption.ts'
 import { P } from './params/index.ts'
-import type { Checkin, EngineInput, ReadinessSnapshot, SessionKind, SessionSpec } from './types.ts'
+import type {
+  Checkin,
+  EngineInput,
+  Quantity,
+  ReadinessSnapshot,
+  SessionKind,
+  SessionSpec,
+  ZoneSet,
+} from './types.ts'
 
 type WellnessRow = EngineInput['wellness'][number]
 type Advice = TodayView['sessions'][number]['advice']
@@ -125,8 +142,15 @@ export function poorSubjective(checkin: Checkin | null): boolean {
 }
 
 interface HrvEval {
+  /** Earlier readings plus today's own, as the snapshot reports them. */
   readings: number
+  /** Earlier readings the range is built from: the count `j4.minReadings` is tested against. */
+  baseline: number
+  /** Days before the date the baseline is read from: the cycle-aware lookback of the profile. */
+  lookback: number
   latest: number | null
+  /** The reading itself in ms; `latest` is its natural log. */
+  latestMs: number | null
   mean: number | null
   sd: number | null
   flag: boolean
@@ -150,14 +174,24 @@ function hrvOn(ctx: Ctx, date: string): HrvEval {
   const base = cyclic ? prior : prior.slice(0, P.j4.windowDays.value)
   const latestMs = validPositive(ctx.byDate.get(date)?.hrvRmssd)
   const latest = latestMs === null ? null : Math.log(latestMs)
-  const readings = base.length + (latestMs === null ? 0 : 1)
-  if (base.length < P.j4.minReadings.value) {
-    return { readings, latest, mean: null, sd: null, flag: false }
+  const baseline = base.length
+  const readings = baseline + (latestMs === null ? 0 : 1)
+  if (baseline < P.j4.minReadings.value) {
+    return { readings, baseline, lookback, latest, latestMs, mean: null, sd: null, flag: false }
   }
   const baseMean = mean(base)
   const baseSd = sampleSd(base)
   if (latestMs === null || latest === null) {
-    return { readings, latest, mean: baseMean, sd: baseSd, flag: false }
+    return {
+      readings,
+      baseline,
+      lookback,
+      latest,
+      latestMs,
+      mean: baseMean,
+      sd: baseSd,
+      flag: false,
+    }
   }
   const floorPct =
     P.j4.noiseFloorGarminPolarWhoopPct.value + (cyclic ? P.j4.cycleBandWidenPp.value : 0)
@@ -176,30 +210,70 @@ function hrvOn(ctx: Ctx, date: string): HrvEval {
     chain.length === days + 1 &&
     chain.every((v, i) => i === 0 || chain[i - 1]! < v) &&
     (1 - latestMs / chain[days]!) * 100 >= floorPct
-  return { readings, latest, mean: baseMean, sd: baseSd, flag: belowBand || falling }
+  return {
+    readings,
+    baseline,
+    lookback,
+    latest,
+    latestMs,
+    mean: baseMean,
+    sd: baseSd,
+    flag: belowBand || falling,
+  }
 }
 
-/** Resting HR this far above its rolling mean corroborates, never acts alone [rules J2, J4]. */
-function restingHrFlagOn(ctx: Ctx, date: string): boolean {
+interface RestingHrEval {
+  /** The reading on the day, or null. */
+  latest: number | null
+  /** Mean of the rolling baseline; null with too few readings. */
+  mean: number | null
+  flag: boolean
+}
+
+/**
+ * Resting HR against its rolling mean [rules J2, J4]. A reading this far above the mean
+ * corroborates a flag and never acts alone.
+ */
+function restingHrEval(ctx: Ctx, date: string): RestingHrEval {
   const latest = validPositive(ctx.byDate.get(date)?.restingHr)
-  if (latest === null) return false
+  if (latest === null) return { latest: null, mean: null, flag: false }
   const base: number[] = []
   for (let k = 1; k <= P.j4.lookbackDays.value && base.length < P.j4.windowDays.value; k++) {
     const v = validPositive(ctx.byDate.get(addDays(date, -k))?.restingHr)
     if (v !== null) base.push(v)
   }
-  if (base.length < P.j4.minReadings.value) return false
-  return latest >= mean(base) + P.j4.restingHrAboveBpm.value
+  if (base.length < P.j4.minReadings.value) return { latest, mean: null, flag: false }
+  const baseMean = mean(base)
+  return { latest, mean: baseMean, flag: latest >= baseMean + P.j4.restingHrAboveBpm.value }
+}
+
+/** True when resting HR is flagged high on `date` [rules J2, J4]. */
+function restingHrFlagOn(ctx: Ctx, date: string): boolean {
+  return restingHrEval(ctx, date).flag
+}
+
+interface SleepEval {
+  /** Mean of the recorded nights in hours; null with too few of them. */
+  avgH: number | null
+  /** Nights with a recording among the last `j5.sleepWarnNights`. */
+  nights: number
 }
 
 /** Mean sleep of the last 7 nights in hours, or null with too few recorded nights [rules J5]. */
-function sleepAvgOn(ctx: Ctx, date: string): number | null {
+function sleepEval(ctx: Ctx, date: string): SleepEval {
   const hours: number[] = []
   for (let k = 0; k < P.j5.sleepWarnNights.value; k++) {
     const v = validPositive(ctx.byDate.get(addDays(date, -k))?.sleepSec)
     if (v !== null) hours.push(v / 3600)
   }
-  return hours.length >= P.j5.sleepMinNights.value ? mean(hours) : null
+  return {
+    avgH: hours.length >= P.j5.sleepMinNights.value ? mean(hours) : null,
+    nights: hours.length,
+  }
+}
+
+function sleepAvgOn(ctx: Ctx, date: string): number | null {
+  return sleepEval(ctx, date).avgH
 }
 
 interface DayFlags {
@@ -258,30 +332,17 @@ function declineStreakDays(ctx: Ctx, date: string): number {
   return streak
 }
 
-export type IllnessPhase = 'clear' | 'rest' | 'easy-only'
+export type { IllnessPhase } from './disruption.ts'
 
 /**
- * Return-from-illness gate [rules n-3]: rest through the symptom-free day, easy running for the
- * next easy days, intensity after. A day without an illness report counts as symptom-free;
- * illness is never inferred from HRV or resting HR.
+ * Return-from-illness gate [rules n-3] from the check-ins: rest through the symptom-free day, easy
+ * running for the next easy days, intensity after. A day without an illness report counts as
+ * symptom-free; illness is never inferred from HRV or resting HR. The gate itself is
+ * `illnessGate`, the only implementation of n-3, which rest windows share.
  */
-export function illnessPhase(
-  input: EngineInput,
-  date: string,
-): { phase: IllnessPhase; since: number | null } {
-  let last: string | null = null
-  for (const row of input.wellness) {
-    if (row.illness === true && row.date <= date && (last === null || row.date > last)) {
-      last = row.date
-    }
-  }
-  if (last === null) return { phase: 'clear', since: null }
-  const since = daysBetween(last, date)
-  const free = P.n3.illnessSymptomFreeDays.value
-  const easy = P.n3.illnessEasyDaysBeforeIntensity.value
-  if (since <= free) return { phase: 'rest', since }
-  if (since <= free + easy) return { phase: 'easy-only', since }
-  return { phase: 'clear', since }
+export function illnessPhase(input: EngineInput, date: string): IllnessGate {
+  const illnessDays = input.wellness.filter((row) => row.illness === true).map((row) => row.date)
+  return illnessGate(illnessDays, date)
 }
 
 /**
@@ -378,6 +439,8 @@ export function readinessSnapshot(input: EngineInput, date: string): ReadinessSn
     // latest, baselineMean and baselineSd are on the ln(rMSSD) scale.
     hrv: {
       readings: hrv.readings,
+      baseline: hrv.baseline,
+      lookbackDays: hrv.lookback,
       latest: hrv.latest,
       baselineMean: hrv.mean,
       baselineSd: hrv.sd,
@@ -491,9 +554,62 @@ export function todayAdvice(
   })
 }
 
+/** Kinds the J3 downgrade leaves alone: already easy, not running, or the race itself. */
+const KEEPS_AS_IS: ReadonlySet<SessionKind> = new Set<SessionKind>([
+  'easy',
+  'recovery',
+  'strength',
+  'mobility',
+  'rest',
+  'cross',
+  'hike',
+  'race',
+])
+
+/**
+ * The J3 downgrade made concrete: the session as an easy run [rules J3]. Same day, order and
+ * minutes (never longer), kind `easy`, title "Easy run", one steady Z1 step, no distance (time is
+ * the unit), the Z1 targets of the current zones, the registry's easy RPE, the rules plus `J3`,
+ * and no flags but `heat`. Everything else on the input is kept as it is, the id and the status
+ * above all, so the cached hero, a watch event and an undo all point at one row.
+ *
+ * Easy, recovery and non-run sessions (and the race) come back unchanged. Only called for the
+ * advice `downgrade-easy`; the advice `rest` withdraws the session instead. This is the only
+ * definition of an eased session; every surface calls it.
+ */
+export function easedSession<S extends SessionSpec>(session: S, zones: ZoneSet | null): S {
+  if (KEEPS_AS_IS.has(session.kind)) return session
+  return {
+    ...session,
+    kind: 'easy',
+    title: 'Easy run',
+    distanceM: null,
+    structure: [
+      {
+        kind: 'steady',
+        reps: 1,
+        durationSec: session.durationMin * 60,
+        distanceM: null,
+        zone: 'z1',
+      },
+    ],
+    target: {
+      zone: 'z1',
+      rpe: [...P.expectedRpe.easy.value],
+      hr: zones?.hr ? [...zones.hr.z1] : null,
+      paceSecPerKm: zones?.pace ? [...zones.pace.z1] : null,
+      heatNote: session.target.heatNote,
+    },
+    purpose: `Eased from ${session.title}: readiness signals have stayed lower than usual, so an easy run keeps the day.`,
+    rules: [...new Set([...session.rules, 'J3'])],
+    flags: session.flags.filter((flag) => flag === 'heat'),
+  }
+}
+
 /** The prescription as a plan session; fields the engine does not know take neutral defaults. */
 function toPlanSession(s: SessionSpec & { id: string }): PlanSession {
   return {
+    externalId: '',
     planId: '',
     weekStart: mondayOf(s.date),
     status: 'planned',
@@ -514,4 +630,216 @@ export function sleepAverageH(input: EngineInput, date: string): number | null {
 /** True when ln rMSSD is flagged low on `date` [rules J4]. */
 export function hrvFlaggedOn(input: EngineInput, date: string): boolean {
   return hrvOn(makeCtx(input), date).flag
+}
+
+// ---------------------------------------------------------------------------------------------
+// The readiness read on Today: a verdict and the few signals behind it [design 7.5]
+// ---------------------------------------------------------------------------------------------
+// Both return a template id and its slots, never prose: `renderFact` writes the sentence in the
+// runner's units, and the copy-lint test renders every id (`shared/copy/today.ts`).
+
+type Slots = ReadinessSignal['slots']
+
+/** The templates this module builds, checked against the registry at compile time. */
+const T = {
+  illnessRest: 'today.signal.illness-rest',
+  illnessEasy: 'today.signal.illness-easy',
+  pain: 'today.signal.pain',
+  painBone: 'today.signal.pain-bone',
+  hrv: 'today.signal.hrv',
+  hrvLow: 'today.signal.hrv-low',
+  hrvBuilding: 'today.signal.hrv-building',
+  restingHr: 'today.signal.resting-hr',
+  restingHrHigh: 'today.signal.resting-hr-high',
+  restingHrOnly: 'today.signal.resting-hr-only',
+  sleep: 'today.signal.sleep',
+  sleepLow: 'today.signal.sleep-low',
+  checkinItems: 'today.signal.checkin-items',
+  checkinItemsLow: 'today.signal.checkin-items-low',
+} as const satisfies Record<string, TemplateId>
+
+/** The fatigue row's answers, 1 (fresh) to 5 (drained). */
+const FATIGUE_TEMPLATES = [
+  'today.signal.checkin-fresh',
+  'today.signal.checkin-good',
+  'today.signal.checkin-normal',
+  'today.signal.checkin-tired',
+  'today.signal.checkin-drained',
+] as const satisfies readonly TemplateId[]
+
+const VERDICT_TEMPLATES = {
+  ready: 'today.verdict.ready',
+  'low-stays': 'today.verdict.low-stays',
+  'low-plan-stays': 'today.verdict.low-plan-stays',
+  easy: 'today.verdict.easy',
+  rest: 'today.verdict.rest',
+  'lighter-week': 'today.verdict.lighter-week',
+  'no-signals': 'today.verdict.no-signals',
+} as const satisfies Record<ReadinessVerdict['code'], TemplateId>
+
+const count = (n: number): Quantity => ({ kind: 'count', n: Math.round(n) })
+const bpm = (value: number): Quantity => ({ kind: 'bpm', bpm: Math.round(value) })
+const duration = (hours: number): Quantity => ({ kind: 'duration', sec: Math.round(hours * 3600) })
+
+/**
+ * The readings behind today's verdict, at most `SIGNAL_LIMIT` [rules J2-J5, n-1 to n-3]. Noted
+ * readings (illness, pain at the red-flag score or focal bone pain, a low HRV, a high resting
+ * heart rate, short sleep, a poor check-in) come first; within each group the order is illness,
+ * pain, HRV, resting heart rate, sleep, check-in. A reading with no data gives no signal.
+ *
+ * HRV is shown in ms against the usual range, `exp(mean ± j4.sdBelowMean × sd)` of the ln
+ * baseline; below `j4.minReadings` earlier readings it says the range is still being built, with
+ * the count of earlier readings. The sleep average is judged at the whole minutes the sentence
+ * prints.
+ */
+export function readinessSignals(input: EngineInput, date: string): ReadinessSignal[] {
+  const ctx = makeCtx(input)
+  const found: ReadinessSignal[] = []
+  const add = (
+    code: ReadinessSignalCode,
+    noted: boolean,
+    template: TemplateId,
+    slots: Slots = {},
+  ) => {
+    found.push({ code, noted, template, slots })
+  }
+
+  const gate = illnessPhase(input, date)
+  if (gate.phase === 'rest') add('illness', true, T.illnessRest)
+  if (gate.phase === 'easy-only') add('illness', true, T.illnessEasy)
+
+  if (focalBoneActive(input, date)) {
+    add('pain', true, T.painBone)
+  } else {
+    const pain = recentPain(input, date)
+    if (pain !== null && pain > 0) {
+      add('pain', pain >= P.pain.flagScore.value, T.pain, { score: count(pain) })
+    }
+  }
+
+  const hrv = hrvOn(ctx, date)
+  if (hrv.mean !== null && hrv.sd !== null) {
+    if (hrv.latestMs !== null) {
+      const band = P.j4.sdBelowMean.value * hrv.sd
+      add('hrv', hrv.flag, hrv.flag ? T.hrvLow : T.hrv, {
+        latest: count(hrv.latestMs),
+        low: count(Math.exp(hrv.mean - band)),
+        high: count(Math.exp(hrv.mean + band)),
+      })
+    }
+  } else if (hrv.readings > 0) {
+    // The count is the one the minimum is tested against, so "10 of 10" always comes with a range.
+    add('hrv', false, T.hrvBuilding, {
+      readings: count(hrv.baseline),
+      needed: count(P.j4.minReadings.value),
+    })
+  }
+
+  const resting = restingHrEval(ctx, date)
+  if (resting.latest !== null) {
+    if (resting.mean === null) {
+      add('resting-hr', false, T.restingHrOnly, { latest: bpm(resting.latest) })
+    } else {
+      // The difference is taken between the rounded figures so the sentence adds up.
+      const latest = Math.round(resting.latest)
+      const usual = Math.round(resting.mean)
+      add('resting-hr', resting.flag, resting.flag ? T.restingHrHigh : T.restingHr, {
+        latest: bpm(latest),
+        usual: bpm(usual),
+        ...(resting.flag ? { above: bpm(latest - usual) } : {}),
+      })
+    }
+  }
+
+  const sleep = sleepEval(ctx, date)
+  if (sleep.avgH !== null) {
+    // Judged at the whole minutes the sentence prints, so a mean seconds under the floor is not
+    // noted beside "7 h ... under 7 h". `sleepFlag` and the J5 hold keep the exact comparison.
+    const avgMin = Math.round(Math.round(sleep.avgH * 3600) / 60)
+    const low = avgMin < Math.round(P.j5.sleepWarnHours.value * 60)
+    add('sleep', low, low ? T.sleepLow : T.sleep, {
+      hours: duration(avgMin / 60),
+      nights: count(sleep.nights),
+      ...(low ? { floor: duration(P.j5.sleepWarnHours.value) } : {}),
+    })
+  }
+
+  const checkin = checkinOn(input, date)
+  if (checkin !== null) {
+    const noted = poorSubjective(checkin)
+    // Fatigue is the first of the five items. Its own word names a noted signal only when fatigue
+    // is itself poor; when another answer set the signal off, "feeling fresh" would mislead.
+    const [fatigueBadness] = itemBadness(checkin)
+    if (checkin.fatigue !== null && (!noted || fatigueBadness! >= P.j2.poorItemBadness.value)) {
+      const index = Math.min(FATIGUE_TEMPLATES.length, Math.max(1, Math.round(checkin.fatigue))) - 1
+      add('checkin', noted, FATIGUE_TEMPLATES[index]!)
+    } else if (hasAnswers(checkin)) {
+      add('checkin', noted, noted ? T.checkinItemsLow : T.checkinItems)
+    }
+  }
+
+  return [...found.filter((s) => s.noted), ...found.filter((s) => !s.noted)].slice(0, SIGNAL_LIMIT)
+}
+
+/** True when a check-in answers one of the five scales; pain and illness alone do not. */
+function hasAnswers(checkin: Checkin): boolean {
+  return (
+    checkin.fatigue !== null ||
+    checkin.soreness !== null ||
+    checkin.sleepQuality !== null ||
+    checkin.mood !== null ||
+    checkin.stress !== null
+  )
+}
+
+/** The most severe of several advices: rest over an easy run over as planned. */
+export function strongestAdvice(advices: readonly Advice[]): Advice {
+  return advices.reduce<Advice>(
+    (worst, advice) => (ADVICE_RANK[advice] > ADVICE_RANK[worst] ? advice : worst),
+    'as-planned',
+  )
+}
+
+interface VerdictInput {
+  advice: Advice
+  state: ReadinessSnapshot['state']
+  signalCount: number
+  /** The kinds of today's planned sessions; empty when nothing is planned. */
+  sessionKinds: readonly SessionKind[]
+}
+
+/** The runs the sentence "already easy" may describe; the J3 downgrade leaves them alone. */
+const EASY_RUN_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
+  'easy',
+  'recovery',
+  'strides',
+])
+
+/** True when the day has a run and every run on it is easy, recovery or strides. */
+function runsAreEasy(kinds: readonly SessionKind[]): boolean {
+  const runs = kinds.filter((kind) => !NOT_RUNNING.has(kind))
+  return runs.length > 0 && runs.every((kind) => EASY_RUN_KINDS.has(kind))
+}
+
+/**
+ * The one line on what readiness means for today [rules J3, J8]. `advice` is the strongest advice
+ * across today's sessions (`strongestAdvice` over `todayAdvice`), `state` the snapshot's fatigue
+ * state, `signalCount` the number of readings that exist (`readinessSignals(...).length`) and
+ * `sessionKinds` the kinds of today's sessions (`session.kind` of each `todayAdvice` row), which
+ * decide whether low signals may say the day is "already easy". Readiness never adds load: every
+ * verdict is the plan as it is, an easier day or a rest day.
+ */
+export function readinessVerdict(input: VerdictInput): ReadinessVerdict {
+  const code = verdictCode(input)
+  return { code, template: VERDICT_TEMPLATES[code], slots: {} }
+}
+
+function verdictCode(input: VerdictInput): ReadinessVerdict['code'] {
+  if (input.advice === 'rest') return 'rest'
+  if (input.advice === 'downgrade-easy') return 'easy'
+  if (input.state === 'persistent-suppression') return 'lighter-week'
+  if (input.state === 'possible-fatigue') {
+    return runsAreEasy(input.sessionKinds) ? 'low-stays' : 'low-plan-stays'
+  }
+  return input.signalCount === 0 ? 'no-signals' : 'ready'
 }

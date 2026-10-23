@@ -1,21 +1,4 @@
-import type { Activity } from '../types.ts'
-
-export interface FastestEffort {
-  label: string
-  targetM: number
-  activityId: string
-  date: string
-  distanceM: number
-  durationSec: number
-  paceSecPerKm: number
-}
-
-export interface PeriodTotal {
-  runMin: number
-  runM: number
-  runs: number
-  longestRunMin: number
-}
+import type { ActivityCore, FastestEffort, PeriodTotal, StatsView } from '../types.ts'
 
 const EFFORT_TARGETS: ReadonlyArray<{ label: string; targetM: number }> = [
   { label: '1 mi', targetM: 1609.344 },
@@ -32,19 +15,20 @@ const WINDOW_MIN_PER_MILLE = 995
 const WINDOW_MAX_PER_MILLE = 1020
 
 // `possible` and `confirmed` duplicates are excluded from every statistic.
-function counts(activity: Activity): boolean {
+function counts(activity: ActivityCore): boolean {
   return activity.duplicateStatus === 'none' || activity.duplicateStatus === 'dismissed'
 }
 
-function isFasterOrEarlier(a: Activity, b: Activity): boolean {
+function isFasterOrEarlier(a: ActivityCore, b: ActivityCore): boolean {
   // pace = duration / distance; cross-multiply to compare without division.
   const left = a.durationSec * (b.distanceM ?? 0)
   const right = b.durationSec * (a.distanceM ?? 0)
   if (left !== right) return left < right
-  return a.date < b.date
+  // The id settles a full tie, so the answer does not depend on the order the rows arrive in.
+  return a.date !== b.date ? a.date < b.date : a.id < b.id
 }
 
-export function fastestEfforts(activities: Activity[]): FastestEffort[] {
+export function fastestEfforts(activities: ActivityCore[]): FastestEffort[] {
   const candidates = activities.filter(
     (a) =>
       counts(a) &&
@@ -55,7 +39,7 @@ export function fastestEfforts(activities: Activity[]): FastestEffort[] {
   )
   const efforts: FastestEffort[] = []
   for (const { label, targetM } of EFFORT_TARGETS) {
-    let best: Activity | null = null
+    let best: ActivityCore | null = null
     for (const a of candidates) {
       const d = a.distanceM ?? 0
       if (d * 1000 < targetM * WINDOW_MIN_PER_MILLE || d * 1000 > targetM * WINDOW_MAX_PER_MILLE) {
@@ -77,7 +61,7 @@ export function fastestEfforts(activities: Activity[]): FastestEffort[] {
   return efforts
 }
 
-function totalsBy(activities: Activity[], keyLength: number): Array<[string, PeriodTotal]> {
+function totalsBy(activities: ActivityCore[], keyLength: number): Array<[string, PeriodTotal]> {
   const sums = new Map<string, { sec: number; runM: number; runs: number; longestSec: number }>()
   for (const a of activities) {
     if (a.type !== 'run' || !counts(a)) continue
@@ -102,19 +86,35 @@ function totalsBy(activities: Activity[], keyLength: number): Array<[string, Per
     ])
 }
 
-export function monthlyTotals(activities: Activity[]): Array<PeriodTotal & { month: string }> {
+export function monthlyTotals(activities: ActivityCore[]): Array<PeriodTotal & { month: string }> {
   return totalsBy(activities, 7).map(([month, total]) => ({ month, ...total }))
 }
 
-export function yearlyTotals(activities: Activity[]): Array<PeriodTotal & { year: string }> {
+export function yearlyTotals(activities: ActivityCore[]): Array<PeriodTotal & { year: string }> {
   return totalsBy(activities, 4).map(([year, total]) => ({ year, ...total }))
 }
 
-export function longestRuns(activities: Activity[], limit = 10): Activity[] {
+export function longestRuns<T extends ActivityCore>(activities: T[], limit = 10): T[] {
   return activities
     .filter((a) => a.type === 'run' && counts(a))
     .sort(
-      (a, b) => b.durationSec - a.durationSec || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0),
+      (a, b) =>
+        b.durationSec - a.durationSec ||
+        (a.date < b.date ? 1 : a.date > b.date ? -1 : 0) ||
+        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
     )
     .slice(0, limit)
+}
+
+/**
+ * Every statistic of a history, in one value: what `GET /api/stats` returns. The result does not
+ * depend on the order of `activities`.
+ */
+export function statsOf(activities: ActivityCore[]): StatsView {
+  return {
+    monthly: monthlyTotals(activities),
+    yearly: yearlyTotals(activities),
+    efforts: fastestEfforts(activities),
+    longest: longestRuns(activities),
+  }
 }

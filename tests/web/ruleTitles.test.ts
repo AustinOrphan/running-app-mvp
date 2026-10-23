@@ -2,7 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { buildPlan } from '../../shared/engine/index.ts'
-import { allParams } from '../../shared/engine/params/index.ts'
+import { lintText } from '../../shared/copy/lint.ts'
+import { allParams, paramsForRule } from '../../shared/engine/params/index.ts'
 import { RULE_TITLES, ruleTitle } from '../../web/components/ruleTitles.ts'
 import { athletes } from '../unit/engine/matrix-fixtures.ts'
 
@@ -56,6 +57,33 @@ describe('RULE_TITLES', () => {
     expect(ruleTitle('J5')).toBe('Weekly decision')
   })
 
+  test('titles the back-test rule by what the runner sees, and its Params resolve to it', () => {
+    expect(RULE_TITLES['L7']).toBe('Prediction track record')
+    expect(ruleTitle('l7')).toBe('Prediction track record')
+    expect(ruleTitle('L6')).toBe('Minimum prediction band')
+    for (const p of paramsForRule('L7')) expect(ruleTitle(p.rule), p.id).not.toBeNull()
+  })
+
+  test('titles the disruption rule, and its Params resolve to it', () => {
+    expect(RULE_TITLES['J9']).toBe('Rest windows and returns')
+    expect(ruleTitle('j9')).toBe('Rest windows and returns')
+    expect(paramsForRule('J9')).toHaveLength(3)
+    for (const p of paramsForRule('J9')) expect(ruleTitle(p.rule), p.id).not.toBeNull()
+  })
+
+  test('titles the standout thresholds by what the runner sees, and their Params resolve to it', () => {
+    expect(RULE_TITLES['design-explain']).toBe('What stood out on a run')
+    expect(ruleTitle('DESIGN-EXPLAIN')).toBe('What stood out on a run')
+    const params = paramsForRule('design-explain')
+    expect(params.map((p) => p.id)).toEqual([
+      'standout.longestLookbackWeeks',
+      'standout.gradeNoteMinPct',
+      'standout.driftDeltaPp',
+      'standout.hrDeltaMinBpm',
+    ])
+    for (const p of params) expect(ruleTitle(p.rule), p.id).toBe('What stood out on a run')
+  })
+
   test('tells g-1 from G1, ignoring case but not hyphens', () => {
     expect(ruleTitle('g-1')).not.toBe(ruleTitle('G1'))
     expect(ruleTitle('G-1')).toBe('Session spike guard')
@@ -65,6 +93,15 @@ describe('RULE_TITLES', () => {
     // K-1 is not an id the engine uses.
     expect(ruleTitle('K-1')).toBeNull()
     expect(ruleTitle('zz-9')).toBeNull()
+  })
+
+  test('every title passes the G5 lint', () => {
+    const problems = Object.entries(RULE_TITLES).flatMap(([id, title]) =>
+      lintText(title).map(
+        (hit) => `${id}: "${hit.match}" (${hit.rule}) in ${JSON.stringify(title)}`,
+      ),
+    )
+    expect(problems).toEqual([])
   })
 
   test('has no raw id as a title', () => {

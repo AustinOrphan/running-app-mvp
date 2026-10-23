@@ -57,8 +57,11 @@ Non-goals (deliberately later; the schema must not block them):
 
 Anti-goals (would make v1 a failure even if it "works"):
 
-- Any automatic change to a training target without the owner's decision. Suggestions
-  explain themselves; people decide.
+- Any change to a training target that the owner cannot see and reverse. Changes the engine
+  makes on schedule are shown as revisions and can be undone; targets the owner set by hand are
+  kept unless a safety limit requires a lower week, and the change is shown as a revision.
+  (Amended 2026-10-23 by ADR 0007; it replaced "Any automatic change to a training target without
+  the owner's decision".)
 - A plan that makes up missed volume in later weeks.
 - Silent data loss on import (unparseable rows must be reported, not dropped).
 - Red or flaky CI, skipped tests, or test suites that only run in deploy workflows.

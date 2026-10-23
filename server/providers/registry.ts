@@ -2,28 +2,40 @@ import { notFound } from '../errors.ts'
 import { appleHealthPush } from './appleHealth.ts'
 import { garminProvider } from './garmin.ts'
 import { intervalsProvider } from './intervals.ts'
+import { intervalsPublish } from './intervalsPublish.ts'
 import { stravaProvider } from './strava.ts'
-import type { ProviderInfo, PullProvider, PushProvider, UploadProvider } from './types.ts'
+import type {
+  ProviderInfo,
+  PublishProvider,
+  PullProvider,
+  PushProvider,
+  UploadProvider,
+} from './types.ts'
 
 export interface RegisteredProvider {
   info: ProviderInfo
   pull?: PullProvider
   push?: PushProvider
   upload?: UploadProvider
+  publish?: PublishProvider
 }
 
-/** Every source, in display order. The `folder` provider has no module: the scheduler scans it. */
+/**
+ * Every source, in display order. The `folder` provider has no module: the scheduler scans it. The
+ * private calendar feed is not a provider (ADR 0008): it has no account to connect or sync.
+ */
 export const PROVIDERS: Record<string, RegisteredProvider> = {
   intervals: {
     info: {
       key: 'intervals',
       label: 'intervals.icu',
       experimental: false,
-      channels: ['pull'],
+      channels: ['pull', 'publish'],
       wellness: true,
       docsUrl: 'https://intervals.icu/api-docs.html',
     },
     pull: intervalsProvider,
+    publish: intervalsPublish,
   },
   strava: {
     info: {

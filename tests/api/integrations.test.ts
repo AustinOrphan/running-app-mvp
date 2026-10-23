@@ -2,12 +2,19 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import request from 'supertest'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { hashToken } from '../../server/crypto.ts'
 import { signState } from '../../server/providers/oauthState.ts'
 import { sealSecret, settleBackground } from '../../server/services/sync.ts'
 import { fakeFetch, type FakeRoute } from '../fakeFetch.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 const BASE = 'https://intervals.icu/api/v1'
 
@@ -31,7 +38,7 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
-  vi.unstubAllGlobals()
+  expectNoRefusedFetches(ctx)
 })
 
 function json(body: unknown, status = 200): Response {
@@ -41,9 +48,9 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-/** Replaces the global `fetch`, which the routes resolve per call. */
+/** Injects the `fetch` that the routes read from the deps at each call. */
 function stubFetch(routes: Record<string, FakeRoute>): void {
-  vi.stubGlobal('fetch', fakeFetch(routes))
+  ctx.fetch = fakeFetch(routes)
 }
 
 const intervalsRoutes: Record<string, FakeRoute> = {

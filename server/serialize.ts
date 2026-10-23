@@ -14,6 +14,7 @@ import type {
   WeeklyReview as WeeklyReviewRow,
   WellnessDay as WellnessDayRow,
 } from './db.ts'
+import type { CourseSnapshot, LoggedPrediction } from '../shared/engine/backtest.ts'
 import type {
   ChecklistResult,
   EngineWarning,
@@ -25,9 +26,15 @@ import type {
   SessionSpec,
   SessionTarget,
   Step,
+  WeeklyDecision,
 } from '../shared/engine/types.ts'
+import { undoReasonMessage } from '../shared/copy/revision.ts'
+import { P } from '../shared/engine/params/index.ts'
 import type {
   Activity,
+  ActivityCore,
+  ActivityListItem,
+  ActivityListPage,
   ActivityType,
   Checkin,
   AthleteProfile,
@@ -47,8 +54,9 @@ import type {
   IntegrationStatus,
   Plan,
   Phase,
-  PlanRevision,
+  PlanDiff,
   PlanRevisionReason,
+  PlanRevisionView,
   PlanSession,
   PlanSessionStatus,
   PlanWeek,
@@ -60,6 +68,8 @@ import type {
   Symptoms,
   TargetSource,
   Terrain,
+  UndoReasonCode,
+  UndoState,
   Weekday,
   WeeklyReview,
   WellnessDay,
@@ -75,7 +85,10 @@ function parseJson<T>(text: string | null, fallback: T): T {
   }
 }
 
-export function toActivity(row: ActivityRow): Activity {
+/** An activity row read without its heart-rate histogram (`ACTIVITY_LIST_OMIT`). */
+export type ActivityListRow = Omit<ActivityRow, 'hrHistogram'>
+
+export function toActivityListItem(row: ActivityListRow): ActivityListItem {
   return {
     id: row.id,
     userId: row.userId,
@@ -109,13 +122,19 @@ export function toActivity(row: ActivityRow): Activity {
     windKph: row.windKph,
     humidityPct: row.humidityPct,
     weatherSource: row.weatherSource as Activity['weatherSource'],
-    hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
     decouplingPct: row.decouplingPct,
     gapDistanceM: row.gapDistanceM,
     feel: row.feel as Feel | null,
     pain: row.pain,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
+export function toActivity(row: ActivityRow): Activity {
+  return {
+    ...toActivityListItem(row),
+    hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
   }
 }
 
@@ -344,9 +363,21 @@ export function toPlanEngineFields(row: PlanRow): {
   }
 }
 
+/** The rule id that marks a session the engine or an execution trim eased [design 4.3]. */
+const TRIM_RULE = 'design-4.3'
+
+/**
+ * Whether a session's rule ids mark it as trimmed. The one derivation of `PlanSession.trimmed`: every
+ * write of `rules` sets the column through this function, and nothing scans the stored JSON text.
+ */
+export function isTrimmed(rules: readonly string[]): boolean {
+  return rules.includes(TRIM_RULE)
+}
+
 export function toPlanSession(row: PlanSessionRow): PlanSession {
   return {
     id: row.id,
+    externalId: row.externalId,
     planId: row.planId,
     weekStart: row.weekStart,
     date: row.date,
@@ -376,7 +407,33 @@ export function toPlanSession(row: PlanSessionRow): PlanSession {
   }
 }
 
-export function toPlanRevision(row: PlanRevisionRow): PlanRevision {
+const DAY_MS = 86_400_000
+
+/**
+ * Whether a revision can be undone, as far as the revision itself says: it has a payload, is not
+ * undone, is not an undo and is younger than the undo window. The checks that read other rows (a
+ * touched row edited since, a run linked, a safety rule, the plan, the checklist) come with the
+ * undo itself; until then `available` means only that none of these four reasons applies.
+ */
+function undoStateOf(row: PlanRevisionRow, now: Date): UndoState {
+  const days = P.revision.undoWindowDays.value
+  let code: Extract<
+    UndoReasonCode,
+    'already-undone' | 'is-undo' | 'not-undoable' | 'window-passed'
+  > | null = null
+  if (row.undoneAt !== null) code = 'already-undone'
+  else if (row.reason === 'undo') code = 'is-undo'
+  else if (row.undo === null) code = 'not-undoable'
+  else if (now.getTime() - row.createdAt.getTime() >= days * DAY_MS) code = 'window-passed'
+  return {
+    available: code === null,
+    reasons: code === null ? [] : [{ code, message: undoReasonMessage(code, days) }],
+    undoneAt: row.undoneAt?.toISOString() ?? null,
+  }
+}
+
+/** A revision as the API serves it. The undo payload never leaves the server. */
+export function toPlanRevision(row: PlanRevisionRow, now: Date = new Date()): PlanRevisionView {
   return {
     id: row.id,
     planId: row.planId,
@@ -384,6 +441,13 @@ export function toPlanRevision(row: PlanRevisionRow): PlanRevision {
     reason: row.reason as PlanRevisionReason,
     summary: row.summary,
     changes: parseJson<PlanChange[]>(row.changes, []),
+    auto: row.auto,
+    decision: parseJson<WeeklyDecision | null>(row.decision, null),
+    diff: parseJson<PlanDiff | null>(row.diff, null),
+    undo: undoStateOf(row, now),
+    seenAt: row.seenAt?.toISOString() ?? null,
+    undoOf: row.undoOf,
+    disruptionId: row.disruptionId,
   }
 }
 
@@ -430,11 +494,40 @@ export function toPredictionLogEntry(row: PredictionLogRow): PredictionView['log
     id: row.id,
     goalId: row.goalId,
     createdAt: row.createdAt.toISOString(),
+    weekStart: row.weekStart,
+    loggedOn: row.loggedOn,
     method: row.method,
     predictedSec: row.predictedSec,
     lowSec: row.lowSec,
     highSec: row.highSec,
     actualSec: row.actualSec,
+  }
+}
+
+/**
+ * A log row as the back-test scorer reads it. `course` comes from the `inputs.course` snapshot and
+ * is null for a row logged before snapshots existed, which the scorer takes as comparable; a figure
+ * the snapshot lacks is null as well.
+ */
+export function toLoggedPrediction(row: PredictionLogRow): LoggedPrediction {
+  const inputs = parseJson<{ course?: unknown }>(row.inputs, {})
+  const stored = inputs.course
+  const figure = (value: unknown): number | null =>
+    typeof value === 'number' && Number.isFinite(value) ? value : null
+  const course: CourseSnapshot | null =
+    typeof stored === 'object' && stored !== null
+      ? {
+          distanceM: figure((stored as Record<string, unknown>).distanceM),
+          gainM: figure((stored as Record<string, unknown>).gainM),
+        }
+      : null
+  return {
+    weekStart: row.weekStart,
+    loggedOn: row.loggedOn,
+    predictedSec: row.predictedSec,
+    lowSec: row.lowSec,
+    highSec: row.highSec,
+    course,
   }
 }
 
@@ -462,16 +555,18 @@ export function toImportBatch(row: ImportBatchRow): ImportBatch {
   }
 }
 
-/** A user's activities, newest first, with flagged duplicates included. Dates are inclusive. */
-export async function loadActivities(
-  prisma: PrismaClient,
+/**
+ * A user's activities as the six columns the week rows and the statistics read, in no particular
+ * order, with flagged duplicates included. Dates are inclusive.
+ */
+export async function loadActivityCores(
+  prisma: Pick<PrismaClient, 'activity'>,
   userId: string,
-  opts: { from?: string; to?: string; type?: ActivityType } = {},
-): Promise<Activity[]> {
+  opts: { from?: string; to?: string } = {},
+): Promise<ActivityCore[]> {
   const rows = await prisma.activity.findMany({
     where: {
       userId,
-      ...(opts.type ? { type: opts.type } : {}),
       ...(opts.from || opts.to
         ? {
             date: {
@@ -481,7 +576,84 @@ export async function loadActivities(
           }
         : {}),
     },
+    select: {
+      id: true,
+      date: true,
+      type: true,
+      durationSec: true,
+      distanceM: true,
+      duplicateStatus: true,
+    },
+  })
+  return rows.map((row) => ({
+    ...row,
+    type: row.type as ActivityType,
+    duplicateStatus: row.duplicateStatus as DuplicateStatus,
+  }))
+}
+
+/** The column a list never reads: the heart-rate histogram is the largest and only the detail needs it. */
+const ACTIVITY_LIST_OMIT = { hrHistogram: true } as const
+
+/** The `where` of a user's activities in an inclusive date range, optionally of one type. */
+function activityWhere(userId: string, opts: { from?: string; to?: string; type?: ActivityType }) {
+  return {
+    userId,
+    ...(opts.type ? { type: opts.type } : {}),
+    ...(opts.from || opts.to
+      ? {
+          date: {
+            ...(opts.from ? { gte: opts.from } : {}),
+            ...(opts.to ? { lte: opts.to } : {}),
+          },
+        }
+      : {}),
+  }
+}
+
+/** A user's activities, newest first, with flagged duplicates included. Dates are inclusive. */
+export async function loadActivities(
+  prisma: PrismaClient,
+  userId: string,
+  opts: { from?: string; to?: string; type?: ActivityType } = {},
+): Promise<Activity[]> {
+  const rows = await prisma.activity.findMany({
+    where: activityWhere(userId, opts),
     orderBy: [{ date: 'desc' }, { startTime: 'desc' }, { createdAt: 'desc' }],
   })
   return rows.map(toActivity)
+}
+
+/**
+ * One page of a user's activities, newest first, without the heart-rate histogram. The order is
+ * total (date, start time, creation time, then `id`), so a row is never repeated or skipped
+ * between two pages of an unchanged list. Offset paging, not a cursor: `startTime` is nullable.
+ * The count and the page are two reads, not a transaction (a transaction ends with a data-version
+ * bump), so a write between them can leave `total` one off until the next request. The count is
+ * read after the page: a row inserted before the page read pushes the last row of the list onto
+ * the following page, and a count taken afterwards includes the new row, so `next < total` still
+ * offers that page. A count taken first would be one short and end the list a row early.
+ */
+export async function loadActivityPage(
+  prisma: Pick<PrismaClient, 'activity'>,
+  userId: string,
+  opts: { from?: string; to?: string; type?: ActivityType; limit: number; offset: number },
+): Promise<ActivityListPage> {
+  const where = activityWhere(userId, opts)
+  const rows = await prisma.activity.findMany({
+    where,
+    omit: ACTIVITY_LIST_OMIT,
+    orderBy: [{ date: 'desc' }, { startTime: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+    skip: opts.offset,
+    take: opts.limit,
+  })
+  const total = await prisma.activity.count({ where })
+  const next = opts.offset + rows.length
+  return {
+    items: rows.map(toActivityListItem),
+    total,
+    limit: opts.limit,
+    offset: opts.offset,
+    nextOffset: rows.length > 0 && next < total ? next : null,
+  }
 }

@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import type {
   ExecutionAssessment,
@@ -7,15 +7,16 @@ import type {
   Step,
   ZoneKey,
 } from '../../shared/engine/types.ts'
-import { addDays, isIsoDate } from '../../shared/dates.ts'
+import { addDays } from '../../shared/dates.ts'
 import { hasSubjectivePart } from '../../shared/engine/execution.ts'
 import { formatDistance, formatPace } from '../../shared/units.ts'
-import type { Activity, PlanSession, PlanSessionStatus, Units } from '../../shared/types.ts'
+import type { ActivityListItem, PlanSession, PlanSessionStatus, Units } from '../../shared/types.ts'
 import { useActivities } from '../api/activities.ts'
-import { useLinkPlanSession, useUpdatePlanSession } from '../api/plan.ts'
+import { useLinkPlanSession } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from './Button.tsx'
-import { Field, Input, Select } from './Field.tsx'
+import { Field, Select } from './Field.tsx'
+import { SessionChanges } from './SessionChanges.tsx'
 import { Sheet } from './Sheet.tsx'
 import { useToast } from './Toast.tsx'
 import { WhyDrawer } from './WhyDrawer.tsx'
@@ -73,6 +74,7 @@ const FLAG_LABELS: Record<SessionFlag, string> = {
   'run-walk': 'Run-walk intervals',
   'post-race': 'After the race: easy running only',
   'injury-return': 'Return-to-running step',
+  'rest-window': 'Rest window',
 }
 
 const COMPLETION_LABELS: Record<ExecutionAssessment['completion'], string> = {
@@ -150,7 +152,7 @@ function paceText(range: [number, number], units: Units): string {
   return `${value(fast)} to ${value(slow)} /${units}`
 }
 
-function activityLabel(activity: Activity, units: Units | undefined): string {
+function activityLabel(activity: ActivityListItem, units: Units | undefined): string {
   const parts = [
     `${formatWeekday(activity.date)} ${formatShortDate(activity.date)}`,
     `${String(Math.round(activity.durationSec / 60))}${NBSP}min`,
@@ -342,138 +344,6 @@ function LinkSection({ session, units }: { session: PlanSession; units: Units | 
   )
 }
 
-function ChangeSection({ session, onClose }: SessionSheetProps) {
-  const formId = useId()
-  const toast = useToast()
-  const update = useUpdatePlanSession()
-  const [date, setDate] = useState(session.date)
-  const [error, setError] = useState<string | null>(null)
-  const [confirming, setConfirming] = useState(false)
-  const done = session.status === 'completed' || session.status === 'partial'
-  const unchanged = !isIsoDate(date) || date === session.date
-
-  function move(event: FormEvent) {
-    event.preventDefault()
-    if (unchanged) return
-    setError(null)
-    update.mutate(
-      { id: session.id, patch: { date } },
-      {
-        onSuccess: () => {
-          toast.show(`Session moved to ${formatWeekday(date)} ${formatShortDate(date)}`)
-          onClose()
-        },
-        onError: (err) => {
-          setError(err.message)
-        },
-      },
-    )
-  }
-
-  function skip(skipped: boolean) {
-    setError(null)
-    update.mutate(
-      { id: session.id, patch: { skip: skipped } },
-      {
-        onSuccess: () => {
-          toast.show(skipped ? 'Session skipped' : 'Session restored')
-          onClose()
-        },
-        onError: (err) => {
-          setError(err.message)
-          setConfirming(false)
-        },
-      },
-    )
-  }
-
-  return (
-    <section className={styles.section} aria-labelledby={`${formId}-title`}>
-      <h3 id={`${formId}-title`} className={styles.heading}>
-        Change this session
-      </h3>
-      <form className={styles.inline} onSubmit={move} noValidate>
-        <Field label="Move to">
-          {(a) => (
-            <Input
-              {...a}
-              type="date"
-              value={date}
-              disabled={done}
-              onChange={(e) => {
-                setDate(e.target.value)
-              }}
-            />
-          )}
-        </Field>
-        <Button
-          type="submit"
-          variant="secondary"
-          disabled={done || unchanged}
-          loading={update.isPending}
-        >
-          Move session
-        </Button>
-      </form>
-      <p className={styles.muted}>
-        A move is checked against spacing and the weekly limits before it is saved.
-      </p>
-      {session.status === 'skipped' ? (
-        <div>
-          <Button
-            variant="secondary"
-            loading={update.isPending}
-            onClick={() => {
-              skip(false)
-            }}
-          >
-            Restore session
-          </Button>
-        </div>
-      ) : confirming ? (
-        <div className={styles.inline} role="group" aria-label="Confirm skipping">
-          <p>Skip this session?</p>
-          <Button
-            variant="secondary"
-            loading={update.isPending}
-            onClick={() => {
-              skip(true)
-            }}
-          >
-            Yes, skip it
-          </Button>
-          <Button
-            variant="quiet"
-            onClick={() => {
-              setConfirming(false)
-            }}
-          >
-            Keep it
-          </Button>
-        </div>
-      ) : (
-        <div>
-          <Button
-            variant="secondary"
-            disabled={done}
-            onClick={() => {
-              setConfirming(true)
-            }}
-          >
-            Skip session
-          </Button>
-        </div>
-      )}
-      <p className={styles.muted}>A skipped session is not made up later.</p>
-      {error !== null ? (
-        <p role="alert" className={styles.error}>
-          {error}
-        </p>
-      ) : null}
-    </section>
-  )
-}
-
 /** Prescription, steps, why drawer, linked activity, execution assessment, link, move, skip. */
 export function SessionSheet({ session, onClose }: SessionSheetProps) {
   const settings = useSettings()
@@ -554,7 +424,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
             <Assessment execution={session.execution} activityId={session.activityId} />
           ) : null}
           <LinkSection session={session} units={units} />
-          <ChangeSection session={session} onClose={onClose} />
+          <SessionChanges session={session} onClose={onClose} />
         </div>
       </Sheet>
       <WhyDrawer

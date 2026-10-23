@@ -4,6 +4,7 @@ import { isIsoDate } from '../../shared/dates.ts'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { toGoal } from '../serialize.ts'
+import { warmWeatherCaches } from '../services/weatherCache.ts'
 
 /** Trimmed text; an empty string becomes null. */
 const optionalText = (max: number) =>
@@ -69,11 +70,28 @@ const goalFields = z.object({
   supportLevel: z.enum(['aided', 'self']).default('aided'),
 })
 
-/** A goal type the caller chose as `time` needs a target; a defaulted one does not. */
+const RACE_PLACE_PAIR = 'Give both race coordinates, or neither.'
+
+/** The field a half-set race place is missing, or null when both or neither are set. */
+function missingRaceCoordinate(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+): 'raceLat' | 'raceLng' | null {
+  if ((lat == null) === (lng == null)) return null
+  return lat == null ? 'raceLat' : 'raceLng'
+}
+
+/**
+ * A goal type the caller chose as `time` needs a target; a defaulted one does not. The race place
+ * is a pair: its climate is read for one point, so a lone coordinate is refused (as the profile's
+ * home place is).
+ */
 const goalBody = goalFields.superRefine((body, ctx) => {
   if (body.goalType === 'time' && body.targetTimeSec == null) {
     ctx.addIssue({ code: 'custom', path: ['targetTimeSec'], message: TARGET_TIME_REQUIRED })
   }
+  const missing = missingRaceCoordinate(body.raceLat, body.raceLng)
+  if (missing !== null) ctx.addIssue({ code: 'custom', path: [missing], message: RACE_PLACE_PAIR })
 })
 
 /** PUT changes only the fields it carries; a null or empty text field clears the value. */
@@ -98,6 +116,17 @@ const goalPatch = z.object({
   raceLng: goalFields.shape.raceLng,
   supportLevel: goalFields.shape.supportLevel.unwrap().optional(),
 })
+
+/** The fields the race climate is read for: place, date, start time, length and whether it is open. */
+const CLIMATE_FIELDS = [
+  'raceLat',
+  'raceLng',
+  'targetDate',
+  'startTime',
+  'distanceM',
+  'targetTimeSec',
+  'status',
+] as const
 
 function checkUrl(value: string | null | undefined): string | null | undefined {
   if (value === undefined) return undefined
@@ -153,6 +182,8 @@ export function goalsRouter(deps: Deps): Router {
         supportLevel: body.supportLevel,
       },
     })
+    // The race climate is read after the response, never during it.
+    warmWeatherCaches(deps, req.userId)
     res.status(201).json(toGoal(goal))
   })
 
@@ -173,6 +204,17 @@ export function goalsRouter(deps: Deps): Router {
         throw validationError(TARGET_TIME_REQUIRED, [
           { path: 'targetTimeSec', message: TARGET_TIME_REQUIRED },
         ])
+      }
+    }
+    // The place the goal ends up with must be a pair; a patch that leaves both coordinates alone
+    // does not re-judge a goal saved before this check.
+    if (body.raceLat !== undefined || body.raceLng !== undefined) {
+      const missing = missingRaceCoordinate(
+        body.raceLat === undefined ? existing.raceLat : body.raceLat,
+        body.raceLng === undefined ? existing.raceLng : body.raceLng,
+      )
+      if (missing !== null) {
+        throw validationError(RACE_PLACE_PAIR, [{ path: missing, message: RACE_PLACE_PAIR }])
       }
     }
     const goal = await prisma.goal.update({
@@ -201,6 +243,9 @@ export function goalsRouter(deps: Deps): Router {
         supportLevel: body.supportLevel,
       },
     })
+    if (CLIMATE_FIELDS.some((field) => body[field] !== undefined)) {
+      warmWeatherCaches(deps, req.userId)
+    }
     res.json(toGoal(goal))
   })
 

@@ -1,4 +1,5 @@
-import type { PlanChange, ZoneProposal } from '../../shared/engine/types.ts'
+import type { PlanChange } from '../../shared/engine/types.ts'
+import { zoneChangeOf } from '../../shared/engine/zoneChange.ts'
 import type { PlanPhase, Units } from '../../shared/types.ts'
 import { formatShortDate, isSessionKind, phaseLabel, sessionKindLabel } from './format.ts'
 import { PROPOSAL_LABELS, proposalValueText } from './zoneFormat.ts'
@@ -83,17 +84,21 @@ const FIELDS: Record<string, { label: string; format: Format }> = {
   'session.kind': { label: 'Session type', format: kind },
 }
 
-const ZONE_FIELD = /^zones\.(.+)$/
-
-/** A zone change (`zones.<boundary>`, from an accepted proposal), in the runner's unit. */
+/**
+ * A zone change (`zones.<boundary>`, an accepted proposal; `zones.<boundary>.declined`, a declined
+ * one), in the runner's unit.
+ */
 function zoneField(field: string, units: Units): { label: string; format: Format } | null {
-  const boundary = ZONE_FIELD.exec(field)?.[1]
-  if (boundary === undefined || !(boundary in PROPOSAL_LABELS)) return null
-  const key = boundary as ZoneProposal['boundary']
+  const zone = zoneChangeOf(field)
+  if (zone === null) return null
+  const { boundary, outcome } = zone
   return {
-    label: PROPOSAL_LABELS[key],
+    label:
+      outcome === 'accepted'
+        ? PROPOSAL_LABELS[boundary]
+        : `Declined proposal for ${PROPOSAL_LABELS[boundary].toLowerCase()}`,
     format: (value) =>
-      typeof value === 'number' ? proposalValueText(key, value, units) : plain(value),
+      typeof value === 'number' ? proposalValueText(boundary, value, units) : plain(value),
   }
 }
 

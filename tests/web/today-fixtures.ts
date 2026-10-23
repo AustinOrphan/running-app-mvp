@@ -5,6 +5,7 @@ export const TODAY = '2026-03-18'
 export function makeSession(over: Partial<PlanSession> = {}): PlanSession {
   return {
     id: 's1',
+    externalId: `ext-${over.id ?? 's1'}`,
     planId: 'p1',
     weekStart: '2026-03-16',
     date: TODAY,
@@ -45,7 +46,15 @@ export function makeToday(over: Partial<TodayView> = {}): TodayView {
     readiness: {
       date: TODAY,
       checkin: null,
-      hrv: { readings: 0, latest: null, baselineMean: null, baselineSd: null, flag: false },
+      hrv: {
+        readings: 0,
+        baseline: 0,
+        lookbackDays: 21,
+        latest: null,
+        baselineMean: null,
+        baselineSd: null,
+        flag: false,
+      },
       restingHrFlag: false,
       sleepAvgH: null,
       sleepFlag: false,

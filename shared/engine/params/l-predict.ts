@@ -44,7 +44,7 @@ export const lPredict = {
     ),
     sameDistanceTolerancePct: param('l1.sameDistanceTolerancePct', 5, 'D', 'L1', [], {
       unit: '% of target distance',
-      note: 'Default: a race within this much of the target distance anchors it directly at any distance, including a marathon or an ultra (L4 anchors on the marathon PB and prior ultra results).',
+      note: 'Default: a race within this much of the target distance anchors it directly at any distance, including a marathon or an ultra (L4 anchors on the fastest marathon time and prior ultra results).',
     }),
     refitWindowWeeks: param<[number, number]>(
       'l1.refitWindowWeeks',
@@ -262,8 +262,32 @@ export const lPredict = {
   l6: {
     minBandPct: param('l6.minBandPct', 3, 'C', 'L6', ['busso-2023-impulse-response-validity'], {
       unit: '% of predicted time',
-      note: 'Every model-based forecast carries at least +/- this until running back-tests exist.',
+      note: 'Every model-based forecast carries at least +/- this until at least 3 scored races exist (L7).',
     }),
+  },
+  l7: {
+    minRacesForSummary: param(
+      'l7.minRacesForSummary',
+      3,
+      'D',
+      'L7',
+      ['hecksteden-2015-individual-response', 'mann-2014-high-low-responders'],
+      {
+        unit: 'observations',
+        note: 'Default: the track record shows a pattern across races only from this many scored races, each race being one observation (G3: a prior moves toward the athlete only after 3 comparable observations).',
+      },
+    ),
+    courseTolerancePct: param(
+      'l7.courseTolerancePct',
+      2,
+      'D',
+      'L7',
+      ['blythe-2016-individual-prediction'],
+      {
+        unit: '% of the goal distance',
+        note: 'Default: a logged prediction is compared with a result when the course distance, with climb counted as flat distance (L5), is within this share of the raced distance; a goal edited between the two leaves the earlier predictions unscored.',
+      },
+    ),
   },
   mAge: {
     declinePctPerYear: param(

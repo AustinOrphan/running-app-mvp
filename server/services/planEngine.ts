@@ -1,25 +1,33 @@
 // Version-2 plans: generate with the engine, re-plan, persist weeks, sessions and revisions, and the
 // owner's edits to single sessions. The engine decides; this module gathers, persists and guards.
+import { randomUUID } from 'node:crypto'
 import { addDays, daysBetween, isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
+import {
+  acceptedZoneSummary,
+  declinedZoneSummary,
+  generatedSummary,
+  movedSummary,
+  restoredSummary,
+  skippedSummary,
+  swappedSummary,
+} from '../../shared/copy/revision.ts'
+import { carryExternalIds, pairSessions } from '../../shared/domain/sessionIdentity.ts'
 import { type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { weatherIndex, trainingHeatAdvice } from '../../shared/engine/heat.ts'
 import {
   buildPlan,
   keptByReplan,
-  replan,
   todayAdvice,
   weeklyDecision,
   weeklyRamp,
   zoneProposals,
 } from '../../shared/engine/index.ts'
 import { P } from '../../shared/engine/params/index.ts'
-import { readinessSnapshot } from '../../shared/engine/readiness.ts'
 import type {
   ChecklistResult,
   EngineInput,
   PlanChange,
-  PlanDraft,
   SessionKind,
   SessionSpec,
   WeekDraft,
@@ -27,9 +35,13 @@ import type {
   ZoneProposal,
   ZoneSet,
 } from '../../shared/engine/types.ts'
+import {
+  ZONE_CHANGE_MARK,
+  zoneChangeField,
+  zoneDecisionsOf,
+  type ZoneOutcome,
+} from '../../shared/engine/zoneChange.ts'
 import type {
-  PlanRevision,
-  PlanRevisionReason,
   PlanSession,
   PlanWithSessions,
   TodayView,
@@ -44,21 +56,26 @@ import type {
 } from '../db.ts'
 import { conflict, HttpError, notFound, validationError } from '../errors.ts'
 import {
+  isTrimmed,
   loadProfile,
   toPlan,
   toPlanEngineFields,
-  toPlanRevision,
   toPlanSession,
   toPlanWeek,
 } from '../serialize.ts'
+import { loadAthleteContext } from './athleteState.ts'
 import { assessSessionById } from './execution.ts'
 import { currentZones, gatherContextInput, gatherEngineInput, sessionSpec } from './engineInput.ts'
+import { ensureClimate } from './weatherCache.ts'
 import { MAX_PLAN_WEEKS } from './plan.ts'
+import { recordPrediction } from './predictionLog.ts'
+import { recordPlanWrite, revisionParts } from './replan.ts'
 
 /** A plan's rows are written in one transaction; long plans have a thousand sessions. */
-const WRITE_TIMEOUT_MS = 60_000
+export const WRITE_TIMEOUT_MS = 60_000
 
-type DbClient = Pick<PrismaClient, 'planRevision' | 'predictionLog'>
+// Re-plans and revisions are written by `replan.ts` (ADR 0007); the old name stays importable here.
+export { replanActivePlan } from './replan.ts'
 
 function json(value: unknown): string {
   return JSON.stringify(value)
@@ -101,7 +118,8 @@ export async function loadPlanWithSessions(
   return present(plan, zones)
 }
 
-function weekRow(week: WeekDraft) {
+/** The columns of a stored week that the engine derives from a draft week. */
+export function weekRow(week: WeekDraft) {
   return {
     weekStart: week.weekStart,
     index: week.index,
@@ -111,10 +129,10 @@ function weekRow(week: WeekDraft) {
     targetRunMin: week.targetRunMin,
     targetSource: 'baseline',
     longRunMin: week.longRunMin,
-    day2Min: null,
+    day2Min: null as number | null,
     runDays: week.runDays,
     strengthSessions: week.strengthSessions,
-    overrideNote: null,
+    overrideNote: null as string | null,
     tid: json(week.tid),
     flags: json(week.flags),
     gainTargetM: week.gainTargetM,
@@ -124,12 +142,16 @@ function weekRow(week: WeekDraft) {
 }
 
 /**
- * A new session row. A session the engine trimmed after a hold decision [rules J5, design 4.3] is
- * stored as downgraded, as an execution trim is.
+ * A new session row. `externalId` is the identity of the session outside the database (spec 4.1):
+ * a fresh uuid, or the one `externalId` carries over from the session this row replaces. `trimmed`
+ * follows `rules` through `isTrimmed`, and a session the engine trimmed after a hold decision
+ * [rules J5, design 4.3] is stored as downgraded, as an execution trim is.
  */
-function sessionRow(planId: string, spec: SessionSpec) {
+export function sessionRow(planId: string, spec: SessionSpec, externalId: string = randomUUID()) {
+  const trimmed = isTrimmed(spec.rules)
   return {
     planId,
+    externalId,
     weekStart: mondayOf(spec.date),
     date: spec.date,
     order: spec.order,
@@ -142,50 +164,13 @@ function sessionRow(planId: string, spec: SessionSpec) {
     target: json(spec.target),
     purpose: spec.purpose,
     rules: json(spec.rules),
+    trimmed,
     flags: json(spec.flags),
-    status: spec.rules.includes('design-4.3') ? 'downgraded' : 'planned',
+    status: trimmed ? 'downgraded' : 'planned',
   }
 }
 
-/** Writes a revision; callers inside a transaction pass the transaction client. */
-export async function writeRevision(
-  db: Pick<PrismaClient, 'planRevision'>,
-  planId: string,
-  reason: PlanRevisionReason,
-  summary: string,
-  changes: PlanChange[],
-): Promise<PlanRevision> {
-  const row = await db.planRevision.create({
-    data: { planId, reason, summary, changes: json(changes) },
-  })
-  return toPlanRevision(row)
-}
-
-async function logPrediction(
-  db: DbClient & Pick<PrismaClient, 'predictionLog'>,
-  args: { userId: string; goalId: string; draft: PlanDraft; today: string },
-): Promise<void> {
-  const { prediction } = args.draft
-  if (prediction === null) return
-  await db.predictionLog.create({
-    data: {
-      userId: args.userId,
-      goalId: args.goalId,
-      method: prediction.method,
-      predictedSec: Math.round(prediction.predictedSec),
-      lowSec: Math.round(prediction.lowSec),
-      highSec: Math.round(prediction.highSec),
-      inputs: json({
-        today: args.today,
-        conditions: prediction.conditions,
-        rules: prediction.rules,
-        paramsVersion: args.draft.paramsVersion,
-      }),
-    },
-  })
-}
-
-function failedChecklist(checklist: ChecklistResult[]): HttpError | null {
+export function failedChecklist(checklist: ChecklistResult[]): HttpError | null {
   const failed = checklist.filter((item) => !item.ok)
   if (failed.length === 0) return null
   return new HttpError(
@@ -221,6 +206,9 @@ export async function generateEnginePlan(
     throw validationError(`A plan covers at most ${MAX_PLAN_WEEKS} weeks. Choose a nearer goal.`)
   }
 
+  // The one wait on Open-Meteo in plan generation (8 s): a cold cache would otherwise build the
+  // first plan without race heat. Later plans, re-plans and every read use the cached climate.
+  await ensureClimate(deps, { userId, goalId: goal.id })
   const input = await gatherEngineInput(deps, { ...args, options: args.options ?? {} })
   const draft = buildPlan(input)
   const blocked = failedChecklist(draft.checklist)
@@ -228,6 +216,13 @@ export async function generateEnginePlan(
 
   const created = await prisma.$transaction(
     async (tx) => {
+      // The sessions of the plan being archived that are dated today or later hand their
+      // externalIds to the paired sessions of the new plan (spec 4.1).
+      const previous = await tx.planSession.findMany({
+        where: { plan: { userId, status: 'active' }, date: { gte: today } },
+        select: { externalId: true, date: true, kind: true, order: true },
+      })
+      const carried = carryExternalIds(previous, draft.sessions)
       await tx.plan.updateMany({
         where: { userId, status: 'active' },
         data: { status: 'archived' },
@@ -253,16 +248,19 @@ export async function generateEnginePlan(
         },
       })
       await tx.planSession.createMany({
-        data: draft.sessions.map((spec) => sessionRow(plan.id, spec)),
+        data: draft.sessions.map((spec, i) => sessionRow(plan.id, spec, carried[i] ?? undefined)),
       })
-      await writeRevision(
-        tx,
-        plan.id,
-        'generate',
-        `Plan generated for ${goal.name}: ${draft.weeks.length} weeks, ${draft.sessions.length} sessions.`,
-        [],
-      )
-      await logPrediction(tx, { userId, goalId: goal.id, draft, today })
+      // A new plan has no earlier rows to diff against, so its revision carries no diff.
+      await recordPlanWrite(tx, {
+        planId: plan.id,
+        userId,
+        reason: 'generate',
+        summary: generatedSummary(goal.name, draft.weeks.length, draft.sessions.length),
+        changes: [],
+        diff: null,
+        undo: null,
+      })
+      await recordPrediction(tx, { userId, goal, draft, input, today, mode: 'refresh' })
       return tx.plan.findUniqueOrThrow({
         where: { id: plan.id },
         include: {
@@ -276,30 +274,147 @@ export async function generateEnginePlan(
   return present(created, draft.zones)
 }
 
-function sameSlot(row: PlanSessionRow, spec: SessionSpec): boolean {
-  return row.date === spec.date && row.order === spec.order && row.kind === spec.kind
+/** The rows a re-plan wrote to a plan's sessions: what the revision diff and the undo payload read. */
+export interface SessionWriteSet {
+  created: PlanSessionRow[]
+  /** Full rows, so an undo can recreate them with their id and externalId. */
+  deleted: PlanSessionRow[]
+  /** Only the rows whose engine-derived columns changed; `before` and `after` are full rows. */
+  updated: Array<{ id: string; before: PlanSessionRow; after: PlanSessionRow }>
 }
 
-function describeChanges(changes: PlanChange[]): string {
-  if (changes.length === 0) return 'No changes to the plan.'
-  const weeks = new Set(changes.map((c) => c.weekStart)).size
-  return `${changes.length} change${changes.length === 1 ? '' : 's'} across ${weeks} week${weeks === 1 ? '' : 's'}.`
+/**
+ * The columns a re-plan rewrites in a paired row: the ones `sessionRow` derives from the spec,
+ * never `id`, `planId` or `externalId`. The activity link (`activityId`, `linkSource`, `execution`)
+ * stays; so do `status` and `original` of a linked row, because the link gave it that status.
+ */
+function replannedColumns(row: PlanSessionRow, spec: SessionSpec) {
+  const {
+    planId: _planId,
+    externalId: _externalId,
+    status,
+    ...columns
+  } = sessionRow(row.planId, spec, row.externalId)
+  // A fresh prescription has no earlier version: the owner's edit of this slot is gone.
+  return row.activityId === null ? { ...columns, status, original: null } : columns
 }
 
-/** The stored assessments of the sessions of one week, as the weekly decision reads them. */
-async function executionRecords(
-  prisma: PrismaClient,
+/**
+ * The draft's sessions that the re-plan does not already hold as kept rows. The engine copies each
+ * kept session unchanged into its draft, so the copy of a kept row is the draft entry with the
+ * row's own date, order and kind. This only removes those copies; which session is which across
+ * a re-plan is decided by `pairSessions`.
+ */
+function withoutKeptCopies(specs: SessionSpec[], kept: PlanSessionRow[]): SessionSpec[] {
+  const copies = [...kept]
+  return specs.filter((spec) => {
+    const at = copies.findIndex(
+      (r) => r.date === spec.date && r.order === spec.order && r.kind === spec.kind,
+    )
+    if (at < 0) return true
+    copies.splice(at, 1)
+    return false
+  })
+}
+
+/** What a re-plan will do to a plan's sessions, decided from the rows alone: nothing is written. */
+export interface SessionWritePlan {
+  /** Replaced rows with no counterpart in the draft. */
+  deleted: PlanSessionRow[]
+  /** Paired rows with a changed column; `data` is what the re-plan sets. */
+  updated: Array<{ before: PlanSessionRow; data: ReturnType<typeof replannedColumns> }>
+  /** Draft sessions with no counterpart; they get a fresh `externalId` when written. */
+  created: SessionSpec[]
+}
+
+/**
+ * Pairs a plan's stored sessions with a re-plan's draft (spec 4.1) and says what to write. Kept
+ * rows (`keptByReplan`) are left alone and stay out of pairing. Each replaced row is paired with a
+ * draft session by `pairSessions`: a paired row is updated in place, so its id, `externalId` and
+ * activity link survive; a replaced row with no counterpart is deleted; a draft session with no
+ * counterpart is created. A paired row whose columns already match is not written. Pure: the
+ * preview of a re-plan and its write both come from here.
+ */
+export function planSessionWrites(
+  rows: readonly PlanSessionRow[],
+  args: { today: string; sessions: SessionSpec[] },
+): SessionWritePlan {
+  // What the engine kept: the past, the finished sessions of the current week and the owner's
+  // edits of the next 14 days.
+  const isKept = (row: PlanSessionRow) =>
+    keptByReplan(
+      { date: row.date, status: row.status, rules: toPlanSession(row).rules },
+      args.today,
+    )
+  const kept = rows.filter(isKept)
+  const keptIds = new Set(kept.map((row) => row.id))
+  const replaced = rows.filter((row) => !keptIds.has(row.id))
+  const { paired, removed, added } = pairSessions(replaced, withoutKeptCopies(args.sessions, kept))
+
+  const updated: SessionWritePlan['updated'] = []
+  for (const { before, after: spec } of paired) {
+    const data = replannedColumns(before, spec)
+    const changed = (Object.keys(data) as Array<keyof typeof data>).some(
+      (column) => before[column] !== data[column],
+    )
+    if (changed) updated.push({ before, data })
+  }
+  return { deleted: removed, updated, created: added }
+}
+
+/**
+ * Writes a re-plan's sessions row by row (spec 4.1), from the rows as they are inside the
+ * transaction, as `planSessionWrites` decides, and returns what was written. A created session
+ * gets a fresh `externalId`. The caller passes the transaction client.
+ */
+export async function writeReplannedSessions(
+  tx: Pick<PrismaClient, 'planSession'>,
+  args: { planId: string; today: string; sessions: SessionSpec[] },
+): Promise<SessionWriteSet> {
+  const rows = await tx.planSession.findMany({ where: { planId: args.planId } })
+  const planned = planSessionWrites(rows, args)
+
+  const written: SessionWriteSet = { created: [], deleted: planned.deleted, updated: [] }
+  if (planned.deleted.length > 0) {
+    await tx.planSession.deleteMany({
+      where: { id: { in: planned.deleted.map((row) => row.id) } },
+    })
+  }
+  for (const { before, data } of planned.updated) {
+    const after = await tx.planSession.update({ where: { id: before.id }, data })
+    written.updated.push({ id: before.id, before, after })
+  }
+  if (planned.created.length > 0) {
+    written.created = await tx.planSession.createManyAndReturn({
+      data: planned.created.map((spec) => sessionRow(args.planId, spec)),
+    })
+  }
+  return written
+}
+
+/**
+ * The stored assessments of the sessions of each of `weekStarts`, as the weekly decision reads
+ * them: one session query for any number of weeks. Every requested week has an entry, empty when
+ * none of its sessions is assessed; each list is in session order.
+ */
+export async function executionRecordsByWeek(
+  prisma: Pick<PrismaClient, 'planSession'>,
   planId: string,
-  weekStart: string,
-): Promise<ExecutionRecord[]> {
+  weekStarts: string[],
+): Promise<Map<string, ExecutionRecord[]>> {
+  const byWeek = new Map<string, ExecutionRecord[]>(weekStarts.map((week) => [week, []]))
+  if (weekStarts.length === 0) return byWeek
   const rows = await prisma.planSession.findMany({
-    where: { planId, weekStart, execution: { not: null } },
+    where: { planId, weekStart: { in: weekStarts }, execution: { not: null } },
     orderBy: [{ date: 'asc' }, { order: 'asc' }],
   })
-  return rows.map((row) => {
+  for (const row of rows) {
     const session = toPlanSession(row)
-    return { date: session.date, kind: session.kind, assessment: session.execution! }
-  })
+    byWeek
+      .get(row.weekStart)
+      ?.push({ date: session.date, kind: session.kind, assessment: session.execution! })
+  }
+  return byWeek
 }
 
 /**
@@ -326,160 +441,21 @@ export async function weeklyDecisions(
   // hot days (heatFirstDays) and the sleep-efficiency drop are not derived from the data yet, so
   // those two holds of rule J5 do not fire.
   const ramp = weeklyRamp(estimateState(input))
-  for (const weekStart of args.weekStarts) {
-    if (!input.existing?.weeks.some((w) => w.weekStart === weekStart)) continue
+  const planned = args.weekStarts.filter((weekStart) =>
+    input.existing?.weeks.some((w) => w.weekStart === weekStart),
+  )
+  const executions = await executionRecordsByWeek(deps.prisma, plan.id, planned)
+  for (const weekStart of planned) {
     decisions.set(
       weekStart,
       weeklyDecision(input, weekStart, {
-        executions: await executionRecords(deps.prisma, plan.id, weekStart),
+        executions: executions.get(weekStart) ?? [],
         redsFlags: input.screeningFlags,
         ramp,
       }),
     )
   }
   return decisions
-}
-
-/** Re-plans the active plan from the updated state and writes a `PlanRevision`. */
-export async function replanActivePlan(
-  deps: Deps,
-  args: { userId: string; reason: PlanRevisionReason; today: string },
-): Promise<PlanRevision> {
-  const { prisma } = deps
-  const { userId, today } = args
-  const plan = await prisma.plan.findFirst({
-    where: { userId, status: 'active' },
-    orderBy: { createdAt: 'desc' },
-    include: { goal: true },
-  })
-  if (!plan) throw notFound('There is no active plan to re-plan.')
-  if (plan.generatorVersion < 2) {
-    throw validationError(
-      'This plan was made by the version-1 generator and cannot be re-planned. Generate a new plan.',
-    )
-  }
-  if (plan.goal.targetDate < today) {
-    throw validationError('The goal date has passed. Move the date or choose another goal.')
-  }
-  const options = JSON.parse(plan.options) as EngineInput['options']
-  const input = await gatherEngineInput(
-    deps,
-    { userId, goalId: plan.goalId, today, options },
-    { existing: true },
-  )
-  // The decision for the week that just finished goes into the summary and, after a reduce or a
-  // hold, caps the week that follows it; the owner's or review's lower target caps its week too
-  // and takes the place of the decision's number [rules g-2, J5].
-  const state = estimateState(input)
-  const currentMonday = mondayOf(today)
-  const lastWeek = addDays(currentMonday, -7)
-  const decision = input.existing?.weeks.some((w) => w.weekStart === lastWeek)
-    ? weeklyDecision(input, lastWeek, {
-        executions: await executionRecords(prisma, plan.id, lastWeek),
-        redsFlags: input.screeningFlags,
-        ramp: weeklyRamp(state),
-      })
-    : null
-  const weekCaps: Record<string, number> = {}
-  if (decision !== null && decision.decision !== 'progress') {
-    weekCaps[addDays(lastWeek, 7)] = decision.nextWeekTargetMin
-  }
-  const ownerWeeks = await prisma.planWeek.findMany({
-    where: {
-      planId: plan.id,
-      weekStart: { gte: currentMonday },
-      targetSource: { in: ['override', 'review'] },
-    },
-  })
-  for (const week of ownerWeeks) weekCaps[week.weekStart] = week.targetRunMin
-  // A hold trims the next quality session of the week it caps; a reduce makes it a recovery week.
-  const decisions: Record<string, WeeklyDecision['decision']> =
-    decision !== null && decision.decision !== 'progress'
-      ? { [addDays(lastWeek, 7)]: decision.decision }
-      : {}
-  const { draft, changes } = replan({ ...input, weekCaps }, { decisions })
-  const blocked = failedChecklist(draft.checklist)
-  if (blocked) throw blocked
-
-  const reason: PlanRevisionReason =
-    args.reason === 'weekly' && state.layoffDays >= P.j7.tier1Days.value ? 'break' : args.reason
-  const summary = [
-    describeChanges(changes),
-    decision
-      ? `Last week's decision: ${decision.decision}, next week up to ${decision.nextWeekTargetMin} min.`
-      : null,
-  ]
-    .filter((line): line is string => line !== null)
-    .join(' ')
-
-  const revision = await prisma.$transaction(
-    async (tx) => {
-      const rows = await tx.planSession.findMany({ where: { planId: plan.id } })
-      // What the engine kept: the past, the finished sessions of the current week and the owner's
-      // edits of the next 14 days.
-      const keptRows = rows.filter((r) =>
-        keptByReplan({ date: r.date, status: r.status, rules: toPlanSession(r).rules }, today),
-      )
-      const replaced = rows.filter((r) => !keptRows.includes(r))
-      await tx.planSession.deleteMany({ where: { id: { in: replaced.map((r) => r.id) } } })
-      const unmatched = [...keptRows]
-      const fresh: SessionSpec[] = []
-      for (const spec of draft.sessions) {
-        const at = unmatched.findIndex((r) => sameSlot(r, spec))
-        if (at >= 0) unmatched.splice(at, 1)
-        else fresh.push(spec)
-      }
-      await tx.planSession.createMany({ data: fresh.map((spec) => sessionRow(plan.id, spec)) })
-
-      const weeks = await tx.planWeek.findMany({ where: { planId: plan.id } })
-      const byStart = new Map(weeks.map((w) => [w.weekStart, w]))
-      const future = draft.weeks.filter((w) => w.weekStart >= currentMonday)
-      for (const week of future) {
-        const row = weekRow(week)
-        const old = byStart.get(week.weekStart)
-        if (!old) {
-          await tx.planWeek.create({ data: { ...row, planId: plan.id } })
-          continue
-        }
-        // The owner's working target stays while it is within the engine's limit [rules g-2].
-        const keep =
-          (old.targetSource === 'override' || old.targetSource === 'review') &&
-          old.targetRunMin <= week.targetRunMin
-        await tx.planWeek.update({
-          where: { id: old.id },
-          data: keep
-            ? {
-                ...row,
-                targetRunMin: old.targetRunMin,
-                targetSource: old.targetSource,
-                overrideNote: old.overrideNote,
-              }
-            : row,
-        })
-      }
-      const futureStarts = new Set(future.map((w) => w.weekStart))
-      const dropped = weeks.filter(
-        (w) => w.weekStart >= currentMonday && !futureStarts.has(w.weekStart),
-      )
-      if (dropped.length > 0) {
-        await tx.planWeek.deleteMany({ where: { id: { in: dropped.map((w) => w.id) } } })
-      }
-      await tx.plan.update({
-        where: { id: plan.id },
-        data: {
-          raceWeekStart: mondayOf(plan.goal.targetDate),
-          paramsVersion: draft.paramsVersion,
-          feasibility: json(draft.feasibility),
-          warnings: json(draft.warnings),
-          checklist: json(draft.checklist),
-        },
-      })
-      await logPrediction(tx, { userId, goalId: plan.goalId, draft, today })
-      return writeRevision(tx, plan.id, reason, summary, changes)
-    },
-    { timeout: WRITE_TIMEOUT_MS },
-  )
-  return revision
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -584,8 +560,40 @@ const SWAP_FIELDS = [
   'target',
   'purpose',
   'rules',
+  'trimmed',
   'flags',
 ] as const
+
+/**
+ * Writes the revision of an owner's edit: the rows it updated, in place, give the diff and the
+ * undo payload (spec 4.2). Call it inside the transaction that updated them.
+ */
+function recordOwnerEdit(
+  tx: Pick<PrismaClient, 'plan' | 'planRevision'>,
+  edit: {
+    planId: string
+    userId: string
+    summary: string
+    changes: PlanChange[]
+    updated: Array<{ before: PlanSessionRow; after: PlanSessionRow }>
+  },
+) {
+  const sessions: SessionWriteSet = {
+    created: [],
+    deleted: [],
+    updated: edit.updated.map(({ before, after }) => ({ id: after.id, before, after })),
+  }
+  const { diff, undo } = revisionParts({ sessions })
+  return recordPlanWrite(tx, {
+    planId: edit.planId,
+    userId: edit.userId,
+    reason: 'owner',
+    summary: edit.summary,
+    changes: edit.changes,
+    diff,
+    undo,
+  })
+}
 
 /** Owner edits: move within the week, swap kinds within the week, skip or restore. */
 export async function updatePlanSession(
@@ -594,7 +602,7 @@ export async function updatePlanSession(
 ): Promise<PlanSession> {
   const { prisma } = deps
   const { userId, today, patch } = args
-  const row = await ownedSession(deps, userId, args.sessionId)
+  const { plan: _plan, ...row } = await ownedSession(deps, userId, args.sessionId)
   const session = toPlanSession(row)
   const original = JSON.stringify(sessionSpec(session))
 
@@ -610,12 +618,11 @@ export async function updatePlanSession(
           where: { id: row.id },
           data: { status: 'skipped', original: row.original ?? original },
         })
-        await writeRevision(
-          tx,
-          row.planId,
-          'owner',
-          `Skipped ${session.title} on ${session.date}.`,
-          [
+        await recordOwnerEdit(tx, {
+          planId: row.planId,
+          userId,
+          summary: skippedSummary(session.title, session.date),
+          changes: [
             {
               weekStart: session.weekStart,
               field: 'session.status',
@@ -624,7 +631,8 @@ export async function updatePlanSession(
               rules: ['g-6'],
             },
           ],
-        )
+          updated: [{ before: row, after: updated }],
+        })
         return updated
       })
       return toPlanSession(saved)
@@ -635,12 +643,11 @@ export async function updatePlanSession(
         where: { id: row.id },
         data: { status: 'planned' },
       })
-      await writeRevision(
-        tx,
-        row.planId,
-        'owner',
-        `Restored ${session.title} on ${session.date}.`,
-        [
+      await recordOwnerEdit(tx, {
+        planId: row.planId,
+        userId,
+        summary: restoredSummary(session.title, session.date),
+        changes: [
           {
             weekStart: session.weekStart,
             field: 'session.status',
@@ -649,7 +656,8 @@ export async function updatePlanSession(
             rules: ['g-6'],
           },
         ],
-      )
+        updated: [{ before: row, after: updated }],
+      })
       return updated
     })
     return toPlanSession(saved)
@@ -690,12 +698,11 @@ export async function updatePlanSession(
         where: { id: row.id },
         data: { date: patch.date!, status: 'moved', original: row.original ?? original },
       })
-      await writeRevision(
-        tx,
-        row.planId,
-        'owner',
-        `Moved ${session.title} from ${session.date} to ${patch.date}.`,
-        [
+      await recordOwnerEdit(tx, {
+        planId: row.planId,
+        userId,
+        summary: movedSummary(session.title, session.date, patch.date!),
+        changes: [
           {
             weekStart: session.weekStart,
             field: 'session.date',
@@ -704,7 +711,8 @@ export async function updatePlanSession(
             rules: ['F1'],
           },
         ],
-      )
+        updated: [{ before: row, after: updated }],
+      })
       return updated
     })
     return toPlanSession(saved)
@@ -743,7 +751,7 @@ export async function updatePlanSession(
       mine[field] = partner[field]
       theirs[field] = row[field]
     }
-    await tx.planSession.update({
+    const partnerUpdated = await tx.planSession.update({
       where: { id: partner.id },
       data: {
         ...theirs,
@@ -755,12 +763,11 @@ export async function updatePlanSession(
       where: { id: row.id },
       data: { ...mine, status: 'moved', original: row.original ?? original },
     })
-    await writeRevision(
-      tx,
-      row.planId,
-      'owner',
-      `Swapped ${session.title} on ${session.date} with ${partner.title} on ${partner.date}.`,
-      [
+    await recordOwnerEdit(tx, {
+      planId: row.planId,
+      userId,
+      summary: swappedSummary(session.title, session.date, partner.title, partner.date),
+      changes: [
         {
           weekStart: session.weekStart,
           field: 'session.kind',
@@ -769,7 +776,11 @@ export async function updatePlanSession(
           rules: ['F1'],
         },
       ],
-    )
+      updated: [
+        { before: row, after: updated },
+        { before: partner, after: partnerUpdated },
+      ],
+    })
     return updated
   })
   return toPlanSession(saved)
@@ -835,12 +846,19 @@ export async function linkPlanSession(
 
 const DAY_MS = 86_400_000
 
-function proposalId(proposal: ZoneProposal): string {
+function proposalId(proposal: Pick<ZoneProposal, 'boundary' | 'from' | 'to'>): string {
   return `${proposal.boundary}-${proposal.from}-${proposal.to}`
 }
 
-function declinedSummary(id: string): string {
-  return `Declined zone proposal ${id}.`
+/** The change that records the owner's decision on a proposal; the values are the proposed ones. */
+function zoneChange(proposal: ZoneProposal, outcome: ZoneOutcome, today: string): PlanChange {
+  return {
+    weekStart: mondayOf(today),
+    field: zoneChangeField(proposal.boundary, outcome),
+    from: proposal.from,
+    to: proposal.to,
+    rules: proposal.rules,
+  }
 }
 
 /**
@@ -875,19 +893,29 @@ export async function listZoneProposals(
   const proposals = zoneProposals(input, executions)
   if (proposals.length === 0) return []
 
-  const declines = await prisma.planRevision.findMany({
+  // A decline is found by its stored change (`zones.<boundary>.declined`, the proposed values in
+  // `from` and `to`), never by the words of the summary.
+  const revisions = await prisma.planRevision.findMany({
     where: {
       plan: { userId: args.userId },
       reason: 'owner',
-      summary: { startsWith: 'Declined zone proposal ' },
+      changes: { contains: ZONE_CHANGE_MARK },
       createdAt: { gte: new Date(Date.now() - P.zoneProposal.windowDays.value * DAY_MS) },
     },
-    select: { summary: true },
+    select: { changes: true },
   })
-  const declined = new Set(declines.map((d) => d.summary))
+  const declined = new Set(
+    revisions.flatMap((revision) =>
+      zoneDecisionsOf(revision.changes)
+        .filter((decision) => decision.outcome === 'declined')
+        .map(({ boundary, change }) =>
+          proposalId({ boundary, from: change.from as number, to: change.to as number }),
+        ),
+    ),
+  )
   return proposals
     .map((proposal) => ({ ...proposal, id: proposalId(proposal) }))
-    .filter((proposal) => !declined.has(declinedSummary(proposal.id)))
+    .filter((proposal) => !declined.has(proposal.id))
 }
 
 /** Accepts (applies to the profile) or declines a proposal; the revision log keeps the record. */
@@ -904,7 +932,17 @@ export async function decideZoneProposal(
   })
 
   if (args.decision === 'decline') {
-    if (plan) await writeRevision(prisma, plan.id, 'owner', declinedSummary(proposal.id), [])
+    if (plan) {
+      await recordPlanWrite(prisma, {
+        planId: plan.id,
+        userId: args.userId,
+        reason: 'owner',
+        summary: declinedZoneSummary(proposal.boundary, args.today),
+        changes: [zoneChange(proposal, 'declined', args.today)],
+        diff: null,
+        undo: null,
+      })
+    }
     return
   }
   // Only the boundaries the profile stores can be applied; the others have no stored value.
@@ -922,21 +960,16 @@ export async function decideZoneProposal(
     throw conflict(`The ${proposal.boundary} boundary has no stored value to update.`)
   }
   if (plan) {
-    await writeRevision(
-      prisma,
-      plan.id,
-      'owner',
-      `Accepted zone proposal ${proposal.id}: ${proposal.boundary} from ${proposal.from} to ${proposal.to}.`,
-      [
-        {
-          weekStart: mondayOf(args.today),
-          field: `zones.${proposal.boundary}`,
-          from: proposal.from,
-          to: proposal.to,
-          rules: proposal.rules,
-        },
-      ],
-    )
+    // The profile is not a plan row, so there is nothing for a diff to show or an undo to restore.
+    await recordPlanWrite(prisma, {
+      planId: plan.id,
+      userId: args.userId,
+      reason: 'owner',
+      summary: acceptedZoneSummary(proposal.boundary, args.today),
+      changes: [zoneChange(proposal, 'accepted', args.today)],
+      diff: null,
+      undo: null,
+    })
   }
 }
 
@@ -959,10 +992,9 @@ export async function todayView(
 ): Promise<TodayView> {
   const { prisma } = deps
   const { userId, today } = args
-  const plan = await prisma.plan.findFirst({
-    where: { userId, status: 'active', generatorVersion: { gte: 2 } },
-    orderBy: { createdAt: 'desc' },
-  })
+  // The active version-2 plan and readiness come from the snapshot the input below is built on.
+  const context = await loadAthleteContext(deps, { userId, today })
+  const plan = context.plan
   const input = await gatherContextInput(
     deps,
     { userId, today, goalId: plan?.goalId ?? null },
@@ -980,7 +1012,11 @@ export async function todayView(
     sessions.map((s) => ({ ...sessionSpec(s), id: s.id })),
   ).map((entry, i) => ({ ...entry, session: sessions[i]! }))
 
-  const readiness = readinessSnapshot(input, today)
+  // The snapshot's readiness is shared and frozen, so the screening note goes on a copy.
+  const readiness: TodayView['readiness'] = {
+    ...context.readiness,
+    redFlags: [...context.readiness.redFlags],
+  }
   const reds = input.screeningFlags ?? 0
   if (reds >= P.j5.redsHoldFlags.value) {
     readiness.redFlags.push({

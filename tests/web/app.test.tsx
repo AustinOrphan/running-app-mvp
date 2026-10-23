@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, test } from 'vitest'
 import { App } from '../../web/App.tsx'
-import { mockApi, renderWithProviders } from './helpers.tsx'
+import { activityPage, mockApi, renderWithProviders } from './helpers.tsx'
 import { makeToday } from './today-fixtures.ts'
 
 const signedOut = {
@@ -44,7 +44,7 @@ describe('App routing', () => {
       'GET /api/plan': () => null,
       'GET /api/weeks': () => [],
       'GET /api/reviews': () => [],
-      'GET /api/activities': () => [],
+      'GET /api/activities': () => activityPage([]),
       'GET /api/today': () => makeToday(),
       'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'mi' }),
     })

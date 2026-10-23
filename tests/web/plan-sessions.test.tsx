@@ -5,7 +5,7 @@ import type { Goal, PlanWithSessions, PlanWithWeeks, WeekRow } from '../../share
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeActivity } from '../factories.ts'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import {
   makeRevision,
   makeSession,
@@ -49,7 +49,7 @@ function routes(plan: PlanWithSessions | PlanWithWeeks | null, extra: MockRoutes
     'GET /api/settings': () => settings,
     'GET /api/weeks': () => [] as WeekRow[],
     'GET /api/plan/revisions': () => [makeRevision()],
-    'GET /api/activities': () => [],
+    'GET /api/activities': () => activityPage([]),
     ...extra,
   }
 }
@@ -248,9 +248,10 @@ describe('Plan page, version-2 plans', () => {
           })
           return plan.sessions[1]
         },
-        'GET /api/activities': () => [
-          makeActivity({ id: 'act9', date: '2027-01-12', durationSec: 3300, distanceM: 9000 }),
-        ],
+        'GET /api/activities': () =>
+          activityPage([
+            makeActivity({ id: 'act9', date: '2027-01-12', durationSec: 3300, distanceM: 9000 }),
+          ]),
       }),
     )
     renderPlan()

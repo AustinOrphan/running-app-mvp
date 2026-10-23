@@ -1,15 +1,9 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
-import {
-  fastestEfforts,
-  longestRuns,
-  monthlyTotals,
-  yearlyTotals,
-} from '../../shared/domain/stats.ts'
 import type { Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace, minutesToHours1 } from '../../shared/units.ts'
-import { useActivities } from '../api/activities.ts'
 import { useSettings } from '../api/settings.ts'
+import { useStats } from '../api/stats.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { axisProps, chartColors, ChartTooltip, gridProps } from '../components/charts/theme.ts'
 import { WeeklyHoursChart } from '../components/charts/WeeklyHoursChart.tsx'
@@ -50,11 +44,11 @@ function distanceOrDash(distanceM: number, units: Units): string {
 export function StatsPage() {
   const today = todayIso()
   const thisWeek = mondayOf(today)
-  const activities = useActivities()
+  const stats = useStats()
   const weeks = useWeeks({ from: addDays(thisWeek, -7 * (HISTORY_WEEKS - 1)), to: thisWeek })
   const settings = useSettings()
 
-  if (activities.isError || weeks.isError || settings.isError) {
+  if (stats.isError || weeks.isError || settings.isError) {
     return (
       <>
         <PageHeader title="Stats" />
@@ -62,7 +56,7 @@ export function StatsPage() {
       </>
     )
   }
-  if (activities.data === undefined || weeks.data === undefined || settings.data === undefined) {
+  if (stats.data === undefined || weeks.data === undefined || settings.data === undefined) {
     return (
       <>
         <PageHeader title="Stats" />
@@ -72,10 +66,7 @@ export function StatsPage() {
   }
 
   const units = settings.data.units
-  const monthly = monthlyTotals(activities.data)
-  const yearly = yearlyTotals(activities.data)
-  const efforts = fastestEfforts(activities.data)
-  const longest = longestRuns(activities.data)
+  const { monthly, yearly, efforts, longest } = stats.data
 
   if (monthly.length === 0 && efforts.length === 0) {
     return (

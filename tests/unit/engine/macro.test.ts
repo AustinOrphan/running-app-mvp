@@ -13,10 +13,12 @@ import type {
   EngineInput,
   Feasibility,
   GoalModel,
+  SessionSpec,
   WeekDraft,
 } from '../../../shared/engine/types.ts'
 import type { Activity, AthleteProfile, Goal, WeekRow } from '../../../shared/types.ts'
 import { activity, input as e8Input, profile as e8Profile } from './e8-fixtures.ts'
+import { athletes } from './matrix-fixtures.ts'
 
 const TODAY = '2026-01-05' // a Monday
 
@@ -784,6 +786,35 @@ describe('macroPlan: fixed blocks', () => {
     expect(plan(goal('10k', 30)).some((w) => w.flags.includes('gut-training'))).toBe(false)
   })
 
+  it('ends the gut-training block before the first taper week for every marathon and ultra goal', () => {
+    for (const distanceClass of ['marathon', 'ultra50', 'ultra100k', 'ultra100mi'] as const) {
+      for (const weeksOut of [16, 20, 30, 40]) {
+        const weeks = plan(goal(distanceClass, weeksOut))
+        const gut = weeks.filter((w) => w.flags.includes('gut-training'))
+        const firstTaper = weeks.find((w) => w.phase === 'taper')!
+        expect(gut, `${distanceClass} ${String(weeksOut)} weeks out`).toHaveLength(
+          P.h7.gutTrainingWeeks.value,
+        )
+        expect(Math.max(...gut.map((w) => w.index))).toBeLessThan(firstTaper.index)
+        expect(gut.every((w) => w.phase === 'specific')).toBe(true)
+      }
+    }
+  })
+
+  it('leaves the gut-training block out when the option is false and changes nothing else', () => {
+    for (const distanceClass of ['marathon', 'ultra50', 'ultra100k', 'ultra100mi'] as const) {
+      const on = plan(goal(distanceClass, 30))
+      expect(on.some((w) => w.flags.includes('gut-training'))).toBe(true)
+      const off = plan(goal(distanceClass, 30), state(), { gutTraining: false })
+      expect(off.some((w) => w.flags.includes('gut-training'))).toBe(false)
+      expect(off).toEqual(
+        on.map((w) => ({ ...w, flags: w.flags.filter((f) => f !== 'gut-training') })),
+      )
+      // true is the same as absent
+      expect(plan(goal(distanceClass, 30), state(), { gutTraining: true })).toEqual(on)
+    }
+  })
+
   it('flags headlamp rehearsal weeks only for races that cross darkness', () => {
     const night = plan(goal('ultra100k', 30, { crossesDarkness: true }))
     const flagged = night.filter((w) => w.flags.includes('night'))
@@ -1185,5 +1216,82 @@ describe('buildPlan: the long runs of a 5 km or 10 km goal stay within 16 km [ru
     for (const w of built.weeks) {
       expect(w.longRunM ?? 0).toBeLessThanOrEqual(P.macroDesign.peakLongRunKmMax.value * 1000)
     }
+  })
+})
+
+describe('buildPlan: the gut-training option changes flags only [rule H7]', () => {
+  const withoutFuelMarks = (sessions: SessionSpec[]) =>
+    sessions.map((s) => ({
+      ...s,
+      flags: s.flags.filter((f) => f !== 'fuel-practice'),
+      rules: s.flags.includes('fuel-practice') ? s.rules.filter((r) => r !== 'H7') : s.rules,
+    }))
+  const LONG_KINDS = ['long', 'long-fast-finish', 'b2b']
+  const FUEL_KINDS = [...LONG_KINDS, 'easy', 'race-pace']
+
+  it('puts the block in at least one matrix plan, so the checks below are not vacuous', () => {
+    const withBlock = athletes().filter((a) =>
+      buildPlan(a.input).weeks.some((w) => w.flags.includes('gut-training')),
+    )
+    expect(withBlock.length).toBeGreaterThan(1)
+    expect(withBlock.every((a) => a.isUltra || a.input.goal.distanceClass === 'marathon')).toBe(
+      true,
+    )
+  })
+
+  describe.each(athletes())('$label', (a) => {
+    const on = buildPlan(a.input)
+    const off = buildPlan({ ...a.input, options: { ...a.input.options, gutTraining: false } })
+    const gutWeeks = on.weeks.filter((w) => w.flags.includes('gut-training'))
+
+    it('removes the week flags and the session flags with the option false, and nothing else', () => {
+      expect(off.weeks.some((w) => w.flags.includes('gut-training'))).toBe(false)
+      expect(off.sessions.some((s) => s.flags.includes('fuel-practice'))).toBe(false)
+      expect(off.weeks).toEqual(
+        on.weeks.map((w) => ({ ...w, flags: w.flags.filter((f) => f !== 'gut-training') })),
+      )
+      // minutes, days, zones, distances, titles and the other rules are those of the plan with it on
+      expect(off.sessions).toEqual(withoutFuelMarks(on.sessions))
+      expect({ ...off, weeks: [], sessions: [] }).toEqual({ ...on, weeks: [], sessions: [] })
+    })
+
+    it('ends the block before the first taper week', () => {
+      const firstTaper = on.weeks.find((w) => w.phase === 'taper')
+      if (a.isUltra || a.input.goal.distanceClass === 'marathon') {
+        expect(gutWeeks.length).toBeGreaterThan(0)
+        expect(gutWeeks.length).toBeLessThanOrEqual(P.h7.gutTrainingWeeks.value)
+        expect(Math.max(...gutWeeks.map((w) => w.index))).toBeLessThan(firstTaper!.index)
+      } else {
+        expect(gutWeeks).toHaveLength(0)
+      }
+    })
+
+    it('marks up to the weekly cap of long, easy and race-pace runs of the minimum length, and only in block weeks', () => {
+      for (const w of on.weeks) {
+        const sessions = on.sessions.filter((s) => mondayOf(s.date) === w.weekStart)
+        const marked = sessions.filter((s) => s.flags.includes('fuel-practice'))
+        if (!w.flags.includes('gut-training')) {
+          expect(marked, w.weekStart).toHaveLength(0)
+          continue
+        }
+        const eligible = sessions.filter(
+          (s) =>
+            FUEL_KINDS.includes(s.kind) && s.durationMin >= P.h7.gutTrainingSessionMinMin.value,
+        )
+        expect(marked.length, w.weekStart).toBe(
+          Math.min(eligible.length, P.h7.gutBlockSessionsPerWeek.value),
+        )
+        expect(marked.every((s) => eligible.includes(s) && s.rules.includes('H7'))).toBe(true)
+        // the long runs first (both days of a pair), then the longest, the earlier day on a tie
+        const family = (s: SessionSpec) => (LONG_KINDS.includes(s.kind) ? 0 : 1)
+        const expected = [...eligible]
+          .sort(
+            (x, y) =>
+              family(x) - family(y) || y.durationMin - x.durationMin || (x.date < y.date ? -1 : 1),
+          )
+          .slice(0, P.h7.gutBlockSessionsPerWeek.value)
+        expect(new Set(marked), w.weekStart).toEqual(new Set(expected))
+      }
+    })
   })
 })

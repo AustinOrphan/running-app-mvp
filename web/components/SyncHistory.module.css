@@ -1,0 +1,70 @@
+.history {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.runs,
+.failureList {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.run {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.when,
+.what,
+.note {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.when {
+  color: var(--text-muted);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.note {
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+}
+
+.failures {
+  margin-top: var(--space-2);
+}
+
+.failureList {
+  padding-left: var(--space-4);
+  color: var(--text-muted);
+  list-style: disc;
+  overflow-wrap: anywhere;
+}
+
+.failureList li + li {
+  margin-top: var(--space-1);
+}
+
+.failureList code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.problem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.problem .note {
+  margin: 0;
+}

@@ -2,6 +2,7 @@ import { expect, type APIResponse, type Page } from '@playwright/test'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { SESSION_COOKIE, signSession } from '../../server/auth/session.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
+import { clearUserData } from '../schemaModels.ts'
 import { E2E_DATABASE_URL } from './env.ts'
 
 /** Synthetic account shared by every spec. */
@@ -87,30 +88,25 @@ export async function signedInApi(page: Page, origin: string): Promise<Api> {
  * Empties everything the specs create, leaving the account, so each spec starts from a blank log
  * with no profile, check-ins, integrations or screenings left by an earlier spec.
  * It writes to the server's SQLite file directly: the API has no way to retire an active plan.
+ * The table list is derived from `prisma/schema.prisma` (every model with a `userId` column
+ * except `User`, children through their cascades, and the shared caches that have neither a
+ * `userId` nor a parent), so a model added later is cleared without editing this function;
+ * `tests/unit/server/resetData.test.ts` fails if one is skipped.
  */
 export async function resetData() {
   const prisma = createPrisma(E2E_DATABASE_URL)
   try {
     await initSqlite(prisma)
-    // Every table that holds a user's data; children of these cascade (streams, files, plan
-    // weeks, sessions and revisions, predictions).
-    await prisma.activity.deleteMany()
-    await prisma.importBatch.deleteMany()
-    await prisma.importedFile.deleteMany()
-    await prisma.weeklyReview.deleteMany()
-    await prisma.plan.deleteMany()
-    await prisma.goal.deleteMany()
-    await prisma.predictionLog.deleteMany()
-    await prisma.screening.deleteMany()
-    await prisma.wellnessDay.deleteMany()
-    await prisma.athleteProfile.deleteMany()
-    await prisma.integration.deleteMany()
+    await clearUserData(prisma)
   } finally {
     await prisma.$disconnect()
   }
 }
 
-/** The toast region announces confirmations; it is the one `role="status"` on a signed-in page. */
+/**
+ * The toast region announces confirmations. Some pages add a status line of their own (the data
+ * summary, the activity count), so the locator narrows by the message text.
+ */
 export function toast(page: Page, message: string | RegExp) {
   return page.getByRole('status').getByText(message)
 }

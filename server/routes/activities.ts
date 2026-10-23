@@ -3,12 +3,15 @@ import { Router } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
-import { loadActivities, toActivity } from '../serialize.ts'
+import { loadActivities, loadActivityPage, toActivity } from '../serialize.ts'
 import { markDuplicates, releaseDuplicates, releaseDuplicatesOf } from '../services/duplicates.ts'
 import { runExecutionQuietly } from '../services/execution.ts'
 import { findPossibleDuplicate } from '../../shared/domain/duplicates.ts'
 import { isIsoDate, todayIso } from '../../shared/dates.ts'
 import {
+  ACTIVITY_OFFSET_MAX,
+  ACTIVITY_PAGE_DEFAULT,
+  ACTIVITY_PAGE_MAX,
   MAX_DISTANCE_M,
   MAX_DURATION_SEC,
   MAX_ELEVATION_GAIN_M,
@@ -62,10 +65,25 @@ const activitySchema = z.object({
     .transform((value) => (value ? value : null)),
 })
 
+/** A whole number in a query string: digits only, then range-checked, with `message` on any miss. */
+function queryInt(min: number, max: number, message: string) {
+  return z
+    .string()
+    .regex(/^\d+$/, message)
+    .transform(Number)
+    .pipe(z.number().int().min(min, message).max(max, message))
+}
+
 const listSchema = z.object({
   from: dateSchema.optional(),
   to: dateSchema.optional(),
   type: z.enum(['run', 'race', 'strength', 'cross']).optional(),
+  limit: queryInt(1, ACTIVITY_PAGE_MAX, `Use a whole number from 1 to ${ACTIVITY_PAGE_MAX}.`)
+    .optional()
+    .transform((value) => value ?? ACTIVITY_PAGE_DEFAULT),
+  offset: queryInt(0, ACTIVITY_OFFSET_MAX, `Use a whole number from 0 to ${ACTIVITY_OFFSET_MAX}.`)
+    .optional()
+    .transform((value) => value ?? 0),
 })
 
 const feedbackSchema = z.strictObject({
@@ -169,7 +187,7 @@ export function activitiesRouter(deps: Deps): Router {
         { path: 'from', message: 'Use a start date on or before the end date.' },
       ])
     }
-    res.json(await loadActivities(prisma, req.userId, query))
+    res.json(await loadActivityPage(prisma, req.userId, query))
   })
 
   // Registered before /:id so "export.csv" is not read as an id.

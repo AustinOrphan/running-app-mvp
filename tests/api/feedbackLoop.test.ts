@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
@@ -9,8 +10,7 @@ import type {
   TodayView,
   WeeklyReview,
 } from '../../shared/types.ts'
-import { gatherContextInput, resetClimateCache } from '../../server/services/engineInput.ts'
-import { resetForecastCache } from '../../server/services/weather.ts'
+import { gatherContextInput } from '../../server/services/engineInput.ts'
 import request from 'supertest'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
@@ -39,8 +39,6 @@ afterAll(async () => {
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.setSystemTime(WEDNESDAY)
-  resetClimateCache()
-  resetForecastCache()
 })
 
 type ReviewView = WeeklyReview & {
@@ -175,6 +173,7 @@ async function planWith(
     const row = await ctx.prisma.planSession.create({
       data: {
         planId: plan.id,
+        externalId: randomUUID(),
         weekStart: mondayOf(s.date),
         date: s.date,
         order: i,

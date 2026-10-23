@@ -1,10 +1,10 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { addDays, isIsoDate, mondayOf, todayIso, weekStartsBetween } from '../../shared/dates.ts'
-import { aggregateWeeks } from '../../shared/domain/weeks.ts'
+import { activityLoadStart, aggregateWeeks } from '../../shared/domain/weeks.ts'
 import type { Deps } from '../app.ts'
 import { parse, validationError } from '../errors.ts'
-import { loadActivities } from '../serialize.ts'
+import { loadActivityCores } from '../serialize.ts'
 
 export const MAX_WEEKS = 260
 const DEFAULT_WEEKS = 12
@@ -36,8 +36,13 @@ export function weeksRouter(deps: Deps): Router {
 
   router.get('/', async (req, res) => {
     const weekStarts = parseWeekRange(req.query)
-    const last = weekStarts[weekStarts.length - 1] ?? mondayOf(todayIso())
-    const activities = await loadActivities(deps.prisma, req.userId, { to: addDays(last, 6) })
+    const first = weekStarts[0] ?? mondayOf(todayIso())
+    const last = weekStarts[weekStarts.length - 1] ?? first
+    // Six columns, from the lookback of the first row to the end of the last week.
+    const activities = await loadActivityCores(deps.prisma, req.userId, {
+      from: activityLoadStart(first),
+      to: addDays(last, 6),
+    })
     res.json(aggregateWeeks(activities, weekStarts))
   })
 

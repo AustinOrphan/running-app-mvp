@@ -67,6 +67,28 @@ export function todayIso(now: Date = new Date()): string {
   return `${year}-${month}-${day}`
 }
 
+/**
+ * The calendar date of `now` in the IANA zone `tz` ("America/Chicago"), as `YYYY-MM-DD`. Unlike
+ * `todayIso` it never reads the machine's zone, so a phone in one zone can compute the server's
+ * day in another. Throws a RangeError for an unknown zone or an invalid `now`.
+ */
+export function isoDateInZone(now: Date, tz: string): string {
+  if (Number.isNaN(now.getTime())) throw new RangeError('Invalid date')
+  let parts: Intl.DateTimeFormatPart[]
+  try {
+    parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(now)
+  } catch {
+    throw new RangeError(`Invalid time zone: ${JSON.stringify(tz)}`)
+  }
+  const part = (type: 'year' | 'month' | 'day') => parts.find((p) => p.type === type)?.value ?? ''
+  return `${part('year').padStart(4, '0')}-${part('month')}-${part('day')}`
+}
+
 /** Mondays from mondayOf(from) to mondayOf(to), inclusive; empty when `from` is after `to`. */
 export function weekStartsBetween(from: string, to: string): string[] {
   const first = mondayOf(from)
@@ -79,4 +101,56 @@ export function weekStartsBetween(from: string, to: string): string[] {
 /** Days left in the week through Sunday, including `date`: Monday 7, Sunday 1. */
 export function daysLeftInWeek(date: string): number {
   return 7 - daysBetween(mondayOf(date), date)
+}
+
+// Display formatting. en-GB, read in UTC so the viewer's time zone never shifts the day.
+
+const dateFormat = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+const weekdayNameFormat = new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'UTC' })
+
+/** The pieces of a `YYYY-MM-DD` date. Throws a RangeError for anything else. */
+function dateParts(iso: string): Record<'weekday' | 'day' | 'month' | 'year', string> {
+  const ms = toUtcMs(iso)
+  if (ms === null) throw new RangeError(`Invalid date: ${iso}`)
+  const result = { weekday: '', day: '', month: '', year: '' }
+  for (const part of dateFormat.formatToParts(new Date(ms))) {
+    if (part.type in result) result[part.type as keyof typeof result] = part.value
+  }
+  return result
+}
+
+/** "19 Oct" */
+export function formatShortDate(iso: string): string {
+  const { day, month } = dateParts(iso)
+  return `${day} ${month}`
+}
+
+/** "Mon" */
+export function formatWeekday(iso: string): string {
+  return dateParts(iso).weekday
+}
+
+/** "Monday" */
+export function formatWeekdayName(iso: string): string {
+  const ms = toUtcMs(iso)
+  if (ms === null) throw new RangeError(`Invalid date: ${iso}`)
+  return weekdayNameFormat.format(new Date(ms))
+}
+
+/** "Mon 19 Oct" */
+export function formatWeekdayDate(iso: string): string {
+  const { weekday, day, month } = dateParts(iso)
+  return `${weekday} ${day} ${month}`
+}
+
+/** "Mon 19 Oct 2026" */
+export function formatLongDate(iso: string): string {
+  const { weekday, day, month, year } = dateParts(iso)
+  return `${weekday} ${day} ${month} ${year}`
 }

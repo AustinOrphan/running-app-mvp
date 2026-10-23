@@ -165,7 +165,8 @@ export function matchSessions(
 // Conditions and HR qualification
 // ---------------------------------------------------------------------------------------------
 
-function wbgtOf(activity: Activity): number | null {
+/** The WBGT of the weather an activity recorded, from the Liljegren model; null without temperature and humidity. */
+export function wbgtOf(activity: Activity): number | null {
   if (activity.tempC === null || activity.humidityPct === null) return null
   return liljegrenWbgt({
     tempC: activity.tempC,
@@ -175,7 +176,8 @@ function wbgtOf(activity: Activity): number | null {
   })
 }
 
-function heatExcessC(wbgtC: number | null): number {
+/** Degrees of WBGT above the heat-adjustment threshold, 0 below it or without a reading. */
+export function heatExcessC(wbgtC: number | null): number {
   return wbgtC === null ? 0 : Math.max(0, wbgtC - P.conditions.heatAdjustAboveWbgtC.value)
 }
 

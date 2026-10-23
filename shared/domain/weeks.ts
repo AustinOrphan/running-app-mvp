@@ -1,6 +1,28 @@
 import type { Activity, WeekRow } from '../types.ts'
 import { addDays, mondayOf } from '../dates.ts'
 
+/**
+ * How many weeks `streak3Plus` counts at most, and how far before the first requested week the
+ * activities that feed a range are loaded. No screen reads a longer streak, so a longer history is
+ * neither loaded nor counted.
+ */
+export const STREAK_LOOKBACK_WEEKS = 52
+
+/** The five columns of an activity that the week rows read. */
+export type WeekCore = Pick<
+  Activity,
+  'date' | 'type' | 'durationSec' | 'distanceM' | 'duplicateStatus'
+>
+
+/**
+ * The first date of the activities that a range of weeks needs, given its first Monday. The row of
+ * that week reads back 3 weeks for `avg4wRunMin` and `STREAK_LOOKBACK_WEEKS - 1` for the streak, so
+ * a start a whole `STREAK_LOOKBACK_WEEKS` earlier covers both.
+ */
+export function activityLoadStart(firstWeek: string): string {
+  return addDays(firstWeek, -7 * STREAK_LOOKBACK_WEEKS)
+}
+
 interface WeekTotals {
   runSec: number
   runM: number
@@ -30,12 +52,13 @@ const toMinutes = (sec: number) => Math.round(sec / 60)
 /**
  * Builds one WeekRow per entry of `weekStarts`, in the same order.
  *
- * Pass every activity up to the last requested week, not only the requested
- * range: `avg4wRunMin` and `streak3Plus` look back before the first row.
+ * Pass every activity from `activityLoadStart(first week)` to the last requested week, not only
+ * the requested range: `avg4wRunMin` and `streak3Plus` look back before the first row.
+ * `streak3Plus` counts at most `STREAK_LOOKBACK_WEEKS` weeks.
  * Activities flagged as `possible` or `confirmed` duplicates are excluded.
  * Throws RangeError for a malformed date or a week start that is not a Monday.
  */
-export function aggregateWeeks(activities: Activity[], weekStarts: string[]): WeekRow[] {
+export function aggregateWeeks(activities: WeekCore[], weekStarts: string[]): WeekRow[] {
   const buckets = new Map<string, WeekTotals>()
   let earliestWeek: string | null = null
 
@@ -87,7 +110,7 @@ export function aggregateWeeks(activities: Activity[], weekStarts: string[]): We
     if (earliestWeek !== null) {
       for (
         let week = weekStart;
-        week >= earliestWeek && sessionsOf(week) >= 3;
+        week >= earliestWeek && streak3Plus < STREAK_LOOKBACK_WEEKS && sessionsOf(week) >= 3;
         week = addDays(week, -7)
       ) {
         streak3Plus += 1

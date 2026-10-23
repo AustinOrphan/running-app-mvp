@@ -267,7 +267,7 @@ export const mExecution = {
   pain: {
     flagScore: param('pain.flagScore', 4, 'D', 'design-4.2', [], {
       unit: 'pain score 0-10',
-      note: 'Default: a pain score at or above this raises the pain red flag at once; focal bone pain raises it at any score.',
+      note: 'Default: a pain score at or above this raises the pain warning sign at once; focal bone pain raises it at any score.',
     }),
   },
   conditions: {

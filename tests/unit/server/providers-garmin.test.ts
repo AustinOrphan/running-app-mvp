@@ -4,6 +4,7 @@ import { HttpError } from '../../../server/errors.ts'
 import { garminProvider } from '../../../server/providers/garmin.ts'
 import {
   RateLimitPause,
+  WellnessTruncated,
   type ProviderCtx,
   type RemoteActivityRef,
 } from '../../../server/providers/types.ts'
@@ -657,7 +658,7 @@ describe('garmin connect: wellness', () => {
     ])
   })
 
-  it('looks back at most 30 days', async () => {
+  it('looks back at most 30 days, newest first, and returns them oldest first', async () => {
     const dates: string[] = []
     const h = makeCtx(
       {
@@ -670,8 +671,11 @@ describe('garmin connect: wellness', () => {
     )
     const days = await garminProvider.listWellness?.('2026-01-01', '2026-10-22', h.ctx)
     expect(days).toHaveLength(30)
-    expect(dates[0]).toBe('2026-09-23')
-    expect(dates.at(-1)).toBe('2026-10-22')
+    // Readiness needs the latest days, so they are asked for first.
+    expect(dates[0]).toBe('2026-10-22')
+    expect(dates.at(-1)).toBe('2026-09-23')
+    expect(days?.[0]?.date).toBe('2026-09-23')
+    expect(days?.at(-1)?.date).toBe('2026-10-22')
   })
 
   it('skips days without data but fails on a server error', async () => {
@@ -692,8 +696,82 @@ describe('garmin connect: wellness', () => {
       { [sleepUrl]: () => new Response('slow down', { status: 429 }) },
       { secret: secretFor('wellpause') },
     )
-    await expect(
-      garminProvider.listWellness?.('2026-10-20', '2026-10-22', h.ctx),
-    ).rejects.toBeInstanceOf(RateLimitPause)
+    const error = await garminProvider
+      .listWellness?.('2026-10-20', '2026-10-22', h.ctx)
+      .catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(RateLimitPause)
+    // Only a spent request budget truncates; a refusal by Garmin is a plain pause.
+    expect(error).not.toBeInstanceOf(WellnessTruncated)
+  })
+
+  describe('when the request budget runs out', () => {
+    const downloadUrl = `GET ${API}/download-service/files/activity/`
+    const routes = (perDay: 'one' | 'two'): Record<string, FakeRoute> => ({
+      [downloadUrl]: () => new Response('missing', { status: 404 }),
+      [sleepUrl]: (req) => {
+        const date = new URL(req.url).searchParams.get('date') ?? ''
+        return Response.json({
+          dailySleepDTO: { sleepTimeSeconds: 27_000 },
+          ...(perDay === 'one' ? { avgOvernightHrv: 50 } : {}),
+          restingHeartRate: 48,
+          note: date,
+        })
+      },
+      [`GET ${API}/hrv-service/hrv/`]: () => Response.json({ hrvSummary: { lastNightAvg: 55 } }),
+    })
+
+    /** Uses `n` of the run's 200 requests on activity downloads, as a long backfill would. */
+    async function spend(h: Harness, n: number): Promise<void> {
+      for (let i = 0; i < n; i += 1) await garminProvider.fetchActivity(ref, h.ctx)
+    }
+
+    it('throws WellnessTruncated with the days read, oldest first, and the days asked for', async () => {
+      const h = makeCtx(routes('one'), { secret: secretFor('trunc') })
+      await spend(h, 190)
+      const error = await garminProvider
+        .listWellness?.('2026-01-01', '2026-10-22', h.ctx)
+        .catch((e: unknown) => e)
+      expect(error).toBeInstanceOf(WellnessTruncated)
+      expect(error).toBeInstanceOf(RateLimitPause)
+      const truncated = error as WellnessTruncated
+      expect(truncated.daysRead).toBe(10)
+      expect(truncated.daysTotal).toBe(30)
+      expect(truncated.retryAfterSec).toBe(3600)
+      // The ten newest days, ascending: 13 to 22 October.
+      expect(truncated.rows.map((r) => r.date)).toEqual(
+        Array.from({ length: 10 }, (_, i) => `2026-10-${String(13 + i)}`),
+      )
+    })
+
+    it('reads zero days when activities used the whole budget', async () => {
+      const h = makeCtx(routes('one'), { secret: secretFor('truncnone') })
+      await spend(h, 200)
+      const error = (await garminProvider
+        .listWellness?.('2026-10-01', '2026-10-22', h.ctx)
+        .catch((e: unknown) => e)) as WellnessTruncated
+      expect(error).toBeInstanceOf(WellnessTruncated)
+      expect(error.rows).toEqual([])
+      expect(error.daysRead).toBe(0)
+      expect(error.daysTotal).toBe(22)
+    })
+
+    it('does not count a day that was cut off between its two requests', async () => {
+      const h = makeCtx(routes('two'), { secret: secretFor('trunchalf') })
+      await spend(h, 199)
+      const error = (await garminProvider
+        .listWellness?.('2026-10-20', '2026-10-22', h.ctx)
+        .catch((e: unknown) => e)) as WellnessTruncated
+      expect(error).toBeInstanceOf(WellnessTruncated)
+      expect(error.daysRead).toBe(0)
+      expect(error.daysTotal).toBe(3)
+      expect(error.rows).toEqual([])
+    })
+
+    it('returns the whole window when the budget lasts', async () => {
+      const h = makeCtx(routes('one'), { secret: secretFor('truncfull') })
+      await spend(h, 100)
+      const days = await garminProvider.listWellness?.('2026-10-01', '2026-10-22', h.ctx)
+      expect(days).toHaveLength(22)
+    })
   })
 })

@@ -7,11 +7,12 @@ import type { Deps } from '../app.ts'
 import { notFound, parse } from '../errors.ts'
 import { toPredictionLogEntry } from '../serialize.ts'
 import { gatherEngineInput } from '../services/engineInput.ts'
+import { newestPerWeek } from '../services/predictionLog.ts'
 
 const LOG_LIMIT = 50
 const query = z.object({ goalId: z.string().min(1) })
 
-/** GET /api/predictions?goalId: the latest prediction and its log. */
+/** GET /api/predictions?goalId: the latest prediction and its log, one entry per week. */
 export function predictionsRouter(deps: Deps): Router {
   const { prisma } = deps
   const router = Router()
@@ -20,11 +21,10 @@ export function predictionsRouter(deps: Deps): Router {
     const { goalId } = parse(query, req.query)
     const goal = await prisma.goal.findFirst({ where: { id: goalId, userId: req.userId } })
     if (!goal) throw notFound('Goal not found.')
-    const log = await prisma.predictionLog.findMany({
-      where: { userId: req.userId, goalId },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: LOG_LIMIT,
-    })
+    // A goal logs about one row a week, but weeks from before the weekly log hold several: all of
+    // the goal's rows load, and each week collapses to its newest row before the page is cut.
+    const rows = await prisma.predictionLog.findMany({ where: { userId: req.userId, goalId } })
+    const log = newestPerWeek(rows).slice(0, LOG_LIMIT)
     // A goal without a distance has nothing to predict.
     const prediction =
       goal.distanceM === null

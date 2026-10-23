@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import type { IntegrationStatus } from '../../shared/types.ts'
+import type { IntegrationStatus, SyncRunView } from '../../shared/types.ts'
 import { invalidateActivityData } from './activities.ts'
 import { api, keys } from './client.ts'
 
@@ -10,6 +10,7 @@ export type ConnectResult = IntegrationStatus & { authorizeUrl?: string }
 function invalidateSyncData(queryClient: QueryClient): Promise<unknown> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: [keys.integrations] }),
+    queryClient.invalidateQueries({ queryKey: [keys.syncRuns] }),
     queryClient.invalidateQueries({ queryKey: [keys.imports] }),
     queryClient.invalidateQueries({ queryKey: [keys.wellness] }),
     invalidateActivityData(queryClient),
@@ -61,6 +62,18 @@ export function useIntegrations() {
       }
       return Object.keys(open).length > 0 ? SYNC_POLL_MS : false
     },
+  })
+}
+
+/**
+ * A provider's recent runs, newest first (both directions on one list). Nothing is fetched until
+ * `enabled`: the history is read when the owner first opens it.
+ */
+export function useSyncRuns(provider: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [keys.syncRuns, provider],
+    queryFn: () => api<SyncRunView[]>('GET', `/integrations/${encodeURIComponent(provider)}/runs`),
+    enabled,
   })
 }
 

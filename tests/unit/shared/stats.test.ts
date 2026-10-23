@@ -3,10 +3,11 @@ import {
   fastestEfforts,
   longestRuns,
   monthlyTotals,
+  statsOf,
   yearlyTotals,
 } from '../../../shared/domain/stats.ts'
 import type { Activity } from '../../../shared/types.ts'
-import { makeActivity } from '../../factories.ts'
+import { makeActivity, makeActivityCore } from '../../factories.ts'
 
 const run = (distanceM: number | null, durationSec: number, over: Partial<Activity> = {}) =>
   makeActivity({ type: 'run', distanceM, durationSec, ...over })
@@ -163,4 +164,65 @@ test('empty input gives empty arrays', () => {
   expect(monthlyTotals([])).toEqual([])
   expect(yearlyTotals([])).toEqual([])
   expect(longestRuns([])).toEqual([])
+})
+
+describe('rows of six columns', () => {
+  // The server loads these six columns instead of whole activities; every statistic reads no more.
+  test('feed the efforts, the totals and the longest runs', () => {
+    const rows = [
+      makeActivityCore({ id: 'fast', durationSec: 1500 }),
+      makeActivityCore({ id: 'slow', durationSec: 1700, date: '2026-03-09' }),
+      makeActivityCore({ id: 'dup', durationSec: 1000, duplicateStatus: 'possible' }),
+    ]
+    expect(fastestEfforts(rows).map((e) => [e.label, e.activityId])).toEqual([['5K', 'fast']])
+    expect(monthlyTotals(rows)).toEqual([
+      { month: '2026-03', runMin: 53, runM: 10000, runs: 2, longestRunMin: 28 },
+    ])
+    expect(yearlyTotals(rows)).toHaveLength(1)
+    expect(longestRuns(rows).map((r) => r.id)).toEqual(['slow', 'fast'])
+  })
+})
+
+describe('statsOf', () => {
+  const rows = [
+    makeActivityCore({ id: 'b', date: '2026-02-03', durationSec: 1380, distanceM: 5050 }),
+    makeActivityCore({ id: 'a', date: '2026-02-03', durationSec: 1380, distanceM: 5050 }),
+    makeActivityCore({ id: 'c', date: '2026-01-10', durationSec: 6000, distanceM: 21_200 }),
+    makeActivityCore({ id: 'd', date: '2025-11-02', durationSec: 1500, distanceM: 5000 }),
+    makeActivityCore({
+      id: 'e',
+      date: '2026-02-20',
+      durationSec: 9000,
+      duplicateStatus: 'possible',
+    }),
+    makeActivityCore({ id: 'f', date: '2026-02-22', type: 'strength', distanceM: null }),
+  ]
+
+  test('is the four statistics of the same rows', () => {
+    expect(statsOf(rows)).toEqual({
+      monthly: monthlyTotals(rows),
+      yearly: yearlyTotals(rows),
+      efforts: fastestEfforts(rows),
+      longest: longestRuns(rows),
+    })
+  })
+
+  test('does not depend on the order the rows arrive in, ties included', () => {
+    const forward = statsOf(rows)
+    expect(statsOf([...rows].reverse())).toEqual(forward)
+    expect(statsOf([rows[3]!, rows[0]!, rows[5]!, rows[1]!, rows[4]!, rows[2]!])).toEqual(forward)
+    // Two runs tie on pace and date; the smaller id is the one named, whatever came first.
+    expect(forward.efforts.find((e) => e.label === '5K')?.activityId).toBe('a')
+    expect(forward.longest.map((r) => r.id)).toEqual(['c', 'd', 'a', 'b'])
+  })
+
+  test('is empty for no rows', () => {
+    expect(statsOf([])).toEqual({ monthly: [], yearly: [], efforts: [], longest: [] })
+  })
+
+  test('leaves its input alone, so a frozen history can be read', () => {
+    const frozen = Object.freeze(rows.map((row) => Object.freeze({ ...row })))
+    expect(() => statsOf([...frozen])).not.toThrow()
+    expect(() => statsOf(frozen as unknown as typeof rows)).not.toThrow()
+  })
 })
